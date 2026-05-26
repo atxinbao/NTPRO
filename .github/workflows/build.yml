@@ -106,7 +106,12 @@ jobs:
         if: github.event_name == 'pull_request'
         run: echo "CARGO_BUILD_JOBS=2" >> "$GITHUB_ENV"
 
-      - name: Run pre-commit
+      - name: Run pre-commit on PR diff
+        if: github.event_name == 'pull_request'
+        run: prek run --from-ref "$CHANGED_BASE_SHA" --to-ref HEAD
+
+      - name: Run pre-commit on all files
+        if: github.event_name != 'pull_request'
         run: prek run --all-files
 
       - name: Verify capnp schemas are up-to-date
