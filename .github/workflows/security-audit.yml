@@ -125,6 +125,7 @@ jobs:
             > zizmor.sarif
 
       - name: Upload zizmor SARIF
+        continue-on-error: true
         if: >-
           always() &&
           hashFiles('zizmor.sarif') != '' &&
