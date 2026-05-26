@@ -1,0 +1,18 @@
+name: Rust Cutover Smoke
+
+on:
+  pull_request:
+    branches: [develop, rust-only-cutover-agentflow]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Fast verification
+        run: scripts/ai/verify_fast.sh
+      - name: Golden trace schema smoke
+        run: python scripts/ai/golden_trace_runner.py tests/golden/schema_smoke.jsonl --mode validate-only
+      - name: Rust-only runtime smoke
+        run: scripts/ai/check_rust_only_runtime.sh
