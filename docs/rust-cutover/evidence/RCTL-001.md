@@ -40,7 +40,7 @@ PATH="/opt/homebrew/opt/rustup/bin:$PATH" scripts/ai/verify_fast.sh
 - Branch `ai/RCTL-001-install-rust-contract` was created.
 - Lease was claimed at `.agentflow/leases/RCTL-001.json`.
 - `verify_fast.sh`: passed with `PATH="/opt/homebrew/opt/rustup/bin:$PATH"`.
-  - `cargo fmt --check` completed; stable rustfmt emitted warnings for unstable import grouping settings.
+  - `cargo fmt --check` completed without unstable rustfmt configuration warnings after removing nightly-only import grouping settings.
   - `cargo check --workspace --features arrow,ffi,high-precision,streaming,defi` completed.
   - clippy was skipped by script default (`VERIFY_FAST_CLIPPY=0`).
 
