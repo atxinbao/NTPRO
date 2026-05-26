@@ -18,7 +18,7 @@ concurrency:
 env:
   # Fork PRs lack repo/org vars, so audit instead of block.
   EGRESS_POLICY: >-
-    ${{ github.event.pull_request.head.repo.fork && 'audit'
+    ${{ github.event_name == 'pull_request' && 'audit'
     || vars.STEP_SECURITY_EGRESS_POLICY
     || 'block' }}
 
@@ -53,19 +53,20 @@ jobs:
         run: bash scripts/ci/plan.sh
 
   pre-commit:
-    # Fork PRs stay GitHub-hosted.
+    # Pull requests in the standalone NTPRO repository run on GitHub-hosted
+    # runners because the upstream self-hosted runner labels are unavailable.
     runs-on: >-
-      ${{ github.event.pull_request.head.repo.fork
+      ${{ github.event_name == 'pull_request'
       && 'ubuntu-22.04'
       || fromJson('["self-hosted", "Linux", "X64", "build"]') }}
     env:
-      # Self-hosted keeps Rust artifacts outside the workspace.
+      # Self-hosted push jobs keep Rust artifacts outside the workspace.
       CARGO_TARGET_DIR: >-
-        ${{ github.event.pull_request.head.repo.fork
+        ${{ github.event_name == 'pull_request'
         && format('{0}/target', github.workspace)
         || '/home/runner/.cache/cargo-target/pre-commit' }}
       CARGO_CI_PROFILE: >-
-        ${{ github.event.pull_request.head.repo.fork && 'ci-pr' || 'nextest' }}
+        ${{ github.event_name == 'pull_request' && 'ci-pr' || 'nextest' }}
       # Scopes incremental clippy/doc checks; empty for non-PR/push events.
       CHANGED_BASE_SHA: >-
         ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -99,10 +100,10 @@ jobs:
           free-disk-space: "true"
           build-type: "pre-commit"
           rust-cache-enabled: >-
-            ${{ github.event.pull_request.head.repo.fork && 'true' || 'false' }}
+            ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
 
       - name: Limit Cargo build jobs on GitHub-hosted runners
-        if: github.event.pull_request.head.repo.fork
+        if: github.event_name == 'pull_request'
         run: echo "CARGO_BUILD_JOBS=2" >> "$GITHUB_ENV"
 
       - name: Run pre-commit
