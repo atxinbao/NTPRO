@@ -1,0 +1,14 @@
+{
+  "task_id": "RCTL-005",
+  "agent_id": "Codex",
+  "branch": "ai/RCTL-005-scope-decision-log",
+  "touched_paths": [
+    "docs/rust-cutover/scope/SCOPE_DECISIONS.md",
+    "docs/rust-cutover/evidence/RCTL-005.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCTL-005.json"
+  ],
+  "claimed_at": "2026-05-27T03:20:13.123119+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-27T03:23:02.779009+00:00"
+}
