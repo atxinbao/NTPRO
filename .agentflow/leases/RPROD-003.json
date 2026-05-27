@@ -1,0 +1,14 @@
+{
+  "task_id": "RPROD-003",
+  "agent_id": "Codex",
+  "branch": "ai/RPROD-003-define-backtest-run-cli-contract",
+  "touched_paths": [
+    "docs/rust-cutover/product/BACKTEST_CLI_CONTRACT.md",
+    "docs/rust-cutover/evidence/RPROD-003.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RPROD-003.json"
+  ],
+  "claimed_at": "2026-05-27T16:58:23.236842+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-27T16:59:46.952310+00:00"
+}
