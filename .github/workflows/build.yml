@@ -5,10 +5,9 @@ permissions: # Principle of least privilege
   actions: read
 
 on:
+  workflow_dispatch:
   push:
     branches: [master, nightly, develop, test-ci, test-pre-commit]
-  pull_request:
-    branches-ignore: [master, nightly]
 
 concurrency:
   # yamllint disable-line rule:line-length
