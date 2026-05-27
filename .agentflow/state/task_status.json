@@ -1,0 +1,1438 @@
+{
+  "schema_version": 1,
+  "project": "NTPRO",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-27T01:47:42Z",
+  "state_machine": [
+    "TODO",
+    "READY",
+    "LEASED",
+    "RUNNING",
+    "PR_OPEN",
+    "QA_REQUIRED",
+    "QA_PASSED",
+    "QA_FAILED",
+    "NEEDS_CHANGES",
+    "BLOCKED",
+    "REVIEW_REQUIRED",
+    "MERGED",
+    "DONE",
+    "SCOPE_DECISION_REQUIRED",
+    "DEFERRED_BY_SCOPE_DECISION",
+    "FAILED",
+    "CANCELLED",
+    "SUPERSEDED"
+  ],
+  "tasks": {
+    "RADP-001": {
+      "title": "Inventory Rust adapter gaps for Binance",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-001.md"
+    },
+    "RADP-002": {
+      "title": "Add Rust adapter fixtures for Binance",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-002.md"
+    },
+    "RADP-003": {
+      "title": "Close Rust adapter gaps for Binance",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-003.md"
+    },
+    "RADP-004": {
+      "title": "Inventory Rust adapter gaps for Bybit OKX Kraken",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-004.md"
+    },
+    "RADP-005": {
+      "title": "Add Rust adapter fixtures for Bybit OKX Kraken",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-005.md"
+    },
+    "RADP-006": {
+      "title": "Close Rust adapter gaps for Bybit OKX Kraken",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-006.md"
+    },
+    "RADP-007": {
+      "title": "Inventory Rust adapter gaps for Coinbase BitMEX",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-007.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-007.md"
+    },
+    "RADP-008": {
+      "title": "Add Rust adapter fixtures for Coinbase BitMEX",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-008.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-008.md"
+    },
+    "RADP-009": {
+      "title": "Close Rust adapter gaps for Coinbase BitMEX",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-009.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-009.md"
+    },
+    "RADP-010": {
+      "title": "Inventory Rust adapter gaps for Deribit dYdX Hyperliquid",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-010.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-010.md"
+    },
+    "RADP-011": {
+      "title": "Add Rust adapter fixtures for Deribit dYdX Hyperliquid",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-011.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-011.md"
+    },
+    "RADP-012": {
+      "title": "Close Rust adapter gaps for Deribit dYdX Hyperliquid",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-012.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-012.md"
+    },
+    "RADP-013": {
+      "title": "Inventory Rust adapter gaps for Databento Tardis",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-013.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-013.md"
+    },
+    "RADP-014": {
+      "title": "Add Rust adapter fixtures for Databento Tardis",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-014.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-014.md"
+    },
+    "RADP-015": {
+      "title": "Close Rust adapter gaps for Databento Tardis",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-015.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-015.md"
+    },
+    "RADP-016": {
+      "title": "Inventory Rust adapter gaps for Interactive Brokers",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-016.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-016.md"
+    },
+    "RADP-017": {
+      "title": "Add Rust adapter fixtures for Interactive Brokers",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-017.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-017.md"
+    },
+    "RADP-018": {
+      "title": "Close Rust adapter gaps for Interactive Brokers",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-018.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-018.md"
+    },
+    "RADP-019": {
+      "title": "Inventory Rust adapter gaps for Betfair Architect AX",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-019.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-019.md"
+    },
+    "RADP-020": {
+      "title": "Add Rust adapter fixtures for Betfair Architect AX",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-020.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-020.md"
+    },
+    "RADP-021": {
+      "title": "Close Rust adapter gaps for Betfair Architect AX",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-021.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-021.md"
+    },
+    "RADP-022": {
+      "title": "Inventory Rust adapter gaps for Polymarket Sandbox",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-022.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-022.md"
+    },
+    "RADP-023": {
+      "title": "Add Rust adapter fixtures for Polymarket Sandbox",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-023.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-023.md"
+    },
+    "RADP-024": {
+      "title": "Close Rust adapter gaps for Polymarket Sandbox",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RADP-024.md",
+      "evidence_file": "docs/rust-cutover/evidence/RADP-024.md"
+    },
+    "RBTL-001": {
+      "title": "Inventory Rust backtest runtime gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RBTL-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-001.md"
+    },
+    "RBTL-002": {
+      "title": "Add Rust BacktestNode smoke",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RBTL-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-002.md"
+    },
+    "RBTL-003": {
+      "title": "Close Rust backtest data/catalog gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RBTL-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-003.md"
+    },
+    "RBTL-004": {
+      "title": "Close Rust backtest result/report gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RBTL-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-004.md"
+    },
+    "RBTL-005": {
+      "title": "Inventory Rust live node gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RBTL-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-005.md"
+    },
+    "RBTL-006": {
+      "title": "Add Rust LiveNode lifecycle smoke",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RBTL-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-006.md"
+    },
+    "RBTL-007": {
+      "title": "Close Rust live config/client gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RBTL-007.md",
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-007.md"
+    },
+    "RBTL-008": {
+      "title": "Add Rust sandbox execution smoke",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RBTL-008.md",
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-008.md"
+    },
+    "RBTL-009": {
+      "title": "Prove backtest/live semantic parity",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RBTL-009.md",
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-009.md"
+    },
+    "RBTL-010": {
+      "title": "Publish backtest/live gate evidence",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RBTL-010.md",
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-010.md"
+    },
+    "RCORE-001": {
+      "title": "Inventory Rust core/model value types gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-001.md"
+    },
+    "RCORE-002": {
+      "title": "Add Rust tests for core/model value types",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-002.md"
+    },
+    "RCORE-003": {
+      "title": "Close Rust core/model value types gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-003.md"
+    },
+    "RCORE-004": {
+      "title": "Inventory Rust serialization/data/persistence gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-004.md"
+    },
+    "RCORE-005": {
+      "title": "Add Rust tests for serialization/data/persistence",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-005.md"
+    },
+    "RCORE-006": {
+      "title": "Close Rust serialization/data/persistence gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-006.md"
+    },
+    "RCORE-007": {
+      "title": "Inventory Rust common cache/message bus/component lifecycle gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-007.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-007.md"
+    },
+    "RCORE-008": {
+      "title": "Add Rust tests for common cache/message bus/component lifecycle",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-008.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-008.md"
+    },
+    "RCORE-009": {
+      "title": "Close Rust common cache/message bus/component lifecycle gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-009.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-009.md"
+    },
+    "RCORE-010": {
+      "title": "Inventory Rust execution/risk/order lifecycle gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-010.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-010.md"
+    },
+    "RCORE-011": {
+      "title": "Add Rust tests for execution/risk/order lifecycle",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-011.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-011.md"
+    },
+    "RCORE-012": {
+      "title": "Close Rust execution/risk/order lifecycle gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-012.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-012.md"
+    },
+    "RCORE-013": {
+      "title": "Inventory Rust portfolio/accounting/PnL gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-013.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-013.md"
+    },
+    "RCORE-014": {
+      "title": "Add Rust tests for portfolio/accounting/PnL",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-014.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-014.md"
+    },
+    "RCORE-015": {
+      "title": "Close Rust portfolio/accounting/PnL gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-015.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-015.md"
+    },
+    "RCORE-016": {
+      "title": "Inventory Rust trading strategy and algorithm API gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-016.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-016.md"
+    },
+    "RCORE-017": {
+      "title": "Add Rust tests for trading strategy and algorithm API",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-017.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-017.md"
+    },
+    "RCORE-018": {
+      "title": "Close Rust trading strategy and algorithm API gaps",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCORE-018.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-018.md"
+    },
+    "RCTL-001": {
+      "title": "Install Rust-only contract and Definition of Done",
+      "status": "DONE",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCTL-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCTL-001.md"
+    },
+    "RCTL-002": {
+      "title": "Install Rust-first verification scripts",
+      "status": "DONE",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCTL-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCTL-002.md"
+    },
+    "RCTL-003": {
+      "title": "Install task execution and lease protocol",
+      "status": "RUNNING",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCTL-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCTL-003.md"
+    },
+    "RCTL-004": {
+      "title": "Inventory current Rust product surface",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCTL-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCTL-004.md"
+    },
+    "RCTL-005": {
+      "title": "Create Rust-only scope decision log",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCTL-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCTL-005.md"
+    },
+    "RCTL-006": {
+      "title": "Install PR and issue templates",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCTL-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCTL-006.md"
+    },
+    "RCTL-007": {
+      "title": "Write bootstrap evidence",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCTL-007.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCTL-007.md"
+    },
+    "RCTL-008": {
+      "title": "Validate overlay and task graph",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCTL-008.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCTL-008.md"
+    },
+    "RPROD-001": {
+      "title": "Define Rust CLI command contract",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RPROD-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-001.md"
+    },
+    "RPROD-002": {
+      "title": "Add Rust CLI help and version smoke",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RPROD-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-002.md"
+    },
+    "RPROD-003": {
+      "title": "Define backtest run CLI contract",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RPROD-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-003.md"
+    },
+    "RPROD-004": {
+      "title": "Implement or close backtest CLI entrypoint gaps",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RPROD-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-004.md"
+    },
+    "RPROD-005": {
+      "title": "Define live or sandbox run CLI contract",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RPROD-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-005.md"
+    },
+    "RPROD-006": {
+      "title": "Implement or close live/sandbox CLI entrypoint gaps",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RPROD-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-006.md"
+    },
+    "RPROD-007": {
+      "title": "Define data/catalog CLI contract",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RPROD-007.md",
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-007.md"
+    },
+    "RPROD-008": {
+      "title": "Implement or close data/catalog CLI gaps",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RPROD-008.md",
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-008.md"
+    },
+    "RPROD-009": {
+      "title": "Add Rust config validation command",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RPROD-009.md",
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-009.md"
+    },
+    "RPROD-010": {
+      "title": "Add Rust examples layout",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RPROD-010.md",
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-010.md"
+    },
+    "RPROD-011": {
+      "title": "Add Rust backtest example smoke",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RPROD-011.md",
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-011.md"
+    },
+    "RPROD-012": {
+      "title": "Add Rust live or sandbox example smoke",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RPROD-012.md",
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-012.md"
+    },
+    "RPROD-013": {
+      "title": "Generate or validate Rust documentation",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RPROD-013.md",
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-013.md"
+    },
+    "RPROD-014": {
+      "title": "Publish Rust product surface report",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RPROD-014.md",
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-014.md"
+    },
+    "RREL-001": {
+      "title": "Write Rust-only migration guide",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREL-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREL-001.md"
+    },
+    "RREL-002": {
+      "title": "Write Rust-only release notes",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREL-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREL-002.md"
+    },
+    "RREL-003": {
+      "title": "Review all scope decisions",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREL-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREL-003.md"
+    },
+    "RREL-004": {
+      "title": "Generate final completion report",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREL-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREL-004.md"
+    },
+    "RREL-005": {
+      "title": "Prepare release candidate tag plan",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREL-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREL-005.md"
+    },
+    "RREL-006": {
+      "title": "Run final Rust-only release verification",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREL-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREL-006.md"
+    },
+    "RREL-007": {
+      "title": "Prepare human owner signoff packet",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREL-007.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREL-007.md"
+    },
+    "RREL-008": {
+      "title": "Mark Rust-only cutover complete",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREL-008.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREL-008.md"
+    },
+    "RREM-001": {
+      "title": "Inventory Python product surfaces",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-001.md"
+    },
+    "RREM-002": {
+      "title": "Inventory PyO3 product surfaces",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-002.md"
+    },
+    "RREM-003": {
+      "title": "Inventory Cython source and build surfaces",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-003.md"
+    },
+    "RREM-004": {
+      "title": "Map Python workflows to Rust workflows",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-004.md"
+    },
+    "RREM-005": {
+      "title": "Port or scope Python-only tests",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-005.md"
+    },
+    "RREM-006": {
+      "title": "Stage removal of Python package surfaces",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-006.md"
+    },
+    "RREM-007": {
+      "title": "Stage removal of PyO3 surfaces",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-007.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-007.md"
+    },
+    "RREM-008": {
+      "title": "Remove Cython source and stale build config",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-008.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-008.md"
+    },
+    "RREM-009": {
+      "title": "Run Rust-only runtime gate",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-009.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-009.md"
+    },
+    "RREM-010": {
+      "title": "Final Rust-only removal gate",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-010.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-010.md"
+    },
+    "RTRACE-001": {
+      "title": "Define Rust golden trace schema",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RTRACE-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/RTRACE-001.md"
+    },
+    "RTRACE-002": {
+      "title": "Capture market data trace fixtures",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RTRACE-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/RTRACE-002.md"
+    },
+    "RTRACE-003": {
+      "title": "Capture order lifecycle trace fixtures",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RTRACE-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/RTRACE-003.md"
+    },
+    "RTRACE-004": {
+      "title": "Add Rust golden trace runner harness",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RTRACE-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/RTRACE-004.md"
+    },
+    "RTRACE-005": {
+      "title": "Bind backtest replay trace",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RTRACE-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/RTRACE-005.md"
+    },
+    "RTRACE-006": {
+      "title": "Bind live/sandbox lifecycle trace",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RTRACE-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/RTRACE-006.md"
+    },
+    "RTRACE-007": {
+      "title": "Bind adapter payload trace fixtures",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RTRACE-007.md",
+      "evidence_file": "docs/rust-cutover/evidence/RTRACE-007.md"
+    },
+    "RTRACE-008": {
+      "title": "Publish golden trace gate evidence",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RTRACE-008.md",
+      "evidence_file": "docs/rust-cutover/evidence/RTRACE-008.md"
+    }
+  }
+}

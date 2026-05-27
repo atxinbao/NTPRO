@@ -1,0 +1,62 @@
+schema_version: 1
+project: NTPRO
+generated_by: Codex
+generated_at: 2026-05-27
+
+gates:
+  all_code_tasks_require_qa: true
+  owner_cannot_review_own_task: true
+  blocked_is_not_done: true
+  qa_passed_is_not_done: true
+  done_requires:
+    - qa_passed
+    - review_passed
+    - pr_merged
+
+scope_decision_required_for:
+  - python_api_removal
+  - pyo3_removal
+  - cython_removal
+  - adapter_removal
+  - release_contract_change
+  - task_graph_gate_change
+
+release_gatekeeper_required_for:
+  risk_levels:
+    - high
+    - critical
+  paths:
+    - Cargo.toml
+    - Cargo.lock
+    - pyproject.toml
+    - build.py
+    - crates/pyo3/**
+    - python/**
+    - nautilus_trader/**
+    - .github/workflows/**
+
+auto_merge_allowed_for:
+  - risk_level: low
+    requires:
+      - qa_passed
+      - ci_green
+      - no_forbidden_paths_changed
+
+auto_merge_forbidden_for:
+  risk_levels:
+    - high
+    - critical
+  task_patterns:
+    - RREM-*
+    - RREL-*
+    - NREM-*
+    - NREL-*
+    - NGATE-*
+
+critical_removal_requires:
+  - rust_only_route_approved
+  - rust_product_surface_ready
+  - runtime_smoke_passed
+  - adapter_decisions_recorded
+  - qa_gate_passed
+  - release_gatekeeper_approved
