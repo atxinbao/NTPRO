@@ -1,0 +1,16 @@
+{
+  "task_id": "RCTL-008",
+  "agent_id": "Codex",
+  "branch": "ai/RCTL-008-pr-autodispatch",
+  "touched_paths": [
+    "scripts/control/close_merged_pr.py",
+    "scripts/control/dispatch_next.py",
+    "docs/rust-cutover/automation/PR_AUTODISPATCH.md",
+    "docs/rust-cutover/evidence/RCTL-008.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCTL-008.json"
+  ],
+  "claimed_at": "2026-05-27T16:08:40.979758+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-27T16:15:52.139559+00:00"
+}
