@@ -782,7 +782,7 @@
     },
     "RCTL-003": {
       "title": "Install task execution and lease protocol",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -792,11 +792,13 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCTL-003.md",
-      "evidence_file": "docs/rust-cutover/evidence/RCTL-003.md"
+      "evidence_file": "docs/rust-cutover/evidence/RCTL-003.md",
+      "completed_at": "2026-05-27T01:53:51Z",
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/5"
     },
     "RCTL-004": {
       "title": "Inventory current Rust product surface",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -806,7 +808,10 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCTL-004.md",
-      "evidence_file": "docs/rust-cutover/evidence/RCTL-004.md"
+      "evidence_file": "docs/rust-cutover/evidence/RCTL-004.md",
+      "started_at": "2026-05-27T02:22:26Z",
+      "branch": "ai/RCTL-004-rust-product-surface-inventory",
+      "lease": ".agentflow/leases/RCTL-004.json"
     },
     "RCTL-005": {
       "title": "Create Rust-only scope decision log",
@@ -1434,5 +1439,6 @@
       "source_task_file": "docs/rust-cutover/tasks/RTRACE-008.md",
       "evidence_file": "docs/rust-cutover/evidence/RTRACE-008.md"
     }
-  }
+  },
+  "updated_at": "2026-05-27T02:22:26Z"
 }

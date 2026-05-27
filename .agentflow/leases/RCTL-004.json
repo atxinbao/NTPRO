@@ -1,0 +1,14 @@
+{
+  "task_id": "RCTL-004",
+  "agent_id": "Codex",
+  "branch": "ai/RCTL-004-rust-product-surface-inventory",
+  "touched_paths": [
+    "docs/rust-cutover/inventory/RUST_PRODUCT_SURFACE.md",
+    "docs/rust-cutover/evidence/RCTL-004.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCTL-004.json"
+  ],
+  "claimed_at": "2026-05-27T02:14:03.732962+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-27T02:26:19.238270+00:00"
+}
