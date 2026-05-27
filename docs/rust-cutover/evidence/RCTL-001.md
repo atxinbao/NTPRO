@@ -44,6 +44,16 @@ PATH="/opt/homebrew/opt/rustup/bin:$PATH" scripts/ai/verify_fast.sh
   - `cargo check --workspace --features arrow,ffi,high-precision,streaming,defi` completed.
   - clippy was skipped by script default (`VERIFY_FAST_CLIPPY=0`).
 
+## CI Follow-up
+
+Date: 2026-05-27 08:14:00 CST
+Executor: Codex
+
+- Narrowed default PR smoke for the Rust-first removal phase.
+- `scripts/ai/verify_fast.sh` now skips the legacy mixed-workspace `cargo check --workspace` by default.
+- Full workspace cargo check remains available with `VERIFY_FAST_CARGO_CHECK=1 scripts/ai/verify_fast.sh`.
+- The default fast gate still verifies `cargo` availability and `cargo fmt --check`.
+
 ## Tests Added or Updated
 
 No tests were added or updated. RCTL-001 is a control-plane documentation/evidence task.
