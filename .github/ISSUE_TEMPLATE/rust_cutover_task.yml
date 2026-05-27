@@ -1,0 +1,43 @@
+name: Rust cutover task
+description: Controlled Rust v2 cutover task
+title: "[Rust Cutover] <task-id>: <title>"
+labels: ["rust-cutover", "agent-ready"]
+body:
+  - type: input
+    id: task_id
+    attributes:
+      label: Task ID
+      placeholder: M0-001
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Files/directories allowed to change.
+    validations:
+      required: true
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Non-goals
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: commands
+    attributes:
+      label: Required commands
+    validations:
+      required: true
