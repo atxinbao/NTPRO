@@ -13,6 +13,7 @@ Before any change, read:
 - `docs/rust-cutover/CONTRACT.md`
 - `docs/rust-cutover/DEFINITION_OF_DONE.md`
 - `docs/rust-cutover/TASK_EXECUTION.md`
+- `docs/rust-cutover/AGENT_ROLES.md`
 - the task file under `docs/rust-cutover/tasks/`
 
 ## Hard rules

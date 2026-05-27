@@ -1,0 +1,111 @@
+schema_version: 1
+project: NTPRO
+generated_by: Codex
+generated_at: 2026-05-27
+
+path_scope:
+  control_scope_agent:
+    may_modify:
+      - .agentflow/**
+      - backlog/**
+      - state/**
+      - scripts/control/**
+      - docs/architecture/**
+      - docs/rust-cutover/**
+      - NTPRO_CONTRACT.md
+    may_not_modify:
+      - crates/**
+      - python/**
+      - nautilus_trader/**
+      - crates/pyo3/**
+      - pyproject.toml
+      - build.py
+      - Cargo.toml
+      - Cargo.lock
+
+  rust_product_surface_agent:
+    may_modify:
+      - crates/cli/**
+      - crates/**/src/**
+      - examples/**
+      - docs/**
+      - tests/**
+      - README.md
+      - Cargo.toml
+      - Cargo.lock
+    may_not_modify:
+      - backlog/**
+      - state/**
+      - .agentflow/policies/**
+      - python/**
+      - nautilus_trader/**
+      - crates/pyo3/**
+      - pyproject.toml
+      - build.py
+
+  rust_core_runtime_agent:
+    may_modify:
+      - crates/backtest/**
+      - crates/live/**
+      - crates/trading/**
+      - crates/common/**
+      - crates/core/**
+      - crates/data/**
+      - crates/execution/**
+      - crates/risk/**
+      - crates/portfolio/**
+      - crates/model/**
+      - crates/persistence/**
+      - crates/system/**
+      - tests/**
+    may_not_modify:
+      - backlog/**
+      - state/**
+      - .agentflow/policies/**
+      - docs/release/**
+      - python/**
+      - nautilus_trader/**
+      - crates/pyo3/**
+
+  adapter_integration_agent:
+    may_modify:
+      - crates/adapters/**
+      - crates/network/**
+      - crates/infrastructure/**
+      - crates/persistence/**
+      - crates/serialization/**
+      - docs/integrations/**
+      - tests/integration/**
+      - examples/adapters/**
+    may_not_modify:
+      - backlog/**
+      - state/**
+      - .agentflow/policies/**
+      - crates/core/**
+      - crates/pyo3/**
+      - python/**
+      - nautilus_trader/**
+
+  verification_release_gatekeeper:
+    may_modify:
+      - tests/**
+      - tests/golden/**
+      - scripts/ai/**
+      - scripts/verify/**
+      - .github/workflows/**
+      - docs/testing/**
+      - docs/release/**
+      - release/**
+      - CHANGELOG*
+      - MIGRATION*
+    may_not_modify:
+      - crates/backtest/**
+      - crates/live/**
+      - crates/trading/**
+      - crates/data/**
+      - crates/execution/**
+      - crates/risk/**
+      - crates/portfolio/**
+      - crates/adapters/**
+      - .agentflow/state/**
+      - docs/rust-cutover/scope/**

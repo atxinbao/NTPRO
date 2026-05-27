@@ -1,0 +1,78 @@
+schema_version: 1
+project: NTPRO
+generated_by: Codex
+generated_at: 2026-05-27
+
+roles:
+  control_scope_agent:
+    purpose: Scope, task graph, leases, gates, and state transitions.
+    owns:
+      - RCTL-*
+      - NCTL-*
+      - NSCOPE-*
+      - NPLAN-*
+    review_role: verification_release_gatekeeper
+    default_risk_level: low
+
+  rust_product_surface_agent:
+    purpose: Rust CLI, API, examples, docs, and user-facing product surface.
+    owns:
+      - RPROD-*
+      - NPROD-*
+      - NCLI-*
+      - NEXAMPLE-*
+      - NDOCS-RUST-*
+    review_role: verification_release_gatekeeper
+    default_risk_level: medium
+
+  rust_core_runtime_agent:
+    purpose: Backtest, live, trading, data, execution, risk, portfolio, model, and runtime lifecycle.
+    owns:
+      - RCORE-*
+      - RBTL-*
+      - RREM-*
+      - NCORE-*
+      - NRUNTIME-*
+      - NBACKTEST-*
+      - NLIVE-*
+      - NENGINE-*
+      - NREM-*
+    review_role: verification_release_gatekeeper
+    default_risk_level: high
+
+  adapter_integration_agent:
+    purpose: Venue adapters, data providers, sandbox, database, DeFi, fixtures, and external integrations.
+    owns:
+      - RADP-*
+      - NADAPT-*
+      - NINTEGRATION-*
+      - NDATA-PROVIDER-*
+      - NEXCHANGE-*
+      - NSANDBOX-*
+      - NDB-*
+      - NDEFI-*
+    review_role: verification_release_gatekeeper
+    default_risk_level: medium
+
+  verification_release_gatekeeper:
+    purpose: QA, golden traces, regression evidence, CI, release, removal gate, and high-risk veto.
+    owns:
+      - RTRACE-*
+      - RREL-*
+      - NQA-*
+      - NTRACE-*
+      - NCI-*
+      - NREL-*
+      - NGATE-*
+    review_role: control_scope_agent
+    default_risk_level: medium
+
+legacy_prefix_mapping:
+  RCTL: control_scope_agent
+  RPROD: rust_product_surface_agent
+  RCORE: rust_core_runtime_agent
+  RBTL: rust_core_runtime_agent
+  RADP: adapter_integration_agent
+  RTRACE: verification_release_gatekeeper
+  RREL: verification_release_gatekeeper
+  RREM: rust_core_runtime_agent

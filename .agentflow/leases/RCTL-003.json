@@ -1,0 +1,20 @@
+{
+  "task_id": "RCTL-003",
+  "agent_id": "Codex",
+  "branch": "ai/RCTL-003-agent-roles-protocol",
+  "touched_paths": [
+    "docs/rust-cutover/AGENT_ROLES.md",
+    "docs/rust-cutover/TASK_EXECUTION.md",
+    "docs/rust-cutover/evidence/RCTL-003.md",
+    ".agentflow/roles.yaml",
+    ".agentflow/policies/gates.yaml",
+    ".agentflow/policies/path_scope.yaml",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCTL-003.json",
+    "scripts/ai/validate_agentflow_roles.py",
+    "AGENTS.md"
+  ],
+  "claimed_at": "2026-05-27T01:39:37.392728+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-27T01:51:01.920178+00:00"
+}
