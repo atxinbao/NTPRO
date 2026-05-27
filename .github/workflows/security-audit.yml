@@ -4,7 +4,7 @@ name: security-audit
 #
 # Triggers:
 #   - Nightly cron and manual dispatch: every audit job runs unconditionally.
-#   - Pushes to develop / master / test-security: GitHub path filters create a
+#   - Pushes to master / test-security: GitHub path filters create a
 #     workflow run only when audit-relevant paths change. The gate job remains as
 #     a second check before the audit jobs run.
 
@@ -17,7 +17,7 @@ env:
 
 on:
   push:
-    branches: [develop, master, test-security]
+    branches: [master, test-security]
     paths:
       - Cargo.lock # Keep in sync with scripts/ci/security-audit-gate.sh.
       - Cargo.toml
