@@ -835,7 +835,7 @@
     },
     "RCTL-006": {
       "title": "Install PR and issue templates",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -846,11 +846,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCTL-006.md",
       "evidence_file": "docs/rust-cutover/evidence/RCTL-006.md",
-      "updated_at": "2026-05-27T04:17:25Z"
+      "updated_at": "2026-05-27T15:02:07Z"
     },
     "RCTL-007": {
       "title": "Write bootstrap evidence",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -860,7 +860,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCTL-007.md",
-      "evidence_file": "docs/rust-cutover/evidence/RCTL-007.md"
+      "evidence_file": "docs/rust-cutover/evidence/RCTL-007.md",
+      "updated_at": "2026-05-27T15:02:07Z"
     },
     "RCTL-008": {
       "title": "Validate overlay and task graph",
