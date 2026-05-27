@@ -2,7 +2,7 @@ name: Rust Cutover Smoke
 
 on:
   pull_request:
-    branches: [develop, rust-only-cutover-agentflow]
+    branches: [main, develop, rust-only-cutover-agentflow]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
