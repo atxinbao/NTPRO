@@ -7,7 +7,7 @@ permissions: # Principle of least privilege
 on:
   workflow_dispatch:
   push:
-    branches: [master, nightly, develop, test-ci, test-pre-commit]
+    branches: [master, nightly, test-ci, test-pre-commit]
 
 concurrency:
   # yamllint disable-line rule:line-length
