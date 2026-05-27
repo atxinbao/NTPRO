@@ -1,5 +1,5 @@
-name: Rust cutover task
-description: Controlled Rust v2 cutover task
+name: NTPRO Rust cutover task
+description: Controlled NTPRO Rust-first cutover task
 title: "[Rust Cutover] <task-id>: <title>"
 labels: ["rust-cutover", "agent-ready"]
 body:
@@ -7,7 +7,43 @@ body:
     id: task_id
     attributes:
       label: Task ID
-      placeholder: M0-001
+      description: Use the canonical task ID from docs/rust-cutover/tasks.
+      placeholder: RCTL-006
+    validations:
+      required: true
+  - type: dropdown
+    id: owner_role
+    attributes:
+      label: Owner role
+      options:
+        - control_scope_agent
+        - rust_product_surface_agent
+        - rust_core_runtime_agent
+        - adapter_integration_agent
+        - verification_release_gatekeeper
+    validations:
+      required: true
+  - type: dropdown
+    id: review_role
+    attributes:
+      label: Review role
+      options:
+        - verification_release_gatekeeper
+        - control_scope_agent
+        - rust_product_surface_agent
+        - rust_core_runtime_agent
+        - adapter_integration_agent
+    validations:
+      required: true
+  - type: dropdown
+    id: risk_level
+    attributes:
+      label: Risk level
+      options:
+        - low
+        - medium
+        - high
+        - critical
     validations:
       required: true
   - type: textarea
@@ -24,9 +60,29 @@ body:
     validations:
       required: true
   - type: textarea
+    id: prohibited_paths
+    attributes:
+      label: Prohibited paths
+      description: Paths that must not change for this task.
+      placeholder: |
+        - crates/**
+        - python/**
+        - nautilus_trader/**
+    validations:
+      required: true
+  - type: textarea
     id: non_goals
     attributes:
       label: Non-goals
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Task IDs, scope decisions, or gates required before work starts.
+      placeholder: |
+        - RCTL-005
     validations:
       required: true
   - type: textarea
@@ -39,5 +95,33 @@ body:
     id: commands
     attributes:
       label: Required commands
+      placeholder: |
+        scripts/ai/verify_fast.sh
     validations:
       required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Required evidence
+      description: Evidence file, command output, test result, and gate artifacts.
+      placeholder: |
+        - docs/rust-cutover/evidence/<TASK_ID>.md
+        - command result summary
+        - behavior impact
+    validations:
+      required: true
+  - type: checkboxes
+    id: gates
+    attributes:
+      label: Gate confirmations
+      options:
+        - label: This issue is one task only.
+          required: true
+        - label: Owner role and review role are different.
+          required: true
+        - label: BLOCKED is not DONE.
+          required: true
+        - label: QA_PASSED is not DONE.
+          required: true
+        - label: Python, PyO3, or Cython removal is not allowed unless a scope decision and release gate explicitly allow it.
+          required: true

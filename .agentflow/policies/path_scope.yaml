@@ -12,6 +12,8 @@ path_scope:
       - scripts/control/**
       - docs/architecture/**
       - docs/rust-cutover/**
+      - .github/pull_request_template.md
+      - .github/ISSUE_TEMPLATE/**
       - NTPRO_CONTRACT.md
     may_not_modify:
       - crates/**

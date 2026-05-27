@@ -817,7 +817,7 @@
     },
     "RCTL-005": {
       "title": "Create Rust-only scope decision log",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -830,11 +830,12 @@
       "evidence_file": "docs/rust-cutover/evidence/RCTL-005.md",
       "started_at": "2026-05-27T03:20:57Z",
       "branch": "ai/RCTL-005-scope-decision-log",
-      "lease": ".agentflow/leases/RCTL-005.json"
+      "lease": ".agentflow/leases/RCTL-005.json",
+      "updated_at": "2026-05-27T04:17:25Z"
     },
     "RCTL-006": {
       "title": "Install PR and issue templates",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -844,7 +845,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCTL-006.md",
-      "evidence_file": "docs/rust-cutover/evidence/RCTL-006.md"
+      "evidence_file": "docs/rust-cutover/evidence/RCTL-006.md",
+      "updated_at": "2026-05-27T04:17:25Z"
     },
     "RCTL-007": {
       "title": "Write bootstrap evidence",

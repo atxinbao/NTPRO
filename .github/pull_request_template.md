@@ -1,45 +1,61 @@
-# Pull Request
+# NTPRO Rust Cutover Pull Request
 
-**NautilusTrader prioritizes correctness and reliability, please follow existing patterns for validation and testing.**
+NTPRO is a Rust-first cutover workspace. Keep every PR bound to one task, one
+lease, one branch, and one review gate.
 
-- [ ] I have reviewed the `CONTRIBUTING.md` and followed the established practices
+## Task
+
+- Task ID:
+- Source task file:
+- Owner role:
+- Review role:
+- Risk level:
+- Branch:
+- Lease file:
 
 ## Summary
 
-<!-- Provide a brief description of *what* changed, *why* it was changed, and the impact on the system or users (2–3 sentences). -->
+<!-- What changed, why it changed, and what behavior is affected. -->
 
-## Related Issues/PRs
+## Files Changed
 
-<!-- List any related GitHub issues or PRs (e.g., `Closes #123`, `Related to #456`). -->
+<!-- List the important changed paths. -->
 
-## Type of change
+## Scope Checklist
 
-<!-- Select all that apply. -->
+- [ ] This PR covers one task only.
+- [ ] Touched paths match the lease and task path scope.
+- [ ] No unrelated refactors or formatting churn.
+- [ ] No forbidden paths were modified.
+- [ ] Python, PyO3, or Cython surfaces were not removed unless an explicit scope
+      decision and release gate allow it.
+- [ ] Trading semantics are unchanged, or golden trace evidence is included.
+- [ ] Adapter behavior is unchanged, or fixture/mock evidence is included.
+- [ ] Public API behavior is unchanged, or migration notes are included.
 
-- [ ] Bug fix (non-breaking)
-- [ ] New feature (non-breaking)
-- [ ] Improvement (non-breaking)
-- [ ] Breaking change (impacts existing behavior)
-- [ ] Documentation update
-- [ ] Maintenance / chore
+## Evidence
 
-## Breaking change details (if applicable)
+- Evidence file:
+- Commands run:
+- Command result summary:
+- Tests added or updated:
+- Tests not run and reason:
 
-<!-- If this is a breaking change, describe the impact and any migration steps required for users or developers. -->
+## Impact
 
-## Documentation
+- Runtime behavior impact:
+- Public API impact:
+- Migration note status:
+- Release gate impact:
 
-- [ ] Documentation changes follow the style guide (`docs/developer_guide/docs.md`)
+## Rollback Plan
 
-## Release notes
+<!-- Exact revert or rollback steps. -->
 
-- [ ] I added a concise entry to `RELEASES.md` that follows the existing conventions (when applicable)
+## Review Gate
 
-## Testing
-
-**Ensure new or changed logic is covered by tests.**
-
-- [ ] Affected code paths are already covered by the test suite
-- [ ] I added/updated tests to cover new or changed logic
-
-<!-- Briefly describe how the changes were tested (e.g., unit tests in `tests/unit/test_file.py`, or *additional* manual testing). -->
+- [ ] Owner role did not approve its own task.
+- [ ] Verification/release gatekeeper evidence is present or explicitly not
+      required for this risk level.
+- [ ] `BLOCKED` is not treated as `DONE`.
+- [ ] `QA_PASSED` is not treated as `DONE`.

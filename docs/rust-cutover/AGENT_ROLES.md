@@ -34,6 +34,8 @@ May modify:
 - `scripts/control/**`
 - `docs/architecture/**`
 - `docs/rust-cutover/**`
+- `.github/pull_request_template.md`
+- `.github/ISSUE_TEMPLATE/**`
 - `NTPRO_CONTRACT.md`
 
 May not modify unless explicitly authorized:
