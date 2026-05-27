@@ -15,7 +15,6 @@ on:
     branches:
       - test-ci
       - test-ci-v2
-      - develop
       - nightly
 
 env:
