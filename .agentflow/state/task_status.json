@@ -880,7 +880,7 @@
     },
     "RPROD-001": {
       "title": "Define Rust CLI command contract",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -891,11 +891,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RPROD-001.md",
       "evidence_file": "docs/rust-cutover/evidence/RPROD-001.md",
-      "updated_at": "2026-05-27T16:27:42Z"
+      "updated_at": "2026-05-27T16:48:29Z"
     },
     "RPROD-002": {
       "title": "Add Rust CLI help and version smoke",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -905,7 +905,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RPROD-002.md",
-      "evidence_file": "docs/rust-cutover/evidence/RPROD-002.md"
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-002.md",
+      "updated_at": "2026-05-27T16:48:29Z"
     },
     "RPROD-003": {
       "title": "Define backtest run CLI contract",
