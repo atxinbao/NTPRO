@@ -1,0 +1,17 @@
+{
+  "task_id": "RCTL-006",
+  "agent_id": "Codex",
+  "branch": "ai/RCTL-006-pr-issue-templates",
+  "touched_paths": [
+    ".github/pull_request_template.md",
+    ".github/ISSUE_TEMPLATE/rust_cutover_task.yml",
+    "docs/rust-cutover/AGENT_ROLES.md",
+    ".agentflow/policies/path_scope.yaml",
+    "docs/rust-cutover/evidence/RCTL-006.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCTL-006.json"
+  ],
+  "claimed_at": "2026-05-27T04:28:31.440780+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-27T04:40:39.184984+00:00"
+}
