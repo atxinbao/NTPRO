@@ -1,0 +1,17 @@
+{
+  "task_id": "RCTL-002",
+  "agent_id": "Codex",
+  "branch": "ai/RCTL-002-install-verification-scripts",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RCTL-002.md",
+    "docs/rust-cutover/evidence/RCTL-002.md",
+    "scripts/ai/verify_fast.sh",
+    "scripts/ai/verify_full.sh",
+    "scripts/ai/verify_release.sh",
+    "scripts/ai/check_rust_only_runtime.sh",
+    ".agentflow/leases/RCTL-002.json"
+  ],
+  "claimed_at": "2026-05-27T00:57:34.613084+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-27T00:59:22.719978+00:00"
+}
