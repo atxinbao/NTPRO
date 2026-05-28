@@ -940,7 +940,7 @@
     },
     "RPROD-005": {
       "title": "Define live or sandbox run CLI contract",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -951,11 +951,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RPROD-005.md",
       "evidence_file": "docs/rust-cutover/evidence/RPROD-005.md",
-      "updated_at": "2026-05-28T13:23:15Z"
+      "updated_at": "2026-05-28T13:34:08Z"
     },
     "RPROD-006": {
       "title": "Implement or close live/sandbox CLI entrypoint gaps",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -965,7 +965,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RPROD-006.md",
-      "evidence_file": "docs/rust-cutover/evidence/RPROD-006.md"
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-006.md",
+      "updated_at": "2026-05-28T13:34:08Z"
     },
     "RPROD-007": {
       "title": "Define data/catalog CLI contract",

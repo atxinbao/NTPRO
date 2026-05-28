@@ -1,0 +1,17 @@
+{
+  "task_id": "RPROD-006",
+  "agent_id": "Codex",
+  "branch": "ai/RPROD-006-implement-or-close-live-sandbox-cli-entrypoint-gaps",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RPROD-006.md",
+    "crates/cli/src/opt.rs",
+    "crates/cli/src/lib.rs",
+    "crates/cli/src/bin/cli.rs",
+    "docs/rust-cutover/evidence/RPROD-006.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RPROD-006.json"
+  ],
+  "claimed_at": "2026-05-28T13:35:00.024846+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T13:48:07.391578+00:00"
+}

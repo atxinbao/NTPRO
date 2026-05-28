@@ -57,7 +57,10 @@ pub mod opt;
 use crate::blockchain::run_blockchain_command;
 use crate::{
     database::postgres::run_database_command,
-    opt::{BacktestCommand, BacktestOpt, Commands, NautilusCli},
+    opt::{
+        BacktestCommand, BacktestOpt, Commands, LiveCommand, LiveOpt, NautilusCli, SandboxCommand,
+        SandboxOpt,
+    },
 };
 
 /// Runs the Nautilus CLI based on the provided options.
@@ -68,6 +71,8 @@ use crate::{
 pub async fn run(opt: NautilusCli) -> anyhow::Result<()> {
     match opt.command {
         Commands::Backtest(backtest_opt) => run_backtest_command(backtest_opt)?,
+        Commands::Sandbox(sandbox_opt) => run_sandbox_command(sandbox_opt)?,
+        Commands::Live(live_opt) => run_live_command(live_opt)?,
         Commands::Database(database_opt) => run_database_command(database_opt).await?,
         #[cfg(feature = "defi")]
         Commands::Blockchain(blockchain_opt) => run_blockchain_command(blockchain_opt).await?,
@@ -83,6 +88,32 @@ fn run_backtest_command(opt: BacktestOpt) -> anyhow::Result<()> {
         ),
         BacktestCommand::Run(run) => anyhow::bail!(
             "backtest run is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/BACKTEST_CLI_CONTRACT.md",
+            run.config.display()
+        ),
+    }
+}
+
+fn run_sandbox_command(opt: SandboxOpt) -> anyhow::Result<()> {
+    match opt.command {
+        SandboxCommand::Validate(validate) => anyhow::bail!(
+            "sandbox validate is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/LIVE_SANDBOX_CLI_CONTRACT.md",
+            validate.config.display()
+        ),
+        SandboxCommand::Run(run) => anyhow::bail!(
+            "sandbox run is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/LIVE_SANDBOX_CLI_CONTRACT.md",
+            run.config.display()
+        ),
+    }
+}
+
+fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
+    match opt.command {
+        LiveCommand::Validate(validate) => anyhow::bail!(
+            "live validate is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/LIVE_SANDBOX_CLI_CONTRACT.md",
+            validate.config.display()
+        ),
+        LiveCommand::Run(run) => anyhow::bail!(
+            "live run is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/LIVE_SANDBOX_CLI_CONTRACT.md",
             run.config.display()
         ),
     }
