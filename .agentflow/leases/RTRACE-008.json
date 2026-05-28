@@ -1,0 +1,14 @@
+{
+  "task_id": "RTRACE-008",
+  "agent_id": "Codex",
+  "branch": "ai/RTRACE-008-publish-golden-trace-gate-evidence",
+  "touched_paths": [
+    "docs/rust-cutover/golden_trace/GATE_EVIDENCE.md",
+    "docs/rust-cutover/evidence/RTRACE-008.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RTRACE-008.json"
+  ],
+  "claimed_at": "2026-05-28T17:56:40.600369+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T17:59:37Z"
+}
