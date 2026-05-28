@@ -57,7 +57,7 @@ pub mod opt;
 use crate::blockchain::run_blockchain_command;
 use crate::{
     database::postgres::run_database_command,
-    opt::{Commands, NautilusCli},
+    opt::{BacktestCommand, BacktestOpt, Commands, NautilusCli},
 };
 
 /// Runs the Nautilus CLI based on the provided options.
@@ -67,9 +67,23 @@ use crate::{
 /// Returns an error if execution of the specified command fails.
 pub async fn run(opt: NautilusCli) -> anyhow::Result<()> {
     match opt.command {
+        Commands::Backtest(backtest_opt) => run_backtest_command(backtest_opt)?,
         Commands::Database(database_opt) => run_database_command(database_opt).await?,
         #[cfg(feature = "defi")]
         Commands::Blockchain(blockchain_opt) => run_blockchain_command(blockchain_opt).await?,
     }
     Ok(())
+}
+
+fn run_backtest_command(opt: BacktestOpt) -> anyhow::Result<()> {
+    match opt.command {
+        BacktestCommand::Validate(validate) => anyhow::bail!(
+            "backtest validate is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/BACKTEST_CLI_CONTRACT.md",
+            validate.config.display()
+        ),
+        BacktestCommand::Run(run) => anyhow::bail!(
+            "backtest run is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/BACKTEST_CLI_CONTRACT.md",
+            run.config.display()
+        ),
+    }
 }

@@ -24,5 +24,7 @@ async fn main() {
 
     if let Err(e) = nautilus_cli::run(NautilusCli::parse()).await {
         log::error!("Error executing Nautilus CLI: {e}");
+        eprintln!("Error executing Nautilus CLI: {e}");
+        std::process::exit(1);
     }
 }
