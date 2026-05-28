@@ -1,0 +1,15 @@
+{
+  "task_id": "RTRACE-002",
+  "agent_id": "Codex",
+  "branch": "ai/RTRACE-002-capture-market-data-trace-fixtures",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RTRACE-002.md",
+    "tests/golden/market_data_schema.jsonl",
+    "docs/rust-cutover/evidence/RTRACE-002.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RTRACE-002.json"
+  ],
+  "claimed_at": "2026-05-28T16:17:25.170340+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T16:19:58.545409+00:00"
+}
