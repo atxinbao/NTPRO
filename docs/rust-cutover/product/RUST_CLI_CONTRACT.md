@@ -194,6 +194,27 @@ Minimum contract:
   configured catalog target only after validation.
 - Data-provider adapter behavior remains under RADP tasks.
 
+### `nautilus config`
+
+Purpose: provide one shared Rust-only config validation entrypoint for
+automation before selecting a workflow-specific command.
+
+Required subcommands:
+
+```text
+nautilus config validate --kind <backtest|sandbox|live|data> --config <path> [--output <dir>]
+```
+
+Minimum contract:
+
+- `validate` parses and validates the same config shape as the selected
+  workflow-local validate command.
+- `--kind backtest` maps to `nautilus backtest validate`.
+- `--kind sandbox` maps to `nautilus sandbox validate`.
+- `--kind live` maps to `nautilus live validate`.
+- `--kind data` maps to `nautilus data validate`.
+- Validation must not import Python, require PyO3, or require Cython artifacts.
+
 ### `nautilus database`
 
 Purpose: keep existing database administration support.

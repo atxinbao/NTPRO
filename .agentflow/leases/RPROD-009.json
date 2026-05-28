@@ -1,0 +1,19 @@
+{
+  "task_id": "RPROD-009",
+  "agent_id": "Codex",
+  "branch": "ai/RPROD-009-add-rust-config-validation-command",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RPROD-009.md",
+    "crates/cli/src/opt.rs",
+    "crates/cli/src/lib.rs",
+    "crates/cli/src/bin/cli.rs",
+    "docs/rust-cutover/product/RUST_CLI_CONTRACT.md",
+    "docs/rust-cutover/product/CONFIG_VALIDATION_CLI_CONTRACT.md",
+    "docs/rust-cutover/evidence/RPROD-009.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RPROD-009.json"
+  ],
+  "claimed_at": "2026-05-28T14:17:27.137002+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T14:23:59.495036+00:00"
+}

@@ -15,7 +15,7 @@
 
 use std::path::PathBuf;
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 
 /// Command-line interface for NautilusTrader.
 #[derive(Debug, Parser)]
@@ -32,6 +32,7 @@ pub enum Commands {
     Sandbox(SandboxOpt),
     Live(LiveOpt),
     Data(DataOpt),
+    Config(ConfigOpt),
     Database(DatabaseOpt),
     #[cfg(feature = "defi")]
     Blockchain(BlockchainOpt),
@@ -210,6 +211,45 @@ pub struct DataLoadOpt {
     pub output: Option<PathBuf>,
 }
 
+/// Shared Rust config validation commands.
+#[derive(Parser, Debug)]
+#[command(about = "Rust config validation", long_about = None)]
+pub struct ConfigOpt {
+    #[clap(subcommand)]
+    pub command: ConfigCommand,
+}
+
+/// Available Rust config validation commands.
+#[derive(Parser, Debug, Clone)]
+#[command(about = "Rust config validation", long_about = None)]
+pub enum ConfigCommand {
+    /// Validates a Rust workflow config without running the workflow.
+    Validate(ConfigValidateOpt),
+}
+
+/// Supported workflow config kinds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum ConfigKind {
+    Backtest,
+    Sandbox,
+    Live,
+    Data,
+}
+
+/// Shared Rust config validation options.
+#[derive(Parser, Debug, Clone)]
+pub struct ConfigValidateOpt {
+    /// Workflow config kind.
+    #[arg(long, value_enum)]
+    pub kind: ConfigKind,
+    /// Path to the Rust config file.
+    #[arg(long)]
+    pub config: PathBuf,
+    /// Optional directory for validation artifacts.
+    #[arg(long)]
+    pub output: Option<PathBuf>,
+}
+
 /// Database management options and subcommands.
 #[derive(Parser, Debug)]
 #[command(about = "Postgres database operations", long_about = None)]
@@ -346,6 +386,7 @@ mod tests {
         assert!(help.contains("sandbox"));
         assert!(help.contains("live"));
         assert!(help.contains("data"));
+        assert!(help.contains("config"));
     }
 
     #[test]
@@ -611,5 +652,57 @@ mod tests {
         assert_eq!(load.config, PathBuf::from("config/data.toml"));
         assert_eq!(load.run_id.as_deref(), Some("load-quotes"));
         assert_eq!(load.output, Some(PathBuf::from("runs/load-quotes")));
+    }
+
+    #[test]
+    fn config_help_lists_validate() {
+        let mut command = NautilusCli::command();
+        let config = command
+            .find_subcommand_mut("config")
+            .expect("config command should exist");
+        let help = config.render_help().to_string();
+
+        assert!(help.contains("validate"));
+    }
+
+    #[test]
+    fn config_validate_help_lists_kind_config_and_output() {
+        let mut command = NautilusCli::command();
+        let config = command
+            .find_subcommand_mut("config")
+            .expect("config command should exist");
+        let validate = config
+            .find_subcommand_mut("validate")
+            .expect("config validate command should exist");
+        let help = validate.render_help().to_string();
+
+        assert!(help.contains("--kind"));
+        assert!(help.contains("--config"));
+        assert!(help.contains("--output"));
+    }
+
+    #[test]
+    fn parses_config_validate_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "config",
+            "validate",
+            "--kind",
+            "backtest",
+            "--config",
+            "config/backtest.toml",
+            "--output",
+            "runs/config-validate",
+        ])
+        .expect("config validate should parse");
+
+        let Commands::Config(config) = parsed.command else {
+            panic!("expected config command");
+        };
+        let ConfigCommand::Validate(validate) = config.command;
+
+        assert_eq!(validate.kind, ConfigKind::Backtest);
+        assert_eq!(validate.config, PathBuf::from("config/backtest.toml"));
+        assert_eq!(validate.output, Some(PathBuf::from("runs/config-validate")));
     }
 }

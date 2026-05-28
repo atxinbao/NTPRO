@@ -985,7 +985,7 @@
     },
     "RPROD-008": {
       "title": "Implement or close data/catalog CLI gaps",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -996,11 +996,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RPROD-008.md",
       "evidence_file": "docs/rust-cutover/evidence/RPROD-008.md",
-      "updated_at": "2026-05-28T13:58:45Z"
+      "updated_at": "2026-05-28T14:16:13Z"
     },
     "RPROD-009": {
       "title": "Add Rust config validation command",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1010,7 +1010,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RPROD-009.md",
-      "evidence_file": "docs/rust-cutover/evidence/RPROD-009.md"
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-009.md",
+      "updated_at": "2026-05-28T14:16:13Z"
     },
     "RPROD-010": {
       "title": "Add Rust examples layout",
