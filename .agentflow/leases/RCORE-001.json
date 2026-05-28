@@ -1,0 +1,15 @@
+{
+  "task_id": "RCORE-001",
+  "agent_id": "Codex",
+  "branch": "ai/RCORE-001-inventory-rust-core-model-value-types-gaps",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RCORE-001.md",
+    "docs/rust-cutover/inventory/core_model_value_types.md",
+    "docs/rust-cutover/inventory/README.md",
+    "docs/rust-cutover/evidence/RCORE-001.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCORE-001.json"
+  ],
+  "claimed_at": "2026-05-28T18:21:17.539175+00:00",
+  "status": "PR_READY"
+}
