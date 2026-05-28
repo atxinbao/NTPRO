@@ -14,6 +14,19 @@ cargo run -q -p nautilus-cli -- backtest validate --config examples/rust/backtes
 cargo run -q -p nautilus-cli -- backtest run --config examples/rust/backtest/ema_cross.toml --run-id ema-cross --output runs/ema-cross
 ```
 
+## Cargo Smoke
+
+The current runnable Rust backtest smoke uses the `nautilus-backtest` Cargo
+example directly:
+
+```bash
+cargo run -p nautilus-backtest --features examples --example engine-ema-cross
+```
+
+This smoke runs `crates/backtest/examples/engine_ema_cross.rs` with synthetic
+AUD/USD quote data, a simulated venue, and the Rust `EmaCross` strategy from
+`nautilus-trading`.
+
 ## Current Blocker
 
 `backtest validate` and `backtest run` parse and expose help, but execution

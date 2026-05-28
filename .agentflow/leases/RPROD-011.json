@@ -1,0 +1,15 @@
+{
+  "task_id": "RPROD-011",
+  "agent_id": "Codex",
+  "branch": "ai/RPROD-011-add-rust-backtest-example-smoke",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RPROD-011.md",
+    "examples/rust/backtest/README.md",
+    "docs/rust-cutover/evidence/RPROD-011.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RPROD-011.json"
+  ],
+  "claimed_at": "2026-05-28T14:45:09.445334+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T14:52:59.511583+00:00"
+}
