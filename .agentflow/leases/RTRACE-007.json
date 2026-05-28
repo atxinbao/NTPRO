@@ -1,0 +1,17 @@
+{
+  "task_id": "RTRACE-007",
+  "agent_id": "Codex",
+  "branch": "ai/RTRACE-007-bind-adapter-payload-trace-fixtures",
+  "touched_paths": [
+    "tests/golden/adapter_payload_schema.jsonl",
+    "crates/adapters/okx/tests/golden_trace_adapter_payload.rs",
+    "scripts/ai/run_golden_traces.sh",
+    "docs/rust-cutover/golden_trace/SCHEMA.md",
+    "docs/rust-cutover/evidence/RTRACE-007.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RTRACE-007.json"
+  ],
+  "claimed_at": "2026-05-28T17:42:48.053006+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T17:48:42Z"
+}
