@@ -1000,7 +1000,7 @@
     },
     "RPROD-009": {
       "title": "Add Rust config validation command",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1011,11 +1011,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RPROD-009.md",
       "evidence_file": "docs/rust-cutover/evidence/RPROD-009.md",
-      "updated_at": "2026-05-28T14:16:13Z"
+      "updated_at": "2026-05-28T14:27:20Z"
     },
     "RPROD-010": {
       "title": "Add Rust examples layout",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1025,7 +1025,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RPROD-010.md",
-      "evidence_file": "docs/rust-cutover/evidence/RPROD-010.md"
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-010.md",
+      "updated_at": "2026-05-28T14:27:20Z"
     },
     "RPROD-011": {
       "title": "Add Rust backtest example smoke",
