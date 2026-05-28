@@ -1060,7 +1060,7 @@
     },
     "RPROD-013": {
       "title": "Generate or validate Rust documentation",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1071,11 +1071,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RPROD-013.md",
       "evidence_file": "docs/rust-cutover/evidence/RPROD-013.md",
-      "updated_at": "2026-05-28T15:10:44Z"
+      "updated_at": "2026-05-28T15:17:06Z"
     },
     "RPROD-014": {
       "title": "Publish Rust product surface report",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1085,7 +1085,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RPROD-014.md",
-      "evidence_file": "docs/rust-cutover/evidence/RPROD-014.md"
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-014.md",
+      "updated_at": "2026-05-28T15:17:06Z"
     },
     "RREL-001": {
       "title": "Write Rust-only migration guide",

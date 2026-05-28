@@ -1,0 +1,15 @@
+{
+  "task_id": "RPROD-014",
+  "agent_id": "Codex",
+  "branch": "ai/RPROD-014-publish-rust-product-surface-report",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RPROD-014.md",
+    "docs/rust-cutover/product/RUST_PRODUCT_SURFACE_REPORT.md",
+    "docs/rust-cutover/evidence/RPROD-014.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RPROD-014.json"
+  ],
+  "claimed_at": "2026-05-28T15:21:42.278273+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T15:27:51.139368+00:00"
+}
