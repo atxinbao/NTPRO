@@ -1,0 +1,17 @@
+{
+  "task_id": "RCORE-003",
+  "agent_id": "Codex",
+  "branch": "ai/RCORE-003-close-rust-core-model-value-types-gaps",
+  "touched_paths": [
+    "crates/model/src/types/price.rs",
+    "crates/model/src/types/quantity.rs",
+    "crates/model/src/types/money.rs",
+    "crates/model/tests/value_type_gate.rs",
+    "docs/rust-cutover/inventory/core_model_value_types.md",
+    "docs/rust-cutover/evidence/RCORE-003.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCORE-003.json"
+  ],
+  "claimed_at": "2026-05-28T19:24:18.203586+00:00",
+  "status": "PR_READY"
+}

@@ -136,6 +136,18 @@ pub struct Quantity {
     pub precision: u8,
 }
 
+#[inline(always)]
+fn check_quantity_raw_precision(raw: QuantityRaw, precision: u8) -> CorrectnessResult<()> {
+    #[cfg(feature = "high-precision")]
+    let result = super::fixed::check_fixed_raw_u128(raw, precision);
+    #[cfg(not(feature = "high-precision"))]
+    let result = super::fixed::check_fixed_raw_u64(raw, precision);
+
+    result.map_err(|error| CorrectnessError::PredicateViolation {
+        message: error.to_string(),
+    })
+}
+
 impl Quantity {
     /// Creates a new [`Quantity`] instance with correctness checking.
     ///
@@ -238,14 +250,6 @@ impl Quantity {
         }
         check_fixed_precision(precision).expect_display(FAILED);
 
-        // TODO: Enforce spurious bits validation in v2
-        // if raw != QUANTITY_UNDEF && raw > 0 {
-        //     #[cfg(feature = "high-precision")]
-        //     super::fixed::check_fixed_raw_u128(raw, precision).expect(FAILED);
-        //     #[cfg(not(feature = "high-precision"))]
-        //     super::fixed::check_fixed_raw_u64(raw, precision).expect(FAILED);
-        // }
-
         Self { raw, precision }
     }
 
@@ -258,6 +262,7 @@ impl Quantity {
     /// - `precision` exceeds the maximum fixed precision.
     /// - `precision` is not 0 when `raw` is `QUANTITY_UNDEF`.
     /// - `raw` exceeds `QUANTITY_RAW_MAX` and is not a sentinel value.
+    /// - `raw` is not aligned to the fixed-point scale implied by `precision`.
     pub fn from_raw_checked(raw: QuantityRaw, precision: u8) -> CorrectnessResult<Self> {
         if raw == QUANTITY_UNDEF && precision != 0 {
             return Err(CorrectnessError::PredicateViolation {
@@ -272,6 +277,9 @@ impl Quantity {
         }
 
         check_fixed_precision(precision)?;
+        if raw != QUANTITY_UNDEF && raw > 0 {
+            check_quantity_raw_precision(raw, precision)?;
+        }
 
         Ok(Self { raw, precision })
     }
