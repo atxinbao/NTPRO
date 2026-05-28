@@ -1442,7 +1442,7 @@
     },
     "RTRACE-007": {
       "title": "Bind adapter payload trace fixtures",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1453,11 +1453,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RTRACE-007.md",
       "evidence_file": "docs/rust-cutover/evidence/RTRACE-007.md",
-      "updated_at": "2026-05-28T17:42:48Z"
+      "updated_at": "2026-05-28T17:56:40Z"
     },
     "RTRACE-008": {
       "title": "Publish golden trace gate evidence",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1467,7 +1467,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RTRACE-008.md",
-      "evidence_file": "docs/rust-cutover/evidence/RTRACE-008.md"
+      "evidence_file": "docs/rust-cutover/evidence/RTRACE-008.md",
+      "updated_at": "2026-05-28T17:56:40Z"
     }
   },
   "updated_at": "2026-05-28T13:15:03Z"
