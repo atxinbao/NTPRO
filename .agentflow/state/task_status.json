@@ -1015,7 +1015,7 @@
     },
     "RPROD-010": {
       "title": "Add Rust examples layout",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1026,11 +1026,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RPROD-010.md",
       "evidence_file": "docs/rust-cutover/evidence/RPROD-010.md",
-      "updated_at": "2026-05-28T14:27:20Z"
+      "updated_at": "2026-05-28T14:40:57Z"
     },
     "RPROD-011": {
       "title": "Add Rust backtest example smoke",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1040,7 +1040,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RPROD-011.md",
-      "evidence_file": "docs/rust-cutover/evidence/RPROD-011.md"
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-011.md",
+      "updated_at": "2026-05-28T14:40:57Z"
     },
     "RPROD-012": {
       "title": "Add Rust live or sandbox example smoke",
