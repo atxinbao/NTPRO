@@ -10,6 +10,29 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+SCHEMA_VERSION = "golden-trace-v1"
+REQUIRED_ROW_FIELDS = (
+    "schema_version",
+    "case_id",
+    "category",
+    "description",
+    "input",
+    "expected",
+    "tolerances",
+)
+REQUIRED_EVENT_FIELDS = ("event_type", "ts_event", "payload")
+VALID_CATEGORIES = {
+    "market_data",
+    "order_lifecycle",
+    "risk",
+    "execution",
+    "position",
+    "portfolio_pnl",
+    "cache_msgbus",
+    "backtest_live",
+    "adapter_payload",
+}
+
 
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
     rows = []
@@ -23,6 +46,100 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
             except json.JSONDecodeError as e:
                 raise SystemExit(f"{path}:{lineno}: invalid JSON: {e}") from e
     return rows
+
+
+def is_timestamp(value: Any) -> bool:
+    if isinstance(value, int) and not isinstance(value, bool):
+        return True
+    if isinstance(value, str):
+        return value.isdecimal()
+    return False
+
+
+def validate_event(event: Any, path: str, errors: list[str]) -> None:
+    if not isinstance(event, dict):
+        errors.append(f"{path}: event must be an object")
+        return
+
+    for key in REQUIRED_EVENT_FIELDS:
+        if key not in event:
+            errors.append(f"{path}: missing event field {key}")
+
+    event_type = event.get("event_type")
+    if not isinstance(event_type, str) or not event_type:
+        errors.append(f"{path}.event_type: must be a non-empty string")
+
+    for key in ("ts_event", "ts_init"):
+        if key in event and not is_timestamp(event[key]):
+            errors.append(
+                f"{path}.{key}: must be an integer or decimal string nanosecond timestamp"
+            )
+
+    payload = event.get("payload")
+    if not isinstance(payload, dict):
+        errors.append(f"{path}.payload: must be an object")
+
+
+def validate_event_section(section: Any, path: str, errors: list[str]) -> None:
+    if not isinstance(section, dict):
+        errors.append(f"{path}: must be an object")
+        return
+
+    events = section.get("events")
+    if not isinstance(events, list):
+        errors.append(f"{path}.events: must be an array")
+        return
+
+    for idx, event in enumerate(events):
+        validate_event(event, f"{path}.events[{idx}]", errors)
+
+
+def validate_rows(rows: list[dict[str, Any]]) -> list[str]:
+    errors: list[str] = []
+    seen_case_ids: set[str] = set()
+
+    if not rows:
+        errors.append("trace must contain at least one row")
+        return errors
+
+    for idx, row in enumerate(rows):
+        path = f"row {idx}"
+        if not isinstance(row, dict):
+            errors.append(f"{path}: row must be an object")
+            continue
+
+        for key in REQUIRED_ROW_FIELDS:
+            if key not in row:
+                errors.append(f"{path}: missing {key}")
+
+        if row.get("schema_version") != SCHEMA_VERSION:
+            errors.append(f"{path}.schema_version: expected {SCHEMA_VERSION}")
+
+        case_id = row.get("case_id")
+        if not isinstance(case_id, str) or not case_id:
+            errors.append(f"{path}.case_id: must be a non-empty string")
+        elif case_id in seen_case_ids:
+            errors.append(f"{path}.case_id: duplicate case_id {case_id}")
+        else:
+            seen_case_ids.add(case_id)
+
+        category = row.get("category")
+        if category not in VALID_CATEGORIES:
+            valid = ", ".join(sorted(VALID_CATEGORIES))
+            errors.append(f"{path}.category: expected one of {valid}")
+
+        description = row.get("description")
+        if not isinstance(description, str) or not description:
+            errors.append(f"{path}.description: must be a non-empty string")
+
+        validate_event_section(row.get("input"), f"{path}.input", errors)
+        validate_event_section(row.get("expected"), f"{path}.expected", errors)
+
+        tolerances = row.get("tolerances")
+        if not isinstance(tolerances, dict):
+            errors.append(f"{path}.tolerances: must be an object")
+
+    return errors
 
 
 def normalize(value: Any) -> str:
@@ -73,11 +190,7 @@ def main() -> None:
     args = parser.parse_args()
 
     rows = load_jsonl(args.trace)
-    errors = []
-    for idx, row in enumerate(rows):
-        for key in ["case_id", "input", "expected"]:
-            if key not in row:
-                errors.append(f"row {idx}: missing {key}")
+    errors = validate_rows(rows)
     if errors:
         raise SystemExit("\n".join(errors))
 
