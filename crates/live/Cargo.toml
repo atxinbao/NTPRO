@@ -116,6 +116,11 @@ ustr = { workspace = true }
 name = "runner"
 harness = false
 
+[[example]]
+name = "sandbox-node-smoke"
+path = "examples/sandbox_node_smoke.rs"
+required-features = ["node"]
+
 [[test]]
 name = "manager"
 path = "tests/manager.rs"
