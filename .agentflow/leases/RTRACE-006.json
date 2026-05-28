@@ -1,0 +1,17 @@
+{
+  "task_id": "RTRACE-006",
+  "agent_id": "Codex",
+  "branch": "ai/RTRACE-006-bind-live-sandbox-lifecycle-trace",
+  "touched_paths": [
+    "tests/golden/live_sandbox_lifecycle_schema.jsonl",
+    "crates/live/tests/golden_trace_live_sandbox.rs",
+    "scripts/ai/run_golden_traces.sh",
+    "docs/rust-cutover/golden_trace/SCHEMA.md",
+    "docs/rust-cutover/evidence/RTRACE-006.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RTRACE-006.json"
+  ],
+  "claimed_at": "2026-05-28T17:31:22.640507+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T17:31:22.669608+00:00"
+}
