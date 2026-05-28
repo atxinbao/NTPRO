@@ -1,0 +1,17 @@
+{
+  "task_id": "RPROD-008",
+  "agent_id": "Codex",
+  "branch": "ai/RPROD-008-implement-or-close-data-catalog-cli-gaps",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RPROD-008.md",
+    "crates/cli/src/opt.rs",
+    "crates/cli/src/lib.rs",
+    "crates/cli/src/bin/cli.rs",
+    "docs/rust-cutover/evidence/RPROD-008.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RPROD-008.json"
+  ],
+  "claimed_at": "2026-05-28T13:59:19.984490+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T14:09:05.845562+00:00"
+}

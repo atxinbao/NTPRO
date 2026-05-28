@@ -58,8 +58,8 @@ use crate::blockchain::run_blockchain_command;
 use crate::{
     database::postgres::run_database_command,
     opt::{
-        BacktestCommand, BacktestOpt, Commands, LiveCommand, LiveOpt, NautilusCli, SandboxCommand,
-        SandboxOpt,
+        BacktestCommand, BacktestOpt, Commands, DataCommand, DataOpt, LiveCommand, LiveOpt,
+        NautilusCli, SandboxCommand, SandboxOpt,
     },
 };
 
@@ -73,6 +73,7 @@ pub async fn run(opt: NautilusCli) -> anyhow::Result<()> {
         Commands::Backtest(backtest_opt) => run_backtest_command(backtest_opt)?,
         Commands::Sandbox(sandbox_opt) => run_sandbox_command(sandbox_opt)?,
         Commands::Live(live_opt) => run_live_command(live_opt)?,
+        Commands::Data(data_opt) => run_data_command(data_opt)?,
         Commands::Database(database_opt) => run_database_command(database_opt).await?,
         #[cfg(feature = "defi")]
         Commands::Blockchain(blockchain_opt) => run_blockchain_command(blockchain_opt).await?,
@@ -89,6 +90,23 @@ fn run_backtest_command(opt: BacktestOpt) -> anyhow::Result<()> {
         BacktestCommand::Run(run) => anyhow::bail!(
             "backtest run is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/BACKTEST_CLI_CONTRACT.md",
             run.config.display()
+        ),
+    }
+}
+
+fn run_data_command(opt: DataOpt) -> anyhow::Result<()> {
+    match opt.command {
+        DataCommand::Inspect(inspect) => anyhow::bail!(
+            "data inspect is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/DATA_CATALOG_CLI_CONTRACT.md",
+            inspect.config.display()
+        ),
+        DataCommand::Validate(validate) => anyhow::bail!(
+            "data validate is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/DATA_CATALOG_CLI_CONTRACT.md",
+            validate.config.display()
+        ),
+        DataCommand::Load(load) => anyhow::bail!(
+            "data load is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/DATA_CATALOG_CLI_CONTRACT.md",
+            load.config.display()
         ),
     }
 }
