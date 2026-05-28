@@ -40,6 +40,8 @@ behavior to bypass those blockers.
 
 ## Contract Mapping
 
+- Rust API entrypoints are recorded in
+  `docs/rust-cutover/product/RUST_API_ENTRYPOINTS.md`.
 - Backtest examples must follow
   `docs/rust-cutover/product/BACKTEST_CLI_CONTRACT.md`.
 - Sandbox and live examples must follow
