@@ -562,7 +562,7 @@
     },
     "RCORE-005": {
       "title": "Add Rust tests for serialization/data/persistence",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -572,7 +572,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-005.md",
-      "evidence_file": "docs/rust-cutover/evidence/RCORE-005.md"
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-005.md",
+      "updated_at": "2026-05-28T21:25:05Z"
     },
     "RCORE-006": {
       "title": "Close Rust serialization/data/persistence gaps",

@@ -664,3 +664,45 @@ pub fn instrument_closes_to_arrow_record_batch_bytes(
     let metadata = first.metadata();
     InstrumentClose::encode_batch(&metadata, data).map_err(EncodingError::ArrowError)
 }
+
+#[cfg(test)]
+mod tests {
+    use arrow::array::FixedSizeBinaryBuilder;
+
+    use super::*;
+
+    fn fixed_size_binary_array(byte_width: i32) -> FixedSizeBinaryArray {
+        let mut builder = FixedSizeBinaryBuilder::with_capacity(1, byte_width);
+        let bytes = vec![0_u8; byte_width as usize];
+        builder.append_value(&bytes).unwrap();
+        builder.finish()
+    }
+
+    #[test]
+    fn test_validate_precision_bytes_accepts_current_build_width() {
+        let array = fixed_size_binary_array(PRECISION_BYTES);
+
+        validate_precision_bytes(&array, "price").unwrap();
+    }
+
+    #[test]
+    fn test_validate_precision_bytes_rejects_other_precision_mode_width() {
+        let other_precision_width = if PRECISION_BYTES == 8 { 16 } else { 8 };
+        let array = fixed_size_binary_array(other_precision_width);
+
+        let err = validate_precision_bytes(&array, "price").unwrap_err();
+
+        match err {
+            EncodingError::PrecisionMismatch {
+                field,
+                expected_bytes,
+                actual_bytes,
+            } => {
+                assert_eq!(field, "price");
+                assert_eq!(expected_bytes, PRECISION_BYTES);
+                assert_eq!(actual_bytes, other_precision_width);
+            }
+            other => panic!("expected precision mismatch, got {other:?}"),
+        }
+    }
+}
