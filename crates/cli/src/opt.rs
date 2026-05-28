@@ -13,6 +13,8 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
+use std::path::PathBuf;
+
 use clap::Parser;
 
 /// Command-line interface for NautilusTrader.
@@ -26,9 +28,50 @@ pub struct NautilusCli {
 /// Available top-level commands for the NautilusTrader CLI.
 #[derive(Parser, Debug)]
 pub enum Commands {
+    Backtest(BacktestOpt),
     Database(DatabaseOpt),
     #[cfg(feature = "defi")]
     Blockchain(BlockchainOpt),
+}
+
+/// Backtest operations and validation commands.
+#[derive(Parser, Debug)]
+#[command(about = "Backtest operations", long_about = None)]
+pub struct BacktestOpt {
+    #[clap(subcommand)]
+    pub command: BacktestCommand,
+}
+
+/// Available backtest commands.
+#[derive(Parser, Debug, Clone)]
+#[command(about = "Backtest operations", long_about = None)]
+pub enum BacktestCommand {
+    /// Validates a Rust backtest config without running the engine.
+    Validate(BacktestValidateOpt),
+    /// Runs a Rust backtest from a validated config.
+    Run(BacktestRunOpt),
+}
+
+/// Backtest validation options.
+#[derive(Parser, Debug, Clone)]
+pub struct BacktestValidateOpt {
+    /// Path to the Rust backtest config file.
+    #[arg(long)]
+    pub config: PathBuf,
+}
+
+/// Backtest run options.
+#[derive(Parser, Debug, Clone)]
+pub struct BacktestRunOpt {
+    /// Path to the Rust backtest config file.
+    #[arg(long)]
+    pub config: PathBuf,
+    /// Optional owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: Option<String>,
+    /// Optional directory for run artifacts.
+    #[arg(long)]
+    pub output: Option<PathBuf>,
 }
 
 /// Database management options and subcommands.
@@ -152,4 +195,77 @@ pub enum BlockchainCommand {
         #[clap(flatten)]
         database: DatabaseConfig,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::{CommandFactory, Parser};
+
+    #[test]
+    fn top_level_help_lists_backtest() {
+        let help = NautilusCli::command().render_help().to_string();
+
+        assert!(help.contains("backtest"));
+    }
+
+    #[test]
+    fn backtest_help_lists_validate_and_run() {
+        let mut command = NautilusCli::command();
+        let backtest = command
+            .find_subcommand_mut("backtest")
+            .expect("backtest command should exist");
+        let help = backtest.render_help().to_string();
+
+        assert!(help.contains("validate"));
+        assert!(help.contains("run"));
+    }
+
+    #[test]
+    fn parses_backtest_validate_config_path() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "backtest",
+            "validate",
+            "--config",
+            "config/backtest.toml",
+        ])
+        .expect("backtest validate should parse");
+
+        let Commands::Backtest(backtest) = parsed.command else {
+            panic!("expected backtest command");
+        };
+        let BacktestCommand::Validate(validate) = backtest.command else {
+            panic!("expected validate command");
+        };
+
+        assert_eq!(validate.config, PathBuf::from("config/backtest.toml"));
+    }
+
+    #[test]
+    fn parses_backtest_run_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "backtest",
+            "run",
+            "--config",
+            "config/backtest.toml",
+            "--run-id",
+            "ema-cross",
+            "--output",
+            "runs/ema-cross",
+        ])
+        .expect("backtest run should parse");
+
+        let Commands::Backtest(backtest) = parsed.command else {
+            panic!("expected backtest command");
+        };
+        let BacktestCommand::Run(run) = backtest.command else {
+            panic!("expected run command");
+        };
+
+        assert_eq!(run.config, PathBuf::from("config/backtest.toml"));
+        assert_eq!(run.run_id.as_deref(), Some("ema-cross"));
+        assert_eq!(run.output, Some(PathBuf::from("runs/ema-cross")));
+    }
 }

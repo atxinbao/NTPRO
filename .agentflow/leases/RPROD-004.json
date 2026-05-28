@@ -1,0 +1,18 @@
+{
+  "task_id": "RPROD-004",
+  "agent_id": "Codex",
+  "branch": "ai/RPROD-004-implement-or-close-backtest-cli-entrypoint-gaps",
+  "touched_paths": [
+    "crates/cli/src/opt.rs",
+    "crates/cli/src/lib.rs",
+    "crates/cli/src/bin/cli.rs",
+    "scripts/ai/verify_full.sh",
+    "scripts/ai/run_golden_traces.sh",
+    "docs/rust-cutover/evidence/RPROD-004.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RPROD-004.json"
+  ],
+  "claimed_at": "2026-05-28T12:29:04.998932+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T13:15:03+00:00"
+}

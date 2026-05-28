@@ -4,6 +4,18 @@ set -euo pipefail
 TRACE_GLOB="${TRACE_GLOB:-tests/golden/*.jsonl}"
 REQUIRE_GOLDEN_REPLAY="${REQUIRE_GOLDEN_REPLAY:-0}"
 REPLAY_COMMAND="${GOLDEN_TRACE_REPLAY_COMMAND:-}"
+PYTHON_BIN="${PYTHON_BIN:-}"
+
+if [ -z "$PYTHON_BIN" ]; then
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN=python3
+  elif command -v python >/dev/null 2>&1; then
+    PYTHON_BIN=python
+  else
+    echo "python3 or python is required to run golden trace validation" >&2
+    exit 127
+  fi
+fi
 
 shopt -s nullglob
 traces=( $TRACE_GLOB )
@@ -16,9 +28,9 @@ if [ "${#traces[@]}" -eq 0 ]; then
 fi
 
 for trace in "${traces[@]}"; do
-  python scripts/ai/golden_trace_runner.py "$trace" --mode validate-only
+  "$PYTHON_BIN" scripts/ai/golden_trace_runner.py "$trace" --mode validate-only
   if [ -n "$REPLAY_COMMAND" ]; then
-    python scripts/ai/golden_trace_runner.py "$trace" --mode replay --replay-command "$REPLAY_COMMAND"
+    "$PYTHON_BIN" scripts/ai/golden_trace_runner.py "$trace" --mode replay --replay-command "$REPLAY_COMMAND"
   elif [ "$REQUIRE_GOLDEN_REPLAY" = "1" ]; then
     echo "GOLDEN_TRACE_REPLAY_COMMAND is required for final release replay gate" >&2
     exit 1
