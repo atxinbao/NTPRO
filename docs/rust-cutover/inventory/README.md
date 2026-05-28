@@ -6,3 +6,5 @@ Generated and curated inventory outputs live here.
   examples, docs, and runnable tests.
 - `core_model_value_types.md` - RCORE-001 inventory of current core/model value
   type Rust-only parity gaps.
+- `serialization_data_persistence.md` - RCORE-004 inventory of Rust
+  serialization, data engine, and persistence gap boundaries.
