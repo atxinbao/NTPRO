@@ -29,6 +29,8 @@ pub struct NautilusCli {
 #[derive(Parser, Debug)]
 pub enum Commands {
     Backtest(BacktestOpt),
+    Sandbox(SandboxOpt),
+    Live(LiveOpt),
     Database(DatabaseOpt),
     #[cfg(feature = "defi")]
     Blockchain(BlockchainOpt),
@@ -64,6 +66,86 @@ pub struct BacktestValidateOpt {
 #[derive(Parser, Debug, Clone)]
 pub struct BacktestRunOpt {
     /// Path to the Rust backtest config file.
+    #[arg(long)]
+    pub config: PathBuf,
+    /// Optional owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: Option<String>,
+    /// Optional directory for run artifacts.
+    #[arg(long)]
+    pub output: Option<PathBuf>,
+}
+
+/// Sandbox live-node operations and validation commands.
+#[derive(Parser, Debug)]
+#[command(about = "Sandbox live-node operations", long_about = None)]
+pub struct SandboxOpt {
+    #[clap(subcommand)]
+    pub command: SandboxCommand,
+}
+
+/// Available sandbox commands.
+#[derive(Parser, Debug, Clone)]
+#[command(about = "Sandbox live-node operations", long_about = None)]
+pub enum SandboxCommand {
+    /// Validates a Rust sandbox config without starting a node.
+    Validate(SandboxValidateOpt),
+    /// Runs a Rust sandbox live-node flow from a validated config.
+    Run(SandboxRunOpt),
+}
+
+/// Sandbox validation options.
+#[derive(Parser, Debug, Clone)]
+pub struct SandboxValidateOpt {
+    /// Path to the Rust sandbox config file.
+    #[arg(long)]
+    pub config: PathBuf,
+}
+
+/// Sandbox run options.
+#[derive(Parser, Debug, Clone)]
+pub struct SandboxRunOpt {
+    /// Path to the Rust sandbox config file.
+    #[arg(long)]
+    pub config: PathBuf,
+    /// Optional owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: Option<String>,
+    /// Optional directory for run artifacts.
+    #[arg(long)]
+    pub output: Option<PathBuf>,
+}
+
+/// Live trading operations and validation commands.
+#[derive(Parser, Debug)]
+#[command(about = "Live trading operations", long_about = None)]
+pub struct LiveOpt {
+    #[clap(subcommand)]
+    pub command: LiveCommand,
+}
+
+/// Available live commands.
+#[derive(Parser, Debug, Clone)]
+#[command(about = "Live trading operations", long_about = None)]
+pub enum LiveCommand {
+    /// Validates a Rust live config without starting a node.
+    Validate(LiveValidateOpt),
+    /// Runs a Rust live-node flow from a validated config.
+    Run(LiveRunOpt),
+}
+
+/// Live validation options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveValidateOpt {
+    /// Path to the Rust live config file.
+    #[arg(long)]
+    pub config: PathBuf,
+}
+
+/// Live run options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveRunOpt {
+    /// Path to the Rust live config file.
     #[arg(long)]
     pub config: PathBuf,
     /// Optional owner-visible run identifier.
@@ -207,6 +289,8 @@ mod tests {
         let help = NautilusCli::command().render_help().to_string();
 
         assert!(help.contains("backtest"));
+        assert!(help.contains("sandbox"));
+        assert!(help.contains("live"));
     }
 
     #[test]
@@ -267,5 +351,125 @@ mod tests {
         assert_eq!(run.config, PathBuf::from("config/backtest.toml"));
         assert_eq!(run.run_id.as_deref(), Some("ema-cross"));
         assert_eq!(run.output, Some(PathBuf::from("runs/ema-cross")));
+    }
+
+    #[test]
+    fn sandbox_help_lists_validate_and_run() {
+        let mut command = NautilusCli::command();
+        let sandbox = command
+            .find_subcommand_mut("sandbox")
+            .expect("sandbox command should exist");
+        let help = sandbox.render_help().to_string();
+
+        assert!(help.contains("validate"));
+        assert!(help.contains("run"));
+    }
+
+    #[test]
+    fn parses_sandbox_validate_config_path() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "sandbox",
+            "validate",
+            "--config",
+            "config/sandbox.toml",
+        ])
+        .expect("sandbox validate should parse");
+
+        let Commands::Sandbox(sandbox) = parsed.command else {
+            panic!("expected sandbox command");
+        };
+        let SandboxCommand::Validate(validate) = sandbox.command else {
+            panic!("expected validate command");
+        };
+
+        assert_eq!(validate.config, PathBuf::from("config/sandbox.toml"));
+    }
+
+    #[test]
+    fn parses_sandbox_run_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "sandbox",
+            "run",
+            "--config",
+            "config/sandbox.toml",
+            "--run-id",
+            "sandbox-smoke",
+            "--output",
+            "runs/sandbox-smoke",
+        ])
+        .expect("sandbox run should parse");
+
+        let Commands::Sandbox(sandbox) = parsed.command else {
+            panic!("expected sandbox command");
+        };
+        let SandboxCommand::Run(run) = sandbox.command else {
+            panic!("expected run command");
+        };
+
+        assert_eq!(run.config, PathBuf::from("config/sandbox.toml"));
+        assert_eq!(run.run_id.as_deref(), Some("sandbox-smoke"));
+        assert_eq!(run.output, Some(PathBuf::from("runs/sandbox-smoke")));
+    }
+
+    #[test]
+    fn live_help_lists_validate_and_run() {
+        let mut command = NautilusCli::command();
+        let live = command
+            .find_subcommand_mut("live")
+            .expect("live command should exist");
+        let help = live.render_help().to_string();
+
+        assert!(help.contains("validate"));
+        assert!(help.contains("run"));
+    }
+
+    #[test]
+    fn parses_live_validate_config_path() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "validate",
+            "--config",
+            "config/live.toml",
+        ])
+        .expect("live validate should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::Validate(validate) = live.command else {
+            panic!("expected validate command");
+        };
+
+        assert_eq!(validate.config, PathBuf::from("config/live.toml"));
+    }
+
+    #[test]
+    fn parses_live_run_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "run",
+            "--config",
+            "config/live.toml",
+            "--run-id",
+            "live-dry-run",
+            "--output",
+            "runs/live-dry-run",
+        ])
+        .expect("live run should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::Run(run) = live.command else {
+            panic!("expected run command");
+        };
+
+        assert_eq!(run.config, PathBuf::from("config/live.toml"));
+        assert_eq!(run.run_id.as_deref(), Some("live-dry-run"));
+        assert_eq!(run.output, Some(PathBuf::from("runs/live-dry-run")));
     }
 }
