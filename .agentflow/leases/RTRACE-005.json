@@ -1,0 +1,17 @@
+{
+  "task_id": "RTRACE-005",
+  "agent_id": "Codex",
+  "branch": "ai/RTRACE-005-bind-backtest-replay-trace",
+  "touched_paths": [
+    "tests/golden/backtest_replay_schema.jsonl",
+    "crates/backtest/tests/golden_trace_backtest.rs",
+    "scripts/ai/run_golden_traces.sh",
+    "docs/rust-cutover/golden_trace/SCHEMA.md",
+    "docs/rust-cutover/evidence/RTRACE-005.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RTRACE-005.json"
+  ],
+  "claimed_at": "2026-05-28T17:20:33.970276+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T17:20:34.006593+00:00"
+}
