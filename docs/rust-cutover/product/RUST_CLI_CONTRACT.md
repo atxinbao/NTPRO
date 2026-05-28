@@ -182,6 +182,7 @@ Required subcommands:
 ```text
 nautilus data inspect --config <path>
 nautilus data validate --config <path>
+nautilus data load --config <path> [--run-id <id>] [--output <dir>]
 ```
 
 Minimum contract:
@@ -189,6 +190,8 @@ Minimum contract:
 - `inspect` reports catalog/data source metadata without running a strategy.
 - `validate` checks data availability, instrument mapping, and requested time
   range.
+- `load` converts scoped fixture, file, or adapter replay input into the
+  configured catalog target only after validation.
 - Data-provider adapter behavior remains under RADP tasks.
 
 ### `nautilus database`

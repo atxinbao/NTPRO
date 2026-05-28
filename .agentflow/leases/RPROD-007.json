@@ -1,0 +1,16 @@
+{
+  "task_id": "RPROD-007",
+  "agent_id": "Codex",
+  "branch": "ai/RPROD-007-define-data-catalog-cli-contract",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RPROD-007.md",
+    "docs/rust-cutover/product/RUST_CLI_CONTRACT.md",
+    "docs/rust-cutover/product/DATA_CATALOG_CLI_CONTRACT.md",
+    "docs/rust-cutover/evidence/RPROD-007.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RPROD-007.json"
+  ],
+  "claimed_at": "2026-05-28T13:53:37.304355+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T13:56:17.375034+00:00"
+}
