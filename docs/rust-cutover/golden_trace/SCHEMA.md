@@ -3,6 +3,7 @@
 Date: 2026-05-29
 Executor: Codex
 Task ID: RTRACE-001
+Updated: 2026-05-29 by Codex for RTRACE-004 Rust harness binding
 
 A golden trace is JSONL. Each line is one deterministic trace case. A trace
 file must contain at least one row. Golden traces are the compatibility
@@ -147,6 +148,15 @@ Validate all golden trace files with:
 ```bash
 scripts/ai/run_golden_traces.sh
 ```
+
+The validation command runs the JSONL schema validator and the Rust harness:
+
+```bash
+cargo test -p nautilus-testkit --test golden_trace_schema
+```
+
+Set `RUN_RUST_GOLDEN_TRACE_HARNESS=0` only when documenting an explicit local
+toolchain blocker in task evidence.
 
 The final release gate may require replay by setting:
 

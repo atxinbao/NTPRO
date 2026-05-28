@@ -1,0 +1,16 @@
+{
+  "task_id": "RTRACE-004",
+  "agent_id": "Codex",
+  "branch": "ai/RTRACE-004-add-rust-golden-trace-runner-harness",
+  "touched_paths": [
+    "crates/testkit/tests/golden_trace_schema.rs",
+    "scripts/ai/run_golden_traces.sh",
+    "docs/rust-cutover/golden_trace/SCHEMA.md",
+    "docs/rust-cutover/evidence/RTRACE-004.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RTRACE-004.json"
+  ],
+  "claimed_at": "2026-05-28T17:02:32.283276+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T17:02:32.313586+00:00"
+}

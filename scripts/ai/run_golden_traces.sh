@@ -3,6 +3,7 @@ set -euo pipefail
 
 TRACE_GLOB="${TRACE_GLOB:-tests/golden/*.jsonl}"
 REQUIRE_GOLDEN_REPLAY="${REQUIRE_GOLDEN_REPLAY:-0}"
+RUN_RUST_GOLDEN_TRACE_HARNESS="${RUN_RUST_GOLDEN_TRACE_HARNESS:-1}"
 REPLAY_COMMAND="${GOLDEN_TRACE_REPLAY_COMMAND:-}"
 PYTHON_BIN="${PYTHON_BIN:-}"
 
@@ -36,3 +37,7 @@ for trace in "${traces[@]}"; do
     exit 1
   fi
 done
+
+if [ "$RUN_RUST_GOLDEN_TRACE_HARNESS" = "1" ]; then
+  cargo test -p nautilus-testkit --test golden_trace_schema
+fi
