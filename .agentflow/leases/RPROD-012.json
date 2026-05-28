@@ -1,0 +1,17 @@
+{
+  "task_id": "RPROD-012",
+  "agent_id": "Codex",
+  "branch": "ai/RPROD-012-add-rust-live-or-sandbox-example-smoke",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RPROD-012.md",
+    "crates/live/Cargo.toml",
+    "crates/live/examples/sandbox_node_smoke.rs",
+    "examples/rust/sandbox/README.md",
+    "docs/rust-cutover/evidence/RPROD-012.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RPROD-012.json"
+  ],
+  "claimed_at": "2026-05-28T15:01:20.537916+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T15:08:07.585335+00:00"
+}

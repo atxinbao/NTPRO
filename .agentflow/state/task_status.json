@@ -1030,7 +1030,7 @@
     },
     "RPROD-011": {
       "title": "Add Rust backtest example smoke",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1041,11 +1041,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RPROD-011.md",
       "evidence_file": "docs/rust-cutover/evidence/RPROD-011.md",
-      "updated_at": "2026-05-28T14:40:57Z"
+      "updated_at": "2026-05-28T14:59:35Z"
     },
     "RPROD-012": {
       "title": "Add Rust live or sandbox example smoke",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1055,7 +1055,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RPROD-012.md",
-      "evidence_file": "docs/rust-cutover/evidence/RPROD-012.md"
+      "evidence_file": "docs/rust-cutover/evidence/RPROD-012.md",
+      "updated_at": "2026-05-28T14:59:35Z"
     },
     "RPROD-013": {
       "title": "Generate or validate Rust documentation",

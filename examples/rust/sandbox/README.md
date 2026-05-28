@@ -14,6 +14,19 @@ cargo run -q -p nautilus-cli -- sandbox validate --config examples/rust/sandbox/
 cargo run -q -p nautilus-cli -- sandbox run --config examples/rust/sandbox/sandbox_smoke.toml --run-id sandbox-smoke --output runs/sandbox-smoke
 ```
 
+## Cargo Smoke
+
+The current runnable Rust sandbox smoke constructs a `nautilus-live`
+`LiveNode` in `Sandbox` mode without connecting to an external venue:
+
+```bash
+cargo run -p nautilus-live --no-default-features --features node --example sandbox-node-smoke
+```
+
+The smoke verifies the node starts in `Idle`, reports the configured trader ID
+and environment, and records that no Python runtime or external venue
+connection is required.
+
 ## Current Blocker
 
 `sandbox validate` and `sandbox run` parse and expose help, but execution
