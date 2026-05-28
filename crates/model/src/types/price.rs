@@ -176,6 +176,18 @@ pub struct Price {
     pub precision: u8,
 }
 
+#[inline(always)]
+fn check_price_raw_precision(raw: PriceRaw, precision: u8) -> CorrectnessResult<()> {
+    #[cfg(feature = "high-precision")]
+    let result = super::fixed::check_fixed_raw_i128(raw, precision);
+    #[cfg(not(feature = "high-precision"))]
+    let result = super::fixed::check_fixed_raw_i64(raw, precision);
+
+    result.map_err(|error| CorrectnessError::PredicateViolation {
+        message: error.to_string(),
+    })
+}
+
 impl Price {
     /// Creates a new [`Price`] instance with correctness checking.
     ///
@@ -245,14 +257,6 @@ impl Price {
         }
         check_fixed_precision(precision).expect_display(FAILED);
 
-        // TODO: Enforce spurious bits validation in v2
-        // if !matches!(raw, PRICE_UNDEF | PRICE_ERROR) && raw != 0 {
-        //     #[cfg(feature = "high-precision")]
-        //     super::fixed::check_fixed_raw_i128(raw, precision).expect(FAILED);
-        //     #[cfg(not(feature = "high-precision"))]
-        //     super::fixed::check_fixed_raw_i64(raw, precision).expect(FAILED);
-        // }
-
         Self { raw, precision }
     }
 
@@ -266,6 +270,7 @@ impl Price {
     /// - `precision` is not 0 when `raw` is `PRICE_UNDEF`.
     /// - `raw` is outside the valid range `[PRICE_RAW_MIN, PRICE_RAW_MAX]`
     ///   and is not a sentinel value.
+    /// - `raw` is not aligned to the fixed-point scale implied by `precision`.
     pub fn from_raw_checked(raw: PriceRaw, precision: u8) -> CorrectnessResult<Self> {
         if raw == PRICE_UNDEF && precision != 0 {
             return Err(CorrectnessError::PredicateViolation {
@@ -283,6 +288,9 @@ impl Price {
         }
 
         check_fixed_precision(precision)?;
+        if !matches!(raw, PRICE_UNDEF | PRICE_ERROR) && raw != 0 {
+            check_price_raw_precision(raw, precision)?;
+        }
 
         Ok(Self { raw, precision })
     }

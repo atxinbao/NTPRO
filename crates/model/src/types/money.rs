@@ -163,6 +163,18 @@ pub struct Money {
     pub currency: Currency,
 }
 
+#[inline(always)]
+fn check_money_raw_precision(raw: MoneyRaw, precision: u8) -> CorrectnessResult<()> {
+    #[cfg(feature = "high-precision")]
+    let result = super::fixed::check_fixed_raw_i128(raw, precision);
+    #[cfg(not(feature = "high-precision"))]
+    let result = super::fixed::check_fixed_raw_i64(raw, precision);
+
+    result.map_err(|error| CorrectnessError::PredicateViolation {
+        message: error.to_string(),
+    })
+}
+
 impl Money {
     /// Creates a new [`Money`] instance with correctness checking.
     ///
@@ -212,10 +224,17 @@ impl Money {
     ///
     /// # Panics
     ///
-    /// Panics if a correctness check fails. See [`Money::from_raw_checked`] for more details.
+    /// Panics if `raw` is outside the representable range [`MONEY_RAW_MIN`, `MONEY_RAW_MAX`].
+    /// Panics if `currency.precision` exceeds the maximum fixed precision.
     #[must_use]
     pub fn from_raw(raw: MoneyRaw, currency: Currency) -> Self {
-        Self::from_raw_checked(raw, currency).expect_display(FAILED)
+        assert!(
+            raw >= MONEY_RAW_MIN && raw <= MONEY_RAW_MAX,
+            "`raw` value {raw} exceeded bounds [{MONEY_RAW_MIN}, {MONEY_RAW_MAX}] for Money"
+        );
+        check_fixed_precision(currency.precision).expect_display(FAILED);
+
+        Self { raw, currency }
     }
 
     /// Creates a new [`Money`] instance from the given `raw` fixed-point value and the specified
@@ -226,6 +245,7 @@ impl Money {
     /// Returns an error if:
     /// - `raw` is outside the representable range [`MONEY_RAW_MIN`, `MONEY_RAW_MAX`].
     /// - `currency.precision` exceeds the maximum fixed precision.
+    /// - `raw` is not aligned to the fixed-point scale implied by `currency.precision`.
     pub fn from_raw_checked(raw: MoneyRaw, currency: Currency) -> CorrectnessResult<Self> {
         if raw < MONEY_RAW_MIN || raw > MONEY_RAW_MAX {
             return Err(CorrectnessError::PredicateViolation {
@@ -236,15 +256,9 @@ impl Money {
         }
 
         check_fixed_precision(currency.precision)?;
-
-        // TODO: Enforce spurious bits validation in v2
-        // Validate raw value has no spurious bits beyond the precision scale
-        // if raw != 0 {
-        //     #[cfg(feature = "high-precision")]
-        //     super::fixed::check_fixed_raw_i128(raw, currency.precision)?;
-        //     #[cfg(not(feature = "high-precision"))]
-        //     super::fixed::check_fixed_raw_i64(raw, currency.precision)?;
-        // }
+        if raw != 0 {
+            check_money_raw_precision(raw, currency.precision)?;
+        }
 
         Ok(Self { raw, currency })
     }
@@ -1221,8 +1235,9 @@ mod tests {
     #[rstest]
     fn test_money_from_raw_checked_valid() {
         let usd = Currency::USD();
-        let money = Money::from_raw_checked(123_450_000_000, usd).unwrap();
-        assert_eq!(money.currency, usd);
+        let expected = Money::new(123.45, usd);
+        let money = Money::from_raw_checked(expected.raw, usd).unwrap();
+        assert_eq!(money, expected);
     }
 
     #[rstest]

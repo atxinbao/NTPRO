@@ -6,6 +6,10 @@ use nautilus_model::{
 };
 use rust_decimal_macros::dec;
 
+fn assert_invalid_raw_precision_error(error: &impl ToString) {
+    assert!(error.to_string().contains("Invalid fixed-point raw value"));
+}
+
 #[test]
 fn price_quantity_and_money_preserve_precision_through_string_and_json_roundtrips() {
     let price = Price::from_str("123.4500").unwrap();
@@ -37,7 +41,7 @@ fn price_quantity_and_money_preserve_precision_through_string_and_json_roundtrip
 }
 
 #[test]
-fn raw_sentinel_precision_mismatches_are_rejected_by_checked_constructors() {
+fn raw_precision_mismatches_are_rejected_by_checked_constructors() {
     let price_error = Price::from_raw_checked(PRICE_UNDEF, 1).unwrap_err();
     assert!(
         price_error
@@ -51,6 +55,10 @@ fn raw_sentinel_precision_mismatches_are_rejected_by_checked_constructors() {
             .to_string()
             .contains("`precision` must be 0 when `raw` is QUANTITY_UNDEF")
     );
+
+    assert_invalid_raw_precision_error(&Price::from_raw_checked(1, 0).unwrap_err());
+    assert_invalid_raw_precision_error(&Quantity::from_raw_checked(1, 0).unwrap_err());
+    assert_invalid_raw_precision_error(&Money::from_raw_checked(1, Currency::USD()).unwrap_err());
 }
 
 #[test]
