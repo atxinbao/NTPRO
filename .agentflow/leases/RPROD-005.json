@@ -1,0 +1,15 @@
+{
+  "task_id": "RPROD-005",
+  "agent_id": "Codex",
+  "branch": "ai/RPROD-005-define-live-or-sandbox-run-cli-contract",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RPROD-005.md",
+    "docs/rust-cutover/product/LIVE_SANDBOX_CLI_CONTRACT.md",
+    "docs/rust-cutover/evidence/RPROD-005.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RPROD-005.json"
+  ],
+  "claimed_at": "2026-05-28T13:26:45.708080+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T13:27:53.249845+00:00"
+}
