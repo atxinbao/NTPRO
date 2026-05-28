@@ -28,6 +28,11 @@ Before any change, read:
 8. No adapter behavior change without raw fixture tests.
 9. Do not delete or move Cython files unless the current task explicitly says so; dedicated CY tasks must remove v1 Cython entirely before release.
 10. If a command cannot run, document why in evidence.
+11. High-risk work must stop at `REVIEW_REQUIRED` before merge and must not
+    enable auto-merge.
+12. After finishing high-risk work, report in plain Chinese first: what changed,
+    what did not change, why it is high risk, validation results, PR link, and
+    the gate/review status.
 
 ## Preferred commands
 
