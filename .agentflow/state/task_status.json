@@ -502,7 +502,7 @@
     },
     "RCORE-001": {
       "title": "Inventory Rust core/model value types gaps",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -512,7 +512,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-001.md",
-      "evidence_file": "docs/rust-cutover/evidence/RCORE-001.md"
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-001.md",
+      "updated_at": "2026-05-28T18:26:32Z"
     },
     "RCORE-002": {
       "title": "Add Rust tests for core/model value types",
@@ -1457,7 +1458,7 @@
     },
     "RTRACE-008": {
       "title": "Publish golden trace gate evidence",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1468,7 +1469,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RTRACE-008.md",
       "evidence_file": "docs/rust-cutover/evidence/RTRACE-008.md",
-      "updated_at": "2026-05-28T17:56:40Z"
+      "updated_at": "2026-05-28T18:21:17Z"
     }
   },
   "updated_at": "2026-05-28T13:15:03Z"
