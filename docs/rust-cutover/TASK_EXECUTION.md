@@ -23,6 +23,7 @@
 - `DONE` requires QA evidence, review evidence, and merged PR evidence unless the
   task explicitly documents that it is local-only.
 - High-risk work must stop at `REVIEW_REQUIRED` before merge.
+- High-risk work must not enable auto-merge.
 - Critical removal or release work requires explicit release gatekeeper approval.
 
 ## Risk protocol
@@ -53,7 +54,10 @@
 4. Run `scripts/ai/validate_agentflow_roles.py` for control-plane task metadata
    changes.
 5. Fill PR template.
-6. Release lease only after PR is ready or task is blocked.
+6. For high-risk tasks, write the final handoff in plain Chinese before
+   technical details. It must state what changed, what did not change, why the
+   task is high risk, validation results, PR link, and gate/review status.
+7. Release lease only after PR is ready or task is blocked.
 
 ## Blockers
 
