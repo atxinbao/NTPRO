@@ -132,7 +132,7 @@ fn validate_rows(rows: &[Value]) -> Vec<String> {
 
         match row.get("case_id").and_then(Value::as_str) {
             Some(case_id) if !case_id.is_empty() && seen_case_ids.insert(case_id.to_string()) => {}
-            Some(case_id) if case_id.is_empty() => {
+            Some("") => {
                 errors.push(format!("{path}.case_id: must be a non-empty string"));
             }
             Some(case_id) => {
