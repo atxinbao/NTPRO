@@ -1,0 +1,15 @@
+{
+  "task_id": "RTRACE-003",
+  "agent_id": "Codex",
+  "branch": "ai/RTRACE-003-capture-order-lifecycle-trace-fixtures",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RTRACE-003.md",
+    "tests/golden/order_lifecycle_schema.jsonl",
+    "docs/rust-cutover/evidence/RTRACE-003.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RTRACE-003.json"
+  ],
+  "claimed_at": "2026-05-28T16:25:31.348262+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T16:29:15.541585+00:00"
+}
