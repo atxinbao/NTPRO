@@ -1397,7 +1397,7 @@
     },
     "RTRACE-004": {
       "title": "Add Rust golden trace runner harness",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1408,11 +1408,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RTRACE-004.md",
       "evidence_file": "docs/rust-cutover/evidence/RTRACE-004.md",
-      "updated_at": "2026-05-28T16:51:29Z"
+      "updated_at": "2026-05-28T17:11:37Z"
     },
     "RTRACE-005": {
       "title": "Bind backtest replay trace",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1422,7 +1422,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RTRACE-005.md",
-      "evidence_file": "docs/rust-cutover/evidence/RTRACE-005.md"
+      "evidence_file": "docs/rust-cutover/evidence/RTRACE-005.md",
+      "updated_at": "2026-05-28T17:11:37Z"
     },
     "RTRACE-006": {
       "title": "Bind live/sandbox lifecycle trace",
