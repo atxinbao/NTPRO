@@ -1075,7 +1075,7 @@
     },
     "RPROD-014": {
       "title": "Publish Rust product surface report",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1086,7 +1086,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RPROD-014.md",
       "evidence_file": "docs/rust-cutover/evidence/RPROD-014.md",
-      "updated_at": "2026-05-28T15:17:06Z"
+      "updated_at": "2026-05-28T16:05:41Z"
     },
     "RREL-001": {
       "title": "Write Rust-only migration guide",
@@ -1352,7 +1352,7 @@
     },
     "RTRACE-001": {
       "title": "Define Rust golden trace schema",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1362,7 +1362,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RTRACE-001.md",
-      "evidence_file": "docs/rust-cutover/evidence/RTRACE-001.md"
+      "evidence_file": "docs/rust-cutover/evidence/RTRACE-001.md",
+      "updated_at": "2026-05-28T16:05:41Z"
     },
     "RTRACE-002": {
       "title": "Capture market data trace fixtures",
