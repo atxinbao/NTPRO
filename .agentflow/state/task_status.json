@@ -1367,7 +1367,7 @@
     },
     "RTRACE-002": {
       "title": "Capture market data trace fixtures",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1378,11 +1378,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RTRACE-002.md",
       "evidence_file": "docs/rust-cutover/evidence/RTRACE-002.md",
-      "updated_at": "2026-05-28T16:16:06Z"
+      "updated_at": "2026-05-28T16:24:27Z"
     },
     "RTRACE-003": {
       "title": "Capture order lifecycle trace fixtures",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1392,7 +1392,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RTRACE-003.md",
-      "evidence_file": "docs/rust-cutover/evidence/RTRACE-003.md"
+      "evidence_file": "docs/rust-cutover/evidence/RTRACE-003.md",
+      "updated_at": "2026-05-28T16:24:27Z"
     },
     "RTRACE-004": {
       "title": "Add Rust golden trace runner harness",
