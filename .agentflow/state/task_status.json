@@ -1412,7 +1412,7 @@
     },
     "RTRACE-005": {
       "title": "Bind backtest replay trace",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1423,11 +1423,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RTRACE-005.md",
       "evidence_file": "docs/rust-cutover/evidence/RTRACE-005.md",
-      "updated_at": "2026-05-28T17:11:37Z"
+      "updated_at": "2026-05-28T17:26:09Z"
     },
     "RTRACE-006": {
       "title": "Bind live/sandbox lifecycle trace",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1437,7 +1437,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RTRACE-006.md",
-      "evidence_file": "docs/rust-cutover/evidence/RTRACE-006.md"
+      "evidence_file": "docs/rust-cutover/evidence/RTRACE-006.md",
+      "updated_at": "2026-05-28T17:26:09Z"
     },
     "RTRACE-007": {
       "title": "Bind adapter payload trace fixtures",
