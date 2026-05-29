@@ -1,0 +1,20 @@
+{
+  "task_id": "RCTL-009",
+  "agent_id": "Codex",
+  "branch": "ai/RCTL-009-pr-summary-risk-automation-policy",
+  "touched_paths": [
+    "AGENTS.md",
+    ".github/pull_request_template.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCTL-009.json",
+    "docs/rust-cutover/AGENT_ROLES.md",
+    "docs/rust-cutover/TASK_EXECUTION.md",
+    "docs/rust-cutover/automation/PR_AUTODISPATCH.md",
+    "docs/rust-cutover/tasks/RCTL-009.md",
+    "docs/rust-cutover/evidence/RCTL-009.md",
+    "scripts/control/close_merged_pr.py",
+    "scripts/control/dispatch_next.py"
+  ],
+  "claimed_at": "2026-05-29T22:19:48Z",
+  "status": "PR_READY"
+}

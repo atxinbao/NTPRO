@@ -362,10 +362,10 @@
     },
     "RBTL-001": {
       "title": "Inventory Rust backtest runtime gaps",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -373,15 +373,16 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-001.md",
       "evidence_file": "docs/rust-cutover/evidence/RBTL-001.md",
-      "updated_at": "2026-05-29T22:06:07Z",
-      "branch": "ai/RBTL-001-inventory-rust-backtest-runtime-gaps"
+      "updated_at": "2026-05-29T22:13:10Z",
+      "branch": "ai/RBTL-001-inventory-rust-backtest-runtime-gaps",
+      "merged_pr": 54
     },
     "RBTL-002": {
       "title": "Add Rust BacktestNode smoke",
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -395,7 +396,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -409,7 +410,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -423,7 +424,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -437,7 +438,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -451,7 +452,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -465,7 +466,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -479,7 +480,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -493,7 +494,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -507,7 +508,7 @@
       "status": "REVIEW_REQUIRED",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -522,7 +523,7 @@
       "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -537,7 +538,7 @@
       "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -552,7 +553,7 @@
       "status": "REVIEW_REQUIRED",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -567,7 +568,7 @@
       "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -582,7 +583,7 @@
       "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -597,7 +598,7 @@
       "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -612,7 +613,7 @@
       "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -627,7 +628,7 @@
       "status": "REVIEW_REQUIRED",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -642,7 +643,7 @@
       "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -657,7 +658,7 @@
       "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -672,7 +673,7 @@
       "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -687,7 +688,7 @@
       "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -702,7 +703,7 @@
       "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -717,7 +718,7 @@
       "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -732,7 +733,7 @@
       "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -748,7 +749,7 @@
       "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -765,7 +766,7 @@
       "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -782,7 +783,7 @@
       "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "low",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -796,7 +797,7 @@
       "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "low",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -810,7 +811,7 @@
       "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "low",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -826,7 +827,7 @@
       "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "low",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -845,7 +846,7 @@
       "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "low",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -863,7 +864,7 @@
       "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "low",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -878,7 +879,7 @@
       "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "low",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -893,7 +894,7 @@
       "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "low",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1118,7 +1119,7 @@
       "status": "TODO",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1132,7 +1133,7 @@
       "status": "TODO",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1146,7 +1147,7 @@
       "status": "TODO",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1160,7 +1161,7 @@
       "status": "TODO",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1174,7 +1175,7 @@
       "status": "TODO",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1188,7 +1189,7 @@
       "status": "TODO",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1202,7 +1203,7 @@
       "status": "TODO",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1216,7 +1217,7 @@
       "status": "TODO",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
-      "risk_level": "high",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1230,7 +1231,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "critical",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1245,7 +1246,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "critical",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1260,7 +1261,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "critical",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1275,7 +1276,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "critical",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1290,7 +1291,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "critical",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1305,7 +1306,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "critical",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1320,7 +1321,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "critical",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1335,7 +1336,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "critical",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1350,7 +1351,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "critical",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1365,7 +1366,7 @@
       "status": "TODO",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
-      "risk_level": "critical",
+      "risk_level": "medium",
       "done_requires": [
         "qa_passed",
         "review_passed",
@@ -1494,6 +1495,22 @@
       "source_task_file": "docs/rust-cutover/tasks/RTRACE-008.md",
       "evidence_file": "docs/rust-cutover/evidence/RTRACE-008.md",
       "updated_at": "2026-05-28T18:21:17Z"
+    },
+    "RCTL-009": {
+      "title": "Codify PR plain Chinese summary and medium-risk automation policy",
+      "status": "PR_OPEN",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RCTL-009.md",
+      "evidence_file": "docs/rust-cutover/evidence/RCTL-009.md",
+      "updated_at": "2026-05-29T22:19:48Z",
+      "branch": "ai/RCTL-009-pr-summary-risk-automation-policy"
     }
   },
   "updated_at": "2026-05-29T20:39:13Z"

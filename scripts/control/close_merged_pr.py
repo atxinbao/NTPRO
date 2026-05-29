@@ -171,9 +171,6 @@ def main() -> int:
 
     if not args.dry_run:
         ensure_clean_worktree(workspace)
-        run(["git", "fetch", "--prune", "origin"], workspace)
-        run(["git", "switch", "main"], workspace)
-        run(["git", "pull", "--ff-only", "origin", "main"], workspace)
         backup_path = backup_tasks(args.shrimp_tasks)
         task["status"] = "completed"
         task["updatedAt"] = now()
