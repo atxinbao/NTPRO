@@ -1,0 +1,13 @@
+{
+  "task_id": "RBTL-001",
+  "agent_id": "Codex",
+  "branch": "ai/RBTL-001-inventory-rust-backtest-runtime-gaps",
+  "touched_paths": [
+    "docs/rust-cutover/evidence/RBTL-001.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RBTL-001.json"
+  ],
+  "claimed_at": "2026-05-29T21:19:14Z",
+  "status": "PR_READY",
+  "released_at": "2026-05-29T22:06:07Z"
+}
