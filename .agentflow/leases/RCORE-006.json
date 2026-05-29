@@ -1,0 +1,16 @@
+{
+  "task_id": "RCORE-006",
+  "agent_id": "Codex",
+  "branch": "ai/RCORE-006-close-rust-serialization-data-persistence-gaps",
+  "touched_paths": [
+    "crates/persistence/src/backend/catalog.rs",
+    "docs/rust-cutover/inventory/serialization_data_persistence.md",
+    "docs/rust-cutover/tasks/RCORE-006.md",
+    "docs/rust-cutover/evidence/RCORE-006.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCORE-006.json"
+  ],
+  "claimed_at": "2026-05-29T10:15:58.557544+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-29T10:44:12.094411+00:00"
+}
