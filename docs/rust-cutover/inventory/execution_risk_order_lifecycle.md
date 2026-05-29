@@ -163,6 +163,41 @@ behavior.
 | EROL-009 | Existing risk tests include account/balance checks, but real-time account balance tracking and portfolio/PnL replay remain deferred. | Not closed by RCORE-011. Portfolio/PnL release evidence remains later gate work. |
 | EROL-010 | RCORE-011 changes no Python/PyO3/Cython files. | Removal remains blocked by RREM/release gates. |
 
+## RCORE-012 Closeout Matrix
+
+Date: 2026-05-29
+Executor: Codex
+Task ID: RCORE-012
+
+RCORE-012 closes the execution/risk/order lifecycle inventory by separating
+Rust evidence that is safe to claim now from release-gate work that must remain
+explicitly scoped. It does not change runtime behavior, trading semantics,
+public APIs, adapters, persistence formats, or Python/PyO3/Cython surfaces.
+
+| Gap | RCORE-012 decision | Evidence | Follow-up owner |
+| --- | --- | --- | --- |
+| EROL-001 | Explicitly scoped, not closed as replay parity. | `tests/golden/order_lifecycle_schema.jsonl` still contains six schema rows, and `docs/rust-cutover/golden_trace/GATE_EVIDENCE.md` still labels `order_lifecycle` as schema-only seed evidence. | RTRACE must bind these rows to an executable Rust order lifecycle replay before release. |
+| EROL-002 | Locally closed for focused Rust risk accept/deny assertions; release replay remains scoped. | RCORE-011 strengthened `crates/risk/tests/risk_engine.rs::test_submit_order_with_default_settings_then_sends_to_client` and `test_submit_order_when_trading_halted_then_denies_order`; `cargo test -p nautilus-risk --test risk_engine` passed in RCORE-011 evidence. | RTRACE still owns executable risk golden replay for rate limits, notional checks, and trading-state ordering. |
+| EROL-003 | Locally closed for RiskEngine-side queue routing; end-to-end trace remains scoped. | RCORE-011 asserted accepted submits forward through `exec_engine_queue_execute` and halted denials do not forward to execution. | RTRACE/RCORE follow-up must replay a queued command through an actual `ExecutionEngine` and compare emitted events. |
+| EROL-004 | Explicitly scoped as an order-manager invariant, not silently treated as release-ready recovery behavior. | `crates/execution/src/order_manager/manager.rs` documents panic paths for missing contingent orders. Existing execution tests cover incomplete order-list denial and OTO child `position_id` propagation. Missing cached contingent children remain an internal invariant decision, not a venue/runtime recovery contract. | A future RCORE task must either convert these invariant panics into recoverable errors with migration notes and tests, or keep them as documented release exceptions approved by the gatekeeper. |
+| EROL-005 | Explicitly scoped. | `PriceType::Mark` still panics as not implemented, the matching engine still has a fixed-clock TODO, and ignored contingent stale-local tests remain present in `crates/execution/tests/matching_engine.rs`. | RCORE matching-engine task must implement or formally defer `PriceType::Mark`, fixed-clock semantics, and stale contingent-order behavior before final release. |
+| EROL-006 | Explicitly scoped. | Risk tests still ignore emulator-routing cases with “Waiting on emulator implementation”; order emulator smoke coverage exists but does not prove RiskEngine integration. | RCORE/RTRACE must add emulator-to-risk executable coverage or record a release-scope exclusion. |
+| EROL-007 | Explicitly scoped as preserved Python-parity limitation. | Reconciliation tests document the shared Python limitation where `OrderUpdated` alone does not transition `PartiallyFilled` to `Filled`. | RCORE or release gate must decide preserve/fix/defer before Rust-only release; any behavior change needs migration notes and tests. |
+| EROL-008 | Partially covered by existing Rust execution tests, but release trace remains scoped. | Execution tests cover position ID assignment, open/increase/close flows, reduce-only fills, and OTO child position linking. `GATE_EVIDENCE.md` still records no executable position open/increase/reduce/close trace replay. | RTRACE must add executable position lifecycle replay before release. |
+| EROL-009 | Explicitly scoped. | `GATE_EVIDENCE.md` still records no executable account balance, margin, realized PnL, unrealized PnL, or equity replay; risk tests still ignore account balance tracking. | Portfolio/PnL runtime and trace tasks must close this before release. |
+| EROL-010 | Explicitly blocked. | `Cargo.toml`, `pyproject.toml`, `build.py`, `crates/execution/Cargo.toml`, and `crates/risk/Cargo.toml` still expose Python, PyO3, and Cython surfaces. | RREM/release gates only; RCORE-012 does not authorize deletion. |
+
+RCORE-012 therefore closes the RCORE-010/RCORE-011 inventory loop as a scoped
+runtime gate record:
+
+- Safe to claim now: focused Rust assertions for EROL-002 and EROL-003.
+- Safe to claim as existing partial evidence only: EROL-004 and EROL-008.
+- Not safe to claim as release-ready: EROL-001, EROL-005, EROL-006, EROL-007,
+  EROL-009, and EROL-010.
+
+This keeps `removal_allowed = false` and prevents the high-risk runtime gap
+inventory from being treated as complete Rust-only release evidence.
+
 ## Release Gate Decision
 
 RCORE-010 created the inventory and RCORE-011 adds targeted RiskEngine routing
@@ -174,8 +209,10 @@ test evidence.
   portfolio, adapter, or public API behavior changes are allowed here.
 - RCORE-011 covers risk accept/deny routing assertions for EROL-002 and
   EROL-003.
-- RCORE-012 should close implementable gaps or record explicit scope deferrals
-  with Verification & Release Gatekeeper review.
+- RCORE-012 records explicit scope deferrals for the remaining execution,
+  matching, emulator, reconciliation, position trace, portfolio/PnL, and
+  Python/PyO3/Cython removal gaps. It does not convert those deferrals into
+  release-ready evidence.
 - This decision does not mark the Rust-only release gate as passed. It records
   the execution/risk/order lifecycle gap map that later high-risk tasks must
   either close or defer with evidence.

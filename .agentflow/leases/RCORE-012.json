@@ -1,0 +1,15 @@
+{
+  "task_id": "RCORE-012",
+  "agent_id": "Codex",
+  "branch": "ai/RCORE-012-close-rust-execution-risk-order-lifecycle-gaps",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RCORE-012.md",
+    "docs/rust-cutover/evidence/RCORE-012.md",
+    "docs/rust-cutover/inventory/execution_risk_order_lifecycle.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCORE-012.json"
+  ],
+  "claimed_at": "2026-05-29T14:12:59.864848+00:00",
+  "status": "PR_READY",
+  "review_ready_at": "2026-05-29T14:27:49Z"
+}
