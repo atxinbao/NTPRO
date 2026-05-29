@@ -1615,18 +1615,24 @@ fn log_portfolio_performance(analyzer: &PortfolioAnalyzer) {
 
 #[cfg(test)]
 mod tests {
-    use nautilus_common::enums::Environment;
+    use nautilus_common::{enums::Environment, nautilus_actor};
     use nautilus_execution::engine::SnapshotAnchorer;
     use nautilus_model::{
         data::{Data, InstrumentStatus},
         enums::{AccountType, BookType, MarketStatus, MarketStatusAction, OmsType},
-        identifiers::Venue,
+        identifiers::{ExecAlgorithmId, StrategyId, Venue},
         instruments::{
             CryptoPerpetual, Instrument, InstrumentAny, stubs::crypto_perpetual_ethusdt,
         },
+        orders::OrderAny,
         types::Money,
     };
     use nautilus_system::{KernelEventStore, RegisteredComponents};
+    use nautilus_trading::{
+        ExecutionAlgorithm as ExecutionAlgorithmTrait, ExecutionAlgorithmConfig,
+        ExecutionAlgorithmCore, nautilus_strategy,
+        strategy::{config::StrategyConfig, core::StrategyCore},
+    };
     use rstest::*;
 
     use super::*;
@@ -1678,6 +1684,50 @@ mod tests {
 
         fn is_halted(&self) -> bool {
             false
+        }
+    }
+
+    #[derive(Debug)]
+    struct BacktestTestStrategy {
+        core: StrategyCore,
+    }
+
+    impl BacktestTestStrategy {
+        fn new(config: StrategyConfig) -> Self {
+            Self {
+                core: StrategyCore::new(config),
+            }
+        }
+    }
+
+    impl DataActor for BacktestTestStrategy {}
+
+    nautilus_strategy!(BacktestTestStrategy);
+
+    #[derive(Debug)]
+    struct BacktestTestExecAlgorithm {
+        core: ExecutionAlgorithmCore,
+    }
+
+    impl BacktestTestExecAlgorithm {
+        fn new(config: ExecutionAlgorithmConfig) -> Self {
+            Self {
+                core: ExecutionAlgorithmCore::new(config),
+            }
+        }
+    }
+
+    impl DataActor for BacktestTestExecAlgorithm {}
+
+    nautilus_actor!(BacktestTestExecAlgorithm);
+
+    impl ExecutionAlgorithmTrait for BacktestTestExecAlgorithm {
+        fn core_mut(&mut self) -> &mut ExecutionAlgorithmCore {
+            &mut self.core
+        }
+
+        fn on_order(&mut self, _order: OrderAny) -> anyhow::Result<()> {
+            Ok(())
         }
     }
 
@@ -1752,6 +1802,38 @@ mod tests {
         assert!(engine.kernel.is_event_store_replay_configured());
         assert!(!engine.kernel.is_event_store_replay());
         assert!(!engine.kernel.trader.borrow().is_running());
+    }
+
+    #[rstest]
+    fn test_add_strategy_registers_strategy_with_trader() {
+        let mut engine = create_engine();
+        let strategy_id = StrategyId::from("BacktestTestStrategy-001");
+        let strategy = BacktestTestStrategy::new(StrategyConfig {
+            strategy_id: Some(strategy_id),
+            ..Default::default()
+        });
+
+        engine.add_strategy(strategy).unwrap();
+
+        let trader = engine.kernel.trader.borrow();
+        assert_eq!(trader.strategy_count(), 1);
+        assert!(trader.strategy_ids().contains(&strategy_id));
+    }
+
+    #[rstest]
+    fn test_add_exec_algorithm_registers_algorithm_with_trader() {
+        let mut engine = create_engine();
+        let exec_algorithm_id = ExecAlgorithmId::new("BacktestTestExecAlgorithm");
+        let exec_algorithm = BacktestTestExecAlgorithm::new(ExecutionAlgorithmConfig {
+            exec_algorithm_id: Some(exec_algorithm_id),
+            ..Default::default()
+        });
+
+        engine.add_exec_algorithm(exec_algorithm).unwrap();
+
+        let trader = engine.kernel.trader.borrow();
+        assert_eq!(trader.exec_algorithm_count(), 1);
+        assert!(trader.exec_algorithm_ids().contains(&exec_algorithm_id));
     }
 
     #[rstest]
