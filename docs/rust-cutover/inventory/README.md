@@ -12,3 +12,5 @@ Generated and curated inventory outputs live here.
   message bus, and component lifecycle gap boundaries.
 - `execution_risk_order_lifecycle.md` - RCORE-010 inventory of Rust execution,
   risk, and order lifecycle gap boundaries.
+- `trading_strategy_algorithm_api.md` - RCORE-016 inventory of Rust trading
+  strategy and execution algorithm API gap boundaries.
