@@ -2191,6 +2191,180 @@ fn test_order_fill_endpoint_updates_account_balance_before_position_close(
 }
 
 #[rstest]
+fn test_order_fill_replay_updates_balance_pnl_equity_and_snapshot(
+    mut portfolio: Portfolio,
+    instrument_audusd: InstrumentAny,
+) {
+    let account_id = AccountId::new("SIM-01234");
+    let account_state = AccountState::new(
+        account_id,
+        AccountType::Margin,
+        vec![AccountBalance::new(
+            Money::new(1_000_000.0, Currency::USD()),
+            Money::new(0.0, Currency::USD()),
+            Money::new(1_000_000.0, Currency::USD()),
+        )],
+        vec![],
+        true,
+        uuid4(),
+        UnixNanos::default(),
+        UnixNanos::default(),
+        Some(Currency::USD()),
+    );
+
+    portfolio.update_account(&account_state);
+    portfolio
+        .cache()
+        .borrow_mut()
+        .account_mut(&account_id)
+        .unwrap()
+        .set_calculate_account_state(true);
+
+    let opening_order = OrderTestBuilder::new(OrderType::Market)
+        .instrument_id(instrument_audusd.id())
+        .side(OrderSide::Buy)
+        .quantity(Quantity::from("100000"))
+        .build();
+    portfolio
+        .cache()
+        .borrow_mut()
+        .add_order(opening_order.clone(), None, None, true)
+        .unwrap();
+
+    let position_id = PositionId::new("P-RCORE-014");
+    let opening_fill = build_order_filled(
+        opening_order.trader_id(),
+        opening_order.strategy_id(),
+        opening_order.instrument_id(),
+        opening_order.client_order_id(),
+        VenueOrderId::new("123456"),
+        account_id,
+        TradeId::new("1"),
+        opening_order.order_side(),
+        opening_order.order_type(),
+        opening_order.quantity(),
+        Price::new(1.00000, 5),
+        Currency::USD(),
+        LiquiditySide::Taker,
+        Some(position_id),
+        Some(Money::new(2.0, Currency::USD())),
+    );
+    let mut position = Position::new(&instrument_audusd, opening_fill);
+    portfolio
+        .cache()
+        .borrow_mut()
+        .add_position(&position, OmsType::Hedging)
+        .unwrap();
+
+    let opening_quote = get_quote_tick(&instrument_audusd, 1.00000, 1.00001, 1.0, 1.0);
+    portfolio
+        .cache()
+        .borrow_mut()
+        .add_quote(opening_quote)
+        .unwrap();
+    portfolio.update_quote_tick(&opening_quote);
+    portfolio.update_order(&OrderEventAny::Filled(opening_fill));
+
+    assert_eq!(
+        usd_balance_total(&portfolio, &account_id),
+        Money::new(999_998.0, Currency::USD())
+    );
+
+    let closing_order = OrderTestBuilder::new(OrderType::Market)
+        .instrument_id(instrument_audusd.id())
+        .side(OrderSide::Sell)
+        .quantity(Quantity::from("100000"))
+        .build();
+    portfolio
+        .cache()
+        .borrow_mut()
+        .add_order(closing_order.clone(), None, None, true)
+        .unwrap();
+
+    let closing_fill = build_order_filled(
+        closing_order.trader_id(),
+        closing_order.strategy_id(),
+        closing_order.instrument_id(),
+        closing_order.client_order_id(),
+        VenueOrderId::new("789012"),
+        account_id,
+        TradeId::new("2"),
+        closing_order.order_side(),
+        closing_order.order_type(),
+        closing_order.quantity(),
+        Price::new(1.00010, 5),
+        Currency::USD(),
+        LiquiditySide::Taker,
+        Some(position_id),
+        Some(Money::new(2.0, Currency::USD())),
+    );
+    portfolio.update_order(&OrderEventAny::Filled(closing_fill));
+    assert_eq!(
+        usd_balance_total(&portfolio, &account_id),
+        Money::new(1_000_006.0, Currency::USD())
+    );
+
+    position.apply(&closing_fill);
+    portfolio
+        .cache()
+        .borrow_mut()
+        .update_position(&position)
+        .unwrap();
+    portfolio.update_position(&PositionEvent::PositionClosed(get_close_position(
+        &position,
+    )));
+
+    let realized = portfolio
+        .realized_pnl_for_account(&instrument_audusd.id(), Some(&account_id))
+        .expect("realized PnL should be calculated for the closed position");
+    assert_eq!(realized.currency, Currency::USD());
+    assert_eq!(realized.as_decimal(), dec!(6.0));
+
+    let unrealized = portfolio.unrealized_pnls(&Venue::test_default(), Some(&account_id));
+    assert!(
+        unrealized.is_empty()
+            || unrealized
+                .get(&Currency::USD())
+                .is_some_and(|pnl| pnl.as_decimal() == dec!(0.0))
+    );
+
+    let equity = portfolio.equity(&Venue::test_default(), Some(&account_id));
+    assert_eq!(
+        equity.get(&Currency::USD()).unwrap().as_decimal(),
+        dec!(1_000_006.0)
+    );
+
+    let snapshot = portfolio
+        .build_snapshot(&account_id)
+        .expect("closed account snapshot should be built");
+    let snapshot_balance = snapshot
+        .balances
+        .iter()
+        .find(|balance| balance.currency == Currency::USD())
+        .expect("USD balance in snapshot");
+    assert_eq!(snapshot_balance.total.as_decimal(), dec!(1_000_006.0));
+    let snapshot_realized = snapshot
+        .realized_pnls
+        .iter()
+        .find(|pnl| pnl.currency == Currency::USD())
+        .expect("USD realized PnL in snapshot");
+    assert_eq!(snapshot_realized.as_decimal(), dec!(6.0));
+    assert!(
+        snapshot.unrealized_pnls.is_empty()
+            || snapshot
+                .unrealized_pnls
+                .iter()
+                .any(|pnl| pnl.currency == Currency::USD() && pnl.as_decimal() == dec!(0.0))
+    );
+    let snapshot_equity = snapshot
+        .total_equity
+        .iter()
+        .find(|equity| equity.currency == Currency::USD())
+        .expect("USD total equity in snapshot");
+    assert_eq!(snapshot_equity.as_decimal(), dec!(1_000_006.0));
+}
+
+#[rstest]
 fn test_order_fill_endpoint_updates_account_balance_before_position_reverse(
     mut portfolio: Portfolio,
     instrument_audusd: InstrumentAny,

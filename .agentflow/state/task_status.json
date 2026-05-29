@@ -682,7 +682,7 @@
     },
     "RCORE-013": {
       "title": "Inventory Rust portfolio/accounting/PnL gaps",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -693,11 +693,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-013.md",
       "evidence_file": "docs/rust-cutover/evidence/RCORE-013.md",
-      "updated_at": "2026-05-29T14:56:13Z"
+      "updated_at": "2026-05-29T16:34:20Z"
     },
     "RCORE-014": {
       "title": "Add Rust tests for portfolio/accounting/PnL",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -707,7 +707,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-014.md",
-      "evidence_file": "docs/rust-cutover/evidence/RCORE-014.md"
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-014.md",
+      "updated_at": "2026-05-29T16:34:20Z"
     },
     "RCORE-015": {
       "title": "Close Rust portfolio/accounting/PnL gaps",
@@ -1484,5 +1485,5 @@
       "updated_at": "2026-05-28T18:21:17Z"
     }
   },
-  "updated_at": "2026-05-29T13:05:09Z"
+  "updated_at": "2026-05-29T16:35:24Z"
 }
