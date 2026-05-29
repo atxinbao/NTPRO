@@ -1,0 +1,18 @@
+{
+  "task_id": "RCORE-008",
+  "agent_id": "Codex",
+  "branch": "ai/RCORE-008-add-rust-tests-for-common-cache-message-bus-component-lifecycle",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RCORE-008.md",
+    "crates/common/src/cache/tests.rs",
+    "crates/common/src/component.rs",
+    "crates/common/src/msgbus/api.rs",
+    "docs/rust-cutover/inventory/common_cache_msgbus_lifecycle.md",
+    "docs/rust-cutover/evidence/RCORE-008.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCORE-008.json"
+  ],
+  "claimed_at": "2026-05-29T11:27:26.150593+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-29T11:56:50.396322+00:00"
+}

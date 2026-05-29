@@ -1501,7 +1501,7 @@ mod tests {
     //! where `send_*` holds a borrow, calls the handler, and the handler needs to
     //! call `borrow_mut()` for topic getters or other operations.
 
-    use std::{cell::RefCell, rc::Rc};
+    use std::{cell::RefCell, rc::Rc, thread};
 
     use nautilus_core::UUID4;
     use nautilus_model::{
@@ -1521,7 +1521,7 @@ mod tests {
             },
             execution::{CancelAllOrders, TradingCommand},
         },
-        msgbus::{BusTap, clear_bus_tap, set_bus_tap},
+        msgbus::{BusTap, MessageBus, clear_bus_tap, set_bus_tap, set_message_bus},
     };
 
     #[rstest]
@@ -1621,6 +1621,83 @@ mod tests {
 
         publish_quote("data.quotes.UNSUB".into(), &quote);
         assert_eq!(received.borrow().len(), 1);
+    }
+
+    #[rstest]
+    fn test_route_separation_any_subscriber_does_not_receive_typed_quote() {
+        *get_message_bus().borrow_mut() = MessageBus::default();
+
+        let received = Rc::new(RefCell::new(0));
+        let received_clone = received.clone();
+        let handler = ShareableMessageHandler::from_typed(move |_quote: &QuoteTick| {
+            *received_clone.borrow_mut() += 1;
+        });
+
+        subscribe_any("data.quotes.RCORE008.*".into(), handler, None);
+
+        let quote = QuoteTick::default();
+        publish_quote("data.quotes.RCORE008.TEST".into(), &quote);
+
+        assert_eq!(*received.borrow(), 0);
+    }
+
+    #[rstest]
+    fn test_route_separation_typed_subscriber_does_not_receive_any_quote() {
+        *get_message_bus().borrow_mut() = MessageBus::default();
+
+        let received = Rc::new(RefCell::new(0));
+        let received_clone = received.clone();
+        let handler = TypedHandler::from(move |_quote: &QuoteTick| {
+            *received_clone.borrow_mut() += 1;
+        });
+
+        subscribe_quotes("data.quotes.RCORE008.*".into(), handler, None);
+
+        let quote = QuoteTick::default();
+        publish_any("data.quotes.RCORE008.TEST".into(), &quote);
+
+        assert_eq!(*received.borrow(), 0);
+    }
+
+    #[rstest]
+    fn test_message_bus_thread_local_isolation_for_lifecycle_state() {
+        set_message_bus(Rc::new(RefCell::new(MessageBus::new(
+            TraderId::from("TRADER-RCORE-008"),
+            UUID4::new(),
+            Some("RCORE-008-main-bus".to_string()),
+            None,
+        ))));
+
+        let handler = ShareableMessageHandler::from_typed(|_payload: &u32| {});
+        subscribe_any("data.rcore008.thread.local".into(), handler, None);
+
+        let main_bus = get_message_bus();
+        let (main_name, main_trader_id) = {
+            let bus = main_bus.borrow();
+            (bus.name.clone(), bus.trader_id.to_string())
+        };
+        assert_eq!(subscriptions_count_any("data.rcore008.thread.local"), 1);
+
+        let (worker_name, worker_trader_id, worker_subscriptions) = thread::spawn(|| {
+            let worker_bus = get_message_bus();
+            let (worker_name, worker_trader_id) = {
+                let bus = worker_bus.borrow();
+                (bus.name.clone(), bus.trader_id.to_string())
+            };
+            let worker_subscriptions = subscriptions_count_any("data.rcore008.thread.local");
+
+            (worker_name, worker_trader_id, worker_subscriptions)
+        })
+        .join()
+        .expect("thread-local message bus worker panicked");
+
+        assert_eq!(main_name, "RCORE-008-main-bus");
+        assert_eq!(main_trader_id, "TRADER-RCORE-008");
+        assert_eq!(worker_name, "MessageBus");
+        assert_eq!(worker_trader_id, "TRADER-001");
+        assert_eq!(worker_subscriptions, 0);
+
+        *get_message_bus().borrow_mut() = MessageBus::default();
     }
 
     #[rstest]

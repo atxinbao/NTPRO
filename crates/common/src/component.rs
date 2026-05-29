@@ -638,6 +638,7 @@ mod tests {
     use std::{
         any::Any,
         sync::atomic::{AtomicBool, Ordering},
+        thread,
     };
 
     use rstest::rstest;
@@ -771,5 +772,29 @@ mod tests {
             !with_component_registry(|registry| registry.is_borrowed(&id)),
             "Borrow was not released after panic"
         );
+    }
+
+    #[rstest]
+    fn test_component_registry_is_thread_local_for_lifecycle_isolation() {
+        clear_component_registry();
+
+        let id = Ustr::from("test-component-thread-local");
+        let component = TestComponent::new("test-component-thread-local", &NO_PANIC);
+        let component_id = component.id.inner();
+        let component_ref = Rc::new(UnsafeCell::new(component));
+        with_component_registry(|registry| registry.insert(component_id, component_ref));
+
+        assert!(get_component(&id).is_some());
+
+        let worker_can_see_main_registry = thread::spawn(|| {
+            let id = Ustr::from("test-component-thread-local");
+            get_component(&id).is_some()
+        })
+        .join()
+        .expect("thread-local component registry worker panicked");
+
+        assert!(!worker_can_see_main_registry);
+
+        clear_component_registry();
     }
 }
