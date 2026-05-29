@@ -1,0 +1,15 @@
+{
+  "task_id": "RBTL-003",
+  "agent_id": "Codex",
+  "branch": "ai/RBTL-003-close-rust-backtest-data-catalog-gaps",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RBTL-003.md",
+    "crates/backtest/tests/backtest_node.rs",
+    "docs/rust-cutover/evidence/RBTL-003.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RBTL-003.json"
+  ],
+  "claimed_at": "2026-05-29T22:58:55.451594+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-29T23:06:18Z"
+}
