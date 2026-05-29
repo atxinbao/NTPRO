@@ -1,0 +1,16 @@
+{
+  "task_id": "RCORE-011",
+  "agent_id": "Codex",
+  "branch": "ai/RCORE-011-add-rust-tests-for-execution-risk-order-lifecycle",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RCORE-011.md",
+    "crates/risk/tests/risk_engine.rs",
+    "docs/rust-cutover/inventory/execution_risk_order_lifecycle.md",
+    "docs/rust-cutover/evidence/RCORE-011.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCORE-011.json"
+  ],
+  "claimed_at": "2026-05-29T13:25:16.325968+00:00",
+  "review_ready_at": "2026-05-29T13:53:26Z",
+  "status": "PR_READY"
+}
