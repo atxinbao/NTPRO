@@ -829,6 +829,61 @@ fn test_rust_write_quote_ticks() {
 }
 
 #[rstest]
+fn test_rust_quote_tick_catalog_roundtrip_preserves_fixed_precision() {
+    let (_temp_dir, mut catalog) = create_temp_catalog();
+    let instrument_id = ethusdt_binance_id();
+    let instrument_key = instrument_id.to_string();
+
+    let quote_ticks = vec![
+        QuoteTick::new(
+            instrument_id,
+            Price::from("1987.12345"),
+            Price::from("1987.12346"),
+            Quantity::from("0.123456"),
+            Quantity::from("1.234567"),
+            UnixNanos::from(10),
+            UnixNanos::from(10),
+        ),
+        QuoteTick::new(
+            instrument_id,
+            Price::from("1988.00001"),
+            Price::from("1988.00002"),
+            Quantity::from("2.000001"),
+            Quantity::from("3.000002"),
+            UnixNanos::from(20),
+            UnixNanos::from(20),
+        ),
+    ];
+
+    catalog
+        .write_to_parquet(quote_ticks.clone(), None, None, None)
+        .unwrap();
+
+    let data_result: Vec<Data> = catalog
+        .query::<QuoteTick>(
+            Some(vec![instrument_key.clone()]),
+            None,
+            None,
+            None,
+            None,
+            true,
+        )
+        .unwrap()
+        .collect();
+    let data_quotes: Vec<QuoteTick> = to_variant(data_result);
+    assert_eq!(data_quotes, quote_ticks);
+
+    let typed_quotes = catalog
+        .query_typed_data::<QuoteTick>(Some(vec![instrument_key]), None, None, None, None, true)
+        .unwrap();
+    assert_eq!(typed_quotes, quote_ticks);
+    assert_eq!(typed_quotes[0].bid_price.precision, 5);
+    assert_eq!(typed_quotes[0].bid_size.precision, 6);
+    assert_eq!(typed_quotes[1].ask_price.precision, 5);
+    assert_eq!(typed_quotes[1].ask_size.precision, 6);
+}
+
+#[rstest]
 fn test_rust_write_trade_ticks() {
     let (_temp_dir, catalog) = create_temp_catalog();
 

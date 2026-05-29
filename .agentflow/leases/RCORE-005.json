@@ -1,0 +1,16 @@
+{
+  "task_id": "RCORE-005",
+  "agent_id": "Codex",
+  "branch": "ai/RCORE-005-add-rust-tests-for-serialization-data-persistence",
+  "touched_paths": [
+    "crates/serialization/src/arrow/mod.rs",
+    "crates/persistence/tests/test_catalog.rs",
+    "docs/rust-cutover/tasks/RCORE-005.md",
+    "docs/rust-cutover/evidence/RCORE-005.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCORE-005.json"
+  ],
+  "claimed_at": "2026-05-28T20:56:16.712150+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-28T21:25:19.951093+00:00"
+}
