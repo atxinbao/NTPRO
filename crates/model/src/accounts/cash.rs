@@ -211,7 +211,7 @@ impl Account for CashAccount {
     }
 
     fn calculated_account_state(&self) -> bool {
-        false // TODO (implement this logic)
+        self.base.calculate_account_state
     }
 
     fn balance_total(&self, currency: Option<Currency>) -> Option<Money> {
@@ -426,6 +426,15 @@ mod tests {
         let mut balances_locked_expected = IndexMap::new();
         balances_locked_expected.insert(Currency::from("USD"), Money::from("25000 USD"));
         assert_eq!(cash_account.balances_locked(), balances_locked_expected);
+    }
+
+    #[rstest]
+    fn test_calculated_account_state_reflects_constructor_flag(cash_account_state: AccountState) {
+        let calculated_account = CashAccount::new(cash_account_state.clone(), true, false);
+        let venue_account = CashAccount::new(cash_account_state, false, false);
+
+        assert!(calculated_account.calculated_account_state());
+        assert!(!venue_account.calculated_account_state());
     }
 
     #[rstest]

@@ -240,7 +240,7 @@ mod tests {
     use rstest::rstest;
 
     use crate::{
-        accounts::AccountAny,
+        accounts::{Account, AccountAny},
         enums::AccountType,
         events::{AccountState, account::stubs::*},
         identifiers::AccountId,
@@ -286,6 +286,28 @@ mod tests {
         let result = AccountAny::try_from_state(betting_account_state);
         assert!(result.is_ok());
         assert!(matches!(result.unwrap(), AccountAny::Betting(_)));
+    }
+
+    #[rstest]
+    fn test_set_calculate_account_state_updates_concrete_trait_result(
+        cash_account_state: AccountState,
+        margin_account_state: AccountState,
+        betting_account_state: AccountState,
+    ) {
+        let mut accounts = vec![
+            AccountAny::from(cash_account_state),
+            AccountAny::from(margin_account_state),
+            AccountAny::from(betting_account_state),
+        ];
+
+        for account in &mut accounts {
+            account.set_calculate_account_state(true);
+            match account {
+                AccountAny::Margin(margin) => assert!(margin.calculated_account_state()),
+                AccountAny::Cash(cash) => assert!(cash.calculated_account_state()),
+                AccountAny::Betting(betting) => assert!(betting.calculated_account_state()),
+            }
+        }
     }
 
     #[rstest]

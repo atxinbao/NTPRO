@@ -1,0 +1,18 @@
+{
+  "task_id": "RCORE-015",
+  "agent_id": "Codex",
+  "branch": "ai/RCORE-015-close-rust-portfolio-accounting-pnl-gaps",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RCORE-015.md",
+    "docs/rust-cutover/evidence/RCORE-015.md",
+    "docs/rust-cutover/inventory/portfolio_accounting_pnl.md",
+    "crates/model/src/accounts/cash.rs",
+    "crates/model/src/accounts/margin.rs",
+    "crates/model/src/accounts/any.rs",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCORE-015.json"
+  ],
+  "claimed_at": "2026-05-29T17:13:03.536206+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-29T17:54:23.657995+00:00"
+}
