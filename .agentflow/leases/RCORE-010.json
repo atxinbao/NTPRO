@@ -1,0 +1,16 @@
+{
+  "task_id": "RCORE-010",
+  "agent_id": "Codex",
+  "branch": "ai/RCORE-010-inventory-rust-execution-risk-order-lifecycle-gaps",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RCORE-010.md",
+    "docs/rust-cutover/inventory/execution_risk_order_lifecycle.md",
+    "docs/rust-cutover/inventory/README.md",
+    "docs/rust-cutover/evidence/RCORE-010.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCORE-010.json"
+  ],
+  "claimed_at": "2026-05-29T13:04:48.315448+00:00",
+  "review_ready_at": "2026-05-29T13:13:20Z",
+  "status": "PR_READY"
+}

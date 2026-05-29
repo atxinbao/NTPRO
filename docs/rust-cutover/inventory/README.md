@@ -10,3 +10,5 @@ Generated and curated inventory outputs live here.
   serialization, data engine, and persistence gap boundaries.
 - `common_cache_msgbus_lifecycle.md` - RCORE-007 inventory of Rust common cache,
   message bus, and component lifecycle gap boundaries.
+- `execution_risk_order_lifecycle.md` - RCORE-010 inventory of Rust execution,
+  risk, and order lifecycle gap boundaries.
