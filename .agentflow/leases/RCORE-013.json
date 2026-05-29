@@ -1,0 +1,15 @@
+{
+  "task_id": "RCORE-013",
+  "agent_id": "Codex",
+  "branch": "ai/RCORE-013-inventory-rust-portfolio-accounting-pnl-gaps",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RCORE-013.md",
+    "docs/rust-cutover/evidence/RCORE-013.md",
+    "docs/rust-cutover/inventory/portfolio_accounting_pnl.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCORE-013.json"
+  ],
+  "claimed_at": "2026-05-29T14:49:33.298048+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-29T14:56:25.011865+00:00"
+}
