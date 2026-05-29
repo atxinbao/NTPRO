@@ -1,8 +1,9 @@
 # Rust Portfolio / Accounting / PnL Gap Inventory
 
 Date: 2026-05-29
+Last updated: 2026-05-30 by Codex for RCORE-015
 Executor: Codex
-Task ID: RCORE-013
+Task ID: RCORE-013, RCORE-015
 
 ## Scope
 
@@ -43,8 +44,8 @@ surfaces.
 | PAPL-001 | Open: no executable `portfolio_pnl` golden trace replay. | `docs/rust-cutover/golden_trace/SCHEMA.md` defines `portfolio_pnl`, and `docs/rust-cutover/golden_trace/GATE_EVIDENCE.md` states there is no executable account balance, margin, realized PnL, unrealized PnL, or equity replay yet. No `tests/golden/*portfolio*` fixture exists. | Blocks final Rust-only release until a deterministic trace drives Rust portfolio/accounting code and compares account/equity/PnL outputs. |
 | PAPL-002 | Open: Rust portfolio/accounting is still exposed through Python/PyO3 and legacy Cython/Python modules remain present. | `crates/portfolio/Cargo.toml` has `python` and `extension-module` features; `crates/portfolio/src/python/mod.rs` exposes `PyPortfolio`; `nautilus_trader/portfolio/**` and `nautilus_trader/accounting/**` remain present. | Blocks Python/PyO3/Cython removal until RREM/release gates approve deletion after Rust parity evidence exists. |
 | PAPL-003 | Partial: RCORE-014 adds a Rust integration test from order fill replay through account balance, realized PnL, unrealized PnL, equity, and `PortfolioSnapshot`; no executable golden trace exists yet. | `crates/portfolio/tests/portfolio.rs::test_order_fill_replay_updates_balance_pnl_equity_and_snapshot` covers an open/close fill path with commissions, realized PnL, flat unrealized PnL, account equity, and snapshot totals. The golden trace gate still has no `portfolio_pnl` replay. | RTRACE follow-up must promote this coverage into a deterministic release-gate trace. |
-| PAPL-004 | Partial: account-state calculation flags are not implemented on Rust account trait implementations. | `CashAccount::calculated_account_state` and `MarginAccount::calculated_account_state` currently return `false` with TODO comments. Generated `AccountState` paths exist in `AccountsManager`, but the trait flag does not express calculated-state readiness. | Requires a later RCORE decision: implement the flag semantics with tests or record that the flag is not part of the Rust-only product contract. |
-| PAPL-005 | Partial: missing exchange-rate and missing-balance paths degrade through logs, `None`, or zero fallback rather than a unified typed accounting result. | `AccountsManager::update_balance_single_currency` returns early on missing xrate or balance; `update_balance_multi_currency` rejects missing negative debit currencies; `Portfolio::calculate_realized_pnl` can return zero when xrate is unavailable and marks pending calculations. Existing tests cover several of these paths. | Later runtime tasks need explicit acceptance criteria for whether this remains Python-parity behavior or becomes a Rust-only typed error contract. |
+| PAPL-004 | Closed by RCORE-015: Rust account trait implementations now report the stored calculated-state flag. | `CashAccount::calculated_account_state` and `MarginAccount::calculated_account_state` return `base.calculate_account_state`; `BettingAccount` already returned the same base flag. RCORE-015 added constructor-flag tests for cash and margin accounts and an `AccountAny::set_calculate_account_state` regression test covering cash, margin, and betting variants. | No release blocker remains for the trait flag. Generated `AccountState` runtime behavior is unchanged; this only fixes the Rust trait reporting surface. |
+| PAPL-005 | Explicitly scoped by RCORE-015: keep current Python-parity graceful-degradation behavior until a dedicated typed accounting-result contract is approved. | `AccountsManager::update_balance_single_currency` still returns early on missing xrate or balance; `update_balance_multi_currency` still rejects missing negative debit currencies; `Portfolio::calculate_realized_pnl` can still return zero when xrate is unavailable and marks pending calculations. Existing tests continue to cover these paths, and RCORE-015 did not change exchange-rate, missing-balance, or PnL fallback semantics. | Not a blocker for RCORE-015. A future runtime/scope task must define whether NTPRO keeps Python-parity fallback semantics or introduces a Rust-only typed accounting result. |
 | PAPL-006 | Partial: snapshot/equity is available in Rust and RCORE-014 covers a closed-position snapshot path, but not release replay evidence. | `Portfolio::build_snapshot`, `Portfolio::snapshots`, snapshot timers, and `PortfolioSnapshot` exist and have tests. `test_order_fill_replay_updates_balance_pnl_equity_and_snapshot` verifies snapshot balance, realized PnL, unrealized PnL, and total equity after a closed position. The trace gate still lacks executable `portfolio_pnl` evidence. | Release gate needs deterministic snapshot output comparison, not only unit tests. |
 | PAPL-007 | Partial: multi-account and multi-venue aggregation has targeted Rust tests but no gate trace. | `crates/portfolio/tests/portfolio.rs` covers account-id filters for net exposure, unrealized PnL, realized PnL, and multiple account/equity cases. | Needs release-level trace or explicit scope decision for supported multi-account/multi-venue workflows. |
 | PAPL-008 | Open: adapter/live account-state sources are not proven through portfolio PnL replay. | Adapter tests and Python integration tests include account/balance payloads, but RCORE-013 did not find a Rust `portfolio_pnl` trace that starts from adapter or live account-state events and verifies portfolio outputs. | Adapter/live account-state parity remains owned by later RBTL/RADP/RTRACE tasks. |
@@ -54,8 +55,19 @@ surfaces.
 - No Python, PyO3, Cython, `build.py`, or `pyproject.toml` removal.
 - No public API changes.
 - No trading-semantic changes.
-- No changes to account, margin, PnL, equity, snapshot, adapter, or persistence
-  behavior.
+- No changes to margin, PnL, equity, snapshot, adapter, or persistence behavior.
+- RCORE-015 changes only the Rust account trait reporting surface for the
+  existing calculated-account-state flag.
+
+## RCORE-015 Closure Decisions
+
+| Area | Decision | Evidence |
+| --- | --- | --- |
+| Account calculated-state flag | Implemented in Rust account trait implementations. | `crates/model/src/accounts/cash.rs`, `crates/model/src/accounts/margin.rs`, and `crates/model/src/accounts/any.rs` regression tests. |
+| Golden trace replay | Deferred to RTRACE/release-gate work. | PAPL-001, PAPL-003, PAPL-006, and PAPL-007 require executable `portfolio_pnl` trace evidence rather than more unit-only runtime changes. |
+| Python/PyO3/Cython exposure | Deferred to RREM/removal gate. | PAPL-002 remains blocked until Rust product, runtime, adapter, and trace gates approve removal. |
+| Missing xrate/balance typed result | Explicitly scoped out of RCORE-015. | PAPL-005 preserves current tested fallback semantics until a separate Rust-only accounting result contract exists. |
+| Adapter/live account-state source parity | Deferred to RADP/RBTL/RTRACE owners. | PAPL-008 requires adapter/live source fixtures or traces and is outside the Rust core runtime task boundary. |
 
 ## Follow-Up Mapping
 

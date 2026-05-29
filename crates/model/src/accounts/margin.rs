@@ -522,7 +522,7 @@ impl Account for MarginAccount {
     }
 
     fn calculated_account_state(&self) -> bool {
-        false // TODO (implement this logic)
+        self.base.calculate_account_state
     }
 
     fn balance_total(&self, currency: Option<Currency>) -> Option<Money> {
@@ -775,6 +775,15 @@ mod tests {
             margin_account.maintenance_margins(),
             maintenance_margins_expected
         );
+    }
+
+    #[rstest]
+    fn test_calculated_account_state_reflects_constructor_flag(margin_account_state: AccountState) {
+        let calculated_account = MarginAccount::new(margin_account_state.clone(), true);
+        let venue_account = MarginAccount::new(margin_account_state, false);
+
+        assert!(calculated_account.calculated_account_state());
+        assert!(!venue_account.calculated_account_state());
     }
 
     #[rstest]
