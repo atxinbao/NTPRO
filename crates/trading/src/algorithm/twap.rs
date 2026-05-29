@@ -33,6 +33,7 @@
 use std::time::Duration;
 
 use ahash::AHashMap;
+use indexmap::IndexMap;
 use nautilus_common::{actor::DataActor, nautilus_actor, timer::TimeEvent};
 use nautilus_model::{
     enums::OrderType,
@@ -47,6 +48,119 @@ use super::{ExecutionAlgorithm, ExecutionAlgorithmConfig, ExecutionAlgorithmCore
 
 /// Configuration for [`TwapAlgorithm`].
 pub type TwapAlgorithmConfig = ExecutionAlgorithmConfig;
+
+/// TWAP order parameter for total execution horizon, in seconds.
+pub const TWAP_HORIZON_SECS_PARAM: &str = "horizon_secs";
+
+/// TWAP order parameter for interval between child orders, in seconds.
+pub const TWAP_INTERVAL_SECS_PARAM: &str = "interval_secs";
+
+/// Typed TWAP execution parameters parsed from order `exec_algorithm_params`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TwapExecParams {
+    horizon_secs: f64,
+    interval_secs: f64,
+    num_intervals: u64,
+}
+
+impl TwapExecParams {
+    /// Creates validated TWAP execution parameters.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if either duration is non-finite, non-positive, or the
+    /// horizon is smaller than the interval.
+    pub fn new(horizon_secs: f64, interval_secs: f64) -> anyhow::Result<Self> {
+        if !horizon_secs.is_finite() || horizon_secs <= 0.0 {
+            anyhow::bail!("horizon_secs={horizon_secs} must be finite and positive");
+        }
+
+        if !interval_secs.is_finite() || interval_secs <= 0.0 {
+            anyhow::bail!("interval_secs={interval_secs} must be finite and positive");
+        }
+
+        if horizon_secs < interval_secs {
+            anyhow::bail!(
+                "horizon_secs={horizon_secs} was less than interval_secs={interval_secs}"
+            );
+        }
+
+        let num_intervals = (horizon_secs / interval_secs).floor() as u64;
+        if num_intervals == 0 {
+            anyhow::bail!("num_intervals is 0");
+        }
+
+        Ok(Self {
+            horizon_secs,
+            interval_secs,
+            num_intervals,
+        })
+    }
+
+    /// Parses TWAP execution parameters from order `exec_algorithm_params`.
+    ///
+    /// Missing keys return `Ok(None)` so callers can preserve order-rejection
+    /// behavior without treating an incomplete TWAP request as a runtime error.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a required parameter is present but cannot be parsed
+    /// as `f64`.
+    pub fn parse(params: &IndexMap<Ustr, Ustr>) -> anyhow::Result<Option<Self>> {
+        let Some(horizon_secs_str) = params.get(&Ustr::from(TWAP_HORIZON_SECS_PARAM)) else {
+            log::error!("Cannot execute order: horizon_secs not found in exec_algorithm_params");
+            return Ok(None);
+        };
+
+        let horizon_secs = parse_twap_param(TWAP_HORIZON_SECS_PARAM, horizon_secs_str)?;
+
+        let Some(interval_secs_str) = params.get(&Ustr::from(TWAP_INTERVAL_SECS_PARAM)) else {
+            log::error!("Cannot execute order: interval_secs not found in exec_algorithm_params");
+            return Ok(None);
+        };
+
+        let interval_secs = parse_twap_param(TWAP_INTERVAL_SECS_PARAM, interval_secs_str)?;
+
+        match Self::new(horizon_secs, interval_secs) {
+            Ok(params) => Ok(Some(params)),
+            Err(err) => {
+                log::error!("Cannot execute order: {err}");
+                Ok(None)
+            }
+        }
+    }
+
+    /// Returns the total TWAP execution horizon in seconds.
+    #[must_use]
+    pub const fn horizon_secs(&self) -> f64 {
+        self.horizon_secs
+    }
+
+    /// Returns the interval between TWAP child orders in seconds.
+    #[must_use]
+    pub const fn interval_secs(&self) -> f64 {
+        self.interval_secs
+    }
+
+    /// Returns the number of intervals derived from horizon and interval.
+    #[must_use]
+    pub const fn num_intervals(&self) -> u64 {
+        self.num_intervals
+    }
+
+    /// Returns the interval as a standard duration.
+    #[must_use]
+    pub fn interval_duration(&self) -> Duration {
+        Duration::from_secs_f64(self.interval_secs)
+    }
+}
+
+fn parse_twap_param(param_name: &str, value: &Ustr) -> anyhow::Result<f64> {
+    value.parse().map_err(|e| {
+        log::error!("Cannot parse {param_name}: {e}");
+        anyhow::anyhow!("Invalid {param_name}")
+    })
+}
 
 /// Time-Weighted Average Price (TWAP) execution algorithm.
 ///
@@ -129,52 +243,11 @@ impl ExecutionAlgorithm for TwapAlgorithm {
             return Ok(());
         };
 
-        let Some(horizon_secs_str) = exec_params.get(&Ustr::from("horizon_secs")) else {
-            log::error!("Cannot execute order: horizon_secs not found in exec_algorithm_params");
+        let Some(twap_params) = TwapExecParams::parse(exec_params)? else {
             return Ok(());
         };
 
-        let horizon_secs: f64 = horizon_secs_str.parse().map_err(|e| {
-            log::error!("Cannot parse horizon_secs: {e}");
-            anyhow::anyhow!("Invalid horizon_secs")
-        })?;
-
-        let Some(interval_secs_str) = exec_params.get(&Ustr::from("interval_secs")) else {
-            log::error!("Cannot execute order: interval_secs not found in exec_algorithm_params");
-            return Ok(());
-        };
-
-        let interval_secs: f64 = interval_secs_str.parse().map_err(|e| {
-            log::error!("Cannot parse interval_secs: {e}");
-            anyhow::anyhow!("Invalid interval_secs")
-        })?;
-
-        if !horizon_secs.is_finite() || horizon_secs <= 0.0 {
-            log::error!(
-                "Cannot execute order: horizon_secs={horizon_secs} must be finite and positive"
-            );
-            return Ok(());
-        }
-
-        if !interval_secs.is_finite() || interval_secs <= 0.0 {
-            log::error!(
-                "Cannot execute order: interval_secs={interval_secs} must be finite and positive"
-            );
-            return Ok(());
-        }
-
-        if horizon_secs < interval_secs {
-            log::error!(
-                "Cannot execute order: horizon_secs={horizon_secs} was less than interval_secs={interval_secs}"
-            );
-            return Ok(());
-        }
-
-        let num_intervals = (horizon_secs / interval_secs).floor() as u64;
-        if num_intervals == 0 {
-            log::error!("Cannot execute order: num_intervals is 0");
-            return Ok(());
-        }
+        let num_intervals = twap_params.num_intervals();
 
         let total_qty = order.quantity();
         let total_raw = total_qty.raw;
@@ -253,7 +326,7 @@ impl ExecutionAlgorithm for TwapAlgorithm {
 
         self.core.clock().set_timer(
             primary_id.as_str(),
-            Duration::from_secs_f64(interval_secs),
+            twap_params.interval_duration(),
             None,
             None,
             None,
@@ -262,7 +335,9 @@ impl ExecutionAlgorithm for TwapAlgorithm {
         )?;
 
         log::info!(
-            "Started TWAP execution for {primary_id}: horizon_secs={horizon_secs}, interval_secs={interval_secs}"
+            "Started TWAP execution for {primary_id}: horizon_secs={}, interval_secs={}",
+            twap_params.horizon_secs(),
+            twap_params.interval_secs()
         );
 
         Ok(())
@@ -437,6 +512,41 @@ mod tests {
     }
 
     #[rstest]
+    fn test_twap_exec_params_parse_valid_values() {
+        let mut params = IndexMap::new();
+        params.insert(Ustr::from(TWAP_HORIZON_SECS_PARAM), Ustr::from("60"));
+        params.insert(Ustr::from(TWAP_INTERVAL_SECS_PARAM), Ustr::from("20"));
+
+        let parsed = TwapExecParams::parse(&params).unwrap().unwrap();
+
+        assert_eq!(parsed.horizon_secs(), 60.0);
+        assert_eq!(parsed.interval_secs(), 20.0);
+        assert_eq!(parsed.num_intervals(), 3);
+        assert_eq!(parsed.interval_duration(), Duration::from_secs(20));
+    }
+
+    #[rstest]
+    fn test_twap_exec_params_missing_key_returns_none() {
+        let mut params = IndexMap::new();
+        params.insert(Ustr::from(TWAP_HORIZON_SECS_PARAM), Ustr::from("60"));
+
+        let parsed = TwapExecParams::parse(&params).unwrap();
+
+        assert!(parsed.is_none());
+    }
+
+    #[rstest]
+    fn test_twap_exec_params_invalid_number_returns_error() {
+        let mut params = IndexMap::new();
+        params.insert(Ustr::from(TWAP_HORIZON_SECS_PARAM), Ustr::from("invalid"));
+        params.insert(Ustr::from(TWAP_INTERVAL_SECS_PARAM), Ustr::from("20"));
+
+        let err = TwapExecParams::parse(&params).unwrap_err();
+
+        assert_eq!(err.to_string(), "Invalid horizon_secs");
+    }
+
+    #[rstest]
     fn test_twap_creation() {
         let algo = create_twap_algorithm();
         assert!(algo.core.exec_algorithm_id.inner().starts_with("TWAP"));
@@ -551,6 +661,25 @@ mod tests {
         let result = algo.on_order(order);
 
         assert!(result.is_ok());
+        assert!(algo.scheduled_sizes.is_empty());
+    }
+
+    #[rstest]
+    fn test_twap_errors_on_invalid_horizon_secs_string() {
+        let mut algo = create_twap_algorithm();
+        register_algorithm(&mut algo);
+
+        add_instrument_to_cache(&algo);
+
+        let mut params = IndexMap::new();
+        params.insert(Ustr::from(TWAP_HORIZON_SECS_PARAM), Ustr::from("invalid"));
+        params.insert(Ustr::from(TWAP_INTERVAL_SECS_PARAM), Ustr::from("10"));
+
+        let order = create_market_order_with_params(params);
+        let result = algo.on_order(order);
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "Invalid horizon_secs");
         assert!(algo.scheduled_sizes.is_empty());
     }
 

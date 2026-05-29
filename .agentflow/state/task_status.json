@@ -743,7 +743,7 @@
     },
     "RCORE-017": {
       "title": "Add Rust tests for trading strategy and algorithm API",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -754,12 +754,13 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-017.md",
       "evidence_file": "docs/rust-cutover/evidence/RCORE-017.md",
-      "updated_at": "2026-05-29T19:34:04Z",
-      "branch": "ai/RCORE-017-add-rust-tests-for-trading-strategy-and-algorithm-api"
+      "updated_at": "2026-05-29T19:57:04Z",
+      "branch": "ai/RCORE-017-add-rust-tests-for-trading-strategy-and-algorithm-api",
+      "merged_pr": 52
     },
     "RCORE-018": {
       "title": "Close Rust trading strategy and algorithm API gaps",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -769,7 +770,9 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-018.md",
-      "evidence_file": "docs/rust-cutover/evidence/RCORE-018.md"
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-018.md",
+      "updated_at": "2026-05-29T20:39:13Z",
+      "branch": "ai/RCORE-018-close-rust-trading-strategy-and-algorithm-api-gaps"
     },
     "RCTL-001": {
       "title": "Install Rust-only contract and Definition of Done",
@@ -1490,5 +1493,5 @@
       "updated_at": "2026-05-28T18:21:17Z"
     }
   },
-  "updated_at": "2026-05-29T19:34:04Z"
+  "updated_at": "2026-05-29T20:39:13Z"
 }

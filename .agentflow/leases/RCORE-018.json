@@ -1,0 +1,16 @@
+{
+  "task_id": "RCORE-018",
+  "agent_id": "Codex",
+  "branch": "ai/RCORE-018-close-rust-trading-strategy-and-algorithm-api-gaps",
+  "touched_paths": [
+    "docs/rust-cutover/evidence/RCORE-018.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCORE-018.json",
+    "crates/trading/src/algorithm/twap.rs",
+    "crates/trading/src/algorithm/mod.rs",
+    "crates/trading/src/lib.rs"
+  ],
+  "claimed_at": "2026-05-29T19:56:30.514106+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-29T20:39:13+00:00"
+}

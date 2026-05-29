@@ -64,7 +64,10 @@ use nautilus_model::{
     orders::{LimitOrder, MarketOrder, MarketToLimitOrder, Order, OrderAny, OrderError, OrderList},
     types::{Price, Quantity},
 };
-pub use twap::{TwapAlgorithm, TwapAlgorithmConfig};
+pub use twap::{
+    TWAP_HORIZON_SECS_PARAM, TWAP_INTERVAL_SECS_PARAM, TwapAlgorithm, TwapAlgorithmConfig,
+    TwapExecParams,
+};
 use ustr::Ustr;
 
 /// Core trait for implementing execution algorithms in NautilusTrader.
