@@ -607,7 +607,7 @@
     },
     "RCORE-008": {
       "title": "Add Rust tests for common cache/message bus/component lifecycle",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -618,11 +618,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-008.md",
       "evidence_file": "docs/rust-cutover/evidence/RCORE-008.md",
-      "updated_at": "2026-05-29T11:56:50Z"
+      "updated_at": "2026-05-29T12:15:50Z"
     },
     "RCORE-009": {
       "title": "Close Rust common cache/message bus/component lifecycle gaps",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -632,7 +632,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-009.md",
-      "evidence_file": "docs/rust-cutover/evidence/RCORE-009.md"
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-009.md",
+      "updated_at": "2026-05-29T12:43:25Z"
     },
     "RCORE-010": {
       "title": "Inventory Rust execution/risk/order lifecycle gaps",

@@ -24,6 +24,7 @@ The command currently validates all `tests/golden/*.jsonl` files and runs:
 
 ```bash
 cargo test -p nautilus-testkit --test golden_trace_schema
+cargo test -p nautilus-common --test golden_trace_cache_msgbus
 cargo test -p nautilus-backtest --test golden_trace_backtest
 cargo test -p nautilus-live --test golden_trace_live_sandbox
 cargo test -p nautilus-okx --test golden_trace_adapter_payload
@@ -36,17 +37,19 @@ cargo test -p nautilus-okx --test golden_trace_adapter_payload
 | `tests/golden/schema_smoke.jsonl` | 1 | `market_data` | Rust schema harness |
 | `tests/golden/market_data_schema.jsonl` | 6 | `market_data` | Rust schema harness |
 | `tests/golden/order_lifecycle_schema.jsonl` | 6 | `order_lifecycle` | Rust schema harness |
+| `tests/golden/cache_msgbus_schema.jsonl` | 1 | `cache_msgbus` | Rust common cache/message-bus replay |
 | `tests/golden/backtest_replay_schema.jsonl` | 1 | `backtest_live` | Rust backtest replay |
 | `tests/golden/live_sandbox_lifecycle_schema.jsonl` | 1 | `backtest_live` | Rust live/sandbox lifecycle replay |
 | `tests/golden/adapter_payload_schema.jsonl` | 1 | `adapter_payload` | Rust OKX adapter parser replay |
 
-Total: 6 JSONL files, 16 trace rows.
+Total: 7 JSONL files, 17 trace rows.
 
 ## Executable Evidence
 
 | Evidence | Rust entrypoint | Covered behavior |
 | --- | --- | --- |
 | RTRACE-004 | `nautilus-testkit::golden_trace_schema` | Enforces `golden-trace-v1` row fields, category allowlist, event envelopes, timestamp shape, payload objects, and tolerance objects. |
+| RCORE-009 | `nautilus-common::golden_trace_cache_msgbus` | Replays deterministic common-cache quote storage, typed message-bus publish ordering, BusTap-before-subscriber capture, and common object dispose state. |
 | RTRACE-005 | `nautilus-backtest::golden_trace_backtest` | Replays one deterministic quote through `BacktestEngine` and compares normalized `BacktestResult` output. |
 | RTRACE-006 | `nautilus-live::golden_trace_live_sandbox` | Builds and stops one Rust sandbox `LiveNode`, comparing deterministic lifecycle states. |
 | RTRACE-007 | `nautilus-okx::golden_trace_adapter_payload` | Parses one OKX WebSocket trade payload fixture through the Rust adapter parser into a normalized `TradeTick`. |
@@ -78,7 +81,9 @@ are closed or explicitly scoped:
   yet.
 - `portfolio_pnl`: no executable account balance, margin, realized PnL,
   unrealized PnL, or equity replay yet.
-- `cache_msgbus`: no executable cache/message-bus ordering replay yet.
+- `cache_msgbus`: common-level cache/message-bus ordering now has one
+  executable Rust replay; full kernel/event-store shutdown ordering and any
+  backing database replay remain owned by later runtime/release gate tasks.
 - `adapter_payload`: only one OKX market-data parser fixture is executable;
   broader official adapter payload parity remains owned by later `RADP-*`
   tasks.

@@ -1,0 +1,22 @@
+{
+  "task_id": "RCORE-009",
+  "agent_id": "Codex",
+  "branch": "ai/RCORE-009-close-rust-common-cache-message-bus-component-lifecycle-gaps",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RCORE-009.md",
+    "crates/common/src/cache/mod.rs",
+    "crates/common/src/cache/tests.rs",
+    "crates/common/tests/golden_trace_cache_msgbus.rs",
+    "tests/golden/cache_msgbus_schema.jsonl",
+    "scripts/ai/run_golden_traces.sh",
+    "docs/rust-cutover/golden_trace/GATE_EVIDENCE.md",
+    "docs/rust-cutover/golden_trace/SCHEMA.md",
+    "docs/rust-cutover/inventory/common_cache_msgbus_lifecycle.md",
+    "docs/rust-cutover/evidence/RCORE-009.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCORE-009.json"
+  ],
+  "claimed_at": "2026-05-29T12:15:29.838698+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-29T12:43:25Z"
+}

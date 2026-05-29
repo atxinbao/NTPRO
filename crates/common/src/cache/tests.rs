@@ -5308,28 +5308,22 @@ fn test_restore_position_snapshot_blob(mut cache: Cache) {
 }
 
 #[rstest]
-fn test_snapshot_position_state_release_blocker_is_explicit(mut cache: Cache) {
+fn test_snapshot_position_state_without_database_returns_ok(mut cache: Cache) {
     let position = snapshot_test_position();
 
-    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        cache
-            .snapshot_position_state(&position, Some(false))
-            .expect("snapshot_position_state should not return an adapter error");
-    }))
-    .expect_err("snapshot_position_state blocker should still be explicit");
+    cache
+        .snapshot_position_state(&position, Some(false))
+        .expect("snapshot_position_state should be a no-op without a database");
+}
 
-    let message = if let Some(message) = panic.downcast_ref::<&str>() {
-        *message
-    } else if let Some(message) = panic.downcast_ref::<String>() {
-        message.as_str()
-    } else {
-        ""
-    };
+#[rstest]
+fn test_snapshot_position_state_with_database_returns_ok() {
+    let position = snapshot_test_position();
+    let mut cache = Cache::new(None, Some(Box::new(SnapshotBlobTestDatabase::default())));
 
-    assert!(
-        message.contains("not yet implemented"),
-        "panic was: {message}"
-    );
+    cache
+        .snapshot_position_state(&position, Some(false))
+        .expect("snapshot_position_state should call the database and return Ok");
 }
 
 #[rstest]
