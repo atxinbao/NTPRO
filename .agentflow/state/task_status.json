@@ -379,7 +379,7 @@
     },
     "RBTL-002": {
       "title": "Add Rust BacktestNode smoke",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -390,12 +390,13 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-002.md",
       "evidence_file": "docs/rust-cutover/evidence/RBTL-002.md",
-      "updated_at": "2026-05-29T22:48:42Z",
-      "branch": "ai/RBTL-002-add-rust-backtestnode-smoke"
+      "updated_at": "2026-05-29T22:57:27Z",
+      "branch": "ai/RBTL-002-add-rust-backtestnode-smoke",
+      "merged_pr": 56
     },
     "RBTL-003": {
       "title": "Close Rust backtest data/catalog gaps",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -405,7 +406,9 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-003.md",
-      "evidence_file": "docs/rust-cutover/evidence/RBTL-003.md"
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-003.md",
+      "updated_at": "2026-05-29T23:06:18Z",
+      "branch": "ai/RBTL-003-close-rust-backtest-data-catalog-gaps"
     },
     "RBTL-004": {
       "title": "Close Rust backtest result/report gaps",

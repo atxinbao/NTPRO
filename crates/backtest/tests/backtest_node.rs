@@ -359,6 +359,23 @@ fn test_build_creates_engine(crypto_perpetual_ethusdt: CryptoPerpetual) {
 }
 
 #[rstest]
+fn test_build_rejects_missing_requested_instrument(crypto_perpetual_ethusdt: CryptoPerpetual) {
+    let instrument = InstrumentAny::CryptoPerpetual(crypto_perpetual_ethusdt);
+    let (_temp_dir, catalog_path) = create_catalog_with_quotes(&instrument, 5, 1_000_000_000);
+
+    let missing_id = InstrumentId::from("BTCUSDT-PERP.BINANCE");
+    let config = run_config(&catalog_path, missing_id, None);
+    let mut node = BacktestNode::new(vec![config]).unwrap();
+
+    let result = node.build();
+
+    assert!(result.is_err());
+    let error = result.unwrap_err().to_string();
+    assert!(error.contains("No instruments found in catalog for requested IDs"));
+    assert!(error.contains("BTCUSDT-PERP.BINANCE"));
+}
+
+#[rstest]
 fn test_build_is_idempotent(crypto_perpetual_ethusdt: CryptoPerpetual) {
     let instrument = InstrumentAny::CryptoPerpetual(crypto_perpetual_ethusdt);
     let (_temp_dir, catalog_path) = create_catalog_with_quotes(&instrument, 5, 1_000_000_000);
@@ -587,6 +604,23 @@ fn test_load_catalog(crypto_perpetual_ethusdt: CryptoPerpetual) {
 
     let instruments = catalog.query_instruments(None).unwrap();
     assert_eq!(instruments.len(), 1);
+}
+
+#[rstest]
+fn test_load_data_config_accepts_explicit_file_protocol(crypto_perpetual_ethusdt: CryptoPerpetual) {
+    let instrument = InstrumentAny::CryptoPerpetual(crypto_perpetual_ethusdt);
+    let (_temp_dir, catalog_path) = create_catalog_with_quotes(&instrument, 5, 1_000_000_000);
+
+    let config = BacktestDataConfig::builder()
+        .data_type(NautilusDataType::QuoteTick)
+        .catalog_path(catalog_path)
+        .catalog_fs_protocol("file".to_string())
+        .instrument_id(instrument.id())
+        .build();
+
+    let data = BacktestNode::load_data_config(&config, None, None).unwrap();
+
+    assert_eq!(data.len(), 5);
 }
 
 #[rstest]
