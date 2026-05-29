@@ -8,3 +8,5 @@ Generated and curated inventory outputs live here.
   type Rust-only parity gaps.
 - `serialization_data_persistence.md` - RCORE-004 inventory of Rust
   serialization, data engine, and persistence gap boundaries.
+- `common_cache_msgbus_lifecycle.md` - RCORE-007 inventory of Rust common cache,
+  message bus, and component lifecycle gap boundaries.

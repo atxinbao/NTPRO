@@ -1,0 +1,16 @@
+{
+  "task_id": "RCORE-007",
+  "agent_id": "Codex",
+  "branch": "ai/RCORE-007-inventory-rust-common-cache-message-bus-component-lifecycle-gaps",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RCORE-007.md",
+    "docs/rust-cutover/inventory/common_cache_msgbus_lifecycle.md",
+    "docs/rust-cutover/inventory/README.md",
+    "docs/rust-cutover/evidence/RCORE-007.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCORE-007.json"
+  ],
+  "claimed_at": "2026-05-29T10:59:03.644781+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-29T11:10:11.747398+00:00"
+}
