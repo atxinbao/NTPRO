@@ -379,7 +379,7 @@
     },
     "RBTL-002": {
       "title": "Add Rust BacktestNode smoke",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -389,7 +389,9 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-002.md",
-      "evidence_file": "docs/rust-cutover/evidence/RBTL-002.md"
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-002.md",
+      "updated_at": "2026-05-29T22:48:42Z",
+      "branch": "ai/RBTL-002-add-rust-backtestnode-smoke"
     },
     "RBTL-003": {
       "title": "Close Rust backtest data/catalog gaps",

@@ -472,6 +472,40 @@ fn test_run_streaming(crypto_perpetual_ethusdt: CryptoPerpetual) {
 }
 
 #[rstest]
+fn test_backtest_node_smoke_streams_deterministic_catalog_quotes(
+    crypto_perpetual_ethusdt: CryptoPerpetual,
+) {
+    let instrument = InstrumentAny::CryptoPerpetual(crypto_perpetual_ethusdt);
+    let (_temp_dir, catalog_path) = create_catalog_with_quotes(&instrument, 12, 1_000_000_000);
+
+    let data = data_config(&catalog_path, instrument.id());
+    let config = BacktestRunConfig::builder()
+        .id("deterministic-node-smoke".to_string())
+        .venues(vec![binance_venue_config()])
+        .data(vec![data])
+        .chunk_size(4)
+        .dispose_on_completion(false)
+        .build();
+
+    let mut node = BacktestNode::new(vec![config]).unwrap();
+    let results = node.run().unwrap();
+
+    assert_eq!(results.len(), 1);
+    let result = &results[0];
+    assert_eq!(
+        result.run_config_id.as_deref(),
+        Some("deterministic-node-smoke")
+    );
+    assert_eq!(result.iterations, 12);
+    assert_eq!(result.total_orders, 0);
+    assert_eq!(result.total_positions, 0);
+    assert!(result.run_id.is_some());
+    assert!(result.run_started.is_some());
+    assert!(result.run_finished.is_some());
+    assert!(node.get_engine("deterministic-node-smoke").is_some());
+}
+
+#[rstest]
 fn test_run_streaming_with_strategy(crypto_perpetual_ethusdt: CryptoPerpetual) {
     let instrument = InstrumentAny::CryptoPerpetual(crypto_perpetual_ethusdt);
     let (_temp_dir, catalog_path) = create_catalog_with_quotes(&instrument, 20, 1_000_000_000);
