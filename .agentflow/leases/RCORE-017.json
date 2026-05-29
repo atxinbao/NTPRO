@@ -1,0 +1,15 @@
+{
+  "task_id": "RCORE-017",
+  "agent_id": "Codex",
+  "branch": "ai/RCORE-017-add-rust-tests-for-trading-strategy-and-algorithm-api",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RCORE-017.md",
+    "docs/rust-cutover/evidence/RCORE-017.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCORE-017.json",
+    "crates/backtest/src/engine.rs"
+  ],
+  "claimed_at": "2026-05-29T18:48:52.503306+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-29T19:34:15.312630+00:00"
+}

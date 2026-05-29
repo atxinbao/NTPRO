@@ -727,7 +727,7 @@
     },
     "RCORE-016": {
       "title": "Inventory Rust trading strategy and algorithm API gaps",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -738,11 +738,12 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-016.md",
       "evidence_file": "docs/rust-cutover/evidence/RCORE-016.md",
-      "updated_at": "2026-05-29T18:29:54Z"
+      "updated_at": "2026-05-29T18:49:06Z",
+      "merged_pr": 51
     },
     "RCORE-017": {
       "title": "Add Rust tests for trading strategy and algorithm API",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -752,7 +753,9 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-017.md",
-      "evidence_file": "docs/rust-cutover/evidence/RCORE-017.md"
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-017.md",
+      "updated_at": "2026-05-29T19:34:04Z",
+      "branch": "ai/RCORE-017-add-rust-tests-for-trading-strategy-and-algorithm-api"
     },
     "RCORE-018": {
       "title": "Close Rust trading strategy and algorithm API gaps",
@@ -1487,5 +1490,5 @@
       "updated_at": "2026-05-28T18:21:17Z"
     }
   },
-  "updated_at": "2026-05-29T17:53:02Z"
+  "updated_at": "2026-05-29T19:34:04Z"
 }
