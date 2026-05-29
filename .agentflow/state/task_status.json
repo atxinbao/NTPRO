@@ -577,7 +577,7 @@
     },
     "RCORE-006": {
       "title": "Close Rust serialization/data/persistence gaps",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -588,11 +588,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-006.md",
       "evidence_file": "docs/rust-cutover/evidence/RCORE-006.md",
-      "updated_at": "2026-05-29T10:43:51Z"
+      "updated_at": "2026-05-29T11:08:45Z"
     },
     "RCORE-007": {
       "title": "Inventory Rust common cache/message bus/component lifecycle gaps",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -602,7 +602,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-007.md",
-      "evidence_file": "docs/rust-cutover/evidence/RCORE-007.md"
+      "evidence_file": "docs/rust-cutover/evidence/RCORE-007.md",
+      "updated_at": "2026-05-29T11:08:45Z"
     },
     "RCORE-008": {
       "title": "Add Rust tests for common cache/message bus/component lifecycle",
