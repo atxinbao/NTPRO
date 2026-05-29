@@ -357,7 +357,9 @@ impl ParquetDataCatalog {
     ///
     /// - Data is automatically sorted by type before writing.
     /// - Each data type is written to its own directory structure.
-    /// - Instrument data handling is not yet implemented (TODO).
+    /// - Instrument definitions are not part of the [`Data`] enum; persist
+    ///   them through [`Self::write_instruments`] and read them through
+    ///   [`Self::query_instruments`] or [`Self::query_instruments_filtered`].
     ///
     /// # Examples
     ///

@@ -124,3 +124,38 @@ RCORE-004 is an inventory task only.
   behavior changes are allowed here.
 - RCORE-005 should add targeted Rust tests for the highest-risk gaps.
 - RCORE-006 should either close the gaps or record explicit scope deferrals.
+
+## RCORE-006 Closure Matrix
+
+RCORE-006 closes only the Rust runtime scope that can be proven by local Rust
+tests and documentation evidence. It does not approve product-surface,
+adapter, remote service, Python/PyO3/Cython, schema-stability, or release
+removal decisions.
+
+| Gap | RCORE-006 status | Evidence | Remaining gate |
+| --- | --- | --- | --- |
+| SDP-001 | Scoped deferral. Python/PyO3 surfaces stay active and are not removed by RCORE. | `docs/rust-cutover/scope/SCOPE_DECISIONS.md` SD-001 keeps Python/PyO3/Cython removal gated. RCORE-006 made no `python/**`, `crates/pyo3/**`, `pyproject.toml`, or `build.py` change. | RREM removal gate plus Verification & Release Gatekeeper approval. |
+| SDP-002 | Scoped deferral for C/Cython-driven `Data` enum closure; Rust streaming catalog runtime is covered. | `crates/data/tests/engine.rs` covers catalog-backed quotes, trades, bars, funding rates, custom data, book deltas, book depth, and instrument request paths under `streaming`. | Cython removal and dynamic data enum closure remain RREM work. |
+| SDP-003 | Scoped deferral. Cap'n Proto and SBE remain available but not release-stable. | Existing README/module warnings still state schema and wire format instability. RCORE-006 does not change schemas or generated code. | RTRACE schema/golden-trace decision before release-stable claims. |
+| SDP-004 | Closed for the local Rust Arrow/Parquet precision boundary. | RCORE-005 added Arrow precision-byte tests and `QuoteTick` catalog roundtrip precision tests. RCORE-006 reran both in standard and `high-precision` focused builds. | Historical/legacy fixture compatibility remains RTRACE release evidence if old catalog fixtures are promoted. |
+| SDP-005 | Closed for the Rust instrument catalog path; `Data` mixed writes intentionally exclude instruments. | `ParquetDataCatalog::write_instruments`, `query_instruments`, and `query_instruments_filtered` have Rust tests for roundtrip, versioned history, mixed concrete instrument grouping, and unknown currency decode. RCORE-006 updated the stale `write_data_enum` note to point users to the instrument APIs. | Product CLI exposure is RPROD/RBTL scope if users need instrument import/export commands. |
+| SDP-006 | Scoped deferral for remote/cloud stores; local and local-file object-store behavior is covered. | `crates/persistence/tests/test_catalog.rs` covers local file URI registration, object path handling, remote path parsing safeguards, and local object-store-backed custom data query. | Remote S3/GCS/Azure/HTTP fixture or mock matrix belongs to RADP/NDB or release gate, with no secrets in code. |
+| SDP-007 | Scoped deferral for Feather rotation and error-model release claims; local writer paths are covered. | `crates/persistence/tests/test_feather.rs` and inline feather tests cover local `write`, `write_batch`, `write_data`, custom data, per-instrument routing, flush, and close paths. | Rotation scheduling and consolidated Arrow/object-store error typing need a later focused RCORE or gatekeeper task. |
+| SDP-008 | Scoped deferral to Verification & Release Gatekeeper. | RCORE-006 adds no unsafe Rust and does not modify existing unsafe data paths. | A targeted unsafe audit is required before final release claims for SBE writer/market and persistence session/binary-heap internals. |
+| SDP-009 | Closed for tested Rust catalog custom data roundtrip; product contract remains scoped. | `crates/persistence/tests/test_catalog.rs` covers custom data roundtrip, params, `IndexMap<Price>`, `HashMap<Price>`, explicit files, and remote local-store registration. `crates/data/tests/engine.rs` covers custom data catalog-only and catalog-plus-client request paths. | Optional PyO3/stub macro behavior and public custom-data product contract remain RPROD/RREM scope. |
+| SDP-010 | Closed for the internal Rust data-engine/catalog streaming boundary. | `DataEngine::register_catalog`, catalog start prefill tests, and date-range pipeline tests exercise the `streaming` feature boundary between `nautilus-data` and `nautilus-persistence`. | User-facing CLI/docs exposure remains RPROD/RBTL scope, not RCORE-006. |
+
+## RCORE-006 Gate Decision
+
+- `removal_allowed = false`
+- Rust runtime parity for local Arrow/Parquet catalog precision,
+  `InstrumentAny` catalog persistence, custom data catalog roundtrip, and
+  data-engine catalog streaming is closed for the RCORE serialization/data/
+  persistence chain.
+- Python/PyO3/Cython removal, Cap'n Proto/SBE release stability, remote
+  object-store support, Feather rotation release behavior, unsafe audit, and
+  product-surface exposure remain explicit scoped deferrals.
+- This decision does not mark the Rust-only release gate as passed. It only
+  gives later RCORE tasks permission to move past serialization/data/
+  persistence runtime closure without treating the deferred release gates as
+  done.
