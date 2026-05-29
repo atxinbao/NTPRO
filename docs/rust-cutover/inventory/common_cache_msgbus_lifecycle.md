@@ -177,15 +177,42 @@ Not closed by RCORE-008:
 - CML-009 remains release/performance verification, not a default PR gate.
 - CML-010 remains blocked by Rust-only removal gates; no Python/PyO3/Cython files were changed.
 
+## RCORE-009 Closure Matrix
+
+Date: 2026-05-29
+Executor: Codex
+Task ID: RCORE-009
+
+RCORE-009 closes the common-level lifecycle gaps that can be made executable in
+this runtime task and records explicit deferrals for the gaps that need adapter,
+database, trace-gate, release, or removal ownership.
+
+| Gap | RCORE-009 decision | Evidence |
+| --- | --- | --- |
+| CML-001 | Closed for common-level replay. Full release parity remains broader than this task. | `tests/golden/cache_msgbus_schema.jsonl`, `crates/common/tests/golden_trace_cache_msgbus.rs`, and `scripts/ai/run_golden_traces.sh` now replay deterministic cache quote storage, typed publish ordering, BusTap capture before subscriber delivery, and dispose state. |
+| CML-002 | Deferred by scope. | Cache backing traits and mock paths remain covered locally, but Redis/durable backing fixtures are adapter/database work and are not claimed as release-ready here. |
+| CML-003 | Closed for the runtime blocker identified by RCORE-008. | `Cache::snapshot_position_state` now returns `Ok(())` after the optional database snapshot path or no-database warning, and Rust tests cover both no-database and database-adapter paths. |
+| CML-004 | Deferred by scope. | `MessageBusDatabaseAdapter` remains a facade; no Rust backing adapter is introduced in this RCORE task. Any durable pub/sub backing implementation needs a dedicated database/integration owner. |
+| CML-005 | Closed by RCORE-008 and retained. | Typed and Any route mismatch tests continue to pin the separate route contract. |
+| CML-006 | Closed by RCORE-008 and retained for thread-local common state. | Message bus and component registry thread-local isolation tests remain in place. |
+| CML-007 | Scoped with evidence, not removed. | Borrow-release, panic-release, and thread-local registry tests exist; `UnsafeCell` registry removal or redesign is not authorized here. |
+| CML-008 | Partially closed for common object ordering; full kernel/event-store ordering is deferred. | The new `cache_msgbus` replay covers cache/message-bus ordering and dispose state. Full `NautilusKernel` shutdown ordering remains a later runtime/golden-trace release gate because it crosses system, live/backtest, portfolio, event-store, and engine boundaries. |
+| CML-009 | Deferred to release/performance verification. | Heavy live stress tests remain ignored and are not promoted to every PR gate. |
+| CML-010 | Deferred to removal gates. | No Python/PyO3/Cython files were changed or removed. |
+
 ## Release Gate Decision
 
-RCORE-007 is an inventory task only.
+RCORE-007 created the inventory, RCORE-008 added targeted common-runtime unit
+tests, and RCORE-009 closes or defers the remaining common lifecycle gaps in
+the matrix above.
 
 - `removal_allowed = false`
 - No Python/PyO3/Cython/FFI deletion is allowed here.
-- No cache, message-bus, component lifecycle, engine lifecycle, event-store,
-  database, or adapter behavior changes are allowed here.
-- RCORE-008 should add targeted Rust tests for the highest-risk gaps.
-- RCORE-009 should either close the gaps or record explicit scope deferrals.
+- RCORE-009 closes the `snapshot_position_state` panic blocker and adds an
+  executable common-level `cache_msgbus` replay.
+- RCORE-009 does not claim durable cache/message-bus backing stores, full
+  kernel/event-store shutdown ordering, stress/performance readiness, or
+  Python/PyO3/Cython removal.
 - This decision does not mark the Rust-only release gate as passed. It records
-  the current common-runtime gap register that later tasks must close or defer.
+  the common-runtime closure and the explicit residual gates owned by later
+  tasks.

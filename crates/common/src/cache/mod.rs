@@ -2892,8 +2892,7 @@ impl Cache {
             );
         }
 
-        // Ok(())
-        todo!()
+        Ok(())
     }
 
     /// Gets the OMS type for the `position_id`.
