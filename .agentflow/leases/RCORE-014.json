@@ -1,0 +1,16 @@
+{
+  "task_id": "RCORE-014",
+  "agent_id": "Codex",
+  "branch": "ai/RCORE-014-add-rust-tests-for-portfolio-accounting-pnl",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RCORE-014.md",
+    "docs/rust-cutover/inventory/portfolio_accounting_pnl.md",
+    "crates/portfolio/tests/portfolio.rs",
+    "docs/rust-cutover/evidence/RCORE-014.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RCORE-014.json"
+  ],
+  "claimed_at": "2026-05-29T16:34:11.157246+00:00",
+  "status": "PR_READY",
+  "released_at": "2026-05-29T16:35:24.123905+00:00"
+}
