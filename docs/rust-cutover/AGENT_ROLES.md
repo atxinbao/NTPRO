@@ -257,11 +257,11 @@ Rules:
 - `BLOCKED` is not `DONE`.
 - `DONE` requires QA evidence, review evidence, and merged PR evidence unless a
   task explicitly documents that it is local-only.
-- High-risk tasks must stop at `REVIEW_REQUIRED` before merge.
-- High-risk tasks must not enable auto-merge.
-- High-risk task handoffs must start with a plain Chinese summary of what
-  changed, what did not change, why the task is high risk, validation results,
-  PR link, and gate/review status.
+- Tasks above medium risk must stop at `REVIEW_REQUIRED` before merge.
+- Tasks above medium risk must not enable auto-merge.
+- Every PR and final handoff must include a plain Chinese summary of what
+  changed, what did not change, validation results, behavior impact, PR link,
+  and review/merge status.
 - Critical removal and release tasks require explicit gatekeeper approval.
 
 ## Risk Levels

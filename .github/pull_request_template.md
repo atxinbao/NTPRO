@@ -17,6 +17,10 @@ lease, one branch, and one review gate.
 
 <!-- What changed, why it changed, and what behavior is affected. -->
 
+## 大白话说明
+
+<!-- 用中文说明：这次改了什么、没改什么、验证结果、行为影响、是否可以自动合并。 -->
+
 ## Files Changed
 
 <!-- List the important changed paths. -->
@@ -36,6 +40,7 @@ lease, one branch, and one review gate.
 ## Evidence
 
 - Evidence file:
+- Plain Chinese summary:
 - Commands run:
 - Command result summary:
 - Tests added or updated:

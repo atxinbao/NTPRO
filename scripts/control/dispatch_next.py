@@ -110,21 +110,6 @@ def ensure_clean_worktree(workspace: Path) -> None:
         )
 
 
-def ensure_on_main(workspace: Path) -> None:
-    branch = run(["git", "branch", "--show-current"], workspace)
-    if branch != "main":
-        raise SystemExit(
-            json.dumps(
-                {
-                    "status": "blocked",
-                    "reason": "not_on_main",
-                    "branch": branch,
-                },
-                indent=2,
-            )
-        )
-
-
 def backup_tasks(path: Path, task_id: str) -> Path:
     backup_dir = path.parent / "memory"
     backup_dir.mkdir(parents=True, exist_ok=True)
@@ -273,9 +258,7 @@ def main() -> int:
         return 0
 
     ensure_clean_worktree(workspace)
-    ensure_on_main(workspace)
     run(["git", "fetch", "--prune", "origin"], workspace)
-    run(["git", "pull", "--ff-only", "origin", "main"], workspace)
     if run(["git", "branch", "--list", branch], workspace):
         raise SystemExit(json.dumps({"status": "blocked", "reason": "branch_exists", "branch": branch}, indent=2))
     lease_path = workspace / f".agentflow/leases/{task_id}.json"
@@ -291,7 +274,7 @@ def main() -> int:
             )
         )
 
-    run(["git", "switch", "-c", branch], workspace)
+    run(["git", "switch", "-c", branch, "origin/main"], workspace)
     update_agentflow_state(state_path, task_id, shrimp_tasks)
     claim_lease(workspace, task_id, branch, args.agent_id)
 
