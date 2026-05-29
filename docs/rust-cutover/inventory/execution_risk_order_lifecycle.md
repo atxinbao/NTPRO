@@ -141,15 +141,39 @@ RCORE-010 does not add tests. RCORE-011 should convert the gap register above
 into a targeted execution/risk/order lifecycle test matrix and identify any
 remaining blockers that must stay scoped rather than treated as done.
 
+## RCORE-011 Test Matrix
+
+Date: 2026-05-29
+Executor: Codex
+Task ID: RCORE-011
+
+RCORE-011 adds focused Rust regression assertions without changing runtime
+behavior.
+
+| Gap | Test coverage added or identified | Scope decision |
+| --- | --- | --- |
+| EROL-002 | Strengthened `crates/risk/tests/risk_engine.rs::test_submit_order_with_default_settings_then_sends_to_client` to assert an accepted submit command forwards to `exec_engine_queue_execute` and emits no `ExecEngine.process` denial/rejection event. Strengthened `test_submit_order_when_trading_halted_then_denies_order` to assert a halted submit emits `OrderDenied` and forwards nothing to execution. | Risk accept/deny event routing now has focused Rust assertions. Full risk golden replay remains RTRACE/RCORE-012 scope. |
+| EROL-003 | Same two risk tests pin the bidirectional routing split: accepted risk commands use execution queue, denied commands stay on process events only. | Covers the RiskEngine side of risk-to-execution routing. A broader trace that includes an actual `ExecutionEngine` receiving and processing the queued command remains RCORE-012/RTRACE scope. |
+| EROL-001 | Existing `tests/golden/order_lifecycle_schema.jsonl` keeps six schema rows for submit, reject, modify, cancel, triggered fill, and partial-to-filled cases. | Still schema-only. No full execution/risk replay is claimed by RCORE-011. |
+| EROL-004 | Existing execution tests cover many order manager paths; contingency missing-cache panic classification remains open. | Not closed by RCORE-011. RCORE-012 must classify invariant panics or add targeted tests. |
+| EROL-005 | Existing matching-engine tests remain in place; ignored stale-local cases and `PriceType::Mark` are still not closed. | Not closed by RCORE-011. Matching-engine implementation/scope decisions remain RCORE-012 work. |
+| EROL-006 | Existing order-emulator smoke remains minimal and risk tests still defer emulator integration. | Not closed by RCORE-011. Emulator/risk integration remains scoped blocker evidence. |
+| EROL-007 | Existing reconciliation tests document Python-parity limitations. | Not closed by RCORE-011. RCORE-012 must decide preserve/fix/defer. |
+| EROL-008 | Existing execution tests cover opening, increasing, and closing netting positions. | Helpful existing coverage, but no executable golden position trace is claimed. |
+| EROL-009 | Existing risk tests include account/balance checks, but real-time account balance tracking and portfolio/PnL replay remain deferred. | Not closed by RCORE-011. Portfolio/PnL release evidence remains later gate work. |
+| EROL-010 | RCORE-011 changes no Python/PyO3/Cython files. | Removal remains blocked by RREM/release gates. |
+
 ## Release Gate Decision
 
-RCORE-010 is an inventory task only.
+RCORE-010 created the inventory and RCORE-011 adds targeted RiskEngine routing
+test evidence.
 
 - `removal_allowed = false`
 - No Python/PyO3/Cython/FFI deletion is allowed here.
 - No execution, risk, order, matching, emulator, reconciliation, position,
   portfolio, adapter, or public API behavior changes are allowed here.
-- RCORE-011 should add or identify Rust tests for the highest-risk gaps.
+- RCORE-011 covers risk accept/deny routing assertions for EROL-002 and
+  EROL-003.
 - RCORE-012 should close implementable gaps or record explicit scope deferrals
   with Verification & Release Gatekeeper review.
 - This decision does not mark the Rust-only release gate as passed. It records

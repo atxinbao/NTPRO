@@ -678,7 +678,7 @@ fn test_submit_order_with_default_settings_then_sends_to_client(
     _client_order_id: ClientOrderId,
     instrument_audusd: InstrumentAny,
     _venue_order_id: VenueOrderId,
-    _process_order_event_handler: TypedIntoMessageSavingHandler<OrderEventAny>,
+    process_order_event_handler: TypedIntoMessageSavingHandler<OrderEventAny>,
     execute_order_event_handler: TypedIntoMessageSavingHandler<TradingCommand>,
     cash_account_state_million_usd: AccountState,
     quote_audusd: QuoteTick,
@@ -733,6 +733,14 @@ fn test_submit_order_with_default_settings_then_sends_to_client(
     assert_eq!(
         saved_execute_messages.first().unwrap().instrument_id(),
         instrument_audusd.id()
+    );
+
+    let saved_process_messages =
+        get_process_order_event_handler_messages(&process_order_event_handler);
+    assert_eq!(
+        saved_process_messages.len(),
+        0,
+        "accepted risk command must not emit denial/rejection events"
     );
 }
 
@@ -2489,6 +2497,7 @@ fn test_submit_order_when_trading_halted_then_denies_order(
     instrument_eth_usdt: InstrumentAny,
     _venue_order_id: VenueOrderId,
     process_order_event_handler: TypedIntoMessageSavingHandler<OrderEventAny>,
+    execute_order_event_handler: TypedIntoMessageSavingHandler<TradingCommand>,
     mut simple_cache: Cache,
 ) {
     simple_cache
@@ -2536,6 +2545,14 @@ fn test_submit_order_when_trading_halted_then_denies_order(
     assert_eq!(
         first_message.message().unwrap(),
         Ustr::from("TradingState::HALTED")
+    );
+
+    let saved_execute_messages =
+        get_execute_order_event_handler_messages(&execute_order_event_handler);
+    assert_eq!(
+        saved_execute_messages.len(),
+        0,
+        "halted trading state must not forward denied submit commands to execution"
     );
 }
 
