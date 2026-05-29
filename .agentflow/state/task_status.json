@@ -362,7 +362,7 @@
     },
     "RBTL-001": {
       "title": "Inventory Rust backtest runtime gaps",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -372,7 +372,9 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-001.md",
-      "evidence_file": "docs/rust-cutover/evidence/RBTL-001.md"
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-001.md",
+      "updated_at": "2026-05-29T22:06:07Z",
+      "branch": "ai/RBTL-001-inventory-rust-backtest-runtime-gaps"
     },
     "RBTL-002": {
       "title": "Add Rust BacktestNode smoke",
@@ -760,7 +762,7 @@
     },
     "RCORE-018": {
       "title": "Close Rust trading strategy and algorithm API gaps",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -771,8 +773,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-018.md",
       "evidence_file": "docs/rust-cutover/evidence/RCORE-018.md",
-      "updated_at": "2026-05-29T20:39:13Z",
-      "branch": "ai/RCORE-018-close-rust-trading-strategy-and-algorithm-api-gaps"
+      "updated_at": "2026-05-29T21:19:14Z",
+      "branch": "ai/RCORE-018-close-rust-trading-strategy-and-algorithm-api-gaps",
+      "merged_pr": 53
     },
     "RCTL-001": {
       "title": "Install Rust-only contract and Definition of Done",
