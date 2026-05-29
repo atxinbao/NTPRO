@@ -5308,6 +5308,31 @@ fn test_restore_position_snapshot_blob(mut cache: Cache) {
 }
 
 #[rstest]
+fn test_snapshot_position_state_release_blocker_is_explicit(mut cache: Cache) {
+    let position = snapshot_test_position();
+
+    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        cache
+            .snapshot_position_state(&position, Some(false))
+            .expect("snapshot_position_state should not return an adapter error");
+    }))
+    .expect_err("snapshot_position_state blocker should still be explicit");
+
+    let message = if let Some(message) = panic.downcast_ref::<&str>() {
+        *message
+    } else if let Some(message) = panic.downcast_ref::<String>() {
+        message.as_str()
+    } else {
+        ""
+    };
+
+    assert!(
+        message.contains("not yet implemented"),
+        "panic was: {message}"
+    );
+}
+
+#[rstest]
 fn test_restore_position_snapshot_blob_rejects_wrong_position(mut cache: Cache) {
     let mut position = snapshot_test_position();
     position.id = PositionId::new("OTHER-POSITION-1");

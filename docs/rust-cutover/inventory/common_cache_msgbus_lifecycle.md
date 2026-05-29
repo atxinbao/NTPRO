@@ -155,6 +155,28 @@ RCORE-007 does not add tests. RCORE-008 should turn the gap register above into
 a targeted test matrix and explicitly decide which heavy stress checks stay
 release-only.
 
+## RCORE-008 Test Matrix
+
+Date: 2026-05-29
+Executor: Codex
+Task ID: RCORE-008
+
+RCORE-008 adds focused Rust unit coverage without changing runtime behavior.
+
+| Gap | Test coverage added | Scope decision |
+| --- | --- | --- |
+| CML-003 | `cache::tests::test_snapshot_position_state_release_blocker_is_explicit` | Keeps the current `snapshot_position_state` `todo!()` visible as a release blocker instead of silently treating snapshot persistence as done. |
+| CML-005 | `msgbus::api::tests::test_route_separation_any_subscriber_does_not_receive_typed_quote` and `test_route_separation_typed_subscriber_does_not_receive_any_quote` | Pins the typed-vs-Any route split as explicit behavior. Product/runtime publishers and subscribers must choose matching APIs. |
+| CML-006 | `msgbus::api::tests::test_message_bus_thread_local_isolation_for_lifecycle_state` and `component::tests::test_component_registry_is_thread_local_for_lifecycle_isolation` | Confirms thread-local lifecycle state does not leak message-bus subscriptions or component registry entries across worker threads. |
+| CML-007 | `component::tests::test_component_registry_is_thread_local_for_lifecycle_isolation` complements existing borrow-release and panic-release tests. | UnsafeCell registry remains in place; this task adds isolation evidence only and does not approve unsafe/lifecycle release closure. |
+
+Not closed by RCORE-008:
+
+- CML-001 and CML-008 still require executable `cache_msgbus` golden trace replay.
+- CML-002 and CML-004 still require cache/message-bus backing database fixture or explicit deferral.
+- CML-009 remains release/performance verification, not a default PR gate.
+- CML-010 remains blocked by Rust-only removal gates; no Python/PyO3/Cython files were changed.
+
 ## Release Gate Decision
 
 RCORE-007 is an inventory task only.
