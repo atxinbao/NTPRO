@@ -456,7 +456,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-006.md",
       "evidence_file": "docs/rust-cutover/evidence/RBTL-006.md",
-  "updated_at": "2026-05-30T17:55:09Z",
+      "updated_at": "2026-05-30T17:55:09Z",
       "branch": "ai/RBTL-006-add-rust-livenode-lifecycle-smoke"
     },
     "RBTL-007": {
@@ -477,7 +477,7 @@
     },
     "RBTL-008": {
       "title": "Add Rust sandbox execution smoke",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -487,7 +487,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-008.md",
-      "evidence_file": "docs/rust-cutover/evidence/RBTL-008.md"
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-008.md",
+      "updated_at": "2026-05-30T19:27:20Z"
     },
     "RBTL-009": {
       "title": "Prove backtest/live semantic parity",

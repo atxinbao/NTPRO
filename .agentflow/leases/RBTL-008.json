@@ -1,0 +1,15 @@
+{
+  "task_id": "RBTL-008",
+  "agent_id": "Codex",
+  "branch": "ai/RBTL-008-add-rust-sandbox-execution-smoke",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RBTL-008.md",
+    "crates/live/Cargo.toml",
+    "crates/live/tests/node.rs",
+    "docs/rust-cutover/evidence/RBTL-008.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RBTL-008.json"
+  ],
+  "claimed_at": "2026-05-30T18:00:18.637795+00:00",
+  "status": "PR_OPEN"
+}
