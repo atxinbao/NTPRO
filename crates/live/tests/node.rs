@@ -328,6 +328,38 @@ mod serial_tests {
     }
 
     #[rstest]
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_rust_builder_start_stop_smoke_without_python() {
+        let mut node = LiveNode::builder(TraderId::from("TESTER-001"), Environment::Sandbox)
+            .unwrap()
+            .with_name("RustLifecycleSmoke")
+            .with_reconciliation(false)
+            .with_delay_post_stop_secs(0)
+            .build()
+            .unwrap();
+        let handle = node.handle();
+
+        assert_eq!(node.environment(), Environment::Sandbox);
+        assert_eq!(handle.state(), NodeState::Idle);
+
+        tokio::time::timeout(Duration::from_secs(5), node.start())
+            .await
+            .expect("Rust LiveNode start should complete before timeout")
+            .expect("Rust LiveNode start should succeed");
+
+        assert_eq!(handle.state(), NodeState::Running);
+        assert!(handle.is_running());
+
+        tokio::time::timeout(Duration::from_secs(5), node.stop())
+            .await
+            .expect("Rust LiveNode stop should complete before timeout")
+            .expect("Rust LiveNode stop should succeed");
+
+        assert_eq!(handle.state(), NodeState::Stopped);
+        assert!(!handle.is_running());
+    }
+
+    #[rstest]
     #[tokio::test]
     async fn test_run_twice_returns_error() {
         let config = LiveNodeConfig {

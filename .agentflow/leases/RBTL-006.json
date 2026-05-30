@@ -1,0 +1,15 @@
+{
+  "task_id": "RBTL-006",
+  "agent_id": "Codex",
+  "branch": "ai/RBTL-006-add-rust-livenode-lifecycle-smoke",
+  "touched_paths": [
+    "crates/live/tests/node.rs",
+    "docs/rust-cutover/tasks/RBTL-006.md",
+    "docs/rust-cutover/evidence/RBTL-006.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RBTL-006.json"
+  ],
+  "claimed_at": "2026-05-30T14:58:39.194598+00:00",
+  "status": "PR_OPEN",
+  "updated_at": "2026-05-30T15:44:19Z"
+}
