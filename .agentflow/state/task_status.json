@@ -445,7 +445,7 @@
     },
     "RBTL-006": {
       "title": "Add Rust LiveNode lifecycle smoke",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -455,7 +455,9 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-006.md",
-      "evidence_file": "docs/rust-cutover/evidence/RBTL-006.md"
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-006.md",
+      "updated_at": "2026-05-30T15:44:19Z",
+      "branch": "ai/RBTL-006-add-rust-livenode-lifecycle-smoke"
     },
     "RBTL-007": {
       "title": "Close Rust live config/client gaps",
