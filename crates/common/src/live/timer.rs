@@ -192,17 +192,8 @@ impl LiveTimer {
         let handle = rt.spawn(async move {
             let clock = get_atomic_clock_realtime();
 
-            // 1-millisecond delay to account for the overhead of initializing a tokio timer
-            let overhead = Duration::from_millis(1);
             let delay_ns = next_time_ns.saturating_sub(now_ns.as_u64());
-            let mut delay = Duration::from_nanos(delay_ns);
-
-            // Subtract the estimated startup overhead; saturating to zero for sub-ms delays
-            if delay > overhead {
-                delay -= overhead;
-            } else {
-                delay = Duration::from_nanos(0);
-            }
+            let delay = Duration::from_nanos(delay_ns);
 
             let start = Instant::now() + delay;
 

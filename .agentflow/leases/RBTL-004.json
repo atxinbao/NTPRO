@@ -1,0 +1,16 @@
+{
+  "task_id": "RBTL-004",
+  "agent_id": "Codex",
+  "branch": "ai/RBTL-004-close-rust-backtest-result-report-gaps",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RBTL-004.md",
+    "crates/backtest/tests/backtest_node.rs",
+    "crates/common/src/live/timer.rs",
+    "docs/rust-cutover/evidence/RBTL-004.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RBTL-004.json"
+  ],
+  "claimed_at": "2026-05-29T23:28:51.718065+00:00",
+  "status": "PR_OPEN",
+  "updated_at": "2026-05-30T12:35:31Z"
+}
