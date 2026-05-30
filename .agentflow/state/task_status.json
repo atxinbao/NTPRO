@@ -492,7 +492,7 @@
     },
     "RBTL-009": {
       "title": "Prove backtest/live semantic parity",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -502,7 +502,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-009.md",
-      "evidence_file": "docs/rust-cutover/evidence/RBTL-009.md"
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-009.md",
+      "updated_at": "2026-05-30T22:55:32Z"
     },
     "RBTL-010": {
       "title": "Publish backtest/live gate evidence",
