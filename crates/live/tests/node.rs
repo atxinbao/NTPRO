@@ -42,8 +42,9 @@ use nautilus_model::{
     enums::OmsType,
     identifiers::{AccountId, ClientId, ExecAlgorithmId, TraderId, Venue},
     orders::OrderAny,
-    types::{AccountBalance, MarginBalance},
+    types::{AccountBalance, Currency, MarginBalance, Money},
 };
+use nautilus_sandbox::{SandboxExecutionClientConfig, SandboxExecutionClientFactory};
 use nautilus_trading::{
     ExecutionAlgorithm, ExecutionAlgorithmConfig, ExecutionAlgorithmCore, nautilus_strategy,
     strategy::{StrategyConfig, StrategyCore},
@@ -574,6 +575,69 @@ mod serial_tests {
 
         assert_eq!(handle.state(), NodeState::Stopped);
         assert!(!handle.is_running());
+    }
+
+    #[rstest]
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_rust_sandbox_execution_client_start_stop_smoke_without_python() {
+        let trader_id = TraderId::from("TESTER-001");
+        let account_id = AccountId::from("SANDBOX-001");
+        let venue = Venue::from("SANDBOX");
+        let config = SandboxExecutionClientConfig {
+            trader_id,
+            account_id,
+            venue,
+            starting_balances: vec![Money::new(100_000.0, Currency::USDT())],
+            ..Default::default()
+        };
+        let mut node = LiveNode::builder(trader_id, Environment::Sandbox)
+            .unwrap()
+            .with_name("RustSandboxExecutionSmoke")
+            .with_reconciliation(false)
+            .with_delay_post_stop_secs(0)
+            .add_simulated_exec_client(
+                None,
+                Box::new(SandboxExecutionClientFactory::new()),
+                Box::new(config),
+            )
+            .unwrap()
+            .build()
+            .unwrap();
+        let handle = node.handle();
+
+        assert_eq!(node.environment(), Environment::Sandbox);
+        assert_eq!(handle.state(), NodeState::Idle);
+        assert!(
+            node.kernel()
+                .exec_engine
+                .borrow()
+                .client_ids()
+                .contains(&ClientId::from("SANDBOX"))
+        );
+        assert!(node.kernel().exec_engine.borrow().check_disconnected());
+
+        tokio::time::timeout(Duration::from_secs(5), node.start())
+            .await
+            .expect("Rust sandbox LiveNode start should complete before timeout")
+            .expect("Rust sandbox LiveNode start should succeed");
+
+        assert_eq!(handle.state(), NodeState::Running);
+        assert!(node.kernel().exec_engine.borrow().check_connected());
+        assert!(
+            node.kernel()
+                .cache
+                .borrow()
+                .account_owned(&account_id)
+                .is_some()
+        );
+
+        tokio::time::timeout(Duration::from_secs(5), node.stop())
+            .await
+            .expect("Rust sandbox LiveNode stop should complete before timeout")
+            .expect("Rust sandbox LiveNode stop should succeed");
+
+        assert_eq!(handle.state(), NodeState::Stopped);
+        assert!(node.kernel().exec_engine.borrow().check_disconnected());
     }
 
     #[rstest]

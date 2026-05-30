@@ -6214,6 +6214,7 @@ dependencies = [
  "nautilus-plugin",
  "nautilus-portfolio",
  "nautilus-risk",
+ "nautilus-sandbox",
  "nautilus-system",
  "nautilus-trading",
  "pyo3",
