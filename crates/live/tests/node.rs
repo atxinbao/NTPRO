@@ -18,24 +18,31 @@
 //! These tests use global logging state (one logger per process).
 //! Run with cargo-nextest for process isolation, or use --test-threads=1.
 
-use std::{fmt::Debug, time::Duration};
+use std::{any::Any, cell::RefCell, fmt::Debug, rc::Rc, time::Duration};
 
 use nautilus_common::{
     actor::{DataActor, DataActorCore, data_actor::DataActorConfig},
+    cache::CacheView,
+    clients::{DataClient, ExecutionClient},
+    clock::Clock,
     enums::Environment,
+    factories::{ClientConfig, DataClientFactory, ExecutionClientFactory},
     messages::system::ShutdownSystem,
     msgbus::{self, MessagingSwitchboard},
     nautilus_actor,
     testing::wait_until_async,
 };
-use nautilus_core::UUID4;
+use nautilus_core::{UUID4, UnixNanos};
 use nautilus_live::{
     config::{LiveExecEngineConfig, LiveNodeConfig},
     node::{LiveNode, LiveNodeHandle, NodeState},
 };
 use nautilus_model::{
-    identifiers::{ExecAlgorithmId, TraderId},
+    accounts::AccountAny,
+    enums::OmsType,
+    identifiers::{AccountId, ClientId, ExecAlgorithmId, TraderId, Venue},
     orders::OrderAny,
+    types::{AccountBalance, MarginBalance},
 };
 use nautilus_trading::{
     ExecutionAlgorithm, ExecutionAlgorithmConfig, ExecutionAlgorithmCore, nautilus_strategy,
@@ -101,6 +108,189 @@ impl ExecutionAlgorithm for TestExecAlgorithm {
 
     fn on_order(&mut self, _order: OrderAny) -> anyhow::Result<()> {
         Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct TestClientConfig;
+
+impl ClientConfig for TestClientConfig {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+#[derive(Debug)]
+struct TestDataClient {
+    client_id: ClientId,
+    venue: Venue,
+    connected: bool,
+}
+
+impl TestDataClient {
+    fn new(client_id: ClientId, venue: Venue) -> Self {
+        Self {
+            client_id,
+            venue,
+            connected: false,
+        }
+    }
+}
+
+impl DataClient for TestDataClient {
+    fn client_id(&self) -> ClientId {
+        self.client_id
+    }
+
+    fn venue(&self) -> Option<Venue> {
+        Some(self.venue)
+    }
+
+    fn start(&mut self) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn stop(&mut self) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn reset(&mut self) -> anyhow::Result<()> {
+        self.connected = false;
+        Ok(())
+    }
+
+    fn dispose(&mut self) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn is_connected(&self) -> bool {
+        self.connected
+    }
+
+    fn is_disconnected(&self) -> bool {
+        !self.connected
+    }
+}
+
+#[derive(Debug)]
+struct TestDataClientFactory;
+
+impl DataClientFactory for TestDataClientFactory {
+    fn create(
+        &self,
+        name: &str,
+        config: &dyn ClientConfig,
+        _cache: CacheView,
+        _clock: Rc<RefCell<dyn Clock>>,
+    ) -> anyhow::Result<Box<dyn DataClient>> {
+        if config.as_any().downcast_ref::<TestClientConfig>().is_none() {
+            anyhow::bail!("invalid test data client config");
+        }
+
+        Ok(Box::new(TestDataClient::new(
+            ClientId::from(name),
+            Venue::from("SIM"),
+        )))
+    }
+
+    fn name(&self) -> &'static str {
+        "TEST-DATA"
+    }
+
+    fn config_type(&self) -> &'static str {
+        "TestClientConfig"
+    }
+}
+
+#[derive(Debug)]
+struct TestExecutionClient {
+    client_id: ClientId,
+    account_id: AccountId,
+    venue: Venue,
+    connected: bool,
+}
+
+impl TestExecutionClient {
+    fn new(client_id: ClientId, venue: Venue) -> Self {
+        Self {
+            client_id,
+            account_id: AccountId::from("SIM-001"),
+            venue,
+            connected: false,
+        }
+    }
+}
+
+impl ExecutionClient for TestExecutionClient {
+    fn is_connected(&self) -> bool {
+        self.connected
+    }
+
+    fn client_id(&self) -> ClientId {
+        self.client_id
+    }
+
+    fn account_id(&self) -> AccountId {
+        self.account_id
+    }
+
+    fn venue(&self) -> Venue {
+        self.venue
+    }
+
+    fn oms_type(&self) -> OmsType {
+        OmsType::Netting
+    }
+
+    fn get_account(&self) -> Option<AccountAny> {
+        None
+    }
+
+    fn generate_account_state(
+        &self,
+        _balances: Vec<AccountBalance>,
+        _margins: Vec<MarginBalance>,
+        _reported: bool,
+        _ts_event: UnixNanos,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn start(&mut self) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn stop(&mut self) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct TestExecutionClientFactory;
+
+impl ExecutionClientFactory for TestExecutionClientFactory {
+    fn create(
+        &self,
+        name: &str,
+        config: &dyn ClientConfig,
+        _cache: CacheView,
+    ) -> anyhow::Result<Box<dyn ExecutionClient>> {
+        if config.as_any().downcast_ref::<TestClientConfig>().is_none() {
+            anyhow::bail!("invalid test execution client config");
+        }
+
+        Ok(Box::new(TestExecutionClient::new(
+            ClientId::from(name),
+            Venue::from("SIM"),
+        )))
+    }
+
+    fn name(&self) -> &'static str {
+        "TEST-EXEC"
+    }
+
+    fn config_type(&self) -> &'static str {
+        "TestClientConfig"
     }
 }
 
@@ -314,6 +504,33 @@ mod serial_tests {
         let node = LiveNode::build("TestNode".to_string(), None).unwrap();
 
         let _manager = node.exec_manager();
+    }
+
+    #[rstest]
+    fn test_builder_registers_rust_data_and_exec_client_factories() {
+        let node = LiveNode::builder(TraderId::from("TESTER-001"), Environment::Sandbox)
+            .unwrap()
+            .with_name("RustClientRegistration")
+            .add_data_client(
+                None,
+                Box::new(TestDataClientFactory),
+                Box::new(TestClientConfig),
+            )
+            .unwrap()
+            .add_exec_client(
+                None,
+                Box::new(TestExecutionClientFactory),
+                Box::new(TestClientConfig),
+            )
+            .unwrap()
+            .build()
+            .unwrap();
+
+        let registered_data_clients = node.kernel().data_engine.borrow().registered_clients();
+        let registered_exec_clients = node.kernel().exec_engine.borrow().client_ids();
+
+        assert!(registered_data_clients.contains(&ClientId::from("TEST-DATA")));
+        assert!(registered_exec_clients.contains(&ClientId::from("TEST-EXEC")));
     }
 
     #[rstest]

@@ -1,0 +1,16 @@
+{
+  "task_id": "RBTL-007",
+  "agent_id": "Codex",
+  "branch": "ai/RBTL-007-close-rust-live-config-client-gaps",
+  "touched_paths": [
+    "crates/live/src/config.rs",
+    "crates/live/tests/node.rs",
+    "docs/rust-cutover/tasks/RBTL-007.md",
+    "docs/rust-cutover/evidence/RBTL-007.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RBTL-007.json"
+  ],
+  "claimed_at": "2026-05-30T15:48:51.260508+00:00",
+  "status": "PR_OPEN",
+  "updated_at": "2026-05-30T17:55:09Z"
+}
