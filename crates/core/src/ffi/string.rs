@@ -191,9 +191,11 @@ mod tests {
     #[rstest]
     fn test_pystr_to_string() {
         Python::initialize();
-        // Create a valid Python object pointer
-        let ptr = Python::attach(|py| PyString::new(py, "test string1").as_ptr());
-        let result = unsafe { pystr_to_string(ptr) };
+        let result = Python::attach(|py| {
+            let py_string = PyString::new(py, "test string1");
+            let ptr = py_string.as_ptr();
+            unsafe { pystr_to_string(ptr) }
+        });
         assert_eq!(result, "test string1");
     }
 
