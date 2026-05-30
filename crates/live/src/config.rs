@@ -669,6 +669,21 @@ impl LiveNodeConfig {
             );
         }
 
+        if !self.data_clients.is_empty() {
+            anyhow::bail!(
+                "LiveNodeConfig.data_clients cannot create Rust data clients automatically yet; \
+                 register Rust data clients with LiveNodeBuilder::add_data_client(...)"
+            );
+        }
+
+        if !self.exec_clients.is_empty() {
+            anyhow::bail!(
+                "LiveNodeConfig.exec_clients cannot create Rust execution clients automatically yet; \
+                 register Rust execution clients with LiveNodeBuilder::add_exec_client(...) \
+                 or LiveNodeBuilder::add_simulated_exec_client(...)"
+            );
+        }
+
         self.data_engine.validate_runtime_support()?;
         self.risk_engine.validate_runtime_support()?;
         self.exec_engine.validate_runtime_support()?;
@@ -1486,6 +1501,34 @@ mod tests {
                 .to_string()
                 .contains("unknown field `instrument_provider`")
         );
+    }
+
+    #[rstest]
+    fn test_live_node_config_rejects_data_client_maps_for_rust_runtime() {
+        let mut config = LiveNodeConfig::default();
+        config
+            .data_clients
+            .insert("sandbox".to_string(), LiveDataClientConfig::default());
+
+        let error = config.validate_runtime_support().unwrap_err();
+        let message = error.to_string();
+
+        assert!(message.contains("LiveNodeConfig.data_clients"));
+        assert!(message.contains("LiveNodeBuilder::add_data_client"));
+    }
+
+    #[rstest]
+    fn test_live_node_config_rejects_exec_client_maps_for_rust_runtime() {
+        let mut config = LiveNodeConfig::default();
+        config
+            .exec_clients
+            .insert("sandbox".to_string(), LiveExecClientConfig::default());
+
+        let error = config.validate_runtime_support().unwrap_err();
+        let message = error.to_string();
+
+        assert!(message.contains("LiveNodeConfig.exec_clients"));
+        assert!(message.contains("LiveNodeBuilder::add_exec_client"));
     }
 
     #[rstest]
