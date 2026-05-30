@@ -1,0 +1,14 @@
+{
+  "task_id": "RBTL-005",
+  "agent_id": "Codex",
+  "branch": "ai/RBTL-005-inventory-rust-live-node-gaps",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RBTL-005.md",
+    "docs/rust-cutover/evidence/RBTL-005.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RBTL-005.json"
+  ],
+  "claimed_at": "2026-05-30T12:41:31.440776+00:00",
+  "status": "PR_OPEN",
+  "updated_at": "2026-05-30T12:55:16Z"
+}
