@@ -412,7 +412,7 @@
     },
     "RBTL-004": {
       "title": "Close Rust backtest result/report gaps",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -422,7 +422,9 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-004.md",
-      "evidence_file": "docs/rust-cutover/evidence/RBTL-004.md"
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-004.md",
+      "updated_at": "2026-05-30T12:35:31Z",
+      "branch": "ai/RBTL-004-close-rust-backtest-result-report-gaps"
     },
     "RBTL-005": {
       "title": "Inventory Rust live node gaps",
@@ -1518,5 +1520,5 @@
       "branch": "ai/RCTL-009-pr-summary-risk-automation-policy"
     }
   },
-  "updated_at": "2026-05-29T20:39:13Z"
+  "updated_at": "2026-05-30T12:35:31Z"
 }

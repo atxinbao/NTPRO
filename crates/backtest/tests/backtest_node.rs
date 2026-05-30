@@ -857,8 +857,17 @@ fn test_generates_orders(crypto_perpetual_ethusdt: CryptoPerpetual) {
     assert!(result.run_finished.is_some());
     assert!(result.backtest_start.is_some());
     assert!(result.backtest_end.is_some());
+    assert!(result.total_events >= result.total_orders);
     assert!(result.total_orders >= 1);
     assert!(result.total_positions >= 1);
+
+    let pnl_stats = result
+        .stats_pnls
+        .get("USDT")
+        .expect("USDT PnL statistics must be reportable");
+    assert!(pnl_stats.contains_key("PnL (total)"));
+    assert!(pnl_stats.contains_key("PnL% (total)"));
+    assert_eq!(result.stats_general.get("Long Ratio").copied(), Some(1.0));
 }
 
 #[rstest]
