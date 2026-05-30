@@ -412,7 +412,7 @@
     },
     "RBTL-004": {
       "title": "Close Rust backtest result/report gaps",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -423,12 +423,13 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-004.md",
       "evidence_file": "docs/rust-cutover/evidence/RBTL-004.md",
-      "updated_at": "2026-05-30T12:35:31Z",
-      "branch": "ai/RBTL-004-close-rust-backtest-result-report-gaps"
+      "updated_at": "2026-05-30T12:41:18Z",
+      "branch": "ai/RBTL-004-close-rust-backtest-result-report-gaps",
+      "merged_pr": 58
     },
     "RBTL-005": {
       "title": "Inventory Rust live node gaps",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -438,7 +439,9 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-005.md",
-      "evidence_file": "docs/rust-cutover/evidence/RBTL-005.md"
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-005.md",
+      "updated_at": "2026-05-30T12:55:16Z",
+      "branch": "ai/RBTL-005-inventory-rust-live-node-gaps"
     },
     "RBTL-006": {
       "title": "Add Rust LiveNode lifecycle smoke",
@@ -1520,5 +1523,5 @@
       "branch": "ai/RCTL-009-pr-summary-risk-automation-policy"
     }
   },
-  "updated_at": "2026-05-30T12:35:31Z"
+  "updated_at": "2026-05-30T12:55:16Z"
 }
