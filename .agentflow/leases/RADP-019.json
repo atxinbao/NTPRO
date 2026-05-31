@@ -1,0 +1,15 @@
+{
+  "task_id": "RADP-019",
+  "agent_id": "Codex",
+  "branch": "ai/RADP-019-inventory-rust-adapter-gaps-for-betfair-architect-ax",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RADP-019.md",
+    "docs/rust-cutover/evidence/RADP-019.md",
+    "docs/rust-cutover/inventory/betfair_architect_ax_adapter_gaps.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RADP-019.json"
+  ],
+  "claimed_at": "2026-05-31T11:55:48.360928+00:00",
+  "status": "PR_OPEN",
+  "updated_at": "2026-05-31T12:00:41Z"
+}
