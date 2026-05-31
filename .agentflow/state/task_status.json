@@ -326,7 +326,7 @@
     },
     "RADP-021": {
       "title": "Close Rust adapter gaps for Betfair Architect AX",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -337,11 +337,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RADP-021.md",
       "evidence_file": "docs/rust-cutover/evidence/RADP-021.md",
-      "updated_at": "2026-05-31T16:24:14Z"
+      "updated_at": "2026-05-31T16:27:14Z"
     },
     "RADP-022": {
       "title": "Inventory Rust adapter gaps for Polymarket Sandbox",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -351,7 +351,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RADP-022.md",
-      "evidence_file": "docs/rust-cutover/evidence/RADP-022.md"
+      "evidence_file": "docs/rust-cutover/evidence/RADP-022.md",
+      "updated_at": "2026-05-31T16:33:36Z"
     },
     "RADP-023": {
       "title": "Add Rust adapter fixtures for Polymarket Sandbox",
@@ -1551,5 +1552,5 @@
       "branch": "ai/RCTL-009-pr-summary-risk-automation-policy"
     }
   },
-  "updated_at": "2026-05-31T16:24:14Z"
+  "updated_at": "2026-05-31T16:33:36Z"
 }
