@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-008",
+  "inventory_task": "RADP-007",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "purpose": "Rust parser and lifecycle fixture coverage manifest for Coinbase adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "coinbase-http-instrument-parser",
+      "surface": "coinbase_http_instrument_parser",
+      "product_scope": "Spot products and single product lookup",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "spot products",
+        "single product lookup"
+      ],
+      "fixture_paths": [
+        "http_products.json",
+        "http_product.json"
+      ],
+      "primary_tests": [
+        "tests/data_client.rs",
+        "src/provider.rs",
+        "src/http/parse.rs",
+        "src/http/models.rs"
+      ]
+    },
+    {
+      "id": "coinbase-http-market-data-parser",
+      "surface": "coinbase_http_market_data_parser",
+      "product_scope": "Spot, CFM derivatives",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "product order book",
+        "ticker snapshot",
+        "candles"
+      ],
+      "fixture_paths": [
+        "http_product_book.json",
+        "http_ticker.json",
+        "http_candles.json"
+      ],
+      "primary_tests": [
+        "tests/data_client.rs",
+        "src/data/mod.rs",
+        "src/http/client.rs"
+      ]
+    },
+    {
+      "id": "coinbase-http-execution-lifecycle",
+      "surface": "coinbase_http_execution_lifecycle",
+      "product_scope": "Spot cash accounts and CFM margin accounts",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "accounts",
+        "order detail",
+        "order listing",
+        "fills"
+      ],
+      "fixture_paths": [
+        "http_accounts.json",
+        "http_order.json",
+        "http_orders_list.json",
+        "http_fills.json"
+      ],
+      "primary_tests": [
+        "tests/exec_client.rs",
+        "src/execution.rs",
+        "src/http/client.rs"
+      ]
+    },
+    {
+      "id": "coinbase-ws-market-data-parser",
+      "surface": "coinbase_ws_market_data_parser",
+      "product_scope": "Spot and derivatives WebSocket market data",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "level2 snapshot",
+        "level2 update",
+        "ticker",
+        "candles",
+        "market trades",
+        "heartbeats",
+        "subscriptions"
+      ],
+      "fixture_paths": [
+        "ws_l2_data_snapshot.json",
+        "ws_l2_data_update.json",
+        "ws_ticker.json",
+        "ws_candles.json",
+        "ws_market_trades.json",
+        "ws_heartbeats.json",
+        "ws_subscriptions.json"
+      ],
+      "primary_tests": [
+        "tests/websocket.rs",
+        "src/websocket/parse.rs",
+        "src/websocket/messages.rs"
+      ]
+    },
+    {
+      "id": "coinbase-ws-user-lifecycle",
+      "surface": "coinbase_ws_user_lifecycle",
+      "product_scope": "Authenticated user channel",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "user order events",
+        "user fill events"
+      ],
+      "fixture_paths": [
+        "ws_user.json"
+      ],
+      "primary_tests": [
+        "tests/exec_client.rs",
+        "src/execution.rs",
+        "src/websocket/parse.rs"
+      ]
+    },
+    {
+      "id": "coinbase-derivatives-polling",
+      "surface": "coinbase_derivatives_polling",
+      "product_scope": "CFM derivatives polling",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "CFM derivative products",
+        "CFM balance summary",
+        "CFM positions",
+        "index and funding polling boundary"
+      ],
+      "fixture_paths": [
+        "http_products_future.json",
+        "http_cfm_balance_summary.json",
+        "http_cfm_positions.json",
+        "http_cfm_position.json"
+      ],
+      "primary_tests": [
+        "tests/data_client.rs",
+        "src/data/poll.rs",
+        "src/http/client.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "CB-ADP-001",
+      "status": "open",
+      "inventory_task": "RADP-007",
+      "owner_task": "RADP-009",
+      "summary": "Coinbase Rust fixture coverage now has a compact manifest, but parity closure remains assigned to RADP-009."
+    },
+    {
+      "id": "CB-ADP-002",
+      "status": "scoped",
+      "inventory_task": "RADP-007",
+      "owner_task": "RADP-009",
+      "summary": "Coinbase product support is limited to crypto spot and CFM derivatives."
+    },
+    {
+      "id": "CB-ADP-003",
+      "status": "scoped",
+      "inventory_task": "RADP-007",
+      "owner_task": "RADP-009",
+      "summary": "Coinbase mark prices are unsupported while index and funding data are REST-polled."
+    },
+    {
+      "id": "CB-ADP-004",
+      "status": "scoped",
+      "inventory_task": "RADP-007",
+      "owner_task": "RADP-009",
+      "summary": "Coinbase order-book streaming is scoped to L2 MBP deltas."
+    },
+    {
+      "id": "CB-ADP-005",
+      "status": "scoped",
+      "inventory_task": "RADP-007",
+      "owner_task": "RADP-009",
+      "summary": "Coinbase execution supports a narrower order matrix than the full Nautilus order model."
+    },
+    {
+      "id": "CB-ADP-006",
+      "status": "scoped",
+      "inventory_task": "RADP-007",
+      "owner_task": "RADP-009",
+      "summary": "Coinbase spot and CFM execution are selected by one account-type flag."
+    },
+    {
+      "id": "CB-ADP-007",
+      "status": "deferred",
+      "inventory_task": "RADP-007",
+      "owner_task": "RADP-009",
+      "summary": "Optional Coinbase Python/PyO3 surfaces remain until the removal gate."
+    }
+  ]
+}

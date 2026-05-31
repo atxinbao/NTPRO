@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-008",
+  "inventory_task": "RADP-007",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "purpose": "Rust parser and lifecycle fixture coverage manifest for BitMEX adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "bitmex-http-instrument-parser",
+      "surface": "bitmex_http_instrument_parser",
+      "product_scope": "Spot, perpetuals, futures, prediction markets, index instruments",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "instrument lookup",
+        "supported instrument classes",
+        "unsupported instrument class boundary"
+      ],
+      "fixture_paths": [
+        "http_get_instrument_xbtusd.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "src/http/parse.rs",
+        "src/http/models.rs"
+      ]
+    },
+    {
+      "id": "bitmex-http-market-data-parser",
+      "surface": "bitmex_http_market_data_parser",
+      "product_scope": "Public HTTP market data",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "trades",
+        "trade bins",
+        "limited external last-price bar intervals"
+      ],
+      "fixture_paths": [
+        "http_get_trades.json",
+        "http_get_trade_bins.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "src/http/client.rs",
+        "src/http/parse.rs"
+      ]
+    },
+    {
+      "id": "bitmex-http-execution-lifecycle",
+      "surface": "bitmex_http_execution_lifecycle",
+      "product_scope": "Authenticated margin execution",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "orders",
+        "executions",
+        "positions",
+        "wallet"
+      ],
+      "fixture_paths": [
+        "http_get_orders.json",
+        "http_get_executions.json",
+        "http_get_positions.json",
+        "http_get_wallet.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "src/execution.rs",
+        "src/http/client.rs"
+      ]
+    },
+    {
+      "id": "bitmex-ws-market-data-parser",
+      "surface": "bitmex_ws_market_data_parser",
+      "product_scope": "Public WebSocket market data",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "order book L2",
+        "depth10 book",
+        "quotes",
+        "trades",
+        "trade bins",
+        "funding",
+        "instrument status",
+        "liquidations"
+      ],
+      "fixture_paths": [
+        "ws_orderbook_l2.json",
+        "ws_orderbook_10.json",
+        "ws_quote.json",
+        "ws_trade.json",
+        "ws_trade_bin_1m.json",
+        "ws_funding_rate.json",
+        "ws_instrument.json",
+        "ws_liquidation.json"
+      ],
+      "primary_tests": [
+        "tests/websocket.rs",
+        "src/data.rs",
+        "src/websocket/parse.rs",
+        "src/websocket/messages.rs"
+      ]
+    },
+    {
+      "id": "bitmex-ws-private-lifecycle",
+      "surface": "bitmex_ws_private_lifecycle",
+      "product_scope": "Authenticated private WebSocket lifecycle",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "orders",
+        "executions",
+        "cancel rejects",
+        "positions",
+        "wallet",
+        "margin"
+      ],
+      "fixture_paths": [
+        "ws_order.json",
+        "ws_execution.json",
+        "ws_execution_cancel_reject.json",
+        "ws_position.json",
+        "ws_wallet.json",
+        "ws_margin.json"
+      ],
+      "primary_tests": [
+        "tests/websocket.rs",
+        "src/execution.rs",
+        "src/websocket/dispatch.rs"
+      ]
+    },
+    {
+      "id": "bitmex-operational-lifecycle",
+      "surface": "bitmex_operational_lifecycle",
+      "product_scope": "Submit/cancel broadcaster and dead man's switch boundaries",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "submit credential signing",
+        "HTTP error handling",
+        "order lifecycle boundary",
+        "broadcast submit/cancel components"
+      ],
+      "fixture_paths": [
+        "credential_post_order.json",
+        "http_error_response.json"
+      ],
+      "primary_tests": [
+        "src/broadcast/submitter.rs",
+        "src/broadcast/canceller.rs",
+        "src/execution.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "BMX-ADP-001",
+      "status": "open",
+      "inventory_task": "RADP-007",
+      "owner_task": "RADP-009",
+      "summary": "BitMEX Rust fixture coverage now has a compact manifest, but parity closure remains assigned to RADP-009."
+    },
+    {
+      "id": "BMX-ADP-002",
+      "status": "scoped",
+      "inventory_task": "RADP-007",
+      "owner_task": "RADP-009",
+      "summary": "BitMEX instrument support excludes several venue instrument classes."
+    },
+    {
+      "id": "BMX-ADP-003",
+      "status": "scoped",
+      "inventory_task": "RADP-007",
+      "owner_task": "RADP-009",
+      "summary": "BitMEX book support is scoped to L2/depth10 with exchange-specific depth behavior."
+    },
+    {
+      "id": "BMX-ADP-004",
+      "status": "scoped",
+      "inventory_task": "RADP-007",
+      "owner_task": "RADP-009",
+      "summary": "BitMEX bar support is limited to external last-price bars for selected intervals."
+    },
+    {
+      "id": "BMX-ADP-005",
+      "status": "scoped",
+      "inventory_task": "RADP-007",
+      "owner_task": "RADP-009",
+      "summary": "BitMEX execution has authenticated margin/netting-only behavior and explicit order limits."
+    },
+    {
+      "id": "BMX-ADP-006",
+      "status": "open",
+      "inventory_task": "RADP-007",
+      "owner_task": "RADP-009",
+      "summary": "BitMEX broadcast pools and dead man's switch need release-gate parity closure."
+    },
+    {
+      "id": "BMX-ADP-007",
+      "status": "deferred",
+      "inventory_task": "RADP-007",
+      "owner_task": "RADP-009",
+      "summary": "Optional BitMEX Python/PyO3 surfaces remain until the removal gate."
+    }
+  ]
+}
