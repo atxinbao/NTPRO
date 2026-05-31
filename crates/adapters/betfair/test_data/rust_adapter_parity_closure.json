@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-021",
+  "inventory_task": "RADP-019",
+  "fixture_task": "RADP-020",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "adapter": "betfair",
+  "release_gate_decision": "parity_resolved_with_scoped_constraints",
+  "purpose": "Close Betfair Rust adapter parity gaps by binding each RADP-019 gap to fixture evidence, an explicit scope decision, or the later removal gate.",
+  "decisions": [
+    {
+      "gap_id": "BF-ADP-001",
+      "status": "closed",
+      "decision": "Betfair REST, stream market data, stream order lifecycle, BSP/race custom data, and reconnect fixture groups are now mapped in a compact Rust fixture manifest.",
+      "evidence_paths": [
+        "test_data/rust_fixture_manifest.json",
+        "tests/fixture_manifest.rs",
+        "tests/data_client.rs",
+        "tests/exec_client.rs"
+      ],
+      "release_gate_note": "Betfair fixture traceability is no longer open for the R5 adapter parity gate."
+    },
+    {
+      "gap_id": "BF-ADP-002",
+      "status": "scoped",
+      "decision": "Betfair remains a betting exchange adapter with market/race stream semantics, not a generic multi-asset market-data venue.",
+      "evidence_paths": [
+        "README.md",
+        "src/data.rs",
+        "src/stream/messages.rs",
+        "src/stream/parse.rs",
+        "test_data/rust_fixture_manifest.json"
+      ],
+      "release_gate_note": "Release evidence must describe Betfair as betting-exchange scoped and must not claim generic venue parity."
+    },
+    {
+      "gap_id": "BF-ADP-003",
+      "status": "scoped",
+      "decision": "Betfair execution support is classified around betting order shapes: standard limit, BSP limit-on-close, BSP market-on-close, cancel, replace, batch, and rejection flows.",
+      "evidence_paths": [
+        "src/execution.rs",
+        "src/http/models.rs",
+        "tests/exec_client.rs",
+        "test_data/rust_fixture_manifest.json"
+      ],
+      "release_gate_note": "Release evidence must keep Betfair betting-order constraints explicit instead of presenting generic order parity."
+    },
+    {
+      "gap_id": "BF-ADP-004",
+      "status": "scoped",
+      "decision": "Betfair stream auth refresh, keep-alive, reconnect, and post-reconnect reconciliation remain supported with fixture, mock, or dry-run validation boundaries.",
+      "evidence_paths": [
+        "src/stream/client.rs",
+        "src/http/client.rs",
+        "tests/http_client.rs",
+        "tests/stream_client.rs",
+        "test_data/rust_fixture_manifest.json"
+      ],
+      "release_gate_note": "Routine automation must not require live Betfair credentials for reconnect or session evidence."
+    },
+    {
+      "gap_id": "BF-ADP-005",
+      "status": "scoped",
+      "decision": "Betfair custom data is pinned for Rust adapter parity, while PyO3-generated custom data bridge surfaces stay outside this adapter closure task.",
+      "evidence_paths": [
+        "src/data_types.rs",
+        "src/data.rs",
+        "src/python/mod.rs",
+        "Cargo.toml",
+        "test_data/rust_fixture_manifest.json"
+      ],
+      "release_gate_note": "Release evidence may claim Rust adapter custom-data fixture coverage, but PyO3 cleanup remains a separate removal-gate decision."
+    },
+    {
+      "gap_id": "BF-ADP-006",
+      "status": "scoped",
+      "decision": "Betfair live operation requires app key, session token or certificate flow, and stream access; automated parity evidence is limited to fixtures, mocks, and dry-run checks.",
+      "evidence_paths": [
+        "README.md",
+        "src/common/credential.rs",
+        "src/config.rs",
+        "tests/http_client.rs",
+        "test_data/rust_fixture_manifest.json"
+      ],
+      "release_gate_note": "Release evidence must keep credential and live-access prerequisites explicit."
+    },
+    {
+      "gap_id": "BF-ADP-007",
+      "status": "deferred",
+      "decision": "Optional Betfair Python/PyO3 bridge surfaces are not removed by this adapter parity task.",
+      "evidence_paths": [
+        "src/python/mod.rs",
+        "src/python/config.rs",
+        "src/python/factories.rs",
+        "Cargo.toml"
+      ],
+      "requires_removal_gate": true,
+      "release_gate_note": "Removal remains blocked until the dedicated Rust-only removal gate approves Python/PyO3 deletion."
+    }
+  ]
+}
