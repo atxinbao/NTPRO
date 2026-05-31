@@ -13,6 +13,8 @@ See [`SOURCES.md`](SOURCES.md) for the current source map by parser surface.
 - `futures/http_json/` holds Futures HTTP JSON fixtures.
 - `futures/market_data_json/` holds Futures market-data stream fixtures.
 - `futures/user_data_json/` holds Futures user-data stream fixtures.
+- `rust_fixture_manifest.json` records the Rust parser and lifecycle fixture
+  groups used by the Rust cutover adapter parity gate.
 
 ## When to use live capture
 
