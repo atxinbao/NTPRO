@@ -1,0 +1,13 @@
+{
+  "task_id": "RADP-009",
+  "agent_id": "Codex",
+  "branch": "ai/RADP-009-close-rust-adapter-gaps-for-coinbase-bitmex",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RADP-009.md",
+    "docs/rust-cutover/evidence/RADP-009.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RADP-009.json"
+  ],
+  "claimed_at": "2026-05-31T06:56:14.667199+00:00",
+  "status": "PR_OPEN"
+}
