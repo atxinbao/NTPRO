@@ -1,0 +1,18 @@
+{
+  "task_id": "RADP-020",
+  "agent_id": "Codex",
+  "branch": "ai/RADP-020-add-rust-adapter-fixtures-for-betfair-architect-ax",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RADP-020.md",
+    "docs/rust-cutover/evidence/RADP-020.md",
+    "crates/adapters/betfair/test_data/rust_fixture_manifest.json",
+    "crates/adapters/betfair/tests/fixture_manifest.rs",
+    "crates/adapters/architect_ax/test_data/rust_fixture_manifest.json",
+    "crates/adapters/architect_ax/tests/fixture_manifest.rs",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RADP-020.json"
+  ],
+  "claimed_at": "2026-05-31T12:05:38.378271+00:00",
+  "status": "PR_OPEN",
+  "updated_at": "2026-05-31T14:40:47Z"
+}

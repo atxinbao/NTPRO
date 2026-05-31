@@ -1,0 +1,275 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-020",
+  "inventory_task": "RADP-019",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "purpose": "Rust parser and lifecycle fixture coverage manifest for Betfair adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "betfair-rest-auth-account-lifecycle",
+      "surface": "betfair_rest_auth_account_lifecycle",
+      "product_scope": "Betfair login, certificate login, keep-alive, account details, and account funds",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "interactive login success and failure",
+        "certificate login",
+        "account details parsing",
+        "account funds with and without exposure",
+        "account funds error payloads"
+      ],
+      "fixture_paths": [
+        "rest/login_success.json",
+        "rest/login_failure.json",
+        "rest/cert_login.json",
+        "rest/account_details.json",
+        "rest/account_funds_no_exposure.json",
+        "rest/account_funds_with_exposure.json",
+        "rest/account_funds_error.json"
+      ],
+      "primary_tests": [
+        "tests/http_client.rs",
+        "src/http/client.rs",
+        "src/http/models.rs",
+        "src/http/error.rs"
+      ]
+    },
+    {
+      "id": "betfair-rest-market-catalogue-parser",
+      "surface": "betfair_rest_market_catalogue_parser",
+      "product_scope": "Betfair market catalogue, navigation, market definitions, and runner status",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "market catalogue listing",
+        "navigation tree listing",
+        "open market definitions",
+        "closed market definitions",
+        "runner removed market definitions"
+      ],
+      "fixture_paths": [
+        "rest/list_market_catalogue.json",
+        "rest/betting_list_market_catalogue.json",
+        "rest/navigation_list_navigation.json",
+        "rest/market_definition_open.json",
+        "rest/market_definition_closed.json",
+        "rest/market_definition_runner_removed.json"
+      ],
+      "primary_tests": [
+        "tests/http_client.rs",
+        "src/http/parse.rs",
+        "src/provider.rs",
+        "src/loader.rs"
+      ]
+    },
+    {
+      "id": "betfair-rest-order-command-lifecycle",
+      "surface": "betfair_rest_order_command_lifecycle",
+      "product_scope": "Betfair betting order placement, cancel, replace, batch, and failure responses",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "place order success and error",
+        "batch place success and partial failure",
+        "cancel order success and failure",
+        "batch cancel success and partial failure",
+        "replace order success and multi-replace success"
+      ],
+      "fixture_paths": [
+        "rest/betting_place_order_success.json",
+        "rest/betting_place_order_error.json",
+        "rest/betting_place_order_batch_success.json",
+        "rest/betting_place_order_batch_partial_failure.json",
+        "rest/betting_cancel_orders_success.json",
+        "rest/betting_cancel_orders_error.json",
+        "rest/betting_cancel_orders_batch_success.json",
+        "rest/betting_cancel_orders_batch_partial_failure.json",
+        "rest/betting_replace_orders_success.json",
+        "rest/betting_replace_orders_success_multi.json"
+      ],
+      "primary_tests": [
+        "tests/exec_client.rs",
+        "src/execution.rs",
+        "src/http/client.rs",
+        "src/http/models.rs"
+      ]
+    },
+    {
+      "id": "betfair-rest-current-cleared-order-parser",
+      "surface": "betfair_rest_current_cleared_order_parser",
+      "product_scope": "Betfair current orders, cleared orders, terminal state, and BSP order parsing",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "empty current orders",
+        "executable current orders",
+        "execution complete current orders",
+        "lapsed current orders",
+        "BSP on-close execution complete orders",
+        "cleared orders"
+      ],
+      "fixture_paths": [
+        "rest/list_current_orders_empty.json",
+        "rest/list_current_orders_executable.json",
+        "rest/list_current_orders_execution_complete.json",
+        "rest/list_current_orders_lapsed.json",
+        "rest/list_current_orders_on_close_execution_complete.json",
+        "rest/list_current_orders_single.json",
+        "rest/list_cleared_orders.json"
+      ],
+      "primary_tests": [
+        "tests/exec_client.rs",
+        "src/http/parse.rs",
+        "src/execution.rs"
+      ]
+    },
+    {
+      "id": "betfair-stream-market-data-lifecycle",
+      "surface": "betfair_stream_market_data_lifecycle",
+      "product_scope": "Betfair market-change stream, subscription image/update flow, heartbeats, and latency",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "connection and status messages",
+        "market subscription images",
+        "market updates",
+        "resubscribe deltas",
+        "heartbeat handling",
+        "live stream image and update payloads"
+      ],
+      "fixture_paths": [
+        "stream/connection.json",
+        "stream/status.json",
+        "stream/mcm_SUB_IMAGE.json",
+        "stream/mcm_UPDATE.json",
+        "stream/mcm_RESUB_DELTA.json",
+        "stream/mcm_HEARTBEAT.json",
+        "stream/mcm_latency.json",
+        "stream/mcm_live_IMAGE.json",
+        "stream/mcm_live_UPDATE.json"
+      ],
+      "primary_tests": [
+        "tests/data_client.rs",
+        "tests/stream_client.rs",
+        "src/stream/messages.rs",
+        "src/stream/parse.rs",
+        "src/data.rs"
+      ]
+    },
+    {
+      "id": "betfair-stream-bsp-race-custom-data",
+      "surface": "betfair_stream_bsp_race_custom_data",
+      "product_scope": "Betfair BSP settlement, race stream payloads, and custom data registration",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "BSP market-change payloads",
+        "BSP settlement close/status behavior",
+        "racing market definitions",
+        "single-runner race changes",
+        "multi-runner race changes",
+        "compressed stream sample payload"
+      ],
+      "fixture_paths": [
+        "stream/mcm_BSP.json",
+        "stream/mcm_BSP_settled.json",
+        "stream/market_definition_racing.json",
+        "stream/rcm_single.json",
+        "stream/rcm_multi_runner.json",
+        "stream/market_updates.json",
+        "stream/sample.bz2"
+      ],
+      "primary_tests": [
+        "tests/data_client.rs",
+        "src/data_types.rs",
+        "src/data.rs",
+        "src/stream/messages.rs"
+      ]
+    },
+    {
+      "id": "betfair-stream-order-reconnect-lifecycle",
+      "surface": "betfair_stream_order_reconnect_lifecycle",
+      "product_scope": "Betfair order-change stream, fill/cancel/voided events, duplicate execution handling, and reconnect reconciliation",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "order stream images",
+        "order stream updates",
+        "fills and partial fills",
+        "cancel and voided order events",
+        "duplicate execution suppression",
+        "post-reconnect reconciliation boundaries"
+      ],
+      "fixture_paths": [
+        "stream/ocm_FULL_IMAGE.json",
+        "stream/ocm_SUB_IMAGE.json",
+        "stream/ocm_UPDATE.json",
+        "stream/ocm_FILLED.json",
+        "stream/ocm_multiple_fills.json",
+        "stream/ocm_CANCEL.json",
+        "stream/ocm_VOIDED.json",
+        "stream/ocm_DUPLICATE_EXECUTION.json",
+        "stream/ocm_order_update.json"
+      ],
+      "primary_tests": [
+        "tests/exec_client.rs",
+        "tests/stream_client.rs",
+        "src/execution.rs",
+        "src/stream/ocm.rs",
+        "src/stream/messages.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "BF-ADP-001",
+      "status": "closed",
+      "inventory_task": "RADP-019",
+      "owner_task": "RADP-021",
+      "summary": "Betfair now has a compact fixture manifest, but parity closure remains assigned to RADP-021.",
+      "resolution": "Closed by RADP-020 compact manifest coverage for Betfair REST, stream market data, stream order lifecycle, BSP/race custom data, and reconnect fixture groups."
+    },
+    {
+      "id": "BF-ADP-002",
+      "status": "scoped",
+      "inventory_task": "RADP-019",
+      "owner_task": "RADP-021",
+      "summary": "Betfair is a betting exchange adapter, not a generic multi-asset market-data venue.",
+      "resolution": "Scoped as supported with constraints: Betfair market data remains market/race stream oriented with betting exchange semantics."
+    },
+    {
+      "id": "BF-ADP-003",
+      "status": "scoped",
+      "inventory_task": "RADP-019",
+      "owner_task": "RADP-021",
+      "summary": "Betfair execution is betting-order specific and needs explicit order-shape classification.",
+      "resolution": "Scoped as supported with constraints: standard limit, BSP limit-on-close, BSP market-on-close, cancel, replace, batch, and rejection behavior are covered by fixture groups."
+    },
+    {
+      "id": "BF-ADP-004",
+      "status": "scoped",
+      "inventory_task": "RADP-019",
+      "owner_task": "RADP-021",
+      "summary": "Betfair reconnect and operational lifecycle are implemented but need compact release evidence.",
+      "resolution": "Scoped as supported with constraints: stream auth refresh, keep-alive, reconnect, and post-reconnect reconciliation remain fixture or mock validated without live credentials."
+    },
+    {
+      "id": "BF-ADP-005",
+      "status": "scoped",
+      "inventory_task": "RADP-019",
+      "owner_task": "RADP-021",
+      "summary": "Betfair custom data currently uses PyO3-generated custom data surfaces.",
+      "resolution": "Scoped as supported with constraints: Betfair custom data is pinned for Rust adapter parity, while PyO3-generated surfaces remain a later removal-gate concern."
+    },
+    {
+      "id": "BF-ADP-006",
+      "status": "scoped",
+      "inventory_task": "RADP-019",
+      "owner_task": "RADP-021",
+      "summary": "Betfair live operation requires app key, session token or certificate flow, and stream access.",
+      "resolution": "Scoped as supported with constraints: routine validation uses fixtures, mocks, and dry-run checks rather than real Betfair credentials."
+    },
+    {
+      "id": "BF-ADP-007",
+      "status": "deferred",
+      "inventory_task": "RADP-019",
+      "owner_task": "RADP-021",
+      "summary": "Optional Betfair Python/PyO3 surfaces remain until the removal gate.",
+      "resolution": "Deferred to the Rust-only removal gate because RADP-021 does not authorize deleting optional Python/PyO3 surfaces."
+    }
+  ]
+}
