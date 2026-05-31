@@ -1,0 +1,14 @@
+{
+  "task_id": "RADP-010",
+  "agent_id": "Codex",
+  "branch": "ai/RADP-010-inventory-rust-adapter-gaps-for-deribit-dydx-hyperliquid",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RADP-010.md",
+    "docs/rust-cutover/evidence/RADP-010.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RADP-010.json"
+  ],
+  "claimed_at": "2026-05-31T07:11:21.792176+00:00",
+  "status": "PR_OPEN",
+  "updated_at": "2026-05-31T07:17:40Z"
+}
