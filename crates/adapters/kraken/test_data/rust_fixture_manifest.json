@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-005",
+  "inventory_task": "RADP-004",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "purpose": "Rust parser and lifecycle fixture coverage manifest for Kraken adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "kraken-spot-http-parser",
+      "surface": "kraken_spot_http_parser",
+      "product_scope": "Spot",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "asset pairs",
+        "ticker",
+        "trades",
+        "OHLC",
+        "order book",
+        "system status"
+      ],
+      "fixture_paths": [
+        "http_asset_pairs.json",
+        "http_asset_pairs_tokenized.json",
+        "http_ticker.json",
+        "http_trades.json",
+        "http_ohlc.json",
+        "http_order_book.json",
+        "http_system_status.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "tests/spot.rs",
+        "src/common/parse.rs"
+      ]
+    },
+    {
+      "id": "kraken-futures-http-parser",
+      "surface": "kraken_futures_http_parser",
+      "product_scope": "Futures",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "futures instruments",
+        "futures tickers",
+        "futures order book",
+        "futures executions",
+        "futures candles",
+        "historical funding rates"
+      ],
+      "fixture_paths": [
+        "http_futures_instruments.json",
+        "http_futures_tickers.json",
+        "http_futures_orderbook.json",
+        "http_futures_public_executions.json",
+        "http_futures_candles_trade.json",
+        "http_futures_historical_funding_rates.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "tests/dispatch_futures.rs",
+        "src/http/futures/client.rs"
+      ]
+    },
+    {
+      "id": "kraken-spot-ws-parser",
+      "surface": "kraken_spot_ws_parser",
+      "product_scope": "Spot",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "book snapshot",
+        "book update",
+        "trade update",
+        "ticker snapshot",
+        "OHLC update",
+        "L3 snapshot",
+        "L3 updates"
+      ],
+      "fixture_paths": [
+        "ws_book_snapshot.json",
+        "ws_book_update.json",
+        "ws_trade_update.json",
+        "ws_ticker_snapshot.json",
+        "ws_ohlc_update.json",
+        "ws_l3_snapshot.json",
+        "ws_l3_update_add.json",
+        "ws_l3_update_modify_qty.json",
+        "ws_l3_update_delete.json"
+      ],
+      "primary_tests": [
+        "tests/websocket_spot.rs",
+        "tests/spot/websocket_orders.rs",
+        "src/websocket/spot_v2/parse.rs"
+      ]
+    },
+    {
+      "id": "kraken-futures-ws-parser",
+      "surface": "kraken_futures_ws_parser",
+      "product_scope": "Futures",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "futures book snapshot",
+        "futures book delta",
+        "futures ticker",
+        "futures trades",
+        "futures fills",
+        "futures open orders"
+      ],
+      "fixture_paths": [
+        "ws_futures_book_snapshot.json",
+        "ws_futures_book_delta.json",
+        "ws_futures_ticker.json",
+        "ws_futures_trade.json",
+        "ws_futures_fills_snapshot.json",
+        "ws_futures_fills_delta.json",
+        "ws_futures_open_orders_snapshot.json",
+        "ws_futures_open_orders_delta.json"
+      ],
+      "primary_tests": [
+        "tests/websocket_futures.rs",
+        "tests/dispatch_futures.rs",
+        "src/websocket/futures/client.rs"
+      ]
+    },
+    {
+      "id": "kraken-execution-lifecycle",
+      "surface": "kraken_execution_lifecycle",
+      "product_scope": "Spot and Futures",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "spot add/cancel order",
+        "spot balances",
+        "spot positions",
+        "futures send/cancel order",
+        "futures fills",
+        "futures positions"
+      ],
+      "fixture_paths": [
+        "http_add_order_spot.json",
+        "http_cancel_order_spot.json",
+        "http_spot_balance.json",
+        "http_spot_open_positions.json",
+        "http_send_order_futures.json",
+        "http_cancel_order_futures.json",
+        "http_futures_fills.json",
+        "http_futures_open_positions.json"
+      ],
+      "primary_tests": [
+        "tests/dispatch_spot.rs",
+        "tests/dispatch_futures.rs",
+        "tests/authentication.rs",
+        "src/execution/spot.rs",
+        "src/execution/futures.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "KRK-ADP-001",
+      "status": "open",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "Kraken product scope is clear but lacks compact parity closure."
+    },
+    {
+      "id": "KRK-ADP-002",
+      "status": "scoped",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "Kraken Spot demo environment is unsupported."
+    },
+    {
+      "id": "KRK-ADP-003",
+      "status": "scoped",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "Kraken Spot L3 requires credentials and fixed depth values."
+    },
+    {
+      "id": "KRK-ADP-004",
+      "status": "scoped",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "Kraken Spot and Futures data capabilities differ by product."
+    },
+    {
+      "id": "KRK-ADP-005",
+      "status": "scoped",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "Kraken WebSocket order paths do not cover every order instruction."
+    },
+    {
+      "id": "KRK-ADP-006",
+      "status": "deferred",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "Optional Kraken Python/PyO3 surfaces remain until the removal gate."
+    }
+  ]
+}
