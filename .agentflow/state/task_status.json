@@ -26,7 +26,7 @@
   "tasks": {
     "RADP-001": {
       "title": "Inventory Rust adapter gaps for Binance",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -36,7 +36,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RADP-001.md",
-      "evidence_file": "docs/rust-cutover/evidence/RADP-001.md"
+      "evidence_file": "docs/rust-cutover/evidence/RADP-001.md",
+      "updated_at": "2026-05-31T02:05:05Z"
     },
     "RADP-002": {
       "title": "Add Rust adapter fixtures for Binance",
@@ -1530,5 +1531,5 @@
       "branch": "ai/RCTL-009-pr-summary-risk-automation-policy"
     }
   },
-  "updated_at": "2026-05-30T12:55:16Z"
+  "updated_at": "2026-05-31T02:05:05Z"
 }
