@@ -14,3 +14,5 @@ Generated and curated inventory outputs live here.
   risk, and order lifecycle gap boundaries.
 - `trading_strategy_algorithm_api.md` - RCORE-016 inventory of Rust trading
   strategy and execution algorithm API gap boundaries.
+- `binance_adapter_gaps.md` - RADP-001 inventory of Binance Rust adapter parser,
+  data, execution, fixture, and product-scope gap boundaries.
