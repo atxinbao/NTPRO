@@ -56,7 +56,7 @@
     },
     "RADP-003": {
       "title": "Close Rust adapter gaps for Binance",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -67,11 +67,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RADP-003.md",
       "evidence_file": "docs/rust-cutover/evidence/RADP-003.md",
-      "updated_at": "2026-05-31T04:25:55Z"
+      "updated_at": "2026-05-31T04:36:24Z"
     },
     "RADP-004": {
       "title": "Inventory Rust adapter gaps for Bybit OKX Kraken",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -81,7 +81,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RADP-004.md",
-      "evidence_file": "docs/rust-cutover/evidence/RADP-004.md"
+      "evidence_file": "docs/rust-cutover/evidence/RADP-004.md",
+      "updated_at": "2026-05-31T04:45:09Z"
     },
     "RADP-005": {
       "title": "Add Rust adapter fixtures for Bybit OKX Kraken",
@@ -1533,5 +1534,5 @@
       "branch": "ai/RCTL-009-pr-summary-risk-automation-policy"
     }
   },
-  "updated_at": "2026-05-31T04:25:55Z"
+  "updated_at": "2026-05-31T04:45:09Z"
 }
