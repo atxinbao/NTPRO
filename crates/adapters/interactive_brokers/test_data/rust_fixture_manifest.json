@@ -142,59 +142,67 @@
   "scoped_blockers": [
     {
       "id": "IB-ADP-001",
-      "status": "open",
+      "status": "closed",
       "inventory_task": "RADP-016",
       "owner_task": "RADP-018",
-      "summary": "Interactive Brokers now has compact fixture manifests, but parity closure remains assigned to RADP-018."
+      "summary": "Interactive Brokers now has compact fixture manifests, but parity closure remains assigned to RADP-018.",
+      "resolution": "Closed by RADP-017 compact manifest coverage for IB instrument, market data, historical, execution, account, and gateway lifecycle groups."
     },
     {
       "id": "IB-ADP-002",
       "status": "scoped",
       "inventory_task": "RADP-016",
       "owner_task": "RADP-018",
-      "summary": "Interactive Brokers requires an external TWS/IB Gateway session and UTC timestamp configuration."
+      "summary": "Interactive Brokers requires an external TWS/IB Gateway session and UTC timestamp configuration.",
+      "resolution": "Scoped as supported with constraints: IB automation requires external TWS/IB Gateway state, UTC timestamp configuration, and env-gated live smoke."
     },
     {
       "id": "IB-ADP-003",
       "status": "scoped",
       "inventory_task": "RADP-016",
       "owner_task": "RADP-018",
-      "summary": "Interactive Brokers product-family support is broad but still needs compact release classification."
+      "summary": "Interactive Brokers product-family support is broad but still needs compact release classification.",
+      "resolution": "Scoped as supported with constraints: the fixture pins broad product-family support and keeps unsupported or filtered security types explicit."
     },
     {
       "id": "IB-ADP-004",
       "status": "scoped",
       "inventory_task": "RADP-016",
       "owner_task": "RADP-018",
-      "summary": "Interactive Brokers market-data subscriptions are IB API specific and not generic Nautilus coverage."
+      "summary": "Interactive Brokers market-data subscriptions are IB API specific and not generic Nautilus coverage.",
+      "resolution": "Scoped as supported with constraints: market data remains limited to IB quote, trade, bar, L1/L2 depth, index, and option-greek semantics recorded by the fixture."
     },
     {
       "id": "IB-ADP-005",
       "status": "scoped",
       "inventory_task": "RADP-016",
       "owner_task": "RADP-018",
-      "summary": "Interactive Brokers historical requests have explicit IB pacing and bar/tick constraints."
+      "summary": "Interactive Brokers historical requests have explicit IB pacing and bar/tick constraints.",
+      "resolution": "Scoped as supported with constraints: historical bars, ticks, instruments, and duration segmentation stay bound to IB request limits."
     },
     {
       "id": "IB-ADP-006",
       "status": "scoped",
       "inventory_task": "RADP-016",
       "owner_task": "RADP-018",
-      "summary": "Interactive Brokers execution order lifecycle is implemented with explicit order-shape constraints."
+      "summary": "Interactive Brokers execution order lifecycle is implemented with explicit order-shape constraints.",
+      "resolution": "Scoped as supported with constraints: order transformation, submit/modify/cancel, fills, and spread handling remain limited by the rejection boundaries pinned in the fixture."
     },
     {
       "id": "IB-ADP-007",
       "status": "scoped",
       "inventory_task": "RADP-016",
       "owner_task": "RADP-018",
-      "summary": "Interactive Brokers account, position, PnL, reconnect, and gateway lifecycle need mock, fixture, or explicit scope decisions."
+      "summary": "Interactive Brokers account, position, PnL, reconnect, and gateway lifecycle need mock, fixture, or explicit scope decisions.",
+      "resolution": "Scoped as supported with constraints: live operational lifecycle remains env-gated or Docker/gateway dependent, with static fixture evidence for release traceability."
     },
     {
       "id": "IB-ADP-008",
       "status": "deferred",
       "inventory_task": "RADP-016",
       "owner_task": "RADP-018",
-      "summary": "Optional Interactive Brokers Python/PyO3 surfaces remain until the removal gate."
+      "summary": "Optional Interactive Brokers Python/PyO3 surfaces remain until the removal gate.",
+      "resolution": "Deferred to the Rust-only removal gate because RADP-018 does not authorize deleting optional Python/PyO3 surfaces."
     }
   ]
 }

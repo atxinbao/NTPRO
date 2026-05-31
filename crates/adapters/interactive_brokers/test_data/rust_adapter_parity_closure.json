@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-018",
+  "inventory_task": "RADP-016",
+  "fixture_task": "RADP-017",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "adapter": "interactive_brokers",
+  "release_gate_decision": "parity_resolved_with_scoped_constraints",
+  "purpose": "Close Interactive Brokers Rust adapter parity gaps by binding each inventory gap to fixture evidence, an explicit scope decision, or the later removal gate.",
+  "decisions": [
+    {
+      "gap_id": "IB-ADP-001",
+      "status": "closed",
+      "decision": "Compact fixture coverage now maps Interactive Brokers instrument, market data, historical, execution, account, and gateway lifecycle surfaces to Rust evidence.",
+      "evidence_paths": [
+        "test_data/rust_fixture_manifest.json",
+        "test_data/rust_adapter_scope_fixture.json",
+        "tests/fixture_manifest.rs"
+      ],
+      "release_gate_note": "Interactive Brokers fixture traceability is no longer open for the R5 adapter parity gate."
+    },
+    {
+      "gap_id": "IB-ADP-002",
+      "status": "scoped",
+      "decision": "Interactive Brokers requires external TWS/IB Gateway state, UTC timestamp configuration, and env-gated live smoke; zero-config Rust adapter claims are out of scope.",
+      "evidence_paths": [
+        "README.md",
+        "tests/connection.rs",
+        "src/gateway/dockerized.rs",
+        "test_data/rust_adapter_scope_fixture.json"
+      ],
+      "release_gate_note": "Release notes and examples must keep gateway, credentials, and UTC prerequisites explicit."
+    },
+    {
+      "gap_id": "IB-ADP-003",
+      "status": "scoped",
+      "decision": "IB product-family support is broad and fixture-classified, but unsupported or filtered security types remain explicit scope boundaries.",
+      "evidence_paths": [
+        "src/providers/parse.rs",
+        "src/providers/instruments.rs",
+        "src/providers/tests.rs",
+        "test_data/rust_adapter_scope_fixture.json"
+      ],
+      "release_gate_note": "Rust product claims may list supported IB product families only with the documented security-type constraints."
+    },
+    {
+      "gap_id": "IB-ADP-004",
+      "status": "scoped",
+      "decision": "IB market-data support stays bound to IB API semantics: quote, trade, bar, L1/L2 depth, index, and option-greek paths are supported with the fixture-pinned rejection boundaries.",
+      "evidence_paths": [
+        "src/data/core.rs",
+        "src/data/core_streams.rs",
+        "src/data/parse.rs",
+        "src/data/convert.rs",
+        "test_data/rust_adapter_scope_fixture.json"
+      ],
+      "release_gate_note": "Release evidence must not imply generic L3 MBO, all-security-type greeks, or CurrencyPair trade support."
+    },
+    {
+      "gap_id": "IB-ADP-005",
+      "status": "scoped",
+      "decision": "Historical bars, ticks, instruments, and duration segmentation remain supported with IB-specific bar-size, tick-type, pacing, and request-parameter limits.",
+      "evidence_paths": [
+        "src/historical/client.rs",
+        "src/data/convert.rs",
+        "src/providers/instruments.rs",
+        "test_data/rust_adapter_scope_fixture.json"
+      ],
+      "release_gate_note": "Release evidence must keep supported bar sizes, tick types, and request boundary behavior explicit."
+    },
+    {
+      "gap_id": "IB-ADP-006",
+      "status": "scoped",
+      "decision": "Execution submit, modify, cancel, order-list, fill, and spread handling paths are supported with explicit order-shape and rejection constraints.",
+      "evidence_paths": [
+        "src/execution/core.rs",
+        "src/execution/core_orders.rs",
+        "src/execution/core_updates.rs",
+        "src/execution/core_tests.rs",
+        "src/execution/transform.rs",
+        "test_data/rust_adapter_scope_fixture.json"
+      ],
+      "release_gate_note": "Release evidence must not claim unsupported post-only, non-inverse quote-quantity, non-price trailing offset, unsupported side, or cancel-all side-filter behavior."
+    },
+    {
+      "gap_id": "IB-ADP-007",
+      "status": "scoped",
+      "decision": "Account summary, PnL, position, reconnect, and gateway lifecycle behavior remains live-operation dependent, with static fixture evidence and env-gated smoke as the release boundary.",
+      "evidence_paths": [
+        "src/execution/account.rs",
+        "src/execution/core.rs",
+        "src/factories.rs",
+        "src/gateway/dockerized.rs",
+        "tests/connection.rs",
+        "test_data/rust_adapter_scope_fixture.json"
+      ],
+      "release_gate_note": "Routine automation must use fixture, mock, dry-run, or env-gated live smoke evidence instead of requiring real IB credentials."
+    },
+    {
+      "gap_id": "IB-ADP-008",
+      "status": "deferred",
+      "decision": "Optional Interactive Brokers Python/PyO3 bridge surfaces are not removed by this adapter parity task.",
+      "evidence_paths": [
+        "src/python/mod.rs",
+        "Cargo.toml"
+      ],
+      "requires_removal_gate": true,
+      "release_gate_note": "Removal remains blocked until the dedicated Rust-only removal gate approves Python/PyO3 deletion."
+    }
+  ]
+}

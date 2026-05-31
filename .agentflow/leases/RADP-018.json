@@ -1,0 +1,17 @@
+{
+  "task_id": "RADP-018",
+  "agent_id": "Codex",
+  "branch": "ai/RADP-018-close-rust-adapter-gaps-for-interactive-brokers",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RADP-018.md",
+    "docs/rust-cutover/evidence/RADP-018.md",
+    "crates/adapters/interactive_brokers/test_data/rust_adapter_parity_closure.json",
+    "crates/adapters/interactive_brokers/test_data/rust_fixture_manifest.json",
+    "crates/adapters/interactive_brokers/tests/fixture_manifest.rs",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RADP-018.json"
+  ],
+  "claimed_at": "2026-05-31T11:42:03.868694+00:00",
+  "status": "PR_OPEN",
+  "updated_at": "2026-05-31T11:52:09Z"
+}
