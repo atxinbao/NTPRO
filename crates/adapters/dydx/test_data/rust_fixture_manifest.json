@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-011",
+  "inventory_task": "RADP-010",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "purpose": "Rust parser and lifecycle fixture coverage manifest for dYdX adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "dydx-http-instrument-parser",
+      "surface": "dydx_http_instrument_parser",
+      "product_scope": "dYdX v4 perpetual markets",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "perpetual market listing",
+        "perpetual instrument parsing"
+      ],
+      "fixture_paths": [
+        "http_get_perpetual_markets.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "src/http/parse.rs",
+        "src/http/client.rs"
+      ]
+    },
+    {
+      "id": "dydx-http-market-data-parser",
+      "surface": "dydx_http_market_data_parser",
+      "product_scope": "Indexer HTTP market data",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "order book snapshot",
+        "trades",
+        "candles",
+        "historical funding"
+      ],
+      "fixture_paths": [
+        "http_get_orderbook.json",
+        "http_get_trades.json",
+        "http_get_candles.json",
+        "http_get_historical_funding.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "src/data.rs",
+        "src/http/client.rs"
+      ]
+    },
+    {
+      "id": "dydx-http-account-execution-reports",
+      "surface": "dydx_http_account_execution_reports",
+      "product_scope": "Indexer HTTP subaccount and report surfaces",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "subaccount state",
+        "orders",
+        "fills",
+        "transfers"
+      ],
+      "fixture_paths": [
+        "http_get_subaccount.json",
+        "http_get_orders.json",
+        "http_get_fills.json",
+        "http_get_transfers.json"
+      ],
+      "primary_tests": [
+        "tests/exec_client.rs",
+        "src/execution/mod.rs",
+        "src/http/parse.rs"
+      ]
+    },
+    {
+      "id": "dydx-ws-market-data-parser",
+      "surface": "dydx_ws_market_data_parser",
+      "product_scope": "Indexer WebSocket public market data",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "markets",
+        "market status",
+        "order book",
+        "trades",
+        "candles"
+      ],
+      "fixture_paths": [
+        "ws_markets_subscribed.json",
+        "ws_markets_update.json",
+        "ws_markets_status_update.json",
+        "ws_orderbook_subscribed.json",
+        "ws_orderbook_update.json",
+        "ws_trades_subscribed.json",
+        "ws_trades_update.json",
+        "ws_candles_subscribed.json",
+        "ws_candles_update.json"
+      ],
+      "primary_tests": [
+        "tests/websocket.rs",
+        "src/data.rs",
+        "src/websocket/parse.rs",
+        "src/websocket/messages.rs"
+      ]
+    },
+    {
+      "id": "dydx-ws-subaccount-lifecycle",
+      "surface": "dydx_ws_subaccount_lifecycle",
+      "product_scope": "Private subaccount WebSocket lifecycle",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "subaccount subscription",
+        "subaccount updates",
+        "order and fill dispatch boundary"
+      ],
+      "fixture_paths": [
+        "ws_subaccounts_subscribed.json",
+        "ws_subaccounts_update.json"
+      ],
+      "primary_tests": [
+        "tests/exec_client.rs",
+        "tests/websocket.rs",
+        "src/execution/mod.rs",
+        "src/websocket/dispatch.rs"
+      ]
+    },
+    {
+      "id": "dydx-block-grpc-operational-lifecycle",
+      "surface": "dydx_block_grpc_operational_lifecycle",
+      "product_scope": "Block-height, gRPC, and error lifecycle",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "block height HTTP",
+        "block height WebSocket",
+        "time endpoint",
+        "WebSocket error payloads",
+        "validator gRPC execution boundary"
+      ],
+      "fixture_paths": [
+        "http_get_block_height.json",
+        "ws_block_height_subscribed.json",
+        "ws_block_height_update.json",
+        "http_get_time.json",
+        "ws_error.json"
+      ],
+      "primary_tests": [
+        "tests/grpc.rs",
+        "src/grpc/client.rs",
+        "src/execution/block_time.rs",
+        "src/execution/tx_manager.rs",
+        "src/execution/broadcaster.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "DYDX-ADP-001",
+      "status": "open",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "dYdX Rust fixture coverage now has a compact manifest, but parity closure remains assigned to RADP-012."
+    },
+    {
+      "id": "DYDX-ADP-002",
+      "status": "scoped",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "dYdX Rust instrument support is scoped to v4 perpetual markets."
+    },
+    {
+      "id": "DYDX-ADP-003",
+      "status": "scoped",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "dYdX market-data subscriptions are tied to Indexer channel semantics."
+    },
+    {
+      "id": "DYDX-ADP-004",
+      "status": "scoped",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "dYdX execution uses chain-specific state and a narrower order/TIF contract."
+    },
+    {
+      "id": "DYDX-ADP-005",
+      "status": "open",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "dYdX operational lifecycle needs release-gate parity closure."
+    },
+    {
+      "id": "DYDX-ADP-006",
+      "status": "deferred",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "Optional dYdX Python/PyO3 surfaces remain until the removal gate."
+    }
+  ]
+}
