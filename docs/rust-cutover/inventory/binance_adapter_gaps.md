@@ -74,6 +74,26 @@ bindings, Cython surfaces, or Cargo feature behavior.
 | Options | Deferred | Enum/README mention it, but factories reject unsupported product types for data and execution. |
 | Python/PyO3 bindings | Deferred for removal gate | Optional bridge remains until RREM gates approve deletion. |
 
+## RADP-003 Closure Decisions
+
+RADP-003 closes the Binance adapter parity gaps by making the current Rust
+runtime boundary explicit and testable. It does not change exchange protocol
+behavior, parser behavior, order behavior, credential handling, public APIs,
+Python/PyO3 bindings, or Cython surfaces.
+
+| Gap | RADP-003 decision | Release-gate result |
+| --- | --- | --- |
+| BIN-ADP-001 | Defer Margin and Options. Current Rust runtime factories support Spot, USD-M Futures, and COIN-M Futures only. | No longer an implicit support claim; dedicated implementation remains required before claiming Margin or Options support. |
+| BIN-ADP-002 | Scope multi-product configs to one runtime client per factory creation. Rust-first registration should use one config/client per product target. | No runtime behavior change; no multi-product single-client parity claim. |
+| BIN-ADP-003 | Scope Spot books to the existing L2 MBP/SBE depth support. | Unsupported book modes remain out of Rust parity scope. |
+| BIN-ADP-004 | Scope Futures books to the existing L2 MBP supported-depth path. | Unsupported book modes remain out of Rust parity scope. |
+| BIN-ADP-005 | Scope custom data to existing futures liquidation and open-interest surfaces. | Generic Binance custom-data parity is not claimed. |
+| BIN-ADP-006 | Scope COIN-M historical open interest to perpetual instruments. | Non-perpetual COIN-M historical OI remains deferred. |
+| BIN-ADP-007 | Close the adapter README mismatch by documenting current Rust runtime support and deferred surfaces. | Full Rust-first integration docs remain a Rust Product Surface follow-up. |
+| BIN-ADP-008 | Defer optional Python/PyO3 Binance bridge removal to the removal gate. | No removal authorized by RADP-003. |
+| BIN-ADP-009 | Close compact parity-manifest coverage through `rust_fixture_manifest.json` and the manifest test. | Release gate has a single manifest for supported, scoped, deferred, and closed Binance surfaces. |
+| BIN-ADP-010 | Keep placeholder/test credential matches as non-blocking evidence. | No real secret identified; examples/capture tools remain placeholder/env-var based. |
+
 ## Fixture And Validation Follow-Ups
 
 | Follow-up | Owner | Scope |

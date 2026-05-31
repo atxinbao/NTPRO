@@ -38,6 +38,7 @@ fn rust_fixture_manifest_is_complete_and_resolvable() {
 
     assert_eq!(manifest["schema_version"], 1);
     assert_eq!(manifest["task_id"], "RADP-002");
+    assert_eq!(manifest["closed_by_task"], "RADP-003");
 
     let groups = manifest["fixture_groups"]
         .as_array()
@@ -153,5 +154,76 @@ fn rust_fixture_manifest_is_complete_and_resolvable() {
             .as_str()
             .expect("blocker summary must be set");
         assert!(!summary.is_empty(), "blocker {id} must have a summary");
+
+        let status = blocker["status"]
+            .as_str()
+            .expect("blocker status must be set");
+        assert_ne!(status, "open", "RADP-003 should scope blocker {id}");
+
+        let resolution = blocker["resolution"]
+            .as_str()
+            .expect("blocker resolution must be set");
+        assert!(
+            !resolution.is_empty(),
+            "blocker {id} must have a RADP-003 resolution"
+        );
+    }
+
+    let closure = manifest["gap_closure"]
+        .as_array()
+        .expect("gap_closure must be an array");
+    let mut closure_ids = BTreeSet::new();
+
+    for entry in closure {
+        let id = entry["id"].as_str().expect("closure id must be set");
+        assert!(
+            id.starts_with("BIN-ADP-"),
+            "closure id must link back to RADP-001 gap ids: {id}"
+        );
+        assert!(
+            closure_ids.insert(id.to_string()),
+            "duplicate closure id {id}"
+        );
+
+        let status = entry["status"]
+            .as_str()
+            .expect("closure status must be set");
+        assert_ne!(status, "open", "RADP-003 should not leave {id} open");
+
+        let review_task = entry["review_task"]
+            .as_str()
+            .expect("closure review_task must be set");
+        assert_eq!(review_task, "RADP-003");
+
+        let decision = entry["decision"]
+            .as_str()
+            .expect("closure decision must be set");
+        assert!(!decision.is_empty(), "closure {id} must have a decision");
+
+        let evidence_refs = entry["evidence_refs"]
+            .as_array()
+            .expect("closure evidence_refs must be an array");
+        assert!(
+            !evidence_refs.is_empty(),
+            "closure {id} must list evidence references"
+        );
+    }
+
+    for expected in [
+        "BIN-ADP-001",
+        "BIN-ADP-002",
+        "BIN-ADP-003",
+        "BIN-ADP-004",
+        "BIN-ADP-005",
+        "BIN-ADP-006",
+        "BIN-ADP-007",
+        "BIN-ADP-008",
+        "BIN-ADP-009",
+        "BIN-ADP-010",
+    ] {
+        assert!(
+            closure_ids.contains(expected),
+            "missing RADP-003 closure decision for {expected}"
+        );
     }
 }

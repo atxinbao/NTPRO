@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "task_id": "RADP-002",
+  "closed_by_task": "RADP-003",
   "generated_by": "Codex",
   "generated_at": "2026-05-31",
   "purpose": "Rust parser and lifecycle fixture coverage manifest for Binance adapter parity gates.",
@@ -207,25 +208,131 @@
       "id": "BIN-ADP-001",
       "status": "deferred",
       "owner_task": "RADP-003",
-      "summary": "Margin and Options are modeled in the product enum and crate README but are not runtime factory targets."
+      "summary": "Margin and Options are modeled in the product enum but are not runtime factory targets.",
+      "resolution": "Rust adapter parity is scoped to Spot, USD-M Futures, and COIN-M Futures. Margin and Options remain deferred until dedicated factory and runtime support exists."
     },
     {
       "id": "BIN-ADP-002",
-      "status": "open",
+      "status": "scoped",
       "owner_task": "RADP-003",
-      "summary": "Multi-product configs currently select only the first product type at factory creation."
+      "summary": "Multi-product configs currently select only the first product type at factory creation.",
+      "resolution": "Rust-first Binance runtime registration uses one config/client per product target. The existing first-product factory behavior is preserved and documented rather than treated as multi-product support."
     },
     {
       "id": "BIN-ADP-005",
       "status": "scoped",
       "owner_task": "RADP-003",
-      "summary": "Custom data support is futures-only and limited to liquidation and open-interest surfaces."
+      "summary": "Custom data support is futures-only and limited to liquidation and open-interest surfaces.",
+      "resolution": "Generic Binance custom data parity is not claimed. Supported custom-data coverage remains futures liquidation/open-interest only."
     },
     {
       "id": "BIN-ADP-006",
       "status": "scoped",
       "owner_task": "RADP-003",
-      "summary": "COIN-M historical open interest is limited to perpetual instruments."
+      "summary": "COIN-M historical open interest is limited to perpetual instruments.",
+      "resolution": "COIN-M historical open-interest support remains scoped to perpetual instruments. Non-perpetual coverage is deferred to a product-specific follow-up."
+    }
+  ],
+  "gap_closure": [
+    {
+      "id": "BIN-ADP-001",
+      "status": "deferred",
+      "review_task": "RADP-003",
+      "decision": "Margin and Options are out of the current Rust runtime factory scope. The crate README now documents them as deferred instead of supported runtime targets.",
+      "evidence_refs": [
+        "crates/adapters/binance/src/factories.rs",
+        "crates/adapters/binance/README.md"
+      ]
+    },
+    {
+      "id": "BIN-ADP-002",
+      "status": "scoped",
+      "review_task": "RADP-003",
+      "decision": "A Binance factory creates one runtime client. Rust-first usage should register one config/client per product target; the first-product selection behavior is preserved.",
+      "evidence_refs": [
+        "crates/adapters/binance/src/factories.rs",
+        "crates/adapters/binance/README.md"
+      ]
+    },
+    {
+      "id": "BIN-ADP-003",
+      "status": "scoped",
+      "review_task": "RADP-003",
+      "decision": "Spot order book support is scoped to L2 MBP with Binance-supported SBE depth levels. Unsupported book modes are not claimed for Rust parity.",
+      "evidence_refs": [
+        "crates/adapters/binance/src/spot/data.rs",
+        "crates/adapters/binance/test_data/rust_fixture_manifest.json"
+      ]
+    },
+    {
+      "id": "BIN-ADP-004",
+      "status": "scoped",
+      "review_task": "RADP-003",
+      "decision": "Futures order book support is scoped to L2 MBP with Binance-supported depth values. Unsupported book modes are not claimed for Rust parity.",
+      "evidence_refs": [
+        "crates/adapters/binance/src/futures/data.rs",
+        "crates/adapters/binance/test_data/rust_fixture_manifest.json"
+      ]
+    },
+    {
+      "id": "BIN-ADP-005",
+      "status": "scoped",
+      "review_task": "RADP-003",
+      "decision": "Custom data parity is scoped to existing futures liquidation and open-interest surfaces. Generic Binance custom data support is not claimed.",
+      "evidence_refs": [
+        "crates/adapters/binance/src/futures/data.rs",
+        "crates/adapters/binance/src/data_types.rs"
+      ]
+    },
+    {
+      "id": "BIN-ADP-006",
+      "status": "scoped",
+      "review_task": "RADP-003",
+      "decision": "COIN-M historical open interest remains limited to perpetual instruments. Non-perpetual coverage is deferred.",
+      "evidence_refs": [
+        "crates/adapters/binance/src/data_types.rs",
+        "crates/adapters/binance/src/futures/data.rs"
+      ]
+    },
+    {
+      "id": "BIN-ADP-007",
+      "status": "scoped",
+      "review_task": "RADP-003",
+      "decision": "The adapter README now states the Rust runtime support boundary. Full Rust-first user-facing integration docs remain a Rust Product Surface follow-up.",
+      "evidence_refs": [
+        "crates/adapters/binance/README.md",
+        "docs/rust-cutover/inventory/binance_adapter_gaps.md"
+      ]
+    },
+    {
+      "id": "BIN-ADP-008",
+      "status": "deferred",
+      "review_task": "RADP-003",
+      "decision": "Optional Python/PyO3 Binance surfaces remain deferred to removal-gate work. RADP-003 does not delete or move them.",
+      "evidence_refs": [
+        "crates/adapters/binance/src/python",
+        "crates/adapters/binance/Cargo.toml"
+      ]
+    },
+    {
+      "id": "BIN-ADP-009",
+      "status": "closed",
+      "review_task": "RADP-003",
+      "decision": "The Rust fixture manifest now includes executable fixture coverage and closure decisions for the Binance adapter parity gate.",
+      "evidence_refs": [
+        "crates/adapters/binance/test_data/rust_fixture_manifest.json",
+        "crates/adapters/binance/tests/fixture_manifest.rs"
+      ]
+    },
+    {
+      "id": "BIN-ADP-010",
+      "status": "no_release_blocker",
+      "review_task": "RADP-003",
+      "decision": "The existing placeholder/test credential matches are not real secrets. Runtime examples and capture tools continue to rely on placeholders or environment variables.",
+      "evidence_refs": [
+        "crates/adapters/binance/test_data/SOURCES.md",
+        "crates/adapters/binance/test_data/README.md"
+      ]
     }
   ]
 }
