@@ -101,7 +101,7 @@
     },
     "RADP-006": {
       "title": "Close Rust adapter gaps for Bybit OKX Kraken",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -112,11 +112,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RADP-006.md",
       "evidence_file": "docs/rust-cutover/evidence/RADP-006.md",
-      "updated_at": "2026-05-31T06:03:20Z"
+      "updated_at": "2026-05-31T06:15:12Z"
     },
     "RADP-007": {
       "title": "Inventory Rust adapter gaps for Coinbase BitMEX",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -126,7 +126,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RADP-007.md",
-      "evidence_file": "docs/rust-cutover/evidence/RADP-007.md"
+      "evidence_file": "docs/rust-cutover/evidence/RADP-007.md",
+      "updated_at": "2026-05-31T06:15:12Z"
     },
     "RADP-008": {
       "title": "Add Rust adapter fixtures for Coinbase BitMEX",
@@ -1536,5 +1537,5 @@
       "branch": "ai/RCTL-009-pr-summary-risk-automation-policy"
     }
   },
-  "updated_at": "2026-05-31T06:03:20Z"
+  "updated_at": "2026-05-31T06:15:12Z"
 }
