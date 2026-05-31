@@ -507,7 +507,7 @@
     },
     "RBTL-010": {
       "title": "Publish backtest/live gate evidence",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -517,7 +517,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-010.md",
-      "evidence_file": "docs/rust-cutover/evidence/RBTL-010.md"
+      "evidence_file": "docs/rust-cutover/evidence/RBTL-010.md",
+      "updated_at": "2026-05-31T01:46:55Z"
     },
     "RCORE-001": {
       "title": "Inventory Rust core/model value types gaps",

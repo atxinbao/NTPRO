@@ -1,0 +1,15 @@
+{
+  "task_id": "RBTL-010",
+  "agent_id": "Codex",
+  "branch": "ai/RBTL-010-publish-backtest-live-gate-evidence",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RBTL-010.md",
+    "docs/rust-cutover/release/README.md",
+    "docs/rust-cutover/release/BACKTEST_LIVE_GATE_EVIDENCE.md",
+    "docs/rust-cutover/evidence/RBTL-010.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RBTL-010.json"
+  ],
+  "claimed_at": "2026-05-30T22:59:03.259946+00:00",
+  "status": "PR_OPEN"
+}
