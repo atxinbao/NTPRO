@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-002",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "purpose": "Rust parser and lifecycle fixture coverage manifest for Binance adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "spot-http-market-data",
+      "surface": "spot_http_parser",
+      "product_scope": "Spot",
+      "classification": "supported",
+      "covers": [
+        "depth snapshot",
+        "trades",
+        "klines",
+        "exchange info",
+        "ticker price",
+        "book ticker",
+        "average price"
+      ],
+      "fixture_paths": [
+        "spot/http_json/depth_response.json",
+        "spot/http_json/trades_response.json",
+        "spot/http_json/klines_response.json",
+        "spot/http_json/exchange_info_response.json",
+        "spot/http_json/ticker_price_response.json",
+        "spot/http_json/book_ticker_response.json",
+        "spot/http_json/avg_price_response.json"
+      ],
+      "primary_tests": [
+        "tests/spot/http.rs",
+        "src/spot/http/models.rs",
+        "src/spot/http/parse.rs"
+      ]
+    },
+    {
+      "id": "spot-http-execution-lifecycle",
+      "surface": "spot_execution_lifecycle",
+      "product_scope": "Spot",
+      "classification": "supported",
+      "covers": [
+        "account snapshot",
+        "new order",
+        "order status",
+        "cancel order",
+        "cancel all orders",
+        "account trades"
+      ],
+      "fixture_paths": [
+        "spot/http_json/account_response.json",
+        "spot/http_json/new_order_full_response.json",
+        "spot/http_json/order_response.json",
+        "spot/http_json/cancel_order_response.json",
+        "spot/http_json/cancel_open_orders_response.json",
+        "spot/http_json/account_trades_response.json"
+      ],
+      "primary_tests": [
+        "tests/spot/exec_client.rs",
+        "tests/spot/http.rs",
+        "src/spot/execution.rs"
+      ]
+    },
+    {
+      "id": "spot-user-data-json-lifecycle",
+      "surface": "spot_user_data_lifecycle",
+      "product_scope": "Spot",
+      "classification": "supported",
+      "covers": [
+        "execution report new",
+        "execution report trade",
+        "execution report canceled",
+        "stop-loss execution report",
+        "account position",
+        "balance update"
+      ],
+      "fixture_paths": [
+        "spot/user_data_json/execution_report_new.json",
+        "spot/user_data_json/execution_report_trade.json",
+        "spot/user_data_json/execution_report_canceled.json",
+        "spot/user_data_json/execution_report_stop_loss.json",
+        "spot/user_data_json/account_position.json",
+        "spot/user_data_json/balance_update.json"
+      ],
+      "primary_tests": [
+        "src/spot/execution.rs",
+        "tests/spot/websocket_streams.rs",
+        "tests/spot/websocket_trading.rs"
+      ]
+    },
+    {
+      "id": "spot-user-data-sbe-lifecycle",
+      "surface": "spot_sbe_user_data_lifecycle",
+      "product_scope": "Spot",
+      "classification": "supported",
+      "covers": [
+        "SBE execution report",
+        "SBE outbound account position",
+        "SBE WebSocket response"
+      ],
+      "fixture_paths": [
+        "spot/user_data_sbe/mainnet/manifest.json",
+        "spot/user_data_sbe/mainnet/execution_report_event_1.sbe",
+        "spot/user_data_sbe/mainnet/execution_report_event_1.metadata.json",
+        "spot/user_data_sbe/mainnet/outbound_account_position_event_1.sbe",
+        "spot/user_data_sbe/mainnet/outbound_account_position_event_1.metadata.json",
+        "spot/user_data_sbe/mainnet/web_socket_response_1.sbe",
+        "spot/user_data_sbe/mainnet/web_socket_response_1.metadata.json"
+      ],
+      "primary_tests": [
+        "src/spot/websocket/trading/decode_sbe.rs",
+        "src/spot/sbe/**"
+      ]
+    },
+    {
+      "id": "futures-http-execution-lifecycle",
+      "surface": "futures_execution_lifecycle",
+      "product_scope": "USD-M and COIN-M",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "account snapshot",
+        "balance",
+        "position risk",
+        "order response"
+      ],
+      "fixture_paths": [
+        "futures/http_json/account_info_v2.json",
+        "futures/http_json/balance.json",
+        "futures/http_json/position_risk.json",
+        "futures/http_json/order_response.json"
+      ],
+      "primary_tests": [
+        "tests/futures/http.rs",
+        "tests/futures/exec_client.rs"
+      ]
+    },
+    {
+      "id": "futures-market-data-stream-parser",
+      "surface": "futures_market_data_parser",
+      "product_scope": "USD-M and COIN-M",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "aggregate trade",
+        "trade",
+        "book ticker",
+        "depth update",
+        "mark price",
+        "kline open",
+        "kline closed",
+        "ticker",
+        "liquidation"
+      ],
+      "fixture_paths": [
+        "futures/market_data_json/agg_trade_stream.json",
+        "futures/market_data_json/trade_stream.json",
+        "futures/market_data_json/book_ticker_stream.json",
+        "futures/market_data_json/depth_update_stream.json",
+        "futures/market_data_json/mark_price_stream.json",
+        "futures/market_data_json/kline_stream_open.json",
+        "futures/market_data_json/kline_stream_closed.json",
+        "futures/market_data_json/ticker_stream.json",
+        "futures/market_data_json/liquidation_stream.json"
+      ],
+      "primary_tests": [
+        "src/futures/websocket/streams/parse_data.rs",
+        "tests/futures/websocket_streams.rs",
+        "tests/futures/data_client.rs"
+      ]
+    },
+    {
+      "id": "futures-user-data-lifecycle",
+      "surface": "futures_user_data_lifecycle",
+      "product_scope": "USD-M and COIN-M",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "account update",
+        "order update new",
+        "order update trade",
+        "order update trade partial",
+        "calculated/ADL/settlement/insurance/delivery execution events",
+        "algo order lifecycle",
+        "trade lite"
+      ],
+      "fixture_paths": [
+        "futures/user_data_json/account_update.json",
+        "futures/user_data_json/order_update_new.json",
+        "futures/user_data_json/order_update_trade.json",
+        "futures/user_data_json/order_update_trade_partial.json",
+        "futures/user_data_json/order_update_calculated.json",
+        "futures/user_data_json/order_update_adl.json",
+        "futures/user_data_json/order_update_settlement.json",
+        "futures/user_data_json/order_update_insurance.json",
+        "futures/user_data_json/order_update_delivery.json",
+        "futures/user_data_json/algo_update_new.json",
+        "futures/user_data_json/algo_update_canceled.json",
+        "futures/user_data_json/trade_lite.json"
+      ],
+      "primary_tests": [
+        "src/futures/websocket/streams/parse_exec.rs",
+        "src/futures/websocket/streams/dispatch.rs",
+        "tests/futures/websocket_streams.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "BIN-ADP-001",
+      "status": "deferred",
+      "owner_task": "RADP-003",
+      "summary": "Margin and Options are modeled in the product enum and crate README but are not runtime factory targets."
+    },
+    {
+      "id": "BIN-ADP-002",
+      "status": "open",
+      "owner_task": "RADP-003",
+      "summary": "Multi-product configs currently select only the first product type at factory creation."
+    },
+    {
+      "id": "BIN-ADP-005",
+      "status": "scoped",
+      "owner_task": "RADP-003",
+      "summary": "Custom data support is futures-only and limited to liquidation and open-interest surfaces."
+    },
+    {
+      "id": "BIN-ADP-006",
+      "status": "scoped",
+      "owner_task": "RADP-003",
+      "summary": "COIN-M historical open interest is limited to perpetual instruments."
+    }
+  ]
+}
