@@ -170,45 +170,114 @@
   "scoped_blockers": [
     {
       "id": "DER-ADP-001",
-      "status": "open",
+      "status": "closed",
       "inventory_task": "RADP-010",
       "owner_task": "RADP-012",
-      "summary": "Deribit Rust fixture coverage now has a compact manifest, but parity closure remains assigned to RADP-012."
+      "summary": "Deribit Rust fixture coverage now has a compact manifest, but parity closure remains assigned to RADP-012.",
+      "resolution": "Closed by RADP-011 compact manifest coverage for Deribit HTTP, WebSocket, execution, and RPC lifecycle fixture groups."
     },
     {
       "id": "DER-ADP-002",
       "status": "scoped",
       "inventory_task": "RADP-010",
       "owner_task": "RADP-012",
-      "summary": "Deribit product support is broad, but zero-config data bootstrap only loads futures."
+      "summary": "Deribit product support is broad, but zero-config data bootstrap only loads futures.",
+      "resolution": "Scoped as supported with constraints: Deribit product coverage includes futures, options, spot, and combos, while zero-config data bootstrap defaults to futures."
     },
     {
       "id": "DER-ADP-003",
       "status": "scoped",
       "inventory_task": "RADP-010",
       "owner_task": "RADP-012",
-      "summary": "Deribit order-book subscriptions are scoped to L2 MBP and configured grouped/raw depth behavior."
+      "summary": "Deribit order-book subscriptions are scoped to L2 MBP and configured grouped/raw depth behavior.",
+      "resolution": "Scoped as supported with constraints: Deribit book subscriptions remain L2 MBP with explicit raw/grouped depth behavior."
     },
     {
       "id": "DER-ADP-004",
       "status": "scoped",
       "inventory_task": "RADP-010",
       "owner_task": "RADP-012",
-      "summary": "Deribit market-data surfaces are ticker/channel-specific and custom data is limited to volatility index."
+      "summary": "Deribit market-data surfaces are ticker/channel-specific and custom data is limited to volatility index.",
+      "resolution": "Scoped as supported with constraints: Deribit market data remains tied to ticker/perpetual channels, supported bar resolutions, and volatility-index custom data."
     },
     {
       "id": "DER-ADP-005",
       "status": "scoped",
       "inventory_task": "RADP-010",
       "owner_task": "RADP-012",
-      "summary": "Deribit execution is margin/authenticated and has an explicit order and TIF matrix."
+      "summary": "Deribit execution is margin/authenticated and has an explicit order and TIF matrix.",
+      "resolution": "Scoped as supported with constraints: Deribit execution remains authenticated margin execution with the current order and TIF matrix."
     },
     {
       "id": "DER-ADP-006",
       "status": "deferred",
       "inventory_task": "RADP-010",
       "owner_task": "RADP-012",
-      "summary": "Optional Deribit Python/PyO3 surfaces remain until the removal gate."
+      "summary": "Optional Deribit Python/PyO3 surfaces remain until the removal gate.",
+      "resolution": "Deferred to the Rust-only removal gate because RADP-012 does not authorize deleting optional Python/PyO3 surfaces."
+    }
+  ],
+  "gap_closure": [
+    {
+      "id": "DER-ADP-001",
+      "status": "closed",
+      "review_task": "RADP-012",
+      "decision": "Closed by RADP-011 compact manifest coverage for Deribit HTTP, WebSocket, execution, and RPC lifecycle fixture groups.",
+      "evidence_refs": [
+        "crates/adapters/deribit/test_data/rust_fixture_manifest.json",
+        "crates/adapters/deribit/tests/fixture_manifest.rs",
+        "docs/rust-cutover/evidence/RADP-011.md"
+      ]
+    },
+    {
+      "id": "DER-ADP-002",
+      "status": "scoped",
+      "review_task": "RADP-012",
+      "decision": "Scoped as supported with constraints: Deribit product coverage includes futures, options, spot, and combos, while zero-config data bootstrap defaults to futures.",
+      "evidence_refs": [
+        "docs/rust-cutover/inventory/deribit_dydx_hyperliquid_adapter_gaps.md",
+        "crates/adapters/deribit/test_data/rust_fixture_manifest.json"
+      ]
+    },
+    {
+      "id": "DER-ADP-003",
+      "status": "scoped",
+      "review_task": "RADP-012",
+      "decision": "Scoped as supported with constraints: Deribit book subscriptions remain L2 MBP with explicit raw/grouped depth behavior.",
+      "evidence_refs": [
+        "docs/rust-cutover/inventory/deribit_dydx_hyperliquid_adapter_gaps.md",
+        "crates/adapters/deribit/test_data/rust_fixture_manifest.json"
+      ]
+    },
+    {
+      "id": "DER-ADP-004",
+      "status": "scoped",
+      "review_task": "RADP-012",
+      "decision": "Scoped as supported with constraints: Deribit market data remains tied to ticker/perpetual channels, supported bar resolutions, and volatility-index custom data.",
+      "evidence_refs": [
+        "docs/rust-cutover/inventory/deribit_dydx_hyperliquid_adapter_gaps.md",
+        "crates/adapters/deribit/test_data/rust_fixture_manifest.json"
+      ]
+    },
+    {
+      "id": "DER-ADP-005",
+      "status": "scoped",
+      "review_task": "RADP-012",
+      "decision": "Scoped as supported with constraints: Deribit execution remains authenticated margin execution with the current order and TIF matrix.",
+      "evidence_refs": [
+        "docs/rust-cutover/inventory/deribit_dydx_hyperliquid_adapter_gaps.md",
+        "crates/adapters/deribit/test_data/rust_fixture_manifest.json"
+      ]
+    },
+    {
+      "id": "DER-ADP-006",
+      "status": "deferred",
+      "review_task": "RADP-012",
+      "decision": "Deferred to the Rust-only removal gate because RADP-012 does not authorize deleting optional Python/PyO3 surfaces.",
+      "evidence_refs": [
+        "docs/rust-cutover/CONTRACT.md",
+        "docs/rust-cutover/TASK_EXECUTION.md"
+      ]
     }
   ]
 }
