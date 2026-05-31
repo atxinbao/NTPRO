@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-011",
+  "inventory_task": "RADP-010",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "purpose": "Rust parser and lifecycle fixture coverage manifest for Hyperliquid adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "hyperliquid-http-perp-instrument-parser",
+      "surface": "hyperliquid_http_perp_instrument_parser",
+      "product_scope": "Perpetual metadata and instrument parsing",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "perp metadata",
+        "perp instrument definitions"
+      ],
+      "fixture_paths": [
+        "http_meta_perp_sample.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "src/http/client.rs",
+        "src/common/parse.rs"
+      ]
+    },
+    {
+      "id": "hyperliquid-http-book-parser",
+      "surface": "hyperliquid_http_book_parser",
+      "product_scope": "HTTP L2 book snapshots",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "L2 book snapshot",
+        "BTC book snapshot"
+      ],
+      "fixture_paths": [
+        "http_l2_book_snapshot.json",
+        "http_l2_book_btc.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "src/data.rs",
+        "src/http/client.rs"
+      ]
+    },
+    {
+      "id": "hyperliquid-http-account-and-funding",
+      "surface": "hyperliquid_http_account_and_funding",
+      "product_scope": "Spot clearinghouse and funding history",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "spot clearinghouse state",
+        "funding history"
+      ],
+      "fixture_paths": [
+        "http_spot_clearinghouse_state.json",
+        "http_funding_history.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "src/http/client.rs",
+        "src/http/parse.rs"
+      ]
+    },
+    {
+      "id": "hyperliquid-ws-market-data-parser",
+      "surface": "hyperliquid_ws_market_data_parser",
+      "product_scope": "WebSocket public market data",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "all mids",
+        "book data"
+      ],
+      "fixture_paths": [
+        "ws_allmids.json",
+        "ws_book_data.json"
+      ],
+      "primary_tests": [
+        "tests/websocket.rs",
+        "src/data.rs",
+        "src/websocket/parse.rs",
+        "src/websocket/messages.rs"
+      ]
+    },
+    {
+      "id": "hyperliquid-outcome-operational-scope",
+      "surface": "hyperliquid_outcome_operational_scope",
+      "product_scope": "HIP-4 outcome and operational lifecycle scope",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "fixture scope documentation",
+        "outcome settlement boundary",
+        "WebSocket post execution boundary",
+        "CLOID routing boundary"
+      ],
+      "fixture_paths": [
+        "README.md"
+      ],
+      "primary_tests": [
+        "tests/exec_client.rs",
+        "tests/dispatch.rs",
+        "src/execution.rs",
+        "src/outcome_settlement.rs",
+        "src/signing/signers.rs",
+        "src/websocket/post.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "HYP-ADP-001",
+      "status": "open",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "Hyperliquid Rust fixture coverage now has a compact manifest, but parity closure remains assigned to RADP-012."
+    },
+    {
+      "id": "HYP-ADP-002",
+      "status": "scoped",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "Hyperliquid product support is scoped to perps, spot, and HIP-4 outcomes."
+    },
+    {
+      "id": "HYP-ADP-003",
+      "status": "scoped",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "Hyperliquid market data is scoped to L2 MBP and venue-specific custom streams."
+    },
+    {
+      "id": "HYP-ADP-004",
+      "status": "scoped",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "Hyperliquid execution maps market orders to IOC limits and has product-specific restrictions."
+    },
+    {
+      "id": "HYP-ADP-005",
+      "status": "open",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "Hyperliquid operational lifecycle needs release-gate parity closure."
+    },
+    {
+      "id": "HYP-ADP-006",
+      "status": "deferred",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "Optional Hyperliquid Python/PyO3 surfaces remain until the removal gate."
+    }
+  ]
+}

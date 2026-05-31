@@ -1,0 +1,214 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-011",
+  "inventory_task": "RADP-010",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "purpose": "Rust parser and lifecycle fixture coverage manifest for Deribit adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "deribit-http-instrument-parser",
+      "surface": "deribit_http_instrument_parser",
+      "product_scope": "Futures, perpetuals, options, spot, future combos, option combos",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "instrument lookup",
+        "instrument listing",
+        "combo metadata",
+        "option expirations"
+      ],
+      "fixture_paths": [
+        "http_get_instrument.json",
+        "http_get_instrument_option.json",
+        "http_get_instruments.json",
+        "http_get_instruments_future_combo.json",
+        "http_get_instruments_option_combo.json",
+        "http_get_combos.json",
+        "http_get_expirations_any.json",
+        "http_get_expirations_btc_option.json"
+      ],
+      "primary_tests": [
+        "tests/http_public.rs",
+        "src/common/parse.rs",
+        "src/http/client.rs",
+        "src/http/models.rs"
+      ]
+    },
+    {
+      "id": "deribit-http-market-data-parser",
+      "surface": "deribit_http_market_data_parser",
+      "product_scope": "Public HTTP market data and external bars",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "last trades",
+        "combo trades",
+        "order book snapshot",
+        "trading-view chart bars"
+      ],
+      "fixture_paths": [
+        "http_get_last_trades.json",
+        "http_get_last_trades_future_combo.json",
+        "http_get_last_trades_historical_combo.json",
+        "http_get_last_trades_option_combo.json",
+        "http_get_last_trades_perpetual_with_combo_tags.json",
+        "http_get_order_book.json",
+        "http_get_tradingview_chart_data.json"
+      ],
+      "primary_tests": [
+        "tests/http_public.rs",
+        "src/data.rs",
+        "src/http/client.rs"
+      ]
+    },
+    {
+      "id": "deribit-http-account-lifecycle",
+      "surface": "deribit_http_account_lifecycle",
+      "product_scope": "Authenticated margin account state",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "account summaries",
+        "cross-margin account summaries"
+      ],
+      "fixture_paths": [
+        "http_get_account_summaries.json",
+        "http_get_account_summaries_cross_margin.json"
+      ],
+      "primary_tests": [
+        "tests/http_private.rs",
+        "src/execution.rs",
+        "src/http/client.rs"
+      ]
+    },
+    {
+      "id": "deribit-ws-market-data-parser",
+      "surface": "deribit_ws_market_data_parser",
+      "product_scope": "Public WebSocket market data",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "book snapshots",
+        "book deltas",
+        "grouped books",
+        "quotes",
+        "trades",
+        "charts",
+        "ticker-derived mark/index/greeks",
+        "volatility index"
+      ],
+      "fixture_paths": [
+        "ws_book_snapshot.json",
+        "ws_book_delta.json",
+        "ws_book_grouped_snapshot.json",
+        "ws_quote.json",
+        "ws_trades.json",
+        "ws_trades_option_combo.json",
+        "ws_chart.json",
+        "ws_ticker.json",
+        "ws_volatility_index.json"
+      ],
+      "primary_tests": [
+        "tests/websocket.rs",
+        "src/data.rs",
+        "src/websocket/parse.rs",
+        "src/websocket/messages.rs"
+      ]
+    },
+    {
+      "id": "deribit-ws-execution-lifecycle",
+      "surface": "deribit_ws_execution_lifecycle",
+      "product_scope": "Authenticated margin execution lifecycle",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "buy order response",
+        "sell order response",
+        "cancel response",
+        "edit response",
+        "stop-market response",
+        "portfolio stream"
+      ],
+      "fixture_paths": [
+        "ws_order_buy_response.json",
+        "ws_order_sell_response.json",
+        "ws_order_cancel_response.json",
+        "ws_order_edit_response.json",
+        "ws_order_stop_market_response.json",
+        "ws_order_stop_market_no_filled_amount.json",
+        "ws_portfolio.json"
+      ],
+      "primary_tests": [
+        "tests/exec_client.rs",
+        "src/execution.rs",
+        "src/websocket/parse.rs"
+      ]
+    },
+    {
+      "id": "deribit-rpc-session-lifecycle",
+      "surface": "deribit_rpc_session_lifecycle",
+      "product_scope": "JSON-RPC session, errors, and subscription control",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "HTTP JSON-RPC envelope",
+        "server time",
+        "WebSocket request envelope",
+        "subscription acknowledgement",
+        "error payloads"
+      ],
+      "fixture_paths": [
+        "http_test.json",
+        "http_get_time.json",
+        "ws_test_request.json",
+        "ws_subscribe_response.json",
+        "ws_error.json"
+      ],
+      "primary_tests": [
+        "tests/http_public.rs",
+        "tests/websocket.rs",
+        "src/common/rpc.rs",
+        "src/websocket/client.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "DER-ADP-001",
+      "status": "open",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "Deribit Rust fixture coverage now has a compact manifest, but parity closure remains assigned to RADP-012."
+    },
+    {
+      "id": "DER-ADP-002",
+      "status": "scoped",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "Deribit product support is broad, but zero-config data bootstrap only loads futures."
+    },
+    {
+      "id": "DER-ADP-003",
+      "status": "scoped",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "Deribit order-book subscriptions are scoped to L2 MBP and configured grouped/raw depth behavior."
+    },
+    {
+      "id": "DER-ADP-004",
+      "status": "scoped",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "Deribit market-data surfaces are ticker/channel-specific and custom data is limited to volatility index."
+    },
+    {
+      "id": "DER-ADP-005",
+      "status": "scoped",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "Deribit execution is margin/authenticated and has an explicit order and TIF matrix."
+    },
+    {
+      "id": "DER-ADP-006",
+      "status": "deferred",
+      "inventory_task": "RADP-010",
+      "owner_task": "RADP-012",
+      "summary": "Optional Deribit Python/PyO3 surfaces remain until the removal gate."
+    }
+  ]
+}
