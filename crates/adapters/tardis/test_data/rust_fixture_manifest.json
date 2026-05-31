@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-014",
+  "inventory_task": "RADP-013",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "purpose": "Rust parser and lifecycle fixture coverage manifest for Tardis adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "tardis-http-instrument-parser",
+      "surface": "tardis_http_instrument_parser",
+      "product_scope": "Spot, perpetual, future, option, and combo instrument metadata",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "spot instruments",
+        "perpetual instruments",
+        "future instruments",
+        "option instruments",
+        "combo instruments"
+      ],
+      "fixture_paths": [
+        "instrument_spot.json",
+        "instrument_perpetual.json",
+        "instrument_future.json",
+        "instrument_option.json",
+        "instrument_combo.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "src/http/instruments.rs",
+        "src/http/parse.rs"
+      ]
+    },
+    {
+      "id": "tardis-machine-market-data-parser",
+      "surface": "tardis_machine_market_data_parser",
+      "product_scope": "Normalized Tardis Machine WebSocket market data",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "trades",
+        "bars",
+        "book changes",
+        "book snapshots",
+        "derivative ticker data",
+        "disconnect filtering"
+      ],
+      "fixture_paths": [
+        "trade.json",
+        "bar.json",
+        "book_change.json",
+        "book_snapshot.json",
+        "derivative_ticker.json",
+        "disconnect.json"
+      ],
+      "primary_tests": [
+        "tests/websocket.rs",
+        "src/machine/parse.rs",
+        "src/machine/message.rs"
+      ]
+    },
+    {
+      "id": "tardis-csv-stream-parser",
+      "surface": "tardis_csv_stream_parser",
+      "product_scope": "Tardis CSV market-data stream parsing",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "book deltas CSV",
+        "book deltas with snapshot CSV",
+        "derivative ticker CSV",
+        "trades CSV"
+      ],
+      "fixture_paths": [
+        "csv/deltas_1.csv",
+        "csv/deltas_with_snapshot.csv",
+        "csv/derivative_ticker_1.csv",
+        "csv/trades_1.csv"
+      ],
+      "primary_tests": [
+        "src/csv/stream.rs",
+        "src/csv/record.rs",
+        "src/csv/load.rs"
+      ]
+    },
+    {
+      "id": "tardis-data-client-lifecycle",
+      "surface": "tardis_data_client_lifecycle",
+      "product_scope": "Tardis data-client replay and stream lifecycle",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "explicit replay options",
+        "explicit stream options",
+        "start stop reset dispose lifecycle",
+        "empty options blocker",
+        "book snapshot output mode"
+      ],
+      "fixture_paths": [
+        "trade.json",
+        "book_snapshot.json",
+        "disconnect.json"
+      ],
+      "primary_tests": [
+        "tests/data_client.rs",
+        "src/data.rs",
+        "src/config.rs",
+        "src/machine/mod.rs"
+      ]
+    },
+    {
+      "id": "tardis-replay-output-scope",
+      "surface": "tardis_replay_output_scope",
+      "product_scope": "Tardis replay output and supported Nautilus data writers",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "order book deltas",
+        "order book depth10",
+        "quotes",
+        "trades",
+        "bars",
+        "unsupported data-type skip boundary"
+      ],
+      "fixture_paths": [
+        "book_change.json",
+        "book_snapshot.json",
+        "trade.json",
+        "bar.json",
+        "derivative_ticker.json"
+      ],
+      "primary_tests": [
+        "src/replay.rs",
+        "src/machine/parse.rs",
+        "src/common/parse.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "TDS-ADP-001",
+      "status": "open",
+      "inventory_task": "RADP-013",
+      "owner_task": "RADP-015",
+      "summary": "Tardis now has a compact fixture manifest, but parity closure remains assigned to RADP-015."
+    },
+    {
+      "id": "TDS-ADP-002",
+      "status": "scoped",
+      "inventory_task": "RADP-013",
+      "owner_task": "RADP-015",
+      "summary": "Tardis is market-data only and has no execution adapter surface."
+    },
+    {
+      "id": "TDS-ADP-003",
+      "status": "scoped",
+      "inventory_task": "RADP-013",
+      "owner_task": "RADP-015",
+      "summary": "Tardis startup requires explicit replay or stream options."
+    },
+    {
+      "id": "TDS-ADP-004",
+      "status": "scoped",
+      "inventory_task": "RADP-013",
+      "owner_task": "RADP-015",
+      "summary": "Tardis replay output is constrained to selected Nautilus data types."
+    },
+    {
+      "id": "TDS-ADP-005",
+      "status": "scoped",
+      "inventory_task": "RADP-013",
+      "owner_task": "RADP-015",
+      "summary": "Tardis bar and book conversions are venue-message specific."
+    },
+    {
+      "id": "TDS-ADP-006",
+      "status": "scoped",
+      "inventory_task": "RADP-013",
+      "owner_task": "RADP-015",
+      "summary": "Tardis instrument normalization needs compact fixture classification for release gates."
+    },
+    {
+      "id": "TDS-ADP-007",
+      "status": "deferred",
+      "inventory_task": "RADP-013",
+      "owner_task": "RADP-015",
+      "summary": "Optional Tardis Python/PyO3 surfaces remain until the removal gate."
+    }
+  ]
+}
