@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-015",
+  "inventory_task": "RADP-013",
+  "fixture_task": "RADP-014",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "adapter": "databento",
+  "release_gate_decision": "parity_resolved_with_scoped_constraints",
+  "purpose": "Close Databento Rust adapter parity gaps by binding each inventory gap to fixture evidence, an explicit scope decision, or the later removal gate.",
+  "decisions": [
+    {
+      "gap_id": "DBN-ADP-001",
+      "status": "closed",
+      "decision": "Compact fixture coverage manifest now maps Databento DBN parser and live lifecycle surfaces to Rust fixtures and tests.",
+      "evidence_paths": [
+        "test_data/rust_fixture_manifest.json",
+        "tests/fixture_manifest.rs"
+      ],
+      "release_gate_note": "Databento fixture traceability is no longer open for the R5 adapter parity gate."
+    },
+    {
+      "gap_id": "DBN-ADP-002",
+      "status": "scoped",
+      "decision": "Databento remains a market-data adapter only; execution adapter parity is out of scope for this venue surface.",
+      "evidence_paths": [
+        "src/data.rs",
+        "src/historical.rs",
+        "src/live.rs"
+      ],
+      "release_gate_note": "Release notes must not claim Databento execution support."
+    },
+    {
+      "gap_id": "DBN-ADP-003",
+      "status": "scoped",
+      "decision": "Databento live data remains dataset, publisher, and venue-map driven; this is an explicit configuration boundary rather than an adapter gap.",
+      "evidence_paths": [
+        "src/data.rs",
+        "src/live.rs",
+        "src/symbology.rs",
+        "tests/feed_handler.rs"
+      ],
+      "release_gate_note": "Rust examples and docs must keep dataset and publisher mapping explicit."
+    },
+    {
+      "gap_id": "DBN-ADP-004",
+      "status": "scoped",
+      "decision": "Granular unsubscribe and generic historical request behavior stay scoped to the Databento protocol and current request helpers.",
+      "evidence_paths": [
+        "src/data.rs",
+        "src/historical.rs",
+        "src/live.rs"
+      ],
+      "release_gate_note": "Release evidence must describe the supported request and subscription lifecycle instead of implying generic unsubscribe support."
+    },
+    {
+      "gap_id": "DBN-ADP-005",
+      "status": "scoped",
+      "decision": "Historical book and bar support is limited to the selected DBN schemas already represented in the fixture manifest.",
+      "evidence_paths": [
+        "test_data/rust_fixture_manifest.json",
+        "src/decode.rs",
+        "src/historical.rs",
+        "src/loader.rs"
+      ],
+      "release_gate_note": "Depth and bar aggregation support must remain documented as constrained."
+    },
+    {
+      "gap_id": "DBN-ADP-006",
+      "status": "scoped",
+      "decision": "Databento imbalance, status, and statistics support covers modeled values; unsupported statistical values remain skipped by design.",
+      "evidence_paths": [
+        "test_data/rust_fixture_manifest.json",
+        "src/enums.rs",
+        "src/historical.rs",
+        "src/types.rs"
+      ],
+      "release_gate_note": "Skipped Databento statistical values stay a documented scope boundary."
+    },
+    {
+      "gap_id": "DBN-ADP-007",
+      "status": "deferred",
+      "decision": "Optional Databento Python/PyO3 surfaces are not removed by this adapter parity task.",
+      "evidence_paths": [
+        "src/python/mod.rs"
+      ],
+      "requires_removal_gate": true,
+      "release_gate_note": "Removal remains blocked until the dedicated Rust-only removal gate approves Python/PyO3 deletion."
+    }
+  ]
+}
