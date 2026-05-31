@@ -1,0 +1,226 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-020",
+  "inventory_task": "RADP-019",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "purpose": "Rust parser and lifecycle fixture coverage manifest for Architect AX adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "ax-http-auth-account-lifecycle",
+      "surface": "architect_ax_http_auth_account_lifecycle",
+      "product_scope": "AX token authentication, identity, balances, positions, risk, and transactions",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "bearer token authentication",
+        "whoami identity lookup",
+        "balance parsing",
+        "position parsing",
+        "risk snapshot parsing",
+        "transaction parsing"
+      ],
+      "fixture_paths": [
+        "http_authenticate.json",
+        "http_get_whoami.json",
+        "http_get_balances.json",
+        "http_get_positions.json",
+        "http_get_risk_snapshot.json",
+        "http_get_transactions.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "src/http/client.rs",
+        "src/http/models.rs",
+        "src/common/credential.rs"
+      ]
+    },
+    {
+      "id": "ax-http-market-data-parser",
+      "surface": "architect_ax_http_market_data_parser",
+      "product_scope": "AX instruments, order books, candles, trades, tickers, and funding rates",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "instrument list parsing",
+        "book snapshot parsing",
+        "single candle and candle series parsing",
+        "trade parsing",
+        "ticker parsing",
+        "funding rate parsing"
+      ],
+      "fixture_paths": [
+        "http_get_instruments.json",
+        "http_get_book.json",
+        "http_get_candle.json",
+        "http_get_candles.json",
+        "http_get_trades.json",
+        "http_get_tickers.json",
+        "http_get_funding_rates.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "src/http/parse.rs",
+        "src/http/query.rs",
+        "src/data.rs"
+      ]
+    },
+    {
+      "id": "ax-http-execution-lifecycle",
+      "surface": "architect_ax_http_execution_lifecycle",
+      "product_scope": "AX order preview, submit, replace, cancel, fills, open orders, and margin checks",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "aggressive limit preview for simulated market orders",
+        "place order",
+        "replace order",
+        "cancel order",
+        "cancel all orders",
+        "fills and order status",
+        "initial margin requirement"
+      ],
+      "fixture_paths": [
+        "http_preview_aggressive_limit_order.json",
+        "http_place_order.json",
+        "http_replace_order.json",
+        "http_cancel_order.json",
+        "http_cancel_all_orders.json",
+        "http_get_order_status.json",
+        "http_get_orders.json",
+        "http_get_open_orders.json",
+        "http_get_fills.json",
+        "http_initial_margin_requirement.json"
+      ],
+      "primary_tests": [
+        "tests/exec_client.rs",
+        "tests/http.rs",
+        "src/execution.rs",
+        "src/http/client.rs"
+      ]
+    },
+    {
+      "id": "ax-ws-market-data-levels",
+      "surface": "architect_ax_ws_market_data_levels",
+      "product_scope": "AX market-data WebSocket books, trades, tickers, candles, and heartbeat payloads",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "L1 captured and synthetic book payloads",
+        "L2 captured and synthetic book payloads",
+        "L3 captured and synthetic book payloads",
+        "trade payloads",
+        "ticker payloads",
+        "candle payloads",
+        "heartbeat payloads"
+      ],
+      "fixture_paths": [
+        "ws_md_book_l1.json",
+        "ws_md_book_l1_captured.json",
+        "ws_md_book_l2.json",
+        "ws_md_book_l2_captured.json",
+        "ws_md_book_l3.json",
+        "ws_md_book_l3_captured.json",
+        "ws_md_trade.json",
+        "ws_md_trade_captured.json",
+        "ws_md_ticker.json",
+        "ws_md_ticker_captured.json",
+        "ws_md_candle.json",
+        "ws_md_heartbeat.json",
+        "ws_md_heartbeat_captured.json"
+      ],
+      "primary_tests": [
+        "tests/data_client.rs",
+        "tests/websocket.rs",
+        "src/websocket/data/parse.rs",
+        "src/websocket/data/client.rs",
+        "src/data.rs"
+      ]
+    },
+    {
+      "id": "ax-ws-order-lifecycle",
+      "surface": "architect_ax_ws_order_lifecycle",
+      "product_scope": "AX private order WebSocket lifecycle, terminal states, and error responses",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "place and cancel responses",
+        "acknowledged order events",
+        "partial fill and fill events",
+        "cancel, reject, replace, expired, and done-for-day events",
+        "open order list responses",
+        "error and cancel rejected payloads"
+      ],
+      "fixture_paths": [
+        "ws_order_place_response.json",
+        "ws_order_cancel_response.json",
+        "ws_order_acknowledged.json",
+        "ws_order_partially_filled.json",
+        "ws_order_filled.json",
+        "ws_order_canceled.json",
+        "ws_order_rejected.json",
+        "ws_order_replaced.json",
+        "ws_order_expired.json",
+        "ws_order_done_for_day.json",
+        "ws_order_open_orders_response.json",
+        "ws_order_list_response.json",
+        "ws_order_list_response_with_orders.json",
+        "ws_order_error_response.json",
+        "ws_cancel_rejected.json",
+        "ws_order_heartbeat.json"
+      ],
+      "primary_tests": [
+        "tests/exec_client.rs",
+        "tests/websocket.rs",
+        "src/execution.rs",
+        "src/websocket/orders/client.rs",
+        "src/websocket/orders/handler.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "AX-ADP-001",
+      "status": "closed",
+      "inventory_task": "RADP-019",
+      "owner_task": "RADP-021",
+      "summary": "Architect AX now has a compact fixture manifest, but parity closure remains assigned to RADP-021.",
+      "resolution": "Closed by RADP-020 compact manifest coverage for AX HTTP auth/account, HTTP market data, HTTP execution, WebSocket market data, and WebSocket order lifecycle fixture groups."
+    },
+    {
+      "id": "AX-ADP-002",
+      "status": "scoped",
+      "inventory_task": "RADP-019",
+      "owner_task": "RADP-021",
+      "summary": "Architect AX product support is AX perpetual futures, not a generic venue surface.",
+      "resolution": "Scoped as supported with constraints: AX parity evidence remains limited to AX perpetual-futures products and AX-specific instrument categories."
+    },
+    {
+      "id": "AX-ADP-003",
+      "status": "scoped",
+      "inventory_task": "RADP-019",
+      "owner_task": "RADP-021",
+      "summary": "Architect AX market-data support has explicit protocol limits.",
+      "resolution": "Scoped as supported with constraints: AX market data keeps L1 downgrade, unsupported index/close surfaces, bar-spec limits, and accepted book levels explicit."
+    },
+    {
+      "id": "AX-ADP-004",
+      "status": "scoped",
+      "inventory_task": "RADP-019",
+      "owner_task": "RADP-021",
+      "summary": "Architect AX execution supports a limited order and TIF matrix.",
+      "resolution": "Scoped as supported with constraints: AX execution remains limited to market, limit, and stop-limit flows, simulated market order pricing, and explicit GTD rejection."
+    },
+    {
+      "id": "AX-ADP-005",
+      "status": "scoped",
+      "inventory_task": "RADP-019",
+      "owner_task": "RADP-021",
+      "summary": "Architect AX auth/session and endpoint behavior need release-gate evidence.",
+      "resolution": "Scoped as supported with constraints: token auth, sandbox/production endpoints, public/private WebSocket paths, and cancel-on-disconnect remain fixture or dry-run validated."
+    },
+    {
+      "id": "AX-ADP-006",
+      "status": "deferred",
+      "inventory_task": "RADP-019",
+      "owner_task": "RADP-021",
+      "summary": "Optional Architect AX Python/PyO3 and extension surfaces remain until the removal gate.",
+      "resolution": "Deferred to the Rust-only removal gate because RADP-021 does not authorize deleting optional Python/PyO3 surfaces."
+    }
+  ]
+}
