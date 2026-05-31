@@ -31,6 +31,10 @@ fn scope_fixture_path() -> PathBuf {
     crate_path("test_data/rust_adapter_scope_fixture.json")
 }
 
+fn closure_manifest_path() -> PathBuf {
+    crate_path("test_data/rust_adapter_parity_closure.json")
+}
+
 fn test_data_path(relative: &str) -> PathBuf {
     crate_path("test_data").join(relative)
 }
@@ -160,8 +164,16 @@ fn rust_fixture_manifest_is_complete_and_resolvable() {
             .as_str()
             .expect("blocker status must be set");
         assert!(
-            matches!(status, "open" | "scoped" | "deferred"),
+            matches!(status, "closed" | "scoped" | "deferred"),
             "unexpected blocker status for {id}: {status}"
+        );
+        assert_ne!(status, "open", "RADP-018 should scope blocker {id}");
+        assert!(
+            !blocker["resolution"]
+                .as_str()
+                .unwrap_or_default()
+                .is_empty(),
+            "blocker {id} must have a RADP-018 resolution"
         );
     }
 
@@ -244,6 +256,101 @@ fn rust_adapter_scope_fixture_pins_ib_boundaries() {
         assert!(
             scoped_rejections.iter().any(|value| value == required),
             "missing scoped rejection {required}"
+        );
+    }
+}
+
+#[test]
+fn rust_adapter_gap_closure_is_complete_and_scoped() {
+    let manifest_text = fs::read_to_string(closure_manifest_path())
+        .expect("rust adapter parity closure manifest must be readable");
+    let manifest: Value = serde_json::from_str(&manifest_text)
+        .expect("rust adapter parity closure manifest must be valid JSON");
+
+    assert_eq!(manifest["schema_version"], 1);
+    assert_eq!(manifest["task_id"], "RADP-018");
+    assert_eq!(manifest["inventory_task"], "RADP-016");
+    assert_eq!(manifest["fixture_task"], "RADP-017");
+    assert_eq!(manifest["adapter"], "interactive_brokers");
+    assert_eq!(
+        manifest["release_gate_decision"],
+        "parity_resolved_with_scoped_constraints"
+    );
+
+    let decisions = manifest["decisions"]
+        .as_array()
+        .expect("decisions must be an array");
+    assert_eq!(
+        decisions.len(),
+        8,
+        "all Interactive Brokers gaps must be resolved"
+    );
+
+    let mut gap_ids = BTreeSet::new();
+    for decision in decisions {
+        let gap_id = decision["gap_id"]
+            .as_str()
+            .expect("gap_id must be a string");
+        assert!(gap_id.starts_with("IB-ADP-"), "unexpected gap id {gap_id}");
+        assert!(gap_ids.insert(gap_id), "duplicate gap id {gap_id}");
+
+        let status = decision["status"].as_str().expect("status must be set");
+        assert!(
+            matches!(status, "closed" | "scoped" | "deferred"),
+            "unexpected closure status for {gap_id}: {status}"
+        );
+        assert_ne!(status, "open", "RADP-018 must not leave open gap {gap_id}");
+
+        assert!(
+            !decision["decision"].as_str().unwrap_or_default().is_empty(),
+            "decision text must be set for {gap_id}"
+        );
+        assert!(
+            !decision["release_gate_note"]
+                .as_str()
+                .unwrap_or_default()
+                .is_empty(),
+            "release gate note must be set for {gap_id}"
+        );
+
+        let evidence_paths = decision["evidence_paths"]
+            .as_array()
+            .expect("evidence_paths must be an array");
+        assert!(
+            !evidence_paths.is_empty(),
+            "decision {gap_id} must include evidence paths"
+        );
+        for evidence in evidence_paths {
+            let relative = evidence
+                .as_str()
+                .expect("evidence_paths entries must be strings");
+            assert!(
+                crate_path(relative).exists(),
+                "closure evidence path listed in manifest does not exist: {relative}"
+            );
+        }
+
+        if status == "deferred" {
+            assert_eq!(
+                decision["requires_removal_gate"], true,
+                "deferred gap {gap_id} must require the removal gate"
+            );
+        }
+    }
+
+    for expected in [
+        "IB-ADP-001",
+        "IB-ADP-002",
+        "IB-ADP-003",
+        "IB-ADP-004",
+        "IB-ADP-005",
+        "IB-ADP-006",
+        "IB-ADP-007",
+        "IB-ADP-008",
+    ] {
+        assert!(
+            gap_ids.contains(expected),
+            "missing RADP-018 closure decision for {expected}"
         );
     }
 }
