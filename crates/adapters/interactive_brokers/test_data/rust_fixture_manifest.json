@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-017",
+  "inventory_task": "RADP-016",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "purpose": "Rust parser and lifecycle fixture coverage manifest for Interactive Brokers adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "ib-instrument-provider-parser",
+      "surface": "interactive_brokers_instrument_provider_parser",
+      "product_scope": "IB contract details, Nautilus instrument IDs, product family normalization, and BAG spread handling",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "stock, FX, crypto, future, option/FOP, index, CFD, commodity, bond, and spread surfaces",
+        "symbol and venue conversion",
+        "contract ID and price magnifier cache",
+        "filtered security type boundary"
+      ],
+      "fixture_paths": [
+        "rust_adapter_scope_fixture.json"
+      ],
+      "primary_tests": [
+        "src/providers/parse.rs",
+        "src/providers/instruments.rs",
+        "src/providers/tests.rs"
+      ]
+    },
+    {
+      "id": "ib-market-data-parser-lifecycle",
+      "surface": "interactive_brokers_market_data_parser_lifecycle",
+      "product_scope": "IB live data subscriptions and Nautilus data conversion",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "quotes and tick-by-tick quote fallback",
+        "trades and CurrencyPair trade blocker",
+        "bars and revised bar handling",
+        "L1/L2 book deltas",
+        "index prices",
+        "option greeks"
+      ],
+      "fixture_paths": [
+        "rust_adapter_scope_fixture.json"
+      ],
+      "primary_tests": [
+        "src/data/parse.rs",
+        "src/data/convert.rs",
+        "src/data/cache.rs",
+        "src/data/core.rs",
+        "src/data/core_streams.rs"
+      ]
+    },
+    {
+      "id": "ib-historical-request-lifecycle",
+      "surface": "interactive_brokers_historical_request_lifecycle",
+      "product_scope": "IB historical bars, ticks, instruments, and duration segmentation",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "bar specification conversion",
+        "historical tick request boundaries",
+        "contract and instrument ID resolution",
+        "start/duration validation",
+        "IB duration segmentation"
+      ],
+      "fixture_paths": [
+        "rust_adapter_scope_fixture.json"
+      ],
+      "primary_tests": [
+        "src/historical/client.rs",
+        "src/data/convert.rs",
+        "src/providers/instruments.rs"
+      ]
+    },
+    {
+      "id": "ib-execution-order-lifecycle",
+      "surface": "interactive_brokers_execution_order_lifecycle",
+      "product_scope": "IB submit, modify, cancel, order list, and order/fill update handling",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "order transformation",
+        "post-only rejection",
+        "quote-quantity boundary",
+        "trailing offset boundary",
+        "IB order tags and conditions",
+        "open order and fill reports",
+        "spread fill handling"
+      ],
+      "fixture_paths": [
+        "rust_adapter_scope_fixture.json"
+      ],
+      "primary_tests": [
+        "src/execution/core.rs",
+        "src/execution/core_orders.rs",
+        "src/execution/core_updates.rs",
+        "src/execution/core_tests.rs",
+        "src/execution/parse.rs",
+        "src/execution/transform.rs",
+        "src/execution/conditions.rs"
+      ]
+    },
+    {
+      "id": "ib-account-position-lifecycle",
+      "surface": "interactive_brokers_account_position_lifecycle",
+      "product_scope": "IB account summary, PnL, position, and margin lifecycle",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "account summary parsing",
+        "PnL subscription",
+        "position subscription",
+        "account state generation",
+        "margin and currency parsing"
+      ],
+      "fixture_paths": [
+        "rust_adapter_scope_fixture.json"
+      ],
+      "primary_tests": [
+        "src/execution/account.rs",
+        "src/execution/core.rs"
+      ]
+    },
+    {
+      "id": "ib-connection-gateway-lifecycle",
+      "surface": "interactive_brokers_connection_gateway_lifecycle",
+      "product_scope": "IB TWS/Gateway connection smoke and optional Dockerized gateway helper",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "env-gated live connection smoke",
+        "paper TWS/Gateway defaults",
+        "Dockerized gateway config helper",
+        "external gateway prerequisite"
+      ],
+      "fixture_paths": [
+        "rust_adapter_scope_fixture.json"
+      ],
+      "primary_tests": [
+        "tests/connection.rs",
+        "src/gateway/dockerized.rs",
+        "src/factories.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "IB-ADP-001",
+      "status": "open",
+      "inventory_task": "RADP-016",
+      "owner_task": "RADP-018",
+      "summary": "Interactive Brokers now has compact fixture manifests, but parity closure remains assigned to RADP-018."
+    },
+    {
+      "id": "IB-ADP-002",
+      "status": "scoped",
+      "inventory_task": "RADP-016",
+      "owner_task": "RADP-018",
+      "summary": "Interactive Brokers requires an external TWS/IB Gateway session and UTC timestamp configuration."
+    },
+    {
+      "id": "IB-ADP-003",
+      "status": "scoped",
+      "inventory_task": "RADP-016",
+      "owner_task": "RADP-018",
+      "summary": "Interactive Brokers product-family support is broad but still needs compact release classification."
+    },
+    {
+      "id": "IB-ADP-004",
+      "status": "scoped",
+      "inventory_task": "RADP-016",
+      "owner_task": "RADP-018",
+      "summary": "Interactive Brokers market-data subscriptions are IB API specific and not generic Nautilus coverage."
+    },
+    {
+      "id": "IB-ADP-005",
+      "status": "scoped",
+      "inventory_task": "RADP-016",
+      "owner_task": "RADP-018",
+      "summary": "Interactive Brokers historical requests have explicit IB pacing and bar/tick constraints."
+    },
+    {
+      "id": "IB-ADP-006",
+      "status": "scoped",
+      "inventory_task": "RADP-016",
+      "owner_task": "RADP-018",
+      "summary": "Interactive Brokers execution order lifecycle is implemented with explicit order-shape constraints."
+    },
+    {
+      "id": "IB-ADP-007",
+      "status": "scoped",
+      "inventory_task": "RADP-016",
+      "owner_task": "RADP-018",
+      "summary": "Interactive Brokers account, position, PnL, reconnect, and gateway lifecycle need mock, fixture, or explicit scope decisions."
+    },
+    {
+      "id": "IB-ADP-008",
+      "status": "deferred",
+      "inventory_task": "RADP-016",
+      "owner_task": "RADP-018",
+      "summary": "Optional Interactive Brokers Python/PyO3 surfaces remain until the removal gate."
+    }
+  ]
+}

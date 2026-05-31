@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-017",
+  "adapter": "interactive_brokers",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "purpose": "Compact static fixture for Interactive Brokers Rust adapter parser and lifecycle scope decisions.",
+  "gateway_constraints": [
+    "external_tws_or_ib_gateway_required",
+    "utc_timestamps_required",
+    "live_smoke_env_gated",
+    "docker_gateway_optional_feature"
+  ],
+  "supported_security_types": [
+    "Stock",
+    "ForexPair",
+    "Crypto",
+    "Future",
+    "Option",
+    "FuturesOption",
+    "Index",
+    "CFD",
+    "Commodity",
+    "Bond",
+    "Spread"
+  ],
+  "data_surfaces": [
+    "quotes",
+    "tick_by_tick_quote_fallback",
+    "trades",
+    "bars",
+    "book_deltas_l1_l2",
+    "index_prices",
+    "option_greeks"
+  ],
+  "historical_surfaces": [
+    "historical_bars",
+    "historical_ticks",
+    "historical_instruments",
+    "duration_segmentation"
+  ],
+  "execution_surfaces": [
+    "submit_order",
+    "submit_order_list",
+    "modify_order",
+    "cancel_order",
+    "cancel_all_orders",
+    "account_summary",
+    "pnl",
+    "positions",
+    "open_order_reports",
+    "fill_reports",
+    "spread_fill_handling"
+  ],
+  "scoped_rejections": [
+    "post_only",
+    "non_inverse_quote_quantity",
+    "non_price_trailing_offset",
+    "unsupported_order_side",
+    "l3_mbo_book_deltas",
+    "currency_pair_trade_ticks",
+    "non_utc_execution_timestamp",
+    "cancel_all_order_side_filter"
+  ]
+}

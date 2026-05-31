@@ -1,0 +1,17 @@
+{
+  "task_id": "RADP-017",
+  "agent_id": "Codex",
+  "branch": "ai/RADP-017-add-rust-adapter-fixtures-for-interactive-brokers",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RADP-017.md",
+    "docs/rust-cutover/evidence/RADP-017.md",
+    "crates/adapters/interactive_brokers/test_data/rust_adapter_scope_fixture.json",
+    "crates/adapters/interactive_brokers/test_data/rust_fixture_manifest.json",
+    "crates/adapters/interactive_brokers/tests/fixture_manifest.rs",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RADP-017.json"
+  ],
+  "claimed_at": "2026-05-31T11:19:11.458280+00:00",
+  "status": "PR_OPEN",
+  "updated_at": "2026-05-31T11:37:35Z"
+}
