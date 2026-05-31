@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-021",
+  "inventory_task": "RADP-019",
+  "fixture_task": "RADP-020",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "adapter": "architect_ax",
+  "release_gate_decision": "parity_resolved_with_scoped_constraints",
+  "purpose": "Close Architect AX Rust adapter parity gaps by binding each RADP-019 gap to fixture evidence, an explicit scope decision, or the later removal gate.",
+  "decisions": [
+    {
+      "gap_id": "AX-ADP-001",
+      "status": "closed",
+      "decision": "Architect AX HTTP auth/account, HTTP market data, HTTP execution, WebSocket market data, and WebSocket order lifecycle fixture groups are now mapped in a compact Rust fixture manifest.",
+      "evidence_paths": [
+        "test_data/rust_fixture_manifest.json",
+        "tests/fixture_manifest.rs",
+        "tests/data_client.rs",
+        "tests/exec_client.rs",
+        "tests/websocket.rs"
+      ],
+      "release_gate_note": "Architect AX fixture traceability is no longer open for the R5 adapter parity gate."
+    },
+    {
+      "gap_id": "AX-ADP-002",
+      "status": "scoped",
+      "decision": "Architect AX parity is limited to AX perpetual-futures products and AX-specific instrument categories, not generic venue or multi-product parity.",
+      "evidence_paths": [
+        "README.md",
+        "src/http/parse.rs",
+        "src/common/enums.rs",
+        "test_data/rust_fixture_manifest.json"
+      ],
+      "release_gate_note": "Release evidence must keep AX product-family scope explicit."
+    },
+    {
+      "gap_id": "AX-ADP-003",
+      "status": "scoped",
+      "decision": "Architect AX market data keeps L1 downgrade behavior, unsupported index/close surfaces, bar-spec limits, and accepted book levels explicit.",
+      "evidence_paths": [
+        "src/data.rs",
+        "src/websocket/data/parse.rs",
+        "tests/data_client.rs",
+        "tests/websocket.rs",
+        "test_data/rust_fixture_manifest.json"
+      ],
+      "release_gate_note": "Release evidence must not imply unsupported AX market-data surfaces are covered."
+    },
+    {
+      "gap_id": "AX-ADP-004",
+      "status": "scoped",
+      "decision": "Architect AX execution remains limited to market, limit, and stop-limit flows, simulated market order pricing, and explicit GTD rejection.",
+      "evidence_paths": [
+        "src/execution.rs",
+        "src/http/client.rs",
+        "src/websocket/orders/client.rs",
+        "tests/exec_client.rs",
+        "test_data/rust_fixture_manifest.json"
+      ],
+      "release_gate_note": "Release evidence must keep the AX order and time-in-force matrix explicit."
+    },
+    {
+      "gap_id": "AX-ADP-005",
+      "status": "scoped",
+      "decision": "Architect AX token auth, sandbox/production endpoints, public/private WebSocket paths, and cancel-on-disconnect remain fixture or dry-run validated.",
+      "evidence_paths": [
+        "src/common/credential.rs",
+        "src/config.rs",
+        "src/http/client.rs",
+        "src/websocket/orders/client.rs",
+        "tests/http.rs",
+        "test_data/rust_fixture_manifest.json"
+      ],
+      "release_gate_note": "Routine automation must not require real AX credentials for auth, endpoint, or session evidence."
+    },
+    {
+      "gap_id": "AX-ADP-006",
+      "status": "deferred",
+      "decision": "Optional Architect AX Python/PyO3 bridge surfaces are not removed by this adapter parity task.",
+      "evidence_paths": [
+        "src/python/mod.rs",
+        "src/python/http.rs",
+        "src/python/websocket.rs",
+        "Cargo.toml"
+      ],
+      "requires_removal_gate": true,
+      "release_gate_note": "Removal remains blocked until the dedicated Rust-only removal gate approves Python/PyO3 deletion."
+    }
+  ]
+}

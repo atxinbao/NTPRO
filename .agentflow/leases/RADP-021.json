@@ -1,0 +1,17 @@
+{
+  "task_id": "RADP-021",
+  "agent_id": "Codex",
+  "branch": "ai/RADP-021-close-rust-adapter-gaps-for-betfair-architect-ax",
+  "touched_paths": [
+    "crates/adapters/betfair/test_data/rust_adapter_parity_closure.json",
+    "crates/adapters/betfair/tests/fixture_manifest.rs",
+    "crates/adapters/architect_ax/test_data/rust_adapter_parity_closure.json",
+    "crates/adapters/architect_ax/tests/fixture_manifest.rs",
+    "docs/rust-cutover/evidence/RADP-021.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RADP-021.json"
+  ],
+  "claimed_at": "2026-05-31T15:55:16.601726+00:00",
+  "status": "PR_OPEN",
+  "updated_at": "2026-05-31T16:24:14Z"
+}
