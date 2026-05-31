@@ -1,0 +1,14 @@
+{
+  "task_id": "RADP-013",
+  "agent_id": "Codex",
+  "branch": "ai/RADP-013-inventory-rust-adapter-gaps-for-databento-tardis",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RADP-013.md",
+    "docs/rust-cutover/inventory/databento_tardis_adapter_gaps.md",
+    "docs/rust-cutover/evidence/RADP-013.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RADP-013.json"
+  ],
+  "claimed_at": "2026-05-31T09:12:09.994716+00:00",
+  "status": "PR_OPEN"
+}

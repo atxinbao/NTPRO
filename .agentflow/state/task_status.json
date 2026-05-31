@@ -191,7 +191,7 @@
     },
     "RADP-012": {
       "title": "Close Rust adapter gaps for Deribit dYdX Hyperliquid",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -202,11 +202,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RADP-012.md",
       "evidence_file": "docs/rust-cutover/evidence/RADP-012.md",
-      "updated_at": "2026-05-31T09:08:38Z"
+      "updated_at": "2026-05-31T09:18:30Z"
     },
     "RADP-013": {
       "title": "Inventory Rust adapter gaps for Databento Tardis",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -216,7 +216,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RADP-013.md",
-      "evidence_file": "docs/rust-cutover/evidence/RADP-013.md"
+      "evidence_file": "docs/rust-cutover/evidence/RADP-013.md",
+      "updated_at": "2026-05-31T09:18:30Z"
     },
     "RADP-014": {
       "title": "Add Rust adapter fixtures for Databento Tardis",
@@ -1542,5 +1543,5 @@
       "branch": "ai/RCTL-009-pr-summary-risk-automation-policy"
     }
   },
-  "updated_at": "2026-05-31T09:08:38Z"
+  "updated_at": "2026-05-31T09:18:30Z"
 }
