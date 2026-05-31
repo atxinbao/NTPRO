@@ -1,0 +1,17 @@
+{
+  "task_id": "RADP-014",
+  "agent_id": "Codex",
+  "branch": "ai/RADP-014-add-rust-adapter-fixtures-for-databento-tardis",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RADP-014.md",
+    "crates/adapters/databento/test_data/rust_fixture_manifest.json",
+    "crates/adapters/databento/tests/fixture_manifest.rs",
+    "crates/adapters/tardis/test_data/rust_fixture_manifest.json",
+    "crates/adapters/tardis/tests/fixture_manifest.rs",
+    "docs/rust-cutover/evidence/RADP-014.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RADP-014.json"
+  ],
+  "claimed_at": "2026-05-31T09:22:22.992942+00:00",
+  "status": "PR_OPEN"
+}

@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-014",
+  "inventory_task": "RADP-013",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "purpose": "Rust parser and lifecycle fixture coverage manifest for Databento adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "databento-dbn-instrument-parser",
+      "surface": "databento_dbn_instrument_parser",
+      "product_scope": "DBN definition schema and instrument metadata",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "instrument definitions",
+        "symbol and publisher venue mapping",
+        "instrument loader boundary"
+      ],
+      "fixture_paths": [
+        "test_data.definition.dbn.zst"
+      ],
+      "primary_tests": [
+        "src/loader.rs",
+        "src/symbology.rs",
+        "src/historical.rs"
+      ]
+    },
+    {
+      "id": "databento-dbn-book-parser",
+      "surface": "databento_dbn_book_parser",
+      "product_scope": "DBN order book and quote schemas",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "MBO book deltas",
+        "MBP-1 quotes",
+        "MBP-10 depth snapshots",
+        "BBO and consolidated BBO quotes",
+        "TBBO trade quote boundary"
+      ],
+      "fixture_paths": [
+        "test_data.mbo.dbn",
+        "test_data.mbo.dbn.zst",
+        "test_data.mbp-1.dbn.zst",
+        "test_data.mbp-10.dbn.zst",
+        "test_data.bbo-1m.dbn.zst",
+        "test_data.bbo-1s.dbn.zst",
+        "test_data.cbbo-1s.dbn.zst",
+        "test_data.cmbp-1.dbn.zst",
+        "test_data.tbbo.dbn.zst"
+      ],
+      "primary_tests": [
+        "src/decode.rs",
+        "src/loader.rs",
+        "src/historical.rs"
+      ]
+    },
+    {
+      "id": "databento-dbn-trades-bars-parser",
+      "surface": "databento_dbn_trades_bars_parser",
+      "product_scope": "DBN trades and OHLCV bars",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "trade ticks",
+        "1 second bars",
+        "1 minute bars",
+        "1 hour bars",
+        "1 day bars"
+      ],
+      "fixture_paths": [
+        "test_data.trades.dbn.zst",
+        "test_data.ohlcv-1s.dbn.zst",
+        "test_data.ohlcv-1m.dbn.zst",
+        "test_data.ohlcv-1h.dbn.zst",
+        "test_data.ohlcv-1d.dbn.zst"
+      ],
+      "primary_tests": [
+        "src/decode.rs",
+        "src/loader.rs",
+        "src/historical.rs"
+      ]
+    },
+    {
+      "id": "databento-dbn-custom-data-parser",
+      "surface": "databento_dbn_custom_data_parser",
+      "product_scope": "Databento imbalance, statistics, and status schemas",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "imbalance custom data",
+        "statistics custom data",
+        "instrument status"
+      ],
+      "fixture_paths": [
+        "test_data.imbalance.dbn.zst",
+        "test_data.statistics.dbn.zst",
+        "test_data.status.dbn.zst"
+      ],
+      "primary_tests": [
+        "src/types.rs",
+        "src/enums.rs",
+        "src/loader.rs",
+        "src/historical.rs"
+      ]
+    },
+    {
+      "id": "databento-live-feed-handler-lifecycle",
+      "surface": "databento_live_feed_handler_lifecycle",
+      "product_scope": "Databento LSG live data subscriptions and reconnect lifecycle",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "authentication",
+        "schema subscriptions",
+        "reconnection and backoff",
+        "buffered commands",
+        "price precision fallback"
+      ],
+      "fixture_paths": [
+        "test_data.trades.dbn.zst",
+        "test_data.mbp-1.dbn.zst",
+        "test_data.mbp-10.dbn.zst",
+        "test_data.status.dbn.zst"
+      ],
+      "primary_tests": [
+        "tests/feed_handler.rs",
+        "tests/common/mock_server.rs",
+        "src/live.rs",
+        "src/data.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "DBN-ADP-001",
+      "status": "open",
+      "inventory_task": "RADP-013",
+      "owner_task": "RADP-015",
+      "summary": "Databento now has a compact fixture manifest, but parity closure remains assigned to RADP-015."
+    },
+    {
+      "id": "DBN-ADP-002",
+      "status": "scoped",
+      "inventory_task": "RADP-013",
+      "owner_task": "RADP-015",
+      "summary": "Databento is market-data only and has no execution adapter surface."
+    },
+    {
+      "id": "DBN-ADP-003",
+      "status": "scoped",
+      "inventory_task": "RADP-013",
+      "owner_task": "RADP-015",
+      "summary": "Databento live data remains dataset, publisher, and venue-map driven."
+    },
+    {
+      "id": "DBN-ADP-004",
+      "status": "scoped",
+      "inventory_task": "RADP-013",
+      "owner_task": "RADP-015",
+      "summary": "Databento granular unsubscribe and generic historical request paths remain scoped."
+    },
+    {
+      "id": "DBN-ADP-005",
+      "status": "scoped",
+      "inventory_task": "RADP-013",
+      "owner_task": "RADP-015",
+      "summary": "Databento historical book and bar surfaces remain limited to selected DBN schemas."
+    },
+    {
+      "id": "DBN-ADP-006",
+      "status": "scoped",
+      "inventory_task": "RADP-013",
+      "owner_task": "RADP-015",
+      "summary": "Databento custom/statistical schemas support modeled values and skip unsupported stat types."
+    },
+    {
+      "id": "DBN-ADP-007",
+      "status": "deferred",
+      "inventory_task": "RADP-013",
+      "owner_task": "RADP-015",
+      "summary": "Optional Databento Python/PyO3 surfaces remain until the removal gate."
+    }
+  ]
+}
