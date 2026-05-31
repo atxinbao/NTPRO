@@ -10,13 +10,22 @@
 [Binance](https://www.binance.com/) cryptocurrency exchange.
 
 The `nautilus-binance` crate provides client bindings (HTTP & WebSocket), data models,
-and helper utilities that wrap the official **Binance API** across:
+and helper utilities that wrap the official **Binance API**.
+
+Current Rust runtime factory support is scoped to:
 
 - Spot trading (api.binance.com)
-- Spot margin trading
 - USD-M Futures (fapi.binance.com)
 - COIN-M Futures (dapi.binance.com)
-- European Options (eapi.binance.com)
+
+The product enum still models Margin and Options for compatibility with the wider
+Binance domain, but the Rust runtime factories do not create Margin or Options
+data/execution clients yet. Treat those surfaces as deferred until dedicated
+factory and runtime support is added.
+
+Configure one Binance runtime client per product target. The current Rust factory
+boundary selects a single product type for a created client; it is not a
+multi-product client registration path.
 
 ## NautilusTrader
 
