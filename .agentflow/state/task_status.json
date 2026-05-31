@@ -221,7 +221,7 @@
     },
     "RADP-014": {
       "title": "Add Rust adapter fixtures for Databento Tardis",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -232,11 +232,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RADP-014.md",
       "evidence_file": "docs/rust-cutover/evidence/RADP-014.md",
-      "updated_at": "2026-05-31T10:14:19Z"
+      "updated_at": "2026-05-31T10:43:27Z"
     },
     "RADP-015": {
       "title": "Close Rust adapter gaps for Databento Tardis",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -246,7 +246,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RADP-015.md",
-      "evidence_file": "docs/rust-cutover/evidence/RADP-015.md"
+      "evidence_file": "docs/rust-cutover/evidence/RADP-015.md",
+      "updated_at": "2026-05-31T11:00:49Z"
     },
     "RADP-016": {
       "title": "Inventory Rust adapter gaps for Interactive Brokers",
@@ -1544,5 +1545,5 @@
       "branch": "ai/RCTL-009-pr-summary-risk-automation-policy"
     }
   },
-  "updated_at": "2026-05-31T10:14:19Z"
+  "updated_at": "2026-05-31T11:00:49Z"
 }

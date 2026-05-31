@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-015",
+  "inventory_task": "RADP-013",
+  "fixture_task": "RADP-014",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "adapter": "tardis",
+  "release_gate_decision": "parity_resolved_with_scoped_constraints",
+  "purpose": "Close Tardis Rust adapter parity gaps by binding each inventory gap to fixture evidence, an explicit scope decision, or the later removal gate.",
+  "decisions": [
+    {
+      "gap_id": "TDS-ADP-001",
+      "status": "closed",
+      "decision": "Compact fixture coverage manifest now maps Tardis HTTP, Machine, CSV, replay, and lifecycle surfaces to Rust fixtures and tests.",
+      "evidence_paths": [
+        "test_data/rust_fixture_manifest.json",
+        "tests/fixture_manifest.rs"
+      ],
+      "release_gate_note": "Tardis fixture traceability is no longer open for the R5 adapter parity gate."
+    },
+    {
+      "gap_id": "TDS-ADP-002",
+      "status": "scoped",
+      "decision": "Tardis remains a market-data adapter only; execution adapter parity is out of scope for this venue surface.",
+      "evidence_paths": [
+        "src/data.rs",
+        "src/machine/mod.rs",
+        "src/replay.rs"
+      ],
+      "release_gate_note": "Release notes must not claim Tardis execution support."
+    },
+    {
+      "gap_id": "TDS-ADP-003",
+      "status": "scoped",
+      "decision": "Tardis startup intentionally requires explicit replay or stream options; zero-config startup remains out of scope.",
+      "evidence_paths": [
+        "src/config.rs",
+        "src/data.rs",
+        "tests/data_client.rs"
+      ],
+      "release_gate_note": "Rust examples and docs must keep replay or stream options explicit."
+    },
+    {
+      "gap_id": "TDS-ADP-004",
+      "status": "scoped",
+      "decision": "Tardis replay output remains constrained to supported Nautilus data writer types and skips unsupported message classes.",
+      "evidence_paths": [
+        "test_data/rust_fixture_manifest.json",
+        "src/replay.rs",
+        "src/machine/parse.rs"
+      ],
+      "release_gate_note": "Replay output scope must remain documented as constrained."
+    },
+    {
+      "gap_id": "TDS-ADP-005",
+      "status": "scoped",
+      "decision": "Tardis bar and book conversions remain venue-message specific and are covered by explicit fixture groups.",
+      "evidence_paths": [
+        "test_data/rust_fixture_manifest.json",
+        "src/common/parse.rs",
+        "src/machine/parse.rs"
+      ],
+      "release_gate_note": "Supported aggregation strings and book output modes must remain pinned in evidence."
+    },
+    {
+      "gap_id": "TDS-ADP-006",
+      "status": "closed",
+      "decision": "Tardis instrument normalization support is now classified through the HTTP instrument parser fixture group.",
+      "evidence_paths": [
+        "test_data/rust_fixture_manifest.json",
+        "tests/http.rs",
+        "src/http/instruments.rs",
+        "src/http/parse.rs"
+      ],
+      "release_gate_note": "Spot, perpetual, future, option, and combo instrument classification is fixture-backed."
+    },
+    {
+      "gap_id": "TDS-ADP-007",
+      "status": "deferred",
+      "decision": "Optional Tardis Python/PyO3 surfaces and Python-featured model dependency are not removed by this adapter parity task.",
+      "evidence_paths": [
+        "src/python/mod.rs"
+      ],
+      "requires_removal_gate": true,
+      "release_gate_note": "Removal remains blocked until the dedicated Rust-only removal gate approves Python/PyO3 deletion and Cargo feature cleanup."
+    }
+  ]
+}
