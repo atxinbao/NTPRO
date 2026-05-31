@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-005",
+  "inventory_task": "RADP-004",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "purpose": "Rust parser and lifecycle fixture coverage manifest for Bybit adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "bybit-http-instrument-parser",
+      "surface": "bybit_http_instrument_parser",
+      "product_scope": "Spot, Linear, Inverse, Option",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "spot instruments",
+        "linear instruments",
+        "inverse instruments",
+        "option instruments",
+        "xstocks spot instruments"
+      ],
+      "fixture_paths": [
+        "http_get_instruments_spot.json",
+        "http_get_instruments_spot_xstocks.json",
+        "http_get_instruments_linear.json",
+        "http_get_instruments_inverse.json",
+        "http_get_instruments_option.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "src/common/parse.rs",
+        "src/http/models.rs"
+      ]
+    },
+    {
+      "id": "bybit-http-market-data-parser",
+      "surface": "bybit_http_market_data_parser",
+      "product_scope": "Spot, Linear, Inverse, Option",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "order book snapshot",
+        "recent trades",
+        "linear klines",
+        "funding history",
+        "fee rate"
+      ],
+      "fixture_paths": [
+        "http_get_orderbook.json",
+        "http_get_trades_recent.json",
+        "http_get_klines_linear.json",
+        "http_get_funding_history.json",
+        "http_get_fee_rate.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "tests/data_client.rs",
+        "src/data.rs"
+      ]
+    },
+    {
+      "id": "bybit-http-execution-lifecycle",
+      "surface": "bybit_http_execution_lifecycle",
+      "product_scope": "Spot, Linear, Inverse, Option",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "account info",
+        "wallet balance",
+        "positions",
+        "realtime orders",
+        "order history",
+        "execution reports"
+      ],
+      "fixture_paths": [
+        "http_get_account_info.json",
+        "http_get_wallet_balance.json",
+        "http_get_positions.json",
+        "http_get_orders_realtime.json",
+        "http_get_orders_history.json",
+        "http_get_executions.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "tests/exec_client.rs",
+        "src/execution.rs"
+      ]
+    },
+    {
+      "id": "bybit-ws-market-data-parser",
+      "surface": "bybit_ws_market_data_parser",
+      "product_scope": "Spot, Linear, Inverse, Option",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "public trade",
+        "order book snapshot",
+        "order book delta",
+        "kline",
+        "linear ticker",
+        "option ticker"
+      ],
+      "fixture_paths": [
+        "ws_public_trade.json",
+        "ws_orderbook_snapshot.json",
+        "ws_orderbook_delta.json",
+        "ws_kline.json",
+        "ws_ticker_linear.json",
+        "ws_ticker_option.json"
+      ],
+      "primary_tests": [
+        "tests/websocket.rs",
+        "src/websocket/parse.rs",
+        "src/websocket/messages.rs"
+      ]
+    },
+    {
+      "id": "bybit-ws-account-lifecycle",
+      "surface": "bybit_ws_account_lifecycle",
+      "product_scope": "Unified account",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "auth success and failure",
+        "order updates",
+        "fills and executions",
+        "positions",
+        "wallet updates",
+        "order response"
+      ],
+      "fixture_paths": [
+        "ws_auth_success.json",
+        "ws_auth_failure.json",
+        "ws_account_order.json",
+        "ws_account_order_filled.json",
+        "ws_account_execution.json",
+        "ws_account_position.json",
+        "ws_account_wallet.json",
+        "ws_order_response.json"
+      ],
+      "primary_tests": [
+        "tests/websocket.rs",
+        "tests/exec_client.rs",
+        "src/websocket/dispatch.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "BYB-ADP-001",
+      "status": "open",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "Bybit Rust product scope is broad but lacks a compact parity closure manifest."
+    },
+    {
+      "id": "BYB-ADP-002",
+      "status": "open",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "Bybit data creates per-product public WebSockets while execution uses shared private/trade clients."
+    },
+    {
+      "id": "BYB-ADP-003",
+      "status": "scoped",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "Bybit order-book subscriptions only support L2 MBP depths 1, 50, 200, and 500."
+    },
+    {
+      "id": "BYB-ADP-004",
+      "status": "scoped",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "Bybit funding, mark/index, and bar requests have product-specific unsupported combinations."
+    },
+    {
+      "id": "BYB-ADP-005",
+      "status": "scoped",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "Bybit execution has unsupported order and environment cases that must remain explicit."
+    },
+    {
+      "id": "BYB-ADP-006",
+      "status": "deferred",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "Optional Bybit Python/PyO3 surfaces remain until the removal gate."
+    }
+  ]
+}

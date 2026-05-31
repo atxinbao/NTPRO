@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-005",
+  "inventory_task": "RADP-004",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "purpose": "Rust parser and lifecycle fixture coverage manifest for OKX adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "okx-http-instrument-parser",
+      "surface": "okx_http_instrument_parser",
+      "product_scope": "Spot, Margin, Swap, Futures, Option, Spreads",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "spot instruments",
+        "margin instruments",
+        "swap instruments",
+        "futures instruments",
+        "option instruments",
+        "spread definitions"
+      ],
+      "fixture_paths": [
+        "http_get_instruments_spot.json",
+        "http_get_instruments_margin.json",
+        "http_get_instruments_swap.json",
+        "http_get_instruments_futures.json",
+        "http_get_instruments_option.json",
+        "http_get_spreads.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "src/common/parse.rs",
+        "src/http/models.rs"
+      ]
+    },
+    {
+      "id": "okx-http-market-data-parser",
+      "surface": "okx_http_market_data_parser",
+      "product_scope": "Spot, Margin, Swap, Futures, Option",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "order book",
+        "candlesticks",
+        "funding rate history",
+        "index price",
+        "mark price",
+        "option summary"
+      ],
+      "fixture_paths": [
+        "http_get_order_book.json",
+        "http_get_candlesticks.json",
+        "http_get_funding_rate_history.json",
+        "http_get_index_price.json",
+        "http_get_mark_price.json",
+        "http_get_option_summary.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "tests/data_client.rs",
+        "src/data.rs"
+      ]
+    },
+    {
+      "id": "okx-http-execution-lifecycle",
+      "surface": "okx_http_execution_lifecycle",
+      "product_scope": "Spot, Margin, Swap, Futures, Option, Spreads",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "account balance",
+        "positions",
+        "pending orders",
+        "order history",
+        "place order",
+        "algo order",
+        "spread orders"
+      ],
+      "fixture_paths": [
+        "http_get_account_balance.json",
+        "http_get_positions.json",
+        "http_get_orders_pending.json",
+        "http_get_orders_history.json",
+        "http_place_order_response.json",
+        "http_place_algo_order_response.json",
+        "http_get_spread_orders.json",
+        "http_get_spread_trades.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "tests/exec_client.rs",
+        "src/execution.rs"
+      ]
+    },
+    {
+      "id": "okx-ws-market-data-parser",
+      "surface": "okx_ws_market_data_parser",
+      "product_scope": "Spot, Margin, Swap, Futures, Option, Events",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "books snapshot",
+        "books update",
+        "BBO",
+        "trades",
+        "tickers",
+        "candles",
+        "funding rate",
+        "option summary"
+      ],
+      "fixture_paths": [
+        "ws_books_snapshot.json",
+        "ws_books_update.json",
+        "ws_bbo_tbt.json",
+        "ws_trades.json",
+        "ws_tickers.json",
+        "ws_candle.json",
+        "ws_funding_rate.json",
+        "ws_opt_summary.json"
+      ],
+      "primary_tests": [
+        "tests/websocket.rs",
+        "src/websocket/parse.rs",
+        "src/websocket/messages.rs"
+      ]
+    },
+    {
+      "id": "okx-ws-private-lifecycle",
+      "surface": "okx_ws_private_lifecycle",
+      "product_scope": "Account, orders, spread orders",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "account updates",
+        "order updates",
+        "algo order updates",
+        "option order updates",
+        "spread order updates"
+      ],
+      "fixture_paths": [
+        "ws_account.json",
+        "ws_account_empty.json",
+        "ws_orders.json",
+        "ws_orders_algo.json",
+        "ws_orders_option.json",
+        "ws_orders_trigger.json",
+        "ws_sprd_orders.json"
+      ],
+      "primary_tests": [
+        "tests/websocket.rs",
+        "tests/exec_client.rs",
+        "src/websocket/parse.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "OKX-ADP-001",
+      "status": "open",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "OKX Rust instrument scope is broad and needs compact parity closure."
+    },
+    {
+      "id": "OKX-ADP-002",
+      "status": "scoped",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "OKX options and events do not support every regular order/algo path."
+    },
+    {
+      "id": "OKX-ADP-003",
+      "status": "scoped",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "OKX spread order support uses separate APIs and has order-list, conditional, FOK, and modify limits."
+    },
+    {
+      "id": "OKX-ADP-004",
+      "status": "scoped",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "OKX order-book subscriptions only support L2 MBP and clamp depth to supported channels."
+    },
+    {
+      "id": "OKX-ADP-005",
+      "status": "scoped",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "OKX option loading requires configured instrument families."
+    },
+    {
+      "id": "OKX-ADP-006",
+      "status": "deferred",
+      "inventory_task": "RADP-004",
+      "owner_task": "RADP-006",
+      "summary": "Optional OKX Python/PyO3 surfaces remain until the removal gate."
+    }
+  ]
+}

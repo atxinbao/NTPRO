@@ -1,0 +1,20 @@
+{
+  "task_id": "RADP-005",
+  "agent_id": "Codex",
+  "branch": "ai/RADP-005-add-rust-adapter-fixtures-for-bybit-okx-kraken",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RADP-005.md",
+    "docs/rust-cutover/inventory/bybit_okx_kraken_adapter_gaps.md",
+    "docs/rust-cutover/evidence/RADP-005.md",
+    "crates/adapters/bybit/test_data/rust_fixture_manifest.json",
+    "crates/adapters/bybit/tests/fixture_manifest.rs",
+    "crates/adapters/okx/test_data/rust_fixture_manifest.json",
+    "crates/adapters/okx/tests/fixture_manifest.rs",
+    "crates/adapters/kraken/test_data/rust_fixture_manifest.json",
+    "crates/adapters/kraken/tests/fixture_manifest.rs",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RADP-005.json"
+  ],
+  "claimed_at": "2026-05-31T04:55:54.633138+00:00",
+  "status": "PR_OPEN"
+}
