@@ -1,0 +1,14 @@
+{
+  "task_id": "RADP-004",
+  "agent_id": "Codex",
+  "branch": "ai/RADP-004-inventory-rust-adapter-gaps-for-bybit-okx-kraken",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RADP-004.md",
+    "docs/rust-cutover/inventory/bybit_okx_kraken_adapter_gaps.md",
+    "docs/rust-cutover/evidence/RADP-004.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RADP-004.json"
+  ],
+  "claimed_at": "2026-05-31T04:36:50.396635+00:00",
+  "status": "PR_OPEN"
+}
