@@ -109,45 +109,114 @@
   "scoped_blockers": [
     {
       "id": "HYP-ADP-001",
-      "status": "open",
+      "status": "closed",
       "inventory_task": "RADP-010",
       "owner_task": "RADP-012",
-      "summary": "Hyperliquid Rust fixture coverage now has a compact manifest, but parity closure remains assigned to RADP-012."
+      "summary": "Hyperliquid Rust fixture coverage now has a compact manifest, but parity closure remains assigned to RADP-012.",
+      "resolution": "Closed by RADP-011 compact manifest coverage for Hyperliquid HTTP, WebSocket, account/funding, and outcome operational fixture groups."
     },
     {
       "id": "HYP-ADP-002",
       "status": "scoped",
       "inventory_task": "RADP-010",
       "owner_task": "RADP-012",
-      "summary": "Hyperliquid product support is scoped to perps, spot, and HIP-4 outcomes."
+      "summary": "Hyperliquid product support is scoped to perps, spot, and HIP-4 outcomes.",
+      "resolution": "Scoped as supported with constraints: Hyperliquid product support remains perps, spot, and best-effort HIP-4 outcomes."
     },
     {
       "id": "HYP-ADP-003",
       "status": "scoped",
       "inventory_task": "RADP-010",
       "owner_task": "RADP-012",
-      "summary": "Hyperliquid market data is scoped to L2 MBP and venue-specific custom streams."
+      "summary": "Hyperliquid market data is scoped to L2 MBP and venue-specific custom streams.",
+      "resolution": "Scoped as supported with constraints: Hyperliquid market data remains L2 MBP plus all-mids and open-interest custom streams."
     },
     {
       "id": "HYP-ADP-004",
       "status": "scoped",
       "inventory_task": "RADP-010",
       "owner_task": "RADP-012",
-      "summary": "Hyperliquid execution maps market orders to IOC limits and has product-specific restrictions."
+      "summary": "Hyperliquid execution maps market orders to IOC limits and has product-specific restrictions.",
+      "resolution": "Scoped as supported with constraints: Hyperliquid execution keeps IOC-derived market orders, current TIF restrictions, CLOID handling, and HIP-4 outcome limits."
     },
     {
       "id": "HYP-ADP-005",
-      "status": "open",
+      "status": "scoped",
       "inventory_task": "RADP-010",
       "owner_task": "RADP-012",
-      "summary": "Hyperliquid operational lifecycle needs release-gate parity closure."
+      "summary": "Hyperliquid operational lifecycle needs release-gate parity closure.",
+      "resolution": "Scoped as supported with constraints: Hyperliquid WebSocket post execution, CLOID cache, address resolution, clearinghouse reconciliation, and optional outcome polling are release-gate visible through the operational manifest group."
     },
     {
       "id": "HYP-ADP-006",
       "status": "deferred",
       "inventory_task": "RADP-010",
       "owner_task": "RADP-012",
-      "summary": "Optional Hyperliquid Python/PyO3 surfaces remain until the removal gate."
+      "summary": "Optional Hyperliquid Python/PyO3 surfaces remain until the removal gate.",
+      "resolution": "Deferred to the Rust-only removal gate because RADP-012 does not authorize deleting optional Python/PyO3 surfaces."
+    }
+  ],
+  "gap_closure": [
+    {
+      "id": "HYP-ADP-001",
+      "status": "closed",
+      "review_task": "RADP-012",
+      "decision": "Closed by RADP-011 compact manifest coverage for Hyperliquid HTTP, WebSocket, account/funding, and outcome operational fixture groups.",
+      "evidence_refs": [
+        "crates/adapters/hyperliquid/test_data/rust_fixture_manifest.json",
+        "crates/adapters/hyperliquid/tests/fixture_manifest.rs",
+        "docs/rust-cutover/evidence/RADP-011.md"
+      ]
+    },
+    {
+      "id": "HYP-ADP-002",
+      "status": "scoped",
+      "review_task": "RADP-012",
+      "decision": "Scoped as supported with constraints: Hyperliquid product support remains perps, spot, and best-effort HIP-4 outcomes.",
+      "evidence_refs": [
+        "docs/rust-cutover/inventory/deribit_dydx_hyperliquid_adapter_gaps.md",
+        "crates/adapters/hyperliquid/test_data/rust_fixture_manifest.json"
+      ]
+    },
+    {
+      "id": "HYP-ADP-003",
+      "status": "scoped",
+      "review_task": "RADP-012",
+      "decision": "Scoped as supported with constraints: Hyperliquid market data remains L2 MBP plus all-mids and open-interest custom streams.",
+      "evidence_refs": [
+        "docs/rust-cutover/inventory/deribit_dydx_hyperliquid_adapter_gaps.md",
+        "crates/adapters/hyperliquid/test_data/rust_fixture_manifest.json"
+      ]
+    },
+    {
+      "id": "HYP-ADP-004",
+      "status": "scoped",
+      "review_task": "RADP-012",
+      "decision": "Scoped as supported with constraints: Hyperliquid execution keeps IOC-derived market orders, current TIF restrictions, CLOID handling, and HIP-4 outcome limits.",
+      "evidence_refs": [
+        "docs/rust-cutover/inventory/deribit_dydx_hyperliquid_adapter_gaps.md",
+        "crates/adapters/hyperliquid/test_data/rust_fixture_manifest.json"
+      ]
+    },
+    {
+      "id": "HYP-ADP-005",
+      "status": "scoped",
+      "review_task": "RADP-012",
+      "decision": "Scoped as supported with constraints: Hyperliquid WebSocket post execution, CLOID cache, address resolution, clearinghouse reconciliation, and optional outcome polling are release-gate visible through the operational manifest group.",
+      "evidence_refs": [
+        "docs/rust-cutover/inventory/deribit_dydx_hyperliquid_adapter_gaps.md",
+        "crates/adapters/hyperliquid/test_data/rust_fixture_manifest.json"
+      ]
+    },
+    {
+      "id": "HYP-ADP-006",
+      "status": "deferred",
+      "review_task": "RADP-012",
+      "decision": "Deferred to the Rust-only removal gate because RADP-012 does not authorize deleting optional Python/PyO3 surfaces.",
+      "evidence_refs": [
+        "docs/rust-cutover/CONTRACT.md",
+        "docs/rust-cutover/TASK_EXECUTION.md"
+      ]
     }
   ]
 }

@@ -157,6 +157,17 @@ fn rust_fixture_manifest_is_complete_and_resolvable() {
             !blocker["summary"].as_str().unwrap_or_default().is_empty(),
             "blocker {id} must have a summary"
         );
+        let status = blocker["status"]
+            .as_str()
+            .expect("blocker status must be set");
+        assert_ne!(status, "open", "RADP-012 should scope blocker {id}");
+        assert!(
+            !blocker["resolution"]
+                .as_str()
+                .unwrap_or_default()
+                .is_empty(),
+            "blocker {id} must have a RADP-012 resolution"
+        );
     }
 
     for expected in [
@@ -170,6 +181,48 @@ fn rust_fixture_manifest_is_complete_and_resolvable() {
         assert!(
             blocker_ids.contains(expected),
             "missing RADP-010 blocker entry for {expected}"
+        );
+    }
+
+    let closure = manifest["gap_closure"]
+        .as_array()
+        .expect("gap_closure must be an array");
+    let mut closure_ids = BTreeSet::new();
+
+    for entry in closure {
+        let id = entry["id"].as_str().expect("closure id must be set");
+        assert!(id.starts_with("DYDX-ADP-"), "unexpected closure id: {id}");
+        assert!(closure_ids.insert(id), "duplicate gap closure id {id}");
+
+        let status = entry["status"]
+            .as_str()
+            .expect("closure status must be set");
+        assert_ne!(status, "open", "RADP-012 should not leave {id} open");
+        assert_eq!(entry["review_task"], "RADP-012");
+        assert!(
+            !entry["decision"].as_str().unwrap_or_default().is_empty(),
+            "closure {id} must have a decision"
+        );
+        assert!(
+            !entry["evidence_refs"]
+                .as_array()
+                .expect("closure evidence_refs must be an array")
+                .is_empty(),
+            "closure {id} must list evidence references"
+        );
+    }
+
+    for expected in [
+        "DYDX-ADP-001",
+        "DYDX-ADP-002",
+        "DYDX-ADP-003",
+        "DYDX-ADP-004",
+        "DYDX-ADP-005",
+        "DYDX-ADP-006",
+    ] {
+        assert!(
+            closure_ids.contains(expected),
+            "missing RADP-012 gap closure entry for {expected}"
         );
     }
 }
