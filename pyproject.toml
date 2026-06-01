@@ -41,37 +41,6 @@ homepage = "https://nautilustrader.io"
 repository = "https://github.com/nautechsystems/nautilus_trader"
 docs = "https://nautilustrader.io/docs"
 
-# For now we use the poetry build backend until uv supports custom build scripts
-[build-system]
-requires = [
-  "setuptools>=82",
-  "poetry-core==2.3.1", # Pinned to 2.3.1 for stability
-  "numpy>=1.26.4",
-]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry]
-include = [
-  # Rust source must be included in the source distributions
-  { path = "crates/*", format = "sdist" },
-  { path = "Cargo.lock", format = "sdist" },
-  { path = "Cargo.toml", format = "sdist" },
-  { path = ".cargo/*", format = "sdist" },
-  # Compiled extensions must be included in the wheel distributions
-  { path = "nautilus_trader/**/*.so", format = "wheel" },
-  { path = "nautilus_trader/**/*.pyd", format = "wheel" },
-  # Include the py.typed file for type checking support
-  { path = "nautilus_trader/py.typed", format = "sdist" },
-  { path = "nautilus_trader/py.typed", format = "wheel" },
-  # Include Python interface files for type checking support
-  { path = "nautilus_trader/**/*.pyi", format = "sdist" },
-  { path = "nautilus_trader/**/*.pyi", format = "wheel" },
-]
-
-[tool.poetry.build]
-script = "build.py"
-generate-setup-file = false
-
 [project.optional-dependencies]
 betfair = ["betfair-parser==0.19.1"] # Pinned to 0.19.1 for stability
 ib = [
@@ -124,8 +93,8 @@ exclude-newer = "3 days"
 # Block sdist builds for every third-party package in uv.lock so unexpected loss
 # of wheel publishing fails `uv lock` instead of silently building from source.
 # Kept in sync with uv.lock by scripts/check-no-build-packages.sh (also a
-# pre-commit hook). The local `nautilus_trader` package is intentionally absent
-# because it must be built by the workspace's own build backend.
+# pre-commit hook). The root project entry is retained only for local Python
+# tooling metadata after the product package build surface was removed.
 no-build-package = [
   "accessible-pygments",
   "aiohappyeyeballs",
@@ -147,6 +116,7 @@ no-build-package = [
   "click",
   "colorama",
   "coverage",
+  "cython",
   "cytoolz",
   "defusedxml",
   "docker",
@@ -410,7 +380,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 force-single-line = true
 lines-after-imports = 2
 split-on-trailing-comma = true
-known-first-party = ["nautilus_trader"]
+known-first-party = []
 
 [tool.ruff.format]
 # Inherits target-version, line-length, exclude from [tool.ruff]
@@ -420,7 +390,6 @@ docstring-code-format = true
 max-complexity = 10
 
 [tool.ruff.lint.per-file-ignores]
-"build.py" = ["S603", "S607"] # Build script needs subprocess calls
 "docs/getting_started/**/*.py" = [
   "D",
   "E402",
@@ -451,15 +420,6 @@ max-complexity = 10
   "S105",
   "S106",
 ] # Examples can use naive datetimes, asserts, and mock credentials
-"nautilus_trader/common/config.py" = [
-  "S105",
-] # redacted_password variable is intentional
-"nautilus_trader/adapters/betfair/**/*.py" = [
-  "S101",
-] # Betfair adapter uses asserts for validation (for now)
-"python/nautilus_trader/adapters/hyperliquid/__init__.py" = [
-  "PLE0604",
-] # Dynamic __all__ extension from star import
 "test_perf_logger.py" = ["S311"]
 "tests/**/*.py" = [
   "S101",
@@ -478,16 +438,12 @@ warn_no_return = true
 warn_unused_configs = true
 warn_unused_ignores = true
 mypy_path = ["."]
-exclude = "(^python/examples/|^examples/|^docs/getting_started/|^docs/tutorials/|^docs/how_to/)"
+exclude = "(^examples/|^docs/getting_started/|^docs/tutorials/|^docs/how_to/)"
 
 [[tool.mypy.overrides]]
 strict_optional = false
 module = [
   "examples/*",
-  "nautilus_trader/adapters/betfair/*",
-  "nautilus_trader/adapters/binance/*",
-  "nautilus_trader/adapters/interactive_brokers/*",
-  "nautilus_trader/indicators/ta_lib/*",
 ]
 
 [tool.pytest.ini_options]
@@ -498,12 +454,7 @@ asyncio_default_fixture_loop_scope = "session"
 filterwarnings = ["ignore::UserWarning", "ignore::DeprecationWarning"]
 
 [tool.coverage.run]
-source = ["nautilus_trader"]
-omit = [
-  "nautilus_trader/adapters/*",
-  "nautilus_trader/examples/*",
-  "nautilus_trader/test_kit/*",
-]
+source = ["tests"]
 
 [tool.coverage.report]
 fail_under = 0

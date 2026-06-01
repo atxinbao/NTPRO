@@ -7,8 +7,6 @@ stage="${1:-unknown stage}"
 targets=(
   .github/actions
   .github/workflows
-  python/generate_docstrings.py
-  python/generate_stubs.py
 )
 
 git update-index -q --refresh

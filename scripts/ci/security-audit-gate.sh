@@ -24,9 +24,9 @@ set -euo pipefail
 #
 # Audit-relevant paths. Keep in sync with the `security_audit_paths` anchor in
 # .github/workflows/security-audit.yml.
-#   - Lock files                Cargo.lock, uv.lock, python/uv.lock
+#   - Lock files                Cargo.lock, uv.lock
 #   - Manifests                 Cargo.toml, crates/(...)?Cargo.toml,
-#                               pyproject.toml, python/pyproject.toml
+#                               pyproject.toml
 #   - Audit policy              deny.toml, osv-scanner.toml, .cargo/audit.toml,
 #                               .supply-chain/*, .zizmor.yml
 #   - Toolchain config          .cargo/config.toml, rust-toolchain.toml,
@@ -84,7 +84,6 @@ pattern+='Cargo\.(lock|toml)'
 pattern+='|crates/(.*/)?Cargo\.toml'
 pattern+='|uv\.lock|pyproject\.toml'
 pattern+='|\.pre-commit-config\.yaml'
-pattern+='|python/(uv\.lock|pyproject\.toml)'
 pattern+='|deny\.toml|osv-scanner\.toml|\.supply-chain/.*|\.zizmor\.yml'
 pattern+='|tools\.toml|\.cargo/(config|audit)\.toml|rust-toolchain\.toml'
 pattern+='|scripts/(cargo-tool-version|rust-toolchain|uv-version)\.sh'

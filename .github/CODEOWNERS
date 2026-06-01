@@ -31,10 +31,6 @@
 /pyproject.toml                  @nautechsystems/core
 /uv.lock                         @nautechsystems/core
 
-# Python nautilus_trader v2 system
-/python/pyproject.toml           @nautechsystems/core
-/python/uv.lock                  @nautechsystems/core
-
 # =============================================================================
 # Build & CI Configuration
 # =============================================================================
@@ -73,7 +69,6 @@
 # =============================================================================
 # Build Automation & Reporting
 # =============================================================================
-/build.py                        @nautechsystems/core
 /.codecov.yml                    @nautechsystems/core
 
 # =============================================================================
