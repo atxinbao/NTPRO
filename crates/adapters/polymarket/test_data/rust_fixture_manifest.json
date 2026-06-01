@@ -1,0 +1,270 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-023",
+  "inventory_task": "RADP-022",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "adapter": "polymarket",
+  "purpose": "Rust parser and lifecycle fixture coverage manifest for Polymarket adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "polymarket-gamma-instrument-discovery",
+      "surface": "polymarket_gamma_instrument_discovery",
+      "product_scope": "Gamma market, event, tag, search, slug, and filter discovery for Polymarket binary outcome instruments",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "Gamma market response parsing into BinaryOption instruments",
+        "sports market fee schedules and game metadata",
+        "event, tag, search, slug, and filter discovery",
+        "missing instrument auto-load by CLOB condition IDs"
+      ],
+      "fixture_paths": [
+        "gamma_market.json",
+        "gamma_market_sports_market_money_line.json",
+        "gamma_market_sports_market_map_handicap.json",
+        "gamma_event.json",
+        "gamma_tags.json",
+        "search_response.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "src/http/parse.rs",
+        "src/providers.rs",
+        "src/filters.rs"
+      ]
+    },
+    {
+      "id": "polymarket-clob-public-market-data",
+      "surface": "polymarket_clob_public_market_data",
+      "product_scope": "CLOB book snapshots, fee rates, L2_MBP books, quotes, trades, and public REST market-data requests",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "CLOB L2_MBP order book parsing",
+        "book snapshot requests",
+        "trade tick requests",
+        "zero and nonzero fee-rate payloads"
+      ],
+      "fixture_paths": [
+        "clob_book_response.json",
+        "clob_fee_rate_response_zero.json",
+        "clob_fee_rate_response_nonzero.json",
+        "data_api_trades_response.json"
+      ],
+      "primary_tests": [
+        "tests/data_client.rs",
+        "tests/http.rs",
+        "src/http/clob.rs",
+        "src/data.rs"
+      ]
+    },
+    {
+      "id": "polymarket-data-api-history-positions",
+      "surface": "polymarket_data_api_history_positions",
+      "product_scope": "Data API trades and positions used for fills, reports, and reconciliation evidence",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "Data API trade page parsing",
+        "Data API position page parsing",
+        "fill report synthesis",
+        "position report synthesis"
+      ],
+      "fixture_paths": [
+        "data_api_trades_response.json",
+        "data_api_positions_response.json",
+        "http_trades_page.json",
+        "http_trade_report.json"
+      ],
+      "primary_tests": [
+        "tests/http.rs",
+        "tests/exec_client.rs",
+        "src/http/data_api.rs",
+        "src/execution/reconciliation.rs"
+      ]
+    },
+    {
+      "id": "polymarket-ws-market-data-lifecycle",
+      "surface": "polymarket_ws_market_data_lifecycle",
+      "product_scope": "Public market WebSocket lifecycle for book, price, quote, tick-size, trade, resolved, and new-market messages",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "market WebSocket connect and subscribe lifecycle",
+        "book snapshot and book update messages",
+        "price-change derived quotes",
+        "trade, tick-size, resolved, and new-market messages",
+        "reconnect subscription replay"
+      ],
+      "fixture_paths": [
+        "ws_book_snapshot.json",
+        "ws_market_book_msg.json",
+        "ws_market_price_change_msg.json",
+        "ws_market_best_bid_ask_msg.json",
+        "ws_market_last_trade_msg.json",
+        "ws_market_tick_size_msg.json",
+        "ws_market_new_market_msg.json",
+        "ws_market_resolved_msg.json",
+        "ws_quotes.json",
+        "ws_tick_size_change.json",
+        "ws_last_trade.json"
+      ],
+      "primary_tests": [
+        "tests/websocket.rs",
+        "src/websocket/messages.rs",
+        "src/websocket/parse.rs",
+        "src/websocket/dispatch.rs"
+      ]
+    },
+    {
+      "id": "polymarket-ws-user-order-lifecycle",
+      "surface": "polymarket_ws_user_order_lifecycle",
+      "product_scope": "Authenticated user WebSocket order and trade lifecycle messages",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "authenticated user subscription payloads",
+        "order placement, update, match, cancellation, venue cancel, and FOK kill messages",
+        "user trade messages",
+        "order and fill dispatch boundaries"
+      ],
+      "fixture_paths": [
+        "ws_user_order_msg.json",
+        "ws_user_order_placement.json",
+        "ws_user_order_update.json",
+        "ws_user_order_matched.json",
+        "ws_user_order_cancellation.json",
+        "ws_user_order_venue_cancel.json",
+        "ws_user_order_fok_killed.json",
+        "ws_user_trade.json",
+        "ws_user_trade_msg.json"
+      ],
+      "primary_tests": [
+        "tests/websocket.rs",
+        "tests/exec_client.rs",
+        "src/websocket/messages.rs",
+        "src/websocket/dispatch.rs"
+      ]
+    },
+    {
+      "id": "polymarket-execution-order-lifecycle",
+      "surface": "polymarket_execution_order_lifecycle",
+      "product_scope": "Order submit, cancel, batch cancel, open orders, unknown-submit recovery, and unsupported-order denial evidence",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "limit and market order submit responses",
+        "submit failures and server errors",
+        "open order and open order page parsing",
+        "cancel, cancel failure, and batch cancel responses",
+        "unsupported reduce-only, quote quantity, TIF, and modification boundaries"
+      ],
+      "fixture_paths": [
+        "http_order_response_ok.json",
+        "http_order_response_failed.json",
+        "http_order_response_error_500.json",
+        "http_open_order.json",
+        "http_open_order_sell_fok.json",
+        "http_open_orders_page.json",
+        "http_cancel_response_ok.json",
+        "http_cancel_response_failed.json",
+        "http_batch_cancel_response.json"
+      ],
+      "primary_tests": [
+        "tests/exec_client.rs",
+        "tests/http.rs",
+        "src/execution/order_builder.rs",
+        "src/execution/submitter.rs",
+        "src/execution/reconciliation.rs"
+      ]
+    },
+    {
+      "id": "polymarket-auth-signing-fee-precision",
+      "surface": "polymarket_auth_signing_fee_precision",
+      "product_scope": "Fixture-backed authentication headers, L1 EIP-712 signing, L2 credentials, fee math, balance allowance, and precision boundaries",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "EIP-712 signed order fixture shape",
+        "balance allowance with and without collateral allowance",
+        "authenticated request headers",
+        "fee-rate and taker commission calculations",
+        "market-buy fee adjustment and dust snap boundaries"
+      ],
+      "fixture_paths": [
+        "http_signed_order.json",
+        "http_balance_allowance_collateral.json",
+        "http_balance_allowance_no_allowance.json",
+        "clob_fee_rate_response_zero.json",
+        "clob_fee_rate_response_nonzero.json"
+      ],
+      "primary_tests": [
+        "tests/exec_client.rs",
+        "tests/http.rs",
+        "src/signing/eip712.rs",
+        "src/http/auth.rs",
+        "src/execution/order_fill_tracker.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "PM-ADP-001",
+      "status": "closed",
+      "inventory_task": "RADP-022",
+      "owner_task": "RADP-024",
+      "summary": "Polymarket now has a compact Rust fixture manifest for release-gate traceability.",
+      "resolution": "Closed by RADP-023 manifest coverage for Gamma discovery, CLOB public data, Data API reports, WebSocket market/user messages, execution lifecycle, signing, fee, and precision fixture groups."
+    },
+    {
+      "id": "PM-ADP-002",
+      "status": "scoped",
+      "inventory_task": "RADP-022",
+      "owner_task": "RADP-024",
+      "summary": "Polymarket is a prediction-market CLOB adapter for BinaryOption instruments, not a generic multi-asset venue.",
+      "resolution": "Scoped as supported with constraints: fixture evidence is pinned to Gamma/CLOB condition IDs, token IDs, pUSD collateral, and BinaryOption instrument construction."
+    },
+    {
+      "id": "PM-ADP-003",
+      "status": "scoped",
+      "inventory_task": "RADP-022",
+      "owner_task": "RADP-024",
+      "summary": "Polymarket market data is explicitly L2_MBP and CLOB-message oriented.",
+      "resolution": "Scoped as supported with constraints: manifest evidence covers L2_MBP books, quote derivation, trades, tick-size, resolved, and new-market messages, while generic bars and non-L2 book parity remain out of scope."
+    },
+    {
+      "id": "PM-ADP-004",
+      "status": "scoped",
+      "inventory_task": "RADP-022",
+      "owner_task": "RADP-024",
+      "summary": "Polymarket execution supports a limited order matrix and explicitly rejects unsupported reduce-only, quote-quantity, TIF, and modification flows.",
+      "resolution": "Scoped as supported with constraints: fixtures cover limit/market submit, cancel, batch cancel, active order pages, failed submit, server error, and denial boundaries without claiming generic order parity."
+    },
+    {
+      "id": "PM-ADP-005",
+      "status": "scoped",
+      "inventory_task": "RADP-022",
+      "owner_task": "RADP-024",
+      "summary": "Polymarket authentication and setup require wallet, L1 EIP-712 signing, L2 API credentials, endpoint, allowance, and rate-limit awareness.",
+      "resolution": "Scoped as fixture/mock only: RADP-023 evidence uses checked-in fixtures and mock-server tests, never real private keys, wallets, API credentials, allowances, or live Polymarket calls."
+    },
+    {
+      "id": "PM-ADP-006",
+      "status": "scoped",
+      "inventory_task": "RADP-022",
+      "owner_task": "RADP-024",
+      "summary": "Polymarket account, position, fill, reconciliation, and unknown-submit behavior depend on active order pages and Data API pages.",
+      "resolution": "Scoped as supported with constraints: manifest evidence covers balance allowance, open orders, Data API trades, Data API positions, trade reports, and reconciliation paths."
+    },
+    {
+      "id": "PM-ADP-007",
+      "status": "scoped",
+      "inventory_task": "RADP-022",
+      "owner_task": "RADP-024",
+      "summary": "Polymarket fee and precision behavior is venue-specific and must not be treated as generic fee model parity.",
+      "resolution": "Scoped as supported with constraints: manifest evidence covers fee-rate payloads, Gamma fee schedules, taker commission math, market-buy fee adjustment, and fill dust snap behavior."
+    },
+    {
+      "id": "PM-ADP-008",
+      "status": "deferred",
+      "inventory_task": "RADP-022",
+      "owner_task": "RADP-024",
+      "summary": "Optional Polymarket Python, PyO3, and extension-module surfaces remain present.",
+      "resolution": "Deferred to the Rust-only removal gate because RADP-023 does not authorize deleting optional Python/PyO3 adapter surfaces."
+    }
+  ]
+}

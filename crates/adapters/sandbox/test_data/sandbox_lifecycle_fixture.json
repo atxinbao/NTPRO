@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-023",
+  "adapter": "sandbox",
+  "fixture_kind": "internal_lifecycle_descriptor",
+  "external_payloads_required": false,
+  "purpose": "Documents the Sandbox adapter fixture strategy without pretending it has REST or WebSocket exchange payloads.",
+  "surfaces": [
+    {
+      "id": "config-to-matching-engine",
+      "source": "crates/adapters/sandbox/src/config.rs",
+      "test": "tests/execution.rs::test_config_to_matching_engine_config",
+      "covers": [
+        "book_type",
+        "bar_execution",
+        "trade_execution",
+        "reject_stop_orders",
+        "support_gtd_orders",
+        "support_contingent_orders",
+        "use_position_ids",
+        "use_random_ids",
+        "use_reduce_only"
+      ]
+    },
+    {
+      "id": "client-lifecycle",
+      "source": "crates/adapters/sandbox/src/execution.rs",
+      "test": "tests/execution.rs::test_client_connect",
+      "covers": [
+        "start",
+        "connect",
+        "disconnect",
+        "stop",
+        "starting account state"
+      ]
+    },
+    {
+      "id": "market-data-matching-inputs",
+      "source": "crates/adapters/sandbox/src/execution.rs",
+      "test": "tests/execution.rs::test_process_quote_tick_creates_matching_engine",
+      "covers": [
+        "quote ticks",
+        "trade ticks",
+        "bars",
+        "precision mismatch drops",
+        "matching engine lazy creation"
+      ]
+    },
+    {
+      "id": "binary-option-settlement",
+      "source": "crates/adapters/sandbox/tests/execution.rs",
+      "test": "tests/execution.rs::test_paper_binary_option_pending_resolution_then_close_settlement",
+      "covers": [
+        "pending resolution",
+        "InstrumentClose settlement",
+        "expiration fill",
+        "resting order cancellation"
+      ]
+    },
+    {
+      "id": "internal-report-boundary",
+      "source": "crates/adapters/sandbox/src/execution.rs",
+      "test": "tests/execution.rs::test_get_account_when_none",
+      "covers": [
+        "query_account emits internal account state",
+        "query_order returns no external venue report",
+        "fill reports are not fetched from an exchange",
+        "mass status is cache/internal-state driven"
+      ]
+    }
+  ],
+  "non_goals": [
+    "no external venue REST payloads",
+    "no external venue WebSocket payloads",
+    "no live credentials",
+    "no adapter behavior change",
+    "no Python/PyO3 removal"
+  ]
+}

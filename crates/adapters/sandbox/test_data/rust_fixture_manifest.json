@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-023",
+  "inventory_task": "RADP-022",
+  "generated_by": "Codex",
+  "generated_at": "2026-05-31",
+  "adapter": "sandbox",
+  "fixture_strategy": "executable_rust_lifecycle_fixtures_no_external_payloads",
+  "external_payloads_required": false,
+  "purpose": "Rust lifecycle fixture coverage manifest for Sandbox adapter parity gates.",
+  "fixture_groups": [
+    {
+      "id": "sandbox-config-lifecycle",
+      "surface": "sandbox_config_lifecycle",
+      "product_scope": "Sandbox execution client configuration and conversion into OrderMatchingEngineConfig",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "account and venue config defaults",
+        "book_type mapping",
+        "bar_execution and trade_execution mapping",
+        "GTD, contingent, position-id, random-id, and reduce-only flags"
+      ],
+      "fixture_paths": [
+        "sandbox_lifecycle_fixture.json"
+      ],
+      "primary_tests": [
+        "tests/execution.rs",
+        "src/config.rs"
+      ]
+    },
+    {
+      "id": "sandbox-client-connect-lifecycle",
+      "surface": "sandbox_client_connect_lifecycle",
+      "product_scope": "Sandbox start, connect, disconnect, stop, and starting account-state lifecycle",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "initial disconnected state",
+        "idempotent start and connect",
+        "disconnect and stop",
+        "starting balances and generated account state"
+      ],
+      "fixture_paths": [
+        "sandbox_lifecycle_fixture.json"
+      ],
+      "primary_tests": [
+        "tests/execution.rs",
+        "src/execution.rs"
+      ]
+    },
+    {
+      "id": "sandbox-market-data-matching-inputs",
+      "surface": "sandbox_market_data_matching_inputs",
+      "product_scope": "Market-data input events that drive simulated matching engines",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "quote tick matching engine creation",
+        "trade tick processing when enabled",
+        "bar processing when enabled",
+        "precision mismatch drops",
+        "instrument update precision propagation"
+      ],
+      "fixture_paths": [
+        "sandbox_lifecycle_fixture.json"
+      ],
+      "primary_tests": [
+        "tests/execution.rs",
+        "src/execution.rs"
+      ]
+    },
+    {
+      "id": "sandbox-order-lifecycle",
+      "surface": "sandbox_order_lifecycle",
+      "product_scope": "Simulated order submission, order lists, cancel flows, and generated order events",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "submit order",
+        "submit order list",
+        "cancel order",
+        "cancel all",
+        "batch cancel",
+        "generated order events without exchange calls"
+      ],
+      "fixture_paths": [
+        "sandbox_lifecycle_fixture.json"
+      ],
+      "primary_tests": [
+        "tests/execution.rs",
+        "src/execution.rs"
+      ]
+    },
+    {
+      "id": "sandbox-binary-option-settlement",
+      "surface": "sandbox_binary_option_settlement",
+      "product_scope": "Internal binary-option paper settlement lifecycle driven by InstrumentClose events",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "pending resolution transition",
+        "InstrumentClose settlement",
+        "expiration fills",
+        "resting order cancellation at resolution boundary"
+      ],
+      "fixture_paths": [
+        "sandbox_lifecycle_fixture.json"
+      ],
+      "primary_tests": [
+        "tests/execution.rs",
+        "src/execution.rs"
+      ]
+    },
+    {
+      "id": "sandbox-internal-report-boundaries",
+      "surface": "sandbox_internal_report_boundaries",
+      "product_scope": "Internal account state and report boundaries for simulated execution",
+      "classification": "supported_with_constraints",
+      "covers": [
+        "query_account emits generated internal account state",
+        "query_order has no external venue response",
+        "order, fill, position, and mass-status reports are not fetched from a remote exchange",
+        "cache/internal-state reconciliation boundary"
+      ],
+      "fixture_paths": [
+        "sandbox_lifecycle_fixture.json"
+      ],
+      "primary_tests": [
+        "tests/execution.rs",
+        "src/execution.rs"
+      ]
+    }
+  ],
+  "scoped_blockers": [
+    {
+      "id": "SBX-ADP-001",
+      "status": "closed",
+      "inventory_task": "RADP-022",
+      "owner_task": "RADP-024",
+      "summary": "Sandbox now has a compact lifecycle fixture manifest for release-gate traceability.",
+      "resolution": "Closed by RADP-023 manifest coverage for config, connect lifecycle, market-data matching inputs, order lifecycle, binary option settlement, and internal report boundaries."
+    },
+    {
+      "id": "SBX-ADP-002",
+      "status": "scoped",
+      "inventory_task": "RADP-022",
+      "owner_task": "RADP-024",
+      "summary": "Sandbox is simulated execution only, not a data provider or external venue adapter.",
+      "resolution": "Scoped as supported with constraints: evidence is executable Rust lifecycle coverage for simulated execution and explicitly does not require external venue REST or WebSocket payloads."
+    },
+    {
+      "id": "SBX-ADP-003",
+      "status": "scoped",
+      "inventory_task": "RADP-022",
+      "owner_task": "RADP-024",
+      "summary": "Sandbox matching behavior depends on matching-engine config and market-data input precision.",
+      "resolution": "Scoped as supported with constraints: manifest evidence pins config flags, quote/trade/bar input behavior, precision mismatch drops, and matching-engine lazy creation."
+    },
+    {
+      "id": "SBX-ADP-004",
+      "status": "scoped",
+      "inventory_task": "RADP-022",
+      "owner_task": "RADP-024",
+      "summary": "Sandbox reports are internal/cache-driven and not external venue-style reconciliation reports.",
+      "resolution": "Scoped as supported with constraints: query_account emits internal account state, while order/fill/position/mass-status reports remain internal behavior rather than remote exchange payloads."
+    },
+    {
+      "id": "SBX-ADP-005",
+      "status": "deferred",
+      "inventory_task": "RADP-022",
+      "owner_task": "RADP-024",
+      "summary": "Optional Sandbox Python, PyO3, and extension-module surfaces remain present.",
+      "resolution": "Deferred to the Rust-only removal gate because RADP-023 does not authorize deleting optional Python/PyO3 adapter surfaces."
+    }
+  ]
+}
