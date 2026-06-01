@@ -1385,7 +1385,7 @@
     },
     "RREM-006": {
       "title": "Stage removal of Python package surfaces",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1397,13 +1397,17 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-006.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-006.md",
-      "updated_at": "2026-06-01T15:23:52Z",
+      "updated_at": "2026-06-01T15:33:58Z",
       "branch": "ai/RREM-006-stage-python-package-removal",
-      "release_gatekeeper_approved": true
+      "release_gatekeeper_approved": true,
+      "merged_pr": 94,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/94",
+      "merged_at": "2026-06-01T15:33:24Z",
+      "merge_commit": "a60d6952690214456de16e04d6367cb37a870b2d"
     },
     "RREM-007": {
       "title": "Stage removal of PyO3 surfaces",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1414,7 +1418,10 @@
         "release_gatekeeper_approved"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-007.md",
-      "evidence_file": "docs/rust-cutover/evidence/RREM-007.md"
+      "evidence_file": "docs/rust-cutover/evidence/RREM-007.md",
+      "updated_at": "2026-06-01T15:42:00Z",
+      "branch": "ai/RREM-007-stage-pyo3-removal",
+      "release_gatekeeper_approved": true
     },
     "RREM-008": {
       "title": "Remove Cython source and stale build config",

@@ -1,0 +1,14 @@
+{
+  "task_id": "RREM-007",
+  "agent_id": "Codex",
+  "branch": "ai/RREM-007-stage-pyo3-removal",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RREM-007.md",
+    "docs/rust-cutover/evidence/RREM-007.md",
+    "docs/rust-cutover/migration/pyo3_surface_removal_stage.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREM-007.json"
+  ],
+  "claimed_at": "2026-06-01T15:42:00Z",
+  "status": "PR_OPEN"
+}
