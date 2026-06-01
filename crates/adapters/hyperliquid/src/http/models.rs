@@ -871,9 +871,9 @@ mod tests {
     }
 
     #[rstest]
-    fn test_msgpack_serialization_matches_python() {
+    fn test_msgpack_serialization_matches_reference_fixture() {
         // Test that msgpack serialization includes the "type" tag properly.
-        // Python SDK serializes: {"type": "order", "orders": [...], "grouping": "na"}
+        // Reference SDK serializes: {"type": "order", "orders": [...], "grouping": "na"}
         // We need to verify rmp_serde::to_vec_named produces the same format.
 
         let action = HyperliquidExecAction::Order {

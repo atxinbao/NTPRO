@@ -39,20 +39,6 @@ use strum::{AsRefStr, Display, EnumIter, EnumString};
     Deserialize,
 )]
 #[serde(rename_all = "PascalCase")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.bitmex",
-        eq,
-        eq_int,
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.bitmex")
-)]
 pub enum BitmexSymbolStatus {
     /// Symbol is open for trading.
     Open,
@@ -116,19 +102,6 @@ impl From<BitmexSide> for OrderSide {
     EnumString,
     Serialize,
     Deserialize,
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.bitmex",
-        eq,
-        eq_int,
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.bitmex")
 )]
 pub enum BitmexPositionSide {
     /// Long position.
@@ -876,20 +849,6 @@ pub enum BitmexMarkMethod {
 )]
 #[serde(rename_all = "lowercase")]
 #[strum(ascii_case_insensitive, serialize_all = "lowercase")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        module = "nautilus_trader.core.nautilus_pyo3.bitmex",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.bitmex")
-)]
 pub enum BitmexEnvironment {
     /// Live trading environment.
     #[default]

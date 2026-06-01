@@ -21,7 +21,7 @@
 //! - **Dependency injection via traits**: Uses `CancelExecutor` trait to abstract
 //!   the HTTP client, enabling testing without `#[cfg(test)]` conditional compilation.
 //! - **Trait objects over generics**: Uses `Arc<dyn CancelExecutor>` to avoid
-//!   generic type parameters on the public API (simpler Python FFI).
+//!   generic type parameters on the public API (simpler legacy FFI).
 //! - **Short-circuit on first success**: Aborts remaining requests once any client
 //!   succeeds, minimizing latency.
 //! - **Idempotent success handling**: Recognizes "already cancelled" responses as
@@ -64,7 +64,7 @@ const IDEMPOTENT_UNABLE_DUE_TO_STATE: &str = "Unable to cancel order due to exis
 ///
 /// This trait abstracts the execution layer to enable dependency injection and testing
 /// without conditional compilation. The broadcaster holds executors as `Arc<dyn CancelExecutor>`
-/// to avoid generic type parameters that would complicate the Python FFI boundary.
+/// to avoid generic type parameters that would complicate the legacy FFI boundary.
 ///
 /// # Thread Safety
 ///
@@ -340,11 +340,6 @@ impl TransportClient {
 /// This broadcaster fans out cancel requests to multiple pre-warmed HTTP clients
 /// in parallel, short-circuits when the first successful acknowledgement is received,
 /// and handles expected rejection patterns with appropriate log levels.
-#[cfg_attr(feature = "python", pyo3::pyclass)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.bitmex")
-)]
 #[derive(Debug)]
 pub struct CancelBroadcaster {
     config: CancelBroadcasterConfig,

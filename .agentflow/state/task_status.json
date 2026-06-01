@@ -1872,7 +1872,7 @@
     },
     "RREM-017": {
       "title": "Remove model crate PyO3 and Python residue",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "critical",
@@ -1884,17 +1884,46 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-017.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-017.md",
-      "updated_at": "2026-06-01T22:29:59.985Z",
+      "updated_at": "2026-06-01T22:48:31.236Z",
       "branch": "ai/RREM-017-remove-model-pyo3-residue",
       "lease": "RREM-017",
+      "qa_passed": true,
+      "review_passed": true,
+      "release_gatekeeper_approved": true,
+      "auto_merge_allowed": false,
+      "notes": "RREM-017 local QA passed. crates/model has no PyO3/Python binding residue; Rust model default/ffi/arrow cargo checks passed with explicit Rust 1.95.0. check_rust_only_runtime still fails as expected on 325 non-model files. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled.\n\nRREM-017 merged in PR #113; crates/model PyO3/Python residue cleanup is complete.",
+      "model_python_residue_removed_gate_passed": true,
+      "rust_only_runtime_gate_passed": false,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/113",
+      "merged_pr": 113,
+      "merged_at": "2026-06-01T22:43:43Z",
+      "merge_commit": "bbd326659d385b644fa0d85da2fd55480a0813ca"
+    },
+    "RREM-018": {
+      "title": "Remove adapters indicators common core PyO3 and Python residue",
+      "status": "REVIEW_REQUIRED",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-018.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-018.md",
+      "updated_at": "2026-06-02T07:38:11+08:00",
+      "branch": "ai/RREM-018-remove-adapters-indicators-common-core-pyo3-residue",
+      "lease": "RREM-018",
       "qa_passed": true,
       "review_passed": false,
       "release_gatekeeper_approved": false,
       "auto_merge_allowed": false,
-      "notes": "RREM-017 local QA passed. crates/model has no PyO3/Python binding residue; Rust model default/ffi/arrow cargo checks passed with explicit Rust 1.95.0. check_rust_only_runtime still fails as expected on 325 non-model files. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled.",
-      "model_python_residue_removed_gate_passed": true,
+      "notes": "RREM-018 local QA passed. crates/adapters, crates/indicators, crates/common, and crates/core have zero PyO3/Python binding residue hits. Targeted cargo checks for core/common/indicators and all adapter crates passed with Rust 1.95.0. check_rust_only_runtime still fails as expected on 109 non-scoped files. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled.",
+      "scoped_residue_removed_gate_passed": true,
       "rust_only_runtime_gate_passed": false
     }
   },
-  "updated_at": "2026-06-01T22:29:59.985Z"
+  "updated_at": "2026-06-02T07:38:11+08:00"
 }

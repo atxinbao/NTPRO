@@ -17,13 +17,6 @@ use std::{fmt::Display, str::FromStr};
 
 /// Interactive Brokers historical tick request types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbHistoricalTickType {
     /// Historical trade ticks.
     Trades,
@@ -62,13 +55,6 @@ impl Display for IbHistoricalTickType {
 
 /// Interactive Brokers trading hours selector.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbTradingHours {
     /// Regular trading hours only.
     Regular,
@@ -105,13 +91,6 @@ impl From<bool> for IbTradingHours {
 
 /// Interactive Brokers historical bar-size values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbHistoricalBarSize {
     Sec,
     Sec5,
@@ -174,13 +153,6 @@ impl Display for IbHistoricalBarSize {
 
 /// Interactive Brokers historical data selectors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbHistoricalWhatToShow {
     Trades,
     Midpoint,
@@ -242,13 +214,6 @@ impl Display for IbHistoricalWhatToShow {
 
 /// Interactive Brokers realtime bar-size values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbRealtimeBarSize {
     Sec5,
 }
@@ -273,13 +238,6 @@ impl Display for IbRealtimeBarSize {
 
 /// Interactive Brokers realtime bar selectors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbRealtimeWhatToShow {
     Trades,
     Midpoint,
@@ -319,13 +277,6 @@ impl Display for IbRealtimeWhatToShow {
 
 /// Interactive Brokers market data tick types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbTickType {
     Unknown,
     BidSize,

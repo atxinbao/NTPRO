@@ -19,13 +19,6 @@ use nautilus_model::enums::OptionKind;
 
 /// Interactive Brokers security type values used by the adapter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbSecurityType {
     /// Stock or ETF.
     Stock,
@@ -165,13 +158,6 @@ impl Display for IbSecurityType {
 
 /// Interactive Brokers option right values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbOptionRight {
     /// Call option.
     Call,

@@ -635,7 +635,7 @@ pub fn should_filter_log(
 /// Gracefully shuts down the logging subsystem.
 ///
 /// Performs the same shutdown sequence as dropping the last `LogGuard`, but can be called
-/// explicitly for deterministic shutdown timing (e.g., testing or Windows Python applications).
+/// explicitly for deterministic shutdown timing (e.g., testing or Windows external applications).
 ///
 /// # Safety
 ///
@@ -703,20 +703,12 @@ pub fn log<T: AsRef<str>>(level: LogLevel, color: LogColor, component: Ustr, mes
 /// When the last guard is dropped, the logging thread is signaled to close, drains pending
 /// messages, and is joined to ensure all logs are written before process termination.
 ///
-/// **Python on Windows:** Non-deterministic GC order during interpreter shutdown can
+/// **external runtimes on Windows:** Non-deterministic GC order during interpreter shutdown can
 /// occasionally prevent proper thread join, resulting in truncated logs.
 ///
 /// # Limits
 ///
 /// The system supports a maximum of 255 concurrent `LogGuard` instances.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.common")
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.common")
-)]
 #[derive(Debug)]
 pub struct LogGuard {
     tx: std::sync::mpsc::Sender<LogEvent>,

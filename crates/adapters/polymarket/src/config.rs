@@ -33,17 +33,6 @@ use crate::{
 /// installed programmatically after deserialization.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.polymarket",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.polymarket")
-)]
 pub struct PolymarketDataClientConfig {
     pub base_url_http: Option<String>,
     pub base_url_ws: Option<String>,
@@ -142,17 +131,6 @@ impl PolymarketDataClientConfig {
 /// derive list.
 #[derive(Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.polymarket",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.polymarket")
-)]
 pub struct PolymarketExecClientConfig {
     #[builder(default)]
     pub trader_id: TraderId,

@@ -969,14 +969,6 @@ impl KrakenFuturesRawHttpClient {
 /// This client wraps the raw client and provides Nautilus domain types.
 /// It maintains an instrument cache and uses it to parse venue responses
 /// into Nautilus domain objects.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.kraken", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.kraken")
-)]
 pub struct KrakenFuturesHttpClient {
     pub(crate) inner: Arc<KrakenFuturesRawHttpClient>,
     pub(crate) instruments_cache: Arc<AtomicMap<Ustr, InstrumentAny>>,

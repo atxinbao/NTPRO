@@ -705,19 +705,11 @@ impl DydxRawHttpClient {
 /// - **Domain client** (`DydxHttpClient`): High-level methods using Nautilus domain types.
 ///
 /// The domain client:
-/// - Wraps the raw client in an `Arc` for efficient cloning (required for Python bindings).
+/// - Wraps the raw client in an `Arc` for efficient cloning (required for legacy bridge bindings).
 /// - Maintains an instrument cache using `DashMap` for thread-safe concurrent access.
 /// - Provides standard cache methods: `cache_instruments()`, `cache_instrument()`, `get_instrument()`.
 /// - Tracks cache initialization state for optimizations.
 #[derive(Debug)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.dydx", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.dydx")
-)]
 pub struct DydxHttpClient {
     /// Raw HTTP client wrapped in Arc for efficient cloning.
     pub(crate) inner: Arc<DydxRawHttpClient>,

@@ -15,13 +15,6 @@
 
 /// Event kind for the rust-ibapi place-order response enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbPlaceOrderEvent {
     OrderStatus,
     OpenOrder,
@@ -32,13 +25,6 @@ pub enum IbPlaceOrderEvent {
 
 /// Event kind for the rust-ibapi order-update enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbOrderUpdateEvent {
     OrderStatus,
     OpenOrder,
@@ -49,13 +35,6 @@ pub enum IbOrderUpdateEvent {
 
 /// Event kind for the rust-ibapi cancel-order response enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbCancelOrderEvent {
     OrderStatus,
     Notice,
@@ -63,13 +42,6 @@ pub enum IbCancelOrderEvent {
 
 /// Event kind for the rust-ibapi order query response enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbOrdersEvent {
     OrderData,
     OrderStatus,
@@ -78,13 +50,6 @@ pub enum IbOrdersEvent {
 
 /// Event kind for the rust-ibapi executions response enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbExecutionsEvent {
     ExecutionData,
     CommissionReport,
@@ -93,13 +58,6 @@ pub enum IbExecutionsEvent {
 
 /// Event kind for the rust-ibapi exercise-options response enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbExerciseOptionsEvent {
     OpenOrder,
     OrderStatus,
@@ -108,13 +66,6 @@ pub enum IbExerciseOptionsEvent {
 
 /// Event kind for rust-ibapi historical bar update streams.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbHistoricalBarUpdateEvent {
     Historical,
     Update,
@@ -123,13 +74,6 @@ pub enum IbHistoricalBarUpdateEvent {
 
 /// Event kind for rust-ibapi realtime market-depth streams.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbMarketDepthEvent {
     MarketDepth,
     MarketDepthL2,
@@ -138,13 +82,6 @@ pub enum IbMarketDepthEvent {
 
 /// Event kind for rust-ibapi realtime tick streams.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbTickEvent {
     Price,
     Size,
@@ -160,13 +97,6 @@ pub enum IbTickEvent {
 
 /// Event kind for rust-ibapi account summary streams.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbAccountSummaryEvent {
     Summary,
     End,
@@ -174,13 +104,6 @@ pub enum IbAccountSummaryEvent {
 
 /// Event kind for rust-ibapi position update streams.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbPositionUpdateEvent {
     Position,
     PositionEnd,
@@ -188,13 +111,6 @@ pub enum IbPositionUpdateEvent {
 
 /// Event kind for rust-ibapi model-code scoped position update streams.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbPositionUpdateMultiEvent {
     Position,
     PositionEnd,
@@ -202,13 +118,6 @@ pub enum IbPositionUpdateMultiEvent {
 
 /// Event kind for rust-ibapi account update streams.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbAccountUpdateEvent {
     AccountValue,
     PortfolioValue,
@@ -218,13 +127,6 @@ pub enum IbAccountUpdateEvent {
 
 /// Event kind for rust-ibapi model-code scoped account update streams.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbAccountUpdateMultiEvent {
     AccountMultiValue,
     End,

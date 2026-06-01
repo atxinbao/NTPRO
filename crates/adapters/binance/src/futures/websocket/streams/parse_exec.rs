@@ -136,7 +136,7 @@ pub fn parse_futures_order_update_to_order_status(
 ///
 /// Uses the venue-provided commission fields (N/n) when present. Falls back to
 /// estimating `taker_fee * qty * price` when the venue omits them, matching the
-/// Python adapter behavior for exchange-generated fills (liquidation, ADL).
+/// legacy adapter behavior for exchange-generated fills (liquidation, ADL).
 /// Returns zero USDT when neither source is available.
 #[must_use]
 pub fn resolve_commission(

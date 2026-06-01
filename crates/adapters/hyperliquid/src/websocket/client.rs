@@ -103,17 +103,6 @@ pub(super) enum AssetContextDataType {
 /// Orchestrates WebSocket connection and subscriptions using a command-based architecture,
 /// where the inner FeedHandler owns the WebSocketClient and handles all I/O.
 #[derive(Debug)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.hyperliquid",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.hyperliquid")
-)]
 pub struct HyperliquidWebSocketClient {
     url: String,
     connection_mode: Arc<ArcSwap<AtomicU8>>,
@@ -466,7 +455,7 @@ impl HyperliquidWebSocketClient {
     /// cached instrument metadata. The action itself is sent over WebSocket.
     #[allow(
         clippy::too_many_arguments,
-        reason = "matches the Python and HTTP order submit surface"
+        reason = "matches the legacy and HTTP order submit surface"
     )]
     pub async fn submit_order(
         &self,
@@ -781,7 +770,7 @@ impl HyperliquidWebSocketClient {
     /// Modify an order through the Hyperliquid WebSocket post API.
     #[allow(
         clippy::too_many_arguments,
-        reason = "matches the Python and HTTP order modify surface"
+        reason = "matches the legacy and HTTP order modify surface"
     )]
     pub async fn modify_order(
         &self,

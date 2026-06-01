@@ -82,13 +82,6 @@ impl InteractiveBrokersError {
 
 /// Payload-free Interactive Brokers adapter error kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum InteractiveBrokersErrorKind {
     /// Connection error.
     Connection,
@@ -117,13 +110,6 @@ pub type InteractiveBrokersResult<T> = Result<T, InteractiveBrokersError>;
 
 /// IB API error code classification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum ErrorCategory {
     /// Client/application error (should not retry).
     ClientError,

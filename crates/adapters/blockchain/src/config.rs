@@ -27,17 +27,6 @@ use serde::{Deserialize, Serialize};
 /// Defines filtering criteria for the DEX pool universe that the data client will operate on.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.blockchain",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.blockchain")
-)]
 pub struct DexPoolFilters {
     /// Whether to exclude pools containing tokens with empty name or symbol fields.
     #[builder(default = true)]
@@ -53,17 +42,6 @@ impl Default for DexPoolFilters {
 /// Configuration for blockchain data clients.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.blockchain",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.blockchain")
-)]
 pub struct BlockchainDataClientConfig {
     /// The blockchain chain configuration.
     pub chain: SharedChain,

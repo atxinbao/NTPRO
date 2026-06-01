@@ -76,7 +76,7 @@ use crate::{
     },
 };
 
-/// Keep-alive interval in seconds (10 hours, matching Python default).
+/// Keep-alive interval in seconds (10 hours, matching legacy default).
 const KEEP_ALIVE_INTERVAL_SECS: u64 = 36_000;
 
 /// Wraps a custom data value with its instrument_id in both metadata (for
@@ -272,7 +272,7 @@ impl BetfairDataClient {
                         }
 
                         // Non-snapshot deltas and BSP deltas are buffered and flushed after
-                        // trades/tickers to mirror the Python `market_change_to_updates`
+                        // trades/tickers to mirror the legacy `market_change_to_updates`
                         // ordering (book deltas first, then BSP). Snapshots go inline.
                         let mut buffered_deltas: Vec<OrderBookDeltas> = Vec::new();
                         let mut buffered_bsp_customs: Vec<CustomData> = Vec::new();

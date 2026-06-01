@@ -44,7 +44,7 @@ use crate::messages::defi::{
 /// # Thread Safety
 ///
 /// Client instances are not intended to be sent across threads. The `?Send` bound
-/// allows implementations to hold non-Send state for any Python interop.
+/// allows implementations to hold non-Send state for any legacy bridge interop.
 #[async_trait(?Send)]
 pub trait DataClient {
     /// Returns the unique identifier for this data client.

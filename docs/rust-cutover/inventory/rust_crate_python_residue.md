@@ -2,13 +2,20 @@
 
 Date: 2026-06-02
 Executor: Codex
-Task ID: RREM-017
+Task ID: RREM-018
 
 ## Purpose
 
-Track the Rust crate Python/PyO3 residue that remains after removing the active
-Cython build residue, the `crates/analysis` PyO3 annotations, and the
-`crates/model` PyO3/Python binding residue.
+Track Rust crate Python/PyO3 residue after the Rust-only removal slices that
+have already landed:
+
+- Python workspace and package surface cleanup.
+- `crates/pyo3` workspace cleanup.
+- Cython generation cleanup.
+- `crates/analysis` annotation cleanup.
+- `crates/model` active PyO3 binding cleanup.
+- RREM-018 cleanup for `crates/adapters`, `crates/indicators`,
+  `crates/common`, and `crates/core`.
 
 ## Current State
 
@@ -32,18 +39,12 @@ rg -n "nautilus_trader/core/includes|nautilus_trader/core/rust" \
 
 Result: no matches.
 
-`crates/analysis` no longer contains PyO3/Python annotation residue:
+`crates/adapters`, `crates/indicators`, `crates/common`, and `crates/core`
+no longer contain PyO3/Python binding residue after RREM-018:
 
 ```bash
-rg -n "pyo3|pyo3_stub_gen|PyO3|feature = \"python\"|python" crates/analysis
-```
-
-Result: no matches.
-
-`crates/model` no longer contains PyO3/Python binding residue:
-
-```bash
-rg -n "pyo3|pyo3_stub_gen|PyO3|feature = \"python\"|python|nautilus_trader" crates/model
+rg -n -i "pyo3|pyo3_stub_gen|feature = \"python\"|cfg\\(feature = \"python\"\\)|cfg_attr\\([^\\n]*python|python|nautilus_pyo3|extension-module|custom_data\\([^\\)]*pyo3|stub_module|PyObject|PyAny|Py<" \
+  crates/adapters crates/indicators crates/common crates/core
 ```
 
 Result: no matches.
@@ -51,55 +52,55 @@ Result: no matches.
 ## Remaining Rust Crate Python/PyO3 Hits
 
 The broader Rust-only runtime scan still finds Python/PyO3 residue outside the
-RREM-017 implementation scope. File-level count:
+RREM-018 implementation scope. File-level count:
 
 ```text
-325 files
+109 files
 ```
 
 Top path groups:
 
 ```text
-162 crates/adapters
- 41 crates/indicators
- 27 crates/common
+ 19 crates/serialization
  14 crates/trading
- 10 crates/persistence
+ 12 crates/execution
+ 11 crates/persistence
   9 crates/network
-  8 crates/execution
   8 crates/backtest
-  7 crates/live
+  8 crates/live
   7 crates/infrastructure
-  6 crates/core
-  4 crates/system
-  4 crates/portfolio
-  3 crates/risk
-  3 crates/plugin
+  5 crates/model
   3 crates/data
+  3 crates/portfolio
+  3 crates/system
+  2 crates/plugin
+  2 crates/risk
   2 crates/testkit
-  2 crates/serialization
-  2 crates/cryptography
-  1 crates/event_store
-  1 crates/cli
-  1 crates/analysis
+  1 crates/cryptography
 ```
+
+RREM-018 cargo checks also surfaced `unexpected cfg` warnings in these
+remaining non-scoped crates. Those warnings are intentionally not fixed in
+RREM-018 because the task path scope only authorizes `adapters`, `indicators`,
+`common`, and `core`.
 
 ## Follow-up Slices
 
 Recommended cleanup order:
 
-1. `crates/indicators`: isolated metric/indicator structs with repeated
-   annotation patterns.
-2. `crates/core`, `crates/common`, and runtime support crates.
-3. `crates/backtest`, `crates/execution`, `crates/risk`, `crates/portfolio`, and
-   `crates/trading`.
-4. Adapter crates, grouped by venue family to avoid changing adapter behavior in
-   a single oversized PR.
-5. Remaining persistence macro and serialization bridge residue after adapter
-   custom-data usage is retargeted or removed.
+1. `crates/serialization` and `crates/network`: shared adapter dependencies
+   that already emit `feature = "python"` warnings during adapter checks.
+2. `crates/execution`, `crates/backtest`, `crates/live`, `crates/trading`,
+   `crates/risk`, `crates/portfolio`, and `crates/data`: runtime-facing
+   config/model cleanup, with targeted cargo checks per crate.
+3. `crates/persistence`, `crates/infrastructure`, `crates/plugin`,
+   `crates/testkit`, and `crates/cryptography`: support crate cleanup after
+   runtime surfaces are handled.
+4. Residual `crates/model` documentation/comment cleanup that was outside the
+   already merged active binding removal slice.
 
 ## Boundary
 
-This inventory is intentionally not a deletion approval for all remaining
-matches. Many matches are product-code annotations or migration notes. Each
-crate family needs a dedicated PR with targeted cargo checks.
+This inventory is not a deletion approval for all remaining matches. Each
+crate family needs its own PR with scoped path authority, targeted cargo
+checks, and release-gate review.

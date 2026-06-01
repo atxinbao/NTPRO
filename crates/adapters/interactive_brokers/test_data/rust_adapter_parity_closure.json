@@ -100,13 +100,13 @@
     {
       "gap_id": "IB-ADP-008",
       "status": "deferred",
-      "decision": "Optional Interactive Brokers Python/PyO3 bridge surfaces are not removed by this adapter parity task.",
+      "decision": "Optional Interactive Brokers legacy bridge bridge surfaces were removed by RREM-018 after this adapter parity task.",
       "evidence_paths": [
-        "src/python/mod.rs",
+        "removed_legacy_bridge/mod.rs",
         "Cargo.toml"
       ],
       "requires_removal_gate": true,
-      "release_gate_note": "Removal remains blocked until the dedicated Rust-only removal gate approves Python/PyO3 deletion."
+      "release_gate_note": "RREM-018 closed this scoped Rust-only removal gate."
     }
   ]
 }

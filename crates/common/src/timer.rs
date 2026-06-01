@@ -27,8 +27,6 @@ use nautilus_core::{
     UUID4, UnixNanos,
     correctness::{FAILED, check_valid_string_utf8},
 };
-#[cfg(feature = "python")]
-use pyo3::{Py, PyAny, Python};
 use ustr::Ustr;
 
 /// Creates a valid nanoseconds interval that is guaranteed to be positive.
@@ -41,14 +39,6 @@ pub fn create_valid_interval(interval_ns: u64) -> NonZeroU64 {
 
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.common", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.common")
-)]
 /// Represents a time event occurring at the event timestamp.
 ///
 /// A `TimeEvent` carries metadata such as the event's name, a unique event ID,
@@ -131,7 +121,6 @@ impl Ord for ScheduledTimeEvent {
 ///
 /// # Variants
 ///
-/// - `Python`: For Python callbacks (requires `python` feature).
 /// - `Rust`: Thread-safe callbacks using `Arc`. Use when the closure is `Send + Sync`.
 /// - `RustLocal`: Single-threaded callbacks using `Rc`. Use when capturing `Rc<RefCell<...>>`.
 ///
@@ -155,9 +144,6 @@ impl Ord for ScheduledTimeEvent {
 /// - `Rc<dyn Fn(TimeEvent)>` converts to `RustLocal`.
 /// - `Arc<dyn Fn(TimeEvent) + Send + Sync>` converts to `Rust`.
 pub enum TimeEventCallback {
-    /// Python callable for use from Python via PyO3.
-    #[cfg(feature = "python")]
-    Python(Py<PyAny>),
     /// Thread-safe Rust callback using `Arc` (`Send + Sync`).
     Rust(Arc<dyn Fn(TimeEvent) + Send + Sync>),
     /// Local Rust callback using `Rc` (not `Send`/`Sync`).
@@ -167,8 +153,6 @@ pub enum TimeEventCallback {
 impl Clone for TimeEventCallback {
     fn clone(&self) -> Self {
         match self {
-            #[cfg(feature = "python")]
-            Self::Python(obj) => Self::Python(nautilus_core::python::clone_py_object(obj)),
             Self::Rust(cb) => Self::Rust(cb.clone()),
             Self::RustLocal(cb) => Self::RustLocal(cb.clone()),
         }
@@ -178,8 +162,6 @@ impl Clone for TimeEventCallback {
 impl Debug for TimeEventCallback {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            #[cfg(feature = "python")]
-            Self::Python(_) => f.write_str("Python callback"),
             Self::Rust(_) => f.write_str("Rust callback (thread-safe)"),
             Self::RustLocal(_) => f.write_str("Rust callback (local)"),
         }
@@ -203,18 +185,8 @@ impl TimeEventCallback {
     }
 
     /// Invokes the callback for the given `TimeEvent`.
-    ///
-    /// For Python callbacks, exceptions are logged as errors rather than panicking.
     pub fn call(&self, event: TimeEvent) {
         match self {
-            #[cfg(feature = "python")]
-            Self::Python(callback) => {
-                Python::attach(|py| {
-                    if let Err(e) = callback.call1(py, (event,)) {
-                        log::error!("Python time event callback raised exception: {e}");
-                    }
-                });
-            }
             Self::Rust(callback) => callback(event),
             Self::RustLocal(callback) => callback(event),
         }
@@ -242,16 +214,7 @@ impl From<Rc<dyn Fn(TimeEvent)>> for TimeEventCallback {
     }
 }
 
-#[cfg(feature = "python")]
-impl From<Py<PyAny>> for TimeEventCallback {
-    fn from(value: Py<PyAny>) -> Self {
-        Self::Python(value)
-    }
-}
-
 // SAFETY: TimeEventCallback is Send + Sync with the following invariants:
-//
-// - Python variant: Py<PyAny> is inherently Send + Sync (GIL acquired when needed).
 //
 // - Rust variant: Arc<dyn Fn + Send + Sync> is inherently Send + Sync.
 //

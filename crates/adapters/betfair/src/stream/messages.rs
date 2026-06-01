@@ -46,7 +46,7 @@ use crate::common::{
 
 /// Top-level streaming message, discriminated by the `op` field.
 ///
-/// Deserializing a raw JSON line into this enum replaces the Python
+/// Deserializing a raw JSON line into this enum replaces the legacy
 /// `stream_decode()` function from `betfair_parser`.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "op")]

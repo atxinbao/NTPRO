@@ -27,7 +27,7 @@
 //! # Example
 //!
 //! ```text
-//! RUST_LOG=hyper=debug,tokio=warn python my_script.py
+//! RUST_LOG=hyper=debug,tokio=warn ntpro
 //! ```
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -106,7 +106,7 @@ pub fn init_tracing() -> anyhow::Result<()> {
         .with(filter)
         .with(fmt::layer().event_format(NautilusFormatter));
 
-    // Install only the tracing subscriber here. Python logging manages the
+    // Install only the tracing subscriber here. legacy logging manages the
     // global `log` logger separately, so we must not claim it through
     // SubscriberInitExt::try_init().
     tracing::subscriber::set_global_default(subscriber)

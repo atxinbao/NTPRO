@@ -18,19 +18,6 @@ use strum::{AsRefStr, Display, EnumIter, EnumString};
 
 /// Coinbase environment type.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.coinbase",
-        eq,
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE"
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.coinbase")
-)]
 pub enum CoinbaseEnvironment {
     /// Production environment.
     #[default]
@@ -178,21 +165,6 @@ pub enum CoinbaseOrderPlacementSource {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Display, EnumString)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.coinbase",
-        eq,
-        eq_int,
-        frozen,
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE"
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.coinbase")
-)]
 pub enum CoinbaseMarginType {
     #[serde(alias = "Cross")]
     Cross,

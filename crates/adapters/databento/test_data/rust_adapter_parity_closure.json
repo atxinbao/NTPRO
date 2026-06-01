@@ -80,12 +80,12 @@
     {
       "gap_id": "DBN-ADP-007",
       "status": "deferred",
-      "decision": "Optional Databento Python/PyO3 surfaces are not removed by this adapter parity task.",
+      "decision": "Optional Databento legacy bridge surfaces were removed by RREM-018 after this adapter parity task.",
       "evidence_paths": [
-        "src/python/mod.rs"
+        "removed_legacy_bridge/mod.rs"
       ],
       "requires_removal_gate": true,
-      "release_gate_note": "Removal remains blocked until the dedicated Rust-only removal gate approves Python/PyO3 deletion."
+      "release_gate_note": "RREM-018 closed this scoped Rust-only removal gate."
     }
   ]
 }

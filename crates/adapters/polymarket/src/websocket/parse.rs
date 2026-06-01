@@ -261,7 +261,7 @@ pub fn parse_quote_from_snapshot(
 ///
 /// Returns `None` when either best_bid or best_ask is absent (empty book side).
 /// When `last_quote` is provided the opposite side's size is carried forward
-/// instead of being set to zero, matching the Python adapter's behavior.
+/// instead of being set to zero, matching the legacy adapter's behavior.
 pub fn parse_quote_from_price_change(
     quote: &PolymarketQuote,
     instrument_id: InstrumentId,

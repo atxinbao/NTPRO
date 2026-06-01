@@ -50,14 +50,6 @@ impl ClientConfig for CoinbaseExecClientConfig {
 
 /// Factory for creating Coinbase data clients.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.coinbase", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.coinbase")
-)]
 pub struct CoinbaseDataClientFactory;
 
 impl CoinbaseDataClientFactory {
@@ -116,14 +108,6 @@ impl DataClientFactory for CoinbaseDataClientFactory {
 /// are rejected. Hedge mode is not exposed by the venue, so OMS is always
 /// `Netting`.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.coinbase", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.coinbase")
-)]
 pub struct CoinbaseExecutionClientFactory {
     trader_id: TraderId,
     account_id: AccountId,

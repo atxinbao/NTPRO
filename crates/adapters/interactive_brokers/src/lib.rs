@@ -30,13 +30,9 @@
 //!
 //! # Feature flags
 //!
-//! This crate provides feature flags to control source code inclusion during compilation,
-//! depending on the intended use case (Rust-only builds vs. Python bindings through PyO3).
+//! This crate provides Rust-native Cargo feature flags for optional integration support.
 //!
-//! - `python`: Enables PyO3 bindings for configs, enums, the historical client, the instrument
-//!   provider, and the Dockerized gateway helper.
 //! - `gateway`: Enables the Dockerized IB Gateway helper via [`bollard`](https://crates.io/crates/bollard).
-//! - `extension-module`: Builds as a Python extension module (used together with `python` and `gateway`).
 //!
 //! # Documentation
 //!

@@ -24,7 +24,7 @@ pub extern "C" fn component_state_to_cstr(value: ComponentState) -> *const c_cha
     str_to_cstr(&value.to_string())
 }
 
-/// Returns an enum from a Python string.
+/// Returns an enum from a legacy string.
 ///
 /// # Safety
 ///
@@ -45,7 +45,7 @@ pub extern "C" fn component_trigger_to_cstr(value: ComponentTrigger) -> *const c
     str_to_cstr(&value.to_string())
 }
 
-/// Returns an enum from a Python string.
+/// Returns an enum from a legacy string.
 ///
 /// # Safety
 ///
@@ -66,7 +66,7 @@ pub extern "C" fn log_level_to_cstr(value: LogLevel) -> *const c_char {
     str_to_cstr(&value.to_string())
 }
 
-/// Returns an enum from a Python string.
+/// Returns an enum from a legacy string.
 ///
 /// # Safety
 ///
@@ -87,7 +87,7 @@ pub extern "C" fn log_color_to_cstr(value: LogColor) -> *const c_char {
     str_to_cstr(&value.to_string())
 }
 
-/// Returns an enum from a Python string.
+/// Returns an enum from a legacy string.
 ///
 /// # Safety
 ///

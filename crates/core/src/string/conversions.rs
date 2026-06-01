@@ -177,7 +177,7 @@ fn push_lower_unicode(result: &mut String, word: &str, first_word: &mut bool) {
 
 /// Title-cases `s` by capitalizing the first letter of each alphabetic run.
 ///
-/// Mirrors Python's `str.title()`: word boundaries fall at any non-alphabetic
+/// Mirrors legacy's `str.title()`: word boundaries fall at any non-alphabetic
 /// character, the first letter of each run is uppercased, and the rest are
 /// lowercased.
 ///

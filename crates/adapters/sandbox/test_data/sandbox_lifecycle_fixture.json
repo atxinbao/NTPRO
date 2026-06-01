@@ -74,6 +74,6 @@
     "no external venue WebSocket payloads",
     "no live credentials",
     "no adapter behavior change",
-    "no Python/PyO3 removal"
+    "no legacy bridge removal"
   ]
 }

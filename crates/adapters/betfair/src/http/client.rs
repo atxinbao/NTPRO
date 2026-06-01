@@ -207,7 +207,7 @@ impl BetfairHttpClient {
     /// is rejected.
     pub async fn connect(&self) -> Result<(), BetfairHttpError> {
         // Serialise concurrent connect calls so only one login fires; matches
-        // Python's per-instance asyncio.Lock around the same path.
+        // legacy's per-instance asyncio.Lock around the same path.
         let _guard = self.connect_lock.lock().await;
 
         if self.session_token.read().await.is_some() {

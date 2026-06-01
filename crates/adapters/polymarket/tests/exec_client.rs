@@ -852,7 +852,7 @@ async fn test_generate_order_status_report_recovers_canceled_when_no_trades() {
 #[tokio::test]
 async fn test_generate_order_status_report_returns_none_without_cached_order() {
     // No trades, no cached order: nothing to recover. Defer to the engine's
-    // existing not-found-at-venue path (matches docs and Python behavior).
+    // existing not-found-at-venue path (matches docs and legacy behavior).
     let state = TestServerState::default();
     *state.single_order_response.lock().await = Some(Value::Null);
     let addr = start_mock_server(state).await;

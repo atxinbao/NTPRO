@@ -195,8 +195,8 @@
       "status": "deferred",
       "inventory_task": "RADP-010",
       "owner_task": "RADP-012",
-      "summary": "Optional dYdX Python/PyO3 surfaces remain until the removal gate.",
-      "resolution": "Deferred to the Rust-only removal gate because RADP-012 does not authorize deleting optional Python/PyO3 surfaces."
+      "summary": "Optional dYdX legacy bridge surfaces remain until RREM-018 closed the scoped removal gate.",
+      "resolution": "Deferred to the Rust-only removal gate because RADP-012 is superseded by RREM-018 removal authorization."
     }
   ],
   "gap_closure": [
@@ -255,7 +255,7 @@
       "id": "DYDX-ADP-006",
       "status": "deferred",
       "review_task": "RADP-012",
-      "decision": "Deferred to the Rust-only removal gate because RADP-012 does not authorize deleting optional Python/PyO3 surfaces.",
+      "decision": "Deferred to the Rust-only removal gate because RADP-012 is superseded by RREM-018 removal authorization.",
       "evidence_refs": [
         "docs/rust-cutover/CONTRACT.md",
         "docs/rust-cutover/TASK_EXECUTION.md"

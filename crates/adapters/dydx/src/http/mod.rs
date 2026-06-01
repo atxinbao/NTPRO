@@ -29,7 +29,7 @@
 //!
 //! - **Raw client** ([`client::DydxRawHttpClient`]): Low-level API methods matching Indexer endpoints.
 //! - **Domain client** ([`client::DydxHttpClient`]): High-level methods using Nautilus domain types,
-//!   wraps raw client in `Arc` for efficient cloning (required for Python bindings).
+//!   wraps raw client in `Arc` for efficient cloning (required for legacy bridge bindings).
 //!
 //! # Authentication
 //!

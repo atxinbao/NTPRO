@@ -94,14 +94,6 @@ pub struct TardisReplayConfig {
 /// Configuration for the Tardis data client.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.tardis", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.tardis")
-)]
 pub struct TardisDataClientConfig {
     /// Tardis API key for HTTP instrument fetching.
     /// Falls back to `TARDIS_API_KEY` env var if not set.

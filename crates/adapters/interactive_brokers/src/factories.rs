@@ -51,13 +51,6 @@ impl ClientConfig for InteractiveBrokersExecClientConfig {
 
 /// Factory for creating Interactive Brokers data clients.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub struct InteractiveBrokersDataClientFactory;
 
 impl InteractiveBrokersDataClientFactory {
@@ -114,13 +107,6 @@ impl DataClientFactory for InteractiveBrokersDataClientFactory {
 
 /// Factory for creating Interactive Brokers execution clients.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub struct InteractiveBrokersExecutionClientFactory {
     trader_id: TraderId,
     account_id: AccountId,

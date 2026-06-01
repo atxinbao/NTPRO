@@ -25,7 +25,7 @@ use crate::common::enums::{IbOptionRight, IbSecurityType};
 
 /// Generate a unique trade ID for Interactive Brokers trades.
 ///
-/// This format matches the Python adapter: "{secs}-{price}-{size}"
+/// This format matches the legacy adapter: "{secs}-{price}-{size}"
 pub fn generate_ib_trade_id(ts_event: UnixNanos, price: f64, size: f64) -> TradeId {
     let ts_secs = ts_event.as_i64() / 1_000_000_000;
     TradeId::new(format!("{ts_secs}-{price}-{size}"))
@@ -426,7 +426,7 @@ const FUTURES_MONTH_CODES: &[(char, &str)] = &[
 
 /// Determine venue from contract using provider configuration.
 ///
-/// This implements the same logic as Python's `determine_venue_from_contract`:
+/// This implements the same logic as legacy's `determine_venue_from_contract`:
 /// 1. Check symbol-specific venue mapping first (prefix matching)
 /// 2. Use VENUE_MEMBERS mapping if convert_exchange_to_mic_venue is enabled
 /// 3. Fall back to exchange
@@ -1003,7 +1003,7 @@ pub fn is_spread_instrument_id(instrument_id: &InstrumentId) -> bool {
 
 /// Create a spread instrument ID from leg tuples.
 ///
-/// This implements the same logic as Python's `InstrumentId.new_spread`:
+/// This implements the same logic as legacy's `InstrumentId.new_spread`:
 /// - Creates a symbol string like `(1)SYMBOL1_((2))SYMBOL2`
 /// - Positive ratios: `(ratio)SYMBOL`
 /// - Negative ratios: `((abs(ratio)))SYMBOL`
@@ -1061,7 +1061,7 @@ pub fn create_spread_instrument_id(
 
 /// Parse a spread instrument ID back into leg tuples.
 ///
-/// This implements the same logic as Python's `InstrumentId.to_list()`:
+/// This implements the same logic as legacy's `InstrumentId.to_list()`:
 /// - Parses symbol string like `(1)SYMBOL1_((2))SYMBOL2`
 /// - Positive ratios: `(ratio)SYMBOL`
 /// - Negative ratios: `((abs(ratio)))SYMBOL`

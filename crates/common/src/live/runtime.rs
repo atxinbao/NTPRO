@@ -29,16 +29,6 @@
 //! `tokio::runtime::Builder::new_multi_thread()` and `enable_all()`. Adapters assume I/O,
 //! timers, spawning, and `tokio::task::block_in_place()` are available.
 //!
-//! # Python Support
-//!
-//! When the `python` feature is enabled, the runtime initializes the Python interpreter
-//! before starting worker threads. The PyO3 module registers an `atexit` handler via
-//! `shutdown_runtime()` to cleanly shut down when Python exits.
-//!
-//! A runtime passed to [`set_runtime`] is already built, so this module cannot run the default
-//! Python initialization hook before its worker threads start. Hosts using custom runtimes with
-//! Python support must prepare Python before building the runtime.
-//!
 //! # Testing Considerations
 //!
 //! The global runtime pattern makes it harder to inject test doubles. For testing:
@@ -70,12 +60,6 @@ const DEFAULT_OS_THREADS: usize = 0;
 /// Panics if the runtime could not be created, which typically indicates
 /// an inability to spawn threads or allocate necessary resources.
 fn initialize_runtime() -> tokio::runtime::Runtime {
-    // Initialize Python if running as a Python extension module
-    #[cfg(feature = "python")]
-    {
-        crate::python::runtime::initialize_python();
-    }
-
     let worker_threads = std::env::var(NAUTILUS_WORKER_THREADS)
         .ok()
         .and_then(|val| val.parse::<usize>().ok())
@@ -126,7 +110,7 @@ pub fn get_runtime() -> &'static tokio::runtime::Runtime {
 /// Provides a best-effort flush for runtime tasks during shutdown.
 ///
 /// The function yields once to the Tokio scheduler and gives outstanding tasks a chance
-/// to observe shutdown signals before Python finalizes the interpreter, which calls this via
+/// to observe shutdown signals before legacy finalizes the interpreter, which calls this via
 /// an `atexit` hook.
 pub fn shutdown_runtime(wait: Duration) {
     if let Some(runtime) = RUNTIME.get() {

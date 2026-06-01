@@ -958,7 +958,7 @@ async fn test_market_client_is_never_authenticated() {
 
 // Regression baseline for the Rust subscription-cap behavior. The constants
 // `WS_MAX_SUBSCRIPTIONS` and `ws_max_subscriptions` exist in
-// `common::consts` and `PolymarketDataClientConfig`, and the Python adapter
+// `common::consts` and `PolymarketDataClientConfig`, and the legacy adapter
 // (`websocket/client.py`) splits subscriptions across connections at the
 // 200 boundary. The Rust client does NOT currently enforce the cap: it
 // sends every asset in a single `subscribe` message on one connection.

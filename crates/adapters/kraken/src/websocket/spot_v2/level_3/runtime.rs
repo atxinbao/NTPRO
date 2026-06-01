@@ -15,8 +15,7 @@
 
 //! Shared protocol state machine for the Kraken Spot `level3` channel.
 //!
-//! The Rust `KrakenSpotDataClient` and the pyo3 `KrakenSpotWebSocketClient`
-//! stream loop drive their per-symbol state through [`process_l3_message`],
+//! Rust stream loops drive their per-symbol state through [`process_l3_message`],
 //! keeping the snapshot parsing, incremental update parsing, checksum
 //! validation, and resync logic in a single implementation. Each caller
 //! supplies an [`L3Sink`] that decides how to deliver the produced

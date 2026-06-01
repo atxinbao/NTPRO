@@ -194,7 +194,7 @@
       "status": "deferred",
       "inventory_task": "RADP-004",
       "owner_task": "RADP-006",
-      "summary": "Optional Kraken Python/PyO3 surfaces remain until the removal gate."
+      "summary": "Optional Kraken legacy bridge surfaces remain until RREM-018 closed the scoped removal gate."
     }
   ]
 }

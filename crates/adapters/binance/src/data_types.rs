@@ -31,14 +31,6 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 /// Binance Futures current open interest snapshot.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.binance", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.binance")
-)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BinanceFuturesOpenInterest {
     /// The instrument for this snapshot.
@@ -104,11 +96,6 @@ impl CustomDataTrait for BinanceFuturesOpenInterest {
         }
     }
 
-    #[cfg(feature = "python")]
-    fn to_pyobject(&self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
-        nautilus_model::data::custom::clone_pyclass_to_pyobject(self, py)
-    }
-
     fn type_name_static() -> &'static str {
         "BinanceFuturesOpenInterest"
     }
@@ -121,14 +108,6 @@ impl CustomDataTrait for BinanceFuturesOpenInterest {
 }
 
 /// Binance Futures historical open interest point.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.binance", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.binance")
-)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BinanceFuturesOpenInterestHistPoint {
     /// The total open interest value.
@@ -161,14 +140,6 @@ impl BinanceFuturesOpenInterestHistPoint {
 /// perpetual instruments. Although Binance also exposes quarter-delivery
 /// contract types on the historical OI endpoint, the futures instrument
 /// parsing/symbology path in this adapter is still perpetual-only.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.binance", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.binance")
-)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BinanceFuturesOpenInterestHist {
     /// The instrument for this batch.
@@ -238,11 +209,6 @@ impl CustomDataTrait for BinanceFuturesOpenInterestHist {
         }
     }
 
-    #[cfg(feature = "python")]
-    fn to_pyobject(&self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
-        nautilus_model::data::custom::clone_pyclass_to_pyobject(self, py)
-    }
-
     fn type_name_static() -> &'static str {
         "BinanceFuturesOpenInterestHist"
     }
@@ -255,14 +221,6 @@ impl CustomDataTrait for BinanceFuturesOpenInterestHist {
 }
 
 /// Binance Futures liquidation update from the `forceOrder` stream.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.binance", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.binance")
-)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BinanceFuturesLiquidation {
     /// The instrument for this liquidation event.
@@ -345,11 +303,6 @@ impl CustomDataTrait for BinanceFuturesLiquidation {
         }
     }
 
-    #[cfg(feature = "python")]
-    fn to_pyobject(&self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
-        nautilus_model::data::custom::clone_pyclass_to_pyobject(self, py)
-    }
-
     fn type_name_static() -> &'static str {
         "BinanceFuturesLiquidation"
     }
@@ -375,18 +328,8 @@ pub fn register_binance_custom_data() {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "python")]
-    use std::sync::Arc;
 
-    #[cfg(feature = "python")]
-    use nautilus_core::Params;
-    #[cfg(feature = "python")]
-    use nautilus_model::data::{CustomData, DataType};
-    #[cfg(feature = "python")]
-    use pyo3::{prelude::*, types::PyList};
     use rstest::rstest;
-    #[cfg(feature = "python")]
-    use rust_decimal::Decimal;
 
     use super::*;
 
@@ -394,90 +337,5 @@ mod tests {
     fn test_register_binance_custom_data_is_idempotent() {
         register_binance_custom_data();
         register_binance_custom_data();
-    }
-
-    #[cfg(feature = "python")]
-    #[rstest]
-    fn test_open_interest_hist_points_roundtrip_as_typed_python_list() {
-        pyo3::Python::initialize();
-        register_binance_custom_data();
-
-        Python::attach(|py| {
-            let instrument_id = InstrumentId::from("BTCUSDT-PERP.BINANCE");
-            let points = vec![
-                BinanceFuturesOpenInterestHistPoint::new(
-                    Decimal::from_str_exact("100.0").unwrap(),
-                    Decimal::from_str_exact("1000.0").unwrap(),
-                    UnixNanos::from_millis(1_700_000_000_000),
-                ),
-                BinanceFuturesOpenInterestHistPoint::new(
-                    Decimal::from_str_exact("101.0").unwrap(),
-                    Decimal::from_str_exact("1005.0").unwrap(),
-                    UnixNanos::from_millis(1_700_000_300_000),
-                ),
-            ];
-            let payload = BinanceFuturesOpenInterestHist::new(
-                instrument_id,
-                "5m".to_string(),
-                points,
-                UnixNanos::from_millis(1_700_000_300_000),
-                UnixNanos::from(42_u64),
-            );
-
-            let mut metadata = Params::new();
-            metadata.insert(
-                "instrument_id".to_string(),
-                serde_json::Value::String("BTCUSDT-PERP.BINANCE".to_string()),
-            );
-            metadata.insert(
-                "period".to_string(),
-                serde_json::Value::String("5m".to_string()),
-            );
-
-            let custom = CustomData::new(
-                Arc::new(payload),
-                DataType::new(
-                    "BinanceFuturesOpenInterestHist",
-                    Some(metadata),
-                    Some("BTCUSDT-PERP.BINANCE".to_string()),
-                ),
-            );
-
-            let py_custom = Py::new(py, custom).unwrap();
-            let py_payload = py_custom.bind(py).getattr("data").unwrap();
-            let py_points = py_payload
-                .getattr("points")
-                .unwrap()
-                .cast_into::<PyList>()
-                .unwrap();
-
-            assert_eq!(py_points.len(), 2);
-            assert!(
-                py_points
-                    .get_item(0)
-                    .unwrap()
-                    .is_instance_of::<BinanceFuturesOpenInterestHistPoint>()
-            );
-
-            let point0 = py_points
-                .get_item(0)
-                .unwrap()
-                .extract::<BinanceFuturesOpenInterestHistPoint>()
-                .unwrap();
-            let point1 = py_points
-                .get_item(1)
-                .unwrap()
-                .extract::<BinanceFuturesOpenInterestHistPoint>()
-                .unwrap();
-
-            assert_eq!(
-                point0.sum_open_interest,
-                Decimal::from_str_exact("100.0").unwrap()
-            );
-            assert_eq!(
-                point1.sum_open_interest_value,
-                Decimal::from_str_exact("1005.0").unwrap()
-            );
-        });
     }
 }

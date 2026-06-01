@@ -59,7 +59,7 @@ pub async fn subscribe_account_summary(
     account_id: AccountId,
 ) -> anyhow::Result<(Vec<AccountBalance>, Vec<MarginBalance>)> {
     let raw_account_id = raw_ib_account_code(&account_id);
-    // Request key account summary tags (includes TotalCashValue to match Python account summary info dict).
+    // Request key account summary tags (includes TotalCashValue to match legacy account summary info dict).
     let tags = &[
         AccountSummaryTags::NET_LIQUIDATION,
         AccountSummaryTags::TOTAL_CASH_VALUE,
@@ -83,7 +83,7 @@ pub async fn subscribe_account_summary(
 
     // Process initial account summary snapshot
     // We collect all summary items until the API sends AccountSummaryResult::End, so the
-    // returned balances/margins are complete (matches Python behavior of waiting for all tags).
+    // returned balances/margins are complete (matches legacy behavior of waiting for all tags).
     let mut balances: Vec<AccountBalance> = Vec::new();
     let mut margins: Vec<MarginBalance> = Vec::new();
 
@@ -421,7 +421,7 @@ pub async fn subscribe_positions(
                                     );
 
                                     // Convert IB avg_cost to Nautilus Price, accounting for price magnifier and multiplier
-                                    // Python: converted_avg_cost = avg_cost / (multiplier * price_magnifier)
+                                    // legacy: converted_avg_cost = avg_cost / (multiplier * price_magnifier)
                                     let avg_px_open = if position.average_cost > 0.0 {
                                         let price_magnifier = instrument_provider
                                             .get_price_magnifier(&instrument_id)
@@ -564,7 +564,7 @@ mod tests {
     }
 
     /// Verifies the IB avg cost to Nautilus price conversion formula used in position parsing.
-    /// Python: converted_avg_cost = avg_cost / (multiplier * price_magnifier)
+    /// legacy: converted_avg_cost = avg_cost / (multiplier * price_magnifier)
     #[rstest]
     fn test_ib_avg_cost_to_price_conversion() {
         let avg_cost = 100.0;

@@ -11,9 +11,13 @@
     ".agentflow/leases/RREM-017.json"
   ],
   "claimed_at": "2026-06-01T22:13:49Z",
-  "status": "REVIEW_REQUIRED",
+  "status": "DONE",
   "qa_passed": true,
-  "review_passed": false,
-  "release_gatekeeper_approved": false,
-  "auto_merge_allowed": false
+  "review_passed": true,
+  "release_gatekeeper_approved": true,
+  "auto_merge_allowed": false,
+  "pr_url": "https://github.com/atxinbao/NTPRO/pull/113",
+  "merged_pr": 113,
+  "merged_at": "2026-06-01T22:43:43Z",
+  "merge_commit": "bbd326659d385b644fa0d85da2fd55480a0813ca"
 }

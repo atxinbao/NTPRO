@@ -21,7 +21,7 @@ use rand::RngExt;
 
 /// Computes the auto-load retry sleep duration for `attempt`.
 ///
-/// Matches the Python adapter's `auto_load_retry_delay` formula: takes
+/// Matches the legacy adapter's `auto_load_retry_delay` formula: takes
 /// `base_secs * 2^attempt`, caps at `max_secs`, then adds positive jitter of up
 /// to 25% of the capped value. Jitter decorrelates concurrent retries after a
 /// venue lifecycle race so they do not all rehit Gamma at the same instant.

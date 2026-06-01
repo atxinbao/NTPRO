@@ -27,8 +27,7 @@
 //! - **Common indicator trait**: Unified interface supporting bars, quotes, trades, and order book data.
 //!
 //! All indicators are designed for high-performance real-time processing with bounded memory
-//! usage and efficient circular buffer implementations. The crate supports both Rust-native
-//! usage and Python integration for strategy development and backtesting.
+//! usage and efficient circular buffer implementations. The crate is used directly from Rust runtimes for strategy development and backtesting.
 //!
 //! # NautilusTrader
 //!
@@ -40,14 +39,10 @@
 //!
 //! # Feature Flags
 //!
-//! This crate provides feature flags to control source code inclusion during compilation,
-//! depending on the intended use case, i.e. whether to provide Python bindings
-//! for the [nautilus_trader](https://pypi.org/project/nautilus_trader) Python package,
-//! or as part of a Rust only build.
+//! This crate exposes Rust-native build behavior only.
 //!
-//! - `python`: Enables Python bindings from [PyO3](https://pyo3.rs).
-//! - `extension-module`: Builds the crate as a Python extension module.
 
+//!
 #![warn(rustc::all)]
 #![warn(clippy::pedantic)]
 #![deny(unsafe_code)]

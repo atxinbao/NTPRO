@@ -26,19 +26,6 @@ use serde::{Deserialize, Serialize};
 /// has distinct trading rules and instrument specifications.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.binance",
-        eq,
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE"
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.binance")
-)]
 pub enum BinanceProductType {
     /// Spot trading (api.binance.com).
     #[default]
@@ -117,19 +104,6 @@ impl Display for BinanceProductType {
 
 /// Binance environment type.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.binance",
-        eq,
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE"
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.binance")
-)]
 pub enum BinanceEnvironment {
     /// Live exchange environment.
     #[default]
@@ -188,18 +162,6 @@ impl From<BinanceSide> for OrderSide {
 /// Position side for dual-side position mode.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.binance",
-        eq,
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.binance")
-)]
 pub enum BinancePositionSide {
     /// Single position mode (both).
     Both,
@@ -218,19 +180,6 @@ pub enum BinancePositionSide {
 /// `/fapi/v1/marginType`. Deserializes from both POST and GET/WS
 /// formats (`cross`/`isolated`) via serde aliases.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.binance",
-        eq,
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE"
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.binance")
-)]
 pub enum BinanceMarginType {
     /// Cross margin.
     #[serde(rename = "CROSSED", alias = "cross")]

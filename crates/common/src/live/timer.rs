@@ -23,16 +23,12 @@ use std::{
     },
 };
 
-#[cfg(feature = "python")]
-use nautilus_core::consts::NAUTILUS_PREFIX;
 use nautilus_core::{
     UUID4, UnixNanos,
     correctness::{FAILED, check_valid_string_utf8},
     datetime::floor_to_nearest_microsecond,
     time::get_atomic_clock_realtime,
 };
-#[cfg(feature = "python")]
-use pyo3::{Py, PyAny, Python};
 use tokio::{
     task::JoinHandle,
     time::{Duration, Instant},
@@ -208,10 +204,6 @@ impl LiveTimer {
                 let event = TimeEvent::new(event_name, UUID4::new(), next_time_ns, now_ns);
 
                 match callback {
-                    #[cfg(feature = "python")]
-                    TimeEventCallback::Python(ref callback) => {
-                        call_python_with_time_event(event, callback);
-                    }
                     TimeEventCallback::Rust(_) | TimeEventCallback::RustLocal(_) => {
                         debug_assert!(
                             sender.is_some(),
@@ -269,30 +261,6 @@ impl Timer for LiveTimer {
     fn cancel(&mut self) {
         Self::cancel(self);
     }
-}
-
-#[cfg(feature = "python")]
-fn call_python_with_time_event(event: TimeEvent, callback: &Py<PyAny>) {
-    use nautilus_core::python::IntoPyObjectNautilusExt;
-    use pyo3::types::PyCapsule;
-
-    Python::attach(|py| {
-        // Create a new PyCapsule that owns `event` and registers a destructor so
-        // the contained `TimeEvent` is properly freed once the capsule is
-        // garbage-collected by Python. Without the destructor the memory would
-        // leak because the capsule would not know how to drop the Rust value.
-
-        // Register a destructor that simply drops the `TimeEvent` once the
-        // capsule is freed on the Python side.
-        let capsule: Py<PyAny> = PyCapsule::new_with_destructor(py, event, None, |_, _| {})
-            .expect("Error creating `PyCapsule`")
-            .into_py_any_unwrap(py);
-
-        match callback.call1(py, (capsule,)) {
-            Ok(_) => {}
-            Err(e) => eprintln!("{NAUTILUS_PREFIX} Error on callback: {e:?}"),
-        }
-    });
 }
 
 #[cfg(test)]

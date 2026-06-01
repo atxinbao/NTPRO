@@ -46,14 +46,6 @@ use crate::{
 ///
 /// This client provides methods for requesting historical bars and ticks
 /// for backtesting and research purposes.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        subclass,
-        from_py_object
-    )
-)]
 pub struct HistoricalInteractiveBrokersClient {
     /// IB API client.
     ib_client: Arc<Client>,
@@ -424,7 +416,7 @@ impl HistoricalInteractiveBrokersClient {
                     (5, 0) // Default fallback
                 };
 
-            // Pagination loop for ticks (similar to Python _handle_timestamp_iteration)
+            // Pagination loop for ticks (similar to legacy _handle_timestamp_iteration)
             let mut current_end_date = end_date_time;
             let current_start_date = start_date_time;
             let end_date_time_ns = UnixNanos::from(
@@ -652,7 +644,7 @@ impl HistoricalInteractiveBrokersClient {
             .await?;
         let mut loaded_instruments = self.instrument_provider.find_all(&loaded_ids);
 
-        // Load instruments from contracts (equivalent to Python's _fetch_instruments_if_not_cached)
+        // Load instruments from contracts (equivalent to legacy's _fetch_instruments_if_not_cached)
         for contract in contracts {
             match self
                 .instrument_provider
@@ -683,7 +675,7 @@ impl HistoricalInteractiveBrokersClient {
                 Some(cached_id)
             } else {
                 // Convert contract to instrument ID using provider's venue determination
-                // This matches Python's logic: venue = instrument_provider.determine_venue_from_contract(contract)
+                // This matches legacy's logic: venue = instrument_provider.determine_venue_from_contract(contract)
                 let venue = self.instrument_provider.determine_venue(&contract, None);
                 match self.instrument_provider.symbology_method() {
                     crate::config::SymbologyMethod::Simplified => {
@@ -709,7 +701,7 @@ impl HistoricalInteractiveBrokersClient {
                     continue;
                 }
 
-                // Fetch if not cached (matching Python: if not self._client._cache.instrument(instrument_id))
+                // Fetch if not cached (matching legacy: if not self._client._cache.instrument(instrument_id))
                 if self.instrument_provider.find(&instrument_id).is_none() {
                     tracing::info!("Fetching Instrument for: {}", instrument_id);
 
@@ -777,14 +769,14 @@ impl HistoricalInteractiveBrokersClient {
             }
         }
 
-        // Calculate from start/end dates - matching Python's comprehensive breakdown
+        // Calculate from start/end dates - matching legacy's comprehensive breakdown
         if let Some(start) = start_date {
             let total_delta = end_date.signed_duration_since(start);
             let total_days = total_delta.num_days();
 
             let mut segments = Vec::new();
 
-            // Calculate full years in the time delta (matching Python: years = total_delta.days // 365)
+            // Calculate full years in the time delta (matching legacy: years = total_delta.days // 365)
             let years = total_days / 365;
             let minus_years_date = if years > 0 {
                 end_date - chrono::Duration::days(365 * years)
@@ -792,7 +784,7 @@ impl HistoricalInteractiveBrokersClient {
                 end_date
             };
 
-            // Calculate remaining days after subtracting full years (matching Python logic)
+            // Calculate remaining days after subtracting full years (matching legacy logic)
             let days = if years > 0 {
                 let remaining_delta = minus_years_date.signed_duration_since(start);
                 remaining_delta.num_days()
@@ -807,7 +799,7 @@ impl HistoricalInteractiveBrokersClient {
             };
 
             // Calculate remaining time in seconds after subtracting years and days
-            // Matching Python: hours*3600 + minutes*60 + seconds + subsecond
+            // Matching legacy: hours*3600 + minutes*60 + seconds + subsecond
             let remaining_delta = minus_days_date.signed_duration_since(start);
             // Extract time components from the remaining delta
             let total_secs = remaining_delta.num_seconds();
@@ -825,7 +817,7 @@ impl HistoricalInteractiveBrokersClient {
             };
             let seconds = hours * 3600 + minutes * 60 + secs + subsecond;
 
-            // Build segments in order: years, days, seconds (matching Python order)
+            // Build segments in order: years, days, seconds (matching legacy order)
             if years > 0 {
                 segments.push((end_date, historical::Duration::years(years as i32)));
             }

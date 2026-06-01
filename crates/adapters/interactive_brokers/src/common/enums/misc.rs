@@ -27,13 +27,6 @@ macro_rules! define_ib_i32_enum {
     ) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-        #[cfg_attr(
-            feature = "python",
-            pyo3::pyclass(
-                module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-                from_py_object
-            )
-        )]
         pub enum $name {
             $($(#[$variant_meta])* $variant),+
         }
@@ -192,13 +185,6 @@ define_ib_i32_enum! {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbRule80A {
     Individual,
     Agency,
@@ -235,13 +221,6 @@ impl Display for IbRule80A {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbOrderOpenClose {
     Open,
     Close,
@@ -264,13 +243,6 @@ impl Display for IbOrderOpenClose {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbTwapStrategyType {
     Marketable,
     MatchingMidpoint,
@@ -297,13 +269,6 @@ impl Display for IbTwapStrategyType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbRiskAversion {
     GetDone,
     Aggressive,
@@ -330,13 +295,6 @@ impl Display for IbRiskAversion {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbLegAction {
     Buy,
     Sell,
@@ -359,13 +317,6 @@ impl Display for IbLegAction {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbFundDistributionPolicyIndicator {
     None,
     AccumulationFund,
@@ -390,13 +341,6 @@ impl Display for IbFundDistributionPolicyIndicator {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbFundAssetType {
     None,
     Others,
@@ -434,13 +378,6 @@ impl Display for IbFundAssetType {
 
 /// Bond identifier discriminator for the rust-ibapi payload enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbBondIdentifierKind {
     Cusip,
     Isin,

@@ -24,7 +24,7 @@
 //! The client uses a two-tier architecture per the adapter design guidelines:
 //!
 //! - **Outer client** (`BinanceSpotWsTradingClient`): Orchestrates connection lifecycle,
-//!   maintains state for Python access, sends commands via channel.
+//!   maintains state for legacy access, sends commands via channel.
 //! - **Inner handler** (`BinanceSpotWsTradingHandler`): Runs in dedicated Tokio task,
 //!   owns WebSocket connection, processes commands and responses.
 //!

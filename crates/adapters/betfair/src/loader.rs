@@ -281,9 +281,9 @@ impl BetfairDataLoader {
             }
 
             // Non-snapshot deltas and BSP deltas are buffered and flushed after
-            // trades/tickers to mirror the Python `market_change_to_updates`
+            // trades/tickers to mirror the legacy `market_change_to_updates`
             // ordering (book deltas first, then BSP). Snapshots go inline per
-            // runner, also matching Python.
+            // runner, also matching legacy.
             let mut buffered_deltas: Vec<OrderBookDeltas> = Vec::new();
             let mut buffered_bsp_deltas: Vec<BetfairBspBookDelta> = Vec::new();
 
@@ -877,7 +877,7 @@ mod tests {
     #[rstest]
     fn test_load_non_snapshot_deltas_tail_after_trades() {
         // Non-snapshot runner updates must emit book deltas AFTER any trades or
-        // tickers parsed from the same message, matching the Python
+        // tickers parsed from the same message, matching the legacy
         // `market_change_to_updates` ordering and keeping live/backtest in step.
         let data = compact_json(&load_test_json("stream/mcm_live_UPDATE.json"));
         let tmp_file = write_tmp(&data, "test_order_deltas_tail.json");
@@ -902,7 +902,7 @@ mod tests {
     fn test_load_snapshot_deltas_emit_inline_before_trades() {
         // Snapshot messages (mc.img=true) emit Clear+Add deltas inline per runner
         // so consumers can apply the book state before any trades in the same
-        // MCM. This matches Python's inline-snapshot behaviour.
+        // MCM. This matches legacy's inline-snapshot behaviour.
         let data = compact_json(&load_test_json(
             "stream/market_definition_runner_removed.json",
         ));
@@ -927,7 +927,7 @@ mod tests {
     #[rstest]
     fn test_load_bsp_tails_after_book_deltas() {
         // Within each MCM, BSP deltas must emit after all regular book deltas.
-        // Python flushes `book_updates` before `bsp_book_updates`; the Rust
+        // legacy flushes `book_updates` before `bsp_book_updates`; the Rust
         // loader must do the same to preserve consumer ordering.
         let raw = load_test_json("stream/mcm_BSP.json");
         let messages: Vec<serde_json::Value> = serde_json::from_str(&raw).unwrap();
@@ -974,7 +974,7 @@ mod tests {
     fn test_load_emits_close_for_removed_runner_while_market_open() {
         // Removed runners must fire InstrumentClose as soon as the market
         // definition reports the Removed status, regardless of whether the
-        // market as a whole is still Open. This matches the Python parser.
+        // market as a whole is still Open. This matches the legacy parser.
         let mcm = r#"{"op":"mcm","id":1,"pt":1627617202953,"ct":"SUB_IMAGE","mc":[{"id":"1.2","marketDefinition":{"bspMarket":false,"turnInPlayEnabled":false,"persistenceEnabled":false,"marketBaseRate":5,"eventId":"1","eventTypeId":"1","numberOfWinners":1,"bettingType":"ODDS","marketType":"WIN","marketTime":"2021-07-30T03:55:00.000Z","bspReconciled":false,"complete":true,"inPlay":false,"crossMatching":false,"runnersVoidable":false,"numberOfActiveRunners":1,"betDelay":0,"status":"OPEN","runners":[{"status":"ACTIVE","sortPriority":1,"id":201},{"status":"REMOVED","sortPriority":2,"id":202}],"regulators":["MR_INT"],"discountAllowed":true,"timezone":"UTC","openDate":"2021-07-30T02:45:00.000Z","version":1,"priceLadderDefinition":{"type":"CLASSIC"}}}]}"#;
         let tmp_file = write_tmp(mcm, "test_order_close_for_removed.json");
 

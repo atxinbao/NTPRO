@@ -201,8 +201,8 @@
       "status": "deferred",
       "inventory_task": "RADP-016",
       "owner_task": "RADP-018",
-      "summary": "Optional Interactive Brokers Python/PyO3 surfaces remain until the removal gate.",
-      "resolution": "Deferred to the Rust-only removal gate because RADP-018 does not authorize deleting optional Python/PyO3 surfaces."
+      "summary": "Optional Interactive Brokers legacy bridge surfaces remain until RREM-018 closed the scoped removal gate.",
+      "resolution": "Deferred to the Rust-only removal gate because RADP-018 is superseded by RREM-018 removal authorization."
     }
   ]
 }

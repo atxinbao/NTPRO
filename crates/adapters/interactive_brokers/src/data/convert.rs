@@ -86,7 +86,7 @@ pub fn price_type_to_ib_what_to_show(price_type: PriceType) -> HistoricalWhatToS
 }
 
 /// Implement bar price validation logic.
-/// Matches Python's `_validate_bar_prices` behavior.
+/// Matches legacy's `_validate_bar_prices` behavior.
 fn _validate_bar_prices(open: &mut f64, high: &mut f64, low: &mut f64, close: &f64) {
     if *high < *low || *high < *open || *high < *close || *low > *open || *low > *close {
         tracing::warn!(

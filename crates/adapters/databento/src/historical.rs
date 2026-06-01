@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Core Databento historical client for both Rust and Python usage.
+//! Core Databento historical client for both Rust and legacy usage.
 
 use std::{fmt::Debug, fs, num::NonZeroU64, path::PathBuf, str::FromStr, sync::Arc};
 

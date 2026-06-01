@@ -17,7 +17,7 @@
 //!
 //! These types carry Betfair domain data through the Nautilus data engine as
 //! [`CustomData`](nautilus_model::data::CustomData). Each type uses the
-//! `#[custom_data(pyo3)]` macro which generates `CustomDataTrait`, Arrow codec, and
+//! `#[custom_data]` macro which generates `CustomDataTrait`, Arrow codec, and
 //! serialization implementations.
 //!
 //! Call [`register_betfair_custom_data`] once (e.g. during client `connect()`)
@@ -52,7 +52,7 @@ mod nan_as_null {
 ///
 /// Carries last traded price, traded volume, and starting price
 /// near/far values per runner.
-#[custom_data(pyo3)]
+#[custom_data]
 pub struct BetfairTicker {
     /// The instrument ID for this ticker.
     pub instrument_id: InstrumentId,
@@ -77,7 +77,7 @@ pub struct BetfairTicker {
 /// Realized Betfair Starting Price (BSP) for a runner.
 ///
 /// Emitted from the market definition when a runner's BSP is determined.
-#[custom_data(pyo3)]
+#[custom_data]
 pub struct BetfairStartingPrice {
     /// The instrument ID for this starting price.
     pub instrument_id: InstrumentId,
@@ -95,7 +95,7 @@ pub struct BetfairStartingPrice {
 /// Mirrors `OrderBookDelta` fields as a custom data type so strategies
 /// can subscribe specifically to BSP book updates (spb/spl) separately
 /// from the exchange order book (atb/atl).
-#[custom_data(pyo3)]
+#[custom_data]
 pub struct BetfairBspBookDelta {
     /// The instrument ID for this BSP delta.
     pub instrument_id: InstrumentId,
@@ -119,7 +119,7 @@ pub struct BetfairBspBookDelta {
 ///
 /// Strategies can use this to know when a coherent set of market updates
 /// has been fully delivered.
-#[custom_data(pyo3)]
+#[custom_data]
 pub struct BetfairSequenceCompleted {
     /// UNIX timestamp (nanoseconds) when the data event occurred.
     pub ts_event: UnixNanos,
@@ -131,7 +131,7 @@ pub struct BetfairSequenceCompleted {
 ///
 /// Published when a matched bet is retroactively voided by Betfair, such as
 /// when a goal is disallowed following a VAR review.
-#[custom_data(pyo3)]
+#[custom_data]
 pub struct BetfairOrderVoided {
     /// The instrument ID for the voided order.
     pub instrument_id: InstrumentId,
@@ -168,7 +168,7 @@ pub struct BetfairOrderVoided {
 ///
 /// Betfair's Total Performance Data (TPD) provides real-time GPS positions,
 /// speed, and stride frequency for each runner in supported races.
-#[custom_data(pyo3)]
+#[custom_data]
 pub struct BetfairRaceRunnerData {
     /// Race identifier (e.g. "28587288.1650").
     pub race_id: String,
@@ -216,7 +216,7 @@ pub struct BetfairRaceRunnerData {
 ///
 /// Provides sectional timing, race order, and obstacle data for the
 /// overall race rather than individual runners.
-#[custom_data(pyo3)]
+#[custom_data]
 pub struct BetfairRaceProgress {
     /// Race identifier (e.g. "28587288.1650").
     pub race_id: String,

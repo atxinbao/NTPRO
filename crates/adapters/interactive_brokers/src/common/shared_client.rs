@@ -17,7 +17,7 @@
 //!
 //! Data, execution, and historical clients use a single TCP connection per logical
 //! connection to avoid client ID conflicts and redundant connections (parity with
-//! Python's get_cached_ib_client).
+//! legacy's get_cached_ib_client).
 
 use std::{
     collections::HashMap,

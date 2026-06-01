@@ -22,13 +22,6 @@ use nautilus_model::enums::{
 
 /// Interactive Brokers execution/action side values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbAction {
     /// Buy action from order data.
     Buy,
@@ -117,13 +110,6 @@ impl Display for IbAction {
 
 /// Interactive Brokers order status values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbOrderStatus {
     /// Order is pending API processing.
     ApiPending,
@@ -214,13 +200,6 @@ impl Display for IbOrderStatus {
 
 /// Interactive Brokers order type values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbOrderType {
     /// Market order.
     Market,
@@ -412,13 +391,6 @@ impl Display for IbOrderType {
 
 /// Interactive Brokers time-in-force values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbTimeInForce {
     /// Day order.
     Day,
@@ -531,13 +503,6 @@ impl Display for IbTimeInForce {
 
 /// Interactive Brokers builder time-in-force values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbBuilderTimeInForce {
     Day,
     GoodTillCancel,
@@ -614,13 +579,6 @@ impl Display for IbBuilderTimeInForce {
 
 /// Interactive Brokers combo-leg open/close values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbComboLegOpenClose {
     Same,
     Open,
@@ -665,13 +623,6 @@ impl From<ibapi::contracts::ComboLegOpenClose> for IbComboLegOpenClose {
 
 /// Interactive Brokers conditional order condition types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbConditionKind {
     /// Price condition.
     Price,
@@ -726,13 +677,6 @@ impl Display for IbConditionKind {
 
 /// Interactive Brokers conditional order conjunction values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbConditionConjunction {
     /// Logical AND.
     And,
@@ -777,13 +721,6 @@ impl Display for IbConditionConjunction {
 
 /// Interactive Brokers price-condition trigger methods.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbTriggerMethod {
     /// Default method.
     Default,
@@ -865,13 +802,6 @@ impl Display for IbTriggerMethod {
 
 /// Interactive Brokers one-cancels-all behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbOcaType {
     /// Not part of an OCA group.
     None,
@@ -938,13 +868,6 @@ impl Display for IbOcaType {
 
 /// Interactive Brokers execution liquidity values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum IbLiquidity {
     None,
     AddedLiquidity,

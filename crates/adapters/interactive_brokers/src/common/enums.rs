@@ -146,7 +146,7 @@ mod tests {
     #[case("PEGMID", IbOrderType::PeggedToMidpoint, "PEG MID")]
     #[case("PEGBENCH", IbOrderType::PeggedToBenchmark, "PEG BENCH")]
     #[case("PEGBEST", IbOrderType::PegBest, "PEG BEST")]
-    fn test_ib_order_type_parse_accepts_ibapi_python_aliases(
+    fn test_ib_order_type_parse_accepts_ibapi_aliases(
         #[case] value: &str,
         #[case] expected_order_type: IbOrderType,
         #[case] expected_display: &str,

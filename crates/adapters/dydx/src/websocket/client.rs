@@ -100,21 +100,13 @@ use crate::{
 /// # Architecture
 ///
 /// This client follows a two-layer architecture:
-/// - **Outer client** (this struct): Orchestrates connection and maintains Python-accessible state
+/// - **Outer client** (this struct): Orchestrates connection and maintains Rust-accessible state
 /// - **Inner handler**: Owns WebSocketClient exclusively and processes messages in a dedicated task
 ///
 /// Communication uses lock-free channels:
 /// - Commands flow from client → handler via `cmd_tx`
 /// - Parsed events flow from handler → client via `out_rx`
 #[derive(Debug)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.dydx", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.dydx")
-)]
 pub struct DydxWebSocketClient {
     url: String,
     credential: Option<Arc<DydxCredential>>,
@@ -307,7 +299,7 @@ impl DydxWebSocketClient {
 
     /// Returns a clone of the connection mode atomic reference.
     ///
-    /// This is primarily used for Python bindings that need to monitor connection state.
+    /// This is primarily used for legacy bridge bindings that need to monitor connection state.
     #[must_use]
     pub fn connection_mode_atomic(&self) -> Arc<ArcSwap<AtomicU8>> {
         self.connection_mode.clone()

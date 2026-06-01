@@ -27,14 +27,6 @@ use crate::common::{
 /// Configuration for the Coinbase data client.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.coinbase", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.coinbase")
-)]
 pub struct CoinbaseDataClientConfig {
     /// CDP API key name (falls back to `COINBASE_API_KEY` env var).
     pub api_key: Option<String>,
@@ -114,14 +106,6 @@ impl CoinbaseDataClientConfig {
 /// Configuration for the Coinbase execution client.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.coinbase", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.coinbase")
-)]
 pub struct CoinbaseExecClientConfig {
     /// CDP API key name (falls back to `COINBASE_API_KEY` env var).
     pub api_key: Option<String>,

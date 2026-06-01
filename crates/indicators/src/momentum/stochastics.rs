@@ -54,21 +54,6 @@ const MAX_PERIOD: usize = 1_024;
 )]
 #[strum(ascii_case_insensitive)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        frozen,
-        eq,
-        eq_int,
-        hash,
-        module = "nautilus_trader.core.nautilus_pyo3.indicators",
-        from_py_object,
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.indicators")
-)]
 pub enum StochasticsDMethod {
     /// Ratio: Nautilus original method: `100 * SUM(close-LL) / SUM(HH-LL)` over `period_d`.
     /// This is range-weighted and has less lag than MA-based methods.
@@ -80,14 +65,6 @@ pub enum StochasticsDMethod {
 }
 
 #[repr(C)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.indicators")
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.indicators")
-)]
 pub struct Stochastics {
     /// The lookback period for %K calculation (highest high / lowest low).
     pub period_k: usize,

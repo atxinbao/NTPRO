@@ -19,14 +19,6 @@
 
 /// Result from a Bybit borrow operation for strategy consumption.
 #[derive(Clone, Debug)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.bybit", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.bybit")
-)]
 pub struct BybitMarginBorrowResult {
     /// The coin that was borrowed.
     pub coin: String,
@@ -44,14 +36,6 @@ pub struct BybitMarginBorrowResult {
 
 /// Result from a Bybit repay operation for strategy consumption.
 #[derive(Clone, Debug)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.bybit", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.bybit")
-)]
 pub struct BybitMarginRepayResult {
     /// The coin that was repaid.
     pub coin: String,
@@ -71,14 +55,6 @@ pub struct BybitMarginRepayResult {
 
 /// Result with current borrowed amount on Bybit.
 #[derive(Clone, Debug)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.bybit", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.bybit")
-)]
 pub struct BybitMarginStatusResult {
     /// The coin being queried.
     pub coin: String,

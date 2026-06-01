@@ -200,7 +200,7 @@ pub enum DydxWsMessage {
 ///
 /// The handler deserializes raw WebSocket JSON into these typed variants
 /// without converting to Nautilus domain types. Consumers (data client,
-/// execution client, Python bindings) perform the final conversion using
+/// execution client, legacy bridge bindings) perform the final conversion using
 /// their own instrument caches.
 #[derive(Debug, Clone)]
 pub enum DydxWsOutputMessage {

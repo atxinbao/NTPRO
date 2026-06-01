@@ -561,7 +561,7 @@ mod tests {
     #[expect(
         clippy::cast_possible_truncation,
         clippy::cast_possible_wrap,
-        reason = "Intentional cast for Python interop"
+        reason = "Intentional cast for legacy bridge interop"
     )]
     fn test_nanos_since_unix_epoch_vs_system_time() {
         let unix_nanos = nanos_since_unix_epoch();

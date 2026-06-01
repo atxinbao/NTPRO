@@ -103,18 +103,6 @@ use crate::{
 /// Common configuration for [`DataActor`] based components.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.common",
-        subclass,
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.common")
-)]
 pub struct DataActorConfig {
     /// The custom identifier for the Actor.
     pub actor_id: Option<ActorId>,
@@ -137,14 +125,6 @@ impl Default for DataActorConfig {
 /// Configuration for creating actors from importable paths.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.common", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.common")
-)]
 pub struct ImportableActorConfig {
     /// The fully qualified name of the Actor class.
     pub actor_path: String,
@@ -3180,7 +3160,7 @@ impl DataActorCore {
     /// Publishes `data` on the message bus under the topic derived from `data_type`.
     ///
     /// `data_type` is kept as an explicit parameter (rather than deriving it from
-    /// `data.data_type`) to mirror the v1 Python `publish_data(data_type, data)` API and
+    /// `data.data_type`) to mirror the v1 legacy `publish_data(data_type, data)` API and
     /// to allow callers to override the routing topic from the payload's intrinsic type.
     ///
     /// # Panics
@@ -3197,7 +3177,7 @@ impl DataActorCore {
     /// so it is consumed by signal subscribers and by any `CustomData`-aware pipeline
     /// (for example the feather persistence writer).
     ///
-    /// The topic mirrors the v1 Python scheme `data.Signal<TitleName>` so subscribers
+    /// The topic mirrors the v1 legacy scheme `data.Signal<TitleName>` so subscribers
     /// using either a specific name or the global wildcard are both notified.
     /// If `ts_event` is zero then the current clock timestamp is used.
     ///

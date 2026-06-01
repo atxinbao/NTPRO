@@ -26,14 +26,8 @@ use nautilus_persistence_macros::custom_data;
 use rust_decimal::Decimal;
 
 /// Hyperliquid all mid prices snapshot from the `allMids` WebSocket channel.
-#[cfg_attr(
-    feature = "arrow",
-    custom_data(pyo3, stub_module = "nautilus_trader.hyperliquid")
-)]
-#[cfg_attr(
-    not(feature = "arrow"),
-    custom_data(pyo3, no_arrow, stub_module = "nautilus_trader.hyperliquid")
-)]
+#[cfg_attr(feature = "arrow", custom_data)]
+#[cfg_attr(not(feature = "arrow"), custom_data(no_arrow))]
 pub struct HyperliquidAllMids {
     /// Mapping of instrument ID to mid price for all tradable coins.
     #[custom_data_field(json)]
@@ -48,14 +42,8 @@ pub struct HyperliquidAllMids {
 ///
 /// Hyperliquid does not provide a native event timestamp on this payload, so
 /// `ts_event` mirrors `ts_init` like the peer asset-context update types.
-#[cfg_attr(
-    feature = "arrow",
-    custom_data(pyo3, stub_module = "nautilus_trader.hyperliquid")
-)]
-#[cfg_attr(
-    not(feature = "arrow"),
-    custom_data(pyo3, no_arrow, stub_module = "nautilus_trader.hyperliquid")
-)]
+#[cfg_attr(feature = "arrow", custom_data)]
+#[cfg_attr(not(feature = "arrow"), custom_data(no_arrow))]
 pub struct HyperliquidOpenInterest {
     /// The instrument ID for this open interest update.
     pub instrument_id: InstrumentId,

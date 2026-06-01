@@ -299,9 +299,9 @@ mod tests {
     }
 
     #[rstest]
-    fn test_connection_id_matches_python() {
-        // Test that our connection_id computation matches Python SDK exactly.
-        // Python expected output for this test case:
+    fn test_connection_id_matches_reference_fixture() {
+        // Test that our connection_id computation matches the reference fixture exactly.
+        // Reference expected output for this test case:
         // MsgPack bytes: 83a474797065a56f72646572a66f72646572739186a16100a162c3a170a53530303030a173a3302e31a172c2a17481a56c696d697481a3746966a3477463a867726f7570696e67a26e61
         // Connection ID: 207b9fb52defb524f5a7f1c80f069ff8b58556b018532401de0e1342bcb13b40
 
@@ -311,8 +311,8 @@ mod tests {
         .unwrap();
         let signer = HyperliquidEip712Signer::new(&private_key).unwrap();
 
-        // NOTE: json! macro sorts keys alphabetically, but Python preserves insertion order.
-        // Field order: Python uses "type", "orders", "grouping"
+        // NOTE: json! macro sorts keys alphabetically, but the reference fixture preserves insertion order.
+        // Field order: "type", "orders", "grouping"
         // json! produces: "grouping", "orders", "type" (alphabetical)
         // This causes hash mismatch!
         //
@@ -345,22 +345,22 @@ mod tests {
             hex::encode(&action_bytes)
         );
 
-        // Expected from Python
-        let python_msgpack = hex::decode(
+        // Expected from the reference fixture.
+        let reference_msgpack = hex::decode(
             "83a474797065a56f72646572a66f72646572739186a16100a162c3a170a53530303030a173a3302e31a172c2a17481a56c696d697481a3746966a3477463a867726f7570696e67a26e61",
         )
         .unwrap();
         println!(
-            "Python MsgPack bytes ({}): {}",
-            python_msgpack.len(),
-            hex::encode(&python_msgpack)
+            "Reference MsgPack bytes ({}): {}",
+            reference_msgpack.len(),
+            hex::encode(&reference_msgpack)
         );
 
         // Compare msgpack bytes
         assert_eq!(
             hex::encode(&action_bytes),
-            hex::encode(&python_msgpack),
-            "MsgPack bytes should match Python"
+            hex::encode(&reference_msgpack),
+            "MsgPack bytes should match the reference fixture"
         );
 
         // Now test the full connection_id computation
@@ -380,17 +380,17 @@ mod tests {
             hex::encode(connection_id.as_slice())
         );
 
-        // Expected from Python
+        // Expected from legacy
         let expected_connection_id =
             "207b9fb52defb524f5a7f1c80f069ff8b58556b018532401de0e1342bcb13b40";
         assert_eq!(
             hex::encode(connection_id.as_slice()),
             expected_connection_id,
-            "Connection ID should match Python"
+            "Connection ID should match legacy"
         );
 
         // Now test the full signing hash
-        // Python expected values:
+        // reference expected values:
         // Domain separator: d79297fcdf2ffcd4ae223d01edaa2ba214ff8f401d7c9300d995d17c82aa4040
         // Struct hash: 99c7d776d74816c42973fbe58bb0f0d03c80324bef180220196d0dccf01672c5
         // Signing hash: 5242f54e0c01d3e7ef449f91b25c1a27802fdd221f7f24bc211da6bf7b847d8d
@@ -415,13 +415,13 @@ mod tests {
             hex::encode(signing_hash.as_slice())
         );
 
-        // Expected from Python
+        // Expected from legacy
         let expected_signing_hash =
             "5242f54e0c01d3e7ef449f91b25c1a27802fdd221f7f24bc211da6bf7b847d8d";
         assert_eq!(
             hex::encode(signing_hash.as_slice()),
             expected_signing_hash,
-            "EIP-712 signing hash should match Python"
+            "EIP-712 signing hash should match legacy"
         );
     }
 
@@ -533,7 +533,7 @@ mod tests {
         .unwrap();
         let _signer = HyperliquidEip712Signer::new(&private_key).unwrap();
 
-        // Create a cloid - this is how Python SDK expects it
+        // Create a cloid - this is how reference SDK expects it
         let cloid = Cloid::from_hex("0x1234567890abcdef1234567890abcdef").unwrap();
         println!("Cloid hex: {}", cloid.to_hex());
 

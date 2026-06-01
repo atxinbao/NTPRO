@@ -180,7 +180,7 @@
       "status": "deferred",
       "inventory_task": "RADP-013",
       "owner_task": "RADP-015",
-      "summary": "Optional Tardis Python/PyO3 surfaces remain until the removal gate."
+      "summary": "Optional Tardis legacy bridge surfaces remain until RREM-018 closed the scoped removal gate."
     }
   ]
 }
