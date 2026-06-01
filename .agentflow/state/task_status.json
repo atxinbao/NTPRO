@@ -1363,7 +1363,7 @@
     },
     "RREM-005": {
       "title": "Port or scope Python-only tests",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1375,13 +1375,17 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-005.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-005.md",
-      "updated_at": "2026-06-01T14:54:13Z",
+      "updated_at": "2026-06-01T15:00:10Z",
       "branch": "ai/RREM-005-scope-python-only-tests",
-      "release_gatekeeper_approved": true
+      "release_gatekeeper_approved": true,
+      "merged_pr": 93,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/93",
+      "merged_at": "2026-06-01T14:59:49Z",
+      "merge_commit": "21a0d6213106d3e0b59c35046d2cc7faa25da6fe"
     },
     "RREM-006": {
       "title": "Stage removal of Python package surfaces",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1392,7 +1396,10 @@
         "release_gatekeeper_approved"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-006.md",
-      "evidence_file": "docs/rust-cutover/evidence/RREM-006.md"
+      "evidence_file": "docs/rust-cutover/evidence/RREM-006.md",
+      "updated_at": "2026-06-01T15:23:52Z",
+      "branch": "ai/RREM-006-stage-python-package-removal",
+      "release_gatekeeper_approved": true
     },
     "RREM-007": {
       "title": "Stage removal of PyO3 surfaces",
