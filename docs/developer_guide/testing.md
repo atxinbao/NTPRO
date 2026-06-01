@@ -185,20 +185,17 @@ cargo nextest run --workspace --features "python,ffi,high-precision,defi" --carg
 
 #### Testing with optional features
 
-Use `EXTRA_FEATURES` to include optional features like `capnp` or `hypersync`:
+Use `EXTRA_FEATURES` to include optional features like `hypersync`:
 
 ```bash
-# Test with capnp feature
-make cargo-test EXTRA_FEATURES="capnp"
-
-# Test with multiple features
-make cargo-test EXTRA_FEATURES="capnp hypersync"
+# Test with hypersync feature
+make cargo-test EXTRA_FEATURES="hypersync"
 
 # Legacy shorthand for hypersync
 make cargo-test HYPERSYNC=true
 
-# Test specific crate with features
-make cargo-test-crate-nautilus-serialization FEATURES="capnp"
+# Test a specific crate with its default feature set
+make cargo-test-crate-nautilus-serialization
 ```
 
 ### IDE integration

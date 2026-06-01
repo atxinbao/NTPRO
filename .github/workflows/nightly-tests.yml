@@ -114,10 +114,10 @@ jobs:
         run: bash scripts/ci/set-cargo-build-jobs.sh
 
       - name: Run Rust tests (core)
-        run: make cargo-test-core EXTRA_FEATURES="capnp,hypersync" NEXTEST_PROFILE=ci
+        run: make cargo-test-core EXTRA_FEATURES="hypersync" NEXTEST_PROFILE=ci
 
       - name: Run Rust tests (adapters)
-        run: make cargo-test-adapters EXTRA_FEATURES="capnp,hypersync" NEXTEST_PROFILE=ci
+        run: make cargo-test-adapters EXTRA_FEATURES="hypersync" NEXTEST_PROFILE=ci
 
       - name: Build and install wheel
         uses: ./.github/actions/common-wheel-build
@@ -212,10 +212,10 @@ jobs:
         uses: ./.github/actions/common-test-data
 
       - name: Run Rust tests (core)
-        run: make cargo-test-core EXTRA_FEATURES="capnp" NEXTEST_PROFILE=ci
+        run: make cargo-test-core NEXTEST_PROFILE=ci
 
       - name: Run Rust tests (adapters)
-        run: make cargo-test-adapters EXTRA_FEATURES="capnp" NEXTEST_PROFILE=ci
+        run: make cargo-test-adapters NEXTEST_PROFILE=ci
 
       - name: Clean Rust test artifacts
         run: |

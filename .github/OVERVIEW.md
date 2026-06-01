@@ -13,7 +13,6 @@ CI/CD, testing, publishing, and automation within the NautilusTrader repository.
 - **common-test-data**: caches large test data under `tests/test_data/large`.
 - **common-wheel-build**: builds and installs Python wheels across Linux, macOS, and Windows for
   multiple Python versions.
-- **install-capnp**: installs the Cap'n Proto compiler with caching across Linux, macOS, and Windows.
 - **publish-wheels**: publishes built wheels to Cloudflare R2, manages old wheel cleanup and index generation.
 - **upload-artifact-wheel**: uploads the latest wheel artifact to GitHub Actions.
 
@@ -225,7 +224,6 @@ index.crates.io:443                                          # Rust crate index
 static.crates.io:443                                         # Rust crate downloads
 pypi.org:443                                                 # Python packages
 files.pythonhosted.org:443                                   # Python package files
-capnproto.org:443                                            # Cap'n Proto compiler
 packages.nautechsystems.io:443                               # Nautech packages
 test-data.nautechsystems.io:443                              # Nautech test data
 formulae.brew.sh:443                                         # Homebrew formulae

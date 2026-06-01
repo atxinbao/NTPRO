@@ -27,7 +27,6 @@ This crate provides feature flags to control source code inclusion during compil
 - `ffi`: Enables the C foreign function interface (FFI) from [cbindgen](https://github.com/mozilla/cbindgen).
 - `defi`: Enables DeFi (Decentralized Finance) support.
 - `indicators`: Includes the `nautilus-indicators` crate and indicator utilities.
-- `capnp`: Enables [Cap'n Proto](https://capnproto.org/) serialization support.
 - `live`: Enables the Tokio async runtime for live trading.
 - `tracing-bridge`: Enables the `tracing` subscriber bridge for log integration.
 

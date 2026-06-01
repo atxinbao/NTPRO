@@ -233,23 +233,7 @@ uv sync --all-extras
 The `--depth 1` flag fetches just the latest commit for a faster, lightweight clone.
 :::
 
-### 6. Install Cap'n Proto for development
-
-Install [Cap'n Proto](https://capnproto.org/) if you plan to enable the `capnp` Rust feature,
-regenerate serialization schemas, or work on serialization code. Use the repository script on
-Linux or macOS to install the pinned version from `tools.toml`:
-
-```bash
-./scripts/install-capnp.sh
-```
-
-Verify: `capnp --version`
-
-:::note
-Cap'n Proto is a development dependency. It is not required when installing pre-built wheels.
-:::
-
-### 7. Set environment variables
+### 6. Set environment variables
 
 Set environment variables for PyO3 compilation (Linux and macOS only). Run these commands from
 the repository root after `uv sync`:

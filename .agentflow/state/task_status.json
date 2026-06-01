@@ -1790,7 +1790,7 @@
     },
     "RREM-014": {
       "title": "Remove Python examples and documentation surfaces",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "critical",
@@ -1806,13 +1806,40 @@
       "branch": "ai/RREM-014-remove-python-examples-docs",
       "lease": "RREM-014",
       "qa_passed": true,
+      "review_passed": true,
+      "release_gatekeeper_approved": true,
+      "auto_merge_allowed": false,
+      "notes": "RREM-014 removed legacy Python examples and docs Python code surfaces, retained examples/rust, retargeted docs tutorial tests to absence checks, and documented remaining Python as tests/scripts residue. Local scoped QA passed: json validation, role protocol, cargo metadata, cargo fmt, verify_fast, direct docs absence assertion, and diff checks. pytest is not available on PATH and uv run is blocked by local uv 0.11.12 vs required 0.11.14. The full rust-only runtime gate still fails on active Rust crate PyO3/Cython residue outside this task scope. Critical task stopped at REVIEW_REQUIRED; auto-merge disabled. PR #110 merged and close_merged_pr.py marked the Shrimp task completed.",
+      "pr_number": 110,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/110",
+      "merged_pr": 110,
+      "merged_at": "2026-06-01T20:22:34Z"
+    },
+    "RREM-015": {
+      "title": "Remove Cap'n Proto feature and audit residual Python surfaces",
+      "status": "REVIEW_REQUIRED",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-015.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-015.md",
+      "updated_at": "2026-06-01T21:15:26Z",
+      "branch": "ai/RREM-015-remove-capnp-and-audit-residual-python",
+      "lease": "RREM-015",
+      "qa_passed": true,
       "review_passed": false,
       "release_gatekeeper_approved": false,
       "auto_merge_allowed": false,
-      "notes": "RREM-014 removed legacy Python examples and docs Python code surfaces, retained examples/rust, retargeted docs tutorial tests to absence checks, and documented remaining Python as tests/scripts residue. Local scoped QA passed: json validation, role protocol, cargo metadata, cargo fmt, verify_fast, direct docs absence assertion, and diff checks. pytest is not available on PATH and uv run is blocked by local uv 0.11.12 vs required 0.11.14. The full rust-only runtime gate still fails on active Rust crate PyO3/Cython residue outside this task scope. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled. PR #110 opened for release gatekeeper review.",
-      "pr_number": 110,
-      "pr_url": "https://github.com/atxinbao/NTPRO/pull/110"
+      "notes": "RREM-015 removes the standalone Cap'n Proto serialization feature and records residual Python surface inventory. tests/**/*.py are intentionally audited, not deleted. Strict Rust-only/Cython gates still fail because Rust crate PyO3/Cython references remain for follow-up cleanup. RREL-008 remains paused. PR #111 is open for release gatekeeper review.",
+      "pr_number": 111,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/111"
     }
   },
-  "updated_at": "2026-06-01T20:17:13.987Z"
+  "updated_at": "2026-06-01T21:15:26Z"
 }
