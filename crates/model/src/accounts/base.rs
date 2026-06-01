@@ -38,10 +38,6 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
 pub struct BaseAccount {
     pub id: AccountId,
     pub account_type: AccountType,

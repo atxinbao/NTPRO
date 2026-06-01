@@ -35,14 +35,6 @@ const MAX_INLINE_COMPONENTS: usize = 8;
 ///
 /// The `id` for the synthetic will become `{symbol}.{SYNTH}`.
 #[derive(Clone, Debug, Builder)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct SyntheticInstrument {
     /// The unique identifier for the synthetic instrument.
     pub id: InstrumentId,
@@ -122,7 +114,7 @@ impl SyntheticInstrument {
     ///
     /// # Notes
     ///
-    /// PyO3 requires a `Result` type for proper error handling and stacktrace printing in Python.
+    /// The checked constructor returns a `Result` so callers can handle validation errors explicitly.
     /// # Errors
     ///
     /// Returns an error if any input validation fails.

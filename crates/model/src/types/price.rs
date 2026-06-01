@@ -157,18 +157,6 @@ pub const ERROR_PRICE: Price = Price {
 /// - [`PRICE_MIN`] - Minimum representable price value.
 #[repr(C)]
 #[derive(Clone, Copy, Default, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.model",
-        frozen,
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct Price {
     /// Represents the raw fixed-point value, with `precision` defining the number of decimal places.
     pub raw: PriceRaw,
@@ -199,7 +187,7 @@ impl Price {
     ///
     /// # Notes
     ///
-    /// PyO3 requires a `Result` type for proper error handling and stacktrace printing in Python.
+    /// The checked constructor returns a `Result` so callers can handle validation errors explicitly.
     pub fn new_checked(value: f64, precision: u8) -> CorrectnessResult<Self> {
         check_in_range_inclusive_f64(value, PRICE_MIN, PRICE_MAX, "value")?;
 

@@ -42,10 +42,6 @@ use crate::{
 /// - Equality requires both `value` and `side` to match.
 /// - Ordering is side-dependent: Buy side sorts descending, Sell side ascending.
 #[derive(Clone, Copy, Debug, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
 pub struct BookPrice {
     pub value: Price,
     pub side: OrderSideSpecified,

@@ -39,20 +39,6 @@ use crate::{currencies::CURRENCY_MAP, enums::CurrencyType};
 /// Handles up to [`FIXED_PRECISION`] decimals of precision.
 #[repr(C)]
 #[derive(Clone, Copy, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.model",
-        frozen,
-        eq,
-        hash,
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct Currency {
     /// The currency code as an alpha-3 string (e.g., "USD", "EUR").
     pub code: Ustr,
@@ -78,7 +64,7 @@ impl Currency {
     ///
     /// # Notes
     ///
-    /// PyO3 requires a `Result` type for proper error handling and stacktrace printing in Python.
+    /// The checked constructor returns a `Result` so callers can handle validation errors explicitly.
     pub fn new_checked<T: AsRef<str>>(
         code: T,
         precision: u8,

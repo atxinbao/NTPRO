@@ -36,14 +36,6 @@ use crate::{
 /// The symbol and venue combination should uniquely identify the instrument.
 #[repr(C)]
 #[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct InstrumentId {
     /// The instruments ticker symbol.
     pub symbol: Symbol,

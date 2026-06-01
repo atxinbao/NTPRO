@@ -35,14 +35,6 @@ use crate::{
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "type")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct OrderBookDelta {
     /// The instrument ID for the book.
     pub instrument_id: InstrumentId,
@@ -69,7 +61,7 @@ impl OrderBookDelta {
     ///
     /// # Notes
     ///
-    /// PyO3 requires a `Result` type for proper error handling and stacktrace printing in Python.
+    /// The checked constructor returns a `Result` so callers can handle validation errors explicitly.
     pub fn new_checked(
         instrument_id: InstrumentId,
         action: BookAction,

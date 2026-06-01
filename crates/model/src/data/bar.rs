@@ -314,14 +314,6 @@ fn find_closest_smaller_time(
 #[derive(
     Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Builder,
 )]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct BarSpecification {
     /// The step for binning samples for bar aggregation.
     pub step: NonZeroUsize,
@@ -341,7 +333,7 @@ impl BarSpecification {
     ///
     /// # Notes
     ///
-    /// PyO3 requires a `Result` type for proper error handling and stacktrace printing in Python.
+    /// The checked constructor returns a `Result` so callers can handle validation errors explicitly.
     pub fn new_checked(
         step: usize,
         aggregation: BarAggregation,
@@ -504,14 +496,6 @@ impl Display for BarSpecification {
 /// aggregation source.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.model")
-)]
 pub enum BarType {
     Standard {
         /// The bar type's instrument ID.
@@ -867,14 +851,6 @@ impl<'de> Deserialize<'de> for BarType {
 #[repr(C)]
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct Bar {
     /// The bar type for this bar.
     pub bar_type: BarType,
@@ -906,7 +882,7 @@ impl Bar {
     ///
     /// # Notes
     ///
-    /// PyO3 requires a `Result` type for proper error handling and stacktrace printing in Python.
+    /// The checked constructor returns a `Result` so callers can handle validation errors explicitly.
     #[expect(clippy::too_many_arguments)]
     pub fn new_checked(
         bar_type: BarType,

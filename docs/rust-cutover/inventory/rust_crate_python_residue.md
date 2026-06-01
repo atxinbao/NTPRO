@@ -2,12 +2,13 @@
 
 Date: 2026-06-02
 Executor: Codex
-Task ID: RREM-016
+Task ID: RREM-017
 
 ## Purpose
 
 Track the Rust crate Python/PyO3 residue that remains after removing the active
-Cython build residue and the `crates/analysis` PyO3 annotations.
+Cython build residue, the `crates/analysis` PyO3 annotations, and the
+`crates/model` PyO3/Python binding residue.
 
 ## Current State
 
@@ -39,57 +40,63 @@ rg -n "pyo3|pyo3_stub_gen|PyO3|feature = \"python\"|python" crates/analysis
 
 Result: no matches.
 
+`crates/model` no longer contains PyO3/Python binding residue:
+
+```bash
+rg -n "pyo3|pyo3_stub_gen|PyO3|feature = \"python\"|python|nautilus_trader" crates/model
+```
+
+Result: no matches.
+
 ## Remaining Rust Crate Python/PyO3 Hits
 
 The broader Rust-only runtime scan still finds Python/PyO3 residue outside the
-RREM-016 implementation scope. File-level count:
+RREM-017 implementation scope. File-level count:
 
 ```text
-406 files
+325 files
 ```
 
 Top path groups:
 
 ```text
-143 crates/adapters
-126 crates/model
- 40 crates/indicators
- 24 crates/common
- 13 crates/trading
-  8 crates/persistence
-  8 crates/network
-  7 crates/execution
-  7 crates/backtest
-  6 crates/live
-  6 crates/infrastructure
-  4 crates/core
-  3 crates/system
-  2 crates/risk
-  2 crates/portfolio
-  1 crates/cryptography
-  1 crates/data
-  1 crates/plugin
-  1 crates/serialization
-  1 crates/testkit
-  1 Makefile
-  1 pyproject.toml
+162 crates/adapters
+ 41 crates/indicators
+ 27 crates/common
+ 14 crates/trading
+ 10 crates/persistence
+  9 crates/network
+  8 crates/execution
+  8 crates/backtest
+  7 crates/live
+  7 crates/infrastructure
+  6 crates/core
+  4 crates/system
+  4 crates/portfolio
+  3 crates/risk
+  3 crates/plugin
+  3 crates/data
+  2 crates/testkit
+  2 crates/serialization
+  2 crates/cryptography
+  1 crates/event_store
+  1 crates/cli
+  1 crates/analysis
 ```
 
 ## Follow-up Slices
 
 Recommended cleanup order:
 
-1. `crates/model`: largest remaining cluster and central to value/type
-   annotations.
-2. `crates/indicators`: isolated metric/indicator structs with repeated
+1. `crates/indicators`: isolated metric/indicator structs with repeated
    annotation patterns.
-3. `crates/common`, `crates/core`, and runtime support crates.
-4. `crates/backtest`, `crates/execution`, `crates/risk`, `crates/portfolio`, and
+2. `crates/core`, `crates/common`, and runtime support crates.
+3. `crates/backtest`, `crates/execution`, `crates/risk`, `crates/portfolio`, and
    `crates/trading`.
-5. Adapter crates, grouped by venue family to avoid changing adapter behavior in
+4. Adapter crates, grouped by venue family to avoid changing adapter behavior in
    a single oversized PR.
-6. Root build metadata such as `Makefile` and `pyproject.toml` after dependent
-   crate references are gone.
+5. Remaining persistence macro and serialization bridge residue after adapter
+   custom-data usage is retargeted or removed.
 
 ## Boundary
 

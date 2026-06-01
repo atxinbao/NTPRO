@@ -143,14 +143,6 @@ fn margin_currency(
 /// account leverage. Appropriate for traditional brokers where margin
 /// requirements are fixed percentages of notional value.
 #[derive(Debug, Clone, Copy)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct StandardMarginModel;
 
 impl MarginModel for StandardMarginModel {
@@ -191,14 +183,6 @@ impl MarginModel for StandardMarginModel {
 /// This is the default model, appropriate for crypto exchanges and venues
 /// where leverage directly reduces margin requirements.
 #[derive(Debug, Clone, Copy)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct LeveragedMarginModel;
 
 impl MarginModel for LeveragedMarginModel {

@@ -52,14 +52,8 @@ use serde_json::{Value as JsonValue, to_string};
 pub use bar::{Bar, BarSpecification, BarType};
 pub use black_scholes::Greeks;
 pub use close::InstrumentClose;
-#[cfg(feature = "python")]
-pub use custom::PythonCustomDataWrapper;
 pub use custom::{
     CustomData, CustomDataTrait, ensure_custom_data_json_registered, register_custom_data_json,
-};
-#[cfg(feature = "python")]
-pub use custom::{
-    get_python_data_class, reconstruct_python_custom_data, register_python_data_class,
 };
 pub use delta::OrderBookDelta;
 pub use deltas::{OrderBookDeltas, OrderBookDeltas_API};
@@ -78,12 +72,6 @@ pub use quote::QuoteTick;
 pub use registry::{
     ArrowDecoder, ArrowEncoder, decode_custom_from_arrow, encode_custom_to_arrow,
     ensure_arrow_registered, get_arrow_schema, register_arrow,
-};
-#[cfg(feature = "python")]
-pub use registry::{
-    PyExtractor, ensure_py_extractor_registered, ensure_rust_extractor_factory_registered,
-    ensure_rust_extractor_registered, get_rust_extractor, register_py_extractor,
-    register_rust_extractor, register_rust_extractor_factory, try_extract_from_py,
 };
 pub use registry::{
     deserialize_custom_from_json, ensure_json_deserializer_registered, register_json_deserializer,
@@ -546,14 +534,6 @@ fn params_to_topic_suffix(params: &Params) -> String {
 
 /// Represents a data type including metadata.
 #[derive(Clone, Serialize, Deserialize)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct DataType {
     type_name: String,
     metadata: Option<Params>,
