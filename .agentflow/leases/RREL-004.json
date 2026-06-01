@@ -1,0 +1,14 @@
+{
+  "task_id": "RREL-004",
+  "agent_id": "Codex",
+  "branch": "ai/RREL-004-final-completion-report",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RREL-004.md",
+    "docs/rust-cutover/evidence/RREL-004.md",
+    "docs/rust-cutover/release/final_completion_report.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREL-004.json"
+  ],
+  "claimed_at": "2026-06-01T16:43:58Z",
+  "status": "PR_OPEN"
+}

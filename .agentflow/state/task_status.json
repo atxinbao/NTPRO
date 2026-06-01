@@ -1209,7 +1209,7 @@
     },
     "RREL-003": {
       "title": "Review all scope decisions",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1220,15 +1220,19 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREL-003.md",
       "evidence_file": "docs/rust-cutover/evidence/RREL-003.md",
-      "updated_at": "2026-06-01T16:37:39Z",
+      "updated_at": "2026-06-01T16:40:57Z",
       "branch": "ai/RREL-003-scope-decision-review",
       "lease": "RREL-003",
       "qa_passed": true,
-      "review_passed": true
+      "review_passed": true,
+      "merged_pr": 101,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/101",
+      "merged_at": "2026-06-01T16:40:41Z",
+      "merge_commit": "117bc35b4833549611c9835bc2fee6c1009672a9"
     },
     "RREL-004": {
       "title": "Generate final completion report",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1238,7 +1242,12 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREL-004.md",
-      "evidence_file": "docs/rust-cutover/evidence/RREL-004.md"
+      "evidence_file": "docs/rust-cutover/evidence/RREL-004.md",
+      "updated_at": "2026-06-01T16:43:58Z",
+      "branch": "ai/RREL-004-final-completion-report",
+      "lease": "RREL-004",
+      "qa_passed": true,
+      "review_passed": true
     },
     "RREL-005": {
       "title": "Prepare release candidate tag plan",
