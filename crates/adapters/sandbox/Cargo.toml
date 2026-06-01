@@ -80,6 +80,7 @@ nautilus-testkit = { workspace = true }
 nautilus-trading = { workspace = true }
 
 rstest = { workspace = true }
+serde_json = { workspace = true }
 tokio = { workspace = true }
 toml = { workspace = true }
 
