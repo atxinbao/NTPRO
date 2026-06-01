@@ -1802,15 +1802,17 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-014.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-014.md",
-      "updated_at": "2026-06-01T20:13:52.087Z",
+      "updated_at": "2026-06-01T20:17:13.987Z",
       "branch": "ai/RREM-014-remove-python-examples-docs",
       "lease": "RREM-014",
       "qa_passed": true,
       "review_passed": false,
       "release_gatekeeper_approved": false,
       "auto_merge_allowed": false,
-      "notes": "RREM-014 removed legacy Python examples and docs Python code surfaces, retained examples/rust, retargeted docs tutorial tests to absence checks, and documented remaining Python as tests/scripts residue. Local scoped QA passed: json validation, role protocol, cargo metadata, cargo fmt, verify_fast, direct docs absence assertion, and diff checks. pytest is not available on PATH and uv run is blocked by local uv 0.11.12 vs required 0.11.14. The full rust-only runtime gate still fails on active Rust crate PyO3/Cython residue outside this task scope. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled."
+      "notes": "RREM-014 removed legacy Python examples and docs Python code surfaces, retained examples/rust, retargeted docs tutorial tests to absence checks, and documented remaining Python as tests/scripts residue. Local scoped QA passed: json validation, role protocol, cargo metadata, cargo fmt, verify_fast, direct docs absence assertion, and diff checks. pytest is not available on PATH and uv run is blocked by local uv 0.11.12 vs required 0.11.14. The full rust-only runtime gate still fails on active Rust crate PyO3/Cython residue outside this task scope. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled. PR #110 opened for release gatekeeper review.",
+      "pr_number": 110,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/110"
     }
   },
-  "updated_at": "2026-06-01T20:13:52.087Z"
+  "updated_at": "2026-06-01T20:17:13.987Z"
 }
