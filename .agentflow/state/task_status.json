@@ -1278,7 +1278,7 @@
     },
     "RREL-006": {
       "title": "Run final Rust-only release verification",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1289,16 +1289,20 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREL-006.md",
       "evidence_file": "docs/rust-cutover/evidence/RREL-006.md",
-      "updated_at": "2026-06-01T16:53:31Z",
+      "updated_at": "2026-06-01T17:03:09Z",
       "branch": "ai/RREL-006-release-verification-blockers",
       "lease": "RREL-006",
       "qa_passed": true,
       "review_passed": true,
-      "release_gate_passed": false
+      "release_gate_passed": false,
+      "merged_pr": 104,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/104",
+      "merged_at": "2026-06-01T17:02:12Z",
+      "merge_commit": "db4ac5bc7b3b188a1ba8d1bbee6634eed88f9128"
     },
     "RREL-007": {
       "title": "Prepare human owner signoff packet",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1308,7 +1312,13 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREL-007.md",
-      "evidence_file": "docs/rust-cutover/evidence/RREL-007.md"
+      "evidence_file": "docs/rust-cutover/evidence/RREL-007.md",
+      "updated_at": "2026-06-01T17:03:26Z",
+      "branch": "ai/RREL-007-owner-signoff-packet",
+      "lease": "RREL-007",
+      "qa_passed": true,
+      "review_passed": true,
+      "owner_signoff_granted": false
     },
     "RREL-008": {
       "title": "Mark Rust-only cutover complete",
@@ -1322,7 +1332,8 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREL-008.md",
-      "evidence_file": "docs/rust-cutover/evidence/RREL-008.md"
+      "evidence_file": "docs/rust-cutover/evidence/RREL-008.md",
+      "notes": "Paused by user direction after RREL-007; do not execute automatically."
     },
     "RREM-001": {
       "title": "Inventory Python product surfaces",
