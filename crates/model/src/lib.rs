@@ -28,19 +28,13 @@
 //!
 //! # Feature Flags
 //!
-//! This crate provides feature flags to control source code inclusion during compilation,
-//! depending on the intended use case, i.e. whether to provide Python bindings
-//! for the [nautilus_trader](https://pypi.org/project/nautilus_trader) Python package,
-//! or as part of a Rust only build.
+//! This crate provides feature flags to control source code inclusion during compilation.
 //!
 //! - `ffi`: Enables the C foreign function interface (FFI) from [cbindgen](https://github.com/mozilla/cbindgen).
-//! - `python`: Enables Python bindings from [PyO3](https://pyo3.rs).
 //! - `arrow`: Enables Apache Arrow schema and `RecordBatch` registries for custom data.
-//! - `python-arrow`: Enables Python bindings together with `PyArrow` `RecordBatch` bridging.
 //! - `stubs`: Enables type stubs for use in testing scenarios.
 //! - `high-precision`: Enables [high-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) to use 128-bit value types.
 //! - `defi`: Enables the DeFi (Decentralized Finance) domain model.
-//! - `extension-module`: Builds the crate as a Python extension module.
 
 #![warn(rustc::all)]
 #![warn(clippy::pedantic)]
@@ -81,7 +75,7 @@
 )]
 #![allow(
     clippy::trivially_copy_pass_by_ref,
-    reason = "changing pass-by-ref to pass-by-value would break FFI and Python binding signatures"
+    reason = "changing pass-by-ref to pass-by-value would break FFI signatures and domain APIs"
 )]
 #![allow(
     clippy::similar_names,
@@ -96,16 +90,8 @@
     reason = "identical match arms are sometimes intentional for documentation and readability"
 )]
 #![allow(
-    clippy::unused_self,
-    reason = "PyO3 methods require &self for Python binding even when Rust impl does not use it"
-)]
-#![allow(
     clippy::many_single_char_names,
     reason = "math formulas (Black-Scholes, Greeks) use standard single-character variable names"
-)]
-#![allow(
-    clippy::large_types_passed_by_value,
-    reason = "PyO3 methods require owned values extracted from Python objects"
 )]
 
 pub mod accounts;

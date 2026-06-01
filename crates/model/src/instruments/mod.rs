@@ -1155,7 +1155,7 @@ mod tests {
     }
 
     #[rstest]
-    fn pyo3_failure_validate_price_increment_max_price_precision_mismatch() {
+    fn validate_price_increment_max_price_precision_mismatch_fails() {
         let size_increment = Quantity::new(0.01, 2);
         let multiplier = Quantity::new(1.0, 0);
         let price_increment = Price::new(0.01, 2);

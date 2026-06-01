@@ -1,0 +1,19 @@
+{
+  "task_id": "RREM-017",
+  "agent_id": "Codex",
+  "branch": "ai/RREM-017-remove-model-pyo3-residue",
+  "touched_paths": [
+    "crates/model/**",
+    "docs/rust-cutover/tasks/RREM-017.md",
+    "docs/rust-cutover/evidence/RREM-017.md",
+    "docs/rust-cutover/inventory/rust_crate_python_residue.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREM-017.json"
+  ],
+  "claimed_at": "2026-06-01T22:13:49Z",
+  "status": "REVIEW_REQUIRED",
+  "qa_passed": true,
+  "review_passed": false,
+  "release_gatekeeper_approved": false,
+  "auto_merge_allowed": false
+}

@@ -35,14 +35,6 @@ pub fn normalize_order_id_tag(order_id_tag: Option<&str>) -> Option<&str> {
 /// Represents a valid strategy ID.
 #[repr(C)]
 #[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct StrategyId(Ustr);
 
 impl StrategyId {
@@ -93,7 +85,7 @@ impl StrategyId {
     }
 
     /// Sets the inner identifier value.
-    #[cfg_attr(not(feature = "python"), allow(dead_code))]
+    #[allow(dead_code)]
     pub(crate) fn set_inner(&mut self, value: &str) {
         self.0 = Ustr::from(value);
     }

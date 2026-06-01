@@ -41,14 +41,6 @@ const VEGA_PERCENT_FACTOR: f64 = 0.01;
 /// Designed as a composable building block embedded in all Greeks-carrying types.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Default)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct OptionGreekValues {
     pub delta: f64,
     pub gamma: f64,
@@ -117,14 +109,6 @@ fn norm_pdf(x: f64) -> f64 {
 /// This is a separate f64 struct (not a type alias) for Python compatibility
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct BlackScholesGreeksResult {
     pub price: f64,
     pub vol: f64,
@@ -292,14 +276,6 @@ pub fn refine_vol_and_greeks(
 
 #[repr(C)]
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct GreeksData {
     pub ts_init: UnixNanos,
     pub ts_event: UnixNanos,
@@ -495,14 +471,6 @@ impl HasTsInit for GreeksData {
 }
 
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct PortfolioGreeks {
     pub ts_init: UnixNanos,
     pub ts_event: UnixNanos,

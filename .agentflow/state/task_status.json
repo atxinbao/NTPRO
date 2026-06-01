@@ -1844,7 +1844,7 @@
     },
     "RREM-016": {
       "title": "Remove Rust crate Cython build residue and analysis PyO3 annotations",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "critical",
@@ -1856,17 +1856,45 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-016.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-016.md",
-      "updated_at": "2026-06-01T22:06:27Z",
+      "updated_at": "2026-06-01T22:15:00.430Z",
       "branch": "ai/RREM-016-remove-rust-cython-build-residue",
       "lease": "RREM-016",
+      "qa_passed": true,
+      "review_passed": true,
+      "release_gatekeeper_approved": true,
+      "auto_merge_allowed": false,
+      "notes": "RREM-016 local QA passed and PR #112 is ready for release gatekeeper review. Removed Rust crate Cython generation residue, moved FFI C header generation to Cargo OUT_DIR, removed stale crates/analysis PyO3 annotations, and cleaned direct developer-guide PyO3/Cython instructions. check_rust_only_runtime still fails as expected on 406 remaining PyO3/Python files outside this task scope. Critical task: no auto-merge.\n\nRREM-016 merged in PR #112; close_merged_pr.py marked the isolated Shrimp task completed.",
+      "pr_number": 112,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/112",
+      "merged_pr": 112,
+      "merged_at": "2026-06-01T22:07:34Z",
+      "merge_commit": "0dc38a50c6beea8122088828bf619e2e4562b9e6"
+    },
+    "RREM-017": {
+      "title": "Remove model crate PyO3 and Python residue",
+      "status": "REVIEW_REQUIRED",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-017.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-017.md",
+      "updated_at": "2026-06-01T22:29:59.985Z",
+      "branch": "ai/RREM-017-remove-model-pyo3-residue",
+      "lease": "RREM-017",
       "qa_passed": true,
       "review_passed": false,
       "release_gatekeeper_approved": false,
       "auto_merge_allowed": false,
-      "notes": "RREM-016 local QA passed and PR #112 is ready for release gatekeeper review. Removed Rust crate Cython generation residue, moved FFI C header generation to Cargo OUT_DIR, removed stale crates/analysis PyO3 annotations, and cleaned direct developer-guide PyO3/Cython instructions. check_rust_only_runtime still fails as expected on 406 remaining PyO3/Python files outside this task scope. Critical task: no auto-merge.",
-      "pr_number": 112,
-      "pr_url": "https://github.com/atxinbao/NTPRO/pull/112"
+      "notes": "RREM-017 local QA passed. crates/model has no PyO3/Python binding residue; Rust model default/ffi/arrow cargo checks passed with explicit Rust 1.95.0. check_rust_only_runtime still fails as expected on 325 non-model files. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled.",
+      "model_python_residue_removed_gate_passed": true,
+      "rust_only_runtime_gate_passed": false
     }
   },
-  "updated_at": "2026-06-01T22:06:27Z"
+  "updated_at": "2026-06-01T22:29:59.985Z"
 }

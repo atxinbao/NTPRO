@@ -144,18 +144,6 @@ pub const MONEY_MIN: f64 = -9_223_372_036.0;
 /// - [`MONEY_MIN`] - Minimum representable money amount
 #[repr(C)]
 #[derive(Clone, Copy, Eq)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.model",
-        frozen,
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct Money {
     /// Represents the raw fixed-point amount, with `currency.precision` defining the number of decimal places.
     pub raw: MoneyRaw,
@@ -184,7 +172,7 @@ impl Money {
     ///
     /// # Notes
     ///
-    /// PyO3 requires a `Result` type for proper error handling and stacktrace printing in Python.
+    /// The checked constructor returns a `Result` so callers can handle validation errors explicitly.
     pub fn new_checked(amount: f64, currency: Currency) -> CorrectnessResult<Self> {
         // check_in_range_inclusive_f64 already validates that amount is finite
         // (not NaN or infinite) as part of its range validation logic, so no additional

@@ -31,14 +31,6 @@ use super::Venue;
 /// Represents a valid account ID.
 #[repr(C)]
 #[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct AccountId(Ustr);
 
 impl AccountId {
@@ -58,7 +50,7 @@ impl AccountId {
     ///
     /// # Notes
     ///
-    /// PyO3 requires a `Result` type for proper error handling and stacktrace printing in Python.
+    /// The checked constructor returns a `Result` so callers can handle validation errors explicitly.
     pub fn new_checked<T: AsRef<str>>(value: T) -> CorrectnessResult<Self> {
         let value = value.as_ref();
         check_valid_string_ascii(value, stringify!(value))?;
@@ -88,7 +80,7 @@ impl AccountId {
     }
 
     /// Sets the inner identifier value.
-    #[cfg_attr(not(feature = "python"), allow(dead_code))]
+    #[allow(dead_code)]
     pub(crate) fn set_inner(&mut self, value: &str) {
         self.0 = Ustr::from(value);
     }

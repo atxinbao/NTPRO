@@ -1,9 +1,9 @@
 # nautilus-model
 
-[![build](https://github.com/nautechsystems/nautilus_trader/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/nautechsystems/nautilus_trader/actions/workflows/build.yml)
+[![build](https://github.com/atxinbao/NTPRO/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/atxinbao/NTPRO/actions/workflows/build.yml)
 [![Documentation](https://img.shields.io/docsrs/nautilus-model)](https://docs.rs/nautilus-model/latest/nautilus-model/)
 [![crates.io version](https://img.shields.io/crates/v/nautilus-model.svg)](https://crates.io/crates/nautilus-model)
-![license](https://img.shields.io/github/license/nautechsystems/nautilus_trader?color=blue)
+![license](https://img.shields.io/github/license/atxinbao/NTPRO?color=blue)
 [![Discord](https://img.shields.io/badge/Discord-%235865F2.svg?logo=discord&logoColor=white)](https://discord.gg/NautilusTrader)
 
 Trading domain model for [NautilusTrader](https://nautilustrader.io).
@@ -43,7 +43,5 @@ company specializing in the development of high-performance trading systems.
 For more information, visit <https://nautilustrader.io>.
 
 Use of this software is subject to the [Disclaimer](https://nautilustrader.io/legal/disclaimer/).
-
-<img src="https://github.com/nautechsystems/nautilus_trader/raw/develop/assets/nautilus-logo-white.png" alt="logo" width="300" height="auto"/>
 
 © 2015-2026 Nautech Systems Pty Ltd. All rights reserved.

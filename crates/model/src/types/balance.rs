@@ -30,19 +30,6 @@ use crate::{
 
 /// Represents an account balance denominated in a particular currency.
 #[derive(Copy, Clone, Serialize, Deserialize)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.model",
-        frozen,
-        eq,
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct AccountBalance {
     /// The account balance currency.
     pub currency: Currency,
@@ -63,7 +50,7 @@ impl AccountBalance {
     ///
     /// # Notes
     ///
-    /// PyO3 requires a `Result` type that stacktrace can be printed for errors.
+    /// The checked constructor returns a `Result` so callers can handle validation errors explicitly.
     pub fn new_checked(total: Money, locked: Money, free: Money) -> CorrectnessResult<Self> {
         check_predicate_true(
             total.currency == locked.currency,
@@ -189,19 +176,6 @@ impl Display for AccountBalance {
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.model",
-        frozen,
-        eq,
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 /// Represents a margin balance.
 ///
 /// Margin entries have two mutually exclusive scopes:
@@ -228,7 +202,7 @@ impl MarginBalance {
     ///
     /// # Notes
     ///
-    /// PyO3 requires a `Result` type for proper error handling and stacktrace printing in Python.
+    /// The checked constructor returns a `Result` so callers can handle validation errors explicitly.
     pub fn new_checked(
         initial: Money,
         maintenance: Money,

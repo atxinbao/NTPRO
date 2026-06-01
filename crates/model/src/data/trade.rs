@@ -33,14 +33,6 @@ use crate::{
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
 #[serde(tag = "type")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.model", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
 pub struct TradeTick {
     /// The trade instrument ID.
     pub instrument_id: InstrumentId,
@@ -67,7 +59,7 @@ impl TradeTick {
     ///
     /// # Notes
     ///
-    /// PyO3 requires a `Result` type for proper error handling and stacktrace printing in Python.
+    /// The checked constructor returns a `Result` so callers can handle validation errors explicitly.
     pub fn new_checked(
         instrument_id: InstrumentId,
         price: Price,
@@ -549,20 +541,5 @@ mod tests {
         assert_eq!(trade.price, Price::from("10000.0000"));
         assert_eq!(trade.size, Quantity::from("1.00000000"));
         assert_eq!(trade.trade_id, TradeId::from("123456789"));
-    }
-
-    #[cfg(feature = "python")]
-    #[rstest]
-    fn test_from_pyobject(stub_trade_ethusdt_buyer: TradeTick) {
-        use pyo3::{IntoPyObjectExt, Python};
-
-        let trade = stub_trade_ethusdt_buyer;
-
-        Python::initialize();
-        Python::attach(|py| {
-            let tick_pyobject = trade.into_py_any(py).unwrap();
-            let parsed_tick = TradeTick::from_pyobject(tick_pyobject.bind(py)).unwrap();
-            assert_eq!(parsed_tick, trade);
-        });
     }
 }
