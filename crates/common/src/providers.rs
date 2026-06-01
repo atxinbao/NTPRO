@@ -120,7 +120,7 @@ impl InstrumentStore {
 /// # Thread safety
 ///
 /// Provider instances are not intended to be sent across threads. The `?Send`
-/// bound allows implementations to hold non-Send state for Python interop.
+/// bound allows implementations to hold non-Send state for legacy bridge interop.
 #[async_trait(?Send)]
 pub trait InstrumentProvider {
     /// Returns a reference to the provider's instrument store.

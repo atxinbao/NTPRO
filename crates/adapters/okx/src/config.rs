@@ -31,14 +31,6 @@ use crate::common::{
 /// Configuration for the OKX data client.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.okx", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.okx")
-)]
 pub struct OKXDataClientConfig {
     /// Optional API key for authenticated endpoints.
     pub api_key: Option<String>,
@@ -150,14 +142,6 @@ impl OKXDataClientConfig {
 /// Configuration for the OKX execution client.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.okx", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.okx")
-)]
 pub struct OKXExecClientConfig {
     /// The trader ID for the client.
     #[builder(default = TraderId::from("TRADER-001"))]

@@ -109,13 +109,6 @@ use crate::{
 ///
 /// This client provides order execution functionality using the `rust-ibapi` library.
 /// It manages order submission, modification, cancellation, and execution reporting.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        unsendable
-    )
-)]
 pub struct InteractiveBrokersExecutionClient {
     /// Core execution client functionality.
     core: ExecutionClientCore,
@@ -640,7 +633,7 @@ impl ExecutionClient for InteractiveBrokersExecutionClient {
                     balances.len(),
                     margins.len()
                 );
-                // Generate account state event like Python version
+                // Generate account state event like legacy version
                 let ts_event = get_atomic_clock_realtime().get_time_ns();
 
                 if let Err(e) = ExecutionClient::generate_account_state(
@@ -990,7 +983,7 @@ impl ExecutionClient for InteractiveBrokersExecutionClient {
                         Quantity::new(position.position.abs(), instrument.size_precision());
 
                     // Convert IB avg_cost to Nautilus Price, accounting for price magnifier and multiplier
-                    // Python: converted_avg_cost = avg_cost / (multiplier * price_magnifier)
+                    // legacy: converted_avg_cost = avg_cost / (multiplier * price_magnifier)
                     let avg_px_open = if position.average_cost > 0.0 {
                         let price_magnifier =
                             self.instrument_provider.get_price_magnifier(&instrument_id) as f64;

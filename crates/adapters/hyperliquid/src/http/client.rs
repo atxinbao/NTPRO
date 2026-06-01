@@ -116,17 +116,6 @@ pub static HYPERLIQUID_REST_QUOTA: LazyLock<Quota> =
 /// This client handles HTTP infrastructure, request signing, and raw API calls
 /// that closely match Hyperliquid endpoint specifications.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.hyperliquid",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.hyperliquid")
-)]
 pub struct HyperliquidRawHttpClient {
     client: HttpClient,
     environment: HyperliquidEnvironment,
@@ -792,17 +781,6 @@ impl HyperliquidRawHttpClient {
 /// with Nautilus domain types. It maintains an instrument cache and handles conversions
 /// between Hyperliquid API responses and Nautilus domain models.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.hyperliquid",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.hyperliquid")
-)]
 pub struct HyperliquidHttpClient {
     pub(crate) inner: Arc<HyperliquidRawHttpClient>,
     clock: &'static AtomicTime,

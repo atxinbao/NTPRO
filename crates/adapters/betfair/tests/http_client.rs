@@ -362,7 +362,7 @@ async fn test_send_betting_5xx_retries_once_before_giving_up() {
 }
 
 /// `connect()` is idempotent: a second call on an already-connected client
-/// must not trigger a second login. Mirrors Python's `asyncio.Lock` + token
+/// must not trigger a second login. Mirrors legacy's `asyncio.Lock` + token
 /// short-circuit so callers can re-issue connect without burning logins.
 #[rstest]
 #[tokio::test]

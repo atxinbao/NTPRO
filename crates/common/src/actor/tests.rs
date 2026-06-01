@@ -2740,7 +2740,7 @@ fn test_subscribe_signal_multi_word_name_matches_published_topic(
     cache: Rc<RefCell<Cache>>,
     trader_id: TraderId,
 ) {
-    // Multi-word / mixed-case names round-trip through the Python-compatible
+    // Multi-word / mixed-case names round-trip through the legacy-compatible
     // title-case topic scheme (`data.Signal<TitleName>`), matching v1 behavior.
     let actor_id = register_data_actor(clock, cache, trader_id);
     let mut actor = get_actor_unchecked::<TestDataActor>(&actor_id);

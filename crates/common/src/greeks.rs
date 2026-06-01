@@ -1287,12 +1287,10 @@ mod tests {
     }
 
     #[rstest]
-    fn test_greeks_calculator_has_python_bindings() {
-        // This test just verifies that the GreeksCalculator struct
-        // can be compiled with Python bindings enabled
+    fn test_greeks_calculator_exposes_expected_api() {
+        // This test verifies that the GreeksCalculator struct remains
+        // constructible and debuggable through the Rust API.
         let calculator = create_test_calculator();
-        // The Python methods are only accessible from Python,
-        // but we can verify the struct compiles correctly
         assert!(format!("{calculator:?}").contains("GreeksCalculator"));
     }
 

@@ -4,8 +4,7 @@
 to Interactive Brokers TWS and IB Gateway.
 
 The crate wraps the `ibapi` client and feeds NautilusTrader's live data,
-execution, historical data, and instrument loading infrastructure. Optional
-PyO3 bindings expose the same implementation through `nautilus_trader`.
+execution, historical data, and instrument loading infrastructure.
 
 ## What this crate provides
 
@@ -17,10 +16,7 @@ PyO3 bindings expose the same implementation through `nautilus_trader`.
 
 ## Feature flags
 
-  the instrument provider, and the Dockerized gateway helper.
 - `gateway`: Enables Dockerized IB Gateway support via `bollard`.
-  the feature used by the `nautilus_trader` package and includes `python` and
-  `gateway`.
 
 ## Documentation and examples
 
@@ -58,4 +54,4 @@ something the adapter converts automatically at runtime.
 
 This crate is the Rust implementation of NautilusTrader's Interactive Brokers
 integration. The core adapter surface is in place, but APIs may evolve as the
-migration from the legacy Python legacy adapter completes.
+migration from the legacy adapter surface completes.

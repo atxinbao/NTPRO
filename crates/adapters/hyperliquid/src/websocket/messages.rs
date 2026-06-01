@@ -1035,7 +1035,7 @@ mod tests {
 /// Wraps parsed messages from the handler.
 ///
 /// All parsing happens in the handler layer, with parsed Nautilus domain objects.
-/// passed through to the Python layer.
+/// passed through to the legacy bridge layer.
 #[derive(Debug, Clone)]
 pub enum NautilusWsMessage {
     /// Execution reports (order status and fills).

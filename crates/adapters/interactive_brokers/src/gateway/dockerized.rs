@@ -45,13 +45,6 @@ use crate::config::DockerizedIBGatewayConfig;
 
 /// Container status enumeration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 pub enum ContainerStatus {
     /// No container exists.
     NoContainer = 1,
@@ -74,13 +67,6 @@ pub enum ContainerStatus {
 /// This struct manages the lifecycle of Interactive Brokers Gateway Docker containers,
 /// including creation, starting, stopping, and status checking.
 #[derive(Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
 #[cfg(feature = "gateway")]
 pub struct DockerizedIBGateway {
     /// Configuration for the gateway.

@@ -47,14 +47,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// A Tardis HTTP API client.
 /// See <https://docs.tardis.dev/api/http>.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.tardis", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.tardis")
-)]
 #[derive(Clone)]
 pub struct TardisHttpClient {
     base_url: String,

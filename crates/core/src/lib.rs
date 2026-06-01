@@ -37,15 +37,11 @@
 //!
 //! # Feature Flags
 //!
-//! This crate provides feature flags to control source code inclusion during compilation,
-//! depending on the intended use case, i.e. whether to provide Python bindings
-//! for the [nautilus_trader](https://pypi.org/project/nautilus_trader) Python package,
-//! or as part of a Rust only build.
+//! This crate provides Rust-native Cargo feature flags for optional integration support.
 //!
 //! - `ffi`: Enables the C foreign function interface (FFI) from [cbindgen](https://github.com/mozilla/cbindgen).
-//! - `python`: Enables Python bindings from [PyO3](https://pyo3.rs).
-//! - `extension-module`: Builds the crate as a Python extension module.
 
+//!
 #![warn(rustc::all)]
 #![warn(clippy::pedantic)]
 #![deny(unsafe_code)]
@@ -97,8 +93,6 @@ pub mod ffi;
 compile_error!("Unsupported platform: Nautilus supports only Linux, macOS, Windows, and wasm32");
 
 // Re-exports
-#[cfg(feature = "python")]
-pub use crate::params::from_pydict;
 pub use crate::{
     collections::{AtomicMap, AtomicSet},
     drop::CleanDrop,

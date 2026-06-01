@@ -23,15 +23,7 @@ use serde::{Deserialize, Serialize};
 use crate::common::consts::{DEFAULT_CLIENT_ID, DEFAULT_HOST, DEFAULT_PORT};
 
 /// Market data type for switching between real-time and frozen/delayed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum MarketDataType {
     /// Live market data
     #[default]
@@ -58,14 +50,6 @@ impl From<MarketDataType> for ibapi::market_data::MarketDataType {
 /// Configuration for Interactive Brokers data client.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        subclass,
-        from_py_object
-    )
-)]
 pub struct InteractiveBrokersDataClientConfig {
     /// Host for IB Gateway/TWS.
     #[builder(default = DEFAULT_HOST.to_string())]
@@ -113,14 +97,6 @@ impl Default for InteractiveBrokersDataClientConfig {
 /// Configuration for Interactive Brokers execution client.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        subclass,
-        from_py_object
-    )
-)]
 pub struct InteractiveBrokersExecClientConfig {
     /// Host for IB Gateway/TWS.
     #[builder(default = DEFAULT_HOST.to_string())]
@@ -157,15 +133,7 @@ impl Default for InteractiveBrokersExecClientConfig {
 }
 
 /// Symbology method for converting between IB contracts and Nautilus instrument IDs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum SymbologyMethod {
     /// Simplified symbology: clean, readable symbols (e.g., "EUR/USD", "ESM23")
     #[serde(rename = "simplified")]
@@ -179,14 +147,6 @@ pub enum SymbologyMethod {
 /// Configuration for Interactive Brokers instrument provider.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        subclass,
-        from_py_object
-    )
-)]
 pub struct InteractiveBrokersInstrumentProviderConfig {
     /// Symbology method to use for instrument ID conversion.
     #[builder(default)]
@@ -216,7 +176,7 @@ pub struct InteractiveBrokersInstrumentProviderConfig {
     /// Security types to filter out.
     #[builder(default)]
     pub filter_sec_types: HashSet<String>,
-    /// Path to cache file for persistent instrument caching (equivalent to pickle_path in Python).
+    /// Path to cache file for persistent instrument caching (equivalent to pickle_path in legacy).
     /// If provided, instruments will be cached to disk and loaded from cache if still valid.
     pub cache_path: Option<String>,
 }
@@ -228,15 +188,7 @@ impl Default for InteractiveBrokersInstrumentProviderConfig {
 }
 
 /// Trading mode for Dockerized IB Gateway.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        from_py_object
-    )
-)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum TradingMode {
     /// Paper trading mode.
     #[serde(rename = "paper")]
@@ -253,14 +205,6 @@ pub enum TradingMode {
 /// It supports environment variable loading and sensitive data masking.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        subclass,
-        from_py_object
-    )
-)]
 pub struct DockerizedIBGatewayConfig {
     /// Username for IB account (falls back to `TWS_USERNAME` env var via [`Default`]).
     pub username: Option<String>,

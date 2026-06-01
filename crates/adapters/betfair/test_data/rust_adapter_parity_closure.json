@@ -62,15 +62,15 @@
     {
       "gap_id": "BF-ADP-005",
       "status": "scoped",
-      "decision": "Betfair custom data is pinned for Rust adapter parity, while PyO3-generated custom data bridge surfaces stay outside this adapter closure task.",
+      "decision": "Betfair custom data is pinned for Rust adapter parity, while removed custom data bridge surfaces stay outside this adapter closure task.",
       "evidence_paths": [
         "src/data_types.rs",
         "src/data.rs",
-        "src/python/mod.rs",
+        "removed_legacy_bridge/mod.rs",
         "Cargo.toml",
         "test_data/rust_fixture_manifest.json"
       ],
-      "release_gate_note": "Release evidence may claim Rust adapter custom-data fixture coverage, but PyO3 cleanup remains a separate removal-gate decision."
+      "release_gate_note": "Release evidence may claim Rust adapter custom-data fixture coverage, but legacy bridge cleanup remains a separate removal-gate decision."
     },
     {
       "gap_id": "BF-ADP-006",
@@ -88,15 +88,15 @@
     {
       "gap_id": "BF-ADP-007",
       "status": "deferred",
-      "decision": "Optional Betfair Python/PyO3 bridge surfaces are not removed by this adapter parity task.",
+      "decision": "Optional Betfair legacy bridge bridge surfaces were removed by RREM-018 after this adapter parity task.",
       "evidence_paths": [
-        "src/python/mod.rs",
-        "src/python/config.rs",
-        "src/python/factories.rs",
+        "removed_legacy_bridge/mod.rs",
+        "removed_legacy_bridge/config.rs",
+        "removed_legacy_bridge/factories.rs",
         "Cargo.toml"
       ],
       "requires_removal_gate": true,
-      "release_gate_note": "Removal remains blocked until the dedicated Rust-only removal gate approves Python/PyO3 deletion."
+      "release_gate_note": "RREM-018 closed this scoped Rust-only removal gate."
     }
   ]
 }

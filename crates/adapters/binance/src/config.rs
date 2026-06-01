@@ -30,14 +30,6 @@ use crate::common::enums::{BinanceEnvironment, BinanceMarginType, BinanceProduct
 /// Ed25519 API keys are required for SBE WebSocket streams.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.binance", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.binance")
-)]
 pub struct BinanceDataClientConfig {
     /// Product types to subscribe to.
     #[builder(default = vec![BinanceProductType::Spot])]
@@ -84,14 +76,6 @@ impl ClientConfig for BinanceDataClientConfig {
 /// which only supports Ed25519.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.binance", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.binance")
-)]
 pub struct BinanceExecClientConfig {
     /// Trader ID for the client.
     #[builder(default = TraderId::from("TRADER-001"))]

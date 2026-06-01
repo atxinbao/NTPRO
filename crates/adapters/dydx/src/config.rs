@@ -239,14 +239,6 @@ impl Default for DydxAdapterConfig {
 /// Configuration for the dYdX data client.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.dydx", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.dydx")
-)]
 pub struct DydxDataClientConfig {
     /// Base URL for the HTTP API.
     pub base_url_http: Option<String>,
@@ -297,14 +289,6 @@ impl Default for DydxDataClientConfig {
 /// Configuration for the dYdX execution client.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.dydx", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.dydx")
-)]
 pub struct DydxExecClientConfig {
     /// The trader ID for the client.
     #[builder(default = TraderId::from("TRADER-001"))]

@@ -1986,7 +1986,7 @@ mod reconciliation_tests {
 
     // When the dYdX Indexer omits `condition_type` (typical for WebSocket-fed
     // reports rebuilt through this parser) but a trigger price is set, the
-    // parser must default to `TriggerType::Default` so the Python
+    // parser must default to `TriggerType::Default` so the legacy
     // `OrderStatusReport.__init__` validator accepts the report. Without this
     // default, reports historically failed reconciliation with
     // `Condition.not_equal(trigger_type, NO_TRIGGER, ...)`.

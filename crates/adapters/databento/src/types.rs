@@ -46,17 +46,6 @@ pub type PublisherId = u16;
 pub type Dataset = Ustr;
 
 /// Represents a Databento publisher.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.databento",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.databento")
-)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Deserialize)]
 pub struct DatabentoPublisher {
     /// The publisher ID assigned by Databento, which denotes the dataset and venue.
@@ -73,17 +62,6 @@ pub struct DatabentoPublisher {
 ///
 /// This data type includes the populated data fields provided by `Databento`,
 /// excluding `publisher_id` and `instrument_id`.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.databento",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.databento")
-)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DatabentoImbalance {
     // The instrument ID for the imbalance data.
@@ -192,11 +170,6 @@ impl CustomDataTrait for DatabentoImbalance {
         }
     }
 
-    #[cfg(feature = "python")]
-    fn to_pyobject(&self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
-        nautilus_model::data::custom::clone_pyclass_to_pyobject(self, py)
-    }
-
     fn type_name_static() -> &'static str {
         "DatabentoImbalance"
     }
@@ -211,17 +184,6 @@ impl CustomDataTrait for DatabentoImbalance {
 ///
 /// This data type includes the populated data fields provided by `Databento`,
 /// excluding `publisher_id` and `instrument_id`.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.databento",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.databento")
-)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DatabentoStatistics {
     // The instrument ID for the statistics message.
@@ -336,11 +298,6 @@ impl CustomDataTrait for DatabentoStatistics {
         } else {
             false
         }
-    }
-
-    #[cfg(feature = "python")]
-    fn to_pyobject(&self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
-        nautilus_model::data::custom::clone_pyclass_to_pyobject(self, py)
     }
 
     fn type_name_static() -> &'static str {

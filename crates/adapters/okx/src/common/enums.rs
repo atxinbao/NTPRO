@@ -159,20 +159,6 @@ pub enum OKXOrderType {
     Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        module = "nautilus_trader.core.nautilus_pyo3.okx",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.okx")
-)]
 pub enum OKXOrderStatus {
     Canceled,
     Live,
@@ -253,20 +239,6 @@ impl From<LiquiditySide> for OKXExecType {
     Deserialize,
 )]
 #[serde(rename_all = "UPPERCASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        module = "nautilus_trader.core.nautilus_pyo3.okx",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.okx")
-)]
 pub enum OKXInstrumentType {
     #[default]
     /// Any product type.
@@ -381,20 +353,6 @@ pub enum OKXSpreadState {
     Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        module = "nautilus_trader.core.nautilus_pyo3.okx",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.okx")
-)]
 pub enum OKXContractType {
     #[serde(rename = "")]
     #[default]
@@ -467,20 +425,6 @@ impl TryFrom<OKXOptionType> for OptionKind {
 )]
 #[serde(rename_all = "UPPERCASE")]
 #[strum(serialize_all = "UPPERCASE", ascii_case_insensitive)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        module = "nautilus_trader.core.nautilus_pyo3.okx",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.okx")
-)]
 pub enum OKXGreeksType {
     /// Black-Scholes greeks in USD.
     #[default]
@@ -538,20 +482,6 @@ impl From<OKXGreeksType> for GreeksConvention {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(ascii_case_insensitive)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        module = "nautilus_trader.core.nautilus_pyo3.okx",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.okx")
-)]
 pub enum OKXTradeMode {
     #[default]
     Cash,
@@ -614,20 +544,6 @@ pub enum OKXAccountMode {
     Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        module = "nautilus_trader.core.nautilus_pyo3.okx",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.okx")
-)]
 pub enum OKXMarginMode {
     #[serde(rename = "")]
     #[default]
@@ -655,20 +571,6 @@ pub enum OKXMarginMode {
     EnumString,
     Serialize,
     Deserialize,
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        module = "nautilus_trader.core.nautilus_pyo3.okx",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.okx")
 )]
 pub enum OKXPositionMode {
     #[default]
@@ -959,18 +861,6 @@ pub enum OKXBookChannel {
     EnumString,
     Serialize,
     Deserialize,
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.okx",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.okx")
 )]
 pub enum OKXVipLevel {
     /// VIP level 0 (default tier).
@@ -1425,20 +1315,6 @@ pub enum OKXQuickMarginType {
 )]
 #[serde(rename_all = "lowercase")]
 #[strum(ascii_case_insensitive, serialize_all = "lowercase")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        module = "nautilus_trader.core.nautilus_pyo3.okx",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.okx")
-)]
 pub enum OKXEnvironment {
     /// Live trading environment.
     #[default]

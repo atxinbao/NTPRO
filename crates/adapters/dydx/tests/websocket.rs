@@ -2284,7 +2284,7 @@ async fn test_subscribe_trades_and_markets_in_sequence() {
 
     wait_until_async(|| async { client.is_connected() }, Duration::from_secs(5)).await;
 
-    // Subscribe to markets first (like the Python adapter does)
+    // Subscribe to markets first (like the legacy adapter does)
     client.subscribe_markets().await.unwrap();
 
     // Then subscribe to trades

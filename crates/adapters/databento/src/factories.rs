@@ -37,17 +37,6 @@ use crate::{
 
 /// Configuration for Databento data clients used with `LiveNode`.
 #[derive(Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.databento",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.databento")
-)]
 pub struct DatabentoLiveClientConfig {
     /// Databento API credential.
     credential: Credential,
@@ -108,17 +97,6 @@ impl ClientConfig for DatabentoLiveClientConfig {
 
 /// Factory for creating Databento data clients.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.databento",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.databento")
-)]
 pub struct DatabentoDataClientFactory;
 
 impl DatabentoDataClientFactory {

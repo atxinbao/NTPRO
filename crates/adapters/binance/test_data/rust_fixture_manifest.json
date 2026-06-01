@@ -308,9 +308,9 @@
       "id": "BIN-ADP-008",
       "status": "deferred",
       "review_task": "RADP-003",
-      "decision": "Optional Python/PyO3 Binance surfaces remain deferred to removal-gate work. RADP-003 does not delete or move them.",
+      "decision": "Optional legacy bridge Binance surfaces were closed by RREM-018 removal-gate work. RADP-003 does not delete or move them.",
       "evidence_refs": [
-        "crates/adapters/binance/src/python",
+        "crates/adapters/binance/removed_legacy_bridge",
         "crates/adapters/binance/Cargo.toml"
       ]
     },

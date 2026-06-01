@@ -24,7 +24,7 @@
 //! - **Dependency injection via traits**: Uses `SubmitExecutor` trait to abstract
 //!   the HTTP client, enabling testing without `#[cfg(test)]` conditional compilation.
 //! - **Trait objects over generics**: Uses `Arc<dyn SubmitExecutor>` to avoid
-//!   generic type parameters on the public API (simpler Python FFI).
+//!   generic type parameters on the public API (simpler legacy FFI).
 //! - **Short-circuit on first success**: Aborts remaining requests once any client
 //!   succeeds, minimizing latency.
 //! - **Idempotent rejection handling**: Recognizes duplicate clOrdID as expected
@@ -67,7 +67,7 @@ use crate::{
 ///
 /// This trait abstracts the execution layer to enable dependency injection and testing
 /// without conditional compilation. The broadcaster holds executors as `Arc<dyn SubmitExecutor>`
-/// to avoid generic type parameters that would complicate the Python FFI boundary.
+/// to avoid generic type parameters that would complicate the legacy FFI boundary.
 ///
 /// # Thread Safety
 ///
@@ -387,11 +387,6 @@ impl TransportClient {
 /// This broadcaster fans out submit requests to multiple pre-warmed HTTP clients
 /// in parallel, short-circuits when the first successful acknowledgement is received,
 /// and handles expected rejection patterns (duplicate clOrdID) with appropriate log levels.
-#[cfg_attr(feature = "python", pyo3::pyclass)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.bitmex")
-)]
 #[derive(Debug)]
 pub struct SubmitBroadcaster {
     config: SubmitBroadcasterConfig,
@@ -671,7 +666,7 @@ impl SubmitBroadcaster {
         let pool_size = self.config.pool_size;
         let actual_tries = if let Some(t) = submit_tries {
             if t > pool_size {
-                // Use log macro for Python visibility for now
+                // Use log macro for legacy bridge visibility for now
                 log::warn!("submit_tries={t} exceeds pool_size={pool_size}, capping at pool_size");
             }
             std::cmp::min(t, pool_size)

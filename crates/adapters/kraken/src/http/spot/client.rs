@@ -1113,14 +1113,6 @@ impl KrakenSpotRawHttpClient {
 /// This client wraps the raw client and provides Nautilus domain types.
 /// It maintains an instrument cache and uses it to parse venue responses
 /// into Nautilus domain objects.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.kraken", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.kraken")
-)]
 pub struct KrakenSpotHttpClient {
     pub(crate) inner: Arc<KrakenSpotRawHttpClient>,
     pub(crate) instruments_cache: Arc<AtomicMap<Ustr, InstrumentAny>>,
@@ -1796,7 +1788,7 @@ impl KrakenSpotHttpClient {
     /// Returns a flattened snapshot of Kraken's `TradeBalance` margin metrics.
     ///
     /// Caller is expected to invoke this only when operating in margin mode; consumers
-    /// surface the values via `AccountState.info` (Python-side) for strategy access.
+    /// surface the values via `AccountState.info` (strategy-side) for strategy access.
     /// Strings preserve venue precision exactly. Keys: `equivalent_balance`,
     /// `trade_balance`, `used_margin`, `unexecuted_value`, `unrealized_pnl`,
     /// `cost_basis`, `valuation`, `equity`, `free_margin`, `margin_level` (omitted

@@ -57,14 +57,6 @@ struct InstrumentCache {
 ///
 /// This provider fetches contract details from Interactive Brokers using the `rust-ibapi` library
 /// and converts them to NautilusTrader instruments.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers",
-        unsendable,
-        from_py_object
-    )
-)]
 #[derive(Debug, Clone)]
 pub struct InteractiveBrokersInstrumentProvider {
     /// Configuration for the provider.
@@ -121,7 +113,7 @@ impl InteractiveBrokersInstrumentProvider {
 
     /// Initialize the provider by loading cache if configured.
     ///
-    /// This is equivalent to Python's `provider.initialize()` method.
+    /// This is equivalent to legacy's `provider.initialize()` method.
     /// It loads instruments from cache if `cache_path` is configured and cache is valid.
     ///
     /// # Errors
@@ -152,7 +144,7 @@ impl InteractiveBrokersInstrumentProvider {
 
     /// Determine venue from contract using provider configuration.
     ///
-    /// This is equivalent to Python's `determine_venue_from_contract` method.
+    /// This is equivalent to legacy's `determine_venue_from_contract` method.
     /// It uses the config's symbol-to-venue mapping and exchange-to-venue conversion settings.
     ///
     /// # Arguments
@@ -380,7 +372,7 @@ impl InteractiveBrokersInstrumentProvider {
 
     /// Get an instrument by IB Contract.
     ///
-    /// This is equivalent to Python's `get_instrument` method.
+    /// This is equivalent to legacy's `get_instrument` method.
     /// Supports BAG contracts by auto-loading legs.
     ///
     /// # Arguments
@@ -697,7 +689,7 @@ impl InteractiveBrokersInstrumentProvider {
 
     /// Convert an instrument ID to IB contract details.
     ///
-    /// This is equivalent to Python's `instrument_id_to_ib_contract_details` method.
+    /// This is equivalent to legacy's `instrument_id_to_ib_contract_details` method.
     ///
     /// # Arguments
     ///
@@ -740,7 +732,7 @@ impl InteractiveBrokersInstrumentProvider {
 
     /// Load a single instrument (does not return loaded IDs).
     ///
-    /// This is equivalent to Python's `load_async` method.
+    /// This is equivalent to legacy's `load_async` method.
     ///
     /// # Arguments
     ///
@@ -770,7 +762,7 @@ impl InteractiveBrokersInstrumentProvider {
 
     /// Load a single instrument and return the loaded instrument ID.
     ///
-    /// This is equivalent to Python's `load_with_return_async` method.
+    /// This is equivalent to legacy's `load_with_return_async` method.
     ///
     /// # Arguments
     ///
@@ -815,7 +807,7 @@ impl InteractiveBrokersInstrumentProvider {
 
     /// Load multiple instruments (does not return loaded IDs).
     ///
-    /// This is equivalent to Python's `load_ids_async` method.
+    /// This is equivalent to legacy's `load_ids_async` method.
     ///
     /// # Arguments
     ///
@@ -868,7 +860,7 @@ impl InteractiveBrokersInstrumentProvider {
 
     /// Load multiple instruments and return the loaded instrument IDs.
     ///
-    /// This is equivalent to Python's `load_ids_with_return_async` method.
+    /// This is equivalent to legacy's `load_ids_with_return_async` method.
     ///
     /// # Arguments
     ///
@@ -956,7 +948,7 @@ impl InteractiveBrokersInstrumentProvider {
 
     /// Fetch a spread instrument by loading its individual legs.
     ///
-    /// This is equivalent to Python's `_fetch_spread_instrument` method.
+    /// This is equivalent to legacy's `_fetch_spread_instrument` method.
     /// It parses the spread instrument ID to extract leg tuples, loads each leg,
     /// and then creates the spread instrument.
     ///
@@ -1073,8 +1065,8 @@ impl InteractiveBrokersInstrumentProvider {
 
     /// Load all instruments from provided IDs and contracts.
     ///
-    /// This is equivalent to Python's `load_all_async` method.
-    /// Python version loads from config's `_load_ids_on_start` and `_load_contracts_on_start`.
+    /// This is equivalent to legacy's `load_all_async` method.
+    /// legacy version loads from config's `_load_ids_on_start` and `_load_contracts_on_start`.
     /// Rust version accepts these as parameters for flexibility.
     ///
     /// # Arguments
@@ -1293,12 +1285,7 @@ impl InteractiveBrokersInstrumentProvider {
         let parsed_instrument = parse_ib_contract_to_instrument(details, instrument_id)
             .context("Failed to parse IB contract to Nautilus instrument")?;
 
-        // TODO: Filter callable support (Python feature)
-        // Python's filter_callable allows custom filtering of instruments via a Python callable.
-        // This requires calling Python functions from Rust, which needs GIL handling and Python interop.
-        // For now, users can filter instruments in Python after loading if needed.
-        // To implement: Accept PyObject callable in config, call it here with parsed_instrument,
-        // skip instrument if callable returns False.
+        // TODO: Add Rust-native predicate support for custom instrument filtering.
 
         // Cache the instrument and mappings (force update if requested)
         if force_instrument_update || !self.instruments.contains_key(&instrument_id) {
@@ -1422,7 +1409,7 @@ impl InteractiveBrokersInstrumentProvider {
 
     /// Fetch option chain for a given underlying contract with expiry filtering.
     ///
-    /// This is equivalent to Python's `get_option_chain_details_by_range`.
+    /// This is equivalent to legacy's `get_option_chain_details_by_range`.
     /// It uses `contract_details` to fetch options with precise expiry filtering,
     /// which is more flexible than the basic `option_chain` API.
     ///
@@ -1867,7 +1854,7 @@ impl InteractiveBrokersInstrumentProvider {
     /// # Notes
     ///
     /// This method now auto-loads all leg instruments from combo_legs and creates
-    /// a proper spread instrument, matching Python's `_load_bag_contract` behavior.
+    /// a proper spread instrument, matching legacy's `_load_bag_contract` behavior.
     pub async fn fetch_bag_contract(
         &self,
         client: &ibapi::Client,

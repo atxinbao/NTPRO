@@ -113,19 +113,6 @@ pub enum DydxTimeInForce {
     Deserialize,
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.dydx",
-        eq,
-        eq_int,
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.dydx")
-)]
 pub enum DydxOrderSide {
     /// Buy order.
     Buy,
@@ -182,19 +169,6 @@ impl From<DydxOrderSide> for OrderSide {
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.dydx",
-        eq,
-        eq_int,
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.dydx")
-)]
 pub enum DydxOrderType {
     /// Limit order with specified price.
     Limit,
@@ -607,19 +581,6 @@ pub enum DydxTradeType {
     Deserialize,
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.dydx",
-        eq,
-        eq_int,
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.dydx")
-)]
 pub enum DydxTransferType {
     /// Transfer into the account.
     TransferIn,
@@ -649,19 +610,6 @@ pub enum DydxTransferType {
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[derive(Default)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.dydx",
-        eq,
-        eq_int,
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.dydx")
-)]
 pub enum DydxCandleResolution {
     /// 1 minute candles.
     #[serde(rename = "1MIN")]
@@ -740,20 +688,6 @@ impl DydxCandleResolution {
 )]
 #[strum(serialize_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        module = "nautilus_trader.core.nautilus_pyo3.dydx",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.dydx")
-)]
 pub enum DydxNetwork {
     /// dYdX mainnet (dydx-mainnet-1).
     #[default]

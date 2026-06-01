@@ -210,7 +210,7 @@ fn rust_fixture_manifest_pins_betfair_boundary_decisions() {
         ("BF-ADP-002", "betting exchange"),
         ("BF-ADP-003", "BSP"),
         ("BF-ADP-004", "reconnect"),
-        ("BF-ADP-005", "PyO3"),
+        ("BF-ADP-005", "legacy bridge"),
         ("BF-ADP-006", "credentials"),
         ("BF-ADP-007", "removal gate"),
     ] {

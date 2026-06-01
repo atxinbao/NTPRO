@@ -197,7 +197,7 @@
       "status": "deferred",
       "inventory_task": "RADP-007",
       "owner_task": "RADP-009",
-      "summary": "Optional BitMEX Python/PyO3 surfaces remain until the removal gate."
+      "summary": "Optional BitMEX legacy bridge surfaces remain until RREM-018 closed the scoped removal gate."
     }
   ]
 }

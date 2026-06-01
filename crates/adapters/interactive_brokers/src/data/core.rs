@@ -82,10 +82,6 @@ use crate::{
 /// This client provides market data functionality using the `rust-ibapi` library.
 /// It manages subscriptions, handles historical data requests, and streams
 /// market data to NautilusTrader.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.interactive_brokers")
-)]
 pub struct InteractiveBrokersDataClient {
     /// Client identifier.
     client_id: ClientId,
@@ -324,13 +320,13 @@ impl InteractiveBrokersDataClient {
 
     /// Get a reference to the IB client if connected.
     /// This is used internally for provider method calls.
-    #[allow(dead_code)] // Library API - may be used by other modules or PyO3 bindings
+    #[allow(dead_code)] // Library API - may be used by other Rust modules.
     pub(crate) fn get_ib_client(&self) -> Option<&Arc<ibapi::Client>> {
         self.ib_client.as_ref().map(|h| h.as_arc())
     }
 
     /// Get a reference to the instrument provider.
-    #[allow(dead_code)] // Library API - may be used by other modules or PyO3 bindings
+    #[allow(dead_code)] // Library API - may be used by other Rust modules.
     pub(crate) fn instrument_provider(&self) -> Arc<InteractiveBrokersInstrumentProvider> {
         Arc::clone(&self.instrument_provider)
     }
@@ -1379,7 +1375,7 @@ impl DataClient for InteractiveBrokersDataClient {
         // Create subscription-specific cancellation token
         let subscription_token = self.cancellation_token.child_token();
 
-        // Get depth from command or default to 20 (Python default)
+        // Get depth from command or default to 20 (legacy default)
         let depth_rows = cmd.depth.map_or(20, |d| d.get() as i32);
 
         // Get is_smart_depth from params or default to true

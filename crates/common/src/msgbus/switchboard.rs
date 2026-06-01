@@ -215,7 +215,7 @@ macro_rules! define_switchboard {
             /// Pub/sub topic carrying `ShutdownSystem` commands published by
             /// actors, engines, and strategies.
             ///
-            /// Matches the Python topic. The kernel subscribes to validate the
+            /// Matches the legacy topic. The kernel subscribes to validate the
             /// command and signal graceful shutdown; additional components may
             /// subscribe to react to the same signal.
             #[inline]
@@ -276,7 +276,7 @@ macro_rules! define_switchboard {
             /// Returns the exact signal publish topic for `name`
             /// (`data.Signal<TitleName>`).
             ///
-            /// The title-cased encoding mirrors the v1 Python convention so
+            /// The title-cased encoding mirrors the v1 legacy convention so
             /// subscribers keyed on either a specific name or the global
             /// `data.Signal*` wildcard receive published signals.
             #[must_use]

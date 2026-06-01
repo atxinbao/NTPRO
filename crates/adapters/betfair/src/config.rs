@@ -103,14 +103,6 @@ fn build_stream_config(
 /// Configuration for the Betfair live data client.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.betfair", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.betfair")
-)]
 pub struct BetfairDataConfig {
     /// Account currency code.
     #[builder(default = "GBP".to_string())]
@@ -269,14 +261,6 @@ impl BetfairDataConfig {
 /// Configuration for the Betfair live execution client.
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.betfair", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.betfair")
-)]
 pub struct BetfairExecConfig {
     /// Trader ID for the client core.
     #[builder(default = TraderId::from("TRADER-001"))]

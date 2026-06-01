@@ -570,7 +570,7 @@ fn parse_index_contract(
 
 /// Parse a spread instrument ID into an OptionSpread instrument.
 ///
-/// This implements the same logic as Python's `parse_spread_instrument_id`.
+/// This implements the same logic as legacy's `parse_spread_instrument_id`.
 /// Uses contract details from the first leg to determine spread properties.
 ///
 /// # Errors

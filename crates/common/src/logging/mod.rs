@@ -89,7 +89,7 @@ pub fn logging_is_initialized() -> bool {
 ///
 /// If `NAUTILUS_LOG` is set, initializes the logger with the specified config.
 /// Otherwise, initializes with INFO level to stdout. This enables lazy
-/// initialization for Rust-only binaries that don't go through the Python
+/// initialization for Rust-only binaries that don't go through the legacy
 /// kernel initialization.
 ///
 /// Returns `true` if logging is available (either already initialized or
@@ -152,7 +152,7 @@ pub fn logging_clock_set_static_time(time_ns: u64) {
 
 /// Initialize logging.
 ///
-/// Logging should be used for Python and sync Rust logic which is most of
+/// Logging should be used for legacy and sync Rust logic which is most of
 /// the components in the [nautilus_trader](https://pypi.org/project/nautilus_trader) package.
 /// Logging can be configured to filter components and write up to a specific level only
 /// by passing a configuration using the `NAUTILUS_LOG` environment variable.

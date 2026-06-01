@@ -281,7 +281,7 @@ impl BetfairExecutionClient {
 
     /// Resyncs OCM state from cache and drains any OCMs the network handler
     /// buffered while waiting (cache is `!Send` so this must run on the
-    /// engine thread). Mirrors Python's `_sync_fill_caches_from_orders`.
+    /// engine thread). Mirrors legacy's `_sync_fill_caches_from_orders`.
     fn process_pending_resync(&self) {
         if !self.core.is_connected() {
             return;
@@ -790,7 +790,7 @@ impl ExecutionClient for BetfairExecutionClient {
         let keep_alive_app_key = self.credential.app_key().to_string();
 
         self.keep_alive_handle = Some(get_runtime().spawn(async move {
-            // 10 hours, matching the Python adapter default.
+            // 10 hours, matching the legacy adapter default.
             const KEEP_ALIVE_INTERVAL_SECS: u64 = 36_000;
             let interval = tokio::time::Duration::from_secs(KEEP_ALIVE_INTERVAL_SECS);
             loop {

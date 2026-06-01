@@ -100,13 +100,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Configuration for the blockchain subscriber actor.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.blockchain",
-        from_py_object
-    )
-)]
 pub struct BlockchainSubscriberActorConfig {
     /// Base data actor configuration.
     pub base: DataActorConfig,
@@ -131,52 +124,12 @@ impl BlockchainSubscriberActorConfig {
     }
 }
 
-#[cfg(feature = "python")]
-#[pyo3::pymethods]
-impl BlockchainSubscriberActorConfig {
-    /// Creates a new `BlockchainSubscriberActorConfig` instance.
-    #[new]
-    fn py_new(client_id: ClientId, chain: Blockchain, pools: Vec<InstrumentId>) -> Self {
-        Self::new(client_id, chain, pools)
-    }
-
-    /// Returns a string representation of the configuration.
-    fn __repr__(&self) -> String {
-        format!(
-            "BlockchainSubscriberActorConfig(client_id={}, chain={:?}, pools={:?})",
-            self.client_id, self.chain, self.pools
-        )
-    }
-
-    /// Returns the client ID.
-    #[getter]
-    const fn client_id(&self) -> ClientId {
-        self.client_id
-    }
-
-    /// Returns the blockchain.
-    #[getter]
-    const fn chain(&self) -> Blockchain {
-        self.chain
-    }
-
-    /// Returns the pool instrument IDs.
-    #[getter]
-    fn pools(&self) -> Vec<InstrumentId> {
-        self.pools.clone()
-    }
-}
-
 /// A basic blockchain subscriber actor that monitors DeFi activities.
 ///
 /// This actor demonstrates how to use the `DataActor` trait to monitor blockchain data
 /// from DEXs, pools, and other DeFi protocols. It logs received blocks and swaps
 /// to demonstrate the data flow.
 #[derive(Debug)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.blockchain", unsendable)
-)]
 pub struct BlockchainSubscriberActor {
     core: DataActorCore,
     config: BlockchainSubscriberActorConfig,

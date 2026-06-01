@@ -39,14 +39,6 @@ use crate::{
 
 /// Factory for creating Betfair data clients.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.betfair", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.betfair")
-)]
 pub struct BetfairDataClientFactory;
 
 impl BetfairDataClientFactory {
@@ -124,14 +116,6 @@ impl DataClientFactory for BetfairDataClientFactory {
 
 /// Factory for creating Betfair execution clients.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.betfair", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.betfair")
-)]
 pub struct BetfairExecutionClientFactory;
 
 impl BetfairExecutionClientFactory {

@@ -2457,7 +2457,7 @@ async fn test_generate_order_status_report_returns_open_order_by_cloid() {
 async fn test_generate_order_status_report_terminal_oid_fallback_returns_report() {
     // Live order no longer in frontendOpenOrders (cloid-open miss), oid fallback
     // finds the terminal record. The returned report carries the API-reported
-    // cloid (as hex) on `client_order_id`; downstream Python resolver remaps
+    // cloid (as hex) on `client_order_id`; downstream legacy resolver remaps
     // it to the logical identifier.
     let coid = ClientOrderId::new("O-20240101-000002");
     let cloid_hex = Cloid::from_client_order_id(coid).to_hex();
@@ -2509,7 +2509,7 @@ async fn test_generate_order_status_report_terminal_oid_fallback_returns_report(
 #[tokio::test(flavor = "multi_thread")]
 async fn test_generate_order_status_report_terminal_mismatched_cloid_still_returned() {
     // A cloid mismatch no longer shortcircuits the helper. The downstream
-    // Python resolver uses venue_order_id to rebind the report to the
+    // legacy resolver uses venue_order_id to rebind the report to the
     // correct logical client_order_id, so the helper forwards the API
     // response as-is.
     let coid = ClientOrderId::new("O-20240101-000003");

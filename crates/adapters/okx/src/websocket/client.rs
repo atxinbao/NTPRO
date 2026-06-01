@@ -192,7 +192,7 @@ pub static OKX_RATE_LIMIT_KEY_ALGO_CANCEL: LazyLock<[Ustr; 1]> =
 
 /// Context stored at order submission time for correlating venue responses.
 ///
-/// Fields are read in `python/websocket.rs` (behind the `python` feature gate).
+/// Fields are read by websocket helpers while correlating venue responses.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub(crate) struct PendingOrderInfo {
@@ -203,17 +203,9 @@ pub(crate) struct PendingOrderInfo {
 
 /// Provides a WebSocket client for connecting to [OKX](https://okx.com).
 #[derive(Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.okx", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.okx")
-)]
 pub struct OKXWebSocketClient {
     url: String,
-    #[allow(dead_code)] // Read by Python bindings
+    #[allow(dead_code)] // Read by legacy bridge bindings
     pub(crate) account_id: AccountId,
     vip_level: Arc<AtomicU8>,
     credential: Option<Credential>,
@@ -241,7 +233,7 @@ pub struct OKXWebSocketClient {
     /// instruments commonly share one base pair (e.g. `BTC-USDT-SWAP` and
     /// `BTC-USDT-240628` both depend on `BTC-USDT`), so the venue
     /// (un)subscribe must only fire on the 0↔1 transitions. Without this
-    /// refcount, a Python caller unsubscribing one instrument would tear
+    /// refcount, a external caller unsubscribing one instrument would tear
     /// down the channel for every other subscriber on the same pair.
     index_pair_subscribers: Arc<DashMap<Ustr, usize>>,
     /// Serializes index-tickers transitions so a concurrent
@@ -1775,7 +1767,7 @@ impl OKXWebSocketClient {
     /// `instrument_id`.
     ///
     /// Refcounting is handled internally so any caller (Rust data client,
-    /// Python wrapper, etc.) can pair every `subscribe_index_prices` with
+    /// external wrapper, etc.) can pair every `subscribe_index_prices` with
     /// exactly one `unsubscribe_index_prices`. The OKX `index-tickers`
     /// channel is keyed by base pair (e.g. `BTC-USDT`), so the venue
     /// unsubscribe only fires when the last subscriber for that pair drops.

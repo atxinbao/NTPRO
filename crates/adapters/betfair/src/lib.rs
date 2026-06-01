@@ -37,8 +37,11 @@
 //!
 //! # Feature flags
 //!
+//! This crate provides Rust-native Cargo feature flags for optional integration support.
+//!
 //! - `high-precision`: Enables 128-bit value types from `nautilus-model`.
 
+//!
 #![warn(rustc::all)]
 #![deny(unsafe_code)]
 #![deny(nonstandard_style)]

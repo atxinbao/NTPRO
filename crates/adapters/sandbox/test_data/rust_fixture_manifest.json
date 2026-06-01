@@ -165,8 +165,8 @@
       "status": "deferred",
       "inventory_task": "RADP-022",
       "owner_task": "RADP-024",
-      "summary": "Optional Sandbox Python, PyO3, and extension-module surfaces remain present.",
-      "resolution": "Deferred to the Rust-only removal gate because RADP-023 does not authorize deleting optional Python/PyO3 adapter surfaces."
+      "summary": "Optional Sandbox legacy bridge and removed extension surfaces were removed by RREM-018.",
+      "resolution": "Deferred to the Rust-only removal gate because RADP-023 is superseded by RREM-018 removal authorization."
     }
   ]
 }

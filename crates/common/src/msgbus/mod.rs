@@ -32,7 +32,7 @@
 //! - **Typed routing** (`publish_quote`, `subscribe_quotes`): Zero-cost dispatch
 //!   for known types. Handlers receive `&T` directly with no runtime type checking.
 //! - **Any-based routing** (`publish_any`, `subscribe_any`): Flexible dispatch for
-//!   custom types and Python interop. Handlers receive `&dyn Any`.
+//!   custom types and legacy bridge interop. Handlers receive `&dyn Any`.
 //!
 //! See [`core`] module documentation for design decisions and performance details.
 

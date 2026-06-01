@@ -21,7 +21,7 @@ organized by category, with a unified trait-based architecture for consistent us
 
 All indicators are designed for high-performance real-time processing with bounded memory
 usage and efficient circular buffer implementations. The crate supports both Rust-native
-usage and Python integration for strategy development and backtesting.
+usage and legacy integration for strategy development and backtesting.
 
 ## NautilusTrader
 

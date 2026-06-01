@@ -1042,19 +1042,8 @@ impl AxRawHttpClient {
 /// High-level HTTP client for the Ax REST API.
 ///
 /// This client wraps the underlying [`AxRawHttpClient`] to provide a convenient
-/// interface for Python bindings and instrument caching.
+/// interface for legacy bridge bindings and instrument caching.
 #[derive(Debug)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.architect",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.architect_ax")
-)]
 pub struct AxHttpClient {
     pub(crate) inner: Arc<AxRawHttpClient>,
     pub(crate) instruments_cache: Arc<AtomicMap<Ustr, InstrumentAny>>,

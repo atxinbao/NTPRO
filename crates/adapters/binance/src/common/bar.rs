@@ -27,14 +27,6 @@ use serde::{Deserialize, Serialize};
 ///
 /// Extends the core `Bar` fields with `quote_volume`, `count`,
 /// `taker_buy_base_volume`, and `taker_buy_quote_volume`.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.binance", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.binance")
-)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BinanceBar {
     /// The bar type for this bar.
@@ -156,11 +148,6 @@ impl CustomDataTrait for BinanceBar {
         } else {
             false
         }
-    }
-
-    #[cfg(feature = "python")]
-    fn to_pyobject(&self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
-        nautilus_model::data::custom::clone_pyclass_to_pyobject(self, py)
     }
 
     fn type_name_static() -> &'static str {

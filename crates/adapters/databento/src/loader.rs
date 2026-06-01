@@ -70,14 +70,6 @@ use crate::{decode::decode_instrument_def_msg, symbology::MetadataCache};
 /// # References
 ///
 /// <https://databento.com/docs/schemas-and-data-formats>
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.databento")
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.databento")
-)]
 #[derive(Debug)]
 pub struct DatabentoDataLoader {
     publishers_map: IndexMap<PublisherId, DatabentoPublisher>,
@@ -1298,10 +1290,10 @@ mod tests {
             .collect::<anyhow::Result<Vec<_>>>()
             .unwrap();
 
-        // Assert total count matches Python test expectations
+        // Assert total count matches legacy test expectations
         assert_eq!(statuses.len(), 4, "Should load exactly 4 status records");
 
-        // Assert first record fields match Python test expectations
+        // Assert first record fields match legacy test expectations
         let first = &statuses[0];
         assert_eq!(first.instrument_id, instrument_id);
         assert_eq!(first.ts_event.as_u64(), 1609110000000000000);

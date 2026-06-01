@@ -59,14 +59,6 @@ impl ClientConfig for DydxExecClientConfig {
 
 /// Factory for creating dYdX data clients.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.dydx", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.dydx")
-)]
 pub struct DydxDataClientFactory;
 
 impl DydxDataClientFactory {
@@ -150,14 +142,6 @@ impl DataClientFactory for DydxDataClientFactory {
 
 /// Factory for creating dYdX execution clients.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.dydx", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.dydx")
-)]
 pub struct DydxExecutionClientFactory;
 
 impl DydxExecutionClientFactory {

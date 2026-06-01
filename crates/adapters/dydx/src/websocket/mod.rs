@@ -29,7 +29,7 @@
 //! The WebSocket client follows a two-layer architecture:
 //!
 //! - **Outer client** ([`client::DydxWebSocketClient`]): Orchestrates connection lifecycle, manages
-//!   subscriptions, and maintains state accessible to Python via `Arc<DashMap>`.
+//!   subscriptions, and maintains state accessible to legacy via `Arc<DashMap>`.
 //! - **Inner handler** ([`handler::FeedHandler`]): Runs in a dedicated Tokio task as the I/O boundary,
 //!   deserializing raw WebSocket messages into venue-specific types.
 //!

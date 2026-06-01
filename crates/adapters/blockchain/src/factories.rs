@@ -47,17 +47,6 @@ impl ClientConfig for BlockchainDataClientConfig {
 /// This factory creates `BlockchainDataClient` instances configured for different blockchain networks
 /// (Ethereum, Arbitrum, Base, Polygon) with appropriate RPC and HyperSync configurations.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.blockchain",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.blockchain")
-)]
 pub struct BlockchainDataClientFactory;
 
 impl BlockchainDataClientFactory {
@@ -107,17 +96,6 @@ impl DataClientFactory for BlockchainDataClientFactory {
 
 /// Factory for creating blockchain execution clients.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.blockchain",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.blockchain")
-)]
 pub struct BlockchainExecutionClientFactory;
 
 impl BlockchainExecutionClientFactory {

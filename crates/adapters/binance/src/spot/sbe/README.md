@@ -89,7 +89,7 @@ Each generated file needs three text rewrites to fit the project's module layout
 3. Remaining `crate::` -> `super::`
 4. Move the `pub use decoder::...; pub use encoder::...;` block above the `use super::*;` line.
 
-A reference Python script that does all four steps lives at `/tmp/sbegen/transform.py` while
+A reference legacy script that does all four steps lives at `/tmp/sbegen/transform.py` while
 regenerating; see the commit history for `crates/adapters/binance/src/spot/sbe/generated/` for
 the most recent regen for an example.
 

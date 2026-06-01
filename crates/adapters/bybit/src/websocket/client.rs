@@ -83,7 +83,7 @@ const WEBSOCKET_AUTH_WINDOW_MS: i64 = 5_000;
 const AUTH_WAIT_TIMEOUT: Duration = Duration::from_secs(5);
 pub const BATCH_PROCESSING_LIMIT: usize = 20;
 
-/// Tracks a pending Python execution request for OrderResponse correlation.
+/// Tracks a pending legacy execution request for OrderResponse correlation.
 #[derive(Debug, Clone)]
 pub struct PendingPyRequest {
     pub client_order_id: ClientOrderId,
@@ -95,11 +95,6 @@ pub struct PendingPyRequest {
 }
 
 /// Public/market data WebSocket client for Bybit.
-#[cfg_attr(feature = "python", pyo3::pyclass(from_py_object))]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.bybit")
-)]
 pub struct BybitWebSocketClient {
     url: String,
     environment: BybitEnvironment,
@@ -930,7 +925,7 @@ impl BybitWebSocketClient {
         &self.trade_subs
     }
 
-    /// Returns a reference to the pending Python requests map.
+    /// Returns a reference to the pending legacy requests map.
     #[must_use]
     pub fn pending_py_requests(&self) -> &Arc<DashMap<String, Vec<PendingPyRequest>>> {
         &self.pending_py_requests

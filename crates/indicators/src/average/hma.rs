@@ -30,14 +30,6 @@ use crate::{
 /// moving average.
 #[repr(C)]
 #[derive(Debug)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.indicators")
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.indicators")
-)]
 pub struct HullMovingAverage {
     pub period: usize,
     pub price_type: PriceType,

@@ -49,22 +49,6 @@ use super::consts::{
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(ascii_case_insensitive)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        frozen,
-        hash,
-        module = "nautilus_trader.core.nautilus_pyo3.architect",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.architect_ax")
-)]
 pub enum AxEnvironment {
     /// Sandbox/test environment.
     #[default]
@@ -131,22 +115,6 @@ impl AxEnvironment {
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        frozen,
-        hash,
-        module = "nautilus_trader.core.nautilus_pyo3.architect",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.architect_ax")
-)]
 pub enum AxInstrumentState {
     /// Instrument is in pre-open state.
     PreOpen,
@@ -265,22 +233,6 @@ impl From<AxCategory> for AssetClass {
     Serialize,
     Deserialize,
 )]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        frozen,
-        hash,
-        module = "nautilus_trader.core.nautilus_pyo3.architect",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.architect_ax")
-)]
 pub enum AxOrderSide {
     /// Buy order.
     #[serde(rename = "B", alias = "Buy")]
@@ -351,22 +303,6 @@ impl TryFrom<OrderSide> for AxOrderSide {
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        frozen,
-        hash,
-        module = "nautilus_trader.core.nautilus_pyo3.architect",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.architect_ax")
-)]
 pub enum AxOrderStatus {
     /// Order is pending submission.
     Pending,
@@ -439,22 +375,6 @@ impl From<AxOrderStatus> for OrderStatus {
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        frozen,
-        hash,
-        module = "nautilus_trader.core.nautilus_pyo3.architect",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.architect_ax")
-)]
 pub enum AxTimeInForce {
     /// Good-Till-Canceled: order remains active until filled or canceled.
     Gtc,
@@ -522,22 +442,6 @@ impl TryFrom<TimeInForce> for AxTimeInForce {
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        frozen,
-        hash,
-        module = "nautilus_trader.core.nautilus_pyo3.architect",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.architect_ax")
-)]
 pub enum AxOrderType {
     /// Market order; execute immediately at best available price.
     Market,
@@ -579,9 +483,7 @@ impl TryFrom<OrderType> for AxOrderType {
 ///
 /// The AX API uses `LEVEL_1`, `LEVEL_2`, `LEVEL_3` on the wire (with underscore
 /// before the digit). Serde and strum per-variant renames handle the wire and
-/// string formats correctly, however PyO3's `rename_all` does not insert an
-/// underscore at letter-digit boundaries, so the Python variant names are
-/// `LEVEL1`, `LEVEL2`, `LEVEL3` (without underscore).
+/// string formats correctly.
 ///
 /// # References
 /// - <https://docs.architect.exchange/api-reference/marketdata/md-ws>
@@ -601,22 +503,6 @@ impl TryFrom<OrderType> for AxOrderType {
 )]
 #[strum(ascii_case_insensitive)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        frozen,
-        hash,
-        module = "nautilus_trader.core.nautilus_pyo3.architect",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.architect_ax")
-)]
 pub enum AxMarketDataLevel {
     /// Level 1: best bid/ask only.
     #[serde(rename = "LEVEL_1")]
@@ -784,22 +670,6 @@ pub enum AxOrderRequestType {
     Serialize,
     Deserialize,
 )]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        frozen,
-        hash,
-        module = "nautilus_trader.core.nautilus_pyo3.architect",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.architect_ax")
-)]
 pub enum AxMdWsMessageType {
     /// Heartbeat event.
     #[serde(rename = "h")]
@@ -848,22 +718,6 @@ pub enum AxMdWsMessageType {
     EnumString,
     Serialize,
     Deserialize,
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        frozen,
-        hash,
-        module = "nautilus_trader.core.nautilus_pyo3.architect",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.architect_ax")
 )]
 pub enum AxOrderWsMessageType {
     /// Heartbeat event.
@@ -928,22 +782,6 @@ pub enum AxOrderWsMessageType {
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        frozen,
-        hash,
-        module = "nautilus_trader.core.nautilus_pyo3.architect",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.architect_ax")
-)]
 pub enum AxCancelReason {
     /// User requested cancellation.
     UserRequested,
@@ -972,22 +810,6 @@ pub enum AxCancelReason {
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        frozen,
-        hash,
-        module = "nautilus_trader.core.nautilus_pyo3.architect",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.architect_ax")
-)]
 pub enum AxCancelRejectionReason {
     /// Order not found or already canceled.
     OrderNotFound,

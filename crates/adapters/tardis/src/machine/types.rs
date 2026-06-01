@@ -23,14 +23,6 @@ pub use crate::machine::client::TardisMachineClient;
 
 /// Instrument definition information necessary for stream parsing.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.tardis", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.tardis")
-)]
 pub struct TardisInstrumentMiniInfo {
     /// The instrument ID with optionally Nautilus normalized symbol.
     pub instrument_id: InstrumentId,
@@ -73,14 +65,6 @@ impl TardisInstrumentMiniInfo {
 
 /// Instrument definition information necessary for stream parsing.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.tardis", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.tardis")
-)]
 pub struct TardisInstrumentKey {
     /// The Tardis raw symbol.
     pub raw_symbol: Ustr,
@@ -102,14 +86,6 @@ impl TardisInstrumentKey {
 /// The options that can be specified for calling Tardis Machine Server's replay-normalized.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.tardis", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.tardis")
-)]
 pub struct ReplayNormalizedRequestOptions {
     /// Requested [`TardisExchange`].
     pub exchange: TardisExchange,
@@ -137,14 +113,6 @@ pub struct ReplayNormalizedRequestOptions {
 /// The options that can be specified for calling Tardis Machine Server's stream-normalized.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.tardis", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.tardis")
-)]
 pub struct StreamNormalizedRequestOptions {
     /// Requested [`TardisExchange`].
     pub exchange: TardisExchange,

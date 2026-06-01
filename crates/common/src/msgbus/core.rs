@@ -33,7 +33,7 @@
 //! - `subscriptions`/`topics` maps with `ShareableMessageHandler`.
 //! - Handlers implement `Handler<dyn Any>`, receive `&dyn Any`.
 //! - Supports arbitrary message types without modifying the bus.
-//! - Required for Python interop where types aren't known at compile time.
+//! - Required for legacy bridge interop where types aren't known at compile time.
 //!
 //! ## Handler semantics
 //!
@@ -60,7 +60,7 @@
 //! | High volume (1M messages)   | ~7% faster   |
 //!
 //! Any-based routing pays for flexibility with runtime type checking. Use
-//! typed routing for hot-path data; Any-based for custom types and Python.
+//! typed routing for hot-path data; Any-based for custom types and legacy.
 //!
 //! ## Routing paths are separate
 //!
@@ -81,7 +81,7 @@
 //! **Any-based** (`publish_any`, `subscribe_any`):
 //! - Custom or user-defined data types.
 //! - Low-frequency messages.
-//! - Python callbacks.
+//! - legacy callbacks.
 
 use std::{
     any::{Any, TypeId},
