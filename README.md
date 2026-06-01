@@ -467,13 +467,14 @@ A `Makefile` is provided to automate most installation and build tasks for devel
 
 ## Examples
 
-Indicators and strategies can be developed in Python, Cython, or Rust. For performance and
-latency-sensitive applications, we recommend Rust. Below are some examples:
+NTPRO is a Rust-only cutover workspace. The supported example surface is the
+Rust example documentation under [`examples/rust/`](examples/rust/), plus
+runnable Cargo examples owned by the relevant Rust crates.
 
-- [indicator](/nautilus_trader/examples/indicators/ema_python.py) example written in Python.
-- [indicator](/nautilus_trader/indicators/) implementations written in Cython.
-- [strategy](/nautilus_trader/examples/strategies/) examples written in Python.
-- [backtest](/examples/backtest/) examples using a `BacktestEngine` directly.
+- [Rust example index](examples/rust/)
+- [Rust backtest guide](docs/how_to/run_rust_backtest.md)
+- [Rust live trading guide](docs/how_to/run_rust_live_trading.md)
+- [Rust strategy guide](docs/how_to/write_rust_strategy.md)
 
 ## Docker
 

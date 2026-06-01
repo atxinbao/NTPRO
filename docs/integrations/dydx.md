@@ -7,22 +7,22 @@ book and matching engine run on-chain as part of the validator process. Orders a
 Cosmos transactions via gRPC and settled each block. An Indexer service exposes REST and WebSocket
 APIs for market data and account state.
 
-This is the Rust-backed adapter with Python bindings.
+This is the Rust adapter surface used by NTPRO.
 
 ## Installation
 
 :::note
 No additional installation extras are required. The adapter is implemented in Rust and
-compiled into the core `nautilus_trader` package automatically during the build.
+built as part of the Rust workspace.
 :::
 
 ## Examples
 
-You can find live example scripts [here](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/live/dydx/).
+Legacy Python live example scripts have been removed from NTPRO. Use the Rust adapter crate tests, fixtures, and Rust product guides as the supported examples.
 
 ## Overview
 
-This adapter is implemented in Rust with Python bindings via PyO3. It provides direct integration
+This adapter is implemented in Rust. It provides direct integration
 with dYdX's Indexer API (REST/WebSocket) for market data and gRPC for Cosmos SDK transaction
 submission, without requiring external client libraries.
 

@@ -485,14 +485,9 @@ Snapshots arrive every five seconds (`snapshot_interval_ms=5000`).*
 
 ### Regenerate the panels
 
-```bash
-timeout 30 ./target/release/examples/bybit-greeks-tester > /tmp/bybit_greeks.log 2>&1
-timeout 30 ./target/release/examples/bybit-option-chain > /tmp/bybit_chain.log 2>&1
-
-uv sync --extra visualization
-GREEKS_LOG=/tmp/bybit_greeks.log CHAIN_LOG=/tmp/bybit_chain.log \
-    python3 docs/tutorials/assets/options_data_bybit/render_panels.py
-```
+:::note
+The checked-in panel images remain available. The legacy Python panel renderer script was removed from NTPRO.
+:::
 
 ## Complete source
 

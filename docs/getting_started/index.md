@@ -2,30 +2,20 @@
 
 ## 1. Install
 
-Set up a Python 3.12-3.14 environment and install the package:
+Install the Rust toolchain and build the workspace with Cargo. See the
+[Installation](installation) guide for platform support and development
+dependencies.
 
-```bash
-pip install -U nautilus_trader
-```
+## 2. Run the Rust backtest guide
 
-See the [Installation](installation) guide for platform support, source builds, and
-Docker images.
-
-## 2. Run the quickstart
-
-The [Quickstart](quickstart) runs your first backtest in five minutes using synthetic
-data. No downloads, no catalog setup.
-
-The getting-started tutorials all use a simple EMA crossover strategy. This is
-deliberate. The trading logic is not the focus. These tutorials teach how the
-engine operates: data loading, venue simulation, order lifecycle, and reporting.
-The [tutorials](../tutorials/) introduce different strategies (mean reversion,
-order book imbalance, grid market making) once the engine mechanics are clear.
+Start with [Run a Backtest (Rust)](../how_to/run_rust_backtest.md). It shows
+the low-level `BacktestEngine` path and the high-level `BacktestNode` path
+without relying on Python, PyO3, or Cython.
 
 ## 3. Choose your path
 
-- **Backtesting** - learn the two API levels below, then work through the
-  [tutorials](../tutorials/) for strategy pattern walkthroughs.
+- **Backtesting** - start with [Run a Backtest (Rust)](../how_to/run_rust_backtest.md),
+  then review the Rust tutorials for strategy pattern walkthroughs.
 - **Live trading** - see the
   [Configure a live trading node](../how_to/configure_live_trading.md) how-to
   and [Integrations](../integrations/) for supported venues.
@@ -39,8 +29,8 @@ NautilusTrader provides two API levels for backtesting:
 
 | API level                                      | Entry point     | Best for                                                          |
 |:-----------------------------------------------|:----------------|:------------------------------------------------------------------|
-| [Low‑level API](backtest_low_level)             | `BacktestEngine`| Direct component access, library development                      |
-| [High‑level API](backtest_high_level)           | `BacktestNode`  | Production workflows, easier transition to live trading (recommended) |
+| [Low-level Rust API](../how_to/run_rust_backtest.md#backtestengine-low-level-api) | `BacktestEngine` | Direct component access, library development |
+| [High-level Rust API](../how_to/run_rust_backtest.md#backtestnode-high-level-api) | `BacktestNode` | Production workflows, easier transition to live trading |
 
 The high‑level API requires a Parquet‑based data catalog. The low‑level API works with
 in‑memory data but has no live‑trading path.
@@ -59,16 +49,14 @@ API level.
 
 ## Examples in the repository
 
-The online documentation shows a subset of examples. For the full set, see the
-repository on GitHub:
+NTPRO keeps Rust examples as the supported product surface:
 
-| Directory                                                                                                | Contains                                                      |
-|:---------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------|
-| [examples/](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples)                     | Fully runnable, self‑contained Python examples                |
-| [docs/tutorials/](../tutorials/)                                                                         | Tutorials demonstrating common workflows                      |
-| [docs/concepts/](../concepts/)                                                                           | Concept guides with code snippets illustrating key features   |
-| [nautilus_trader/examples/](../../nautilus_trader/examples/)                                              | Pure‑Python examples of strategies, indicators, and exec algos|
-| [tests/unit_tests/](../../tests/unit_tests/)                                                             | Unit tests covering core functionality and edge cases         |
+| Directory                                      | Contains                                             |
+|:-----------------------------------------------|:-----------------------------------------------------|
+| [examples/rust/](../../examples/rust/)         | Rust example contracts and command walkthroughs      |
+| [crates/backtest/examples/](../../crates/backtest/examples/) | Runnable Rust backtest Cargo examples |
+| [crates/live/examples/](../../crates/live/examples/) | Runnable Rust live/sandbox Cargo examples |
+| [docs/tutorials/](../tutorials/)               | Rust-only tutorials and migration walkthroughs       |
 
 ## Running in Docker
 
@@ -83,9 +71,6 @@ docker pull ghcr.io/nautechsystems/jupyterlab:nightly --platform linux/amd64
 docker run -p 8888:8888 ghcr.io/nautechsystems/jupyterlab:nightly
 ```
 
-Then open <http://localhost:8888> in your browser.
-
-:::warning
-Examples use `log_level="ERROR"` because Nautilus logging exceeds Jupyter's stdout rate
-limit, causing notebooks to hang at lower log levels.
-:::
+Then open <http://localhost:8888> in your browser. The legacy Python notebook
+examples have been removed from this repository; use Rust guides for supported
+local workflows.

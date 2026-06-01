@@ -6,17 +6,8 @@ traders to speculate on event outcomes by buying and selling outcome tokens.
 NautilusTrader provides a venue integration for data and execution via Polymarket's Central Limit
 Order Book (CLOB) API.
 
-Today the repository exposes two Polymarket implementations:
-
-- The Python adapter in `nautilus_trader.adapters.polymarket`, which uses the
-  [official Python CLOB V2 client library](https://github.com/Polymarket/py-clob-client-v2).
-- The Rust-native adapter surface in `nautilus_trader.polymarket`, which NautilusTrader is
-  consolidating toward.
-
-:::warning
-The two implementations overlap heavily, but they do not behave identically in every area.
-This guide calls out the current differences where they matter.
-:::
+NTPRO exposes the Rust-native Polymarket adapter surface. Legacy Python adapter
+examples and Python package surfaces have been removed.
 
 NautilusTrader supports multiple Polymarket signature types for order signing, which gives
 flexibility for different wallet configurations while NautilusTrader handles signing and order
@@ -38,7 +29,7 @@ uv sync --all-extras
 
 ## Examples
 
-You can find live example scripts [here](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/live/polymarket/).
+Legacy Python live example scripts have been removed from NTPRO. Use the Rust adapter crate tests, fixtures, and Rust product guides as the supported examples.
 
 ## Binary options
 
@@ -77,22 +68,20 @@ Most users will define a configuration for a live trading node (as below),
 and won't need to work with these lower-level components directly.
 :::
 
-### Python and Rust implementations
+### Rust implementation
 
-The current docs cover both the Python adapter and the Rust-native adapter surface.
-The table below shows the main differences that affect behavior today.
+NTPRO documents the Rust-native Polymarket adapter surface only. Legacy Python
+package paths and Python example scripts have been removed from the product
+surface.
 
-| Area                | Python adapter                                                                | Rust adapter                                                  | Notes |
-|---------------------|-------------------------------------------------------------------------------|---------------------------------------------------------------|-------|
-| Public package path | `nautilus_trader.adapters.polymarket`                                         | `nautilus_trader.polymarket`                                  | Rust is the consolidation target. |
-| Order signing       | Uses `py-clob-client-v2`                                                      | Native Rust signing                                           | Python signing is slower. |
-| Post‑only orders    | Supported for `GTC` and `GTD` only                                            | Supported for `GTC` and `GTD` only                            | Both reject post‑only with market TIF (`IOC` or `FOK`). |
-| Batch submit        | Uses `POST /orders` for batchable `SubmitOrderList` requests                  | Uses `POST /orders` for batchable `SubmitOrderList` requests  | Both batch only independent limit orders, capped at 15 per request. |
-| Batch cancel        | Uses `DELETE /orders`                                                         | Uses `DELETE /orders`                                         | Both align with official Polymarket docs. |
-| Market unsubscribe  | Sends dynamic WebSocket `unsubscribe` messages                                | Sends dynamic WebSocket `unsubscribe` messages                | Both support subscribe and unsubscribe. |
-| Auto‑load retry     | `auto_load_max_retries` (12), `auto_load_retry_delay_*` (5.0/15.0 secs)       | Same knobs, same defaults                                     | Both retry CLOB‑hydration / indexing‑lag misses with bounded exponential backoff plus jitter. |
-| Data client config  | Credentials, subscription buffering, quote handling, provider config          | Base URLs, timeouts, filters, new‑market discovery            | Config surfaces differ materially outside of the auto‑load family. |
-| Exec client config  | Credentials, retries, raw WS logging, experimental trade‑based order recovery | Credentials, retries, account IDs, native timeouts            | Rust does not expose every Python‑only option. |
+| Area               | Rust adapter behavior |
+|--------------------|-----------------------|
+| Order signing      | Native Rust signing. |
+| Post-only orders   | Supported for `GTC` and `GTD`; rejected with market TIF (`IOC` or `FOK`). |
+| Batch submit       | Uses `POST /orders` for batchable `SubmitOrderList` requests, capped at 15 per request. |
+| Batch cancel       | Uses `DELETE /orders`, aligned with official Polymarket docs. |
+| Market unsubscribe | Sends dynamic WebSocket `unsubscribe` messages. |
+| Auto-load retry    | Uses bounded retry knobs for CLOB-hydration / indexing-lag misses. |
 
 ## pUSD
 
@@ -776,7 +765,6 @@ For the latest rate limit details, see the official Polymarket documentation:
 
 The following limitations are currently known:
 
-- Python order signing via `py-clob-client-v2` is slow and can take around one second per order.
 - Reduce-only orders are not supported.
 - Batch submit (`POST /orders`) accepts at most 15 orders per request; the adapter splits larger `SubmitOrderList` commands into sequential 15-order chunks.
 
@@ -941,7 +929,7 @@ def build_temperature_slugs() -> list[str]:
     return slugs
 ```
 
-See `examples/live/polymarket/slug_builders.py` for more examples including crypto UpDown markets.
+Validate slug-building behavior through Rust adapter tests and fixtures; the legacy Python slug builder example was removed from NTPRO.
 
 ## Historical data loading
 
@@ -1122,9 +1110,9 @@ fetched up to the cap rather than aborting the load. Use another historical
 data source if you need full coverage of a heavily traded market.
 :::
 
-### Complete backtest example
+### Backtest examples
 
-See `examples/backtest/polymarket_simple_quoter.py` for a full example:
+Legacy Python backtest examples have been removed from NTPRO. Use Rust adapter tests, fixtures, and Rust product guides for supported examples.
 
 ```python
 import asyncio
@@ -1184,11 +1172,6 @@ async def run_backtest():
 asyncio.run(run_backtest())
 ```
 
-**Run the complete example**:
-
-```bash
-python examples/backtest/polymarket_simple_quoter.py
-```
 
 ### Helper functions
 

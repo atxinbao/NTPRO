@@ -308,11 +308,7 @@ For reference, the Greeks that Nautilus computes:
 
 ## Examples
 
-Complete working examples are available in the repository:
-
-- `examples/live/bybit/bybit_option_greeks.py`: subscribe to Bybit venue-provided Greeks.
-- `examples/live/deribit/deribit_option_greeks.py`: subscribe to Deribit venue-provided Greeks.
-- `examples/live/okx/okx_option_greeks.py`: subscribe to OKX venue-provided Greeks.
+Legacy Python Greeks examples have been removed from NTPRO. Use Rust adapter tests, fixtures, and Rust product guides for supported examples.
 
 ## Related guides
 

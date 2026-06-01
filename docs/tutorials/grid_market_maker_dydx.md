@@ -565,14 +565,9 @@ set to ~16 blocks ahead, giving the eight-second expiry.*
 
 ### Regenerate the panels
 
-```bash
-# Capture a 35-second mainnet run.
-timeout 35 ./target/release/examples/dydx-grid-mm > /tmp/dydx_main.log 2>&1
-
-uv sync --extra visualization
-DYDX_LOG=/tmp/dydx_main.log \
-    python3 docs/tutorials/assets/grid_market_maker_dydx/render_panels.py
-```
+:::note
+The checked-in panel images remain available. The legacy Python panel renderer script was removed from NTPRO.
+:::
 
 ## Monitoring and understanding output
 

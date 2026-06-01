@@ -4,9 +4,9 @@ Founded in 2017, Binance is one of the largest cryptocurrency exchanges in terms
 of daily trading volume, and open interest of crypto assets and crypto
 derivative products.
 
-NautilusTrader provides Binance integration in both Python and Rust. The Rust
-adapter supports all product types listed below and includes additional
-features (noted inline). The Python adapter supports the same product types.
+NTPRO provides Binance integration through the Rust adapter. The adapter
+supports all product types listed below and includes additional features
+noted inline.
 
 Supported products:
 
@@ -16,7 +16,6 @@ Supported products:
 
 ## Examples
 
-- [Python live examples](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/live/binance/)
 - [Rust spot examples](https://github.com/nautechsystems/nautilus_trader/tree/develop/crates/adapters/binance/examples/spot/)
 - [Rust futures examples](https://github.com/nautechsystems/nautilus_trader/tree/develop/crates/adapters/binance/examples/futures/)
 
@@ -48,7 +47,7 @@ these lower-level components directly.
 
 :::note
 Margin account features (borrow, repay, isolated margin management) are not implemented.
-The Python adapter will not add margin support. Full margin trading support is planned for v2.
+Full margin trading support remains planned for a later Rust adapter milestone.
 :::
 
 ## Data types
@@ -60,7 +59,7 @@ The integration includes several custom data types:
 - `BinanceFuturesMarkPriceUpdate`: Mark price updates for Binance Futures.
 - `BinanceFuturesLiquidation`: Futures liquidation events from the `forceOrder` stream.
 
-See the Binance [API Reference](/docs/python-api-latest/adapters/binance.html) for full definitions.
+See the Rust adapter source and fixture tests for full data-type definitions.
 
 ## Symbology
 

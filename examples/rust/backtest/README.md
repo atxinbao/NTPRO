@@ -33,9 +33,9 @@ AUD/USD quote data, a simulated venue, and the Rust `EmaCross` strategy from
 returns an explicit blocker until Rust config parsing, strategy selection, and
 backtest runtime wiring are implemented.
 
-Do not replace this with Python backtest examples. Existing Python examples
-remain under `examples/backtest` for upstream compatibility, while this
-directory tracks the Rust product surface.
+Do not replace this with Python backtest examples. The legacy
+`examples/backtest` Python tree has been removed from NTPRO; this directory
+tracks the Rust product surface.
 
 ## Required Evidence For First Runnable Example
 

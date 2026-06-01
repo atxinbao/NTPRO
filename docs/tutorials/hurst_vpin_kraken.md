@@ -442,16 +442,11 @@ The backtest strategy logs `Hurst=… VPIN=… signed=… bar_close=…` on ever
 bar close and standard `OrderFilled` events on entries and exits, so the
 panels above are fully reproducible from the run's stdout:
 
-```bash
-RUST_LOG=info cargo run -p nautilus-kraken --features examples \
-    --example kraken-hurst-vpin-backtest --release > /tmp/backtest.log 2>&1
+:::note
+The checked-in panel images remain available. The legacy Python panel renderer script was removed from NTPRO.
+:::
 
-uv sync --extra visualization
-BACKTEST_LOG=/tmp/backtest.log \
-    python3 docs/tutorials/assets/hurst_vpin_kraken/render_panels.py
-```
-
-The renderer uses the shared `nautilus_dark` tearsheet theme and writes
+The checked-in panels use the shared `nautilus_dark` tearsheet theme and show
 static PNGs via Plotly's Kaleido exporter.
 
 ## Next steps

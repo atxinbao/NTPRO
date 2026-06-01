@@ -255,8 +255,9 @@ engine.reset()
 engine.dispose()
 ```
 
-The complete backtest script is at
-[`bitmex_grid_market_maker.py`](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/backtest/bitmex_grid_market_maker.py).
+The legacy Python backtest script has been removed from NTPRO. Use this
+tutorial as migration guidance while Rust BitMEX examples are promoted through
+the adapter fixture and product-surface gates.
 
 ### What the run produces
 
@@ -297,13 +298,11 @@ fails at t=50s the timer drains uninterrupted; the server fires
 
 ### Regenerate the panels
 
-```bash
-uv sync --extra visualization
-XBTUSD_QUOTES=XBTUSD.csv.gz XBTUSD_TRADES=XBTUSD-trades.csv.gz \
-    python3 docs/tutorials/assets/grid_market_maker_bitmex/render_panels.py
-```
+:::note
+The checked-in panel images remain available. The legacy Python panel renderer script was removed from NTPRO.
+:::
 
-The renderer caps the dataset at 200,000 quotes and 30,000 trades to keep
+The checked-in panels use a capped dataset to keep
 the run reproducible in a few minutes.
 
 ## Live trading: GridMarketMaker with deadman's switch

@@ -7,7 +7,7 @@ live market data ingest and order execution on Hyperliquid.
 
 ## Overview
 
-This adapter is implemented in Rust with Python bindings. It provides direct integration
+This adapter is implemented in Rust. It provides direct integration
 with Hyperliquid's REST and WebSocket APIs without requiring external client libraries.
 
 The Hyperliquid adapter includes multiple components:
@@ -27,7 +27,7 @@ and won't need to work directly with these lower-level components.
 
 ## Examples
 
-You can find live example scripts [here](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/live/hyperliquid/).
+Legacy Python live example scripts have been removed from NTPRO. Use the Rust adapter crate tests, fixtures, and Rust product guides as the supported examples.
 
 ## Builder address
 

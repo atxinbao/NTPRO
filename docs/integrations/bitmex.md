@@ -7,12 +7,12 @@ ingest and order execution with BitMEX.
 
 ## Overview
 
-This adapter is implemented in Rust, with optional Python bindings for ease of use in Python-based workflows.
-It does not require external BitMEX client libraries; the core components are compiled as a static library and linked automatically during the build.
+This adapter is implemented in Rust. NTPRO does not expose Python product bindings for BitMEX.
+It does not require external BitMEX client libraries.
 
 ## Examples
 
-You can find live example scripts [here](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/live/bitmex/).
+Legacy Python live example scripts have been removed from NTPRO. Use the Rust adapter crate tests, fixtures, and Rust product guides as the supported examples.
 
 ## Components
 
@@ -243,8 +243,7 @@ order = self.order_factory.stop_market(
 )
 ```
 
-`ExecTester` example configuration also demonstrates setting `stop_trigger_type=TriggerType.MARK_PRICE`
-in `examples/live/bitmex/bitmex_exec_tester.py`.
+Use Rust adapter tests or fixture-backed examples to validate `stop_trigger_type=TriggerType.MARK_PRICE` behavior.
 
 ### Trailing stops
 

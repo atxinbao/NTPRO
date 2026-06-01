@@ -22,7 +22,7 @@ uv sync --all-extras
 
 ## Examples
 
-You can find live example scripts [here](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/live/betfair/).
+Legacy Python live example scripts have been removed from NTPRO. Use the Rust adapter crate tests, fixtures, and Rust product guides as the supported examples.
 
 ## Betfair documentation
 

@@ -5,8 +5,9 @@ Executor: Codex
 Task ID: RPROD-010
 
 This directory is the Rust-first examples entrypoint for NTPRO cutover work.
-It separates Rust product workflows from the existing Python examples under
-`examples/backtest`, `examples/live`, and `examples/sandbox`.
+It is the only supported top-level example surface after the Python example
+trees were removed from `examples/backtest`, `examples/live`,
+`examples/sandbox`, and related legacy directories.
 
 ## Layout
 

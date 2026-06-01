@@ -305,14 +305,9 @@ The actor logs `[runner] update #N: batch bid=B ask=A cumulative imbalance=I`
 on every Nth update. The renderer parses those lines and writes static PNGs
 using the `nautilus_dark` tearsheet theme.
 
-```bash
-IMBALANCE_LOG_INTERVAL=200 cargo run -p nautilus-betfair --features examples --release \
-    --example betfair-backtest > /tmp/betfair.log 2>&1
-
-uv sync --extra visualization
-BETFAIR_LOG=/tmp/betfair.log \
-    python3 docs/tutorials/assets/backtest_book_imbalance_betfair/render_panels.py
-```
+:::note
+The checked-in panel images remain available. The legacy Python panel renderer script was removed from NTPRO.
+:::
 
 ## Running the example
 

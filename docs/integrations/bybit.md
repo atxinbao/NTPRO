@@ -7,7 +7,7 @@ execution with Bybit.
 
 ## Examples
 
-You can find live example scripts [here](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/live/bybit/).
+Legacy Python live example scripts have been removed from NTPRO. Use the Rust adapter crate tests, fixtures, and Rust product guides as the supported examples.
 
 ## Overview
 
@@ -415,8 +415,7 @@ Without `is_leverage=True` in the params, Spot orders use your available balance
 and do not borrow funds, even if you have auto-borrow enabled on your Bybit account.
 :::
 
-For a complete example of using order parameters including `is_leverage`, see the
-[bybit_exec_tester.py](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/live/bybit/bybit_exec_tester.py) example.
+Use Rust adapter tests or fixture-backed examples to validate order parameters such as `is_leverage`.
 
 ## Spot margin borrowing and repayment
 
