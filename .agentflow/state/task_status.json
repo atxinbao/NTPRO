@@ -1913,17 +1913,18 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-018.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-018.md",
-      "updated_at": "2026-06-02T07:38:11+08:00",
+      "updated_at": "2026-06-02T07:49:38+08:00",
       "branch": "ai/RREM-018-remove-adapters-indicators-common-core-pyo3-residue",
       "lease": "RREM-018",
       "qa_passed": true,
       "review_passed": false,
       "release_gatekeeper_approved": false,
       "auto_merge_allowed": false,
-      "notes": "RREM-018 local QA passed. crates/adapters, crates/indicators, crates/common, and crates/core have zero PyO3/Python binding residue hits. Targeted cargo checks for core/common/indicators and all adapter crates passed with Rust 1.95.0. check_rust_only_runtime still fails as expected on 109 non-scoped files. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled.",
+      "notes": "RREM-018 local QA passed. crates/adapters, crates/indicators, crates/common, and crates/core have zero PyO3/Python binding residue hits. Targeted cargo checks for core/common/indicators and all adapter crates passed with Rust 1.95.0. check_rust_only_runtime still fails as expected on 109 non-scoped files. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled.\n\nRREM-018 PR: https://github.com/atxinbao/NTPRO/pull/114\nCritical task is REVIEW_REQUIRED; auto-merge disabled.",
       "scoped_residue_removed_gate_passed": true,
-      "rust_only_runtime_gate_passed": false
+      "rust_only_runtime_gate_passed": false,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/114"
     }
   },
-  "updated_at": "2026-06-02T07:38:11+08:00"
+  "updated_at": "2026-06-02T07:49:38+08:00"
 }
