@@ -1,0 +1,14 @@
+{
+  "task_id": "RREL-002",
+  "agent_id": "Codex",
+  "branch": "ai/RREL-002-rust-only-release-notes",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RREL-002.md",
+    "docs/rust-cutover/evidence/RREL-002.md",
+    "docs/rust-cutover/release/rust_only_release_notes.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREL-002.json"
+  ],
+  "claimed_at": "2026-06-01T16:32:31Z",
+  "status": "PR_OPEN"
+}
