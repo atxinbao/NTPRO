@@ -1255,7 +1255,7 @@
     },
     "RREL-005": {
       "title": "Prepare release candidate tag plan",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1266,15 +1266,19 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREL-005.md",
       "evidence_file": "docs/rust-cutover/evidence/RREL-005.md",
-      "updated_at": "2026-06-01T16:47:32Z",
+      "updated_at": "2026-06-01T16:50:41Z",
       "branch": "ai/RREL-005-release-candidate-tag-plan",
       "lease": "RREL-005",
       "qa_passed": true,
-      "review_passed": true
+      "review_passed": true,
+      "merged_pr": 103,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/103",
+      "merged_at": "2026-06-01T16:50:24Z",
+      "merge_commit": "2782ec8e73b9fa86265def33a544ebd0b69c9c3c"
     },
     "RREL-006": {
       "title": "Run final Rust-only release verification",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1284,7 +1288,13 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREL-006.md",
-      "evidence_file": "docs/rust-cutover/evidence/RREL-006.md"
+      "evidence_file": "docs/rust-cutover/evidence/RREL-006.md",
+      "updated_at": "2026-06-01T16:53:31Z",
+      "branch": "ai/RREL-006-release-verification-blockers",
+      "lease": "RREL-006",
+      "qa_passed": true,
+      "review_passed": true,
+      "release_gate_passed": false
     },
     "RREL-007": {
       "title": "Prepare human owner signoff packet",
