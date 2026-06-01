@@ -79,7 +79,7 @@ FAIL_FAST_FLAG := --no-fail-fast
 endif
 
 # EXTRA_FEATURES allows adding optional features to cargo builds/tests.
-# Can be set directly: make cargo-test EXTRA_FEATURES="capnp,hypersync"
+# Can be set directly: make cargo-test EXTRA_FEATURES="hypersync"
 # Or use convenience flags below for backwards compatibility.
 EXTRA_FEATURES ?=
 
@@ -293,7 +293,7 @@ pre-flight:  #-- Run Rust-only pre-flight checks (format, check-code, cargo-test
 	fi
 	@$(timer_start) \
 		$(MAKE) --no-print-directory format \
-		&& $(MAKE) --no-print-directory check-code EXTRA_FEATURES="capnp,hypersync" \
+		&& $(MAKE) --no-print-directory check-code EXTRA_FEATURES="hypersync" \
 		&& $(MAKE) --no-print-directory cargo-test-extras \
 		&& $(MAKE) --no-print-directory cargo-build \
 		&& $(MAKE) --no-print-directory security-audit \
@@ -531,32 +531,6 @@ check-edit-installed:  #-- Verify cargo-edit is installed
 check-features: check-hack-installed  #-- Verify crate feature combinations compile correctly
 	cargo hack --workspace check --each-feature --all-targets
 
-.PHONY: check-capnp-schemas  #-- Verify Cap'n Proto schemas are up-to-date
-check-capnp-schemas:
-	$(info $(M) Checking if Cap'n Proto schemas are up-to-date...)
-	@if ! command -v capnp > /dev/null 2>&1; then \
-		echo "$(YELLOW)⚠ capnp not installed, skipping schema check$(RESET)"; \
-	elif ! CAPNP_CHECK=1 bash scripts/regen-capnp.sh; then \
-		echo "$(RED)Error: Cap'n Proto regeneration failed$(RESET)"; \
-		echo "Run manually to see errors: ./scripts/regen-capnp.sh"; \
-		exit 1; \
-	else \
-		DIFF_OUTPUT="$$(git diff -I\"ENCODED_NODE\" -- crates/serialization/generated/capnp)"; \
-		if [ -n "$$DIFF_OUTPUT" ]; then \
-			echo "$(RED)Error: Cap'n Proto generated files are out of date$(RESET)"; \
-			echo "Please run: ./scripts/regen-capnp.sh"; \
-			echo "Or: make regen-capnp"; \
-			exit 1; \
-		else \
-			echo "$(GREEN)✓ Cap'n Proto schemas are up-to-date$(RESET)"; \
-		fi; \
-	fi
-
-.PHONY: regen-capnp  #-- Regenerate Cap'n Proto schema files
-regen-capnp:
-	$(info $(M) Regenerating Cap'n Proto schemas...)
-	@bash scripts/regen-capnp.sh
-
 #== Rust Testing
 
 .PHONY: cargo-test
@@ -572,8 +546,8 @@ else
 endif
 
 .PHONY: cargo-test-extras
-cargo-test-extras:  #-- Run all Rust tests with capnp and hypersync features (convenience shortcut)
-	$(MAKE) cargo-test EXTRA_FEATURES="capnp,hypersync"
+cargo-test-extras:  #-- Run all Rust tests with hypersync features (convenience shortcut)
+	$(MAKE) cargo-test EXTRA_FEATURES="hypersync"
 
 # Both core and adapter targets use identical --workspace --features flags so
 # cargo sees the same feature union and does not recompile between runs.
@@ -987,7 +961,7 @@ pre-flight-v2:  #-- Run Rust-only pre-flight checks after v2 Python package remo
 	@$(timer_start) \
 		$(MAKE) --no-print-directory install-deps \
 		&& $(MAKE) --no-print-directory format \
-		&& $(MAKE) --no-print-directory check-code EXTRA_FEATURES="capnp,hypersync" \
+		&& $(MAKE) --no-print-directory check-code EXTRA_FEATURES="hypersync" \
 		&& $(MAKE) --no-print-directory cargo-test-extras \
 		&& $(MAKE) --no-print-directory security-audit \
 	$(call timer_end,Pre-flight)

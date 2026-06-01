@@ -113,9 +113,6 @@ jobs:
         if: github.event_name != 'pull_request'
         run: prek run --all-files
 
-      - name: Verify capnp schemas are up-to-date
-        run: make check-capnp-schemas
-
   # Dependency license, advisory, and ban checks (master only - gates releases)
   # https://embarkstudios.github.io/cargo-deny/
   cargo-deny:
@@ -291,11 +288,11 @@ jobs:
 
       - name: Run Rust tests (core)
         if: needs.plan.outputs.run-rust-tests == 'true'
-        run: make cargo-test-core EXTRA_FEATURES="capnp,hypersync" NEXTEST_PROFILE=ci
+        run: make cargo-test-core EXTRA_FEATURES="hypersync" NEXTEST_PROFILE=ci
 
       - name: Run Rust tests (adapters)
         if: needs.plan.outputs.run-rust-tests == 'true'
-        run: make cargo-test-adapters EXTRA_FEATURES="capnp,hypersync" NEXTEST_PROFILE=ci
+        run: make cargo-test-adapters EXTRA_FEATURES="hypersync" NEXTEST_PROFILE=ci
 
       - name: Run plug-in cdylib smoke tests
         if: >
@@ -427,11 +424,11 @@ jobs:
 
       - name: Run Rust tests (core)
         if: needs.plan.outputs.run-rust-tests == 'true'
-        run: make cargo-test-core EXTRA_FEATURES="capnp" NEXTEST_PROFILE=ci
+        run: make cargo-test-core NEXTEST_PROFILE=ci
 
       - name: Run Rust tests (adapters)
         if: needs.plan.outputs.run-rust-tests == 'true'
-        run: make cargo-test-adapters EXTRA_FEATURES="capnp" NEXTEST_PROFILE=ci
+        run: make cargo-test-adapters NEXTEST_PROFILE=ci
 
       - name: Clean Rust test artifacts
         if: needs.plan.outputs.run-rust-tests == 'true'
@@ -526,11 +523,11 @@ jobs:
 
       - name: Run Rust tests (core)
         if: needs.plan.outputs.run-rust-tests == 'true'
-        run: make cargo-test-core EXTRA_FEATURES="capnp,hypersync" NEXTEST_PROFILE=ci
+        run: make cargo-test-core EXTRA_FEATURES="hypersync" NEXTEST_PROFILE=ci
 
       - name: Run Rust tests (adapters)
         if: needs.plan.outputs.run-rust-tests == 'true'
-        run: make cargo-test-adapters EXTRA_FEATURES="capnp,hypersync" NEXTEST_PROFILE=ci
+        run: make cargo-test-adapters EXTRA_FEATURES="hypersync" NEXTEST_PROFILE=ci
 
       # Temporary: fail fast on rare runner worktree corruption while we isolate the root cause
       - name: Verify immutable CI inputs (pre-wheel build)
@@ -949,7 +946,6 @@ jobs:
           build-type: "release"
           uv-cache-enabled: "false"
           prek-cache-enabled: "false"
-          capnp-cache-enabled: "false"
           rust-cache-enabled: "false"
           rust-cache-save-if: "false"
 
@@ -1224,7 +1220,6 @@ jobs:
           free-disk-space: "true"
           uv-cache-enabled: "false"
           prek-cache-enabled: "false"
-          capnp-cache-enabled: "false"
           rust-cache-enabled: "false"
 
       - name: Build sdist

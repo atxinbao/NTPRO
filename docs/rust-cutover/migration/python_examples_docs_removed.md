@@ -61,7 +61,8 @@ crates and release evidence. Those are separate release cleanup surfaces and
 remain visible to the Rust-only runtime gate.
 
 Cap'n Proto schemas under `crates/serialization/schemas/capnp/` are not Python
-code and are not removed by this task.
+code and are not removed by this task. RREM-015 later removes Cap'n Proto as a
+separate Rust serialization feature cleanup.
 
 ## Validation Notes
 

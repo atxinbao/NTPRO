@@ -9,10 +9,6 @@ For development we recommend using the PyCharm *Professional* edition IDE, as it
 NautilusTrader uses increasingly more [Rust](https://www.rust-lang.org), so Rust should be installed on your system as well
 ([installation guide](https://www.rust-lang.org/tools/install)).
 
-[Cap'n Proto](https://capnproto.org/) is required for serialization schema compilation. The required
-version is specified in `tools.toml` in the repository root. Ubuntu's default package
-is typically too old, so you may need to install from source (see below).
-
 :::info
 NautilusTrader *must* compile and run on **Linux, macOS, and Windows**. Please keep portability in
 mind (use `std::path::Path`, avoid Bash-isms in shell scripts, etc.).
@@ -52,7 +48,6 @@ export PATH="$HOME/.local/bin:$PATH"
 
 cargo install cargo-binstall --locked
 make install-tools
-./scripts/install-capnp.sh
 
 uv sync --all-groups --all-extras
 source .venv/bin/activate
@@ -111,9 +106,6 @@ This installs:
   (vulnerability scanner).
 - **uv**, synced to the version required by `pyproject.toml`.
 
-Cap'n Proto is also pinned in `tools.toml` but installs separately; see the [Cap'n Proto](#capn-proto)
-section below.
-
 #### One-off prerequisite: cargo-binstall
 
 `make install-tools` uses [`cargo-binstall`](https://github.com/cargo-bins/cargo-binstall) to fetch
@@ -131,7 +123,7 @@ This is a one-time step. Subsequent runs of `make install-tools` reuse the insta
 Tool versions live in two files:
 
 - `Cargo.toml` under `[workspace.metadata.tools]` for cargo-installable crates.
-- `tools.toml` for everything else (`prek`, `osv-scanner`, `capnp`).
+- `tools.toml` for everything else (`prek`, `osv-scanner`).
 
 The Makefile reads these via `scripts/cargo-tool-version.sh` and `scripts/tool-version.sh`, so
 bumping a version in the source file is the only change required. To check the pinned cargo tool
@@ -265,47 +257,6 @@ To compile in debug mode, use:
 ```bash
 make build-debug
 ```
-
-## Cap'n Proto
-
-[Cap'n Proto](https://capnproto.org/) is required for serialization schema compilation.
-The required version is defined in `tools.toml` in the repository root.
-
-Install the correct version for your platform:
-
-```bash tab="Script (Linux/macOS)"
-./scripts/install-capnp.sh
-```
-
-```bash tab="macOS (Homebrew)"
-brew install capnp
-```
-
-```bash tab="Linux (source)"
-CAPNP_VERSION=$(bash scripts/tool-version.sh capnp)
-cd ~
-wget https://capnproto.org/capnproto-c++-${CAPNP_VERSION}.tar.gz
-tar xzf capnproto-c++-${CAPNP_VERSION}.tar.gz
-cd capnproto-c++-${CAPNP_VERSION}
-./configure
-make -j$(nproc)
-sudo make install
-sudo ldconfig
-```
-
-```bash tab="Windows (Chocolatey)"
-choco install capnproto
-```
-
-Verify the installed version matches `tools.toml`:
-
-```bash
-capnp --version
-```
-
-The install script ensures the pinned version is installed. If Homebrew or Chocolatey provides
-an older version, install from source or see the
-[Cap'n Proto installation guide](https://capnproto.org/install.html).
 
 ## Faster builds
 

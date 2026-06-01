@@ -28,8 +28,6 @@ use nautilus_model::{
     identifiers::{InstrumentId, TradeId},
     types::{Price, Quantity},
 };
-#[cfg(feature = "capnp")]
-use nautilus_serialization::capnp::{FromCapnp, ToCapnp, market_capnp};
 
 fn create_quote_tick() -> QuoteTick {
     QuoteTick {
@@ -105,45 +103,6 @@ fn bench_quote_tick_msgpack_deserialize(c: &mut Criterion) {
     });
 }
 
-#[cfg(feature = "capnp")]
-fn bench_quote_tick_capnp_serialize(c: &mut Criterion) {
-    let quote = create_quote_tick();
-    c.bench_function("QuoteTick::capnp_serialize", |b| {
-        b.iter(|| {
-            let mut message = capnp::message::Builder::new_default();
-            let builder = message.init_root::<market_capnp::quote_tick::Builder>();
-            black_box(&quote).to_capnp(builder);
-            let mut bytes = Vec::new();
-            capnp::serialize::write_message(&mut bytes, &message).unwrap();
-            black_box(bytes)
-        });
-    });
-}
-
-#[cfg(feature = "capnp")]
-fn bench_quote_tick_capnp_deserialize(c: &mut Criterion) {
-    let quote = create_quote_tick();
-    let mut message = capnp::message::Builder::new_default();
-    let builder = message.init_root::<market_capnp::quote_tick::Builder>();
-    quote.to_capnp(builder);
-    let mut bytes = Vec::new();
-    capnp::serialize::write_message(&mut bytes, &message).unwrap();
-
-    c.bench_function("QuoteTick::capnp_deserialize", |b| {
-        b.iter(|| {
-            let reader = capnp::serialize::read_message(
-                &mut black_box(&bytes[..]),
-                capnp::message::ReaderOptions::new(),
-            )
-            .unwrap();
-            let root = reader
-                .get_root::<market_capnp::quote_tick::Reader>()
-                .unwrap();
-            black_box(QuoteTick::from_capnp(root).unwrap())
-        });
-    });
-}
-
 // TradeTick benchmarks
 
 fn bench_trade_tick_json_serialize(c: &mut Criterion) {
@@ -173,45 +132,6 @@ fn bench_trade_tick_msgpack_deserialize(c: &mut Criterion) {
     let bytes = trade.to_msgpack_bytes().unwrap();
     c.bench_function("TradeTick::msgpack_deserialize", |b| {
         b.iter(|| black_box(TradeTick::from_msgpack_bytes(black_box(&bytes)).unwrap()));
-    });
-}
-
-#[cfg(feature = "capnp")]
-fn bench_trade_tick_capnp_serialize(c: &mut Criterion) {
-    let trade = create_trade_tick();
-    c.bench_function("TradeTick::capnp_serialize", |b| {
-        b.iter(|| {
-            let mut message = capnp::message::Builder::new_default();
-            let builder = message.init_root::<market_capnp::trade_tick::Builder>();
-            black_box(&trade).to_capnp(builder);
-            let mut bytes = Vec::new();
-            capnp::serialize::write_message(&mut bytes, &message).unwrap();
-            black_box(bytes)
-        });
-    });
-}
-
-#[cfg(feature = "capnp")]
-fn bench_trade_tick_capnp_deserialize(c: &mut Criterion) {
-    let trade = create_trade_tick();
-    let mut message = capnp::message::Builder::new_default();
-    let builder = message.init_root::<market_capnp::trade_tick::Builder>();
-    trade.to_capnp(builder);
-    let mut bytes = Vec::new();
-    capnp::serialize::write_message(&mut bytes, &message).unwrap();
-
-    c.bench_function("TradeTick::capnp_deserialize", |b| {
-        b.iter(|| {
-            let reader = capnp::serialize::read_message(
-                &mut black_box(&bytes[..]),
-                capnp::message::ReaderOptions::new(),
-            )
-            .unwrap();
-            let root = reader
-                .get_root::<market_capnp::trade_tick::Reader>()
-                .unwrap();
-            black_box(TradeTick::from_capnp(root).unwrap())
-        });
     });
 }
 
@@ -247,55 +167,6 @@ fn bench_bar_msgpack_deserialize(c: &mut Criterion) {
     });
 }
 
-#[cfg(feature = "capnp")]
-fn bench_bar_capnp_serialize(c: &mut Criterion) {
-    let bar = create_bar();
-    c.bench_function("Bar::capnp_serialize", |b| {
-        b.iter(|| {
-            let mut message = capnp::message::Builder::new_default();
-            let builder = message.init_root::<market_capnp::bar::Builder>();
-            black_box(&bar).to_capnp(builder);
-            let mut bytes = Vec::new();
-            capnp::serialize::write_message(&mut bytes, &message).unwrap();
-            black_box(bytes)
-        });
-    });
-}
-
-#[cfg(feature = "capnp")]
-fn bench_bar_capnp_deserialize(c: &mut Criterion) {
-    let bar = create_bar();
-    let mut message = capnp::message::Builder::new_default();
-    let builder = message.init_root::<market_capnp::bar::Builder>();
-    bar.to_capnp(builder);
-    let mut bytes = Vec::new();
-    capnp::serialize::write_message(&mut bytes, &message).unwrap();
-
-    c.bench_function("Bar::capnp_deserialize", |b| {
-        b.iter(|| {
-            let reader = capnp::serialize::read_message(
-                &mut black_box(&bytes[..]),
-                capnp::message::ReaderOptions::new(),
-            )
-            .unwrap();
-            let root = reader.get_root::<market_capnp::bar::Reader>().unwrap();
-            black_box(Bar::from_capnp(root).unwrap())
-        });
-    });
-}
-
-#[cfg(feature = "capnp")]
-criterion_group!(
-    quote_tick_benches,
-    bench_quote_tick_json_serialize,
-    bench_quote_tick_json_deserialize,
-    bench_quote_tick_msgpack_serialize,
-    bench_quote_tick_msgpack_deserialize,
-    bench_quote_tick_capnp_serialize,
-    bench_quote_tick_capnp_deserialize,
-);
-
-#[cfg(not(feature = "capnp"))]
 criterion_group!(
     quote_tick_benches,
     bench_quote_tick_json_serialize,
@@ -304,18 +175,6 @@ criterion_group!(
     bench_quote_tick_msgpack_deserialize,
 );
 
-#[cfg(feature = "capnp")]
-criterion_group!(
-    trade_tick_benches,
-    bench_trade_tick_json_serialize,
-    bench_trade_tick_json_deserialize,
-    bench_trade_tick_msgpack_serialize,
-    bench_trade_tick_msgpack_deserialize,
-    bench_trade_tick_capnp_serialize,
-    bench_trade_tick_capnp_deserialize,
-);
-
-#[cfg(not(feature = "capnp"))]
 criterion_group!(
     trade_tick_benches,
     bench_trade_tick_json_serialize,
@@ -324,18 +183,6 @@ criterion_group!(
     bench_trade_tick_msgpack_deserialize,
 );
 
-#[cfg(feature = "capnp")]
-criterion_group!(
-    bar_benches,
-    bench_bar_json_serialize,
-    bench_bar_json_deserialize,
-    bench_bar_msgpack_serialize,
-    bench_bar_msgpack_deserialize,
-    bench_bar_capnp_serialize,
-    bench_bar_capnp_deserialize,
-);
-
-#[cfg(not(feature = "capnp"))]
 criterion_group!(
     bar_benches,
     bench_bar_json_serialize,

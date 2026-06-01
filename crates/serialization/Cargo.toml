@@ -1,14 +1,11 @@
 [package]
 name = "nautilus-serialization"
 readme = "README.md"
-build = "build.rs"
 include = [
   "src/**/*",
   "schemas/**/*",
-  "generated/**/*",
   "tests/**/*",
   "benches/**/*",
-  "build.rs",
   "Cargo.toml",
   "README.md",
 ]
@@ -34,16 +31,9 @@ crate-type = ["rlib"]
 [features]
 default = []
 arrow = ["dep:arrow", "nautilus-model/arrow"]
-capnp = ["dep:capnp", "dep:capnpc", "dep:walkdir"]
 display = ["arrow"]
 sbe = []
 high-precision = ["nautilus-model/high-precision"]
-
-[package.metadata.cargo-machete]
-ignored = [
-  "capnpc", # Used by build.rs when the `capnp` feature is enabled
-  "walkdir", # Used by build.rs when the `capnp` feature is enabled
-]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -64,22 +54,11 @@ ustr = { workspace = true }
 uuid = { workspace = true }
 
 arrow = { workspace = true, optional = true }
-capnp = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
 pretty_assertions = { workspace = true }
 rstest = { workspace = true }
-
-[build-dependencies]
-capnpc = { workspace = true, optional = true }
-walkdir = { workspace = true, optional = true }
-
-[[bench]]
-name = "capnp_serialization"
-path = "benches/capnp_serialization.rs"
-harness = false
-required-features = ["capnp"]
 
 [[bench]]
 name = "serialization_comparison"
@@ -91,9 +70,3 @@ name = "sbe_decoding"
 path = "benches/sbe_decoding.rs"
 harness = false
 required-features = ["sbe"]
-
-[[bench]]
-name = "market_data_capnp_vs_sbe"
-path = "benches/market_data_capnp_vs_sbe.rs"
-harness = false
-required-features = ["capnp", "sbe"]

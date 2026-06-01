@@ -1988,24 +1988,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "capnp"
-version = "0.25.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63da65e5e9ffc3b8f993d4ad222a548152549351a643f6b850a7773cb6ff2809"
-dependencies = [
- "embedded-io",
-]
-
-[[package]]
-name = "capnpc"
-version = "0.25.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fca02be865c8c5a78bfc24b9819006ab6b59bef238467203928e26459557af93"
-dependencies = [
- "capnp 0.25.4",
-]
-
-[[package]]
 name = "cast"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4446,7 +4428,7 @@ dependencies = [
  "arrayvec",
  "arrow 57.3.1",
  "bincode 1.3.3",
- "capnp 0.23.2",
+ "capnp",
  "faster-hex",
  "fastrange-rs",
  "futures",
@@ -4497,7 +4479,7 @@ checksum = "3e98ff4e71862d242d9d884ce128e6e6b0a4faa380b57589556707af3fd7e5ee"
 dependencies = [
  "anyhow",
  "arrayvec",
- "capnp 0.23.2",
+ "capnp",
  "hypersync-format",
  "schemars 1.2.1",
  "serde",
@@ -5620,7 +5602,6 @@ dependencies = [
  "async-trait",
  "bon",
  "bytes",
- "capnp 0.25.4",
  "cbindgen",
  "chrono",
  "criterion",
@@ -6428,8 +6409,6 @@ version = "0.58.0"
 dependencies = [
  "anyhow",
  "arrow 58.3.0",
- "capnp 0.25.4",
- "capnpc",
  "criterion",
  "indexmap 2.14.0",
  "nautilus-core",
@@ -6443,7 +6422,6 @@ dependencies = [
  "thiserror 2.0.18",
  "ustr",
  "uuid",
- "walkdir",
 ]
 
 [[package]]

@@ -204,7 +204,7 @@ fn test_order_book_depth10_roundtrip() {
     let bytes = value.to_sbe().unwrap();
     let decoded = OrderBookDepth10::from_sbe(&bytes).unwrap();
 
-    assert_order_book_depth10_matches_capnp_parity(&value, &decoded);
+    assert_order_book_depth10_matches_wire_parity(&value, &decoded);
 }
 
 #[rstest]
@@ -259,7 +259,7 @@ fn test_instrument_status_roundtrip() {
     let bytes = value.to_sbe().unwrap();
     let decoded = InstrumentStatus::from_sbe(&bytes).unwrap();
 
-    assert_instrument_status_matches_capnp_parity(&value, &decoded);
+    assert_instrument_status_matches_wire_parity(&value, &decoded);
 }
 
 #[rstest]
@@ -279,7 +279,7 @@ fn test_instrument_status_with_no_optional_fields() {
     let bytes = value.to_sbe().unwrap();
     let decoded = InstrumentStatus::from_sbe(&bytes).unwrap();
 
-    assert_instrument_status_matches_capnp_parity(&value, &decoded);
+    assert_instrument_status_matches_wire_parity(&value, &decoded);
 }
 
 #[rstest]
@@ -299,7 +299,7 @@ fn test_instrument_status_with_empty_strings() {
     let bytes = value.to_sbe().unwrap();
     let decoded = InstrumentStatus::from_sbe(&bytes).unwrap();
 
-    assert_instrument_status_matches_capnp_parity(&value, &decoded);
+    assert_instrument_status_matches_wire_parity(&value, &decoded);
 }
 
 #[rstest]
@@ -332,7 +332,7 @@ fn test_instrument_status_optional_bool_roundtrip(
 }
 
 #[rstest]
-fn test_bar_type_composite_roundtrip_matches_capnp_parity() {
+fn test_bar_type_composite_roundtrip_matches_wire_parity() {
     let value = BarType::new_composite(
         InstrumentId::from("AAPL.XNAS"),
         BarSpecification::new(1, BarAggregation::Minute, PriceType::Last),
@@ -345,11 +345,11 @@ fn test_bar_type_composite_roundtrip_matches_capnp_parity() {
     let bytes = value.to_sbe().unwrap();
     let decoded = BarType::from_sbe(&bytes).unwrap();
 
-    assert_eq!(normalize_bar_type_capnp_parity(value), decoded);
+    assert_eq!(normalize_bar_type_wire_parity(value), decoded);
 }
 
 #[rstest]
-fn test_bar_with_composite_type_roundtrip_matches_capnp_parity() {
+fn test_bar_with_composite_type_roundtrip_matches_wire_parity() {
     let value = Bar::new(
         BarType::new_composite(
             InstrumentId::from("AAPL.XNAS"),
@@ -371,7 +371,7 @@ fn test_bar_with_composite_type_roundtrip_matches_capnp_parity() {
     let bytes = value.to_sbe().unwrap();
     let decoded = Bar::from_sbe(&bytes).unwrap();
 
-    assert_bar_matches_capnp_parity(&value, &decoded);
+    assert_bar_matches_wire_parity(&value, &decoded);
 }
 
 #[cfg(target_pointer_width = "64")]
@@ -409,57 +409,57 @@ fn test_order_book_depth10_header_block_length_matches_fixed_body() {
 
 #[rstest]
 fn test_data_any_quote_roundtrip() {
-    assert_data_any_roundtrip_matches_capnp_parity(DataAny::from(QuoteTick::default()));
+    assert_data_any_roundtrip_matches_wire_parity(DataAny::from(QuoteTick::default()));
 }
 
 #[rstest]
 fn test_data_any_trade_roundtrip() {
-    assert_data_any_roundtrip_matches_capnp_parity(DataAny::from(stub_trade_ethusdt_buyer()));
+    assert_data_any_roundtrip_matches_wire_parity(DataAny::from(stub_trade_ethusdt_buyer()));
 }
 
 #[rstest]
 fn test_data_any_bar_roundtrip() {
-    assert_data_any_roundtrip_matches_capnp_parity(DataAny::from(stub_bar()));
+    assert_data_any_roundtrip_matches_wire_parity(DataAny::from(stub_bar()));
 }
 
 #[rstest]
 fn test_data_any_mark_price_roundtrip() {
-    assert_data_any_roundtrip_matches_capnp_parity(DataAny::from(sample_mark_price_update()));
+    assert_data_any_roundtrip_matches_wire_parity(DataAny::from(sample_mark_price_update()));
 }
 
 #[rstest]
 fn test_data_any_index_price_roundtrip() {
-    assert_data_any_roundtrip_matches_capnp_parity(DataAny::from(sample_index_price_update()));
+    assert_data_any_roundtrip_matches_wire_parity(DataAny::from(sample_index_price_update()));
 }
 
 #[rstest]
 fn test_data_any_instrument_close_roundtrip() {
-    assert_data_any_roundtrip_matches_capnp_parity(DataAny::from(stub_instrument_close()));
+    assert_data_any_roundtrip_matches_wire_parity(DataAny::from(stub_instrument_close()));
 }
 
 #[rstest]
 fn test_data_any_instrument_status_roundtrip() {
-    assert_data_any_roundtrip_matches_capnp_parity(DataAny::from(stub_instrument_status()));
+    assert_data_any_roundtrip_matches_wire_parity(DataAny::from(stub_instrument_status()));
 }
 
 #[rstest]
 fn test_data_any_funding_rate_roundtrip() {
-    assert_data_any_roundtrip_matches_capnp_parity(DataAny::from(sample_funding_rate_update()));
+    assert_data_any_roundtrip_matches_wire_parity(DataAny::from(sample_funding_rate_update()));
 }
 
 #[rstest]
 fn test_data_any_order_book_delta_roundtrip() {
-    assert_data_any_roundtrip_matches_capnp_parity(DataAny::from(stub_delta()));
+    assert_data_any_roundtrip_matches_wire_parity(DataAny::from(stub_delta()));
 }
 
 #[rstest]
 fn test_data_any_order_book_deltas_roundtrip() {
-    assert_data_any_roundtrip_matches_capnp_parity(DataAny::from(stub_deltas()));
+    assert_data_any_roundtrip_matches_wire_parity(DataAny::from(stub_deltas()));
 }
 
 #[rstest]
 fn test_data_any_order_book_depth10_roundtrip() {
-    assert_data_any_roundtrip_matches_capnp_parity(DataAny::from(stub_depth10()));
+    assert_data_any_roundtrip_matches_wire_parity(DataAny::from(stub_depth10()));
 }
 
 #[rstest]
@@ -536,11 +536,11 @@ fn assert_order_book_deltas_fields(expected: &OrderBookDeltas, actual: &OrderBoo
     }
 }
 
-fn assert_order_book_depth10_matches_capnp_parity(
+fn assert_order_book_depth10_matches_wire_parity(
     expected: &OrderBookDepth10,
     actual: &OrderBookDepth10,
 ) {
-    let expected = normalize_depth10_capnp_parity(*expected);
+    let expected = normalize_depth10_wire_parity(*expected);
 
     assert_eq!(expected.instrument_id, actual.instrument_id);
     assert_eq!(expected.bid_counts, actual.bid_counts);
@@ -568,15 +568,15 @@ fn assert_funding_rate_update_fields(expected: &FundingRateUpdate, actual: &Fund
     assert_eq!(expected.ts_init, actual.ts_init);
 }
 
-fn assert_instrument_status_matches_capnp_parity(
+fn assert_instrument_status_matches_wire_parity(
     expected: &InstrumentStatus,
     actual: &InstrumentStatus,
 ) {
-    assert_eq!(normalize_instrument_status_capnp_parity(*expected), *actual);
+    assert_eq!(normalize_instrument_status_wire_parity(*expected), *actual);
 }
 
-fn assert_bar_matches_capnp_parity(expected: &Bar, actual: &Bar) {
-    let expected = normalize_bar_capnp_parity(*expected);
+fn assert_bar_matches_wire_parity(expected: &Bar, actual: &Bar) {
+    let expected = normalize_bar_wire_parity(*expected);
 
     assert_eq!(expected.bar_type, actual.bar_type);
     assert_eq!(expected.open, actual.open);
@@ -588,7 +588,7 @@ fn assert_bar_matches_capnp_parity(expected: &Bar, actual: &Bar) {
     assert_eq!(expected.ts_init, actual.ts_init);
 }
 
-fn assert_data_any_roundtrip_matches_capnp_parity(value: DataAny) {
+fn assert_data_any_roundtrip_matches_wire_parity(value: DataAny) {
     let bytes = value.to_sbe().unwrap();
     let decoded = DataAny::from_sbe(&bytes).unwrap();
 
@@ -596,7 +596,7 @@ fn assert_data_any_roundtrip_matches_capnp_parity(value: DataAny) {
         (DataAny::Quote(expected), DataAny::Quote(actual)) => assert_eq!(expected, actual),
         (DataAny::Trade(expected), DataAny::Trade(actual)) => assert_eq!(expected, actual),
         (DataAny::Bar(expected), DataAny::Bar(actual)) => {
-            assert_bar_matches_capnp_parity(&expected, &actual);
+            assert_bar_matches_wire_parity(&expected, &actual);
         }
         (DataAny::MarkPrice(expected), DataAny::MarkPrice(actual)) => {
             assert_eq!(expected, actual);
@@ -608,7 +608,7 @@ fn assert_data_any_roundtrip_matches_capnp_parity(value: DataAny) {
             assert_eq!(expected, actual);
         }
         (DataAny::InstrumentStatus(expected), DataAny::InstrumentStatus(actual)) => {
-            assert_instrument_status_matches_capnp_parity(&expected, &actual);
+            assert_instrument_status_matches_wire_parity(&expected, &actual);
         }
         (DataAny::FundingRate(expected), DataAny::FundingRate(actual)) => {
             assert_funding_rate_update_fields(&expected, &actual);
@@ -620,7 +620,7 @@ fn assert_data_any_roundtrip_matches_capnp_parity(value: DataAny) {
             assert_order_book_deltas_fields(&expected, &actual);
         }
         (DataAny::OrderBookDepth10(expected), DataAny::OrderBookDepth10(actual)) => {
-            assert_order_book_depth10_matches_capnp_parity(&expected, &actual);
+            assert_order_book_depth10_matches_wire_parity(&expected, &actual);
         }
         (expected, actual) => {
             panic!("DataAny variant mismatch: expected {expected:?}, was {actual:?}");
@@ -628,11 +628,11 @@ fn assert_data_any_roundtrip_matches_capnp_parity(value: DataAny) {
     }
 }
 
-fn normalize_instrument_status_capnp_parity(status: InstrumentStatus) -> InstrumentStatus {
+fn normalize_instrument_status_wire_parity(status: InstrumentStatus) -> InstrumentStatus {
     status
 }
 
-fn normalize_bar_type_capnp_parity(bar_type: BarType) -> BarType {
+fn normalize_bar_type_wire_parity(bar_type: BarType) -> BarType {
     BarType::new(
         bar_type.instrument_id(),
         bar_type.spec(),
@@ -640,12 +640,12 @@ fn normalize_bar_type_capnp_parity(bar_type: BarType) -> BarType {
     )
 }
 
-fn normalize_bar_capnp_parity(mut bar: Bar) -> Bar {
-    bar.bar_type = normalize_bar_type_capnp_parity(bar.bar_type);
+fn normalize_bar_wire_parity(mut bar: Bar) -> Bar {
+    bar.bar_type = normalize_bar_type_wire_parity(bar.bar_type);
     bar
 }
 
-fn normalize_depth10_capnp_parity(mut depth: OrderBookDepth10) -> OrderBookDepth10 {
+fn normalize_depth10_wire_parity(mut depth: OrderBookDepth10) -> OrderBookDepth10 {
     for bid in &mut depth.bids {
         bid.order_id = 0;
     }
