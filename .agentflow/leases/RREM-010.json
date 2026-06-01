@@ -1,0 +1,14 @@
+{
+  "task_id": "RREM-010",
+  "agent_id": "Codex",
+  "branch": "ai/RREM-010-final-removal-gate-blocked",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RREM-010.md",
+    "docs/rust-cutover/evidence/RREM-010.md",
+    "docs/rust-cutover/migration/final_rust_only_removal_gate.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREM-010.json"
+  ],
+  "claimed_at": "2026-06-01T16:08:00Z",
+  "status": "PR_OPEN"
+}
