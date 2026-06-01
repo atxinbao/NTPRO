@@ -834,7 +834,6 @@ jobs:
             --output=/github/workspace/osv-results.json
             --lockfile=Cargo.lock
             --lockfile=uv.lock
-            --lockfile=python/uv.lock
 
       - name: Check OSV severity (fail on critical/high only)
         if: steps.osv-scan.outcome == 'failure' && steps.gate.outputs.override_active != 'true'

@@ -149,52 +149,41 @@ sync-deps: install-deps  #-- Sync Python dependencies exactly (prune packages no
 install: install-deps
 install: export BUILD_MODE=release
 install:  #-- Install in release mode with all dependencies and extras
-	$(info $(M) Installing NautilusTrader in release mode...)
-	$Q uv sync --active --all-groups --all-extras $(UV_SYNC_FLAGS)
+	$(info $(M) Installing Rust CLI in release mode...)
+	$Q $(MAKE) --no-print-directory install-cli
 
 .PHONY: install-debug
 install-debug: install-deps
 install-debug: export BUILD_MODE=debug
 install-debug:  #-- Install in debug mode for development
-	$(info $(M) Installing NautilusTrader in debug mode...)
-	$Q uv sync --active --all-groups --all-extras $(UV_SYNC_FLAGS)
+	$(info $(M) Python package installation was removed by the Rust-only cutover.)
+	$Q cargo build --workspace --features "$(CARGO_FEATURES)"
 
 #== Build
 
 .PHONY: build
-build: install-deps
-build: export BUILD_MODE=release
-build: export CARGO_TARGET_DIR=$(TARGET_DIR)
+build: cargo-build
 build:  #-- Build the package in release mode
-	uv run --active --no-sync build.py
 
 .PHONY: build-debug
-build-debug: install-deps
-build-debug: export BUILD_MODE=debug
-build-debug: export CARGO_TARGET_DIR=$(TARGET_DIR)
 build-debug:  #-- Build the package in debug mode (recommended for development)
-ifeq ($(VERBOSE),true)
-	$(info $(M) Building in debug mode with verbose output...)
-	uv run --active --no-sync build.py
-else
-	$(info $(M) Building in debug mode (errors will still be shown)...)
-	uv run --active --no-sync build.py 2>&1 | grep -E "(Error|error|ERROR|Failed|failed|FAILED|Warning|warning|WARNING|Build completed|Build time:|Traceback)" || true
-endif
+	$(info $(M) Building Rust workspace in debug mode...)
+	cargo build --workspace --features "$(CARGO_FEATURES)"
 
 .PHONY: build-wheel
 build-wheel: export BUILD_MODE=release
 build-wheel:  #-- Build wheel distribution in release mode
-	uv build --wheel
+	$(info $(M) Python wheel packaging was removed by RREM-013.)
 
 .PHONY: build-wheel-debug
 build-wheel-debug: export BUILD_MODE=debug
 build-wheel-debug:  #-- Build wheel distribution in debug mode
-	uv build --wheel
+	$(info $(M) Python wheel packaging was removed by RREM-013.)
 
 .PHONY: build-dry-run
 build-dry-run: export DRY_RUN=true
 build-dry-run:  #-- Show build commands without executing them
-	uv run --active --no-sync build.py
+	$(info $(M) Python package build script was removed by RREM-013.)
 
 #== Clean
 
@@ -295,7 +284,7 @@ endef
 
 .PHONY: pre-flight
 pre-flight: export CARGO_TARGET_DIR=$(TARGET_DIR)
-pre-flight:  #-- Run pre-flight checks (format, check-code, cargo-test, build-debug, pytest)
+pre-flight:  #-- Run Rust-only pre-flight checks (format, check-code, cargo-test, cargo-build)
 	$(info $(M) Running pre-flight checks...)
 	@if ! git diff --quiet; then \
 		printf "$(RED)ERROR: You have unstaged changes$(RESET)\n"; \
@@ -303,12 +292,10 @@ pre-flight:  #-- Run pre-flight checks (format, check-code, cargo-test, build-de
 		exit 1; \
 	fi
 	@$(timer_start) \
-		$(MAKE) --no-print-directory install-deps \
-		&& $(MAKE) --no-print-directory format \
+		$(MAKE) --no-print-directory format \
 		&& $(MAKE) --no-print-directory check-code EXTRA_FEATURES="capnp,hypersync" \
 		&& $(MAKE) --no-print-directory cargo-test-extras \
-		&& $(MAKE) --no-print-directory build-debug \
-		&& $(MAKE) --no-print-directory pytest \
+		&& $(MAKE) --no-print-directory cargo-build \
 		&& $(MAKE) --no-print-directory security-audit \
 	$(call timer_end,Pre-flight)
 
@@ -395,13 +382,12 @@ define audit_step
 endef
 
 .PHONY: security-audit
-security-audit: check-audit-installed check-deny-installed check-vet-installed check-osv-scanner-installed  #-- Run comprehensive security audit (cargo-audit, cargo-deny, cargo-vet, pip-audit, osv-scanner)
+security-audit: check-audit-installed check-deny-installed check-vet-installed check-osv-scanner-installed  #-- Run Rust supply-chain audit (cargo-audit, cargo-deny, cargo-vet, osv-scanner)
 	$(info $(M) Running security audit...)
 	@$(call audit_step,cargo audit,cargo audit --color never)
 	@$(call audit_step,cargo deny,cargo deny --all-features check advisories licenses sources bans)
 	@$(call audit_step,cargo vet,cargo vet --locked)
-	@$(call audit_step,pip-audit,uv export --no-hashes --frozen | uv run --no-project --with pip-audit -- pip-audit --disable-pip --no-deps -r /dev/stdin)
-	@$(call audit_step,osv-scanner,osv-scanner --config=osv-scanner.toml --lockfile=Cargo.lock --lockfile=uv.lock --lockfile=python/uv.lock)
+	@$(call audit_step,osv-scanner,osv-scanner --config=osv-scanner.toml --lockfile=Cargo.lock --lockfile=uv.lock)
 
 .PHONY: cargo-deny
 cargo-deny: check-deny-installed  #-- Run cargo-deny checks (advisories, sources, bans, licenses)
@@ -965,40 +951,33 @@ PYTEST_WORKERS ?= $(shell python3 -c "import os; print(min(64, os.cpu_count() or
 
 .PHONY: pytest
 pytest:  #-- Run Python tests with pytest in parallel with immediate failure reporting
-	$(info $(M) Running Python tests in parallel with immediate failure reporting (workers=$(PYTEST_WORKERS))...)
-	uv run --active --no-sync pytest --new-first --failed-first --tb=line -n $(PYTEST_WORKERS) --dist=loadgroup --maxfail=50 --durations=0 --durations-min=10.0
+	$(info $(M) Python package tests were removed by RREM-013.)
 
 .PHONY: test-performance
 test-performance:  #-- Run performance tests with codspeed benchmarking
-	uv run --active --no-sync pytest tests/performance_tests --benchmark-disable-gc --codspeed
+	$(info $(M) Python performance tests were removed by RREM-013.)
 
-#== v2 (python/)
-# Unset VIRTUAL_ENV so uv targets the python/.venv, not the parent v1 venv.
+#== Retired v2 Python package targets
 
 .PHONY: sync-v2
 sync-v2:  #-- Sync v2 Python dependencies (without building the package)
-	$(info $(M) Syncing v2 Python dependencies...)
-	$Q cd python && VIRTUAL_ENV= uv sync --all-groups --no-install-package nautilus-trader $(UV_SYNC_FLAGS)
+	$(info $(M) v2 Python package dependencies were removed by RREM-013.)
 
 .PHONY: py-stubs-v2
 py-stubs-v2: sync-v2  #-- Regenerate v2 Python type stubs from Rust bindings
-	$(info $(M) Generating v2 Python type stubs...)
-	$Q cd python && VIRTUAL_ENV= CARGO_TARGET_DIR=$(CURDIR)/target-v2 uv run --no-sync python generate_stubs.py
+	$(info $(M) v2 Python type stubs were removed by RREM-013.)
 
 .PHONY: update-v2
 update-v2: cargo-update  #-- Update v2 dependencies (cargo and uv)
-	$(info $(M) Updating v2 uv lockfile...)
-	$Q cd python && VIRTUAL_ENV= uv lock --upgrade
+	$(info $(M) v2 Python lockfile was removed by RREM-013.)
 
 .PHONY: pytest-v2
-pytest-v2: build-debug-v2  #-- Run v2 Python tests
-	$(info $(M) Running v2 Python tests...)
-	$Q cd python && VIRTUAL_ENV= uv run --no-sync pytest tests/ -v --ignore=tests/unit/test_live_node.py
-	$Q cd python && VIRTUAL_ENV= uv run --no-sync pytest tests/unit/test_live_node.py -v
+pytest-v2:  #-- Run v2 Python tests
+	$(info $(M) v2 Python tests were removed by RREM-013.)
 
 .PHONY: pre-flight-v2
 pre-flight-v2: export CARGO_TARGET_DIR=target-v2
-pre-flight-v2:  #-- Run comprehensive v2 pre-flight checks (format, check-code, cargo-test, build, pytest)
+pre-flight-v2:  #-- Run Rust-only pre-flight checks after v2 Python package removal
 	$(info $(M) Running v2 pre-flight checks...)
 	@if ! git diff --quiet; then \
 		printf "$(RED)ERROR: You have unstaged changes$(RESET)\n"; \
@@ -1010,8 +989,6 @@ pre-flight-v2:  #-- Run comprehensive v2 pre-flight checks (format, check-code, 
 		&& $(MAKE) --no-print-directory format \
 		&& $(MAKE) --no-print-directory check-code EXTRA_FEATURES="capnp,hypersync" \
 		&& $(MAKE) --no-print-directory cargo-test-extras \
-		&& $(MAKE) --no-print-directory build-debug-v2 \
-		&& $(MAKE) --no-print-directory pytest-v2 \
 		&& $(MAKE) --no-print-directory security-audit \
 	$(call timer_end,Pre-flight)
 

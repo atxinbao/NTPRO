@@ -70,7 +70,6 @@ declared_packages() {
 
 pairs=(
   "uv.lock:pyproject.toml"
-  "python/uv.lock:python/pyproject.toml"
 )
 
 failures=0

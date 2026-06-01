@@ -25,8 +25,6 @@ on:
       - uv.lock
       - pyproject.toml
       - .pre-commit-config.yaml
-      - python/uv.lock
-      - python/pyproject.toml
       - deny.toml
       - osv-scanner.toml
       - .supply-chain/**
@@ -265,4 +263,3 @@ jobs:
             --config=osv-scanner.toml
             --lockfile=Cargo.lock
             --lockfile=uv.lock
-            --lockfile=python/uv.lock
