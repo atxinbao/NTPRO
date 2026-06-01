@@ -27,6 +27,10 @@ fn manifest_path() -> PathBuf {
     crate_path("test_data/rust_fixture_manifest.json")
 }
 
+fn closure_manifest_path() -> PathBuf {
+    crate_path("test_data/rust_adapter_parity_closure.json")
+}
+
 fn test_data_path(relative: &str) -> PathBuf {
     crate_path("test_data").join(relative)
 }
@@ -186,6 +190,110 @@ fn rust_fixture_manifest_is_complete_and_resolvable() {
             "missing RADP-022 blocker entry for {expected}"
         );
     }
+}
+
+#[test]
+fn rust_adapter_gap_closure_is_complete_and_scoped() {
+    let fixture_manifest_text =
+        fs::read_to_string(manifest_path()).expect("rust fixture manifest must be readable");
+    let fixture_manifest: Value = serde_json::from_str(&fixture_manifest_text)
+        .expect("rust fixture manifest must be valid JSON");
+
+    let closure_manifest_text = fs::read_to_string(closure_manifest_path())
+        .expect("rust adapter parity closure manifest must be readable");
+    let closure_manifest: Value = serde_json::from_str(&closure_manifest_text)
+        .expect("rust adapter parity closure manifest must be valid JSON");
+
+    assert_eq!(closure_manifest["schema_version"], 1);
+    assert_eq!(closure_manifest["task_id"], "RADP-024");
+    assert_eq!(closure_manifest["inventory_task"], "RADP-022");
+    assert_eq!(closure_manifest["fixture_task"], "RADP-023");
+    assert_eq!(closure_manifest["adapter"], "polymarket");
+    assert_eq!(
+        closure_manifest["release_gate_decision"],
+        "parity_resolved_with_scoped_constraints"
+    );
+
+    let blockers = fixture_manifest["scoped_blockers"]
+        .as_array()
+        .expect("scoped_blockers must be an array");
+    let expected_gap_ids = blockers
+        .iter()
+        .map(|blocker| blocker["id"].as_str().expect("blocker id must be a string"))
+        .collect::<BTreeSet<_>>();
+
+    let decisions = closure_manifest["decisions"]
+        .as_array()
+        .expect("decisions must be an array");
+    assert_eq!(
+        decisions.len(),
+        expected_gap_ids.len(),
+        "every Polymarket scoped blocker must have one closure entry"
+    );
+
+    let mut decision_gap_ids = BTreeSet::new();
+    for decision in decisions {
+        let gap_id = decision["gap_id"]
+            .as_str()
+            .expect("gap_id must be a string");
+        assert!(gap_id.starts_with("PM-ADP-"), "unexpected gap id {gap_id}");
+        assert!(decision_gap_ids.insert(gap_id), "duplicate gap id {gap_id}");
+
+        let status = decision["status"].as_str().expect("status must be set");
+        assert!(
+            matches!(status, "closed" | "scoped" | "deferred"),
+            "unexpected closure status for {gap_id}: {status}"
+        );
+        assert_ne!(status, "open", "RADP-024 must not leave open gap {gap_id}");
+
+        assert!(
+            !decision["decision"].as_str().unwrap_or_default().is_empty(),
+            "decision text must be set for {gap_id}"
+        );
+        assert!(
+            !decision["release_gate_note"]
+                .as_str()
+                .unwrap_or_default()
+                .is_empty(),
+            "release gate note must be set for {gap_id}"
+        );
+
+        let evidence_paths = decision["evidence_paths"]
+            .as_array()
+            .expect("evidence_paths must be an array");
+        assert!(
+            !evidence_paths.is_empty(),
+            "decision {gap_id} must include evidence paths"
+        );
+        for evidence in evidence_paths {
+            let relative = evidence
+                .as_str()
+                .expect("evidence_paths entries must be strings");
+            assert!(
+                crate_path(relative).exists(),
+                "closure evidence path listed in manifest does not exist: {relative}"
+            );
+        }
+
+        if status == "deferred" {
+            assert_eq!(
+                decision["requires_removal_gate"], true,
+                "deferred gap {gap_id} must require the removal gate"
+            );
+            assert!(
+                decision["release_gate_note"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .contains("removal gate"),
+                "deferred gap {gap_id} must mention the removal gate"
+            );
+        }
+    }
+
+    assert_eq!(
+        decision_gap_ids, expected_gap_ids,
+        "closure decisions must match the RADP-023 Polymarket scoped blockers"
+    );
 }
 
 #[test]
