@@ -1,0 +1,14 @@
+{
+  "task_id": "RREM-001",
+  "agent_id": "Codex",
+  "branch": "ai/RREM-001-inventory-python-product-surfaces",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RREM-001.md",
+    "docs/rust-cutover/evidence/RREM-001.md",
+    "docs/rust-cutover/inventory/python_product_surfaces.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREM-001.json"
+  ],
+  "claimed_at": "2026-06-01T14:05:47.175724+00:00",
+  "status": "PR_OPEN"
+}
