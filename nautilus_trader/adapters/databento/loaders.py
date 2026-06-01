@@ -174,11 +174,11 @@ class DatabentoDataLoader:
             cache populated by `load_instruments` or `set_price_precision`.
             Loading fails if no precision can be resolved for an instrument.
         as_legacy_cython : bool, default True
-            If data should be converted to 'legacy Cython' objects.
+            If data should be converted to 'legacy legacy extension' objects.
             You would typically only set this False if passing the objects
             directly to a data catalog for the data to then be written in Nautilus Parquet format.
             Note: the `imbalance` and `statistics` schemas are only implemented in Rust, and
-            so cannot be loaded as legacy Cython objects (so set this to False).
+            so cannot be loaded as legacy compiled objects (so set this to False).
         include_trades : bool, default False
             If separate `TradeTick` elements will be included in the data for MBO and MBP-1 schemas
             when applicable (your code will have to handle these two types in the returned list).
@@ -454,7 +454,7 @@ class DatabentoDataLoader:
             case DatabentoSchema.IMBALANCE.value:
                 if as_legacy_cython:
                     raise ValueError(
-                        "Cannot load `DatabentoImbalance` as Cython objects, set `as_legacy_cython` to False",
+                        "Cannot load `DatabentoImbalance` as legacy compiled objects, set `as_legacy_cython` to False",
                     )
 
                 return self._pyo3_loader.load_imbalance(
@@ -465,7 +465,7 @@ class DatabentoDataLoader:
             case DatabentoSchema.STATISTICS.value:
                 if as_legacy_cython:
                     raise ValueError(
-                        "Cannot load `DatabentoStatistics` as Cython objects, set `as_legacy_cython` to False",
+                        "Cannot load `DatabentoStatistics` as legacy compiled objects, set `as_legacy_cython` to False",
                     )
 
                 return self._pyo3_loader.load_statistics(

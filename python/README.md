@@ -7,7 +7,7 @@
 > from v1 are still being ported.
 
 This directory contains the `nautilus_trader` v2 Python package.
-v2 replaces the Cython layer with Rust core bindings exposed through PyO3.
+v2 replaces the legacy compiled layer with Rust core bindings exposed through PyO3.
 
 **Rules during the transition:**
 

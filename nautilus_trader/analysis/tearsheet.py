@@ -441,7 +441,7 @@ def _resolve_tearsheet_returns(
        computed from a single-venue account.
     2. ``_calculate_account_returns()`` -- aggregates across *all* cached
        accounts (covers multi-venue backtests where the analyzer is
-       recalculated per venue in ``engine.pyx``).
+       recalculated per venue in ``legacy engine implementation``).
     3. ``analyzer.returns()`` -- per-position returns as a last resort.
 
     """
@@ -468,7 +468,7 @@ def _calculate_account_returns(
 
     This is separate from ``PortfolioAnalyzer._calculate_portfolio_returns``
     because the backtest engine recalculates the analyzer per venue
-    (``engine.pyx:2140``). This function walks *every* cached account so it
+    (``legacy engine implementation``). This function walks *every* cached account so it
     can produce a single combined return series for multi-venue backtests.
 
     Returns ``None`` when accounts use mixed currencies without an explicit

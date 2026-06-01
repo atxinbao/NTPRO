@@ -244,7 +244,7 @@ clean-build-artifacts:  #-- Clean compiled artifacts (.so, .dll, .pyc, .c files)
 	find . -type f -name "*.c" -not -path "./.venv*" -not -path "./target/*" -not -path "./target-v2/*" -exec rm -f {} + 2>/dev/null || true
 	find . -type f -a \( -name "*.pyc" -o -name "*.pyo" \) -not -path "./.venv*" -exec rm -f {} + 2>/dev/null || true
 	find . -type f -a \( -name "*.so" -o -name "*.dll" -o -name "*.dylib" \) -not -path "./.venv*" -exec rm -f {} + 2>/dev/null || true
-	rm -rf build/ cython_debug/ 2>/dev/null || true
+	rm -rf build/ 2>/dev/null || true
 	# Clean test artifacts
 	rm -rf .coverage .benchmarks 2>/dev/null || true
 

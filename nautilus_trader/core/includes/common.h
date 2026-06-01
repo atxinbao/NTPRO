@@ -318,7 +318,7 @@ typedef struct TimeEvent_t {
 } TimeEvent_t;
 
 /**
- * FFI time event handler for Cython interoperability.
+ * FFI time event handler for legacy extension interoperability.
  *
  * Associates a `TimeEvent` with a callback function that is triggered
  * when the event's timestamp is reached.

@@ -507,7 +507,7 @@ register_arrow(
 
 
 # Rust-native Arrow registration for pyo3 InstrumentStatus.
-# The Cython InstrumentStatus is already registered via NAUTILUS_ARROW_SCHEMA above; this
+# The legacy InstrumentStatus is already registered via NAUTILUS_ARROW_SCHEMA above; this
 # additional registration lets callers pass a pyo3 InstrumentStatus directly to
 # ArrowSerializer.serialize_batch (which ParquetDataCatalog.write uses).
 _INSTRUMENT_STATUS_PYO3_SCHEMA = pa.schema(

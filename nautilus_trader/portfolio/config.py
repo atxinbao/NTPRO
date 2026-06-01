@@ -50,7 +50,7 @@ class PortfolioConfig(NautilusConfig, frozen=True):
         account holds at least one open position, carrying continuous
         mark-to-market equity. Default is None (no periodic snapshots).
 
-        Note: only the Rust portfolio runtime emits snapshots today; the Cython
+        Note: only the Rust portfolio runtime emits snapshots today; the legacy extension
         portfolio used by the Python ``BacktestEngine`` and live nodes ignores
         this field. Setting it is safe but currently has no effect in the
         Python runtime.

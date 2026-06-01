@@ -1922,7 +1922,7 @@ typedef struct Money_t {
 
 
 /**
- * The sentinel `Price` representing errors (this will be removed when Cython is gone).
+ * The sentinel `Price` representing errors (this will be removed when legacy extension layer is gone).
  */
 #define ERROR_PRICE (Price_t){ .raw = 0, .precision = 255 }
 

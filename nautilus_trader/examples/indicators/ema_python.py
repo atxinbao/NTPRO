@@ -21,7 +21,7 @@ from nautilus_trader.model.data import TradeTick
 from nautilus_trader.model.enums import PriceType
 
 
-# It's generally recommended to code indicators in Cython as per the built-in
+# It's generally recommended to code indicators in legacy extension as per the built-in
 # indicators found in the `indicators` subpackage. This is an example
 # demonstrating an equivalent EMA indicator written in Python.
 
