@@ -77,7 +77,7 @@ class TardisCSVDataLoader:
         filepath : PathLike[str] | str
             The path for the CSV data file (must be Tardis trades format).
         as_legacy_cython : bool, True
-            If data should be converted to 'legacy Cython' objects.
+            If data should be converted to 'legacy legacy extension' objects.
             You would typically only set this False if passing the objects
             directly to a data catalog for the data to then be written in Nautilus Parquet format.
         limit : int, optional
@@ -130,7 +130,7 @@ class TardisCSVDataLoader:
         levels : int
             The number of levels in the snapshots CSV data (must be either 5 or 25).
         as_legacy_cython : bool, True
-            If data should be converted to 'legacy Cython' objects.
+            If data should be converted to 'legacy legacy extension' objects.
             You would typically only set this False if passing the objects
             directly to a data catalog for the data to then be written in Nautilus Parquet format.
         limit : int, optional
@@ -202,7 +202,7 @@ class TardisCSVDataLoader:
         filepath : PathLike[str] | str
             The path for the CSV data file.
         as_legacy_cython : bool, True
-            If data should be converted to 'legacy Cython' objects.
+            If data should be converted to 'legacy legacy extension' objects.
             You would typically only set this False if passing the objects
             directly to a data catalog for the data to then be written in Nautilus Parquet format.
         limit : int, optional
@@ -249,7 +249,7 @@ class TardisCSVDataLoader:
         filepath : PathLike[str] | str
             The path for the CSV data file.
         as_legacy_cython : bool, True
-            If data should be converted to 'legacy Cython' objects.
+            If data should be converted to 'legacy legacy extension' objects.
             You would typically only set this False if passing the objects
             directly to a data catalog for the data to then be written in Nautilus Parquet format.
         limit : int, optional
@@ -296,7 +296,7 @@ class TardisCSVDataLoader:
         filepath : PathLike[str] | str
             The path for the CSV data file (must be Tardis derivative_ticker format).
         as_legacy_cython : bool, True
-            If data should be converted to 'legacy Cython' objects.
+            If data should be converted to 'legacy legacy extension' objects.
             You would typically only set this False if passing the objects
             directly to a data catalog for the data to then be written in Nautilus Parquet format.
         limit : int, optional
@@ -344,7 +344,7 @@ class TardisCSVDataLoader:
         chunk_size : int, default 100_000
             The number of records to read per chunk.
         as_legacy_cython : bool, True
-            If data should be converted to 'legacy Cython' objects.
+            If data should be converted to 'legacy legacy extension' objects.
         limit : int | None, default None
             The maximum number of records to process. If None, all records are processed.
 
@@ -387,7 +387,7 @@ class TardisCSVDataLoader:
 
         CSV file must be Tardis incremental book L2 format.
 
-        The returned data will be legacy Cython objects.
+        The returned data will be legacy compiled objects.
 
         Parameters
         ----------
@@ -448,7 +448,7 @@ class TardisCSVDataLoader:
         chunk_size : int, default 100_000
             The number of records to read per chunk.
         as_legacy_cython : bool, True
-            If data should be converted to 'legacy Cython' objects.
+            If data should be converted to 'legacy legacy extension' objects.
         limit : int | None, default None
             The maximum number of records to process. If None, all records are processed.
 
@@ -499,7 +499,7 @@ class TardisCSVDataLoader:
         chunk_size : int, default 100_000
             The number of records to read per chunk.
         as_legacy_cython : bool, True
-            If data should be converted to 'legacy Cython' objects.
+            If data should be converted to 'legacy legacy extension' objects.
         limit : int | None, default None
             The maximum number of records to process. If None, all records are processed.
 
@@ -556,7 +556,7 @@ class TardisCSVDataLoader:
         chunk_size : int, default 100_000
             The number of records to read per chunk.
         as_legacy_cython : bool, True
-            If data should be converted to 'legacy Cython' objects.
+            If data should be converted to 'legacy legacy extension' objects.
         limit : int | None, default None
             The maximum number of records to process. If None, all records are processed.
 
@@ -634,7 +634,7 @@ class TardisCSVDataLoader:
         chunk_size : int, default 100_000
             The number of records to read per chunk.
         as_legacy_cython : bool, True
-            If data should be converted to 'legacy Cython' objects.
+            If data should be converted to 'legacy legacy extension' objects.
         limit : int | None, default None
             The maximum number of records to process. If None, all records are processed.
 

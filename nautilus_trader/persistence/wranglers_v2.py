@@ -78,7 +78,7 @@ class OrderBookDeltaDataWranglerV2(WranglerBase):
     Warnings
     --------
     This wrangler is used to build the PyO3 exposed version of `OrderBookDelta` and
-    will not work the same way as the current wranglers which build the legacy `Cython` trades.
+    will not work the same way as the current wranglers which build the legacy compiled trades.
 
     """
 
@@ -224,7 +224,7 @@ class OrderBookDepth10DataWranglerV2(WranglerBase):
     Warnings
     --------
     This wrangler is used to build the PyO3 exposed version of `OrderBookDepth10` and
-    will not work the same way as the current wranglers which build the legacy `Cython` trades.
+    will not work the same way as the current wranglers which build the legacy compiled trades.
 
     """
 
@@ -459,7 +459,7 @@ class QuoteTickDataWranglerV2(WranglerBase):
     Warnings
     --------
     This wrangler is used to build the PyO3 exposed version of `QuoteTick` and
-    will not work the same way as the current wranglers which build the legacy `Cython` quotes.
+    will not work the same way as the current wranglers which build the legacy compiled quotes.
 
     """
 
@@ -618,7 +618,7 @@ class TradeTickDataWranglerV2(WranglerBase):
     Warnings
     --------
     This wrangler is used to build the PyO3 exposed version of `TradeTick` and
-    will not work the same way as the current wranglers which build the legacy `Cython` trades.
+    will not work the same way as the current wranglers which build the legacy compiled trades.
 
     """
 
@@ -772,7 +772,7 @@ class BarDataWranglerV2(WranglerBase):
     Warnings
     --------
     This wrangler is used to build the PyO3 exposed version of `Bar` and
-    will not work the same way as the current wranglers which build the legacy `Cython` trades.
+    will not work the same way as the current wranglers which build the legacy compiled trades.
 
     """
 

@@ -139,7 +139,7 @@ def databento_data(
     load_databento_files_if_exist : bool, optional
         Whether to load Databento files if they already exist, defaults to False.
     as_legacy_cython : bool, optional
-        Whether to use legacy Cython format, defaults to False.
+        Whether to use legacy compiled format, defaults to False.
     **kwargs : Any
         Additional keyword arguments to pass to the Databento API.
 
@@ -327,7 +327,7 @@ def save_data_to_catalog(
     use_exchange_as_venue : bool, optional
         Whether to use actual exchanges for instrument IDs or GLBX, defaults to True.
     as_legacy_cython : bool, optional
-        Whether to use legacy Cython format, defaults to False.
+        Whether to use legacy compiled format, defaults to False.
 
     Returns
     -------

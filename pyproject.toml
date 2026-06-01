@@ -47,7 +47,6 @@ requires = [
   "setuptools>=82",
   "poetry-core==2.3.1", # Pinned to 2.3.1 for stability
   "numpy>=1.26.4",
-  "cython==3.2.4", # Pinned to 3.2.4 for stability
 ]
 build-backend = "poetry.core.masonry.api"
 
@@ -90,7 +89,6 @@ visualization = [
 
 [dependency-groups]
 dev = [
-  "cython==3.2.4", # Pinned to 3.2.4 for stability
   "jupytext>=1.19.2,<2.0.0",
   "setuptools>=82",
   "mypy==1.20.2,<2.0.0", # Pinned to 1.20.2 (keep in line with .pre-commit-config.yaml)
@@ -149,7 +147,6 @@ no-build-package = [
   "click",
   "colorama",
   "coverage",
-  "cython",
   "cytoolz",
   "defusedxml",
   "docker",
@@ -495,13 +492,12 @@ module = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --new-first --failed-first --doctest-modules --doctest-glob=\"*.pyx\""
+addopts = "-ra --new-first --failed-first --doctest-modules"
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "session"
 filterwarnings = ["ignore::UserWarning", "ignore::DeprecationWarning"]
 
 [tool.coverage.run]
-plugins = ["Cython.Coverage"]
 source = ["nautilus_trader"]
 omit = [
   "nautilus_trader/adapters/*",

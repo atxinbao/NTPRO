@@ -21,9 +21,9 @@ from nautilus_trader.model.objects import Currency
 
 def register_currency(currency: Currency, overwrite: bool = False) -> None:
     """
-    Register a currency in both Cython and PyO3 currency maps.
+    Register a currency in both legacy extension and PyO3 currency maps.
 
-    This ensures the currency is available to both the Cython-based code
+    This ensures the currency is available to both the legacy extension-backed code
     (nautilus_trader.model.objects.Currency) and PyO3-based code
     (nautilus_trader.core.nautilus_pyo3.Currency).
 

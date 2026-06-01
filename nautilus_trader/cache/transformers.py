@@ -487,7 +487,7 @@ def transform_custom_data_to_pyo3(data: CustomData) -> nautilus_pyo3.CustomData:
     """
     Convert cache CustomData to PyO3 CustomData.
 
-    Uses JSON roundtrip: cache CustomData (Cython) -> JSON -> deserialize_custom_from_json
+    Uses JSON roundtrip: cache CustomData (legacy extension) -> JSON -> deserialize_custom_from_json
     -> Rust CustomData wrapper.
 
     """
