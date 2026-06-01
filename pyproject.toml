@@ -390,36 +390,6 @@ docstring-code-format = true
 max-complexity = 10
 
 [tool.ruff.lint.per-file-ignores]
-"docs/getting_started/**/*.py" = [
-  "D",
-  "E402",
-  "I001",
-  "S101",
-  "T20",
-  "B018",
-] # Jupytext tutorials: cell-split imports, asserts, print statements, bare expressions
-"docs/tutorials/**/*.py" = [
-  "D",
-  "E402",
-  "I001",
-  "S101",
-  "T20",
-  "B018",
-] # Jupytext tutorials: cell-split imports, asserts, print statements, bare expressions
-"docs/how_to/**/*.py" = [
-  "D",
-  "E402",
-  "I001",
-  "S101",
-  "T20",
-  "B018",
-] # Jupytext how-to guides: same exemptions as tutorials
-"examples/**/*.py" = [
-  "DTZ",
-  "S101",
-  "S105",
-  "S106",
-] # Examples can use naive datetimes, asserts, and mock credentials
 "test_perf_logger.py" = ["S311"]
 "tests/**/*.py" = [
   "S101",

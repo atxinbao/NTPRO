@@ -6,14 +6,12 @@ live market data ingest and order execution on OKX.
 
 ## Overview
 
-This adapter is written in Rust, with optional Python bindings for Python workflows.
-It does not require external OKX client libraries. The core components are compiled as
-a static library and linked automatically during the build.
+This adapter is written in Rust. NTPRO does not expose Python product bindings
+for OKX. It does not require external OKX client libraries.
 
 ## Examples
 
-Live example scripts are available in
-[examples/live/okx](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/live/okx/).
+Legacy Python live example scripts have been removed from NTPRO. Use the Rust adapter crate tests, fixtures, and Rust product guides as the supported examples.
 
 ### Product support
 

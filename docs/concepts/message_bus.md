@@ -139,7 +139,7 @@ def on_each_10th_bar(self, event: Each10thBarEvent):
 
 #### Full example
 
-[MessageBus Example](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/backtest/example_09_messaging_with_msgbus)
+Legacy Python message-bus examples have been removed from NTPRO; use Rust examples and tests for supported workflows.
 
 ### Actor-based publish/subscribe data
 
@@ -200,7 +200,7 @@ def on_data(self, data: Data):
 
 #### Full example
 
-[Actor-Based Data Example](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/backtest/example_10_messaging_with_actor_data)
+Legacy Python actor-data examples have been removed from NTPRO; use Rust examples and tests for supported workflows.
 
 ### Actor-based publish/subscribe signal
 
@@ -270,7 +270,7 @@ def on_signal(self, signal):
 
 #### Full example
 
-[Actor-Based Signal Example](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/backtest/example_11_messaging_with_actor_signals)
+Legacy Python actor-signal examples have been removed from NTPRO; use Rust examples and tests for supported workflows.
 
 ### Summary and decision guide
 

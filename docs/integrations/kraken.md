@@ -6,10 +6,8 @@ ingest and order execution for Kraken Spot and Kraken Derivatives (Futures).
 
 ## Overview
 
-This adapter is implemented in Rust with Python bindings for ease of use in
-Python-based workflows. It does not require external Kraken client libraries; the
-core components are compiled as a static library and linked automatically during
-the build.
+This adapter is implemented in Rust. NTPRO does not expose Python product
+bindings for Kraken. It does not require external Kraken client libraries.
 
 This guide assumes a trader is setting up for both live market data feeds and
 trade execution. The Kraken adapter includes multiple components, which can be
@@ -34,9 +32,7 @@ won't need to work directly with these lower-level components.
 
 ## Examples
 
-You can find live example scripts in the [examples/live/kraken] directory.
-
-[examples/live/kraken]: https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/live/kraken/
+Legacy Python live example scripts have been removed from NTPRO. Use the Rust adapter crate tests, fixtures, and Rust product guides as the supported examples.
 
 ## Kraken documentation
 

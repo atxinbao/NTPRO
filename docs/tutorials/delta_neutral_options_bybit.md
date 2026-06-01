@@ -306,15 +306,11 @@ deltas around the underlying.*
 
 ### Regenerate the panels
 
-```bash
-timeout 30 ./target/release/examples/bybit-delta-neutral > /tmp/bybit_dn.log 2>&1
+:::note
+The checked-in panel images remain available. The legacy Python panel renderer script was removed from NTPRO.
+:::
 
-uv sync --extra visualization
-DN_LOG=/tmp/bybit_dn.log \
-    python3 docs/tutorials/assets/delta_neutral_options_bybit/render_panels.py
-```
-
-The renderer parses selected strikes from the log; the panels themselves
+The checked-in panels show selected strikes from the sample log; the panels themselves
 are illustrative because the default config does not place orders.
 
 ## Risk considerations

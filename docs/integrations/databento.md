@@ -49,7 +49,7 @@ these components directly.
 
 ## Examples
 
-See the [live examples](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/live/databento/).
+Legacy Python live example scripts have been removed from NTPRO. Use the Rust adapter crate tests, fixtures, and Rust product guides as the supported examples.
 
 ## Databento documentation
 

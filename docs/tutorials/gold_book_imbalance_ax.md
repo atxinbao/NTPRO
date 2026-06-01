@@ -237,8 +237,9 @@ engine.reset()
 engine.dispose()
 ```
 
-The runnable example is at
-[`architect_ax_book_imbalance.py`](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/backtest/architect_ax_book_imbalance.py).
+The legacy Python runnable script has been removed from NTPRO. Use this
+tutorial as migration guidance while Rust AX backtest examples are promoted
+through the adapter fixture and product-surface gates.
 
 ## What the run produces
 
@@ -279,11 +280,9 @@ A self-contained renderer re-runs the backtest with a quote-sampling actor
 and writes PNGs to the asset directory using the `nautilus_dark` tearsheet
 theme.
 
-```bash
-uv sync --extra visualization
-GC_DBN=tests/test_data/local/Databento/gc_gold_quotes.dbn.zst \
-    python3 docs/tutorials/assets/gold_book_imbalance_ax/render_panels.py
-```
+:::note
+The checked-in panel images remain available. The legacy Python panel renderer script was removed from NTPRO.
+:::
 
 ## Next steps
 
@@ -300,10 +299,9 @@ GC_DBN=tests/test_data/local/Databento/gc_gold_quotes.dbn.zst \
 
 ## Running live
 
-The same `OrderBookImbalance` strategy runs live against AX Exchange. The
-launch script swaps the `BacktestEngine` for a `TradingNode` with the AX
-data and execution clients configured. See the live example:
-[`ax_book_imbalance.py`](https://github.com/nautechsystems/nautilus_trader/tree/develop/examples/live/architect_ax/ax_book_imbalance.py).
+The same `OrderBookImbalance` strategy can be adapted for live AX Exchange
+workflows once the Rust live product path is wired for the adapter. The legacy
+Python live launch script has been removed from NTPRO.
 
 For connection setup and API key configuration, see the
 [AX Exchange integration guide](../integrations/architect_ax.md).

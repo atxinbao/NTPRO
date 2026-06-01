@@ -1758,7 +1758,7 @@
     },
     "RREM-013": {
       "title": "Remove Python product package surfaces",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "critical",
@@ -1770,21 +1770,47 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-013.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-013.md",
-      "updated_at": "2026-06-01T19:35:03Z",
+      "updated_at": "2026-06-01T19:57:09.911Z",
       "branch": "ai/RREM-013-remove-python-product-surfaces",
       "lease": "RREM-013",
+      "qa_passed": true,
+      "review_passed": true,
+      "release_gatekeeper_approved": true,
+      "auto_merge_allowed": false,
+      "python_product_surface_removed_gate_passed": true,
+      "rust_only_runtime_gate_passed": false,
+      "notes": "RREM-013 removed python/, nautilus_trader/, build.py, retired active Python package build references, and added migration notes. Local QA passed except the expected final rust-only runtime gate blocker: active Rust crates still retain PyO3 annotations and Cython generation/parity references. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled. PR #109 opened for release gatekeeper review.\n\nRREM-013 merged in PR #109. Python product package surfaces are removed; remaining Python files are tests/examples/docs/tooling and Rust crate PyO3 annotations still block the final rust-only runtime gate.",
+      "cython_removed_gate_passed": true,
+      "migration_note": "docs/rust-cutover/migration/python_product_surface_removed.md",
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/109",
+      "pr_number": 109,
+      "merged_pr": 109,
+      "merged_at": "2026-06-01T19:39:33Z",
+      "merge_commit": "13209f5d3589331fb91c97646758c75dbb2a7bb3"
+    },
+    "RREM-014": {
+      "title": "Remove Python examples and documentation surfaces",
+      "status": "REVIEW_REQUIRED",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-014.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-014.md",
+      "updated_at": "2026-06-01T20:13:52.087Z",
+      "branch": "ai/RREM-014-remove-python-examples-docs",
+      "lease": "RREM-014",
       "qa_passed": true,
       "review_passed": false,
       "release_gatekeeper_approved": false,
       "auto_merge_allowed": false,
-      "python_product_surface_removed_gate_passed": true,
-      "rust_only_runtime_gate_passed": false,
-      "notes": "RREM-013 removed python/, nautilus_trader/, build.py, retired active Python package build references, and added migration notes. Local QA passed except the expected final rust-only runtime gate blocker: active Rust crates still retain PyO3 annotations and Cython generation/parity references. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled. PR #109 opened for release gatekeeper review.",
-      "cython_removed_gate_passed": true,
-      "migration_note": "docs/rust-cutover/migration/python_product_surface_removed.md",
-      "pr_url": "https://github.com/atxinbao/NTPRO/pull/109",
-      "pr_number": 109
+      "notes": "RREM-014 removed legacy Python examples and docs Python code surfaces, retained examples/rust, retargeted docs tutorial tests to absence checks, and documented remaining Python as tests/scripts residue. Local scoped QA passed: json validation, role protocol, cargo metadata, cargo fmt, verify_fast, direct docs absence assertion, and diff checks. pytest is not available on PATH and uv run is blocked by local uv 0.11.12 vs required 0.11.14. The full rust-only runtime gate still fails on active Rust crate PyO3/Cython residue outside this task scope. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled."
     }
   },
-  "updated_at": "2026-06-01T19:35:03Z"
+  "updated_at": "2026-06-01T20:13:52.087Z"
 }
