@@ -1319,7 +1319,7 @@
     },
     "RREM-003": {
       "title": "Inventory Cython source and build surfaces",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1331,13 +1331,17 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-003.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-003.md",
-      "updated_at": "2026-06-01T14:32:08Z",
+      "updated_at": "2026-06-01T14:36:46Z",
       "branch": "ai/RREM-003-inventory-cython-source-build-surfaces",
-      "release_gatekeeper_approved": true
+      "release_gatekeeper_approved": true,
+      "merged_pr": 91,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/91",
+      "merged_at": "2026-06-01T14:36:34Z",
+      "merge_commit": "577d8db915f690676f6ca0a17f057db073549c25"
     },
     "RREM-004": {
       "title": "Map Python workflows to Rust workflows",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1348,7 +1352,10 @@
         "release_gatekeeper_approved"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-004.md",
-      "evidence_file": "docs/rust-cutover/evidence/RREM-004.md"
+      "evidence_file": "docs/rust-cutover/evidence/RREM-004.md",
+      "updated_at": "2026-06-01T14:42:17Z",
+      "branch": "ai/RREM-004-map-python-to-rust-workflows",
+      "release_gatekeeper_approved": true
     },
     "RREM-005": {
       "title": "Port or scope Python-only tests",
@@ -1577,5 +1584,5 @@
       "branch": "ai/RCTL-009-pr-summary-risk-automation-policy"
     }
   },
-  "updated_at": "2026-06-01T14:32:08Z"
+  "updated_at": "2026-06-01T14:42:17Z"
 }
