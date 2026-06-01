@@ -31,18 +31,6 @@ ffi = [
   "streaming",
 ]
 high-precision = ["nautilus-model/high-precision"]
-extension-module = [
-  "nautilus-core/extension-module",
-  "nautilus-model/extension-module",
-  "pyo3/extension-module",
-]
-python = [
-  "nautilus-core/python",
-  "nautilus-model/python",
-  "nautilus-persistence?/python",
-  "pyo3",
-  "pyo3-stub-gen",
-]
 defi = ["nautilus-common/defi", "nautilus-model/defi", "alloy-primitives"]
 
 [package.metadata.docs.rs]
@@ -69,8 +57,6 @@ serde_json = { workspace = true }
 ustr = { workspace = true }
 
 alloy-primitives = { workspace = true, optional = true }
-pyo3 = { workspace = true, optional = true }
-pyo3-stub-gen = { workspace = true, optional = true }
 
 [dev-dependencies]
 nautilus-serialization = { workspace = true, features = ["arrow"] }

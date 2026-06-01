@@ -22,22 +22,6 @@ crate-type = ["rlib"]
 
 [features]
 default = []
-extension-module = [
-  "nautilus-common/extension-module",
-  "nautilus-core/extension-module",
-  "nautilus-model/extension-module",
-  "nautilus-trading/extension-module",
-  "python",
-  "pyo3/extension-module",
-]
-python = [
-  "nautilus-common/python",
-  "nautilus-core/python",
-  "nautilus-model/python",
-  "nautilus-trading/python",
-  "pyo3",
-  "pyo3-stub-gen",
-]
 high-precision = ["nautilus-model/high-precision"]
 
 [dependencies]
@@ -64,9 +48,6 @@ rust_decimal = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
-
-pyo3 = { workspace = true, optional = true }
-pyo3-stub-gen = { workspace = true, optional = true }
 
 [dev-dependencies]
 arrow = { workspace = true }

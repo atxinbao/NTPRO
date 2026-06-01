@@ -64,14 +64,6 @@ if IS_LINUX and IS_ARM64:
     os.environ["CFLAGS"] = f"{os.environ.get('CFLAGS', '')} -fPIC"
     os.environ["LDFLAGS"] = f"{os.environ.get('LDFLAGS', '')} -fPIC"
 
-    python_lib_dir = os.environ.get("PYTHON_LIB_DIR")
-    python_version = ".".join(platform.python_version_tuple()[:2])  # e.g. "3.12"
-
-    if python_lib_dir:
-        print(f"Setting RUSTFLAGS to link with Python {python_version} in {python_lib_dir}")
-        rustflags = f"{os.environ.get('RUSTFLAGS', '')} -C link-arg=-L{python_lib_dir} -C link-arg=-lpython{python_version}"
-        os.environ["RUSTFLAGS"] = rustflags
-
 if IS_WINDOWS:
     # Linker error 1181
     # https://docs.microsoft.com/en-US/cpp/error-messages/tool-errors/linker-tools-error-lnk1181?view=msvc-170&viewFallbackFrom=vs-2019
@@ -99,8 +91,6 @@ if BUILD_MODE == "release":
     profile_dir = "release"
 elif BUILD_MODE == "ci-pr":
     profile_dir = "ci-pr-wheel"
-elif BUILD_MODE == "debug-pyo3":
-    profile_dir = "debug-pyo3"
 else:
     profile_dir = "debug"
 
@@ -119,10 +109,8 @@ RUST_LIBS: list[str] = [str(path) for path in RUST_LIB_PATHS]
 def _set_feature_flags() -> list[str]:
     feature_list = [
         "arrow",
-        "extension-module",
         "ffi",
         "postgres",
-        "python",
         "tracing-bridge",
     ]
 
@@ -150,7 +138,6 @@ def _build_rust_libs() -> None:
             "nautilus-core",
             "nautilus-model",
             "nautilus-persistence",
-            "nautilus-pyo3",
         ]
 
         if BUILD_MODE == "release":
@@ -163,8 +150,6 @@ def _build_rust_libs() -> None:
                 os.environ["RUSTFLAGS"] = f"{existing_rustflags} -C link-arg=-s"
         elif BUILD_MODE == "ci-pr":
             build_options = ["--profile", "ci-pr-wheel"]
-        elif BUILD_MODE == "debug-pyo3":
-            build_options = ["--profile", "debug-pyo3"]
         else:
             build_options = []
 
@@ -192,16 +177,6 @@ def _build_rust_libs() -> None:
         raise RuntimeError(
             f"Error running cargo: {e}",
         ) from e
-
-
-def _copy_rust_dylibs_to_project() -> None:
-    # https://pyo3.rs/latest/building-and-distribution#manual-builds
-    ext_suffix = sysconfig.get_config_var("EXT_SUFFIX")
-    src = Path(CARGO_TARGET_DIR) / f"{RUST_LIB_PFX}nautilus_pyo3.{RUST_DYLIB_EXT}"
-    dst = Path("nautilus_trader/core") / f"nautilus_pyo3{ext_suffix}"
-    shutil.copyfile(src=src, dst=dst)
-
-    print(f"Copied {src} to {dst}")
 
 
 def _get_nautilus_version() -> str:
@@ -408,9 +383,6 @@ def build() -> None:
     """
     _ensure_windows_python_import_lib()
     _build_rust_libs()
-    # Allow skipping Rust dylib copy in constrained environments
-    if not os.getenv("SKIP_RUST_DYLIB_COPY"):
-        _copy_rust_dylibs_to_project()
 
     if (BUILD_MODE == "release" or FORCE_STRIP) and (IS_LINUX or IS_MACOS):
         # Strip symbols for release builds or when forced

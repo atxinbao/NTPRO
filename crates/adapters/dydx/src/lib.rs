@@ -69,9 +69,6 @@ pub mod proto;
 pub mod types;
 pub mod websocket;
 
-#[cfg(feature = "python")]
-pub mod python;
-
 pub use crate::{
     common::{
         enums::{

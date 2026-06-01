@@ -127,9 +127,6 @@ pub mod client;
 pub mod engine;
 pub mod option_chains;
 
-#[cfg(feature = "python")]
-pub mod python;
-
 #[cfg(feature = "defi")]
 pub mod defi;
 

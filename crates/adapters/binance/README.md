@@ -62,8 +62,6 @@ export BINANCE_API_SECRET="$(cat binance_ed25519_private.pem)"
 
 This crate provides feature flags to control source code inclusion during compilation:
 
-- `python`: Enables Python bindings from [PyO3](https://pyo3.rs).
-- `extension-module`: Builds as a Python extension module.
 
 [High-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) (128-bit value types) is enabled by default.
 

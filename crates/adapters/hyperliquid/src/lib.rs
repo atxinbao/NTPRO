@@ -58,9 +58,6 @@ pub mod outcome_settlement;
 pub mod signing;
 pub mod websocket;
 
-#[cfg(feature = "python")]
-pub mod python;
-
 pub use crate::{
     config::{HyperliquidDataClientConfig, HyperliquidExecClientConfig},
     data::HyperliquidDataClient,

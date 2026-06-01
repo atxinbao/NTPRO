@@ -55,6 +55,3 @@ pub mod http;
 pub mod providers;
 pub mod signing;
 pub mod websocket;
-
-#[cfg(feature = "python")]
-pub mod python;

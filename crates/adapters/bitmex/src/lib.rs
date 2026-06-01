@@ -58,9 +58,6 @@ pub mod factories;
 pub mod http;
 pub mod websocket;
 
-#[cfg(feature = "python")]
-pub mod python;
-
 // Re-exports
 pub use crate::{
     broadcast::{

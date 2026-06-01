@@ -17,11 +17,16 @@ use std::path::PathBuf;
 
 use datafusion::parquet::file::reader::{FileReader, SerializedFileReader};
 use nautilus_model::data::{Bar, Data, OrderBookDelta, QuoteTick, TradeTick, to_variant};
-use nautilus_persistence::{
-    backend::session::DataBackendSession, python::backend::session::NautilusDataType,
-};
+use nautilus_persistence::backend::session::DataBackendSession;
 use nautilus_serialization::arrow::{DecodeDataFromRecordBatch, EncodeToRecordBatch};
 use serde_json::to_writer_pretty;
+
+enum NautilusDataType {
+    QuoteTick,
+    TradeTick,
+    Bar,
+    OrderBookDelta,
+}
 
 fn determine_data_type(file_name: &str) -> Option<NautilusDataType> {
     let file_name = file_name.to_lowercase();
@@ -67,7 +72,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         NautilusDataType::TradeTick => process_data::<TradeTick>(file_str, &mut session)?,
         NautilusDataType::Bar => process_data::<Bar>(file_str, &mut session)?,
         NautilusDataType::OrderBookDelta => process_data::<OrderBookDelta>(file_str, &mut session)?,
-        _ => return Err("Unsupported data type".into()),
     }
 
     Ok(())

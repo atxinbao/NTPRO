@@ -64,9 +64,6 @@ pub mod trader;
 
 mod registration;
 
-#[cfg(feature = "python")]
-pub mod python;
-
 // Re-exports
 pub use builder::NautilusKernelBuilder;
 pub use config::{NautilusKernelConfig, RotationConfig, StreamingConfig};
@@ -74,5 +71,3 @@ pub use controller::Controller;
 pub use event_store::{EventStoreFactory, KernelEventStore, RegisteredComponents};
 pub use kernel::NautilusKernel;
 pub use messages::ControllerCommand;
-#[cfg(feature = "python")]
-pub use python::{FactoryRegistry, get_global_pyo3_registry};

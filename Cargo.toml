@@ -37,7 +37,6 @@ members = [
   "crates/persistence/macros",
   "crates/plugin",
   "crates/portfolio",
-  "crates/pyo3",
   "crates/risk",
   "crates/serialization",
   "crates/system",
@@ -83,7 +82,6 @@ nautilus-persistence = { path = "crates/persistence", version = "0.58.0" }
 nautilus-persistence-macros = { path = "crates/persistence/macros", version = "0.58.0" }
 nautilus-plugin = { path = "crates/plugin", version = "0.58.0", default-features = false }
 nautilus-portfolio = { path = "crates/portfolio", version = "0.58.0" }
-nautilus-pyo3 = { path = "crates/pyo3", version = "0.58.0" }
 nautilus-risk = { path = "crates/risk", version = "0.58.0" }
 nautilus-serialization = { path = "crates/serialization", version = "0.58.0" }
 nautilus-system = { path = "crates/system", version = "0.58.0" }
@@ -193,24 +191,7 @@ parquet = { version = "58.3.0", default-features = false, features = [
   "async",
 ] }
 pem = "3.0.6"
-pyo3 = { version = "0.28.3", default-features = false, features = [
-  "chrono",
-  "hashbrown",
-  "indexmap",
-  "macros",
-  "multiple-pymethods",
-  "rust_decimal",
-  "serde",
-] }
-pyo3-async-runtimes = { version = "0.28.0", default-features = false, features = [
-  "attributes",
-  "tokio",
-  "tokio-runtime",
-] }
 # Pinned: 0.21 rejects module paths outside pymodule root, blocking our mixed layout for now
-pyo3-stub-gen = { version = "=0.20.0", default-features = false, features = [
-  "rust_decimal",
-] }
 rand = { version = "0.10.1", default-features = false, features = [
   "std",
   "thread_rng",
@@ -418,11 +399,6 @@ incremental = true
 # small one-off compile cost pays off in faster test/run loops.
 [profile.dev.package."*"]
 opt-level = 1
-
-[profile.debug-pyo3]
-inherits = "dev"
-debug = true # Enable debug symbols for debugging
-strip = false # Keep debug symbols for debugging
 
 [profile.test]
 opt-level = 0

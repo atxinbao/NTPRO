@@ -69,6 +69,3 @@ pub use algorithm::{
     TwapAlgorithm, TwapAlgorithmConfig, TwapExecParams,
 };
 pub use strategy::{ImportableStrategyConfig, Strategy, StrategyConfig, StrategyCore};
-
-#[cfg(feature = "python")]
-pub mod python;

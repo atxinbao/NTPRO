@@ -28,25 +28,7 @@ cloud = [
   "object_store/gcp",
   "object_store/http",
 ]
-extension-module = [
-  "nautilus-core/extension-module",
-  "nautilus-model/extension-module",
-  "nautilus-serialization/extension-module",
-  "python",
-  "pyo3/extension-module",
-]
 ffi = ["nautilus-core/ffi", "nautilus-model/ffi"]
-python = [
-  "nautilus-common/python",
-  "nautilus-core/ffi",
-  "nautilus-core/python",
-  "nautilus-model/ffi",
-  "nautilus-model/python",
-  "nautilus-serialization/python",
-  "pyo3",
-  "pyo3-stub-gen",
-  "cloud",
-]
 high-precision = [
   "nautilus-model/high-precision",
   "nautilus-serialization/high-precision",
@@ -82,9 +64,6 @@ tokio = { workspace = true }
 unbounded-interval-tree = { workspace = true }
 url = { workspace = true }
 
-pyo3 = { workspace = true, optional = true }
-pyo3-stub-gen = { workspace = true, optional = true }
-
 [dev-dependencies]
 nautilus-testkit = { workspace = true }
 
@@ -103,13 +82,13 @@ harness = false
 [[bin]]
 name = "to_json"
 path = "bin/to_json.rs"
-required-features = ["python"]
+required-features = []
 doc = false
 test = false
 
 [[bin]]
 name = "to_parquet"
 path = "bin/to_parquet.rs"
-required-features = ["python"]
+required-features = []
 doc = false
 test = false

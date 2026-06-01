@@ -30,9 +30,7 @@ event-driven architecture, providing research-to-live semantic parity.
 
 This crate provides feature flags to control source code inclusion during compilation:
 
-- `python`: Enables Python bindings from [PyO3](https://pyo3.rs).
 - `high-precision`: Enables [high-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) to use 128-bit value types.
-- `extension-module`: Builds as a Python extension module.
 
 ## Documentation
 

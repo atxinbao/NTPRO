@@ -1833,6 +1833,12 @@ pub enum RecordFlag {
 }
 
 impl RecordFlag {
+    /// Returns the raw bit value for this record flag.
+    #[must_use]
+    pub const fn value(self) -> u8 {
+        self as u8
+    }
+
     /// Checks if the flag matches a given value.
     #[must_use]
     pub fn matches(self, value: u8) -> bool {

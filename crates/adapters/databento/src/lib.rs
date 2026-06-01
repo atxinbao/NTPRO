@@ -55,9 +55,6 @@ pub mod types;
 #[cfg(feature = "arrow")]
 pub mod arrow;
 
-#[cfg(feature = "python")]
-pub mod python;
-
 #[cfg(feature = "live")]
 pub mod data;
 

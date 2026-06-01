@@ -22,21 +22,7 @@ crate-type = ["rlib"]
 
 [features]
 default = []
-extension-module = [
-  "nautilus-common/extension-module",
-  "nautilus-core/extension-module",
-  "nautilus-model/extension-module",
-  "python",
-  "pyo3/extension-module",
-]
 ffi = ["nautilus-common/ffi", "nautilus-core/ffi", "nautilus-model/ffi"]
-python = [
-  "nautilus-common/python",
-  "nautilus-core/python",
-  "nautilus-model/python",
-  "pyo3",
-  "pyo3-stub-gen",
-]
 simulation = ["dep:madsim", "nautilus-core/simulation"]
 high-precision = ["nautilus-model/high-precision"]
 
@@ -67,8 +53,6 @@ ustr = { workspace = true }
 uuid = { workspace = true }
 
 madsim = { workspace = true, optional = true }
-pyo3 = { workspace = true, optional = true }
-pyo3-stub-gen = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

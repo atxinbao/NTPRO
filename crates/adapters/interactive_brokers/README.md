@@ -14,14 +14,11 @@ PyO3 bindings expose the same implementation through `nautilus_trader`.
 - `historical`: `HistoricalInteractiveBrokersClient` for historical data requests.
 - `providers`: `InteractiveBrokersInstrumentProvider` for contract lookup, instrument normalization, and symbology conversion.
 - `gateway`: `DockerizedIBGateway` for managing a Dockerized IB Gateway when the `gateway` feature is enabled.
-- `python`: PyO3 bindings exposed as `nautilus_pyo3.interactive_brokers` when the `python` feature is enabled.
 
 ## Feature flags
 
-- `python`: Enables PyO3 bindings for configs, enums, the historical client,
   the instrument provider, and the Dockerized gateway helper.
 - `gateway`: Enables Dockerized IB Gateway support via `bollard`.
-- `extension-module`: Builds the crate as a Python extension module. This is
   the feature used by the `nautilus_trader` package and includes `python` and
   `gateway`.
 

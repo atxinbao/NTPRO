@@ -22,23 +22,6 @@ crate-type = ["rlib"]
 
 [features]
 default = ["high-precision"]
-extension-module = [
-  "nautilus-common/extension-module",
-  "nautilus-core/extension-module",
-  "nautilus-execution/extension-module",
-  "nautilus-model/extension-module",
-  "python",
-  "pyo3/extension-module",
-]
-python = [
-  "nautilus-common/python",
-  "nautilus-core/python",
-  "nautilus-execution/python",
-  "nautilus-model/python",
-  "nautilus-system/python",
-  "pyo3",
-  "pyo3-stub-gen",
-]
 high-precision = ["nautilus-model/high-precision"]
 example-databento = [
   "dep:nautilus-databento",
@@ -71,8 +54,6 @@ nautilus-databento = { workspace = true, features = ["live"], optional = true }
 nautilus-live = { workspace = true, optional = true }
 
 dotenvy = { workspace = true, optional = true }
-pyo3 = { workspace = true, optional = true }
-pyo3-stub-gen = { workspace = true, optional = true }
 
 [dev-dependencies]
 nautilus-data = { workspace = true }

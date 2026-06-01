@@ -141,6 +141,3 @@ pub mod order_manager;
 pub mod protection;
 pub mod reconciliation;
 pub mod trailing;
-
-#[cfg(feature = "python")]
-pub mod python;

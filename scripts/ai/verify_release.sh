@@ -4,16 +4,11 @@ set -euo pipefail
 FEATURES="${NAUTILUS_RUST_FEATURES:-arrow,ffi,high-precision,streaming,defi}"
 export REQUIRE_GOLDEN_REPLAY="${REQUIRE_GOLDEN_REPLAY:-1}"
 
-exclude_args=()
-if cargo metadata --no-deps --format-version=1 2>/dev/null | grep -q '"name":"nautilus-pyo3"'; then
-  exclude_args+=(--exclude nautilus-pyo3)
-fi
-
 echo "== verify_release: full checks =="
 scripts/ai/verify_full.sh
 
 echo "== verify_release: release build =="
-cargo build --workspace "${exclude_args[@]}" --release --features "$FEATURES"
+cargo build --workspace --release --features "$FEATURES"
 
 echo "== verify_release: Rust CLI product surface =="
 if cargo metadata --no-deps --format-version=1 | grep -q '"name":"nautilus-cli"'; then

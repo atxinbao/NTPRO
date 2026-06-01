@@ -59,6 +59,3 @@ pub mod execution;
 pub mod factories;
 pub mod http;
 pub mod websocket;
-
-#[cfg(feature = "python")]
-pub mod python;

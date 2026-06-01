@@ -88,6 +88,3 @@ pub mod volatility;
 
 #[cfg(test)]
 mod stubs;
-
-#[cfg(feature = "python")]
-pub mod python;

@@ -109,9 +109,6 @@ pub mod node;
 #[cfg(feature = "plugin")]
 pub use nautilus_plugin::bridge as plugin;
 
-#[cfg(feature = "python")]
-pub mod python;
-
 // Re-exports for adapters
 pub use emitter::ExecutionEventEmitter;
 pub use nautilus_common::factories::OrderEventFactory;

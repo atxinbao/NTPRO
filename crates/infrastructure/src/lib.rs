@@ -57,9 +57,6 @@
 #![deny(clippy::missing_panics_doc)]
 #![deny(rustdoc::broken_intra_doc_links)]
 
-#[cfg(feature = "python")]
-pub mod python;
-
 #[cfg(feature = "redis")]
 pub mod redis;
 
