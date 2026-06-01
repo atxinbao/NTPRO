@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-024",
+  "inventory_task": "RADP-022",
+  "fixture_task": "RADP-023",
+  "generated_by": "Codex",
+  "generated_at": "2026-06-01",
+  "adapter": "sandbox",
+  "release_gate_decision": "parity_resolved_with_scoped_constraints",
+  "purpose": "Close Sandbox Rust adapter parity gaps by binding each RADP-022 gap to lifecycle fixture evidence, an explicit simulation scope decision, or the later removal gate.",
+  "decisions": [
+    {
+      "gap_id": "SBX-ADP-001",
+      "status": "closed",
+      "decision": "Sandbox now has a compact lifecycle fixture manifest and internal descriptor covering config, connect lifecycle, market-data matching inputs, order lifecycle, binary option settlement, and internal report boundaries.",
+      "evidence_paths": [
+        "test_data/rust_fixture_manifest.json",
+        "test_data/sandbox_lifecycle_fixture.json",
+        "tests/fixture_manifest.rs",
+        "tests/execution.rs"
+      ],
+      "release_gate_note": "Sandbox lifecycle fixture traceability is no longer open for the R5 adapter parity gate."
+    },
+    {
+      "gap_id": "SBX-ADP-002",
+      "status": "scoped",
+      "decision": "Sandbox is closed as a simulated execution adapter only; it is not a data provider and not an external venue adapter with REST or WebSocket payload parity.",
+      "evidence_paths": [
+        "README.md",
+        "src/execution.rs",
+        "src/factory.rs",
+        "tests/execution.rs",
+        "test_data/rust_fixture_manifest.json",
+        "test_data/sandbox_lifecycle_fixture.json"
+      ],
+      "release_gate_note": "Release evidence must keep Sandbox simulation scope explicit and must not claim external venue integration parity."
+    },
+    {
+      "gap_id": "SBX-ADP-003",
+      "status": "scoped",
+      "decision": "Sandbox matching behavior is closed for the configured matching-engine flags and input precision boundaries represented by executable Rust tests and the lifecycle descriptor.",
+      "evidence_paths": [
+        "src/config.rs",
+        "src/execution.rs",
+        "tests/execution.rs",
+        "test_data/rust_fixture_manifest.json",
+        "test_data/sandbox_lifecycle_fixture.json"
+      ],
+      "release_gate_note": "Release evidence must state that matching outcomes depend on config flags and market-data input precision."
+    },
+    {
+      "gap_id": "SBX-ADP-004",
+      "status": "scoped",
+      "decision": "Sandbox reports are closed as internal/cache-driven simulated execution behavior, not as external venue reconciliation payloads.",
+      "evidence_paths": [
+        "src/execution.rs",
+        "tests/execution.rs",
+        "test_data/rust_fixture_manifest.json",
+        "test_data/sandbox_lifecycle_fixture.json"
+      ],
+      "release_gate_note": "Release evidence must describe order, fill, position, and mass-status reports as internal simulation boundaries."
+    },
+    {
+      "gap_id": "SBX-ADP-005",
+      "status": "deferred",
+      "decision": "Optional Sandbox Python, PyO3, and extension-module surfaces are not removed by this adapter parity closure task.",
+      "evidence_paths": [
+        "src/python/mod.rs",
+        "src/python/config.rs",
+        "src/python/factories.rs",
+        "Cargo.toml"
+      ],
+      "requires_removal_gate": true,
+      "release_gate_note": "Removal remains blocked until the dedicated Rust-only removal gate approves Python/PyO3 deletion."
+    }
+  ]
+}

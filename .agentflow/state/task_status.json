@@ -358,7 +358,7 @@
     },
     "RADP-023": {
       "title": "Add Rust adapter fixtures for Polymarket Sandbox",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -369,12 +369,14 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RADP-023.md",
       "evidence_file": "docs/rust-cutover/evidence/RADP-023.md",
-      "updated_at": "2026-06-01T03:29:26Z",
-      "branch": "ai/RADP-023-add-rust-adapter-fixtures-for-polymarket-sandbox"
+      "updated_at": "2026-06-01T05:26:09Z",
+      "branch": "ai/RADP-023-add-rust-adapter-fixtures-for-polymarket-sandbox",
+      "merged_pr": 87,
+      "merge_commit": "5e578bb6d610c4965f1a115e131ff9d3defc247e"
     },
     "RADP-024": {
       "title": "Close Rust adapter gaps for Polymarket Sandbox",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -384,7 +386,9 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RADP-024.md",
-      "evidence_file": "docs/rust-cutover/evidence/RADP-024.md"
+      "evidence_file": "docs/rust-cutover/evidence/RADP-024.md",
+      "updated_at": "2026-06-01T05:26:09Z",
+      "branch": "ai/RADP-024-close-rust-adapter-gaps-for-polymarket-sandbox"
     },
     "RBTL-001": {
       "title": "Inventory Rust backtest runtime gaps",
@@ -1556,5 +1560,5 @@
       "branch": "ai/RCTL-009-pr-summary-risk-automation-policy"
     }
   },
-  "updated_at": "2026-05-31T16:33:36Z"
+  "updated_at": "2026-06-01T05:26:09Z"
 }

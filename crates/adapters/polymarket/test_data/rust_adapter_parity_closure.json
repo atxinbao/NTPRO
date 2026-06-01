@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "task_id": "RADP-024",
+  "inventory_task": "RADP-022",
+  "fixture_task": "RADP-023",
+  "generated_by": "Codex",
+  "generated_at": "2026-06-01",
+  "adapter": "polymarket",
+  "release_gate_decision": "parity_resolved_with_scoped_constraints",
+  "purpose": "Close Polymarket Rust adapter parity gaps by binding each RADP-022 gap to fixture evidence, an explicit scope decision, or the later removal gate.",
+  "decisions": [
+    {
+      "gap_id": "PM-ADP-001",
+      "status": "closed",
+      "decision": "Polymarket now has a compact Rust fixture manifest that groups Gamma discovery, CLOB public data, Data API reports, WebSocket market/user messages, execution lifecycle, signing, fee, and precision evidence.",
+      "evidence_paths": [
+        "test_data/rust_fixture_manifest.json",
+        "tests/fixture_manifest.rs",
+        "tests/http.rs",
+        "tests/websocket.rs",
+        "tests/exec_client.rs"
+      ],
+      "release_gate_note": "Polymarket fixture traceability is no longer open for the R5 adapter parity gate."
+    },
+    {
+      "gap_id": "PM-ADP-002",
+      "status": "scoped",
+      "decision": "Polymarket is closed as a prediction-market CLOB adapter for BinaryOption instruments backed by Gamma condition IDs, CLOB token IDs, and pUSD collateral, not as a generic multi-asset venue.",
+      "evidence_paths": [
+        "README.md",
+        "src/providers.rs",
+        "src/filters.rs",
+        "src/common/models.rs",
+        "test_data/rust_fixture_manifest.json"
+      ],
+      "release_gate_note": "Release evidence must keep the BinaryOption prediction-market scope explicit and must not claim generic venue parity."
+    },
+    {
+      "gap_id": "PM-ADP-003",
+      "status": "scoped",
+      "decision": "Polymarket market data is closed for the supported L2_MBP and CLOB-message surfaces: book snapshots, price changes, quotes, trades, tick-size updates, resolved events, and new-market messages.",
+      "evidence_paths": [
+        "src/data.rs",
+        "src/http/clob.rs",
+        "src/websocket/messages.rs",
+        "src/websocket/parse.rs",
+        "tests/data_client.rs",
+        "tests/websocket.rs",
+        "test_data/rust_fixture_manifest.json"
+      ],
+      "release_gate_note": "Release evidence must describe Polymarket as L2_MBP/CLOB-message scoped; generic bars and non-L2 book parity remain out of scope."
+    },
+    {
+      "gap_id": "PM-ADP-004",
+      "status": "scoped",
+      "decision": "Polymarket execution is closed for the supported limit/market submit, cancel, batch cancel, active order page, failed submit, server error, and explicit unsupported-order denial boundaries.",
+      "evidence_paths": [
+        "src/execution/order_builder.rs",
+        "src/execution/submitter.rs",
+        "src/execution/reconciliation.rs",
+        "tests/exec_client.rs",
+        "test_data/rust_fixture_manifest.json"
+      ],
+      "release_gate_note": "Release evidence must keep unsupported reduce-only, quote-quantity, TIF, and modification flows explicit instead of presenting generic order parity."
+    },
+    {
+      "gap_id": "PM-ADP-005",
+      "status": "scoped",
+      "decision": "Polymarket authentication and setup are closed for fixture/mock evidence only: wallet, L1 EIP-712 signing, L2 API credentials, endpoint, allowance, and rate-limit boundaries stay documented without live secrets.",
+      "evidence_paths": [
+        "src/signing/eip712.rs",
+        "src/http/auth.rs",
+        "src/config.rs",
+        "src/common/credential.rs",
+        "tests/http.rs",
+        "test_data/http_signed_order.json",
+        "test_data/rust_fixture_manifest.json"
+      ],
+      "release_gate_note": "Routine automation must not require real private keys, wallets, API credentials, allowances, or live Polymarket calls."
+    },
+    {
+      "gap_id": "PM-ADP-006",
+      "status": "scoped",
+      "decision": "Polymarket account, position, fill, reconciliation, and unknown-submit behavior are closed for the active-order and Data API pages represented by checked-in fixtures.",
+      "evidence_paths": [
+        "src/execution/reconciliation.rs",
+        "src/execution/order_fill_tracker.rs",
+        "src/http/data_api.rs",
+        "tests/exec_client.rs",
+        "test_data/data_api_positions_response.json",
+        "test_data/http_trade_report.json",
+        "test_data/rust_fixture_manifest.json"
+      ],
+      "release_gate_note": "Release evidence must tie account and reconciliation claims to active-order pages and Data API pages, not to unsupported venue-wide account parity."
+    },
+    {
+      "gap_id": "PM-ADP-007",
+      "status": "scoped",
+      "decision": "Polymarket fee and precision behavior are closed as venue-specific evidence for Gamma fee schedules, CLOB fee-rate payloads, taker commission math, market-buy fee adjustment, and dust snap boundaries.",
+      "evidence_paths": [
+        "src/execution/order_builder.rs",
+        "src/execution/order_fill_tracker.rs",
+        "src/http/parse.rs",
+        "tests/http.rs",
+        "tests/exec_client.rs",
+        "test_data/clob_fee_rate_response_zero.json",
+        "test_data/clob_fee_rate_response_nonzero.json",
+        "test_data/rust_fixture_manifest.json"
+      ],
+      "release_gate_note": "Release evidence must describe fee and precision behavior as Polymarket-specific and must not treat it as generic fee-model parity."
+    },
+    {
+      "gap_id": "PM-ADP-008",
+      "status": "deferred",
+      "decision": "Optional Polymarket Python, PyO3, and extension-module surfaces are not removed by this adapter parity closure task.",
+      "evidence_paths": [
+        "src/python/mod.rs",
+        "src/python/config.rs",
+        "src/python/factories.rs",
+        "Cargo.toml"
+      ],
+      "requires_removal_gate": true,
+      "release_gate_note": "Removal remains blocked until the dedicated Rust-only removal gate approves Python/PyO3 deletion."
+    }
+  ]
+}
