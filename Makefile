@@ -94,9 +94,9 @@ endif
 # Can be disabled: make cargo-test-core DEFI=false
 DEFI ?= true
 ifeq ($(DEFI),true)
-BASE_FEATURES := arrow,ffi,python,high-precision,streaming,defi
+BASE_FEATURES := arrow,ffi,high-precision,streaming,defi
 else
-BASE_FEATURES := arrow,ffi,python,high-precision,streaming
+BASE_FEATURES := arrow,ffi,high-precision,streaming
 endif
 
 # Combine base features with extra features
@@ -106,7 +106,7 @@ else
 CARGO_FEATURES := $(BASE_FEATURES)
 endif
 
-# Core crates (excludes adapters/*, nautilus-pyo3, nautilus-cli)
+# Core crates (excludes adapters/* and nautilus-cli)
 CORE_CRATES := nautilus-analysis nautilus-backtest nautilus-common nautilus-core \
     nautilus-cryptography nautilus-data nautilus-execution nautilus-indicators \
     nautilus-infrastructure nautilus-live nautilus-model nautilus-network \
@@ -178,18 +178,6 @@ ifeq ($(VERBOSE),true)
 	uv run --active --no-sync build.py
 else
 	$(info $(M) Building in debug mode (errors will still be shown)...)
-	uv run --active --no-sync build.py 2>&1 | grep -E "(Error|error|ERROR|Failed|failed|FAILED|Warning|warning|WARNING|Build completed|Build time:|Traceback)" || true
-endif
-
-.PHONY: build-debug-pyo3
-build-debug-pyo3: export BUILD_MODE=debug-pyo3
-build-debug-pyo3: export CARGO_TARGET_DIR=$(TARGET_DIR)
-build-debug-pyo3:  #-- Build the package with PyO3 debug symbols (for debugging Rust code)
-ifeq ($(VERBOSE),true)
-	$(info $(M) Building in debug mode with PyO3 debug symbols...)
-	uv run --active --no-sync build.py
-else
-	$(info $(M) Building in debug mode with PyO3 debug symbols (errors will still be shown)...)
 	uv run --active --no-sync build.py 2>&1 | grep -E "(Error|error|ERROR|Failed|failed|FAILED|Warning|warning|WARNING|Build completed|Build time:|Traceback)" || true
 endif
 
@@ -758,8 +746,8 @@ cargo-test-coverage:  #-- Run Rust tests with coverage reporting
 #   make cargo-test-crate-nautilus-model
 #   make cargo-test-crate-nautilus-live
 #
-# Enables all crate features except extension-module (which requires a Python
-# interpreter at link time). Feature list is resolved by crate-test-features.sh.
+# Enables all crate features except default. Feature list is resolved by
+# crate-test-features.sh.
 # -----------------------------------------------------------------------------
 
 .PHONY: cargo-test-crate-%
@@ -793,9 +781,8 @@ cargo-test-coverage-crate-html-%:  #-- Run coverage for specific crate with HTML
 # Borrows), uninitialised reads, and unsound `unsafe` impls. Requires a nightly
 # toolchain with the `miri` component installed.
 #
-# Features: `ffi`, `python`, `extension-module`, and `defi` are intentionally
-# disabled. Miri cannot execute Python interpreter calls or most foreign FFI,
-# and `defi` pulls in `alloy-primitives`, which is out of scope here. The
+# Features: `ffi` and `defi` are intentionally disabled. Miri cannot execute
+# most foreign FFI, and `defi` pulls in `alloy-primitives`, which is out of scope here. The
 # `--lib` filter keeps doctests out of the run as well.
 #
 # Proptest cases are dialled down via `PROPTEST_CASES` since Miri is roughly
@@ -992,12 +979,6 @@ test-performance:  #-- Run performance tests with codspeed benchmarking
 sync-v2:  #-- Sync v2 Python dependencies (without building the package)
 	$(info $(M) Syncing v2 Python dependencies...)
 	$Q cd python && VIRTUAL_ENV= uv sync --all-groups --no-install-package nautilus-trader $(UV_SYNC_FLAGS)
-
-.PHONY: build-debug-v2
-build-debug-v2: sync-v2  #-- Build the v2 Python package in debug mode (also regenerates type stubs)
-	@$(MAKE) --no-print-directory py-stubs-v2
-	$(info $(M) Building v2 extension in debug mode...)
-	$Q cd python && VIRTUAL_ENV= CARGO_TARGET_DIR=../target-v2 uv run --no-sync maturin develop
 
 .PHONY: py-stubs-v2
 py-stubs-v2: sync-v2  #-- Regenerate v2 Python type stubs from Rust bindings

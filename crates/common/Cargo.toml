@@ -22,23 +22,8 @@ crate-type = ["rlib", "staticlib"]
 
 [features]
 default = []
-extension-module = [
-  "nautilus-core/extension-module",
-  "nautilus-model/extension-module",
-  "nautilus-indicators/extension-module",
-  "python",
-  "pyo3/extension-module",
-]
 ffi = ["nautilus-core/ffi", "nautilus-model/ffi", "cbindgen", "live"]
 indicators = ["nautilus-indicators"]
-python = [
-  "nautilus-core/python",
-  "nautilus-model/python",
-  "pyo3",
-  "pyo3-async-runtimes",
-  "pyo3-stub-gen",
-  "live",
-]
 live = ["tokio"]
 simulation = ["live", "madsim", "nautilus-core/simulation"]
 defi = ["nautilus-model/defi", "alloy-primitives"]
@@ -85,9 +70,6 @@ ustr = { workspace = true }
 
 alloy-primitives = { workspace = true, optional = true }
 madsim = { workspace = true, optional = true }
-pyo3 = { workspace = true, optional = true }
-pyo3-async-runtimes = { workspace = true, optional = true }
-pyo3-stub-gen = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, optional = true }

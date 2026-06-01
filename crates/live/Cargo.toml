@@ -32,30 +32,7 @@ node = [
 plugin = ["node", "dep:aws-lc-rs", "dep:nautilus-plugin"]
 examples = ["node", "nautilus-trading/examples"]
 streaming = ["node", "nautilus-persistence", "nautilus-system/streaming"]
-extension-module = [
-  "nautilus-common/extension-module",
-  "nautilus-core/extension-module",
-  "nautilus-execution/extension-module",
-  "nautilus-model/extension-module",
-  "python",
-  "pyo3/extension-module",
-  "streaming",
-]
 ffi = ["nautilus-common/ffi", "nautilus-core/ffi", "nautilus-model/ffi"]
-python = [
-  "node",
-  "nautilus-common/python",
-  "nautilus-core/python",
-  "nautilus-execution/python",
-  "nautilus-model/python",
-  "nautilus-persistence?/python",
-  "nautilus-portfolio/python",
-  "nautilus-system/python",
-  "nautilus-trading/python",
-  "pyo3",
-  "pyo3-stub-gen",
-  "streaming",
-]
 defi = ["dep:nautilus-data", "nautilus-common/defi", "nautilus-data/defi"]
 simulation = [
   "node",
@@ -98,9 +75,6 @@ serde_json = { workspace = true }
 tabled = { workspace = true }
 tokio = { workspace = true }
 ustr = { workspace = true }
-
-pyo3 = { workspace = true, optional = true }
-pyo3-stub-gen = { workspace = true, optional = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }

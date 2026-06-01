@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Returns a comma-separated list of all features for a crate, excluding
-# "extension-module" and "default" so that test builds work without a
-# Python interpreter linked.
+# Returns a comma-separated list of all non-default features for a crate.
 #
 # Usage: scripts/crate-test-features.sh <crate-name>
 # Example: scripts/crate-test-features.sh nautilus-live
@@ -20,5 +18,5 @@ cargo metadata --no-deps --format-version 1 |
          | select(.name == $p)
          | .features
          | keys[]
-         | select(. != "extension-module" and . != "default")
+         | select(. != "default")
         ] | join(",")'

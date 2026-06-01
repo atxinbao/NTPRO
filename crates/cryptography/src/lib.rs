@@ -56,6 +56,3 @@
 pub mod providers;
 pub mod signing;
 pub mod tls;
-
-#[cfg(feature = "python")]
-pub mod python;

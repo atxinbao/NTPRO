@@ -57,6 +57,3 @@ pub mod machine;
 
 #[cfg(feature = "replay")]
 pub mod replay;
-
-#[cfg(feature = "python")]
-pub mod python;

@@ -83,6 +83,3 @@ pub mod factories;
 pub mod gateway;
 pub mod historical;
 pub mod providers;
-
-#[cfg(feature = "python")]
-pub mod python;

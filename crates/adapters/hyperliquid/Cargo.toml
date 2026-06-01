@@ -24,27 +24,6 @@ crate-type = ["rlib"]
 default = ["high-precision"]
 arrow = ["dep:arrow", "nautilus-serialization"]
 examples = ["nautilus-live/node", "nautilus-network/transport-sockudo"]
-extension-module = [
-  "nautilus-common/extension-module",
-  "nautilus-core/extension-module",
-  "nautilus-live/extension-module",
-  "nautilus-model/extension-module",
-  "nautilus-network/extension-module",
-  "pyo3/extension-module",
-  "python",
-]
-python = [
-  "dep:nautilus-system",
-  "nautilus-common/python",
-  "nautilus-core/python",
-  "nautilus-live/python",
-  "nautilus-model/python",
-  "nautilus-network/python",
-  "nautilus-system/python",
-  "pyo3",
-  "pyo3-async-runtimes",
-  "pyo3-stub-gen",
-]
 high-precision = [
   "nautilus-model/high-precision",
   "nautilus-serialization?/high-precision",
@@ -93,9 +72,6 @@ ustr = { workspace = true }
 zeroize = { workspace = true }
 
 arrow = { workspace = true, optional = true }
-pyo3 = { workspace = true, optional = true }
-pyo3-async-runtimes = { workspace = true, optional = true }
-pyo3-stub-gen = { workspace = true, optional = true }
 
 [dev-dependencies]
 nautilus-testkit = { workspace = true }

@@ -3,11 +3,6 @@ set -euo pipefail
 
 FEATURES="${NAUTILUS_RUST_FEATURES:-arrow,ffi,high-precision,streaming,defi}"
 
-exclude_args=()
-if cargo metadata --no-deps --format-version=1 2>/dev/null | grep -q '"name":"nautilus-pyo3"'; then
-  exclude_args+=(--exclude nautilus-pyo3)
-fi
-
 feature_args_for_crate() {
   local supported_csv="$1"
   local selected=()
@@ -58,11 +53,11 @@ echo "== verify_full: fast checks =="
 scripts/ai/verify_fast.sh
 
 echo "== verify_full: clippy =="
-cargo clippy --workspace "${exclude_args[@]}" --lib --tests --features "$FEATURES" -- -D warnings
+cargo clippy --workspace --lib --tests --features "$FEATURES" -- -D warnings
 
 echo "== verify_full: rust tests =="
 if cargo nextest --version >/dev/null 2>&1; then
-  cargo nextest run --workspace "${exclude_args[@]}" --lib --tests --features "$FEATURES" --no-fail-fast
+  cargo nextest run --workspace --lib --tests --features "$FEATURES" --no-fail-fast
 else
   live_lib_log_global_tests=(
     node::tests::test_await_engines_connected_returns_shutdown_requested
@@ -86,21 +81,21 @@ else
     rust_test_skip_args+=(--skip "$test_name")
   done
 
-  cargo test --workspace "${exclude_args[@]}" --lib --tests --features "$FEATURES" -- \
+  cargo test --workspace --lib --tests --features "$FEATURES" -- \
     "${rust_test_skip_args[@]}"
 
   common_feature_args=()
   while IFS= read -r arg; do
     common_feature_args+=("$arg")
   done < <(
-    feature_args_for_crate "capnp,defi,extension-module,ffi,high-precision,indicators,live,python,simulation,tracing-bridge"
+    feature_args_for_crate "capnp,defi,ffi,high-precision,indicators,live,simulation,tracing-bridge"
   )
 
   live_feature_args=()
   while IFS= read -r arg; do
     live_feature_args+=("$arg")
   done < <(
-    feature_args_for_crate "defi,examples,extension-module,ffi,ignored,node,plugin,python,simulation,streaming"
+    feature_args_for_crate "defi,examples,ffi,ignored,node,plugin,simulation,streaming"
   )
   common_lib_args=("${common_feature_args[@]}" --lib)
   live_lib_args=("${live_feature_args[@]}" --lib)
@@ -135,6 +130,6 @@ echo "== verify_full: golden trace validation =="
 scripts/ai/run_golden_traces.sh
 
 echo "== verify_full: rust docs =="
-cargo doc --workspace "${exclude_args[@]}" --features "$FEATURES" --no-deps
+cargo doc --workspace --features "$FEATURES" --no-deps
 
 echo "== verify_full complete =="

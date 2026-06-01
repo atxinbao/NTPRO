@@ -26,36 +26,12 @@ examples = ["nautilus-trading/examples"]
 high-precision = ["nautilus-model/high-precision"]
 plugin = ["dep:nautilus-plugin"]
 streaming = ["nautilus-persistence", "nautilus-system/streaming"]
-extension-module = [
-  "nautilus-common/extension-module",
-  "nautilus-core/extension-module",
-  "nautilus-execution/extension-module",
-  "nautilus-model/extension-module",
-  "nautilus-trading/extension-module",
-  "python",
-  "pyo3/extension-module",
-  "streaming",
-]
 ffi = [
   "cbindgen",
   "nautilus-core/ffi",
   "nautilus-common/ffi",
   "nautilus-execution/ffi",
   "nautilus-model/ffi",
-]
-python = [
-  "nautilus-common/python",
-  "nautilus-core/python",
-  "nautilus-data/python",
-  "nautilus-execution/python",
-  "nautilus-model/python",
-  "nautilus-persistence?/python",
-  "nautilus-portfolio/python",
-  "nautilus-risk/python",
-  "nautilus-trading/python",
-  "pyo3",
-  "pyo3-stub-gen",
-  "streaming",
 ]
 
 [package.metadata.cargo-machete]
@@ -93,8 +69,6 @@ log = { workspace = true }
 rust_decimal = { workspace = true }
 ustr = { workspace = true }
 
-pyo3 = { workspace = true, optional = true }
-pyo3-stub-gen = { workspace = true, optional = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]

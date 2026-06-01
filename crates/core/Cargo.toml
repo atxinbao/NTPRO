@@ -23,9 +23,7 @@ crate-type = ["rlib", "staticlib"]
 [features]
 default = []
 simulation = ["madsim"]
-extension-module = ["python", "pyo3/extension-module"]
 ffi = ["cbindgen"]
-python = ["pyo3", "pyo3-stub-gen", "strum"]
 
 [package.metadata.cargo-machete]
 ignored = [
@@ -55,8 +53,6 @@ ustr = { workspace = true }
 uuid = { workspace = true }
 
 madsim = { workspace = true, optional = true }
-pyo3 = { workspace = true, optional = true }
-pyo3-stub-gen = { workspace = true, optional = true }
 strum = { workspace = true, optional = true }
 
 [dev-dependencies]

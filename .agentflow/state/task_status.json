@@ -1700,7 +1700,7 @@
     },
     "RREM-011": {
       "title": "Remove Cython source and build/runtime references",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "critical",
@@ -1712,17 +1712,46 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-011.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-011.md",
-      "updated_at": "2026-06-01T17:29:17Z",
+      "updated_at": "2026-06-01T17:47:21Z",
       "branch": "ai/RREM-011-remove-cython-source-build",
       "lease": "RREM-011",
+      "qa_passed": true,
+      "review_passed": true,
+      "release_gatekeeper_approved": true,
+      "auto_merge_allowed": false,
+      "cython_removed_gate_passed": true,
+      "rust_only_runtime_gate_passed": false,
+      "notes": "RREM-011 merged in PR #107. Cython source/build removal is complete; Rust-only runtime gate still fails on Python/PyO3 product paths until RREM-012/RREM-013.",
+      "merged_pr": 107,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/107",
+      "merged_at": "2026-06-01T17:45:04Z",
+      "merge_commit": "b217e254e2e72ea4626145c1daf053bee7cdf058"
+    },
+    "RREM-012": {
+      "title": "Remove PyO3 workspace and Python binding surfaces",
+      "status": "REVIEW_REQUIRED",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-012.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-012.md",
+      "updated_at": "2026-06-01T18:48:40Z",
+      "branch": "ai/RREM-012-remove-pyo3-bindings",
+      "lease": "RREM-012",
       "qa_passed": true,
       "review_passed": false,
       "release_gatekeeper_approved": false,
       "auto_merge_allowed": false,
-      "cython_removed_gate_passed": true,
+      "pyo3_removed_gate_passed": true,
       "rust_only_runtime_gate_passed": false,
-      "notes": "Cython source/build removal validated. Rust-only runtime gate still fails on Python/PyO3 product paths and crates/**/src/python modules; continue with RREM-012/RREM-013 after review/merge."
+      "notes": "Critical removal task. PyO3 workspace crate, crates/**/src/python modules, and active Cargo/build/CI PyO3/maturin/extension-module wiring were removed. verify_fast and metadata pass. Rust-only runtime gate remains blocked by retained Python product paths for RREM-013 plus residual inactive PyO3 source annotations; stop at REVIEW_REQUIRED and do not enable auto-merge."
     }
   },
-  "updated_at": "2026-06-01T14:54:13Z"
+  "updated_at": "2026-06-01T18:48:40Z"
 }

@@ -69,8 +69,5 @@ pub mod result;
 #[cfg(feature = "streaming")]
 pub mod node;
 
-#[cfg(feature = "python")]
-pub mod python;
-
 #[cfg(feature = "ffi")]
 pub mod ffi;

@@ -50,6 +50,3 @@ pub mod backend;
 pub mod config;
 pub mod parquet;
 pub mod test_data;
-
-#[cfg(feature = "python")]
-pub mod python;

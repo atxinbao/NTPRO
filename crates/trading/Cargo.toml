@@ -25,23 +25,6 @@ default = []
 defi = ["nautilus-model/defi"]
 examples = ["nautilus-indicators"]
 high-precision = ["nautilus-model/high-precision"]
-extension-module = [
-  "nautilus-common/extension-module",
-  "nautilus-core/extension-module",
-  "nautilus-execution/extension-module",
-  "nautilus-model/extension-module",
-  "python",
-  "pyo3/extension-module",
-]
-python = [
-  "nautilus-common/python",
-  "nautilus-core/python",
-  "nautilus-execution/python",
-  "nautilus-model/python",
-  "nautilus-portfolio/python",
-  "pyo3",
-  "pyo3-stub-gen",
-]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -68,8 +51,6 @@ strum = { workspace = true }
 ustr = { workspace = true }
 
 nautilus-indicators = { workspace = true, optional = true }
-pyo3 = { workspace = true, optional = true }
-pyo3-stub-gen = { workspace = true, optional = true }
 
 [dev-dependencies]
 rstest = { workspace = true }

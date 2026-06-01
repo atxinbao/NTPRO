@@ -1,0 +1,25 @@
+{
+  "task_id": "RREM-012",
+  "agent_id": "Codex",
+  "branch": "ai/RREM-012-remove-pyo3-bindings",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RREM-012.md",
+    "docs/rust-cutover/evidence/RREM-012.md",
+    "Cargo.toml",
+    "Cargo.lock",
+    "crates/pyo3/**",
+    "crates/**/src/python/**",
+    "crates/**/Cargo.toml",
+    "crates/**/README.md",
+    "crates/**/src/**/*.rs",
+    "build.py",
+    "Makefile",
+    "python/pyproject.toml",
+    ".github/workflows/**",
+    "scripts/**",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREM-012.json"
+  ],
+  "claimed_at": "2026-06-01T17:57:03Z",
+  "status": "REVIEW_REQUIRED"
+}

@@ -52,9 +52,6 @@ pub mod config;
 pub mod execution;
 pub mod factory;
 
-#[cfg(feature = "python")]
-pub mod python;
-
 // Re-exports
 pub use crate::{
     config::SandboxExecutionClientConfig, execution::SandboxExecutionClient,

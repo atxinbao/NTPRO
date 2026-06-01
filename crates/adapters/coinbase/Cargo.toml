@@ -22,26 +22,6 @@ crate-type = ["rlib"]
 
 [features]
 default = ["high-precision"]
-extension-module = [
-  "nautilus-common/extension-module",
-  "nautilus-core/extension-module",
-  "nautilus-live/extension-module",
-  "nautilus-model/extension-module",
-  "nautilus-network/extension-module",
-  "pyo3/extension-module",
-  "python",
-]
-python = [
-  "dep:nautilus-system",
-  "nautilus-common/python",
-  "nautilus-core/python",
-  "nautilus-live/python",
-  "nautilus-model/python",
-  "nautilus-network/python",
-  "nautilus-system/python",
-  "pyo3",
-  "pyo3-stub-gen",
-]
 high-precision = ["nautilus-model/high-precision"]
 examples = [
   "nautilus-live/node",
@@ -52,7 +32,7 @@ examples = [
 [package.metadata.cargo-machete]
 ignored = [
   "nautilus-system",
-] # Optional dep activated only via the python feature
+]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -89,9 +69,6 @@ tokio-util = { workspace = true }
 url = { workspace = true }
 ustr = { workspace = true }
 zeroize = { workspace = true }
-
-pyo3 = { workspace = true, optional = true }
-pyo3-stub-gen = { workspace = true, optional = true }
 
 [dev-dependencies]
 nautilus-testkit = { workspace = true }

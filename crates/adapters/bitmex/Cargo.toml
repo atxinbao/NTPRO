@@ -27,27 +27,6 @@ examples = [
   "nautilus-network/transport-sockudo",
   "nautilus-trading/examples",
 ]
-extension-module = [
-  "nautilus-common/extension-module",
-  "nautilus-core/extension-module",
-  "nautilus-live/extension-module",
-  "nautilus-model/extension-module",
-  "nautilus-network/extension-module",
-  "pyo3/extension-module",
-  "python",
-]
-python = [
-  "dep:nautilus-system",
-  "nautilus-common/python",
-  "nautilus-core/python",
-  "nautilus-live/python",
-  "nautilus-model/python",
-  "nautilus-network/python",
-  "nautilus-system/python",
-  "pyo3",
-  "pyo3-async-runtimes",
-  "pyo3-stub-gen",
-]
 high-precision = ["nautilus-model/high-precision"]
 
 [package.metadata.docs.rs]
@@ -86,10 +65,6 @@ tokio-util = { workspace = true }
 ustr = { workspace = true }
 uuid = { workspace = true }
 zeroize = { workspace = true }
-
-pyo3 = { workspace = true, optional = true }
-pyo3-async-runtimes = { workspace = true, optional = true }
-pyo3-stub-gen = { workspace = true, optional = true }
 
 [dev-dependencies]
 nautilus-testkit = { workspace = true }

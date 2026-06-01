@@ -9,8 +9,6 @@ targets=(
   .github/workflows
   python/generate_docstrings.py
   python/generate_stubs.py
-  crates/pyo3
-  ':(glob)crates/**/src/python/**/*.rs'
 )
 
 git update-index -q --refresh

@@ -60,8 +60,5 @@ pub mod config;
 pub mod manager;
 pub mod portfolio;
 
-#[cfg(feature = "python")]
-pub mod python;
-
 // Re-exports
 pub use portfolio::Portfolio;

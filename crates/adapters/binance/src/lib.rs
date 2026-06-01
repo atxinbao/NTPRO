@@ -64,6 +64,3 @@ pub mod data_types;
 pub mod factories;
 pub mod futures;
 pub mod spot;
-
-#[cfg(feature = "python")]
-pub mod python;

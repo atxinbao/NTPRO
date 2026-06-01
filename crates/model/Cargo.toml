@@ -23,19 +23,11 @@ crate-type = ["rlib", "staticlib"]
 [features]
 default = []
 arrow = ["dep:arrow"]
-extension-module = [
-  "nautilus-core/extension-module",
-  "python",
-  "pyo3/extension-module",
-]
 ffi = ["cbindgen", "nautilus-core/ffi"]
-python = ["nautilus-core/python", "pyo3", "pyo3-stub-gen"]
-python-arrow = ["python", "arrow"]
 stubs = ["bon", "rstest"]
 high-precision = []
 # DeFi domain model requires 18-decimal wei precision, implying `high-precision`
 defi = ["alloy-primitives", "high-precision"]
-cython-compat = []
 
 [package.metadata.cargo-machete]
 ignored = [
@@ -70,8 +62,6 @@ ustr = { workspace = true }
 alloy-primitives = { workspace = true, optional = true }
 bon = { workspace = true, optional = true }
 dashmap.workspace = true
-pyo3 = { workspace = true, optional = true }
-pyo3-stub-gen = { workspace = true, optional = true }
 rstest = { workspace = true, optional = true }
 
 [dev-dependencies]

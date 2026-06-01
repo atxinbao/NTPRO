@@ -23,14 +23,7 @@ crate-type = ["rlib"]
 [features]
 default = []
 defi = ["nautilus-common/defi", "nautilus-data/defi", "nautilus-model/defi"]
-extension-module = ["python", "pyo3/extension-module", "streaming"]
 live = ["nautilus-common/live"]
-python = [
-  "nautilus-core/python",
-  "nautilus-persistence/python",
-  "pyo3",
-  "streaming",
-]
 streaming = ["nautilus-persistence"]
 tracing-bridge = ["nautilus-common/tracing-bridge"]
 
@@ -63,8 +56,6 @@ log = { workspace = true }
 serde = { workspace = true }
 sysinfo = { workspace = true }
 ustr = { workspace = true }
-
-pyo3 = { workspace = true, optional = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }

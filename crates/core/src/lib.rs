@@ -88,9 +88,6 @@ pub mod uuid;
 #[cfg(feature = "ffi")]
 pub mod ffi;
 
-#[cfg(feature = "python")]
-pub mod python;
-
 #[cfg(not(any(
     target_os = "linux",
     target_os = "macos",

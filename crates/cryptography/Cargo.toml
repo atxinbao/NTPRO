@@ -22,12 +22,6 @@ crate-type = ["rlib"]
 
 [features]
 default = []
-extension-module = [
-  "nautilus-core/extension-module",
-  "python",
-  "pyo3/extension-module",
-]
-python = ["nautilus-core/python", "pyo3", "pyo3-stub-gen"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -44,9 +38,6 @@ log = { workspace = true }
 pem = { workspace = true }
 rustls = { workspace = true }
 webpki-roots = { workspace = true }
-
-pyo3 = { workspace = true, optional = true }
-pyo3-stub-gen = { workspace = true, optional = true }
 
 [dev-dependencies]
 rstest = { workspace = true }

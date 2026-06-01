@@ -128,9 +128,6 @@ pub(crate) mod expressions;
 #[cfg(feature = "ffi")]
 pub mod ffi;
 
-#[cfg(feature = "python")]
-pub mod python;
-
 #[cfg(any(test, feature = "stubs"))]
 pub mod stubs;
 

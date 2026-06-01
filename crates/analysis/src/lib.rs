@@ -75,9 +75,6 @@ pub mod analyzer;
 pub mod statistic;
 pub mod statistics;
 
-#[cfg(feature = "python")]
-pub mod python;
-
 use std::collections::BTreeMap;
 
 use nautilus_core::UnixNanos;

@@ -222,23 +222,9 @@ jobs:
       - name: Verify immutable CI inputs (pre-wheel build)
         run: bash scripts/ci/verify-ci-inputs.sh pre-wheel-build
 
-      # Build the wheel for v2 under python/ using maturin
-      - name: Build wheel (v2)
-        working-directory: ${{ env.PACKAGE_DIR }}
+      - name: Skip v2 Python bridge build
         run: |
-          MATURIN_VERSION="$(bash ../scripts/tool-version.sh maturin)"
-          uv run --no-project --no-build --with "maturin==${MATURIN_VERSION}" -- \
-            maturin build --release --out ../dist
-
-      - name: Run v2 Python tests
-        working-directory: ${{ env.PACKAGE_DIR }}
-        run: |
-          uv sync --group test --no-install-package nautilus-trader
-          uv pip install "../dist/"*.whl
-          cd /tmp && uv run --project "$GITHUB_WORKSPACE/${{ env.PACKAGE_DIR }}" --no-sync pytest \
-            --import-mode=importlib \
-            --rootdir="$GITHUB_WORKSPACE/${{ env.PACKAGE_DIR }}" \
-            "$GITHUB_WORKSPACE/${{ env.PACKAGE_DIR }}/tests/" -v
+          echo "Rust binding bridge removed by Rust-only cutover; Python package removal continues in RREM-013."
 
       # Temporary: show whether v2 stub or docstring generation dirtied tracked files while we isolate CI drift
       - name: Report generated v2 file drift
@@ -247,9 +233,7 @@ jobs:
           targets=(
             python/generate_docstrings.py
             python/generate_stubs.py
-            crates/pyo3
             ':(glob)python/nautilus_trader/**/*.pyi'
-            ':(glob)crates/**/src/python/**/*.rs'
           )
 
           changes="$(git status --short --untracked-files=all -- "${targets[@]}")"
