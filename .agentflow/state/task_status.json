@@ -1429,7 +1429,7 @@
     },
     "RREM-008": {
       "title": "Remove Cython source and stale build config",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1441,13 +1441,17 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-008.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-008.md",
-      "updated_at": "2026-06-01T15:48:00Z",
+      "updated_at": "2026-06-01T15:52:08Z",
       "branch": "ai/RREM-008-cython-removal-blockers",
-      "release_gatekeeper_approved": true
+      "release_gatekeeper_approved": true,
+      "merged_pr": 96,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/96",
+      "merged_at": "2026-06-01T15:51:51Z",
+      "merge_commit": "17c3201d854bc55727fc05dbbd72ccf1114d24cf"
     },
     "RREM-009": {
       "title": "Run Rust-only runtime gate",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1458,7 +1462,10 @@
         "release_gatekeeper_approved"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-009.md",
-      "evidence_file": "docs/rust-cutover/evidence/RREM-009.md"
+      "evidence_file": "docs/rust-cutover/evidence/RREM-009.md",
+      "updated_at": "2026-06-01T15:58:00Z",
+      "branch": "ai/RREM-009-rust-only-gate-blockers",
+      "release_gatekeeper_approved": true
     },
     "RREM-010": {
       "title": "Final Rust-only removal gate",
