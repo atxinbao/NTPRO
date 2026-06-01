@@ -58,4 +58,4 @@ something the adapter converts automatically at runtime.
 
 This crate is the Rust implementation of NautilusTrader's Interactive Brokers
 integration. The core adapter surface is in place, but APIs may evolve as the
-migration from the legacy Python/Cython adapter completes.
+migration from the legacy Python legacy adapter completes.

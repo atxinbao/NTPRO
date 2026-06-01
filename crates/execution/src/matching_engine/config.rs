@@ -60,10 +60,9 @@ mod tests {
 
     use super::*;
 
-    // Locks Rust defaults to the Cython per-engine constructor at
-    // nautilus_trader/backtest/engine.pyx:3882-3894.
+    // Locks Rust defaults to the legacy per-engine constructor contract.
     #[rstest]
-    fn test_default_matches_cython() {
+    fn test_default_matches_legacy() {
         let config = OrderMatchingEngineConfig::default();
         assert!(config.bar_execution);
         assert!(!config.bar_adaptive_high_low_ordering);

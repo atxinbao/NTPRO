@@ -60,7 +60,7 @@ host book state.
 `#[repr(C)]` wrapper owned by the host that boxes the deltas for the
 duration of the callback. The plug-in's thunk dereferences the handle
 once and hands a borrowed `&OrderBookDeltas` to the trait method;
-matches the ownership contract `OrderBookDeltas_API` uses on the Cython
+matches the ownership contract `OrderBookDeltas_API` uses on the legacy
 side.
 
 `InstrumentAny` crosses the boundary via `InstrumentAnyHandle`, a

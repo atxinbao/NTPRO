@@ -95,13 +95,11 @@ take in RCORE-001.
   `ffi = ["cbindgen"]`.
 - `crates/model/Cargo.toml` defines `python`, `python-arrow`, `extension-module`,
   `ffi`, `high-precision`, `defi`, `stubs`, and `cython-compat`.
-- `crates/core/build.rs` can generate C headers and Cython definitions into
-  `nautilus_trader/core/includes/core.h` and
-  `nautilus_trader/core/rust/core.pxd` when `ffi` is enabled.
-- `crates/model/build.rs` can generate C headers and Cython definitions into
-  `nautilus_trader/core/includes/model.h` and
-  `nautilus_trader/core/rust/model.pxd` when `ffi` is enabled; it also forwards
-  high-precision mode into Cython definitions.
+- RREM-016 supersedes the old FFI build-path observation: `crates/core/build.rs`
+  and `crates/model/build.rs` now generate C headers into Cargo `OUT_DIR` when
+  `ffi` is enabled, and no longer generate Cython `.pxd` files into the removed
+  package tree.
+- High-precision mode is now forwarded only into the generated C header path.
 - `crates/core/src` and `crates/model/src` currently contain 124 files under
   `src/python/**`.
 - `crates/core/src` and `crates/model/src` currently contain 44 files under

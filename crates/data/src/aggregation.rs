@@ -1777,7 +1777,7 @@ impl TimeBarAggregator {
 
     /// Starts the time bar aggregator, scheduling periodic bar builds on the clock.
     ///
-    /// This matches the Cython `start_timer()` method exactly.
+    /// This matches the legacy `start_timer()` method exactly.
     /// Creates a callback to `build_bar` using a weak reference to the aggregator.
     ///
     /// # Panics
@@ -1863,7 +1863,7 @@ impl TimeBarAggregator {
                 .expect(FAILED);
 
             self.next_close_ns = UnixNanos::from(alert_time);
-            // Mirror Cython: stored_open = close_time - step, so when fire_immediately the
+            // Mirror legacy behavior: stored_open = close_time - step, so when fire_immediately the
             // current (partial) bar started `step` periods before start_time.
             self.stored_open_ns = if fire_immediately {
                 if spec.aggregation == BarAggregation::Month {
@@ -2133,7 +2133,7 @@ impl VegaProvider for MapVegaProvider {
     }
 }
 
-/// Rounder that uses a fixed tick size; mirrors negative prices for tick alignment (Cython parity).
+/// Rounder that uses a fixed tick size; mirrors negative prices for tick alignment (legacy parity).
 #[derive(Debug)]
 pub struct FixedTickSchemeRounder {
     scheme: FixedTickScheme,
@@ -2181,7 +2181,7 @@ impl SpreadPriceRounder for FixedTickSchemeRounder {
     }
 }
 
-/// Spread quote aggregator: builds synthetic quotes from leg quotes (Cython parity).
+/// Spread quote aggregator: builds synthetic quotes from leg quotes (legacy parity).
 ///
 /// Quote-driven mode (`update_interval_seconds == None`): emits when all legs have quotes.
 /// Timer-driven mode: emits on timer fire when `_has_update` is true.
@@ -2397,7 +2397,7 @@ impl SpreadQuoteAggregator {
         }
     }
 
-    /// Handles an incoming leg quote (Cython `handle_quote_tick`).
+    /// Handles an incoming leg quote (legacy `handle_quote_tick`).
     pub fn handle_quote_tick(&mut self, tick: QuoteTick) {
         let ts_init = tick.ts_init;
 
@@ -2435,7 +2435,7 @@ impl SpreadQuoteAggregator {
     /// deferred until the next call when time advances. The deferred event is only flushed
     /// when all legs have quotes and time has moved past the deferred timestamp. This
     /// prevents building a spread quote with stale leg data when multiple legs update at
-    /// the same timestamp (Cython parity).
+    /// the same timestamp (legacy parity).
     fn process_historical_events(&mut self, ts_init: UnixNanos) {
         if self.clock.borrow().timestamp_ns() == UnixNanos::default() {
             let mut clock_borrow = self.clock.borrow_mut();
@@ -2475,7 +2475,7 @@ impl SpreadQuoteAggregator {
         }
     }
 
-    /// Builds and sends one spread quote (Cython `_build_and_send_quote`).
+    /// Builds and sends one spread quote (legacy `_build_and_send_quote`).
     fn build_and_send_quote(&mut self, ts_event: UnixNanos) {
         if !self.has_update {
             return;
@@ -3228,7 +3228,7 @@ mod tests {
 
     #[rstest]
     fn test_bar_builder_spread_below_zero_representable(equity_aapl: Equity) {
-        // Cython documents that backward-spread offsets pushing prices below zero
+        // legacy documents that backward-spread offsets pushing prices below zero
         // remain representable in PriceRaw; verify the same on the Rust side.
         let instrument = InstrumentAny::Equity(equity_aapl);
         let bar_type = BarType::new(
@@ -3292,7 +3292,7 @@ mod tests {
 
     #[rstest]
     fn test_bar_builder_build_clamps_low_to_close(equity_aapl: Equity) {
-        // Rust BarBuilder mirrors Cython: on `build`, if `close < low` the low is pulled down to close.
+        // Rust BarBuilder mirrors legacy: on `build`, if `close < low` the low is pulled down to close.
         // Reaching this branch requires bypassing `update`'s low tracking (e.g. via bar updates where
         // a later bar's close is below the accumulated low). We simulate by direct field assignment.
         let instrument = InstrumentAny::Equity(equity_aapl);
@@ -6023,7 +6023,7 @@ mod tests {
         assert_ne!(results[0], results[1]);
     }
 
-    /// Historical time-bar: event at `ts_init` is deferred until after the update (Cython parity).
+    /// Historical time-bar: event at `ts_init` is deferred until after the update (legacy parity).
     #[rstest]
     fn test_time_bar_historical_defers_event_at_ts_init_until_after_update(equity_aapl: Equity) {
         let instrument = InstrumentAny::Equity(equity_aapl);
@@ -6850,7 +6850,7 @@ mod tests {
     fn test_time_bar_skip_first_non_full_bar_skips_when_build_delay_shifts_start(
         equity_aapl: Equity,
     ) {
-        // Cython parity: when bar_build_delay > 0 pushes start_time past a
+        // legacy parity: when bar_build_delay > 0 pushes start_time past a
         // boundary (even if `now` is on a boundary), first_close_ns is set and
         // the first bar is skipped. The previous Rust `now > start_time` guard
         // incorrectly kept this first bar.
@@ -6931,7 +6931,7 @@ mod tests {
         #[case] expected_stored_open_ns: u64,
     ) {
         // When the clock is exactly on a month/year boundary, fire_immediately=true.
-        // stored_open_ns must resolve to one step before start_time (mirrors Cython
+        // stored_open_ns must resolve to one step before start_time (mirrors legacy
         // close_time - step arithmetic) so the first bar's open timestamp marks
         // the true start of the in-progress interval.
         let instrument = InstrumentAny::Equity(equity_aapl);

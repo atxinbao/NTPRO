@@ -153,7 +153,7 @@ impl HasTsInit for OrderBookDeltas {
 #[allow(non_camel_case_types)]
 pub struct OrderBookDeltas_API(Box<OrderBookDeltas>);
 
-// TODO: This wrapper will go along with Cython
+// TODO: This wrapper will go along with legacy
 impl OrderBookDeltas_API {
     #[must_use]
     pub fn new(deltas: OrderBookDeltas) -> Self {

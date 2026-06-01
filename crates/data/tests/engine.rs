@@ -8299,7 +8299,7 @@ fn test_process_book_deltas(
 
     data_engine.borrow_mut().execute(cmd);
 
-    // TODO: Using FFI API wrapper temporarily until Cython gone
+    // TODO: Using FFI API wrapper temporarily until legacy gone
     let deltas = OrderBookDeltas_API::new(stub_deltas());
     let (handler, saver) = get_typed_message_saving_handler::<OrderBookDeltas>(None);
     let topic = switchboard::get_book_deltas_topic(deltas.instrument_id);

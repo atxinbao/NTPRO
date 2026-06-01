@@ -385,7 +385,7 @@ store = { path = '.supply-chain' }
 [profile.dev]
 opt-level = 0
 debug = false # Improves compile times
-debug-assertions = false # Fails Cython build if true
+debug-assertions = false
 overflow-checks = false # test profile keeps these on for catching overflow bugs
 strip = "debuginfo" # Improves compile times
 lto = false

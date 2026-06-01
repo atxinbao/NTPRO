@@ -116,7 +116,6 @@ no-build-package = [
   "click",
   "colorama",
   "coverage",
-  "cython",
   "cytoolz",
   "defusedxml",
   "docker",

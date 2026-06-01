@@ -38,14 +38,6 @@ use crate::{Returns, statistic::PortfolioStatistic};
 ///   *Journal of Investing*, 3(3), 59-64.
 #[repr(C)]
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.analysis", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.analysis")
-)]
 pub struct SortinoRatio {
     period: usize,
 }

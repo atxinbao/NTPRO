@@ -19,9 +19,8 @@
 //! to the `common` module.  In summary it:
 //!
 //! * Emits `cargo:rerun-if-*` directives so that Cargo knows when to re-execute the script.
-//! * Generates C and Cython header files with [`cbindgen`](https://github.com/mozilla/cbindgen)
-//!   whenever the `ffi` feature flag is enabled, outputting them into the Python package so that
-//!   the Python wheels have all the required artefacts.
+//! * Generates C header files into Cargo's `OUT_DIR` with
+//!   [`cbindgen`](https://github.com/mozilla/cbindgen) whenever the `ffi` feature flag is enabled.
 //! * Skips all generation work when it detects the docs.rs build environment because external
 //!   file writes are disallowed there.
 
@@ -40,18 +39,13 @@ fn main() {
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_HIGH_PRECISION");
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=cbindgen.toml");
-    println!("cargo:rerun-if-changed=cbindgen_cython.toml");
     println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rerun-if-changed=../Cargo.toml");
 
     #[cfg(feature = "ffi")]
     if env::var("CARGO_FEATURE_FFI").is_ok() {
         extern crate cbindgen;
-        use std::{
-            fs::File,
-            io::{Read, Write},
-            path::PathBuf,
-        };
+        use std::path::PathBuf;
 
         let crate_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
@@ -59,32 +53,10 @@ fn main() {
         let config_c = cbindgen::Config::from_file("cbindgen.toml")
             .expect("unable to find cbindgen.toml configuration file");
 
-        let c_header_path = crate_dir.join("../../nautilus_trader/core/includes/common.h");
+        let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
+        let c_header_path = out_dir.join("common.h");
         cbindgen::generate_with_config(&crate_dir, config_c)
             .expect("unable to generate bindings")
             .write_to_file(c_header_path);
-
-        // Generate Cython definitions
-        let config_cython = cbindgen::Config::from_file("cbindgen_cython.toml")
-            .expect("unable to find cbindgen_cython.toml configuration file");
-
-        let cython_path = crate_dir.join("../../nautilus_trader/core/rust/common.pxd");
-        cbindgen::generate_with_config(&crate_dir, config_cython)
-            .expect("unable to generate bindings")
-            .write_to_file(cython_path.clone());
-
-        // Open and read the file entirely
-        let mut src = File::open(cython_path.clone()).expect("`File::open` failed");
-        let mut data = String::new();
-        src.read_to_string(&mut data)
-            .expect("invalid UTF-8 in stream");
-
-        // Run the replace operation in memory
-        let new_data = data.replace("cdef enum", "cpdef enum");
-
-        // Recreate the file and dump the processed contents to it
-        let mut dst = File::create(cython_path).expect("`File::create` failed");
-        dst.write_all(new_data.as_bytes())
-            .expect("I/O error on `dist.write`");
     }
 }

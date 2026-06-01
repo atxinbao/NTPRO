@@ -7,8 +7,8 @@ while zero-cost abstractions and the absence of a garbage collector deliver C-li
 ## Cargo manifest conventions
 
 - In `[dependencies]`, list internal crates (`nautilus-*`) first in alphabetical order, insert a blank line, then external required dependencies alphabetically, followed by another blank line and the optional dependencies (those with `optional = true`) in alphabetical order. Preserve inline comments with their dependency.
-- Add `"python"` to every `extension-module` feature list that builds a Python artefact, keeping it adjacent to `"pyo3/extension-module"` so the full Python stack is obvious.
-- When a manifest groups adapters separately (for example `crates/pyo3`), keep the `# Adapters` block immediately below the internal crate list so downstream consumers can scan adapter coverage quickly.
+- Do not add `python`, `extension-module`, PyO3, or Python stub generation features. These are removed product surfaces in the Rust-only cutover.
+- When a manifest groups adapters separately, keep the `# Adapters` block immediately below the internal crate list so downstream consumers can scan adapter coverage quickly.
 - Always include a blank line before `[dev-dependencies]` and `[build-dependencies]` sections.
 - Apply the same layout across related manifests when the feature or dependency sets change to avoid drift between crates.
 - Use snake_case filenames for `bin/` sources (for example `bin/ws_data.rs`) and reflect those paths in each `[[bin]]` section.
@@ -32,8 +32,6 @@ while zero-cost abstractions and the absence of a garbage collector deliver C-li
 - Common patterns:
   - `high-precision`: switches the value-type backing (64-bit or 128-bit integers) to support domains that require extra precision.
   - `default = []`: keep defaults minimal.
-  - `python`: enables Python bindings.
-  - `extension-module`: builds a Python extension module (always include `python`).
   - `ffi`: enables C FFI bindings.
   - `stubs`: exposes testing stubs.
 
@@ -44,10 +42,10 @@ Cargo's build cache is keyed by the exact combination of features, profiles, and
 
 ### Aligned targets (testing and linting)
 
-| Target                      | Features                         | Profile   | `--all-targets` | `--no-deps` | Purpose        |
-|-----------------------------|----------------------------------|-----------|-----------------|-------------|----------------|
-| `cargo-test`                | `ffi,python,high-precision,defi` | `nextest` | ✓ (implicit)    | n/a         | Run tests.     |
-| `cargo-clippy` (pre‑commit) | `ffi,python,high-precision,defi` | `nextest` | ✓               | n/a         | Lint all code. |
+| Target                      | Features                  | Profile   | `--all-targets` | `--no-deps` | Purpose        |
+|-----------------------------|---------------------------|-----------|-----------------|-------------|----------------|
+| `cargo-test`                | `ffi,high-precision,defi` | `nextest` | ✓ (implicit)    | n/a         | Run tests.     |
+| `cargo-clippy` (pre‑commit) | `ffi,high-precision,defi` | `nextest` | ✓               | n/a         | Lint all code. |
 
 These targets share the same feature set and profile, allowing cargo to reuse compiled artifacts between linting and testing without rebuilds.
 The `nextest` profile is used to align with the workflow of the majority of core maintainers who use cargo-nextest for running tests.
@@ -62,14 +60,11 @@ cargo +nightly doc --all-features --no-deps --workspace
 
 This uses the nightly toolchain and `--all-features` rather than the aligned feature set above, so it does not share build artifacts with testing/linting.
 
-### Separate target (Python extension building)
+### Removed target category
 
-| Target        | Features                             | Profile   | Notes |
-|---------------|--------------------------------------|-----------|-------|
-| `build`       | Includes `extension-module` + subset | `release` | Requires different features for PyO3 extension module. |
-| `build-debug` | Includes `extension-module` + subset | `dev`     | Requires different features for PyO3 extension module. |
-
-Python extension building intentionally uses different features (`extension-module` is required) and will trigger rebuilds. This is expected and unavoidable.
+Python extension builds are not part of the Rust-only product surface. Do not
+add new PyO3 `extension-module` build targets; use Rust binaries, Rust tests,
+and Cargo feature combinations instead.
 
 ### Rebuild triggers to avoid
 
@@ -83,31 +78,30 @@ When adding new build targets or modifying existing ones, maintain alignment wit
 
 ### Generated FFI bindings and precision mode
 
-The `nautilus-model` build script regenerates `nautilus_trader/core/includes/model.h` and
-`nautilus_trader/core/rust/model.pxd` when the `ffi` feature is enabled. Those files encode
-whether the generated C/Cython bindings use high precision. The committed generated files use
-high precision. Local cargo commands that compile `nautilus-model` with `ffi` should either
-include the `high-precision` feature or set `HIGH_PRECISION=true`.
+The `nautilus-model` build script writes `model.h` into Cargo's `OUT_DIR` when
+the `ffi` feature is enabled. The generated header encodes whether C ABI
+bindings use high precision. Local cargo commands that compile
+`nautilus-model` with `ffi` should either include the `high-precision` feature
+or set `HIGH_PRECISION=true`.
 
 Make targets that use `BASE_FEATURES`, such as `make build-debug-v2`, already include
 `high-precision`. The drift risk mainly comes from ad-hoc cargo commands that enable `ffi`
 without the aligned feature set.
 
-Use an environment override for narrow checks that do not include the full aligned feature
-set:
+Use an environment override for narrow checks that do not include the full aligned feature set:
 
 ```fish
-env HIGH_PRECISION=true cargo check -p nautilus-model --features ffi,python
+env HIGH_PRECISION=true cargo check -p nautilus-model --features ffi,high-precision
 ```
 
-Before committing FFI-related work, verify those generated files did not drift:
+Before committing FFI-related work, verify no source-tree Python package path was regenerated:
 
 ```fish
-git diff -- nautilus_trader/core/includes/model.h nautilus_trader/core/rust/model.pxd
+git status --short --untracked-files=all | rg '^\\?\\? nautilus_trader/'
 ```
 
-If they changed only because a command ran without high precision, rerun the cargo command
-with `HIGH_PRECISION=true`. Do not hand-edit the generated files.
+If a `nautilus_trader/` path appears, fix the build script to write generated
+files into `OUT_DIR`. Do not hand-edit generated headers.
 
 ## Module organization
 
@@ -318,8 +312,7 @@ Adapter crates (under `crates/adapters/`) require special handling for spawning 
 4. **Install custom runtimes before first use**: Rust-native binaries that own `main()` may call
    `set_runtime()` before `LiveNode::build()` or any adapter/client usage. Build custom runtimes
    with `tokio::runtime::Builder::new_multi_thread().enable_all()`; current-thread runtimes and
-   runtimes without I/O or timer drivers do not satisfy adapter assumptions. If the `python` feature
-   is enabled, prepare Python before building the runtime or keep the default initializer.
+   runtimes without I/O or timer drivers do not satisfy adapter assumptions.
 
 5. **Tests are exempt**: Test code using `#[tokio::test]` creates its own runtime context, so
    `tokio::spawn()` works correctly. The enforcement hook skips test files and test modules.
@@ -330,132 +323,10 @@ The `check_tokio_usage.sh` pre-commit hook enforces these adapter runtime patter
 
 ### Attribute patterns
 
-Consistent attribute usage and ordering:
-
-```rust
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.model")
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.model")
-)]
-pub struct Symbol(Ustr);
-```
-
-For enums with extensive derive attributes:
-
-```rust
-#[repr(C)]
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    Display,
-    Hash,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    AsRefStr,
-    FromRepr,
-    EnumIter,
-    EnumString,
-)]
-#[strum(ascii_case_insensitive)]
-#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        frozen,
-        eq,
-        eq_int,
-        module = "nautilus_trader.model",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.model")
-)]
-pub enum AccountType {
-    /// An account with unleveraged cash assets only.
-    Cash = 1,
-    /// An account which facilitates trading on margin, using account assets as collateral.
-    Margin = 2,
-}
-```
-
-### Type stub annotations
-
-Python type stubs (`.pyi` files) are generated from Rust source using
-[pyo3-stub-gen](https://github.com/Jij-Inc/pyo3-stub-gen). Every type and function
-exposed to Python needs a matching stub annotation so the generated stubs stay in sync
-with the bindings.
-
-**Annotation types:**
-
-| PyO3 construct    | Stub annotation                                  |
-| ----------------- | ------------------------------------------------ |
-| `#[pyclass]`      | `pyo3_stub_gen::derive::gen_stub_pyclass`        |
-| enum `#[pyclass]` | `pyo3_stub_gen::derive::gen_stub_pyclass_enum`   |
-| `#[pymethods]`    | `pyo3_stub_gen::derive::gen_stub_pymethods`      |
-| `#[pyfunction]`   | `pyo3_stub_gen::derive::gen_stub_pyfunction`     |
-
-**Placement rules:**
-
-- On structs and enums, use `#[cfg_attr(feature = "python", ...)]` and place the stub
-  annotation directly below the `pyo3::pyclass` attribute.
-- On `#[pymethods]` impl blocks, place `#[pyo3_stub_gen::derive::gen_stub_pymethods]`
-  directly below `#[pymethods]`.
-- On functions, place the stub annotation directly above `#[pyfunction]`, after any doc
-  comments. Fully qualify the path rather than importing it.
-
-```rust
-/// Converts a list of `Bar` into Arrow IPC bytes.
-#[pyo3_stub_gen::derive::gen_stub_pyfunction(module = "nautilus_trader.serialization")]
-#[pyfunction(name = "bars_to_arrow")]
-pub fn py_bars_to_arrow(data: Vec<Bar>) -> PyResult<Py<PyBytes>> {
-    // ...
-}
-```
-
-```rust
-#[pymethods]
-#[pyo3_stub_gen::derive::gen_stub_pymethods]
-impl AccountState {
-    #[staticmethod]
-    #[pyo3(name = "from_dict")]
-    pub fn py_from_dict(values: &Bound<'_, PyDict>) -> PyResult<Self> {
-        // ...
-    }
-}
-```
-
-**Module parameter:** set `module = "nautilus_trader.<package>"` to match the Python
-package where the type is imported. For example, model types use
-`nautilus_trader.model` and serialization functions use
-`nautilus_trader.serialization`.
-
-**Cargo.toml:** add `pyo3-stub-gen` as an optional dependency and include it in the
-`python` feature list:
-
-```toml
-[features]
-python = ["pyo3", "pyo3-stub-gen"]
-
-[dependencies]
-pyo3-stub-gen = { workspace = true, optional = true }
-```
-
-**Regenerating stubs:** run `make py-stubs-v2` (or `python python/generate_stubs.py`)
-after changing annotations. The post-processor handles `py_` prefix stripping,
-`@property`/`@staticmethod`/`@classmethod` decoration, keyword escaping, deduplication,
-and ruff formatting.
+Keep Rust attributes focused on Rust behavior, representation, serialization,
+and testing. Do not add `#[cfg_attr(feature = "python", ...)]`, `pyo3::*`, or
+`pyo3_stub_gen::*` annotations. Existing annotations are removal residue and
+should be cleaned up by scoped RREM tasks.
 
 ### Constructor patterns
 
@@ -470,7 +341,7 @@ Use the `new()` vs `new_checked()` convention consistently:
 ///
 /// # Notes
 ///
-/// PyO3 requires a `Result` type for proper error handling and stacktrace printing in Python.
+/// Returning `Result` keeps validation failures explicit for Rust callers.
 pub fn new_checked<T: AsRef<str>>(value: T) -> CorrectnessResult<Self> {
     // Implementation
 }
@@ -846,8 +717,6 @@ For modules with feature flags, document them clearly:
 //! depending on the intended use case:
 //!
 //! - `ffi`: Enables the C foreign function interface (FFI) from [cbindgen](https://github.com/mozilla/cbindgen).
-//! - `python`: Enables Python bindings from [PyO3](https://pyo3.rs).
-//! - `extension-module`: Builds as a Python extension module (used with `python`).
 //! - `stubs`: Enables type stubs for use in testing scenarios.
 ```
 
@@ -963,54 +832,12 @@ impl Send for MessageBus {
 }
 ```
 
-## Python bindings
+## Removed Python binding guidance
 
-Python bindings are provided via [PyO3](https://pyo3.rs), allowing users to import NautilusTrader crates directly in Python without a Rust toolchain.
-
-### PyO3 naming conventions
-
-When exposing Rust functions to Python **via PyO3**:
-
-1. The Rust symbol **must** be prefixed with `py_*` to make its purpose explicit inside the Rust
-   codebase.
-2. Use the `#[pyo3(name = "…")]` attribute to publish the *Python* name **without** the `py_`
-   prefix so the Python API remains clean.
-
-```rust
-#[pyo3(name = "do_something")]
-pub fn py_do_something() -> PyResult<()> {
-    // …
-}
-```
-
-:::info[Automated enforcement]
-The `check_pyo3_conventions.sh` pre-commit hook enforces the `py_` prefix for PyO3 functions.
-:::
-
-### PyO3 enum conventions
-
-Enums exposed to Python should use the following `pyclass` attributes:
-
-- `frozen`: enums are immutable value types.
-- `eq, eq_int`: enables equality with other enum instances and integer discriminants.
-- `rename_all = "SCREAMING_SNAKE_CASE"`: standardizes Python variant names.
-- `from_py_object`: enables conversion from Python objects.
-
-:::warning[Do not use the `hash` pyclass attribute with `eq_int` enums]
-PyO3's auto-generated `__hash__` uses Rust's `DefaultHasher`, which produces different values
-than Python's `hash()` on the equivalent integer. Since `eq_int` makes `MyEnum.VARIANT == 1`
-true, the hash contract (`a == b` implies `hash(a) == hash(b)`) would be violated. Instead,
-provide a manual `__hash__` returning the discriminant directly:
-:::
-
-```rust
-#[pymethods]
-impl MyEnum {
-    const fn __hash__(&self) -> isize {
-        *self as isize
-    }
-}
-```
+Python/PyO3 bindings are not part of the Rust-only product surface. Do not add
+new `py_*` entrypoints, `#[pyo3(...)]` attributes, `#[pymethods]` blocks, or
+Python stub generation annotations. Existing references are removal residue and
+must be handled by scoped RREM cleanup tasks.
 
 ### Testing conventions
 
@@ -1170,118 +997,12 @@ Patterns to avoid:
 // ========== Test Fixtures ==========
 ```
 
-## Rust-Python memory management
+## Removed Rust-Python memory management guidance
 
-When working with PyO3 bindings, it's critical to understand and avoid reference cycles between Rust's `Arc` reference counting and Python's garbage collector.
-This section documents best practices for handling Python objects in Rust callback-holding structures.
-
-### The reference cycle problem
-
-**Problem**: Using `Arc<PyObject>` in callback-holding structs creates circular references:
-
-1. **Rust `Arc` holds Python objects** -> increases Python reference count.
-2. **Python objects might reference Rust objects** -> creates cycles.
-3. **Neither side can be garbage collected** -> memory leak.
-
-**Example of problematic pattern**:
-
-```rust
-// AVOID: This creates reference cycles
-struct CallbackHolder {
-    handler: Option<Arc<PyObject>>,  // ❌ Arc wrapper causes cycles
-}
-```
-
-### The solution: GIL-based cloning
-
-**Solution**: Use plain `PyObject` with proper GIL-based cloning via `clone_py_object()`:
-
-```rust
-use nautilus_core::python::clone_py_object;
-
-// CORRECT: Use plain PyObject without Arc wrapper
-struct CallbackHolder {
-    handler: Option<PyObject>,  // ✅ No Arc wrapper
-}
-
-// Manual Clone implementation using clone_py_object
-impl Clone for CallbackHolder {
-    fn clone(&self) -> Self {
-        Self {
-            handler: self.handler.as_ref().map(clone_py_object),
-        }
-    }
-}
-```
-
-### Best practices
-
-#### 1. Use `clone_py_object()` for Python object cloning
-
-```rust
-// When cloning Python callbacks
-let cloned_callback = clone_py_object(&original_callback);
-
-// In manual Clone implementations
-self.py_handler.as_ref().map(clone_py_object)
-```
-
-#### 2. Remove `#[derive(Clone)]` from callback-holding structs
-
-```rust
-// BEFORE: Automatic derive causes issues with PyObject
-#[derive(Clone)]  // ❌ Remove this
-struct Config {
-    handler: Option<PyObject>,
-}
-
-// AFTER: Manual implementation with proper cloning
-struct Config {
-    handler: Option<PyObject>,
-}
-
-impl Clone for Config {
-    fn clone(&self) -> Self {
-        Self {
-            // Clone regular fields normally
-            url: self.url.clone(),
-            // Use clone_py_object for Python objects
-            handler: self.handler.as_ref().map(clone_py_object),
-        }
-    }
-}
-```
-
-#### 3. Update function signatures to accept `PyObject`
-
-```rust
-// BEFORE: Arc wrapper in function signatures
-fn spawn_task(handler: Arc<PyObject>) { ... }  // ❌
-
-// AFTER: Plain PyObject
-fn spawn_task(handler: PyObject) { ... }  // ✅
-```
-
-#### 4. Avoid `Arc::new()` when creating Python callbacks
-
-```rust
-// BEFORE: Wrapping in Arc
-let callback = Arc::new(py_function);  // ❌
-
-// AFTER: Use directly
-let callback = py_function;  // ✅
-```
-
-### Why this works
-
-The `clone_py_object()` function:
-
-- **Acquires the Python GIL** before performing clone operations.
-- **Uses Python's native reference counting** via `clone_ref()`.
-- **Avoids Rust Arc wrappers** that interfere with Python GC.
-- **Maintains thread safety** through proper GIL management.
-
-This approach allows both Rust and Python garbage collectors to work correctly, eliminating memory leaks from reference cycles.
+PyO3 callback and Python object ownership guidance is no longer part of the
+Rust-only product path. Do not add new `PyObject` fields or
+`nautilus_core::python` helpers. Remaining references are cleanup residue for
+dedicated removal tasks.
 
 ## Design by contract
 

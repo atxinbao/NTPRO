@@ -143,7 +143,7 @@ pub extern "C" fn test_clock_timestamp_ns(clock: &TestClock_API) -> u64 {
 #[unsafe(no_mangle)]
 pub extern "C" fn test_clock_timer_names(clock: &TestClock_API) -> *const c_char {
     // For simplicity we join a string with a reasonably unique delimiter.
-    // This is a temporary solution pending the removal of Cython.
+    // This is a temporary solution pending the removal of the legacy bridge.
     str_to_cstr(&clock.timer_names().join("<,>"))
 }
 
@@ -411,7 +411,7 @@ pub extern "C" fn live_clock_timestamp_ns(clock: &mut LiveClock_API) -> u64 {
 #[unsafe(no_mangle)]
 pub extern "C" fn live_clock_timer_names(clock: &LiveClock_API) -> *const c_char {
     // For simplicity we join a string with a reasonably unique delimiter.
-    // This is a temporary solution pending the removal of Cython.
+    // This is a temporary solution pending the removal of the legacy bridge.
     str_to_cstr(&clock.timer_names().join("<,>"))
 }
 

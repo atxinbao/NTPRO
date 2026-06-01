@@ -1627,7 +1627,7 @@ impl DataEngine {
     /// custom data; unrecognized types are logged as errors.
     pub fn process(&mut self, data: &dyn Any) {
         self.data_count += 1;
-        // TODO: Eventually these can be added to the `Data` enum (C/Cython blocking), process here for now
+        // TODO: Eventually these can be added to the `Data` enum (C ABI blocking), process here for now
         if let Some(instrument) = data.downcast_ref::<InstrumentAny>() {
             self.handle_instrument(instrument);
         } else if let Some(funding_rate) = data.downcast_ref::<FundingRateUpdate>() {
@@ -1891,7 +1891,7 @@ impl DataEngine {
     // Replays a day-start snapshot forward to the request's original start: when the first delta
     // is an F_SNAPSHOT on a UTC day boundary, rebuilds the book from the pre-start deltas and
     // replaces them with one snapshot keyed at the original start, then forwards the rest.
-    // Mirrors the Cython `_handle_order_book_deltas_snapshot_replay`.
+    // Mirrors the legacy `_handle_order_book_deltas_snapshot_replay`.
     fn book_deltas_snapshot_replay(&self, resp: &mut BookDeltasResponse) {
         let Some(original_start_ns) = resp.start else {
             return;
@@ -4213,7 +4213,7 @@ impl DataEngine {
             return Ok(());
         }
 
-        // Setup time bar aggregator if needed (matches Cython _setup_bar_aggregator)
+        // Setup time bar aggregator if needed (matches legacy behavior _setup_bar_aggregator)
         self.setup_bar_aggregator(bar_type, false, request_id)?;
 
         aggregator.borrow_mut().set_is_running(true);
@@ -4221,7 +4221,7 @@ impl DataEngine {
         Ok(())
     }
 
-    /// Sets up a bar aggregator, matching Cython `_setup_bar_aggregator` logic.
+    /// Sets up a bar aggregator, matching legacy `_setup_bar_aggregator` logic.
     ///
     /// This method handles historical mode, message bus subscriptions, and time bar aggregator setup.
     fn setup_bar_aggregator(
