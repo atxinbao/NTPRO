@@ -1,0 +1,14 @@
+{
+  "task_id": "RREL-007",
+  "agent_id": "Codex",
+  "branch": "ai/RREL-007-owner-signoff-packet",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RREL-007.md",
+    "docs/rust-cutover/evidence/RREL-007.md",
+    "docs/rust-cutover/release/human_owner_signoff_packet.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREL-007.json"
+  ],
+  "claimed_at": "2026-06-01T17:03:26Z",
+  "status": "PR_OPEN"
+}
