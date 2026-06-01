@@ -1,0 +1,14 @@
+{
+  "task_id": "RREM-004",
+  "agent_id": "Codex",
+  "branch": "ai/RREM-004-map-python-to-rust-workflows",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RREM-004.md",
+    "docs/rust-cutover/evidence/RREM-004.md",
+    "docs/rust-cutover/migration/python_to_rust_workflow_map.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREM-004.json"
+  ],
+  "claimed_at": "2026-06-01T14:41:30.956414+00:00",
+  "status": "PR_OPEN"
+}
