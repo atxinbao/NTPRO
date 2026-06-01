@@ -1341,7 +1341,7 @@
     },
     "RREM-004": {
       "title": "Map Python workflows to Rust workflows",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1353,13 +1353,17 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-004.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-004.md",
-      "updated_at": "2026-06-01T14:42:17Z",
+      "updated_at": "2026-06-01T14:52:12Z",
       "branch": "ai/RREM-004-map-python-to-rust-workflows",
-      "release_gatekeeper_approved": true
+      "release_gatekeeper_approved": true,
+      "merged_pr": 92,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/92",
+      "merged_at": "2026-06-01T14:51:44Z",
+      "merge_commit": "4c8db49d95eb66115d2a1f2eda43fd2a33b05a54"
     },
     "RREM-005": {
       "title": "Port or scope Python-only tests",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1370,7 +1374,10 @@
         "release_gatekeeper_approved"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-005.md",
-      "evidence_file": "docs/rust-cutover/evidence/RREM-005.md"
+      "evidence_file": "docs/rust-cutover/evidence/RREM-005.md",
+      "updated_at": "2026-06-01T14:54:13Z",
+      "branch": "ai/RREM-005-scope-python-only-tests",
+      "release_gatekeeper_approved": true
     },
     "RREM-006": {
       "title": "Stage removal of Python package surfaces",
@@ -1584,5 +1591,5 @@
       "branch": "ai/RCTL-009-pr-summary-risk-automation-policy"
     }
   },
-  "updated_at": "2026-06-01T14:42:17Z"
+  "updated_at": "2026-06-01T14:54:13Z"
 }

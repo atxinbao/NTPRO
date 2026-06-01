@@ -1,0 +1,14 @@
+{
+  "task_id": "RREM-005",
+  "agent_id": "Codex",
+  "branch": "ai/RREM-005-scope-python-only-tests",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RREM-005.md",
+    "docs/rust-cutover/evidence/RREM-005.md",
+    "docs/rust-cutover/migration/python_test_scope_map.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREM-005.json"
+  ],
+  "claimed_at": "2026-06-01T14:53:10.706693+00:00",
+  "status": "PR_OPEN"
+}
