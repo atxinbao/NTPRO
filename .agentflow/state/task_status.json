@@ -1770,7 +1770,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-013.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-013.md",
-      "updated_at": "2026-06-01T19:31:45Z",
+      "updated_at": "2026-06-01T19:35:03Z",
       "branch": "ai/RREM-013-remove-python-product-surfaces",
       "lease": "RREM-013",
       "qa_passed": true,
@@ -1779,10 +1779,12 @@
       "auto_merge_allowed": false,
       "python_product_surface_removed_gate_passed": true,
       "rust_only_runtime_gate_passed": false,
-      "notes": "RREM-013 removed python/, nautilus_trader/, build.py, retired active Python package build references, and added migration notes. Local QA passed except the expected final rust-only runtime gate blocker: active Rust crates still retain PyO3 annotations and Cython generation/parity references. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled.",
+      "notes": "RREM-013 removed python/, nautilus_trader/, build.py, retired active Python package build references, and added migration notes. Local QA passed except the expected final rust-only runtime gate blocker: active Rust crates still retain PyO3 annotations and Cython generation/parity references. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled. PR #109 opened for release gatekeeper review.",
       "cython_removed_gate_passed": true,
-      "migration_note": "docs/rust-cutover/migration/python_product_surface_removed.md"
+      "migration_note": "docs/rust-cutover/migration/python_product_surface_removed.md",
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/109",
+      "pr_number": 109
     }
   },
-  "updated_at": "2026-06-01T19:31:45Z"
+  "updated_at": "2026-06-01T19:35:03Z"
 }

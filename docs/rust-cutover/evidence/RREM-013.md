@@ -4,6 +4,7 @@ Date: 2026-06-02
 Executor: Codex
 Task ID: RREM-013
 Risk: critical
+PR: https://github.com/atxinbao/NTPRO/pull/109
 
 ## Summary
 
