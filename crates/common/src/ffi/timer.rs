@@ -15,7 +15,7 @@
 
 //! FFI types and functions for time event handling.
 //!
-//! The [`TimeEventHandler_API`] handed to Cython stores only a borrowed `Py<PyAny>*`
+//! The [`TimeEventHandler_API`] handed to legacy stores only a borrowed `Py<PyAny>*`
 //! (`callback_ptr`). To make sure the pointed-to Python object stays alive while
 //! *any* handler referencing it exists, we keep a single `Arc<Py<PyAny>>` per raw
 //! pointer in an internal registry together with a manual reference counter.
@@ -59,7 +59,7 @@ use crate::timer::{TimeEvent, TimeEventCallback, TimeEventHandler};
 #[repr(C)]
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
-/// FFI time event handler for Cython interoperability.
+/// FFI time event handler for legacy FFI interoperability.
 ///
 /// Associates a `TimeEvent` with a callback function that is triggered
 /// when the event's timestamp is reached.

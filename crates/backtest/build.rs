@@ -15,8 +15,8 @@
 
 //! Build script for the `nautilus-backtest` crate.
 //!
-//! This script is responsible for generating the C and Cython bindings that allow the back-testing
-//! engine to be consumed from C/C++ and Python when the `ffi` feature flag is enabled.
+//! This script is responsible for generating the C bindings into Cargo's `OUT_DIR` so the
+//! back-testing engine can be consumed through the C ABI when the `ffi` feature flag is enabled.
 //! It also instructs Cargo when it must be re-run and gracefully exits when executed inside the
 //! docs.rs environment.
 
@@ -35,7 +35,6 @@ fn main() {
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_HIGH_PRECISION");
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=cbindgen.toml");
-    println!("cargo:rerun-if-changed=cbindgen_cython.toml");
     println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rerun-if-changed=../Cargo.toml");
 
@@ -50,18 +49,10 @@ fn main() {
         let config_c = cbindgen::Config::from_file("cbindgen.toml")
             .expect("unable to find cbindgen.toml configuration file");
 
-        let c_header_path = crate_dir.join("../../nautilus_trader/core/includes/backtest.h");
+        let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
+        let c_header_path = out_dir.join("backtest.h");
         cbindgen::generate_with_config(&crate_dir, config_c)
             .expect("unable to generate bindings")
             .write_to_file(c_header_path);
-
-        // Generate Cython definitions
-        let config_cython = cbindgen::Config::from_file("cbindgen_cython.toml")
-            .expect("unable to find cbindgen_cython.toml configuration file");
-
-        let cython_path = crate_dir.join("../../nautilus_trader/core/rust/backtest.pxd");
-        cbindgen::generate_with_config(&crate_dir, config_cython)
-            .expect("unable to generate bindings")
-            .write_to_file(cython_path);
     }
 }

@@ -36,14 +36,6 @@ use crate::{Returns, statistic::PortfolioStatistic};
 /// - Vince, R. (1992). *The Mathematics of Money Management*. John Wiley & Sons.
 #[repr(C)]
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.analysis", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.analysis")
-)]
 pub struct Expectancy {}
 
 impl Display for Expectancy {

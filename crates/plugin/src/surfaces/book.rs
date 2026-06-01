@@ -22,7 +22,7 @@
 //! `&OrderBook` or `&OrderBookDeltas` to the trait method. The deltas
 //! handle mirrors the ownership contract that
 //! [`OrderBookDeltas_API`](nautilus_model::data::OrderBookDeltas_API)
-//! uses for the Cython FFI surface.
+//! uses for the legacy FFI surface.
 
 #![allow(unsafe_code)]
 

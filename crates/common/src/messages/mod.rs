@@ -45,7 +45,7 @@ pub use execution::ExecutionReport;
 pub enum DataEvent {
     Response(DataResponse),
     Data(Data),
-    Instrument(InstrumentAny), // TODO: Eventually this can be `Data` once Cython is gone
+    Instrument(InstrumentAny), // TODO: Eventually this can be `Data` once legacy is gone
     FundingRate(FundingRateUpdate),
     InstrumentStatus(InstrumentStatus),
     OptionGreeks(OptionGreeks),

@@ -370,7 +370,7 @@ pub fn parse_book_msg_as_deltas(
         last_delta.flags |= RecordFlag::F_LAST.value();
     }
 
-    // TODO: Opaque pointer wrapper necessary for Cython (remove once Cython gone)
+    // TODO: Opaque pointer wrapper necessary for the legacy bridge (remove once the legacy bridge is gone)
     Ok(OrderBookDeltas_API::new(OrderBookDeltas::new(
         instrument_id,
         deltas,

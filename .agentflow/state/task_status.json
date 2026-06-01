@@ -1817,7 +1817,7 @@
     },
     "RREM-015": {
       "title": "Remove Cap'n Proto feature and audit residual Python surfaces",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "critical",
@@ -1829,17 +1829,42 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-015.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-015.md",
-      "updated_at": "2026-06-01T21:15:26Z",
+      "updated_at": "2026-06-01T21:31:06Z",
       "branch": "ai/RREM-015-remove-capnp-and-audit-residual-python",
       "lease": "RREM-015",
+      "qa_passed": true,
+      "review_passed": true,
+      "release_gatekeeper_approved": true,
+      "auto_merge_allowed": false,
+      "notes": "RREM-015 completed after PR #111 merged. Capn Proto feature removal and residual Python/PyO3/Cython inventory were accepted. Remaining Rust crate PyO3/Cython residue moves to RREM-016.",
+      "pr_number": 111,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/111",
+      "merged_pr": 111,
+      "merged_at": "2026-06-01T21:18:31Z"
+    },
+    "RREM-016": {
+      "title": "Remove Rust crate Cython build residue and analysis PyO3 annotations",
+      "status": "REVIEW_REQUIRED",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-016.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-016.md",
+      "updated_at": "2026-06-01T22:04:34Z",
+      "branch": "ai/RREM-016-remove-rust-cython-build-residue",
+      "lease": "RREM-016",
       "qa_passed": true,
       "review_passed": false,
       "release_gatekeeper_approved": false,
       "auto_merge_allowed": false,
-      "notes": "RREM-015 removes the standalone Cap'n Proto serialization feature and records residual Python surface inventory. tests/**/*.py are intentionally audited, not deleted. Strict Rust-only/Cython gates still fail because Rust crate PyO3/Cython references remain for follow-up cleanup. RREL-008 remains paused. PR #111 is open for release gatekeeper review.",
-      "pr_number": 111,
-      "pr_url": "https://github.com/atxinbao/NTPRO/pull/111"
+      "notes": "RREM-016 local QA passed and is ready for release gatekeeper review. Removed Rust crate Cython generation residue, moved FFI C header generation to Cargo OUT_DIR, removed stale crates/analysis PyO3 annotations, and cleaned direct developer-guide PyO3/Cython instructions. check_rust_only_runtime still fails as expected on 406 remaining PyO3/Python files outside this task scope. Critical task: no auto-merge."
     }
   },
-  "updated_at": "2026-06-01T21:15:26Z"
+  "updated_at": "2026-06-01T22:04:34Z"
 }

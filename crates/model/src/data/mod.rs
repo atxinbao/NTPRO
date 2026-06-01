@@ -104,8 +104,8 @@ pub enum Data {
     Quote(QuoteTick),
     Trade(TradeTick),
     Bar(Bar),
-    MarkPriceUpdate(MarkPriceUpdate), // TODO: Rename to MarkPrice once Cython gone
-    IndexPriceUpdate(IndexPriceUpdate), // TODO: Rename to IndexPrice once Cython gone
+    MarkPriceUpdate(MarkPriceUpdate), // TODO: Rename to MarkPrice once the legacy bridge is gone
+    IndexPriceUpdate(IndexPriceUpdate), // TODO: Rename to IndexPrice once the legacy bridge is gone
     InstrumentStatus(InstrumentStatus),
     InstrumentClose(InstrumentClose),
     Custom(CustomData),

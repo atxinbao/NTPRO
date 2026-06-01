@@ -1,0 +1,31 @@
+{
+  "task_id": "RREM-016",
+  "agent_id": "Codex",
+  "branch": "ai/RREM-016-remove-rust-cython-build-residue",
+  "touched_paths": [
+    "Cargo.toml",
+    "pyproject.toml",
+    "crates/core/build.rs",
+    "crates/core/cbindgen_cython.toml",
+    "crates/common/build.rs",
+    "crates/common/cbindgen_cython.toml",
+    "crates/backtest/build.rs",
+    "crates/backtest/cbindgen_cython.toml",
+    "crates/model/build.rs",
+    "crates/model/cbindgen_cython.toml",
+    "crates/analysis/**",
+    "docs/developer_guide/rust.md",
+    "docs/rust-cutover/inventory/core_model_value_types.md",
+    "docs/rust-cutover/tasks/RREM-016.md",
+    "docs/rust-cutover/evidence/RREM-016.md",
+    "docs/rust-cutover/inventory/rust_crate_python_residue.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREM-016.json"
+  ],
+  "claimed_at": "2026-06-02T05:50:00Z",
+  "status": "REVIEW_REQUIRED",
+  "qa_passed": true,
+  "review_passed": false,
+  "release_gatekeeper_approved": false,
+  "auto_merge_allowed": false
+}

@@ -139,7 +139,7 @@ pub const PRICE_MIN: f64 = -9_223_372_036.0;
 
 // -----------------------------------------------------------------------------
 
-/// The sentinel `Price` representing errors (this will be removed when Cython is gone).
+/// The sentinel `Price` representing errors (this will be removed when the legacy bridge is gone).
 pub const ERROR_PRICE: Price = Price {
     raw: 0,
     precision: 255,
