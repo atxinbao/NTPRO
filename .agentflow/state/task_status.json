@@ -1302,7 +1302,7 @@
     },
     "RREL-007": {
       "title": "Prepare human owner signoff packet",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1313,12 +1313,16 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREL-007.md",
       "evidence_file": "docs/rust-cutover/evidence/RREL-007.md",
-      "updated_at": "2026-06-01T17:03:26Z",
+      "updated_at": "2026-06-01T17:06:55Z",
       "branch": "ai/RREL-007-owner-signoff-packet",
       "lease": "RREL-007",
       "qa_passed": true,
       "review_passed": true,
-      "owner_signoff_granted": false
+      "owner_signoff_granted": false,
+      "merged_pr": 105,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/105",
+      "merged_at": "2026-06-01T17:06:35Z",
+      "merge_commit": "126c4ae3791ccf55cde92e55d913c9bc1d2282ba"
     },
     "RREL-008": {
       "title": "Mark Rust-only cutover complete",
@@ -1333,7 +1337,8 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREL-008.md",
       "evidence_file": "docs/rust-cutover/evidence/RREL-008.md",
-      "notes": "Paused by user direction after RREL-007; do not execute automatically."
+      "notes": "Paused by user direction after RREL-007; do not execute automatically. Final release verification failed and owner signoff is pending.",
+      "updated_at": "2026-06-01T17:06:55Z"
     },
     "RREM-001": {
       "title": "Inventory Python product surfaces",
