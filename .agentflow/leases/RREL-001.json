@@ -1,0 +1,14 @@
+{
+  "task_id": "RREL-001",
+  "agent_id": "Codex",
+  "branch": "ai/RREL-001-rust-only-migration-guide",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RREL-001.md",
+    "docs/rust-cutover/evidence/RREL-001.md",
+    "docs/rust-cutover/migration/rust_only_migration_guide.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREL-001.json"
+  ],
+  "claimed_at": "2026-06-01T16:27:54Z",
+  "status": "PR_OPEN"
+}

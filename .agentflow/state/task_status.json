@@ -1163,7 +1163,7 @@
     },
     "RREL-001": {
       "title": "Write Rust-only migration guide",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1173,7 +1173,12 @@
         "pr_merged"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREL-001.md",
-      "evidence_file": "docs/rust-cutover/evidence/RREL-001.md"
+      "evidence_file": "docs/rust-cutover/evidence/RREL-001.md",
+      "updated_at": "2026-06-01T16:27:54Z",
+      "branch": "ai/RREL-001-rust-only-migration-guide",
+      "lease": "RREL-001",
+      "qa_passed": true,
+      "review_passed": true
     },
     "RREL-002": {
       "title": "Write Rust-only release notes",
@@ -1473,7 +1478,7 @@
     },
     "RREM-010": {
       "title": "Final Rust-only removal gate",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1485,9 +1490,15 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-010.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-010.md",
-      "updated_at": "2026-06-01T16:08:00Z",
+      "updated_at": "2026-06-01T16:10:41Z",
       "branch": "ai/RREM-010-final-removal-gate-blocked",
-      "release_gatekeeper_approved": true
+      "release_gatekeeper_approved": true,
+      "merged_pr": 98,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/98",
+      "merged_at": "2026-06-01T16:10:03Z",
+      "merge_commit": "58457adf208b20e82f632c1165c861e05c16ac72",
+      "qa_passed": true,
+      "review_passed": true
     },
     "RTRACE-001": {
       "title": "Define Rust golden trace schema",
