@@ -27,5 +27,7 @@
   "qa_passed": true,
   "review_passed": false,
   "release_gatekeeper_approved": false,
-  "auto_merge_allowed": false
+  "auto_merge_allowed": false,
+  "pr_number": 112,
+  "pr_url": "https://github.com/atxinbao/NTPRO/pull/112"
 }

@@ -1856,15 +1856,17 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-016.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-016.md",
-      "updated_at": "2026-06-01T22:04:34Z",
+      "updated_at": "2026-06-01T22:06:27Z",
       "branch": "ai/RREM-016-remove-rust-cython-build-residue",
       "lease": "RREM-016",
       "qa_passed": true,
       "review_passed": false,
       "release_gatekeeper_approved": false,
       "auto_merge_allowed": false,
-      "notes": "RREM-016 local QA passed and is ready for release gatekeeper review. Removed Rust crate Cython generation residue, moved FFI C header generation to Cargo OUT_DIR, removed stale crates/analysis PyO3 annotations, and cleaned direct developer-guide PyO3/Cython instructions. check_rust_only_runtime still fails as expected on 406 remaining PyO3/Python files outside this task scope. Critical task: no auto-merge."
+      "notes": "RREM-016 local QA passed and PR #112 is ready for release gatekeeper review. Removed Rust crate Cython generation residue, moved FFI C header generation to Cargo OUT_DIR, removed stale crates/analysis PyO3 annotations, and cleaned direct developer-guide PyO3/Cython instructions. check_rust_only_runtime still fails as expected on 406 remaining PyO3/Python files outside this task scope. Critical task: no auto-merge.",
+      "pr_number": 112,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/112"
     }
   },
-  "updated_at": "2026-06-01T22:04:34Z"
+  "updated_at": "2026-06-01T22:06:27Z"
 }
