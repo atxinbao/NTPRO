@@ -1275,7 +1275,7 @@
     },
     "RREM-001": {
       "title": "Inventory Python product surfaces",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1286,7 +1286,10 @@
         "release_gatekeeper_approved"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-001.md",
-      "evidence_file": "docs/rust-cutover/evidence/RREM-001.md"
+      "evidence_file": "docs/rust-cutover/evidence/RREM-001.md",
+      "updated_at": "2026-06-01T14:07:53Z",
+      "branch": "ai/RREM-001-inventory-python-product-surfaces",
+      "release_gatekeeper_approved": true
     },
     "RREM-002": {
       "title": "Inventory PyO3 product surfaces",
@@ -1560,5 +1563,5 @@
       "branch": "ai/RCTL-009-pr-summary-risk-automation-policy"
     }
   },
-  "updated_at": "2026-06-01T05:26:09Z"
+  "updated_at": "2026-06-01T14:07:53Z"
 }
