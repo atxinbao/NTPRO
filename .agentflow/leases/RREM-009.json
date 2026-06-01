@@ -1,0 +1,14 @@
+{
+  "task_id": "RREM-009",
+  "agent_id": "Codex",
+  "branch": "ai/RREM-009-rust-only-gate-blockers",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RREM-009.md",
+    "docs/rust-cutover/evidence/RREM-009.md",
+    "docs/rust-cutover/migration/rust_only_runtime_gate_blockers.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREM-009.json"
+  ],
+  "claimed_at": "2026-06-01T15:58:00Z",
+  "status": "PR_OPEN"
+}
