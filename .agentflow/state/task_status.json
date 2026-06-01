@@ -1451,7 +1451,7 @@
     },
     "RREM-009": {
       "title": "Run Rust-only runtime gate",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1463,13 +1463,17 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-009.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-009.md",
-      "updated_at": "2026-06-01T15:58:00Z",
+      "updated_at": "2026-06-01T16:02:54Z",
       "branch": "ai/RREM-009-rust-only-gate-blockers",
-      "release_gatekeeper_approved": true
+      "release_gatekeeper_approved": true,
+      "merged_pr": 97,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/97",
+      "merged_at": "2026-06-01T16:02:40Z",
+      "merge_commit": "1a48dd1bc9085c5ea8d2f65f89146c9f9e1a2379"
     },
     "RREM-010": {
       "title": "Final Rust-only removal gate",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1480,7 +1484,10 @@
         "release_gatekeeper_approved"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-010.md",
-      "evidence_file": "docs/rust-cutover/evidence/RREM-010.md"
+      "evidence_file": "docs/rust-cutover/evidence/RREM-010.md",
+      "updated_at": "2026-06-01T16:08:00Z",
+      "branch": "ai/RREM-010-final-removal-gate-blocked",
+      "release_gatekeeper_approved": true
     },
     "RTRACE-001": {
       "title": "Define Rust golden trace schema",
