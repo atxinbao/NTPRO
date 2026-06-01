@@ -1829,15 +1829,17 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-015.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-015.md",
-      "updated_at": "2026-06-01T21:07:10Z",
+      "updated_at": "2026-06-01T21:15:26Z",
       "branch": "ai/RREM-015-remove-capnp-and-audit-residual-python",
       "lease": "RREM-015",
       "qa_passed": true,
       "review_passed": false,
       "release_gatekeeper_approved": false,
       "auto_merge_allowed": false,
-      "notes": "RREM-015 removes the standalone Cap'n Proto serialization feature and records residual Python surface inventory. tests/**/*.py are intentionally audited, not deleted. Strict Rust-only/Cython gates still fail because Rust crate PyO3/Cython references remain for follow-up cleanup. RREL-008 remains paused."
+      "notes": "RREM-015 removes the standalone Cap'n Proto serialization feature and records residual Python surface inventory. tests/**/*.py are intentionally audited, not deleted. Strict Rust-only/Cython gates still fail because Rust crate PyO3/Cython references remain for follow-up cleanup. RREL-008 remains paused. PR #111 is open for release gatekeeper review.",
+      "pr_number": 111,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/111"
     }
   },
-  "updated_at": "2026-06-01T21:07:10Z"
+  "updated_at": "2026-06-01T21:15:26Z"
 }
