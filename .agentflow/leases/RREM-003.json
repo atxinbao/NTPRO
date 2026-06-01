@@ -1,0 +1,15 @@
+{
+  "task_id": "RREM-003",
+  "agent_id": "Codex",
+  "branch": "ai/RREM-003-inventory-cython-source-build-surfaces",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RREM-003.md",
+    "docs/rust-cutover/evidence/RREM-003.md",
+    "docs/rust-cutover/inventory/cython_source_build_surfaces.md",
+    "docs/rust-cutover/inventory/cython_inventory.csv",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREM-003.json"
+  ],
+  "claimed_at": "2026-06-01T14:30:05.931902+00:00",
+  "status": "PR_OPEN"
+}
