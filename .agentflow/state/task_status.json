@@ -1275,7 +1275,7 @@
     },
     "RREM-001": {
       "title": "Inventory Python product surfaces",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1287,13 +1287,17 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-001.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-001.md",
-      "updated_at": "2026-06-01T14:07:53Z",
+      "updated_at": "2026-06-01T14:20:37Z",
       "branch": "ai/RREM-001-inventory-python-product-surfaces",
-      "release_gatekeeper_approved": true
+      "release_gatekeeper_approved": true,
+      "merged_pr": 89,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/89",
+      "merged_at": "2026-06-01T14:20:17Z",
+      "merge_commit": "5ff038958a169dc4e90d4ef06c37fb161a9fcfa1"
     },
     "RREM-002": {
       "title": "Inventory PyO3 product surfaces",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1304,7 +1308,10 @@
         "release_gatekeeper_approved"
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-002.md",
-      "evidence_file": "docs/rust-cutover/evidence/RREM-002.md"
+      "evidence_file": "docs/rust-cutover/evidence/RREM-002.md",
+      "updated_at": "2026-06-01T14:24:55Z",
+      "branch": "ai/RREM-002-inventory-pyo3-product-surfaces",
+      "release_gatekeeper_approved": true
     },
     "RREM-003": {
       "title": "Inventory Cython source and build surfaces",
@@ -1563,5 +1570,5 @@
       "branch": "ai/RCTL-009-pr-summary-risk-automation-policy"
     }
   },
-  "updated_at": "2026-06-01T14:07:53Z"
+  "updated_at": "2026-06-01T14:24:55Z"
 }
