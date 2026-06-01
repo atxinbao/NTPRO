@@ -1,0 +1,14 @@
+{
+  "task_id": "RREM-006",
+  "agent_id": "Codex",
+  "branch": "ai/RREM-006-stage-python-package-removal",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RREM-006.md",
+    "docs/rust-cutover/evidence/RREM-006.md",
+    "docs/rust-cutover/migration/python_package_surface_removal_stage.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREM-006.json"
+  ],
+  "claimed_at": "2026-06-01T15:23:52Z",
+  "status": "PR_OPEN"
+}
