@@ -755,7 +755,7 @@ impl NautilusKernel {
     }
 }
 
-#[cfg(all(test, feature = "python"))]
+#[cfg(test)]
 mod tests {
     use nautilus_common::messages::system::ShutdownSystem;
     use nautilus_core::UUID4;
