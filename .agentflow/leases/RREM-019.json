@@ -18,7 +18,9 @@
   "review_passed": false,
   "release_gatekeeper_approved": false,
   "auto_merge_allowed": false,
-  "updated_at": "2026-06-02T20:07:40+08:00",
+  "updated_at": "2026-06-02T20:12:24+08:00",
   "scoped_residue_removed_gate_passed": true,
-  "rust_only_runtime_gate_passed": false
+  "rust_only_runtime_gate_passed": false,
+  "pr_url": "https://github.com/atxinbao/NTPRO/pull/115",
+  "pr_number": 115
 }

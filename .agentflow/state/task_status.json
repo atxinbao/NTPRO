@@ -1942,16 +1942,18 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-019.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-019.md",
-      "updated_at": "2026-06-02T20:07:40+08:00",
+      "updated_at": "2026-06-02T20:12:24+08:00",
       "branch": "ai/RREM-019-remove-serialization-network-pyo3-residue",
       "lease": "RREM-019",
       "qa_passed": true,
       "review_passed": false,
       "release_gatekeeper_approved": false,
       "auto_merge_allowed": false,
-      "notes": "RREM-019 local QA passed. crates/serialization and crates/network have zero PyO3/Python binding residue hits. Targeted cargo checks for nautilus-serialization and nautilus-network passed with Rust 1.95.0. check_rust_only_runtime still fails as expected on 81 non-scoped files. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled.",
+      "notes": "RREM-019 local QA passed. crates/serialization and crates/network have zero PyO3/Python binding residue hits. Targeted cargo checks for nautilus-serialization and nautilus-network passed with Rust 1.95.0. check_rust_only_runtime still fails as expected on 81 non-scoped files. Critical task must stop at REVIEW_REQUIRED; auto-merge disabled.\n\nRREM-019 PR: https://github.com/atxinbao/NTPRO/pull/115\nCritical task is REVIEW_REQUIRED; auto-merge disabled.",
       "scoped_residue_removed_gate_passed": true,
-      "rust_only_runtime_gate_passed": false
+      "rust_only_runtime_gate_passed": false,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/115",
+      "pr_number": 115
     }
   },
   "updated_at": "2026-06-02T07:49:38+08:00"
