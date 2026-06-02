@@ -309,8 +309,7 @@ nautilus_strategy!(PluginStrategyAdapter, core, {
 impl DataActor for PluginStrategyAdapter {
     fn on_start(&mut self) -> anyhow::Result<()> {
         // Run the Strategy trait default first so GTD timer reactivation
-        // happens when `manage_gtd_expiry` is enabled, matching the Python
-        // strategy adapter pattern in crates/trading/src/python/strategy.rs.
+        // happens when `manage_gtd_expiry` is enabled before the plug-in hook.
         Strategy::on_start(self)?;
         invoke_lifecycle(self, "on_start", |adapter| unsafe {
             validated_slot!(StrategyVTable, adapter.vtable.as_ptr(), on_start)(adapter.handle)
@@ -355,8 +354,7 @@ impl DataActor for PluginStrategyAdapter {
 
     fn on_time_event(&mut self, event: &TimeEvent) -> anyhow::Result<()> {
         // Run the Strategy trait default first so GTD-EXPIRY and
-        // MARKET_EXIT_CHECK timers fire before user code, matching the Python
-        // strategy adapter pattern in crates/trading/src/python/strategy.rs.
+        // MARKET_EXIT_CHECK timers fire before user code.
         Strategy::on_time_event(self, event)?;
         invoke_event(self, "on_time_event", event, |adapter, p| unsafe {
             validated_slot!(StrategyVTable, adapter.vtable.as_ptr(), on_time_event)(

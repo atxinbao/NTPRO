@@ -1316,7 +1316,7 @@ impl ParquetDataCatalog {
 
         let base_dir = self.make_path(data_type, None)?;
 
-        // Use recursive listing to match Python's glob behavior
+        // Use recursive listing so nested catalog directories are included.
         let list_result = self.execute_async(async {
             let prefix = ObjectPath::from(format!("{base_dir}/"));
             let mut stream = self.object_store.list(Some(&prefix));
@@ -1999,7 +1999,7 @@ impl ParquetDataCatalog {
 
         let base_dir = self.make_path(data_cls, None)?;
 
-        // Use recursive listing to match Python's glob behavior
+        // Use recursive listing so nested catalog directories are included.
         let list_result = self.execute_async(async {
             let prefix = ObjectPath::from(format!("{base_dir}/"));
             let mut stream = self.object_store.list(Some(&prefix));
@@ -2406,12 +2406,8 @@ impl ParquetDataCatalog {
     ///
     /// # Note
     ///
-    /// Unlike the Python implementation, this method does not check subclasses of the
-    /// data type. The Python version checks `[data_cls, *data_cls.__subclasses__()]` to
-    /// handle cases where subclasses might use different directory names. Since Rust
-    /// works with string names rather than types, subclass checking is not possible.
-    /// In practice, most subclasses map to the same directory name via `class_to_filename`,
-    /// so this difference is typically not significant.
+    /// Rust catalog lookups use string names rather than runtime type subclass checks.
+    /// Callers should pass the concrete directory name they want to query.
     ///
     /// # Examples
     ///
@@ -2466,12 +2462,8 @@ impl ParquetDataCatalog {
     ///
     /// # Note
     ///
-    /// Unlike the Python implementation, this method does not check subclasses of the
-    /// data type. The Python version checks `[data_cls, *data_cls.__subclasses__()]` to
-    /// handle cases where subclasses might use different directory names. Since Rust
-    /// works with string names rather than types, subclass checking is not possible.
-    /// In practice, most subclasses map to the same directory name via `class_to_filename`,
-    /// so this difference is typically not significant.
+    /// Rust catalog lookups use string names rather than runtime type subclass checks.
+    /// Callers should pass the concrete directory name they want to query.
     ///
     /// # Examples
     ///
@@ -3780,7 +3772,7 @@ impl ParquetDataCatalog {
 
         // Process each feather file independently so that each file's identifier
         // (instrument_id or bar_type from schema metadata) is preserved when writing
-        // to parquet. This matches the Python _convert_feather_table_to_parquet approach.
+        // to parquet.
         for file_path in feather_files {
             let batches = self.read_feather_file(&file_path)?;
             self.convert_feather_batches_to_parquet(
@@ -4160,8 +4152,7 @@ impl_catalog_path_prefix!(ExecutionMassStatus, "execution_mass_status");
 /// Converts timestamps to a filename using ISO 8601 format.
 ///
 /// This function converts two Unix nanosecond timestamps to a filename that uses
-/// ISO 8601 format with filesystem-safe characters. The format matches the Python
-/// implementation for consistency.
+/// ISO 8601 format with filesystem-safe characters.
 ///
 /// # Parameters
 ///

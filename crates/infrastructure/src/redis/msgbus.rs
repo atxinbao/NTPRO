@@ -70,10 +70,6 @@ const TRIM_BUFFER_SECS: u64 = 60;
 
 type RedisStreamBulk = Vec<HashMap<String, Vec<HashMap<String, redis::Value>>>>;
 
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.infrastructure")
-)]
 pub struct RedisMessageBusDatabase {
     /// The trader ID for this message bus database.
     pub trader_id: TraderId,

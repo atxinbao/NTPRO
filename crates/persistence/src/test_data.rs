@@ -14,9 +14,6 @@
 // -------------------------------------------------------------------------------------------------
 
 //! Rust custom data types used for catalog roundtrip testing.
-//!
-//! Exposed to Python via the persistence PyO3 module so Python tests can exercise
-//! custom data write/query roundtrips.
 
 use std::collections::HashMap;
 
@@ -31,9 +28,9 @@ use nautilus_persistence_macros::custom_data;
 
 /// A simple Rust custom data type for roundtrip testing.
 ///
-/// Used in persistence integration tests (`test_catalog.rs`) and Python roundtrip tests.
+/// Used in persistence integration tests (`test_catalog.rs`) and Rust roundtrip tests.
 /// Tests call `ensure_custom_data_registered::<RustTestCustomData>()` before using the catalog.
-#[custom_data(pyo3)]
+#[custom_data]
 pub struct RustTestCustomData {
     pub instrument_id: InstrumentId,
     pub value: f64,
@@ -44,8 +41,8 @@ pub struct RustTestCustomData {
 
 /// YieldCurveData-equivalent custom data type using the macro with `Vec<f64>` fields.
 ///
-/// Tests `Vec<f64>` / ListFloat64 support. Exposed to Python for roundtrip tests.
-#[custom_data(pyo3)]
+/// Tests `Vec<f64>` / ListFloat64 support for roundtrip tests.
+#[custom_data]
 pub struct MacroYieldCurveData {
     pub curve_name: String,
     pub tenors: Vec<f64>,
@@ -55,7 +52,7 @@ pub struct MacroYieldCurveData {
 }
 
 /// Rust custom data type that exercises `Params` field support in the macro.
-#[custom_data(pyo3)]
+#[custom_data]
 pub struct RustTestParamsCustomData {
     pub name: String,
     pub params: Params,
@@ -64,7 +61,7 @@ pub struct RustTestParamsCustomData {
 }
 
 /// Rust custom data type that exercises typed map field support in the macro.
-#[custom_data(pyo3)]
+#[custom_data]
 pub struct RustTestPriceMapCustomData {
     pub name: String,
     #[custom_data_field(json)]
@@ -73,8 +70,8 @@ pub struct RustTestPriceMapCustomData {
     pub ts_init: UnixNanos,
 }
 
-/// Rust custom data type that exercises typed JSON map values across PyO3-supported types.
-#[custom_data(pyo3)]
+/// Rust custom data type that exercises typed JSON map values.
+#[custom_data]
 pub struct RustTestTypedMapCustomData {
     pub name: String,
     #[custom_data_field(json)]

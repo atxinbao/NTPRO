@@ -408,8 +408,8 @@ impl FeatherWriter {
             .unwrap_or(now_tz);
 
         if next_rotation_tz <= now_tz {
-            // If the time has already passed today, we would usually add the interval
-            // But let's align exactly with how Python does it:
+            // If the time has already passed today, add the interval until the
+            // next rotation is in the future.
             while next_rotation_tz <= now_tz {
                 // Add interval_ns to next_rotation_tz
                 // Since chrono::Duration doesn't take u64 nanos directly comfortably for large values,
@@ -525,9 +525,8 @@ impl FeatherWriter {
     /// This is called automatically based on `flush_interval_ms` if configured, but can also
     /// be called manually by the client.
     ///
-    /// Note: In Rust, we use in-memory buffers. Flushing writes the current buffer to the
-    /// object store and creates a new buffer for continued writing. This is different from
-    /// Python which just flushes OS buffers.
+    /// Note: flushing writes the current in-memory buffer to the object store and creates a
+    /// new buffer for continued writing.
     pub async fn flush(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         // Collect paths and their current buffers before flushing
         let paths_to_flush: Vec<FileWriterPath> = self.writers.keys().cloned().collect();
@@ -1303,8 +1302,7 @@ mod tests {
 
     // Note: Message bus subscription test is skipped due to async/sync boundary complexity.
     // The handler uses block_on which can't be used from within an async runtime.
-    // This functionality is better tested via Python integration tests where the message bus
-    // is used in a non-async context or via proper async task spawning.
+    // This functionality needs a dedicated non-async harness or explicit task spawning.
 
     #[tokio::test]
     async fn test_write_data_orderbook_deltas() {
@@ -1347,7 +1345,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(feature = "python")]
     async fn test_write_custom_data_round_trip() {
         use std::sync::Arc;
 

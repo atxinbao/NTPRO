@@ -249,8 +249,7 @@ async fn test_close() {
 
 // Note: Message bus subscription test is skipped due to async/sync boundary complexity.
 // The handler uses block_on which can't be used from within an async runtime (tokio test).
-// This functionality is better tested via Python integration tests where the message bus
-// is used in a non-async context or via proper async task spawning.
+// This functionality needs a dedicated non-async harness or explicit task spawning.
 
 // Regression test for https://github.com/nautechsystems/nautilus_trader/issues/3913,
 // where a leading BookAction::Clear delta poisoned file metadata with 0 precision.

@@ -27,8 +27,7 @@
 //!
 //! Call [`nautilus_serialization::ensure_custom_data_registered::<T>()`] once per type for JSON
 //! and Arrow registration; for `no_arrow` types call
-//! [`nautilus_model::data::ensure_custom_data_json_registered::<T>()`] instead. For Python
-//! bindings also call [`nautilus_model::data::register_rust_extractor::<T>()`].
+//! [`nautilus_model::data::ensure_custom_data_json_registered::<T>()`] instead.
 //!
 //! # Requirements
 //!
@@ -39,24 +38,17 @@
 //!
 //! # Options
 //!
-//! - `#[custom_data(pyo3)]` or `#[custom_data(python)]`: Adds `#[pyclass]` and `#[pymethods]`
-//!   with constructor and getters; Rust and Python both use constructor `new` (Python __init__ forwards to it).
-//!   Python `__repr__` and `__str__` are generated to use the Rust `Display` implementation.
 //! - `no_display`: Do not generate `repr()` or `Display`; the user may implement them manually.
 //! - `no_arrow`: Do not generate Arrow schema or record batch encode/decode methods. Use this for
 //!   live-only custom data that does not need catalog persistence.
-//! - `stub_module = "nautilus_trader.<module>"`: Generate pyo3-stub-gen metadata for the
-//!   given module. Requires `pyo3`.
 //! - `#[custom_data_field(json)]` on a field: Stores the field as a JSON-backed Arrow
 //!   `Utf8` column. The field type must implement Serde `Serialize` and `Deserialize`.
-//!   Python access uses typed dict conversion for supported `HashMap<K, V>` and
-//!   `IndexMap<K, V>` field types, and a full JSON conversion for other JSON-backed fields.
 //!   Use this for convenience and persistence rather than hot path fields.
 //!
 //! # Example
 //!
 //! ```ignore
-//! #[custom_data(pyo3)]
+//! #[custom_data]
 //! pub struct MyCustomData {
 //!     pub instrument_id: InstrumentId,
 //!     pub value: f64,
@@ -128,60 +120,6 @@ fn type_for_macro(ty: &Type) -> Option<(String, String)> {
     }
     let seg = type_last_segment(ty)?;
     Some((seg.clone(), seg))
-}
-
-/// Returns (map_type, key_type, value_type) for HashMap<K, V> and IndexMap<K, V>.
-fn map_type_for_macro(ty: &Type) -> Option<(String, String, String)> {
-    let path = type_path(ty)?;
-    let segment = path.segments.last()?;
-    let outer = segment.ident.to_string();
-
-    if outer != "HashMap" && outer != "IndexMap" {
-        return None;
-    }
-
-    let syn::PathArguments::AngleBracketed(args) = &segment.arguments else {
-        return None;
-    };
-
-    let mut types = args.args.iter().filter_map(|arg| match arg {
-        syn::GenericArgument::Type(ty) => Some(ty),
-        _ => None,
-    });
-    let key = type_last_segment(types.next()?)?;
-    let value = type_last_segment(types.next()?)?;
-
-    Some((outer, key, value))
-}
-
-/// Returns true when a JSON map element can be converted to/from typed PyO3 objects.
-fn is_typed_json_map_segment(segment: &str) -> bool {
-    matches!(
-        segment,
-        "InstrumentId"
-            | "AccountId"
-            | "Currency"
-            | "BarType"
-            | "Price"
-            | "Quantity"
-            | "Money"
-            | "String"
-            | "f64"
-            | "f32"
-            | "bool"
-            | "u64"
-            | "i64"
-            | "u32"
-            | "i32"
-    )
-}
-
-fn typed_json_map_kind(ty: &Type) -> Option<String> {
-    let (outer, key, value) = map_type_for_macro(ty)?;
-    if is_typed_json_map_segment(&key) && is_typed_json_map_segment(&value) {
-        return Some(outer);
-    }
-    None
 }
 
 /// Returns true if the field uses string extraction (Utf8 or Utf8View).
@@ -429,135 +367,6 @@ fn encode_builder_for_field(ty: &Type, json: bool, len_var: &syn::Ident) -> Opti
     }
 }
 
-/// Python constructor param type: UnixNanos -> u64, Params -> PyDict, Vec<u8> -> Vec<u8>, rest unchanged.
-fn py_param_ty(ty: &Type, json: bool) -> Option<TokenStream> {
-    if json {
-        return Some(quote! { pyo3::Py<pyo3::PyAny> });
-    }
-
-    let (outer, inner) = type_for_macro(ty)?;
-    if outer == "UnixNanos" {
-        return Some(quote! { u64 });
-    }
-
-    if outer == inner && outer == "Params" {
-        return Some(quote! { pyo3::Py<pyo3::types::PyDict> });
-    }
-
-    if outer == "Vec" && inner == "u8" {
-        return Some(quote! { Vec<u8> });
-    }
-
-    if outer == "Vec" && inner == "f64" {
-        return Some(quote! { Vec<f64> });
-    }
-    Some(quote! { #ty })
-}
-
-/// Python constructor body RHS: UnixNanos fields use arg.into(), rest use arg.
-fn py_field_init(ident: &syn::Ident, ty: &Type, json: bool) -> Option<TokenStream> {
-    let name = ident;
-
-    if json {
-        if let Some(map_kind) = typed_json_map_kind(ty) {
-            let helper = if map_kind == "IndexMap" {
-                quote! { indexmap_from_pyobject_pyo3 }
-            } else {
-                quote! { hashmap_from_pyobject_pyo3 }
-            };
-            return Some(quote! {
-                pyo3::Python::attach(|py| -> pyo3::PyResult<#ty> {
-                    let value = #name.bind(py);
-                    nautilus_core::python::serialization::#helper::<_, _>(py, value)
-                        .map_err(|e| nautilus_core::python::to_pyvalue_err(format!("failed to deserialize JSON field '{}': {e}", stringify!(#name))))
-                })?
-            });
-        }
-
-        return Some(quote! {
-            pyo3::Python::attach(|py| -> pyo3::PyResult<#ty> {
-                let value = #name.bind(py);
-                nautilus_core::python::serialization::from_pyobject_pyo3::<#ty>(py, value)
-                    .map_err(|e| nautilus_core::python::to_pyvalue_err(format!("failed to deserialize JSON field '{}': {e}", stringify!(#name))))
-            })?
-        });
-    }
-
-    let (outer, inner) = type_for_macro(ty)?;
-    if outer == "UnixNanos" {
-        return Some(quote! { #name.into() });
-    }
-
-    if outer == inner && outer == "Params" {
-        return Some(quote! {
-            pyo3::Python::attach(|py| nautilus_core::from_pydict(py, &#name))?.unwrap_or_default()
-        });
-    }
-
-    Some(quote! { #name })
-}
-
-/// Python getter return type: UnixNanos -> u64, rest unchanged.
-fn py_getter_ret_ty(ty: &Type, json: bool) -> Option<TokenStream> {
-    if json {
-        return Some(quote! { pyo3::PyResult<pyo3::Py<pyo3::PyAny>> });
-    }
-
-    let (outer, inner) = type_for_macro(ty)?;
-
-    if outer == "UnixNanos" {
-        return Some(quote! { u64 });
-    }
-
-    if outer == inner && outer == "Params" {
-        return Some(quote! { pyo3::PyResult<pyo3::Py<pyo3::types::PyDict>> });
-    }
-
-    Some(quote! { #ty })
-}
-
-/// Python getter body: UnixNanos -> self.x.as_u64(), Vec -> clone, String -> clone, rest -> self.x.
-fn py_getter_body(ident: &syn::Ident, ty: &Type, json: bool) -> Option<TokenStream> {
-    let name = ident;
-
-    if json {
-        if let Some(map_kind) = typed_json_map_kind(ty) {
-            let helper = if map_kind == "IndexMap" {
-                quote! { indexmap_to_pydict_pyo3 }
-            } else {
-                quote! { hashmap_to_pydict_pyo3 }
-            };
-            return Some(quote! {
-                pyo3::Python::attach(|py| {
-                    nautilus_core::python::serialization::#helper(py, &self.#name)
-                        .map_err(|e| nautilus_core::python::to_pyvalue_err(format!("failed to serialize JSON field '{}': {e}", stringify!(#name))))
-                })
-            });
-        }
-
-        return Some(quote! {
-            pyo3::Python::attach(|py| {
-                nautilus_core::python::serialization::to_pyobject_pyo3(py, &self.#name)
-                    .map_err(|e| nautilus_core::python::to_pyvalue_err(format!("failed to serialize JSON field '{}': {e}", stringify!(#name))))
-            })
-        });
-    }
-
-    let (outer, inner) = type_for_macro(ty)?;
-    if outer == "UnixNanos" {
-        return Some(quote! { self.#name.as_u64() });
-    }
-
-    if outer == inner && outer == "Params" {
-        return Some(quote! { pyo3::Python::attach(|py| self.#name.to_pydict(py)) });
-    }
-
-    if outer == "Vec" || outer == "String" {
-        return Some(quote! { self.#name.clone() });
-    }
-    Some(quote! { self.#name })
-}
-
 /// Finish the builder and wrap in Arc for RecordBatch::try_new columns.
 fn encode_finish_builder(ty: &Type, json: bool) -> Option<TokenStream> {
     if json {
@@ -582,10 +391,8 @@ fn encode_finish_builder(ty: &Type, json: bool) -> Option<TokenStream> {
 
 /// Parsed options from #[custom_data(...)] attribute.
 struct CustomDataOptions {
-    pyo3: bool,
     no_display: bool,
     no_arrow: bool,
-    stub_module: Option<LitStr>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -611,26 +418,18 @@ fn parse_custom_data_option(
     let ident = &option.ident;
     let s = ident.to_string();
     match (s.as_str(), &option.value) {
-        ("pyo3" | "python", None) => options.pyo3 = true,
         ("no_display", None) => options.no_display = true,
         ("no_arrow", None) => options.no_arrow = true,
-        ("stub_module", Some(module)) => options.stub_module = Some(module.clone()),
-        ("pyo3" | "python" | "no_display" | "no_arrow", Some(_)) => {
+        ("no_display" | "no_arrow", Some(_)) => {
             return Err(syn::Error::new_spanned(
                 ident,
                 "option does not accept a value",
             ));
         }
-        ("stub_module", None) => {
-            return Err(syn::Error::new_spanned(
-                ident,
-                "`stub_module` requires a string value",
-            ));
-        }
         _ => {
             return Err(syn::Error::new_spanned(
                 ident,
-                "expected `pyo3`, `python`, `no_display`, `no_arrow`, or `stub_module`; unknown option",
+                "expected `no_display` or `no_arrow`; unknown option",
             ));
         }
     }
@@ -678,13 +477,11 @@ impl Parse for OptionIdents {
     }
 }
 
-/// Parse #[custom_data(pyo3)] or #[custom_data(pyo3, no_display)] etc.
+/// Parses `#[custom_data(...)]` options.
 fn parse_options(attr: &TokenStream) -> Result<CustomDataOptions, syn::Error> {
     let mut options = CustomDataOptions {
-        pyo3: false,
         no_display: false,
         no_arrow: false,
-        stub_module: None,
     };
     let attr_str = attr.to_string();
     let attr_str = attr_str.trim();
@@ -694,13 +491,6 @@ fn parse_options(attr: &TokenStream) -> Result<CustomDataOptions, syn::Error> {
     let input: CustomDataOptionsInput = parse2(attr.clone())?;
     for option in &input.options {
         parse_custom_data_option(option, &mut options)?;
-    }
-
-    if options.stub_module.is_some() && !options.pyo3 {
-        return Err(syn::Error::new_spanned(
-            attr.clone(),
-            "`stub_module` requires `pyo3`",
-        ));
     }
     Ok(options)
 }
@@ -753,14 +543,8 @@ fn gen_new_fn(ctx: &ExpansionContext<'_>) -> TokenStream {
     let generics = ctx.generics;
     let vis = ctx.vis;
     let field_list = ctx.field_list;
-    let (rust_ctor_name, rust_ctor_doc) = if ctx.options.pyo3 {
-        (
-            quote! { new },
-            quote! { "Constructor from all fields. Use from Rust; Python __init__ forwards to this." },
-        )
-    } else {
-        (quote! { new }, quote! { "Constructor." })
-    };
+    let rust_ctor_name = quote! { new };
+    let rust_ctor_doc = quote! { "Constructor." };
     let constructor_params = field_list.iter().map(|f| {
         let ident = &f.ident;
         let ty = &f.ty;
@@ -818,7 +602,7 @@ fn gen_repr_impl(ctx: &ExpansionContext<'_>) -> TokenStream {
         .collect();
     quote! {
         impl #generics #name #generics {
-            /// Returns a string representation in the same style as Python CustomDataClass (fields and ts_event/ts_init as ISO8601).
+            /// Returns a string representation with fields and timestamps in ISO8601 format.
             pub fn repr(&self) -> String {
                 format!(#repr_format_lit, #(#repr_args),*)
             }
@@ -847,16 +631,6 @@ fn gen_custom_data_trait_impl(ctx: &ExpansionContext<'_>) -> TokenStream {
     let name = ctx.name;
     let generics = ctx.generics;
     let name_str = ctx.name_str;
-    let to_pyobject_impl = if ctx.options.pyo3 {
-        quote! {
-            #[cfg(feature = "python")]
-            fn to_pyobject(&self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
-                nautilus_model::data::custom::clone_pyclass_to_pyobject(self, py)
-            }
-        }
-    } else {
-        quote! {}
-    };
     quote! {
         impl #generics nautilus_model::data::CustomDataTrait for #name #generics {
             fn type_name(&self) -> &'static str {
@@ -888,7 +662,6 @@ fn gen_custom_data_trait_impl(ctx: &ExpansionContext<'_>) -> TokenStream {
                     let t: Self = serde_json::from_value(value)?;
                     Ok(std::sync::Arc::new(t))
                 }
-                #to_pyobject_impl
         }
     }
 }
@@ -1110,207 +883,6 @@ fn gen_catalog_path_and_conversions(
     (catalog_path_prefix_impl, from_impl, try_from_impl)
 }
 
-fn gen_pymethods_impl(ctx: &ExpansionContext<'_>) -> TokenStream {
-    let name = ctx.name;
-    let generics = ctx.generics;
-    let field_list = ctx.field_list;
-    if !ctx.options.pyo3 {
-        return quote! {};
-    }
-    let py_new_params: Vec<TokenStream> = field_list
-        .iter()
-        .map(|f| {
-            let ident = &f.ident;
-            let ty = &f.ty;
-            let py_ty = py_param_ty(ty, f.options.json).unwrap();
-            quote! { #ident: #py_ty }
-        })
-        .collect();
-    let py_let_bindings: Vec<TokenStream> = field_list
-        .iter()
-        .map(|f| {
-            let ident = &f.ident;
-            let ty = &f.ty;
-            let init = py_field_init(ident, ty, f.options.json).unwrap();
-            quote! { let #ident = #init; }
-        })
-        .collect();
-    let py_new_call_args: Vec<TokenStream> = field_list
-        .iter()
-        .map(|f| {
-            let ident = &f.ident;
-            quote! { #ident }
-        })
-        .collect();
-    let getters: Vec<TokenStream> = field_list
-        .iter()
-        .map(|f| {
-            let ident = &f.ident;
-            let ty = &f.ty;
-            let ret_ty = py_getter_ret_ty(ty, f.options.json).unwrap();
-            let body = py_getter_body(ident, ty, f.options.json).unwrap();
-            quote! {
-                #[getter]
-                fn #ident(&self) -> #ret_ty {
-                    #body
-                }
-            }
-        })
-        .collect();
-    let repr_str_methods = if ctx.options.no_display {
-        quote! {}
-    } else {
-        quote! {
-            /// Python `repr()`: uses the Rust `Display` implementation.
-            fn __repr__(&self) -> pyo3::PyResult<String> {
-                Ok(std::fmt::format(std::format_args!("{}", self)))
-            }
-
-            /// Python `str()`: uses the Rust `Display` implementation.
-            fn __str__(&self) -> pyo3::PyResult<String> {
-                Ok(std::fmt::format(std::format_args!("{}", self)))
-            }
-        }
-    };
-    let stub_pymethods_attr = if ctx.options.stub_module.is_some() {
-        quote! {
-            #[cfg_attr(feature = "python", pyo3_stub_gen::derive::gen_stub_pymethods)]
-        }
-    } else {
-        quote! {}
-    };
-    let record_batch_methods = if ctx.options.no_arrow {
-        quote! {}
-    } else {
-        quote! {
-            /// Decodes a RecordBatch from a PyArrow batch into a list of instances.
-            /// Class method: call via MarketTickData.decode_record_batch_py(metadata, batch).
-            #[pyo3(signature = (metadata, py_batch))]
-            #[classmethod]
-            fn decode_record_batch_py(
-                _cls: &pyo3::Bound<'_, pyo3::types::PyType>,
-                py: pyo3::Python<'_>,
-                metadata: std::collections::HashMap<String, String>,
-                py_batch: &pyo3::Bound<'_, pyo3::PyAny>,
-            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
-                let mut ffi_array = arrow::ffi::FFI_ArrowArray::empty();
-                let mut ffi_schema = arrow::ffi::FFI_ArrowSchema::empty();
-
-                py_batch.call_method1("_export_to_c", (
-                    (&raw mut ffi_array as usize),
-                    (&raw mut ffi_schema as usize)
-                ))?;
-
-                let schema = std::sync::Arc::new(arrow::datatypes::Schema::try_from(&ffi_schema).map_err(nautilus_core::python::to_pyvalue_err)?);
-                let struct_array_data = unsafe { arrow::ffi::from_ffi_and_data_type(ffi_array, arrow::datatypes::DataType::Struct(schema.fields().clone())).map_err(nautilus_core::python::to_pyvalue_err)? };
-                let struct_array = arrow::array::StructArray::from(struct_array_data);
-                let batch = arrow::record_batch::RecordBatch::from(&struct_array);
-
-                let data_list = <#name as nautilus_serialization::arrow::DecodeDataFromRecordBatch>::decode_data_batch(
-                    &metadata,
-                    batch,
-                ).map_err(nautilus_core::python::to_pyvalue_err)?;
-                let mut py_items = Vec::new();
-
-                for d in data_list {
-                    if let nautilus_model::data::Data::Custom(custom) = d {
-                        if let Some(m) = custom.data.as_any().downcast_ref::<#name>() {
-                            py_items.push(pyo3::Py::new(py, m.clone())?.into_any());
-                        }
-                    }
-                }
-                let list = pyo3::types::PyList::new(py, py_items)?;
-                Ok(list.into_any().unbind())
-            }
-
-            /// Encodes a batch of items to an Arrow RecordBatch. Returns a PyArrow RecordBatch
-            /// using zero-copy C Data interface.
-            fn encode_record_batch_py(
-                &self,
-                py: pyo3::Python<'_>,
-                items: &pyo3::Bound<'_, pyo3::types::PyList>,
-            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
-                use std::collections::HashMap;
-                let typed: Vec<#name> = items
-                    .iter()
-                    .map(|obj| obj.extract::<#name>().map_err(|e| e.into()))
-                    .collect::<pyo3::PyResult<Vec<_>>>()?;
-                let metadata = <#name as nautilus_serialization::arrow::EncodeToRecordBatch>::metadata(self);
-                let batch = <#name as nautilus_serialization::arrow::EncodeToRecordBatch>::encode_batch(
-                    &metadata,
-                    &typed,
-                ).map_err(nautilus_core::python::to_pyvalue_err)?;
-
-                let struct_array: arrow::array::StructArray = batch.clone().into();
-                let array_data = arrow::array::Array::to_data(&struct_array);
-                let mut ffi_array = arrow::ffi::FFI_ArrowArray::new(&array_data);
-                let mut ffi_schema = arrow::ffi::FFI_ArrowSchema::try_from(arrow::datatypes::DataType::Struct(batch.schema().fields().clone())).map_err(nautilus_core::python::to_pyvalue_err)?;
-
-                let pyarrow = py.import("pyarrow")?;
-                let cls = pyarrow.getattr("RecordBatch")?;
-                let py_batch = cls.call_method1("_import_from_c", (
-                    (&raw mut ffi_array as usize),
-                    (&raw mut ffi_schema as usize)
-                ))?;
-
-                Ok(py_batch.into_any().unbind())
-            }
-        }
-    };
-    quote! {
-        #[cfg(feature = "python")]
-        use pyo3::prelude::*;
-        /// PyO3 bindings (constructor, getters, JSON, and optional record batch encode/decode).
-        /// Only compiled when `feature = "python"`.
-        #[cfg(feature = "python")]
-        #stub_pymethods_attr
-        #[pyo3::pymethods]
-        #[expect(clippy::needless_pass_by_value)]
-        impl #generics #name #generics {
-            #[expect(clippy::too_many_arguments)]
-            #[new]
-            #[pyo3(signature = (#(#py_new_call_args),*))]
-            fn py_new(#(#py_new_params),*) -> pyo3::PyResult<Self> {
-                #(#py_let_bindings)*
-                Ok(Self::new(#(#py_new_call_args),*))
-            }
-            #(#getters)*
-
-            #repr_str_methods
-
-            /// Serializes to JSON string. Used by CustomData.to_json_bytes and PythonCustomDataWrapper.
-            fn to_json(&self) -> pyo3::PyResult<String> {
-                <#name as nautilus_model::data::CustomDataTrait>::to_json_py(self)
-                    .map_err(nautilus_core::python::to_pyvalue_err)
-            }
-
-            /// Class method for JSON deserialization. Used by register_custom_data_class.
-            #[classmethod]
-            fn from_json(
-                _cls: &pyo3::Bound<'_, pyo3::types::PyType>,
-                py: pyo3::Python<'_>,
-                data: &pyo3::Bound<'_, pyo3::PyAny>,
-            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
-                let json_module = py.import("json")
-                    .map_err(|e| nautilus_core::python::to_pyvalue_err(format!("import json failed: {e}")))?;
-                let json_str: String = json_module
-                    .call_method1("dumps", (data,))
-                    .map_err(|e| nautilus_core::python::to_pyvalue_err(format!("json.dumps failed: {e}")))?
-                    .extract()?;
-                let value: serde_json::Value = serde_json::from_str(&json_str)
-                    .map_err(|e| nautilus_core::python::to_pyvalue_err(format!("serde_json::from_str failed: {e}")))?;
-                let arc = <#name as nautilus_model::data::CustomDataTrait>::from_json(value)
-                    .map_err(nautilus_core::python::to_pyvalue_err)?;
-                let inner = arc.as_any().downcast_ref::<#name>()
-                    .ok_or_else(|| nautilus_core::python::to_pyvalue_err("from_json downcast failed"))?;
-                Ok(pyo3::Py::new(py, inner.clone())?.into_any())
-            }
-
-            #record_batch_methods
-        }
-    }
-}
-
 #[expect(clippy::needless_pass_by_value)]
 pub(crate) fn expand_custom_data(attr: TokenStream, item: TokenStream) -> TokenStream {
     let options = match parse_options(&attr) {
@@ -1422,7 +994,6 @@ pub(crate) fn expand_custom_data(attr: TokenStream, item: TokenStream) -> TokenS
     };
     let (catalog_path_prefix_impl, from_impl, try_from_impl) =
         gen_catalog_path_and_conversions(&ctx);
-    let pymethods_impl = gen_pymethods_impl(&ctx);
 
     let struct_attrs: Vec<syn::Attribute> = input
         .attrs
@@ -1430,20 +1001,6 @@ pub(crate) fn expand_custom_data(attr: TokenStream, item: TokenStream) -> TokenS
         .filter(|a| a.path().get_ident().is_none_or(|i| *i != "custom_data"))
         .cloned()
         .collect();
-    let pyclass_attr_ts: TokenStream = if options.pyo3 {
-        quote! {
-            #[cfg_attr(feature = "python", pyo3::pyclass(from_py_object))]
-        }
-    } else {
-        quote! {}
-    };
-    let stub_pyclass_attr_ts: TokenStream = if let Some(module) = &options.stub_module {
-        quote! {
-            #[cfg_attr(feature = "python", pyo3_stub_gen::derive::gen_stub_pyclass(module = #module))]
-        }
-    } else {
-        quote! {}
-    };
     let fields_vec: Vec<Field> = fields
         .iter()
         .map(|field| {
@@ -1463,8 +1020,6 @@ pub(crate) fn expand_custom_data(attr: TokenStream, item: TokenStream) -> TokenS
     quote! {
         #derived_attr
         #(#struct_attrs)*
-        #stub_pyclass_attr_ts
-        #pyclass_attr_ts
         #vis struct #name #generics {
             #(#fields_vec),*
         }
@@ -1480,7 +1035,6 @@ pub(crate) fn expand_custom_data(attr: TokenStream, item: TokenStream) -> TokenS
         #catalog_path_prefix_impl
         #from_impl
         #try_from_impl
-        #pymethods_impl
     }
 }
 
@@ -1492,46 +1046,33 @@ mod tests {
     use super::*;
 
     #[rstest]
-    fn parse_options_accepts_no_arrow_stub_module_with_pyo3() {
-        let options =
-            parse_options(&quote! { pyo3, no_arrow, stub_module = "nautilus_trader.hyperliquid" })
-                .expect("parse options");
+    fn parse_options_accepts_no_arrow_and_no_display() {
+        let options = parse_options(&quote! { no_arrow, no_display }).expect("parse options");
 
-        assert!(options.pyo3);
         assert!(options.no_arrow);
-        assert_eq!(
-            options.stub_module.as_ref().map(LitStr::value).as_deref(),
-            Some("nautilus_trader.hyperliquid"),
-        );
-    }
-
-    #[rstest]
-    fn parse_options_rejects_stub_module_without_pyo3() {
-        let err = parse_options_error(&quote! { stub_module = "nautilus_trader.hyperliquid" });
-
-        assert_eq!(err.to_string(), "`stub_module` requires `pyo3`");
+        assert!(options.no_display);
     }
 
     #[rstest]
     fn parse_options_rejects_value_for_flag_option() {
-        let err = parse_options_error(&quote! { pyo3, no_arrow = "true" });
+        let err = parse_options_error(&quote! { no_arrow = "true" });
 
         assert_eq!(err.to_string(), "option does not accept a value");
     }
 
     #[rstest]
     fn parse_options_rejects_unknown_option() {
-        let err = parse_options_error(&quote! { pyo3, fake_option });
+        let err = parse_options_error(&quote! { fake_option });
 
         assert_eq!(
             err.to_string(),
-            "expected `pyo3`, `python`, `no_display`, `no_arrow`, or `stub_module`; unknown option",
+            "expected `no_display` or `no_arrow`; unknown option",
         );
     }
 
     #[rstest]
-    fn expand_emits_stub_attributes_before_pyo3_attributes() {
-        let attr = quote! { pyo3, no_arrow, stub_module = "nautilus_trader.test" };
+    fn expand_does_not_emit_binding_tokens() {
+        let attr = quote! { no_arrow };
         let item = quote! {
             pub struct TestData {
                 pub value: f64,
@@ -1542,32 +1083,14 @@ mod tests {
 
         let expanded = expand_custom_data(attr, item).to_string();
 
-        let stub_pymethods_pos = expanded
-            .find("gen_stub_pymethods")
-            .expect("expansion must contain gen_stub_pymethods");
-        let pymethods_pos = expanded
-            .find("pyo3 :: pymethods")
-            .expect("expansion must contain pyo3 :: pymethods");
-        assert!(
-            stub_pymethods_pos < pymethods_pos,
-            "gen_stub_pymethods must precede pyo3::pymethods so stub-gen reads original tokens",
-        );
-
-        let stub_pyclass_pos = expanded
-            .find("gen_stub_pyclass")
-            .expect("expansion must contain gen_stub_pyclass");
-        let pyclass_pos = expanded
-            .find("pyo3 :: pyclass")
-            .expect("expansion must contain pyo3 :: pyclass");
-        assert!(
-            stub_pyclass_pos < pyclass_pos,
-            "gen_stub_pyclass must precede pyo3::pyclass so stub-gen reads original tokens",
-        );
+        assert!(!expanded.contains("pymethods"));
+        assert!(!expanded.contains("pyclass"));
+        assert!(!expanded.contains("stub"));
     }
 
     #[rstest]
-    fn expand_emits_referenced_bound_for_classmethod_receivers() {
-        let attr = quote! { pyo3, stub_module = "nautilus_trader.test" };
+    fn expand_emits_rust_constructor() {
+        let attr = quote! {};
         let item = quote! {
             pub struct TestData {
                 pub value: f64,
@@ -1578,16 +1101,8 @@ mod tests {
 
         let expanded = expand_custom_data(attr, item).to_string();
 
-        let full = "_cls : & pyo3 :: Bound < '_ , pyo3 :: types :: PyType >";
-        let count = expanded.matches(full).count();
-        assert_eq!(
-            count, 2,
-            "expected `&pyo3::Bound<'_, pyo3::types::PyType>` on both generated classmethods (from_json + decode_record_batch_py), was {count}",
-        );
-        assert!(
-            !expanded.contains("_cls : pyo3 :: Bound"),
-            "owned `pyo3::Bound<PyType>` on classmethod first arg prevents pyo3-stub-gen from skipping the receiver",
-        );
+        assert!(expanded.contains("fn new"));
+        assert!(expanded.contains("Constructor."));
     }
 
     fn parse_options_error(attr: &TokenStream) -> syn::Error {

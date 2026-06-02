@@ -840,8 +840,8 @@ impl ParquetDataCatalog {
             // Query data for this period using query_typed_data
             let instrument_ids = identifier.map(|id| vec![id.to_string()]);
 
-            // Use optimize_file_loading=false to match Python behavior:
-            // During consolidation, we want to read only the specific files being consolidated,
+            // Use optimize_file_loading=false so consolidation reads only the specific files
+            // being consolidated,
             // not the entire directory. This ensures precise file control during consolidation.
             let period_data = self.query_typed_data::<T>(
                 instrument_ids,
@@ -1319,7 +1319,7 @@ impl ParquetDataCatalog {
             // Generate period-based queries within this contiguous group
             let mut current_start_ns = (effective_start / period_nanos) * period_nanos;
 
-            // Add safety check to prevent infinite loops (match Python logic)
+            // Add safety check to prevent infinite loops.
             let max_iterations = 10000;
             let mut iteration_count = 0;
 

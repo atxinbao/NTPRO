@@ -3769,7 +3769,6 @@ fn test_write_data_enum_mixed_custom_data_identifiers() {
 }
 
 #[rstest]
-#[cfg(feature = "python")]
 fn test_macro_yield_curve_data_roundtrip() {
     use std::sync::Arc;
 

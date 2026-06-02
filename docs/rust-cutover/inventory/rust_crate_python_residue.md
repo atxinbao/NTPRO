@@ -2,7 +2,7 @@
 
 Date: 2026-06-02
 Executor: Codex
-Task ID: RREM-020
+Task ID: RREM-021
 
 ## Purpose
 
@@ -19,6 +19,8 @@ have already landed:
 - RREM-019 cleanup for `crates/serialization` and `crates/network`.
 - RREM-020 cleanup for `crates/execution`, `crates/backtest`, `crates/live`,
   `crates/trading`, `crates/risk`, `crates/portfolio`, and `crates/data`.
+- RREM-021 cleanup for `crates/persistence`, `crates/infrastructure`,
+  `crates/plugin`, `crates/testkit`, and `crates/cryptography`.
 
 ## Current State
 
@@ -73,43 +75,44 @@ rg -n -i "pyo3|pyo3_stub_gen|feature = \"python\"|cfg\\(feature = \"python\"\\)|
 
 Result: no matches.
 
+`crates/persistence`, `crates/infrastructure`, `crates/plugin`,
+`crates/testkit`, and `crates/cryptography` no longer contain PyO3/Python
+binding residue after RREM-021:
+
+```bash
+rg -n -i "pyo3|pyo3_stub_gen|feature = \"python\"|cfg\\(feature = \"python\"\\)|cfg_attr\\([^\\n]*python|python|nautilus_pyo3|extension-module|custom_data\\([^\\)]*pyo3|stub_module|PyObject|PyAny|Py<" \
+  crates/persistence crates/infrastructure crates/plugin crates/testkit crates/cryptography
+```
+
+Result: no matches.
+
 ## Remaining Rust Crate Python/PyO3 Hits
 
 The broader Rust-only runtime scan still finds Python/PyO3 residue outside the
-RREM-019 implementation scope. File-level count:
+RREM-021 implementation scope. File-level count:
 
 ```text
-31 files
+8 files
 ```
 
 Top path groups:
 
 ```text
- 11 crates/persistence
-  7 crates/infrastructure
   5 crates/model
   3 crates/system
-  2 crates/plugin
-  2 crates/testkit
-  1 crates/cryptography
 ```
 
-RREM-020 targeted cargo checks passed for the scoped runtime-facing crates.
-Those checks still surfaced `unexpected cfg` warnings from non-scoped
-`crates/system` and `crates/persistence` dependencies. These warnings are
-intentionally not fixed in RREM-020 because this task path scope only authorizes
-`execution`, `backtest`, `live`, `trading`, `risk`, `portfolio`, and `data`.
+RREM-021 targeted cargo checks passed for the scoped support crates. The
+Rust-only runtime gate still fails on non-scoped `crates/system` and
+`crates/model` residue, which remains intentionally outside this task.
 
 ## Follow-up Slices
 
 Recommended cleanup order:
 
-1. `crates/persistence`, `crates/infrastructure`, `crates/plugin`,
-   `crates/testkit`, and `crates/cryptography`: support crate cleanup after
-   runtime surfaces are handled.
-2. Residual `crates/model` documentation/comment cleanup that was outside the
+1. Residual `crates/model` documentation/comment/cbindgen cleanup that was outside the
    already merged active binding removal slice.
-3. `crates/system` cleanup for the remaining test-gated Python cfg warning and
+2. `crates/system` cleanup for the remaining test-gated Python cfg warning and
    crate-level feature documentation.
 
 ## Boundary
