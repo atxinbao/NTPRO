@@ -46,17 +46,6 @@ make purge-services  # Remove everything including data volumes
 
 Once services are running (and NautilusTrader installed by `uv` or `make`):
 
-### Python infrastructure integration tests
-
-```bash
-# Run all infrastructure tests
-uv run --no-sync pytest tests/integration_tests/infrastructure/
-
-# Run specific test file
-uv run --no-sync pytest tests/integration_tests/infrastructure/test_cache_database_redis.py
-uv run --no-sync pytest tests/integration_tests/infrastructure/test_cache_database_postgres.py
-```
-
 ### Rust infrastructure integration tests
 
 The Rust integration tests are located in `crates/infrastructure/tests/` and require the same services.

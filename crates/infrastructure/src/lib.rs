@@ -23,7 +23,6 @@
 //! - **PostgreSQL integration**: SQL-based cache database with full data models.
 //! - **Connection management**: Connection handling with retry logic and health monitoring.
 //! - **Serialization options**: Support for JSON and MessagePack encoding formats.
-//! - **Python bindings**: PyO3 integration for Python interoperability.
 //!
 //! The crate supports multiple database backends through feature flags, allowing users to choose
 //! the appropriate infrastructure components for their specific deployment requirements and scale.
@@ -38,15 +37,10 @@
 //!
 //! # Feature Flags
 //!
-//! This crate provides feature flags to control source code inclusion during compilation,
-//! depending on the intended use case, i.e. whether to provide Python bindings
-//! for the [nautilus_trader](https://pypi.org/project/nautilus_trader) Python package,
-//! or as part of a Rust only build.
+//! This crate provides feature flags to control source code inclusion during compilation.
 //!
-//! - `python`: Enables Python bindings from [PyO3](https://pyo3.rs).
 //! - `redis`: Enables the Redis cache database and message bus backing implementations.
 //! - `postgres`: Enables the PostgreSQL SQLx models and cache database backend.
-//! - `extension-module`: Builds the crate as a Python extension module.
 
 #![warn(rustc::all)]
 #![deny(unsafe_code)]

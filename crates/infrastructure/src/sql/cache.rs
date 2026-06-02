@@ -51,10 +51,6 @@ use crate::sql::{
 const CACHE_PROCESS: &str = "cache-process";
 
 #[derive(Debug)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.infrastructure")
-)]
 pub struct PostgresCacheDatabase {
     pub pool: PgPool,
     tx: tokio::sync::mpsc::UnboundedSender<DatabaseQuery>,

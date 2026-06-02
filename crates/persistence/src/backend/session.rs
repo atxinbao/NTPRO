@@ -58,14 +58,6 @@ pub type QueryResult = KMerge<EagerStream<std::vec::IntoIter<Data>>, Data, TsIni
 /// The session is used to register data sources and make queries on them. A
 /// query returns a Chunk of Arrow records. It is decoded and converted into
 /// a Vec of data by types that implement [`DecodeDataFromRecordBatch`].
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.persistence", unsendable)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.persistence")
-)]
 pub struct DataBackendSession {
     pub chunk_size: usize,
     pub runtime: Arc<tokio::runtime::Runtime>,
@@ -322,14 +314,6 @@ pub fn build_query(
     query
 }
 
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.persistence", unsendable)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.persistence")
-)]
 pub struct DataQueryResult {
     pub chunk: Option<CVec>,
     pub result: QueryResult,

@@ -38,17 +38,6 @@ fn escape_sql_string(value: &str) -> String {
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
 #[serde(deny_unknown_fields)]
 #[builder(default)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.infrastructure",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.infrastructure")
-)]
 pub struct PostgresConnectOptions {
     pub host: String,
     pub port: u16,

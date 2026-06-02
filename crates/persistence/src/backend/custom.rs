@@ -32,8 +32,6 @@ use nautilus_model::data::{
     OrderBookDepth10, QuoteTick, TradeTick, close::InstrumentClose, encode_custom_to_arrow,
 };
 use nautilus_serialization::arrow::DecodeDataFromRecordBatch;
-#[cfg(feature = "python")]
-use nautilus_serialization::arrow::custom::CustomDataDecoder;
 
 /// Builds a schema that adds the `data_type` column and `type_name` metadata to a base schema.
 /// Used when creating a Feather buffer for custom data (single type per writer).
@@ -152,7 +150,7 @@ pub fn prepare_custom_data_batch(
         .ok_or_else(|| {
             anyhow::anyhow!(
                 "Custom data type \"{type_name}\" is not registered for Arrow encoding; \
-                 call register_custom_data_class or ensure_custom_data_registered before writing"
+                 call ensure_custom_data_registered before writing"
             )
         })?;
     let batch =
@@ -202,14 +200,9 @@ pub fn decode_batch_to_data(
         }
         _ => {
             if allow_custom_fallback {
-                #[cfg(feature = "python")]
-                {
-                    Ok(CustomDataDecoder::decode_data_batch(metadata, batch)?)
-                }
-                #[cfg(not(feature = "python"))]
-                {
-                    anyhow::bail!("Unknown data type: {type_name}")
-                }
+                anyhow::bail!(
+                    "Unknown custom data type: {type_name}; call ensure_custom_data_registered before reading"
+                )
             } else {
                 anyhow::bail!(
                     "Unknown data type: {type_name}; custom decode only allowed in custom data context"

@@ -155,10 +155,6 @@ impl DatabaseCommand {
     }
 }
 
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.infrastructure")
-)]
 pub struct RedisCacheDatabase {
     pub con: ConnectionManager,
     pub trader_id: TraderId,
@@ -325,8 +321,8 @@ impl RedisCacheDatabase {
     /// Loads custom data from Redis matching the given `data_type` (blocking).
     ///
     /// Spawns the async query on the global Nautilus runtime and blocks until
-    /// the result arrives via a channel. Safe from any thread context (Python,
-    /// test runtimes, plain threads).
+    /// the result arrives via a channel. Safe from test runtimes and plain
+    /// threads.
     ///
     /// # Errors
     ///

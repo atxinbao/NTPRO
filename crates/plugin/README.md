@@ -46,9 +46,9 @@ point means adding one module and one `Slice` field.
 
 Out of scope: async client adapters (data and execution), catalog and cache
 backends, pre-trade risk gating, event store backends, mutable host order book
-state, native or Python custom-data callbacks that are not backed by a plug-in
-vtable, and hot reload of any plug-in while the live node is running. Plug-ins
-load at process startup and live for the process lifetime.
+state, host custom-data callbacks that are not backed by a plug-in vtable, and
+hot reload of any plug-in while the live node is running. Plug-ins load at
+process startup and live for the process lifetime.
 
 `OrderBook` crosses the boundary via `OrderBookHandle`, a `#[repr(C)]`
 wrapper owned by the host that boxes a cloned book snapshot for the duration

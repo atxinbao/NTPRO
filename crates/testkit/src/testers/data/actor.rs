@@ -41,8 +41,7 @@ use super::config::DataTesterConfig;
 /// received data to demonstrate the data flow. Useful for testing adapters
 /// and validating data connectivity.
 ///
-/// This actor provides equivalent functionality to the Python `DataTester`
-/// in the test kit.
+/// This actor provides the standard test-kit `DataTester` behavior.
 #[derive(Debug)]
 pub struct DataTester {
     pub(super) core: DataActorCore,
