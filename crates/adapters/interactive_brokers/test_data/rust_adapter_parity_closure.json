@@ -100,9 +100,11 @@
     {
       "gap_id": "IB-ADP-008",
       "status": "deferred",
-      "decision": "Optional Interactive Brokers legacy bridge bridge surfaces were removed by RREM-018 after this adapter parity task.",
+      "decision": "Optional Interactive Brokers legacy bridge and Python extension surfaces were removed by RREM-018 after this adapter parity task.",
       "evidence_paths": [
-        "removed_legacy_bridge/mod.rs",
+        "README.md",
+        "src/lib.rs",
+        "test_data/rust_fixture_manifest.json",
         "Cargo.toml"
       ],
       "requires_removal_gate": true,

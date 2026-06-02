@@ -63,11 +63,11 @@
     {
       "gap_id": "SBX-ADP-005",
       "status": "deferred",
-      "decision": "Optional Sandbox legacy bridge and removed extension surfaces are not removed by this adapter parity closure task.",
+      "decision": "Optional Sandbox legacy bridge and Python extension surfaces were removed by RREM-018 after this adapter parity closure task.",
       "evidence_paths": [
-        "removed_legacy_bridge/mod.rs",
-        "removed_legacy_bridge/config.rs",
-        "removed_legacy_bridge/factories.rs",
+        "README.md",
+        "src/lib.rs",
+        "test_data/rust_fixture_manifest.json",
         "Cargo.toml"
       ],
       "requires_removal_gate": true,

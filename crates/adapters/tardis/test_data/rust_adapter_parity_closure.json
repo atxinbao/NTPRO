@@ -78,9 +78,12 @@
     {
       "gap_id": "TDS-ADP-007",
       "status": "deferred",
-      "decision": "Optional Tardis legacy bridge surfaces and legacy bridge model dependency were removed by RREM-018 after this adapter parity task.",
+      "decision": "Optional Tardis legacy bridge and Python extension surfaces were removed by RREM-018 after this adapter parity task.",
       "evidence_paths": [
-        "removed_legacy_bridge/mod.rs"
+        "README.md",
+        "Cargo.toml",
+        "src/lib.rs",
+        "test_data/rust_fixture_manifest.json"
       ],
       "requires_removal_gate": true,
       "release_gate_note": "RREM-018 closed this scoped Rust-only removal gate and Cargo feature cleanup."

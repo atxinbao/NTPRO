@@ -732,17 +732,17 @@ impl OrderCore {
         match &event {
             OrderEventAny::Initialized(_) => return Err(OrderError::AlreadyInitialized),
             OrderEventAny::Denied(event) => self.denied(event),
-            OrderEventAny::Emulated(event) => self.emulated(event),
+            OrderEventAny::Emulated(event) => Self::emulated(event),
             OrderEventAny::Released(event) => self.released(event),
             OrderEventAny::Submitted(event) => self.submitted(event),
             OrderEventAny::Rejected(event) => self.rejected(event),
             OrderEventAny::Accepted(event) => self.accepted(event),
-            OrderEventAny::PendingUpdate(event) => self.pending_update(event),
-            OrderEventAny::PendingCancel(event) => self.pending_cancel(event),
+            OrderEventAny::PendingUpdate(event) => Self::pending_update(event),
+            OrderEventAny::PendingCancel(event) => Self::pending_cancel(event),
             OrderEventAny::ModifyRejected(event) => self.modify_rejected(event)?,
             OrderEventAny::CancelRejected(event) => self.cancel_rejected(event)?,
             OrderEventAny::Updated(event) => self.updated(event),
-            OrderEventAny::Triggered(event) => self.triggered(event),
+            OrderEventAny::Triggered(event) => Self::triggered(event),
             OrderEventAny::Canceled(event) => self.canceled(event),
             OrderEventAny::Expired(event) => self.expired(event),
             OrderEventAny::Filled(event) => self.filled(event),
@@ -757,7 +757,7 @@ impl OrderCore {
         self.ts_closed = Some(event.ts_event);
     }
 
-    fn emulated(&self, _event: &OrderEmulated) {
+    fn emulated(_event: &OrderEmulated) {
         // Do nothing else
     }
 
@@ -781,11 +781,11 @@ impl OrderCore {
         self.ts_closed = Some(event.ts_event);
     }
 
-    fn pending_update(&self, _event: &OrderPendingUpdate) {
+    fn pending_update(_event: &OrderPendingUpdate) {
         // Do nothing else
     }
 
-    fn pending_cancel(&self, _event: &OrderPendingCancel) {
+    fn pending_cancel(_event: &OrderPendingCancel) {
         // Do nothing else
     }
 
@@ -799,7 +799,7 @@ impl OrderCore {
         Ok(())
     }
 
-    fn triggered(&self, _event: &OrderTriggered) {}
+    fn triggered(_event: &OrderTriggered) {}
 
     fn canceled(&mut self, event: &OrderCanceled) {
         self.ts_closed = Some(event.ts_event);

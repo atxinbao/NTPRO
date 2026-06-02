@@ -77,12 +77,12 @@
     {
       "gap_id": "AX-ADP-006",
       "status": "deferred",
-      "decision": "Optional Architect AX legacy bridge bridge surfaces were removed by RREM-018 after this adapter parity task.",
+      "decision": "Optional Architect AX legacy bridge and extension surfaces were removed by RREM-018 after this adapter parity task.",
       "evidence_paths": [
-        "removed_legacy_bridge/mod.rs",
-        "removed_legacy_bridge/http.rs",
-        "removed_legacy_bridge/websocket.rs",
-        "Cargo.toml"
+        "Cargo.toml",
+        "src/lib.rs",
+        "test_data/rust_fixture_manifest.json",
+        "test_data/rust_adapter_parity_closure.json"
       ],
       "requires_removal_gate": true,
       "release_gate_note": "RREM-018 closed this scoped Rust-only removal gate."
