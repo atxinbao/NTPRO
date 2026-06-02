@@ -543,8 +543,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_new_with_fallback_invalid_urls() {
-        // Test with invalid URLs that will fail to connect
-        let invalid_urls = vec!["invalid://bad-url", "http://0.0.0.0:1"];
+        // Test with malformed URLs so the assertion does not depend on local port state.
+        let invalid_urls = vec!["not a grpc url", "http://[::1"];
         let result = DydxGrpcClient::new_with_fallback(&invalid_urls).await;
 
         // Should fail with either Config or Grpc error

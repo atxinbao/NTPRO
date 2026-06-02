@@ -1,8 +1,8 @@
 # RREL-007 Human Owner Signoff Packet
 
-Date: 2026-06-01
+Date: 2026-06-02
 Executor: Codex
-Task ID: RREL-007
+Task ID: RREL-007 / RREL-008 refresh
 
 ## Signoff Status
 
@@ -13,13 +13,16 @@ mark the Rust-only cutover complete.
 
 ## Release Gate Status
 
-Do not approve release from the current state.
+Do not approve release completion from the current state.
 
-RREL-006 recorded the final release verification as failed:
+RREL-008 refreshed the final release verification state:
 
-- `scripts/ai/verify_release.sh` timed out after 180 seconds during Rust tests.
-- `scripts/ai/check_rust_only_runtime.sh` failed.
-- `scripts/ai/check_cython_removed.sh` failed.
+- `scripts/ai/check_rust_only_runtime.sh` now passes.
+- `scripts/ai/check_cython_removed.sh` now passes.
+- `scripts/ai/run_golden_traces.sh` passes the standard schema and built-in Rust
+  replay harnesses.
+- `scripts/ai/verify_release.sh` still fails because the strict final golden
+  trace replay gate requires `GOLDEN_TRACE_REPLAY_COMMAND`.
 
 ## Required Owner Decision
 
@@ -27,7 +30,8 @@ The owner must choose one of the following:
 
 ```text
 [ ] Reject release and keep RREL-008 paused.
-[ ] Approve more removal work before another final verification.
+[ ] Approve final golden trace replay wiring or explicit scoping work before
+    another final verification.
 [ ] Approve release despite failed gates. This is not recommended and would
     require an explicit written risk acceptance.
 ```
@@ -48,14 +52,14 @@ Current recommended choice:
 | `docs/rust-cutover/release/final_completion_report.md` | Consolidated completion status. |
 | `docs/rust-cutover/release/release_candidate_tag_plan.md` | Draft tag plan, currently blocked. |
 | `docs/rust-cutover/release/final_release_verification.md` | Failed final verification evidence. |
-| `docs/rust-cutover/evidence/RREL-006.md` | Command-level final gate evidence. |
+| `docs/rust-cutover/evidence/RREL-006.md` | Previous command-level final gate evidence. |
+| `docs/rust-cutover/evidence/RREL-008.md` | Latest completion blocker evidence. |
 
 ## Residual Risks
 
-- Python/PyO3/Cython product paths remain.
-- Cython `.pyx` and `.pxd` files remain.
-- Active build/runtime references to PyO3/Cython remain.
 - Final release verification did not complete successfully.
+- Strict final golden trace replay command is not wired.
+- Release build and CLI smoke phases were not reached in `verify_release.sh`.
 - RREL-008 is not authorized.
 
 ## Owner Signoff

@@ -1,12 +1,12 @@
-# RREL-006 Final Rust-Only Release Verification
+# RREL-008 Final Rust-Only Release Verification
 
-Date: 2026-06-01
+Date: 2026-06-02
 Executor: Codex
-Task ID: RREL-006
+Task ID: RREL-008
 
 ## Verification Decision
 
-Final Rust-only release verification failed.
+Final Rust-only release verification is still blocked.
 
 This is blocker evidence, not a release approval. The repository must not be
 tagged or marked Rust-only from this state.
@@ -15,36 +15,41 @@ tagged or marked Rust-only from this state.
 
 | Command | Result | Decision |
 | --- | --- | --- |
-| `scripts/ai/verify_release.sh` | Timed out after 180 seconds during `verify_full.sh` Rust tests | Not green. |
-| `scripts/ai/check_rust_only_runtime.sh` | Failed | Not green. |
-| `scripts/ai/check_cython_removed.sh` | Failed | Not green. |
+| `CARGO_INCREMENTAL=0 CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1 scripts/ai/verify_release.sh` with Rust 1.95.0 in `PATH` | Failed at final golden trace validation after workspace clippy/tests and log-global test slices completed | Not green. |
+| `scripts/ai/check_rust_only_runtime.sh` with Rust 1.95.0 in `PATH` | Passed | Green. |
+| `scripts/ai/check_cython_removed.sh` with Rust 1.95.0 in `PATH` | Passed | Green. |
+| `scripts/ai/run_golden_traces.sh` with Rust 1.95.0 in `PATH` | Passed standard schema and built-in Rust replay harnesses | Green for standard gate, not final release replay mode. |
 
 ## Observed Blockers
 
 | Blocker | Current count/result |
 | --- | --- |
-| Retained product paths among `python`, `nautilus_trader`, `crates/pyo3`, `build.py` | 4 |
-| Retained `crates/**/src/python` directories | 36 |
-| Retained Cython `.pyx` / `.pxd` files | 243 |
-| Active PyO3/Cython build/runtime references | Present in active paths. |
+| Final `verify_release.sh` status | Failed, not green. |
+| Strict final golden trace replay | `GOLDEN_TRACE_REPLAY_COMMAND` is required by `run_golden_traces.sh` when `REQUIRE_GOLDEN_REPLAY=1`; no command is wired by default. |
+| Release build and CLI smoke phases | Not reached because `verify_full.sh` stopped at final golden trace validation. |
+| Human owner signoff | Pending. |
 
 ## Verification Notes
 
-`verify_release.sh` reached the full Rust test phase and timed out while
-building/running workspace checks. Because it did not reach the release build,
-CLI smoke, Rust-only runtime check, or Cython removal check phases, the command
-cannot be treated as a pass.
+`verify_release.sh` now gets much farther than the RREL-006 attempt. The full
+workspace clippy and Rust test phases completed, including the isolated
+log-global test slices. The command then stopped at final golden trace
+validation because release mode sets `REQUIRE_GOLDEN_REPLAY=1`, and the runner
+requires an explicit `GOLDEN_TRACE_REPLAY_COMMAND` for that mode.
 
-The standalone final surface checks both failed:
+The standalone final surface checks now pass:
 
-- `check_rust_only_runtime.sh` reported retained Python/PyO3/Cython product
-  paths, `crates/**/src/python` modules, Cython files, and active build/runtime
-  references.
-- `check_cython_removed.sh` reported retained `.pyx` and `.pxd` files.
+- `check_rust_only_runtime.sh` returned `== rust-only-runtime: ok ==`.
+- `check_cython_removed.sh` returned `== cython-removed: ok ==`.
+- `run_golden_traces.sh` passed the standard schema and built-in Rust replay
+  harnesses.
+
+This evidence improves the blocker picture, but it is not a release pass.
 
 ## Release Decision
 
 Release is blocked.
 
-The next valid action is to keep RREL-008 paused and prepare RREL-007 as a
-human owner signoff packet that clearly states the gate is not green.
+The next valid action is to wire or explicitly scope the final golden trace
+replay command, rerun `scripts/ai/verify_release.sh`, and then request human
+owner signoff only after the command is green.

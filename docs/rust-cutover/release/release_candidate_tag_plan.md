@@ -1,8 +1,8 @@
 # RREL-005 Release Candidate Tag Plan
 
-Date: 2026-06-01
+Date: 2026-06-02
 Executor: Codex
-Task ID: RREL-005
+Task ID: RREL-005 / RREL-008 refresh
 
 ## Scope
 
@@ -13,8 +13,9 @@ create a tag, publish a release, or mark the cutover complete.
 
 Do not create a Rust-only release candidate tag from the current state.
 
-The tag plan is blocked until RREL-006 verifies the final release gates and the
-human owner approves the RREL-007 signoff packet.
+The tag plan is blocked until `scripts/ai/verify_release.sh` passes all phases,
+including strict final golden trace replay, and the human owner approves the
+RREL-007 signoff packet.
 
 ## Proposed Tag Shape
 
@@ -34,11 +35,13 @@ Before creating any release candidate tag:
 1. `scripts/ai/verify_release.sh` passes.
 2. `scripts/ai/check_rust_only_runtime.sh` passes.
 3. `scripts/ai/check_cython_removed.sh` passes.
-4. RREL-006 evidence records green final release verification.
-5. RREL-007 owner signoff packet is reviewed and explicitly signed by the
+4. The strict final golden trace replay gate passes or is explicitly scoped by
+   the release gatekeeper.
+5. RREL-006/RREL-008 evidence records green final release verification.
+6. RREL-007 owner signoff packet is reviewed and explicitly signed by the
    human owner.
-6. RREL-008 is explicitly approved to mark the cutover complete.
-7. `main` is clean, current, and protected by the agreed release gate rules.
+7. RREL-008 is explicitly approved to mark the cutover complete.
+8. `main` is clean, current, and protected by the agreed release gate rules.
 
 ## Tag Procedure After Approval
 
@@ -63,5 +66,6 @@ Only after all preconditions are satisfied:
 
 ## Current Recommendation
 
-Keep this as a draft plan only. Continue to RREL-006 to produce final release
-verification evidence, then RREL-007 to prepare the owner signoff packet.
+Keep this as a draft plan only. The Rust-only runtime and Cython removal checks
+now pass, but the final release command is still blocked at strict golden trace
+replay wiring.

@@ -66,7 +66,7 @@
       "evidence_paths": [
         "src/data_types.rs",
         "src/data.rs",
-        "removed_legacy_bridge/mod.rs",
+        "src/lib.rs",
         "Cargo.toml",
         "test_data/rust_fixture_manifest.json"
       ],
@@ -88,11 +88,11 @@
     {
       "gap_id": "BF-ADP-007",
       "status": "deferred",
-      "decision": "Optional Betfair legacy bridge bridge surfaces were removed by RREM-018 after this adapter parity task.",
+      "decision": "Optional Betfair legacy bridge and Python extension surfaces were removed by RREM-018 after this adapter parity task.",
       "evidence_paths": [
-        "removed_legacy_bridge/mod.rs",
-        "removed_legacy_bridge/config.rs",
-        "removed_legacy_bridge/factories.rs",
+        "README.md",
+        "src/lib.rs",
+        "test_data/rust_fixture_manifest.json",
         "Cargo.toml"
       ],
       "requires_removal_gate": true,

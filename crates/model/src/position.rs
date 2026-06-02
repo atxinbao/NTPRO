@@ -616,13 +616,7 @@ impl Position {
     /// - Both `qty` and `last_qty` are zero.
     /// - `last_qty` is zero (prevents division by zero).
     /// - `total_qty` is zero or negative (arithmetic error).
-    fn calculate_avg_px(
-        &self,
-        qty: f64,
-        avg_pg: f64,
-        last_px: f64,
-        last_qty: f64,
-    ) -> anyhow::Result<f64> {
+    fn calculate_avg_px(qty: f64, avg_pg: f64, last_px: f64, last_qty: f64) -> anyhow::Result<f64> {
         // Prices can be negative for options and spreads, so only quantities
         // are checked for non-negativity here.
         debug_assert!(
@@ -658,7 +652,7 @@ impl Position {
     }
 
     fn calculate_avg_px_open_px(&self, last_px: f64, last_qty: f64) -> f64 {
-        self.calculate_avg_px(self.quantity.as_f64(), self.avg_px_open, last_px, last_qty)
+        Self::calculate_avg_px(self.quantity.as_f64(), self.avg_px_open, last_px, last_qty)
             .unwrap_or_else(|e| {
                 log::error!("Error calculating average open price: {e}");
                 last_px
@@ -674,7 +668,7 @@ impl Position {
         } else {
             self.buy_qty
         };
-        self.calculate_avg_px(closing_qty.as_f64(), avg_px_close, last_px, last_qty)
+        Self::calculate_avg_px(closing_qty.as_f64(), avg_px_close, last_px, last_qty)
             .unwrap_or_else(|e| {
                 log::error!("Error calculating average close price: {e}");
                 last_px
