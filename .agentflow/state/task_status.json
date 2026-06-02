@@ -1988,7 +1988,7 @@
     },
     "RREM-021": {
       "title": "Remove support crate PyO3 and Python residue",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "critical",
@@ -2000,20 +2000,49 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-021.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-021.md",
-      "updated_at": "2026-06-02T22:44:03+08:00",
+      "updated_at": "2026-06-02T22:49:26+08:00",
       "branch": "ai/RREM-021-remove-support-pyo3-residue",
       "lease": "RREM-021",
+      "qa_passed": true,
+      "review_passed": true,
+      "release_gatekeeper_approved": true,
+      "auto_merge_allowed": false,
+      "scoped_residue_removed_gate_passed": true,
+      "rust_only_runtime_gate_passed": false,
+      "notes": "RREM-021 completed after PR #117 merged; smoke passed. Remaining Rust crate residue is handled by RREM-022.",
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/117",
+      "pr_number": 117,
+      "implementation_commit": "aa9faf0a93",
+      "merged_at": "2026-06-02T14:46:26Z",
+      "merge_commit": "b5cec6e39ea5b0923ebf671f4a1ea8981c38676b"
+    },
+    "RREM-022": {
+      "title": "Remove final Rust crate Python residue",
+      "status": "REVIEW_REQUIRED",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged",
+        "release_gatekeeper_approved"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RREM-022.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREM-022.md",
+      "updated_at": "2026-06-02T22:54:49+08:00",
+      "branch": "ai/RREM-022-remove-final-rust-crate-python-residue",
+      "lease": "RREM-022",
       "qa_passed": true,
       "review_passed": false,
       "release_gatekeeper_approved": false,
       "auto_merge_allowed": false,
-      "scoped_residue_removed_gate_passed": true,
-      "rust_only_runtime_gate_passed": false,
-      "notes": "RREM-021 local QA passed and PR #117 is open for release gatekeeper review. Scoped support crate residue scan is clean for persistence, infrastructure, plugin, testkit, and cryptography. Critical removal task must stop at REVIEW_REQUIRED; auto-merge disabled. Overall rust-only runtime gate still fails on non-scoped crates/model and crates/system residue.",
-      "pr_url": "https://github.com/atxinbao/NTPRO/pull/117",
-      "pr_number": 117,
-      "implementation_commit": "aa9faf0a93"
+      "rust_only_runtime_gate_passed": true,
+      "notes": "RREM-022 local QA passed and PR #118 is open for release gatekeeper review. Full Rust crate residue scan has no matches and scripts/ai/check_rust_only_runtime.sh passes. Critical removal task must stop at REVIEW_REQUIRED; auto-merge disabled.",
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/118",
+      "pr_number": 118,
+      "implementation_commit": "cfd4d471a1"
     }
   },
-  "updated_at": "2026-06-02T22:44:03+08:00"
+  "updated_at": "2026-06-02T22:54:49+08:00"
 }

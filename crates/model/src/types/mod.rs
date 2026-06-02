@@ -40,9 +40,6 @@
 //! | `Money + Money`       | `Money`    | Panics if currencies don't match.         |
 //! | `Money - Money`       | `Money`    | Panics if currencies don't match.         |
 //!
-//! For Python bindings with mixed-type operations (e.g., `Quantity + int`), see the
-//! Python API documentation.
-//!
 //! # Precision
 //!
 //! Each value type stores a precision field indicating the number of decimal places.

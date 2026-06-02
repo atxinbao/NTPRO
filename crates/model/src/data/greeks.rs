@@ -105,8 +105,8 @@ fn norm_pdf(x: f64) -> f64 {
     FRAC_SQRT_2_PI * (-0.5 * x * x).exp()
 }
 
-/// Result structure for Black-Scholes greeks calculations
-/// This is a separate f64 struct (not a type alias) for Python compatibility
+/// Result structure for Black-Scholes greeks calculations.
+/// This is a separate f64 struct rather than a type alias to preserve the C ABI layout.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct BlackScholesGreeksResult {
