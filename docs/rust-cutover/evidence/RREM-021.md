@@ -20,6 +20,11 @@ Python/PyO3 外壳。
 
 这是 critical removal 任务，PR 必须停在 `REVIEW_REQUIRED`，不启用 auto-merge。
 
+## PR
+
+PR: https://github.com/atxinbao/NTPRO/pull/117
+Status: REVIEW_REQUIRED; auto-merge disabled.
+
 ## Changed Scope
 
 - Removed PyO3/stub generation support from `crates/persistence/macros`:
