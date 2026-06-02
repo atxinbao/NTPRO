@@ -547,7 +547,7 @@ mod serial_tests {
 
     #[rstest]
     #[tokio::test(flavor = "current_thread")]
-    async fn test_rust_builder_start_stop_smoke_without_python() {
+    async fn test_rust_builder_start_stop_smoke_rust_only() {
         let mut node = LiveNode::builder(TraderId::from("TESTER-001"), Environment::Sandbox)
             .unwrap()
             .with_name("RustLifecycleSmoke")
@@ -579,7 +579,7 @@ mod serial_tests {
 
     #[rstest]
     #[tokio::test(flavor = "current_thread")]
-    async fn test_rust_sandbox_execution_client_start_stop_smoke_without_python() {
+    async fn test_rust_sandbox_execution_client_start_stop_smoke_rust_only() {
         let trader_id = TraderId::from("TESTER-001");
         let account_id = AccountId::from("SANDBOX-001");
         let venue = Venue::from("SANDBOX");

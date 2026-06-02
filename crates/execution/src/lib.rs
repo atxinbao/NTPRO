@@ -41,14 +41,9 @@
 //!
 //! # Feature Flags
 //!
-//! This crate provides feature flags to control source code inclusion during compilation,
-//! depending on the intended use case, i.e. whether to provide Python bindings
-//! for the [nautilus_trader](https://pypi.org/project/nautilus_trader) Python package,
-//! or as part of a Rust only build.
+//! This crate exposes Cargo feature flags for Rust-only build composition.
 //!
 //! - `ffi`: Enables the C foreign function interface (FFI) from [cbindgen](https://github.com/mozilla/cbindgen).
-//! - `python`: Enables Python bindings from [PyO3](https://pyo3.rs).
-//! - `extension-module`: Builds the crate as a Python extension module.
 
 #![warn(rustc::all)]
 #![warn(clippy::pedantic)]
@@ -93,7 +88,7 @@
 )]
 #![allow(
     clippy::struct_excessive_bools,
-    reason = "config and snapshot structs mirror existing Python configuration surfaces"
+    reason = "config and snapshot structs retain explicit field-by-field runtime settings"
 )]
 #![allow(
     clippy::too_many_lines,

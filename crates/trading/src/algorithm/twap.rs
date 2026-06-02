@@ -908,7 +908,7 @@ mod tests {
 
         add_instrument_to_cache(&algo);
 
-        // Use fractional interval like Python tests: 3 second horizon, 0.5 second interval
+        // Use fractional interval like legacy parity tests: 3 second horizon, 0.5 second interval
         let mut params = IndexMap::new();
         params.insert(Ustr::from("horizon_secs"), Ustr::from("3"));
         params.insert(Ustr::from("interval_secs"), Ustr::from("0.5"));

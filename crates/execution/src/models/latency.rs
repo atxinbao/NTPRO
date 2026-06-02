@@ -80,21 +80,9 @@ impl From<LatencyModelAny> for Box<dyn LatencyModel> {
 /// and specific operation latencies for insert, update, and delete operations.
 ///
 /// The base latency is automatically added to each operation latency, matching
-/// Python's behavior. For example, if `base_latency_nanos = 100ms` and
+/// legacy behavior. For example, if `base_latency_nanos = 100ms` and
 /// `insert_latency_nanos = 200ms`, the effective insert latency will be 300ms.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.execution",
-        unsendable,
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.execution")
-)]
 #[allow(
     clippy::struct_field_names,
     reason = "latency_nanos suffix consistently identifies latency types"

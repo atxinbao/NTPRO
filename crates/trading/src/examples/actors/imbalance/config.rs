@@ -19,10 +19,6 @@ use nautilus_model::identifiers::{ActorId, InstrumentId};
 
 /// Configuration for the order book imbalance actor.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.trading", from_py_object)
-)]
 pub struct BookImbalanceActorConfig {
     /// Instruments to subscribe to.
     pub instrument_ids: Vec<InstrumentId>,
@@ -53,40 +49,5 @@ impl BookImbalanceActorConfig {
     pub fn with_actor_id(mut self, actor_id: ActorId) -> Self {
         self.actor_id = Some(actor_id);
         self
-    }
-}
-
-#[cfg(feature = "python")]
-#[pyo3::pymethods]
-impl BookImbalanceActorConfig {
-    #[new]
-    #[pyo3(signature = (instrument_ids, log_interval=100, actor_id=None))]
-    fn py_new(
-        instrument_ids: Vec<InstrumentId>,
-        log_interval: u64,
-        actor_id: Option<ActorId>,
-    ) -> Self {
-        let mut config = Self::new(instrument_ids).with_log_interval(log_interval);
-
-        if let Some(id) = actor_id {
-            config.actor_id = Some(id);
-        }
-
-        config
-    }
-
-    #[getter]
-    fn instrument_ids(&self) -> Vec<InstrumentId> {
-        self.instrument_ids.clone()
-    }
-
-    #[getter]
-    fn log_interval(&self) -> u64 {
-        self.log_interval
-    }
-
-    #[getter]
-    fn actor_id(&self) -> Option<ActorId> {
-        self.actor_id
     }
 }

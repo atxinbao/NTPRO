@@ -39,7 +39,7 @@ fn main() -> anyhow::Result<()> {
     println!("environment={:?}", node.environment());
     println!("state={:?}", node.state());
     println!("running={}", node.is_running());
-    println!("python_required=false");
+    println!("rust_only_runtime=true");
     println!("external_venue_connection=false");
 
     Ok(())

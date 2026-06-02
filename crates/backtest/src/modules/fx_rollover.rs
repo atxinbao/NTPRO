@@ -49,14 +49,6 @@ const LOCATION_CURRENCY_MAP: &[(&str, &str)] = &[
 
 /// A single interest rate data entry.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.backtest", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.backtest")
-)]
 pub struct InterestRateRecord {
     /// OECD location code (e.g., "AUS", "USA").
     pub location: String,
@@ -159,18 +151,6 @@ impl RolloverInterestCalculator {
 /// between the two currencies is credited or debited. Wednesday and Friday
 /// rollovers are tripled (Wednesday for T+2 settlement, Friday for the weekend).
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.backtest",
-        unsendable,
-        skip_from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.backtest")
-)]
 pub struct FXRolloverInterestModule {
     calculator: RolloverInterestCalculator,
     rollover_time_ns: Cell<u64>,

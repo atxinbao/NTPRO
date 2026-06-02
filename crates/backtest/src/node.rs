@@ -42,14 +42,6 @@ use crate::{
 /// `BacktestNode` connects the [`ParquetDataCatalog`] with [`BacktestEngine`] to load
 /// historical data and run backtests. Supports both oneshot and streaming modes.
 #[derive(Debug)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.backtest", unsendable)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.backtest")
-)]
 pub struct BacktestNode {
     configs: Vec<BacktestRunConfig>,
     engines: AHashMap<String, BacktestEngine>,

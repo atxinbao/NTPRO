@@ -20,17 +20,6 @@ use nautilus_core::{UUID4, UnixNanos};
 
 /// Results from a completed backtest run.
 #[derive(Debug)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.backtest",
-        skip_from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.backtest")
-)]
 pub struct BacktestResult {
     pub trader_id: String,
     pub machine_id: String,

@@ -775,7 +775,7 @@ impl AccountsManager {
 
                 AccountBalance::new(total, balance.locked, free)
             } else {
-                // Mirrors Python `_update_balance_multi_currency`: a fill that
+                // Mirrors the legacy multi-currency balance update path: a fill that
                 // would open a new debit currency on a non-seeded account is
                 // rejected even when `allow_cash_borrowing=true`. The
                 // existing-currency branch above lets the per-account
@@ -1963,7 +1963,7 @@ mod tests {
         let manager = AccountsManager::new(clock, cache.clone());
         let instrument = audusd_sim();
         // Buy AUD/USD on an AUD-only account: produces negative USD pnl on a missing currency,
-        // which the documented Python-parity branch rejects even with `allow_borrowing=true`.
+        // which the documented legacy-parity branch rejects even with `allow_borrowing=true`.
         let fill = buy_audusd_fill("10000", "0.80000", 0.0);
         let position = Position::new(&InstrumentAny::CurrencyPair(instrument.clone()), fill);
         cache
@@ -1977,7 +1977,7 @@ mod tests {
             fill,
         );
 
-        // Rejected at the no-existing-balance + negative-pnl branch (Python parity)
+        // Rejected at the no-existing-balance + negative-pnl branch (legacy parity)
         match updated {
             AccountAny::Cash(cash) => {
                 assert_eq!(

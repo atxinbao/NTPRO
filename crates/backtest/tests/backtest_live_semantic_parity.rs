@@ -228,7 +228,7 @@ fn parity_event(backtest_result: &Value, live_case: &Value) -> Value {
             "shared_invariants": {
                 "category": "backtest_live",
                 "deterministic_fixture": "true",
-                "python_surface_required": "false",
+                "rust_only_surface": "false",
                 "external_io_required": "false",
                 "order_side_effects": "none",
             }

@@ -5038,10 +5038,10 @@ fn test_netting_mode_fills_have_no_position_id(
     );
 }
 
-// NOTE: Trade consumption tests are in Python (test_matching_engine.py) because the Rust
-// matching engine's handler mechanism for filling resting orders via iteration is not yet
-// implemented (marked TBD in engine.rs). The trade consumption tracking code in
-// determine_limit_price_and_volume is ready but can't be exercised until handlers are wired up.
+// NOTE: Trade consumption coverage is tracked in the Rust cutover backlog because the matching
+// engine's handler mechanism for filling resting orders via iteration is not yet implemented
+// (marked TBD in engine.rs). The trade consumption tracking code in
+// determine_limit_price_and_volume is ready but cannot be exercised until handlers are wired up.
 
 /// Tests BUY MarketIfTouchedOrder fills at trigger price (not bar extreme) during bar processing.
 ///
