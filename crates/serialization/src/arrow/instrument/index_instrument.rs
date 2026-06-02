@@ -90,7 +90,7 @@ impl EncodeToRecordBatch for IndexInstrument {
             size_precision_builder.append_value(index.size_precision);
             size_increment_builder.append_value(index.size_increment.to_string());
 
-            // Encode info dict as JSON bytes (matching Python's msgspec.json.encode)
+            // Encode info dict as JSON bytes (using serde_json::to_vec)
             if let Some(ref info) = index.info {
                 match serde_json::to_vec(info) {
                     Ok(json_bytes) => {
@@ -191,7 +191,7 @@ pub fn decode_index_instrument_batch(
         let size_increment = Quantity::from_str(size_increment_values.value(i))
             .map_err(|e| EncodingError::ParseError("size_increment", format!("row {i}: {e}")))?;
 
-        // Decode info dict from JSON bytes (matching Python's msgspec.json.decode)
+        // Decode info dict from JSON bytes (using serde_json::from_slice)
         let info = if info_values.is_null(i) {
             None
         } else {

@@ -140,7 +140,7 @@ impl EncodeToRecordBatch for BettingInstrument {
             price_precision_builder.append_value(bi.price_precision);
             size_precision_builder.append_value(bi.size_precision);
 
-            // Encode info dict as JSON bytes (matching Python's msgspec.json.encode)
+            // Encode info dict as JSON bytes (using serde_json::to_vec)
             if let Some(ref info) = bi.info {
                 match serde_json::to_vec(info) {
                     Ok(json_bytes) => {
@@ -294,7 +294,7 @@ pub fn decode_betting_instrument_batch(
         let price_prec = price_precision_values.value(i);
         let size_prec = size_precision_values.value(i);
 
-        // Decode info dict from JSON bytes (matching Python's msgspec.json.decode)
+        // Decode info dict from JSON bytes (using serde_json::from_slice)
         let info = if info_values.is_null(i) {
             None
         } else {
@@ -318,7 +318,8 @@ pub fn decode_betting_instrument_batch(
         let ts_event = nautilus_core::UnixNanos::from(ts_event_values.value(i));
         let ts_init = nautilus_core::UnixNanos::from(ts_init_values.value(i));
 
-        // Note: BettingInstrument requires price_increment and size_increment, but they're not in the Python schema
+        // Note: BettingInstrument requires price_increment and size_increment, but they are not in
+        // the legacy Arrow schema.
         // We'll need to use defaults or extract from price_precision/size_precision
         // For now, using minimal defaults based on precision
         let price_increment = Price::new(0.01, price_prec);
@@ -351,16 +352,16 @@ pub fn decode_betting_instrument_batch(
             size_prec,
             price_increment,
             size_increment,
-            None, // max_quantity - not in Python schema
-            None, // min_quantity - not in Python schema
-            None, // max_notional - not in Python schema
-            None, // min_notional - not in Python schema
-            None, // max_price - not in Python schema
-            None, // min_price - not in Python schema
-            None, // margin_init - not in Python schema, will default to 1
-            None, // margin_maint - not in Python schema, will default to 1
-            None, // maker_fee - not in Python schema, will default to 0
-            None, // taker_fee - not in Python schema, will default to 0
+            None, // max_quantity - not in legacy Arrow schema
+            None, // min_quantity - not in legacy Arrow schema
+            None, // max_notional - not in legacy Arrow schema
+            None, // min_notional - not in legacy Arrow schema
+            None, // max_price - not in legacy Arrow schema
+            None, // min_price - not in legacy Arrow schema
+            None, // margin_init - not in legacy Arrow schema, will default to 1
+            None, // margin_maint - not in legacy Arrow schema, will default to 1
+            None, // maker_fee - not in legacy Arrow schema, will default to 0
+            None, // taker_fee - not in legacy Arrow schema, will default to 0
             info,
             ts_event,
             ts_init,

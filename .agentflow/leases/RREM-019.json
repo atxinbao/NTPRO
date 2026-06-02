@@ -1,0 +1,26 @@
+{
+  "task_id": "RREM-019",
+  "agent_id": "Codex",
+  "branch": "ai/RREM-019-remove-serialization-network-pyo3-residue",
+  "touched_paths": [
+    "crates/serialization/**",
+    "crates/network/**",
+    "docs/rust-cutover/tasks/RREM-019.md",
+    "docs/rust-cutover/evidence/RREM-019.md",
+    "docs/rust-cutover/inventory/rust_crate_python_residue.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREM-018.json",
+    ".agentflow/leases/RREM-019.json"
+  ],
+  "claimed_at": "2026-06-02T19:50:45+08:00",
+  "status": "REVIEW_REQUIRED",
+  "qa_passed": true,
+  "review_passed": false,
+  "release_gatekeeper_approved": false,
+  "auto_merge_allowed": false,
+  "updated_at": "2026-06-02T20:12:24+08:00",
+  "scoped_residue_removed_gate_passed": true,
+  "rust_only_runtime_gate_passed": false,
+  "pr_url": "https://github.com/atxinbao/NTPRO/pull/115",
+  "pr_number": 115
+}

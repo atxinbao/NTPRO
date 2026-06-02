@@ -61,9 +61,6 @@ use nautilus_model::{
         quantity::QuantityRaw,
     },
 };
-#[cfg(feature = "python")]
-use pyo3::prelude::*;
-
 // Define metadata key constants constants
 const KEY_BAR_TYPE: &str = "bar_type";
 pub const KEY_INSTRUMENT_ID: &str = "instrument_id";
@@ -76,9 +73,6 @@ pub enum DataStreamingError {
     IoError(#[from] io::Error),
     #[error("Arrow error: {0}")]
     ArrowError(#[from] arrow::error::ArrowError),
-    #[cfg(feature = "python")]
-    #[error("Python error: {0}")]
-    PythonError(#[from] PyErr),
 }
 
 #[derive(thiserror::Error, Debug)]

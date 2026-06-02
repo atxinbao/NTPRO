@@ -170,7 +170,7 @@ impl EncodeToRecordBatch for BinaryOption {
                 description_builder.append_null();
             }
 
-            // Encode info dict as JSON bytes (matching Python's msgspec.json.encode)
+            // Encode info dict as JSON bytes (using serde_json::to_vec)
             if let Some(ref info) = bo.info {
                 match serde_json::to_vec(info) {
                     Ok(json_bytes) => {
@@ -370,7 +370,7 @@ pub fn decode_binary_option_batch(
             Some(Ustr::from(desc_str))
         };
 
-        // Decode info dict from JSON bytes (matching Python's msgspec.json.decode)
+        // Decode info dict from JSON bytes (using serde_json::from_slice)
         let info = if info_values.is_null(i) {
             None
         } else {
@@ -409,12 +409,12 @@ pub fn decode_binary_option_batch(
             description,
             max_quantity,
             min_quantity,
-            None, // max_notional - not in Python schema
-            None, // min_notional - not in Python schema
-            None, // max_price - not in Python schema
-            None, // min_price - not in Python schema
-            None, // margin_init - not in Python schema
-            None, // margin_maint - not in Python schema
+            None, // max_notional - not in legacy Arrow schema
+            None, // min_notional - not in legacy Arrow schema
+            None, // max_price - not in legacy Arrow schema
+            None, // min_price - not in legacy Arrow schema
+            None, // margin_init - not in legacy Arrow schema
+            None, // margin_maint - not in legacy Arrow schema
             Some(maker_fee),
             Some(taker_fee),
             info,

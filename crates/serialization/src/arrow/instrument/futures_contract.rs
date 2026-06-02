@@ -161,7 +161,7 @@ impl EncodeToRecordBatch for FuturesContract {
             maker_fee_builder.append_value(fc.maker_fee.to_string());
             taker_fee_builder.append_value(fc.taker_fee.to_string());
 
-            // Encode info dict as JSON bytes (matching Python's msgspec.json.encode)
+            // Encode info dict as JSON bytes (using serde_json::to_vec)
             if let Some(ref info) = fc.info {
                 match serde_json::to_vec(info) {
                     Ok(json_bytes) => {
@@ -326,7 +326,7 @@ pub fn decode_futures_contract_batch(
         let taker_fee = Decimal::from_str(taker_fee_values.value(i))
             .map_err(|e| EncodingError::ParseError("taker_fee", format!("row {i}: {e}")))?;
 
-        // Decode info dict from JSON bytes (matching Python's msgspec.json.decode)
+        // Decode info dict from JSON bytes (using serde_json::from_slice)
         let info = if info_values.is_null(i) {
             None
         } else {
@@ -363,10 +363,10 @@ pub fn decode_futures_contract_batch(
             price_increment,
             multiplier,
             lot_size,
-            None, // max_quantity - not in Python schema
-            None, // min_quantity - not in Python schema
-            None, // max_price - not in Python schema
-            None, // min_price - not in Python schema
+            None, // max_quantity - not in legacy Arrow schema
+            None, // min_quantity - not in legacy Arrow schema
+            None, // max_price - not in legacy Arrow schema
+            None, // min_price - not in legacy Arrow schema
             Some(margin_init),
             Some(margin_maint),
             Some(maker_fee),

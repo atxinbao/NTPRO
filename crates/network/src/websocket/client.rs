@@ -94,8 +94,8 @@ use crate::{
 ///
 /// The client splits the connection into read and write halves. It moves
 /// the read half into a tokio task which keeps receiving messages from the
-/// server and calls a handler - a Python function that takes the data
-/// as its parameter. It stores the write half in the struct wrapped
+/// server and calls a Rust handler that takes the data as its parameter. It
+/// stores the write half in the struct wrapped
 /// with an Arc Mutex. This way the client struct can be used to write
 /// data to the server from multiple scopes/tasks.
 ///
@@ -344,7 +344,7 @@ impl WebSocketClientInner {
     /// `CONNECT` tunnel through the proxy before performing the WebSocket
     /// handshake. The Sockudo backend does not yet support proxying; when it
     /// is selected together with a proxy URL, this method logs a warning and
-    /// transparently falls back to Tungstenite so omitted-backend Python
+    /// transparently falls back to Tungstenite so default runtime
     /// configurations keep working.
     ///
     /// # Errors
@@ -363,8 +363,7 @@ impl WebSocketClientInner {
     ) -> Result<(MessageWriter, MessageReader), TransportError> {
         // Sockudo does not yet support proxy tunnels. When a proxy URL is supplied,
         // route through Tungstenite so configurations that rely on the runtime
-        // default keep working (notably the Python `WebSocketConfig` binding,
-        // which exposes `proxy_url` but no `backend` selector).
+        // default keep working.
         if matches!(backend, TransportBackend::Sockudo)
             && let Some(proxy) = proxy_url
         {
@@ -1315,14 +1314,6 @@ impl Debug for WebSocketClientInner {
 ///
 /// Handles connection state, callbacks, and rate limiting.
 /// See module docs for architecture details.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.network")
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.network")
-)]
 pub struct WebSocketClient {
     pub(crate) controller_task: tokio::task::JoinHandle<()>,
     pub(crate) connection_mode: Arc<AtomicU8>,
@@ -1418,8 +1409,8 @@ impl WebSocketClient {
     /// the client automatically attempts to reconnect and replaces the internal reader
     /// (the handler continues working seamlessly).
     ///
-    /// Use handler mode for simplified connection management, automatic reconnection, Python
-    /// bindings, or callback-based message handling.
+    /// Use handler mode for simplified connection management, automatic reconnection, or
+    /// callback-based message handling.
     ///
     /// See [`WebSocketConfig`] documentation for comparison with stream mode.
     ///
@@ -1915,7 +1906,7 @@ impl WebSocketClient {
                                     log::debug!("Sent reconnected message to handler");
                                 }
 
-                                // TODO: Retain this legacy callback for use from Python
+                                // Retain this legacy callback for reconnect observers.
                                 if let Some(ref callback) = post_reconnection {
                                     callback();
                                     log::debug!("Called `post_reconnection` handler");
