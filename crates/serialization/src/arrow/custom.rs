@@ -16,8 +16,7 @@
 //! Custom data: registration and dynamic decoding.
 //!
 //! - **Registration:** Call [`ensure_custom_data_registered::<T>()`] once (e.g. before using the
-//!   catalog) for each custom data type `T` produced by the `#[custom_data]` macro. For Python
-//!   bindings, also call [`nautilus_model::data::register_rust_extractor::<T>()`].
+//!   catalog) for each custom data type `T` produced by the `#[custom_data]` macro.
 //! - **Decoder:** [`CustomDataDecoder`] provides [`ArrowSchemaProvider`] and
 //!   [`DecodeDataFromRecordBatch`] for Parquet-backed custom data decoded at runtime by type name.
 //!   Types must be registered via [`ensure_custom_data_registered::<T>()`] before use.
@@ -37,8 +36,7 @@ use super::{ArrowSchemaProvider, DecodeDataFromRecordBatch, EncodeToRecordBatch}
 /// Used as a type bound by the `#[custom_data]` macro; catalog encoding goes through
 /// the registry, not this trait directly.
 ///
-/// Implemented by the `#[custom_data]` macro for Rust custom data types. Python custom
-/// types use the registry encoder registered by `register_custom_data_class` instead.
+/// Implemented by the `#[custom_data]` macro for Rust custom data types.
 pub trait CustomDataSerialize: CustomDataTrait {
     /// Returns the Arrow schema for this custom data type.
     ///
@@ -62,7 +60,6 @@ pub trait CustomDataSerialize: CustomDataTrait {
 /// Each distinct type `T` is registered at most once (per process). Safe to call
 /// multiple times for the same `T`.
 ///
-/// For types exposed to Python, also call [`nautilus_model::data::register_rust_extractor::<T>()`].
 pub fn ensure_custom_data_registered<T>()
 where
     T: CustomDataTrait

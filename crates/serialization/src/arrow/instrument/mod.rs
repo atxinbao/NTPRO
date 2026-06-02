@@ -17,7 +17,7 @@
 //!
 //! `InstrumentAny` acts as a dispatcher that routes to the appropriate concrete instrument type's
 //! Arrow serialization implementation. Each concrete instrument type implements its own schema
-//! with all fields as columns (wide schema approach), matching the Python implementation.
+//! with all fields as columns (wide schema approach), matching the legacy wide-schema implementation.
 
 use std::collections::HashMap;
 

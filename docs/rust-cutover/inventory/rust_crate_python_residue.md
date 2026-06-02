@@ -2,7 +2,7 @@
 
 Date: 2026-06-02
 Executor: Codex
-Task ID: RREM-018
+Task ID: RREM-019
 
 ## Purpose
 
@@ -16,6 +16,7 @@ have already landed:
 - `crates/model` active PyO3 binding cleanup.
 - RREM-018 cleanup for `crates/adapters`, `crates/indicators`,
   `crates/common`, and `crates/core`.
+- RREM-019 cleanup for `crates/serialization` and `crates/network`.
 
 ## Current State
 
@@ -24,6 +25,16 @@ The active Cython scan is clean for Rust crate product paths:
 ```bash
 rg -n "Cython|cythonize|\\.pyx|\\.pxd|cbindgen_cython|nautilus_trader/core/rust|cython" \
   crates Cargo.toml Makefile pyproject.toml --glob '!docs/**'
+```
+
+Result: no matches.
+
+`crates/serialization` and `crates/network` no longer contain PyO3/Python
+binding residue after RREM-019:
+
+```bash
+rg -n -i "pyo3|pyo3_stub_gen|feature = \"python\"|cfg\\(feature = \"python\"\\)|cfg_attr\\([^\\n]*python|python|nautilus_pyo3|extension-module|custom_data\\([^\\)]*pyo3|stub_module|PyObject|PyAny|Py<" \
+  crates/serialization crates/network
 ```
 
 Result: no matches.
@@ -52,20 +63,18 @@ Result: no matches.
 ## Remaining Rust Crate Python/PyO3 Hits
 
 The broader Rust-only runtime scan still finds Python/PyO3 residue outside the
-RREM-018 implementation scope. File-level count:
+RREM-019 implementation scope. File-level count:
 
 ```text
-109 files
+81 files
 ```
 
 Top path groups:
 
 ```text
- 19 crates/serialization
  14 crates/trading
  12 crates/execution
  11 crates/persistence
-  9 crates/network
   8 crates/backtest
   8 crates/live
   7 crates/infrastructure
@@ -79,24 +88,22 @@ Top path groups:
   1 crates/cryptography
 ```
 
-RREM-018 cargo checks also surfaced `unexpected cfg` warnings in these
-remaining non-scoped crates. Those warnings are intentionally not fixed in
-RREM-018 because the task path scope only authorizes `adapters`, `indicators`,
-`common`, and `core`.
+RREM-018 cargo checks surfaced `unexpected cfg` warnings in `serialization` and
+`network`; RREM-019 closes those two shared dependency crates. Any remaining
+warnings are intentionally not fixed in RREM-019 because the task path scope
+only authorizes `serialization` and `network`.
 
 ## Follow-up Slices
 
 Recommended cleanup order:
 
-1. `crates/serialization` and `crates/network`: shared adapter dependencies
-   that already emit `feature = "python"` warnings during adapter checks.
-2. `crates/execution`, `crates/backtest`, `crates/live`, `crates/trading`,
+1. `crates/execution`, `crates/backtest`, `crates/live`, `crates/trading`,
    `crates/risk`, `crates/portfolio`, and `crates/data`: runtime-facing
    config/model cleanup, with targeted cargo checks per crate.
-3. `crates/persistence`, `crates/infrastructure`, `crates/plugin`,
+2. `crates/persistence`, `crates/infrastructure`, `crates/plugin`,
    `crates/testkit`, and `crates/cryptography`: support crate cleanup after
    runtime surfaces are handled.
-4. Residual `crates/model` documentation/comment cleanup that was outside the
+3. Residual `crates/model` documentation/comment cleanup that was outside the
    already merged active binding removal slice.
 
 ## Boundary
