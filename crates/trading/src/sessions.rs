@@ -32,20 +32,6 @@ use strum::{Display, EnumIter, EnumString, FromRepr};
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, FromRepr, EnumIter, EnumString, Display)]
 #[strum(ascii_case_insensitive)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        eq,
-        eq_int,
-        module = "nautilus_trader.core.nautilus_pyo3.common.enums",
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE"
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass_enum(module = "nautilus_trader.trading")
-)]
 pub enum ForexSession {
     Sydney,
     Tokyo,

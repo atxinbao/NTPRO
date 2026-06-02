@@ -852,7 +852,7 @@ fn reconcile_fill_quantity_mismatch(
 
     if report_filled_qty > order_filled_qty {
         // Check if order is already closed - skip inferred fill to avoid invalid state
-        // (matching Python behavior in _handle_fill_quantity_mismatch)
+        // (matching legacy behavior in _handle_fill_quantity_mismatch)
         if order.is_closed() {
             let precision = order_filled_qty.precision.max(report_filled_qty.precision);
 

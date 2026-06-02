@@ -24,10 +24,6 @@ use crate::strategy::StrategyConfig;
 
 /// Configuration for the dual-EMA crossover strategy.
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.trading", from_py_object)
-)]
 pub struct EmaCrossConfig {
     /// Base strategy configuration.
     pub base: StrategyConfig,
@@ -73,59 +69,5 @@ impl EmaCrossConfig {
     pub fn with_order_id_tag(mut self, tag: String) -> Self {
         self.base.order_id_tag = Some(tag);
         self
-    }
-}
-
-#[cfg(feature = "python")]
-#[pyo3::pymethods]
-impl EmaCrossConfig {
-    #[new]
-    #[pyo3(signature = (
-        instrument_id,
-        trade_size,
-        fast_period=10,
-        slow_period=50,
-        strategy_id=None,
-        order_id_tag=None,
-    ))]
-    fn py_new(
-        instrument_id: InstrumentId,
-        trade_size: Quantity,
-        fast_period: usize,
-        slow_period: usize,
-        strategy_id: Option<StrategyId>,
-        order_id_tag: Option<String>,
-    ) -> Self {
-        let mut config = Self::new(instrument_id, trade_size, fast_period, slow_period);
-
-        if let Some(id) = strategy_id {
-            config.base.strategy_id = Some(id);
-        }
-
-        if let Some(tag) = order_id_tag {
-            config.base.order_id_tag = Some(tag);
-        }
-
-        config
-    }
-
-    #[getter]
-    fn instrument_id(&self) -> InstrumentId {
-        self.instrument_id
-    }
-
-    #[getter]
-    fn trade_size(&self) -> Quantity {
-        self.trade_size
-    }
-
-    #[getter]
-    fn fast_period(&self) -> usize {
-        self.fast_period
-    }
-
-    #[getter]
-    fn slow_period(&self) -> usize {
-        self.slow_period
     }
 }

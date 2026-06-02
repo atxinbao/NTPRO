@@ -88,18 +88,6 @@ impl FromStr for NautilusDataType {
 
 /// Configuration for ``BacktestEngine`` instances.
 #[derive(Debug, Clone, bon::Builder)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.backtest",
-        from_py_object,
-        unsendable
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.backtest")
-)]
 pub struct BacktestEngineConfig {
     /// The kernel environment context.
     #[builder(default = Environment::Backtest)]
@@ -316,18 +304,6 @@ pub struct SimulatedVenueConfig {
 
 /// Represents a venue configuration for one specific backtest engine.
 #[derive(Debug, Clone, bon::Builder)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.backtest",
-        from_py_object,
-        unsendable
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.backtest")
-)]
 pub struct BacktestVenueConfig {
     /// The name of the venue.
     name: Ustr,
@@ -580,18 +556,6 @@ impl BacktestVenueConfig {
 
 /// Represents the data configuration for one specific backtest run.
 #[derive(Debug, Clone, bon::Builder)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.backtest",
-        from_py_object,
-        unsendable
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.backtest")
-)]
 pub struct BacktestDataConfig {
     /// The type of data to query from the catalog.
     data_type: NautilusDataType,
@@ -700,7 +664,7 @@ impl BacktestDataConfig {
 
     /// Constructs identifier strings for catalog queries.
     ///
-    /// Follows the same logic as Python's `BacktestDataConfig.query`:
+    /// Follows the same logic as `BacktestDataConfig::query` compatibility rules:
     /// - For bars: prefer `bar_types`, else construct from instrument(s) + bar_spec + "-EXTERNAL"
     /// - For other types: use `instrument_id` or `instrument_ids`
     #[must_use]
@@ -780,18 +744,6 @@ impl BacktestDataConfig {
 /// Represents the configuration for one specific backtest run.
 /// This includes a backtest engine with its actors and strategies, with the external inputs of venues and data.
 #[derive(Debug, Clone, bon::Builder)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.backtest",
-        from_py_object,
-        unsendable
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.backtest")
-)]
 pub struct BacktestRunConfig {
     /// The unique identifier for this run configuration.
     #[builder(default = UUID4::new().to_string())]

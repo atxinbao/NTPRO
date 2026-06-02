@@ -269,14 +269,6 @@ impl LiveNodeHandle {
 /// Provides a simplified interface for running live systems
 /// with automatic client management and lifecycle handling.
 #[derive(Debug)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.live", unsendable)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.live")
-)]
 pub struct LiveNode {
     kernel: NautilusKernel,
     runner: Option<AsyncRunner>,
@@ -286,9 +278,6 @@ pub struct LiveNode {
     shutdown_deadline: Option<dst::time::Instant>,
     #[cfg(feature = "plugin")]
     plugin_loader: Option<PluginLoader>,
-    #[cfg(feature = "python")]
-    #[allow(dead_code)] // TODO: Under development
-    python_actors: Vec<pyo3::Py<pyo3::PyAny>>,
 }
 
 impl LiveNode {
@@ -311,8 +300,6 @@ impl LiveNode {
             shutdown_deadline: None,
             #[cfg(feature = "plugin")]
             plugin_loader: None,
-            #[cfg(feature = "python")]
-            python_actors: Vec::new(),
         }
     }
 
@@ -383,8 +370,6 @@ impl LiveNode {
             shutdown_deadline: None,
             #[cfg(feature = "plugin")]
             plugin_loader: None,
-            #[cfg(feature = "python")]
-            python_actors: Vec::new(),
         };
         node.load_configured_plugins()?;
 
@@ -2052,15 +2037,8 @@ impl PendingEvents {
 mod tests {
     #[cfg(feature = "plugin")]
     use std::collections::HashMap;
-    #[cfg(feature = "python")]
-    use std::sync::Arc;
     use std::{cell::RefCell, rc::Rc};
 
-    #[cfg(feature = "python")]
-    use nautilus_common::runner::{
-        SyncDataCommandSender, SyncTradingCommandSender, replace_data_cmd_sender,
-        replace_exec_cmd_sender,
-    };
     use nautilus_common::{cache::Cache, clock::Clock};
     use nautilus_core::{UUID4, UnixNanos};
     use nautilus_execution::engine::SnapshotAnchorer;
@@ -2524,61 +2502,6 @@ mod tests {
             Some(StrategyId::from("TopLevelStrategy-001"))
         );
         assert_eq!(strategy_config.order_id_tag.as_deref(), Some("TOP"));
-    }
-
-    #[cfg(feature = "python")]
-    #[rstest]
-    fn test_node_build_and_initial_state() {
-        let node = LiveNode::builder(TraderId::from("TRADER-001"), Environment::Sandbox)
-            .unwrap()
-            .with_name("TestNode")
-            .build()
-            .unwrap();
-
-        assert_eq!(node.state(), NodeState::Idle);
-        assert!(!node.is_running());
-        assert_eq!(node.environment(), Environment::Sandbox);
-        assert_eq!(node.trader_id(), TraderId::from("TRADER-001"));
-    }
-
-    #[cfg(feature = "python")]
-    #[rstest]
-    fn test_node_build_replaces_stale_runner_senders() {
-        replace_data_cmd_sender(Arc::new(SyncDataCommandSender));
-        replace_exec_cmd_sender(Arc::new(SyncTradingCommandSender));
-
-        let first = LiveNode::builder(TraderId::from("TRADER-001"), Environment::Sandbox)
-            .unwrap()
-            .with_name("FirstNode")
-            .build()
-            .unwrap();
-
-        assert_eq!(first.state(), NodeState::Idle);
-        drop(first);
-
-        let second = LiveNode::builder(TraderId::from("TRADER-001"), Environment::Sandbox)
-            .unwrap()
-            .with_name("SecondNode")
-            .build()
-            .unwrap();
-
-        assert_eq!(second.state(), NodeState::Idle);
-        assert!(!second.is_running());
-    }
-
-    #[cfg(feature = "python")]
-    #[rstest]
-    fn test_node_handle_reflects_node_state() {
-        let node = LiveNode::builder(TraderId::from("TRADER-001"), Environment::Sandbox)
-            .unwrap()
-            .with_name("TestNode")
-            .build()
-            .unwrap();
-
-        let handle = node.handle();
-
-        assert_eq!(handle.state(), NodeState::Idle);
-        assert!(!handle.is_running());
     }
 
     #[rstest]

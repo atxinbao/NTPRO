@@ -130,25 +130,3 @@ let config = CompositeMarketMakerConfig::new(
 let strategy = CompositeMarketMaker::new(config);
 node.add_strategy(strategy)?;
 ```
-
-## Python usage (v2)
-
-Pass the config to `add_native_strategy` on a `LiveNode` or `BacktestEngine`.
-Python provides the configuration; the strategy runs entirely in Rust.
-
-```python
-from nautilus_trader.core.nautilus_pyo3.trading import CompositeMarketMakerConfig
-
-config = CompositeMarketMakerConfig(
-    instrument_id=InstrumentId.from_str("OCPI-H100-PERP.AX"),
-    signal_instrument_id=InstrumentId.from_str("SEMI-COMPOSITE.SYNTH"),
-    max_position=Quantity.from_str("100"),
-    trade_size=Quantity.from_str("100"),
-    half_spread_bps=25,
-    inventory_skew_factor=0.0005,
-    signal_skew_factor=0.5,
-    requote_threshold_bps=10,
-)
-
-node.add_native_strategy(config)
-```

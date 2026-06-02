@@ -140,28 +140,3 @@ let config = DeltaNeutralVolConfig::new(
 let strategy = DeltaNeutralVol::new(config);
 node.add_strategy(strategy)?;
 ```
-
-## Python usage (v2)
-
-Pass the config to `add_native_strategy` on a `LiveNode` or
-`BacktestEngine`. Python provides the configuration; the strategy
-runs entirely in Rust.
-
-```python
-from nautilus_trader.core.nautilus_pyo3.trading import DeltaNeutralVolConfig
-
-config = DeltaNeutralVolConfig(
-    option_family="BTC-USD",
-    hedge_instrument_id=InstrumentId.from_str("BTC-USD-SWAP.OKX"),
-    client_id=ClientId("OKX"),
-    target_call_delta=0.25,
-    target_put_delta=-0.25,
-    contracts=5,
-    rehedge_delta_threshold=0.3,
-    rehedge_interval_secs=15,
-    expiry_filter="260627",
-    entry_iv_offset=0.02,  # Sell 2 vol points below mark
-)
-
-node.add_native_strategy(config)
-```

@@ -44,14 +44,6 @@ use serde::{Deserialize, Serialize};
 const DEFAULT_ORDER_RATE_LIMIT: &str = "100/00:00:01";
 
 /// Configuration for one Rust-native plug-in instance loaded by a live node.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.live", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.live")
-)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
 pub struct PluginConfig {
@@ -76,14 +68,6 @@ impl Default for PluginConfig {
 }
 
 /// Configuration for live data engines.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.live", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.live")
-)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
 pub struct LiveDataEngineConfig {
@@ -175,14 +159,6 @@ impl From<LiveDataEngineConfig> for DataEngineConfig {
 }
 
 /// Configuration for live risk engines.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.live", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.live")
-)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
 pub struct LiveRiskEngineConfig {
@@ -292,14 +268,6 @@ fn parse_rate_limit(input: &str) -> anyhow::Result<RateLimit> {
 }
 
 /// Configuration for live execution engines.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.live", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.live")
-)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
 pub struct LiveExecEngineConfig {
@@ -456,14 +424,6 @@ impl From<LiveExecEngineConfig> for ExecutionEngineConfig {
 }
 
 /// Configuration for live client message routing.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.live", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.live")
-)]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
 pub struct RoutingConfig {
@@ -475,14 +435,6 @@ pub struct RoutingConfig {
 }
 
 /// Configuration for instrument providers.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.live", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.live")
-)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
 pub struct InstrumentProviderConfig {
@@ -508,14 +460,6 @@ impl Default for InstrumentProviderConfig {
 }
 
 /// Configuration for live data clients.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.live", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.live")
-)]
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
 pub struct LiveDataClientConfig {
@@ -531,14 +475,6 @@ pub struct LiveDataClientConfig {
 }
 
 /// Configuration for live execution clients.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.live", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.live")
-)]
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
 pub struct LiveExecClientConfig {
@@ -551,14 +487,6 @@ pub struct LiveExecClientConfig {
 }
 
 /// Configuration for live Nautilus system nodes.
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.live", from_py_object)
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.live")
-)]
 #[derive(Debug, Clone, Serialize, Deserialize, bon::Builder)]
 #[serde(default, deny_unknown_fields)]
 pub struct LiveNodeConfig {
@@ -795,7 +723,7 @@ impl LiveExecEngineConfig {
     fn validate_runtime_support(&self) -> anyhow::Result<()> {
         // `Duration::from_secs_f64` panics on negative, NaN, or infinite input, and the
         // `run()` path feeds this value straight in when reconciliation is enabled. Match
-        // the legacy Python `PositiveFloat` semantics and reject hostile values at build.
+        // the legacy positive-float validation semantics and reject hostile values at build.
         if !self.reconciliation_startup_delay_secs.is_finite()
             || self.reconciliation_startup_delay_secs < 0.0
         {

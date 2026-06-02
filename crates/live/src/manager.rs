@@ -2273,7 +2273,7 @@ impl ExecutionManager {
     /// Reconciles an order with its associated fills atomically.
     ///
     /// For terminal statuses (Canceled), fills are applied BEFORE the terminal event
-    /// to ensure correct state transitions (matching Python behavior).
+    /// to ensure correct state transitions (matching legacy behavior).
     fn reconcile_order_with_fills(
         &mut self,
         order: &OrderAny,
@@ -2498,7 +2498,7 @@ impl ExecutionManager {
         let ts_now = self.clock.borrow().timestamp_ns();
 
         // Generate events for external order: Accepted first, then fills (for terminal statuses),
-        // then terminal status. This matches Python's behavior.
+        // then terminal status. This matches legacy behavior.
         let mut order_events =
             generate_external_order_status_events(&order, report, account_id, instrument, ts_now);
 

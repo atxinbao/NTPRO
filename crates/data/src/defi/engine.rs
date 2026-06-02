@@ -283,7 +283,7 @@ impl DataEngine {
                 };
 
                 // Defensive: refuse stub snapshots that slipped past the bootstrap-side
-                // guards. Installing one would leave Python actors observing an initialized
+                // guards. Installing one would leave external actors observing an initialized
                 // profiler with zero liquidity; better to leave the pool without a profiler
                 // so the bad state is visible.
                 if snapshot.positions.is_empty()

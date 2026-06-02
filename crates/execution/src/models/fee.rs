@@ -70,17 +70,6 @@ impl Default for FeeModelAny {
 }
 
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.execution",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.execution")
-)]
 pub struct FixedFeeModel {
     commission: Money,
     zero_commission: Money,
@@ -123,17 +112,6 @@ impl FeeModel for FixedFeeModel {
 }
 
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.execution",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.execution")
-)]
 pub struct PerContractFeeModel {
     commission: Money,
 }
@@ -166,17 +144,6 @@ impl FeeModel for PerContractFeeModel {
 }
 
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(
-        module = "nautilus_trader.core.nautilus_pyo3.execution",
-        from_py_object
-    )
-)]
-#[cfg_attr(
-    feature = "python",
-    pyo3_stub_gen::derive::gen_stub_pyclass(module = "nautilus_trader.execution")
-)]
 pub struct MakerTakerFeeModel;
 
 impl FeeModel for MakerTakerFeeModel {

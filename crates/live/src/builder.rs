@@ -56,10 +56,6 @@ enum ExecutionClientFactoryEntry {
 /// Provides configuration options specific to live nodes, including client factory
 /// registration, timeout settings, and optional event-store injection for run-lifecycle
 /// audit and replay (see [`Self::with_event_store`]).
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(module = "nautilus_trader.core.nautilus_pyo3.live", unsendable)
-)]
 pub struct LiveNodeBuilder {
     name: String,
     config: LiveNodeConfig,

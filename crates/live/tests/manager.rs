@@ -768,7 +768,7 @@ async fn test_reconcile_mass_status_creates_external_order_canceled() {
 #[tokio::test]
 async fn test_external_order_canceled_with_partial_fill() {
     // Test that external orders with Canceled status and partial fills
-    // have both the fill and canceled events generated (matching Python behavior)
+    // have both the fill and canceled events generated (matching legacy behavior)
     let mut ctx = TestContext::new();
     let instrument_id = test_instrument_id();
     let venue_order_id = VenueOrderId::from("V-EXT-PARTIAL");
@@ -843,7 +843,7 @@ async fn test_external_order_canceled_with_partial_fill() {
 #[tokio::test]
 async fn test_cached_order_canceled_with_fills() {
     // Test that a cached order transitioning to Canceled has fills applied
-    // BEFORE the Canceled event (matching Python behavior)
+    // BEFORE the Canceled event (matching legacy behavior)
     let mut ctx = TestContext::new();
     let instrument_id = test_instrument_id();
     let client_order_id = ClientOrderId::from("O-CANCEL-FILL");

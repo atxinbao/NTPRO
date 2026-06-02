@@ -89,25 +89,3 @@ let config = GridMarketMakerConfig::new(
 let strategy = GridMarketMaker::new(config);
 node.add_strategy(strategy)?;
 ```
-
-## Python usage (v2)
-
-Pass the config to `add_native_strategy` on a `LiveNode` or
-`BacktestEngine`. Python provides the configuration; the strategy
-runs entirely in Rust.
-
-```python
-from nautilus_trader.core.nautilus_pyo3.trading import GridMarketMakerConfig
-
-config = GridMarketMakerConfig(
-    instrument_id=InstrumentId.from_str("BTC-USDT-SWAP.OKX"),
-    max_position=Quantity.from_str("10.0"),
-    trade_size=Quantity.from_str("0.1"),
-    num_levels=5,
-    grid_step_bps=15,
-    skew_factor=0.5,
-    requote_threshold_bps=5,
-)
-
-node.add_native_strategy(config)
-```

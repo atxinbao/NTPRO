@@ -33,18 +33,13 @@
 //!
 //! # Feature Flags
 //!
-//! This crate provides feature flags to control source code inclusion during compilation,
-//! depending on the intended use case, i.e. whether to provide Python bindings
-//! for the [nautilus_trader](https://pypi.org/project/nautilus_trader) Python package,
-//! or as part of a Rust only build.
+//! This crate exposes Cargo feature flags for Rust-only build composition.
 //!
 //! - `node` (default): Enables the full live node, builder, config, and execution manager.
 //! - `plugin` (default): Enables the host-side plug-in adapters and loader from `nautilus-plugin`.
 //! - `ffi`: Enables the C foreign function interface (FFI) from [cbindgen](https://github.com/mozilla/cbindgen).
 //! - `streaming`: Enables `persistence` dependency for streaming configuration (requires `node`).
-//! - `python`: Enables Python bindings from [PyO3](https://pyo3.rs) (auto-enables `node` and `streaming`).
 //! - `defi`: Enables DeFi (Decentralized Finance) support.
-//! - `extension-module`: Builds the crate as a Python extension module.
 //!
 //! # Lean adapter builds
 //!

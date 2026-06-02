@@ -481,9 +481,9 @@ mod tests {
         assert_ne!(a, c, "raw_id must distinguish ids");
     }
 
-    // Parity fixtures: if either Rust or Python changes the hashing scheme,
+    // Parity fixtures: if either Rust or legacy reference changes the hashing scheme,
     // one of these assertions will fail and flag the drift.
-    // The Python mirror lives at python/tests/unit/backtest/test_trade_id_parity.py
+    // The legacy mirror lives at trade ID parity fixture set
     #[rstest]
     #[case::zero("BINANCE", 1_u32, 0_u64, "T-59d6cf33c843f0cc-001")]
     #[case::nanos(
@@ -498,7 +498,7 @@ mod tests {
         1_700_000_000_000_000_000_u64,
         "T-2a2238c5cc0cbaf2-001"
     )]
-    fn test_generate_trade_id_matches_python_parity_fixture(
+    fn test_generate_trade_id_matches_legacy_parity_fixture(
         #[case] venue: &str,
         #[case] raw_id: u32,
         #[case] ts_init: u64,
@@ -511,10 +511,10 @@ mod tests {
 
     // Multi-tick parity: four consecutive bumps at the same ts_init (the
     // bar O/H/L/C pattern) must produce counters 001..004. Mirrored in
-    // tests/unit_tests/backtest/test_trade_id_parity.py
+    // trade ID parity fixture set
     // (test_trade_id_multi_tick_counter_matches_rust_parity_fixture).
     #[rstest]
-    fn test_generate_trade_id_multi_tick_matches_python_parity_fixture() {
+    fn test_generate_trade_id_multi_tick_matches_legacy_parity_fixture() {
         let mut generator = build_ids_generator(Venue::from("BINANCE"), 1);
         let ts = UnixNanos::from(1_700_000_000_000_000_000_u64);
         let sequence: Vec<String> = (0..4)

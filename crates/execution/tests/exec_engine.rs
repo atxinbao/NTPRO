@@ -1539,7 +1539,7 @@ fn test_submit_bracket_order_list_with_all_duplicate_client_order_id_logs_does_n
         "Take profit order should exist in cache"
     );
 
-    // Note: In the Python test, it checks command_count == 2, meaning only 2 commands were processed
+    // Note: In the legacy parity test, it checks command_count == 2, meaning only 2 commands were processed
     // This suggests the duplicate submission was handled gracefully without creating new orders
 }
 
@@ -1847,7 +1847,7 @@ fn test_submit_order_with_cleared_cache_logs_error(mut execution_engine: Executi
         "Order should be added to cache after submission"
     );
 
-    // Clear the cache (equivalent to self.cache.reset() in Python)
+    // Clear the cache through the same reset path used by runtime fixtures.
     execution_engine.cache().borrow_mut().reset();
     assert!(
         !execution_engine
@@ -4556,8 +4556,8 @@ fn test_flip_position_on_opposite_filled_same_position_sell(mut execution_engine
 
     let cache = execution_engine.cache().borrow();
 
-    // In Rust Netting OMS, position flipping behavior is different from Python
-    // Let's check what actually happened:
+    // In Rust Netting OMS, position flipping behavior follows the Rust-only path.
+    // Check what actually happened:
     let all_position_ids = cache.position_ids(None, None, None, None);
     println!("All position IDs after flip: {all_position_ids:?}");
 

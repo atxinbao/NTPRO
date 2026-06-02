@@ -36,10 +36,7 @@
 //!
 //! # Feature Flags
 //!
-//! This crate provides feature flags to control source code inclusion during compilation,
-//! depending on the intended use case, i.e. whether to provide Python bindings
-//! for the [nautilus_trader](https://pypi.org/project/nautilus_trader) Python package,
-//! or as part of a Rust only build.
+//! This crate exposes Cargo feature flags for Rust-only build composition.
 //!
 //! - `ffi`: Enables the C foreign function interface (FFI) from [cbindgen](https://github.com/mozilla/cbindgen).
 //! - `high-precision`: Enables [high-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) to use 128-bit value types.
@@ -89,7 +86,7 @@
 )]
 #![allow(
     clippy::struct_excessive_bools,
-    reason = "config structs mirror existing Python configuration surfaces"
+    reason = "config structs retain explicit field-by-field runtime settings"
 )]
 #![allow(
     clippy::too_many_lines,

@@ -2760,7 +2760,7 @@ impl ExecutionEngine {
 
     /// Handle position creation or update for a fill.
     ///
-    /// This function mirrors the Python `_handle_position_update` method.
+    /// This function mirrors the legacy position update semantics.
     fn handle_position_update(
         &mut self,
         instrument: &InstrumentAny,
@@ -3014,7 +3014,7 @@ impl ExecutionEngine {
                 position.size_precision,
             ),
             PositionSide::Short => Quantity::from_raw(
-                position.quantity.raw.abs_diff(fill.last_qty.raw), // Equivalent to Python's abs(position.quantity - fill.last_qty)
+                position.quantity.raw.abs_diff(fill.last_qty.raw), // Equivalent to absolute position quantity delta
                 position.size_precision,
             ),
             _ => fill.last_qty,
@@ -3083,7 +3083,7 @@ impl ExecutionEngine {
             // Generate new position ID for flipped virtual position (Hedging OMS only)
             Some(self.pos_id_generator.generate(fill.strategy_id, true))
         } else {
-            // Default: use the same position ID as the fill (Python behavior)
+            // Default: use the same position ID as the fill (legacy behavior)
             fill.position_id
         };
 
