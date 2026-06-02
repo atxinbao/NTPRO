@@ -2030,7 +2030,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-022.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-022.md",
-      "updated_at": "2026-06-02T22:53:30+08:00",
+      "updated_at": "2026-06-02T22:54:49+08:00",
       "branch": "ai/RREM-022-remove-final-rust-crate-python-residue",
       "lease": "RREM-022",
       "qa_passed": true,
@@ -2038,8 +2038,11 @@
       "release_gatekeeper_approved": false,
       "auto_merge_allowed": false,
       "rust_only_runtime_gate_passed": true,
-      "notes": "RREM-022 local QA passed. Full Rust crate residue scan has no matches and scripts/ai/check_rust_only_runtime.sh passes. Critical removal task must stop at REVIEW_REQUIRED; auto-merge disabled."
+      "notes": "RREM-022 local QA passed and PR #118 is open for release gatekeeper review. Full Rust crate residue scan has no matches and scripts/ai/check_rust_only_runtime.sh passes. Critical removal task must stop at REVIEW_REQUIRED; auto-merge disabled.",
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/118",
+      "pr_number": 118,
+      "implementation_commit": "cfd4d471a1"
     }
   },
-  "updated_at": "2026-06-02T22:53:30+08:00"
+  "updated_at": "2026-06-02T22:54:49+08:00"
 }
