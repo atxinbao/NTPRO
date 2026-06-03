@@ -12,24 +12,27 @@ Updated: 2026-06-04
 Executor: Codex
 Follow-up ID: RC2-PRERELEASE-DOCS
 
+Updated: 2026-06-04
+Executor: Codex
+Follow-up ID: FORMAL-RELEASE-V0.1.0
+
 ## Scope
 
 This guide describes the Rust-only migration path for NTPRO after the
-Rust-only release gate passed and `ntpro-rust-only-rc.2` was published as the
-current GitHub pre-release.
+Rust-only release gate passed and `ntpro-rust-only-v0.1.0` was prepared as the
+first formal GitHub Release.
 
 ## Current Release Status
 
-The Rust-only release candidate is published as a GitHub pre-release.
+The Rust-only cutover is published as a formal GitHub Release.
 
 Current state:
 
 - RREL-009 made `scripts/ai/verify_release.sh` pass.
 - RREL-008 recorded human owner approval for Rust-only completion.
-- `ntpro-rust-only-rc.2` points at the commit containing the rc.2 tag-prep
-  documentation and the merged RC public-surface cleanup.
-- The GitHub pre-release is published at
-  `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-rc.2`.
+- `ntpro-rust-only-rc.3` records the final pre-release candidate after RC2
+  documentation correction.
+- `ntpro-rust-only-v0.1.0` records the first formal Rust-only GitHub Release.
 - Top-level legacy Python tests under `tests/**/*.py` were removed during RC
   public-surface cleanup.
 
@@ -75,7 +78,7 @@ NTPRO is considered Rust-only only when these gates remain green:
   `check_cython_removed.sh` pass without ignored product paths.
 - Golden trace validation passes in standard and final release mode.
 - The Rust CLI product surface remains available through Cargo.
-- Final GitHub Release promotion remains owner-approved only.
+- Later GitHub Release promotion remains owner-approved only.
 
 ## User Impact
 

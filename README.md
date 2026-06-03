@@ -6,15 +6,14 @@ from NautilusTrader.
 The current public milestone is:
 
 ```text
-ntpro-rust-only-rc.2
+ntpro-rust-only-v0.1.0
 ```
 
-This tag is the Rust-only release-candidate source point after the public
-README/release-doc cleanup and legacy Python test removal. It is published as
-the current GitHub pre-release:
+This tag is the first Rust-only formal release source point after the RC3
+pre-release validation path. It is published as the current GitHub Release:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-rc.2
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.1.0
 ```
 
 ## Current Status
@@ -134,12 +133,12 @@ Start with:
 - `examples/rust/live_cli_smoke.rs`
 - `examples/rust/sandbox_cli_smoke.rs`
 
-## Release Candidate Notes
+## Release Notes
 
-`ntpro-rust-only-rc.2` is an annotated tag and the current published GitHub
-pre-release.
+`ntpro-rust-only-v0.1.0` is the current formal Rust-only release. The previous
+pre-release source point is `ntpro-rust-only-rc.3`.
 
-Before promoting the release candidate to a final release, review:
+Before cutting a later release, review:
 
 - current GitHub checks for the tagged commit;
 - release notes;

@@ -43,7 +43,7 @@ the human owner approved completion on 2026-06-03.
 | Final release verification | RREL-009 records green final local release verification. | Covered. |
 | Owner signoff | RREL-007/RREL-008 records approval by atxinbao on 2026-06-03. | Covered. |
 | Completion declaration | RREL-008 records completion approval and stops at PR review. | Covered, review-gated. |
-| Tag/release publication | RREL-005 kept tag and GitHub Release publication as separate manual actions. `ntpro-rust-only-rc.1` and `ntpro-rust-only-rc.2` were later created after explicit owner approval. | Tags covered; `ntpro-rust-only-rc.2` is now published as the current GitHub pre-release after explicit owner approval. |
+| Tag/release publication | RREL-005 kept tag and GitHub Release publication as separate manual actions. `ntpro-rust-only-rc.1`, `ntpro-rust-only-rc.2`, `ntpro-rust-only-rc.3`, and `ntpro-rust-only-v0.1.0` were later approved as explicit owner-controlled publication steps. | Tags covered; `ntpro-rust-only-v0.1.0` is the formal Rust-only GitHub Release target after explicit owner approval. |
 
 ## P0/P1 Deferral Review
 
@@ -61,15 +61,15 @@ record:
 Remaining controls are not completion blockers:
 
 - RREL-008 has been reviewed and merged.
-- `ntpro-rust-only-rc.2` has been created as the current release candidate
-  after separate owner approval.
-- `ntpro-rust-only-rc.2` has been published as the current GitHub pre-release
-  after separate owner approval.
+- `ntpro-rust-only-rc.3` has been created and published as the final pre-release
+  candidate after separate owner approval.
+- `ntpro-rust-only-v0.1.0` has been selected as the first formal Rust-only
+  GitHub Release target after separate owner approval.
 
 ## Review Decision
 
 Scope decision coverage is sufficient for the completed Rust-only cutover and
-the published `ntpro-rust-only-rc.2` pre-release candidate.
+the `ntpro-rust-only-v0.1.0` formal release target.
 
-This review still does not allow final release publication from automation
-alone.
+This review still requires explicit owner approval for any later release
+publication.
