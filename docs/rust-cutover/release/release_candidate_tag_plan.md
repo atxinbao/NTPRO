@@ -1,21 +1,22 @@
 # RREL-005 Release Candidate Tag Plan
 
-Date: 2026-06-02
+Date: 2026-06-03
 Executor: Codex
-Task ID: RREL-005 / RREL-008 refresh
+Task ID: RREL-005 / RREL-008 / RREL-009
 
 ## Scope
 
 This document prepares the Rust-only release candidate tag plan. It does not
-create a tag, publish a release, or mark the cutover complete.
+create a tag or publish a release.
 
 ## Current Tag Decision
 
-Do not create a Rust-only release candidate tag from the current state.
+Do not create a Rust-only release candidate tag from RREL-008.
 
-The tag plan is blocked until `scripts/ai/verify_release.sh` passes all phases,
-including strict final golden trace replay, and the human owner approves the
-RREL-007 signoff packet.
+RREL-009 made `scripts/ai/verify_release.sh` pass, and the human owner approved
+Rust-only cutover completion on 2026-06-03. Tag creation remains a separate
+manual release action that requires an explicit tag instruction and tag name or
+sequence number.
 
 ## Proposed Tag Shape
 
@@ -37,11 +38,13 @@ Before creating any release candidate tag:
 3. `scripts/ai/check_cython_removed.sh` passes.
 4. The strict final golden trace replay gate passes or is explicitly scoped by
    the release gatekeeper.
-5. RREL-006/RREL-008 evidence records green final release verification.
-6. RREL-007 owner signoff packet is reviewed and explicitly signed by the
-   human owner.
-7. RREL-008 is explicitly approved to mark the cutover complete.
-8. `main` is clean, current, and protected by the agreed release gate rules.
+5. RREL-008 evidence records green final release verification and owner
+   signoff.
+6. RREL-008 completion PR is reviewed and merged.
+7. The human owner explicitly approves tag creation and selects the final
+   `<N>` value.
+8. `main` is clean, current, and protected by the agreed release gate rules at
+   tag time.
 
 ## Tag Procedure After Approval
 
@@ -60,12 +63,12 @@ Only after all preconditions are satisfied:
 - If any final gate fails, abort tag creation.
 - If owner signoff is missing or ambiguous, abort tag creation.
 - If the working tree is dirty, abort tag creation.
-- If RREL-008 is still paused, abort tag creation.
+- If RREL-008 is not merged and marked complete, abort tag creation.
 - If a tag is created incorrectly, do not force-update it without explicit
   owner approval; create a superseding release candidate tag instead.
 
 ## Current Recommendation
 
-Keep this as a draft plan only. The Rust-only runtime and Cython removal checks
-now pass, but the final release command is still blocked at strict golden trace
-replay wiring.
+Keep this as a draft plan only. RREL-008 records completion approval, but tag
+creation and GitHub Release publication are outside RREL-008 scope and require
+a separate owner instruction.

@@ -1,44 +1,62 @@
-# RREL-008 Evidence - Rust-Only Completion Gate
+# RREL-008 Evidence - Mark Rust-Only Cutover Complete
 
-Date: 2026-06-02
+Date: 2026-06-03
 Executor: Codex
 Task ID: RREL-008
 
 ## Summary
 
-RREL-008 did not mark the Rust-only cutover complete.
+RREL-008 records the owner-approved Rust-only cutover completion state.
 
-The latest verification moved the project forward: the Rust-only runtime
-surface check and final Cython removal check now pass, and the standard golden
-trace command passes its schema plus built-in Rust replay harnesses. The final
-release gate is still blocked because `scripts/ai/verify_release.sh` enables the
-strict final replay gate and `scripts/ai/run_golden_traces.sh` requires a
-`GOLDEN_TRACE_REPLAY_COMMAND` for that mode. Owner signoff is also still
-pending.
+The completion decision is based on RREL-009 making the final local release
+verification green and on the owner signoff granted by atxinbao on 2026-06-03.
+This task updates release/signoff/completion documents and agentflow state only.
+It does not create a release tag, publish a GitHub Release, change business
+code, or enable auto-merge.
+
+## Owner Signoff
+
+| Field | Value |
+| --- | --- |
+| Owner name | atxinbao |
+| Decision | Approve Rust-only cutover completion after RREL-009 verify_release passed. |
+| Date | 2026-06-03 |
+| Signature / approval link | This Codex thread and GitHub PR #120. |
 
 ## Files Changed
 
 - `.agentflow/state/task_status.json`
 - `.agentflow/leases/RREL-008.json`
 - `docs/rust-cutover/evidence/RREL-008.md`
-- `docs/rust-cutover/golden_trace/GATE_EVIDENCE.md`
+- `docs/rust-cutover/release/BACKTEST_LIVE_GATE_EVIDENCE.md`
+- `docs/rust-cutover/release/final_completion_report.md`
 - `docs/rust-cutover/release/final_release_verification.md`
 - `docs/rust-cutover/release/human_owner_signoff_packet.md`
-- `docs/rust-cutover/release/final_completion_report.md`
 - `docs/rust-cutover/release/release_candidate_tag_plan.md`
-- `crates/model/src/orders/mod.rs`
-- `crates/model/src/position.rs`
-- `crates/model/src/types/money.rs`
-- `crates/adapters/*/test_data/rust_adapter_parity_closure.json`
-- `crates/adapters/dydx/src/grpc/client.rs`
-- `tests/golden/backtest_live_semantic_parity_schema.jsonl`
+- `docs/rust-cutover/release/rust_only_release_notes.md`
+- `docs/rust-cutover/release/scope_decision_review.md`
 
 ## Commands Run
+
+RREL-009 release verification evidence:
 
 ```bash
 CARGO_INCREMENTAL=0 CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1 \
   PATH="$HOME/.rustup/toolchains/1.95.0-aarch64-apple-darwin/bin:$PATH" \
   scripts/ai/verify_release.sh
+```
+
+RREL-008 local document/state verification:
+
+```bash
+python3 scripts/ai/validate_golden_trace_release_scope.py
+
+PATH="$HOME/.rustup/toolchains/1.95.0-aarch64-apple-darwin/bin:$PATH" \
+  scripts/ai/run_golden_traces.sh
+
+REQUIRE_GOLDEN_REPLAY=1 \
+  PATH="$HOME/.rustup/toolchains/1.95.0-aarch64-apple-darwin/bin:$PATH" \
+  scripts/ai/run_golden_traces.sh
 
 PATH="$HOME/.rustup/toolchains/1.95.0-aarch64-apple-darwin/bin:$PATH" \
   scripts/ai/check_rust_only_runtime.sh
@@ -47,62 +65,42 @@ PATH="$HOME/.rustup/toolchains/1.95.0-aarch64-apple-darwin/bin:$PATH" \
   scripts/ai/check_cython_removed.sh
 
 PATH="$HOME/.rustup/toolchains/1.95.0-aarch64-apple-darwin/bin:$PATH" \
-  scripts/ai/run_golden_traces.sh
+  scripts/ai/verify_fast.sh
 
-PATH="$HOME/.rustup/toolchains/1.95.0-aarch64-apple-darwin/bin:$PATH" \
-  cargo clippy -p nautilus-model --lib --tests --features high-precision,ffi -- -D warnings
+jq empty .agentflow/state/task_status.json .agentflow/leases/RREL-008.json
 
-PATH="$HOME/.rustup/toolchains/1.95.0-aarch64-apple-darwin/bin:$PATH" \
-  cargo test -p nautilus-model --lib orders
-
-PATH="$HOME/.rustup/toolchains/1.95.0-aarch64-apple-darwin/bin:$PATH" \
-  cargo test -p nautilus-model --lib position
-
-PATH="$HOME/.rustup/toolchains/1.95.0-aarch64-apple-darwin/bin:$PATH" \
-  cargo test -p nautilus-dydx --lib
-
-CARGO_INCREMENTAL=0 \
-  PATH="$HOME/.rustup/toolchains/1.95.0-aarch64-apple-darwin/bin:$PATH" \
-  cargo clippy -p nautilus-dydx --lib --tests --features high-precision -- -D warnings
+git diff --check
 ```
 
 ## Command Results
 
-- `scripts/ai/verify_release.sh`: failed after completing full workspace
-  clippy/tests and the log-global test slices. It stopped at final golden trace
-  validation with `GOLDEN_TRACE_REPLAY_COMMAND is required for final release
-  replay gate`.
-- `scripts/ai/check_rust_only_runtime.sh`: passed.
-- `scripts/ai/check_cython_removed.sh`: passed.
-- `scripts/ai/run_golden_traces.sh`: passed. It validated all golden trace
-  JSONL fixtures and ran the Rust schema, cache/msgbus, backtest, live sandbox,
-  and OKX adapter payload replay harnesses.
-- Targeted model clippy/tests passed after small release-gate fixes.
-- Targeted dYdX tests and clippy passed after making an invalid-URL test
-  independent of local port state.
-
-## Release-Gate Fixes Made
-
-- Removed clippy blockers in `nautilus-model` by turning no-op order handlers
-  into associated functions, removing an unused receiver from average-price
-  calculation, and replacing an unchecked precision cast with `i32::from`.
-- Updated stale adapter parity closure manifests so they no longer reference
-  deleted `removed_legacy_bridge` evidence paths.
-- Updated the backtest/live semantic parity fixture to use the current
-  `rust_only_surface` field.
-- Made the dYdX invalid fallback URL test use malformed URLs instead of a local
-  port that can depend on host state.
+- RREL-009 `scripts/ai/verify_release.sh`: passed full checks, final golden
+  trace mode, release build, Rust CLI product surface, Rust-only runtime check,
+  and final Cython removal check before PR #120 was merged.
+- `python3 scripts/ai/validate_golden_trace_release_scope.py`: passed with
+  `18 cases, 5 executable replay, 13 schema-only scoped`.
+- `scripts/ai/run_golden_traces.sh`: passed all golden trace schema and Rust
+  replay harnesses.
+- `REQUIRE_GOLDEN_REPLAY=1 scripts/ai/run_golden_traces.sh`: passed final
+  release mode using `RELEASE_REPLAY_SCOPE.json`.
+- `scripts/ai/check_rust_only_runtime.sh`: passed with
+  `== rust-only-runtime: ok ==`.
+- `scripts/ai/check_cython_removed.sh`: passed with
+  `== cython-removed: ok ==`.
+- `scripts/ai/verify_fast.sh`: passed.
+- `jq empty`: passed for `.agentflow/state/task_status.json` and
+  `.agentflow/leases/RREL-008.json`.
+- `git diff --check`: passed.
 
 ## Tests Added Or Updated
 
-No new test files were added. Existing release-gate tests and fixture manifests
-were adjusted so the current Rust-only workspace can be verified.
+No tests were added or changed. This task changes only release documentation and
+agentflow state.
 
 ## Behavior Impact
 
-No trading semantics, order routing, adapter protocol behavior, or public
-runtime API was intentionally changed. The code changes are release-gate
-stability and lint fixes.
+No trading semantics, order routing, adapter behavior, persistence format,
+public runtime API, or release artifact is changed.
 
 ## Public API Impact
 
@@ -110,21 +108,27 @@ None.
 
 ## Migration Note Status
 
-No migration note is required because no public API changed and RREL-008 did not
-mark the release complete.
+No new migration note is required for RREL-008 because this task records the
+completion decision. The Rust-only migration guide already exists at
+`docs/rust-cutover/migration/rust_only_migration_guide.md`.
 
 ## Completion Decision
 
-RREL-008 is blocked and must remain unmerged as a completion decision until:
+The Rust-only cutover completion is approved for RREL-008 PR review.
 
-1. `scripts/ai/verify_release.sh` passes in final mode.
-2. The final golden trace replay command or equivalent release replay contract
-   is wired and documented.
-3. Human owner signoff is explicitly granted.
-4. The release gatekeeper and control/scope review approve completion.
+RREL-008 must remain `REVIEW_REQUIRED` until this PR is reviewed and merged.
+After merge, it can be marked `DONE` by the normal PR close workflow.
+
+## Release Controls
+
+- No release candidate tag is created.
+- No GitHub Release is published.
+- Auto-merge is not enabled.
+- Any future tag or release publication requires a separate explicit owner
+  instruction.
 
 ## Rollback Plan
 
-Revert this PR to remove the RREL-008 evidence refresh and release-gate
-stability fixes. The repository will return to the previous state where final
-release verification still failed, but with less specific blocker evidence.
+Revert the RREL-008 completion PR. That returns the release documents and
+agentflow state to the pre-completion state without changing runtime code or
+release artifacts.

@@ -1,89 +1,83 @@
 # RREL-007 Human Owner Signoff Packet
 
-Date: 2026-06-02
+Date: 2026-06-03
 Executor: Codex
-Task ID: RREL-007 / RREL-008 refresh
+Task ID: RREL-007 / RREL-008 / RREL-009
 
 ## Signoff Status
 
-Human owner signoff is pending.
+Human owner signoff is granted.
 
-This packet is prepared for owner review only. Codex did not sign, approve, or
-mark the Rust-only cutover complete.
+This packet records the owner approval for marking the Rust-only cutover
+complete after RREL-009 made the final local release verification green. This
+packet does not create a release tag, does not publish a GitHub Release, and
+does not authorize automation to merge the completion PR.
 
 ## Release Gate Status
 
-Do not approve release completion from the current state.
+The Rust-only completion gate is approved for documentation and agentflow state
+recording.
 
-RREL-008 refreshed the final release verification state:
+The current green release evidence is:
 
-- `scripts/ai/check_rust_only_runtime.sh` now passes.
-- `scripts/ai/check_cython_removed.sh` now passes.
-- `scripts/ai/run_golden_traces.sh` passes the standard schema and built-in Rust
-  replay harnesses.
-- `scripts/ai/verify_release.sh` still fails because the strict final golden
-  trace replay gate requires `GOLDEN_TRACE_REPLAY_COMMAND`.
+- RREL-009 merged in GitHub PR #120.
+- `scripts/ai/verify_release.sh` passed after RREL-009.
+- `scripts/ai/check_rust_only_runtime.sh` passed.
+- `scripts/ai/check_cython_removed.sh` passed.
+- `scripts/ai/run_golden_traces.sh` passed.
+- `REQUIRE_GOLDEN_REPLAY=1 scripts/ai/run_golden_traces.sh` passed by
+  validating `docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json`.
 
-## Required Owner Decision
-
-The owner must choose one of the following:
-
-```text
-[ ] Reject release and keep RREL-008 paused.
-[ ] Approve final golden trace replay wiring or explicit scoping work before
-    another final verification.
-[ ] Approve release despite failed gates. This is not recommended and would
-    require an explicit written risk acceptance.
-```
-
-Current recommended choice:
+## Owner Decision
 
 ```text
-[x] Reject release and keep RREL-008 paused.
+Approve Rust-only cutover completion after RREL-009 verify_release passed.
 ```
 
 ## Evidence Packet
 
 | Evidence | Purpose |
 | --- | --- |
-| `docs/rust-cutover/migration/rust_only_migration_guide.md` | Migration target and blockers. |
-| `docs/rust-cutover/release/rust_only_release_notes.md` | Draft release notes and planned breaking changes. |
+| `docs/rust-cutover/migration/rust_only_migration_guide.md` | Migration target and cutover impact. |
+| `docs/rust-cutover/release/rust_only_release_notes.md` | Release notes and planned breaking changes. |
 | `docs/rust-cutover/release/scope_decision_review.md` | Scope decision coverage review. |
 | `docs/rust-cutover/release/final_completion_report.md` | Consolidated completion status. |
-| `docs/rust-cutover/release/release_candidate_tag_plan.md` | Draft tag plan, currently blocked. |
-| `docs/rust-cutover/release/final_release_verification.md` | Failed final verification evidence. |
-| `docs/rust-cutover/evidence/RREL-006.md` | Previous command-level final gate evidence. |
-| `docs/rust-cutover/evidence/RREL-008.md` | Latest completion blocker evidence. |
+| `docs/rust-cutover/release/release_candidate_tag_plan.md` | Draft tag plan; no tag is created by RREL-008. |
+| `docs/rust-cutover/release/final_release_verification.md` | Final local release verification state. |
+| `docs/rust-cutover/evidence/RREL-008.md` | Completion and signoff evidence. |
+| `docs/rust-cutover/evidence/RREL-009.md` | Final golden trace release-mode gate evidence. |
+| GitHub PR #120 | Merged RREL-009 verification gate work. |
 
-## Residual Risks
+## Residual Release Controls
 
-- Final release verification did not complete successfully.
-- Strict final golden trace replay command is not wired.
-- Release build and CLI smoke phases were not reached in `verify_release.sh`.
-- RREL-008 is not authorized.
+- RREL-008 must still be reviewed through its PR before being marked `DONE`.
+- No release candidate tag is created by this signoff packet.
+- No GitHub Release is published by this signoff packet.
+- Any future tag or release publication requires a separate explicit owner
+  instruction.
 
 ## Owner Signoff
 
 Owner name:
 
 ```text
-PENDING
+atxinbao
 ```
 
 Decision:
 
 ```text
-PENDING
+Approve Rust-only cutover completion after RREL-009 verify_release passed.
 ```
 
 Date:
 
 ```text
-PENDING
+2026-06-03
 ```
 
 Signature / approval link:
 
 ```text
-PENDING
+This Codex thread and GitHub PR #120.
 ```

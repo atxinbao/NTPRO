@@ -1,55 +1,81 @@
 # Final Completion Report
 
-Date: 2026-06-02
+Date: 2026-06-03
 Executor: Codex
-Task ID: RREL-004 / RREL-008 refresh
+Task ID: RREL-004 / RREL-008 / RREL-009
 
 ## Completion Decision
 
-The Rust-only cutover is not complete.
+The Rust-only cutover completion is approved for final documentation and
+agentflow state recording.
 
-This report consolidates current gate evidence and blocker status. It does not
-mark the release complete, does not authorize a release tag, and does not
-approve RREL-008.
+This report records the owner-approved completion state after RREL-009 made the
+local release gate green. It does not create a release tag, does not publish a
+GitHub Release, and does not allow RREL-008 to auto-merge.
 
-## Completed Evidence Areas
+## Completion Preconditions
 
 | Area | Evidence | Status |
 | --- | --- | --- |
 | Product/control foundation | `docs/rust-cutover/CONTRACT.md`, `DEFINITION_OF_DONE.md`, task evidence | Recorded. |
-| Golden trace and parity evidence | `docs/rust-cutover/evidence/RTRACE-001.md` through `RTRACE-008.md`, plus RREL-008 refresh | Standard gate passes; final strict replay mode blocked. |
+| Golden trace and parity evidence | `docs/rust-cutover/evidence/RTRACE-001.md` through `RTRACE-008.md`, plus RREL-009 release replay scope | Passed for final local release verification. |
 | Runtime/backtest/live evidence | `docs/rust-cutover/evidence/RCORE-*`, `RBTL-*` | Recorded. |
 | Adapter evidence | `docs/rust-cutover/evidence/RADP-*` | Recorded. |
-| Removal inventory and staging | `docs/rust-cutover/evidence/RREM-001.md` through `RREM-022.md` | Recorded; Rust-only runtime and Cython removed checks now pass. |
+| Removal inventory and staging | `docs/rust-cutover/evidence/RREM-001.md` through `RREM-022.md` | Recorded; Rust-only runtime and Cython removed checks pass. |
 | Migration guide | `docs/rust-cutover/migration/rust_only_migration_guide.md` | Recorded. |
-| Release notes | `docs/rust-cutover/release/rust_only_release_notes.md` | Draft recorded, release blocked. |
+| Release notes | `docs/rust-cutover/release/rust_only_release_notes.md` | Recorded. |
 | Scope decision review | `docs/rust-cutover/release/scope_decision_review.md` | Recorded. |
+| Final release verification | `docs/rust-cutover/evidence/RREL-009.md`, PR #120 | Passed. |
+| Human owner signoff | `docs/rust-cutover/release/human_owner_signoff_packet.md` | Granted by atxinbao on 2026-06-03. |
 
 ## Latest Gate Evidence
 
-The latest final-gate evidence is `RREL-008`. It blocks completion because:
+The latest final-gate evidence is RREL-009, merged through GitHub PR #120.
 
-- `scripts/ai/check_rust_only_runtime.sh` passes.
-- `scripts/ai/check_cython_removed.sh` passes.
-- `scripts/ai/run_golden_traces.sh` passes the standard schema and built-in Rust
-  replay harnesses.
-- `scripts/ai/verify_release.sh` still fails because final replay mode requires
-  `GOLDEN_TRACE_REPLAY_COMMAND`.
-- Release build and CLI smoke phases were not reached in the latest
-  `verify_release.sh` run.
-- Human owner signoff is still pending.
+RREL-009 made the following release checks green:
 
-## Remaining Release Tasks
+- `scripts/ai/verify_release.sh`
+- `scripts/ai/check_rust_only_runtime.sh`
+- `scripts/ai/check_cython_removed.sh`
+- `scripts/ai/run_golden_traces.sh`
+- `REQUIRE_GOLDEN_REPLAY=1 scripts/ai/run_golden_traces.sh`
 
-| Task | Purpose | Expected result |
-| --- | --- | --- |
-| RREL-008 | Mark Rust-only cutover complete | Blocked. Must not mark complete until final release verification and owner signoff pass. |
-| Follow-up gate task | Wire or explicitly scope final golden trace replay command | Required before another completion attempt. |
+The strict final golden trace replay gate now validates
+`docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json` when no external
+`GOLDEN_TRACE_REPLAY_COMMAND` is configured. The scope manifest covers all 18
+golden trace rows as either executable replay or schema-only scoped evidence.
+
+## Completion Scope
+
+RREL-008 completion records:
+
+- owner signoff;
+- green local release verification from RREL-009;
+- updated release documentation;
+- updated agentflow status.
+
+RREL-008 completion does not perform:
+
+- release candidate tag creation;
+- GitHub Release publication;
+- automatic merge;
+- business-code changes;
+- trading-semantic changes.
+
+## Remaining Release Controls
+
+| Control | Status |
+| --- | --- |
+| RREL-008 PR review | Required before `DONE`. |
+| Release candidate tag | Not created. Requires a separate explicit owner instruction. |
+| GitHub Release | Not published. Requires a separate explicit owner instruction. |
+| Future release verification rerun | Required at tag time if a tag is requested. |
 
 ## Final Recommendation
 
-Do not publish a Rust-only release candidate from this repository state.
+Treat the Rust-only cutover as complete only after the RREL-008 completion PR is
+reviewed and merged.
 
-Keep RREL-008 blocked until the final golden trace replay contract is green,
-`scripts/ai/verify_release.sh` reaches and passes all phases, and the human
-owner explicitly approves completion.
+Do not create a release candidate tag or GitHub Release from this task. The next
+release action, if desired, is a separate owner-approved tag/release procedure
+based on `docs/rust-cutover/release/release_candidate_tag_plan.md`.

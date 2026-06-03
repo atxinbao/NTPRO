@@ -9,8 +9,9 @@ Task ID: RREL-008 / RREL-009
 Local final Rust-only release verification now passes after RREL-009 wires the
 final golden trace release-mode gate.
 
-This is still not a release approval. The repository must not be tagged or
-marked released until human owner signoff and release review are complete.
+Human owner signoff is now granted for marking the Rust-only cutover complete
+in documentation and agentflow state. The repository must still not be tagged
+or published as a GitHub Release from RREL-008.
 
 ## Commands And Results
 
@@ -30,7 +31,7 @@ marked released until human owner signoff and release review are complete.
 | Final `verify_release.sh` status | Passed after RREL-009. |
 | Strict final golden trace replay | Passed through `RELEASE_REPLAY_SCOPE.json`; every golden trace row is either executable replay or schema-only scoped. |
 | Release build and CLI smoke phases | Passed after RREL-009. |
-| Human owner signoff | Pending. |
+| Human owner signoff | Granted by atxinbao on 2026-06-03. |
 
 ## Verification Notes
 
@@ -54,12 +55,13 @@ The standalone final surface checks now pass:
 - `verify_release.sh` completed through release build, Rust CLI product
   surface, Rust-only runtime check, and final Cython removal check.
 
-This evidence makes the local release verification green, but it is not human
-owner signoff.
+This evidence makes the local release verification green. The human owner
+approved completion after RREL-009 passed.
 
 ## Release Decision
 
-Release remains review-gated.
+Rust-only cutover completion is approved for RREL-008 documentation and
+agentflow state recording.
 
-The next valid action is manual owner/release review. Do not create a release
-tag or mark Rust-only cutover complete from automation alone.
+RREL-008 still requires PR review and merge before it is marked `DONE`. Do not
+create a release tag or publish a GitHub Release from automation alone.
