@@ -18,6 +18,12 @@ annotated tag `ntpro-rust-only-rc.1`. The tag points at commit
 `a886e2ac3682247b5e542599fb8dd219a6b9cf1c`. No GitHub Release has been
 published.
 
+After PR #122 was reviewed and merged, the human owner separately approved the
+annotated tag `ntpro-rust-only-rc.2`. The tag points at commit
+`6445e4f6bf6bde69eae91596d4ff7644d2e41fc0`. This is the current tag-only
+release candidate and includes the RC public-surface cleanup. No GitHub Release
+has been published.
+
 ## Completion Preconditions
 
 | Area | Evidence | Status |
@@ -72,14 +78,14 @@ RREL-008 completion does not perform:
 | Control | Status |
 | --- | --- |
 | RREL-008 PR review | Required before `DONE`. |
-| Release candidate tag | `ntpro-rust-only-rc.1` created as a tag-only release candidate after separate owner approval. |
+| Release candidate tag | `ntpro-rust-only-rc.2` created as the current tag-only release candidate after separate owner approval. |
 | GitHub Release | Not published. Requires a separate explicit owner instruction. |
 | Future release verification rerun | Required before publishing a GitHub Release or creating a later release candidate tag. |
 
 ## Final Recommendation
 
-Treat the Rust-only cutover as complete and `ntpro-rust-only-rc.1` as the first
-tag-only release candidate.
+Treat the Rust-only cutover as complete and `ntpro-rust-only-rc.2` as the
+current tag-only release candidate.
 
 Do not publish a GitHub Release until public release cleanup, current checks,
 and user-facing entrypoint evidence are reviewed.

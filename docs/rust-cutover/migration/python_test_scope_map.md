@@ -19,7 +19,8 @@ golden trace tests.
 The original RREM-005 scope map was intentionally non-destructive. After the
 Rust-only completion gate passed, `ntpro-rust-only-rc.1` was created, and the
 human owner approved public release cleanup, the top-level legacy Python tests
-under `tests/**/*.py` were removed from the release surface.
+under `tests/**/*.py` were removed from the release surface. That cleanup is
+included in the current `ntpro-rust-only-rc.2` source point.
 
 The deletion decision is:
 
@@ -33,7 +34,7 @@ Reason:
   surfaces.
 - RREL-009 made the final local Rust-only release verification green.
 - RREL-008 recorded owner-approved Rust-only completion.
-- `ntpro-rust-only-rc.1` exists as a tag-only release candidate.
+- `ntpro-rust-only-rc.2` exists as the current tag-only release candidate.
 - The legacy top-level Python tests were still the dominant GitHub language
   signal and no longer represented the public product direction.
 

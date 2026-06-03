@@ -43,7 +43,7 @@ the human owner approved completion on 2026-06-03.
 | Final release verification | RREL-009 records green final local release verification. | Covered. |
 | Owner signoff | RREL-007/RREL-008 records approval by atxinbao on 2026-06-03. | Covered. |
 | Completion declaration | RREL-008 records completion approval and stops at PR review. | Covered, review-gated. |
-| Tag/release publication | RREL-005 kept tag and GitHub Release publication as separate manual actions. `ntpro-rust-only-rc.1` was later created after explicit owner approval. | Tag covered and executed as tag-only; GitHub Release still not published. |
+| Tag/release publication | RREL-005 kept tag and GitHub Release publication as separate manual actions. `ntpro-rust-only-rc.1` and `ntpro-rust-only-rc.2` were later created after explicit owner approval. | Tags covered and executed as tag-only; GitHub Release still not published. |
 
 ## P0/P1 Deferral Review
 
@@ -61,14 +61,14 @@ record:
 Remaining controls are not completion blockers:
 
 - RREL-008 has been reviewed and merged.
-- `ntpro-rust-only-rc.1` has been created as a tag-only release candidate after
-  separate owner approval.
+- `ntpro-rust-only-rc.2` has been created as the current tag-only release
+  candidate after separate owner approval.
 - GitHub Release publication requires a separate explicit owner instruction.
 
 ## Review Decision
 
 Scope decision coverage is sufficient for the completed Rust-only cutover and
-the tag-only `ntpro-rust-only-rc.1` release candidate.
+the tag-only `ntpro-rust-only-rc.2` release candidate.
 
 This review still does not publish a GitHub Release and does not allow release
 publication from automation alone.

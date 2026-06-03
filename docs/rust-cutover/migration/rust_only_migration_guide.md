@@ -11,8 +11,8 @@ Follow-up ID: RC-CLEANUP-001
 ## Scope
 
 This guide describes the Rust-only migration path for NTPRO after the
-Rust-only release gate passed and `ntpro-rust-only-rc.1` was created as a
-tag-only release candidate.
+Rust-only release gate passed and `ntpro-rust-only-rc.2` was created as the
+current tag-only release candidate.
 
 ## Current Release Status
 
@@ -22,8 +22,8 @@ Current state:
 
 - RREL-009 made `scripts/ai/verify_release.sh` pass.
 - RREL-008 recorded human owner approval for Rust-only completion.
-- `ntpro-rust-only-rc.1` points at commit
-  `a886e2ac3682247b5e542599fb8dd219a6b9cf1c`.
+- `ntpro-rust-only-rc.2` points at commit
+  `6445e4f6bf6bde69eae91596d4ff7644d2e41fc0`.
 - No GitHub Release has been published.
 - Top-level legacy Python tests under `tests/**/*.py` were removed during RC
   public-surface cleanup.

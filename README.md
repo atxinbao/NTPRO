@@ -6,10 +6,11 @@ from NautilusTrader.
 The current public milestone is:
 
 ```text
-ntpro-rust-only-rc.1
+ntpro-rust-only-rc.2
 ```
 
-The tag was created after the Rust-only release gate passed. No GitHub Release
+This tag is the Rust-only release-candidate source point after the public
+README/release-doc cleanup and legacy Python test removal. No GitHub Release
 has been published yet.
 
 ## Current Status
@@ -131,7 +132,7 @@ Start with:
 
 ## Release Candidate Notes
 
-`ntpro-rust-only-rc.1` is an annotated tag only. It is not a published GitHub
+`ntpro-rust-only-rc.2` is an annotated tag only. It is not a published GitHub
 Release.
 
 Before publishing a GitHub pre-release, review:
@@ -140,7 +141,7 @@ Before publishing a GitHub pre-release, review:
 - release notes;
 - public README surface;
 - Rust CLI help output;
-- repository language display after the Python test cleanup PR is merged.
+- repository language display.
 
 ## License
 

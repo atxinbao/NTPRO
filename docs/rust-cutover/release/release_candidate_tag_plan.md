@@ -6,13 +6,12 @@ Task ID: RREL-005 / RREL-008 / RREL-009
 
 ## Scope
 
-This document records the Rust-only release candidate tag plan and the first
-completed tag-only release-candidate action. It does not publish a GitHub
-Release.
+This document records the Rust-only release candidate tag plan and completed
+tag-only release-candidate actions. It does not publish a GitHub Release.
 
 ## Current Tag Decision
 
-The first Rust-only release candidate tag has been created:
+The first Rust-only release candidate tag was created:
 
 ```text
 ntpro-rust-only-rc.1
@@ -23,6 +22,17 @@ Rust-only cutover completion on 2026-06-03. After RREL-008 was merged, the
 human owner separately approved `ntpro-rust-only-rc.1` as a tag-only action.
 
 The tag points at commit `a886e2ac3682247b5e542599fb8dd219a6b9cf1c`.
+
+No GitHub Release has been published.
+
+After PR #122 cleaned up the public Rust-only release surface, the human owner
+approved the second Rust-only release candidate tag:
+
+```text
+ntpro-rust-only-rc.2
+```
+
+This tag points at commit `6445e4f6bf6bde69eae91596d4ff7644d2e41fc0`.
 
 No GitHub Release has been published.
 
@@ -78,7 +88,11 @@ Only after all preconditions are satisfied:
 
 ## Current Recommendation
 
-`ntpro-rust-only-rc.1` is complete as a tag-only release candidate.
+`ntpro-rust-only-rc.1` is complete as the pre-cleanup tag-only release
+candidate.
+
+`ntpro-rust-only-rc.2` is complete as the post-cleanup tag-only release
+candidate.
 
 Keep GitHub Release publication paused until the public README, release notes,
 GitHub checks, Rust CLI entrypoint evidence, and repository language display are
