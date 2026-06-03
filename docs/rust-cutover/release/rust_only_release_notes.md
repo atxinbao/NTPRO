@@ -6,12 +6,22 @@ Task ID: RREL-002 / RREL-008 / RREL-009
 
 ## Release State
 
-This is the Rust-only release note package for the completed cutover record.
+This is the Rust-only release note package for the completed cutover record and
+the first release-candidate tag.
 
 RREL-009 made the local final release verification green, and the human owner
 approved Rust-only cutover completion on 2026-06-03. RREL-008 records that
-completion decision in documentation and agentflow state only. It does not
-create a release candidate tag, publish a GitHub Release, or enable auto-merge.
+completion decision in documentation and agentflow state only.
+
+After RREL-008 was reviewed and merged, the human owner separately approved the
+annotated release-candidate tag:
+
+```text
+ntpro-rust-only-rc.1
+```
+
+The tag points at commit `a886e2ac3682247b5e542599fb8dd219a6b9cf1c`. It is a
+tag-only release candidate. No GitHub Release has been published.
 
 ## What Changed In This Release Track
 
@@ -24,6 +34,10 @@ create a release candidate tag, publish a GitHub Release, or enable auto-merge.
 - RREL-009 records the final golden trace release-mode scope and green
   `verify_release.sh` result.
 - RREL-008 records the human owner completion approval.
+- `ntpro-rust-only-rc.1` records the first tag-only release candidate.
+- This RC cleanup removes the legacy Python test files under `tests/**/*.py`
+  from the public release surface. The remaining Python files are local
+  repository-control scripts under `scripts/`.
 
 ## Breaking Changes
 
@@ -66,8 +80,10 @@ closed as `DONE`.
 
 ## Release Recommendation
 
-Do not tag or publish a Rust-only GitHub Release from RREL-008.
+Do not publish a Rust-only GitHub Release yet.
 
-After the RREL-008 completion PR is reviewed and merged, the next release action
-must be a separate owner-approved tag/release procedure. The draft procedure is
-recorded in `docs/rust-cutover/release/release_candidate_tag_plan.md`.
+The `ntpro-rust-only-rc.1` tag already exists, but it was intentionally created
+without a GitHub Release. Before publishing a GitHub pre-release, review the
+public README, release notes, GitHub checks for the tagged commit, Rust CLI
+entrypoint evidence, and repository language display after the RC cleanup PR is
+merged.

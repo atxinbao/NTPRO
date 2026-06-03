@@ -4,6 +4,10 @@ Date: 2026-06-03
 Executor: Codex
 Task ID: RREL-003 / RREL-008 / RREL-009
 
+Updated: 2026-06-04
+Executor: Codex
+Follow-up ID: RC-CLEANUP-001
+
 ## Scope
 
 This review checks whether owner-visible scope decisions exist for the
@@ -39,7 +43,7 @@ the human owner approved completion on 2026-06-03.
 | Final release verification | RREL-009 records green final local release verification. | Covered. |
 | Owner signoff | RREL-007/RREL-008 records approval by atxinbao on 2026-06-03. | Covered. |
 | Completion declaration | RREL-008 records completion approval and stops at PR review. | Covered, review-gated. |
-| Tag/release publication | RREL-005 keeps tag and GitHub Release publication as separate manual actions. | Covered, not executed. |
+| Tag/release publication | RREL-005 kept tag and GitHub Release publication as separate manual actions. `ntpro-rust-only-rc.1` was later created after explicit owner approval. | Tag covered and executed as tag-only; GitHub Release still not published. |
 
 ## P0/P1 Deferral Review
 
@@ -56,15 +60,15 @@ record:
 
 Remaining controls are not completion blockers:
 
-- RREL-008 must be reviewed and merged before agentflow can mark it `DONE`.
-- Release candidate tag creation requires a separate explicit owner
-  instruction.
+- RREL-008 has been reviewed and merged.
+- `ntpro-rust-only-rc.1` has been created as a tag-only release candidate after
+  separate owner approval.
 - GitHub Release publication requires a separate explicit owner instruction.
 
 ## Review Decision
 
-Scope decision coverage is sufficient for RREL-008 to record the Rust-only
-cutover completion approval.
+Scope decision coverage is sufficient for the completed Rust-only cutover and
+the tag-only `ntpro-rust-only-rc.1` release candidate.
 
-This review does not create a release tag, does not publish a GitHub Release,
-and does not allow automation to merge the RREL-008 PR.
+This review still does not publish a GitHub Release and does not allow release
+publication from automation alone.

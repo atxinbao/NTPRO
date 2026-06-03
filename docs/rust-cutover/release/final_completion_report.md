@@ -10,8 +10,13 @@ The Rust-only cutover completion is approved for final documentation and
 agentflow state recording.
 
 This report records the owner-approved completion state after RREL-009 made the
-local release gate green. It does not create a release tag, does not publish a
-GitHub Release, and does not allow RREL-008 to auto-merge.
+local release gate green. RREL-008 did not create a release tag, did not publish
+a GitHub Release, and did not allow auto-merge.
+
+After RREL-008 was reviewed and merged, the human owner separately approved the
+annotated tag `ntpro-rust-only-rc.1`. The tag points at commit
+`a886e2ac3682247b5e542599fb8dd219a6b9cf1c`. No GitHub Release has been
+published.
 
 ## Completion Preconditions
 
@@ -67,15 +72,14 @@ RREL-008 completion does not perform:
 | Control | Status |
 | --- | --- |
 | RREL-008 PR review | Required before `DONE`. |
-| Release candidate tag | Not created. Requires a separate explicit owner instruction. |
+| Release candidate tag | `ntpro-rust-only-rc.1` created as a tag-only release candidate after separate owner approval. |
 | GitHub Release | Not published. Requires a separate explicit owner instruction. |
-| Future release verification rerun | Required at tag time if a tag is requested. |
+| Future release verification rerun | Required before publishing a GitHub Release or creating a later release candidate tag. |
 
 ## Final Recommendation
 
-Treat the Rust-only cutover as complete only after the RREL-008 completion PR is
-reviewed and merged.
+Treat the Rust-only cutover as complete and `ntpro-rust-only-rc.1` as the first
+tag-only release candidate.
 
-Do not create a release candidate tag or GitHub Release from this task. The next
-release action, if desired, is a separate owner-approved tag/release procedure
-based on `docs/rust-cutover/release/release_candidate_tag_plan.md`.
+Do not publish a GitHub Release until public release cleanup, current checks,
+and user-facing entrypoint evidence are reviewed.

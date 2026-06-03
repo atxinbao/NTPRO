@@ -4,6 +4,26 @@ Date: 2026-06-01
 Executor: Codex
 Task ID: RREM-010
 
+Updated: 2026-06-04
+Executor: Codex
+Follow-up ID: RC-CLEANUP-001
+
+## Current Status Update
+
+This document is a historical RREM-010 blocker snapshot. It is not the current
+release state.
+
+The blocker state recorded here was superseded by later RREM cleanup tasks,
+RREL-009 release verification, RREL-008 owner-approved completion, and the
+tag-only `ntpro-rust-only-rc.1` release candidate.
+
+For current release status, read:
+
+- `docs/rust-cutover/release/rust_only_release_notes.md`
+- `docs/rust-cutover/release/final_release_verification.md`
+- `docs/rust-cutover/release/final_completion_report.md`
+- `docs/rust-cutover/migration/rust_only_migration_guide.md`
+
 ## Scope
 
 This document records the final Rust-only removal gate decision for the current

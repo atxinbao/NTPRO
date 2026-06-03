@@ -4,6 +4,17 @@ Date: 2026-06-02
 Executor: Codex
 Task ID: RREM-014
 
+Updated: 2026-06-04
+Executor: Codex
+Follow-up ID: RC-CLEANUP-001
+
+## Current Status Update
+
+This document is a historical RREM-014 evidence note with a current status
+appendix. Later cleanup removed the top-level legacy Python tests under
+`tests/**/*.py`, and RREL-009 made the final Rust-only release verification
+green.
+
 ## Summary
 
 RREM-014 removes the legacy Python examples and Python documentation code
@@ -20,8 +31,8 @@ Retained surfaces:
 
 - Rust examples under `examples/rust/`;
 - Rust cutover docs under `docs/rust-cutover/`;
-- Python tests and local Python tooling metadata, which are tracked as later
-  cleanup or release gate residue.
+- local Python helper scripts and tooling metadata, which are repository
+  automation only and not product surfaces.
 
 ## User Impact
 
@@ -55,10 +66,9 @@ Useful local verification commands:
 
 ## Not Removed In This Task
 
-This task does not remove Python tests under `tests/`, local helper scripts
-under `scripts/`, or remaining Python/PyO3/Cython references embedded in Rust
-crates and release evidence. Those are separate release cleanup surfaces and
-remain visible to the Rust-only runtime gate.
+This task did not remove Python tests under `tests/` at RREM-014 time. Later
+RC cleanup removed the tracked top-level Python tests under `tests/**/*.py`.
+Local helper scripts under `scripts/` remain as repository automation.
 
 Cap'n Proto schemas under `crates/serialization/schemas/capnp/` are not Python
 code and are not removed by this task. RREM-015 later removes Cap'n Proto as a
@@ -66,7 +76,5 @@ separate Rust serialization feature cleanup.
 
 ## Validation Notes
 
-The task evidence records the exact commands run and the residual blockers.
-The expected remaining release blocker is the broader Rust-only runtime gate,
-which still reports Python/PyO3/Cython residue outside the examples/docs scope
-of RREM-014.
+The task evidence records the exact commands run at RREM-014 time. Later
+release work made the broader Rust-only release gate pass in RREL-009.

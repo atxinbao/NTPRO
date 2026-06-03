@@ -4,32 +4,43 @@ Date: 2026-06-01
 Executor: Codex
 Task ID: RREL-001
 
+Updated: 2026-06-04
+Executor: Codex
+Follow-up ID: RC-CLEANUP-001
+
 ## Scope
 
-This guide describes the intended Rust-only migration path for NTPRO and the
-current release blockers. It is a migration guide and evidence index only. It
-does not delete Python, PyO3, Cython, build, packaging, adapter, runtime, or
-public API files.
+This guide describes the Rust-only migration path for NTPRO after the
+Rust-only release gate passed and `ntpro-rust-only-rc.1` was created as a
+tag-only release candidate.
 
 ## Current Release Status
 
-The Rust-only release is not ready from the current repository state.
+The Rust-only release candidate is ready as a tag-only RC.
 
-`RREM-010` recorded the final removal gate as blocked because Python, PyO3,
-Cython, build, runtime/API, and product surfaces still remain. This guide must
-therefore be read as the target migration plan, not as a declaration that the
-cutover is complete.
+Current state:
+
+- RREL-009 made `scripts/ai/verify_release.sh` pass.
+- RREL-008 recorded human owner approval for Rust-only completion.
+- `ntpro-rust-only-rc.1` points at commit
+  `a886e2ac3682247b5e542599fb8dd219a6b9cf1c`.
+- No GitHub Release has been published.
+- Top-level legacy Python tests under `tests/**/*.py` were removed during RC
+  public-surface cleanup.
+
+Older RREM-009/RREM-010 blocker documents remain in the repository as
+historical snapshots. They are superseded by the later RREM cleanup tasks,
+RREL-009 release verification, and RREL-008 owner completion approval.
 
 ## Supported Rust-First Workflows
 
-The documented Rust-first user path is:
+The documented Rust-only user path is:
 
 1. Use the Rust CLI and Cargo workspace as the primary product entry.
 2. Use Rust examples, Rust docs, and release evidence as the migration source
    of truth.
 3. Use local gate scripts to verify whether Rust-only criteria are satisfied.
-4. Treat Python/PyO3/Cython paths as legacy or pending-removal surfaces until
-   destructive removal tasks provide green evidence.
+4. Treat Python/PyO3/Cython paths as unsupported product surfaces.
 
 Expected validation entry points:
 
@@ -44,41 +55,34 @@ Expected validation entry points:
 
 | Old workflow | Rust-only target | Current status |
 | --- | --- | --- |
-| Python package imports under `python/` and `nautilus_trader/` | Rust CLI/API/docs/examples | Pending. Source paths still exist. |
-| PyO3 bridge under `crates/pyo3/` | Native Rust product surface | Pending. Aggregator crate still exists. |
-| Per-crate `src/python` bindings | Native Rust runtime/API access | Pending. `crates/**/src/python` directories remain. |
-| Cython `.pyx` / `.pxd` implementation files | Rust implementation and tests | Pending. Cython files remain. |
-| Python/Cython build and packaging path | Rust workspace build/release path | Pending. Build metadata still references legacy surfaces. |
+| Python package imports under `python/` and `nautilus_trader/` | Rust CLI/API/docs/examples | Removed from the Rust-only product surface. |
+| PyO3 bridge under `crates/pyo3/` | Native Rust product surface | Removed from the Rust-only product surface. |
+| Per-crate `src/python` bindings | Native Rust runtime/API access | Removed or scoped out by staged RREM cleanup. |
+| Cython `.pyx` / `.pxd` implementation files | Rust implementation and tests | Removed from the Rust-only product surface. |
+| Python/Cython build and packaging path | Rust workspace build/release path | Removed from the Rust-only release path. |
+| Top-level Python tests under `tests/**/*.py` | Rust crate tests, golden traces, adapter fixture evidence, release gates | Removed from the public release surface by RC cleanup. |
 
-## Required Removal Gates Before Rust-Only Release
+## Active Release Gates
 
-Before NTPRO can be marked Rust-only, the following must be true:
+NTPRO is considered Rust-only only when these gates remain green:
 
-- Python product/import surfaces are removed or explicitly archived as
-  non-product compatibility material.
-- `nautilus_trader/` runtime/API surfaces have Rust replacements or documented
-  removal decisions.
-- `crates/pyo3/` and per-crate Python binding directories are removed after
-  replacement evidence is available.
-- Cython source/interface files and active build references are removed.
-- Migration notes cover removed imports, examples, install commands, and build
-  workflows.
 - `verify_release.sh`, `check_rust_only_runtime.sh`, and
   `check_cython_removed.sh` pass without ignored product paths.
+- Golden trace validation passes in standard and final release mode.
+- The Rust CLI product surface remains available through Cargo.
+- GitHub Release publication remains owner-approved only.
 
 ## User Impact
 
-No user-facing runtime behavior changes in this guide. It only documents the
-expected migration direction and the current blockers.
-
-Users should not treat the current repository as a completed Rust-only release.
-The repository remains in Rust-first cutover mode until the final release gate
-passes and the owner signoff is recorded.
+Users should treat NTPRO as a Rust-only release candidate. Python package
+installation, Python imports, PyO3 bindings, Cython builds, Python wheels, and
+mixed Rust/Python packaging are not supported product paths.
 
 ## References
 
-- `docs/rust-cutover/migration/final_rust_only_removal_gate.md`
-- `docs/rust-cutover/migration/rust_only_runtime_gate_blockers.md`
-- `docs/rust-cutover/migration/cython_removal_blockers.md`
+- `docs/rust-cutover/release/rust_only_release_notes.md`
+- `docs/rust-cutover/release/final_release_verification.md`
+- `docs/rust-cutover/release/final_completion_report.md`
 - `docs/rust-cutover/migration/python_to_rust_workflow_map.md`
-- `docs/rust-cutover/evidence/RREM-010.md`
+- `docs/rust-cutover/migration/python_test_scope_map.md`
+- `docs/rust-cutover/evidence/RREL-009.md`

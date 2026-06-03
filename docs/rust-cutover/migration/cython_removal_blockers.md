@@ -4,6 +4,25 @@ Date: 2026-06-01
 Executor: Codex
 Task ID: RREM-008
 
+Updated: 2026-06-04
+Executor: Codex
+Follow-up ID: RC-CLEANUP-001
+
+## Current Status Update
+
+This document is a historical RREM-008 blocker snapshot. It is not the current
+release state.
+
+The Cython blocker state recorded here was superseded by later RREM cleanup
+tasks, RREL-009 release verification, RREL-008 owner-approved completion, and
+the tag-only `ntpro-rust-only-rc.1` release candidate.
+
+For current release status, read:
+
+- `docs/rust-cutover/release/rust_only_release_notes.md`
+- `docs/rust-cutover/release/final_release_verification.md`
+- `docs/rust-cutover/migration/rust_only_migration_guide.md`
+
 ## Scope
 
 This document records the Cython source/build removal gate result. It does not
@@ -17,7 +36,7 @@ build removal only after parity gates are satisfied. Current evidence shows
 that the no-Cython runtime gate fails immediately because Cython source and
 interface files remain, and active build/runtime paths still reference Cython.
 
-Current decision: blocked. No Cython files were removed in this PR.
+Historical RREM-008 decision: blocked. No Cython files were removed in that PR.
 
 ## Gate Result
 

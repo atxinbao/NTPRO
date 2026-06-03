@@ -4,6 +4,10 @@ Date: 2026-06-01
 Executor: Codex
 Task ID: RREM-004
 
+Updated: 2026-06-04
+Executor: Codex
+Follow-up ID: RC-CLEANUP-001
+
 ## Scope
 
 This document maps current Python-facing workflows to Rust-first replacement
@@ -28,7 +32,7 @@ integration are connected.
 | Strategy examples | Python strategies under `examples/backtest/**/strategy.py`, `examples/other/**`, and Python live examples | Rust strategy APIs under `nautilus-trading`, Rust `EmaCross` example smoke, future strategy registry | Partial: one deterministic Rust example path exists; arbitrary user strategy loading is not a stable product contract. | Keep Python strategy examples until Rust strategy registry or scoped built-in strategy contract lands. |
 | Adapter tester scripts | Python live data/exec tester scripts per venue | Adapter crate examples and tests under `crates/adapters/<venue>/examples` and `tests`; RADP support/deferred decisions | Partial by venue; fixture evidence is stronger than product CLI evidence. | Treat tester scripts as deferred migration material until live CLI and adapter scopes converge. |
 | Notebooks and debugging | `examples/backtest/notebooks/**`, `examples/other/debugging/**` | No Rust notebook replacement; Rust docs/examples and cargo smokes only | Deferred. | Keep or archive as legacy migration docs; do not claim Rust-only replacement yet. |
-| Python-only tests | `tests/**/*.py`, `python/tests/**/*.py` | RREM-005 test scope map, Rust crate tests, golden trace, adapter fixture tests | Not decided by this task. | RREM-005 owns port/scope decisions. |
+| Python-only tests | Historical `tests/**/*.py`; local Python helper scripts under `scripts/` remain | RREM-005 test scope map, Rust crate tests, golden trace, adapter fixture tests | Top-level Python tests removed by RC cleanup after Rust-only completion and `ntpro-rust-only-rc.1`; `scripts/` helpers remain non-product automation. | Do not restore Python product tests. New release evidence should be Rust-native. |
 
 ## Current Rust Product Evidence
 
@@ -58,7 +62,8 @@ wiring before Python workflows can be removed.
 RREM-001 recorded broad Python product surfaces:
 
 - `examples/`: 137 Python-facing example files;
-- `tests/`: 534 Python test files;
+- `tests/`: 534 Python test files at RREM-004/RREM-005 time; 0 tracked Python
+  test files after RC cleanup;
 - `python/`: 178 package overlay files;
 - `nautilus_trader/`: 642 Python/Cython/interface files;
 - README/docs Python-facing references: 75 files.
@@ -112,26 +117,25 @@ Use these rules when a later RREM task removes or archives Python workflows:
   be inferred from fixture or dry-run tests.
 - Notebooks can be retained as legacy migration docs until Rust docs cover the
   same user story.
-- Python-only tests must be handled by RREM-005 before source removal tasks.
+- Python-only tests were handled by RREM-005 planning and RC cleanup removal.
+  Future release evidence should be Rust-native unless a local helper script is
+  explicitly scoped as non-product automation.
 
 ## Workflow Readiness Matrix
 
 | Workflow | Rust help | Rust runtime smoke | Config validation | Product run | Removal readiness |
 | --- | --- | --- | --- | --- | --- |
-| Backtest | Yes | Yes, via Cargo example | Blocked | Blocked | Not ready. |
-| Sandbox | Yes | Yes, via Cargo example | Blocked | Blocked | Not ready. |
-| Live | Yes | Partial, sandbox/live-node evidence only | Blocked | Blocked | Not ready. |
-| Data/catalog | Yes | Partial crate/API evidence | Blocked | Blocked | Not ready. |
-| Config validation | Yes | Not a runtime workflow | Blocked | Not applicable | Not ready. |
-| Adapter tester scripts | Not unified | Partial per adapter | Deferred by venue | Blocked/deferred | Not ready. |
-| Notebooks/debugging | No direct replacement | No | No | No | Not ready. |
+| Backtest | Yes | Yes, via Cargo example | Blocked | Blocked | Rust-only release evidence exists; full product run remains future work. |
+| Sandbox | Yes | Yes, via Cargo example | Blocked | Blocked | Rust-only release evidence exists; full product run remains future work. |
+| Live | Yes | Partial, sandbox/live-node evidence only | Blocked | Blocked | Rust-only release evidence exists; production live remains gated. |
+| Data/catalog | Yes | Partial crate/API evidence | Blocked | Blocked | Rust-only release evidence exists; full catalog workflow remains future work. |
+| Config validation | Yes | Not a runtime workflow | Blocked | Not applicable | Rust-only CLI contract exists; shared config workflow remains future work. |
+| Adapter tester scripts | Not unified | Partial per adapter | Deferred by venue | Blocked/deferred | Python tester scripts are not product surfaces; adapter Rust evidence remains active. |
+| Notebooks/debugging | No direct replacement | No | No | No | Python notebooks/debugging are not product surfaces. |
 
 ## Next Tasks
 
-- RREM-005 must classify Python-only tests into Rust-covered, port-required,
-  deferred, or removable-after-gate groups.
-- Later RREM tasks should remove or archive Python workflows only after the
-  readiness matrix entry for that workflow moves from `Not ready` to
-  `Ready for staged removal`.
-- RREL tasks must include the final user-facing migration notes for removed
-  Python workflows.
+- Keep README and release notes aligned with the Rust-only public surface.
+- Keep local Python helper scripts documented as non-product automation.
+- Publish a GitHub pre-release only after current checks, Rust CLI entrypoint
+  evidence, and repository language display are reviewed.
