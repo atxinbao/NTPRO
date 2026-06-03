@@ -9,8 +9,12 @@ Task ID: RBTL-010
 The R4 backtest/live gate is usable and scoped, but it is not a final
 Rust-only release signoff. Current evidence proves that Rust can run scoped
 backtest and live/sandbox paths without Python, and that the covered
-backtest/live traces have executable Rust evidence. Final removal and release
-remain blocked by broader product, adapter, runtime, and release gates.
+backtest/live traces have executable Rust evidence.
+
+As of 2026-06-03, broader Rust-only completion approval is recorded by RREL-008
+after RREL-009 passed final local release verification. This document remains
+the scoped backtest/live gate record and does not create a release tag or
+publish a GitHub Release.
 
 ## Standard Command
 
@@ -66,7 +70,7 @@ The broader golden trace inventory is recorded in
 - A scoped parity trace now ties the backtest and live/sandbox evidence into one
   executable backtest/live semantic parity check.
 
-## Remaining Blockers
+## Scoped Follow-Ups
 
 The gate is scoped rather than final because these gaps remain:
 
@@ -86,8 +90,8 @@ The gate is scoped rather than final because these gaps remain:
   Rust product surface.
 - Live startup still has a scoped cancellation gap around long-running client
   connection futures during early startup.
-- Final Rust-only release still depends on broader risk, execution, portfolio,
-  adapter, removal, and release gate evidence.
+- Broader Rust-only release completion is tracked by RREL-008/RREL-009 rather
+  than this scoped RBTL document.
 
 ## Removal Gate Impact
 
@@ -95,5 +99,5 @@ This document does not authorize deleting Python, PyO3, Cython, `build.py`,
 `pyproject.toml`, or legacy Python package paths. It records that the
 backtest/live gate has executable Rust evidence and explicit remaining blockers.
 
-Removal remains gated by the Rust-only release contract and dedicated removal
-tasks.
+Removal and completion approval are tracked by the dedicated RREM/RREL task
+evidence. This document remains scoped to backtest/live evidence only.
