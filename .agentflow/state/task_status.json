@@ -1352,6 +1352,30 @@
       "notes": "RREL-008 produced blocker evidence only. Rust-only runtime and Cython removal checks pass, and the standard golden trace gate passes, but verify_release.sh still fails because strict final golden trace replay requires GOLDEN_TRACE_REPLAY_COMMAND. Do not mark DONE or auto-merge until final release verification, owner signoff, review, and PR merge are complete.",
       "updated_at": "2026-06-02T15:05:00Z"
     },
+    "RREL-009": {
+      "title": "Wire final golden trace replay gate",
+      "status": "REVIEW_REQUIRED",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "branch": "ai/RREL-009-wire-final-golden-trace-replay-gate",
+      "lease": "RREL-009",
+      "qa_passed": true,
+      "review_passed": false,
+      "release_gatekeeper_approved": false,
+      "owner_signoff_granted": false,
+      "auto_merge_allowed": false,
+      "release_gate_passed": true,
+      "source_task_file": "docs/rust-cutover/tasks/RREL-009.md",
+      "evidence_file": "docs/rust-cutover/evidence/RREL-009.md",
+      "notes": "RREL-009 local QA passed and verify_release.sh completed green. Final golden trace release mode now validates RELEASE_REPLAY_SCOPE.json when GOLDEN_TRACE_REPLAY_COMMAND is unset. This task must stop at REVIEW_REQUIRED: owner signoff, review, PR merge, release tag, and Rust-only cutover completion are not automated.",
+      "updated_at": "2026-06-03T03:45:00Z"
+    },
     "RREM-001": {
       "title": "Inventory Python product surfaces",
       "status": "DONE",

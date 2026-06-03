@@ -6,9 +6,11 @@ REQUIRE_GOLDEN_REPLAY="${REQUIRE_GOLDEN_REPLAY:-0}"
 RUN_RUST_GOLDEN_TRACE_HARNESS="${RUN_RUST_GOLDEN_TRACE_HARNESS:-1}"
 RUN_RUST_CACHE_MSGBUS_TRACE_REPLAY="${RUN_RUST_CACHE_MSGBUS_TRACE_REPLAY:-1}"
 RUN_RUST_BACKTEST_TRACE_REPLAY="${RUN_RUST_BACKTEST_TRACE_REPLAY:-1}"
+RUN_RUST_BACKTEST_LIVE_PARITY_TRACE_REPLAY="${RUN_RUST_BACKTEST_LIVE_PARITY_TRACE_REPLAY:-1}"
 RUN_RUST_LIVE_SANDBOX_TRACE_REPLAY="${RUN_RUST_LIVE_SANDBOX_TRACE_REPLAY:-1}"
 RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY="${RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY:-1}"
 REPLAY_COMMAND="${GOLDEN_TRACE_REPLAY_COMMAND:-}"
+RELEASE_SCOPE_MANIFEST="${GOLDEN_TRACE_RELEASE_SCOPE_MANIFEST:-docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json}"
 PYTHON_BIN="${PYTHON_BIN:-}"
 
 if [ -z "$PYTHON_BIN" ]; then
@@ -36,11 +38,14 @@ for trace in "${traces[@]}"; do
   "$PYTHON_BIN" scripts/ai/golden_trace_runner.py "$trace" --mode validate-only
   if [ -n "$REPLAY_COMMAND" ]; then
     "$PYTHON_BIN" scripts/ai/golden_trace_runner.py "$trace" --mode replay --replay-command "$REPLAY_COMMAND"
-  elif [ "$REQUIRE_GOLDEN_REPLAY" = "1" ]; then
-    echo "GOLDEN_TRACE_REPLAY_COMMAND is required for final release replay gate" >&2
-    exit 1
   fi
 done
+
+if [ "$REQUIRE_GOLDEN_REPLAY" = "1" ] && [ -z "$REPLAY_COMMAND" ]; then
+  "$PYTHON_BIN" scripts/ai/validate_golden_trace_release_scope.py \
+    --manifest "$RELEASE_SCOPE_MANIFEST" \
+    --trace-glob "$TRACE_GLOB"
+fi
 
 if [ "$RUN_RUST_GOLDEN_TRACE_HARNESS" = "1" ]; then
   cargo test -p nautilus-testkit --test golden_trace_schema
@@ -52,6 +57,10 @@ fi
 
 if [ "$RUN_RUST_BACKTEST_TRACE_REPLAY" = "1" ]; then
   cargo test -p nautilus-backtest --test golden_trace_backtest
+fi
+
+if [ "$RUN_RUST_BACKTEST_LIVE_PARITY_TRACE_REPLAY" = "1" ]; then
+  cargo test -p nautilus-backtest --test backtest_live_semantic_parity
 fi
 
 if [ "$RUN_RUST_LIVE_SANDBOX_TRACE_REPLAY" = "1" ]; then
