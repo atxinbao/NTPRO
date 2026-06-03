@@ -13,7 +13,7 @@ Follow-up ID: RC-CLEANUP-001
 This document is a historical RREM-013 evidence note with a current status
 appendix. Later RREM cleanup removed the remaining PyO3/Cython/Rust crate
 residue, RREL-009 made the final Rust-only release verification green, and
-`ntpro-rust-only-rc.1` was created as a tag-only release candidate.
+`ntpro-rust-only-rc.2` was created as the current tag-only release candidate.
 
 ## Summary
 

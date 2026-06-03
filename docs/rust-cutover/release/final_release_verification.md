@@ -17,6 +17,10 @@ After RREL-008 was merged, the human owner separately approved
 `ntpro-rust-only-rc.1` as a tag-only release candidate. No GitHub Release has
 been published.
 
+After PR #122 was merged, the human owner separately approved
+`ntpro-rust-only-rc.2` as the current tag-only release candidate. No GitHub
+Release has been published.
+
 ## Commands And Results
 
 | Command | Result | Decision |
@@ -67,6 +71,6 @@ approved completion after RREL-009 passed.
 Rust-only cutover completion is approved for RREL-008 documentation and
 agentflow state recording.
 
-RREL-008 has been reviewed and merged. `ntpro-rust-only-rc.1` exists as a
-tag-only release candidate. Do not publish a GitHub Release from automation
-alone.
+RREL-008 has been reviewed and merged. `ntpro-rust-only-rc.2` exists as the
+current tag-only release candidate. Do not publish a GitHub Release from
+automation alone.

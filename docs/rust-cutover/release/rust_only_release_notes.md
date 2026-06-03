@@ -7,14 +7,14 @@ Task ID: RREL-002 / RREL-008 / RREL-009
 ## Release State
 
 This is the Rust-only release note package for the completed cutover record and
-the first release-candidate tag.
+the release-candidate tag sequence.
 
 RREL-009 made the local final release verification green, and the human owner
 approved Rust-only cutover completion on 2026-06-03. RREL-008 records that
 completion decision in documentation and agentflow state only.
 
 After RREL-008 was reviewed and merged, the human owner separately approved the
-annotated release-candidate tag:
+first annotated release-candidate tag:
 
 ```text
 ntpro-rust-only-rc.1
@@ -22,6 +22,18 @@ ntpro-rust-only-rc.1
 
 The tag points at commit `a886e2ac3682247b5e542599fb8dd219a6b9cf1c`. It is a
 tag-only release candidate. No GitHub Release has been published.
+
+After RC public-surface cleanup was reviewed and merged in PR #122, the human
+owner approved the second annotated release-candidate tag:
+
+```text
+ntpro-rust-only-rc.2
+```
+
+This tag points at commit `6445e4f6bf6bde69eae91596d4ff7644d2e41fc0`. It is the
+current tag-only release candidate and includes the Rust-only README, release
+documentation cleanup, and legacy Python test removal. No GitHub Release has
+been published.
 
 ## What Changed In This Release Track
 
@@ -34,7 +46,10 @@ tag-only release candidate. No GitHub Release has been published.
 - RREL-009 records the final golden trace release-mode scope and green
   `verify_release.sh` result.
 - RREL-008 records the human owner completion approval.
-- `ntpro-rust-only-rc.1` records the first tag-only release candidate.
+- `ntpro-rust-only-rc.1` records the first tag-only release candidate before
+  RC public-surface cleanup.
+- `ntpro-rust-only-rc.2` records the tag-only release candidate after RC
+  public-surface cleanup.
 - This RC cleanup removes the legacy Python test files under `tests/**/*.py`
   from the public release surface. The remaining Python files are local
   repository-control scripts under `scripts/`.
@@ -82,8 +97,8 @@ closed as `DONE`.
 
 Do not publish a Rust-only GitHub Release yet.
 
-The `ntpro-rust-only-rc.1` tag already exists, but it was intentionally created
-without a GitHub Release. Before publishing a GitHub pre-release, review the
-public README, release notes, GitHub checks for the tagged commit, Rust CLI
-entrypoint evidence, and repository language display after the RC cleanup PR is
-merged.
+The `ntpro-rust-only-rc.2` tag is the current release-candidate source point,
+but it is intentionally created without a GitHub Release. Before publishing a
+GitHub pre-release, review the public README, release notes, GitHub checks for
+the tagged commit, Rust CLI entrypoint evidence, and repository language
+display.

@@ -15,7 +15,7 @@ release state.
 
 The blocker state recorded here was superseded by later RREM cleanup tasks,
 RREL-009 release verification, RREL-008 owner-approved completion, and the
-tag-only `ntpro-rust-only-rc.1` release candidate.
+current tag-only `ntpro-rust-only-rc.2` release candidate.
 
 For current release status, read:
 

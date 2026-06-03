@@ -15,8 +15,9 @@ This document originally staged removal of the Python package surfaces under
 deletion PR.
 
 After the Rust-only release gate passed, RREL-008 completion was merged, and
-`ntpro-rust-only-rc.1` was created as a tag-only release candidate, RC cleanup
-removed the top-level legacy Python tests under `tests/**/*.py`.
+`ntpro-rust-only-rc.1` was created as the first tag-only release candidate, RC
+cleanup removed the top-level legacy Python tests under `tests/**/*.py`. That
+cleanup is included in the current `ntpro-rust-only-rc.2` source point.
 
 ## Summary
 
