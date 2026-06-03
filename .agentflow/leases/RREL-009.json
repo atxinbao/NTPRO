@@ -1,0 +1,22 @@
+{
+  "task_id": "RREL-009",
+  "agent_id": "Codex",
+  "branch": "ai/RREL-009-wire-final-golden-trace-replay-gate",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RREL-009.md",
+    "docs/rust-cutover/evidence/RREL-009.md",
+    "docs/rust-cutover/golden_trace/**",
+    "docs/rust-cutover/release/**",
+    "scripts/ai/**",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RREL-009.json"
+  ],
+  "claimed_at": "2026-06-03T01:09:30Z",
+  "status": "REVIEW_REQUIRED",
+  "qa_passed": true,
+  "review_passed": false,
+  "release_gatekeeper_approved": false,
+  "owner_signoff_granted": false,
+  "auto_merge_allowed": false,
+  "updated_at": "2026-06-03T03:45:00Z"
+}
