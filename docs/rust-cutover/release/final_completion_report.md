@@ -19,10 +19,10 @@ annotated tag `ntpro-rust-only-rc.1`. The tag points at commit
 published.
 
 After PR #122 was reviewed and merged, the human owner separately approved the
-annotated tag `ntpro-rust-only-rc.2`. The tag points at commit
-`6445e4f6bf6bde69eae91596d4ff7644d2e41fc0`. This is the current tag-only
-release candidate and includes the RC public-surface cleanup. No GitHub Release
-has been published.
+annotated tag `ntpro-rust-only-rc.2`. The tag points at the commit containing
+the rc.2 tag-prep documentation and the merged RC public-surface cleanup. This
+is the current tag-only release candidate. No GitHub Release has been
+published.
 
 ## Completion Preconditions
 

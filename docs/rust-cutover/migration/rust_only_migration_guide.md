@@ -22,8 +22,8 @@ Current state:
 
 - RREL-009 made `scripts/ai/verify_release.sh` pass.
 - RREL-008 recorded human owner approval for Rust-only completion.
-- `ntpro-rust-only-rc.2` points at commit
-  `6445e4f6bf6bde69eae91596d4ff7644d2e41fc0`.
+- `ntpro-rust-only-rc.2` points at the commit containing the rc.2 tag-prep
+  documentation and the merged RC public-surface cleanup.
 - No GitHub Release has been published.
 - Top-level legacy Python tests under `tests/**/*.py` were removed during RC
   public-surface cleanup.
