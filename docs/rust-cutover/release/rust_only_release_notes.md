@@ -4,6 +4,10 @@ Date: 2026-06-03
 Executor: Codex
 Task ID: RREL-002 / RREL-008 / RREL-009
 
+Updated: 2026-06-04
+Executor: Codex
+Follow-up ID: RC2-PRERELEASE-DOCS
+
 ## Release State
 
 This is the Rust-only release note package for the completed cutover record and
@@ -31,9 +35,13 @@ ntpro-rust-only-rc.2
 ```
 
 This tag points at the commit containing the rc.2 tag-prep documentation and
-the merged RC public-surface cleanup. It is the current tag-only release
-candidate and includes the Rust-only README, release documentation cleanup, and
-legacy Python test removal. No GitHub Release has been published.
+the merged RC public-surface cleanup. It is the current published GitHub
+pre-release and includes the Rust-only README, release documentation cleanup,
+and legacy Python test removal.
+
+```text
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-rc.2
+```
 
 ## What Changed In This Release Track
 
@@ -48,8 +56,8 @@ legacy Python test removal. No GitHub Release has been published.
 - RREL-008 records the human owner completion approval.
 - `ntpro-rust-only-rc.1` records the first tag-only release candidate before
   RC public-surface cleanup.
-- `ntpro-rust-only-rc.2` records the tag-only release candidate after RC
-  public-surface cleanup.
+- `ntpro-rust-only-rc.2` records the release candidate after RC public-surface
+  cleanup and is published as the current GitHub pre-release.
 - This RC cleanup removes the legacy Python test files under `tests/**/*.py`
   from the public release surface. The remaining Python files are local
   repository-control scripts under `scripts/`.
@@ -95,10 +103,9 @@ closed as `DONE`.
 
 ## Release Recommendation
 
-Do not publish a Rust-only GitHub Release yet.
+`ntpro-rust-only-rc.2` has been published as a GitHub pre-release after explicit
+owner approval.
 
-The `ntpro-rust-only-rc.2` tag is the current release-candidate source point,
-but it is intentionally created without a GitHub Release. Before publishing a
-GitHub pre-release, review the public README, release notes, GitHub checks for
-the tagged commit, Rust CLI entrypoint evidence, and repository language
-display.
+Before promoting this release candidate to a final GitHub Release, review the
+public README, release notes, GitHub checks for the tagged commit, Rust CLI
+entrypoint evidence, and repository language display.
