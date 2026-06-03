@@ -30,10 +30,10 @@ owner approved the second annotated release-candidate tag:
 ntpro-rust-only-rc.2
 ```
 
-This tag points at commit `6445e4f6bf6bde69eae91596d4ff7644d2e41fc0`. It is the
-current tag-only release candidate and includes the Rust-only README, release
-documentation cleanup, and legacy Python test removal. No GitHub Release has
-been published.
+This tag points at the commit containing the rc.2 tag-prep documentation and
+the merged RC public-surface cleanup. It is the current tag-only release
+candidate and includes the Rust-only README, release documentation cleanup, and
+legacy Python test removal. No GitHub Release has been published.
 
 ## What Changed In This Release Track
 

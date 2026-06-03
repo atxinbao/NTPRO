@@ -32,7 +32,8 @@ approved the second Rust-only release candidate tag:
 ntpro-rust-only-rc.2
 ```
 
-This tag points at commit `6445e4f6bf6bde69eae91596d4ff7644d2e41fc0`.
+This tag points at the commit containing the rc.2 tag-prep documentation and
+the merged RC public-surface cleanup.
 
 No GitHub Release has been published.
 
