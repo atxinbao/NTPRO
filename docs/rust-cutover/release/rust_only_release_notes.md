@@ -8,6 +8,10 @@ Updated: 2026-06-04
 Executor: Codex
 Follow-up ID: RC2-PRERELEASE-DOCS
 
+Updated: 2026-06-04
+Executor: Codex
+Follow-up ID: FORMAL-RELEASE-V0.1.0
+
 ## Release State
 
 This is the Rust-only release note package for the completed cutover record and
@@ -35,12 +39,38 @@ ntpro-rust-only-rc.2
 ```
 
 This tag points at the commit containing the rc.2 tag-prep documentation and
-the merged RC public-surface cleanup. It is the current published GitHub
-pre-release and includes the Rust-only README, release documentation cleanup,
-and legacy Python test removal.
+the merged RC public-surface cleanup. It was published as a GitHub pre-release
+and includes the Rust-only README, release documentation cleanup, and legacy
+Python test removal.
 
 ```text
 https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-rc.2
+```
+
+After RC2 pre-release documentation was corrected and reviewed in PR #125, the
+human owner approved the third annotated release-candidate tag:
+
+```text
+ntpro-rust-only-rc.3
+```
+
+The tag points at commit `185f51dab9cf640d58f7b3956c4a6114f1e53d91`. It is the
+final Rust-only pre-release source point before formal release publication.
+
+```text
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-rc.3
+```
+
+The formal Rust-only release is:
+
+```text
+ntpro-rust-only-v0.1.0
+```
+
+It is the first formal GitHub Release for the NTPRO Rust-only cutover track.
+
+```text
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.1.0
 ```
 
 ## What Changed In This Release Track
@@ -57,7 +87,10 @@ https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-rc.2
 - `ntpro-rust-only-rc.1` records the first tag-only release candidate before
   RC public-surface cleanup.
 - `ntpro-rust-only-rc.2` records the release candidate after RC public-surface
-  cleanup and is published as the current GitHub pre-release.
+  cleanup and was published as a GitHub pre-release.
+- `ntpro-rust-only-rc.3` records the final pre-release candidate after RC2
+  documentation correction.
+- `ntpro-rust-only-v0.1.0` records the first formal Rust-only GitHub Release.
 - This RC cleanup removes the legacy Python test files under `tests/**/*.py`
   from the public release surface. The remaining Python files are local
   repository-control scripts under `scripts/`.
@@ -103,9 +136,9 @@ closed as `DONE`.
 
 ## Release Recommendation
 
-`ntpro-rust-only-rc.2` has been published as a GitHub pre-release after explicit
+`ntpro-rust-only-v0.1.0` is the formal Rust-only GitHub Release after explicit
 owner approval.
 
-Before promoting this release candidate to a final GitHub Release, review the
-public README, release notes, GitHub checks for the tagged commit, Rust CLI
-entrypoint evidence, and repository language display.
+Before cutting a later GitHub Release, review the public README, release notes,
+GitHub checks for the tagged commit, Rust CLI entrypoint evidence, and
+repository language display.
