@@ -10,8 +10,12 @@ ntpro-rust-only-rc.2
 ```
 
 This tag is the Rust-only release-candidate source point after the public
-README/release-doc cleanup and legacy Python test removal. No GitHub Release
-has been published yet.
+README/release-doc cleanup and legacy Python test removal. It is published as
+the current GitHub pre-release:
+
+```text
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-rc.2
+```
 
 ## Current Status
 
@@ -132,10 +136,10 @@ Start with:
 
 ## Release Candidate Notes
 
-`ntpro-rust-only-rc.2` is an annotated tag only. It is not a published GitHub
-Release.
+`ntpro-rust-only-rc.2` is an annotated tag and the current published GitHub
+pre-release.
 
-Before publishing a GitHub pre-release, review:
+Before promoting the release candidate to a final release, review:
 
 - current GitHub checks for the tagged commit;
 - release notes;
