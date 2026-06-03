@@ -4,18 +4,25 @@ Date: 2026-06-01
 Executor: Codex
 Task ID: RREM-006
 
+Updated: 2026-06-04
+Executor: Codex
+Follow-up ID: RC-CLEANUP-001
+
 ## Scope
 
-This document stages removal of the Python package surfaces under `python/`
-and top-level `nautilus_trader/`. It is a removal plan, not a deletion PR. It
-does not delete, move, skip, or weaken Python, PyO3, Cython, Rust, test,
-documentation, packaging, or build files.
+This document originally staged removal of the Python package surfaces under
+`python/` and top-level `nautilus_trader/`. It was a removal plan, not a
+deletion PR.
+
+After the Rust-only release gate passed, RREL-008 completion was merged, and
+`ntpro-rust-only-rc.1` was created as a tag-only release candidate, RC cleanup
+removed the top-level legacy Python tests under `tests/**/*.py`.
 
 ## Summary
 
-The Python package surfaces are not ready for hard deletion. Rust product
-entrypoints exist, but the complete Rust-only usability, runtime parity,
-adapter parity, build-path cleanup, and migration-note gates are not all green.
+The table below is the original RREM-006 staging snapshot. It is retained as
+historical evidence. The current release surface no longer includes Python,
+PyO3, Cython, or top-level Python test product paths.
 
 RREM-006 therefore stages removal into explicit lanes:
 
@@ -24,7 +31,7 @@ RREM-006 therefore stages removal into explicit lanes:
 | Python overlay package | `python/**` | Blocked. The overlay still contains import stubs, package docs, tests, and maturin metadata. | Remove only after Rust CLI/API/docs are the supported product surface and PyO3 package removal is approved. |
 | Top-level Python package | `nautilus_trader/**/*.py`, `nautilus_trader/**/*.pyi` | Blocked. It still hosts public Python modules, adapters, examples, test kit, and runtime wrappers. | Remove by domain after Rust replacements and migration notes exist. |
 | Top-level Cython package | `nautilus_trader/**/*.pyx`, `nautilus_trader/**/*.pxd` | Blocked. RREM-003 records 243 Cython source/interface files. | Do not remove in the Python package lane; coordinate with Cython/build removal tasks. |
-| Python package tests | `python/tests/**`, `tests/**/*.py` | Blocked. RREM-005 requires per-family port/scope decisions. | Remove only when test behavior is ported, superseded, deferred, or removed with approved surface deletion. |
+| Python package tests | historical `python/tests/**`, historical `tests/**/*.py` | Top-level `tests/**/*.py` removed by RC cleanup. Python package overlay tests were removed with the retired package surface in earlier removal tasks. | Removed with approved Rust-only surface deletion. |
 | Python examples/docs | `examples/**/*.py`, `examples/**/*.ipynb`, Python-facing docs | Blocked. RREM-004 shows Rust help/runtime smokes but product run paths are incomplete. | Replace with Rust examples/docs or mark as legacy migration material before deletion. |
 | Packaging/build bridge | `pyproject.toml`, `python/pyproject.toml`, `build.py` | Blocked. These are shared with PyO3/Cython build cleanup. | Leave to dedicated build-path and final release tasks. |
 
@@ -38,7 +45,7 @@ Current counts from this task run:
 | `python/nautilus_trader` shallow module directories | 50 | `find python/nautilus_trader -maxdepth 2 -type d` |
 | top-level `nautilus_trader/` Python/Cython/interface files | 642 | `find nautilus_trader -type f ...` |
 | Python examples and notebooks | 137 | `find examples -type f ...` |
-| top-level Python test files | 534 | `find tests -type f -name '*.py'` |
+| top-level Python test files | 534 at RREM-006 time; 0 tracked after RC cleanup | `find tests -type f -name '*.py'` |
 | README/docs Python-facing references | 77 | `rg -l 'from nautilus_trader|import nautilus_trader|pip install|Python 3|```python' docs README.md` |
 
 The top-level `nautilus_trader/` package currently includes:
@@ -74,7 +81,8 @@ Hard removal must follow this sequence:
    dry-run, schema, or sandbox evidence and a supported/deferred/removed
    decision.
 4. Test scope gate: Python tests are ported, superseded, deferred, archived as
-   migration-only, or removed with the approved surface.
+   migration-only, or removed with the approved surface. RC cleanup applies
+   `removed_with_surface` to top-level `tests/**/*.py`.
 5. PyO3/Cython/build gate: `crates/pyo3`, `crates/**/src/python/**`,
    `nautilus_trader/**/*.pyx`, `nautilus_trader/**/*.pxd`, `pyproject.toml`,
    `python/pyproject.toml`, and `build.py` are handled by their dedicated
@@ -105,11 +113,11 @@ Required evidence before deletion:
 - Stub/docstring generation is either obsolete or replaced by Rust docs.
 - Migration notes explain that Python import paths are removed.
 
-Current decision: blocked.
+Current decision: removed from the Rust-only release product surface.
 
 ### Lane B: Top-Level `nautilus_trader/` Python Modules
 
-Candidate paths:
+Historical candidate paths:
 
 - `nautilus_trader/**/*.py`
 - `nautilus_trader/**/*.pyi`
@@ -124,7 +132,7 @@ Required evidence before deletion:
   replaced by Rust test fixtures.
 - Public migration notes cover removed import paths and user workflows.
 
-Current decision: blocked.
+Current decision: removed from the Rust-only release product surface.
 
 ### Lane C: Top-Level `nautilus_trader/` Cython Modules
 
@@ -140,8 +148,9 @@ Required evidence before deletion:
 - PyO3/Cython interop paths are no longer part of the product surface.
 - Build cleanup removes Cython dependencies and doctest/coverage hooks.
 
-Current decision: blocked and owned by Cython/build removal tasks, not by this
-Python package staging task.
+Historical RREM-006 decision: blocked and owned by Cython/build removal tasks,
+not by that Python package staging task. Later RREM cleanup and RREL-009
+resolved the release blocker.
 
 ### Lane D: Tests, Docs, And Examples
 
@@ -159,11 +168,11 @@ Required evidence before deletion:
 - Rust docs/examples cover supported user stories.
 - Unsupported workflows are deferred or removed with release-gate approval.
 
-Current decision: blocked.
+Current decision: removed from the Rust-only release product surface.
 
 ## Blockers
 
-The following blockers prevent package-surface deletion now:
+The following blockers were recorded at RREM-006 time:
 
 - Rust CLI `run` paths for backtest/sandbox/live/data/config remain incomplete
   compared with Python workflows.
@@ -171,7 +180,9 @@ The following blockers prevent package-surface deletion now:
   execution, risk, portfolio/accounting, persistence, live, and adapters.
 - Adapter support/deferred/removal decisions exist by inventory, but production
   live workflow replacement is not release-ready.
-- Python-only tests still require port/scope decisions before deletion.
+- Python-only tests required port/scope decisions before deletion. RC cleanup
+  later applied the approved Rust-only `removed_with_surface` decision to
+  top-level `tests/**/*.py`.
 - PyO3 and Cython surfaces remain active build/import bridges.
 - Public migration notes for removed Python package imports are not final.
 - Final Rust-only release checks are not the current passing gate.

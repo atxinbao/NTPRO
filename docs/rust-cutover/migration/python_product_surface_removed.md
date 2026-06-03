@@ -4,6 +4,17 @@ Date: 2026-06-02
 Executor: Codex
 Task ID: RREM-013
 
+Updated: 2026-06-04
+Executor: Codex
+Follow-up ID: RC-CLEANUP-001
+
+## Current Status Update
+
+This document is a historical RREM-013 evidence note with a current status
+appendix. Later RREM cleanup removed the remaining PyO3/Cython/Rust crate
+residue, RREL-009 made the final Rust-only release verification green, and
+`ntpro-rust-only-rc.1` was created as a tag-only release candidate.
+
 ## Summary
 
 RREM-013 removes the Python package product surface from the Rust-only cutover
@@ -42,18 +53,20 @@ Use the Rust workspace and CLI/product entries:
 
 ## Not Removed In This Task
 
-RREM-013 does not remove every historical Python reference from docs, examples,
-tests, or Rust comments. Those references are now migration or release-cleanup
-residuals unless they are active product package paths.
+RREM-013 did not remove every historical Python reference from docs, examples,
+tests, or Rust comments at that time. Later cleanup removed Python examples,
+Python-facing docs, and top-level Python tests from the Rust-only release
+surface.
 
-This task also does not remove every remaining PyO3 annotation or Cython
-parity/build reference in Rust crates. Those residuals still block the final
-Rust-only runtime gate and must be handled by follow-up release gate work.
+RREM-013 also did not remove every remaining PyO3 annotation or Cython
+parity/build reference in Rust crates at that time. Later release gate work
+handled that residue and made the final Rust-only runtime gate pass.
 
 ## Validation Notes
 
 `scripts/ai/verify_fast.sh` passes after the removal.
 
-`scripts/ai/check_rust_only_runtime.sh` still fails because active Rust source
-paths retain PyO3 annotations and Cython generation/parity references. This is
-recorded as a release blocker instead of being treated as complete.
+At RREM-013 time, `scripts/ai/check_rust_only_runtime.sh` still failed because
+active Rust source paths retained PyO3 annotations and Cython
+generation/parity references. That historical blocker was resolved by later
+RREM cleanup and RREL-009 release verification.

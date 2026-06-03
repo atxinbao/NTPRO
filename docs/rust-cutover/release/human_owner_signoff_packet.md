@@ -10,8 +10,12 @@ Human owner signoff is granted.
 
 This packet records the owner approval for marking the Rust-only cutover
 complete after RREL-009 made the final local release verification green. This
-packet does not create a release tag, does not publish a GitHub Release, and
-does not authorize automation to merge the completion PR.
+packet did not create a release tag, did not publish a GitHub Release, and did
+not authorize automation to merge the completion PR.
+
+After RREL-008 was reviewed and merged, the human owner separately approved
+`ntpro-rust-only-rc.1` as a tag-only release candidate. No GitHub Release has
+been published.
 
 ## Release Gate Status
 
@@ -42,7 +46,7 @@ Approve Rust-only cutover completion after RREL-009 verify_release passed.
 | `docs/rust-cutover/release/rust_only_release_notes.md` | Release notes and planned breaking changes. |
 | `docs/rust-cutover/release/scope_decision_review.md` | Scope decision coverage review. |
 | `docs/rust-cutover/release/final_completion_report.md` | Consolidated completion status. |
-| `docs/rust-cutover/release/release_candidate_tag_plan.md` | Draft tag plan; no tag is created by RREL-008. |
+| `docs/rust-cutover/release/release_candidate_tag_plan.md` | Tag plan and tag-only `ntpro-rust-only-rc.1` record. |
 | `docs/rust-cutover/release/final_release_verification.md` | Final local release verification state. |
 | `docs/rust-cutover/evidence/RREL-008.md` | Completion and signoff evidence. |
 | `docs/rust-cutover/evidence/RREL-009.md` | Final golden trace release-mode gate evidence. |
@@ -50,11 +54,11 @@ Approve Rust-only cutover completion after RREL-009 verify_release passed.
 
 ## Residual Release Controls
 
-- RREL-008 must still be reviewed through its PR before being marked `DONE`.
-- No release candidate tag is created by this signoff packet.
+- RREL-008 was reviewed and merged before the tag-only RC action.
+- `ntpro-rust-only-rc.1` exists as a tag-only release candidate.
 - No GitHub Release is published by this signoff packet.
-- Any future tag or release publication requires a separate explicit owner
-  instruction.
+- Any future tag or GitHub Release publication requires a separate explicit
+  owner instruction.
 
 ## Owner Signoff
 

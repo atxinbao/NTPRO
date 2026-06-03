@@ -4,6 +4,26 @@ Date: 2026-06-01
 Executor: Codex
 Task ID: RREM-009
 
+Updated: 2026-06-04
+Executor: Codex
+Follow-up ID: RC-CLEANUP-001
+
+## Current Status Update
+
+This document is a historical RREM-009 blocker snapshot. It is not the current
+release state.
+
+The blocker state recorded here was superseded by later RREM cleanup tasks,
+RREL-009 release verification, RREL-008 owner-approved completion, and the
+tag-only `ntpro-rust-only-rc.1` release candidate.
+
+For current release status, read:
+
+- `docs/rust-cutover/release/rust_only_release_notes.md`
+- `docs/rust-cutover/release/final_release_verification.md`
+- `docs/rust-cutover/release/final_completion_report.md`
+- `docs/rust-cutover/migration/rust_only_migration_guide.md`
+
 ## Scope
 
 This document records the Rust-only runtime gate result. It does not delete,
@@ -19,7 +39,7 @@ in active paths. `scripts/ai/check_cython_removed.sh` also fails because
 project Rust 1.95.0 toolchain and timed out at the bounded 180 second limit
 during workspace clippy.
 
-Current decision: blocked. This task records gate evidence only.
+Historical RREM-009 decision: blocked. This task records gate evidence only.
 
 ## Gate Results
 

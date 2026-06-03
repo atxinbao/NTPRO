@@ -4,23 +4,51 @@ Date: 2026-06-01
 Executor: Codex
 Task ID: RREM-005
 
+Updated: 2026-06-04
+Executor: Codex
+Follow-up ID: RC-CLEANUP-001
+
 ## Scope
 
 This document classifies Python-only tests for Rust-only removal planning. It
 does not delete, rewrite, skip, or weaken any Python, PyO3, Cython, Rust, or
 golden trace tests.
 
+## RC Cleanup Decision
+
+The original RREM-005 scope map was intentionally non-destructive. After the
+Rust-only completion gate passed, `ntpro-rust-only-rc.1` was created, and the
+human owner approved public release cleanup, the top-level legacy Python tests
+under `tests/**/*.py` were removed from the release surface.
+
+The deletion decision is:
+
+```text
+removed_with_surface
+```
+
+Reason:
+
+- The Python/PyO3/Cython product surfaces are no longer supported release
+  surfaces.
+- RREL-009 made the final local Rust-only release verification green.
+- RREL-008 recorded owner-approved Rust-only completion.
+- `ntpro-rust-only-rc.1` exists as a tag-only release candidate.
+- The legacy top-level Python tests were still the dominant GitHub language
+  signal and no longer represented the public product direction.
+
+This RC cleanup keeps local Python control/verification scripts under
+`scripts/`. Those scripts are repository automation, not a product API.
+
 ## Summary
 
-Python tests remain a major parity and migration surface. Some areas already
-have Rust crate tests and golden trace evidence, but many Python tests still
-cover PyO3/Cython interop, Python package imports, adapter integration
-behavior, memory leaks, performance, and docs/tutorial behavior that cannot be
-deleted safely until replacement evidence is explicit.
+The table below is the original RREM-005 inventory snapshot. It is retained as
+historical removal evidence. The current repository no longer tracks the
+top-level Python files under `tests/**/*.py`.
 
 | Test class | Count | Current Rust evidence | Scope decision |
 | --- | ---: | --- | --- |
-| Top-level Python tests under `tests/**` | 534 files | 156 Rust crate test files, golden trace tests, adapter fixture manifests | Scope by family; do not bulk-delete. |
+| Top-level Python tests under `tests/**` | 534 files at RREM-005; 0 tracked Python files after RC cleanup | 156 Rust crate test files, golden trace tests, adapter fixture manifests | Removed with the retired Python/PyO3/Cython product surface after release-gate approval. |
 | Python package overlay tests under `python/tests/**` | 90 files | Limited Rust replacement; mostly package/stub/acceptance coverage | Defer until Python package surface is removed or replaced. |
 | Tests mentioning PyO3/Cython/legacy interop | 179 files | RREM-002/RREM-003 inventories and some Rust parity tests | Port or explicitly retire with migration notes before removal. |
 | Adapter integration Python tests | 185 files under `tests/integration_tests/adapters` | 92 adapter Rust test files plus RADP fixture manifests | Port/defer by venue; fixture-backed Rust coverage does not imply all Python adapter tests are removable. |
@@ -29,7 +57,7 @@ deleted safely until replacement evidence is explicit.
 | Memory leak tests | 18 files | No Rust-equivalent leak harness found in scope | Defer or replace with Rust/tooling-specific leak evidence. |
 | Acceptance/docs tests | 5 files | CLI help/docs evidence exists, but product run paths remain blocked | Defer until Rust CLI run and docs migration are complete. |
 
-## Current Test Inventory
+## Original Test Inventory Snapshot
 
 Python tests under `tests/**`:
 
@@ -100,25 +128,26 @@ Important release evidence already recorded:
 
 | Python test family | Decision | Why |
 | --- | --- | --- |
-| `tests/unit_tests/model/**` | Port/replace by Rust model tests before removal. | Model value/object/order/instrument semantics are public runtime contracts. Existing Rust value gates are not enough to remove every Python model test. |
-| `tests/unit_tests/backtest/**` | Partially covered; port remaining backtest node/engine/config behavior. | Rust backtest tests and golden trace exist, but CLI/config workflow remains blocked. |
-| `tests/unit_tests/live/**` | Partially covered; port lifecycle/config behavior that is not in Rust tests. | Rust live tests cover node lifecycle, but Python execution client/reconciliation tests remain migration blockers. |
-| `tests/unit_tests/execution/**` | Port or explicitly scope before removal. | Execution semantics affect order lifecycle and trading behavior; release trace is not complete for every Python scenario. |
-| `tests/unit_tests/risk/**` | Port or explicitly scope before removal. | PyO3 Greeks and risk behavior need Rust-native replacement or decision. |
-| `tests/unit_tests/portfolio/**` and `tests/unit_tests/accounting/**` | Port/replace before removal. | Portfolio/accounting/PnL remain release-gate-sensitive. |
-| `tests/unit_tests/persistence/**` | Partially covered; port catalog/wrangler/streaming gaps. | Rust persistence tests exist, but Python/PyO3 catalog and wrangler tests remain. |
-| `tests/unit_tests/indicators/**` and `tests/unit_tests/analysis/**` | Port or defer with explicit scope. | Indicator/analysis behavior may be public strategy input; Rust replacement needs coverage map. |
-| `tests/integration_tests/adapters/**` | Scope by venue using RADP fixture manifests. | Adapter Rust tests are broad but not one-to-one with Python integration behavior. |
-| `tests/performance_tests/**` | Defer until Rust benchmark/perf baseline exists. | Performance expectations are not interchangeable with functional tests. |
-| `tests/mem_leak_tests/**` | Defer or replace with Rust-specific memory/leak checks. | Current tests exercise Python/Cython/PyO3 memory behavior and cannot prove Rust leak safety directly. |
-| `tests/acceptance_tests/**` | Defer until Rust CLI product run paths pass. | CLI help exists, but product run replacement remains blocked. |
-| `tests/docs_tests/**` | Defer until docs are Rust-only and Python docs are migrated. | Current docs still include Python tutorial content. |
+| `tests/unit_tests/model/**` | Removed with surface in RC cleanup. | The Python/PyO3 product surface these tests targeted is no longer supported. Rust model tests, golden traces, and release gates remain the active evidence path. |
+| `tests/unit_tests/backtest/**` | Removed with surface in RC cleanup. | Rust backtest tests, CLI help contracts, and release verification remain the active evidence path. |
+| `tests/unit_tests/live/**` | Removed with surface in RC cleanup. | Rust live/sandbox evidence and release verification remain the active evidence path. |
+| `tests/unit_tests/execution/**` | Removed with surface in RC cleanup. | Rust execution tests and golden trace evidence remain the active evidence path. |
+| `tests/unit_tests/risk/**` | Removed with surface in RC cleanup. | Rust risk tests and release verification remain the active evidence path. |
+| `tests/unit_tests/portfolio/**` and `tests/unit_tests/accounting/**` | Removed with surface in RC cleanup. | Rust portfolio/accounting tests and release evidence remain the active evidence path. |
+| `tests/unit_tests/persistence/**` | Removed with surface in RC cleanup. | Rust persistence tests and release verification remain the active evidence path. |
+| `tests/unit_tests/indicators/**` and `tests/unit_tests/analysis/**` | Removed with surface in RC cleanup. | Rust crate tests and Rust-only documentation remain the active evidence path. |
+| `tests/integration_tests/adapters/**` | Removed with surface in RC cleanup. | RADP fixture manifests and adapter Rust tests remain the active evidence path. |
+| `tests/performance_tests/**` | Removed with surface in RC cleanup. | Python performance tests targeted the retired product surface; future performance evidence must be Rust-native. |
+| `tests/mem_leak_tests/**` | Removed with surface in RC cleanup. | Python/Cython/PyO3 leak checks do not represent the Rust-only product surface. |
+| `tests/acceptance_tests/**` | Removed with surface in RC cleanup. | Rust CLI and release verification remain the active acceptance path. |
+| `tests/docs_tests/**` | Removed with surface in RC cleanup. | README and cutover docs are now Rust-only public surfaces. |
 | `python/tests/**` | Defer until Python package overlay removal decision. | These tests validate the Python package/stubs/acceptance surface itself. |
 
 ## Deletion Preconditions
 
-Before a Python test file can be removed, a later RREM/RREL task must record at
-least one of these outcomes:
+Before any future Python test file is added or restored, a later RREM/RREL task
+must record why that test belongs in a Rust-only repository. Historical Python
+test removal used one of these outcomes:
 
 - `ported`: a Rust test or golden trace covers the same behavior;
 - `superseded`: a Rust product contract intentionally replaces the workflow;
@@ -129,15 +158,13 @@ least one of these outcomes:
 - `removed_with_surface`: the underlying Python/PyO3/Cython product surface is
   removed with migration notes and release approval.
 
-Do not mark a Python test removable only because a same-named Rust crate test
-exists. The behavior, fixture, data shape, error path, and public contract must
-match or be explicitly scoped out.
+Do not restore Python tests as product evidence for the Rust-only release. New
+test coverage should be Rust-native unless the file is a local repository
+automation script and is explicitly documented as non-product.
 
 ## Immediate Follow-Ups
 
-- Build a per-domain port checklist for model, backtest, live, execution,
-  risk, portfolio/accounting, persistence, indicators, and adapters.
-- Link adapter Python integration tests to RADP fixture manifests by venue.
-- Link Python acceptance/docs tests to the Rust CLI product readiness matrix.
-- Keep PyO3/Cython interop tests until the PyO3/Cython product surfaces are
-  removed or replaced by Rust-native tests.
+- Keep any future regression coverage Rust-native.
+- Keep local Python scripts limited to repository control and release evidence.
+- Do not reintroduce Python/PyO3/Cython product tests without a new owner
+  decision and release-gate record.

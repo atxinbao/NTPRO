@@ -10,8 +10,12 @@ Local final Rust-only release verification now passes after RREL-009 wires the
 final golden trace release-mode gate.
 
 Human owner signoff is now granted for marking the Rust-only cutover complete
-in documentation and agentflow state. The repository must still not be tagged
-or published as a GitHub Release from RREL-008.
+in documentation and agentflow state. RREL-008 itself did not create a tag or
+publish a GitHub Release.
+
+After RREL-008 was merged, the human owner separately approved
+`ntpro-rust-only-rc.1` as a tag-only release candidate. No GitHub Release has
+been published.
 
 ## Commands And Results
 
@@ -63,5 +67,6 @@ approved completion after RREL-009 passed.
 Rust-only cutover completion is approved for RREL-008 documentation and
 agentflow state recording.
 
-RREL-008 still requires PR review and merge before it is marked `DONE`. Do not
-create a release tag or publish a GitHub Release from automation alone.
+RREL-008 has been reviewed and merged. `ntpro-rust-only-rc.1` exists as a
+tag-only release candidate. Do not publish a GitHub Release from automation
+alone.
