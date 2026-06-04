@@ -2,16 +2,23 @@
 
 ## Introduction
 
-This developer guide provides specifications for how to build an integration adapter for the NautilusTrader platform.
+This developer guide provides specifications for how to build an integration adapter for the NTPRO Rust-only platform.
 
 Adapters connect to trading venues and data providers, translating their native APIs into the platform’s unified interface and normalized domain model.
 
+:::warning
+NTPRO adapter development is Rust-only. Python, PyO3, and Cython adapter layers
+may appear in retained upstream notes, but they are legacy context and are not
+supported product entrypoints or required implementation steps for new NTPRO work.
+:::
+
 ## Structure of an adapter
 
-NautilusTrader adapters follow a layered architecture pattern with:
+NTPRO adapters follow a Rust-first layered architecture pattern with:
 
 - **Rust core** for networking clients and performance-sensitive operations.
-- **Python layer** for integrating Rust clients into the platform's data and execution engines.
+- **Rust data and execution clients** for integrating with the platform's engines.
+- **Rust tests and fixtures** for adapter evidence.
 
 ### Rust core (`crates/adapters/your_adapter/`)
 
@@ -20,7 +27,8 @@ The Rust layer handles:
 - **HTTP client**: Raw API communication, request signing, rate limiting.
 - **WebSocket client**: Low-latency streaming connections, message parsing.
 - **Parsing**: Fast conversion of venue data to Nautilus domain models.
-- **Python bindings**: PyO3 exports to make Rust functionality available to Python.
+- **Rust public API**: documented types and constructors used by Rust clients,
+  examples, and tests.
 
 Typical Rust structure:
 
@@ -52,12 +60,6 @@ crates/adapters/your_adapter/
 │   │   ├── messages.rs      # Frame and message enums
 │   │   ├── parse.rs         # Message parsing functions
 │   │   └── subscription.rs  # Subscription topic helpers (optional)
-│   ├── python/              # PyO3 Python bindings
-│   │   ├── enums.rs         # Python-exposed enums
-│   │   ├── http.rs          # Python HTTP client bindings
-│   │   ├── urls.rs          # Python URL helpers
-│   │   ├── websocket.rs     # Python WebSocket client bindings
-│   │   └── mod.rs           # Module exports
 │   ├── config.rs            # Configuration structures
 │   ├── data.rs              # Data client implementation
 │   ├── execution.rs         # Execution client implementation
@@ -71,9 +73,14 @@ crates/adapters/your_adapter/
 └── test_data/               # Canonical venue payloads
 ```
 
-### Python layer (`nautilus_trader/adapters/your_adapter`)
+### Legacy upstream Python layer (`nautilus_trader/adapters/your_adapter`)
 
-The Python layer provides the integration interface through these components:
+The upstream Python layer is retained here only as historical context. Do not
+add or restore this layer for current NTPRO adapter work. Current NTPRO adapter
+development should expose Rust clients, Rust configuration, Rust examples, and
+fixture-backed Rust tests.
+
+The historical Python layer provided these components:
 
 1. **Instrument Provider**: Supplies instrument definitions via `InstrumentProvider`.
 2. **Data Client**: Handles market data feeds and historical data requests via `LiveDataClient` and `LiveMarketDataClient`.
@@ -97,7 +104,8 @@ nautilus_trader/adapters/your_adapter/
 ## Adapter implementation sequence
 
 Follow this dependency-driven order when building an adapter. Each phase
-builds on the previous one. Implement the Rust core before any Python layer.
+builds on the previous one. Do not add a Python or PyO3 adapter layer for
+current NTPRO product work.
 
 ### Phase 1: Rust core infrastructure
 
@@ -113,7 +121,7 @@ Build the low-level networking and parsing foundation.
 | 1.6  | WebSocket client           | Implement connection lifecycle, authentication, heartbeat, and reconnection.                 |
 | 1.7  | WebSocket messages         | Define streaming payload types (`websocket/messages.rs`).                                    |
 | 1.8  | WebSocket parsing          | Convert stream messages to Nautilus domain models (`websocket/parse.rs`).                    |
-| 1.9  | Python bindings            | Expose Rust functionality via PyO3 (`python/mod.rs`).                                        |
+| 1.9  | Rust public surface         | Document and test Rust constructors, configuration, and client APIs.                         |
 
 **Milestone**: Rust crate compiles, unit tests pass, HTTP/WebSocket clients can authenticate and stream/request raw data.
 
@@ -137,7 +145,7 @@ Build data subscriptions and historical data requests.
 |------|----------------------------|----------------------------------------------------------------------------------------------|
 | 3.1  | Public WebSocket streams   | Subscribe to order books, trades, tickers, and other public channels.                        |
 | 3.2  | Historical data requests   | Fetch historical bars, trades, and order book snapshots via HTTP.                            |
-| 3.3  | Data client (Python)       | Implement `LiveDataClient` or `LiveMarketDataClient` wiring Rust clients to the data engine. |
+| 3.3  | Data client (Rust)         | Implement Rust data-client wiring from venue clients to the data engine.                     |
 
 **Milestone**: Data client connects, subscribes to instruments, and emits market data to the platform.
 
@@ -150,7 +158,7 @@ Build order management and account state.
 | 4.1  | Private WebSocket streams  | Subscribe to order updates, fills, positions, and account balance changes.                   |
 | 4.2  | Basic order submission     | Implement market and limit orders via HTTP or WebSocket.                                     |
 | 4.3  | Order modification/cancel  | Implement order amendment and cancellation.                                                  |
-| 4.4  | Execution client (Python)  | Implement `LiveExecutionClient` wiring Rust clients to the execution engine.                 |
+| 4.4  | Execution client (Rust)    | Implement Rust execution-client wiring from venue clients to the execution engine.           |
 | 4.5  | Execution reconciliation   | Generate order, fill, and position status reports for startup reconciliation.                |
 
 **Milestone**: Execution client submits orders, receives fills, and reconciles state on connect.
@@ -183,7 +191,7 @@ Validate the integration and document usage.
 |------|----------------------------|----------------------------------------------------------------------------------------------|
 | 7.1  | Rust unit tests            | Test parsers, signing helpers, and business logic in `#[cfg(test)]` blocks.                  |
 | 7.2  | Rust integration tests     | Test HTTP/WebSocket clients against mock Axum servers in `tests/`.                           |
-| 7.3  | Python integration tests   | Test data/execution clients in `tests/integration_tests/adapters/<adapter>/`.                |
+| 7.3  | Adapter fixture/spec tests | Test data/execution behavior through Rust tests, fixtures, mocks, or documented spec cards.  |
 | 7.4  | Example scripts            | Provide runnable examples demonstrating data subscription and order execution.               |
 
 See the [Testing](#testing) section for detailed test organization guidelines.
@@ -198,7 +206,7 @@ Group venue constants, credential helpers, enums, and reusable parsers under `sr
 Adapters such as OKX keep submodules like `consts`, `credential`, `enums`, and `urls` alongside a `testing` module
 for fixtures, providing a single place for cross-cutting pieces.
 When an adapter has multiple environments or product categories, add a dedicated `common::urls` helper so
-REST/WebSocket base URLs stay in sync with the Python layer.
+REST/WebSocket base URLs stay in sync with Rust configuration and client layers.
 
 ### Symbol normalization (`common/symbol.rs`)
 
@@ -409,28 +417,29 @@ Include helper methods like `from_http_status()`, `from_rate_limit_headers()`, `
 `is_fatal()`, and `retry_after()` to enable consistent error classification across the adapter.
 See BitMEX and Bybit adapters for reference implementations.
 
-### Python exports (`python/mod.rs`)
+### Legacy upstream Python exports (`python/mod.rs`)
 
-Mirror the Rust surface area through PyO3 modules by re-exporting clients, enums, and helper functions.
-When new functionality lands in Rust, add it to `python/mod.rs` so the Python layer stays in sync
-(the OKX adapter is a good reference).
+This section is retained only as upstream history. Current NTPRO adapter work
+must not add or restore PyO3 export modules. When new functionality lands in
+Rust, document and test the Rust surface instead of adding `python/mod.rs`
+entries.
 
-### Python bindings (`python/`)
+### Legacy upstream Python bindings (`python/`)
 
-Expose Rust functionality to Python through PyO3.
-Mark venue-specific structs that need Python access with `#[pyclass]` and implement `#[pymethods]` blocks with
-`#[getter]` attributes for field access.
+The old upstream path exposed Rust functionality to Python through PyO3.
+The notes below describe historical implementation patterns and are not NTPRO
+product instructions.
 
-For async methods in the HTTP client, use `pyo3_async_runtimes::tokio::future_into_py` to convert Rust futures
+Historically, async methods in the HTTP client used `pyo3_async_runtimes::tokio::future_into_py` to convert Rust futures
 into Python awaitables.
 When returning lists of custom types, map each item with `Py::new(py, item)` before constructing the Python list.
-Register all exported classes and enums in `python/mod.rs` using `m.add_class::<YourType>()` so they're available
+Upstream registered exported classes and enums in `python/mod.rs` using `m.add_class::<YourType>()` so they were available
 to Python code.
 
-Follow the pattern established in other adapters: prefixing Python-facing methods with `py_*` in Rust while using
+The old adapter pattern prefixed Python-facing methods with `py_*` in Rust while using
 `#[pyo3(name = "method_name")]` to expose them without the prefix.
 
-When delivering instruments from WebSocket to Python, use `instrument_any_to_pyobject()` which returns PyO3 types
+In retained upstream material, delivering instruments from WebSocket to Python used `instrument_any_to_pyobject()` which returns PyO3 types
 for caching.
 For the reverse direction (Python->Rust), use `pyobject_to_instrument_any()` in `cache_instrument()` methods.
 Never call `.into_py_any()` directly on `InstrumentAny` as it doesn't implement the required trait.
@@ -605,7 +614,7 @@ The `ExecutionEventEmitter` provides two methods for emitting account state:
 ## HTTP client patterns
 
 Adapters use a two-layer HTTP client architecture: a raw client for low-level API operations and a domain
-client for high-level logic. The split also enables efficient cloning for Python bindings.
+client for high-level Rust logic. The split also enables efficient cloning across shared async clients and tests.
 
 ### Client structure
 
@@ -640,13 +649,13 @@ pub struct MyHttpClient {
 - **Raw client** (`MyRawHttpClient`) contains low-level HTTP methods named to match venue endpoints
   (e.g., `get_instruments`, `get_balance`, `place_order`). These methods take venue-specific query
   objects and return venue-specific response types.
-- **Domain client** (`MyHttpClient`) wraps the raw client in an `Arc` for efficient cloning (required
-  for Python bindings). It provides high-level methods that accept Nautilus domain types
+- **Domain client** (`MyHttpClient`) wraps the raw client in an `Arc` for efficient cloning across
+  async tasks, test handles, and adapter clients. It provides high-level methods that accept Nautilus domain types
   (e.g., `InstrumentId`, `ClientOrderId`) and return domain objects. It may also cache instruments
   or other venue metadata.
 - Use `nautilus_network::http::HttpClient` instead of `reqwest::Client` directly for rate limiting,
   retry logic, and consistent error handling.
-- Both clients are exposed to Python, but the domain client is the primary interface.
+- The raw client stays internal. The domain client is the primary Rust-facing interface.
 
 ### Parser functions
 
@@ -680,13 +689,13 @@ client wraps it and exposes high-level methods that accept Nautilus domain types
 **Naming conventions:**
 
 - **Raw client methods**: Named to match venue endpoints as closely as possible (e.g., `get_instruments`, `get_balance`, `place_order`). These methods are internal to the raw client and take venue-specific types (builders, JSON values).
-- **Domain client methods**: Named based on operation semantics (e.g., `request_instruments`, `submit_order`, `cancel_order`). These are the methods exposed to Python and take Nautilus domain objects (InstrumentId, ClientOrderId, OrderSide, etc.).
+- **Domain client methods**: Named based on operation semantics (e.g., `request_instruments`, `submit_order`, `cancel_order`). These are the public Rust-facing methods and take Nautilus domain objects (InstrumentId, ClientOrderId, OrderSide, etc.).
 
 **Domain method flow:**
 
 Domain methods follow a three-step pattern: build venue-specific parameters from Nautilus types, call the corresponding raw client method, then parse the response. For endpoints returning domain objects (positions, orders, trades), call parser functions from `common/parse`. For endpoints returning raw venue data (fee rates, balances), extract the result directly from the response envelope. Methods prefixed with `request_*` indicate they return domain data, while methods like `submit_*`, `cancel_*`, or `modify_*` perform actions and return acknowledgments.
 
-The domain client wraps the raw client in an `Arc` for efficient cloning required by Python bindings.
+The domain client wraps the raw client in an `Arc` for efficient cloning across async tasks and adapter handles.
 
 ### Query parameter builders
 
@@ -847,7 +856,7 @@ subscriptions, and reconnection logic.
 
 ### Client structure
 
-WebSocket adapters use a **two-layer architecture** to separate Python-accessible state from high-performance async I/O:
+WebSocket adapters use a **two-layer architecture** to separate shared connection state from high-performance async I/O:
 
 #### Connection state tracking
 
@@ -865,7 +874,7 @@ pub struct MyWebSocketClient {
 
 **Pattern breakdown:**
 
-- **Outer `Arc`**: Shared across all clones (Python bindings clone clients before async operations).
+- **Outer `Arc`**: Shared across all client clones before async operations.
 - **`ArcSwap`**: Enables atomic pointer replacement via `.store()` without replacing the outer Arc.
 - **Inner `Arc<AtomicU8>`**: The actual connection state from `WebSocketClient::connection_mode_atomic()`.
 
@@ -1701,7 +1710,7 @@ fn query_order(&self, cmd: &QueryOrder) -> anyhow::Result<()> {
 
 | Context                      | Why safe                                       |
 |------------------------------|------------------------------------------------|
-| PyO3 `#[pymethods]`         | Called from Python, no ambient runtime          |
+| Legacy PyO3 `#[pymethods]`  | Upstream legacy context only; not an NTPRO product path |
 | Binary `main()` functions   | Top‑level entry point, runtime not yet started  |
 | Dedicated background threads | Thread created outside tokio's worker pool     |
 | `block_in_place` wrapper    | Moves the thread out of the worker pool first   |
@@ -1943,9 +1952,12 @@ tests/integration_tests/adapters/your_adapter/
 
 **Guidelines:**
 
-- Exercise the adapter's Python surface (instrument providers, data/execution clients, factories) inside `tests/integration_tests/adapters/<adapter>/`.
-- Mock the PyO3 boundary (`nautilus_pyo3` shims, stubbed Rust clients) so tests stay fast while verifying that configuration, factory wiring, and error handling match the exported Rust API.
-- Mirror the Rust integration coverage: when the Rust suite adds a new behaviour (e.g., reconnection replay, error propagation), assert the Python layer performs the same sequence (connect/disconnect, submit/amend/cancel translations, venue ID hand-off, failure handling). BitMEX's Python tests provide the target level of detail.
+- Exercise the adapter's Rust surface through crate tests, fixture-backed parser
+  tests, mock HTTP/WebSocket tests, or spec cards.
+- Do not add new PyO3 boundary mocks, `nautilus_pyo3` shims, or Python adapter
+  test suites for NTPRO product evidence.
+- Mirror Rust integration coverage with Rust tests or documented deferred
+  scope when a venue behavior cannot be tested without live credentials.
 
 ---
 
@@ -1970,13 +1982,18 @@ Use third-person declarative voice (e.g., "Returns the account ID" not "Return t
 - Private methods and fields (unless complex logic warrants it).
 - Individual parameters/arguments (use descriptive names instead).
 - Implementation details that are obvious from the code.
-- Files in the `python/` module (PyO3 bindings). Documentation conventions are TBD (*may* use numpydoc specification).
+- Legacy upstream files in `python/` modules (PyO3 bindings). These are not
+  NTPRO product docs and should not be used as the documentation model for new
+  Rust adapter work.
 
 ---
 
-## Python adapter layer
+## Legacy upstream Python adapter layer
 
-Step-by-step guide to building the Python layer of an adapter using the provided template.
+This section is retained as upstream history only. It is not a step-by-step
+guide for current NTPRO work. Do not build or restore a Python adapter layer for
+new NTPRO product functionality; use Rust adapter clients, Rust examples, and
+Rust tests instead.
 
 ### Method ordering convention
 

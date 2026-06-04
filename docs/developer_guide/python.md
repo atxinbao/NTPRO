@@ -1,9 +1,15 @@
 # Python
 
-The [Python](https://www.python.org/) programming language is used for the majority of user-facing code in NautilusTrader.
-Python provides a rich ecosystem of libraries and frameworks, making it ideal for strategy development, data analysis, and system integration.
+This page is retained as legacy upstream context. NTPRO's current product
+surface is Rust-only; Python, PyO3, and Cython are not supported product APIs,
+runtime surfaces, or build paths. Do not use this page as the implementation
+guide for new NTPRO product work.
 
-## Code style
+The upstream NautilusTrader project used [Python](https://www.python.org/) for
+much of its user-facing code. The notes below describe historical conventions
+that may still matter when reading old material or migration evidence.
+
+## Legacy upstream code style
 
 ### PEP-8
 
@@ -73,10 +79,12 @@ Exceptions where docstrings are acceptable:
 
 When a private method needs context (such as a tricky precondition or side effect), prefer a short inline comment (`#`) near the relevant logic rather than a docstring.
 
-### Properties vs methods (PyO3 bindings)
+### Legacy properties vs methods (PyO3 bindings)
 
-When exposing Rust types to Python via PyO3, use `#[getter]` (property) or a plain
-method based on what the call site communicates, not whether the value can change:
+This section describes the old upstream PyO3 binding convention. Do not add new
+PyO3 bindings for NTPRO product work. Historically, when exposing Rust types to
+Python via PyO3, upstream used `#[getter]` (property) or a plain method based on
+what the call site communicated, not whether the value could change:
 
 - **Property (`#[getter]`):** cheap, side-effect-free, attribute-like view of current
   state. Scalar fields, predicates, and lightweight derived values belong here even if
@@ -107,7 +115,8 @@ def test_sma_with_single_input_returns_expected_value(self):
 ## Cython (legacy)
 
 :::note
-This section covers Cython conventions for `.pyx` and `.pxd` files.
+This section covers legacy upstream Cython conventions for `.pyx` and `.pxd`
+files. NTPRO does not use Cython as a current product path.
 :::
 
 For `.pyx` and `.pxd` files, make sure all functions and methods returning `void` or a primitive C type (such as `bint`, `int`, `double`) include the `except *` keyword in the signature. Without it, Python exceptions are silently ignored.

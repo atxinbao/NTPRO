@@ -1,12 +1,15 @@
 # Environment Setup
 
-For development we recommend using the PyCharm *Professional* edition IDE, as it interprets Cython syntax. Alternatively, you could use Visual Studio Code with a Cython extension.
+NTPRO development uses a Rust-only product surface. Use Cargo, Rust tooling,
+and `scripts/ai/` verification commands for current development.
 
-[uv](https://docs.astral.sh/uv) is the preferred tool for handling all Python virtual environments and dependencies.
+Legacy upstream Python, PyO3, Cython, virtualenv, and wheel setup notes may
+remain below for migration or lockfile maintenance context. They are not
+required for current NTPRO product builds or runtime validation.
 
 [prek](https://github.com/j178/prek) is used to automatically run various pre-commit checks, auto-formatters and linting tools at commit.
 
-NautilusTrader uses increasingly more [Rust](https://www.rust-lang.org), so Rust should be installed on your system as well
+NTPRO requires [Rust](https://www.rust-lang.org) and `rustup`
 ([installation guide](https://www.rust-lang.org/tools/install)).
 
 :::info
@@ -42,27 +45,15 @@ cd NTPRO
 
 curl https://sh.rustup.rs -sSf | sh
 source "$HOME/.cargo/env"
-
-curl -LsSf https://astral.sh/uv/install.sh | sh
-export PATH="$HOME/.local/bin:$PATH"
+rustup toolchain install 1.95.0
 
 cargo install cargo-binstall --locked
 make install-tools
 
-uv sync --all-groups --all-extras
-source .venv/bin/activate
-
-export PYO3_PYTHON="$PWD/.venv/bin/python"
-
-if [ "$(uname -s)" = "Linux" ]; then
-  PYTHON_LIB_DIR="$("$PYO3_PYTHON" -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR"))')"
-  export LD_LIBRARY_PATH="$PYTHON_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-fi
-
-export PYTHONHOME="$("$PYO3_PYTHON" -c 'import sys; print(sys.base_prefix)')"
-
 prek install
-make build-debug
+source scripts/ai/toolchain_env.sh
+scripts/ai/verify_fast.sh
+cargo check -p nautilus-cli
 ```
 
 Windows users should follow the source installation steps in the
@@ -71,22 +62,21 @@ from this guide.
 
 ### 1. Install dependencies
 
-Follow the [installation guide](../getting_started/installation.md) to set up the project with a modification to the final command to install development and test dependencies:
-
-```bash tab="uv"
-uv sync --active --all-groups --all-extras
-```
-
-```bash tab="make"
-make install
-```
-
-If you're developing and iterating frequently, then compiling in debug mode is often sufficient and *significantly* faster than a fully optimized build.
-To install in debug mode, use:
+Follow the [installation guide](../getting_started/installation.md) to set up the
+Rust product path. For current NTPRO development, the primary dependency path is
+the Rust toolchain plus pinned project tools:
 
 ```bash
-make install-debug
+rustup toolchain install 1.95.0
+make install-tools
+source scripts/ai/toolchain_env.sh
+scripts/ai/verify_fast.sh
 ```
+
+Legacy upstream Python dependency installation commands such as `uv sync`,
+`make install`, and debug extension builds are retained only for migration
+context. They are not NTPRO Rust-only product build requirements.
+
 
 ### 2. Install development tools
 
@@ -151,10 +141,11 @@ make pre-commit
 
 Make sure the Rust compiler reports **zero errors** -- broken builds slow everyone down.
 
-### 4. Configure environment variables
+### 4. Legacy upstream Python/PyO3 environment variables
 
-**Required for Rust/PyO3 (Linux and macOS)**: When using Python installed via `uv` on Linux or
-macOS, set the following environment variables from the repository root after `uv sync`:
+These variables were required by the upstream Rust/PyO3 Python package path.
+They are not required for current NTPRO Rust-only product builds. Retain them
+only when auditing or migrating historical PyO3 material.
 
 ```bash
 # Set the Python executable path for PyO3
@@ -177,7 +168,7 @@ The `LD_LIBRARY_PATH` export is Linux-specific and not needed on macOS or Window
 
 :::
 
-To verify your environment is configured correctly:
+To inspect a legacy upstream Python environment:
 
 ```bash
 python -c "import sys; print('Python:', sys.executable, sys.version)"
@@ -185,10 +176,11 @@ echo "PYO3_PYTHON: $PYO3_PYTHON"
 echo "PYTHONHOME: $PYTHONHOME"
 ```
 
-## Dependency management
+## Legacy upstream Python dependency management
 
-Python dependencies are managed by [uv](https://docs.astral.sh/uv). The `[tool.uv]` section in
-`pyproject.toml` enforces three supply chain safety settings:
+Python dependencies were managed by [uv](https://docs.astral.sh/uv) in the
+upstream mixed Python/Rust workspace. The `[tool.uv]` section in `pyproject.toml`
+is retained only as historical or migration context:
 
 - **`required-version = "==0.11.14"`**: all developers and CI use the same uv version. The version
   is extracted by `scripts/uv-version.sh` for Makefile, CI, and Docker builds. If your local uv
@@ -235,28 +227,23 @@ unchanged for subsequent runs.
 
 ### Updating uv
 
-To update the pinned uv version, change `required-version` in both `pyproject.toml` and
-`python/pyproject.toml`, then update the `rev` in `.pre-commit-config.yaml` to match. Run
-`make update-uv` to install the new pinned version locally.
+Do not update uv for NTPRO product work. If a future migration task explicitly
+needs to audit legacy Python lockfiles, change `required-version` in the
+retained legacy metadata and record the reason in that task's evidence.
 
 ## Builds
 
-Following any changes to `.rs`, `.pyx` or `.pxd` files, you can re-compile by running:
-
-```bash tab="uv"
-uv run --no-sync python build.py
-```
-
-```bash tab="make"
-make build
-```
-
-If you're developing and iterating frequently, then compiling in debug mode is often sufficient and *significantly* faster than a fully optimized build.
-To compile in debug mode, use:
+Following changes to Rust files, use the Rust toolchain environment and Cargo:
 
 ```bash
-make build-debug
+source scripts/ai/toolchain_env.sh
+cargo check --workspace
+cargo test --workspace
 ```
+
+Legacy upstream commands such as `python build.py`, `make build`, and
+`make build-debug` belonged to the Python/PyO3/Cython build path and are not
+NTPRO product build instructions.
 
 ## Faster builds
 

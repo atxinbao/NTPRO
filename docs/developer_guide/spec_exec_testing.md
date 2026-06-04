@@ -7,10 +7,11 @@ direction for NTPRO adapter execution evidence.
 :::
 
 This section defines a rigorous test matrix for validating adapter execution
-functionality using the `ExecTester` strategy. Both Python
-(`nautilus_trader.test_kit.strategies.tester_exec`) and Rust
-(`nautilus_testkit::testers`) provide the `ExecTester`. Each test case is
-identified by a prefixed ID (e.g. TC-E01) and grouped by functionality.
+functionality using the `ExecTester` strategy. The current NTPRO evidence path
+is the Rust `nautilus_testkit::testers` implementation. The Python
+`nautilus_trader.test_kit.strategies.tester_exec` implementation is retained
+only as legacy upstream context. Each test case is identified by a prefixed ID
+(e.g. TC-E01) and grouped by functionality.
 
 **Each adapter must pass the subset of tests matching its supported capabilities.**
 
@@ -38,11 +39,12 @@ Before running execution tests:
 - Risk engine bypassed (`LiveRiskEngineConfig(bypass=True)`) to avoid interference.
 - Reconciliation enabled to verify state consistency.
 
-**Python node setup**:
+**Legacy upstream Python node setup**:
 
-Legacy examples still use `nautilus_trader.live.node.TradingNode`, but new Rust-backed
-PyO3 adapters should prefer `nautilus_trader.live.LiveNode`. Use `LiveNode.builder(...)`
-when you need to register adapter client factories before the node is built.
+These snippets are not NTPRO product instructions. Retained upstream examples
+used `nautilus_trader.live.node.TradingNode` or
+`nautilus_trader.live.LiveNode`; current NTPRO adapter evidence should use Rust
+node setup and Rust fixture/spec tests.
 
 ```python
 from nautilus_trader.common import Environment
@@ -79,7 +81,7 @@ development iterations. The tester opens a position with a market order on start
 buy and sell post-only limit order, waits 30 seconds, then stops (cancelling open orders and
 closing the position).
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -149,7 +151,7 @@ Test market order submission and fills. Market orders should execute immediately
 - Fill price should be within the recent bid/ask spread.
 - Partial fills are valid; verify the cumulative filled quantity matches the order quantity.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -180,7 +182,7 @@ ExecTesterConfig::new(strategy_id, instrument_id, client_id, Quantity::from("0.0
 | **Pass criteria**  | Position opened with side=SHORT, quantity matches config, fill price within market range. |
 | **Skip when**      | Adapter does not support market orders or short selling.               |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -211,7 +213,7 @@ ExecTesterConfig::new(strategy_id, instrument_id, client_id, Quantity::from("0.0
 | **Pass criteria**  | Same as TC-E01; the IOC TIF is explicitly set on the order.            |
 | **Skip when**      | No IOC support.                                                        |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -249,7 +251,7 @@ config.open_position_time_in_force = TimeInForce::Ioc;
 - FOK requires the entire quantity to be fillable immediately or the order is canceled.
 - Use small test quantities so book depth is sufficient for a complete fill.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -282,7 +284,7 @@ config.open_position_time_in_force = TimeInForce::Fok;
 | **Pass criteria**  | Order submitted with quote currency quantity; fill quantity is in base currency. |
 | **Skip when**      | Adapter does not support quote quantity orders.                        |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -321,7 +323,7 @@ ExecTesterConfig::new(strategy_id, instrument_id, client_id, Quantity::from("100
 - `close_positions_on_stop=True` is the default.
 - The closing order should be on the opposite side of the position.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -379,7 +381,7 @@ Test limit order submission, acceptance, and behavior across time-in-force optio
 - Verify the order appears in the cache with `OrderStatus.ACCEPTED`.
 - The order should remain open until explicitly canceled.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -408,7 +410,7 @@ ExecTesterConfig::new(strategy_id, instrument_id, client_id, Quantity::from("0.0
 | **Pass criteria**  | Order is open on the venue with correct price, quantity, side=SELL, TIF=GTC. |
 | **Skip when**      | Never.                                                                 |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -437,7 +439,7 @@ ExecTesterConfig::new(strategy_id, instrument_id, client_id, Quantity::from("0.0
 | **Pass criteria**  | Both orders open on venue, buy below bid, sell above ask.              |
 | **Skip when**      | Never.                                                                 |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -520,7 +522,7 @@ ExecTesterConfig::new(strategy_id, instrument_id, client_id, Quantity::from("0.0
 | **Pass criteria**  | Order accepted with GTD TIF and correct expiry timestamp.              |
 | **Skip when**      | Adapter does not support GTD TIF.                                      |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -604,7 +606,7 @@ Test stop and conditional order types. These orders rest on the venue until a tr
 - The order should NOT trigger immediately (trigger price is above market).
 - Verifying trigger and fill requires the market to move, which may not happen during the test.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -639,7 +641,7 @@ ExecTesterConfig::new(strategy_id, instrument_id, client_id, Quantity::from("0.0
 | **Pass criteria**  | Stop order accepted on venue with correct trigger price and side=SELL. |
 | **Skip when**      | Adapter does not support `StopMarket` orders.                          |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -678,7 +680,7 @@ ExecTesterConfig::new(strategy_id, instrument_id, client_id, Quantity::from("0.0
 
 - Requires `stop_limit_offset_ticks` to be set for the limit price offset from the trigger price.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -715,7 +717,7 @@ config.stop_limit_offset_ticks = Some(50);
 | **Pass criteria**  | Stop‑limit order accepted with correct trigger price, limit price, and side=SELL. |
 | **Skip when**      | Adapter does not support `StopLimit` orders.                           |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -815,7 +817,7 @@ Test order modification (amend) and cancel-replace workflows.
 - Verify the `OrderUpdated` log shows the expected price. If the event never
   arrives, the order stays in `PendingUpdate` and the tester stops modifying it.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -846,7 +848,7 @@ config.modify_orders_to_maintain_tob_offset = true;
 | **Pass criteria**  | `OrderUpdated` event logged with the new price; order exits `PendingUpdate`. |
 | **Skip when**      | Adapter does not support order modification.                           |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -882,7 +884,7 @@ config.modify_orders_to_maintain_tob_offset = true;
 - This is the universal alternative when the adapter does not support native modify.
 - Two distinct orders in the cache: the canceled original and the new replacement.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -913,7 +915,7 @@ config.cancel_replace_orders_to_maintain_tob_offset = true;
 | **Pass criteria**  | Original order canceled, new order accepted at updated price.          |
 | **Skip when**      | Never.                                                                 |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -944,7 +946,7 @@ config.cancel_replace_orders_to_maintain_tob_offset = true;
 | **Pass criteria**  | `OrderUpdated` event logged with the new trigger price; order exits `PendingUpdate`. |
 | **Skip when**      | Adapter does not support modify, or no stop order support.             |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -973,7 +975,7 @@ config.modify_stop_orders_to_maintain_offset = true;
 | **Pass criteria**  | Original stop canceled, new stop accepted at updated trigger price.    |
 | **Skip when**      | No stop order support.                                                 |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1036,7 +1038,7 @@ Test order cancellation workflows.
 - `cancel_orders_on_stop=True` (default) triggers cancellation when the strategy stops.
 - Verify the `OrderCanceled` event contains the correct `venue_order_id`.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1067,7 +1069,7 @@ ExecTesterConfig::new(strategy_id, instrument_id, client_id, Quantity::from("0.0
 | **Pass criteria**  | All open orders canceled; no open orders remaining.                    |
 | **Skip when**      | Never.                                                                 |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1098,7 +1100,7 @@ ExecTesterConfig::new(strategy_id, instrument_id, client_id, Quantity::from("0.0
 | **Pass criteria**  | Each order canceled individually; all orders reach CANCELED status.    |
 | **Skip when**      | Never.                                                                 |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1129,7 +1131,7 @@ config.use_individual_cancels_on_stop = true;
 | **Pass criteria**  | All orders canceled via single batch request; all reach CANCELED status. |
 | **Skip when**      | Adapter does not support batch cancel.                                 |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1188,7 +1190,7 @@ Test bracket order submission (entry + take-profit + stop-loss).
 | **Pass criteria**  | Three orders created and accepted: entry below bid, TP above ask, SL below entry. |
 | **Skip when**      | Adapter does not support bracket orders.                               |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1271,7 +1273,7 @@ Test order-level flags and special parameters.
 | **Pass criteria**  | Order accepted as a maker order; post‑only flag acknowledged by venue. |
 | **Skip when**      | Adapter does not support post‑only flag.                               |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1302,7 +1304,7 @@ ExecTesterConfig::new(strategy_id, instrument_id, client_id, Quantity::from("0.0
 | **Pass criteria**  | Closing order has reduce‑only flag; position fully closed.             |
 | **Skip when**      | Adapter does not support reduce‑only flag.                             |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1337,7 +1339,7 @@ ExecTesterConfig::new(strategy_id, instrument_id, client_id, Quantity::from("0.0
 | **Pass criteria**  | Order accepted with display quantity set; only display qty visible on the book. |
 | **Skip when**      | Adapter does not support display quantity / iceberg orders.            |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1430,7 +1432,7 @@ reconciliation pass resolves it.
 - The ExecTester's `test_reject_post_only` mode intentionally prices the order to cross.
 - Some venues may partially fill instead of rejecting; behavior is venue-specific.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1469,7 +1471,7 @@ ExecTesterConfig::new(strategy_id, instrument_id, client_id, Quantity::from("0.0
   `open_position_on_start_qty`.
 - Verify no prior position exists for the instrument before running this test.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1550,7 +1552,7 @@ Test strategy lifecycle behavior and state management on start and stop.
 | **Pass criteria**  | Position opened on start; market order submitted and filled before limit order maintenance begins. |
 | **Skip when**      | Adapter does not support market orders.                                |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1597,7 +1599,7 @@ ExecTesterConfig::new(strategy_id, instrument_id, client_id, Quantity::from("0.0
 | **Pass criteria**  | No further data events received after stop; clean disconnection.       |
 | **Skip when**      | Adapter does not support unsubscribe.                                  |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1713,7 +1715,7 @@ reasonable liquidity for fills.
 | **Pass criteria**  | Order accepted by venue with correct instrument, side, price, and quantity. |
 | **Skip when**      | Adapter does not support options trading.                                   |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1735,7 +1737,7 @@ ExecTesterConfig(
 | **Pass criteria**  | Order accepted by venue with correct instrument, side, price, and quantity. |
 | **Skip when**      | Adapter does not support options trading.                                   |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1764,7 +1766,7 @@ ExecTesterConfig(
 - Example: OKX supports `px_usd` (USD price) and `px_vol` (implied volatility).
 - Verify in venue responses that the pricing mode is reflected correctly.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 ExecTesterConfig(
@@ -1859,7 +1861,7 @@ ExecTesterConfig(
 
 ## ExecTester configuration reference
 
-Quick reference for all `ExecTesterConfig` parameters. Defaults shown are for the Python config;
+Quick reference for all `ExecTesterConfig` parameters. Defaults shown are for the legacy upstream Python config;
 the Rust builder uses equivalent defaults.
 
 | Parameter                                       | Type              | Default         | Affects groups |

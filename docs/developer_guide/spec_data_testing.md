@@ -7,10 +7,11 @@ direction for NTPRO adapter test evidence.
 :::
 
 This section defines a rigorous test matrix for validating adapter data
-functionality using the `DataTester` actor. Both Python
-(`nautilus_trader.test_kit.strategies.tester_data`) and Rust
-(`nautilus_testkit::testers`) provide the `DataTester`. Each test case is
-identified by a prefixed ID (e.g. TC-D01) and grouped by functionality.
+functionality using the `DataTester` actor. The current NTPRO evidence path is
+the Rust `nautilus_testkit::testers` implementation. The Python
+`nautilus_trader.test_kit.strategies.tester_data` implementation is retained
+only as legacy upstream context. Each test case is identified by a prefixed ID
+(e.g. TC-D01) and grouped by functionality.
 
 **Each adapter must pass the subset of tests matching its supported data types.**
 
@@ -32,11 +33,12 @@ Before running data tests:
   for that environment. Demo and production API keys are typically separate and not
   interchangeable; using the wrong credentials produces authentication errors (e.g. HTTP 401).
 
-**Python node setup**:
+**Legacy upstream Python node setup**:
 
-Legacy examples still use `nautilus_trader.live.node.TradingNode`, but new Rust-backed
-PyO3 adapters should prefer `nautilus_trader.live.LiveNode`. Use `LiveNode.builder(...)`
-when you need to register adapter client factories before the node is built.
+These snippets are not NTPRO product instructions. Retained upstream examples
+used `nautilus_trader.live.node.TradingNode` or
+`nautilus_trader.live.LiveNode`; current NTPRO adapter evidence should use Rust
+node setup and Rust fixture/spec tests.
 
 ```python
 from nautilus_trader.common import Environment
@@ -93,7 +95,7 @@ Verify instrument loading and subscription before testing market data streams.
 | **Pass criteria**  | At least one instrument received; each has valid symbol, price precision, and size increment. |
 | **Skip when**      | Never.                                                                 |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -119,7 +121,7 @@ DataTesterConfig::new(client_id, vec![instrument_id])
 | **Pass criteria**  | Instrument received with correct `instrument_id`, valid fields.        |
 | **Skip when**      | Adapter does not support instrument subscriptions.                     |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -175,7 +177,7 @@ Test order book subscription modes and snapshot requests.
 | **Pass criteria**  | Deltas received with valid instrument ID; at least one delta contains bid/ask updates. |
 | **Skip when**      | Adapter does not support order book data.                              |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -203,7 +205,7 @@ DataTesterConfig::new(client_id, vec![instrument_id])
 | **Pass criteria**  | Book snapshots received with bid/ask levels; updates arrive at approximately the configured interval. |
 | **Skip when**      | Adapter does not support order book data.                              |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -235,7 +237,7 @@ DataTesterConfig::new(client_id, vec![instrument_id])
 | **Pass criteria**  | Depth snapshots received with up to 10 bid/ask levels; prices are correctly ordered. |
 | **Skip when**      | Adapter does not support book depth subscriptions.                     |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -258,7 +260,7 @@ DataTesterConfig(
 | **Pass criteria**  | Snapshot contains bid/ask levels with valid prices and sizes.          |
 | **Skip when**      | Adapter does not support book snapshot requests.                       |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -291,7 +293,7 @@ DataTesterConfig::new(client_id, vec![instrument_id])
 - The managed book applies each delta to an `OrderBook` instance maintained by the actor.
 - Use `book_levels_to_print` to control logging verbosity.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -322,7 +324,7 @@ DataTesterConfig::new(client_id, vec![instrument_id])
 | **Pass criteria**  | Deltas received with valid timestamps and book actions.                |
 | **Skip when**      | Adapter does not support historical book delta requests.               |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -354,7 +356,7 @@ Test quote tick subscriptions and historical requests.
 | **Pass criteria**  | At least one `QuoteTick` received with valid bid/ask prices and sizes; bid < ask. |
 | **Skip when**      | Never.                                                                 |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -380,7 +382,7 @@ DataTesterConfig::new(client_id, vec![instrument_id])
 | **Pass criteria**  | Quotes received with valid timestamps, bid/ask prices and sizes.       |
 | **Skip when**      | Adapter does not support historical quote requests.                    |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -411,7 +413,7 @@ Test trade tick subscriptions and historical requests.
 | **Pass criteria**  | At least one `TradeTick` received with valid price, size, and aggressor side. |
 | **Skip when**      | Never.                                                                 |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -437,7 +439,7 @@ DataTesterConfig::new(client_id, vec![instrument_id])
 | **Pass criteria**  | Trades received with valid timestamps, prices, sizes, and trade IDs.   |
 | **Skip when**      | Adapter does not support historical trade requests.                    |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -475,7 +477,7 @@ Test bar subscriptions and historical requests.
 | **Pass criteria**  | At least one `Bar` received with valid OHLCV values; high >= low, high >= open, high >= close. |
 | **Skip when**      | Adapter does not support bar subscriptions.                            |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -503,7 +505,7 @@ DataTesterConfig::new(client_id, vec![instrument_id])
 | **Pass criteria**  | Bars received with valid OHLCV values and ascending timestamps.        |
 | **Skip when**      | Adapter does not support historical bar requests.                      |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -545,7 +547,7 @@ Test derivatives-specific data streams: mark prices, index prices, and funding r
 | **Pass criteria**  | At least one `MarkPriceUpdate` received with valid instrument ID and mark price. |
 | **Skip when**      | Instrument is not a derivative, or adapter does not provide mark prices. |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -571,7 +573,7 @@ DataTesterConfig::new(client_id, vec![instrument_id])
 | **Pass criteria**  | At least one `IndexPriceUpdate` received with valid instrument ID and index price. |
 | **Skip when**      | Instrument is not a derivative, or adapter does not provide index prices. |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -597,7 +599,7 @@ DataTesterConfig::new(client_id, vec![instrument_id])
 | **Pass criteria**  | At least one `FundingRateUpdate` received with valid instrument ID and rate. |
 | **Skip when**      | Instrument is not a perpetual, or adapter does not provide funding rates. |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -623,7 +625,7 @@ DataTesterConfig::new(client_id, vec![instrument_id])
 | **Pass criteria**  | Funding rates received with valid timestamps and rate values.          |
 | **Skip when**      | Instrument is not a perpetual, or adapter does not support historical funding rate requests. |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -665,7 +667,7 @@ Test instrument status and close event subscriptions.
 - Status events may only fire on state changes (e.g. trading halt -> resume).
 - During normal trading hours, a `Trading` status may be received on subscribe.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -696,7 +698,7 @@ DataTesterConfig::new(client_id, vec![instrument_id])
 - Close events typically fire at end-of-session for traditional markets.
 - May not fire for 24/7 crypto venues unless the adapter synthesizes a daily close.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -742,7 +744,7 @@ Test option greeks and option chain subscriptions.
 - `rho` may be zero when the venue does not provide it (Bybit, OKX).
 - `underlying_price` and `open_interest` may be `None` depending on the venue channel.
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -798,7 +800,7 @@ Test actor lifecycle behavior: unsubscribe handling and custom parameters.
 | **Pass criteria**  | Clean unsubscribe; no errors in logs; no data events after stop.       |
 | **Skip when**      | Adapter does not support unsubscribe.                                  |
 
-**Python config:**
+**Legacy upstream Python config:**
 
 ```python
 DataTesterConfig(
@@ -852,8 +854,8 @@ DataTesterConfig::new(client_id, vec![instrument_id])
 
 ## DataTester configuration reference
 
-Quick reference for all `DataTesterConfig` parameters. Defaults shown are for the Python config.
-Note: Rust `DataTesterConfig::new` sets `manage_book=true`, while Python defaults it to `False`.
+Quick reference for all `DataTesterConfig` parameters. Defaults shown are for the legacy upstream Python config.
+Note: Rust `DataTesterConfig::new` sets `manage_book=true`, while legacy upstream Python defaults it to `False`.
 
 | Parameter                    | Type              | Default         | Affects groups |
 |------------------------------|-------------------|-----------------|----------------|

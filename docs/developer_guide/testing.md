@@ -130,15 +130,16 @@ When building or modifying core types, write property tests to cover the mathema
 
 Performance tests help evolve performance-critical components.
 
-Run tests with [pytest](https://docs.pytest.org), our primary test runner.
-Use parametrized tests and fixtures (e.g., `@pytest.mark.parametrize`) to avoid repetitive code and improve clarity.
+Run current NTPRO tests with Cargo and the repository `scripts/ai/` verification
+commands. Pytest material below is retained as legacy upstream context only.
 
 ## Running tests
 
 ### v1 legacy Python tests
 
 The v1 legacy test suite lives under `tests/` at the repository root and tests
-the Cython-based package. From the repository root:
+the retired Cython-based package. These commands are not NTPRO product
+validation requirements:
 
 ```bash
 make pytest
@@ -146,15 +147,16 @@ make pytest
 uv run --active --no-sync pytest --new-first --failed-first
 ```
 
-### Python tests
+### Legacy upstream Python tests
 
 The Python test suite lives under `python/tests/` and tests the Rust-backed PyO3
-package. It requires a built extension module (`make build-debug-v2`) and uses its
-own virtualenv under `python/.venv/`.
+package. This path is retained only as upstream history or migration context. It
+requires a built extension module (`make build-debug-v2`) and uses its own
+virtualenv under `python/.venv/`.
 
-For new live adapter examples and docs in the v2 path, prefer
-`nautilus_trader.live.LiveNode`. `nautilus_trader.live.node.TradingNode` remains the
-legacy v1/Cython runtime used by the root-level `tests/` suite and older examples.
+For current NTPRO adapter examples and docs, prefer Rust node setup and Rust
+fixture/spec evidence. `nautilus_trader.live.LiveNode` and
+`nautilus_trader.live.node.TradingNode` examples are legacy upstream context.
 
 ```bash
 make pytest-v2
@@ -187,7 +189,8 @@ The `--benchmark-disable-gc` flag prevents garbage collection from skewing resul
 ```bash
 make cargo-test
 # or
-cargo nextest run --workspace --features "python,ffi,high-precision,defi" --cargo-profile nextest
+source scripts/ai/toolchain_env.sh
+cargo nextest run --workspace --features "ffi,high-precision,defi" --cargo-profile nextest
 ```
 
 #### Testing with optional features
@@ -205,10 +208,10 @@ make cargo-test HYPERSYNC=true
 make cargo-test-crate-nautilus-serialization
 ```
 
-### IDE integration
+### Legacy upstream IDE integration
 
-- **PyCharm**: Right-click the tests folder or file -> "Run pytest".
-- **VS Code**: Use the Python Test Explorer extension.
+Python IDE test integration is retained as upstream history. Current NTPRO
+validation should use Cargo and `scripts/ai/` commands from the repository root.
 
 ## Test style
 
@@ -226,9 +229,13 @@ make cargo-test-crate-nautilus-serialization
   assertions break when log wording changes. Instead, verify the observable behavior
   (return values, state changes, side effects) that the log message reflects.
 
-### Python tests (`python/tests/`)
+### Legacy upstream Python tests (`python/tests/`)
 
-Use **pytest-style free functions and fixtures**. Do not use test classes.
+This section is retained only for historical context. Do not add new
+`python/tests/` cases for NTPRO product evidence. Use Rust tests, fixtures,
+and spec cards instead.
+
+The upstream suite used **pytest-style free functions and fixtures** rather than test classes.
 
 - Write each test as a standalone `def test_*()` function.
 - Use `@pytest.fixture` for shared setup (instruments, engine instances, data).
@@ -366,10 +373,10 @@ existing types are tested, so new types can follow the same pattern.
 | DataEngine publish     | `crates/data/tests/engine.rs`               | Engine routes published data to the message bus.           |
 | DataActor subscribe    | `crates/common/src/actor/tests.rs`          | Actor subscribes and receives data via typed publish.      |
 | DataActor unsubscribe  | `crates/common/src/actor/tests.rs`          | Actor stops receiving data after unsubscribe.              |
-| PyO3 actor dispatch    | `crates/common/src/python/actor.rs`         | Rust handler dispatches to Python `on_*` method.           |
-| Python Actor subscribe | `tests/unit_tests/common/test_actor.py`     | Python actor subscribes; command count increments.         |
-| Python Actor unsub     | `tests/unit_tests/common/test_actor.py`     | Python actor unsubscribes; subscription list clears.       |
-| Backtest client        | `nautilus_trader/backtest/data_client.pyx`  | Backtest client overrides base subscribe/unsubscribe.      |
+| Legacy PyO3 actor dispatch | `crates/common/src/python/actor.rs`    | Historical upstream Python dispatch context only.          |
+| Legacy Python Actor subscribe | `tests/unit_tests/common/test_actor.py` | Historical upstream Python actor context only.          |
+| Legacy Python Actor unsub | `tests/unit_tests/common/test_actor.py`  | Historical upstream Python actor context only.             |
+| Legacy Backtest client | `nautilus_trader/backtest/data_client.pyx`  | Historical upstream Cython backtest context only.          |
 | Adapter live tests     | `docs/developer_guide/spec_data_testing.md` | Live data acceptance tests (DataTester).                   |
 
 ### Coverage per data type
@@ -377,7 +384,7 @@ existing types are tested, so new types can follow the same pattern.
 The following table shows which layers have test coverage for each data type.
 Use this as a checklist when adding a new type.
 
-| Data type           | Engine | Actor (Rust) | PyO3 dispatch | Actor (Python) | Backtest client | Adapter spec |
+| Data type           | Engine | Actor (Rust) | Legacy PyO3 dispatch | Legacy Actor (Python) | Legacy Backtest client | Adapter spec |
 |---------------------|--------|--------------|---------------|----------------|-----------------|--------------|
 | `InstrumentAny`     | ✓      | ✓            | ✓             | ✓              | ✓               | ✓            |
 | `OrderBookDeltas`   | ✓      | ✓            | ✓             | ✓              | ✓               | ✓            |
@@ -413,21 +420,10 @@ When introducing a new data type, add tests at each layer:
    - Use the typed publish function (`msgbus::publish_<type>`), not `publish_any`,
      for types that use `TypedHandler` routing.
 
-3. **PyO3 actor dispatch** (`crates/common/src/python/actor.rs`):
-   - Add `dispatch_on_<type>` method that calls `py_self.call_method1("on_<type>", ...)`.
-   - Add `on_<type>` in the `DataActor` trait impl that calls the dispatch method.
-   - Add `#[pyo3(name = "on_<type>")]` method in the `#[pymethods]` block.
-   - Add `on_<type>` to `RustTestDataActor` wrapper and the inline Python test class.
-   - Add handler test and dispatch test.
-
-4. **Python Actor** (`tests/unit_tests/common/test_actor.py`):
-   - Add `test_subscribe_<type>` and `test_unsubscribe_<type>` tests.
-   - Assert `actor.subscribed_<type>()` returns expected entries after subscribe and
-     is empty after unsubscribe.
-
-5. **Backtest client** (`nautilus_trader/backtest/data_client.pyx`): Override
-   `subscribe_<type>` and `unsubscribe_<type>` if the base `MarketDataClient` raises
-   `NotImplementedError` for the method.
+3. **Legacy PyO3/Python/Cython layers**: Do not add new NTPRO product evidence
+   here. If retained upstream behavior matters for migration analysis, record it
+   in a scoped migration task and cover the current product behavior with Rust
+   tests or adapter spec evidence.
 
 6. **Documentation**: Add entries to `actors.md` callback table, `strategies.md` handler
    signatures, `adapters.md` subscribe method stubs, and `spec_data_testing.md` test cards.
