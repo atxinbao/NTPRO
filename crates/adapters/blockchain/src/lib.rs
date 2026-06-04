@@ -13,16 +13,16 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Blockchain data adapter for [NautilusTrader](https://nautilustrader.io).
+//! Blockchain data adapter for NTPRO.
 //!
 //! The `nautilus-blockchain` crate provides a high-performance, universal, extensible adapter for ingesting
 //! DeFi data from decentralized exchanges (DEXs), liquidity pools, and on-chain events.
 //! It enables you to power analytics pipelines and trading strategies with real-time and historical
 //! on-chain data.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

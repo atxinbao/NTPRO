@@ -13,10 +13,10 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Data engine and market data processing for [NautilusTrader](https://nautilustrader.io).
+//! Data engine and market data processing for NTPRO.
 //!
 //! The `nautilus-data` crate provides a framework for handling market data ingestion,
-//! processing, and aggregation within the NautilusTrader ecosystem. This includes real-time
+//! processing, and aggregation within the NTPRO ecosystem. This includes real-time
 //! data streaming, historical data management, and various aggregation methodologies:
 //!
 //! - High-performance data engine for orchestrating data operations.
@@ -26,9 +26,9 @@
 //! - Subscription management and data request handling.
 //! - Configurable data routing and processing pipelines.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single
@@ -39,7 +39,7 @@
 //! This crate exposes Cargo feature flags for Rust-only build composition.
 //!
 //! - `ffi`: Enables the C foreign function interface (FFI) from [cbindgen](https://github.com/mozilla/cbindgen).
-//! - `high-precision`: Enables [high-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) to use 128-bit value types.
+//! - `high-precision`: Enables [high-precision mode](https://github.com/atxinbao/NTPRO/blob/main/docs/getting_started/installation.md#precision-mode) to use 128-bit value types.
 //! - `streaming`: Enables `persistence` dependency for catalog-based data streaming.
 //! - `defi`: Enables DeFi (Decentralized Finance) support.
 

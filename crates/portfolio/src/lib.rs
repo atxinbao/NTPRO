@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Portfolio management and risk analysis for [NautilusTrader](https://nautilustrader.io).
+//! Portfolio management and risk analysis for NTPRO.
 //!
 //! The `nautilus-portfolio` crate provides portfolio management capabilities including
 //! real-time position tracking, performance calculations, and risk management. This includes
@@ -29,9 +29,9 @@
 //! The crate handles complex portfolio scenarios including multi-venue trading, currency conversions,
 //! and sophisticated margin calculations for both live trading and backtesting environments.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

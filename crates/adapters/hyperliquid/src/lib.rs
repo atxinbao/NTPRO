@@ -13,14 +13,14 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! [NautilusTrader](https://nautilustrader.io) adapter for the [Hyperliquid](https://hyperliquid.gitbook.io/hyperliquid-docs) decentralized exchange.
+//! NTPRO adapter for the [Hyperliquid](https://hyperliquid.gitbook.io/hyperliquid-docs) decentralized exchange.
 //!
 //! The `nautilus-hyperliquid` crate provides integration with the Hyperliquid API for
 //! trading perpetual futures on a decentralized exchange.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single
@@ -30,7 +30,7 @@
 //!
 //! This crate exposes Rust-native build behavior only.
 //!
-//! [High-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) (128-bit value types) is enabled by default.
+//! [High-precision mode](https://github.com/atxinbao/NTPRO/blob/main/docs/getting_started/installation.md#precision-mode) (128-bit value types) is enabled by default.
 
 //!
 #![warn(rustc::all)]

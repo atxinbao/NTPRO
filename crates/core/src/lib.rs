@@ -13,10 +13,10 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Core foundational types and utilities for [NautilusTrader](https://nautilustrader.io).
+//! Core foundational types and utilities for NTPRO.
 //!
 //! The `nautilus-core` crate is designed to be lightweight, efficient, and to provide zero-cost abstractions
-//! wherever possible. It supplies the essential building blocks used across the NautilusTrader
+//! wherever possible. It supplies the essential building blocks used across the NTPRO
 //! ecosystem, including:
 //!
 //! - Time handling and atomic clock functionality.
@@ -27,9 +27,9 @@
 //! - Cross-platform environment utilities.
 //! - Abstractions over common collections.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Portfolio analysis and performance metrics for [NautilusTrader](https://nautilustrader.io).
+//! Portfolio analysis and performance metrics for NTPRO.
 //!
 //! The `nautilus-analysis` crate provides portfolio analysis tools and performance
 //! statistics for evaluating trading strategies and portfolios. This includes return-based metrics,
@@ -24,9 +24,9 @@
 //! - Flexible statistic calculation framework supporting different data sources.
 //! - Support for multi-currency portfolios and unrealized PnL calculations.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

@@ -13,15 +13,15 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Common componentry for [NautilusTrader](https://nautilustrader.io).
+//! Common componentry for NTPRO.
 //!
 //! The `nautilus-common` crate provides shared components and utilities that form the system foundation for
-//! NautilusTrader applications. This includes the actor system, message bus, caching layer, and other
+//! NTPRO applications. This includes the actor system, message bus, caching layer, and other
 //! essential services.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

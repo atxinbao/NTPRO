@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! [NautilusTrader](https://nautilustrader.io) adapter for the
+//! NTPRO adapter for the
 //! [Bybit](https://www.bybit.com/) cryptocurrency exchange.
 //!
 //! The `nautilus-bybit` crate provides client bindings (HTTP & WebSocket), data
@@ -22,9 +22,9 @@
 //! The official Bybit API reference can be found at <https://bybit-exchange.github.io/docs/v5/intro>.
 //! All public links inside this crate reference the English version of the documentation.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single
@@ -34,7 +34,7 @@
 //!
 //! This crate exposes Rust-native build behavior only.
 //!
-//! [High-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) (128-bit value types) is enabled by default.
+//! [High-precision mode](https://github.com/atxinbao/NTPRO/blob/main/docs/getting_started/installation.md#precision-mode) (128-bit value types) is enabled by default.
 //!
 //! # Documentation
 //!

@@ -13,10 +13,10 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Database and messaging infrastructure for [NautilusTrader](https://nautilustrader.io).
+//! Database and messaging infrastructure for NTPRO.
 //!
 //! The `nautilus-infrastructure` crate provides backend database implementations and message bus adapters
-//! that enable NautilusTrader to scale from development to production deployments. This includes
+//! that enable NTPRO to scale from development to production deployments. This includes
 //! enterprise-grade data persistence and messaging capabilities:
 //!
 //! - **Redis integration**: Cache database and message bus implementations using Redis.
@@ -27,9 +27,9 @@
 //! The crate supports multiple database backends through feature flags, allowing users to choose
 //! the appropriate infrastructure components for their specific deployment requirements and scale.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

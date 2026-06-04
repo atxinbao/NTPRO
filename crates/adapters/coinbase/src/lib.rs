@@ -13,15 +13,15 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! [NautilusTrader](https://nautilustrader.io) adapter for
+//! NTPRO adapter for
 //! [Coinbase Advanced Trade](https://docs.cdp.coinbase.com/coinbase-app/docs/advanced-trade-apis).
 //!
 //! The `nautilus-coinbase` crate provides integration with the Coinbase Advanced Trade API for
 //! trading spot, futures, and perpetuals on the Coinbase exchange.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single
@@ -31,7 +31,7 @@
 //!
 //! This crate exposes Rust-native build behavior only.
 //!
-//! [High-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) (128-bit value types) is enabled by default.
+//! [High-precision mode](https://github.com/atxinbao/NTPRO/blob/main/docs/getting_started/installation.md#precision-mode) (128-bit value types) is enabled by default.
 
 //!
 #![warn(rustc::all)]

@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! [NautilusTrader](https://nautilustrader.io) adapter for the [OKX](https://www.okx.com) cryptocurrency exchange.
+//! NTPRO adapter for the [OKX](https://www.okx.com) cryptocurrency exchange.
 //!
 //! The `nautilus-okx` crate provides client bindings (HTTP & WebSocket), data
 //! models and helper utilities that wrap the official **OKX v5 API**.
@@ -21,9 +21,9 @@
 //! The official OKX API reference can be found at <https://www.okx.com/docs-v5/en/>.
 //! All public links inside this crate reference the English version.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single
@@ -33,7 +33,7 @@
 //!
 //! This crate exposes Rust-native build behavior only.
 //!
-//! [High-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) (128-bit value types) is enabled by default.
+//! [High-precision mode](https://github.com/atxinbao/NTPRO/blob/main/docs/getting_started/installation.md#precision-mode) (128-bit value types) is enabled by default.
 
 //!
 #![warn(rustc::all)]

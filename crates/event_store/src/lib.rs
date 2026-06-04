@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Event store and authoritative log of state-affecting messages for [NautilusTrader](https://nautilustrader.io).
+//! Event store and authoritative log of state-affecting messages for NTPRO.
 //!
 //! The `nautilus-event-store` crate provides an embedded, append-only event store that captures
 //! commands, events, venue reports, and correlations flowing across the message bus. Combined with
@@ -22,9 +22,9 @@
 //!
 //! See `README.md` for the high-level specification.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

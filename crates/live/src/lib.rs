@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Live system node for [NautilusTrader](https://nautilustrader.io).
+//! Live system node for NTPRO.
 //!
 //! The `nautilus-live` crate provides high-level abstractions and infrastructure for running live trading
 //! systems, including data streaming, execution management, and system lifecycle handling.
@@ -23,9 +23,9 @@
 //! - `LiveNodeConfig` Configuration for live node deployment.
 //! - `AsyncRunner` for managing system real-time data flow.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

@@ -13,10 +13,10 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Command-line interface and tools for [NautilusTrader](https://nautilustrader.io).
+//! Command-line interface and tools for NTPRO.
 //!
 //! The `nautilus-cli` crate provides a command-line interface for managing and
-//! operating NautilusTrader installations. It includes tools for database management,
+//! operating NTPRO workspaces. It includes tools for database management,
 //! system configuration, and operational utilities:
 //!
 //! - Database initialization and management commands.
@@ -24,9 +24,9 @@
 //! - Configuration validation and setup utilities.
 //! - System administration and operational tools.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single
@@ -66,7 +66,7 @@ use crate::{
     sandbox::run_sandbox_command,
 };
 
-/// Runs the Nautilus CLI based on the provided options.
+/// Runs the NTPRO CLI based on the provided options.
 ///
 /// # Errors
 ///

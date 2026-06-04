@@ -13,15 +13,15 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Trading strategy machinery and orchestration [NautilusTrader](https://nautilustrader.io).
+//! Trading strategy machinery and orchestration for NTPRO.
 //!
 //! The `nautilus-trading` crate provides core trading capabilities including:
 //!
 //! - **Forex sessions**: Market session time calculations and timezone handling.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single
@@ -33,7 +33,7 @@
 //!
 //! - `examples`: Enables example strategies (e.g. `EmaCross`) for backtesting and demos.
 //! - `defi`: Enables DeFi (Decentralized Finance) support.
-//! - `high-precision`: Enables [high-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) to use 128-bit value types.
+//! - `high-precision`: Enables [high-precision mode](https://github.com/atxinbao/NTPRO/blob/main/docs/getting_started/installation.md#precision-mode) to use 128-bit value types.
 
 #![warn(rustc::all)]
 #![deny(unsafe_code)]

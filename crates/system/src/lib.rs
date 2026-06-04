@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! System-level components and orchestration for [NautilusTrader](https://nautilustrader.io).
+//! System-level components and orchestration for NTPRO.
 //!
 //! The `nautilus-system` crate provides the core system architecture for orchestrating trading systems,
 //! including the kernel that manages all engines, configuration management,
@@ -23,9 +23,9 @@
 //! - `NautilusKernelConfig` - Configuration for kernel initialization.
 //! - System builders and factories for component creation.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

@@ -13,11 +13,11 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Test utilities and data management for [NautilusTrader](https://nautilustrader.io).
+//! Test utilities and data management for NTPRO.
 //!
 //! The `nautilus-testkit` crate provides testing utilities including test data management,
 //! file handling, and common testing patterns. This crate supports robust testing workflows
-//! across the entire NautilusTrader ecosystem with automated data downloads and validation:
+//! across the entire NTPRO ecosystem with automated data downloads and validation:
 //!
 //! - **Test data management**: Automated downloading and caching of test datasets.
 //! - **File utilities**: File integrity verification with SHA-256 checksums.
@@ -25,9 +25,9 @@
 //! - **Precision handling**: Support for both 64-bit and 128-bit precision test data.
 //! - **Common patterns**: Reusable test utilities and helper functions.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single
@@ -37,7 +37,7 @@
 //!
 //! This crate provides feature flags to control source code inclusion during compilation.
 //!
-//! - `high-precision`: Enables [high-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) to use 128-bit value types.
+//! - `high-precision`: Enables [high-precision mode](https://github.com/atxinbao/NTPRO/blob/main/docs/getting_started/installation.md#precision-mode) to use 128-bit value types.
 
 #![warn(rustc::all)]
 #![deny(unsafe_code)]

@@ -13,14 +13,14 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Data persistence and storage management for [NautilusTrader](https://nautilustrader.io).
+//! Data persistence and storage management for NTPRO.
 //!
 //! The `nautilus-persistence` crate provides data persistence capabilities for storing and retrieving
 //! trading data, state, and configuration.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single
@@ -32,7 +32,7 @@
 //!
 //! - `cloud`: Enables cloud storage backends (S3, Azure, GCP, HTTP) via `object_store`.
 //! - `ffi`: Enables the C foreign function interface (FFI) from [cbindgen](https://github.com/mozilla/cbindgen).
-//! - `high-precision`: Enables [high-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) to use 128-bit value types.
+//! - `high-precision`: Enables [high-precision mode](https://github.com/atxinbao/NTPRO/blob/main/docs/getting_started/installation.md#precision-mode) to use 128-bit value types.
 
 #![warn(rustc::all)]
 #![deny(nonstandard_style)]

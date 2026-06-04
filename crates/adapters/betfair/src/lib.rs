@@ -13,17 +13,17 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! [NautilusTrader](https://nautilustrader.io) adapter for the [Betfair](https://www.betfair.com/) betting exchange.
+//! NTPRO adapter for the [Betfair](https://www.betfair.com/) betting exchange.
 //!
 //! The `nautilus-betfair` crate provides data and execution clients, streaming
-//! and REST API models, and full NautilusTrader integration for the Betfair
+//! and REST API models, and full NTPRO integration for the Betfair
 //! betting exchange.
 //!
 //! The official API reference can be found at <https://docs.developer.betfair.com/>.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

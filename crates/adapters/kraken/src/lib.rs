@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Kraken exchange adapter for NautilusTrader.
+//! Kraken exchange adapter for NTPRO.
 //!
 //! This adapter provides integration with the Kraken cryptocurrency exchange,
 //! supporting both Spot and Futures markets.
@@ -37,7 +37,7 @@
 //!
 //! This crate exposes Rust-native build behavior only.
 //!
-//! [High-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) (128-bit value types) is enabled by default.
+//! [High-precision mode](https://github.com/atxinbao/NTPRO/blob/main/docs/getting_started/installation.md#precision-mode) (128-bit value types) is enabled by default.
 
 pub mod common;
 pub mod config;
