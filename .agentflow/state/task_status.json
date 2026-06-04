@@ -2204,7 +2204,7 @@
     },
     "RHARD-005": {
       "title": "Live init smoke",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2215,11 +2215,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RHARD-005.md",
       "evidence_file": "docs/rust-cutover/evidence/RHARD-005.md",
-      "updated_at": "2026-06-04T14:59:40Z"
+      "updated_at": "2026-06-04T15:28:07Z"
     },
     "NADAPT-001": {
       "title": "Adapter support matrix",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2230,7 +2230,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NADAPT-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NADAPT-001.md",
-      "updated_at": "2026-06-04T13:09:00Z"
+      "updated_at": "2026-06-04T15:28:07Z"
     },
     "NBIN-001": {
       "title": "Release binary and install path",
