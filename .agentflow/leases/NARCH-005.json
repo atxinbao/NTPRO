@@ -1,0 +1,15 @@
+{
+  "task_id": "NARCH-005",
+  "agent_id": "Codex",
+  "branch": "ai/NARCH-005-control-api-contract",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/NARCH-005.md",
+    "docs/architecture/control_api_contract.md",
+    "docs/rust-cutover/evidence/NARCH-005.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/NARCH-005.json"
+  ],
+  "claimed_at": "2026-06-04T16:16:33.233494+00:00",
+  "status": "QA_REQUIRED",
+  "updated_at": "2026-06-04T16:18:17Z"
+}
