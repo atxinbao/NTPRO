@@ -16,10 +16,15 @@ traceable here.
 
 The current binary is `nautilus`, provided by the `nautilus-cli` package.
 
-Observed default command surface:
+RHARD-003 confirms the default help-level command surface:
 
 ```text
 nautilus
+  backtest
+  sandbox
+  live
+  data
+  config
   database
 ```
 
@@ -31,13 +36,23 @@ nautilus --features defi
   blockchain
 ```
 
-Current product-surface blockers:
+Current help-level status is documented in
+`docs/rust-cutover/product/CLI_HELP_CONTRACT.md`.
 
-- `nautilus backtest` is not implemented.
-- `nautilus sandbox` is not implemented.
-- `nautilus live` is not implemented.
-- Rust docs and examples exist, but they are not yet tied to a stable Rust CLI
-  command contract.
+Current runtime blockers:
+
+- `nautilus backtest validate` and `nautilus backtest run` are exposed but
+  intentionally return Rust blocker errors.
+- `nautilus sandbox validate` and `nautilus sandbox run` are exposed but
+  intentionally return Rust blocker errors.
+- `nautilus live validate` and `nautilus live run` are exposed but
+  intentionally return Rust blocker errors.
+- `nautilus data inspect`, `nautilus data validate`, and `nautilus data load`
+  are exposed but intentionally return Rust blocker errors.
+- `nautilus config validate` is exposed but intentionally returns a Rust
+  blocker error.
+- `nautilus database init` and `nautilus database drop` remain the existing
+  supported Postgres operational commands.
 
 ## Global CLI Rules
 
