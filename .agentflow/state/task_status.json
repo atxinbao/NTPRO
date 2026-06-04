@@ -2249,7 +2249,7 @@
     },
     "NTRACE-001": {
       "title": "Trace and performance expansion plan",
-      "status": "TODO",
+      "status": "QA_REQUIRED",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -2260,7 +2260,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NTRACE-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NTRACE-001.md",
-      "updated_at": "2026-06-04T13:09:00Z"
+      "updated_at": "2026-06-04T15:47:48Z"
     },
     "NARCH-001": {
       "title": "Rust-only architecture map",

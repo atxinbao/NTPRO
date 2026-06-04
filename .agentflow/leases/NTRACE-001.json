@@ -1,0 +1,14 @@
+{
+  "task_id": "NTRACE-001",
+  "agent_id": "Codex",
+  "branch": "ai/NTRACE-001-trace-and-performance-expansion-plan",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/NTRACE-001.md",
+    "docs/rust-cutover/trace_performance_expansion_plan.md",
+    "docs/rust-cutover/evidence/NTRACE-001.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/NTRACE-001.json"
+  ],
+  "claimed_at": "2026-06-04T15:45:24.119955+00:00",
+  "status": "QA_REQUIRED"
+}
