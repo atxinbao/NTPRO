@@ -7,11 +7,21 @@ Task ID: RPROD-010
 This directory is reserved for Rust-first backtest examples driven by the
 `nautilus backtest` CLI.
 
-## Command Contract
+## RHARD-006 Minimal CLI Path
 
 ```bash
-cargo run -q -p nautilus-cli -- backtest validate --config examples/rust/backtest/ema_cross.toml
-cargo run -q -p nautilus-cli -- backtest run --config examples/rust/backtest/ema_cross.toml --run-id ema-cross --output runs/ema-cross
+cargo run -q -p nautilus-cli -- backtest validate --config examples/rust/backtest/minimal_dry_run.toml
+cargo run -q -p nautilus-cli -- backtest run --config examples/rust/backtest/minimal_dry_run.toml --dry-run --output runs/minimal-backtest-dry-run
+```
+
+This path validates a small TOML config and writes a metadata-only summary file
+to the output directory. It does not start `BacktestEngine`, load market data,
+run a strategy, or change trading semantics.
+
+Expected summary path:
+
+```text
+runs/minimal-backtest-dry-run/summary.txt
 ```
 
 ## Cargo Smoke
@@ -27,19 +37,19 @@ This smoke runs `crates/backtest/examples/engine_ema_cross.rs` with synthetic
 AUD/USD quote data, a simulated venue, and the Rust `EmaCross` strategy from
 `nautilus-trading`.
 
-## Current Blocker
+## Current Runtime Blocker
 
-`backtest validate` and `backtest run` parse and expose help, but execution
-returns an explicit blocker until Rust config parsing, strategy selection, and
-backtest runtime wiring are implemented.
+`backtest validate` and `backtest run --dry-run` now support the RHARD-006
+metadata-only path. Full execution still returns an explicit blocker until Rust
+strategy selection and backtest runtime wiring are implemented.
 
 Do not replace this with Python backtest examples. The legacy
 `examples/backtest` Python tree has been removed from NTPRO; this directory
 tracks the Rust product surface.
 
-## Required Evidence For First Runnable Example
+## Required Evidence For First Minimal CLI Path
 
 - `cargo run -q -p nautilus-cli -- backtest validate --config <path>` succeeds.
-- `cargo run -q -p nautilus-cli -- backtest run --config <path>` succeeds.
-- The run emits an owner-visible run ID and output path.
+- `cargo run -q -p nautilus-cli -- backtest run --config <path> --dry-run --output <dir>` succeeds.
+- The metadata-only run emits an owner-visible run ID and output path.
 - The run does not import Python, require PyO3, or require Cython artifacts.
