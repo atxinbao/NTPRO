@@ -2093,7 +2093,280 @@
       "pr_url": "https://github.com/atxinbao/NTPRO/pull/118",
       "pr_number": 118,
       "implementation_commit": "cfd4d471a1"
+    },
+    "RHARD-000": {
+      "title": "Public release surface cleanup",
+      "status": "DONE",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RHARD-000.md",
+      "evidence_file": "docs/rust-cutover/evidence/RHARD-000.md",
+      "updated_at": "2026-06-04T13:09:00Z",
+      "pr": 128,
+      "merged_at": "2026-06-04T13:07:30Z",
+      "merge_commit": "a416a5ef3444faa1c241a5c7f0b4d6366c1b5929"
+    },
+    "RHARD-001": {
+      "title": "Post-release gap list",
+      "status": "READY",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RHARD-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/RHARD-001.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "RHARD-002": {
+      "title": "Toolchain and verification path hardening",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RHARD-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/RHARD-002.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "RHARD-007": {
+      "title": "Verification cleanup",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RHARD-007.md",
+      "evidence_file": "docs/rust-cutover/evidence/RHARD-007.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "RHARD-003": {
+      "title": "CLI help contract",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RHARD-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/RHARD-003.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "RHARD-006": {
+      "title": "Backtest CLI minimal path",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RHARD-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/RHARD-006.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "RHARD-004": {
+      "title": "Sandbox demo",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RHARD-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/RHARD-004.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "RHARD-005": {
+      "title": "Live init smoke",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/RHARD-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/RHARD-005.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "NADAPT-001": {
+      "title": "Adapter support matrix",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NADAPT-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/NADAPT-001.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "NBIN-001": {
+      "title": "Release binary and install path",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NBIN-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/NBIN-001.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "NTRACE-001": {
+      "title": "Trace and performance expansion plan",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NTRACE-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/NTRACE-001.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "NARCH-001": {
+      "title": "Rust-only architecture map",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NARCH-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/NARCH-001.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "NARCH-006": {
+      "title": "Module boundary audit",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NARCH-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/NARCH-006.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "NARCH-002": {
+      "title": "Module contracts",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NARCH-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/NARCH-002.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "NARCH-003": {
+      "title": "Node lifecycle state machine",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NARCH-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/NARCH-003.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "NARCH-004": {
+      "title": "Observability state model",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NARCH-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/NARCH-004.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "NARCH-005": {
+      "title": "Control API contract",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NARCH-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/NARCH-005.md",
+      "updated_at": "2026-06-04T13:09:00Z"
+    },
+    "NDASH-001": {
+      "title": "Dashboard MVP scope contract",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NDASH-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/NDASH-001.md",
+      "updated_at": "2026-06-04T13:09:00Z"
     }
   },
-  "updated_at": "2026-06-02T22:54:49+08:00"
+  "updated_at": "2026-06-04T13:10:00Z"
 }
