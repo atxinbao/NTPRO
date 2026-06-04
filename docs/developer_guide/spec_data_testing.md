@@ -1,5 +1,11 @@
 # Data Testing Spec
 
+:::warning
+NTPRO is a Rust-only product surface. Python and PyO3 setup examples retained
+on this page are legacy upstream context. The Rust node setup is the current
+direction for NTPRO adapter test evidence.
+:::
+
 This section defines a rigorous test matrix for validating adapter data
 functionality using the `DataTester` actor. Both Python
 (`nautilus_trader.test_kit.strategies.tester_data`) and Rust

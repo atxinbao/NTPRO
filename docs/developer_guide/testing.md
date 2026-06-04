@@ -1,5 +1,12 @@
 # Testing
 
+:::warning
+NTPRO is a Rust-only product surface. Python, PyO3, Cython, pytest, wheel, and
+virtualenv sections retained in this guide are legacy upstream or migration context,
+not current NTPRO validation requirements. Current NTPRO verification should use the
+Rust/Cargo and `scripts/ai/` checks recorded in release evidence.
+:::
+
 Our automated tests serve as executable specifications for the trading platform.
 A healthy suite documents intended behaviour, gives contributors confidence to refactor, and catches regressions before they reach production.
 Tests also double as living examples that clarify complex flows and provide rapid CI feedback so issues surface early.

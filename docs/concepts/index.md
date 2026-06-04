@@ -1,6 +1,12 @@
 # Concepts
 
-These guides explain the core components, architecture, and design of NautilusTrader.
+These guides explain the core components, architecture, and design of NTPRO.
+
+:::note
+NTPRO is a Rust-only product surface. Python, PyO3, and Cython references may still
+appear in retained legacy upstream pages, migration notes, or historical evidence,
+but they are not supported NTPRO runtime, install, API, or release paths.
+:::
 
 ## Overview
 
@@ -61,13 +67,14 @@ with strike range filtering, and snapshot aggregation.
 ## Greeks
 
 Option Greeks (delta, gamma, vega, theta) from two paths: venue-provided real-time
-Greeks via the Rust/PyO3 `OptionGreeks` type, and the local `GreeksCalculator` for
+Greeks via Rust domain types, and the local `GreeksCalculator` for
 Black-Scholes computation with shock scenarios, beta weighting, and portfolio aggregation.
 
 ## Custom Data
 
-How the custom data system works across Python and Rust: registration, persistence,
-Arrow encoding, and runtime routing through actors and strategies.
+How the custom data system works in the Rust workspace: registration, persistence,
+Arrow encoding, and runtime routing through actors and strategies. Older Python examples
+are legacy upstream material unless explicitly marked as a supported NTPRO path.
 
 ## Order Book
 
@@ -127,7 +134,7 @@ customization options, and custom visualizations via the extensible chart regist
 
 ## Configuration
 
-How config structs work across Python and Rust: default resolution, the `T` vs `Option<T>`
+How Rust config structs work: default resolution, the `T` vs `Option<T>`
 convention, builder patterns, and common fields shared across adapters and engines.
 
 ## Live Trading

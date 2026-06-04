@@ -1,17 +1,25 @@
 # Overview
 
+## NTPRO Rust-only scope
+
+NTPRO is a Rust-only release workspace derived from NautilusTrader. The current
+product surface is the Rust workspace, Cargo build path, Rust CLI crate, Rust examples,
+and release evidence documented under `docs/rust-cutover/`.
+
+Python, PyO3, Cython, wheels, and PyPI packaging may still appear in retained legacy,
+migration, or historical documentation. They are not supported NTPRO product entry
+points, runtime surfaces, installation paths, or release capabilities.
+
 ## Introduction
 
-NautilusTrader is an open-source, production-grade, Rust-native engine for multi-asset,
+NTPRO is an open-source, production-grade, Rust-native engine for multi-asset,
 multi-venue trading systems.
 
 The system spans research, deterministic simulation, and live execution within a single
-event-driven architecture, with Python serving as the control plane for strategy logic,
-configuration, and orchestration.
+event-driven architecture built from Rust crates.
 
-This separation provides the performance and safety of a compiled trading engine with
-the flexibility of Python for system composition and strategy development.
-Trading systems can also be written entirely in Rust for mission-critical workloads.
+This Rust-only cutover keeps the performance and type guarantees of a compiled trading
+engine while avoiding a Python or Cython product runtime dependency.
 
 The same execution semantics and deterministic time model operate in both research and
 live systems. Strategies deploy from research to production with no code changes,
@@ -26,41 +34,36 @@ DEX), traditional markets (FX, equities, futures, options), and betting exchange
 
 - **Fast**: Rust core with asynchronous networking using [tokio](https://crates.io/crates/tokio).
 - **Reliable**: Type- and thread-safety backed by Rust, with optional Redis-backed state persistence.
-- **Portable**: Runs on Linux, macOS, and Windows. Deploy using Docker.
+- **Portable**: Builds through Cargo on supported Rust toolchains.
 - **Flexible**: Modular adapters integrate any REST API or WebSocket feed.
 - **Advanced**: Time in force `IOC`, `FOK`, `GTC`, `GTD`, `DAY`, `AT_THE_OPEN`, `AT_THE_CLOSE`, advanced order types and conditional triggers. Execution instructions `post-only`, `reduce-only`, and icebergs. Contingency orders including `OCO`, `OUO`, `OTO`.
 - **Customizable**: User-defined components, or assemble entire systems from scratch using the [cache](cache.md) and [message bus](message_bus.md).
 - **Backtesting**: Multiple venues, instruments, and strategies simultaneously using historical quote tick, trade tick, bar, order book, and custom data with nanosecond resolution.
-- **Live**: Identical strategy implementations between research and live deployment.
+- **Live**: Rust live/runtime crates are retained; adapter support and product entry points are governed by the current release evidence.
 - **Multi-venue**: Run market-making and cross-venue strategies across multiple venues simultaneously.
 - **AI training**: Engine fast enough to train AI trading agents (RL/ES).
 
-## Why NautilusTrader?
+## Why NTPRO?
 
-Trading strategy research typically happens in Python using vectorized approaches, while
-production trading systems are built separately using event-driven architectures in
-compiled languages.
+Trading strategy research and production trading systems often diverge when they use
+different runtime stacks. NTPRO keeps the trading runtime, domain model, and release
+verification in Rust so the product boundary is explicit and auditable.
 
-NautilusTrader removes this separation.
-
-A Rust-native core provides a deterministic event-driven runtime for both research and live
-execution, while Python serves as the control plane. The same architecture, execution
-semantics, and time model operate across both environments, allowing strategies to move
-from research to production without reimplementation.
-
-Python bindings are provided via [PyO3](https://pyo3.rs), with an ongoing migration from
-Cython. No Rust toolchain is required at install time.
+The Rust-native core provides a deterministic event-driven runtime for research and live
+execution paths. Legacy upstream Python, PyO3, and Cython surfaces are retained only where
+needed for historical context or migration records; they are not current NTPRO product
+surfaces.
 
 ## Use cases
 
-There are three main use cases for this software package:
+There are three main use-case families for the Rust workspace:
 
 - Backtest trading systems on historical data (`backtest`).
 - Simulate trading systems with real-time data and virtual execution (`sandbox`).
 - Deploy trading systems live on real or paper accounts (`live`).
 
 The codebase provides a framework for building the software layer of systems that achieve the above.
-The default `backtest` and `live` system implementations live in their respectively named subpackages.
+The default `backtest` and `live` system implementations live in their respectively named Rust crates.
 A `sandbox` environment can be built using the sandbox adapter.
 
 :::note
@@ -90,10 +93,9 @@ Feed data to a `BacktestEngine` either directly or through a higher-level `Backt
 ## Live trading
 
 A `TradingNode` ingests data and events from multiple data and execution clients, supporting both
-demo/paper trading accounts and real accounts. Running asynchronously on a single
-[event loop](https://docs.python.org/3/library/asyncio-eventloop.html) provides high performance,
-with the option to use the [uvloop](https://github.com/MagicStack/uvloop) implementation
-(available for Linux and macOS) for additional throughput.
+demo/paper trading accounts and real accounts. In NTPRO, live trading documentation must be
+read through the Rust-only release evidence and adapter support decisions; older Python event
+loop or uvloop guidance is legacy upstream material, not the current product runtime path.
 
 ## Domain model
 

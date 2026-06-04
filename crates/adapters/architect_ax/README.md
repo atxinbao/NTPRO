@@ -1,12 +1,11 @@
 # nautilus-architect-ax
 
-[![build](https://github.com/nautechsystems/nautilus_trader/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/nautechsystems/nautilus_trader/actions/workflows/build.yml)
+[![build](https://github.com/atxinbao/NTPRO/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/atxinbao/NTPRO/actions/workflows/build.yml)
 [![Documentation](https://img.shields.io/docsrs/nautilus-architect-ax)](https://docs.rs/nautilus-architect-ax/latest/nautilus-architect-ax/)
 [![crates.io version](https://img.shields.io/crates/v/nautilus-architect-ax.svg)](https://crates.io/crates/nautilus-architect-ax)
-![license](https://img.shields.io/github/license/nautechsystems/nautilus_trader?color=blue)
-[![Discord](https://img.shields.io/badge/Discord-%235865F2.svg?logo=discord&logoColor=white)](https://discord.gg/NautilusTrader)
+![license](https://img.shields.io/github/license/atxinbao/NTPRO?color=blue)
 
-[NautilusTrader](https://nautilustrader.io) adapter for [AX Exchange](https://architect.exchange).
+NTPRO adapter for [AX Exchange](https://architect.exchange).
 
 ## Overview
 
@@ -16,9 +15,9 @@ indexes). Designed for institutional and professional traders, it combines innov
 asset perpetual exchanges with the safety and risk management of traditional futures exchanges.
 Licensed under the [Bermuda Monetary Authority (BMA)](https://www.bma.bm/).
 
-## NautilusTrader
+## NTPRO scope
 
-[NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+NTPRO is an open-source, production-grade, Rust-native
 engine for multi-asset, multi-venue trading systems.
 
 The system spans research, deterministic simulation, and live execution within a single
@@ -27,7 +26,6 @@ event-driven architecture, providing research-to-live semantic parity.
 ## Feature flags
 
 This crate provides feature flags to control source code inclusion during compilation:
-
 
 ## Documentation
 
@@ -66,16 +64,10 @@ cargo run -p nautilus-architect-ax --bin ax-ws-orders
 
 ## License
 
-The source code for NautilusTrader is available on GitHub under the [GNU Lesser General Public License v3.0](https://www.gnu.org/licenses/lgpl-3.0.en.html).
+The NTPRO workspace retains NautilusTrader license lineage and is available under the [GNU Lesser General Public License v3.0](https://www.gnu.org/licenses/lgpl-3.0.en.html).
 
 ---
 
-NautilusTrader™ is developed and maintained by Nautech Systems, a technology
-company specializing in the development of high-performance trading systems.
-For more information, visit <https://nautilustrader.io>.
-
-Use of this software is subject to the [Disclaimer](https://nautilustrader.io/legal/disclaimer/).
-
-<img src="https://github.com/nautechsystems/nautilus_trader/raw/develop/assets/nautilus-logo-white.png" alt="logo" width="300" height="auto"/>
+NTPRO is a Rust-only release workspace derived from NautilusTrader. It retains NautilusTrader license lineage; review the repository license files and release notes before distribution or production use.
 
 © 2015-2026 Nautech Systems Pty Ltd. All rights reserved.
