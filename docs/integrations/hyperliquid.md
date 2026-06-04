@@ -374,9 +374,10 @@ carry their own expiry; named and fallback outcomes inherit from their
 parent question. Defaults: `0.0001` per tick, `0.01` per lot.
 
 Each instrument's `BinaryOption.info` carries the parsed venue metadata as a
-key/value map (consumed via `info["key"]` in Python or `Params.get_str(...)`
-in Rust). Derived identifiers are always populated; description-derived
-fields appear when the venue includes them.
+key/value map. Use Rust `Params.get_str(...)` on the NTPRO product path.
+Historical Python access patterns from upstream material are legacy context,
+not current NTPRO entrypoints. Derived identifiers are always populated;
+description-derived fields appear when the venue includes them.
 
 | Field              | Source                         | Notes                                             |
 |--------------------|--------------------------------|---------------------------------------------------|
@@ -427,27 +428,11 @@ Settlement is venue-driven; see [Settlement dispatch](#settlement-dispatch).
 
 #### Advanced workflows
 
-The full `userOutcome` action set is reachable directly on
-`HyperliquidHttpClient` (Rust and PyO3) for strategies that need to manage
-side-token inventory off-book:
-
-```python
-from decimal import Decimal
-from nautilus_trader.core.nautilus_pyo3 import HyperliquidEnvironment
-from nautilus_trader.core.nautilus_pyo3 import HyperliquidHttpClient
-
-client = HyperliquidHttpClient.from_env(HyperliquidEnvironment.MAINNET)
-
-# Mint matched Yes + No side tokens from USDH (e.g. dual-side market making)
-await client.submit_split_outcome(50, Decimal("1.0"))
-
-# Burn a matched Yes + No pair back to USDH (amount=None merges the max)
-await client.submit_merge_outcome(50, None)
-
-# Multi-outcome priceBucket helpers
-await client.submit_merge_question(9, None)
-await client.submit_negate_outcome(9, 52, Decimal("1.0"))
-```
+The full `userOutcome` action set is reachable directly on the Rust
+`HyperliquidHttpClient` for strategies that need to manage side-token inventory
+off-book. Legacy PyO3 examples are not NTPRO product entrypoints. Record Rust
+validation evidence before treating these advanced workflow calls as
+release-supported automation.
 
 | Action                  | Use case |
 |-------------------------|----------|
@@ -637,19 +622,10 @@ self.subscribe_data(
 prices, and funding rates for the same coin. Adding OI does not open a second
 parallel `activeAssetCtx` subscription.
 
-In a Python strategy running inside a `TradingNode`, the payload arrives via
-`CustomData.data` and can be downcast by `isinstance`:
-
-```python
-from decimal import Decimal
-
-from nautilus_trader.model.data import CustomData
-
-def on_data(self, data: CustomData) -> None:
-    if isinstance(data.data, HyperliquidOpenInterest):
-        if data.data.open_interest > Decimal("1000"):
-            self.log.info(f"OI {data.data.instrument_id} -> {data.data.open_interest}")
-```
+Legacy upstream Python strategies received this payload through `CustomData`.
+That Python `TradingNode` path is not an NTPRO Rust-only product entrypoint.
+Use Rust adapter tests, fixtures, and product guides as the supported evidence
+path.
 
 ### Supported bar intervals
 
@@ -705,8 +681,8 @@ instrument you intend to trade with market orders.
 
 When using the Rust-native execution client, the slippage buffer is controlled by
 `market_order_slippage_bps` on `HyperliquidExecClientConfig` and can be overridden per-order
-via the `market_order_slippage_bps` key in `SubmitOrder.params`. The Python `TradingNode` path
-uses a fixed 50 bps slippage and does not expose this knob on its config.
+via the `market_order_slippage_bps` key in `SubmitOrder.params`. Legacy Python
+`TradingNode` configuration is not an NTPRO product entrypoint.
 :::
 
 :::note
@@ -818,10 +794,8 @@ compares the report's `venue_order_id` against the last cached value for the `cl
 they differ it promotes the `ACCEPTED` to `OrderUpdated` and suppresses the paired stale cancel:
 
 :::note
-The Python `HyperliquidExecutionClient` in `nautilus_trader/adapters/hyperliquid/execution.py`
-still runs its own equivalent detection inside `_handle_order_status_report_pyo3` because the
-pyo3 WebSocket binding forwards raw reports to Python. The Rust dispatch described below is
-additive, for the Rust-native execution client.
+Legacy upstream Python/PyO3 dispatch paths are not NTPRO product entrypoints.
+The dispatch described below is the Rust-native execution-client behavior.
 :::
 
 ```mermaid
@@ -1074,12 +1048,8 @@ match the venue limit.
 
 :::note
 "Rust‑only" options apply when the execution client is created through the Rust-native
-`HyperliquidExecutionClientFactory`. `market_order_slippage_bps` and
-`outcome_settlement_poll_secs` are not exposed on the Python
-`HyperliquidExecClientConfig` and will be rejected by the config validator if set on
-that path. `max_retries`, `retry_delay_initial_ms`, and `retry_delay_max_ms` are
-declared on the Python config but are not yet forwarded to the Python execution
-client.
+`HyperliquidExecutionClientFactory`. Legacy Python config behavior from upstream
+docs is not part of the NTPRO Rust-only product path.
 :::
 
 ### Configuration example

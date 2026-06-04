@@ -9,17 +9,16 @@ factory (see [Execution scope](#execution-scope)).
 
 :::note
 This adapter is Rust-only and is consumed by the v2 system (and the Rust
-`LiveNode`). It does not ship a legacy Python `TradingNode` integration;
-only configuration and enum types are exported through PyO3 so v2 Python
-entry points can construct them.
+`LiveNode`). Legacy Python `TradingNode` and PyO3 construction paths are not
+NTPRO product entrypoints.
 :::
 
 ## Overview
 
 The Coinbase adapter is implemented in Rust and consumed by the v2 system.
-The adapter does not ship a legacy Python `TradingNode` integration; only
-configuration and enum types are exported through PyO3 so v2 entry points can
-construct them from Python.
+The supported NTPRO documentation path is the Rust adapter surface. Historical
+Python and PyO3 construction paths may appear in upstream material, but they are
+not current NTPRO product entrypoints.
 
 Components:
 
@@ -31,7 +30,7 @@ Components:
 - `CoinbaseExecutionClient`: Execution client (spot or CFM derivatives; REST orders + WS streams).
 - `CoinbaseExecutionClientFactory`: Execution client factory; spot vs CFM derivatives is selected by `account_type` on the config.
 
-PyO3 surface available from `nautilus_trader.core.nautilus_pyo3.coinbase`:
+Rust adapter configuration types:
 
 - `CoinbaseDataClientConfig`, `CoinbaseExecClientConfig`
 - `CoinbaseEnvironment`, `CoinbaseMarginType`
@@ -714,28 +713,8 @@ fill deltas remain correct.
 | `retail_portfolio_id`    | `None`    | CDP retail portfolio UUID. Required when the API key is bound to a non‑default portfolio (the venue rejects orders with `account is not available` otherwise). See [Portfolios](#portfolios). |
 | `transport_backend`      | `Sockudo` | WebSocket transport backend.                                                                             |
 
-Configurations are constructed from Python via the PyO3-exported types:
-
-```python
-from nautilus_trader.core.nautilus_pyo3 import CoinbaseDataClientConfig
-from nautilus_trader.core.nautilus_pyo3 import CoinbaseExecClientConfig
-from nautilus_trader.core.nautilus_pyo3 import CoinbaseEnvironment
-
-data_config = CoinbaseDataClientConfig(
-    api_key="YOUR_COINBASE_API_KEY",
-    api_secret="YOUR_COINBASE_API_SECRET",
-    environment=CoinbaseEnvironment.LIVE,
-)
-
-exec_config = CoinbaseExecClientConfig(
-    api_key="YOUR_COINBASE_API_KEY",
-    api_secret="YOUR_COINBASE_API_SECRET",
-    environment=CoinbaseEnvironment.LIVE,
-)
-```
-
-The v2 system instantiates the Rust factories directly from these configs;
-no Python factory wiring is required.
+The v2 system instantiates the Rust factories directly from Rust config values;
+no Python or PyO3 factory wiring is part of the NTPRO product path.
 
 ## Known limitations
 
