@@ -1,0 +1,14 @@
+{
+  "task_id": "NARCH-001",
+  "agent_id": "Codex",
+  "branch": "ai/NARCH-001-rust-only-architecture-map",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/NARCH-001.md",
+    "docs/architecture/rust_only_architecture_map.md",
+    "docs/rust-cutover/evidence/NARCH-001.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/NARCH-001.json"
+  ],
+  "claimed_at": "2026-06-04T15:50:06.360307+00:00",
+  "status": "QA_REQUIRED"
+}
