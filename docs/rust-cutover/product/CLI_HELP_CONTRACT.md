@@ -49,8 +49,8 @@ RHARD-003 help contract.
 | `nautilus data inspect --help` | supported | deferred | Requires `--config <CONFIG>` and accepts `--output`. |
 | `nautilus data validate --help` | supported | deferred | Requires `--config <CONFIG>`. |
 | `nautilus data load --help` | supported | deferred | Requires `--config <CONFIG>` and accepts `--run-id` plus `--output`. |
-| `nautilus config --help` | supported | deferred | Exposes `validate`; execution returns explicit blocker messages. |
-| `nautilus config validate --help` | supported | deferred | Requires `--kind <backtest\|sandbox\|live\|data>` and `--config <CONFIG>`, accepts `--output`. |
+| `nautilus config --help` | supported | supported | Exposes `validate`. |
+| `nautilus config validate --help` | supported | supported | Requires `--kind <backtest\|sandbox\|live\|data>` and `--config <CONFIG>`, accepts `--output`. |
 | `nautilus database --help` | supported | supported | Existing Postgres operations remain part of the Rust CLI surface. |
 | `nautilus database init --help` | supported | supported | Accepts optional Postgres connection and schema flags. |
 | `nautilus database drop --help` | supported | supported | Accepts optional Postgres connection and schema flags. |
@@ -64,12 +64,13 @@ These product commands are help-stable but not runtime-complete:
 - `live run`;
 - `data inspect`;
 - `data validate`;
-- `data load`;
-- `config validate`.
+- `data load`.
 
 `backtest validate` and `backtest run --dry-run` now support the RHARD-006
 metadata-only minimal path. `sandbox validate` and `sandbox run` now support the
-RHARD-004 local simulated demo path. The remaining deferred commands
+RHARD-004 local simulated demo path. `config validate` now supports a scoped
+Rust TOML validation path for backtest, sandbox, live-smoke, and data/catalog
+configs. The remaining deferred commands
 intentionally return owner-visible blocker errors from Rust code. Later v0.2.0
 tasks should replace those blockers with scoped Rust implementations only when
 config parsing, runtime wiring, adapter classification, and evidence
@@ -79,7 +80,7 @@ requirements are ready.
 
 The following are not part of the RHARD-003 completion criteria:
 
-- full backtest, sandbox, live, data, and config runtime behavior;
+- full backtest, sandbox, live, and data runtime behavior;
 - machine-readable CLI output;
 - release binaries or installers;
 - `defi` feature-gated blockchain help in the default build;

@@ -51,8 +51,9 @@ Current runtime status:
   intentionally return Rust blocker errors.
 - `nautilus data inspect`, `nautilus data validate`, and `nautilus data load`
   are exposed but intentionally return Rust blocker errors.
-- `nautilus config validate` is exposed but intentionally returns a Rust
-  blocker error.
+- `nautilus config validate` performs Rust TOML validation for the scoped
+  backtest, sandbox, live-smoke, and data/catalog config boundaries without
+  starting runtime workflows.
 - `nautilus database init` and `nautilus database drop` remain the existing
   supported Postgres operational commands.
 

@@ -28,8 +28,8 @@ nautilus config validate --kind <backtest|sandbox|live|data> --config <path> [--
 ```
 
 `--kind` selects the workflow config contract. `--config` points to the config
-file to validate. `--output` can write owner-visible validation artifacts when a
-later implementation adds report generation.
+file to validate. `--output` writes an owner-visible `validation.txt` artifact
+for automation and review evidence.
 
 ## Validation Contract
 
@@ -38,8 +38,10 @@ workflow command:
 
 - `--kind backtest` maps to `nautilus backtest validate`;
 - `--kind sandbox` maps to `nautilus sandbox validate`;
-- `--kind live` maps to `nautilus live validate`;
-- `--kind data` maps to `nautilus data validate`.
+- `--kind live` validates the Rust live init smoke TOML boundary without
+  starting a node;
+- `--kind data` validates the Rust data/catalog TOML boundary without
+  inspecting, loading, or querying a catalog.
 
 The command must not import Python, call Python package code, require PyO3, or
 require Cython build artifacts. It must reject unsupported config sections
@@ -56,6 +58,14 @@ config.validate status=ok kind=<kind> config=<path>
 When validation fails, the error must name the failing section and field when
 known. Human-readable text is enough for the initial implementation.
 Machine-readable JSON output can be added later as an explicit format option.
+
+When `--output <dir>` is provided, the command writes:
+
+```text
+<dir>/validation.txt
+```
+
+with the command name, status, selected kind, and config path.
 
 ## Failure Behavior
 
@@ -89,11 +99,12 @@ The first non-blocker implementation must also prove:
 
 ## Known Blockers
 
-- A shared Rust CLI TOML config parser has not been added.
-- Backtest, sandbox, live, and data config models are not yet unified behind a
-  shared CLI validation trait.
-- Workflow-local validate commands currently expose the parser surface but
-  intentionally return blockers.
+- Backtest and sandbox validation reuse their current minimal Rust CLI config
+  parsers. They are not yet unified behind a shared validation trait.
+- Live validation is limited to the Rust live init smoke TOML boundary and does
+  not start a node, classify production adapters, or connect to any venue.
+- Data validation is limited to the Rust data/catalog TOML boundary and does
+  not inspect catalog contents, load source data, or query storage.
 
-These blockers should be closed by later RPROD/RCORE tasks, not bypassed by
-Python fallback behavior.
+These blockers should be closed by later product/runtime tasks. They must not
+be bypassed with Python, PyO3, or Cython fallback behavior.

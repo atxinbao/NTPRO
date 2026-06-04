@@ -151,6 +151,11 @@ fn run_sandbox_validate(opt: SandboxValidateOpt) -> anyhow::Result<()> {
     Ok(())
 }
 
+pub(crate) fn validate_minimal_sandbox_config_file(path: &Path) -> anyhow::Result<()> {
+    load_minimal_sandbox_config(path)?;
+    Ok(())
+}
+
 fn run_sandbox_run(opt: SandboxRunOpt) -> anyhow::Result<()> {
     let config = load_minimal_sandbox_config(&opt.config)?;
     let run_id = opt.run_id.as_deref().unwrap_or(config.run.id.as_str());

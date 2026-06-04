@@ -87,6 +87,11 @@ fn run_backtest_validate(opt: BacktestValidateOpt) -> anyhow::Result<()> {
     Ok(())
 }
 
+pub(crate) fn validate_minimal_backtest_config_file(path: &Path) -> anyhow::Result<()> {
+    load_minimal_backtest_config(path)?;
+    Ok(())
+}
+
 fn run_backtest_run(opt: BacktestRunOpt) -> anyhow::Result<()> {
     let config = load_minimal_backtest_config(&opt.config)?;
 

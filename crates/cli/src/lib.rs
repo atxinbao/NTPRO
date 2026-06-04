@@ -51,6 +51,7 @@
 mod backtest;
 #[cfg(feature = "defi")]
 mod blockchain;
+mod config;
 mod database;
 pub mod opt;
 mod sandbox;
@@ -59,10 +60,9 @@ mod sandbox;
 use crate::blockchain::run_blockchain_command;
 use crate::{
     backtest::run_backtest_command,
+    config::run_config_command,
     database::postgres::run_database_command,
-    opt::{
-        Commands, ConfigCommand, ConfigOpt, DataCommand, DataOpt, LiveCommand, LiveOpt, NautilusCli,
-    },
+    opt::{Commands, DataCommand, DataOpt, LiveCommand, LiveOpt, NautilusCli},
     sandbox::run_sandbox_command,
 };
 
@@ -98,16 +98,6 @@ fn run_data_command(opt: DataOpt) -> anyhow::Result<()> {
         DataCommand::Load(load) => anyhow::bail!(
             "data load is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/DATA_CATALOG_CLI_CONTRACT.md",
             load.config.display()
-        ),
-    }
-}
-
-fn run_config_command(opt: ConfigOpt) -> anyhow::Result<()> {
-    match opt.command {
-        ConfigCommand::Validate(validate) => anyhow::bail!(
-            "config validate is defined but not implemented yet for kind '{:?}' and config '{}'; see docs/rust-cutover/product/CONFIG_VALIDATION_CLI_CONTRACT.md",
-            validate.kind,
-            validate.config.display()
         ),
     }
 }
