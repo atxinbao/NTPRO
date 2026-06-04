@@ -34,15 +34,17 @@ cargo run -q -p nautilus-cli -- backtest run --config examples/rust/backtest/min
 cargo run -q -p nautilus-cli -- sandbox --help
 cargo run -q -p nautilus-cli -- sandbox run --config examples/rust/sandbox/sandbox_smoke.toml --run-id sandbox-smoke --output runs/sandbox-smoke
 cargo run -q -p nautilus-cli -- live --help
+cargo run -p nautilus-live --no-default-features --features node --example live-init-smoke
 cargo run -q -p nautilus-cli -- data --help
 cargo run -q -p nautilus-cli -- config --help
 ```
 
 The backtest command supports the RHARD-006 metadata-only dry-run. The sandbox
-command supports the RHARD-004 local simulated demo. Live, data, config, and
-full runtime execution paths still return explicit blockers that point to their
-product contracts. Examples in this directory must not use Python fallback
-behavior to bypass those blockers.
+command supports the RHARD-004 local simulated demo. The live crate supports
+the RHARD-005 Cargo live init smoke. Live CLI, data, config, and full runtime
+execution paths still return explicit blockers that point to their product
+contracts. Examples in this directory must not use Python fallback behavior to
+bypass those blockers.
 
 ## Contract Mapping
 

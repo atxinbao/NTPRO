@@ -205,6 +205,11 @@ dir = "runs/live-dry-run"
 write_summary = true
 ```
 
+RHARD-005 also records a safer live init smoke config at
+`examples/rust/live/live_init_smoke.toml`. That config uses the sandbox
+simulated execution client, disables order submission, and is currently executed
+through the `nautilus-live` Cargo example rather than `nautilus live run`.
+
 ### Field Mapping
 
 `run` identifies the workflow and must map to an owner-visible run ID.
@@ -325,7 +330,9 @@ The first lifecycle smoke must also prove:
   scope before it can be used as release evidence.
 
 RHARD-004 closes the sandbox CLI blocker for the local simulated demo only.
-Real live-node construction and adapter behavior remain deferred.
+RHARD-005 provides a Cargo live-node init/shutdown smoke with the simulated
+sandbox execution client. Real live CLI runtime wiring and production adapter
+behavior remain deferred.
 
 These blockers should be closed by later RPROD, RCORE, RADP, and RTRACE tasks,
 not bypassed by Python fallback behavior.

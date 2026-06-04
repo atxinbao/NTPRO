@@ -96,6 +96,11 @@ name = "sandbox-node-smoke"
 path = "examples/sandbox_node_smoke.rs"
 required-features = ["node"]
 
+[[example]]
+name = "live-init-smoke"
+path = "examples/live_init_smoke.rs"
+required-features = ["node"]
+
 [[test]]
 name = "manager"
 path = "tests/manager.rs"

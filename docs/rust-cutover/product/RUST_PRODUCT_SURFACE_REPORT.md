@@ -57,15 +57,22 @@ The current sandbox/live smoke is a Cargo example owned by `nautilus-live`:
 
 ```bash
 cargo run -p nautilus-live --no-default-features --features node --example sandbox-node-smoke
+cargo run -p nautilus-live --no-default-features --features node --example live-init-smoke
 ```
 
 Recorded evidence:
 
 - `docs/rust-cutover/evidence/RPROD-012.md`
+- `docs/rust-cutover/evidence/RHARD-005.md`
 - `examples/rust/sandbox/README.md`
+- `examples/rust/live/README.md`
 
 The smoke constructs a Rust `LiveNode` in `Sandbox` mode and does not connect
 to a production venue.
+
+The RHARD-005 live init smoke also registers a simulated sandbox execution
+client, starts and stops the node, and records that no real orders or external
+venue connections are used.
 
 ### Rust API Documentation
 
@@ -121,6 +128,8 @@ The following gaps are owner-visible and remain in scope for later tasks:
 - `nautilus live validate` and `nautilus live run` expose help contracts, but
   execution remains blocked until live-node config parsing, lifecycle wiring,
   adapter classification, and live smoke expansion are completed.
+  RHARD-005 provides a Cargo example for live-node init/shutdown, but it is not
+  wired into `nautilus live run`.
 - `nautilus data inspect`, `nautilus data validate`, and `nautilus data load`
   expose help contracts, but data-source inspection and load behavior remain
   under later data/runtime and adapter work.
