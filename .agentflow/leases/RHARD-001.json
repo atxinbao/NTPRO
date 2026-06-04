@@ -1,0 +1,17 @@
+{
+  "task_id": "RHARD-001",
+  "agent_id": "Codex",
+  "branch": "ai/RHARD-001-post-release-gap-list",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RHARD-001.md",
+    "docs/rust-cutover/evidence/RHARD-001.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RHARD-001.json"
+  ],
+  "claimed_at": "2026-06-04T13:14:05.851276+00:00",
+  "status": "RUNNING",
+  "qa_passed": true,
+  "review_passed": false,
+  "auto_merge_allowed": true,
+  "updated_at": "2026-06-04T13:16:00Z"
+}
