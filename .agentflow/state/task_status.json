@@ -2354,7 +2354,7 @@
     },
     "NDASH-001": {
       "title": "Dashboard MVP scope contract",
-      "status": "TODO",
+      "status": "QA_REQUIRED",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -2365,8 +2365,8 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NDASH-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NDASH-001.md",
-      "updated_at": "2026-06-04T13:09:00Z"
+      "updated_at": "2026-06-04T16:21:54Z"
     }
   },
-  "updated_at": "2026-06-04T16:18:17Z"
+  "updated_at": "2026-06-04T16:21:54Z"
 }
