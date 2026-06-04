@@ -52,7 +52,7 @@ pub struct BacktestOpt {
 pub enum BacktestCommand {
     /// Validates a Rust backtest config without running the engine.
     Validate(BacktestValidateOpt),
-    /// Runs a Rust backtest from a validated config.
+    /// Runs the metadata-only dry-run path; engine runtime wiring is not implemented yet.
     Run(BacktestRunOpt),
 }
 
@@ -95,7 +95,7 @@ pub struct SandboxOpt {
 pub enum SandboxCommand {
     /// Validates a Rust sandbox config without starting a node.
     Validate(SandboxValidateOpt),
-    /// Runs a Rust sandbox live-node flow from a validated config.
+    /// Runs the simulated sandbox live-node demo from a validated config.
     Run(SandboxRunOpt),
 }
 
@@ -133,9 +133,9 @@ pub struct LiveOpt {
 #[derive(Parser, Debug, Clone)]
 #[command(about = "Live trading operations", long_about = None)]
 pub enum LiveCommand {
-    /// Validates a Rust live config without starting a node.
+    /// Defines live config validation; implementation is not implemented yet.
     Validate(LiveValidateOpt),
-    /// Runs a Rust live-node flow from a validated config.
+    /// Defines live-node run contract; runtime wiring is not implemented yet.
     Run(LiveRunOpt),
 }
 
@@ -173,11 +173,11 @@ pub struct DataOpt {
 #[derive(Parser, Debug, Clone)]
 #[command(about = "Data catalog operations", long_about = None)]
 pub enum DataCommand {
-    /// Inspects catalog or source metadata without running a strategy.
+    /// Defines data inspection contract; implementation is not implemented yet.
     Inspect(DataInspectOpt),
-    /// Validates catalog availability and requested data windows.
+    /// Defines data validation contract; implementation is not implemented yet.
     Validate(DataValidateOpt),
-    /// Loads scoped source data into a configured catalog target.
+    /// Defines data load contract; implementation is not implemented yet.
     Load(DataLoadOpt),
 }
 
@@ -226,7 +226,7 @@ pub struct ConfigOpt {
 #[derive(Parser, Debug, Clone)]
 #[command(about = "Rust config validation", long_about = None)]
 pub enum ConfigCommand {
-    /// Validates a Rust workflow config without running the workflow.
+    /// Defines shared config validation; implementation is not implemented yet.
     Validate(ConfigValidateOpt),
 }
 
@@ -381,6 +381,17 @@ mod tests {
     use super::*;
     use clap::{CommandFactory, Parser};
 
+    fn render_subcommand_help(path: &[&str]) -> String {
+        let mut command = NautilusCli::command();
+        let mut current = &mut command;
+        for name in path {
+            current = current
+                .find_subcommand_mut(name)
+                .unwrap_or_else(|| panic!("{name} command should exist"));
+        }
+        current.render_help().to_string()
+    }
+
     #[test]
     fn top_level_help_lists_backtest() {
         let help = NautilusCli::command().render_help().to_string();
@@ -453,6 +464,15 @@ mod tests {
         assert_eq!(run.run_id.as_deref(), Some("ema-cross"));
         assert_eq!(run.output, Some(PathBuf::from("runs/ema-cross")));
         assert!(run.dry_run);
+    }
+
+    #[test]
+    fn backtest_run_help_describes_dry_run_boundary() {
+        let help = render_subcommand_help(&["backtest", "run"]);
+
+        assert!(help.contains("metadata-only dry-run path"));
+        assert!(help.contains("engine runtime wiring is not implemented yet"));
+        assert!(help.contains("--dry-run"));
     }
 
     #[test]
@@ -576,6 +596,15 @@ mod tests {
     }
 
     #[test]
+    fn live_help_marks_runtime_contract_not_implemented() {
+        let validate_help = render_subcommand_help(&["live", "validate"]);
+        let run_help = render_subcommand_help(&["live", "run"]);
+
+        assert!(validate_help.contains("implementation is not implemented yet"));
+        assert!(run_help.contains("runtime wiring is not implemented yet"));
+    }
+
+    #[test]
     fn data_help_lists_inspect_validate_and_load() {
         let mut command = NautilusCli::command();
         let data = command
@@ -661,6 +690,17 @@ mod tests {
     }
 
     #[test]
+    fn data_help_marks_contracts_not_implemented() {
+        let inspect_help = render_subcommand_help(&["data", "inspect"]);
+        let validate_help = render_subcommand_help(&["data", "validate"]);
+        let load_help = render_subcommand_help(&["data", "load"]);
+
+        assert!(inspect_help.contains("implementation is not implemented yet"));
+        assert!(validate_help.contains("implementation is not implemented yet"));
+        assert!(load_help.contains("implementation is not implemented yet"));
+    }
+
+    #[test]
     fn config_help_lists_validate() {
         let mut command = NautilusCli::command();
         let config = command
@@ -685,6 +725,13 @@ mod tests {
         assert!(help.contains("--kind"));
         assert!(help.contains("--config"));
         assert!(help.contains("--output"));
+    }
+
+    #[test]
+    fn config_validate_help_marks_contract_not_implemented() {
+        let help = render_subcommand_help(&["config", "validate"]);
+
+        assert!(help.contains("implementation is not implemented yet"));
     }
 
     #[test]
