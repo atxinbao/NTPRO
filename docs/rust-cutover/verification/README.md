@@ -31,6 +31,11 @@ Homebrew Rust PATH pitfall.
 | `scripts/ai/run_golden_traces.sh` | Behavior-sensitive runtime, adapter, backtest/live, or trace work needs replay evidence. | Medium to high | Validates golden trace fixtures and runs Rust trace replay harnesses. | Use `REQUIRE_GOLDEN_REPLAY=1` for release-mode trace scope. |
 | `scripts/ai/verify_cli_help.sh` | CLI product-surface changes need help-output evidence. | Medium | Runs top-level, version, and database CLI help. | First run can compile the CLI and take longer than expected. |
 
+Related risk registers:
+
+- [Ignored Tests Risk Register](ignored_tests_risk_register.md) records ignored
+  Rust tests by product path, owner role, risk, and follow-up policy.
+
 ## Default Fast Check
 
 Run this before opening a PR:
