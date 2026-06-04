@@ -1,0 +1,15 @@
+{
+  "task_id": "NARCH-004",
+  "agent_id": "Codex",
+  "branch": "ai/NARCH-004-observability-state-model",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/NARCH-004.md",
+    "docs/architecture/observability_state_model.md",
+    "docs/rust-cutover/evidence/NARCH-004.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/NARCH-004.json"
+  ],
+  "claimed_at": "2026-06-04T16:11:56.987468+00:00",
+  "status": "QA_REQUIRED",
+  "updated_at": "2026-06-04T16:14:02Z"
+}
