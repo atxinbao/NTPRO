@@ -4,6 +4,12 @@ This tutorial backtests a Bollinger-band mean-reversion strategy on
 **EURUSD-PERP** at [AX Exchange](https://architect.exchange) using
 [TrueFX](https://www.truefx.com) EUR/USD spot ticks as a proxy.
 
+:::warning[Legacy migration reference]
+This page keeps historical Python snippets as migration reference material.
+They are not supported NTPRO product entrypoints. For runnable NTPRO workflows,
+start with the Rust CLI, Cargo examples, and Rust how-to guides.
+:::
+
 ## Introduction
 
 The strategy combines two indicators on 1-minute mid bars:
@@ -77,8 +83,9 @@ for AX EURUSD-PERP backtests.
 
 ## Prerequisites
 
-- Python 3.12+
-- [NautilusTrader](https://pypi.org/project/nautilus_trader/) installed.
+- NTPRO cloned from the formal Rust-only release tag or `main`.
+- The Rust toolchain configured as described in
+  [Installation](../getting_started/installation.md).
 - A free TrueFX account, used to download a monthly tick archive.
 
 ## Data preparation
@@ -314,6 +321,5 @@ For connection setup and API key configuration, see the
 
 ## Further reading
 
-- [`BBMeanReversion` strategy source](https://github.com/nautechsystems/nautilus_trader/tree/develop/nautilus_trader/examples/strategies/bb_mean_reversion.py)
 - [Gold perpetual book imbalance tutorial](gold_book_imbalance_ax.md)
 - [Architect Exchange documentation](https://docs.architect.exchange/)

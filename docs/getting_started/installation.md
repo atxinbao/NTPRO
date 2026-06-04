@@ -1,363 +1,171 @@
 # Installation
 
-NautilusTrader is officially supported for Python 3.12-3.14 on the following 64-bit platforms:
+NTPRO is distributed as a Rust-only source workspace. The supported public
+installation path is to clone the NTPRO repository, select the release tag, and
+build or run the Rust workspace with Cargo.
 
-| Operating System       | Supported Versions | CPU Architecture  |
-|------------------------|--------------------|-------------------|
-| Linux (Ubuntu)         | 22.04 and later    | x86_64            |
-| Linux (Ubuntu)         | 22.04 and later    | ARM64             |
-| macOS                  | 15.0 and later     | ARM64             |
-| Windows Server         | 2022 and later     | x86_64            |
+NTPRO does not publish or support a Python package, PyPI install path, Python
+wheel, PyO3 bridge, Cython build, or mixed Rust/Python packaging path.
 
-:::note
-NautilusTrader may work on other platforms, but only those listed above are regularly used by developers and tested in CI.
-:::
+## Supported release path
 
-Continuous CI coverage comes from the GitHub Actions runners we build on:
+The current formal Rust-only release is:
 
-- `Linux (Ubuntu)` builds currently pin to `ubuntu-22.04` to keep glibc 2.35 compatibility even as `ubuntu-latest` moves ahead.
-- `macOS (ARM64)` builds run on `macos-latest`, so support tracks that runner image as it moves ahead.
-- `Windows (x86_64)` builds currently pin to `windows-2022` to keep the toolchain stable.
-
-On Linux, confirm your glibc version with `ldd --version` and ensure it reports 2.35 or newer before proceeding.
-
-We recommend using the latest supported version of Python and installing [nautilus_trader](https://pypi.org/project/nautilus_trader/) inside a virtual environment to isolate dependencies.
-
-**There are two supported ways to install**:
-
-1. Pre-built binary wheel from PyPI *or* the Nautech Systems package index.
-2. Build from source.
-
-:::tip
-We highly recommend installing using the [uv](https://docs.astral.sh/uv) package manager with a "vanilla" CPython.
-
-Conda and other Python distributions *may* work but aren’t officially supported.
-:::
-
-## From PyPI
-
-To install the latest [nautilus_trader](https://pypi.org/project/nautilus_trader/) binary wheel (or sdist package) from PyPI:
-
-```bash
-uv pip install nautilus_trader
+```text
+ntpro-rust-only-v0.1.0
 ```
 
-## Extras
-
-Install optional dependencies as 'extras' for specific integrations:
-
-- `betfair`: Betfair adapter (integration) dependencies.
-- `docker`: Needed for Docker when using the IB gateway (with the Interactive Brokers adapter).
-- `ib`: Interactive Brokers adapter (integration) dependencies.
-- `polymarket`: Polymarket adapter (integration) dependencies.
-- `visualization`: Plotly-based interactive tearsheets and charts.
-
-To install with specific extras:
+Clone that source point:
 
 ```bash
-uv pip install "nautilus_trader[docker,ib]"
+git clone --branch ntpro-rust-only-v0.1.0 --depth 1 https://github.com/atxinbao/NTPRO.git
+cd NTPRO
 ```
 
-## From the Nautech Systems package index
+For active v0.2.0 development, use `main` instead of the release tag.
 
-The Nautech Systems package index (`packages.nautechsystems.io`) complies with [PEP-503](https://peps.python.org/pep-0503/) and hosts both stable and development binary wheels for `nautilus_trader`.
-This enables users to install either the latest stable release or pre-release versions for testing.
+## Platform notes
 
-### Stable wheels
+NTPRO v0.1.0 is a Rust-only release source point, not a packaged binary
+distribution. Platform support is therefore validated through local source
+builds and release verification scripts.
 
-Stable wheels correspond to official releases of `nautilus_trader` on PyPI, and use standard versioning.
+| Operating system | CPU architecture | Current status |
+| --- | --- | --- |
+| macOS 15.0 and later | ARM64 | Release-gate development platform. |
+| Linux Ubuntu 22.04 and later | x86_64 | Source-build target; verify locally. |
+| Linux Ubuntu 22.04 and later | ARM64 | Source-build target; verify locally. |
+| Windows Server 2022 and later | x86_64 | Rust source-build target; formal binary policy is deferred to `NBIN-001`. |
 
-To install the latest stable release:
+If you need redis-backed cache or message-bus workflows, see
+[Redis](#redis). Otherwise Redis is not required for CLI help, source builds,
+or local documentation validation.
 
-```bash
-uv pip install nautilus_trader --index-url=https://packages.nautechsystems.io/simple
-```
+## Install Rust
 
-:::tip
-Use `--extra-index-url` instead of `--index-url` if you want uv to fall back to PyPI automatically:
-
-:::
-
-### Development wheels
-
-Development wheels are published from both the `nightly` and `develop` branches,
-allowing users to test features and fixes ahead of stable releases.
-
-This process also helps preserve compute resources and provides easy access to the exact binaries tested in CI pipelines,
-while adhering to [PEP-440](https://peps.python.org/pep-0440/) versioning standards:
-
-- `develop` wheels use the version format `dev{date}+{build_number}` (e.g., `1.208.0.dev20241212+7001`).
-- `nightly` wheels use the version format `a{date}` (alpha) (e.g., `1.208.0a20241212`).
-
-| Platform           | Nightly | Develop |
-| :----------------- | :------ | :------ |
-| `Linux (x86_64)`   | ✓       | ✓       |
-| `Linux (ARM64)`    | ✓       | -       |
-| `macOS (ARM64)`    | ✓       | -       |
-| `Windows (x86_64)` | ✓       | -       |
-
-**Note**: Development wheels from the `develop` branch publish for Linux x86_64 only.
-Windows, macOS, and Linux ARM64 builds run on the nightly schedule to keep CI feedback fast.
-
-:::warning
-We do not recommend using development wheels in production environments, such as live trading controlling real capital.
-:::
-
-### Installation commands
-
-By default, uv will install the latest stable release. Adding the `--pre` flag ensures that pre-release versions, including development wheels, are considered.
-
-To install the latest available pre-release (including development wheels):
-
-```bash
-uv pip install nautilus_trader --pre --index-url=https://packages.nautechsystems.io/simple
-```
-
-To install a specific development wheel (e.g., `1.221.0a20250912` for September 12, 2025):
-
-```bash
-uv pip install nautilus_trader==1.221.0a20250912 --index-url=https://packages.nautechsystems.io/simple
-```
-
-### Available versions
-
-You can view all available versions of `nautilus_trader` on the [package index](https://packages.nautechsystems.io/simple/nautilus-trader/index.html).
-
-To programmatically request and list available versions:
-
-```bash
-curl -s https://packages.nautechsystems.io/simple/nautilus-trader/index.html | grep -oP '(?<=<a href=")[^"]+(?=")' | awk -F'#' '{print $1}' | sort
-```
-
-### Branch updates
-
-- `develop` branch wheels (`.dev`): Build and publish continuously with every merged commit.
-- `nightly` branch wheels (`a`): Build and publish daily when we automatically merge the `develop` branch at **14:00 UTC** (if there are changes).
-
-### Retention policies
-
-- `develop` branch wheels (`.dev`): We retain only the most recent wheel build.
-- `nightly` branch wheels (`a`): We retain only the 30 most recent wheel builds.
-
-### Verifying build provenance
-
-All release artifacts published by the project carry cryptographic attestations
-generated by the CI/CD pipeline:
-
-- Python wheels and source distribution (PyPI, GitHub Releases, Nautech Systems package index): [SLSA](https://slsa.dev/) build provenance.
-- Docker images (`ghcr.io/nautechsystems/nautilus_trader`, `ghcr.io/nautechsystems/jupyterlab`): keyless [cosign](https://github.com/sigstore/cosign) signatures plus SPDX SBOM attestations.
-
-Both are issued via [Sigstore](https://www.sigstore.dev/) and bound to a specific
-commit SHA, so verification ensures the artifact was produced by the official
-NautilusTrader GitHub Actions workflow and has not been tampered with since.
-
-For step-by-step verification commands, see [Verifying releases](https://github.com/nautechsystems/nautilus_trader/blob/develop/SECURITY.md#verifying-releases) in `SECURITY.md`.
-
-:::note
-Verification requires the [GitHub CLI](https://cli.github.com/) (`gh`) for Python artifacts
-and [cosign](https://github.com/sigstore/cosign) for Docker images.
-Development wheels from `develop` and `nightly` branches are also attested.
-:::
-
-## From source
-
-It's possible to install from source using pip if you first install the build dependencies as specified in the `pyproject.toml`.
-
-### 1. Install rustup
-
-Install [rustup](https://rustup.rs/) (the Rust toolchain installer):
+Install [rustup](https://rustup.rs/):
 
 ```bash tab="Linux/macOS"
 curl https://sh.rustup.rs -sSf | sh
+source "$HOME/.cargo/env"
 ```
 
 ```powershell tab="Windows"
 # Download and install rustup-init.exe from https://win.rustup.rs/x86_64
-# Also install "Desktop development with C++" via Build Tools for Visual Studio 2022
+# Then start a new PowerShell session.
 ```
 
-Verify: `rustc --version`
+Install the pinned release toolchain:
 
-### 2. Enable cargo
-
-Enable `cargo` in the current shell:
-
-```bash tab="Linux/macOS"
-source $HOME/.cargo/env
+```bash
+rustup toolchain install 1.95.0
+rustup override set 1.95.0
+rustc --version
+cargo --version
 ```
 
-```powershell tab="Windows"
-# Start a new PowerShell session
-```
+## Install native build tools
 
-### 3. Install clang
-
-Install [clang](https://clang.llvm.org/) (a C language frontend for LLVM). On Linux this also installs [lld](https://lld.llvm.org/), which is configured as the Rust linker for faster builds:
+Linux builds should have `clang` and `lld` available:
 
 ```bash tab="Linux"
+sudo apt-get update
 sudo apt-get install clang lld
 ```
 
-```powershell tab="Windows"
-# 1. Add Clang via Visual Studio Installer:
-#    Modify > C++ Clang tools for Windows (latest) > Modify
-# 2. Add to PATH:
-[System.Environment]::SetEnvironmentVariable('path', "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Tools\Llvm\x64\bin\;" + $env:Path,"User")
+macOS builds require the Apple command line tools:
+
+```bash tab="macOS"
+xcode-select --install
 ```
 
-Verify: `clang --version`
+Windows builds require the Visual Studio 2022 C++ build tools and the Rust
+MSVC toolchain.
 
-### 4. Install uv
+## Run the Rust CLI
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation):
-
-```bash tab="Linux/macOS"
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-```powershell tab="Windows"
-irm https://astral.sh/uv/install.ps1 | iex
-```
-
-### 5. Clone and install
-
-Clone the source with `git`, and install from the project's root directory:
+The Rust CLI is the first supported product entrypoint:
 
 ```bash
-git clone --branch develop --depth 1 https://github.com/nautechsystems/nautilus_trader
-cd nautilus_trader
-uv sync --all-extras
+cargo run -p nautilus-cli -- --help
+cargo run -p nautilus-cli -- backtest --help
+cargo run -p nautilus-cli -- sandbox --help
+cargo run -p nautilus-cli -- live --help
 ```
 
-:::note
-The `--depth 1` flag fetches just the latest commit for a faster, lightweight clone.
-:::
+These commands must not require Python, PyO3, Cython, or a Python virtual
+environment.
 
-### 6. Set environment variables
+## Local verification
 
-Set environment variables for PyO3 compilation (Linux and macOS only). Run these commands from
-the repository root after `uv sync`:
+Run the fast local gate before opening a PR:
 
 ```bash
-# Set the Python executable path for PyO3
-export PYO3_PYTHON="$PWD/.venv/bin/python"
-
-# Linux only: Set the library path for the uv-managed Python runtime
-PYTHON_LIB_DIR="$("$PYO3_PYTHON" -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR"))')"
-export LD_LIBRARY_PATH="$PYTHON_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-
-# Required for Rust tests when using uv-installed Python
-export PYTHONHOME="$("$PYO3_PYTHON" -c 'import sys; print(sys.base_prefix)')"
+scripts/ai/verify_fast.sh
 ```
 
-:::note
-The `LD_LIBRARY_PATH` export is Linux-specific and not needed on macOS.
-
-The `PYTHONHOME` variable is required when running `make cargo-test` with a `uv`-installed Python.
-Without it, tests that depend on PyO3 may fail to locate the Python runtime.
-:::
-
-## From GitHub release
-
-To install a binary wheel from GitHub, first navigate to the [latest release](https://github.com/nautechsystems/nautilus_trader/releases/latest).
-Download the appropriate `.whl` for your operating system and Python version, then run:
+For release-oriented checks, run:
 
 ```bash
-uv pip install <file-name>.whl
+scripts/ai/check_rust_only_runtime.sh
+scripts/ai/check_cython_removed.sh
+scripts/ai/verify_release.sh
 ```
 
-## Versioning and releases
-
-NautilusTrader is still under active development. Some features may be incomplete, and while
-the API is becoming more stable, breaking changes can occur between releases.
-We strive to document these changes in the release notes on a **best-effort basis**.
-
-We aim to follow a **bi-weekly release schedule**, though experimental or larger features may cause delays.
-
-Use NautilusTrader only if you are prepared to adapt to these changes.
+`verify_release.sh` is broader and slower than the fast gate. It is intended
+for release evidence, not every local edit.
 
 ## Redis
 
-Using [Redis](https://redis.io) with NautilusTrader is **optional** and only required if configured as the backend for a cache database or [message bus](../concepts/message_bus.md).
+Using [Redis](https://redis.io) is optional. It is only needed when a workflow
+explicitly configures Redis as the backend for a cache database or
+[message bus](../concepts/message_bus.md).
 
-:::info
-The minimum supported Redis version is 6.2 (required for [streams](https://redis.io/docs/latest/develop/data-types/streams/) functionality).
-:::
+The minimum supported Redis version is 6.2.
 
-For a quick setup, we recommend using a [Redis Docker container](https://hub.docker.com/_/redis/). You can find an example setup in the `.docker` directory,
-or run the following command to start a container:
+For a quick local instance:
 
 ```bash
 docker run -d --name redis -p 6379:6379 redis:latest
 ```
 
-This command will:
+Manage the container with:
 
-- Pull the latest version of Redis from Docker Hub if it's not already downloaded.
-- Run the container in detached mode (`-d`).
-- Name the container `redis` for easy reference.
-- Expose Redis on the default port 6379, making it accessible to NautilusTrader on your machine.
-
-To manage the Redis container:
-
-- Start it with `docker start redis`
-- Stop it with `docker stop redis`
-
-:::tip
-We recommend using [Redis Insight](https://redis.io/insight/) as a GUI to visualize and debug Redis data efficiently.
-:::
+```bash
+docker start redis
+docker stop redis
+```
 
 ## Precision mode
 
-NautilusTrader supports two precision modes for its core value types (`Price`, `Quantity`, `Money`),
-which differ in their internal bit-width and maximum decimal precision.
+NTPRO keeps the Rust precision modes from the NautilusTrader lineage:
 
-- **High-precision**: 128-bit integers with up to 16 decimals of precision, and a larger value range.
-- **Standard-precision**: 64-bit integers with up to 9 decimals of precision, and a smaller value range.
+- **High precision**: 128-bit integers with up to 16 decimals of precision.
+- **Standard precision**: 64-bit integers with up to 9 decimals of precision.
 
-:::note
-By default, the official Python wheels ship in high-precision (128-bit) mode on Linux and macOS.
-On Windows, only standard-precision (64-bit) Python wheels are available because MSVC's C/C++ frontend
-does not support `__int128`, preventing the Cython/FFI layer from handling 128-bit integers.
+The default is standard precision unless the `high-precision` Rust feature is
+enabled.
 
-For pure Rust crates, high-precision works on all platforms (including Windows) since Rust handles
-`i128`/`u128` via software emulation. The default is standard-precision unless you explicitly enable
-the `high-precision` feature flag.
-:::
-
-The performance tradeoff is that standard-precision is ~3–5% faster in typical backtests,
-but has lower decimal precision and a smaller representable value range.
-
-:::note
-Performance benchmarks comparing the modes are pending.
-:::
-
-### Build configuration
-
-The precision mode is determined by:
-
-- Setting the `HIGH_PRECISION` environment variable during compilation, **and/or**
-- Enabling the `high-precision` Rust feature flag explicitly.
-
-```bash tab="High-precision (128-bit)"
-export HIGH_PRECISION=true
-make install-debug
-```
-
-```bash tab="Standard-precision (64-bit)"
-export HIGH_PRECISION=false
-make install-debug
-```
-
-### Rust feature flag
-
-To enable high-precision (128-bit) mode in Rust, add the `high-precision` feature to your `Cargo.toml`:
+To enable high precision from a Rust dependency:
 
 ```toml
 [dependencies]
 nautilus_core = { version = "*", features = ["high-precision"] }
 ```
 
-:::info
-See the [Value Types](../concepts/overview.md#value-types) specifications for more details.
-:::
+For workspace builds, prefer the existing Cargo feature configuration and
+record the exact command in PR evidence.
+
+## Unsupported install paths
+
+The following are not NTPRO product entrypoints:
+
+- `pip install` or `uv pip install`;
+- PyPI or third-party Python package indexes;
+- Python wheels or source distributions;
+- `maturin`, PyO3, Cython, or `build.py` product builds;
+- Docker/Jupyter images as the default NTPRO delivery path.
+
+Local Python scripts may still exist under `scripts/` for repository control,
+audits, or release evidence. They are helper tooling only, not user-facing
+runtime APIs.

@@ -7,6 +7,13 @@ through a Rust `LiveNode`. It focuses on BitMEX's **deadman's switch**: a
 server-side cancel-all timer that protects the strategy from stranded
 quotes if the client loses connectivity.
 
+:::warning[Legacy migration reference]
+The backtest snippets in this page are retained as migration reference
+material while Rust adapter fixture coverage is expanded. The supported NTPRO
+product path starts with the Rust CLI, Cargo examples, and Rust live node
+examples.
+:::
+
 ## Introduction
 
 XBTUSD is BitMEX's USD-denominated, BTC-margined inverse perpetual swap
@@ -75,9 +82,9 @@ seconds.
 
 ## Prerequisites
 
-- [NautilusTrader](https://pypi.org/project/nautilus_trader/) installed.
-- A Rust toolchain (`cargo`) for the live example. Install from
-  [rustup.rs](https://rustup.rs/).
+- NTPRO cloned from the formal Rust-only release tag or `main`.
+- A Rust toolchain (`cargo`) configured as described in
+  [Installation](../getting_started/installation.md).
 - A BitMEX account: sign up at [bitmex.com](https://www.bitmex.com/) and
   generate an API key with order management permissions. Use the
   [BitMEX testnet](https://testnet.bitmex.com/) for first runs.
@@ -94,10 +101,10 @@ export BITMEX_TESTNET_API_KEY="your-testnet-api-key"
 export BITMEX_TESTNET_API_SECRET="your-testnet-api-secret"
 ```
 
-Alternatively place these in a `.env` file at the project root; both the
-Python and Rust paths load it via `dotenvy`.
+Alternatively place these in a `.env` file at the project root; the Rust
+examples load it via `dotenvy`.
 
-## Backtesting with free Tardis quote data
+## Legacy backtesting migration reference
 
 BitMEX does not expose historical L2 data via its own API beyond recent
 trades. [Tardis.dev](https://tardis.dev) captures and archives tick-level

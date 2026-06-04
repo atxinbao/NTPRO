@@ -25,7 +25,7 @@ without relying on Python, PyO3, or Cython.
 
 ## Backtesting API levels
 
-NautilusTrader provides two API levels for backtesting:
+NTPRO exposes two Rust API levels for backtesting:
 
 | API level                                      | Entry point     | Best for                                                          |
 |:-----------------------------------------------|:----------------|:------------------------------------------------------------------|
@@ -58,19 +58,9 @@ NTPRO keeps Rust examples as the supported product surface:
 | [crates/live/examples/](../../crates/live/examples/) | Runnable Rust live/sandbox Cargo examples |
 | [docs/tutorials/](../tutorials/)               | Rust-only tutorials and migration walkthroughs       |
 
-## Running in Docker
+## Docker status
 
-A self-contained dockerized Jupyter notebook server provides the fastest way to try
-NautilusTrader with no local setup. Deleting the container deletes any data.
-
-```bash
-# Pull the latest image
-docker pull ghcr.io/nautechsystems/jupyterlab:nightly --platform linux/amd64
-
-# Run the container
-docker run -p 8888:8888 ghcr.io/nautechsystems/jupyterlab:nightly
-```
-
-Then open <http://localhost:8888> in your browser. The legacy Python notebook
-examples have been removed from this repository; use Rust guides for supported
-local workflows.
+Docker and Jupyter images are not the default NTPRO v0.1.0 product delivery
+path, and Docker delivery is not a v0.2.0 requirement. Use the Rust CLI,
+Cargo examples, and local release verification scripts as the supported
+starting point.

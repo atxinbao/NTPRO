@@ -4,7 +4,8 @@
 
 NautilusTrader must ship as a Rust-only product. Rust crates own runtime behavior, Rust CLI commands provide operational entrypoints, Rust examples demonstrate user workflows, and Rust documentation is the public usage path.
 
-Python, PyO3, and Cython are not final product surfaces. They may exist temporarily only as comparison or migration surfaces until Rust-only parity and usability evidence is complete.
+Python, PyO3, and Cython are not final product surfaces. Historical migration
+evidence may mention them, but the formal release product path is Rust-only.
 
 ## Runtime Contract
 
@@ -33,7 +34,9 @@ A difference is allowed only when:
 
 ## Rust-Only Usability Contract
 
-The cutover is not complete merely because Python/Cython files were deleted. The release candidate must prove a new user can use the project with Rust tooling only:
+The cutover is not complete merely because Python/Cython files were deleted.
+The Rust-only release must prove a new user can use the project with Rust
+tooling only:
 
 - build the workspace with Cargo;
 - run the Nautilus CLI without Python;
