@@ -2294,7 +2294,7 @@
     },
     "NARCH-002": {
       "title": "Module contracts",
-      "status": "TODO",
+      "status": "QA_REQUIRED",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2305,7 +2305,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NARCH-002.md",
       "evidence_file": "docs/rust-cutover/evidence/NARCH-002.md",
-      "updated_at": "2026-06-04T13:09:00Z"
+      "updated_at": "2026-06-04T16:01:35Z"
     },
     "NARCH-003": {
       "title": "Node lifecycle state machine",
