@@ -73,6 +73,21 @@ cargo run -p nautilus-cli -- live --help
 The release verification gate checks that the CLI exposes the Rust product
 commands without requiring Python.
 
+## Install Path
+
+NTPRO is source-build first. From a checked-out repository, run the CLI through
+Cargo or install the binary locally:
+
+```bash
+cargo run -p nautilus-cli -- --help
+cargo install --path crates/cli --bin nautilus --locked --force
+nautilus --help
+```
+
+The current binary name is `nautilus`, provided by the `nautilus-cli` package.
+NTPRO does not currently publish prebuilt binaries, Python wheels, PyPI
+packages, or Docker images as product delivery paths.
+
 ## Verification
 
 Fast local validation:
