@@ -2129,7 +2129,7 @@
     },
     "RHARD-002": {
       "title": "Toolchain and verification path hardening",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -2140,11 +2140,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RHARD-002.md",
       "evidence_file": "docs/rust-cutover/evidence/RHARD-002.md",
-      "updated_at": "2026-06-04T13:18:31Z"
+      "updated_at": "2026-06-04T13:31:45Z"
     },
     "RHARD-007": {
       "title": "Verification cleanup",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "low",
@@ -2155,7 +2155,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RHARD-007.md",
       "evidence_file": "docs/rust-cutover/evidence/RHARD-007.md",
-      "updated_at": "2026-06-04T13:09:00Z"
+      "updated_at": "2026-06-04T13:31:45Z"
     },
     "RHARD-003": {
       "title": "CLI help contract",
