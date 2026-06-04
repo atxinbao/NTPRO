@@ -136,18 +136,30 @@ oms_type = "HEDGING"
 starting_balances = ["1000000 USD"]
 
 [[data]]
-source = "fixture"
-catalog_path = "catalog/sandbox-smoke"
+source = "synthetic-quotes"
 instrument_id = "AUD/USD.SIM"
+events = 3
 
 [execution]
+order_submission = "simulated"
 reconciliation = "disabled"
-startup_timeout_secs = 120
+
+[risk]
+mode = "simulated"
+max_order_qty = 1000
+
+[portfolio]
+mode = "simulated"
+starting_balance = "1000000 USD"
+
+[cache]
+mode = "in-memory"
+warmup_instruments = ["AUD/USD.SIM"]
 
 [shutdown]
-mode = "duration"
-max_runtime_secs = 30
-disconnect_timeout_secs = 10
+mode = "once"
+max_runtime_secs = 1
+disconnect_timeout_secs = 1
 
 [output]
 dir = "runs/sandbox-smoke"
@@ -259,6 +271,11 @@ live.validate status=ok config=<path> run_id=<id>
 - adapter support decision summary;
 - shutdown reason.
 
+The RHARD-004 sandbox demo also writes `summary.txt` and `events.log` with
+node start, synthetic data flow, simulated execution, risk, portfolio, cache,
+and node stop status. It explicitly reports `external_venue_connection=false`
+and `real_orders_submitted=false`.
+
 Human-readable text is enough for the initial implementation. Machine-readable
 JSON output can be added later as an explicit `--format json` option.
 
@@ -301,14 +318,14 @@ The first lifecycle smoke must also prove:
 
 ## Known Blockers
 
-- `nautilus sandbox` is not implemented in the current CLI.
 - `nautilus live` is not implemented in the current CLI.
-- A Rust CLI config parser and TOML model have not been added for live-node
-  workflows.
-- Sandbox lifecycle smoke is not wired into the CLI.
+- Full live-node runtime wiring is not implemented in the current CLI.
 - Adapter support for live mode is not classified by the CLI.
 - Production live adapter behavior requires adapter evidence and explicit task
   scope before it can be used as release evidence.
+
+RHARD-004 closes the sandbox CLI blocker for the local simulated demo only.
+Real live-node construction and adapter behavior remain deferred.
 
 These blockers should be closed by later RPROD, RCORE, RADP, and RTRACE tasks,
 not bypassed by Python fallback behavior.

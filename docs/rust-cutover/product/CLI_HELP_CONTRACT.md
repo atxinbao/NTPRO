@@ -39,9 +39,9 @@ RHARD-003 help contract.
 | `nautilus backtest --help` | supported | deferred | Exposes `validate` and `run`; execution returns explicit blocker messages. |
 | `nautilus backtest validate --help` | supported | deferred | Requires `--config <CONFIG>`. |
 | `nautilus backtest run --help` | supported | partially supported | Requires `--config <CONFIG>` and accepts `--run-id`, `--output`, and `--dry-run`; RHARD-006 supports metadata-only dry-run. |
-| `nautilus sandbox --help` | supported | deferred | Exposes `validate` and `run`; execution returns explicit blocker messages. |
-| `nautilus sandbox validate --help` | supported | deferred | Requires `--config <CONFIG>`. |
-| `nautilus sandbox run --help` | supported | deferred | Requires `--config <CONFIG>` and accepts `--run-id` plus `--output`. |
+| `nautilus sandbox --help` | supported | partially supported | Exposes `validate` and `run`; RHARD-004 supports a local simulated demo. |
+| `nautilus sandbox validate --help` | supported | partially supported | Requires `--config <CONFIG>`; validates the RHARD-004 demo config. |
+| `nautilus sandbox run --help` | supported | partially supported | Requires `--config <CONFIG>` and accepts `--run-id` plus `--output`; writes RHARD-004 demo artifacts. |
 | `nautilus live --help` | supported | deferred | Exposes `validate` and `run`; execution returns explicit blocker messages. |
 | `nautilus live validate --help` | supported | deferred | Requires `--config <CONFIG>`. |
 | `nautilus live run --help` | supported | deferred | Requires `--config <CONFIG>` and accepts `--run-id` plus `--output`. |
@@ -60,8 +60,6 @@ RHARD-003 help contract.
 These product commands are help-stable but not runtime-complete:
 
 - full `backtest run` without `--dry-run`;
-- `sandbox validate`;
-- `sandbox run`;
 - `live validate`;
 - `live run`;
 - `data inspect`;
@@ -70,10 +68,12 @@ These product commands are help-stable but not runtime-complete:
 - `config validate`.
 
 `backtest validate` and `backtest run --dry-run` now support the RHARD-006
-metadata-only minimal path. The remaining deferred commands intentionally return
-owner-visible blocker errors from Rust code. Later v0.2.0 tasks should replace
-those blockers with scoped Rust implementations only when config parsing,
-runtime wiring, adapter classification, and evidence requirements are ready.
+metadata-only minimal path. `sandbox validate` and `sandbox run` now support the
+RHARD-004 local simulated demo path. The remaining deferred commands
+intentionally return owner-visible blocker errors from Rust code. Later v0.2.0
+tasks should replace those blockers with scoped Rust implementations only when
+config parsing, runtime wiring, adapter classification, and evidence
+requirements are ready.
 
 ## Missing or Out of Scope
 

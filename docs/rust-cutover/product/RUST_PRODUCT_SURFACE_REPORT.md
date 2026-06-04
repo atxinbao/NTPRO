@@ -115,10 +115,12 @@ The following gaps are owner-visible and remain in scope for later tasks:
 - `nautilus backtest validate` and `nautilus backtest run` parse and expose help
   contracts, but full execution remains blocked until Rust config parsing,
   strategy selection, data catalog loading, and runtime wiring are completed.
-- `nautilus sandbox validate`, `nautilus sandbox run`, `nautilus live validate`,
-  and `nautilus live run` expose help contracts, but full execution remains
-  blocked until live-node config parsing, lifecycle wiring, adapter
-  classification, and sandbox/live smoke expansion are completed.
+- `nautilus sandbox validate` and `nautilus sandbox run` support the RHARD-004
+  local simulated demo, but full live-node runtime execution remains blocked
+  until lifecycle wiring and adapter classification are completed.
+- `nautilus live validate` and `nautilus live run` expose help contracts, but
+  execution remains blocked until live-node config parsing, lifecycle wiring,
+  adapter classification, and live smoke expansion are completed.
 - `nautilus data inspect`, `nautilus data validate`, and `nautilus data load`
   expose help contracts, but data-source inspection and load behavior remain
   under later data/runtime and adapter work.
