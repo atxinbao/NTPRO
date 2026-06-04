@@ -1,0 +1,28 @@
+[run]
+id = "live-init-smoke"
+mode = "live-init-smoke"
+environment = "sandbox"
+
+[system]
+trader_id = "LIVE-INIT-001"
+node_name = "LiveInitSmoke"
+load_state = false
+save_state = false
+
+[adapter]
+name = "SANDBOX"
+kind = "sandbox-simulated-execution"
+account_id = "SANDBOX-001"
+venue = "SANDBOX"
+starting_balances = ["100000 USDT"]
+
+[execution]
+order_submission = "disabled"
+reconciliation = false
+external_venue_connection = false
+
+[shutdown]
+mode = "start-stop"
+post_stop_delay_secs = 0
+connection_timeout_secs = 5
+disconnection_timeout_secs = 5

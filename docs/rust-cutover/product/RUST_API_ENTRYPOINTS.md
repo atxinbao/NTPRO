@@ -106,16 +106,24 @@ Runnable Cargo smoke:
 
 ```bash
 cargo run -p nautilus-live --no-default-features --features node --example sandbox-node-smoke
+cargo run -p nautilus-live --no-default-features --features node --example live-init-smoke
 ```
 
 Reference source:
 
 - `crates/live/examples/sandbox_node_smoke.rs`
+- `crates/live/examples/live_init_smoke.rs`
 - `examples/rust/sandbox/README.md`
+- `examples/rust/live/README.md`
 - `docs/rust-cutover/evidence/RPROD-012.md`
+- `docs/rust-cutover/evidence/RHARD-005.md`
 
 The sandbox smoke constructs a Rust `LiveNode` in `Sandbox` mode and does not
 connect to a production venue.
+
+The live init smoke registers a simulated sandbox execution client, starts the
+Rust `LiveNode`, verifies account cache initialization, then stops the node
+without external venue connections or real orders.
 
 ## Data And Config Entrypoints
 
