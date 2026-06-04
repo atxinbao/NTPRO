@@ -1,5 +1,11 @@
 # Execution Testing Spec
 
+:::warning
+NTPRO is a Rust-only product surface. Python and PyO3 setup examples retained
+on this page are legacy upstream context. The Rust node setup is the current
+direction for NTPRO adapter execution evidence.
+:::
+
 This section defines a rigorous test matrix for validating adapter execution
 functionality using the `ExecTester` strategy. Both Python
 (`nautilus_trader.test_kit.strategies.tester_exec`) and Rust

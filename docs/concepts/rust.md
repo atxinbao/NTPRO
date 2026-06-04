@@ -1,119 +1,65 @@
 # Rust
 
-Nautilus has a complete Rust implementation under the `crates/` directory.
-You can write actors, strategies, run backtests, and trade live without Python.
-The domain model is shared across all paths, and the v2 PyO3 path runs
-Python strategies on the Rust engine directly.
+NTPRO has a Rust-only implementation under the `crates/` directory. You can
+write actors, strategies, run backtests, and build live/runtime paths through
+the Rust workspace without Python, PyO3, or Cython.
+
+Legacy upstream documentation described v1 Cython/Python and v2 PyO3 paths.
+Those paths are not supported NTPRO product surfaces after the Rust-only
+cutover. Retained references are historical or migration context only.
 
 :::warning
 The Rust API is under active development. Method signatures and trait
 requirements may change between releases.
 :::
 
-## System implementations
+## System implementation
 
-Nautilus has three implementations. Understanding where each stands helps
-you choose the right one for your use case.
+NTPRO's supported implementation is the Rust workspace under `crates/`. The
+workspace retains runtime crates for backtest, live, trading, data, execution,
+risk, portfolio, model, persistence, system, and adapters.
 
-- **v1 legacy**: Cython/Python classes under `nautilus_trader/`. Fully
-  featured with the broadest component coverage.
-- **v2 Rust**: Pure Rust under `crates/`. Runs without Python.
-- **v2 PyO3**: Python user-components (actors, strategies) running on
-  the Rust core via PyO3 bindings. Combines Python convenience with
-  Rust engine performance.
+Do not select a Python/PyO3/Cython implementation path for current NTPRO work.
+Adapter and live-runtime availability must be read from current release evidence
+and adapter support records, not from upstream Python compatibility tables.
 
-### Capability matrix
+### Adapter families
 
-| Component             | v1 legacy (Cython) | v2 Rust        | v2 PyO3 (Python on Rust) |
-|-----------------------|--------------------|----------------|--------------------------|
-| Strategy              | ✓                  | ✓              | ✓                        |
-| Actor                 | ✓                  | ✓              | ✓                        |
-| DataEngine            | ✓                  | ✓              | ✓                        |
-| ExecutionEngine       | ✓                  | ✓              | ✓                        |
-| RiskEngine            | ✓                  | ✓              | ✓                        |
-| BacktestEngine        | ✓                  | ✓              | ✓                        |
-| BacktestNode          | ✓                  | ✓              | ✓                        |
-| LiveNode              | ✓                  | ✓              | ✓                        |
-| OrderEmulator         | ✓                  | ✓              | ✓                        |
-| Matching engine       | ✓                  | ✓              | ✓                        |
-| Portfolio             | ✓                  | ✓              | ✓                        |
-| Accounts              | ✓                  | ✓              | ✓                        |
-| Cache                 | ✓                  | ✓              | ✓                        |
-| MessageBus            | ✓                  | ✓              | ✓                        |
-| Data catalog          | ✓                  | ✓              | ✓                        |
-| Indicators            | ✓                  | ✓              | ✓                        |
-| Exec algorithms       | TWAP               | TWAP           | TWAP                     |
-| Controller            | ✓                  | -              | -                        |
-| Tearsheets            | ✓                  | -              | -                        |
-| Config serialization  | ✓                  | -              | -                        |
-
-### Adapters
-
-| Adapter             | v1 legacy (Cython) | v2 Rust | v2 PyO3 |
-|---------------------|--------------------|---------|---------|
-| Architect AX        | ✓                  | ✓       | ✓       |
-| Betfair             | ✓                  | ✓       | ✓       |
-| Binance             | ✓                  | ✓       | ✓       |
-| BitMEX              | ✓                  | ✓       | ✓       |
-| Bybit               | ✓                  | ✓       | ✓       |
-| Databento           | ✓                  | ✓       | ✓       |
-| Deribit             | ✓                  | ✓       | ✓       |
-| dYdX                | ✓                  | ✓       | ✓       |
-| Hyperliquid         | ✓                  | ✓       | ✓       |
-| Interactive Brokers | ✓                  | -       | -       |
-| Kraken              | ✓                  | ✓       | ✓       |
-| OKX                 | ✓                  | ✓       | ✓       |
-| Polymarket          | ✓                  | ✓       | ✓       |
-| Sandbox             | ✓                  | ✓       | ✓       |
-| Tardis              | ✓                  | ✓       | ✓       |
+The repository includes Rust adapter crates for Architect AX, Betfair, Binance,
+BitMEX, Blockchain, Bybit, Coinbase, Databento, Deribit, dYdX, Hyperliquid,
+Interactive Brokers, Kraken, OKX, Polymarket, Sandbox, and Tardis. Support
+status is not implied by upstream Python parity; each adapter needs current
+Rust evidence before it is treated as supported for a release.
 
 ### Choosing a path
 
-- **v1 legacy** is the most complete today. Use it if you need the
-  Controller, tearsheets, Interactive Brokers, or config serialization.
-- **v2 Rust** gives native performance without a Python runtime. All core
-  trading functionality is available. Use it for latency-sensitive
-  deployments or teams that prefer a compiled language.
-- **v2 PyO3**: Python user-components (actors, strategies) run on the
-  Rust core engine with Rust performance for data processing and
-  execution, while keeping the Python authoring experience.
+- **NTPRO Rust workspace** is the supported product path.
+- **Legacy upstream Python/Cython/PyO3 paths** are unsupported for NTPRO and
+  should only be cited as history, migration evidence, or removal evidence.
+- **Future product work** must add Rust implementation evidence before docs
+  describe it as available.
 
 ## Project setup
 
-The Nautilus crates are published to
-[crates.io](https://crates.io/crates/nautilus-backtest). Add them to your
-`Cargo.toml`:
+Use the repository workspace as the authoritative source for NTPRO. For local
+development inside this repository, build and test the workspace through Cargo:
 
-```toml
-[dependencies]
-nautilus-backtest = "0.55"
-nautilus-common = "0.55"
-nautilus-execution = "0.55"
-nautilus-model = { version = "0.55", features = ["stubs"] }
-nautilus-trading = { version = "0.55", features = ["examples"] }
-
-anyhow = "1"
-log = "0.4"
+```bash
+cargo check --workspace
+cargo test -p nautilus-cli
 ```
 
-For live trading, add the live crate and the adapter for your venue:
+When creating a local Rust example outside the workspace, use local `path`
+dependencies that point at the checked-out NTPRO repository. Do not point NTPRO
+examples at the upstream NautilusTrader `develop` branch.
 
 ```toml
 [dependencies]
-nautilus-live = "0.55"
-nautilus-okx = "0.55"
-```
-
-To track the latest development branch, point all Nautilus dependencies at the
-same git source to avoid type mismatches between crates.io and git versions:
-
-```toml
-[dependencies]
-nautilus-backtest = { git = "https://github.com/nautechsystems/nautilus_trader.git", branch = "develop" }
-nautilus-common = { git = "https://github.com/nautechsystems/nautilus_trader.git", branch = "develop" }
-nautilus-execution = { git = "https://github.com/nautechsystems/nautilus_trader.git", branch = "develop" }
-nautilus-model = { git = "https://github.com/nautechsystems/nautilus_trader.git", branch = "develop", features = ["stubs"] }
-nautilus-trading = { git = "https://github.com/nautechsystems/nautilus_trader.git", branch = "develop", features = ["examples"] }
+nautilus-backtest = { path = "/path/to/NTPRO/crates/backtest" }
+nautilus-common = { path = "/path/to/NTPRO/crates/common" }
+nautilus-execution = { path = "/path/to/NTPRO/crates/execution" }
+nautilus-model = { path = "/path/to/NTPRO/crates/model", features = ["stubs"] }
+nautilus-trading = { path = "/path/to/NTPRO/crates/trading", features = ["examples"] }
 ```
 
 The minimum supported Rust version (MSRV) is **1.95.0**.
@@ -171,7 +117,7 @@ override what you need.
 For a step-by-step walkthrough, see the
 [Write an Actor (Rust)](../how_to/write_rust_actor.md) how-to guide.
 For a complete example, see
-[`BookImbalanceActor`](https://github.com/nautechsystems/nautilus_trader/tree/develop/crates/trading/src/examples/actors/imbalance).
+[`BookImbalanceActor`](../../crates/trading/src/examples/actors/imbalance).
 
 ## Strategies
 
@@ -202,15 +148,14 @@ objects: `market`, `limit`, `stop_market`, `stop_limit`,
 For a step-by-step walkthrough, see the
 [Write a Strategy (Rust)](../how_to/write_rust_strategy.md) how-to guide.
 For complete examples, see
-[`EmaCross`](https://github.com/nautechsystems/nautilus_trader/tree/develop/crates/trading/src/examples/strategies/ema_cross)
+[`EmaCross`](../../crates/trading/src/examples/strategies/ema_cross)
 and
-[`GridMarketMaker`](https://github.com/nautechsystems/nautilus_trader/tree/develop/crates/trading/src/examples/strategies/grid_mm).
+[`GridMarketMaker`](../../crates/trading/src/examples/strategies/grid_mm).
 
 ### Running Rust components
 
-Rust strategies and actors can run through three paths. The examples
-below use strategies, but the same pattern applies to actors via
-`add_actor` (pure Rust) and `add_native_actor` (from Python).
+Rust strategies and actors run through the Rust path. The examples below use
+strategies, but the same pattern applies to actors via `add_actor`.
 
 #### Pure Rust
 
@@ -226,45 +171,12 @@ node.run().await?;
 See [Run Live Trading (Rust)](../how_to/run_rust_live_trading.md) for a
 full walkthrough.
 
-#### Native config from Python
+#### Legacy native config from Python
 
-Pass a config to `add_native_strategy` to register a built-in Rust
-strategy from Python. The Rust side constructs the strategy and
-registers it with the engine. Python provides the configuration;
-all execution happens in Rust.
-
-```python
-from nautilus_trader.core.nautilus_pyo3.trading import GridMarketMakerConfig
-
-config = GridMarketMakerConfig(
-    instrument_id=InstrumentId.from_str("BTC-USDT-SWAP.OKX"),
-    max_position=Quantity.from_str("10.0"),
-    trade_size=Quantity.from_str("0.1"),
-    num_levels=5,
-    grid_step_bps=15,
-)
-
-node.add_native_strategy(config)
-```
-
-Built-in strategy configs:
-
-| Config                  | Strategy              |
-|-------------------------|-----------------------|
-| `EmaCrossConfig`        | `EmaCross`            |
-| `GridMarketMakerConfig` | `GridMarketMaker`     |
-| `DeltaNeutralVolConfig` | `DeltaNeutralVol`     |
-
-Built-in actor configs (via `add_native_actor`):
-
-| Config                     | Actor                 |
-|----------------------------|-----------------------|
-| `BookImbalanceActorConfig` | `BookImbalanceActor`  |
-
-Users who compile from source can add their own components to this
-path. Add a `#[pyclass]` config and a dispatch arm in
-`add_native_strategy` or `add_native_actor`. The component then
-works from Python without PyO3 wrappers on the type itself.
+The upstream native-config-from-Python path is unsupported in NTPRO after the
+Rust-only cutover. Do not use Python config objects, PyO3 wrappers, or
+`add_native_strategy`/`add_native_actor` examples as current NTPRO product
+entry points.
 
 #### Plugin loading (planned)
 
@@ -287,7 +199,7 @@ cargo run -p nautilus-backtest --features examples --example engine-ema-cross
 ```
 
 Source:
-[`crates/backtest/examples/engine_ema_cross.rs`](https://github.com/nautechsystems/nautilus_trader/tree/develop/crates/backtest/examples/engine_ema_cross.rs)
+[`crates/backtest/examples/engine_ema_cross.rs`](../../crates/backtest/examples/engine_ema_cross.rs)
 
 ### `BacktestNode` (high-level API)
 
@@ -300,7 +212,7 @@ cargo run -p nautilus-backtest --features examples,streaming --example node-ema-
 ```
 
 Source:
-[`crates/backtest/examples/node_ema_cross.rs`](https://github.com/nautechsystems/nautilus_trader/tree/develop/crates/backtest/examples/node_ema_cross.rs)
+[`crates/backtest/examples/node_ema_cross.rs`](../../crates/backtest/examples/node_ema_cross.rs)
 
 ## Live trading
 
@@ -340,7 +252,7 @@ against live venues.
 - [Run a Backtest (Rust)](../how_to/run_rust_backtest.md) - BacktestEngine and BacktestNode usage.
 - [Run Live Trading (Rust)](../how_to/run_rust_live_trading.md) - LiveNode setup and venue connection.
 - [Architecture](architecture.md) - System design and data/execution flow.
-- [Actors](actors.md) - Actor concepts (applies to both Python and Rust).
+- [Actors](actors.md) - Actor concepts for the Rust workspace.
 - [Strategies](strategies.md) - Strategy concepts and handler reference.
 - [Events](events.md) - Event types and handler dispatch.
 - [Backtesting](backtesting.md) - Backtest concepts and matching engine behavior.

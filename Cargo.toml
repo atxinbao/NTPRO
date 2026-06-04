@@ -60,9 +60,9 @@ keywords = [
   "algorithmic-trading",
   "quantitative-finance",
 ]
-documentation = "https://nautilustrader.io/docs"
-repository = "https://github.com/nautechsystems/nautilus_trader"
-homepage = "https://nautilustrader.io"
+documentation = "https://github.com/atxinbao/NTPRO/tree/main/docs"
+repository = "https://github.com/atxinbao/NTPRO"
+homepage = "https://github.com/atxinbao/NTPRO"
 
 [workspace.dependencies]
 nautilus-analysis = { path = "crates/analysis", version = "0.58.0" }

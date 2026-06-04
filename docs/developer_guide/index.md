@@ -1,14 +1,16 @@
 # Developer Guide
 
-Guidance on developing and extending NautilusTrader, or contributing back to the project.
+Guidance on developing and extending NTPRO after the Rust-only cutover.
 
-NautilusTrader uses a **Rust core with Python bindings** architecture:
+NTPRO uses a **Rust-only product surface**:
 
-- **Rust** handles networking, data parsing, order matching, and other performance-critical operations.
-- **Python** provides the user-facing API for strategy development, configuration, and system integration.
-- **PyO3** bridges the two, exposing Rust functionality to Python with minimal overhead.
+- **Rust crates** provide the supported runtime, domain model, adapters, and product entry points.
+- **Cargo** is the supported build and validation path.
+- **Legacy Python, PyO3, and Cython materials** may remain as upstream history or migration
+  evidence, but they are not supported NTPRO product APIs, install paths, or runtime surfaces.
 
-This approach combines Python's simplicity and ecosystem with Rust's performance and memory safety.
+Do not document an NTPRO capability as supported until the Rust implementation, evidence,
+and release notes exist.
 
 ## Contents
 
@@ -16,13 +18,13 @@ This approach combines Python's simplicity and ecosystem with Rust's performance
 - [Design Principles](design_principles.md)
 - [Coding Standards](coding_standards.md)
 - [Rust](rust.md)
-- [Python](python.md)
+- [Legacy Python notes (unsupported)](python.md)
 - [Testing](testing.md)
 - [Test Datasets](test_datasets.md)
 - [Docs Style](docs.md)
 - [Release Notes](releases.md)
 - [Adapters](adapters.md)
-- [Data Testing Spec](spec_data_testing.md)
-- [Execution Testing Spec](spec_exec_testing.md)
+- [Data Testing Spec](spec_data_testing.md) - Rust path is current; Python examples are legacy context.
+- [Execution Testing Spec](spec_exec_testing.md) - Rust path is current; Python examples are legacy context.
 - [Benchmarking](benchmarking.md)
 - [FFI Memory Contract](ffi.md)
