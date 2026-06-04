@@ -2279,7 +2279,7 @@
     },
     "NARCH-006": {
       "title": "Module boundary audit",
-      "status": "TODO",
+      "status": "QA_REQUIRED",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -2290,7 +2290,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NARCH-006.md",
       "evidence_file": "docs/rust-cutover/evidence/NARCH-006.md",
-      "updated_at": "2026-06-04T13:09:00Z"
+      "updated_at": "2026-06-04T15:56:59Z"
     },
     "NARCH-002": {
       "title": "Module contracts",
