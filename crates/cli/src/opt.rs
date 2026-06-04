@@ -387,6 +387,7 @@ mod tests {
         assert!(help.contains("live"));
         assert!(help.contains("data"));
         assert!(help.contains("config"));
+        assert!(help.contains("database"));
     }
 
     #[test]
@@ -704,5 +705,85 @@ mod tests {
         assert_eq!(validate.kind, ConfigKind::Backtest);
         assert_eq!(validate.config, PathBuf::from("config/backtest.toml"));
         assert_eq!(validate.output, Some(PathBuf::from("runs/config-validate")));
+    }
+
+    #[test]
+    fn database_help_lists_init_and_drop() {
+        let mut command = NautilusCli::command();
+        let database = command
+            .find_subcommand_mut("database")
+            .expect("database command should exist");
+        let help = database.render_help().to_string();
+
+        assert!(help.contains("init"));
+        assert!(help.contains("drop"));
+    }
+
+    #[test]
+    fn parses_database_init_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "database",
+            "init",
+            "--host",
+            "localhost",
+            "--port",
+            "5432",
+            "--username",
+            "ntpro",
+            "--database",
+            "ntpro",
+            "--password",
+            "secret",
+            "--schema",
+            "schema/postgres",
+        ])
+        .expect("database init should parse");
+
+        let Commands::Database(database) = parsed.command else {
+            panic!("expected database command");
+        };
+        let DatabaseCommand::Init(config) = database.command else {
+            panic!("expected init command");
+        };
+
+        assert_eq!(config.host.as_deref(), Some("localhost"));
+        assert_eq!(config.port, Some(5432));
+        assert_eq!(config.username.as_deref(), Some("ntpro"));
+        assert_eq!(config.database.as_deref(), Some("ntpro"));
+        assert_eq!(config.password.as_deref(), Some("secret"));
+        assert_eq!(config.schema.as_deref(), Some("schema/postgres"));
+    }
+
+    #[test]
+    fn parses_database_drop_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "database",
+            "drop",
+            "--host",
+            "localhost",
+            "--port",
+            "5432",
+            "--username",
+            "ntpro",
+            "--database",
+            "ntpro",
+        ])
+        .expect("database drop should parse");
+
+        let Commands::Database(database) = parsed.command else {
+            panic!("expected database command");
+        };
+        let DatabaseCommand::Drop(config) = database.command else {
+            panic!("expected drop command");
+        };
+
+        assert_eq!(config.host.as_deref(), Some("localhost"));
+        assert_eq!(config.port, Some(5432));
+        assert_eq!(config.username.as_deref(), Some("ntpro"));
+        assert_eq!(config.database.as_deref(), Some("ntpro"));
+        assert_eq!(config.password, None);
+        assert_eq!(config.schema, None);
     }
 }

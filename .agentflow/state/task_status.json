@@ -2144,7 +2144,7 @@
     },
     "RHARD-007": {
       "title": "Verification cleanup",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "low",
@@ -2155,11 +2155,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RHARD-007.md",
       "evidence_file": "docs/rust-cutover/evidence/RHARD-007.md",
-      "updated_at": "2026-06-04T13:31:45Z"
+      "updated_at": "2026-06-04T13:40:23Z"
     },
     "RHARD-003": {
       "title": "CLI help contract",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2170,7 +2170,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RHARD-003.md",
       "evidence_file": "docs/rust-cutover/evidence/RHARD-003.md",
-      "updated_at": "2026-06-04T13:09:00Z"
+      "updated_at": "2026-06-04T13:40:23Z"
     },
     "RHARD-006": {
       "title": "Backtest CLI minimal path",

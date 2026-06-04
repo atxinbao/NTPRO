@@ -1,0 +1,20 @@
+{
+  "task_id": "RHARD-003",
+  "agent_id": "Codex",
+  "branch": "ai/RHARD-003-cli-help-contract",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RHARD-003.md",
+    "crates/cli/src/opt.rs",
+    "docs/rust-cutover/product/CLI_HELP_CONTRACT.md",
+    "docs/rust-cutover/product/RUST_CLI_CONTRACT.md",
+    "docs/rust-cutover/evidence/RHARD-003.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RHARD-003.json"
+  ],
+  "claimed_at": "2026-06-04T13:40:23.559399+00:00",
+  "status": "RUNNING",
+  "qa_passed": true,
+  "review_passed": false,
+  "auto_merge_allowed": true,
+  "updated_at": "2026-06-04T14:17:00Z"
+}
