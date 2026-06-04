@@ -226,7 +226,7 @@ pub struct ConfigOpt {
 #[derive(Parser, Debug, Clone)]
 #[command(about = "Rust config validation", long_about = None)]
 pub enum ConfigCommand {
-    /// Defines shared config validation; implementation is not implemented yet.
+    /// Validates a Rust workflow config without running the workflow.
     Validate(ConfigValidateOpt),
 }
 
@@ -728,10 +728,12 @@ mod tests {
     }
 
     #[test]
-    fn config_validate_help_marks_contract_not_implemented() {
+    fn config_validate_help_describes_validation_boundary() {
         let help = render_subcommand_help(&["config", "validate"]);
 
-        assert!(help.contains("implementation is not implemented yet"));
+        assert!(help.contains("Validates a Rust workflow config"));
+        assert!(help.contains("--kind"));
+        assert!(help.contains("--config"));
     }
 
     #[test]

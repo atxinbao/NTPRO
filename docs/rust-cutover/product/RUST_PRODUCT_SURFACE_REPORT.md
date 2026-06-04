@@ -119,8 +119,8 @@ Recorded evidence:
 
 The following gaps are owner-visible and remain in scope for later tasks:
 
-- `nautilus backtest validate` and `nautilus backtest run` parse and expose help
-  contracts, but full execution remains blocked until Rust config parsing,
+- `nautilus backtest validate` and `nautilus backtest run --dry-run` support
+  the scoped minimal Rust config path, but full execution remains blocked until
   strategy selection, data catalog loading, and runtime wiring are completed.
 - `nautilus sandbox validate` and `nautilus sandbox run` support the RHARD-004
   local simulated demo, but full live-node runtime execution remains blocked
@@ -133,9 +133,10 @@ The following gaps are owner-visible and remain in scope for later tasks:
 - `nautilus data inspect`, `nautilus data validate`, and `nautilus data load`
   expose help contracts, but data-source inspection and load behavior remain
   under later data/runtime and adapter work.
-- `nautilus config validate` exposes the shared validation contract, but
-  complete workflow-specific validation logic still needs Rust config models
-  and parser wiring.
+- `nautilus config validate` supports scoped Rust TOML validation for
+  backtest, sandbox, live-smoke, and data/catalog configs, but complete
+  workflow-specific validation still needs unified Rust config models and
+  deeper runtime/catalog validation.
 - Adapter support is not release-classified by this report. The `RADP-*` tasks
   must classify supported, deferred, or removed adapters with fixture, mock,
   schema, dry-run, or sandbox evidence.
