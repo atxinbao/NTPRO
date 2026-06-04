@@ -406,7 +406,8 @@ from `InstrumentDefMsg` records as they arrive. Market data handlers resolve
 precision in this order:
 
 1. `InstrumentDefMsg` metadata for the Databento record `instrument_id`.
-2. Cached instrument precision passed by the Python subscription path.
+2. Cached instrument precision from retained legacy upstream subscription
+   examples.
 3. Explicit `price_precisions` passed to the direct live client.
 4. The USD default precision of 2.
 
@@ -427,17 +428,15 @@ record in this order:
    on the file loader, `get_range_instruments` on the historical client) or
    by an explicit `set_price_precision(symbol, precision)` call.
 
-The Python data client seeds the historical-client cache from the instrument
-provider before every request, so already-loaded instruments need no extra
-configuration. When precision cannot be resolved, loading fails with an
-explicit error rather than silently defaulting to USD precision.
+Legacy upstream Python data clients seeded the historical-client cache from the
+instrument provider before every request. That Python path is not an NTPRO
+product entrypoint. On the Rust path, ensure instrument definitions or explicit
+precision fallbacks are available before decoding.
 
 :::tip
-The Python adapter automatically subscribes to instrument definitions before
-market data and passes cached instrument precision as a fallback, so the
-precision map populates without extra configuration. For direct Rust client
-usage, subscribe to `DEFINITION` schema before market data or pass explicit
-precision fallbacks.
+Use the Rust client path by subscribing to `DEFINITION` schema before market
+data or by passing explicit precision fallbacks. Retained Python adapter notes
+from upstream are legacy context only.
 :::
 
 ### MBO (market by order)
@@ -483,18 +482,13 @@ normalizes `ts_event` to the bar **close** (original `ts_event` + interval).
 The `imbalance` and `statistics` schemas have no built-in Nautilus equivalents.
 The adapter defines `DatabentoImbalance` and `DatabentoStatistics` in Rust.
 
-PyO3 bindings expose these types in Python. Their attributes are PyO3 objects
-and may not work with methods expecting Cython types. See the API reference for
-PyO3 to Cython conversion methods.
+Legacy upstream PyO3/Cython conversion notes are not NTPRO product entrypoints.
+Use the Rust-defined data types and Rust adapter evidence for current NTPRO
+work.
 
-Convert a PyO3 `Price` to a Cython `Price`:
-
-```python
-price = Price.from_raw(pyo3_price.raw, pyo3_price.precision)
-```
-
-Requesting and subscribing to these types requires the generic `subscribe_data`
-method. Subscribe to `imbalance` for `AAPL.XNAS`:
+In retained upstream Python examples, requesting and subscribing to these types
+used the generic `subscribe_data` method. The snippets below are legacy context,
+not an NTPRO Rust-only product path. Subscribe to `imbalance` for `AAPL.XNAS`:
 
 ```python
 from nautilus_trader.adapters.databento import DATABENTO_CLIENT_ID
@@ -529,8 +523,9 @@ self.request_data(
 
 ### Catalog persistence
 
-Both types support Arrow serialization for catalog storage. The Arrow serializers
-register automatically when you import the adapter package.
+Both types support Arrow serialization for catalog storage. Rust serialization
+support remains the NTPRO evidence path. The Python catalog snippets below are
+retained legacy upstream context.
 
 #### Writing to the catalog
 
@@ -545,7 +540,7 @@ loader = DatabentoDataLoader()
 imbalances = loader.from_dbn_file(
     path="aapl-imbalance.dbn.zst",
     instrument_id=InstrumentId.from_str("AAPL.XNAS"),
-    as_legacy_cython=False,  # Required for Databento-specific types
+    as_legacy_cython=False,  # Legacy upstream Python loader option
 )
 
 catalog.write_data(imbalances)
@@ -609,24 +604,26 @@ Performance benchmarks are under development.
 
 ## Loading DBN data
 
-The `DatabentoDataLoader` class loads DBN files and converts records to Nautilus
-objects. Two primary uses:
+The `DatabentoDataLoader` class shown below is a retained upstream Python loader
+example. It loaded DBN files and converted records to Nautilus objects for two
+historical uses:
 
 - Pass data to `BacktestEngine.add_data` for backtesting.
 - Write data to `ParquetDataCatalog` for streaming with a `BacktestNode`.
 
 ### DBN data to a BacktestEngine
 
-Load DBN data and pass to a `BacktestEngine`. The engine requires an instrument.
-This example uses `TestInstrumentProvider` (an instrument parsed from a DBN
-file also works). The data covers one month of TSLA trades on Nasdaq:
+The retained upstream Python backtest loader example loaded DBN data and passed
+it to a `BacktestEngine`. The engine required an instrument. This example uses
+`TestInstrumentProvider` (an instrument parsed from a DBN file also worked).
+The data covers one month of TSLA trades on Nasdaq:
 
 ```python
 # Add instrument
 TSLA_NASDAQ = TestInstrumentProvider.equity(symbol="TSLA")
 engine.add_instrument(TSLA_NASDAQ)
 
-# Decode data to Cython objects
+# Legacy upstream Python loader example; not an NTPRO product entrypoint.
 loader = DatabentoDataLoader()
 trades = loader.from_dbn_file(
     path=TEST_DATA_DIR / "databento" / "temp" / "tsla-xnas-20240107-20240206.trades.dbn.zst",
@@ -639,14 +636,16 @@ engine.add_data(trades)
 
 ### DBN data to a ParquetDataCatalog
 
-Load DBN data and write to a `ParquetDataCatalog`. Set `as_legacy_cython=False`
-to decode as PyO3 objects.
+Load DBN data and write to a `ParquetDataCatalog`. The Python loader examples
+below are retained as legacy upstream context only. They are not the NTPRO
+Rust-only product path.
 
 ### Loading instruments
 
-**Important**: Load instrument definitions from DEFINITION schema files before
-loading market data into a catalog. The catalog requires instruments before it
-can store market data. Market data files do not contain instrument definitions.
+**Important**: In retained upstream Python loader examples, instrument
+definitions were loaded from DEFINITION schema files before market data went
+into a catalog. The catalog required instruments before it could store market
+data. Market data files did not contain instrument definitions.
 
 ```python
 # Initialize the catalog interface
@@ -659,7 +658,7 @@ loader = DatabentoDataLoader()
 # Obtain DEFINITION schema files from Databento for your instruments
 instruments = loader.from_dbn_file(
     path=TEST_DATA_DIR / "databento" / "temp" / "tsla-xnas-definition.dbn.zst",
-    as_legacy_cython=False,  # Use PyO3 for optimal performance
+    as_legacy_cython=False,  # Legacy upstream Python loader option
 )
 
 # Write instruments to catalog
@@ -668,11 +667,11 @@ catalog.write_data(instruments)
 # Step 2: Now load and write market data
 instrument_id = InstrumentId.from_str("TSLA.XNAS")
 
-# Decode trades to PyO3 objects
+# Legacy upstream Python loader example
 trades = loader.from_dbn_file(
     path=TEST_DATA_DIR / "databento" / "temp" / "tsla-xnas-20240107-20240206.trades.dbn.zst",
     instrument_id=instrument_id,
-    as_legacy_cython=False,  # This is an optimization for writing to the catalog
+    as_legacy_cython=False,  # Legacy upstream Python loader option
 )
 
 # Write market data
@@ -681,7 +680,8 @@ catalog.write_data(trades)
 
 #### Loading multiple data types for backtesting
 
-Always load instruments before market data:
+In retained upstream Python loader examples, instruments were loaded before
+market data:
 
 ```python
 from nautilus_trader.adapters.databento.loaders import DatabentoDataLoader
@@ -747,17 +747,18 @@ Parameters for `from_dbn_file`:
   `load_instruments` or `set_price_precision`); loading fails if unresolved.
 - `include_trades`: For MBP-1/CMBP-1 schemas, `True` emits both `QuoteTick`
   and `TradeTick` when trade data is present.
-- `as_legacy_cython`: Set to `False` for IMBALANCE/STATISTICS schemas
-  (required) or for better catalog write performance.
+- `as_legacy_cython`: Legacy upstream Python loader option. It is retained here
+  only to describe historical examples, not as an NTPRO product entrypoint.
 
 :::warning
-IMBALANCE and STATISTICS schemas require `as_legacy_cython=False` (PyO3-only
-types). `True` raises a `ValueError`.
+The retained Python loader options are legacy upstream context. NTPRO product
+evidence should come from Rust crates, Rust adapter tests, and Rust fixtures.
 :::
 
 ### Loading consolidated data
 
-Consolidated schemas aggregate data across multiple venues:
+Consolidated schemas aggregate data across multiple venues. The snippets in
+this section are retained legacy Python loader examples:
 
 ```python
 # Load consolidated MBP-1 quotes
@@ -773,7 +774,7 @@ cmbp_quotes = loader.from_dbn_file(
 cbbo_quotes = loader.from_dbn_file(
     path="consolidated.cbbo-1s.dbn.zst",
     instrument_id=InstrumentId.from_str("AAPL.XNAS"),
-    as_legacy_cython=False,  # Use PyO3 for better performance
+    as_legacy_cython=False,  # Legacy upstream Python loader option
 )
 
 # Load TCBBO (trade-sampled consolidated BBO) with quotes and trades
@@ -819,7 +820,9 @@ and `DatabentoDataClient` for historical requests.
 
 ## Configuration
 
-Add a `DATABENTO` section to your `TradingNode` client configuration:
+The following upstream Python `TradingNode` configuration snippets are retained
+as legacy integration context. They are not NTPRO Rust-only product entrypoints.
+Add a `DATABENTO` section to that legacy client configuration:
 
 ```python
 from nautilus_trader.adapters.databento import DATABENTO
