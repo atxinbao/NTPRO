@@ -4,6 +4,10 @@ Date: 2026-05-28
 Executor: Codex
 Task ID: RPROD-007
 
+Updated: 2026-06-05
+Executor: Codex
+Task ID: GH-156
+
 ## Purpose
 
 This contract refines the `nautilus data` surface from
@@ -12,24 +16,20 @@ data/catalog command shape, config boundary, inspect and validate workflows,
 load workflow, output contract, and known blockers for later implementation
 tasks.
 
-This is a product contract only. RPROD-007 does not implement the command.
+This document started as a product contract. GH-156 implements the first
+local-file Rust path for `data inspect` and `data validate`; `data load`
+remains deferred.
 
 ## Current Baseline
 
-After RPROD-006, `nautilus-cli` exposes `backtest`, `sandbox`, `live`, and
-`database` by default. The backtest, sandbox, and live commands have help and
-parser coverage, but their execution paths intentionally return blockers until
-runtime wiring tasks close them.
+`nautilus-cli` exposes `data` by default. After GH-156, `data inspect` and
+`data validate` execute a scoped local-file/local-directory Rust path. They
+parse the TOML config, validate the query shape, reject unsupported data types,
+and inspect the configured `catalog.path` for existence, readability, size,
+extension, and directory entries.
 
-The data/catalog product command is not implemented yet:
-
-```text
-nautilus data --help
-```
-
-Current expected result: the command exits non-zero with an unknown subcommand
-error. This is an owner-visible blocker until RPROD-008 or a later scoped task
-adds the CLI implementation.
+`data load` is still intentionally deferred and returns an owner-visible
+blocker.
 
 ## Command Surface
 
@@ -45,6 +45,17 @@ nautilus data load --config <path> [--run-id <id>] [--output <dir>]
 and `validate` must never run a strategy, start a live node, or connect to a
 production venue. `load` must write only to the configured catalog target and
 must use a scoped fixture, file, or adapter path with explicit adapter evidence.
+
+Current GH-156 scope:
+
+- `inspect` and `validate` support only `catalog.protocol = "file"`;
+- `catalog.path` may point to a local file or directory;
+- relative paths are first interpreted from the current working directory when
+  they exist, otherwise relative to the config file directory;
+- supported `data_type` values are the built-in data types listed in
+  [Data Type Scope](#data-type-scope);
+- no row decoding, Parquet schema validation, catalog interval lookup, adapter
+  access, or external data source connection is performed.
 
 ## Inspect Workflow
 
@@ -73,6 +84,10 @@ Required output:
 - time range filters;
 - discovered catalog directories or source files where available;
 - owner-visible blocker when discovery cannot be completed.
+
+GH-156 implements the local metadata subset: existence/readability, file size,
+file extension, directory entry count, first discovered directory entries, query
+count, requested data types, and configured query filters.
 
 ## Validate Workflow
 
@@ -103,6 +118,11 @@ Allowed Rust integration points:
 
 `validate` must not silently accept an unsupported source, unsupported data
 type, missing catalog path, or unclassified adapter path.
+
+GH-156 implements the local file/directory subset. It rejects missing catalog
+paths, unreadable catalog paths, unsupported data types, malformed query shape,
+and invalid time range ordering. It does not prove that the catalog can satisfy
+every requested interval at the row level.
 
 ## Load Workflow
 
@@ -289,15 +309,18 @@ Unsupported config sections must be rejected explicitly instead of ignored.
 
 ## Implementation Gates
 
-The command is not considered usable until all of the following pass:
+The inspect/validate local-file path is considered usable when all of the
+following pass:
 
 ```bash
 cargo run -q -p nautilus-cli -- data --help
 cargo run -q -p nautilus-cli -- data inspect --help
 cargo run -q -p nautilus-cli -- data validate --help
-cargo run -q -p nautilus-cli -- data load --help
 PATH="/opt/homebrew/opt/rustup/bin:$PATH" scripts/ai/verify_fast.sh
 ```
+
+`data load --help` remains help-stable, but `data load` execution is not
+implemented by GH-156.
 
 The first successful data/catalog smoke must also prove:
 
@@ -305,12 +328,15 @@ The first successful data/catalog smoke must also prove:
 - no PyO3 or Cython build artifact is required;
 - a local catalog or fixture source can be inspected from Rust;
 - unsupported data types and missing intervals produce explicit blockers;
-- load writes only to the configured catalog target.
+- load writes only to the configured catalog target when a later load task
+  implements it.
 
 ## Known Blockers
 
-- `nautilus data` is not implemented in the current CLI.
-- A shared Rust CLI config parser and TOML model have not been added.
+- `data load` execution is not implemented.
+- Full Parquet/catalog row decoding and interval availability checks are not
+  implemented in this CLI path.
+- A shared Rust workflow config model is not yet complete across all commands.
 - The first supported loader source class is not selected yet.
 - Adapter-backed data loading remains under adapter evidence.
 - Custom data loading requires an explicit Rust custom data registry path.

@@ -49,8 +49,9 @@ Current runtime status:
   intentionally return Rust blocker errors.
 - `nautilus live validate` and `nautilus live run` are exposed but
   intentionally return Rust blocker errors.
-- `nautilus data inspect`, `nautilus data validate`, and `nautilus data load`
-  are exposed but intentionally return Rust blocker errors.
+- `nautilus data inspect` and `nautilus data validate` support the GH-156 local
+  file/directory metadata path. `nautilus data load` is exposed but
+  intentionally returns a Rust blocker error.
 - `nautilus config validate` performs Rust TOML validation for the scoped
   backtest, sandbox, live-smoke, and data/catalog config boundaries without
   starting runtime workflows.
@@ -215,6 +216,18 @@ Minimum contract:
 - `load` converts scoped fixture, file, or adapter replay input into the
   configured catalog target only after validation.
 - Data-provider adapter behavior remains under RADP tasks.
+
+Current GH-156 implementation status:
+
+- `inspect` and `validate` parse TOML configs and inspect `catalog.path` as a
+  local file or directory.
+- `inspect` reports file size, extension, directory entry count, requested data
+  types, and query filters.
+- `validate` rejects missing/unreadable local paths, unsupported data types,
+  malformed query shape, and invalid time range ordering.
+- It does not decode rows, prove catalog interval availability, load data into
+  a catalog, or call adapters.
+- `load` remains intentionally deferred.
 
 ### `nautilus config`
 

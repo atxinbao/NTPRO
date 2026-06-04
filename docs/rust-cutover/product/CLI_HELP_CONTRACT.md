@@ -45,9 +45,9 @@ RHARD-003 help contract.
 | `nautilus live --help` | supported | deferred | Exposes `validate` and `run`; execution returns explicit blocker messages. |
 | `nautilus live validate --help` | supported | deferred | Requires `--config <CONFIG>`. |
 | `nautilus live run --help` | supported | deferred | Requires `--config <CONFIG>` and accepts `--run-id` plus `--output`. |
-| `nautilus data --help` | supported | deferred | Exposes `inspect`, `validate`, and `load`; execution returns explicit blocker messages. |
-| `nautilus data inspect --help` | supported | deferred | Requires `--config <CONFIG>` and accepts `--output`. |
-| `nautilus data validate --help` | supported | deferred | Requires `--config <CONFIG>`. |
+| `nautilus data --help` | supported | partially supported | Exposes `inspect`, `validate`, and `load`; GH-156 supports local file/directory inspect and validate. |
+| `nautilus data inspect --help` | supported | partially supported | Requires `--config <CONFIG>` and accepts `--output`; inspects local catalog metadata. |
+| `nautilus data validate --help` | supported | partially supported | Requires `--config <CONFIG>`; validates local catalog readability and query shape. |
 | `nautilus data load --help` | supported | deferred | Requires `--config <CONFIG>` and accepts `--run-id` plus `--output`. |
 | `nautilus config --help` | supported | supported | Exposes `validate`. |
 | `nautilus config validate --help` | supported | supported | Requires `--kind <backtest\|sandbox\|live\|data>` and `--config <CONFIG>`, accepts `--output`. |
@@ -62,15 +62,14 @@ These product commands are help-stable but not runtime-complete:
 - full `backtest run` without `--dry-run`;
 - `live validate`;
 - `live run`;
-- `data inspect`;
-- `data validate`;
 - `data load`.
 
 `backtest validate` and `backtest run --dry-run` now support the RHARD-006
 metadata-only minimal path. `sandbox validate` and `sandbox run` now support the
 RHARD-004 local simulated demo path. `config validate` now supports a scoped
 Rust TOML validation path for backtest, sandbox, live-smoke, and data/catalog
-configs. The remaining deferred commands
+configs. `data inspect` and `data validate` now support the GH-156 local
+file/directory metadata path. The remaining deferred commands
 intentionally return owner-visible blocker errors from Rust code. Later v0.2.0
 tasks should replace those blockers with scoped Rust implementations only when
 config parsing, runtime wiring, adapter classification, and evidence

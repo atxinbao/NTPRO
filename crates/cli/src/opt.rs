@@ -173,9 +173,9 @@ pub struct DataOpt {
 #[derive(Parser, Debug, Clone)]
 #[command(about = "Data catalog operations", long_about = None)]
 pub enum DataCommand {
-    /// Defines data inspection contract; implementation is not implemented yet.
+    /// Inspects local data/catalog metadata without running a workflow.
     Inspect(DataInspectOpt),
-    /// Defines data validation contract; implementation is not implemented yet.
+    /// Validates local data/catalog readability and query shape.
     Validate(DataValidateOpt),
     /// Defines data load contract; implementation is not implemented yet.
     Load(DataLoadOpt),
@@ -690,13 +690,13 @@ mod tests {
     }
 
     #[test]
-    fn data_help_marks_contracts_not_implemented() {
+    fn data_help_describes_supported_and_deferred_boundaries() {
         let inspect_help = render_subcommand_help(&["data", "inspect"]);
         let validate_help = render_subcommand_help(&["data", "validate"]);
         let load_help = render_subcommand_help(&["data", "load"]);
 
-        assert!(inspect_help.contains("implementation is not implemented yet"));
-        assert!(validate_help.contains("implementation is not implemented yet"));
+        assert!(inspect_help.contains("Inspects local data/catalog metadata"));
+        assert!(validate_help.contains("Validates local data/catalog readability"));
         assert!(load_help.contains("implementation is not implemented yet"));
     }
 

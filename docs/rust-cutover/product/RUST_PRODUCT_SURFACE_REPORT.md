@@ -130,9 +130,9 @@ The following gaps are owner-visible and remain in scope for later tasks:
   adapter classification, and live smoke expansion are completed.
   RHARD-005 provides a Cargo example for live-node init/shutdown, but it is not
   wired into `nautilus live run`.
-- `nautilus data inspect`, `nautilus data validate`, and `nautilus data load`
-  expose help contracts, but data-source inspection and load behavior remain
-  under later data/runtime and adapter work.
+- `nautilus data inspect` and `nautilus data validate` now support the GH-156
+  local file/directory metadata path. `nautilus data load` still exposes a help
+  contract, but load behavior remains under later data/runtime and adapter work.
 - `nautilus config validate` supports scoped Rust TOML validation for
   backtest, sandbox, live-smoke, and data/catalog configs, but complete
   workflow-specific validation still needs unified Rust config models and

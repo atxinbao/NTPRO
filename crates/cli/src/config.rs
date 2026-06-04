@@ -22,6 +22,7 @@ use anyhow::Context;
 
 use crate::{
     backtest::validate_minimal_backtest_config_file,
+    data::validate_data_catalog_config_file,
     opt::{ConfigCommand, ConfigKind, ConfigOpt, ConfigValidateOpt},
     sandbox::validate_minimal_sandbox_config_file,
 };
@@ -52,7 +53,7 @@ fn validate_workflow_config(kind: ConfigKind, path: &Path) -> anyhow::Result<()>
         ConfigKind::Backtest => validate_minimal_backtest_config_file(path),
         ConfigKind::Sandbox => validate_minimal_sandbox_config_file(path),
         ConfigKind::Live => validate_live_smoke_config(path),
-        ConfigKind::Data => validate_data_catalog_config(path),
+        ConfigKind::Data => validate_data_catalog_config_file(path),
     }
 }
 
@@ -108,44 +109,6 @@ fn validate_live_smoke_config(path: &Path) -> anyhow::Result<()> {
     }
 
     required_table(&value, "shutdown")?;
-    Ok(())
-}
-
-fn validate_data_catalog_config(path: &Path) -> anyhow::Result<()> {
-    let value = parse_toml_config(path, "data")?;
-    let run = required_table(&value, "run")?;
-    validate_required_string(run, "run.id")?;
-    validate_one_of(run, "run.mode", &["inspect", "validate", "load"])?;
-
-    let catalog = required_table(&value, "catalog")?;
-    validate_required_string(catalog, "catalog.path")?;
-    validate_string_field(catalog, "catalog.protocol", "file")?;
-
-    let mode = run
-        .get("mode")
-        .and_then(toml::Value::as_str)
-        .expect("run.mode is validated above");
-    if mode == "load" {
-        required_table(&value, "source")?;
-        required_table(&value, "mapping")?;
-    } else {
-        let queries = value
-            .get("queries")
-            .and_then(toml::Value::as_array)
-            .context("queries must contain at least one data query")?;
-        if queries.is_empty() {
-            anyhow::bail!("queries must contain at least one data query");
-        }
-        for (index, query) in queries.iter().enumerate() {
-            let table = query
-                .as_table()
-                .with_context(|| format!("queries[{index}] must be a table"))?;
-            validate_required_string(table, &format!("queries[{index}].data_type"))?;
-            if !table.contains_key("instrument_id") && !table.contains_key("bar_type") {
-                anyhow::bail!("queries[{index}] must declare either instrument_id or bar_type");
-            }
-        }
-    }
     Ok(())
 }
 
@@ -219,20 +182,6 @@ fn validate_one_of(
         );
     }
     Ok(())
-}
-
-fn validate_string_field(
-    table: &toml::value::Table,
-    field: &str,
-    expected: &str,
-) -> anyhow::Result<()> {
-    let (_, key) = field
-        .rsplit_once('.')
-        .with_context(|| format!("invalid field path '{field}'"))?;
-    let value = table
-        .get(key)
-        .with_context(|| format!("{field} is required"))?;
-    validate_string_value(field, value, expected)
 }
 
 fn validate_string_value(field: &str, value: &toml::Value, expected: &str) -> anyhow::Result<()> {
