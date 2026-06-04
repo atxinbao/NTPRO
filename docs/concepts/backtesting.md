@@ -1,15 +1,30 @@
 # Backtesting
 
-Backtesting simulates trading using a specific system implementation. The system comprises the
+Backtesting simulates trading using a specific system implementation. NTPRO's
+current product path for runnable backtests is Rust-only; start with
+[Run a Backtest (Rust)](../how_to/run_rust_backtest.md) for current code.
+
+:::warning
+This concept page still retains upstream Python `BacktestEngine` and
+`BacktestNode` snippets to explain historical behavior and matching-engine
+semantics. Those snippets are legacy context, not NTPRO Rust-only product
+entrypoints. Use Rust crates, Rust examples, and Rust CLI contracts for current
+product work.
+:::
+
+The system comprises the
 built-in engines, `Cache`, [MessageBus](message_bus.md), `Portfolio`, [Actors](actors.md),
 [Strategies](strategies.md), [Execution Algorithms](execution.md), and user-defined modules.
 A `BacktestEngine` processes a stream of historical data. When the stream is exhausted, the
 engine produces results and performance metrics for analysis.
 
-NautilusTrader offers two API levels for backtesting:
+NTPRO exposes two Rust API levels for backtesting:
 
-- **High-level API**: Uses a `BacktestNode` and configuration objects (`BacktestEngine`s are used internally).
-- **Low-level API**: Uses a `BacktestEngine` directly with more "manual" setup.
+- **High-level Rust API**: Uses a `BacktestNode` and configuration objects (`BacktestEngine`s are used internally).
+- **Low-level Rust API**: Uses a `BacktestEngine` directly with more manual setup.
+
+Historical Python examples below may use the same conceptual names. Treat them
+as upstream reference material only.
 
 ## Choosing an API level
 
@@ -28,7 +43,13 @@ Consider using the **high-level** API when:
 
 ## Low-level API
 
-The low-level API centers around a `BacktestEngine`, where inputs are initialized and added manually via a Python script.
+The low-level Rust API centers around a `BacktestEngine`, where inputs are
+initialized and added manually through Rust code. See the Rust how-to for the
+current runnable path.
+
+The retained snippets in this section are upstream Python examples kept only to
+illustrate the data-loading and engine lifecycle concepts.
+
 An instantiated `BacktestEngine` can accept the following:
 
 - Lists of `Data` objects, which are automatically sorted into monotonic order based on `ts_init`.

@@ -1,5 +1,9 @@
 # Polymarket
 
+:::warning
+This page is a legacy upstream Python API appendix. It is retained for migration, lineage, and source-reading context only. It is not an NTPRO Rust-only product API or implementation path.
+:::
+
 This page documents the Python adapter modules in `nautilus_trader.adapters.polymarket`.
 The repository also exposes a Rust-native surface in `nautilus_trader.polymarket`.
 That surface is the consolidation target and has a different config surface today.

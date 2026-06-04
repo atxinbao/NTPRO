@@ -20,7 +20,10 @@ Mixing types in a single page makes it harder to read and harder to maintain.
 | **Tutorial**     | Teach by walking through a task  | `tutorials/`     |
 | **How‑to guide** | Solve a specific problem         | `how_to/`        |
 | **Explanation**  | Clarify design and architecture  | `concepts/`      |
-| **Reference**    | Describe the machinery           | `api_reference/` |
+| **Reference**    | Describe the machinery           | Rust crate docs and product contracts |
+
+The retained `api_reference/` tree is a legacy upstream Python API appendix.
+Do not use it as the current NTPRO product reference model.
 
 Two sections are exceptions: `getting_started/` is an onboarding path that
 combines tutorial-style walkthroughs with setup instructions, and
