@@ -1,6 +1,6 @@
 # Interactive Brokers
 
-Interactive Brokers (IB) is a trading platform providing market access across a wide range of financial instruments, including stocks, options, futures, currencies, bonds, funds, and cryptocurrencies. NautilusTrader offers an adapter to integrate with IB using their [Trader Workstation (TWS) API](https://ibkrcampus.com/ibkr-api-page/trader-workstation-api/) through their Python library, [ibapi](https://github.com/nautechsystems/ibapi).
+Interactive Brokers (IB) is a trading platform providing market access across a wide range of financial instruments, including stocks, options, futures, currencies, bonds, funds, and cryptocurrencies. NTPRO keeps the Rust adapter documentation for the [Trader Workstation (TWS) API](https://ibkrcampus.com/ibkr-api-page/trader-workstation-api/). Legacy upstream Python package paths are not NTPRO product entrypoints.
 
 The TWS API is an interface to IB's standalone trading applications: TWS and IB Gateway. Both can be downloaded from the IB website. If you haven't installed TWS or IB Gateway yet, refer to the [Initial Setup](https://ibkrcampus.com/ibkr-api-page/trader-workstation-api/#tws-download) guide. In NautilusTrader, you'll establish a connection to one of these applications via the `InteractiveBrokersClient`.
 
@@ -12,21 +12,16 @@ The standalone TWS and IB Gateway applications require manually inputting userna
 
 ## Installation
 
-To install NautilusTrader with Interactive Brokers (and Docker) support:
+NTPRO does not ship the upstream Python package install path. Use the Rust
+workspace build path for the Interactive Brokers adapter:
 
 ```bash
-uv pip install "nautilus_trader[ib,docker]"
+cargo check -p nautilus-ib
 ```
 
-To build from source with all extras (including IB and Docker):
+To validate broader workspace behavior, record the exact Cargo command used in
+PR or release evidence.
 
-```bash
-uv sync --all-extras
-```
-
-:::note
-Because IB does not provide wheels for `ibapi`, NautilusTrader [repackages](https://pypi.org/project/nautilus-ibapi/) it for release on PyPI.
-:::
 
 ## Examples
 
@@ -2075,5 +2070,5 @@ if not instruments:
 
 :::info
 For additional features or to contribute to the Interactive Brokers adapter, please see our
-[contributing guide](https://github.com/nautechsystems/nautilus_trader/blob/develop/CONTRIBUTING.md).
+[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/CONTRIBUTING.md).
 :::

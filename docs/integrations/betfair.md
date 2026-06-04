@@ -3,22 +3,21 @@
 Founded in 2000, Betfair operates the world’s largest online betting exchange,
 with its headquarters in London and satellite offices across the globe.
 
-NautilusTrader provides an adapter for integrating with the Betfair REST API and
+NTPRO provides a Rust adapter for integrating with the Betfair REST API and
 Exchange Streaming API.
 
 ## Installation
 
-Install NautilusTrader with Betfair support:
+NTPRO does not ship the upstream Python package install path. Use the Rust
+workspace build path for the Betfair adapter:
 
 ```bash
-uv pip install "nautilus_trader[betfair]"
+cargo check -p nautilus-betfair
 ```
 
-To build from source with Betfair extras:
+To validate the workspace with adapter features enabled, record the exact Cargo
+command used in PR or release evidence.
 
-```bash
-uv sync --all-extras
-```
 
 ## Examples
 
@@ -618,5 +617,5 @@ node.build()
 
 :::info
 For additional features or to contribute to the Betfair adapter, please see our
-[contributing guide](https://github.com/nautechsystems/nautilus_trader/blob/develop/CONTRIBUTING.md).
+[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/CONTRIBUTING.md).
 :::

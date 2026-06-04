@@ -3,7 +3,7 @@
 Tardis provides granular data for cryptocurrency markets including tick-by-tick order book snapshots & updates,
 trades, open interest, funding rates, options chains and liquidations data for leading crypto exchanges.
 
-NautilusTrader provides an integration with the Tardis API and data formats, enabling access.
+NTPRO retains the Rust integration with the Tardis API and data formats, enabling access.
 The capabilities of this adapter include:
 
 - `TardisCSVDataLoader`: Reads Tardis-format CSV files and converts them into Nautilus data, with support for both bulk loading and memory-efficient streaming.
@@ -221,7 +221,7 @@ Next, ensure you have a configuration JSON file available.
 | `proxy_url`            | string (optional) | Optional proxy URL for the Tardis HTTP API client.                                  | No proxy when `null`.                                          |
 | `options`              | JSON[]            | Replay normalized request option objects.                                           | Required.                                                      |
 
-An example configuration file, `example_config.json`, is available [here](https://github.com/nautechsystems/nautilus_trader/blob/develop/crates/adapters/tardis/bin/example_config.json):
+An example configuration file, `example_config.json`, is available [here](https://github.com/atxinbao/NTPRO/blob/main/crates/adapters/tardis/bin/example_config.json):
 
 ```json
 {
@@ -323,7 +323,7 @@ Logging defaults to INFO level. To enable debug logging, export the following en
 export NAUTILUS_LOG=debug
 ```
 
-A working example binary can be found [here](https://github.com/nautechsystems/nautilus_trader/blob/develop/crates/adapters/tardis/bin/example_replay.rs).
+A working example binary can be found [here](https://github.com/atxinbao/NTPRO/blob/main/crates/adapters/tardis/bin/example_replay.rs).
 
 This can also be run using cargo:
 
@@ -371,11 +371,11 @@ deltas = loader.load_deltas(filepath, limit)
 
 ### Loading CSV Data in Rust
 
-You can load Tardis-format CSV data in Rust using the loading functions found [here](https://github.com/nautechsystems/nautilus_trader/blob/develop/crates/adapters/tardis/src/csv/mod.rs).
+You can load Tardis-format CSV data in Rust using the loading functions found [here](https://github.com/atxinbao/NTPRO/blob/main/crates/adapters/tardis/src/csv/mod.rs).
 When loading data, you can optionally specify the instrument ID but must specify both the price precision and size precision.
 Providing the instrument ID improves loading performance, while specifying the precisions is required, as they cannot be inferred from the text data alone.
 
-For a complete example, see the [example binary here](https://github.com/nautechsystems/nautilus_trader/blob/develop/crates/adapters/tardis/bin/example_csv.rs).
+For a complete example, see the [example binary here](https://github.com/atxinbao/NTPRO/blob/main/crates/adapters/tardis/bin/example_csv.rs).
 
 To load the data, you can use code similar to the following:
 
@@ -569,7 +569,7 @@ if __name__ == "__main__":
 ### Requesting Instruments in Rust
 
 To request instrument definitions in Rust, use code similar to the following.
-For a complete example, see the [example binary here](https://github.com/nautechsystems/nautilus_trader/blob/develop/crates/adapters/tardis/bin/example_http.rs).
+For a complete example, see the [example binary here](https://github.com/atxinbao/NTPRO/blob/main/crates/adapters/tardis/bin/example_http.rs).
 
 ```rust
 use nautilus_tardis::{
@@ -606,7 +606,7 @@ you must filter for the desired venues using an `InstrumentProviderConfig`:
 ```python
 from nautilus_trader.config import InstrumentProviderConfig
 
-# See supported venues https://nautilustrader.io/docs/nightly/integrations/tardis#venues
+# See the Venues section in this document for supported exchange identifiers.
 venues = {"BINANCE", "BYBIT"}
 filters = {"venues": frozenset(venues)}
 instrument_provider_config = InstrumentProviderConfig(load_all=True, filters=filters)
@@ -701,5 +701,5 @@ The following limitations and considerations are currently known:
 
 :::info
 For additional features or to contribute to the Tardis adapter, please see our
-[contributing guide](https://github.com/nautechsystems/nautilus_trader/blob/develop/CONTRIBUTING.md).
+[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/CONTRIBUTING.md).
 :::

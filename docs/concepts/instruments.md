@@ -330,8 +330,8 @@ margin_maint = (notional_value / leverage * margin_maint) + (notional_value / le
 
 For those interested in exploring the technical implementation:
 
-- [nautilus_trader/accounting/accounts/margin.pyx](https://github.com/nautechsystems/nautilus_trader/blob/develop/nautilus_trader/accounting/accounts/margin.pyx)
-- Key methods: `calculate_margin_init(self, ...)` and `calculate_margin_maint(self, ...)`
+- [Rust instrument model](https://github.com/atxinbao/NTPRO/blob/main/crates/model/src/instruments/mod.rs)
+- Key Rust fields and accessors: `margin_init`, `margin_maint`, `margin_init()`, and `margin_maint()`.
 
 ## Commissions
 

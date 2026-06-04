@@ -3,8 +3,7 @@
 :::warning
 This page replaces the upstream Python/pandas report tutorial with the current NTPRO
 Rust-only status. Historical Python report APIs such as `ReportProvider`, pandas
-DataFrames, visualization extras, and `uv pip install "nautilus_trader[visualization]"`
-are not supported NTPRO product paths.
+DataFrames, and visualization extras are not supported NTPRO product paths.
 :::
 
 ## NTPRO Rust-only status

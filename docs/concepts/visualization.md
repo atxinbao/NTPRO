@@ -1,6 +1,6 @@
 # Visualization
 
-NautilusTrader provides interactive HTML tearsheets for analyzing backtest results through
+The upstream project provided interactive HTML tearsheets for analyzing backtest results through
 an extensible visualization system built on Plotly. You can generate reports with minimal
 code and add custom charts and themes.
 
@@ -16,18 +16,9 @@ All visualization outputs are self-contained HTML files that can be viewed in an
 browser, shared with stakeholders, or archived for future reference.
 
 :::note
-The visualization system requires `plotly>=6.3.1`. Install it with:
-
-```bash
-uv pip install "nautilus_trader[visualization]"
-```
-
-or
-
-```bash
-uv pip install "plotly>=6.3.1"
-```
-
+The upstream Python visualization extras are not an NTPRO Rust-only product
+entrypoint. Treat this page as retained legacy visualization context until a
+Rust-native reporting or visualization path is explicitly released.
 :::
 
 ## Tearsheets
@@ -168,7 +159,7 @@ The benchmark series is plotted as-is; ensure the index aligns with your strateg
 ## Themes
 
 Themes control the visual styling of charts including colors, fonts, and backgrounds.
-NautilusTrader provides four built-in themes:
+The retained upstream visualization context describes four built-in themes:
 
 | Theme Name      | Description                                    | Use Case                      |
 |-----------------|------------------------------------------------|-------------------------------|

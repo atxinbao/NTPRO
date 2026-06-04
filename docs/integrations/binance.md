@@ -16,8 +16,8 @@ Supported products:
 
 ## Examples
 
-- [Rust spot examples](https://github.com/nautechsystems/nautilus_trader/tree/develop/crates/adapters/binance/examples/spot/)
-- [Rust futures examples](https://github.com/nautechsystems/nautilus_trader/tree/develop/crates/adapters/binance/examples/futures/)
+- [Rust spot examples](https://github.com/atxinbao/NTPRO/tree/main/crates/adapters/binance/examples/spot/)
+- [Rust futures examples](https://github.com/atxinbao/NTPRO/tree/main/crates/adapters/binance/examples/futures/)
 
 ## Overview
 
@@ -1139,5 +1139,5 @@ To use hedge mode:
 
 :::info
 To contribute to the Binance adapter, see the
-[contributing guide](https://github.com/nautechsystems/nautilus_trader/blob/develop/CONTRIBUTING.md).
+[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/CONTRIBUTING.md).
 :::

@@ -174,7 +174,7 @@ environment, so set it to a smaller value (`200`) when you want to capture
 finer-grained data for the panels at the end of this tutorial.
 
 The full source is at
-[`crates/trading/src/examples/actors/imbalance/actor.rs`](https://github.com/nautechsystems/nautilus_trader/tree/develop/crates/trading/src/examples/actors/imbalance/actor.rs).
+[`crates/trading/src/examples/actors/imbalance/actor.rs`](https://github.com/atxinbao/NTPRO/tree/main/crates/trading/src/examples/actors/imbalance/actor.rs).
 
 ### How it works
 
@@ -325,7 +325,7 @@ cargo run -p nautilus-betfair --features examples --release --example betfair-ba
 ## Complete source
 
 The complete example is at
-[`crates/adapters/betfair/examples/betfair_backtest.rs`](https://github.com/nautechsystems/nautilus_trader/tree/develop/crates/adapters/betfair/examples/betfair_backtest.rs).
+[`crates/adapters/betfair/examples/betfair_backtest.rs`](https://github.com/atxinbao/NTPRO/tree/main/crates/adapters/betfair/examples/betfair_backtest.rs).
 
 ## Next steps
 

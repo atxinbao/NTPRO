@@ -39,7 +39,7 @@ Hurst estimate decays back through a lower threshold, or when a
 holding-time cap is reached.
 
 The strategy is shipped as
-[`HurstVpinDirectional`](https://github.com/nautechsystems/nautilus_trader/tree/develop/crates/trading/src/examples/strategies/hurst_vpin_directional)
+[`HurstVpinDirectional`](https://github.com/atxinbao/NTPRO/tree/main/crates/trading/src/examples/strategies/hurst_vpin_directional)
 in the `nautilus_trading::examples::strategies` module. As with all
 shipped example strategies, it is intentionally simple and has no alpha
 advantage.
@@ -135,7 +135,7 @@ declared precision.
 
 Since we are loading CSV data directly rather than through the live
 Kraken adapter, we define `PF_XBTUSD` manually as a
-[`CryptoPerpetual`](https://github.com/nautechsystems/nautilus_trader/blob/develop/crates/model/src/instruments/crypto_perpetual.rs).
+[`CryptoPerpetual`](https://github.com/atxinbao/NTPRO/blob/main/crates/model/src/instruments/crypto_perpetual.rs).
 Linear perpetuals on Kraken Futures are quoted and margined in USD:
 
 ```rust
@@ -477,7 +477,7 @@ static PNGs via Plotly's Kaleido exporter.
 
 ## Further reading
 
-- [`HurstVpinDirectional` strategy source](https://github.com/nautechsystems/nautilus_trader/tree/develop/crates/trading/src/examples/strategies/hurst_vpin_directional)
+- [`HurstVpinDirectional` strategy source](https://github.com/atxinbao/NTPRO/tree/main/crates/trading/src/examples/strategies/hurst_vpin_directional)
 - [Data concepts: bar types and aggregation](../concepts/data.md)
 - [Tardis integration guide](../integrations/tardis.md)
 - [Kraken integration guide](../integrations/kraken.md)
