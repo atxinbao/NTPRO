@@ -3,8 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
-
-export PATH="/opt/homebrew/opt/rustup/bin:${PATH}"
+source scripts/ai/toolchain_env.sh
 
 run_cli() {
   local label="$1"

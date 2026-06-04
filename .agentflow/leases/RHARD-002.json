@@ -1,0 +1,17 @@
+{
+  "task_id": "RHARD-002",
+  "agent_id": "Codex",
+  "branch": "ai/RHARD-002-toolchain-and-verification-path-hardening",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/RHARD-002.md",
+    "docs/rust-cutover/evidence/RHARD-002.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/RHARD-002.json"
+  ],
+  "claimed_at": "2026-06-04T13:18:31.347283+00:00",
+  "status": "RUNNING",
+  "qa_passed": true,
+  "review_passed": false,
+  "auto_merge_allowed": true,
+  "updated_at": "2026-06-04T13:26:00Z"
+}

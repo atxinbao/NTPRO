@@ -64,6 +64,12 @@ rustc --version
 cargo --version
 ```
 
+If `rustc --version` or `cargo --version` still reports a Homebrew compiler
+or any version other than `1.95.0`, see
+[NTPRO Rust Toolchain Verification](../rust-cutover/verification/toolchain.md).
+The local verification scripts pin the Rust `1.95.0` toolchain before running
+Cargo so stale PATH entries cannot silently validate the wrong compiler.
+
 ## Install native build tools
 
 Linux builds should have `clang` and `lld` available:
