@@ -2309,7 +2309,7 @@
     },
     "NARCH-003": {
       "title": "Node lifecycle state machine",
-      "status": "TODO",
+      "status": "QA_REQUIRED",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2320,7 +2320,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NARCH-003.md",
       "evidence_file": "docs/rust-cutover/evidence/NARCH-003.md",
-      "updated_at": "2026-06-04T13:09:00Z"
+      "updated_at": "2026-06-04T16:08:55Z"
     },
     "NARCH-004": {
       "title": "Observability state model",
@@ -2368,5 +2368,5 @@
       "updated_at": "2026-06-04T13:09:00Z"
     }
   },
-  "updated_at": "2026-06-04T13:10:00Z"
+  "updated_at": "2026-06-04T16:08:55Z"
 }
