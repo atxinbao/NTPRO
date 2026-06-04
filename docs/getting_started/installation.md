@@ -1,8 +1,8 @@
 # Installation
 
 NTPRO is distributed as a Rust-only source workspace. The supported public
-installation path is to clone the NTPRO repository, select the release tag, and
-build or run the Rust workspace with Cargo.
+installation path is to clone the NTPRO repository, select a source point, and
+build or install the Rust CLI with Cargo.
 
 NTPRO does not publish or support a Python package, PyPI install path, Python
 wheel, PyO3 bridge, Cython build, or mixed Rust/Python packaging path.
@@ -27,15 +27,16 @@ For active v0.2.0 development, use `main` instead of the release tag.
 ## Platform notes
 
 NTPRO v0.1.0 is a Rust-only release source point, not a packaged binary
-distribution. Platform support is therefore validated through local source
-builds and release verification scripts.
+distribution. NBIN-001 keeps v0.2.0 source-build first: users build the
+`nautilus` binary from the repository checkout, and prebuilt binary release
+assets remain deferred until a later dedicated task.
 
 | Operating system | CPU architecture | Current status |
 | --- | --- | --- |
 | macOS 15.0 and later | ARM64 | Release-gate development platform. |
 | Linux Ubuntu 22.04 and later | x86_64 | Source-build target; verify locally. |
 | Linux Ubuntu 22.04 and later | ARM64 | Source-build target; verify locally. |
-| Windows Server 2022 and later | x86_64 | Rust source-build target; formal binary policy is deferred to `NBIN-001`. |
+| Windows Server 2022 and later | x86_64 | Rust source-build target; prebuilt binary delivery deferred. |
 
 If you need redis-backed cache or message-bus workflows, see
 [Redis](#redis). Otherwise Redis is not required for CLI help, source builds,
@@ -70,6 +71,55 @@ or any version other than `1.95.0`, see
 The local verification scripts pin the Rust `1.95.0` toolchain before running
 Cargo so stale PATH entries cannot silently validate the wrong compiler.
 
+## Build from source
+
+Run the CLI directly from the repository checkout:
+
+```bash
+cargo run -p nautilus-cli -- --help
+```
+
+Build the executable without installing it globally:
+
+```bash
+cargo build -p nautilus-cli --bin nautilus
+./target/debug/nautilus --help
+```
+
+For an optimized local binary:
+
+```bash
+cargo build -p nautilus-cli --bin nautilus --release
+./target/release/nautilus --help
+```
+
+## Install the CLI locally
+
+Local Cargo installation from a checked-out NTPRO source tree is supported:
+
+```bash
+cargo install --path crates/cli --bin nautilus --locked --force
+nautilus --help
+```
+
+This installs the `nautilus` executable from the `nautilus-cli` package into
+Cargo's bin directory, normally `$HOME/.cargo/bin`.
+
+NTPRO does not currently support `cargo install nautilus-cli` from crates.io,
+because the NTPRO CLI package has not been published there as an NTPRO release.
+
+## Binary release policy
+
+The current supported release artifact is the tagged source tree. NTPRO does
+not currently publish prebuilt `nautilus` binaries for GitHub Releases.
+
+If prebuilt binaries are approved later, the expected artifact pattern is
+documented in
+[NTPRO Binary And Install Path Decision](../rust-cutover/release/binary_install_path.md).
+
+Do not use old upstream R2 or package-host installer paths for NTPRO unless a
+future NTPRO release task explicitly reintroduces them.
+
 ## Install native build tools
 
 Linux builds should have `clang` and `lld` available:
@@ -101,6 +151,15 @@ cargo run -p nautilus-cli -- live --help
 
 These commands must not require Python, PyO3, Cython, or a Python virtual
 environment.
+
+After local `cargo install`, the equivalent executable commands are:
+
+```bash
+nautilus --help
+nautilus backtest --help
+nautilus sandbox --help
+nautilus live --help
+```
 
 ## Local verification
 
@@ -170,6 +229,9 @@ The following are not NTPRO product entrypoints:
 - PyPI or third-party Python package indexes;
 - Python wheels or source distributions;
 - `maturin`, PyO3, Cython, or `build.py` product builds;
+- `cargo install nautilus-cli` from crates.io;
+- prebuilt binary download commands;
+- upstream NautilusTrader R2 package download paths;
 - Docker/Jupyter images as the default NTPRO delivery path.
 
 Local Python scripts may still exist under `scripts/` for repository control,

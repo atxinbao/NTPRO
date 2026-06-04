@@ -2219,7 +2219,7 @@
     },
     "NADAPT-001": {
       "title": "Adapter support matrix",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2230,11 +2230,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NADAPT-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NADAPT-001.md",
-      "updated_at": "2026-06-04T15:28:07Z"
+      "updated_at": "2026-06-04T15:33:36Z"
     },
     "NBIN-001": {
       "title": "Release binary and install path",
-      "status": "TODO",
+      "status": "QA_REQUIRED",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2245,7 +2245,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NBIN-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NBIN-001.md",
-      "updated_at": "2026-06-04T13:09:00Z"
+      "updated_at": "2026-06-04T15:36:32Z"
     },
     "NTRACE-001": {
       "title": "Trace and performance expansion plan",

@@ -4,7 +4,10 @@
 
 Install the Rust toolchain and build the workspace with Cargo. See the
 [Installation](installation) guide for platform support and development
-dependencies.
+dependencies. The supported v0.2.0 path is source-build first; local
+`cargo install --path crates/cli --bin nautilus --locked --force` is supported
+from a checked-out NTPRO repository, while prebuilt binaries and Docker
+delivery remain deferred.
 
 ## 2. Run the Rust backtest guide
 
