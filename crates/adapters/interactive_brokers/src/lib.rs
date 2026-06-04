@@ -13,16 +13,16 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! [NautilusTrader](https://nautilustrader.io) adapter for
+//! NTPRO adapter for
 //! [Interactive Brokers](https://www.interactivebrokers.com).
 //!
 //! The `nautilus-interactive-brokers` crate wraps the [`ibapi`](https://crates.io/crates/ibapi)
-//! client and connects it to NautilusTrader's live data, execution, historical data, and
+//! client and connects it to NTPRO live data, execution, historical data, and
 //! instrument loading infrastructure.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

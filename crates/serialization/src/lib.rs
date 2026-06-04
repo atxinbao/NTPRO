@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Data serialization and format conversion for [NautilusTrader](https://nautilustrader.io).
+//! Data serialization and format conversion for NTPRO.
 //!
 //! The `nautilus-serialization` crate provides data serialization capabilities for converting
 //! trading data between different formats including Apache Arrow, MsgPack, JSON, and SBE.
@@ -26,9 +26,9 @@
 //! - **Cross-format conversion**: Data interchange between Arrow, MsgPack, JSON, SBE, and native types.
 //! - **SBE decode utilities**: Zero-copy cursor and shared decode errors for SBE parsers (requires `sbe` feature).
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single
@@ -41,7 +41,7 @@
 //!
 //! - `arrow`: Enables Apache Arrow schema definitions and RecordBatch encoding/decoding.
 //! - `display`: Enables display-friendly Arrow encoders for market data (requires `arrow`).
-//! - `high-precision`: Enables [high-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) to use 128-bit value types.
+//! - `high-precision`: Enables [high-precision mode](https://github.com/atxinbao/NTPRO/blob/main/docs/getting_started/installation.md#precision-mode) to use 128-bit value types.
 //! - `sbe`: Enables generic SBE (Simple Binary Encoding) decode utilities.
 //!
 //! **Warning:** SBE schemas are not yet stable and may break between releases.

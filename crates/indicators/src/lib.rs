@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Technical analysis indicators for [NautilusTrader](https://nautilustrader.io).
+//! Technical analysis indicators for NTPRO.
 //!
 //! The `nautilus-indicators` crate provides a collection of technical analysis indicators
 //! for quantitative trading and market research. This includes a wide variety of indicators
@@ -29,9 +29,9 @@
 //! All indicators are designed for high-performance real-time processing with bounded memory
 //! usage and efficient circular buffer implementations. The crate is used directly from Rust runtimes for strategy development and backtesting.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Cryptographic utilities and security functions for [NautilusTrader](https://nautilustrader.io).
+//! Cryptographic utilities and security functions for NTPRO.
 //!
 //! The `nautilus-cryptography` crate provides essential cryptographic primitives and security utilities
 //! required for secure communication with trading venues and data providers. This includes
@@ -25,9 +25,9 @@
 //! - Cryptographic provider management and initialization.
 //! - Secure encoding and decoding utilities.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

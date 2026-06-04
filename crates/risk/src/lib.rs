@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Risk engine for [NautilusTrader](https://nautilustrader.io).
+//! Risk engine for NTPRO.
 //!
 //! The `nautilus-risk` crate provides risk management capabilities including pre-trade
 //! order validation, position sizing calculations, and trading controls. This system ensures
@@ -25,9 +25,9 @@
 //! - **Trading controls**: Rate limiting, balance validation, and exposure management.
 //! - **Account protection**: Multi-currency balance checks and margin requirement validation.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

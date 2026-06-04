@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Order execution system for [NautilusTrader](https://nautilustrader.io).
+//! Order execution system for NTPRO.
 //!
 //! The `nautilus-execution` crate provides an order execution system that handles the complete
 //! order lifecycle from submission to fill processing. This includes sophisticated order matching,
@@ -31,9 +31,9 @@
 //! environments (with matching engines), making it suitable for production trading, strategy
 //! development, and backtesting.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

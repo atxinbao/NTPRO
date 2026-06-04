@@ -13,15 +13,15 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Network functionality for [NautilusTrader](https://nautilustrader.io).
+//! Network functionality for NTPRO.
 //!
 //! The `nautilus-network` crate provides networking components including HTTP, WebSocket, and raw TCP socket
 //! clients, rate limiting, backoff strategies, and socket TLS utilities for connecting to
 //! trading venues and data providers.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

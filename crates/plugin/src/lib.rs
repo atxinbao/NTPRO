@@ -13,9 +13,9 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Plug-in API and ABI surface for [NautilusTrader](https://nautilustrader.io).
+//! Plug-in API and ABI surface for NTPRO.
 //!
-//! This crate defines the C-ABI boundary between a Nautilus host (the live node) and
+//! This crate defines the C-ABI boundary between an NTPRO host (the live node) and
 //! independently compiled Rust plug-in cdylibs. Plug-ins ship a single
 //! `nautilus_plugin_init` symbol and a `'static` [`PluginManifest`]; the host
 //! `dlopen`s the library, calls the entry point, and registers every plug point
@@ -47,7 +47,7 @@
 /// The host refuses to load a plug-in whose [`PluginManifest::abi_version`]
 /// does not match this value. The plug-in surface is unreleased and unstable,
 /// so this value remains `1` during alpha and does not promise compatibility
-/// between Nautilus versions. Rebuild plug-in cdylibs against the matching
+/// between NTPRO versions. Rebuild plug-in cdylibs against the matching
 /// host version.
 ///
 /// [`PluginManifest::abi_version`]: crate::manifest::PluginManifest::abi_version

@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! [NautilusTrader](https://nautilustrader.io) adapter for the [dYdX](https://dydx.trade/) decentralized derivatives exchange.
+//! NTPRO adapter for the [dYdX](https://dydx.trade/) decentralized derivatives exchange.
 //!
 //! The `nautilus-dydx` crate provides client bindings (HTTP, WebSocket & gRPC), data
 //! models, and helper utilities that wrap the official **dYdX v4 API**.
@@ -29,9 +29,9 @@
 //! | Permissioned keys                    | <https://docs.dydx.xyz/concepts/trading/authenticators> |
 //! | Validator client (gRPC)              | <https://docs.dydx.xyz/api_integration-clients/validator_client> |
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single
@@ -41,7 +41,7 @@
 //!
 //! This crate exposes Rust-native build behavior only.
 //!
-//! [High-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) (128-bit value types) is enabled by default.
+//! [High-precision mode](https://github.com/atxinbao/NTPRO/blob/main/docs/getting_started/installation.md#precision-mode) (128-bit value types) is enabled by default.
 
 //!
 #![warn(rustc::all)]

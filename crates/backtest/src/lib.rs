@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Backtest engine for [NautilusTrader](https://nautilustrader.io).
+//! Backtest engine for NTPRO.
 //!
 //! The `nautilus-backtest` crate provides an event-driven backtesting framework that allows
 //! quantitative traders to test and validate trading strategies on historical data with high
@@ -26,9 +26,9 @@
 //! - Configuration and state management.
 //! - Integration with live trading systems for direct deployment.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single

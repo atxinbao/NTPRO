@@ -13,14 +13,14 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Trading domain model for [NautilusTrader](https://nautilustrader.io).
+//! Trading domain model for NTPRO.
 //!
 //! The `nautilus-model` crate provides a type-safe domain model that forms the backbone of the
 //! framework and can serve as the foundation for building algorithmic trading systems.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single
@@ -33,7 +33,7 @@
 //! - `ffi`: Enables the C foreign function interface (FFI) from [cbindgen](https://github.com/mozilla/cbindgen).
 //! - `arrow`: Enables Apache Arrow schema and `RecordBatch` registries for custom data.
 //! - `stubs`: Enables type stubs for use in testing scenarios.
-//! - `high-precision`: Enables [high-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) to use 128-bit value types.
+//! - `high-precision`: Enables [high-precision mode](https://github.com/atxinbao/NTPRO/blob/main/docs/getting_started/installation.md#precision-mode) to use 128-bit value types.
 //! - `defi`: Enables the DeFi (Decentralized Finance) domain model.
 
 #![warn(rustc::all)]

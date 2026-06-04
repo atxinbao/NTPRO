@@ -13,14 +13,14 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! [NautilusTrader](https://nautilustrader.io) adapter for [Databento](https://databento.com).
+//! NTPRO adapter for [Databento](https://databento.com).
 //!
 //! The `nautilus-databento` crate provides a complete integration with the Databento API for
 //! accessing institutional-grade market data feeds across multiple venues and asset classes.
 //!
-//! # NautilusTrader
+//! # NTPRO
 //!
-//! [NautilusTrader](https://nautilustrader.io) is an open-source, production-grade, Rust-native
+//! NTPRO is an open-source, production-grade, Rust-native
 //! engine for multi-asset, multi-venue trading systems.
 //!
 //! The system spans research, deterministic simulation, and live execution within a single
@@ -31,7 +31,7 @@
 //! This crate provides Rust-native Cargo feature flags for optional integration support.
 //!
 //! - `live` (default): Enables live data functionality including the `data`, `factories`, and `live` modules.
-//! - `high-precision`: Enables [high-precision mode](https://nautilustrader.io/docs/nightly/getting_started/installation#precision-mode) to use 128-bit value types.
+//! - `high-precision`: Enables [high-precision mode](https://github.com/atxinbao/NTPRO/blob/main/docs/getting_started/installation.md#precision-mode) to use 128-bit value types.
 
 //!
 #![warn(rustc::all)]
