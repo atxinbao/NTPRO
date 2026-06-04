@@ -169,6 +169,10 @@ Run the fast local gate before opening a PR:
 scripts/ai/verify_fast.sh
 ```
 
+`verify_fast.sh` is intentionally a fast smoke. By default it verifies the
+pinned toolchain and `cargo fmt --check`; it does not replace workspace
+`cargo check`, clippy, golden traces, or release verification.
+
 For release-oriented checks, run:
 
 ```bash

@@ -96,6 +96,11 @@ Fast local validation:
 scripts/ai/verify_fast.sh
 ```
 
+`verify_fast.sh` is a fast smoke only: it checks the pinned Rust toolchain and
+`cargo fmt --check` by default. It does not run workspace `cargo check`,
+clippy, golden traces, or release validation unless optional flags or stronger
+scripts are used.
+
 Full release validation:
 
 ```bash

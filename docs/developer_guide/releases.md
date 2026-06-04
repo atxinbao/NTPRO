@@ -136,6 +136,10 @@ Fast local gate:
 scripts/ai/verify_fast.sh
 ```
 
+This is a fast smoke only. By default it covers the pinned Rust toolchain and
+`cargo fmt --check`; it is not release evidence and does not replace workspace
+`cargo check`, clippy, golden traces, or `verify_release.sh`.
+
 Release-oriented gate:
 
 ```bash
