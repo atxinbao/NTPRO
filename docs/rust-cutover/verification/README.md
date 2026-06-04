@@ -45,6 +45,9 @@ Expected output includes the pinned toolchain:
 == verify_fast: toolchain ==
 cargo 1.95.0 ...
 rustc 1.95.0 ...
+== verify_fast: scope ==
+fast smoke only: toolchain + cargo fmt by default
+not a full workspace check, clippy gate, release gate, or golden trace gate
 ```
 
 By default, `verify_fast.sh` does not run workspace Cargo check or clippy. That
