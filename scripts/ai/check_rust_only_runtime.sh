@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT"
+source scripts/ai/toolchain_env.sh
+
 echo "== rust-only-runtime: checking product surface =="
 
 fail=0

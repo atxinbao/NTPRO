@@ -2114,7 +2114,7 @@
     },
     "RHARD-001": {
       "title": "Post-release gap list",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -2125,11 +2125,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RHARD-001.md",
       "evidence_file": "docs/rust-cutover/evidence/RHARD-001.md",
-      "updated_at": "2026-06-04T13:14:05Z"
+      "updated_at": "2026-06-04T13:18:31Z"
     },
     "RHARD-002": {
       "title": "Toolchain and verification path hardening",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -2140,7 +2140,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RHARD-002.md",
       "evidence_file": "docs/rust-cutover/evidence/RHARD-002.md",
-      "updated_at": "2026-06-04T13:09:00Z"
+      "updated_at": "2026-06-04T13:18:31Z"
     },
     "RHARD-007": {
       "title": "Verification cleanup",

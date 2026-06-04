@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT"
+source scripts/ai/toolchain_env.sh
+
 FEATURES="${NAUTILUS_RUST_FEATURES:-arrow,ffi,high-precision,streaming,defi}"
 VERIFY_FAST_CARGO_CHECK="${VERIFY_FAST_CARGO_CHECK:-0}"
 VERIFY_FAST_CLIPPY="${VERIFY_FAST_CLIPPY:-0}"
 
 echo "== verify_fast: toolchain =="
-command -v cargo >/dev/null
+cargo --version
+rustc --version
 
 echo "== verify_fast: rust fmt =="
 cargo fmt --check

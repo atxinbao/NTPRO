@@ -54,6 +54,11 @@ that is how the workspace is configured:
 PATH="$HOME/.rustup/toolchains/1.95.0-aarch64-apple-darwin/bin:$PATH"
 ```
 
+If Homebrew `rustc` or `cargo` appears before rustup on `PATH`, the local
+verification scripts source `scripts/ai/toolchain_env.sh` to force Rust
+`1.95.0` before running Cargo. See
+`docs/rust-cutover/verification/toolchain.md`.
+
 ## User Entrypoint
 
 Use the Rust CLI as the first product entrypoint:
