@@ -5,6 +5,12 @@ This tutorial backtests a top-of-book imbalance strategy on **XAU-PERP** at
 [Databento](https://databento.com) CME gold futures (`GC.v.0`) `mbp-1`
 quotes as a proxy.
 
+:::warning[Legacy migration reference]
+This page keeps historical Python snippets as migration reference material.
+They are not supported NTPRO product entrypoints. For runnable NTPRO workflows,
+start with the Rust CLI, Cargo examples, and Rust how-to guides.
+:::
+
 ## Introduction
 
 Top-of-book imbalance is a microstructure signal: when one side of the BBO
@@ -64,15 +70,17 @@ Databento's
 
 ## Prerequisites
 
-- Python 3.12+
-- [NautilusTrader](https://pypi.org/project/nautilus_trader/) installed.
+- NTPRO cloned from the formal Rust-only release tag or `main`.
+- The Rust toolchain configured as described in
+  [Installation](../getting_started/installation.md).
 - A Databento API key:
 
 ```bash
 export DATABENTO_API_KEY="your-api-key"
 ```
 
-- The Databento Python client: `pip install databento`.
+- Optional Databento client tooling if you reproduce the legacy data download
+  outside the supported NTPRO product path.
 
 ## Data preparation
 
@@ -308,7 +316,6 @@ For connection setup and API key configuration, see the
 
 ## Further reading
 
-- [`OrderBookImbalance` strategy source](https://github.com/nautechsystems/nautilus_trader/tree/develop/nautilus_trader/examples/strategies/orderbook_imbalance.py)
 - [Mean Reversion with Proxy FX Data tutorial](fx_mean_reversion_ax.md)
 - [Architect Exchange documentation](https://docs.architect.exchange/)
 - [Databento: HFT signals with sklearn](https://databento.com/blog/hft-sklearn-python)

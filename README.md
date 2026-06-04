@@ -1,7 +1,7 @@
 # NTPRO
 
-NTPRO is a Rust-only release-candidate workspace for a trading engine cutover
-from NautilusTrader.
+NTPRO is a Rust-only release workspace for a trading engine cutover from
+NautilusTrader.
 
 The current public milestone is:
 
@@ -10,7 +10,7 @@ ntpro-rust-only-v0.1.0
 ```
 
 This tag is the first Rust-only formal release source point after the RC3
-pre-release validation path. It is published as the current GitHub Release:
+validation path. It is published as the current GitHub Release:
 
 ```text
 https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.1.0

@@ -7,18 +7,9 @@ NTPRO tutorials are Rust-only product documentation. Legacy Jupytext Python
 tutorial scripts have been removed from this repository.
 :::
 
-:::tip
-
-- **Latest**: docs built from the `master` branch for stable releases.
-  See <https://nautilustrader.io/docs/latest/tutorials/>.
-- **Nightly**: docs built from the `nightly` branch for experimental features.
-  See <https://nautilustrader.io/docs/nightly/tutorials/>.
-
-:::
-
 ## Recommended order
 
-New to NautilusTrader? Work through these in sequence:
+New to NTPRO? Work through these in sequence:
 
 1. [Run a Backtest (Rust)](../how_to/run_rust_backtest) - learn the
    `BacktestEngine` and `BacktestNode` paths.

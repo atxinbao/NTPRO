@@ -82,9 +82,9 @@ NTPRO is considered Rust-only only when these gates remain green:
 
 ## User Impact
 
-Users should treat NTPRO as a Rust-only release candidate. Python package
-installation, Python imports, PyO3 bindings, Cython builds, Python wheels, and
-mixed Rust/Python packaging are not supported product paths.
+Users should treat NTPRO as a formal Rust-only release source point. Python
+package installation, Python imports, PyO3 bindings, Cython builds, Python
+wheels, and mixed Rust/Python packaging are not supported product paths.
 
 ## References
 

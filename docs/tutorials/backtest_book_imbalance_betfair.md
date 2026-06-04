@@ -339,6 +339,5 @@ The complete example is at
   like top-of-book spread, depth ratios, or weighted mid-price.
 - **Multiple markets**. Load several `.gz` files and run them through the
   same engine to test cross-market signals.
-- **Compare with Python**. Run the same backtest from Python using the
-  `BacktestEngine` Python API. The Rust engine processes the same data
-  pipeline at roughly six times the throughput of the Python/Cython path.
+- **Measure Rust throughput**. Use golden traces and release validation
+  evidence when comparing future Rust fixture or adapter changes.
