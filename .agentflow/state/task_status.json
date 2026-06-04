@@ -2174,7 +2174,7 @@
     },
     "RHARD-006": {
       "title": "Backtest CLI minimal path",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2185,11 +2185,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RHARD-006.md",
       "evidence_file": "docs/rust-cutover/evidence/RHARD-006.md",
-      "updated_at": "2026-06-04T14:17:46Z"
+      "updated_at": "2026-06-04T14:46:31Z"
     },
     "RHARD-004": {
       "title": "Sandbox demo",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2200,7 +2200,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RHARD-004.md",
       "evidence_file": "docs/rust-cutover/evidence/RHARD-004.md",
-      "updated_at": "2026-06-04T13:09:00Z"
+      "updated_at": "2026-06-04T14:46:31Z"
     },
     "RHARD-005": {
       "title": "Live init smoke",

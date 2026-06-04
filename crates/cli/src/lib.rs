@@ -53,6 +53,7 @@ mod backtest;
 mod blockchain;
 mod database;
 pub mod opt;
+mod sandbox;
 
 #[cfg(feature = "defi")]
 use crate::blockchain::run_blockchain_command;
@@ -60,9 +61,9 @@ use crate::{
     backtest::run_backtest_command,
     database::postgres::run_database_command,
     opt::{
-        Commands, ConfigCommand, ConfigOpt, DataCommand, DataOpt, LiveCommand, LiveOpt,
-        NautilusCli, SandboxCommand, SandboxOpt,
+        Commands, ConfigCommand, ConfigOpt, DataCommand, DataOpt, LiveCommand, LiveOpt, NautilusCli,
     },
+    sandbox::run_sandbox_command,
 };
 
 /// Runs the Nautilus CLI based on the provided options.
@@ -107,19 +108,6 @@ fn run_config_command(opt: ConfigOpt) -> anyhow::Result<()> {
             "config validate is defined but not implemented yet for kind '{:?}' and config '{}'; see docs/rust-cutover/product/CONFIG_VALIDATION_CLI_CONTRACT.md",
             validate.kind,
             validate.config.display()
-        ),
-    }
-}
-
-fn run_sandbox_command(opt: SandboxOpt) -> anyhow::Result<()> {
-    match opt.command {
-        SandboxCommand::Validate(validate) => anyhow::bail!(
-            "sandbox validate is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/LIVE_SANDBOX_CLI_CONTRACT.md",
-            validate.config.display()
-        ),
-        SandboxCommand::Run(run) => anyhow::bail!(
-            "sandbox run is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/LIVE_SANDBOX_CLI_CONTRACT.md",
-            run.config.display()
         ),
     }
 }

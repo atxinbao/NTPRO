@@ -22,20 +22,25 @@ examples/rust/
 
 ## Current Status
 
-The CLI command surfaces exist, but runtime execution is intentionally blocked
-until later runtime and config-parser tasks connect the commands to Rust models.
+The CLI command surfaces exist. Backtest and sandbox now have narrow runnable
+Rust CLI paths, while full runtime execution remains deferred until later
+runtime and adapter tasks connect the commands to Rust models.
 
-Supported help commands:
+Supported help and demo commands:
 
 ```bash
 cargo run -q -p nautilus-cli -- backtest --help
+cargo run -q -p nautilus-cli -- backtest run --config examples/rust/backtest/minimal_dry_run.toml --dry-run --output runs/minimal-backtest-dry-run
 cargo run -q -p nautilus-cli -- sandbox --help
+cargo run -q -p nautilus-cli -- sandbox run --config examples/rust/sandbox/sandbox_smoke.toml --run-id sandbox-smoke --output runs/sandbox-smoke
 cargo run -q -p nautilus-cli -- live --help
 cargo run -q -p nautilus-cli -- data --help
 cargo run -q -p nautilus-cli -- config --help
 ```
 
-Execution commands currently return explicit blockers that point to their
+The backtest command supports the RHARD-006 metadata-only dry-run. The sandbox
+command supports the RHARD-004 local simulated demo. Live, data, config, and
+full runtime execution paths still return explicit blockers that point to their
 product contracts. Examples in this directory must not use Python fallback
 behavior to bypass those blockers.
 
@@ -55,5 +60,5 @@ behavior to bypass those blockers.
 ## Contribution Rule
 
 Add runnable Rust source only after the matching command can execute without
-Python, PyO3, or Cython artifacts. Until then, keep examples as command and
+Python, PyO3, or Cython artifacts. Keep unsupported flows as command and
 config-contract documentation with explicit blocker status.

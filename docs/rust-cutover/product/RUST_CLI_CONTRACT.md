@@ -154,6 +154,9 @@ Minimum contract:
 - `run` must expose startup and shutdown outcomes.
 - The first supported sandbox path may use fixtures or local deterministic
   market data.
+- RHARD-004 supports a local simulated sandbox demo from
+  `examples/rust/sandbox/sandbox_smoke.toml`; full live-node runtime wiring
+  remains deferred.
 
 Evidence needed before this command is considered usable:
 
