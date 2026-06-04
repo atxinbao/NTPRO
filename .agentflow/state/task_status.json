@@ -2264,7 +2264,7 @@
     },
     "NARCH-001": {
       "title": "Rust-only architecture map",
-      "status": "TODO",
+      "status": "QA_REQUIRED",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -2275,7 +2275,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NARCH-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NARCH-001.md",
-      "updated_at": "2026-06-04T13:09:00Z"
+      "updated_at": "2026-06-04T15:52:24Z"
     },
     "NARCH-006": {
       "title": "Module boundary audit",
