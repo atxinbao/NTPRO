@@ -64,9 +64,9 @@ use nautilus_model::{
         AccountId, ClientId, ClientOrderId, ComponentId, InstrumentId, PositionId, StrategyId,
         TraderId, VenueOrderId,
     },
-    instruments::{InstrumentAny, SyntheticInstrument},
+    instruments::{Instrument, InstrumentAny, SyntheticInstrument},
     orderbook::OrderBook,
-    orders::OrderAny,
+    orders::{Order, OrderAny},
     position::Position,
     types::Currency,
 };
@@ -83,6 +83,10 @@ const CACHE_PROCESS: &str = "cache-process";
 
 // Error constants
 const FAILED_TX_CHANNEL: &str = "Failed to send to channel";
+
+fn redis_cache_not_supported<T>(operation: &str) -> anyhow::Result<T> {
+    anyhow::bail!("{operation} not supported by Redis cache adapter")
+}
 
 // Collection keys
 const INDEX: &str = "index";
@@ -1078,11 +1082,11 @@ impl CacheDatabaseAdapter for RedisCacheDatabaseAdapter {
     }
 
     fn load_index_order_position(&self) -> anyhow::Result<AHashMap<ClientOrderId, Position>> {
-        todo!()
+        redis_cache_not_supported("load_index_order_position")
     }
 
     fn load_index_order_client(&self) -> anyhow::Result<AHashMap<ClientOrderId, ClientId>> {
-        todo!()
+        redis_cache_not_supported("load_index_order_client")
     }
 
     async fn load_currency(&self, code: &Ustr) -> anyhow::Result<Option<Currency>> {
@@ -1155,11 +1159,11 @@ impl CacheDatabaseAdapter for RedisCacheDatabaseAdapter {
     }
 
     fn load_actor(&self, component_id: &ComponentId) -> anyhow::Result<AHashMap<String, Bytes>> {
-        todo!()
+        anyhow::bail!("load_actor not supported by Redis cache adapter: {component_id}")
     }
 
     fn load_strategy(&self, strategy_id: &StrategyId) -> anyhow::Result<AHashMap<String, Bytes>> {
-        todo!()
+        anyhow::bail!("load_strategy not supported by Redis cache adapter: {strategy_id}")
     }
 
     fn load_signals(&self, name: &str) -> anyhow::Result<Vec<Signal>> {
@@ -1204,39 +1208,60 @@ impl CacheDatabaseAdapter for RedisCacheDatabaseAdapter {
     }
 
     fn add(&self, key: String, value: Bytes) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!("add not supported by Redis cache adapter: {key}")
     }
 
     fn add_currency(&self, currency: &Currency) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!("add_currency not supported by Redis cache adapter: {currency}")
     }
 
     fn add_instrument(&self, instrument: &InstrumentAny) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "add_instrument not supported by Redis cache adapter: {}",
+            instrument.id()
+        )
     }
 
     fn add_synthetic(&self, synthetic: &SyntheticInstrument) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "add_synthetic not supported by Redis cache adapter: {}",
+            synthetic.id
+        )
     }
 
     fn add_account(&self, account: &AccountAny) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "add_account not supported by Redis cache adapter: {}",
+            account.id()
+        )
     }
 
     fn add_order(&self, order: &OrderAny, client_id: Option<ClientId>) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "add_order not supported by Redis cache adapter: {}",
+            order.client_order_id()
+        )
     }
 
     fn add_order_snapshot(&self, snapshot: &OrderSnapshot) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "add_order_snapshot not supported by Redis cache adapter: {}",
+            snapshot.client_order_id
+        )
     }
 
     fn add_position(&self, position: &Position) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "add_position not supported by Redis cache adapter: {}",
+            position.id
+        )
     }
 
     fn add_position_snapshot(&self, snapshot: &PositionSnapshot) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "add_position_snapshot not supported by Redis cache adapter: {}",
+            snapshot.position_id
+        )
     }
 
     fn add_order_book(&self, order_book: &OrderBook) -> anyhow::Result<()> {
@@ -1277,11 +1302,11 @@ impl CacheDatabaseAdapter for RedisCacheDatabaseAdapter {
     }
 
     fn delete_actor(&self, component_id: &ComponentId) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!("delete_actor not supported by Redis cache adapter: {component_id}")
     }
 
     fn delete_strategy(&self, component_id: &StrategyId) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!("delete_strategy not supported by Redis cache adapter: {component_id}")
     }
 
     fn delete_order(&self, client_order_id: &ClientOrderId) -> anyhow::Result<()> {
@@ -1367,7 +1392,9 @@ impl CacheDatabaseAdapter for RedisCacheDatabaseAdapter {
     }
 
     fn delete_account_event(&self, account_id: &AccountId, event_id: &str) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "delete_account_event not supported by Redis cache adapter: {account_id}, {event_id}"
+        )
     }
 
     fn index_venue_order_id(
@@ -1375,7 +1402,9 @@ impl CacheDatabaseAdapter for RedisCacheDatabaseAdapter {
         client_order_id: ClientOrderId,
         venue_order_id: VenueOrderId,
     ) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "index_venue_order_id not supported by Redis cache adapter: {client_order_id}, {venue_order_id}"
+        )
     }
 
     fn index_order_position(
@@ -1383,39 +1412,56 @@ impl CacheDatabaseAdapter for RedisCacheDatabaseAdapter {
         client_order_id: ClientOrderId,
         position_id: PositionId,
     ) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "index_order_position not supported by Redis cache adapter: {client_order_id}, {position_id}"
+        )
     }
 
     fn update_actor(&self) -> anyhow::Result<()> {
-        todo!()
+        redis_cache_not_supported("update_actor")
     }
 
     fn update_strategy(&self) -> anyhow::Result<()> {
-        todo!()
+        redis_cache_not_supported("update_strategy")
     }
 
     fn update_account(&self, account: &AccountAny) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "update_account not supported by Redis cache adapter: {}",
+            account.id()
+        )
     }
 
     fn update_order(&self, order_event: &OrderEventAny) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "update_order not supported by Redis cache adapter: {}",
+            order_event.client_order_id()
+        )
     }
 
     fn update_position(&self, position: &Position) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "update_position not supported by Redis cache adapter: {}",
+            position.id
+        )
     }
 
     fn snapshot_order_state(&self, order: &OrderAny) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "snapshot_order_state not supported by Redis cache adapter: {}",
+            order.client_order_id()
+        )
     }
 
     fn snapshot_position_state(&self, position: &Position) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "snapshot_position_state not supported by Redis cache adapter: {}",
+            position.id
+        )
     }
 
     fn heartbeat(&self, timestamp: UnixNanos) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!("heartbeat not supported by Redis cache adapter: {timestamp}")
     }
 }
 

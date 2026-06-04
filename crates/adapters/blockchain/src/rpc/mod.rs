@@ -57,11 +57,15 @@ pub trait BlockchainRpcClient {
     async fn connect(&mut self) -> anyhow::Result<()>;
     async fn subscribe_blocks(&mut self) -> Result<(), BlockchainRpcClientError>;
     async fn subscribe_swaps(&mut self) -> Result<(), BlockchainRpcClientError> {
-        todo!("Not implemented")
+        Err(BlockchainRpcClientError::ClientError(
+            "subscribe_swaps not implemented for blockchain RPC client".to_string(),
+        ))
     }
     async fn unsubscribe_blocks(&mut self) -> Result<(), BlockchainRpcClientError>;
     async fn unsubscribe_swaps(&mut self) -> Result<(), BlockchainRpcClientError> {
-        todo!("Not implemented")
+        Err(BlockchainRpcClientError::ClientError(
+            "unsubscribe_swaps not implemented for blockchain RPC client".to_string(),
+        ))
     }
     async fn next_rpc_message(&mut self) -> Result<BlockchainMessage, BlockchainRpcClientError>;
     fn set_transport_backend(&mut self, backend: TransportBackend);

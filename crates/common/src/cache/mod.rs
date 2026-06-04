@@ -2380,10 +2380,10 @@ impl Cache {
 
             // In-memory index updates only. The persistent index entry (if any) was written by
             // the original fill-time `add_position_id` call; replaying the database write here
-            // would invoke `CacheDatabaseAdapter::index_order_position`, which is currently
-            // `todo!()` on both the Redis and SQL adapters. Until those land, the load-time
-            // recovery is in-memory-only: sufficient for the current process to operate, but
-            // not durable across another restart.
+            // would invoke `CacheDatabaseAdapter::index_order_position`, which currently returns
+            // an explicit unsupported/not-implemented error on the Redis and SQL adapters. Until
+            // those land, the load-time recovery is in-memory-only: sufficient for the current
+            // process to operate, but not durable across another restart.
             self.index
                 .order_position
                 .insert(client_order_id, position_id);

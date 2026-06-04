@@ -188,6 +188,12 @@ impl BlockchainExecutionClient {
     }
 }
 
+fn blockchain_execution_not_implemented<T>(operation: &str) -> anyhow::Result<T> {
+    anyhow::bail!(
+        "Blockchain execution client {operation} is not implemented for the Rust-only product path"
+    )
+}
+
 #[async_trait(?Send)]
 impl ExecutionClient for BlockchainExecutionClient {
     fn is_connected(&self) -> bool {
@@ -211,7 +217,10 @@ impl ExecutionClient for BlockchainExecutionClient {
     }
 
     fn get_account(&self) -> Option<AccountAny> {
-        todo!("implement get_account")
+        log::warn!(
+            "Blockchain execution client get_account is not implemented for the Rust-only product path"
+        );
+        None
     }
 
     fn generate_account_state(
@@ -221,47 +230,47 @@ impl ExecutionClient for BlockchainExecutionClient {
         _reported: bool,
         _ts_event: UnixNanos,
     ) -> anyhow::Result<()> {
-        todo!("implement generate_account_state")
+        blockchain_execution_not_implemented("generate_account_state")
     }
 
     fn start(&mut self) -> anyhow::Result<()> {
-        todo!("implement start")
+        blockchain_execution_not_implemented("start")
     }
 
     fn stop(&mut self) -> anyhow::Result<()> {
-        todo!("implement stop")
+        blockchain_execution_not_implemented("stop")
     }
 
     fn submit_order(&self, _cmd: SubmitOrder) -> anyhow::Result<()> {
-        todo!("implement submit_order")
+        blockchain_execution_not_implemented("submit_order")
     }
 
     fn submit_order_list(&self, _cmd: SubmitOrderList) -> anyhow::Result<()> {
-        todo!("implement submit_order_list")
+        blockchain_execution_not_implemented("submit_order_list")
     }
 
     fn modify_order(&self, _cmd: ModifyOrder) -> anyhow::Result<()> {
-        todo!("implement modify_order")
+        blockchain_execution_not_implemented("modify_order")
     }
 
     fn cancel_order(&self, _cmd: CancelOrder) -> anyhow::Result<()> {
-        todo!("implement cancel_order")
+        blockchain_execution_not_implemented("cancel_order")
     }
 
     fn cancel_all_orders(&self, _cmd: CancelAllOrders) -> anyhow::Result<()> {
-        todo!("implement cancel_all_orders")
+        blockchain_execution_not_implemented("cancel_all_orders")
     }
 
     fn batch_cancel_orders(&self, _cmd: BatchCancelOrders) -> anyhow::Result<()> {
-        todo!("implement batch_cancel_orders")
+        blockchain_execution_not_implemented("batch_cancel_orders")
     }
 
     fn query_account(&self, _cmd: QueryAccount) -> anyhow::Result<()> {
-        todo!("implement query_account")
+        blockchain_execution_not_implemented("query_account")
     }
 
     fn query_order(&self, _cmd: QueryOrder) -> anyhow::Result<()> {
-        todo!("implement query_order")
+        blockchain_execution_not_implemented("query_order")
     }
 
     async fn connect(&mut self) -> anyhow::Result<()> {
@@ -294,34 +303,34 @@ impl ExecutionClient for BlockchainExecutionClient {
         &self,
         _cmd: &GenerateOrderStatusReport,
     ) -> anyhow::Result<Option<OrderStatusReport>> {
-        todo!("implement generate_order_status_report")
+        blockchain_execution_not_implemented("generate_order_status_report")
     }
 
     async fn generate_order_status_reports(
         &self,
         _cmd: &GenerateOrderStatusReports,
     ) -> anyhow::Result<Vec<OrderStatusReport>> {
-        todo!("implement generate_order_status_reports")
+        blockchain_execution_not_implemented("generate_order_status_reports")
     }
 
     async fn generate_fill_reports(
         &self,
         _cmd: GenerateFillReports,
     ) -> anyhow::Result<Vec<FillReport>> {
-        todo!("implement generate_fill_reports")
+        blockchain_execution_not_implemented("generate_fill_reports")
     }
 
     async fn generate_position_status_reports(
         &self,
         _cmd: &GeneratePositionStatusReports,
     ) -> anyhow::Result<Vec<PositionStatusReport>> {
-        todo!("implement generate_position_status_reports")
+        blockchain_execution_not_implemented("generate_position_status_reports")
     }
 
     async fn generate_mass_status(
         &self,
         _lookback_mins: Option<u64>,
     ) -> anyhow::Result<Option<ExecutionMassStatus>> {
-        todo!("implement generate_mass_status")
+        blockchain_execution_not_implemented("generate_mass_status")
     }
 }

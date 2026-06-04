@@ -39,6 +39,12 @@ use ustr::Ustr;
 
 use crate::sql::models::enums::TrailingOffsetTypeModel;
 
+fn unsupported_from_row(model: &str) -> sqlx::Error {
+    sqlx::Error::Decode(
+        format!("{model} FromRow is not implemented for PostgreSQL cache adapter").into(),
+    )
+}
+
 #[derive(Debug)]
 pub struct OrderEventAnyModel(pub OrderEventAny);
 
@@ -375,25 +381,25 @@ impl<'r> FromRow<'r, PgRow> for OrderCancelRejectedModel {
 
 impl<'r> FromRow<'r, PgRow> for OrderCanceledModel {
     fn from_row(_row: &'r PgRow) -> Result<Self, sqlx::Error> {
-        todo!()
+        Err(unsupported_from_row("OrderCanceled"))
     }
 }
 
 impl<'r> FromRow<'r, PgRow> for OrderDeniedModel {
     fn from_row(_row: &'r PgRow) -> Result<Self, sqlx::Error> {
-        todo!()
+        Err(unsupported_from_row("OrderDenied"))
     }
 }
 
 impl<'r> FromRow<'r, PgRow> for OrderEmulatedModel {
     fn from_row(_row: &'r PgRow) -> Result<Self, sqlx::Error> {
-        todo!()
+        Err(unsupported_from_row("OrderEmulated"))
     }
 }
 
 impl<'r> FromRow<'r, PgRow> for OrderExpiredModel {
     fn from_row(_row: &'r PgRow) -> Result<Self, sqlx::Error> {
-        todo!()
+        Err(unsupported_from_row("OrderExpired"))
     }
 }
 
@@ -502,25 +508,25 @@ impl<'r> FromRow<'r, PgRow> for OrderModifyRejectedModel {
 
 impl<'r> FromRow<'r, PgRow> for OrderPendingCancelModel {
     fn from_row(_row: &'r PgRow) -> Result<Self, sqlx::Error> {
-        todo!()
+        Err(unsupported_from_row("OrderPendingCancel"))
     }
 }
 
 impl<'r> FromRow<'r, PgRow> for OrderPendingUpdateModel {
     fn from_row(_row: &'r PgRow) -> Result<Self, sqlx::Error> {
-        todo!()
+        Err(unsupported_from_row("OrderPendingUpdate"))
     }
 }
 
 impl<'r> FromRow<'r, PgRow> for OrderRejectedModel {
     fn from_row(_row: &'r PgRow) -> Result<Self, sqlx::Error> {
-        todo!()
+        Err(unsupported_from_row("OrderRejected"))
     }
 }
 
 impl<'r> FromRow<'r, PgRow> for OrderReleasedModel {
     fn from_row(_row: &'r PgRow) -> Result<Self, sqlx::Error> {
-        todo!()
+        Err(unsupported_from_row("OrderReleased"))
     }
 }
 
@@ -560,13 +566,13 @@ impl<'r> FromRow<'r, PgRow> for OrderSubmittedModel {
 
 impl<'r> FromRow<'r, PgRow> for OrderTriggeredModel {
     fn from_row(_row: &'r PgRow) -> Result<Self, sqlx::Error> {
-        todo!()
+        Err(unsupported_from_row("OrderTriggered"))
     }
 }
 
 impl<'r> FromRow<'r, PgRow> for OrderUpdatedModel {
     fn from_row(_row: &'r PgRow) -> Result<Self, sqlx::Error> {
-        todo!()
+        Err(unsupported_from_row("OrderUpdated"))
     }
 }
 

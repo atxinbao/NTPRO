@@ -50,6 +50,10 @@ use crate::sql::{
 // Task and connection names
 const CACHE_PROCESS: &str = "cache-process";
 
+fn pg_cache_not_implemented<T>(operation: &str) -> anyhow::Result<T> {
+    anyhow::bail!("{operation} not implemented for PostgreSQL cache adapter")
+}
+
 #[derive(Debug)]
 pub struct PostgresCacheDatabase {
     pub pool: PgPool,
@@ -385,7 +389,7 @@ impl CacheDatabaseAdapter for PostgresCacheDatabase {
     }
 
     async fn load_synthetics(&self) -> anyhow::Result<AHashMap<InstrumentId, SyntheticInstrument>> {
-        todo!()
+        pg_cache_not_implemented("load_synthetics")
     }
 
     async fn load_accounts(&self) -> anyhow::Result<AHashMap<AccountId, AccountAny>> {
@@ -445,11 +449,11 @@ impl CacheDatabaseAdapter for PostgresCacheDatabase {
     }
 
     async fn load_positions(&self) -> anyhow::Result<AHashMap<PositionId, Position>> {
-        todo!()
+        pg_cache_not_implemented("load_positions")
     }
 
     fn load_index_order_position(&self) -> anyhow::Result<AHashMap<ClientOrderId, Position>> {
-        todo!()
+        pg_cache_not_implemented("load_index_order_position")
     }
 
     fn load_index_order_client(&self) -> anyhow::Result<AHashMap<ClientOrderId, ClientId>> {
@@ -530,7 +534,9 @@ impl CacheDatabaseAdapter for PostgresCacheDatabase {
         &self,
         instrument_id: &InstrumentId,
     ) -> anyhow::Result<Option<SyntheticInstrument>> {
-        todo!()
+        anyhow::bail!(
+            "load_synthetic not implemented for PostgreSQL cache adapter: {instrument_id}"
+        )
     }
 
     async fn load_account(&self, account_id: &AccountId) -> anyhow::Result<Option<AccountAny>> {
@@ -583,23 +589,25 @@ impl CacheDatabaseAdapter for PostgresCacheDatabase {
     }
 
     async fn load_position(&self, position_id: &PositionId) -> anyhow::Result<Option<Position>> {
-        todo!()
+        anyhow::bail!("load_position not implemented for PostgreSQL cache adapter: {position_id}")
     }
 
     fn load_actor(&self, component_id: &ComponentId) -> anyhow::Result<AHashMap<String, Bytes>> {
-        todo!()
+        anyhow::bail!("load_actor not implemented for PostgreSQL cache adapter: {component_id}")
     }
 
     fn delete_actor(&self, component_id: &ComponentId) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!("delete_actor not implemented for PostgreSQL cache adapter: {component_id}")
     }
 
     fn load_strategy(&self, strategy_id: &StrategyId) -> anyhow::Result<AHashMap<String, Bytes>> {
-        todo!()
+        anyhow::bail!("load_strategy not implemented for PostgreSQL cache adapter: {strategy_id}")
     }
 
     fn delete_strategy(&self, component_id: &StrategyId) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "delete_strategy not implemented for PostgreSQL cache adapter: {component_id}"
+        )
     }
 
     fn delete_order(&self, client_order_id: &ClientOrderId) -> anyhow::Result<()> {
@@ -640,7 +648,10 @@ impl CacheDatabaseAdapter for PostgresCacheDatabase {
     }
 
     fn add_synthetic(&self, synthetic: &SyntheticInstrument) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "add_synthetic not implemented for PostgreSQL cache adapter: {}",
+            synthetic.id
+        )
     }
 
     fn add_account(&self, account: &AccountAny) -> anyhow::Result<()> {
@@ -667,7 +678,10 @@ impl CacheDatabaseAdapter for PostgresCacheDatabase {
     }
 
     fn add_position(&self, position: &Position) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "add_position not implemented for PostgreSQL cache adapter: {}",
+            position.id
+        )
     }
 
     fn add_position_snapshot(&self, snapshot: &PositionSnapshot) -> anyhow::Result<()> {
@@ -680,7 +694,10 @@ impl CacheDatabaseAdapter for PostgresCacheDatabase {
     }
 
     fn add_order_book(&self, order_book: &OrderBook) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "add_order_book not implemented for PostgreSQL cache adapter: {}",
+            order_book.instrument_id
+        )
     }
 
     fn add_quote(&self, quote: &QuoteTick) -> anyhow::Result<()> {
@@ -918,7 +935,9 @@ impl CacheDatabaseAdapter for PostgresCacheDatabase {
         client_order_id: ClientOrderId,
         venue_order_id: VenueOrderId,
     ) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "index_venue_order_id not implemented for PostgreSQL cache adapter: {client_order_id}, {venue_order_id}"
+        )
     }
 
     fn index_order_position(
@@ -926,15 +945,17 @@ impl CacheDatabaseAdapter for PostgresCacheDatabase {
         client_order_id: ClientOrderId,
         position_id: PositionId,
     ) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "index_order_position not implemented for PostgreSQL cache adapter: {client_order_id}, {position_id}"
+        )
     }
 
     fn update_actor(&self) -> anyhow::Result<()> {
-        todo!()
+        pg_cache_not_implemented("update_actor")
     }
 
     fn update_strategy(&self) -> anyhow::Result<()> {
-        todo!()
+        pg_cache_not_implemented("update_strategy")
     }
 
     fn update_account(&self, account: &AccountAny) -> anyhow::Result<()> {
@@ -952,19 +973,28 @@ impl CacheDatabaseAdapter for PostgresCacheDatabase {
     }
 
     fn update_position(&self, position: &Position) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "update_position not implemented for PostgreSQL cache adapter: {}",
+            position.id
+        )
     }
 
     fn snapshot_order_state(&self, order: &OrderAny) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "snapshot_order_state not implemented for PostgreSQL cache adapter: {}",
+            order.client_order_id()
+        )
     }
 
     fn snapshot_position_state(&self, position: &Position) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!(
+            "snapshot_position_state not implemented for PostgreSQL cache adapter: {}",
+            position.id
+        )
     }
 
     fn heartbeat(&self, timestamp: UnixNanos) -> anyhow::Result<()> {
-        todo!()
+        anyhow::bail!("heartbeat not implemented for PostgreSQL cache adapter: {timestamp}")
     }
 }
 

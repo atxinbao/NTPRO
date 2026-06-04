@@ -37,6 +37,12 @@ use ustr::Ustr;
 
 use crate::sql::models::enums::AssetClassModel;
 
+fn unsupported_from_row(model: &str) -> sqlx::Error {
+    sqlx::Error::Decode(
+        format!("{model} FromRow is not implemented for PostgreSQL cache adapter").into(),
+    )
+}
+
 #[derive(Debug)]
 pub struct InstrumentAnyModel(pub InstrumentAny);
 
@@ -987,7 +993,7 @@ impl<'r> FromRow<'r, PgRow> for FuturesContractModel {
 
 impl<'r> FromRow<'r, PgRow> for FuturesSpreadModel {
     fn from_row(_row: &'r PgRow) -> Result<Self, sqlx::Error> {
-        todo!("Implement FromRow for FuturesSpread")
+        Err(unsupported_from_row("FuturesSpread"))
     }
 }
 
@@ -1418,7 +1424,7 @@ impl<'r> FromRow<'r, PgRow> for PerpetualContractModel {
 
 impl<'r> FromRow<'r, PgRow> for OptionSpreadModel {
     fn from_row(_row: &'r PgRow) -> Result<Self, sqlx::Error> {
-        todo!("Implement FromRow for OptionSpread")
+        Err(unsupported_from_row("OptionSpread"))
     }
 }
 
