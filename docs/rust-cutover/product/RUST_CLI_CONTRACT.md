@@ -39,10 +39,12 @@ nautilus --features defi
 Current help-level status is documented in
 `docs/rust-cutover/product/CLI_HELP_CONTRACT.md`.
 
-Current runtime blockers:
+Current runtime status:
 
-- `nautilus backtest validate` and `nautilus backtest run` are exposed but
-  intentionally return Rust blocker errors.
+- `nautilus backtest validate` and `nautilus backtest run --dry-run` support
+  the RHARD-006 metadata-only minimal path.
+- Full `nautilus backtest run` without `--dry-run` is exposed but intentionally
+  returns a Rust blocker error.
 - `nautilus sandbox validate` and `nautilus sandbox run` are exposed but
   intentionally return Rust blocker errors.
 - `nautilus live validate` and `nautilus live run` are exposed but
@@ -109,15 +111,16 @@ Required subcommands:
 
 ```text
 nautilus backtest validate --config <path>
-nautilus backtest run --config <path> [--run-id <id>] [--output <dir>]
+nautilus backtest run --config <path> [--run-id <id>] [--output <dir>] [--dry-run]
 ```
 
 Minimum contract:
 
 - `validate` loads the config, validates data source, venue, and strategy
   sections, then exits without running the engine.
-- `run` uses `nautilus-backtest` Rust APIs such as `BacktestEngine` or
-  `BacktestNode`.
+- `run --dry-run` validates a minimal config and writes a metadata summary.
+- Full `run` uses `nautilus-backtest` Rust APIs such as `BacktestEngine` or
+  `BacktestNode` once runtime wiring is implemented.
 - `run` must produce an owner-visible run ID.
 - `run` must write or print enough result metadata for later golden trace and
   parity tasks to compare behavior.

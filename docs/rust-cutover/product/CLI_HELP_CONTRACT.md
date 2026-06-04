@@ -38,7 +38,7 @@ RHARD-003 help contract.
 | `nautilus --help` | supported | n/a | Lists `backtest`, `sandbox`, `live`, `data`, `config`, and `database`. |
 | `nautilus backtest --help` | supported | deferred | Exposes `validate` and `run`; execution returns explicit blocker messages. |
 | `nautilus backtest validate --help` | supported | deferred | Requires `--config <CONFIG>`. |
-| `nautilus backtest run --help` | supported | deferred | Requires `--config <CONFIG>` and accepts `--run-id` plus `--output`. |
+| `nautilus backtest run --help` | supported | partially supported | Requires `--config <CONFIG>` and accepts `--run-id`, `--output`, and `--dry-run`; RHARD-006 supports metadata-only dry-run. |
 | `nautilus sandbox --help` | supported | deferred | Exposes `validate` and `run`; execution returns explicit blocker messages. |
 | `nautilus sandbox validate --help` | supported | deferred | Requires `--config <CONFIG>`. |
 | `nautilus sandbox run --help` | supported | deferred | Requires `--config <CONFIG>` and accepts `--run-id` plus `--output`. |
@@ -59,8 +59,7 @@ RHARD-003 help contract.
 
 These product commands are help-stable but not runtime-complete:
 
-- `backtest validate`;
-- `backtest run`;
+- full `backtest run` without `--dry-run`;
 - `sandbox validate`;
 - `sandbox run`;
 - `live validate`;
@@ -70,10 +69,11 @@ These product commands are help-stable but not runtime-complete:
 - `data load`;
 - `config validate`.
 
-They intentionally return owner-visible blocker errors from Rust code. Later
-v0.2.0 tasks should replace those blockers with scoped Rust implementations
-only when config parsing, runtime wiring, adapter classification, and evidence
-requirements are ready.
+`backtest validate` and `backtest run --dry-run` now support the RHARD-006
+metadata-only minimal path. The remaining deferred commands intentionally return
+owner-visible blocker errors from Rust code. Later v0.2.0 tasks should replace
+those blockers with scoped Rust implementations only when config parsing,
+runtime wiring, adapter classification, and evidence requirements are ready.
 
 ## Missing or Out of Scope
 

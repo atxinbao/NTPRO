@@ -11,8 +11,6 @@ This contract refines the `nautilus backtest` surface from
 backtest run command shape, config boundary, output contract, and failure
 behavior for later implementation tasks.
 
-This is a product contract only. RPROD-003 does not implement the command.
-
 ## Current Baseline
 
 The current `nautilus-cli` binary exposes `database` by default. The backtest
@@ -22,9 +20,16 @@ product command is not implemented yet:
 nautilus backtest --help
 ```
 
-Current expected result: the command exits non-zero with an unknown subcommand
-error. This is an owner-visible blocker until RPROD-004 or a later scoped task
-adds the CLI implementation.
+RHARD-006 adds a metadata-only minimal path:
+
+```text
+nautilus backtest validate --config examples/rust/backtest/minimal_dry_run.toml
+nautilus backtest run --config examples/rust/backtest/minimal_dry_run.toml --dry-run --output runs/minimal-backtest-dry-run
+```
+
+This path validates the config and writes a summary file, but it does not start
+`BacktestEngine`, load market data, or run a trading strategy. Full backtest
+runtime execution remains blocked until later scoped runtime work.
 
 ## Command Surface
 
@@ -32,7 +37,7 @@ The Rust-first backtest command must expose:
 
 ```text
 nautilus backtest validate --config <path>
-nautilus backtest run --config <path> [--run-id <id>] [--output <dir>]
+nautilus backtest run --config <path> [--run-id <id>] [--output <dir>] [--dry-run]
 ```
 
 ### `validate`
@@ -57,10 +62,11 @@ require Cython build artifacts.
 
 ### `run`
 
-`run` must perform the same validation as `validate`, then execute the
-configuration through Rust backtest APIs. The initial implementation should
-prefer the high-level `BacktestNode` path when the config can be represented as
-`BacktestRunConfig`.
+`run --dry-run` performs the RHARD-006 metadata-only path and does not start the
+engine. Full `run` must perform the same validation as `validate`, then execute
+the configuration through Rust backtest APIs. The first runtime implementation
+should prefer the high-level `BacktestNode` path when the config can be
+represented as `BacktestRunConfig`.
 
 Allowed Rust integration points:
 
@@ -118,6 +124,25 @@ format = "text"
 write_summary = true
 ```
 
+Current RHARD-006 minimal TOML shape:
+
+```toml
+[run]
+id = "minimal-backtest-dry-run"
+mode = "dry-run"
+
+[data]
+source = "synthetic-quotes"
+instrument_id = "AUD/USD.SIM"
+quotes = 3
+
+[strategy]
+name = "no-op"
+
+[output]
+dir = "runs/minimal-backtest-dry-run"
+```
+
 ### Field Mapping
 
 `run` maps to `BacktestRunConfig`:
@@ -165,7 +190,21 @@ prints that support boundary clearly.
 backtest.validate status=ok config=<path> run_id=<id>
 ```
 
-`run` must print or write:
+`run --dry-run` must print and write:
+
+- command name;
+- run ID;
+- config path;
+- input source;
+- instrument ID;
+- quote count;
+- strategy name;
+- output directory;
+- summary path;
+- `engine_started=false`;
+- `runtime_status=deferred`.
+
+Full `run` must print or write:
 
 - command name;
 - run ID;
@@ -206,6 +245,8 @@ The command is not considered usable until all of the following pass:
 cargo run -q -p nautilus-cli -- backtest --help
 cargo run -q -p nautilus-cli -- backtest validate --help
 cargo run -q -p nautilus-cli -- backtest run --help
+cargo run -q -p nautilus-cli -- backtest validate --config examples/rust/backtest/minimal_dry_run.toml
+cargo run -q -p nautilus-cli -- backtest run --config examples/rust/backtest/minimal_dry_run.toml --dry-run --output runs/minimal-backtest-dry-run
 PATH="/opt/homebrew/opt/rustup/bin:$PATH" scripts/ai/verify_fast.sh
 ```
 
@@ -218,8 +259,9 @@ The first successful run smoke must also prove:
 
 ## Known Blockers
 
-- `nautilus backtest` is not implemented in the current CLI.
-- A Rust CLI config parser and TOML model have not been added.
+- Full `nautilus backtest run` runtime execution is not implemented in the
+  current CLI.
+- The current TOML model supports only the RHARD-006 dry-run path.
 - Strategy loading from config has no stable Rust product contract yet.
 - Result artifact format for golden trace comparison is not implemented yet.
 

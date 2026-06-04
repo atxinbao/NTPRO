@@ -2159,7 +2159,7 @@
     },
     "RHARD-003": {
       "title": "CLI help contract",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2170,11 +2170,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RHARD-003.md",
       "evidence_file": "docs/rust-cutover/evidence/RHARD-003.md",
-      "updated_at": "2026-06-04T13:40:23Z"
+      "updated_at": "2026-06-04T14:17:46Z"
     },
     "RHARD-006": {
       "title": "Backtest CLI minimal path",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2185,7 +2185,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RHARD-006.md",
       "evidence_file": "docs/rust-cutover/evidence/RHARD-006.md",
-      "updated_at": "2026-06-04T13:09:00Z"
+      "updated_at": "2026-06-04T14:17:46Z"
     },
     "RHARD-004": {
       "title": "Sandbox demo",

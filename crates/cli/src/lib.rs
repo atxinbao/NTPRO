@@ -48,6 +48,7 @@
 #![deny(clippy::missing_panics_doc)]
 #![deny(rustdoc::broken_intra_doc_links)]
 
+mod backtest;
 #[cfg(feature = "defi")]
 mod blockchain;
 mod database;
@@ -56,10 +57,11 @@ pub mod opt;
 #[cfg(feature = "defi")]
 use crate::blockchain::run_blockchain_command;
 use crate::{
+    backtest::run_backtest_command,
     database::postgres::run_database_command,
     opt::{
-        BacktestCommand, BacktestOpt, Commands, ConfigCommand, ConfigOpt, DataCommand, DataOpt,
-        LiveCommand, LiveOpt, NautilusCli, SandboxCommand, SandboxOpt,
+        Commands, ConfigCommand, ConfigOpt, DataCommand, DataOpt, LiveCommand, LiveOpt,
+        NautilusCli, SandboxCommand, SandboxOpt,
     },
 };
 
@@ -80,19 +82,6 @@ pub async fn run(opt: NautilusCli) -> anyhow::Result<()> {
         Commands::Blockchain(blockchain_opt) => run_blockchain_command(blockchain_opt).await?,
     }
     Ok(())
-}
-
-fn run_backtest_command(opt: BacktestOpt) -> anyhow::Result<()> {
-    match opt.command {
-        BacktestCommand::Validate(validate) => anyhow::bail!(
-            "backtest validate is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/BACKTEST_CLI_CONTRACT.md",
-            validate.config.display()
-        ),
-        BacktestCommand::Run(run) => anyhow::bail!(
-            "backtest run is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/BACKTEST_CLI_CONTRACT.md",
-            run.config.display()
-        ),
-    }
 }
 
 fn run_data_command(opt: DataOpt) -> anyhow::Result<()> {

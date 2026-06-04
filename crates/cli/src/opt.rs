@@ -76,6 +76,9 @@ pub struct BacktestRunOpt {
     /// Optional directory for run artifacts.
     #[arg(long)]
     pub output: Option<PathBuf>,
+    /// Runs the RHARD-006 metadata-only minimal path without starting the engine.
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 /// Sandbox live-node operations and validation commands.
@@ -435,6 +438,7 @@ mod tests {
             "ema-cross",
             "--output",
             "runs/ema-cross",
+            "--dry-run",
         ])
         .expect("backtest run should parse");
 
@@ -448,6 +452,7 @@ mod tests {
         assert_eq!(run.config, PathBuf::from("config/backtest.toml"));
         assert_eq!(run.run_id.as_deref(), Some("ema-cross"));
         assert_eq!(run.output, Some(PathBuf::from("runs/ema-cross")));
+        assert!(run.dry_run);
     }
 
     #[test]

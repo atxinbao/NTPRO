@@ -5544,8 +5544,10 @@ dependencies = [
  "nautilus-core",
  "nautilus-infrastructure",
  "nautilus-model",
+ "serde",
  "tokio",
  "tokio-util",
+ "toml 1.1.2+spec-1.1.0",
  "ustr",
 ]
 
