@@ -333,7 +333,7 @@ Or place them in a `.env` file at the project root.
 ### Code walkthrough
 
 The complete `main()` function is at
-[`node_grid_mm.rs`](https://github.com/nautechsystems/nautilus_trader/tree/develop/crates/adapters/bitmex/examples/node_grid_mm.rs):
+[`node_grid_mm.rs`](https://github.com/atxinbao/NTPRO/tree/main/crates/adapters/bitmex/examples/node_grid_mm.rs):
 
 ```rust
 #[tokio::main]

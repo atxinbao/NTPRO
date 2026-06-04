@@ -178,7 +178,7 @@ survive.
 
 ## Portfolio statistics
 
-There are a variety of [built-in portfolio statistics](https://github.com/nautechsystems/nautilus_trader/tree/develop/crates/analysis/src/statistics)
+There are a variety of [built-in portfolio statistics](https://github.com/atxinbao/NTPRO/tree/main/crates/analysis/src/statistics)
 which analyse a trading portfolio's performance for both backtests and live trading.
 
 The statistics are generally categorized as follows.

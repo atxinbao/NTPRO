@@ -3,29 +3,28 @@
 Founded in 2020, Polymarket is a decentralized prediction market platform that enables
 traders to speculate on event outcomes by buying and selling outcome tokens.
 
-NautilusTrader provides a venue integration for data and execution via Polymarket's Central Limit
+NTPRO provides a Rust venue integration for data and execution via Polymarket's Central Limit
 Order Book (CLOB) API.
 
 NTPRO exposes the Rust-native Polymarket adapter surface. Legacy Python adapter
 examples and Python package surfaces have been removed.
 
-NautilusTrader supports multiple Polymarket signature types for order signing, which gives
-flexibility for different wallet configurations while NautilusTrader handles signing and order
+NTPRO supports multiple Polymarket signature types for order signing, which gives
+flexibility for different wallet configurations while the Rust adapter handles signing and order
 preparation.
 
 ## Installation
 
-To install NautilusTrader with Polymarket support:
+NTPRO does not ship the upstream Python package install path. Use the Rust
+workspace build path for the Polymarket adapter:
 
 ```bash
-uv pip install "nautilus_trader[polymarket]"
+cargo check -p nautilus-polymarket
 ```
 
-To build from source with all extras (including Polymarket):
+To validate the workspace with adapter features enabled, record the exact Cargo
+command used in PR or release evidence.
 
-```bash
-uv sync --all-extras
-```
 
 ## Examples
 
@@ -138,9 +137,10 @@ This script automates the process of approving the necessary allowances for the 
 It sets approvals for the pUSD collateral token and Conditional Token Framework (CTF) contract to allow the
 Polymarket CLOB Exchange to interact with your funds.
 
-Before running the script, ensure the following prerequisites are met:
+The legacy upstream Python allowance script is not an NTPRO product entrypoint.
+Before using any retained migration example, confirm the equivalent Rust wallet
+and adapter path is available for the current release.
 
-- Install the web3 Python package: `uv pip install "web3==7.12.1"`.
 - Have a **Polygon**-compatible wallet funded with some POL (used for gas fees).
 - Set the following environment variables in your shell:
   - `POLYGON_PRIVATE_KEY`: Your private key for the **Polygon**-compatible wallet.
@@ -1191,5 +1191,5 @@ instrument_id = get_polymarket_instrument_id(
 
 :::info
 For additional features or to contribute to the Polymarket adapter, please see our
-[contributing guide](https://github.com/nautechsystems/nautilus_trader/blob/develop/CONTRIBUTING.md).
+[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/CONTRIBUTING.md).
 :::

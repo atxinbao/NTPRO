@@ -37,8 +37,8 @@ xcode-select --install
 Then clone the repository and install the pinned project tools:
 
 ```bash
-git clone --branch develop https://github.com/nautechsystems/nautilus_trader
-cd nautilus_trader
+git clone --branch main https://github.com/atxinbao/NTPRO
+cd NTPRO
 
 curl https://sh.rustup.rs -sSf | sh
 source "$HOME/.cargo/env"

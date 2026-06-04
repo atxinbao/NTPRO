@@ -803,5 +803,5 @@ Both read `COINBASE_API_KEY` and `COINBASE_API_SECRET` from the environment.
 
 :::info
 For additional features or to contribute to the Coinbase adapter, please see
-our [contributing guide](https://github.com/nautechsystems/nautilus_trader/blob/develop/CONTRIBUTING.md).
+our [contributing guide](https://github.com/atxinbao/NTPRO/blob/main/CONTRIBUTING.md).
 :::

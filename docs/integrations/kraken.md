@@ -857,5 +857,5 @@ your credentials are valid and have trading permissions.
 
 :::info
 For additional features or to contribute to the Kraken adapter, please see our
-[contributing guide](https://github.com/nautechsystems/nautilus_trader/blob/develop/CONTRIBUTING.md).
+[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/CONTRIBUTING.md).
 :::
