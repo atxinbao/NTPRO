@@ -76,6 +76,16 @@ No workspace adapter crate is currently classified as `removed` for v0.2.0.
 Unsupported surfaces are recorded as `deferred` or scoped out instead of being
 silently omitted.
 
+## Infrastructure Cache Adapter Classification
+
+NTPRO also contains cache/database integration code outside the exchange
+adapter crates above. These are not trading venues and must not be confused with
+the adapter support rows.
+
+| Surface | Path | Status | Supported scope | Unsupported or deferred scope | Evidence |
+| --- | --- | --- | --- | --- | --- |
+| PostgreSQL cache adapter | `crates/infrastructure/src/sql/cache.rs` | unsupported | Existing `nautilus database init/drop` commands remain database administration utilities. | Durable PostgreSQL cache persistence is not a v0.2 product path; many adapter operations explicitly return `not implemented`, and schema/FK integration tests remain ignored. | `docs/rust-cutover/product/POSTGRES_CACHE_ADAPTER_STATUS.md`, `docs/rust-cutover/evidence/NAUDIT-005.md` |
+
 ## Fixture And Sandbox Strategy
 
 Routine adapter validation should use:
