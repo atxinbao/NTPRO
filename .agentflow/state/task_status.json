@@ -2234,7 +2234,7 @@
     },
     "NBIN-001": {
       "title": "Release binary and install path",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2245,11 +2245,19 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NBIN-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NBIN-001.md",
-      "updated_at": "2026-06-04T15:36:32Z"
+      "updated_at": "2026-06-05T13:25:15Z",
+      "merged_pr": 138,
+      "completed_at": "2026-06-05T13:25:15Z",
+      "qa_closeout": {
+        "closed_by": "NQA-001",
+        "decision": "DONE",
+        "decision_at": "2026-06-05T13:25:15Z",
+        "reason": "Task evidence exists, required local validation is recorded as passed, and the implementation PR is merged on main."
+      }
     },
     "NTRACE-001": {
       "title": "Trace and performance expansion plan",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -2260,11 +2268,19 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NTRACE-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NTRACE-001.md",
-      "updated_at": "2026-06-04T15:47:48Z"
+      "updated_at": "2026-06-05T13:25:15Z",
+      "merged_pr": 139,
+      "completed_at": "2026-06-05T13:25:15Z",
+      "qa_closeout": {
+        "closed_by": "NQA-001",
+        "decision": "DONE",
+        "decision_at": "2026-06-05T13:25:15Z",
+        "reason": "Task evidence exists, required local validation is recorded as passed, and the implementation PR is merged on main."
+      }
     },
     "NARCH-001": {
       "title": "Rust-only architecture map",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -2275,11 +2291,19 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NARCH-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NARCH-001.md",
-      "updated_at": "2026-06-04T15:52:24Z"
+      "updated_at": "2026-06-05T13:25:15Z",
+      "merged_pr": 140,
+      "completed_at": "2026-06-05T13:25:15Z",
+      "qa_closeout": {
+        "closed_by": "NQA-001",
+        "decision": "DONE",
+        "decision_at": "2026-06-05T13:25:15Z",
+        "reason": "Task evidence exists, required local validation is recorded as passed, and the implementation PR is merged on main."
+      }
     },
     "NARCH-006": {
       "title": "Module boundary audit",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -2290,11 +2314,19 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NARCH-006.md",
       "evidence_file": "docs/rust-cutover/evidence/NARCH-006.md",
-      "updated_at": "2026-06-04T15:56:59Z"
+      "updated_at": "2026-06-05T13:25:15Z",
+      "merged_pr": 141,
+      "completed_at": "2026-06-05T13:25:15Z",
+      "qa_closeout": {
+        "closed_by": "NQA-001",
+        "decision": "DONE",
+        "decision_at": "2026-06-05T13:25:15Z",
+        "reason": "Task evidence exists, required local validation is recorded as passed, and the implementation PR is merged on main."
+      }
     },
     "NARCH-002": {
       "title": "Module contracts",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2305,11 +2337,19 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NARCH-002.md",
       "evidence_file": "docs/rust-cutover/evidence/NARCH-002.md",
-      "updated_at": "2026-06-04T16:01:35Z"
+      "updated_at": "2026-06-05T13:25:15Z",
+      "merged_pr": 142,
+      "completed_at": "2026-06-05T13:25:15Z",
+      "qa_closeout": {
+        "closed_by": "NQA-001",
+        "decision": "DONE",
+        "decision_at": "2026-06-05T13:25:15Z",
+        "reason": "Task evidence exists, required local validation is recorded as passed, and the implementation PR is merged on main."
+      }
     },
     "NARCH-003": {
       "title": "Node lifecycle state machine",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2320,11 +2360,19 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NARCH-003.md",
       "evidence_file": "docs/rust-cutover/evidence/NARCH-003.md",
-      "updated_at": "2026-06-04T16:08:55Z"
+      "updated_at": "2026-06-05T13:25:15Z",
+      "merged_pr": 143,
+      "completed_at": "2026-06-05T13:25:15Z",
+      "qa_closeout": {
+        "closed_by": "NQA-001",
+        "decision": "DONE",
+        "decision_at": "2026-06-05T13:25:15Z",
+        "reason": "Task evidence exists, required local validation is recorded as passed, and the implementation PR is merged on main."
+      }
     },
     "NARCH-004": {
       "title": "Observability state model",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2335,11 +2383,19 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NARCH-004.md",
       "evidence_file": "docs/rust-cutover/evidence/NARCH-004.md",
-      "updated_at": "2026-06-04T16:14:02Z"
+      "updated_at": "2026-06-05T13:25:15Z",
+      "merged_pr": 144,
+      "completed_at": "2026-06-05T13:25:15Z",
+      "qa_closeout": {
+        "closed_by": "NQA-001",
+        "decision": "DONE",
+        "decision_at": "2026-06-05T13:25:15Z",
+        "reason": "Task evidence exists, required local validation is recorded as passed, and the implementation PR is merged on main."
+      }
     },
     "NARCH-005": {
       "title": "Control API contract",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2350,11 +2406,19 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NARCH-005.md",
       "evidence_file": "docs/rust-cutover/evidence/NARCH-005.md",
-      "updated_at": "2026-06-04T16:18:17Z"
+      "updated_at": "2026-06-05T13:25:15Z",
+      "merged_pr": 145,
+      "completed_at": "2026-06-05T13:25:15Z",
+      "qa_closeout": {
+        "closed_by": "NQA-001",
+        "decision": "DONE",
+        "decision_at": "2026-06-05T13:25:15Z",
+        "reason": "Task evidence exists, required local validation is recorded as passed, and the implementation PR is merged on main."
+      }
     },
     "NDASH-001": {
       "title": "Dashboard MVP scope contract",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -2365,7 +2429,15 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NDASH-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NDASH-001.md",
-      "updated_at": "2026-06-04T16:21:54Z"
+      "updated_at": "2026-06-05T13:25:15Z",
+      "merged_pr": 146,
+      "completed_at": "2026-06-05T13:25:15Z",
+      "qa_closeout": {
+        "closed_by": "NQA-001",
+        "decision": "DONE",
+        "decision_at": "2026-06-05T13:25:15Z",
+        "reason": "Task evidence exists, required local validation is recorded as passed, and the implementation PR is merged on main."
+      }
     },
     "GH-155": {
       "title": "Implement real `config validate` CLI path",
@@ -2523,7 +2595,7 @@
     },
     "NQA-001": {
       "title": "v0.2 QA closeout and readiness report",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2534,8 +2606,10 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NQA-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NQA-001.md",
-      "updated_at": "2026-06-05T13:20:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-05T13:25:15Z",
+      "local_backlog": true,
+      "started_at": "2026-06-05T13:25:15Z",
+      "branch": "codex/nqa-001-v0-2-readiness"
     },
     "NAUDIT-001": {
       "title": "Python package metadata cleanup and Rust-only gate hardening",
