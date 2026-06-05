@@ -137,9 +137,9 @@ RESET  := \033[0m
 #== Installation
 
 .PHONY: install-deps
-install-deps:  #-- Install Python dependencies only (no package build)
-	$(info $(M) Installing Python dependencies...)
-	$Q uv sync --active --all-groups --all-extras $(UV_SYNC_FLAGS) --no-install-package nautilus_trader
+install-deps:  #-- Install local helper dependencies only (no product package)
+	$(info $(M) Installing local helper dependencies...)
+	$Q uv sync --active --all-groups $(UV_SYNC_FLAGS) --no-install-project
 
 .PHONY: sync-deps
 sync-deps: UV_SYNC_FLAGS =
@@ -148,7 +148,7 @@ sync-deps: install-deps  #-- Sync Python dependencies exactly (prune packages no
 .PHONY: install
 install: install-deps
 install: export BUILD_MODE=release
-install:  #-- Install in release mode with all dependencies and extras
+install:  #-- Install Rust CLI in release mode with helper dependencies
 	$(info $(M) Installing Rust CLI in release mode...)
 	$Q $(MAKE) --no-print-directory install-cli
 

@@ -1,0 +1,23 @@
+{
+  "task_id": "NAUDIT-001",
+  "agent_id": "Codex",
+  "branch": "codex/naudit-001-python-metadata-cleanup",
+  "touched_paths": [
+    "pyproject.toml",
+    "uv.lock",
+    "Makefile",
+    "scripts/package-version.sh",
+    "scripts/test.sh",
+    "scripts/test-performance.sh",
+    "scripts/test-coverage.sh",
+    "scripts/ai/check_rust_only_runtime.sh",
+    "docs/rust-cutover/product/PYTHON_TOOLING_BOUNDARY.md",
+    "docs/rust-cutover/migration/python_product_surface_removed.md",
+    "docs/rust-cutover/evidence/NAUDIT-001.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/NAUDIT-001.json"
+  ],
+  "claimed_at": "2026-06-05T14:25:24.588590+00:00",
+  "status": "RUNNING",
+  "updated_at": "2026-06-05T14:33:25Z"
+}
