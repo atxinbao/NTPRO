@@ -52,7 +52,7 @@ pub struct BacktestOpt {
 pub enum BacktestCommand {
     /// Validates a Rust backtest config without running the engine.
     Validate(BacktestValidateOpt),
-    /// Runs the metadata-only dry-run path; engine runtime wiring is not implemented yet.
+    /// Runs a Rust backtest smoke path, or metadata-only dry-run with --dry-run.
     Run(BacktestRunOpt),
 }
 
@@ -76,7 +76,7 @@ pub struct BacktestRunOpt {
     /// Optional directory for run artifacts.
     #[arg(long)]
     pub output: Option<PathBuf>,
-    /// Runs the RHARD-006 metadata-only minimal path without starting the engine.
+    /// Writes metadata-only dry-run artifacts without starting the backtest engine.
     #[arg(long)]
     pub dry_run: bool,
 }
@@ -95,7 +95,7 @@ pub struct SandboxOpt {
 pub enum SandboxCommand {
     /// Validates a Rust sandbox config without starting a node.
     Validate(SandboxValidateOpt),
-    /// Writes simulated sandbox demo artifacts; real LiveNode wiring is not implemented yet.
+    /// Writes simulation-only sandbox demo artifacts; use live run for LiveNode smoke.
     Run(SandboxRunOpt),
 }
 
@@ -133,9 +133,9 @@ pub struct LiveOpt {
 #[derive(Parser, Debug, Clone)]
 #[command(about = "Live trading operations", long_about = None)]
 pub enum LiveCommand {
-    /// Defines live config validation; implementation is not implemented yet.
+    /// Validates the Rust live-init smoke config.
     Validate(LiveValidateOpt),
-    /// Defines live-node run contract; runtime wiring is not implemented yet.
+    /// Runs a sandbox LiveNode start/stop smoke path without external venue access.
     Run(LiveRunOpt),
 }
 
@@ -177,7 +177,7 @@ pub enum DataCommand {
     Inspect(DataInspectOpt),
     /// Validates local data/catalog readability and query shape.
     Validate(DataValidateOpt),
-    /// Defines data load contract; implementation is not implemented yet.
+    /// Loads a local QuoteTick fixture into a Rust catalog directory.
     Load(DataLoadOpt),
 }
 
@@ -470,8 +470,8 @@ mod tests {
     fn backtest_run_help_describes_dry_run_boundary() {
         let help = render_subcommand_help(&["backtest", "run"]);
 
-        assert!(help.contains("metadata-only dry-run path"));
-        assert!(help.contains("engine runtime wiring is not implemented yet"));
+        assert!(help.contains("Rust backtest smoke path"));
+        assert!(help.contains("metadata-only dry-run"));
         assert!(help.contains("--dry-run"));
     }
 
@@ -539,8 +539,8 @@ mod tests {
     fn sandbox_run_help_describes_simulated_boundary() {
         let help = render_subcommand_help(&["sandbox", "run"]);
 
-        assert!(help.contains("simulated sandbox demo artifacts"));
-        assert!(help.contains("real LiveNode wiring is not implemented yet"));
+        assert!(help.contains("simulation-only sandbox demo artifacts"));
+        assert!(help.contains("use live run for LiveNode smoke"));
     }
 
     #[test]
@@ -604,12 +604,13 @@ mod tests {
     }
 
     #[test]
-    fn live_help_marks_runtime_contract_not_implemented() {
+    fn live_help_describes_live_init_smoke_boundary() {
         let validate_help = render_subcommand_help(&["live", "validate"]);
         let run_help = render_subcommand_help(&["live", "run"]);
 
-        assert!(validate_help.contains("implementation is not implemented yet"));
-        assert!(run_help.contains("runtime wiring is not implemented yet"));
+        assert!(validate_help.contains("live-init smoke config"));
+        assert!(run_help.contains("LiveNode start/stop smoke path"));
+        assert!(run_help.contains("without external venue access"));
     }
 
     #[test]
@@ -705,7 +706,7 @@ mod tests {
 
         assert!(inspect_help.contains("Inspects local data/catalog metadata"));
         assert!(validate_help.contains("Validates local data/catalog readability"));
-        assert!(load_help.contains("implementation is not implemented yet"));
+        assert!(load_help.contains("Loads a local QuoteTick fixture"));
     }
 
     #[test]

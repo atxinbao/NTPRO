@@ -2,7 +2,7 @@
 
 Date: 2026-06-05
 Executor: Codex
-Task ID: NQA-001, DRG-001, DRG-002, DRG-003, DRG-004, DRG-006, DRG-007, DRG-008
+Task ID: NQA-001, DRG-001, DRG-002, DRG-003, DRG-004, DRG-005, DRG-006, DRG-007, DRG-008
 
 ## DRG-001 Update
 
@@ -15,10 +15,11 @@ G0 State consistency: PASS
 G1 Toolchain consistency: PASS
 G2 Full verification: PASS
 G3 Core crate tests: PASS
+G4 Product CLI paths: PASS in DRG-005 branch, pending high-risk review/merge
 G5 Runtime panic zero: PASS for classified product-reachable core paths
 G6 Live cancellation proof: PASS for live-node startup boundary with mock evidence
 G7 Ignored test closure: PASS for triage closure; high-impact items are fixed, enabled, or formally blocker-recorded
-G4, G8, and G9: FAIL / not yet executed
+G8 and G9: FAIL / not yet executed
 ```
 
 DRG-001 只完成 state convergence。当前 GitHub open PR/issue 为空，Shrimp
@@ -70,15 +71,26 @@ triage closure：风险登记中不再有高影响 `OPEN` ignored-test 项。DRG
 dYdX subscription restoration 等路径仍需要后续修复或 release-gate scope-out。
 DRG-008 是 high-risk 任务，状态停在 `REVIEW_REQUIRED`，不自动合并。
 
-这不代表 v0.2 可以启动正式产品设计。按照
-`docs/rust-cutover/design_readiness_gate.md`，只要 G4、G8、G9 任意一项
-没有明确 `PASS`，最终 Design Readiness Gate 仍是 `FAIL`。
+DRG-005 完成了 real minimal CLI product paths。G4 的 PASS 范围是：
+`backtest run` 有受限 `engine-smoke` Rust `BacktestEngine` 路径，`live
+validate/run` 有 sandbox `LiveNode` start/stop smoke 路径，`data load` 有
+本地 QuoteTick fixture 写入 catalog 目录路径。DRG-005 不声明任意策略加载、
+生产 live adapter、adapter-backed data load、Parquet 行级编码或完整交易
+workflow。DRG-005 是 high-risk 任务，状态停在 `REVIEW_REQUIRED`，不自动合并。
 
-下一步执行顺序：
+这不代表 v0.2 可以启动正式产品设计。按照
+`docs/rust-cutover/design_readiness_gate.md`，只要 G8、G9 任意一项没有明确
+`PASS`，最终 Design Readiness Gate 仍是 `FAIL`。DRG-005 合并前，G4 的
+PASS 也只能视为本分支证据，不能视为 main 上已完成。
+
+当前执行位置：
 
 ```text
 DRG-002 -> DRG-003 -> DRG-004 -> DRG-006 -> DRG-007 -> DRG-008 -> DRG-005 -> DRG-009 -> DRG-010
 ```
+
+DRG-005 当前在本分支完成实现和验证，等待 high-risk review/merge。合并后再继续
+DRG-009 和 DRG-010。
 
 ## 中文结论
 

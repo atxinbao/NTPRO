@@ -8,6 +8,10 @@ Updated: 2026-06-05
 Executor: Codex
 Task ID: GH-156
 
+Updated: 2026-06-06
+Executor: Codex
+Task ID: DRG-005
+
 ## Purpose
 
 This contract refines the `nautilus data` surface from
@@ -17,8 +21,8 @@ load workflow, output contract, and known blockers for later implementation
 tasks.
 
 This document started as a product contract. GH-156 implements the first
-local-file Rust path for `data inspect` and `data validate`; `data load`
-remains deferred.
+local-file Rust path for `data inspect` and `data validate`. DRG-005 implements
+the first scoped local fixture Rust path for `data load`.
 
 ## Current Baseline
 
@@ -28,8 +32,10 @@ parse the TOML config, validate the query shape, reject unsupported data types,
 and inspect the configured `catalog.path` for existence, readability, size,
 extension, and directory entries.
 
-`data load` is still intentionally deferred and returns an owner-visible
-blocker.
+`data load` supports `source.kind = "fixture"` with
+`source.schema = "quote_tick_csv_v1"` and `mapping.data_type = "QuoteTick"`.
+It validates the CSV header and copies the fixture into the configured catalog
+directory with an owner-visible summary artifact.
 
 ## Command Surface
 
@@ -56,6 +62,17 @@ Current GH-156 scope:
   [Data Type Scope](#data-type-scope);
 - no row decoding, Parquet schema validation, catalog interval lookup, adapter
   access, or external data source connection is performed.
+
+Current DRG-005 load scope:
+
+- `source.kind = "fixture"` only;
+- `source.schema = "quote_tick_csv_v1"` only;
+- `mapping.data_type = "QuoteTick"` only;
+- `mapping.timestamp_column = "ts_init"` only;
+- the CLI copies the fixture into the configured catalog directory and writes
+  `summary.txt`;
+- no adapter access, no Parquet row encoding, no row-level semantic decode, and
+  no interval availability proof is performed.
 
 ## Inspect Workflow
 
@@ -136,8 +153,10 @@ Supported source classes must be introduced incrementally:
 - remote object-store inputs only after storage options and fixture validation
   are documented.
 
-`load` must validate before writing. It must then write to the target catalog
-through Rust catalog APIs such as `ParquetDataCatalog::write_to_parquet`.
+`load` must validate before writing. DRG-005 writes the source fixture into the
+target catalog directory as the first Rust-only catalog bootstrap path. Later
+tasks may promote Parquet writes through Rust catalog APIs such as
+`ParquetDataCatalog::write_to_parquet`.
 
 The first implementation may support only one source class and one data type,
 but it must reject all unsupported combinations explicitly. It must not fall
@@ -316,11 +335,10 @@ following pass:
 cargo run -q -p nautilus-cli -- data --help
 cargo run -q -p nautilus-cli -- data inspect --help
 cargo run -q -p nautilus-cli -- data validate --help
+cargo run -q -p nautilus-cli -- data load --help
+cargo run -q -p nautilus-cli -- data load --config examples/rust/data/load_quotes.toml --output runs/load-quotes
 PATH="/opt/homebrew/opt/rustup/bin:$PATH" scripts/ai/verify_fast.sh
 ```
-
-`data load --help` remains help-stable, but `data load` execution is not
-implemented by GH-156.
 
 The first successful data/catalog smoke must also prove:
 
@@ -328,16 +346,13 @@ The first successful data/catalog smoke must also prove:
 - no PyO3 or Cython build artifact is required;
 - a local catalog or fixture source can be inspected from Rust;
 - unsupported data types and missing intervals produce explicit blockers;
-- load writes only to the configured catalog target when a later load task
-  implements it.
+- load writes only to the configured catalog target and owner-visible output.
 
-## Known Blockers
+## Remaining Blockers
 
-- `data load` execution is not implemented.
 - Full Parquet/catalog row decoding and interval availability checks are not
   implemented in this CLI path.
 - A shared Rust workflow config model is not yet complete across all commands.
-- The first supported loader source class is not selected yet.
 - Adapter-backed data loading remains under adapter evidence.
 - Custom data loading requires an explicit Rust custom data registry path.
 

@@ -54,6 +54,7 @@ mod blockchain;
 mod config;
 mod data;
 mod database;
+mod live;
 pub mod opt;
 mod sandbox;
 
@@ -64,7 +65,8 @@ use crate::{
     config::run_config_command,
     data::run_data_command,
     database::postgres::run_database_command,
-    opt::{Commands, LiveCommand, LiveOpt, NautilusCli},
+    live::run_live_command,
+    opt::{Commands, NautilusCli},
     sandbox::run_sandbox_command,
 };
 
@@ -77,7 +79,7 @@ pub async fn run(opt: NautilusCli) -> anyhow::Result<()> {
     match opt.command {
         Commands::Backtest(backtest_opt) => run_backtest_command(backtest_opt)?,
         Commands::Sandbox(sandbox_opt) => run_sandbox_command(sandbox_opt)?,
-        Commands::Live(live_opt) => run_live_command(live_opt)?,
+        Commands::Live(live_opt) => run_live_command(live_opt).await?,
         Commands::Data(data_opt) => run_data_command(data_opt)?,
         Commands::Config(config_opt) => run_config_command(config_opt)?,
         Commands::Database(database_opt) => run_database_command(database_opt).await?,
@@ -85,17 +87,4 @@ pub async fn run(opt: NautilusCli) -> anyhow::Result<()> {
         Commands::Blockchain(blockchain_opt) => run_blockchain_command(blockchain_opt).await?,
     }
     Ok(())
-}
-
-fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
-    match opt.command {
-        LiveCommand::Validate(validate) => anyhow::bail!(
-            "live validate is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/LIVE_SANDBOX_CLI_CONTRACT.md",
-            validate.config.display()
-        ),
-        LiveCommand::Run(run) => anyhow::bail!(
-            "live run is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/LIVE_SANDBOX_CLI_CONTRACT.md",
-            run.config.display()
-        ),
-    }
 }

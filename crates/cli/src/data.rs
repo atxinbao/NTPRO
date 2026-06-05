@@ -41,6 +41,9 @@ struct DataCatalogConfig {
     catalog_path: PathBuf,
     catalog_protocol: String,
     queries: Vec<DataQuery>,
+    source: Option<DataLoadSource>,
+    mapping: Option<DataLoadMapping>,
+    output: Option<DataOutputConfig>,
 }
 
 #[derive(Debug)]
@@ -49,6 +52,26 @@ struct DataQuery {
     identifier: String,
     start_time: Option<String>,
     end_time: Option<String>,
+}
+
+#[derive(Debug)]
+struct DataLoadSource {
+    kind: String,
+    path: PathBuf,
+    schema: String,
+}
+
+#[derive(Debug)]
+struct DataLoadMapping {
+    data_type: String,
+    instrument_id: String,
+    timestamp_column: String,
+}
+
+#[derive(Debug)]
+struct DataOutputConfig {
+    dir: Option<PathBuf>,
+    write_summary: bool,
 }
 
 #[derive(Debug)]
@@ -99,10 +122,40 @@ fn run_data_validate(opt: &DataValidateOpt) -> anyhow::Result<()> {
 }
 
 fn run_data_load(opt: &DataLoadOpt) -> anyhow::Result<()> {
-    anyhow::bail!(
-        "data load is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/DATA_CATALOG_CLI_CONTRACT.md",
-        opt.config.display()
-    )
+    let config = load_data_catalog_config(&opt.config)?;
+    ensure_load_mode(&config, "data load")?;
+    let source = config
+        .source
+        .as_ref()
+        .context("source section is required for data load")?;
+    let mapping = config
+        .mapping
+        .as_ref()
+        .context("mapping section is required for data load")?;
+    validate_load_scope(source, mapping)?;
+
+    let row_count = count_csv_data_rows(&source.path, &mapping.timestamp_column)?;
+    let output_dir = resolve_data_output_dir(&config, opt)?;
+    let catalog_file = write_fixture_catalog_copy(&config, source, mapping)?;
+    let summary = format_data_load_summary(
+        &config,
+        source,
+        mapping,
+        row_count,
+        &catalog_file,
+        &output_dir,
+    );
+
+    if config
+        .output
+        .as_ref()
+        .is_none_or(|output| output.write_summary)
+    {
+        write_data_artifact(&output_dir, "summary.txt", &summary)?;
+    }
+
+    println!("{}", first_summary_line(&summary));
+    Ok(())
 }
 
 fn load_data_catalog_config(path: &Path) -> anyhow::Result<DataCatalogConfig> {
@@ -123,6 +176,41 @@ fn load_data_catalog_config(path: &Path) -> anyhow::Result<DataCatalogConfig> {
     let catalog_protocol = string_field(catalog, "catalog.protocol", "file")?;
     let catalog_path = resolve_config_relative_path(path, &catalog_path_raw);
 
+    let parsed_queries = if run_mode == "load" {
+        Vec::new()
+    } else {
+        parse_data_queries(&value)?
+    };
+    let source = if run_mode == "load" {
+        Some(parse_load_source(&value, path)?)
+    } else {
+        None
+    };
+    let mapping = if run_mode == "load" {
+        Some(parse_load_mapping(&value)?)
+    } else {
+        None
+    };
+    let output = if run_mode == "load" {
+        Some(parse_output_config(&value, path)?)
+    } else {
+        None
+    };
+
+    Ok(DataCatalogConfig {
+        config_path: path.to_path_buf(),
+        run_id,
+        run_mode,
+        catalog_path,
+        catalog_protocol,
+        queries: parsed_queries,
+        source,
+        mapping,
+        output,
+    })
+}
+
+fn parse_data_queries(value: &toml::Value) -> anyhow::Result<Vec<DataQuery>> {
     let queries = value
         .get("queries")
         .and_then(toml::Value::as_array)
@@ -138,15 +226,7 @@ fn load_data_catalog_config(path: &Path) -> anyhow::Result<DataCatalogConfig> {
             .with_context(|| format!("queries[{index}] must be a table"))?;
         parsed_queries.push(parse_data_query(index, table)?);
     }
-
-    Ok(DataCatalogConfig {
-        config_path: path.to_path_buf(),
-        run_id,
-        run_mode,
-        catalog_path,
-        catalog_protocol,
-        queries: parsed_queries,
-    })
+    Ok(parsed_queries)
 }
 
 fn parse_data_query(index: usize, table: &toml::value::Table) -> anyhow::Result<DataQuery> {
@@ -182,12 +262,83 @@ fn parse_data_query(index: usize, table: &toml::value::Table) -> anyhow::Result<
     })
 }
 
+fn parse_load_source(config: &toml::Value, config_path: &Path) -> anyhow::Result<DataLoadSource> {
+    let source = required_table(config, "source")?;
+    let kind = string_field(source, "source.kind", "fixture")?;
+    let path = resolve_config_relative_path(config_path, &required_string(source, "source.path")?);
+    let schema = string_field(source, "source.schema", "quote_tick_csv_v1")?;
+    Ok(DataLoadSource { kind, path, schema })
+}
+
+fn parse_load_mapping(config: &toml::Value) -> anyhow::Result<DataLoadMapping> {
+    let mapping = required_table(config, "mapping")?;
+    let data_type = string_field(mapping, "mapping.data_type", "QuoteTick")?;
+    let instrument_id = required_string(mapping, "mapping.instrument_id")?;
+    let timestamp_column = string_field(mapping, "mapping.timestamp_column", "ts_init")?;
+    Ok(DataLoadMapping {
+        data_type,
+        instrument_id,
+        timestamp_column,
+    })
+}
+
+fn parse_output_config(
+    config: &toml::Value,
+    config_path: &Path,
+) -> anyhow::Result<DataOutputConfig> {
+    let Some(output) = config.get("output").and_then(toml::Value::as_table) else {
+        return Ok(DataOutputConfig {
+            dir: None,
+            write_summary: true,
+        });
+    };
+    let dir = optional_non_empty_string(output, "dir")
+        .map(|path| resolve_config_relative_path(config_path, &path));
+    let write_summary = output
+        .get("write_summary")
+        .and_then(toml::Value::as_bool)
+        .unwrap_or(true);
+    Ok(DataOutputConfig { dir, write_summary })
+}
+
 fn ensure_inspect_or_validate_mode(
     config: &DataCatalogConfig,
     command: &str,
 ) -> anyhow::Result<()> {
     if config.run_mode == "load" {
         anyhow::bail!("{command} does not support run.mode 'load'");
+    }
+    Ok(())
+}
+
+fn ensure_load_mode(config: &DataCatalogConfig, command: &str) -> anyhow::Result<()> {
+    if config.run_mode != "load" {
+        anyhow::bail!("{command} requires run.mode 'load'");
+    }
+    Ok(())
+}
+
+fn validate_load_scope(source: &DataLoadSource, mapping: &DataLoadMapping) -> anyhow::Result<()> {
+    if source.kind != "fixture" {
+        anyhow::bail!("source.kind must be 'fixture', got '{}'", source.kind);
+    }
+    if source.schema != "quote_tick_csv_v1" {
+        anyhow::bail!(
+            "source.schema must be 'quote_tick_csv_v1', got '{}'",
+            source.schema
+        );
+    }
+    if mapping.data_type != "QuoteTick" {
+        anyhow::bail!(
+            "mapping.data_type must be 'QuoteTick', got '{}'",
+            mapping.data_type
+        );
+    }
+    if mapping.timestamp_column != "ts_init" {
+        anyhow::bail!(
+            "mapping.timestamp_column must be 'ts_init', got '{}'",
+            mapping.timestamp_column
+        );
     }
     Ok(())
 }
@@ -299,6 +450,137 @@ fn format_data_summary(
 
     lines.push(String::new());
     lines.join("\n")
+}
+
+fn format_data_load_summary(
+    config: &DataCatalogConfig,
+    source: &DataLoadSource,
+    mapping: &DataLoadMapping,
+    row_count: usize,
+    catalog_file: &Path,
+    output_dir: &Path,
+) -> String {
+    let lines = vec![
+        format!(
+            "data.load status=ok run_id={} config={} catalog={} catalog_file={} source={} data_type={} instrument_id={} rows={} runtime_status=completed",
+            config.run_id,
+            config.config_path.display(),
+            config.catalog_path.display(),
+            catalog_file.display(),
+            source.path.display(),
+            mapping.data_type,
+            mapping.instrument_id,
+            row_count
+        ),
+        "command=data.load".to_string(),
+        "status=ok".to_string(),
+        format!("run_id={}", config.run_id),
+        format!("config={}", config.config_path.display()),
+        format!("catalog={}", config.catalog_path.display()),
+        format!("catalog_file={}", catalog_file.display()),
+        format!("source={}", source.path.display()),
+        format!("source_kind={}", source.kind),
+        format!("source_schema={}", source.schema),
+        format!("data_type={}", mapping.data_type),
+        format!("instrument_id={}", mapping.instrument_id),
+        format!("timestamp_column={}", mapping.timestamp_column),
+        format!("rows={row_count}"),
+        format!("output_dir={}", output_dir.display()),
+        "runtime_status=completed".to_string(),
+        "external_adapter=false".to_string(),
+        "semantic_decode=false".to_string(),
+        String::new(),
+    ];
+    lines.join("\n")
+}
+
+fn resolve_data_output_dir(
+    config: &DataCatalogConfig,
+    opt: &DataLoadOpt,
+) -> anyhow::Result<PathBuf> {
+    if let Some(output) = &opt.output {
+        return Ok(output.clone());
+    }
+    if let Some(output) = &config.output
+        && let Some(dir) = &output.dir
+    {
+        return Ok(dir.clone());
+    }
+    Ok(PathBuf::from("runs").join(&config.run_id))
+}
+
+fn write_fixture_catalog_copy(
+    config: &DataCatalogConfig,
+    source: &DataLoadSource,
+    mapping: &DataLoadMapping,
+) -> anyhow::Result<PathBuf> {
+    fs::create_dir_all(&config.catalog_path).with_context(|| {
+        format!(
+            "failed to create catalog directory '{}'",
+            config.catalog_path.display()
+        )
+    })?;
+    let catalog_file = config
+        .catalog_path
+        .join(format!("{}.csv", catalog_file_stem(mapping)));
+    fs::copy(&source.path, &catalog_file).with_context(|| {
+        format!(
+            "failed to copy fixture '{}' into catalog file '{}'",
+            source.path.display(),
+            catalog_file.display()
+        )
+    })?;
+    Ok(catalog_file)
+}
+
+fn count_csv_data_rows(path: &Path, timestamp_column: &str) -> anyhow::Result<usize> {
+    let raw = fs::read_to_string(path)
+        .with_context(|| format!("failed to read source fixture '{}'", path.display()))?;
+    let mut lines = raw.lines().filter(|line| !line.trim().is_empty());
+    let header = lines.next().with_context(|| {
+        format!(
+            "source fixture '{}' must contain a header row",
+            path.display()
+        )
+    })?;
+    let columns = header.split(',').map(str::trim).collect::<Vec<_>>();
+    if !columns.contains(&timestamp_column) {
+        anyhow::bail!(
+            "source fixture '{}' must contain timestamp column '{}'",
+            path.display(),
+            timestamp_column
+        );
+    }
+    let rows = lines.count();
+    if rows == 0 {
+        anyhow::bail!(
+            "source fixture '{}' must contain at least one data row",
+            path.display()
+        );
+    }
+    Ok(rows)
+}
+
+fn catalog_file_stem(mapping: &DataLoadMapping) -> String {
+    format!(
+        "{}-{}",
+        sanitize_file_component(&mapping.data_type),
+        sanitize_file_component(&mapping.instrument_id)
+    )
+}
+
+fn sanitize_file_component(value: &str) -> String {
+    let sanitized = value
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || character == '-' || character == '_' {
+                character
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+    sanitized.trim_matches('_').to_string()
 }
 
 fn data_types_summary(config: &DataCatalogConfig) -> String {
@@ -446,6 +728,36 @@ end_time = "2025-01-02T00:00:00Z"
         )
     }
 
+    fn load_config(catalog_path: &Path, source_path: &Path, output_dir: &Path) -> String {
+        format!(
+            r#"[run]
+id = "load-quotes"
+mode = "load"
+
+[catalog]
+path = "{}"
+protocol = "file"
+
+[source]
+kind = "fixture"
+path = "{}"
+schema = "quote_tick_csv_v1"
+
+[mapping]
+data_type = "QuoteTick"
+instrument_id = "AUD/USD.SIM"
+timestamp_column = "ts_init"
+
+[output]
+dir = "{}"
+write_summary = true
+"#,
+            catalog_path.display(),
+            source_path.display(),
+            output_dir.display()
+        )
+    }
+
     #[test]
     fn data_inspect_file_writes_artifact() {
         let dir = temp_dir("inspect-file");
@@ -536,6 +848,68 @@ end_time = "2025-01-02T00:00:00Z"
 
         assert!(error.contains("CustomPythonData"));
         assert!(error.contains("not supported by the Rust data CLI"));
+    }
+
+    #[test]
+    fn data_load_fixture_writes_catalog_copy_and_summary() {
+        let dir = temp_dir("load-fixture");
+        let source_file = dir.join("quotes.csv");
+        let catalog_dir = dir.join("catalog");
+        let output_dir = dir.join("out");
+        let config = dir.join("load.toml");
+        write_file(
+            &source_file,
+            "ts_init,bid,ask,bid_size,ask_size\n1,1.0,1.1,100,100\n2,1.1,1.2,100,100\n",
+        );
+        write_file(
+            &config,
+            &load_config(&catalog_dir, &source_file, &output_dir),
+        );
+
+        run_data_command(DataOpt {
+            command: DataCommand::Load(DataLoadOpt {
+                config: config.clone(),
+                run_id: None,
+                output: None,
+            }),
+        })
+        .unwrap();
+
+        let catalog_file = catalog_dir.join("QuoteTick-AUD_USD_SIM.csv");
+        let copied = fs::read_to_string(&catalog_file).unwrap();
+        assert!(copied.contains("ts_init,bid,ask"));
+        let summary = fs::read_to_string(output_dir.join("summary.txt")).unwrap();
+        assert!(summary.contains("command=data.load"));
+        assert!(summary.contains("runtime_status=completed"));
+        assert!(summary.contains("rows=2"));
+        assert!(summary.contains(&format!("catalog_file={}", catalog_file.display())));
+        assert!(summary.contains(&format!("config={}", config.display())));
+    }
+
+    #[test]
+    fn data_load_rejects_unsupported_schema() {
+        let dir = temp_dir("load-unsupported-schema");
+        let source_file = dir.join("quotes.csv");
+        let catalog_dir = dir.join("catalog");
+        let output_dir = dir.join("out");
+        let config = dir.join("load.toml");
+        write_file(&source_file, "ts_init,bid,ask\n1,1.0,1.1\n");
+        let raw_config = load_config(&catalog_dir, &source_file, &output_dir)
+            .replace("quote_tick_csv_v1", "python_pickle");
+        write_file(&config, &raw_config);
+
+        let error = run_data_command(DataOpt {
+            command: DataCommand::Load(DataLoadOpt {
+                config,
+                run_id: None,
+                output: None,
+            }),
+        })
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("source.schema must be 'quote_tick_csv_v1'"));
+        assert!(error.contains("python_pickle"));
     }
 
     #[test]

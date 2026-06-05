@@ -1,0 +1,17 @@
+[run]
+id = "minimal-backtest-engine-smoke"
+mode = "engine-smoke"
+
+[data]
+source = "synthetic-quotes"
+instrument_id = "AUD/USD.SIM"
+quotes = 120
+
+[strategy]
+name = "ema-cross"
+trade_size = "100000"
+fast_period = 10
+slow_period = 20
+
+[output]
+dir = "runs/minimal-backtest-engine-smoke"

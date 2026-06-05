@@ -4,6 +4,10 @@ Date: 2026-05-28
 Executor: Codex
 Task ID: RPROD-003
 
+Updated: 2026-06-06
+Executor: Codex
+Task ID: DRG-005
+
 ## Purpose
 
 This contract refines the `nautilus backtest` surface from
@@ -13,8 +17,7 @@ behavior for later implementation tasks.
 
 ## Current Baseline
 
-The current `nautilus-cli` binary exposes `database` by default. The backtest
-product command is not implemented yet:
+The current `nautilus-cli` binary exposes `backtest` by default:
 
 ```text
 nautilus backtest --help
@@ -28,8 +31,19 @@ nautilus backtest run --config examples/rust/backtest/minimal_dry_run.toml --dry
 ```
 
 This path validates the config and writes a summary file, but it does not start
-`BacktestEngine`, load market data, or run a trading strategy. Full backtest
-runtime execution remains blocked until later scoped runtime work.
+`BacktestEngine`, load market data, or run a trading strategy.
+
+DRG-005 adds the first scoped non-dry-run CLI path:
+
+```text
+nautilus backtest validate --config examples/rust/backtest/minimal_engine_smoke.toml
+nautilus backtest run --config examples/rust/backtest/minimal_engine_smoke.toml --output runs/minimal-backtest-engine-smoke
+```
+
+This starts the Rust `BacktestEngine` with synthetic AUD/USD quotes and the
+Rust `EmaCross` strategy. It is intentionally limited to
+`run.mode = "engine-smoke"`, `strategy.name = "ema-cross"`, and
+`data.instrument_id = "AUD/USD.SIM"`.
 
 ## Command Surface
 
@@ -63,10 +77,9 @@ require Cython build artifacts.
 ### `run`
 
 `run --dry-run` performs the RHARD-006 metadata-only path and does not start the
-engine. Full `run` must perform the same validation as `validate`, then execute
-the configuration through Rust backtest APIs. The first runtime implementation
-should prefer the high-level `BacktestNode` path when the config can be
-represented as `BacktestRunConfig`.
+engine. `run` without `--dry-run` performs the DRG-005 engine-smoke path. It
+must perform the same validation as `validate`, then execute only the scoped
+Rust backtest APIs documented below.
 
 Allowed Rust integration points:
 
@@ -143,6 +156,28 @@ name = "no-op"
 dir = "runs/minimal-backtest-dry-run"
 ```
 
+Current DRG-005 engine-smoke TOML shape:
+
+```toml
+[run]
+id = "minimal-backtest-engine-smoke"
+mode = "engine-smoke"
+
+[data]
+source = "synthetic-quotes"
+instrument_id = "AUD/USD.SIM"
+quotes = 120
+
+[strategy]
+name = "ema-cross"
+trade_size = "100000"
+fast_period = 10
+slow_period = 20
+
+[output]
+dir = "runs/minimal-backtest-engine-smoke"
+```
+
 ### Field Mapping
 
 `run` maps to `BacktestRunConfig`:
@@ -204,18 +239,18 @@ backtest.validate status=ok config=<path> run_id=<id>
 - `engine_started=false`;
 - `runtime_status=deferred`.
 
-Full `run` must print or write:
+DRG-005 engine-smoke `run` must print or write:
 
 - command name;
 - run ID;
 - config path;
 - output directory;
-- started timestamp;
-- completed timestamp or failure timestamp;
-- final status;
-- number of venues configured;
-- number of data entries configured;
-- result or artifact paths when available.
+- input source;
+- instrument ID;
+- quote count;
+- strategy name;
+- `engine_started=true`;
+- `runtime_status=completed`.
 
 Human-readable text is enough for the initial implementation. Machine-readable
 JSON output can be added later as an explicit `--format json` option.
@@ -247,6 +282,8 @@ cargo run -q -p nautilus-cli -- backtest validate --help
 cargo run -q -p nautilus-cli -- backtest run --help
 cargo run -q -p nautilus-cli -- backtest validate --config examples/rust/backtest/minimal_dry_run.toml
 cargo run -q -p nautilus-cli -- backtest run --config examples/rust/backtest/minimal_dry_run.toml --dry-run --output runs/minimal-backtest-dry-run
+cargo run -q -p nautilus-cli -- backtest validate --config examples/rust/backtest/minimal_engine_smoke.toml
+cargo run -q -p nautilus-cli -- backtest run --config examples/rust/backtest/minimal_engine_smoke.toml --output runs/minimal-backtest-engine-smoke
 PATH="/opt/homebrew/opt/rustup/bin:$PATH" scripts/ai/verify_fast.sh
 ```
 
@@ -257,12 +294,14 @@ The first successful run smoke must also prove:
 - a deterministic Rust backtest path runs from config;
 - the run emits an owner-visible run ID and status.
 
-## Known Blockers
+## Remaining Blockers
 
-- Full `nautilus backtest run` runtime execution is not implemented in the
-  current CLI.
-- The current TOML model supports only the RHARD-006 dry-run path.
-- Strategy loading from config has no stable Rust product contract yet.
+- Arbitrary `nautilus backtest run` strategy loading from config has no stable
+  Rust product contract yet.
+- Adapter/catalog-backed market data loading is not implemented by this CLI
+  path.
+- The DRG-005 engine-smoke path supports only the synthetic AUD/USD `EmaCross`
+  example.
 - Result artifact format for golden trace comparison is not implemented yet.
 
 These blockers should be closed by later RPROD/RCORE/RTRACE tasks, not bypassed
