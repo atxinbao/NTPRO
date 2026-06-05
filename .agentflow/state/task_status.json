@@ -2834,7 +2834,7 @@
     },
     "DRG-006": {
       "title": "Product-reachable panic classification and zero gate",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -2845,7 +2845,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-006.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-006.md",
-      "updated_at": "2026-06-05T16:10:00Z",
+      "updated_at": "2026-06-05T21:17:04Z",
       "local_backlog": true
     },
     "DRG-007": {

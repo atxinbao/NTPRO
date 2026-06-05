@@ -386,6 +386,31 @@ impl SimulatedExchange {
         Ok(())
     }
 
+    fn ensure_matching_engine(&mut self, instrument_id: InstrumentId, data_type: &str) -> bool {
+        if self.matching_engines.contains_key(&instrument_id) {
+            return true;
+        }
+
+        let instrument = {
+            let cache = self.cache.as_ref().borrow();
+            cache.instrument(&instrument_id).cloned()
+        };
+
+        let Some(instrument) = instrument else {
+            log::error!(
+                "Ignoring {data_type} for {instrument_id}: no instrument in cache and no matching engine initialized",
+            );
+            return false;
+        };
+
+        if let Err(e) = self.add_instrument(instrument) {
+            log::error!("Cannot initialize matching engine for {instrument_id}: {e}");
+            return false;
+        }
+
+        true
+    }
+
     /// Returns the best bid price for the given instrument, if available.
     #[must_use]
     pub fn best_bid_price(&self, instrument_id: InstrumentId) -> Option<Price> {
@@ -673,259 +698,175 @@ impl SimulatedExchange {
 
     /// Processes a single order book delta.
     ///
-    /// # Panics
-    ///
-    /// Panics if adding a missing instrument during delta processing fails.
     pub fn process_order_book_delta(&mut self, delta: OrderBookDelta) {
         for module in &self.modules {
             module.pre_process(&Data::Delta(delta));
         }
 
-        if !self.matching_engines.contains_key(&delta.instrument_id) {
-            let instrument = {
-                let cache = self.cache.as_ref().borrow();
-                cache.instrument(&delta.instrument_id).cloned()
-            };
-
-            if let Some(instrument) = instrument {
-                self.add_instrument(instrument).unwrap();
-            } else {
-                panic!(
-                    "No matching engine found for instrument {}",
-                    delta.instrument_id
-                );
-            }
+        if !self.ensure_matching_engine(delta.instrument_id, "order book delta") {
+            return;
         }
 
         if let Some(matching_engine) = self.matching_engines.get_mut(&delta.instrument_id) {
-            matching_engine.process_order_book_delta(&delta).unwrap();
+            if let Err(e) = matching_engine.process_order_book_delta(&delta) {
+                log::error!(
+                    "Failed to process order book delta for {}: {e}",
+                    delta.instrument_id
+                );
+            }
         } else {
-            panic!("Matching engine should be initialized");
+            log::error!(
+                "Ignoring order book delta for {}: matching engine is unavailable",
+                delta.instrument_id
+            );
         }
     }
 
     /// Processes a batch of order book deltas.
     ///
-    /// # Panics
-    ///
-    /// Panics if adding a missing instrument during deltas processing fails.
     pub fn process_order_book_deltas(&mut self, deltas: &OrderBookDeltas) {
         for module in &self.modules {
             module.pre_process(&Data::Deltas(OrderBookDeltas_API::new(deltas.clone())));
         }
 
-        if !self.matching_engines.contains_key(&deltas.instrument_id) {
-            let instrument = {
-                let cache = self.cache.as_ref().borrow();
-                cache.instrument(&deltas.instrument_id).cloned()
-            };
-
-            if let Some(instrument) = instrument {
-                self.add_instrument(instrument).unwrap();
-            } else {
-                panic!(
-                    "No matching engine found for instrument {}",
-                    deltas.instrument_id
-                );
-            }
+        if !self.ensure_matching_engine(deltas.instrument_id, "order book deltas") {
+            return;
         }
 
         if let Some(matching_engine) = self.matching_engines.get_mut(&deltas.instrument_id) {
-            matching_engine.process_order_book_deltas(deltas).unwrap();
+            if let Err(e) = matching_engine.process_order_book_deltas(deltas) {
+                log::error!(
+                    "Failed to process order book deltas for {}: {e}",
+                    deltas.instrument_id
+                );
+            }
         } else {
-            panic!("Matching engine should be initialized");
+            log::error!(
+                "Ignoring order book deltas for {}: matching engine is unavailable",
+                deltas.instrument_id
+            );
         }
     }
 
     /// Processes an L2 order book depth snapshot.
     ///
-    /// # Panics
-    ///
-    /// Panics if adding a missing instrument during depth10 processing fails.
     pub fn process_order_book_depth10(&mut self, depth: &OrderBookDepth10) {
         for module in &self.modules {
             module.pre_process(&Data::Depth10(Box::new(*depth)));
         }
 
-        if !self.matching_engines.contains_key(&depth.instrument_id) {
-            let instrument = {
-                let cache = self.cache.as_ref().borrow();
-                cache.instrument(&depth.instrument_id).cloned()
-            };
-
-            if let Some(instrument) = instrument {
-                self.add_instrument(instrument).unwrap();
-            } else {
-                panic!(
-                    "No matching engine found for instrument {}",
-                    depth.instrument_id
-                );
-            }
+        if !self.ensure_matching_engine(depth.instrument_id, "order book depth10") {
+            return;
         }
 
         if let Some(matching_engine) = self.matching_engines.get_mut(&depth.instrument_id) {
-            matching_engine.process_order_book_depth10(depth).unwrap();
+            if let Err(e) = matching_engine.process_order_book_depth10(depth) {
+                log::error!(
+                    "Failed to process order book depth10 for {}: {e}",
+                    depth.instrument_id
+                );
+            }
         } else {
-            panic!("Matching engine should be initialized");
+            log::error!(
+                "Ignoring order book depth10 for {}: matching engine is unavailable",
+                depth.instrument_id
+            );
         }
     }
 
     /// Processes a quote tick and updates the matching engine.
     ///
-    /// # Panics
-    ///
-    /// Panics if adding a missing instrument during quote tick processing fails.
     pub fn process_quote_tick(&mut self, quote: &QuoteTick) {
         for module in &self.modules {
             module.pre_process(&Data::Quote(*quote));
         }
 
-        if !self.matching_engines.contains_key(&quote.instrument_id) {
-            let instrument = {
-                let cache = self.cache.as_ref().borrow();
-                cache.instrument(&quote.instrument_id).cloned()
-            };
-
-            if let Some(instrument) = instrument {
-                self.add_instrument(instrument).unwrap();
-            } else {
-                panic!(
-                    "No matching engine found for instrument {}",
-                    quote.instrument_id
-                );
-            }
+        if !self.ensure_matching_engine(quote.instrument_id, "quote tick") {
+            return;
         }
 
         if let Some(matching_engine) = self.matching_engines.get_mut(&quote.instrument_id) {
             matching_engine.process_quote_tick(quote);
         } else {
-            panic!("Matching engine should be initialized");
+            log::error!(
+                "Ignoring quote tick for {}: matching engine is unavailable",
+                quote.instrument_id
+            );
         }
     }
 
     /// Processes a trade tick and updates the matching engine.
     ///
-    /// # Panics
-    ///
-    /// Panics if adding a missing instrument during trade tick processing fails.
     pub fn process_trade_tick(&mut self, trade: &TradeTick) {
         for module in &self.modules {
             module.pre_process(&Data::Trade(*trade));
         }
 
-        if !self.matching_engines.contains_key(&trade.instrument_id) {
-            let instrument = {
-                let cache = self.cache.as_ref().borrow();
-                cache.instrument(&trade.instrument_id).cloned()
-            };
-
-            if let Some(instrument) = instrument {
-                self.add_instrument(instrument).unwrap();
-            } else {
-                panic!(
-                    "No matching engine found for instrument {}",
-                    trade.instrument_id
-                );
-            }
+        if !self.ensure_matching_engine(trade.instrument_id, "trade tick") {
+            return;
         }
 
         if let Some(matching_engine) = self.matching_engines.get_mut(&trade.instrument_id) {
             matching_engine.process_trade_tick(trade);
         } else {
-            panic!("Matching engine should be initialized");
+            log::error!(
+                "Ignoring trade tick for {}: matching engine is unavailable",
+                trade.instrument_id
+            );
         }
     }
 
     /// Processes a bar and updates the matching engine.
     ///
-    /// # Panics
-    ///
-    /// Panics if adding a missing instrument during bar processing fails.
     pub fn process_bar(&mut self, bar: Bar) {
         for module in &self.modules {
             module.pre_process(&Data::Bar(bar));
         }
 
-        if !self.matching_engines.contains_key(&bar.instrument_id()) {
-            let instrument = {
-                let cache = self.cache.as_ref().borrow();
-                cache.instrument(&bar.instrument_id()).cloned()
-            };
-
-            if let Some(instrument) = instrument {
-                self.add_instrument(instrument).unwrap();
-            } else {
-                panic!(
-                    "No matching engine found for instrument {}",
-                    bar.instrument_id()
-                );
-            }
+        if !self.ensure_matching_engine(bar.instrument_id(), "bar") {
+            return;
         }
 
         if let Some(matching_engine) = self.matching_engines.get_mut(&bar.instrument_id()) {
             matching_engine.process_bar(&bar);
         } else {
-            panic!("Matching engine should be initialized");
+            log::error!(
+                "Ignoring bar for {}: matching engine is unavailable",
+                bar.instrument_id()
+            );
         }
     }
 
     /// Processes an instrument status update.
     ///
-    /// # Panics
-    ///
-    /// Panics if adding a missing instrument during instrument status processing fails.
     pub fn process_instrument_status(&mut self, status: InstrumentStatus) {
         for module in &self.modules {
             module.pre_process(&Data::InstrumentStatus(status));
         }
 
-        if !self.matching_engines.contains_key(&status.instrument_id) {
-            let instrument = {
-                let cache = self.cache.as_ref().borrow();
-                cache.instrument(&status.instrument_id).cloned()
-            };
-
-            if let Some(instrument) = instrument {
-                self.add_instrument(instrument).unwrap();
-            } else {
-                panic!(
-                    "No matching engine found for instrument {}",
-                    status.instrument_id
-                );
-            }
+        if !self.ensure_matching_engine(status.instrument_id, "instrument status") {
+            return;
         }
 
         if let Some(matching_engine) = self.matching_engines.get_mut(&status.instrument_id) {
             matching_engine.process_status(status.action);
         } else {
-            panic!("Matching engine should be initialized");
+            log::error!(
+                "Ignoring instrument status for {}: matching engine is unavailable",
+                status.instrument_id
+            );
         }
     }
 
     /// Processes an instrument close event.
     ///
-    /// # Panics
-    ///
-    /// Panics if adding a missing instrument during instrument close processing fails.
     pub fn process_instrument_close(&mut self, close: InstrumentClose) {
         for module in &self.modules {
             module.pre_process(&Data::InstrumentClose(close));
         }
 
-        if !self.matching_engines.contains_key(&close.instrument_id) {
-            let instrument = {
-                let cache = self.cache.as_ref().borrow();
-                cache.instrument(&close.instrument_id).cloned()
-            };
-
-            if let Some(instrument) = instrument {
-                self.add_instrument(instrument).unwrap();
-            } else {
-                panic!(
-                    "No matching engine found for instrument {}",
-                    close.instrument_id
-                );
-            }
+        if !self.ensure_matching_engine(close.instrument_id, "instrument close") {
+            return;
         }
 
         if let Some(matching_engine) = self.matching_engines.get_mut(&close.instrument_id) {
@@ -934,7 +875,10 @@ impl SimulatedExchange {
             }
             matching_engine.process_instrument_close(close);
         } else {
-            panic!("Matching engine should be initialized");
+            log::error!(
+                "Ignoring instrument close for {}: matching engine is unavailable",
+                close.instrument_id
+            );
         }
     }
 
@@ -1028,17 +972,24 @@ impl SimulatedExchange {
             let account_id = if let Some(exec_client) = &self.exec_client {
                 exec_client.account_id()
             } else {
-                panic!("Execution client should be initialized");
+                log::error!("Ignoring backtest trading command: execution client not initialized");
+                return;
             };
 
             match command {
                 TradingCommand::SubmitOrder(command) => {
-                    let mut order = self
+                    let Some(mut order) = self
                         .cache
                         .borrow()
                         .order(&command.client_order_id)
                         .map(|o| o.clone())
-                        .expect("Order must exist in cache");
+                    else {
+                        log::error!(
+                            "Ignoring backtest SubmitOrder for {}: order not found in cache",
+                            command.client_order_id
+                        );
+                        return;
+                    };
                     matching_engine.process_order(&mut order, account_id);
                 }
                 TradingCommand::ModifyOrder(ref command) => {
@@ -1220,6 +1171,29 @@ mod tests {
         exchange
     }
 
+    fn get_exchange_without_execution_client(
+        venue: Venue,
+        account_type: AccountType,
+        book_type: BookType,
+        cache: Option<Rc<RefCell<Cache>>>,
+    ) -> Rc<RefCell<SimulatedExchange>> {
+        let cache = cache.unwrap_or(Rc::new(RefCell::new(Cache::default())));
+        let clock = Rc::new(RefCell::new(TestClock::new()));
+        let config = SimulatedVenueConfig::builder()
+            .venue(venue)
+            .oms_type(OmsType::Netting)
+            .account_type(account_type)
+            .book_type(book_type)
+            .starting_balances(vec![Money::new(1000.0, Currency::USD())])
+            .default_leverage(Decimal::ONE)
+            .fee_model(FeeModelAny::MakerTaker(MakerTakerFeeModel))
+            .build();
+
+        Rc::new(RefCell::new(
+            SimulatedExchange::new(config, cache, clock).unwrap(),
+        ))
+    }
+
     fn create_submit_order_command(
         ts_init: UnixNanos,
         client_order_id: &str,
@@ -1337,6 +1311,80 @@ mod tests {
             .borrow()
             .best_ask_price(crypto_perpetual_ethusdt.id);
         assert_eq!(best_ask_price, Some(Price::from("1001.00")));
+    }
+
+    #[rstest]
+    fn test_exchange_process_quote_tick_unknown_instrument_does_not_panic() {
+        let exchange = get_exchange(
+            Venue::new("BINANCE"),
+            AccountType::Margin,
+            BookType::L1_MBP,
+            None,
+        );
+        let missing_instrument_id = InstrumentId::from("UNKNOWN.BINANCE");
+        let quote_tick = QuoteTick::new(
+            missing_instrument_id,
+            Price::from("1000.00"),
+            Price::from("1001.00"),
+            Quantity::from("1.000"),
+            Quantity::from("1.000"),
+            UnixNanos::default(),
+            UnixNanos::default(),
+        );
+
+        exchange.borrow_mut().process_quote_tick(&quote_tick);
+
+        assert!(exchange.borrow().get_book(missing_instrument_id).is_none());
+    }
+
+    #[rstest]
+    fn test_exchange_process_command_without_execution_client_does_not_panic(
+        crypto_perpetual_ethusdt: CryptoPerpetual,
+    ) {
+        let exchange = get_exchange_without_execution_client(
+            Venue::new("BINANCE"),
+            AccountType::Margin,
+            BookType::L1_MBP,
+            None,
+        );
+        let instrument = InstrumentAny::CryptoPerpetual(crypto_perpetual_ethusdt.clone());
+        exchange.borrow_mut().add_instrument(instrument).unwrap();
+        let (_, command) = create_submit_order_command(UnixNanos::from(1), "O-1");
+
+        exchange.borrow_mut().send(command);
+        exchange.borrow_mut().process(UnixNanos::from(1));
+
+        assert!(
+            exchange
+                .borrow()
+                .get_open_orders(Some(crypto_perpetual_ethusdt.id))
+                .is_empty()
+        );
+    }
+
+    #[rstest]
+    fn test_exchange_process_submit_order_missing_cache_order_does_not_panic(
+        crypto_perpetual_ethusdt: CryptoPerpetual,
+    ) {
+        let exchange = get_exchange(
+            Venue::new("BINANCE"),
+            AccountType::Margin,
+            BookType::L1_MBP,
+            None,
+        );
+        let instrument = InstrumentAny::CryptoPerpetual(crypto_perpetual_ethusdt.clone());
+        exchange.borrow_mut().add_instrument(instrument).unwrap();
+        let (_, command) = create_submit_order_command(UnixNanos::from(1), "O-1");
+
+        exchange.borrow_mut().send(command);
+        exchange.borrow_mut().process(UnixNanos::from(1));
+
+        assert!(
+            exchange
+                .borrow()
+                .get_open_orders(Some(crypto_perpetual_ethusdt.id))
+                .is_empty()
+        );
     }
 
     #[rstest]
