@@ -4,6 +4,10 @@ Date: 2026-05-28
 Executor: Codex
 Task ID: RPROD-005
 
+Updated: 2026-06-06
+Executor: Codex
+Task ID: DRG-005
+
 ## Purpose
 
 This contract refines the `nautilus sandbox` and `nautilus live` surfaces from
@@ -13,7 +17,8 @@ and known blockers for later implementation tasks.
 
 This document started as a product contract. RHARD-004 later added a local
 simulated sandbox demo through `nautilus sandbox validate` and
-`nautilus sandbox run`; full live-node runtime wiring remains deferred.
+`nautilus sandbox run`. DRG-005 adds the first scoped `nautilus live run`
+LiveNode start/stop smoke through the sandbox simulated execution client.
 
 ## Current Baseline
 
@@ -25,8 +30,10 @@ Current capability status is recorded in
 - `nautilus sandbox validate` validates the RHARD-004 local simulated demo
   config.
 - `nautilus sandbox run` writes deterministic simulated demo artifacts.
-- `nautilus live validate` and `nautilus live run` are still deferred and return
-  explicit Rust blocker errors.
+- `nautilus live validate` validates the DRG-005 live-init smoke config.
+- `nautilus live run` starts and stops a Rust `LiveNode` in sandbox mode with
+  the simulated execution client registered. It does not connect to a real
+  venue or submit real orders.
 
 ## Command Surface
 
@@ -205,10 +212,10 @@ dir = "runs/live-dry-run"
 write_summary = true
 ```
 
-RHARD-005 also records a safer live init smoke config at
+DRG-005 records the live init smoke config at
 `examples/rust/live/live_init_smoke.toml`. That config uses the sandbox
-simulated execution client, disables order submission, and is currently executed
-through the `nautilus-live` Cargo example rather than `nautilus live run`.
+simulated execution client, disables order submission, and is executed through
+`nautilus live validate` and `nautilus live run`.
 
 ### Field Mapping
 
@@ -282,6 +289,11 @@ and cache status. It explicitly reports `live_node_started=false`,
 `live_node_stopped=false`, `external_venue_connection=false`, and
 `real_orders_submitted=false`.
 
+The DRG-005 live-init smoke writes `summary.txt` and `events.log` after
+starting and stopping a Rust `LiveNode` in sandbox mode. It reports
+`runtime_status=completed`, `external_venue_connection=false`, and
+`real_orders_submitted=false`.
+
 Human-readable text is enough for the initial implementation. Machine-readable
 JSON output can be added later as an explicit `--format json` option.
 
@@ -312,6 +324,8 @@ cargo run -q -p nautilus-cli -- sandbox run --help
 cargo run -q -p nautilus-cli -- live --help
 cargo run -q -p nautilus-cli -- live validate --help
 cargo run -q -p nautilus-cli -- live run --help
+cargo run -q -p nautilus-cli -- live validate --config examples/rust/live/live_init_smoke.toml
+cargo run -q -p nautilus-cli -- live run --config examples/rust/live/live_init_smoke.toml --output runs/live-init-smoke
 PATH="/opt/homebrew/opt/rustup/bin:$PATH" scripts/ai/verify_fast.sh
 ```
 
@@ -322,19 +336,17 @@ The first lifecycle smoke must also prove:
 - a Rust sandbox or live node can build, start, and stop;
 - the run emits an owner-visible run ID, lifecycle status, and shutdown reason.
 
-## Known Blockers
+## Remaining Blockers
 
-- `nautilus live validate` and `nautilus live run` are not implemented in the
-  current CLI.
-- Full live-node runtime wiring is not implemented in the current CLI.
 - Adapter support for live mode is not classified by the CLI.
 - Production live adapter behavior requires adapter evidence and explicit task
   scope before it can be used as release evidence.
+- The DRG-005 live path supports only sandbox simulated execution with order
+  submission, reconciliation, and external venue connections disabled.
 
 RHARD-004 closes the sandbox CLI blocker for the local simulated demo only.
-RHARD-005 provides a Cargo live-node init/shutdown smoke with the simulated
-sandbox execution client. Real live CLI runtime wiring and production adapter
-behavior remain deferred.
+DRG-005 closes the first live CLI start/stop smoke only. Production adapter
+behavior remains deferred.
 
 These blockers should be closed by later RPROD, RCORE, RADP, and RTRACE tasks,
 not bypassed by Python fallback behavior.

@@ -4,14 +4,18 @@ Date: 2026-05-28
 Executor: Codex
 Task ID: RPROD-010
 
+Updated: 2026-06-06
+Executor: Codex
+Task ID: DRG-005
+
 This directory is reserved for Rust-first live workflow examples driven by the
 `nautilus live` CLI.
 
 ## CLI Command Contract
 
 ```bash
-cargo run -q -p nautilus-cli -- live validate --config examples/rust/live/live_dry_run.toml
-cargo run -q -p nautilus-cli -- live run --config examples/rust/live/live_dry_run.toml --run-id live-dry-run --output runs/live-dry-run
+cargo run -q -p nautilus-cli -- live validate --config examples/rust/live/live_init_smoke.toml
+cargo run -q -p nautilus-cli -- live run --config examples/rust/live/live_init_smoke.toml --run-id live-init-smoke --output runs/live-init-smoke
 ```
 
 ## Live Init Smoke
@@ -34,13 +38,13 @@ The smoke builds a Rust `LiveNode` in `Sandbox` mode, registers the
 execution client and account cache are initialized, then stops the node. It
 does not call a real trading endpoint and does not submit real orders.
 
-## Current Blocker
+## Current Runtime Boundary
 
-`live validate` and `live run` parse and expose help, but execution returns an
-explicit blocker until Rust config parsing, adapter support classification, and
-live-node runtime wiring are implemented. The RHARD-005 Cargo smoke is the
-current executable live initialization path; it is not yet wired into
-`nautilus live run`.
+`live validate` now validates the scoped live-init smoke config. `live run`
+starts and stops a Rust `LiveNode` in `Sandbox` mode with the simulated
+execution client registered, then writes owner-visible summary and event
+artifacts. This path does not connect to a real venue, reconcile external
+state, or submit real orders.
 
 ## Required Evidence For First Runnable Example
 

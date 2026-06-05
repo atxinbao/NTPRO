@@ -1,0 +1,23 @@
+[run]
+id = "load-quotes"
+mode = "load"
+
+[catalog]
+path = "../../../runs/load-quotes/catalog"
+protocol = "file"
+batch_size = 5000
+compression = "copy"
+
+[source]
+kind = "fixture"
+path = "fixtures/quotes.csv"
+schema = "quote_tick_csv_v1"
+
+[mapping]
+data_type = "QuoteTick"
+instrument_id = "AUD/USD.SIM"
+timestamp_column = "ts_init"
+
+[output]
+dir = "../../../runs/load-quotes"
+write_summary = true

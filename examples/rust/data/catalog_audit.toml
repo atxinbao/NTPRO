@@ -1,0 +1,13 @@
+[run]
+id = "catalog-audit"
+mode = "inspect"
+
+[catalog]
+path = "fixtures/quotes.csv"
+protocol = "file"
+
+[[queries]]
+data_type = "QuoteTick"
+instrument_id = "AUD/USD.SIM"
+start_time = "2025-01-01T00:00:00Z"
+end_time = "2025-01-01T00:00:03Z"

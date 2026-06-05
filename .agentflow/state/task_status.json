@@ -2818,7 +2818,7 @@
     },
     "DRG-005": {
       "title": "Real minimal CLI product paths",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -2829,7 +2829,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-005.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-005.md",
-      "updated_at": "2026-06-05T16:10:00Z",
+      "updated_at": "2026-06-05T23:07:19Z",
       "local_backlog": true
     },
     "DRG-006": {
