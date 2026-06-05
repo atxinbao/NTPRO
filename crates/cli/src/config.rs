@@ -29,11 +29,11 @@ use crate::{
 
 pub(crate) fn run_config_command(opt: ConfigOpt) -> anyhow::Result<()> {
     match opt.command {
-        ConfigCommand::Validate(validate) => run_config_validate(validate),
+        ConfigCommand::Validate(validate) => run_config_validate(&validate),
     }
 }
 
-fn run_config_validate(opt: ConfigValidateOpt) -> anyhow::Result<()> {
+fn run_config_validate(opt: &ConfigValidateOpt) -> anyhow::Result<()> {
     validate_workflow_config(opt.kind, &opt.config)?;
 
     if let Some(output_dir) = &opt.output {

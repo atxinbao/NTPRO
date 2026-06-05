@@ -2770,7 +2770,7 @@
     },
     "DRG-002": {
       "title": "Toolchain default convergence",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -2781,12 +2781,12 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-002.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-002.md",
-      "updated_at": "2026-06-05T16:16:32Z",
+      "updated_at": "2026-06-05T16:21:26Z",
       "local_backlog": true
     },
     "DRG-003": {
       "title": "Full verification gate",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -2797,7 +2797,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-003.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-003.md",
-      "updated_at": "2026-06-05T16:10:00Z",
+      "updated_at": "2026-06-05T20:02:48Z",
       "local_backlog": true
     },
     "DRG-004": {

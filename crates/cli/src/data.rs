@@ -63,9 +63,9 @@ struct DataPathInspection {
 
 pub(crate) fn run_data_command(opt: DataOpt) -> anyhow::Result<()> {
     match opt.command {
-        DataCommand::Inspect(inspect) => run_data_inspect(inspect),
-        DataCommand::Validate(validate) => run_data_validate(validate),
-        DataCommand::Load(load) => run_data_load(load),
+        DataCommand::Inspect(inspect) => run_data_inspect(&inspect),
+        DataCommand::Validate(validate) => run_data_validate(&validate),
+        DataCommand::Load(load) => run_data_load(&load),
     }
 }
 
@@ -74,7 +74,7 @@ pub(crate) fn validate_data_catalog_config_file(path: &Path) -> anyhow::Result<(
     Ok(())
 }
 
-fn run_data_inspect(opt: DataInspectOpt) -> anyhow::Result<()> {
+fn run_data_inspect(opt: &DataInspectOpt) -> anyhow::Result<()> {
     let config = load_data_catalog_config(&opt.config)?;
     ensure_inspect_or_validate_mode(&config, "data inspect")?;
     let inspection = inspect_catalog_path(&config)?;
@@ -88,7 +88,7 @@ fn run_data_inspect(opt: DataInspectOpt) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_data_validate(opt: DataValidateOpt) -> anyhow::Result<()> {
+fn run_data_validate(opt: &DataValidateOpt) -> anyhow::Result<()> {
     let config = load_data_catalog_config(&opt.config)?;
     ensure_inspect_or_validate_mode(&config, "data validate")?;
     let inspection = inspect_catalog_path(&config)?;
@@ -98,7 +98,7 @@ fn run_data_validate(opt: DataValidateOpt) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_data_load(opt: DataLoadOpt) -> anyhow::Result<()> {
+fn run_data_load(opt: &DataLoadOpt) -> anyhow::Result<()> {
     anyhow::bail!(
         "data load is defined but not implemented yet for config '{}'; see docs/rust-cutover/product/DATA_CATALOG_CLI_CONTRACT.md",
         opt.config.display()
