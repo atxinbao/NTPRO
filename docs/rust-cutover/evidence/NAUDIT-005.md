@@ -126,6 +126,12 @@ No public API changed.
 No migration note is required. The product boundary is documented in
 `docs/rust-cutover/product/POSTGRES_CACHE_ADAPTER_STATUS.md`.
 
+## Review And Merge Status
+
+PR opened: <https://github.com/atxinbao/NTPRO/pull/173>
+
+Status: `PR_OPEN`.
+
 ## Rollback Plan
 
 Revert the NAUDIT-005 PR to remove the unsupported classification document and

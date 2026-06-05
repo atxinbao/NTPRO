@@ -2684,7 +2684,7 @@
     },
     "NAUDIT-005": {
       "title": "PostgreSQL cache adapter support classification",
-      "status": "RUNNING",
+      "status": "PR_OPEN",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2695,10 +2695,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NAUDIT-005.md",
       "evidence_file": "docs/rust-cutover/evidence/NAUDIT-005.md",
-      "updated_at": "2026-06-05T13:52:12Z",
+      "updated_at": "2026-06-05T13:56:32Z",
       "local_backlog": true,
       "started_at": "2026-06-05T13:52:12Z",
-      "branch": "codex/naudit-005-postgres-cache-classification"
+      "branch": "codex/naudit-005-postgres-cache-classification",
+      "pr": 173
     },
     "NAUDIT-006": {
       "title": "Live adapter cancellation contract and mock evidence",
