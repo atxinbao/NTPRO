@@ -2752,7 +2752,7 @@
     },
     "DRG-001": {
       "title": "State convergence and readiness report refresh",
-      "status": "RUNNING",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2763,14 +2763,14 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-001.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-001.md",
-      "updated_at": "2026-06-05T16:10:00Z",
+      "updated_at": "2026-06-05T16:16:32Z",
       "local_backlog": true,
       "started_at": "2026-06-05T16:10:00Z",
       "branch": "codex/DRG-001-state-convergence-and-readiness-report-refresh"
     },
     "DRG-002": {
       "title": "Toolchain default convergence",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -2781,7 +2781,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-002.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-002.md",
-      "updated_at": "2026-06-05T16:10:00Z",
+      "updated_at": "2026-06-05T16:16:32Z",
       "local_backlog": true
     },
     "DRG-003": {

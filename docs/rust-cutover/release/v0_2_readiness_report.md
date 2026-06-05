@@ -12,7 +12,8 @@ Executor: Codex
 ```text
 Design Readiness Gate: FAIL
 G0 State consistency: PASS
-G1-G9: FAIL / not yet executed
+G1 Toolchain consistency: PASS
+G2-G9: FAIL / not yet executed
 ```
 
 DRG-001 只完成 state convergence。当前 GitHub open PR/issue 为空，Shrimp
@@ -20,8 +21,11 @@ DRG-001 只完成 state convergence。当前 GitHub open PR/issue 为空，Shrim
 `PR_OPEN` / `REVIEW_REQUIRED` / `QA_REQUIRED` 状态。已合并任务和旧 lease
 状态已经收口。
 
+DRG-002 随后修正了本地 shell 的普通 `cargo` / `rustc` 解析路径：
+NTPRO 目录内解析到 Rust `1.95.0`，其他目录仍回落到原 Homebrew 工具链。
+
 这不代表 v0.2 可以启动正式产品设计。按照
-`docs/rust-cutover/design_readiness_gate.md`，只要 G1 到 G9 任意一项没有
+`docs/rust-cutover/design_readiness_gate.md`，只要 G2 到 G9 任意一项没有
 明确 `PASS`，最终 Design Readiness Gate 仍是 `FAIL`。
 
 下一步执行顺序：

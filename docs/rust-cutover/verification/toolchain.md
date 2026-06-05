@@ -58,6 +58,13 @@ rustup run 1.95.0 cargo fmt --check
 rustup run 1.95.0 cargo check --workspace
 ```
 
+For local shells where Homebrew must stay on `PATH` for other projects, use a
+path-scoped wrapper in a directory that already appears before Homebrew, such as
+`$HOME/.local/bin`. The wrapper should only switch toolchains when `PWD` is
+inside `/Users/mac/Documents/NTPRO`; outside NTPRO it should delegate back to the
+normal Homebrew command. This keeps ordinary `cargo` and `rustc` commands inside
+NTPRO on Rust `1.95.0` without changing unrelated workspaces.
+
 ## Verification Script Behavior
 
 The NTPRO verification scripts source `scripts/ai/toolchain_env.sh` before
