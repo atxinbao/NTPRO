@@ -1492,7 +1492,11 @@ impl OrderMatchingEngine {
                 self.last_bar_ask = Some(bar.to_owned());
                 self.process_quote_ticks_from_bar(bar);
             }
-            PriceType::Mark => panic!("Not implemented"),
+            PriceType::Mark => {
+                log::warn!(
+                    "Ignoring MARK price bar {bar_type} for matching engine execution; mark bar execution is unsupported",
+                );
+            }
         }
     }
 
@@ -2557,8 +2561,19 @@ impl OrderMatchingEngine {
             if self.config.support_contingent_orders {
                 if let Some(parent_order_id) = order.parent_order_id() {
                     let parent_order = match cache_borrow.order(&parent_order_id) {
-                        Some(o) if o.contingency_type().unwrap() == ContingencyType::Oto => o,
-                        _ => panic!("OTO parent not found"),
+                        Some(order) if order.contingency_type() == Some(ContingencyType::Oto) => {
+                            order
+                        }
+                        Some(_) => {
+                            break 'validate Some(
+                                format!("OTO parent order {parent_order_id} is not OTO").into(),
+                            );
+                        }
+                        None => {
+                            break 'validate Some(
+                                format!("OTO parent order {parent_order_id} not found").into(),
+                            );
+                        }
                     };
 
                     if parent_order.status() == OrderStatus::Rejected && order.is_open() {
@@ -2593,7 +2608,11 @@ impl OrderMatchingEngine {
                                         .into(),
                                 );
                             }
-                            None => panic!("Cannot find contingent order for {client_order_id}"),
+                            None => {
+                                break 'validate Some(
+                                    format!("Contingent order {client_order_id} not found").into(),
+                                );
+                            }
                             _ => {}
                         }
                     }
@@ -5370,7 +5389,12 @@ impl OrderMatchingEngine {
             for client_order_id in linked_order_ids {
                 let contingent_order = match self.cache.borrow().order(client_order_id) {
                     Some(order) => order.clone(),
-                    None => panic!("Cannot find contingent order for {client_order_id}"),
+                    None => {
+                        log::error!(
+                            "Cannot cancel contingent order {client_order_id}: linked order was not found",
+                        );
+                        continue;
+                    }
                 };
 
                 if contingent_order.is_active_local() {
