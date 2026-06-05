@@ -145,6 +145,12 @@ uv lock --locked
 PR #175 is open and ready for human / gatekeeper review. Auto-merge is not
 enabled because NAUDIT-001 is a critical-risk task.
 
+GitHub `smoke` check passed on PR #175:
+
+- Workflow: Rust Cutover Smoke
+- Run: https://github.com/atxinbao/NTPRO/actions/runs/27021509301
+- Job: https://github.com/atxinbao/NTPRO/actions/runs/27021509301/job/79750380859
+
 ## Known Residuals
 
 Legacy Python wheel workflows and release helper scripts still exist under
