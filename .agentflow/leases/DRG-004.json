@@ -1,0 +1,24 @@
+{
+  "task_id": "DRG-004",
+  "agent_id": "Codex",
+  "branch": "codex/DRG-004-core-crates-full-targeted-tests",
+  "touched_paths": [
+    "docs/rust-cutover/evidence/DRG-004.md",
+    "docs/rust-cutover/release/v0_2_readiness_report.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/DRG-004.json"
+  ],
+  "claimed_at": "2026-06-05T20:08:24.154578+00:00",
+  "status": "PR_OPEN",
+  "updated_at": "2026-06-05T20:41:16Z",
+  "validation_summary": {
+    "cargo test -p nautilus-core": "PASS",
+    "cargo test -p nautilus-model": "PASS",
+    "cargo test -p nautilus-data": "PASS",
+    "cargo test -p nautilus-execution": "PASS",
+    "cargo test -p nautilus-risk": "PASS",
+    "cargo test -p nautilus-portfolio": "PASS",
+    "cargo test -p nautilus-backtest": "PASS",
+    "cargo test -p nautilus-live": "PASS"
+  }
+}

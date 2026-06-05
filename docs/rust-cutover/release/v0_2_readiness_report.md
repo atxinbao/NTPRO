@@ -2,7 +2,7 @@
 
 Date: 2026-06-05
 Executor: Codex
-Task ID: NQA-001, DRG-001, DRG-002, DRG-003
+Task ID: NQA-001, DRG-001, DRG-002, DRG-003, DRG-004
 
 ## DRG-001 Update
 
@@ -14,7 +14,8 @@ Design Readiness Gate: FAIL
 G0 State consistency: PASS
 G1 Toolchain consistency: PASS
 G2 Full verification: PASS
-G3-G9: FAIL / not yet executed
+G3 Core crate tests: PASS
+G4-G9: FAIL / not yet executed
 ```
 
 DRG-001 只完成 state convergence。当前 GitHub open PR/issue 为空，Shrimp
@@ -35,8 +36,16 @@ tests 和 `cargo doc --workspace --no-deps`。为使 full gate 在当前 clippy
 matching-engine 测试移除冗余 clone、live startup helper 参数按控制项和
 事件接收器分组。未修改交易语义、CLI 产品承诺、adapter 行为或 public API。
 
+DRG-004 完成了 core crate targeted test 门禁。`nautilus-core`、
+`nautilus-model`、`nautilus-data`、`nautilus-execution`、`nautilus-risk`、
+`nautilus-portfolio`、`nautilus-backtest` 和 `nautilus-live` 的 targeted
+`cargo test -p ...` 均已通过。测试中仍观察到既有 ignored tests：
+execution matching engine 3 个、risk engine 6 个、live stress 2 个；这些
+不是本任务新增，也不在 DRG-004 范围内关闭。DRG-004 未修改业务代码、交易语义、
+public API、CLI 产品能力或 adapter 行为。
+
 这不代表 v0.2 可以启动正式产品设计。按照
-`docs/rust-cutover/design_readiness_gate.md`，只要 G3 到 G9 任意一项没有
+`docs/rust-cutover/design_readiness_gate.md`，只要 G4 到 G9 任意一项没有
 明确 `PASS`，最终 Design Readiness Gate 仍是 `FAIL`。
 
 下一步执行顺序：
