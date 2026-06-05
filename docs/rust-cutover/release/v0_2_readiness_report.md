@@ -1,8 +1,8 @@
 # NTPRO v0.2 Readiness Report
 
-Date: 2026-06-05
+Date: 2026-06-06
 Executor: Codex
-Task ID: NQA-001, DRG-001, DRG-002, DRG-003, DRG-004, DRG-005, DRG-006, DRG-007, DRG-008
+Task ID: NQA-001, DRG-001, DRG-002, DRG-003, DRG-004, DRG-005, DRG-006, DRG-007, DRG-008, DRG-009
 
 ## DRG-001 Update
 
@@ -15,11 +15,12 @@ G0 State consistency: PASS
 G1 Toolchain consistency: PASS
 G2 Full verification: PASS
 G3 Core crate tests: PASS
-G4 Product CLI paths: PASS in DRG-005 branch, pending high-risk review/merge
+G4 Product CLI paths: PASS
 G5 Runtime panic zero: PASS for classified product-reachable core paths
 G6 Live cancellation proof: PASS for live-node startup boundary with mock evidence
 G7 Ignored test closure: PASS for triage closure; high-impact items are fixed, enabled, or formally blocker-recorded
-G8 and G9: FAIL / not yet executed
+G8 Executable trace evidence: PASS in DRG-009 branch, pending high-risk review/merge
+G9 Final design-readiness audit: FAIL / not yet executed
 ```
 
 DRG-001 只完成 state convergence。当前 GitHub open PR/issue 为空，Shrimp
@@ -76,12 +77,22 @@ DRG-005 完成了 real minimal CLI product paths。G4 的 PASS 范围是：
 validate/run` 有 sandbox `LiveNode` start/stop smoke 路径，`data load` 有
 本地 QuoteTick fixture 写入 catalog 目录路径。DRG-005 不声明任意策略加载、
 生产 live adapter、adapter-backed data load、Parquet 行级编码或完整交易
-workflow。DRG-005 是 high-risk 任务，状态停在 `REVIEW_REQUIRED`，不自动合并。
+workflow。DRG-005 是 high-risk 任务，合并前按规则停在 `REVIEW_REQUIRED`，
+未自动合并。
+
+DRG-009 完成了 executable trace gate。G8 的 PASS 范围是：backtest、
+live/sandbox lifecycle、data source / market data、execution order
+lifecycle、risk rejection 和 adapter payload 都有 repeatable local Rust
+commands，并且 `scripts/ai/run_golden_traces.sh` 会串起这些 harness。release
+scope manifest 当前记录 19 个 trace case，其中 18 个是 executable replay，
+仅 `market_data.schema_smoke.001` 保留为 non-product envelope smoke 的
+schema-only row。DRG-009 是 high-risk 任务，状态停在 `REVIEW_REQUIRED`，
+不自动合并。
 
 这不代表 v0.2 可以启动正式产品设计。按照
-`docs/rust-cutover/design_readiness_gate.md`，只要 G8、G9 任意一项没有明确
-`PASS`，最终 Design Readiness Gate 仍是 `FAIL`。DRG-005 合并前，G4 的
-PASS 也只能视为本分支证据，不能视为 main 上已完成。
+`docs/rust-cutover/design_readiness_gate.md`，只要 G9 没有明确 `PASS`，
+最终 Design Readiness Gate 仍是 `FAIL`。DRG-009 合并前，G8 的 PASS
+只能视为本分支证据，不能视为 main 上已完成。
 
 当前执行位置：
 
@@ -89,8 +100,8 @@ PASS 也只能视为本分支证据，不能视为 main 上已完成。
 DRG-002 -> DRG-003 -> DRG-004 -> DRG-006 -> DRG-007 -> DRG-008 -> DRG-005 -> DRG-009 -> DRG-010
 ```
 
-DRG-005 当前在本分支完成实现和验证，等待 high-risk review/merge。合并后再继续
-DRG-009 和 DRG-010。
+DRG-009 当前在本分支完成实现和验证，等待 high-risk review/merge。合并后再继续
+DRG-010。
 
 ## 中文结论
 

@@ -1,10 +1,10 @@
 {
   "schema_version": "golden-trace-release-scope-v1",
-  "date": "2026-06-03",
+  "date": "2026-06-06",
   "executor": "Codex",
-  "task_id": "RREL-009",
-  "decision": "Final golden trace release mode requires every trace row to be either covered by executable Rust replay evidence or explicitly scoped as schema-only seed evidence.",
-  "owner_signoff": "pending",
+  "task_id": "DRG-009",
+  "decision": "G8 executable trace gate requires every v0.2 product-claimed trace area to have executable Rust replay evidence; schema-only scope is allowed only for non-product envelope smoke rows.",
+  "owner_signoff": "DRG-009 REVIEW_REQUIRED; pending review and merge",
   "cases": [
     {
       "case_id": "adapter_payload.okx_ws_trade.001",
@@ -60,121 +60,131 @@
       "case_id": "market_data.quote_tick.001",
       "trace": "tests/golden/market_data_schema.jsonl",
       "category": "market_data",
-      "status": "schema_only_scoped",
-      "scope_owner": "RREL-009",
-      "reason": "Market-data object envelope is a seed trace; no dedicated Rust market-data replay harness is wired for this case yet.",
-      "follow_up": "RTRACE market-data replay expansion",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "DRG-009",
+      "harness": "cargo test -p nautilus-model --test golden_trace_market_data",
+      "rust_entrypoint": "crates/model/tests/golden_trace_market_data.rs::rust_model_replays_market_data_golden_traces"
     },
     {
       "case_id": "market_data.trade_tick.001",
       "trace": "tests/golden/market_data_schema.jsonl",
       "category": "market_data",
-      "status": "schema_only_scoped",
-      "scope_owner": "RREL-009",
-      "reason": "Market-data trade envelope is a seed trace; no dedicated Rust market-data replay harness is wired for this case yet.",
-      "follow_up": "RTRACE market-data replay expansion",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "DRG-009",
+      "harness": "cargo test -p nautilus-model --test golden_trace_market_data",
+      "rust_entrypoint": "crates/model/tests/golden_trace_market_data.rs::rust_model_replays_market_data_golden_traces"
     },
     {
       "case_id": "market_data.bar.001",
       "trace": "tests/golden/market_data_schema.jsonl",
       "category": "market_data",
-      "status": "schema_only_scoped",
-      "scope_owner": "RREL-009",
-      "reason": "Bar envelope is a seed trace; no dedicated Rust bar replay harness is wired for this case yet.",
-      "follow_up": "RTRACE market-data replay expansion",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "DRG-009",
+      "harness": "cargo test -p nautilus-model --test golden_trace_market_data",
+      "rust_entrypoint": "crates/model/tests/golden_trace_market_data.rs::rust_model_replays_market_data_golden_traces"
     },
     {
       "case_id": "market_data.order_book_delta.001",
       "trace": "tests/golden/market_data_schema.jsonl",
       "category": "market_data",
-      "status": "schema_only_scoped",
-      "scope_owner": "RREL-009",
-      "reason": "Order book delta envelope is a seed trace; no dedicated Rust book replay harness is wired for this case yet.",
-      "follow_up": "RTRACE market-data replay expansion",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "DRG-009",
+      "harness": "cargo test -p nautilus-model --test golden_trace_market_data",
+      "rust_entrypoint": "crates/model/tests/golden_trace_market_data.rs::rust_model_replays_market_data_golden_traces"
     },
     {
       "case_id": "market_data.instrument_status.001",
       "trace": "tests/golden/market_data_schema.jsonl",
       "category": "market_data",
-      "status": "schema_only_scoped",
-      "scope_owner": "RREL-009",
-      "reason": "Instrument status envelope is a seed trace; no dedicated Rust status replay harness is wired for this case yet.",
-      "follow_up": "RTRACE market-data replay expansion",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "DRG-009",
+      "harness": "cargo test -p nautilus-model --test golden_trace_market_data",
+      "rust_entrypoint": "crates/model/tests/golden_trace_market_data.rs::rust_model_replays_market_data_golden_traces"
     },
     {
       "case_id": "market_data.catalog_ordering.001",
       "trace": "tests/golden/market_data_schema.jsonl",
       "category": "market_data",
-      "status": "schema_only_scoped",
-      "scope_owner": "RREL-009",
-      "reason": "Catalog ordering envelope is a seed trace; no dedicated Rust catalog replay harness is wired for this case yet.",
-      "follow_up": "RTRACE market-data replay expansion",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "DRG-009",
+      "harness": "cargo test -p nautilus-model --test golden_trace_market_data",
+      "rust_entrypoint": "crates/model/tests/golden_trace_market_data.rs::rust_model_replays_market_data_golden_traces"
     },
     {
       "case_id": "order_lifecycle.submit_accept.001",
       "trace": "tests/golden/order_lifecycle_schema.jsonl",
       "category": "order_lifecycle",
-      "status": "schema_only_scoped",
-      "scope_owner": "RREL-009",
-      "reason": "Order submission accept is a seed trace; no dedicated Rust execution lifecycle replay harness is wired for this case yet.",
-      "follow_up": "RTRACE order lifecycle replay expansion",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "DRG-009",
+      "harness": "cargo test -p nautilus-execution --test golden_trace_order_lifecycle",
+      "rust_entrypoint": "crates/execution/tests/golden_trace_order_lifecycle.rs::rust_execution_replays_order_lifecycle_golden_traces"
     },
     {
       "case_id": "order_lifecycle.submit_reject.001",
       "trace": "tests/golden/order_lifecycle_schema.jsonl",
       "category": "order_lifecycle",
-      "status": "schema_only_scoped",
-      "scope_owner": "RREL-009",
-      "reason": "Order submission reject is a seed trace; no dedicated Rust execution lifecycle replay harness is wired for this case yet.",
-      "follow_up": "RTRACE order lifecycle replay expansion",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "DRG-009",
+      "harness": "cargo test -p nautilus-execution --test golden_trace_order_lifecycle",
+      "rust_entrypoint": "crates/execution/tests/golden_trace_order_lifecycle.rs::rust_execution_replays_order_lifecycle_golden_traces"
     },
     {
       "case_id": "order_lifecycle.modify_accept.001",
       "trace": "tests/golden/order_lifecycle_schema.jsonl",
       "category": "order_lifecycle",
-      "status": "schema_only_scoped",
-      "scope_owner": "RREL-009",
-      "reason": "Order modification is a seed trace; no dedicated Rust execution lifecycle replay harness is wired for this case yet.",
-      "follow_up": "RTRACE order lifecycle replay expansion",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "DRG-009",
+      "harness": "cargo test -p nautilus-execution --test golden_trace_order_lifecycle",
+      "rust_entrypoint": "crates/execution/tests/golden_trace_order_lifecycle.rs::rust_execution_replays_order_lifecycle_golden_traces"
     },
     {
       "case_id": "order_lifecycle.cancel_accept.001",
       "trace": "tests/golden/order_lifecycle_schema.jsonl",
       "category": "order_lifecycle",
-      "status": "schema_only_scoped",
-      "scope_owner": "RREL-009",
-      "reason": "Order cancellation is a seed trace; no dedicated Rust execution lifecycle replay harness is wired for this case yet.",
-      "follow_up": "RTRACE order lifecycle replay expansion",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "DRG-009",
+      "harness": "cargo test -p nautilus-execution --test golden_trace_order_lifecycle",
+      "rust_entrypoint": "crates/execution/tests/golden_trace_order_lifecycle.rs::rust_execution_replays_order_lifecycle_golden_traces"
     },
     {
       "case_id": "order_lifecycle.triggered_fill.001",
       "trace": "tests/golden/order_lifecycle_schema.jsonl",
       "category": "order_lifecycle",
-      "status": "schema_only_scoped",
-      "scope_owner": "RREL-009",
-      "reason": "Triggered fill is a seed trace; no dedicated Rust execution lifecycle replay harness is wired for this case yet.",
-      "follow_up": "RTRACE order lifecycle replay expansion",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "DRG-009",
+      "harness": "cargo test -p nautilus-execution --test golden_trace_order_lifecycle",
+      "rust_entrypoint": "crates/execution/tests/golden_trace_order_lifecycle.rs::rust_execution_replays_order_lifecycle_golden_traces"
     },
     {
       "case_id": "order_lifecycle.partial_then_filled.001",
       "trace": "tests/golden/order_lifecycle_schema.jsonl",
       "category": "order_lifecycle",
-      "status": "schema_only_scoped",
-      "scope_owner": "RREL-009",
-      "reason": "Partial-to-filled order lifecycle is a seed trace; no dedicated Rust execution lifecycle replay harness is wired for this case yet.",
-      "follow_up": "RTRACE order lifecycle replay expansion",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "DRG-009",
+      "harness": "cargo test -p nautilus-execution --test golden_trace_order_lifecycle",
+      "rust_entrypoint": "crates/execution/tests/golden_trace_order_lifecycle.rs::rust_execution_replays_order_lifecycle_golden_traces"
+    },
+    {
+      "case_id": "risk.rejection.trading_halted.001",
+      "trace": "tests/golden/risk_rejection_schema.jsonl",
+      "category": "risk",
+      "status": "executable_replay",
+      "evidence_id": "DRG-009",
+      "harness": "cargo test -p nautilus-risk --test golden_trace_risk_rejection",
+      "rust_entrypoint": "crates/risk/tests/golden_trace_risk_rejection.rs::rust_risk_engine_replays_rejection_golden_trace",
+      "release_decision": "included_in_final_replay_scope"
     },
     {
       "case_id": "market_data.schema_smoke.001",

@@ -8,10 +8,13 @@ source scripts/ai/toolchain_env.sh
 TRACE_GLOB="${TRACE_GLOB:-tests/golden/*.jsonl}"
 REQUIRE_GOLDEN_REPLAY="${REQUIRE_GOLDEN_REPLAY:-0}"
 RUN_RUST_GOLDEN_TRACE_HARNESS="${RUN_RUST_GOLDEN_TRACE_HARNESS:-1}"
+RUN_RUST_MARKET_DATA_TRACE_REPLAY="${RUN_RUST_MARKET_DATA_TRACE_REPLAY:-1}"
 RUN_RUST_CACHE_MSGBUS_TRACE_REPLAY="${RUN_RUST_CACHE_MSGBUS_TRACE_REPLAY:-1}"
 RUN_RUST_BACKTEST_TRACE_REPLAY="${RUN_RUST_BACKTEST_TRACE_REPLAY:-1}"
 RUN_RUST_BACKTEST_LIVE_PARITY_TRACE_REPLAY="${RUN_RUST_BACKTEST_LIVE_PARITY_TRACE_REPLAY:-1}"
 RUN_RUST_LIVE_SANDBOX_TRACE_REPLAY="${RUN_RUST_LIVE_SANDBOX_TRACE_REPLAY:-1}"
+RUN_RUST_ORDER_LIFECYCLE_TRACE_REPLAY="${RUN_RUST_ORDER_LIFECYCLE_TRACE_REPLAY:-1}"
+RUN_RUST_RISK_REJECTION_TRACE_REPLAY="${RUN_RUST_RISK_REJECTION_TRACE_REPLAY:-1}"
 RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY="${RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY:-1}"
 REPLAY_COMMAND="${GOLDEN_TRACE_REPLAY_COMMAND:-}"
 RELEASE_SCOPE_MANIFEST="${GOLDEN_TRACE_RELEASE_SCOPE_MANIFEST:-docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json}"
@@ -55,6 +58,10 @@ if [ "$RUN_RUST_GOLDEN_TRACE_HARNESS" = "1" ]; then
   cargo test -p nautilus-testkit --test golden_trace_schema
 fi
 
+if [ "$RUN_RUST_MARKET_DATA_TRACE_REPLAY" = "1" ]; then
+  cargo test -p nautilus-model --test golden_trace_market_data
+fi
+
 if [ "$RUN_RUST_CACHE_MSGBUS_TRACE_REPLAY" = "1" ]; then
   cargo test -p nautilus-common --test golden_trace_cache_msgbus
 fi
@@ -69,6 +76,14 @@ fi
 
 if [ "$RUN_RUST_LIVE_SANDBOX_TRACE_REPLAY" = "1" ]; then
   cargo test -p nautilus-live --test golden_trace_live_sandbox
+fi
+
+if [ "$RUN_RUST_ORDER_LIFECYCLE_TRACE_REPLAY" = "1" ]; then
+  cargo test -p nautilus-execution --test golden_trace_order_lifecycle
+fi
+
+if [ "$RUN_RUST_RISK_REJECTION_TRACE_REPLAY" = "1" ]; then
+  cargo test -p nautilus-risk --test golden_trace_risk_rejection
 fi
 
 if [ "$RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY" = "1" ]; then
