@@ -12,11 +12,12 @@
     ".agentflow/leases/RREL-009.json"
   ],
   "claimed_at": "2026-06-03T01:09:30Z",
-  "status": "REVIEW_REQUIRED",
+  "status": "DONE",
   "qa_passed": true,
   "review_passed": false,
   "release_gatekeeper_approved": false,
   "owner_signoff_granted": false,
   "auto_merge_allowed": false,
-  "updated_at": "2026-06-03T03:45:00Z"
+  "updated_at": "2026-06-03T03:45:00Z",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

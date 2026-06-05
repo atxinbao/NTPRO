@@ -10,6 +10,7 @@
     ".agentflow/leases/NARCH-004.json"
   ],
   "claimed_at": "2026-06-04T16:11:56.987468+00:00",
-  "status": "QA_REQUIRED",
-  "updated_at": "2026-06-04T16:14:02Z"
+  "status": "DONE",
+  "updated_at": "2026-06-04T16:14:02Z",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

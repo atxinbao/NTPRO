@@ -9,6 +9,7 @@
     ".agentflow/leases/RADP-022.json"
   ],
   "claimed_at": "2026-05-31T16:28:19.392068+00:00",
-  "status": "PR_OPEN",
-  "updated_at": "2026-05-31T16:33:36Z"
+  "status": "DONE",
+  "updated_at": "2026-05-31T16:33:36Z",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

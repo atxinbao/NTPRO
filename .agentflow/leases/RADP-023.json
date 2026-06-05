@@ -16,6 +16,7 @@
     "crates/adapters/sandbox/tests/fixture_manifest.rs"
   ],
   "claimed_at": "2026-05-31T16:40:58.376613+00:00",
-  "status": "PR_OPEN",
-  "updated_at": "2026-06-01T03:29:26Z"
+  "status": "DONE",
+  "updated_at": "2026-06-01T03:29:26Z",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

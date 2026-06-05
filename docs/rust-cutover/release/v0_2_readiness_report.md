@@ -2,7 +2,33 @@
 
 Date: 2026-06-05
 Executor: Codex
-Task ID: NQA-001
+Task ID: NQA-001, DRG-001
+
+## DRG-001 Update
+
+Date: 2026-06-05
+Executor: Codex
+
+```text
+Design Readiness Gate: FAIL
+G0 State consistency: PASS
+G1-G9: FAIL / not yet executed
+```
+
+DRG-001 只完成 state convergence。当前 GitHub open PR/issue 为空，Shrimp
+只有 `DRG-001` in progress，`.agentflow` 已经没有历史 stale
+`PR_OPEN` / `REVIEW_REQUIRED` / `QA_REQUIRED` 状态。已合并任务和旧 lease
+状态已经收口。
+
+这不代表 v0.2 可以启动正式产品设计。按照
+`docs/rust-cutover/design_readiness_gate.md`，只要 G1 到 G9 任意一项没有
+明确 `PASS`，最终 Design Readiness Gate 仍是 `FAIL`。
+
+下一步执行顺序：
+
+```text
+DRG-002 -> DRG-003 -> DRG-004 -> DRG-006 -> DRG-007 -> DRG-008 -> DRG-005 -> DRG-009 -> DRG-010
+```
 
 ## 中文结论
 

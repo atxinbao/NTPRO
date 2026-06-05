@@ -16,5 +16,6 @@
     "examples/rust/live/live_init_smoke.toml"
   ],
   "claimed_at": "2026-06-04T14:59:40.038049+00:00",
-  "status": "RUNNING"
+  "status": "DONE",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

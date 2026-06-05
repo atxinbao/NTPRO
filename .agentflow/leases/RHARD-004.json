@@ -17,5 +17,6 @@
     "examples/rust/sandbox/sandbox_smoke.toml"
   ],
   "claimed_at": "2026-06-04T14:46:31.388178+00:00",
-  "status": "RUNNING"
+  "status": "DONE",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

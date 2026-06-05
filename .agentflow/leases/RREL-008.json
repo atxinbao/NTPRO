@@ -15,7 +15,7 @@
     ".agentflow/leases/RREL-008.json"
   ],
   "claimed_at": "2026-06-03T12:28:02Z",
-  "status": "REVIEW_REQUIRED",
+  "status": "DONE",
   "qa_passed": true,
   "review_passed": false,
   "release_gatekeeper_approved": true,
@@ -35,5 +35,6 @@
   "tag_created": false,
   "github_release_published": false,
   "notes": "Scope limited to release/signoff/completion docs and agentflow state. No tag, no GitHub Release, no auto-merge. Stop at PR review.",
-  "updated_at": "2026-06-03T12:28:02Z"
+  "updated_at": "2026-06-03T12:28:02Z",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

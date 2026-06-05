@@ -9,5 +9,6 @@
     "docs/rust-cutover/evidence/NADAPT-001.md"
   ],
   "claimed_at": "2026-06-04T15:28:07.208486+00:00",
-  "status": "RUNNING"
+  "status": "DONE",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

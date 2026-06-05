@@ -12,6 +12,7 @@
     ".agentflow/leases/RTRACE-007.json"
   ],
   "claimed_at": "2026-05-28T17:42:48.053006+00:00",
-  "status": "PR_READY",
-  "released_at": "2026-05-28T17:48:42Z"
+  "status": "DONE",
+  "released_at": "2026-05-28T17:48:42Z",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

@@ -17,9 +17,10 @@
     ".agentflow/leases/RREM-013.json"
   ],
   "claimed_at": "2026-06-01T19:15:00Z",
-  "status": "REVIEW_REQUIRED",
+  "status": "DONE",
   "updated_at": "2026-06-01T19:35:03Z",
   "auto_merge_allowed": false,
   "pr_url": "https://github.com/atxinbao/NTPRO/pull/109",
-  "pr_number": 109
+  "pr_number": 109,
+  "closed_at": "2026-06-05T16:12:29Z"
 }

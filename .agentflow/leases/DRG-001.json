@@ -1,0 +1,14 @@
+{
+  "task_id": "DRG-001",
+  "agent_id": "Codex",
+  "branch": "codex/DRG-001-state-convergence-and-readiness-report-refresh",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/DRG-001.md",
+    "docs/rust-cutover/evidence/DRG-001.md",
+    "docs/rust-cutover/release/v0_2_readiness_report.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/DRG-001.json"
+  ],
+  "claimed_at": "2026-06-05T16:10:52.556824+00:00",
+  "status": "LEASED"
+}

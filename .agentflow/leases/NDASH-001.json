@@ -10,6 +10,7 @@
     ".agentflow/leases/NDASH-001.json"
   ],
   "claimed_at": "2026-06-04T16:20:47.002221+00:00",
-  "status": "QA_REQUIRED",
-  "updated_at": "2026-06-04T16:21:54Z"
+  "status": "DONE",
+  "updated_at": "2026-06-04T16:21:54Z",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

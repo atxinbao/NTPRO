@@ -10,5 +10,6 @@
     ".agentflow/leases/RREM-001.json"
   ],
   "claimed_at": "2026-06-01T14:05:47.175724+00:00",
-  "status": "PR_OPEN"
+  "status": "DONE",
+  "closed_at": "2026-06-05T16:12:29Z"
 }
