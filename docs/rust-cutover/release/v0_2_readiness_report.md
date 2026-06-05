@@ -2,7 +2,7 @@
 
 Date: 2026-06-05
 Executor: Codex
-Task ID: NQA-001, DRG-001, DRG-002, DRG-003, DRG-004, DRG-006
+Task ID: NQA-001, DRG-001, DRG-002, DRG-003, DRG-004, DRG-006, DRG-007
 
 ## DRG-001 Update
 
@@ -16,7 +16,8 @@ G1 Toolchain consistency: PASS
 G2 Full verification: PASS
 G3 Core crate tests: PASS
 G5 Runtime panic zero: PASS for classified product-reachable core paths
-G4 and G6-G9: FAIL / not yet executed
+G6 Live cancellation proof: PASS for live-node startup boundary with mock evidence
+G4 and G7-G9: FAIL / not yet executed
 ```
 
 DRG-001 只完成 state convergence。当前 GitHub open PR/issue 为空，Shrimp
@@ -53,9 +54,17 @@ non-core path 和 product-reachable fixed 分类。已确认的产品可达核�
 这些路径已经从 panic/expect/unwrap 改为日志和安全返回，并补了回归测试。
 DRG-006 是 high-risk 任务，状态停在 `REVIEW_REQUIRED`，不自动合并。
 
+DRG-007 完成了 live adapter cancellation proof closure。G6 的 PASS 范围是
+live-node startup boundary 加 mock data client cleanup 证据：pending
+`DataClient::connect` future 在 stop 或 shutdown 触发时会被丢弃，mock guard
+证明资源释放、half-connected 状态清理，并且 client 不会报告 connected。本轮
+没有连接真实交易所，也没有把真实 adapter 标成 cancellation-safe；真实 adapter
+仍保留在 `docs/integrations/live_adapter_cancellation.md` 的 follow-up register。
+DRG-007 是 high-risk 任务，状态停在 `REVIEW_REQUIRED`，不自动合并。
+
 这不代表 v0.2 可以启动正式产品设计。按照
-`docs/rust-cutover/design_readiness_gate.md`，只要 G4、G6、G7、G8、G9
-任意一项没有明确 `PASS`，最终 Design Readiness Gate 仍是 `FAIL`。
+`docs/rust-cutover/design_readiness_gate.md`，只要 G4、G7、G8、G9 任意一项
+没有明确 `PASS`，最终 Design Readiness Gate 仍是 `FAIL`。
 
 下一步执行顺序：
 
