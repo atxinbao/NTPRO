@@ -2,7 +2,7 @@
 
 Date: 2026-06-05
 Executor: Codex
-Task ID: NQA-001, DRG-001, DRG-002, DRG-003, DRG-004, DRG-006, DRG-007
+Task ID: NQA-001, DRG-001, DRG-002, DRG-003, DRG-004, DRG-006, DRG-007, DRG-008
 
 ## DRG-001 Update
 
@@ -17,7 +17,8 @@ G2 Full verification: PASS
 G3 Core crate tests: PASS
 G5 Runtime panic zero: PASS for classified product-reachable core paths
 G6 Live cancellation proof: PASS for live-node startup boundary with mock evidence
-G4 and G7-G9: FAIL / not yet executed
+G7 Ignored test closure: PASS for triage closure; high-impact items are fixed, enabled, or formally blocker-recorded
+G4, G8, and G9: FAIL / not yet executed
 ```
 
 DRG-001 只完成 state convergence。当前 GitHub open PR/issue 为空，Shrimp
@@ -62,8 +63,15 @@ live-node startup boundary 加 mock data client cleanup 证据：pending
 仍保留在 `docs/integrations/live_adapter_cancellation.md` 的 follow-up register。
 DRG-007 是 high-risk 任务，状态停在 `REVIEW_REQUIRED`，不自动合并。
 
+DRG-008 完成了 high-impact ignored tests closure。G7 的 PASS 范围是
+triage closure：风险登记中不再有高影响 `OPEN` ignored-test 项。DRG-008
+没有删除 ignored tests，也没有把空占位测试取消 ignore 来制造假绿。10 个
+高影响项全部转成 `BLOCKER_RECORDED`，其中 matching engine、risk reducing、
+dYdX subscription restoration 等路径仍需要后续修复或 release-gate scope-out。
+DRG-008 是 high-risk 任务，状态停在 `REVIEW_REQUIRED`，不自动合并。
+
 这不代表 v0.2 可以启动正式产品设计。按照
-`docs/rust-cutover/design_readiness_gate.md`，只要 G4、G7、G8、G9 任意一项
+`docs/rust-cutover/design_readiness_gate.md`，只要 G4、G8、G9 任意一项
 没有明确 `PASS`，最终 Design Readiness Gate 仍是 `FAIL`。
 
 下一步执行顺序：

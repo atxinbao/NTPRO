@@ -23,6 +23,12 @@ rg -n '^\s*#\[ignore(?:\s*=\s*"[^"]*")?\]' crates tests --glob '*.rs' -S | cut -
 
 Result after NAUDIT-003: 28 active ignored Rust test attributes were found.
 
+DRG-008 re-ran and classified every High impact item. The active ignored-test
+count remains 28 because no high-impact test was safely restored to the default
+suite in this task. Several high-impact risk tests are empty placeholder
+functions; although they pass when run with `--ignored`, DRG-008 does not accept
+empty tests as valid regression evidence.
+
 NAUDIT-003 restored two previously ignored common cache lifecycle tests to the
 default Rust test suite. They are no longer active ignored production-bug
 entries:
@@ -36,6 +42,28 @@ entries:
 Those are feature-workspace declarations, not ignored tests, and are not counted
 in this register.
 
+## DRG-008 High Impact Closure Result
+
+DRG-008 closes the High impact `OPEN` queue by converting every remaining High
+impact ignored test into a formal release-gate blocker. This is a strict
+readiness result, not a runtime fix.
+
+| Result | Count | Meaning |
+| --- | ---: | --- |
+| `BLOCKER_RECORDED` | 10 | The ignored test remains outside the default suite, but is no longer an unclassified `OPEN` item. Product design must not depend on that behavior until the blocker is fixed or formally scoped out. |
+| Restored to default suite | 0 | No high-impact item had enough passing, meaningful test coverage to restore safely. |
+
+Formal blocker groups:
+
+| Blocker ID | Covered ignored tests | Required follow-up |
+| --- | --- | --- |
+| `DRG8-BLOCKER-001` | `IGN-HIGH-003`, `IGN-HIGH-004` | Repair matching-engine contingent/OUO helper behavior so child cancellation and parent leaves-quantity updates use current state instead of stale clones. |
+| `DRG8-BLOCKER-002` | `IGN-HIGH-005` | Decide and implement L2 trade-tick iteration for trailing stop market behavior, or explicitly scope that behavior out of the product path. |
+| `DRG8-BLOCKER-003` | `IGN-HIGH-006`, `IGN-HIGH-007` | Repair or scope risk-engine order-list reducing behavior with portfolio/high-precision state fixtures. |
+| `DRG8-BLOCKER-004` | `IGN-HIGH-008`, `IGN-HIGH-009`, `IGN-HIGH-010` | Replace empty emulator placeholder tests with real mock-emulator assertions before claiming emulator routing support. |
+| `DRG8-BLOCKER-005` | `IGN-HIGH-011` | Replace empty account-balance placeholder test with real partial/full fill accounting assertions before claiming balance tracking evidence. |
+| `DRG8-BLOCKER-006` | `IGN-HIGH-012` | Make dYdX subscription restoration deterministic; the current ignored test times out during reconnect replay. |
+
 ## Classification
 
 | Risk | Meaning | Default handling |
@@ -48,16 +76,16 @@ in this register.
 
 | ID | Location | Ignored test | Reason recorded in source | Product path / impact | Owner role | Status | Recommended next step |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| IGN-HIGH-003 | `crates/execution/tests/matching_engine.rs:3604` | `test_updating_of_contingent_orders` | Contingent-order helper reads parent leaves quantity from stale local clone. | Contingent OUO/OCO matching behavior can be stale after parent updates. | Rust Core Runtime Agent | OPEN | Refactor matching helper to read current cache/order handle and add regression coverage. |
-| IGN-HIGH-004 | `crates/execution/tests/matching_engine.rs:4175` | `test_ouo_child_cancelled_when_parent_leaves_zero` | Same stale parent leaves quantity issue. | OUO child cancellation may be wrong when parent leaves quantity reaches zero. | Rust Core Runtime Agent | OPEN | Resolve with IGN-HIGH-003 or split if cancellation semantics differ. |
-| IGN-HIGH-005 | `crates/execution/tests/matching_engine.rs:6443` | `test_trailing_stop_market_updated_then_triggered` | L2 engine with `trade_execution=false` does not iterate on trade ticks. | Trailing stop trigger behavior can be incomplete for L2 simulated execution. | Rust Core Runtime Agent | OPEN | Decide whether to implement L2 trade-tick iteration or scope trailing stop behavior out of the current product path. |
-| IGN-HIGH-006 | `crates/risk/tests/risk_engine.rs:2911` | `test_submit_order_list_buys_when_trading_reducing_then_denies_orders` | Requires portfolio state tracking integration. | Risk rejection for order-list reducing behavior depends on portfolio state. | Rust Core Runtime Agent | OPEN | Add portfolio state tracking fixture or scope order-list reducing behavior as deferred. |
-| IGN-HIGH-007 | `crates/risk/tests/risk_engine.rs:3052` | `test_submit_order_list_sells_when_trading_reducing_then_denies_orders` | Waiting on high-precision decimal merge. | High-precision risk/order-list reduction behavior remains unproven. | Rust Core Runtime Agent | OPEN | Re-run under high-precision path and either repair precision handling or downgrade with evidence. |
-| IGN-HIGH-008 | `crates/risk/tests/risk_engine.rs:3204` | `test_submit_bracket_with_emulated_orders_sends_to_emulator` | Waiting on emulator implementation. | Bracket-order risk-to-emulator routing is not release-proven. | Rust Core Runtime Agent | OPEN | Tie to order emulator integration task; add mock emulator fixture. |
-| IGN-HIGH-009 | `crates/risk/tests/risk_engine.rs:3314` | `test_submit_order_for_emulation_sends_command_to_emulator` | Waiting on emulator implementation. | Order emulation command routing is not release-proven. | Rust Core Runtime Agent | OPEN | Close with emulator integration evidence or mark emulator path deferred. |
-| IGN-HIGH-010 | `crates/risk/tests/risk_engine.rs:3522` | `test_modify_order_for_emulated_order_then_sends_to_emulator` | Waiting on emulator implementation. | Modify-order path for emulated orders is not release-proven. | Rust Core Runtime Agent | OPEN | Close with emulator integration evidence or mark emulator path deferred. |
-| IGN-HIGH-011 | `crates/risk/tests/risk_engine.rs:3876` | `test_partial_fill_and_full_fill_account_balance_correct` | Waiting on account balance tracking implementation. | Partial/full fill accounting and balance tracking can affect risk and portfolio correctness. | Rust Core Runtime Agent | OPEN | Add account balance tracking fixture and pair with portfolio/risk regression. |
-| IGN-HIGH-012 | `crates/adapters/dydx/tests/websocket.rs:1408` | `test_subscription_restoration_tracking` | Server-triggered disconnect causes reconnect loop during subscription replay. | Adapter reconnect/replay behavior is not robust for dYdX websocket. | Adapter & Integration Agent | OPEN | Make disconnect trigger injectable or isolate reconnect loop with deterministic fixture. |
+| IGN-HIGH-003 | `crates/execution/tests/matching_engine.rs:3766` | `test_updating_of_contingent_orders` | Contingent-order helper reads parent leaves quantity from stale local clone. | Contingent OUO/OCO matching behavior can be stale after parent updates. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-001`; DRG-008 rerun failed with `left: 3`, `right: 4`. |
+| IGN-HIGH-004 | `crates/execution/tests/matching_engine.rs:4365` | `test_ouo_child_cancelled_when_parent_leaves_zero` | Same stale parent leaves quantity issue. | OUO child cancellation may be wrong when parent leaves quantity reaches zero. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-001`; DRG-008 rerun expected `OrderCanceled` but observed `Updated`. |
+| IGN-HIGH-005 | `crates/execution/tests/matching_engine.rs:6633` | `test_trailing_stop_market_updated_then_triggered` | L2 engine with `trade_execution=false` does not iterate on trade ticks. | Trailing stop trigger behavior can be incomplete for L2 simulated execution. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-002`; DRG-008 rerun failed because the trailing stop did not trigger and fill. |
+| IGN-HIGH-006 | `crates/risk/tests/risk_engine.rs:2911` | `test_submit_order_list_buys_when_trading_reducing_then_denies_orders` | Requires portfolio state tracking integration. | Risk rejection for order-list reducing behavior depends on portfolio state. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-003`; DRG-008 rerun failed with `left: 2`, `right: 1`. |
+| IGN-HIGH-007 | `crates/risk/tests/risk_engine.rs:3052` | `test_submit_order_list_sells_when_trading_reducing_then_denies_orders` | Waiting on high-precision decimal merge. | High-precision risk/order-list reduction behavior remains unproven. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-003`; DRG-008 rerun failed with `left: 0`, `right: 1`. |
+| IGN-HIGH-008 | `crates/risk/tests/risk_engine.rs:3204` | `test_submit_bracket_with_emulated_orders_sends_to_emulator` | Waiting on emulator implementation. | Bracket-order risk-to-emulator routing is not release-proven. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-004`; DRG-008 observed this is an empty placeholder test, so passing `--ignored` is not accepted as evidence. |
+| IGN-HIGH-009 | `crates/risk/tests/risk_engine.rs:3314` | `test_submit_order_for_emulation_sends_command_to_emulator` | Waiting on emulator implementation. | Order emulation command routing is not release-proven. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-004`; DRG-008 observed this is an empty placeholder test, so passing `--ignored` is not accepted as evidence. |
+| IGN-HIGH-010 | `crates/risk/tests/risk_engine.rs:3522` | `test_modify_order_for_emulated_order_then_sends_to_emulator` | Waiting on emulator implementation. | Modify-order path for emulated orders is not release-proven. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-004`; DRG-008 observed this is an empty placeholder test, so passing `--ignored` is not accepted as evidence. |
+| IGN-HIGH-011 | `crates/risk/tests/risk_engine.rs:3876` | `test_partial_fill_and_full_fill_account_balance_correct` | Waiting on account balance tracking implementation. | Partial/full fill accounting and balance tracking can affect risk and portfolio correctness. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-005`; DRG-008 observed this is an empty placeholder test, so passing `--ignored` is not accepted as evidence. |
+| IGN-HIGH-012 | `crates/adapters/dydx/tests/websocket.rs:1408` | `test_subscription_restoration_tracking` | Server-triggered disconnect causes reconnect loop during subscription replay. | Adapter reconnect/replay behavior is not robust for dYdX websocket. | Adapter & Integration Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-006`; DRG-008 rerun timed out after 5.1s waiting for subscription restoration. |
 
 ## Medium Impact Register
 
@@ -87,6 +115,9 @@ in this register.
 - Do not remove ignored tests to make verification green.
 - Do not mark High impact ignored tests as resolved without a passing test,
   explicit scope decision, or release-gate deferral.
+- `BLOCKER_RECORDED` is not `DONE`. It is a formal release-gate blocker and
+  prevents product design from relying on that behavior until repaired or
+  explicitly scoped out.
 - Runtime-facing High items should be split before further runtime hardening
   work if they block a product path.
 - External API-key and manual dataset tests should use mocks, fixtures, or

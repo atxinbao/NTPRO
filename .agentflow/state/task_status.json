@@ -2866,7 +2866,7 @@
     },
     "DRG-008": {
       "title": "High-impact ignored tests closure",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "rust_core_runtime_agent",
       "risk_level": "high",
@@ -2877,7 +2877,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-008.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-008.md",
-      "updated_at": "2026-06-05T16:10:00Z",
+      "updated_at": "2026-06-05T22:15:40Z",
       "local_backlog": true
     },
     "DRG-009": {
@@ -2930,5 +2930,5 @@
       "merged_at": "2026-06-05T13:17:44Z"
     }
   },
-  "updated_at": "2026-06-05T13:25:00Z"
+  "updated_at": "2026-06-05T22:15:40Z"
 }
