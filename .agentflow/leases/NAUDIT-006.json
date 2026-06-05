@@ -2,6 +2,7 @@
   "task_id": "NAUDIT-006",
   "agent_id": "Codex",
   "branch": "codex/NAUDIT-006-live-adapter-cancellation-contract-and-mock-evidence",
+  "pr": 177,
   "touched_paths": [
     "docs/rust-cutover/tasks/NAUDIT-006.md",
     "docs/rust-cutover/evidence/NAUDIT-006.md",
