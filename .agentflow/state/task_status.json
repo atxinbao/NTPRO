@@ -2850,7 +2850,7 @@
     },
     "DRG-007": {
       "title": "Live adapter cancellation proof closure",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -2861,7 +2861,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-007.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-007.md",
-      "updated_at": "2026-06-05T21:47:07Z",
+      "updated_at": "2026-06-05T21:54:25Z",
       "local_backlog": true
     },
     "DRG-008": {
