@@ -65,12 +65,12 @@ struct MinimalOutputConfig {
 
 pub(crate) fn run_backtest_command(opt: BacktestOpt) -> anyhow::Result<()> {
     match opt.command {
-        BacktestCommand::Validate(validate) => run_backtest_validate(validate),
-        BacktestCommand::Run(run) => run_backtest_run(run),
+        BacktestCommand::Validate(validate) => run_backtest_validate(&validate),
+        BacktestCommand::Run(run) => run_backtest_run(&run),
     }
 }
 
-fn run_backtest_validate(opt: BacktestValidateOpt) -> anyhow::Result<()> {
+fn run_backtest_validate(opt: &BacktestValidateOpt) -> anyhow::Result<()> {
     let config = load_minimal_backtest_config(&opt.config)?;
 
     println!(
@@ -92,7 +92,7 @@ pub(crate) fn validate_minimal_backtest_config_file(path: &Path) -> anyhow::Resu
     Ok(())
 }
 
-fn run_backtest_run(opt: BacktestRunOpt) -> anyhow::Result<()> {
+fn run_backtest_run(opt: &BacktestRunOpt) -> anyhow::Result<()> {
     let config = load_minimal_backtest_config(&opt.config)?;
 
     if !opt.dry_run {
@@ -250,7 +250,7 @@ dir = "{}"
             std::env::temp_dir().join(format!("ntpro-rhard-006-run-{}", std::process::id()));
         let path = write_config("run", &minimal_config(&output_dir));
 
-        run_backtest_run(BacktestRunOpt {
+        run_backtest_run(&BacktestRunOpt {
             config: path,
             run_id: None,
             output: None,
@@ -271,7 +271,7 @@ dir = "{}"
             std::env::temp_dir().join(format!("ntpro-rhard-006-blocker-{}", std::process::id()));
         let path = write_config("blocker", &minimal_config(&output_dir));
 
-        let error = run_backtest_run(BacktestRunOpt {
+        let error = run_backtest_run(&BacktestRunOpt {
             config: path,
             run_id: None,
             output: None,

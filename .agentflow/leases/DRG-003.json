@@ -1,0 +1,27 @@
+{
+  "task_id": "DRG-003",
+  "agent_id": "Codex",
+  "branch": "codex/DRG-003-full-verification-gate",
+  "touched_paths": [
+    "crates/cli/src/backtest.rs",
+    "crates/cli/src/config.rs",
+    "crates/cli/src/data.rs",
+    "crates/cli/src/sandbox.rs",
+    "crates/execution/tests/matching_engine.rs",
+    "crates/live/src/node.rs",
+    "docs/rust-cutover/evidence/DRG-003.md",
+    "docs/rust-cutover/release/v0_2_readiness_report.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/DRG-003.json"
+  ],
+  "claimed_at": "2026-06-05T16:21:26.394207+00:00",
+  "status": "PR_OPEN",
+  "validation_summary": {
+    "cargo_fmt_check": "PASS",
+    "workspace_check_full_features": "PASS",
+    "workspace_clippy_full_features": "PASS",
+    "verify_fast": "PASS",
+    "verify_full": "PASS"
+  },
+  "updated_at": "2026-06-05T20:02:48Z"
+}

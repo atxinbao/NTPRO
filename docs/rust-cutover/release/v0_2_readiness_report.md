@@ -2,7 +2,7 @@
 
 Date: 2026-06-05
 Executor: Codex
-Task ID: NQA-001, DRG-001
+Task ID: NQA-001, DRG-001, DRG-002, DRG-003
 
 ## DRG-001 Update
 
@@ -13,7 +13,8 @@ Executor: Codex
 Design Readiness Gate: FAIL
 G0 State consistency: PASS
 G1 Toolchain consistency: PASS
-G2-G9: FAIL / not yet executed
+G2 Full verification: PASS
+G3-G9: FAIL / not yet executed
 ```
 
 DRG-001 只完成 state convergence。当前 GitHub open PR/issue 为空，Shrimp
@@ -24,8 +25,18 @@ DRG-001 只完成 state convergence。当前 GitHub open PR/issue 为空，Shrim
 DRG-002 随后修正了本地 shell 的普通 `cargo` / `rustc` 解析路径：
 NTPRO 目录内解析到 Rust `1.95.0`，其他目录仍回落到原 Homebrew 工具链。
 
+DRG-003 完成了完整本地验证门禁。`cargo fmt --check`、带
+`arrow,ffi,high-precision,streaming,defi` feature 的 workspace
+`cargo check` 和 `cargo clippy -D warnings`、`scripts/ai/verify_fast.sh`、
+`scripts/ai/verify_full.sh` 均已通过。`verify_full` 覆盖 fast checks、
+clippy、workspace Rust tests、golden trace validation、golden trace replay
+tests 和 `cargo doc --workspace --no-deps`。为使 full gate 在当前 clippy
+策略下通过，本轮只做了小范围机械修正：CLI 内部 helper 改为借用参数、
+matching-engine 测试移除冗余 clone、live startup helper 参数按控制项和
+事件接收器分组。未修改交易语义、CLI 产品承诺、adapter 行为或 public API。
+
 这不代表 v0.2 可以启动正式产品设计。按照
-`docs/rust-cutover/design_readiness_gate.md`，只要 G2 到 G9 任意一项没有
+`docs/rust-cutover/design_readiness_gate.md`，只要 G3 到 G9 任意一项没有
 明确 `PASS`，最终 Design Readiness Gate 仍是 `FAIL`。
 
 下一步执行顺序：

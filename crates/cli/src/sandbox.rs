@@ -125,12 +125,12 @@ struct SandboxOutputConfig {
 
 pub(crate) fn run_sandbox_command(opt: SandboxOpt) -> anyhow::Result<()> {
     match opt.command {
-        SandboxCommand::Validate(validate) => run_sandbox_validate(validate),
-        SandboxCommand::Run(run) => run_sandbox_run(run),
+        SandboxCommand::Validate(validate) => run_sandbox_validate(&validate),
+        SandboxCommand::Run(run) => run_sandbox_run(&run),
     }
 }
 
-fn run_sandbox_validate(opt: SandboxValidateOpt) -> anyhow::Result<()> {
+fn run_sandbox_validate(opt: &SandboxValidateOpt) -> anyhow::Result<()> {
     let config = load_minimal_sandbox_config(&opt.config)?;
     let data = primary_data(&config);
 
@@ -156,7 +156,7 @@ pub(crate) fn validate_minimal_sandbox_config_file(path: &Path) -> anyhow::Resul
     Ok(())
 }
 
-fn run_sandbox_run(opt: SandboxRunOpt) -> anyhow::Result<()> {
+fn run_sandbox_run(opt: &SandboxRunOpt) -> anyhow::Result<()> {
     let config = load_minimal_sandbox_config(&opt.config)?;
     let run_id = opt.run_id.as_deref().unwrap_or(config.run.id.as_str());
     validate_non_empty("run_id", run_id)?;
@@ -459,7 +459,7 @@ write_summary = true
             std::env::temp_dir().join(format!("ntpro-rhard-004-run-{}", std::process::id()));
         let path = write_config("run", &minimal_config(&output_dir));
 
-        run_sandbox_run(SandboxRunOpt {
+        run_sandbox_run(&SandboxRunOpt {
             config: path,
             run_id: None,
             output: None,

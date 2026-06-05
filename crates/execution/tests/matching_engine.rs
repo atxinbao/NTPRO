@@ -854,7 +854,7 @@ fn test_process_cancel_skips_missing_linked_order_without_panic(
     };
     let mut engine_l2 = get_order_matching_engine_l2(
         instrument_eth_usdt.clone(),
-        Some(cache.clone()),
+        Some(cache),
         None,
         Some(config),
         None,

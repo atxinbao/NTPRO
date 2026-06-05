@@ -916,14 +916,18 @@ impl LiveNode {
         // This ensures the cache is populated before execution clients connect.
         let data_connection_status = drive_data_connect_with_event_buffering(
             self.kernel.connect_data_clients(),
-            &stop_handle,
-            shutdown_flag.as_ref(),
             &mut pending,
-            &mut time_evt_rx,
-            &mut data_evt_rx,
-            &mut data_cmd_rx,
-            &mut exec_evt_rx,
-            &mut exec_cmd_rx,
+            StartupControls {
+                stop_handle: &stop_handle,
+                shutdown_flag: shutdown_flag.as_ref(),
+            },
+            StartupEventReceivers {
+                time_evt_rx: &mut time_evt_rx,
+                data_evt_rx: &mut data_evt_rx,
+                data_cmd_rx: &mut data_cmd_rx,
+                exec_evt_rx: &mut exec_evt_rx,
+                exec_cmd_rx: &mut exec_cmd_rx,
+            },
         )
         .await;
 
@@ -1929,6 +1933,19 @@ fn startup_control_status(
     }
 }
 
+struct StartupControls<'a> {
+    stop_handle: &'a LiveNodeHandle,
+    shutdown_flag: &'a Cell<bool>,
+}
+
+struct StartupEventReceivers<'a> {
+    time_evt_rx: &'a mut tokio::sync::mpsc::UnboundedReceiver<TimeEventHandler>,
+    data_evt_rx: &'a mut tokio::sync::mpsc::UnboundedReceiver<DataEvent>,
+    data_cmd_rx: &'a mut tokio::sync::mpsc::UnboundedReceiver<DataCommand>,
+    exec_evt_rx: &'a mut tokio::sync::mpsc::UnboundedReceiver<ExecutionEvent>,
+    exec_cmd_rx: &'a mut tokio::sync::mpsc::UnboundedReceiver<TradingCommand>,
+}
+
 async fn await_startup_future<F: std::future::Future<Output = ()>>(
     future: F,
     stop_handle: &LiveNodeHandle,
@@ -1958,14 +1975,9 @@ async fn await_startup_future<F: std::future::Future<Output = ()>>(
 /// watching startup cancellation controls.
 async fn drive_data_connect_with_event_buffering<F: std::future::Future<Output = ()>>(
     future: F,
-    stop_handle: &LiveNodeHandle,
-    shutdown_flag: &Cell<bool>,
     pending: &mut PendingEvents,
-    time_evt_rx: &mut tokio::sync::mpsc::UnboundedReceiver<TimeEventHandler>,
-    data_evt_rx: &mut tokio::sync::mpsc::UnboundedReceiver<DataEvent>,
-    data_cmd_rx: &mut tokio::sync::mpsc::UnboundedReceiver<DataCommand>,
-    exec_evt_rx: &mut tokio::sync::mpsc::UnboundedReceiver<ExecutionEvent>,
-    exec_cmd_rx: &mut tokio::sync::mpsc::UnboundedReceiver<TradingCommand>,
+    controls: StartupControls<'_>,
+    receivers: StartupEventReceivers<'_>,
 ) -> EngineConnectionStatus {
     tokio::pin!(future);
     let ctrl_c = dst::signal::ctrl_c();
@@ -1988,14 +2000,14 @@ async fn drive_data_connect_with_event_buffering<F: std::future::Future<Output =
                 return EngineConnectionStatus::InterruptReceived;
             }
             _ = stop_check_timer.tick() => {
-                if let Some(status) = startup_control_status(stop_handle, shutdown_flag) {
+                if let Some(status) = startup_control_status(controls.stop_handle, controls.shutdown_flag) {
                     return status;
                 }
             }
-            Some(handler) = time_evt_rx.recv() => {
+            Some(handler) = receivers.time_evt_rx.recv() => {
                 AsyncRunner::handle_time_event(handler);
             }
-            Some(evt) = exec_evt_rx.recv() => {
+            Some(evt) = receivers.exec_evt_rx.recv() => {
                 // Account events are safe to process immediately. Report and
                 // Order events need ExecEngine borrow_mut which may conflict
                 // with the borrow held by the driven future.
@@ -2026,13 +2038,13 @@ async fn drive_data_connect_with_event_buffering<F: std::future::Future<Output =
                     }
                 }
             }
-            Some(cmd) = exec_cmd_rx.recv() => {
+            Some(cmd) = receivers.exec_cmd_rx.recv() => {
                 pending.exec_cmds.push(cmd);
             }
-            Some(evt) = data_evt_rx.recv() => {
+            Some(evt) = receivers.data_evt_rx.recv() => {
                 pending.data_evts.push(evt);
             }
-            Some(cmd) = data_cmd_rx.recv() => {
+            Some(cmd) = receivers.data_cmd_rx.recv() => {
                 pending.data_cmds.push(cmd);
             }
         }
@@ -2383,14 +2395,18 @@ mod tests {
             async {
                 client.connect().await.unwrap();
             },
-            handle,
-            shutdown_flag,
             &mut pending,
-            &mut time_evt_rx,
-            &mut data_evt_rx,
-            &mut data_cmd_rx,
-            &mut exec_evt_rx,
-            &mut exec_cmd_rx,
+            StartupControls {
+                stop_handle: handle,
+                shutdown_flag,
+            },
+            StartupEventReceivers {
+                time_evt_rx: &mut time_evt_rx,
+                data_evt_rx: &mut data_evt_rx,
+                data_cmd_rx: &mut data_cmd_rx,
+                exec_evt_rx: &mut exec_evt_rx,
+                exec_cmd_rx: &mut exec_cmd_rx,
+            },
         )
         .await;
 
@@ -2515,14 +2531,18 @@ mod tests {
 
         let status = drive_data_connect_with_event_buffering(
             std::future::pending::<()>(),
-            &handle,
-            &shutdown_flag,
             &mut pending,
-            &mut time_evt_rx,
-            &mut data_evt_rx,
-            &mut data_cmd_rx,
-            &mut exec_evt_rx,
-            &mut exec_cmd_rx,
+            StartupControls {
+                stop_handle: &handle,
+                shutdown_flag: &shutdown_flag,
+            },
+            StartupEventReceivers {
+                time_evt_rx: &mut time_evt_rx,
+                data_evt_rx: &mut data_evt_rx,
+                data_cmd_rx: &mut data_cmd_rx,
+                exec_evt_rx: &mut exec_evt_rx,
+                exec_cmd_rx: &mut exec_cmd_rx,
+            },
         )
         .await;
 
