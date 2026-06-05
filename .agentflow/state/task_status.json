@@ -2671,7 +2671,7 @@
     },
     "NAUDIT-004": {
       "title": "Product-reachable runtime panic cleanup",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -2682,11 +2682,13 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NAUDIT-004.md",
       "evidence_file": "docs/rust-cutover/evidence/NAUDIT-004.md",
-      "updated_at": "2026-06-05T15:32:31Z",
+      "updated_at": "2026-06-05T15:48:41Z",
       "local_backlog": true,
       "started_at": "2026-06-05T15:10:28Z",
       "branch": "codex/NAUDIT-004-product-reachable-runtime-panic-cleanup",
-      "pr": 176
+      "pr": 176,
+      "merged_at": "2026-06-05T15:37:00Z",
+      "merge_commit": "5ab292559844d220b11c726a19649093cd1c6c0f"
     },
     "NAUDIT-005": {
       "title": "PostgreSQL cache adapter support classification",
@@ -2709,7 +2711,7 @@
     },
     "NAUDIT-006": {
       "title": "Live adapter cancellation contract and mock evidence",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -2720,8 +2722,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NAUDIT-006.md",
       "evidence_file": "docs/rust-cutover/evidence/NAUDIT-006.md",
-      "updated_at": "2026-06-05T13:20:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-05T15:58:28Z",
+      "local_backlog": true,
+      "started_at": "2026-06-05T15:46:03Z",
+      "branch": "codex/NAUDIT-006-live-adapter-cancellation-contract-and-mock-evidence",
+      "review_required_at": "2026-06-05T15:58:28Z"
     },
     "NAUDIT-007": {
       "title": "Unsafe and plugin audit register",
