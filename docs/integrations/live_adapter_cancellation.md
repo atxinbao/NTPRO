@@ -46,6 +46,12 @@ status, drops the pending connect future, and the mock guard releases resources.
 This proves the live-node cancellation boundary and the adapter-side cleanup
 expectation. It does not prove every real adapter implementation yet.
 
+`DRG-007` re-ran the executable mock evidence on the current v0.2 readiness
+branch and closed `G6 Live cancellation proof` for the live-node startup
+boundary. The closure remains scoped to mock proof plus the adapter contract
+below; it does not claim any real exchange adapter has adapter-specific
+cancellation-safety evidence yet.
+
 ## Real Adapter Follow-Up Register
 
 The following real adapter data clients still need adapter-specific
@@ -56,6 +62,7 @@ this contract:
 | --- | --- | --- |
 | Architect AX | `AxDataClient` | Pending adapter-specific mock or fixture proof |
 | Binance | spot and futures data clients | Pending adapter-specific mock or fixture proof |
+| Betfair | data client | Pending adapter-specific mock or fixture proof |
 | BitMEX | data client | Pending adapter-specific mock or fixture proof |
 | Blockchain / DeFi | blockchain data client | Pending adapter-specific mock or fixture proof |
 | Bybit | data client | Pending adapter-specific mock or fixture proof |

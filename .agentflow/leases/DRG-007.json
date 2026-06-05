@@ -1,0 +1,22 @@
+{
+  "task_id": "DRG-007",
+  "agent_id": "Codex",
+  "branch": "codex/DRG-007-live-adapter-cancellation-proof-closure",
+  "touched_paths": [
+    "docs/integrations/live_adapter_cancellation.md",
+    "docs/rust-cutover/evidence/DRG-007.md",
+    "docs/rust-cutover/release/v0_2_readiness_report.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/DRG-007.json"
+  ],
+  "claimed_at": "2026-06-05T21:33:32.182190+00:00",
+  "status": "REVIEW_REQUIRED",
+  "updated_at": "2026-06-05T21:47:07Z",
+  "validation_summary": [
+    "cargo test -p nautilus-live --lib test_data_client_connect_future_cleanup -- --nocapture -> PASS",
+    "cargo test -p nautilus-live test_data_client_connect_future_cleanup -- --nocapture -> PASS",
+    "cargo check -p nautilus-live -> PASS",
+    "cargo test -p nautilus-live -> PASS",
+    "DRG-007 is high risk and must stop at REVIEW_REQUIRED before merge"
+  ]
+}
