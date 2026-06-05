@@ -69,6 +69,7 @@ scripts/ai/verify_fast.sh
 - `scripts/ai/verify_fast.sh`: passed with Cargo/Rust `1.95.0`; as expected,
   it skipped workspace `cargo check`, clippy, release gate, and golden trace
   gate.
+- NAUDIT-003 review status: PR_OPEN in #172.
 
 ## Behavior Impact
 
