@@ -2614,7 +2614,7 @@
     },
     "NAUDIT-001": {
       "title": "Python package metadata cleanup and Rust-only gate hardening",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "critical",
@@ -2625,8 +2625,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NAUDIT-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NAUDIT-001.md",
-      "updated_at": "2026-06-05T13:20:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-05T14:40:52Z",
+      "local_backlog": true,
+      "started_at": "2026-06-05T14:25:24Z",
+      "branch": "codex/naudit-001-python-metadata-cleanup",
+      "pr": 175
     },
     "NAUDIT-002": {
       "title": "CLI capability matrix and stub honesty cleanup",

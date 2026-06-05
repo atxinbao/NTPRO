@@ -26,9 +26,13 @@ Removed product paths:
 - `nautilus_trader/`
 - `build.py`
 
-The root `pyproject.toml` remains as local Python tooling metadata for hooks
-and helper scripts, but it no longer declares the removed Poetry build backend,
-wheel include paths, or `build.py` build script.
+The root `pyproject.toml` remains as local Python tooling configuration for
+hooks and helper scripts. It is not a Python package manifest and does not
+declare root `[project]`, Python package URLs, runtime dependencies, optional
+extras, wheel include paths, or a `build.py` build script.
+
+Current boundary details are recorded in
+`docs/rust-cutover/product/PYTHON_TOOLING_BOUNDARY.md`.
 
 ## User Impact
 
