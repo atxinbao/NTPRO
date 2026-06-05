@@ -2366,7 +2366,304 @@
       "source_task_file": "docs/rust-cutover/tasks/NDASH-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NDASH-001.md",
       "updated_at": "2026-06-04T16:21:54Z"
+    },
+    "GH-155": {
+      "title": "Implement real `config validate` CLI path",
+      "status": "DONE",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/GH-155.md",
+      "evidence_file": "docs/rust-cutover/evidence/GH-155-CONFIG-VALIDATE-CLI.md",
+      "updated_at": "2026-06-05T13:20:00Z",
+      "github_issue": {
+        "number": 155,
+        "url": "https://github.com/atxinbao/NTPRO/issues/155",
+        "state": "closed",
+        "closed_at": "2026-06-04T20:14:30Z"
+      },
+      "mirror_only": true
+    },
+    "GH-156": {
+      "title": "Implement real `data inspect` / `data validate` CLI path",
+      "status": "DONE",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/GH-156.md",
+      "evidence_file": "docs/rust-cutover/evidence/GH-156-DATA-INSPECT-VALIDATE-CLI.md",
+      "updated_at": "2026-06-05T13:20:00Z",
+      "github_issue": {
+        "number": 156,
+        "url": "https://github.com/atxinbao/NTPRO/issues/156",
+        "state": "closed",
+        "closed_at": "2026-06-04T20:29:29Z"
+      },
+      "mirror_only": true
+    },
+    "GH-157": {
+      "title": "Align CLI help text for unimplemented commands",
+      "status": "DONE",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/GH-157.md",
+      "evidence_file": "docs/rust-cutover/evidence/GH-157-CLI-HELP-CONTRACT.md",
+      "updated_at": "2026-06-05T13:20:00Z",
+      "github_issue": {
+        "number": 157,
+        "url": "https://github.com/atxinbao/NTPRO/issues/157",
+        "state": "closed",
+        "closed_at": "2026-06-04T19:47:02Z"
+      },
+      "mirror_only": true
+    },
+    "GH-158": {
+      "title": "Replace product-reachable `todo!()` panics with explicit errors",
+      "status": "DONE",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/GH-158.md",
+      "evidence_file": "docs/rust-cutover/evidence/GH-158-TODO-PANIC-EXPLICIT-ERRORS.md",
+      "updated_at": "2026-06-05T13:20:00Z",
+      "github_issue": {
+        "number": 158,
+        "url": "https://github.com/atxinbao/NTPRO/issues/158",
+        "state": "closed",
+        "closed_at": "2026-06-04T21:05:41Z"
+      },
+      "mirror_only": true
+    },
+    "GH-159": {
+      "title": "Harden live node startup stop/shutdown responsiveness",
+      "status": "DONE",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/GH-159.md",
+      "evidence_file": "docs/rust-cutover/evidence/GH-159-LIVE-STARTUP-CANCELLATION.md",
+      "updated_at": "2026-06-05T13:20:00Z",
+      "github_issue": {
+        "number": 159,
+        "url": "https://github.com/atxinbao/NTPRO/issues/159",
+        "state": "closed",
+        "closed_at": "2026-06-05T12:02:53Z"
+      },
+      "mirror_only": true
+    },
+    "GH-160": {
+      "title": "Create ignored tests risk register",
+      "status": "DONE",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/GH-160.md",
+      "evidence_file": "docs/rust-cutover/evidence/GH-160-IGNORED-TESTS-RISK-REGISTER.md",
+      "updated_at": "2026-06-05T13:20:00Z",
+      "github_issue": {
+        "number": 160,
+        "url": "https://github.com/atxinbao/NTPRO/issues/160",
+        "state": "closed",
+        "closed_at": "2026-06-04T20:41:53Z"
+      },
+      "mirror_only": true
+    },
+    "GH-161": {
+      "title": "Clarify `verify_fast.sh` scope and release verification boundary",
+      "status": "DONE",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/GH-161.md",
+      "evidence_file": "docs/rust-cutover/evidence/GH-161-VERIFY-FAST-BOUNDARY.md",
+      "updated_at": "2026-06-05T13:20:00Z",
+      "github_issue": {
+        "number": 161,
+        "url": "https://github.com/atxinbao/NTPRO/issues/161",
+        "state": "closed",
+        "closed_at": "2026-06-04T20:33:58Z"
+      },
+      "mirror_only": true
+    },
+    "NQA-001": {
+      "title": "v0.2 QA closeout and readiness report",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NQA-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/NQA-001.md",
+      "updated_at": "2026-06-05T13:20:00Z",
+      "local_backlog": true
+    },
+    "NAUDIT-001": {
+      "title": "Python package metadata cleanup and Rust-only gate hardening",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "critical",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NAUDIT-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/NAUDIT-001.md",
+      "updated_at": "2026-06-05T13:20:00Z",
+      "local_backlog": true
+    },
+    "NAUDIT-002": {
+      "title": "CLI capability matrix and stub honesty cleanup",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NAUDIT-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/NAUDIT-002.md",
+      "updated_at": "2026-06-05T13:20:00Z",
+      "local_backlog": true
+    },
+    "NAUDIT-003": {
+      "title": "Unignore passing production-bug cache tests",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NAUDIT-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/NAUDIT-003.md",
+      "updated_at": "2026-06-05T13:20:00Z",
+      "local_backlog": true
+    },
+    "NAUDIT-004": {
+      "title": "Product-reachable runtime panic cleanup",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NAUDIT-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/NAUDIT-004.md",
+      "updated_at": "2026-06-05T13:20:00Z",
+      "local_backlog": true
+    },
+    "NAUDIT-005": {
+      "title": "PostgreSQL cache adapter support classification",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NAUDIT-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/NAUDIT-005.md",
+      "updated_at": "2026-06-05T13:20:00Z",
+      "local_backlog": true
+    },
+    "NAUDIT-006": {
+      "title": "Live adapter cancellation contract and mock evidence",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NAUDIT-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/NAUDIT-006.md",
+      "updated_at": "2026-06-05T13:20:00Z",
+      "local_backlog": true
+    },
+    "NAUDIT-007": {
+      "title": "Unsafe and plugin audit register",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NAUDIT-007.md",
+      "evidence_file": "docs/rust-cutover/evidence/NAUDIT-007.md",
+      "updated_at": "2026-06-05T13:20:00Z",
+      "local_backlog": true
+    },
+    "NCTL-001": {
+      "title": "Register GitHub audit issues and v0.2 backlog",
+      "status": "PR_OPEN",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/NCTL-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/NCTL-001.md",
+      "updated_at": "2026-06-05T13:25:00Z"
     }
   },
-  "updated_at": "2026-06-04T16:21:54Z"
+  "updated_at": "2026-06-05T13:25:00Z"
 }
