@@ -88,6 +88,12 @@ No migration note is required. The public product decision is documented in
 `docs/rust-cutover/verification/unsafe_plugin_audit_register.md`: plug-ins are
 not stable product functionality for v0.2.
 
+## Review And Merge Status
+
+PR opened: <https://github.com/atxinbao/NTPRO/pull/174>
+
+Status: `PR_OPEN`.
+
 ## Rollback Plan
 
 Revert the NAUDIT-007 PR to remove the audit register, evidence, and related
