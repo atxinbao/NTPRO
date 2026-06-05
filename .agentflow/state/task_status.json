@@ -2595,7 +2595,7 @@
     },
     "NQA-001": {
       "title": "v0.2 QA closeout and readiness report",
-      "status": "RUNNING",
+      "status": "PR_OPEN",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2606,10 +2606,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NQA-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NQA-001.md",
-      "updated_at": "2026-06-05T13:25:15Z",
+      "updated_at": "2026-06-05T13:28:04Z",
       "local_backlog": true,
       "started_at": "2026-06-05T13:25:15Z",
-      "branch": "codex/nqa-001-v0-2-readiness"
+      "branch": "codex/nqa-001-v0-2-readiness",
+      "pr": 170
     },
     "NAUDIT-001": {
       "title": "Python package metadata cleanup and Rust-only gate hardening",

@@ -10,6 +10,7 @@
     ".agentflow/leases/NQA-001.json"
   ],
   "claimed_at": "2026-06-05T13:25:15Z",
-  "status": "RUNNING",
-  "updated_at": "2026-06-05T13:25:15Z"
+  "status": "PR_OPEN",
+  "updated_at": "2026-06-05T13:28:04Z",
+  "pr": 170
 }
