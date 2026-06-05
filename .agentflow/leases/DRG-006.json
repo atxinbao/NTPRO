@@ -12,8 +12,11 @@
     ".agentflow/leases/DRG-006.json"
   ],
   "claimed_at": "2026-06-05T20:46:22.796765+00:00",
-  "status": "REVIEW_REQUIRED",
-  "updated_at": "2026-06-05T21:17:04Z",
+  "status": "DONE",
+  "updated_at": "2026-06-05T21:26:56Z",
+  "released_at": "2026-06-05T21:26:56Z",
+  "merged_pr": 183,
+  "merge_commit": "e4961ecc51672946af5165f2faed3c0eeebce3b7",
   "validation_summary": [
     "rg -n \"panic!\\(|todo!\\(|unimplemented!\\(\" crates -> 1404 hits / 329 files, classified in evidence",
     "cargo fmt --check -> PASS",
