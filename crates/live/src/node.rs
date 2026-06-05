@@ -81,6 +81,7 @@
 //! due-status.
 
 use std::{
+    cell::Cell,
     fmt::Debug,
     sync::{
         Arc,
@@ -189,6 +190,7 @@ impl NodeState {
 enum EngineConnectionStatus {
     Connected,
     TimedOut,
+    InterruptReceived,
     StopRequested,
     ShutdownRequested,
 }
@@ -197,6 +199,7 @@ impl EngineConnectionStatus {
     const fn abort_reason(self) -> Option<&'static str> {
         match self {
             Self::Connected | Self::TimedOut => None,
+            Self::InterruptReceived => Some("Interrupt signal received during startup"),
             Self::StopRequested => Some("Stop signal received during startup"),
             Self::ShutdownRequested => Some("Shutdown signal received during startup"),
         }
@@ -534,8 +537,22 @@ impl LiveNode {
             return Ok(());
         }
 
-        // Connect data clients first and flush instrument events into cache
-        self.kernel.connect_data_clients().await;
+        // Connect data clients first and flush instrument events into cache.
+        let shutdown_flag = self.kernel.shutdown_flag();
+        let data_connection_status = await_startup_future(
+            self.kernel.connect_data_clients(),
+            &self.handle,
+            shutdown_flag.as_ref(),
+        )
+        .await;
+
+        if let Some(reason) = data_connection_status
+            .abort_reason()
+            .or_else(|| self.startup_abort_reason())
+        {
+            self.abort_startup(reason).await?;
+            return Ok(());
+        }
 
         if let Some(runner) = self.runner.as_mut() {
             runner.flush_pending_data();
@@ -562,6 +579,11 @@ impl LiveNode {
             }
             EngineConnectionStatus::ShutdownRequested => {
                 self.abort_startup("Shutdown signal received during startup")
+                    .await?;
+                return Ok(());
+            }
+            EngineConnectionStatus::InterruptReceived => {
+                self.abort_startup("Interrupt signal received during startup")
                     .await?;
                 return Ok(());
             }
@@ -892,10 +914,10 @@ impl LiveNode {
 
         // Startup phase 1: Connect data clients and drain instrument events into cache.
         // This ensures the cache is populated before execution clients connect.
-        // TODO: Add ctrl_c, stop_handle, and shutdown_flag monitoring here to
-        // allow aborting a hanging connect future.
-        drive_with_event_buffering(
+        let data_connection_status = drive_data_connect_with_event_buffering(
             self.kernel.connect_data_clients(),
+            &stop_handle,
+            shutdown_flag.as_ref(),
             &mut pending,
             &mut time_evt_rx,
             &mut data_evt_rx,
@@ -913,6 +935,22 @@ impl LiveNode {
             pending.data_evts.is_empty() && pending.data_cmds.is_empty(),
             "data must be drained into cache before exec clients connect",
         );
+
+        if let Some(reason) = data_connection_status
+            .abort_reason()
+            .or_else(|| self.startup_abort_reason())
+        {
+            self.abort_startup(reason).await?;
+            self.drain_channels(
+                &mut time_evt_rx,
+                &mut data_evt_rx,
+                &mut data_cmd_rx,
+                &mut exec_evt_rx,
+                &mut exec_cmd_rx,
+            );
+            log::info!("Event loop stopped");
+            return Ok(());
+        }
 
         // Startup phase 2: Connect execution clients (instruments now in cache)
         let engine_connection_status = drive_with_event_buffering(
@@ -1878,6 +1916,129 @@ fn flush_all_pending(
     pending.drain();
 }
 
+fn startup_control_status(
+    stop_handle: &LiveNodeHandle,
+    shutdown_flag: &Cell<bool>,
+) -> Option<EngineConnectionStatus> {
+    if stop_handle.should_stop() {
+        Some(EngineConnectionStatus::StopRequested)
+    } else if shutdown_flag.get() {
+        Some(EngineConnectionStatus::ShutdownRequested)
+    } else {
+        None
+    }
+}
+
+async fn await_startup_future<F: std::future::Future<Output = ()>>(
+    future: F,
+    stop_handle: &LiveNodeHandle,
+    shutdown_flag: &Cell<bool>,
+) -> EngineConnectionStatus {
+    tokio::pin!(future);
+    let mut stop_check_timer = dst::time::interval(Duration::from_millis(100));
+    stop_check_timer.set_missed_tick_behavior(dst::time::MissedTickBehavior::Skip);
+
+    loop {
+        tokio::select! {
+            biased;
+
+            () = &mut future => {
+                return EngineConnectionStatus::Connected;
+            }
+            _ = stop_check_timer.tick() => {
+                if let Some(status) = startup_control_status(stop_handle, shutdown_flag) {
+                    return status;
+                }
+            }
+        }
+    }
+}
+
+/// Drives the data-client startup future while buffering channel events and
+/// watching startup cancellation controls.
+async fn drive_data_connect_with_event_buffering<F: std::future::Future<Output = ()>>(
+    future: F,
+    stop_handle: &LiveNodeHandle,
+    shutdown_flag: &Cell<bool>,
+    pending: &mut PendingEvents,
+    time_evt_rx: &mut tokio::sync::mpsc::UnboundedReceiver<TimeEventHandler>,
+    data_evt_rx: &mut tokio::sync::mpsc::UnboundedReceiver<DataEvent>,
+    data_cmd_rx: &mut tokio::sync::mpsc::UnboundedReceiver<DataCommand>,
+    exec_evt_rx: &mut tokio::sync::mpsc::UnboundedReceiver<ExecutionEvent>,
+    exec_cmd_rx: &mut tokio::sync::mpsc::UnboundedReceiver<TradingCommand>,
+) -> EngineConnectionStatus {
+    tokio::pin!(future);
+    let ctrl_c = dst::signal::ctrl_c();
+    tokio::pin!(ctrl_c);
+    let mut stop_check_timer = dst::time::interval(Duration::from_millis(100));
+    stop_check_timer.set_missed_tick_behavior(dst::time::MissedTickBehavior::Skip);
+
+    loop {
+        tokio::select! {
+            biased;
+
+            () = &mut future => {
+                return EngineConnectionStatus::Connected;
+            }
+            result = &mut ctrl_c => {
+                match result {
+                    Ok(()) => log::info!("Received SIGINT during startup"),
+                    Err(e) => log::error!("Failed to listen for SIGINT during startup: {e}"),
+                }
+                return EngineConnectionStatus::InterruptReceived;
+            }
+            _ = stop_check_timer.tick() => {
+                if let Some(status) = startup_control_status(stop_handle, shutdown_flag) {
+                    return status;
+                }
+            }
+            Some(handler) = time_evt_rx.recv() => {
+                AsyncRunner::handle_time_event(handler);
+            }
+            Some(evt) = exec_evt_rx.recv() => {
+                // Account events are safe to process immediately. Report and
+                // Order events need ExecEngine borrow_mut which may conflict
+                // with the borrow held by the driven future.
+                match evt {
+                    ExecutionEvent::Account(_) => {
+                        AsyncRunner::handle_exec_event(evt);
+                    }
+                    ExecutionEvent::Report(report) => {
+                        pending.exec_reports.push(report);
+                    }
+                    ExecutionEvent::Order(order_evt) => {
+                        pending.order_evts.push(order_evt);
+                    }
+                    ExecutionEvent::OrderSubmittedBatch(batch) => {
+                        for submitted in batch {
+                            pending.order_evts.push(OrderEventAny::Submitted(submitted));
+                        }
+                    }
+                    ExecutionEvent::OrderAcceptedBatch(batch) => {
+                        for accepted in batch {
+                            pending.order_evts.push(OrderEventAny::Accepted(accepted));
+                        }
+                    }
+                    ExecutionEvent::OrderCanceledBatch(batch) => {
+                        for canceled in batch {
+                            pending.order_evts.push(OrderEventAny::Canceled(canceled));
+                        }
+                    }
+                }
+            }
+            Some(cmd) = exec_cmd_rx.recv() => {
+                pending.exec_cmds.push(cmd);
+            }
+            Some(evt) = data_evt_rx.recv() => {
+                pending.data_evts.push(evt);
+            }
+            Some(cmd) = data_cmd_rx.recv() => {
+                pending.data_cmds.push(cmd);
+            }
+        }
+    }
+}
+
 /// Drives a future to completion while buffering channel events.
 ///
 /// Time events are handled immediately. Account events are forwarded directly.
@@ -2037,7 +2198,10 @@ impl PendingEvents {
 mod tests {
     #[cfg(feature = "plugin")]
     use std::collections::HashMap;
-    use std::{cell::RefCell, rc::Rc};
+    use std::{
+        cell::{Cell, RefCell},
+        rc::Rc,
+    };
 
     use nautilus_common::{cache::Cache, clock::Clock};
     use nautilus_core::{UUID4, UnixNanos};
@@ -2180,6 +2344,63 @@ mod tests {
         let status = node.await_engines_connected().await;
 
         assert_eq!(status, EngineConnectionStatus::ShutdownRequested);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_startup_future_returns_stop_requested() {
+        let handle = LiveNodeHandle::new();
+        let shutdown_flag = Cell::new(false);
+        handle.stop();
+
+        let status =
+            await_startup_future(std::future::pending::<()>(), &handle, &shutdown_flag).await;
+
+        assert_eq!(status, EngineConnectionStatus::StopRequested);
+        assert!(handle.should_stop());
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_startup_future_returns_shutdown_requested() {
+        let handle = LiveNodeHandle::new();
+        let shutdown_flag = Cell::new(true);
+
+        let status =
+            await_startup_future(std::future::pending::<()>(), &handle, &shutdown_flag).await;
+
+        assert_eq!(status, EngineConnectionStatus::ShutdownRequested);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_data_connect_drive_returns_stop_requested() {
+        let (_time_tx, mut time_evt_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_data_evt_tx, mut data_evt_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_data_cmd_tx, mut data_cmd_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_exec_evt_tx, mut exec_evt_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_exec_cmd_tx, mut exec_cmd_rx) = tokio::sync::mpsc::unbounded_channel();
+        let handle = LiveNodeHandle::new();
+        let shutdown_flag = Cell::new(false);
+        let mut pending = PendingEvents::default();
+
+        handle.stop();
+
+        let status = drive_data_connect_with_event_buffering(
+            std::future::pending::<()>(),
+            &handle,
+            &shutdown_flag,
+            &mut pending,
+            &mut time_evt_rx,
+            &mut data_evt_rx,
+            &mut data_cmd_rx,
+            &mut exec_evt_rx,
+            &mut exec_cmd_rx,
+        )
+        .await;
+
+        assert_eq!(status, EngineConnectionStatus::StopRequested);
+        assert!(pending.is_empty());
     }
 
     #[rstest]
