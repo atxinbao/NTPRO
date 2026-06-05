@@ -1,0 +1,18 @@
+{
+  "task_id": "NAUDIT-006",
+  "agent_id": "Codex",
+  "branch": "codex/NAUDIT-006-live-adapter-cancellation-contract-and-mock-evidence",
+  "pr": 177,
+  "touched_paths": [
+    "docs/rust-cutover/tasks/NAUDIT-006.md",
+    "docs/rust-cutover/evidence/NAUDIT-006.md",
+    "docs/integrations/live_adapter_cancellation.md",
+    "crates/common/src/clients/data.rs",
+    "crates/live/src/node.rs",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/NAUDIT-006.json"
+  ],
+  "claimed_at": "2026-06-05T15:46:03.588930+00:00",
+  "review_required_at": "2026-06-05T15:58:28Z",
+  "status": "REVIEW_REQUIRED"
+}

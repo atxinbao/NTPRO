@@ -2203,10 +2203,11 @@ mod tests {
         rc::Rc,
     };
 
-    use nautilus_common::{cache::Cache, clock::Clock};
+    use nautilus_common::{cache::Cache, clients::DataClient, clock::Clock};
     use nautilus_core::{UUID4, UnixNanos};
     use nautilus_execution::engine::SnapshotAnchorer;
     use nautilus_model::identifiers::TraderId;
+    use nautilus_model::identifiers::{ClientId, Venue};
     use nautilus_system::{KernelEventStore, RegisteredComponents, event_store::EventStoreConfig};
     use rstest::*;
 
@@ -2278,6 +2279,132 @@ mod tests {
             });
 
         builder.build().unwrap()
+    }
+
+    #[derive(Clone, Debug, Default)]
+    struct ConnectCancellationProbe {
+        connect_started: Rc<Cell<bool>>,
+        connect_future_dropped: Rc<Cell<bool>>,
+        resource_acquired: Rc<Cell<bool>>,
+        half_connected: Rc<Cell<bool>>,
+        connected: Rc<Cell<bool>>,
+    }
+
+    #[derive(Debug)]
+    struct ConnectCleanupGuard {
+        probe: ConnectCancellationProbe,
+    }
+
+    impl Drop for ConnectCleanupGuard {
+        fn drop(&mut self) {
+            self.probe.connect_future_dropped.set(true);
+            self.probe.resource_acquired.set(false);
+            self.probe.half_connected.set(false);
+        }
+    }
+
+    #[derive(Debug)]
+    struct CancellationProbeDataClient {
+        probe: ConnectCancellationProbe,
+    }
+
+    impl CancellationProbeDataClient {
+        fn new(probe: ConnectCancellationProbe) -> Self {
+            Self { probe }
+        }
+    }
+
+    #[async_trait::async_trait(?Send)]
+    impl DataClient for CancellationProbeDataClient {
+        fn client_id(&self) -> ClientId {
+            ClientId::from("CANCEL-PROBE")
+        }
+
+        fn venue(&self) -> Option<Venue> {
+            Some(Venue::from("SIM"))
+        }
+
+        fn start(&mut self) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        fn stop(&mut self) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        fn reset(&mut self) -> anyhow::Result<()> {
+            self.probe.connected.set(false);
+            self.probe.resource_acquired.set(false);
+            self.probe.half_connected.set(false);
+            Ok(())
+        }
+
+        fn dispose(&mut self) -> anyhow::Result<()> {
+            self.reset()
+        }
+
+        fn is_connected(&self) -> bool {
+            self.probe.connected.get()
+        }
+
+        fn is_disconnected(&self) -> bool {
+            !self.is_connected()
+        }
+
+        async fn connect(&mut self) -> anyhow::Result<()> {
+            self.probe.connect_started.set(true);
+            self.probe.resource_acquired.set(true);
+            self.probe.half_connected.set(true);
+
+            let _cleanup = ConnectCleanupGuard {
+                probe: self.probe.clone(),
+            };
+
+            std::future::pending::<()>().await;
+            self.probe.connected.set(true);
+            Ok(())
+        }
+    }
+
+    async fn drive_probe_data_client_connect_until_cancel(
+        handle: &LiveNodeHandle,
+        shutdown_flag: &Cell<bool>,
+    ) -> (EngineConnectionStatus, ConnectCancellationProbe) {
+        let (_time_tx, mut time_evt_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_data_evt_tx, mut data_evt_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_data_cmd_tx, mut data_cmd_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_exec_evt_tx, mut exec_evt_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_exec_cmd_tx, mut exec_cmd_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut pending = PendingEvents::default();
+        let probe = ConnectCancellationProbe::default();
+        let mut client = CancellationProbeDataClient::new(probe.clone());
+
+        let status = drive_data_connect_with_event_buffering(
+            async {
+                client.connect().await.unwrap();
+            },
+            handle,
+            shutdown_flag,
+            &mut pending,
+            &mut time_evt_rx,
+            &mut data_evt_rx,
+            &mut data_cmd_rx,
+            &mut exec_evt_rx,
+            &mut exec_cmd_rx,
+        )
+        .await;
+
+        assert!(pending.is_empty());
+
+        (status, probe)
+    }
+
+    fn assert_probe_data_client_cancelled(probe: &ConnectCancellationProbe) {
+        assert!(probe.connect_started.get());
+        assert!(probe.connect_future_dropped.get());
+        assert!(!probe.resource_acquired.get());
+        assert!(!probe.half_connected.get());
+        assert!(!probe.connected.get());
     }
 
     #[rstest]
@@ -2401,6 +2528,33 @@ mod tests {
 
         assert_eq!(status, EngineConnectionStatus::StopRequested);
         assert!(pending.is_empty());
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_data_client_connect_future_cleanup_on_stop_request() {
+        let handle = LiveNodeHandle::new();
+        let shutdown_flag = Cell::new(false);
+        handle.stop();
+
+        let (status, probe) =
+            drive_probe_data_client_connect_until_cancel(&handle, &shutdown_flag).await;
+
+        assert_eq!(status, EngineConnectionStatus::StopRequested);
+        assert_probe_data_client_cancelled(&probe);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_data_client_connect_future_cleanup_on_shutdown_request() {
+        let handle = LiveNodeHandle::new();
+        let shutdown_flag = Cell::new(true);
+
+        let (status, probe) =
+            drive_probe_data_client_connect_until_cancel(&handle, &shutdown_flag).await;
+
+        assert_eq!(status, EngineConnectionStatus::ShutdownRequested);
+        assert_probe_data_client_cancelled(&probe);
     }
 
     #[rstest]

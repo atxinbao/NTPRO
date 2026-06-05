@@ -92,6 +92,17 @@ pub trait DataClient {
     /// For live clients, this triggers the actual connection to external APIs.
     /// For backtest clients, this is a no-op.
     ///
+    /// # Cancellation contract
+    ///
+    /// Live startup may cancel this future when a stop signal, shutdown request,
+    /// or interrupt arrives before the adapter finishes connecting. Adapter
+    /// implementations must treat cancellation as a failed connection attempt:
+    /// temporary sockets, authentication state, subscriptions, spawned tasks, and
+    /// other resources acquired during the attempt must be released or left under
+    /// explicit cleanup ownership. Implementations must not mark the client as
+    /// connected, leave a half-connected state, or make a retry depend on hidden
+    /// state from the canceled future.
+    ///
     /// # Errors
     ///
     /// Returns an error if the connection fails.
