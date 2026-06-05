@@ -1,0 +1,16 @@
+{
+  "task_id": "NAUDIT-007",
+  "agent_id": "Codex",
+  "branch": "codex/naudit-007-unsafe-plugin-register",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/NAUDIT-007.md",
+    "docs/rust-cutover/verification/unsafe_plugin_audit_register.md",
+    "docs/rust-cutover/evidence/NAUDIT-007.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/NAUDIT-007.json"
+  ],
+  "claimed_at": "2026-06-05T14:02:29.355774+00:00",
+  "status": "PR_OPEN",
+  "updated_at": "2026-06-05T14:08:04Z",
+  "pr": 174
+}
