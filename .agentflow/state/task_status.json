@@ -2685,7 +2685,8 @@
       "updated_at": "2026-06-05T15:32:31Z",
       "local_backlog": true,
       "started_at": "2026-06-05T15:10:28Z",
-      "branch": "codex/NAUDIT-004-product-reachable-runtime-panic-cleanup"
+      "branch": "codex/NAUDIT-004-product-reachable-runtime-panic-cleanup",
+      "pr": 176
     },
     "NAUDIT-005": {
       "title": "PostgreSQL cache adapter support classification",

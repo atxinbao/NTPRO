@@ -2,6 +2,7 @@
   "task_id": "NAUDIT-004",
   "agent_id": "Codex",
   "branch": "codex/NAUDIT-004-product-reachable-runtime-panic-cleanup",
+  "pr": 176,
   "touched_paths": [
     "crates/backtest/src/exchange.rs",
     "crates/execution/src/matching_engine/engine.rs",
