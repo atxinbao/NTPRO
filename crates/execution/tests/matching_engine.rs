@@ -672,6 +672,52 @@ fn test_process_order_when_invalid_contingent_orders(
 }
 
 #[rstest]
+fn test_process_order_rejects_missing_oto_parent_without_panic(
+    order_event_handler: TypedIntoMessageSavingHandler<OrderEventAny>,
+    account_id: AccountId,
+    instrument_es: InstrumentAny,
+    engine_config: OrderMatchingEngineConfig,
+    test_clock: Rc<RefCell<TestClock>>,
+) {
+    test_clock
+        .borrow_mut()
+        .set_time(UnixNanos::from(1704067200000000000));
+    let cache = Rc::new(RefCell::new(Cache::default()));
+    let mut engine = get_order_matching_engine(
+        instrument_es.clone(),
+        Some(cache),
+        None,
+        Some(engine_config),
+        Some(test_clock),
+    );
+
+    let parent_order_id = ClientOrderId::from("O-19700101-000000-001-001-1");
+    let stop_loss_client_order_id = ClientOrderId::from("O-19700101-000000-001-001-2");
+    let stop_order = OrderTestBuilder::new(OrderType::StopMarket)
+        .instrument_id(instrument_es.id())
+        .side(OrderSide::Sell)
+        .trigger_price(Price::from("0.95"))
+        .quantity(Quantity::from(1))
+        .contingency_type(ContingencyType::Oto)
+        .client_order_id(stop_loss_client_order_id)
+        .parent_order_id(parent_order_id)
+        .submit(true)
+        .build();
+    let mut accepted_stop_order = TestOrderStubs::make_accepted_order(&stop_order);
+
+    engine.process_order(&mut accepted_stop_order, account_id);
+
+    let saved_messages = get_order_event_handler_messages(&order_event_handler);
+    assert_eq!(saved_messages.len(), 1);
+    let first_message = saved_messages.first().unwrap();
+    assert_eq!(first_message.event_type(), OrderEventType::Rejected);
+    assert_eq!(
+        first_message.message().unwrap(),
+        Ustr::from(format!("OTO parent order {parent_order_id} not found").as_str())
+    );
+}
+
+#[rstest]
 fn test_process_order_when_closed_linked_order(
     order_event_handler: TypedIntoMessageSavingHandler<OrderEventAny>,
     account_id: AccountId,
@@ -746,6 +792,122 @@ fn test_process_order_when_closed_linked_order(
     assert_eq!(
         first_message.message().unwrap(),
         Ustr::from(format!("Contingent order {stop_loss_client_order_id} already closed").as_str())
+    );
+}
+
+#[rstest]
+fn test_process_order_rejects_missing_linked_order_without_panic(
+    order_event_handler: TypedIntoMessageSavingHandler<OrderEventAny>,
+    account_id: AccountId,
+    instrument_es: InstrumentAny,
+    engine_config: OrderMatchingEngineConfig,
+    test_clock: Rc<RefCell<TestClock>>,
+) {
+    test_clock
+        .borrow_mut()
+        .set_time(UnixNanos::from(1704067200000000000));
+    let cache = Rc::new(RefCell::new(Cache::default()));
+    let mut engine = get_order_matching_engine(
+        instrument_es.clone(),
+        Some(cache),
+        None,
+        Some(engine_config),
+        Some(test_clock),
+    );
+
+    let stop_loss_client_order_id = ClientOrderId::from("O-19700101-000000-001-001-2");
+    let missing_take_profit_id = ClientOrderId::from("O-19700101-000000-001-001-3");
+    let stop_loss_order = OrderTestBuilder::new(OrderType::StopMarket)
+        .instrument_id(instrument_es.id())
+        .side(OrderSide::Sell)
+        .trigger_price(Price::from("0.95"))
+        .quantity(Quantity::from(1))
+        .contingency_type(ContingencyType::Oco)
+        .client_order_id(stop_loss_client_order_id)
+        .linked_order_ids(vec![missing_take_profit_id])
+        .submit(true)
+        .build();
+    let mut accepted_stop_loss = TestOrderStubs::make_accepted_order(&stop_loss_order);
+
+    engine.process_order(&mut accepted_stop_loss, account_id);
+
+    let saved_messages = get_order_event_handler_messages(&order_event_handler);
+    assert_eq!(saved_messages.len(), 1);
+    let first_message = saved_messages.first().unwrap();
+    assert_eq!(first_message.event_type(), OrderEventType::Rejected);
+    assert_eq!(
+        first_message.message().unwrap(),
+        Ustr::from(format!("Contingent order {missing_take_profit_id} not found").as_str())
+    );
+}
+
+#[rstest]
+fn test_process_cancel_skips_missing_linked_order_without_panic(
+    instrument_eth_usdt: InstrumentAny,
+    account_id: AccountId,
+) {
+    let cache = Rc::new(RefCell::new(Cache::default()));
+    let order_event_handler = order_event_handler_with_cache(cache.clone());
+    let config = OrderMatchingEngineConfig {
+        support_contingent_orders: false,
+        ..Default::default()
+    };
+    let mut engine_l2 = get_order_matching_engine_l2(
+        instrument_eth_usdt.clone(),
+        Some(cache.clone()),
+        None,
+        Some(config),
+        None,
+    );
+
+    let ask = OrderBookDeltaTestBuilder::new(instrument_eth_usdt.id())
+        .book_action(BookAction::Add)
+        .book_order(BookOrder::new(
+            OrderSide::Sell,
+            Price::from("1500.00"),
+            Quantity::from("1.000"),
+            1,
+        ))
+        .build();
+    engine_l2.process_order_book_delta(&ask).unwrap();
+
+    let client_order_id = ClientOrderId::from("O-19700101-000000-001-001-1");
+    let missing_linked_order_id = ClientOrderId::from("O-19700101-000000-001-001-2");
+    let mut limit_order = OrderTestBuilder::new(OrderType::Limit)
+        .instrument_id(instrument_eth_usdt.id())
+        .side(OrderSide::Buy)
+        .price(Price::from("1495.00"))
+        .quantity(Quantity::from("1.000"))
+        .contingency_type(ContingencyType::Oco)
+        .client_order_id(client_order_id)
+        .linked_order_ids(vec![missing_linked_order_id])
+        .submit(true)
+        .build();
+
+    engine_l2.process_order(&mut limit_order, account_id);
+    engine_l2.config.support_contingent_orders = true;
+    clear_order_event_handler_messages(&order_event_handler);
+
+    let cancel_command = CancelOrder::new(
+        TraderId::test_default(),
+        Some(ClientId::from("CLIENT-001")),
+        StrategyId::test_default(),
+        instrument_eth_usdt.id(),
+        client_order_id,
+        Some(VenueOrderId::from("V1")),
+        UUID4::new(),
+        UnixNanos::default(),
+        None,
+        None,
+    );
+
+    engine_l2.process_cancel(&cancel_command, account_id);
+
+    let saved_messages = get_order_event_handler_messages(&order_event_handler);
+    assert_eq!(saved_messages.len(), 1);
+    assert_eq!(
+        saved_messages.first().unwrap().event_type(),
+        OrderEventType::Canceled
     );
 }
 
@@ -4049,6 +4211,34 @@ fn test_process_monthly_bar_not_skipped(instrument_eth_usdt: InstrumentAny) {
     assert!(
         engine.get_core().last.is_some(),
         "Monthly bar should be processed and update market state"
+    );
+}
+
+#[rstest]
+fn test_process_mark_bar_ignored_without_panic(instrument_eth_usdt: InstrumentAny) {
+    let config = OrderMatchingEngineConfig {
+        bar_execution: true,
+        ..Default::default()
+    };
+    let mut engine = get_order_matching_engine(instrument_eth_usdt, None, None, Some(config), None);
+
+    let bar_type = BarType::from("ETHUSDT-PERP.BINANCE-1-MINUTE-MARK-EXTERNAL");
+    let mark_bar = Bar {
+        bar_type,
+        open: Price::from("1500.00"),
+        high: Price::from("1510.00"),
+        low: Price::from("1490.00"),
+        close: Price::from("1505.00"),
+        volume: Quantity::from("100000.000"),
+        ts_event: UnixNanos::from(1_000_000_000),
+        ts_init: UnixNanos::from(1_000_000_000),
+    };
+
+    engine.process_bar(&mark_bar);
+
+    assert!(
+        engine.get_core().last.is_none(),
+        "MARK bar execution is unsupported and should not update last price",
     );
 }
 

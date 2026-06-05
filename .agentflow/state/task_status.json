@@ -2671,7 +2671,7 @@
     },
     "NAUDIT-004": {
       "title": "Product-reachable runtime panic cleanup",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -2682,8 +2682,10 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NAUDIT-004.md",
       "evidence_file": "docs/rust-cutover/evidence/NAUDIT-004.md",
-      "updated_at": "2026-06-05T13:20:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-05T15:32:31Z",
+      "local_backlog": true,
+      "started_at": "2026-06-05T15:10:28Z",
+      "branch": "codex/NAUDIT-004-product-reachable-runtime-panic-cleanup"
     },
     "NAUDIT-005": {
       "title": "PostgreSQL cache adapter support classification",

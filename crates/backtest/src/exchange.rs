@@ -630,40 +630,45 @@ impl SimulatedExchange {
             self.process_trading_command(command);
         } else if self.latency_model.is_none() {
             self.message_queue.push_back(command);
-        } else {
-            let (timestamp, counter) = self.generate_inflight_command(&command);
+        } else if let Some((timestamp, counter)) = self.generate_inflight_command(&command) {
             self.inflight_queue
                 .push(InflightCommand::new(timestamp, counter, command));
         }
     }
 
-    fn generate_inflight_command(&mut self, command: &TradingCommand) -> (UnixNanos, u32) {
-        if let Some(latency_model) = &self.latency_model {
-            let ts = match command {
-                TradingCommand::SubmitOrder(_) | TradingCommand::SubmitOrderList(_) => {
-                    command.ts_init() + latency_model.get_insert_latency()
-                }
-                TradingCommand::ModifyOrder(_) => {
-                    command.ts_init() + latency_model.get_update_latency()
-                }
-                TradingCommand::CancelOrder(_)
-                | TradingCommand::CancelAllOrders(_)
-                | TradingCommand::BatchCancelOrders(_) => {
-                    command.ts_init() + latency_model.get_delete_latency()
-                }
-                _ => panic!("Cannot handle command: {command:?}"),
-            };
+    fn generate_inflight_command(&mut self, command: &TradingCommand) -> Option<(UnixNanos, u32)> {
+        let Some(latency_model) = &self.latency_model else {
+            log::error!("Cannot generate inflight command without a latency model: {command:?}");
+            return None;
+        };
 
-            let counter = self
-                .inflight_counter
-                .entry(ts)
-                .and_modify(|e| *e += 1)
-                .or_insert(1);
+        let ts = match command {
+            TradingCommand::SubmitOrder(_) | TradingCommand::SubmitOrderList(_) => {
+                command.ts_init() + latency_model.get_insert_latency()
+            }
+            TradingCommand::ModifyOrder(_) => {
+                command.ts_init() + latency_model.get_update_latency()
+            }
+            TradingCommand::CancelOrder(_)
+            | TradingCommand::CancelAllOrders(_)
+            | TradingCommand::BatchCancelOrders(_) => {
+                command.ts_init() + latency_model.get_delete_latency()
+            }
+            TradingCommand::QueryOrder(_) | TradingCommand::QueryAccount(_) => {
+                log::error!(
+                    "Ignoring unsupported backtest trading command for latency queue: {command:?}",
+                );
+                return None;
+            }
+        };
 
-            (ts, *counter)
-        } else {
-            panic!("Latency model should be initialized");
-        }
+        let counter = self
+            .inflight_counter
+            .entry(ts)
+            .and_modify(|e| *e += 1)
+            .or_insert(1);
+
+        Some((ts, *counter))
     }
 
     /// Processes a single order book delta.
@@ -1013,7 +1018,13 @@ impl SimulatedExchange {
     }
 
     fn process_trading_command(&mut self, command: TradingCommand) {
-        if let Some(matching_engine) = self.matching_engines.get_mut(&command.instrument_id()) {
+        if matches!(command, TradingCommand::QueryAccount(_)) {
+            log::error!("Ignoring unsupported backtest trading command: {command:?}");
+            return;
+        }
+
+        let instrument_id = command.instrument_id();
+        if let Some(matching_engine) = self.matching_engines.get_mut(&instrument_id) {
             let account_id = if let Some(exec_client) = &self.exec_client {
                 exec_client.account_id()
             } else {
@@ -1052,13 +1063,12 @@ impl SimulatedExchange {
                         matching_engine.process_order(order, account_id);
                     }
                 }
-                _ => {}
+                TradingCommand::QueryOrder(_) | TradingCommand::QueryAccount(_) => {
+                    log::error!("Ignoring unsupported backtest trading command: {command:?}");
+                }
             }
         } else {
-            panic!(
-                "Matching engine not found for instrument {}",
-                command.instrument_id()
-            );
+            log::error!("Matching engine not found for instrument {instrument_id}");
         }
     }
 
@@ -1133,7 +1143,7 @@ mod tests {
     use nautilus_common::{
         cache::Cache,
         clock::TestClock,
-        messages::execution::{SubmitOrder, TradingCommand},
+        messages::execution::{QueryAccount, QueryOrder, SubmitOrder, TradingCommand},
         msgbus::{self, stubs::get_typed_message_saving_handler},
     };
     use nautilus_core::{UUID4, UnixNanos};
@@ -1235,6 +1245,33 @@ mod tests {
             None, // correlation_id
         ));
         (order, command)
+    }
+
+    fn create_query_order_command(ts_init: UnixNanos, client_order_id: &str) -> TradingCommand {
+        TradingCommand::QueryOrder(QueryOrder::new(
+            TraderId::test_default(),
+            None,
+            StrategyId::test_default(),
+            InstrumentId::from("ETHUSDT-PERP.BINANCE"),
+            ClientOrderId::new(client_order_id),
+            None,
+            UUID4::default(),
+            ts_init,
+            None,
+            None,
+        ))
+    }
+
+    fn create_query_account_command(ts_init: UnixNanos) -> TradingCommand {
+        TradingCommand::QueryAccount(QueryAccount::new(
+            TraderId::test_default(),
+            None,
+            AccountId::test_default(),
+            UUID4::default(),
+            ts_init,
+            None,
+            None,
+        ))
     }
 
     #[rstest]
@@ -2069,6 +2106,67 @@ mod tests {
                 .timestamp,
             UnixNanos::from(450)
         );
+    }
+
+    #[rstest]
+    fn test_generate_inflight_command_without_latency_model_returns_none() {
+        let exchange = get_exchange(
+            Venue::new("BINANCE"),
+            AccountType::Margin,
+            BookType::L2_MBP,
+            None,
+        );
+        let (_, command) = create_submit_order_command(UnixNanos::from(100), "O-1");
+
+        let inflight = exchange.borrow_mut().generate_inflight_command(&command);
+
+        assert_eq!(inflight, None);
+        assert_eq!(exchange.borrow().message_queue.len(), 0);
+        assert_eq!(exchange.borrow().inflight_queue.len(), 0);
+    }
+
+    #[rstest]
+    fn test_send_query_order_with_latency_model_ignores_unsupported_command() {
+        let latency_model = StaticLatencyModel::new(
+            UnixNanos::from(100),
+            UnixNanos::from(200),
+            UnixNanos::from(300),
+            UnixNanos::from(100),
+        );
+        let exchange = get_exchange(
+            Venue::new("BINANCE"),
+            AccountType::Margin,
+            BookType::L2_MBP,
+            None,
+        );
+        exchange
+            .borrow_mut()
+            .set_latency_model(Box::new(latency_model));
+
+        exchange
+            .borrow_mut()
+            .send(create_query_order_command(UnixNanos::from(100), "O-1"));
+
+        assert_eq!(exchange.borrow().message_queue.len(), 0);
+        assert_eq!(exchange.borrow().inflight_queue.len(), 0);
+    }
+
+    #[rstest]
+    fn test_process_query_account_message_ignores_unsupported_command_without_panic() {
+        let exchange = get_exchange(
+            Venue::new("BINANCE"),
+            AccountType::Margin,
+            BookType::L2_MBP,
+            None,
+        );
+
+        exchange
+            .borrow_mut()
+            .send(create_query_account_command(UnixNanos::from(100)));
+        exchange.borrow_mut().process(UnixNanos::from(200));
+
+        assert_eq!(exchange.borrow().message_queue.len(), 0);
+        assert_eq!(exchange.borrow().inflight_queue.len(), 0);
     }
 
     #[rstest]
