@@ -13,5 +13,6 @@
   ],
   "claimed_at": "2026-06-05T15:10:28.383185+00:00",
   "review_required_at": "2026-06-05T15:32:31Z",
-  "status": "REVIEW_REQUIRED"
+  "status": "DONE",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

@@ -12,7 +12,7 @@
     ".agentflow/leases/RREM-022.json"
   ],
   "claimed_at": "2026-06-02T22:49:26+08:00",
-  "status": "REVIEW_REQUIRED",
+  "status": "DONE",
   "qa_passed": true,
   "review_passed": false,
   "release_gatekeeper_approved": false,
@@ -20,5 +20,6 @@
   "updated_at": "2026-06-02T22:54:49+08:00",
   "pr_url": "https://github.com/atxinbao/NTPRO/pull/118",
   "pr_number": 118,
-  "implementation_commit": "cfd4d471a1"
+  "implementation_commit": "cfd4d471a1",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

@@ -12,5 +12,6 @@
   ],
   "claimed_at": "2026-05-29T13:04:48.315448+00:00",
   "review_ready_at": "2026-05-29T13:13:20Z",
-  "status": "PR_READY"
+  "status": "DONE",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

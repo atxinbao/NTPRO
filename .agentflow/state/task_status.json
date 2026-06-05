@@ -376,7 +376,7 @@
     },
     "RADP-024": {
       "title": "Close Rust adapter gaps for Polymarket Sandbox",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -387,7 +387,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RADP-024.md",
       "evidence_file": "docs/rust-cutover/evidence/RADP-024.md",
-      "updated_at": "2026-06-01T05:26:09Z",
+      "updated_at": "2026-06-05T16:12:19Z",
       "branch": "ai/RADP-024-close-rust-adapter-gaps-for-polymarket-sandbox"
     },
     "RBTL-001": {
@@ -426,7 +426,7 @@
     },
     "RBTL-003": {
       "title": "Close Rust backtest data/catalog gaps",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -437,7 +437,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-003.md",
       "evidence_file": "docs/rust-cutover/evidence/RBTL-003.md",
-      "updated_at": "2026-05-29T23:06:18Z",
+      "updated_at": "2026-06-05T16:12:19Z",
       "branch": "ai/RBTL-003-close-rust-backtest-data-catalog-gaps"
     },
     "RBTL-004": {
@@ -459,7 +459,7 @@
     },
     "RBTL-005": {
       "title": "Inventory Rust live node gaps",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -470,12 +470,12 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-005.md",
       "evidence_file": "docs/rust-cutover/evidence/RBTL-005.md",
-      "updated_at": "2026-05-30T12:55:16Z",
+      "updated_at": "2026-06-05T16:12:19Z",
       "branch": "ai/RBTL-005-inventory-rust-live-node-gaps"
     },
     "RBTL-006": {
       "title": "Add Rust LiveNode lifecycle smoke",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -486,12 +486,12 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-006.md",
       "evidence_file": "docs/rust-cutover/evidence/RBTL-006.md",
-      "updated_at": "2026-05-30T17:55:09Z",
+      "updated_at": "2026-06-05T16:12:19Z",
       "branch": "ai/RBTL-006-add-rust-livenode-lifecycle-smoke"
     },
     "RBTL-007": {
       "title": "Close Rust live config/client gaps",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -502,12 +502,12 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-007.md",
       "evidence_file": "docs/rust-cutover/evidence/RBTL-007.md",
-      "updated_at": "2026-05-30T17:55:09Z",
+      "updated_at": "2026-06-05T16:12:19Z",
       "branch": "ai/RBTL-007-close-rust-live-config-client-gaps"
     },
     "RBTL-008": {
       "title": "Add Rust sandbox execution smoke",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -518,11 +518,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-008.md",
       "evidence_file": "docs/rust-cutover/evidence/RBTL-008.md",
-      "updated_at": "2026-05-30T19:27:20Z"
+      "updated_at": "2026-06-05T16:12:19Z"
     },
     "RBTL-009": {
       "title": "Prove backtest/live semantic parity",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -533,11 +533,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-009.md",
       "evidence_file": "docs/rust-cutover/evidence/RBTL-009.md",
-      "updated_at": "2026-05-30T22:55:32Z"
+      "updated_at": "2026-06-05T16:12:19Z"
     },
     "RBTL-010": {
       "title": "Publish backtest/live gate evidence",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -548,11 +548,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RBTL-010.md",
       "evidence_file": "docs/rust-cutover/evidence/RBTL-010.md",
-      "updated_at": "2026-05-31T01:46:55Z"
+      "updated_at": "2026-06-05T16:12:19Z"
     },
     "RCORE-001": {
       "title": "Inventory Rust core/model value types gaps",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -563,7 +563,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-001.md",
       "evidence_file": "docs/rust-cutover/evidence/RCORE-001.md",
-      "updated_at": "2026-05-28T18:26:32Z"
+      "updated_at": "2026-06-05T16:12:19Z"
     },
     "RCORE-002": {
       "title": "Add Rust tests for core/model value types",
@@ -597,7 +597,7 @@
     },
     "RCORE-004": {
       "title": "Inventory Rust serialization/data/persistence gaps",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -608,7 +608,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-004.md",
       "evidence_file": "docs/rust-cutover/evidence/RCORE-004.md",
-      "updated_at": "2026-05-28T20:41:15Z"
+      "updated_at": "2026-06-05T16:12:19Z"
     },
     "RCORE-005": {
       "title": "Add Rust tests for serialization/data/persistence",
@@ -672,7 +672,7 @@
     },
     "RCORE-009": {
       "title": "Close Rust common cache/message bus/component lifecycle gaps",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -683,7 +683,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCORE-009.md",
       "evidence_file": "docs/rust-cutover/evidence/RCORE-009.md",
-      "updated_at": "2026-05-29T12:43:25Z"
+      "updated_at": "2026-06-05T16:12:19Z"
     },
     "RCORE-010": {
       "title": "Inventory Rust execution/risk/order lifecycle gaps",
@@ -1329,7 +1329,7 @@
     },
     "RREL-008": {
       "title": "Mark Rust-only cutover complete",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -1353,7 +1353,7 @@
       "source_task_file": "docs/rust-cutover/tasks/RREL-008.md",
       "evidence_file": "docs/rust-cutover/evidence/RREL-008.md",
       "notes": "Owner approved Rust-only cutover completion after RREL-009 verify_release passed. RREL-008 records completion docs and agentflow state only, creates no tag/release, enables no auto-merge, and remains REVIEW_REQUIRED until its PR is reviewed and merged.",
-      "updated_at": "2026-06-03T12:28:02Z",
+      "updated_at": "2026-06-05T16:12:19Z",
       "owner_signoff_date": "2026-06-03",
       "owner_signoff_by": "atxinbao",
       "owner_signoff_link": "This Codex thread and GitHub PR #120.",
@@ -1735,7 +1735,7 @@
     },
     "RCTL-009": {
       "title": "Codify PR plain Chinese summary and medium-risk automation policy",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -1746,8 +1746,10 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RCTL-009.md",
       "evidence_file": "docs/rust-cutover/evidence/RCTL-009.md",
-      "updated_at": "2026-05-29T22:19:48Z",
-      "branch": "ai/RCTL-009-pr-summary-risk-automation-policy"
+      "updated_at": "2026-06-05T16:12:19Z",
+      "branch": "ai/RCTL-009-pr-summary-risk-automation-policy",
+      "pr": 55,
+      "merged_at": "2026-05-29T22:22:22Z"
     },
     "RREM-011": {
       "title": "Remove Cython source and build/runtime references",
@@ -2069,7 +2071,7 @@
     },
     "RREM-022": {
       "title": "Remove final Rust crate Python residue",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "critical",
@@ -2081,7 +2083,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/RREM-022.md",
       "evidence_file": "docs/rust-cutover/evidence/RREM-022.md",
-      "updated_at": "2026-06-02T22:54:49+08:00",
+      "updated_at": "2026-06-05T16:12:19Z",
       "branch": "ai/RREM-022-remove-final-rust-crate-python-residue",
       "lease": "RREM-022",
       "qa_passed": true,
@@ -2595,7 +2597,7 @@
     },
     "NQA-001": {
       "title": "v0.2 QA closeout and readiness report",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2606,7 +2608,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NQA-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NQA-001.md",
-      "updated_at": "2026-06-05T13:28:04Z",
+      "updated_at": "2026-06-05T16:12:19Z",
       "local_backlog": true,
       "started_at": "2026-06-05T13:25:15Z",
       "branch": "codex/nqa-001-v0-2-readiness",
@@ -2614,7 +2616,7 @@
     },
     "NAUDIT-001": {
       "title": "Python package metadata cleanup and Rust-only gate hardening",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "critical",
@@ -2625,7 +2627,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NAUDIT-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NAUDIT-001.md",
-      "updated_at": "2026-06-05T14:40:52Z",
+      "updated_at": "2026-06-05T16:12:19Z",
       "local_backlog": true,
       "started_at": "2026-06-05T14:25:24Z",
       "branch": "codex/naudit-001-python-metadata-cleanup",
@@ -2633,7 +2635,7 @@
     },
     "NAUDIT-002": {
       "title": "CLI capability matrix and stub honesty cleanup",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2644,7 +2646,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NAUDIT-002.md",
       "evidence_file": "docs/rust-cutover/evidence/NAUDIT-002.md",
-      "updated_at": "2026-06-05T13:41:48Z",
+      "updated_at": "2026-06-05T16:12:19Z",
       "local_backlog": true,
       "started_at": "2026-06-05T13:35:43Z",
       "branch": "codex/naudit-002-cli-capability-matrix",
@@ -2652,7 +2654,7 @@
     },
     "NAUDIT-003": {
       "title": "Unignore passing production-bug cache tests",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2663,7 +2665,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NAUDIT-003.md",
       "evidence_file": "docs/rust-cutover/evidence/NAUDIT-003.md",
-      "updated_at": "2026-06-05T13:48:18Z",
+      "updated_at": "2026-06-05T16:12:19Z",
       "local_backlog": true,
       "started_at": "2026-06-05T13:45:26Z",
       "branch": "codex/naudit-003-unignore-cache-tests",
@@ -2692,7 +2694,7 @@
     },
     "NAUDIT-005": {
       "title": "PostgreSQL cache adapter support classification",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2703,7 +2705,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NAUDIT-005.md",
       "evidence_file": "docs/rust-cutover/evidence/NAUDIT-005.md",
-      "updated_at": "2026-06-05T13:56:32Z",
+      "updated_at": "2026-06-05T16:12:19Z",
       "local_backlog": true,
       "started_at": "2026-06-05T13:52:12Z",
       "branch": "codex/naudit-005-postgres-cache-classification",
@@ -2711,7 +2713,7 @@
     },
     "NAUDIT-006": {
       "title": "Live adapter cancellation contract and mock evidence",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "adapter_integration_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -2722,7 +2724,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NAUDIT-006.md",
       "evidence_file": "docs/rust-cutover/evidence/NAUDIT-006.md",
-      "updated_at": "2026-06-05T16:00:07Z",
+      "updated_at": "2026-06-05T16:12:19Z",
       "local_backlog": true,
       "started_at": "2026-06-05T15:46:03Z",
       "branch": "codex/NAUDIT-006-live-adapter-cancellation-contract-and-mock-evidence",
@@ -2731,7 +2733,7 @@
     },
     "NAUDIT-007": {
       "title": "Unsafe and plugin audit register",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -2742,15 +2744,177 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NAUDIT-007.md",
       "evidence_file": "docs/rust-cutover/evidence/NAUDIT-007.md",
-      "updated_at": "2026-06-05T14:08:04Z",
+      "updated_at": "2026-06-05T16:12:19Z",
       "local_backlog": true,
       "started_at": "2026-06-05T14:02:15Z",
       "branch": "codex/naudit-007-unsafe-plugin-register",
       "pr": 174
     },
+    "DRG-001": {
+      "title": "State convergence and readiness report refresh",
+      "status": "RUNNING",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/DRG-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/DRG-001.md",
+      "updated_at": "2026-06-05T16:10:00Z",
+      "local_backlog": true,
+      "started_at": "2026-06-05T16:10:00Z",
+      "branch": "codex/DRG-001-state-convergence-and-readiness-report-refresh"
+    },
+    "DRG-002": {
+      "title": "Toolchain default convergence",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/DRG-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/DRG-002.md",
+      "updated_at": "2026-06-05T16:10:00Z",
+      "local_backlog": true
+    },
+    "DRG-003": {
+      "title": "Full verification gate",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/DRG-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/DRG-003.md",
+      "updated_at": "2026-06-05T16:10:00Z",
+      "local_backlog": true
+    },
+    "DRG-004": {
+      "title": "Core crates full targeted tests",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "rust_core_runtime_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/DRG-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/DRG-004.md",
+      "updated_at": "2026-06-05T16:10:00Z",
+      "local_backlog": true
+    },
+    "DRG-005": {
+      "title": "Real minimal CLI product paths",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/DRG-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/DRG-005.md",
+      "updated_at": "2026-06-05T16:10:00Z",
+      "local_backlog": true
+    },
+    "DRG-006": {
+      "title": "Product-reachable panic classification and zero gate",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/DRG-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/DRG-006.md",
+      "updated_at": "2026-06-05T16:10:00Z",
+      "local_backlog": true
+    },
+    "DRG-007": {
+      "title": "Live adapter cancellation proof closure",
+      "status": "TODO",
+      "owner_role": "adapter_integration_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/DRG-007.md",
+      "evidence_file": "docs/rust-cutover/evidence/DRG-007.md",
+      "updated_at": "2026-06-05T16:10:00Z",
+      "local_backlog": true
+    },
+    "DRG-008": {
+      "title": "High-impact ignored tests closure",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "rust_core_runtime_agent",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/DRG-008.md",
+      "evidence_file": "docs/rust-cutover/evidence/DRG-008.md",
+      "updated_at": "2026-06-05T16:10:00Z",
+      "local_backlog": true
+    },
+    "DRG-009": {
+      "title": "Executable trace gate",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "rust_core_runtime_agent",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/DRG-009.md",
+      "evidence_file": "docs/rust-cutover/evidence/DRG-009.md",
+      "updated_at": "2026-06-05T16:10:00Z",
+      "local_backlog": true
+    },
+    "DRG-010": {
+      "title": "Final design-readiness audit",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/DRG-010.md",
+      "evidence_file": "docs/rust-cutover/evidence/DRG-010.md",
+      "updated_at": "2026-06-05T16:10:00Z",
+      "local_backlog": true
+    },
     "NCTL-001": {
       "title": "Register GitHub audit issues and v0.2 backlog",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -2761,7 +2925,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NCTL-001.md",
       "evidence_file": "docs/rust-cutover/evidence/NCTL-001.md",
-      "updated_at": "2026-06-05T13:25:00Z"
+      "updated_at": "2026-06-05T16:12:19Z",
+      "pr": 169,
+      "merged_at": "2026-06-05T13:17:44Z"
     }
   },
   "updated_at": "2026-06-05T13:25:00Z"

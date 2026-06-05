@@ -10,6 +10,7 @@
     ".agentflow/leases/RCORE-012.json"
   ],
   "claimed_at": "2026-05-29T14:12:59.864848+00:00",
-  "status": "PR_READY",
-  "review_ready_at": "2026-05-29T14:27:49Z"
+  "status": "DONE",
+  "review_ready_at": "2026-05-29T14:27:49Z",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

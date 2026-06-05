@@ -16,5 +16,6 @@
     "scripts/control/dispatch_next.py"
   ],
   "claimed_at": "2026-05-29T22:19:48Z",
-  "status": "PR_READY"
+  "status": "DONE",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

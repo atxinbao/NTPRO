@@ -10,6 +10,7 @@
     ".agentflow/leases/RBTL-006.json"
   ],
   "claimed_at": "2026-05-30T14:58:39.194598+00:00",
-  "status": "PR_OPEN",
-  "updated_at": "2026-05-30T15:44:19Z"
+  "status": "DONE",
+  "updated_at": "2026-05-30T15:44:19Z",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

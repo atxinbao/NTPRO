@@ -11,6 +11,7 @@
     ".agentflow/leases/RPROD-013.json"
   ],
   "claimed_at": "2026-05-28T15:12:10.468991+00:00",
-  "status": "PR_READY",
-  "released_at": "2026-05-28T15:14:12.793669+00:00"
+  "status": "DONE",
+  "released_at": "2026-05-28T15:14:12.793669+00:00",
+  "closed_at": "2026-06-05T16:12:29Z"
 }

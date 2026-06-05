@@ -12,9 +12,10 @@
     ".agentflow/leases/RHARD-003.json"
   ],
   "claimed_at": "2026-06-04T13:40:23.559399+00:00",
-  "status": "RUNNING",
+  "status": "DONE",
   "qa_passed": true,
   "review_passed": false,
   "auto_merge_allowed": true,
-  "updated_at": "2026-06-04T14:17:00Z"
+  "updated_at": "2026-06-04T14:17:00Z",
+  "closed_at": "2026-06-05T16:12:29Z"
 }
