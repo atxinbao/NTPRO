@@ -1631,7 +1631,7 @@ impl RiskEngine {
                 self.deny_order_list(&orders, reason);
             }
             _ => {
-                panic!("Cannot deny command {command}");
+                log::error!("Cannot deny unsupported command {command}: {reason}");
             }
         }
     }
