@@ -2802,7 +2802,7 @@
     },
     "DRG-004": {
       "title": "Core crates full targeted tests",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "rust_core_runtime_agent",
       "risk_level": "medium",
@@ -2813,7 +2813,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-004.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-004.md",
-      "updated_at": "2026-06-05T16:10:00Z",
+      "updated_at": "2026-06-05T20:41:16Z",
       "local_backlog": true
     },
     "DRG-005": {
