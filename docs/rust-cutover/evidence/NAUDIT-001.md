@@ -4,7 +4,8 @@ Date: 2026-06-05
 Executor: Codex
 Task ID: NAUDIT-001
 Risk: critical
-Status: RUNNING
+Status: REVIEW_REQUIRED
+PR: https://github.com/atxinbao/NTPRO/pull/175
 
 ## 中文摘要
 
@@ -138,6 +139,11 @@ uv lock --locked
 - `uv lock --locked`: not usable in this local shell because local `uv` is
   `0.11.12` while `pyproject.toml` requires `0.11.14`. Lock consistency was
   therefore validated with TOML parsing and `scripts/check-no-build-packages.sh`.
+
+## Review Status
+
+PR #175 is open and ready for human / gatekeeper review. Auto-merge is not
+enabled because NAUDIT-001 is a critical-risk task.
 
 ## Known Residuals
 
