@@ -21,7 +21,16 @@ rg -n '^\s*#\[ignore(?:\s*=\s*"[^"]*")?\]' crates tests --glob '*.rs' -S | wc -l
 rg -n '^\s*#\[ignore(?:\s*=\s*"[^"]*")?\]' crates tests --glob '*.rs' -S | cut -d: -f1 | sort | uniq -c
 ```
 
-Result: 30 active ignored Rust test attributes were found.
+Result after NAUDIT-003: 28 active ignored Rust test attributes were found.
+
+NAUDIT-003 restored two previously ignored common cache lifecycle tests to the
+default Rust test suite. They are no longer active ignored production-bug
+entries:
+
+| Restored ID | Location | Test | Restoration evidence |
+| --- | --- | --- | --- |
+| IGN-HIGH-001 | `crates/common/src/cache/tests.rs` | `test_order_when_rejected` | Restored by `NAUDIT-003`; runs without `--ignored`. |
+| IGN-HIGH-002 | `crates/common/src/cache/tests.rs` | `test_order_when_filled` | Restored by `NAUDIT-003`; runs without `--ignored`. |
 
 `Cargo.toml` `ignored = [...]` feature declarations were scanned separately.
 Those are feature-workspace declarations, not ignored tests, and are not counted
@@ -39,8 +48,6 @@ in this register.
 
 | ID | Location | Ignored test | Reason recorded in source | Product path / impact | Owner role | Status | Recommended next step |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| IGN-HIGH-001 | `crates/common/src/cache/tests.rs:923` | `test_order_when_rejected` | Production bug: rejected orders incorrectly showing in emulated list. | Cache/order lifecycle can expose rejected orders incorrectly to execution/risk paths. | Rust Core Runtime Agent | OPEN | Repair cache state management or explicitly scope rejected-order emulation before treating cache lifecycle as release-complete. |
-| IGN-HIGH-002 | `crates/common/src/cache/tests.rs:1221` | `test_order_when_filled` | Production bug: cache state management during order lifecycle. | Filled-order lifecycle cache state may diverge from expected execution/portfolio state. | Rust Core Runtime Agent | OPEN | Run after IGN-HIGH-001 repair; split lifecycle cache regression if failure differs. |
 | IGN-HIGH-003 | `crates/execution/tests/matching_engine.rs:3604` | `test_updating_of_contingent_orders` | Contingent-order helper reads parent leaves quantity from stale local clone. | Contingent OUO/OCO matching behavior can be stale after parent updates. | Rust Core Runtime Agent | OPEN | Refactor matching helper to read current cache/order handle and add regression coverage. |
 | IGN-HIGH-004 | `crates/execution/tests/matching_engine.rs:4175` | `test_ouo_child_cancelled_when_parent_leaves_zero` | Same stale parent leaves quantity issue. | OUO child cancellation may be wrong when parent leaves quantity reaches zero. | Rust Core Runtime Agent | OPEN | Resolve with IGN-HIGH-003 or split if cancellation semantics differ. |
 | IGN-HIGH-005 | `crates/execution/tests/matching_engine.rs:6443` | `test_trailing_stop_market_updated_then_triggered` | L2 engine with `trade_execution=false` does not iterate on trade ticks. | Trailing stop trigger behavior can be incomplete for L2 simulated execution. | Rust Core Runtime Agent | OPEN | Decide whether to implement L2 trade-tick iteration or scope trailing stop behavior out of the current product path. |
