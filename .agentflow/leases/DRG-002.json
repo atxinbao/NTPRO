@@ -1,0 +1,15 @@
+{
+  "task_id": "DRG-002",
+  "agent_id": "Codex",
+  "branch": "codex/DRG-002-toolchain-default-convergence",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/DRG-002.md",
+    "docs/rust-cutover/evidence/DRG-002.md",
+    "docs/rust-cutover/verification/toolchain.md",
+    "docs/rust-cutover/release/v0_2_readiness_report.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/DRG-002.json"
+  ],
+  "claimed_at": "2026-06-05T16:16:32.191246+00:00",
+  "status": "RUNNING"
+}
