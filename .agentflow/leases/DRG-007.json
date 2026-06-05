@@ -10,8 +10,11 @@
     ".agentflow/leases/DRG-007.json"
   ],
   "claimed_at": "2026-06-05T21:33:32.182190+00:00",
-  "status": "REVIEW_REQUIRED",
-  "updated_at": "2026-06-05T21:47:07Z",
+  "status": "DONE",
+  "updated_at": "2026-06-05T21:54:25Z",
+  "released_at": "2026-06-05T21:54:25Z",
+  "merged_pr": 185,
+  "merge_commit": "0ca722df2b2b8b6a829e2ec70506f94b299afd9a",
   "validation_summary": [
     "cargo test -p nautilus-live --lib test_data_client_connect_future_cleanup -- --nocapture -> PASS",
     "cargo test -p nautilus-live test_data_client_connect_future_cleanup -- --nocapture -> PASS",
