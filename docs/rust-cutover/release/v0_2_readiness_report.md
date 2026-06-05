@@ -60,7 +60,7 @@ the audit backlog is reduced or explicitly scoped by the release gatekeeper.
 | `NAUDIT-002` | medium | CLI commands and sandbox artifacts must not overstate stubbed or simulated capability. | Complete before tag. |
 | `NAUDIT-003` | medium | Passing production-bug cache tests should be restored to normal regression coverage. | Complete before tag unless a failed rerun creates a new blocker. |
 | `NAUDIT-005` | medium | PostgreSQL cache adapter status must be visible as supported, experimental, or unsupported. | Complete or explicitly defer from v0.2 product claims. |
-| `NAUDIT-007` | medium | Plugin/unsafe areas need a register before plugin functionality is productized. | Complete or explicitly keep plugin productization out of v0.2. |
+| `NAUDIT-007` | medium | Plugin/unsafe areas need a register before plugin functionality is productized. | Register created; plug-ins remain early alpha / unstable unless later gates pass. |
 | `NAUDIT-004` | high | Product-reachable runtime panic paths are high-risk runtime hardening work. | Human/gatekeeper decision: v0.2 blocker or scoped follow-up. |
 | `NAUDIT-006` | high | Live adapter cancellation proof is high-risk adapter/runtime evidence work. | Human/gatekeeper decision: v0.2 blocker or scoped follow-up. |
 

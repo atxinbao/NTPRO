@@ -2719,7 +2719,7 @@
     },
     "NAUDIT-007": {
       "title": "Unsafe and plugin audit register",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -2730,8 +2730,10 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NAUDIT-007.md",
       "evidence_file": "docs/rust-cutover/evidence/NAUDIT-007.md",
-      "updated_at": "2026-06-05T13:20:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-05T14:02:15Z",
+      "local_backlog": true,
+      "started_at": "2026-06-05T14:02:15Z",
+      "branch": "codex/naudit-007-unsafe-plugin-register"
     },
     "NCTL-001": {
       "title": "Register GitHub audit issues and v0.2 backlog",
