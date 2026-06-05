@@ -16,6 +16,7 @@
     ".agentflow/leases/NAUDIT-002.json"
   ],
   "claimed_at": "2026-06-05T13:35:43Z",
-  "status": "RUNNING",
-  "updated_at": "2026-06-05T13:35:43Z"
+  "status": "PR_OPEN",
+  "updated_at": "2026-06-05T13:41:48Z",
+  "pr": 171
 }

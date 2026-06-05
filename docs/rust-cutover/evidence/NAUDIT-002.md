@@ -95,6 +95,7 @@ rg -n "node_started=true|node_stopped=true|event=node_start|event=node_stop|part
   it skipped workspace `cargo check`, clippy, release gate, and golden trace
   gate.
 - Old misleading wording search: no matches.
+- NAUDIT-002 review status: PR_OPEN in #171.
 
 ## Migration Note Status
 
