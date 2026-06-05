@@ -37,6 +37,7 @@ The command contracts are recorded in:
 - `docs/rust-cutover/product/LIVE_SANDBOX_CLI_CONTRACT.md`
 - `docs/rust-cutover/product/DATA_CATALOG_CLI_CONTRACT.md`
 - `docs/rust-cutover/product/CONFIG_VALIDATION_CLI_CONTRACT.md`
+- `docs/rust-cutover/product/CLI_CAPABILITY_MATRIX.md`
 
 ### Rust Backtest Example Smoke
 

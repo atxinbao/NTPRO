@@ -171,7 +171,7 @@ fn run_sandbox_run(opt: SandboxRunOpt) -> anyhow::Result<()> {
     let events_path = output_dir.join("events.log");
 
     let summary = format!(
-        "command=sandbox.run\nstatus=ok\nmode={}\nrun_id={run_id}\nconfig={}\nenvironment={}\ntrader_id={}\ninstance_id={}\nvenue={}\nadapter={}\ndata_source={}\ninstrument_id={}\nevents={}\nexecution_state=simulated\nrisk_state=simulated\nportfolio_state=simulated\ncache_state=in-memory\nnode_started=true\nnode_stopped=true\nshutdown_reason=once\nexternal_venue_connection=false\nreal_orders_submitted=false\nruntime_status=simulated_demo\n",
+        "command=sandbox.run\nstatus=ok\nmode={}\nrun_id={run_id}\nconfig={}\nenvironment={}\ntrader_id={}\ninstance_id={}\nvenue={}\nadapter={}\ndata_source={}\ninstrument_id={}\nevents={}\nexecution_state=simulated\nrisk_state=simulated\nportfolio_state=simulated\ncache_state=in-memory\nlive_node_started=false\nlive_node_stopped=false\nsimulated_lifecycle_status=completed\nshutdown_reason=once\nexternal_venue_connection=false\nreal_orders_submitted=false\nruntime_status=simulated_demo\n",
         config.run.mode,
         opt.config.display(),
         config.run.environment,
@@ -188,14 +188,14 @@ fn run_sandbox_run(opt: SandboxRunOpt) -> anyhow::Result<()> {
 
     let event_log = format!(
         "event=validate_config status=ok\n\
-         event=build_simulated_node status=ok trader_id={} instance_id={}\n\
-         event=node_start status=started environment={}\n\
+         event=simulate_node_build status=ok trader_id={} instance_id={}\n\
+         event=simulate_node_start status=ok environment={}\n\
          event=market_data status=loaded source={} instrument_id={} events={}\n\
          event=risk_check status=passed mode={} max_order_qty={}\n\
          event=execution status=simulated order_submission={} venue={}\n\
          event=portfolio_update status=simulated starting_balance={}\n\
          event=cache_update status=simulated mode={} warmup_instruments={}\n\
-         event=node_stop status=stopped shutdown_reason=once disconnect_timeout_secs={}\n",
+         event=simulate_node_stop status=ok shutdown_reason=once disconnect_timeout_secs={}\n",
         config.system.trader_id,
         config.system.instance_id,
         config.run.environment,
@@ -215,7 +215,7 @@ fn run_sandbox_run(opt: SandboxRunOpt) -> anyhow::Result<()> {
         .with_context(|| format!("failed to write events '{}'", events_path.display()))?;
 
     println!(
-        "sandbox.run status=ok mode={} run_id={} config={} output={} summary={} events={} node_started=true node_stopped=true data_source={} instrument_id={} event_count={} execution_state=simulated risk_state=simulated portfolio_state=simulated cache_state=in-memory external_venue_connection=false real_orders_submitted=false runtime_status=simulated_demo",
+        "sandbox.run status=ok mode={} run_id={} config={} output={} summary={} events={} live_node_started=false live_node_stopped=false simulated_lifecycle_status=completed data_source={} instrument_id={} event_count={} execution_state=simulated risk_state=simulated portfolio_state=simulated cache_state=in-memory external_venue_connection=false real_orders_submitted=false runtime_status=simulated_demo",
         config.run.mode,
         run_id,
         opt.config.display(),
@@ -468,14 +468,15 @@ write_summary = true
 
         let summary = fs::read_to_string(output_dir.join("summary.txt")).unwrap();
         assert!(summary.contains("command=sandbox.run"));
-        assert!(summary.contains("node_started=true"));
-        assert!(summary.contains("node_stopped=true"));
+        assert!(summary.contains("live_node_started=false"));
+        assert!(summary.contains("live_node_stopped=false"));
+        assert!(summary.contains("simulated_lifecycle_status=completed"));
         assert!(summary.contains("real_orders_submitted=false"));
 
         let events = fs::read_to_string(output_dir.join("events.log")).unwrap();
-        assert!(events.contains("event=node_start status=started"));
+        assert!(events.contains("event=simulate_node_start status=ok"));
         assert!(events.contains("event=risk_check status=passed"));
-        assert!(events.contains("event=node_stop status=stopped"));
+        assert!(events.contains("event=simulate_node_stop status=ok"));
     }
 
     #[test]
