@@ -14,6 +14,10 @@ Help-level support means the command exists, parses, prints help successfully,
 and can be used as a stable user-visible entrypoint. It does not mean the
 runtime workflow is fully implemented.
 
+Runtime capability status is tracked in
+`docs/rust-cutover/product/CLI_CAPABILITY_MATRIX.md` using the fixed statuses
+`implemented`, `simulated_demo`, `metadata_only`, and `deferred`.
+
 ## Default Help Surface
 
 The default `nautilus` binary exposes these top-level commands:
@@ -36,18 +40,18 @@ RHARD-003 help contract.
 | Command | Help status | Runtime status | Notes |
 | --- | --- | --- | --- |
 | `nautilus --help` | supported | n/a | Lists `backtest`, `sandbox`, `live`, `data`, `config`, and `database`. |
-| `nautilus backtest --help` | supported | deferred | Exposes `validate` and `run`; execution returns explicit blocker messages. |
-| `nautilus backtest validate --help` | supported | deferred | Requires `--config <CONFIG>`. |
-| `nautilus backtest run --help` | supported | partially supported | Requires `--config <CONFIG>` and accepts `--run-id`, `--output`, and `--dry-run`; RHARD-006 supports metadata-only dry-run. |
-| `nautilus sandbox --help` | supported | partially supported | Exposes `validate` and `run`; RHARD-004 supports a local simulated demo. |
-| `nautilus sandbox validate --help` | supported | partially supported | Requires `--config <CONFIG>`; validates the RHARD-004 demo config. |
-| `nautilus sandbox run --help` | supported | partially supported | Requires `--config <CONFIG>` and accepts `--run-id` plus `--output`; writes RHARD-004 demo artifacts. |
+| `nautilus backtest --help` | supported | mixed | Exposes `validate` and `run`; see the capability matrix for dry-run vs full-run status. |
+| `nautilus backtest validate --help` | supported | metadata_only | Requires `--config <CONFIG>`. |
+| `nautilus backtest run --help` | supported | metadata_only / deferred | Requires `--config <CONFIG>` and accepts `--run-id`, `--output`, and `--dry-run`; RHARD-006 supports metadata-only dry-run. |
+| `nautilus sandbox --help` | supported | simulated_demo | Exposes `validate` and `run` for the local simulated demo. |
+| `nautilus sandbox validate --help` | supported | simulated_demo | Requires `--config <CONFIG>`; validates the RHARD-004 demo config. |
+| `nautilus sandbox run --help` | supported | simulated_demo | Requires `--config <CONFIG>` and accepts `--run-id` plus `--output`; writes simulated demo artifacts without starting a real `LiveNode`. |
 | `nautilus live --help` | supported | deferred | Exposes `validate` and `run`; execution returns explicit blocker messages. |
 | `nautilus live validate --help` | supported | deferred | Requires `--config <CONFIG>`. |
 | `nautilus live run --help` | supported | deferred | Requires `--config <CONFIG>` and accepts `--run-id` plus `--output`. |
-| `nautilus data --help` | supported | partially supported | Exposes `inspect`, `validate`, and `load`; GH-156 supports local file/directory inspect and validate. |
-| `nautilus data inspect --help` | supported | partially supported | Requires `--config <CONFIG>` and accepts `--output`; inspects local catalog metadata. |
-| `nautilus data validate --help` | supported | partially supported | Requires `--config <CONFIG>`; validates local catalog readability and query shape. |
+| `nautilus data --help` | supported | metadata_only / deferred | Exposes `inspect`, `validate`, and `load`; GH-156 supports local file/directory inspect and validate. |
+| `nautilus data inspect --help` | supported | metadata_only | Requires `--config <CONFIG>` and accepts `--output`; inspects local catalog metadata. |
+| `nautilus data validate --help` | supported | metadata_only | Requires `--config <CONFIG>`; validates local catalog readability and query shape. |
 | `nautilus data load --help` | supported | deferred | Requires `--config <CONFIG>` and accepts `--run-id` plus `--output`. |
 | `nautilus config --help` | supported | supported | Exposes `validate`. |
 | `nautilus config validate --help` | supported | supported | Requires `--kind <backtest\|sandbox\|live\|data>` and `--config <CONFIG>`, accepts `--output`. |

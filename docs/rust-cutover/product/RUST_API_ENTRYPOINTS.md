@@ -52,6 +52,7 @@ The current Rust-first command contracts are documented in:
 - `docs/rust-cutover/product/LIVE_SANDBOX_CLI_CONTRACT.md`
 - `docs/rust-cutover/product/DATA_CATALOG_CLI_CONTRACT.md`
 - `docs/rust-cutover/product/CONFIG_VALIDATION_CLI_CONTRACT.md`
+- `docs/rust-cutover/product/CLI_CAPABILITY_MATRIX.md`
 
 Current help-level entrypoints:
 
@@ -63,8 +64,10 @@ cargo run -q -p nautilus-cli -- data --help
 cargo run -q -p nautilus-cli -- config --help
 ```
 
-Runtime execution for backtest, sandbox, live, data, and config commands still
-returns explicit blockers until later config-parser and runtime wiring tasks.
+Current CLI capability status is mixed. Some commands are implemented for a
+scoped validation path, some are metadata-only, some are simulated demos, and
+some remain deferred. Use `CLI_CAPABILITY_MATRIX.md` before documenting a CLI
+command as a runnable runtime path.
 
 ## Backtest Entrypoints
 

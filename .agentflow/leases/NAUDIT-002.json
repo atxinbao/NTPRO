@@ -1,0 +1,22 @@
+{
+  "task_id": "NAUDIT-002",
+  "agent_id": "Codex",
+  "branch": "codex/naudit-002-cli-capability-matrix",
+  "touched_paths": [
+    "crates/cli/src/sandbox.rs",
+    "crates/cli/src/opt.rs",
+    "docs/rust-cutover/product/CLI_CAPABILITY_MATRIX.md",
+    "docs/rust-cutover/product/CLI_HELP_CONTRACT.md",
+    "docs/rust-cutover/product/RUST_CLI_CONTRACT.md",
+    "docs/rust-cutover/product/LIVE_SANDBOX_CLI_CONTRACT.md",
+    "docs/rust-cutover/product/RUST_API_ENTRYPOINTS.md",
+    "docs/rust-cutover/product/RUST_PRODUCT_SURFACE_REPORT.md",
+    "docs/rust-cutover/evidence/NAUDIT-002.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/NAUDIT-002.json"
+  ],
+  "claimed_at": "2026-06-05T13:35:43Z",
+  "status": "PR_OPEN",
+  "updated_at": "2026-06-05T13:41:48Z",
+  "pr": 171
+}

@@ -95,7 +95,7 @@ pub struct SandboxOpt {
 pub enum SandboxCommand {
     /// Validates a Rust sandbox config without starting a node.
     Validate(SandboxValidateOpt),
-    /// Runs the simulated sandbox live-node demo from a validated config.
+    /// Writes simulated sandbox demo artifacts; real LiveNode wiring is not implemented yet.
     Run(SandboxRunOpt),
 }
 
@@ -533,6 +533,14 @@ mod tests {
         assert_eq!(run.config, PathBuf::from("config/sandbox.toml"));
         assert_eq!(run.run_id.as_deref(), Some("sandbox-smoke"));
         assert_eq!(run.output, Some(PathBuf::from("runs/sandbox-smoke")));
+    }
+
+    #[test]
+    fn sandbox_run_help_describes_simulated_boundary() {
+        let help = render_subcommand_help(&["sandbox", "run"]);
+
+        assert!(help.contains("simulated sandbox demo artifacts"));
+        assert!(help.contains("real LiveNode wiring is not implemented yet"));
     }
 
     #[test]

@@ -39,14 +39,15 @@ nautilus --features defi
 Current help-level status is documented in
 `docs/rust-cutover/product/CLI_HELP_CONTRACT.md`.
 
-Current runtime status:
+Current runtime status is summarized below and tracked in
+`docs/rust-cutover/product/CLI_CAPABILITY_MATRIX.md`:
 
 - `nautilus backtest validate` and `nautilus backtest run --dry-run` support
   the RHARD-006 metadata-only minimal path.
 - Full `nautilus backtest run` without `--dry-run` is exposed but intentionally
   returns a Rust blocker error.
-- `nautilus sandbox validate` and `nautilus sandbox run` are exposed but
-  intentionally return Rust blocker errors.
+- `nautilus sandbox validate` and `nautilus sandbox run` support the RHARD-004
+  local simulated demo. They do not start a real `LiveNode`.
 - `nautilus live validate` and `nautilus live run` are exposed but
   intentionally return Rust blocker errors.
 - `nautilus data inspect` and `nautilus data validate` support the GH-156 local
@@ -158,7 +159,8 @@ Minimum contract:
   market data.
 - RHARD-004 supports a local simulated sandbox demo from
   `examples/rust/sandbox/sandbox_smoke.toml`; full live-node runtime wiring
-  remains deferred.
+  remains deferred. CLI artifacts for this path must report
+  `runtime_status=simulated_demo` and `live_node_started=false`.
 
 Evidence needed before this command is considered usable:
 

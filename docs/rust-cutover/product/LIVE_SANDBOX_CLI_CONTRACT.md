@@ -11,24 +11,22 @@ This contract refines the `nautilus sandbox` and `nautilus live` surfaces from
 command shape, config boundary, lifecycle, shutdown behavior, output contract,
 and known blockers for later implementation tasks.
 
-This is a product contract only. RPROD-005 does not implement the commands.
+This document started as a product contract. RHARD-004 later added a local
+simulated sandbox demo through `nautilus sandbox validate` and
+`nautilus sandbox run`; full live-node runtime wiring remains deferred.
 
 ## Current Baseline
 
-After RPROD-004, `nautilus-cli` exposes `database` and `backtest` by default.
-The `backtest` command has help and parser coverage, but its execution path is
-intentionally blocked until later runtime tasks.
+The current CLI exposes `sandbox` and `live` by default.
 
-The live and sandbox product commands are not implemented yet:
+Current capability status is recorded in
+`docs/rust-cutover/product/CLI_CAPABILITY_MATRIX.md`.
 
-```text
-nautilus sandbox --help
-nautilus live --help
-```
-
-Current expected result: both commands exit non-zero with an unknown subcommand
-error. This is an owner-visible blocker until RPROD-006 or a later scoped task
-adds the CLI implementation.
+- `nautilus sandbox validate` validates the RHARD-004 local simulated demo
+  config.
+- `nautilus sandbox run` writes deterministic simulated demo artifacts.
+- `nautilus live validate` and `nautilus live run` are still deferred and return
+  explicit Rust blocker errors.
 
 ## Command Surface
 
@@ -76,8 +74,10 @@ Allowed Rust integration points:
 - shutdown settings are syntactically valid;
 - output settings are syntactically valid.
 
-`sandbox run` must emit startup and shutdown status. It may remain blocked until
-a scoped runtime smoke task proves a deterministic sandbox node lifecycle.
+`sandbox run` must not imply a real node lifecycle until real `LiveNode` wiring
+exists. The RHARD-004 CLI path writes simulated demo artifacts and reports
+`runtime_status=simulated_demo`, `live_node_started=false`, and
+`live_node_stopped=false`.
 
 ## Live Mode
 
@@ -276,10 +276,11 @@ live.validate status=ok config=<path> run_id=<id>
 - adapter support decision summary;
 - shutdown reason.
 
-The RHARD-004 sandbox demo also writes `summary.txt` and `events.log` with
-node start, synthetic data flow, simulated execution, risk, portfolio, cache,
-and node stop status. It explicitly reports `external_venue_connection=false`
-and `real_orders_submitted=false`.
+The RHARD-004 sandbox demo also writes `summary.txt` and `events.log` with a
+simulated lifecycle, synthetic data flow, simulated execution, risk, portfolio,
+and cache status. It explicitly reports `live_node_started=false`,
+`live_node_stopped=false`, `external_venue_connection=false`, and
+`real_orders_submitted=false`.
 
 Human-readable text is enough for the initial implementation. Machine-readable
 JSON output can be added later as an explicit `--format json` option.
@@ -323,7 +324,8 @@ The first lifecycle smoke must also prove:
 
 ## Known Blockers
 
-- `nautilus live` is not implemented in the current CLI.
+- `nautilus live validate` and `nautilus live run` are not implemented in the
+  current CLI.
 - Full live-node runtime wiring is not implemented in the current CLI.
 - Adapter support for live mode is not classified by the CLI.
 - Production live adapter behavior requires adapter evidence and explicit task

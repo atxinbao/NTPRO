@@ -2630,7 +2630,7 @@
     },
     "NAUDIT-002": {
       "title": "CLI capability matrix and stub honesty cleanup",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2641,8 +2641,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/NAUDIT-002.md",
       "evidence_file": "docs/rust-cutover/evidence/NAUDIT-002.md",
-      "updated_at": "2026-06-05T13:20:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-05T13:41:48Z",
+      "local_backlog": true,
+      "started_at": "2026-06-05T13:35:43Z",
+      "branch": "codex/naudit-002-cli-capability-matrix",
+      "pr": 171
     },
     "NAUDIT-003": {
       "title": "Unignore passing production-bug cache tests",
