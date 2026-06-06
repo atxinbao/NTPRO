@@ -15,11 +15,13 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
         with:
-          toolchain: stable
+          toolchain: 1.95.0
           components: rustfmt
           cache: false
           override: true
       - name: Fast verification
+        env:
+          VERIFY_FAST_CARGO_CHECK: "1"
         run: scripts/ai/verify_fast.sh
       - name: Golden trace schema smoke
         run: python scripts/ai/golden_trace_runner.py tests/golden/schema_smoke.jsonl --mode validate-only
