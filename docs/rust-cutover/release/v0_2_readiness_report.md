@@ -2,7 +2,40 @@
 
 Date: 2026-06-06
 Executor: Codex
-Task ID: NQA-001, DRG-001, DRG-002, DRG-003, DRG-004, DRG-005, DRG-006, DRG-007, DRG-008, DRG-009
+Task ID: NQA-001, DRG-001, DRG-002, DRG-003, DRG-004, DRG-005, DRG-006, DRG-007, DRG-008, DRG-009, DRG-010
+
+## DRG-010 Final Update
+
+Date: 2026-06-06
+Executor: Codex
+
+```text
+Design Readiness Gate: PASS
+G0 State consistency: PASS
+G1 Toolchain consistency: PASS
+G2 Full verification: PASS
+G3 Core crate tests: PASS
+G4 Product CLI paths: PASS
+G5 Runtime panic zero: PASS
+G6 Live cancellation proof: PASS
+G7 Ignored test closure: PASS
+G8 Executable trace evidence: PASS
+G9 Final design-readiness audit: PASS
+```
+
+DRG-010 完成了最终设计就绪审计。GitHub 当前没有 open PR 或 open issue；
+Shrimp MCP 显示 10 个 `V02-*` pending、`DRG-010` in progress、148 个 completed、
+0 个 blocked；`scripts/ai/verify_fast.sh` 和 `scripts/ai/verify_full.sh`
+均已通过。
+
+`Design Readiness Gate: PASS` 只表示可以进入下一阶段产品设计和受控实现。
+这不等于 v0.2 tag-ready，不创建 tag，不发布 GitHub Release，也不表示
+dashboard、control API、真实 live trading 产品或 manual order entry 已实现。
+
+当前下一步是 `V02-001 Scope decision and roadmap rewrite`。
+
+下面的 `DRG-001 Update` 保留为历史记录，用于说明从初始 `FAIL` 收口到最终
+`PASS` 的过程；当前有效结论以上面的 DRG-010 Final Update 为准。
 
 ## DRG-001 Update
 
@@ -100,8 +133,9 @@ schema-only row。DRG-009 是 high-risk 任务，状态停在 `REVIEW_REQUIRED`�
 DRG-002 -> DRG-003 -> DRG-004 -> DRG-006 -> DRG-007 -> DRG-008 -> DRG-005 -> DRG-009 -> DRG-010
 ```
 
-DRG-009 当前在本分支完成实现和验证，等待 high-risk review/merge。合并后再继续
-DRG-010。
+DRG-009 已通过 PR #189 合并到 main。DRG-010 已完成最终审计并记录
+`Design Readiness Gate: PASS`。下一阶段任务应从 `V02-001` 开始，不能跳过
+scope decision 直接进入 dashboard/control API 或正式 live trading 产品实现。
 
 ## 中文结论
 
@@ -146,10 +180,10 @@ endpoints, adapter behavior, trading semantics, or release tagging.
 
 ## Tag Readiness
 
-Status: not tag-ready.
+Status: design-ready, not tag-ready.
 
-The 9 closeout tasks are complete as scoped, but v0.2 should not be tagged until
-the audit backlog is reduced or explicitly scoped by the release gatekeeper.
+DRG-010 允许进入下一阶段产品设计，但 v0.2 tag 仍必须等 `V02-*` scope、产品
+contract、runtime evidence 和 release gate 完成后再决策。
 
 ## Blockers And Follow-Up Mapping
 
@@ -167,7 +201,7 @@ the audit backlog is reduced or explicitly scoped by the release gatekeeper.
 
 Do not create a v0.2 tag yet.
 
-Recommended next execution order:
+Recommended next execution order before the DRG-010 final pass was:
 
 1. `NAUDIT-002` - CLI capability matrix and stub honesty cleanup.
 2. `NAUDIT-003` - unignore passing production-bug cache tests.
@@ -177,6 +211,12 @@ Recommended next execution order:
    approval because it touches root package metadata and gate behavior.
 6. Decide whether `NAUDIT-004` and `NAUDIT-006` are v0.2 blockers or later
    high-risk hardening tasks.
+
+After DRG-010, the next execution order is now:
+
+1. `V02-001` - Scope decision and roadmap rewrite.
+2. `V02-002` - Node and Supervisor product contract.
+3. Continue `V02-*` only after each prior task passes its local evidence gate.
 
 ## Behavior And API Impact
 

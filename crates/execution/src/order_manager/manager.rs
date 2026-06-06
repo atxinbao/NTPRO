@@ -970,7 +970,7 @@ mod tests {
 
         cache
             .borrow_mut()
-            .add_order(order.clone(), None, None, false)
+            .add_order(order, None, None, false)
             .unwrap();
 
         if let OrderEventAny::Filled(filled) = filled {

@@ -2766,7 +2766,9 @@
       "updated_at": "2026-06-05T16:16:32Z",
       "local_backlog": true,
       "started_at": "2026-06-05T16:10:00Z",
-      "branch": "codex/DRG-001-state-convergence-and-readiness-report-refresh"
+      "branch": "codex/DRG-001-state-convergence-and-readiness-report-refresh",
+      "pr": 179,
+      "merged_at": "2026-06-05T16:16:09Z"
     },
     "DRG-002": {
       "title": "Toolchain default convergence",
@@ -2782,11 +2784,13 @@
       "source_task_file": "docs/rust-cutover/tasks/DRG-002.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-002.md",
       "updated_at": "2026-06-05T16:21:26Z",
-      "local_backlog": true
+      "local_backlog": true,
+      "pr": 180,
+      "merged_at": "2026-06-05T16:21:19Z"
     },
     "DRG-003": {
       "title": "Full verification gate",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -2797,12 +2801,14 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-003.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-003.md",
-      "updated_at": "2026-06-05T20:02:48Z",
-      "local_backlog": true
+      "updated_at": "2026-06-06T00:37:00Z",
+      "local_backlog": true,
+      "pr": 181,
+      "merged_at": "2026-06-05T20:08:01Z"
     },
     "DRG-004": {
       "title": "Core crates full targeted tests",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "rust_core_runtime_agent",
       "risk_level": "medium",
@@ -2813,12 +2819,14 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-004.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-004.md",
-      "updated_at": "2026-06-05T20:41:16Z",
-      "local_backlog": true
+      "updated_at": "2026-06-06T00:37:00Z",
+      "local_backlog": true,
+      "pr": 182,
+      "merged_at": "2026-06-05T20:44:08Z"
     },
     "DRG-005": {
       "title": "Real minimal CLI product paths",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -2829,8 +2837,10 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-005.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-005.md",
-      "updated_at": "2026-06-05T23:07:19Z",
-      "local_backlog": true
+      "updated_at": "2026-06-06T00:37:00Z",
+      "local_backlog": true,
+      "pr": 188,
+      "merged_at": "2026-06-05T23:12:57Z"
     },
     "DRG-006": {
       "title": "Product-reachable panic classification and zero gate",
@@ -2846,7 +2856,9 @@
       "source_task_file": "docs/rust-cutover/tasks/DRG-006.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-006.md",
       "updated_at": "2026-06-05T21:26:56Z",
-      "local_backlog": true
+      "local_backlog": true,
+      "pr": 183,
+      "merged_at": "2026-06-05T21:25:40Z"
     },
     "DRG-007": {
       "title": "Live adapter cancellation proof closure",
@@ -2862,11 +2874,15 @@
       "source_task_file": "docs/rust-cutover/tasks/DRG-007.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-007.md",
       "updated_at": "2026-06-05T21:54:25Z",
-      "local_backlog": true
+      "local_backlog": true,
+      "pr": 185,
+      "merged_at": "2026-06-05T21:53:15Z",
+      "state_closeout_pr": 186,
+      "state_closeout_merged_at": "2026-06-05T21:56:11Z"
     },
     "DRG-008": {
       "title": "High-impact ignored tests closure",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "rust_core_runtime_agent",
       "risk_level": "high",
@@ -2877,12 +2893,14 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-008.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-008.md",
-      "updated_at": "2026-06-05T22:15:40Z",
-      "local_backlog": true
+      "updated_at": "2026-06-06T00:37:00Z",
+      "local_backlog": true,
+      "pr": 187,
+      "merged_at": "2026-06-05T22:27:25Z"
     },
     "DRG-009": {
       "title": "Executable trace gate",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "rust_core_runtime_agent",
       "risk_level": "high",
@@ -2893,13 +2911,15 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-009.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-009.md",
-      "updated_at": "2026-06-06T00:00:00Z",
+      "updated_at": "2026-06-06T00:37:00Z",
       "local_backlog": true,
-      "evidence_summary": "G8 executable trace evidence PASS in branch: run_golden_traces, targeted market-data/order-lifecycle/risk tests, manifest validation, and verify_fast passed. High-risk task stops at REVIEW_REQUIRED."
+      "pr": 189,
+      "merged_at": "2026-06-06T00:21:49Z",
+      "evidence_summary": "G8 executable trace evidence PASS on main after PR #189 merge: run_golden_traces, targeted market-data/order-lifecycle/risk tests, manifest validation, verify_fast, and verify_full passed."
     },
     "DRG-010": {
       "title": "Final design-readiness audit",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -2910,8 +2930,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-010.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-010.md",
-      "updated_at": "2026-06-05T16:10:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-06T04:10:00Z",
+      "local_backlog": true,
+      "evidence_summary": "G9 final audit records Design Readiness Gate: PASS after DRG-001 through DRG-009 evidence review, no open GitHub PR/issues, Shrimp DRG-010 in progress with V02 tasks pending, verify_fast PASS, verify_full PASS, and final design_readiness_report.md created."
     },
     "NCTL-001": {
       "title": "Register GitHub audit issues and v0.2 backlog",
@@ -2931,5 +2952,5 @@
       "merged_at": "2026-06-05T13:17:44Z"
     }
   },
-  "updated_at": "2026-06-05T22:15:40Z"
+  "updated_at": "2026-06-06T04:10:00Z"
 }

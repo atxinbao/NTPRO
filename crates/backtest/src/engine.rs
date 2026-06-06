@@ -1615,7 +1615,7 @@ fn log_portfolio_performance(analyzer: &PortfolioAnalyzer) {
 
 #[cfg(test)]
 mod tests {
-    use nautilus_common::{enums::Environment, nautilus_actor};
+    use nautilus_common::{enums::Environment, logging::logger::LoggerConfig, nautilus_actor};
     use nautilus_execution::engine::SnapshotAnchorer;
     use nautilus_model::{
         data::{Data, InstrumentStatus},
@@ -1731,8 +1731,19 @@ mod tests {
         }
     }
 
+    fn test_engine_config() -> BacktestEngineConfig {
+        BacktestEngineConfig {
+            logging: LoggerConfig {
+                bypass_logging: true,
+                ..Default::default()
+            },
+            run_analysis: false,
+            ..Default::default()
+        }
+    }
+
     fn create_engine() -> BacktestEngine {
-        let mut engine = BacktestEngine::new(BacktestEngineConfig::default()).unwrap();
+        let mut engine = BacktestEngine::new(test_engine_config()).unwrap();
         let venue_config = SimulatedVenueConfig::builder()
             .venue(Venue::from("BINANCE"))
             .oms_type(OmsType::Netting)
@@ -1747,8 +1758,7 @@ mod tests {
     fn create_engine_with_replay_store(fail_restore: bool) -> BacktestEngine {
         let config = BacktestEngineConfig {
             load_state: true,
-            run_analysis: false,
-            ..Default::default()
+            ..test_engine_config()
         };
         let mut engine = BacktestEngine::new(config.clone()).unwrap();
         let event_store_factory = move |_instance_id: UUID4, _clock: Rc<RefCell<dyn Clock>>| {

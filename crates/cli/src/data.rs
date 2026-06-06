@@ -135,7 +135,7 @@ fn run_data_load(opt: &DataLoadOpt) -> anyhow::Result<()> {
     validate_load_scope(source, mapping)?;
 
     let row_count = count_csv_data_rows(&source.path, &mapping.timestamp_column)?;
-    let output_dir = resolve_data_output_dir(&config, opt)?;
+    let output_dir = resolve_data_output_dir(&config, opt);
     let catalog_file = write_fixture_catalog_copy(&config, source, mapping)?;
     let summary = format_data_load_summary(
         &config,
@@ -192,7 +192,7 @@ fn load_data_catalog_config(path: &Path) -> anyhow::Result<DataCatalogConfig> {
         None
     };
     let output = if run_mode == "load" {
-        Some(parse_output_config(&value, path)?)
+        Some(parse_output_config(&value, path))
     } else {
         None
     };
@@ -282,15 +282,12 @@ fn parse_load_mapping(config: &toml::Value) -> anyhow::Result<DataLoadMapping> {
     })
 }
 
-fn parse_output_config(
-    config: &toml::Value,
-    config_path: &Path,
-) -> anyhow::Result<DataOutputConfig> {
+fn parse_output_config(config: &toml::Value, config_path: &Path) -> DataOutputConfig {
     let Some(output) = config.get("output").and_then(toml::Value::as_table) else {
-        return Ok(DataOutputConfig {
+        return DataOutputConfig {
             dir: None,
             write_summary: true,
-        });
+        };
     };
     let dir = optional_non_empty_string(output, "dir")
         .map(|path| resolve_config_relative_path(config_path, &path));
@@ -298,7 +295,7 @@ fn parse_output_config(
         .get("write_summary")
         .and_then(toml::Value::as_bool)
         .unwrap_or(true);
-    Ok(DataOutputConfig { dir, write_summary })
+    DataOutputConfig { dir, write_summary }
 }
 
 fn ensure_inspect_or_validate_mode(
@@ -494,19 +491,16 @@ fn format_data_load_summary(
     lines.join("\n")
 }
 
-fn resolve_data_output_dir(
-    config: &DataCatalogConfig,
-    opt: &DataLoadOpt,
-) -> anyhow::Result<PathBuf> {
+fn resolve_data_output_dir(config: &DataCatalogConfig, opt: &DataLoadOpt) -> PathBuf {
     if let Some(output) = &opt.output {
-        return Ok(output.clone());
+        return output.clone();
     }
     if let Some(output) = &config.output
         && let Some(dir) = &output.dir
     {
-        return Ok(dir.clone());
+        return dir.clone();
     }
-    Ok(PathBuf::from("runs").join(&config.run_id))
+    PathBuf::from("runs").join(&config.run_id)
 }
 
 fn write_fixture_catalog_copy(
@@ -543,8 +537,11 @@ fn count_csv_data_rows(path: &Path, timestamp_column: &str) -> anyhow::Result<us
             path.display()
         )
     })?;
-    let columns = header.split(',').map(str::trim).collect::<Vec<_>>();
-    if !columns.contains(&timestamp_column) {
+    if !header
+        .split(',')
+        .map(str::trim)
+        .any(|column| column == timestamp_column)
+    {
         anyhow::bail!(
             "source fixture '{}' must contain timestamp column '{}'",
             path.display(),
