@@ -3157,7 +3157,7 @@
     },
     "V02-010": {
       "title": "v0.2 readiness report",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -3171,10 +3171,13 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-010.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-010.md",
-      "updated_at": "2026-06-06T13:14:20Z",
+      "updated_at": "2026-06-06T13:23:13Z",
       "local_backlog": true,
-      "evidence_summary": "V02-010 adds the final Local Multi-Node Runtime Foundation readiness report, declares V02 PASS for V02-001 through V02-010, and preserves release/tag boundaries."
+      "evidence_summary": "V02-010 merged in PR #201 with smoke passing; Local Multi-Node Runtime Foundation readiness report is closed as DONE.",
+      "pr": 201,
+      "merged_at": "2026-06-06T13:20:19Z",
+      "merge_commit": "b26efe51307387de6ece62a299f03c760136fe31"
     }
   },
-  "updated_at": "2026-06-06T13:14:20Z"
+  "updated_at": "2026-06-06T13:23:13Z"
 }
