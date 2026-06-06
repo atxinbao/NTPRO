@@ -32,6 +32,7 @@ use nautilus_model::{
 };
 use nautilus_sandbox::{SandboxExecutionClientConfig, SandboxExecutionClientFactory};
 use serde::Deserialize;
+use tokio::time::{Duration, sleep};
 
 use crate::opt::{LiveCommand, LiveOpt, LiveRunOpt, LiveValidateOpt};
 
@@ -128,13 +129,14 @@ fn run_live_validate(opt: &LiveValidateOpt) -> anyhow::Result<()> {
 }
 
 async fn run_live_run(opt: &LiveRunOpt) -> anyhow::Result<()> {
-    run_live_run_with_command(opt, "live.run", ProcessMode::TestHarness).await
+    run_live_run_with_command(opt, "live.run", ProcessMode::TestHarness, None).await
 }
 
 pub(crate) async fn run_ntpro_node(
     config: PathBuf,
     run_id: Option<String>,
     output: Option<PathBuf>,
+    stop_file: Option<PathBuf>,
 ) -> anyhow::Result<()> {
     run_live_run_with_command(
         &LiveRunOpt {
@@ -144,6 +146,7 @@ pub(crate) async fn run_ntpro_node(
         },
         "ntpro-node.run",
         ProcessMode::SpawnedProcess,
+        stop_file.as_deref(),
     )
     .await
 }
@@ -152,6 +155,7 @@ async fn run_live_run_with_command(
     opt: &LiveRunOpt,
     command_name: &str,
     process_mode: ProcessMode,
+    stop_file: Option<&Path>,
 ) -> anyhow::Result<()> {
     let config = load_minimal_live_config(&opt.config)?;
     let run_id = opt.run_id.as_deref().unwrap_or(config.run.id.as_str());
@@ -165,7 +169,16 @@ async fn run_live_run_with_command(
     let events_path = output_dir.join("events.log");
     let status_path = output_dir.join("status.json");
 
-    let smoke = run_live_init_smoke(&config).await?;
+    let context = LiveRunContext {
+        config: &config,
+        config_path: &opt.config,
+        run_id,
+        output_dir: &output_dir,
+        process_mode,
+        status_path: &status_path,
+        stop_file,
+    };
+    let smoke = run_live_init_smoke(&context).await?;
     let status = build_node_status(
         &config,
         &opt.config,
@@ -315,7 +328,19 @@ struct LiveSmokeResult {
     account_cached: bool,
 }
 
-async fn run_live_init_smoke(config: &MinimalLiveConfig) -> anyhow::Result<LiveSmokeResult> {
+#[derive(Clone, Copy)]
+struct LiveRunContext<'a> {
+    config: &'a MinimalLiveConfig,
+    config_path: &'a Path,
+    run_id: &'a str,
+    output_dir: &'a Path,
+    process_mode: ProcessMode,
+    status_path: &'a Path,
+    stop_file: Option<&'a Path>,
+}
+
+async fn run_live_init_smoke(context: &LiveRunContext<'_>) -> anyhow::Result<LiveSmokeResult> {
+    let config = context.config;
     let trader_id = TraderId::from(config.system.trader_id.as_str());
     let account_id = AccountId::from(config.adapter.account_id.as_str());
     let venue = Venue::from(config.adapter.venue.as_str());
@@ -371,6 +396,18 @@ async fn run_live_init_smoke(config: &MinimalLiveConfig) -> anyhow::Result<LiveS
         anyhow::bail!("live-init-smoke expected sandbox account to be cached");
     }
 
+    if let Some(stop_file) = context.stop_file {
+        let running_status = build_node_status_for_state(
+            context,
+            NodeState::Running,
+            LifecycleStatus::Starting,
+            ConnectionStatus::Disconnected,
+            true,
+        );
+        write_status(context.status_path, &running_status)?;
+        wait_for_stop_file(stop_file).await?;
+    }
+
     node.stop().await?;
     let final_state = format!("{:?}", handle.state());
     if handle.state() != NodeState::Stopped {
@@ -395,17 +432,43 @@ fn build_node_status(
     process_mode: ProcessMode,
     smoke: &LiveSmokeResult,
 ) -> NodeStatus {
-    let mut status = NodeStatus::from_node_state(node_id(config, run_id), smoke.final_node_state);
-    status.process_mode = process_mode;
-    status.config_path = SnapshotValue::available(config_path.display().to_string());
-    status.artifact_root = SnapshotValue::available(output_dir.display().to_string());
-    status.previous_lifecycle_state = LifecycleStatus::Running;
+    let context = LiveRunContext {
+        config,
+        config_path,
+        run_id,
+        output_dir,
+        process_mode,
+        status_path: Path::new("status.json"),
+        stop_file: None,
+    };
+    build_node_status_for_state(
+        &context,
+        smoke.final_node_state,
+        LifecycleStatus::Running,
+        ConnectionStatus::Disconnected,
+        false,
+    )
+}
+
+fn build_node_status_for_state(
+    context: &LiveRunContext<'_>,
+    state: NodeState,
+    previous_lifecycle_state: LifecycleStatus,
+    execution_connection: ConnectionStatus,
+    execution_started: bool,
+) -> NodeStatus {
+    let config = context.config;
+    let mut status = NodeStatus::from_node_state(node_id(config, context.run_id), state);
+    status.process_mode = context.process_mode;
+    status.config_path = SnapshotValue::available(context.config_path.display().to_string());
+    status.artifact_root = SnapshotValue::available(context.output_dir.display().to_string());
+    status.previous_lifecycle_state = previous_lifecycle_state;
     status.data_connection = ConnectionStatus::NotConfigured;
-    status.execution_connection = ConnectionStatus::Disconnected;
+    status.execution_connection = execution_connection;
     status.execution = ExecutionStatus {
         gateway_id: SnapshotValue::available(config.adapter.name.clone()),
-        connection: ConnectionStatus::Disconnected,
-        started: SnapshotValue::available(false),
+        connection: execution_connection,
+        started: SnapshotValue::available(execution_started),
         account_ref: SnapshotValue::available("configured".to_string()),
         orders_open: SnapshotValue::unknown(),
         orders_inflight: SnapshotValue::unknown(),
@@ -415,6 +478,22 @@ fn build_node_status(
         last_error: None,
     };
     status
+}
+
+fn write_status(path: &Path, status: &NodeStatus) -> anyhow::Result<()> {
+    let status_json = serde_json::to_string_pretty(status)?;
+    fs::write(path, format!("{status_json}\n"))
+        .with_context(|| format!("failed to write status '{}'", path.display()))?;
+    Ok(())
+}
+
+async fn wait_for_stop_file(path: &Path) -> anyhow::Result<()> {
+    loop {
+        if path.exists() {
+            return Ok(());
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
 }
 
 fn node_id<'a>(config: &'a MinimalLiveConfig, run_id: &'a str) -> &'a str {
@@ -579,7 +658,7 @@ write_summary = true
             std::env::temp_dir().join(format!("ntpro-v02-004-node-run-{}", std::process::id()));
         let path = write_config("ntpro-node", &minimal_config(&output_dir));
 
-        run_ntpro_node(path, Some("sandbox-a".to_string()), None)
+        run_ntpro_node(path, Some("sandbox-a".to_string()), None, None)
             .await
             .unwrap();
 

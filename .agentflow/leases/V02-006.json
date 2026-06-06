@@ -1,0 +1,36 @@
+{
+  "task_id": "V02-006",
+  "agent_id": "Codex",
+  "branch": "codex/V02-006-supervisor-start-stop-status",
+  "touched_paths": [
+    "crates/cli/src/bin/ntpro_node.rs",
+    "crates/cli/src/lib.rs",
+    "crates/cli/src/live.rs",
+    "crates/cli/src/supervisor.rs",
+    "docs/rust-cutover/evidence/V02-006.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/V02-006.json"
+  ],
+  "claimed_at": "2026-06-06T08:50:41.964489+00:00",
+  "status": "REVIEW_REQUIRED",
+  "updated_at": "2026-06-06T09:04:57Z",
+  "validation_summary": {
+    "cargo_fmt_check": "PASS",
+    "cargo_check_nautilus_cli_lib": "PASS: CARGO_INCREMENTAL=0 cargo check -p nautilus-cli --lib",
+    "cargo_check_nautilus_cli_bins": "PASS: CARGO_INCREMENTAL=0 cargo check -p nautilus-cli --bins",
+    "cargo_test_nautilus_cli_supervisor": "PASS: 6 passed, 0 failed, 0 ignored, 49 filtered out",
+    "cargo_test_nautilus_cli_live": "PASS: 4 passed, 0 failed, 0 ignored, 51 filtered out",
+    "cargo_build_ntpro_node": "PASS",
+    "ntpro_node_stop_file_smoke": "PASS: running then stopped, external_venue_connection=false, real_orders_submitted=false",
+    "verify_fast": "PASS",
+    "validate_agentflow_roles": "PASS",
+    "json_validation": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "notes": [
+    "V02-006 is high risk runtime-facing work.",
+    "Stop at REVIEW_REQUIRED before merge.",
+    "Do not enable auto-merge.",
+    "No Dashboard, control API, production venue connectivity, manual order entry, or real order submission was added."
+  ]
+}

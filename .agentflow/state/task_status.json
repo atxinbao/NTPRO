@@ -3043,7 +3043,7 @@
     },
     "V02-005": {
       "title": "ntpro-supervisor registry",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3057,13 +3057,15 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-005.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-005.md",
-      "updated_at": "2026-06-06T08:46:02Z",
+      "updated_at": "2026-06-06T09:04:57Z",
       "local_backlog": true,
-      "evidence_summary": "V02-005 adds a file-backed supervisor registry support module for node_id/config/artifact/pid/status/metrics/log paths and last known status, with tests for add/update/remove/list plus stale pid and status artifact behavior; it does not implement start/stop/status commands or CLI controls."
+      "evidence_summary": "V02-005 adds a file-backed supervisor registry support module for node_id/config/artifact/pid/status/metrics/log paths and last known status, with tests for add/update/remove/list plus stale pid and status artifact behavior; it does not implement start/stop/status commands or CLI controls.",
+      "pr": 196,
+      "merged_at": "2026-06-06T08:49:33Z"
     },
     "V02-006": {
       "title": "supervisor start stop status",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -3077,8 +3079,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-006.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-006.md",
-      "updated_at": "2026-06-06T04:30:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-06T09:04:57Z",
+      "local_backlog": true,
+      "evidence_summary": "V02-006 adds ntpro-node stop-file mode plus supervisor start/stop/status support, with tests and smoke evidence proving running then stopped status, duplicate start/stop errors, external_venue_connection=false, and real_orders_submitted=false; it stops at REVIEW_REQUIRED because the task is high risk."
     },
     "V02-007": {
       "title": "logs and minimal metrics JSON",

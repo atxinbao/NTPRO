@@ -17,7 +17,9 @@ use std::{
     collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
+    process::{Command, Stdio},
+    thread,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{Context, ensure};
@@ -114,6 +116,19 @@ pub struct RegisterNodeRequest {
     pub node_id: String,
     pub config_path: PathBuf,
     pub artifact_root: Option<PathBuf>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StartNodeRequest {
+    pub node_id: String,
+    pub ntpro_node_bin: PathBuf,
+    pub startup_timeout: Duration,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StopNodeRequest {
+    pub node_id: String,
+    pub stop_timeout: Duration,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -331,12 +346,170 @@ impl SupervisorRegistryStore {
         Ok(removed)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the node is missing, already running, the
+    /// `ntpro-node` process cannot be spawned, or the running status artifact
+    /// is not observed before the timeout.
+    pub fn start_node_process(
+        &self,
+        request: StartNodeRequest,
+    ) -> anyhow::Result<SupervisorNodeRecord> {
+        validate_node_id(&request.node_id)?;
+        ensure!(
+            request.ntpro_node_bin.exists(),
+            "ntpro-node binary '{}' does not exist",
+            request.ntpro_node_bin.display()
+        );
+
+        let mut registry = self.load()?;
+        let record = registry
+            .nodes
+            .get_mut(&request.node_id)
+            .with_context(|| format!("node '{}' is not registered", request.node_id))?;
+        ensure!(
+            record.process.state != SupervisorProcessState::Running,
+            "node '{}' is already running",
+            request.node_id
+        );
+        ensure!(
+            record.config_path.exists(),
+            "config path '{}' does not exist",
+            record.config_path.display()
+        );
+        create_node_dirs(&record.artifact_root)?;
+        let stop_file = stop_file_path(record);
+        if stop_file.exists() {
+            fs::remove_file(&stop_file).with_context(|| {
+                format!("failed to remove stale stop file '{}'", stop_file.display())
+            })?;
+        }
+
+        let child = Command::new(&request.ntpro_node_bin)
+            .arg("--config")
+            .arg(&record.config_path)
+            .arg("--run-id")
+            .arg(&record.node_id)
+            .arg("--output")
+            .arg(&record.artifact_root)
+            .arg("--stop-file")
+            .arg(&stop_file)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .with_context(|| {
+                format!(
+                    "failed to spawn ntpro-node '{}'",
+                    request.ntpro_node_bin.display()
+                )
+            })?;
+
+        record.process = SupervisorProcessRecord {
+            pid: SnapshotValue::available(child.id()),
+            state: SupervisorProcessState::Running,
+            updated_at: SnapshotValue::available(now_millis()),
+        };
+        write_or_remove_pid_artifact(record)?;
+        record.updated_at = SnapshotValue::available(now_millis());
+        registry.updated_at = SnapshotValue::available(now_millis());
+        self.save(&registry)?;
+
+        wait_for_lifecycle(
+            self,
+            &request.node_id,
+            LifecycleStatus::Running,
+            request.startup_timeout,
+        )
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error if the node is missing, not running, the stop request
+    /// cannot be written, or the stopped status artifact is not observed before
+    /// the timeout.
+    pub fn stop_node_process(
+        &self,
+        request: StopNodeRequest,
+    ) -> anyhow::Result<SupervisorNodeRecord> {
+        validate_node_id(&request.node_id)?;
+        let mut registry = self.load()?;
+        let record = registry
+            .nodes
+            .get_mut(&request.node_id)
+            .with_context(|| format!("node '{}' is not registered", request.node_id))?;
+        ensure!(
+            record.process.state == SupervisorProcessState::Running,
+            "node '{}' is not running",
+            request.node_id
+        );
+        let stop_file = stop_file_path(record);
+        if let Some(parent) = stop_file.parent() {
+            fs::create_dir_all(parent).with_context(|| {
+                format!("failed to create stop directory '{}'", parent.display())
+            })?;
+        }
+        fs::write(&stop_file, format!("{}\n", now_millis()))
+            .with_context(|| format!("failed to write stop file '{}'", stop_file.display()))?;
+        drop(registry);
+
+        let mut stopped = wait_for_lifecycle(
+            self,
+            &request.node_id,
+            LifecycleStatus::Stopped,
+            request.stop_timeout,
+        )?;
+        stopped.process = SupervisorProcessRecord {
+            pid: SnapshotValue::not_configured(),
+            state: SupervisorProcessState::Stopped,
+            updated_at: SnapshotValue::available(now_millis()),
+        };
+
+        let mut registry = self.load()?;
+        registry.nodes.insert(request.node_id, stopped.clone());
+        registry.updated_at = SnapshotValue::available(now_millis());
+        self.save(&registry)?;
+        Ok(stopped)
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error if the node is missing or the registry/status artifact
+    /// cannot be read.
+    pub fn node_status(&self, node_id: &str) -> anyhow::Result<NodeStatus> {
+        validate_node_id(node_id)?;
+        let record = self.refresh_status_from_artifact(node_id)?;
+        Ok(record.last_known_status)
+    }
+
     fn default_node_artifact_root(&self, node_id: &str) -> PathBuf {
         self.registry_path
             .parent()
             .unwrap_or_else(|| Path::new("."))
             .join("nodes")
             .join(node_id)
+    }
+}
+
+fn stop_file_path(record: &SupervisorNodeRecord) -> PathBuf {
+    record.artifact_root.join("stop.request")
+}
+
+fn wait_for_lifecycle(
+    store: &SupervisorRegistryStore,
+    node_id: &str,
+    expected: LifecycleStatus,
+    timeout: Duration,
+) -> anyhow::Result<SupervisorNodeRecord> {
+    let started = SystemTime::now();
+    loop {
+        let record = store.refresh_status_from_artifact(node_id)?;
+        if record.last_known_status.lifecycle_state == expected {
+            return Ok(record);
+        }
+        if started.elapsed().is_ok_and(|elapsed| elapsed >= timeout) {
+            anyhow::bail!("timed out waiting for node '{node_id}' to reach {expected:?}");
+        }
+        thread::sleep(Duration::from_millis(100));
     }
 }
 
@@ -473,6 +646,9 @@ fn now_millis() -> String {
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
+
     fn temp_root(name: &str) -> PathBuf {
         let root = std::env::temp_dir().join(format!(
             "ntpro-v02-005-supervisor-{name}-{}",
@@ -486,6 +662,119 @@ mod tests {
     fn write_config(root: &Path, name: &str) -> PathBuf {
         let path = root.join(format!("{name}.toml"));
         fs::write(&path, "[run]\nid = \"live-init-smoke\"\n").unwrap();
+        path
+    }
+
+    #[cfg(unix)]
+    fn write_fixture_node(root: &Path) -> PathBuf {
+        let path = root.join("fixture-ntpro-node.sh");
+        fs::write(
+            &path,
+            r#"#!/bin/sh
+set -eu
+node_id=""
+output=""
+stop_file=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --run-id) node_id="$2"; shift 2 ;;
+    --output) output="$2"; shift 2 ;;
+    --stop-file) stop_file="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+mkdir -p "$output"
+cat > "$output/status.json" <<EOF
+{
+  "schema_version": "ntpro.node_status.v1",
+  "node_id": "$node_id",
+  "process_mode": "spawned_process",
+  "config_path": {"availability": "available", "value": "fixture.toml"},
+  "artifact_root": {"availability": "available", "value": "$output"},
+  "lifecycle_state": "running",
+  "previous_lifecycle_state": "starting",
+  "data_connection": "not_configured",
+  "execution_connection": "disconnected",
+  "execution": {
+    "gateway_id": {"availability": "available", "value": "SANDBOX"},
+    "connection": "disconnected",
+    "started": {"availability": "available", "value": true},
+    "account_ref": {"availability": "available", "value": "configured"},
+    "orders_open": {"availability": "unknown"},
+    "orders_inflight": {"availability": "unknown"},
+    "orders_closed": {"availability": "unknown"},
+    "last_report_at": {"availability": "unknown"},
+    "last_reconciliation_at": {"availability": "unknown"},
+    "last_error": null
+  },
+  "risk": {
+    "trading_state": "unknown",
+    "health": "unknown",
+    "command_count": {"availability": "unknown"},
+    "event_count": {"availability": "unknown"},
+    "rejections_total": {"availability": "unknown"},
+    "last_rejection": null,
+    "last_error": null
+  },
+  "generated_at": {"availability": "unknown"},
+  "started_at": {"availability": "unknown"},
+  "stopped_at": {"availability": "unknown"},
+  "last_transition_at": {"availability": "unknown"},
+  "last_error": null,
+  "external_venue_connection": false,
+  "real_orders_submitted": false
+}
+EOF
+while [ ! -f "$stop_file" ]; do
+  sleep 0.05
+done
+cat > "$output/status.json" <<EOF
+{
+  "schema_version": "ntpro.node_status.v1",
+  "node_id": "$node_id",
+  "process_mode": "spawned_process",
+  "config_path": {"availability": "available", "value": "fixture.toml"},
+  "artifact_root": {"availability": "available", "value": "$output"},
+  "lifecycle_state": "stopped",
+  "previous_lifecycle_state": "running",
+  "data_connection": "not_configured",
+  "execution_connection": "disconnected",
+  "execution": {
+    "gateway_id": {"availability": "available", "value": "SANDBOX"},
+    "connection": "disconnected",
+    "started": {"availability": "available", "value": false},
+    "account_ref": {"availability": "available", "value": "configured"},
+    "orders_open": {"availability": "unknown"},
+    "orders_inflight": {"availability": "unknown"},
+    "orders_closed": {"availability": "unknown"},
+    "last_report_at": {"availability": "unknown"},
+    "last_reconciliation_at": {"availability": "unknown"},
+    "last_error": null
+  },
+  "risk": {
+    "trading_state": "unknown",
+    "health": "unknown",
+    "command_count": {"availability": "unknown"},
+    "event_count": {"availability": "unknown"},
+    "rejections_total": {"availability": "unknown"},
+    "last_rejection": null,
+    "last_error": null
+  },
+  "generated_at": {"availability": "unknown"},
+  "started_at": {"availability": "unknown"},
+  "stopped_at": {"availability": "unknown"},
+  "last_transition_at": {"availability": "unknown"},
+  "last_error": null,
+  "external_venue_connection": false,
+  "real_orders_submitted": false
+}
+EOF
+"#,
+        )
+        .unwrap();
+        let mut perms = fs::metadata(&path).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&path, perms).unwrap();
         path
     }
 
@@ -646,5 +935,70 @@ mod tests {
         fs::remove_file(&registered.pid_path).unwrap();
         let refreshed = store.refresh_process_state("sandbox-a").unwrap();
         assert_eq!(refreshed.process.state, SupervisorProcessState::Stale);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn start_status_stop_process_roundtrip() {
+        let root = temp_root("process");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let fixture = write_fixture_node(&root);
+        store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+
+        let started = store
+            .start_node_process(StartNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                ntpro_node_bin: fixture,
+                startup_timeout: Duration::from_secs(3),
+            })
+            .unwrap();
+        assert_eq!(started.process.state, SupervisorProcessState::Running);
+        assert_eq!(
+            started.last_known_status.lifecycle_state,
+            LifecycleStatus::Running
+        );
+
+        let duplicate_start = store
+            .start_node_process(StartNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                ntpro_node_bin: root.join("fixture-ntpro-node.sh"),
+                startup_timeout: Duration::from_secs(1),
+            })
+            .unwrap_err()
+            .to_string();
+        assert!(duplicate_start.contains("already running"));
+
+        let status = store.node_status("sandbox-a").unwrap();
+        assert_eq!(status.lifecycle_state, LifecycleStatus::Running);
+        assert!(!status.external_venue_connection);
+        assert!(!status.real_orders_submitted);
+
+        let stopped = store
+            .stop_node_process(StopNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                stop_timeout: Duration::from_secs(3),
+            })
+            .unwrap();
+        assert_eq!(stopped.process.state, SupervisorProcessState::Stopped);
+        assert_eq!(
+            stopped.last_known_status.lifecycle_state,
+            LifecycleStatus::Stopped
+        );
+
+        let duplicate_stop = store
+            .stop_node_process(StopNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                stop_timeout: Duration::from_secs(1),
+            })
+            .unwrap_err()
+            .to_string();
+        assert!(duplicate_stop.contains("not running"));
     }
 }
