@@ -1,125 +1,145 @@
-# Roadmap
+# NTPRO Roadmap
 
-This document outlines the key priorities and upcoming goals for **NautilusTrader**,
-charting its path as a production-grade, Rust-native trading engine.
+NTPRO is a Rust-only release workspace for the trading engine cutover from
+NautilusTrader. The formal Rust-only source release point is
+`ntpro-rust-only-v0.1.0`; work after that tag is post-release hardening and
+v0.2 planning.
 
-Given the dynamic nature of the project, priorities may evolve to keep pace with the fast-moving development cycle.
-For real-time updates and detailed task tracking, refer to the [NautilusTrader Kanban board](https://github.com/orgs/nautechsystems/projects/3).
+This roadmap describes the current NTPRO product direction. Historical
+NautilusTrader Python, PyO3, Cython, wheel, and PyPI paths are not NTPRO product
+surfaces.
 
-**Note**: Bug fixes and roadmap priorities take precedence over feature requests to ensure stability
-and progress. However, pull requests (PRs) for improvements and new features are always welcome.
-For more details, see the [CONTRIBUTING.md](/CONTRIBUTING.md).
+## Current Product Boundary
 
-## Vision
+Supported product surfaces:
 
-To establish NautilusTrader as the default open trading engine for quantitative algorithmic
-trading, combining production-grade architecture, reliability, and documentation for traders
-and developers alike.
+- Rust workspace crates.
+- Rust CLI commands and command contracts.
+- Rust examples and documentation.
+- Rust release verification scripts and golden trace evidence.
+- Local Python helper scripts under `scripts/` only, used for repository
+  control or release evidence.
 
-## Priorities
+Unsupported product surfaces:
 
-1. **Port core to Rust**
+- Python package installation.
+- Python import/API usage.
+- PyO3 bindings.
+- Cython build or runtime paths.
+- Python wheels, PyPI publication, or mixed Rust/Python packaging.
+- Cap'n Proto serialization.
 
-   **Goal**: Leverage Rust's performance and safety features to improve reliability, performance, and scalability.
-   - Rewrite performance-critical components in Rust (replacing existing Cython modules).
-   - Ensure interoperability between Rust and Python layers using PyO3.
-   - Benchmark performance improvements throughout the transition.
+## v0.2 Priorities
 
-2. **Improve documentation and tutorials**
+### 1. Rust CLI Product Entrypoint
 
-    **Goal**: Lower the learning curve for new users and empower developers with clear, comprehensive guides:
-   - Fill gaps in user and developer documentation by adding missing sections.
-   - Add additional tutorials and examples.
+Goal: make the CLI honest, useful, and easy to validate from Cargo.
 
-3. **Improve code ergonomics**
+Planned work:
 
-    **Goal**: Simplify the development experience for users and contributors:
-   - Enhance type annotations and support for Python import resolution.
-   - Standardize naming conventions and refine APIs for greater intuitiveness.
-   - Streamline configuration and setup processes to minimize friction.
-   - Refactor modules and namespaces to improve readability and maintainability.
+- Keep the CLI capability matrix explicit: implemented, simulated demo, or
+  deferred.
+- Finish real `config validate` and `data inspect/validate` user paths.
+- Continue wiring supported backtest and live/sandbox runtime paths without
+  presenting stubs as completed trading workflows.
+- Keep `--help` text aligned with actual behavior.
 
-## Additional enhancements
+Non-goal for this phase: claiming full backtest/live runtime coverage before
+the wiring and evidence exist.
 
-As we progress on the top priorities, we also plan to focus on the following enhancements:
+### 2. Rust Examples And Documentation
 
-- Expand integrations with adapters to support trading venues and data providers.
-- Enhance the backtesting engine with additional features.
-- Enhance order book execution dynamics with additional features, including user order interactions, persistent book changes, and expanded microstructure simulations.
-- Backtest visualization for local single-node workflows, including plots and tear sheets (not full UI dashboards).
+Goal: let a new user follow Rust-only docs without falling into legacy Python
+setup instructions.
 
-## Open-source scope
+Planned work:
 
-The NautilusTrader open-source project is purpose-built to empower individual and
-small team quantitative traders, enabling strategy research and live trading with efficiency and
-reliability on a single node. By explicitly defining what is *in* and *out* of scope,
-we set clear expectations, focus community efforts, and support a sustainable open-source ecosystem.
+- Expand Rust examples for supported CLI and crate paths.
+- Keep public docs aligned with the Rust-only contract.
+- Mark any retained upstream Python tutorials as legacy or remove them from the
+  active user path.
+- Keep migration notes clear when an old Python/PyO3/Cython path has no Rust
+  replacement yet.
 
-### In scope
+### 3. Adapter Support Matrix
 
-- High-performance single-node backtesting that accurately simulates live trading conditions.
-- Live trading on single-node infrastructure for streamlined research-to-production workflows.
-- [Community-contributed integrations](#community-contributed-integrations) for additional trading venues and data providers.
+Goal: make supported, experimental, deferred, and removed integrations visible.
 
-### Out of scope
+Planned work:
 
-- UI dashboards or frontends: focus remains strictly on the core trading engine. Frontend contributions would divert attention from the engine and add unsustainable maintenance burdens.
-- Distributed or massively parallel backtesting orchestration: externally orchestrated workflows are technically compatible, but a built-in distributed runner is beyond the project’s current scope.
-- Integrated hyper-parameter optimization or built-in AI/ML tooling: users should integrate their own optimization frameworks tailored to their needs.
-- Additional external integrations (e.g. cloud services, databases, and monitoring tools): these are not in scope unless explicitly listed.
+- Maintain adapter classification docs.
+- Add fixture, mock, dry-run, or sandbox evidence for supported adapters.
+- Avoid real exchange API requirements in automated evidence.
+- Keep secrets out of code and test fixtures.
 
-## Community-contributed integrations
+### 4. Release Delivery
 
-New integrations are a major undertaking for the project. They involve more than just the initial code:
-documentation, tutorials, maintenance, and ongoing user support are all required to make them viable
-and sustainable.
-Since contributors are not obligated to complete or maintain an integration, we must carefully weigh
-the long-term impact and commitment before accepting one into the main project.
+Goal: make source builds and local binary installation predictable before
+adding heavier distribution channels.
 
-At present, the project has limited bandwidth to support new official integrations.
+Planned work:
 
-To set clearer expectations:
+- Keep `cargo install --path crates/cli --bin nautilus --locked --force` as the
+  source-build install path.
+- Continue strengthening release verification and GitHub smoke gates.
+- Decide whether a Rust-only binary release workflow is needed for v0.2 or
+  should wait for a later release.
+- Keep Docker images, Python wheels, and PyPI publication out of the NTPRO
+  product release path until dedicated Rust-only workflows are approved.
 
-**Step 1 – Open an RFC**
+### 5. Runtime Hardening And Regression Evidence
 
-Before opening a PR for a new integration, contributors should first open a Request for Comments (RFC) issue.
-This allows discussion of suitability, alignment with the roadmap, and maintenance considerations before any code is written.
+Goal: reduce product-reachable surprises before expanding the product surface.
 
-**Step 2 – Evaluation**
+Planned work:
 
-The maintainers will review the RFC in light of factors such as stability, demand, technical fit, and available bandwidth.
-Integrations must also align with NautilusTrader’s professional, performance-focused, and high-reliability philosophy.
-Only after agreement at this stage should a PR be considered.
+- Convert product-boundary panics into explicit errors or unsupported statuses.
+- Keep internal invariants classified rather than rewriting them blindly.
+- Maintain ignored-test risk registers and close high-impact ignored tests in
+  scoped slices.
+- Extend golden trace and smoke evidence for product-critical flows.
 
-**Step 3 – PR submission (if approved)**
+## v0.2 Readiness Gates
 
-If the RFC is approved, a contributor may proceed with a PR.
-Integrations must adhere closely to existing Rust-based adapter implementation patterns to ensure consistency and maintainability.
-Even then, inclusion in the official distribution depends on long-term sustainability and available resources.
+v0.2 should not be tagged until these are true:
 
-For adapter classification, community listings, and support boundaries, see
-[ADAPTERS.md](ADAPTERS.md). For naming rules and disclaimer requirements for
-independent projects, see [TRADEMARK.md](TRADEMARK.md).
+- `scripts/ai/verify_release.sh` passes or any skipped portion has an explicit
+  owner-approved scope decision.
+- Public docs do not describe Python, PyO3, or Cython as current NTPRO product
+  entrypoints.
+- The CLI capability matrix is current.
+- Supported examples and adapter claims have local evidence.
+- Open high-risk audit blockers are closed or formally scoped out.
+- Release notes describe what is supported, simulated, deferred, and not
+  supported.
 
-## Long-term commitment
+## Out Of Scope For v0.2
 
-NautilusTrader is an open-core project. All core trading engine
-features land in the public repository first, and we are committed to
-continually widening the feature set and improving documentation so that the
-community can rely on a modern, production-grade, battle-tested trading engine.
+- Python package, Python API, PyO3 binding, Cython, wheel, or PyPI support.
+- A dashboard UI.
+- Distributed or massively parallel backtest orchestration.
+- Production Docker image publication.
+- Full live trading adapter parity across every upstream venue.
+- Unscoped trading-semantic changes without golden trace coverage.
 
-Feedback and contributions from users directly influence the roadmap; as
-real-world requirements evolve, we will steadily raise the ceiling of what can
-be achieved with the open-source codebase.
+## Contribution Direction
 
-## NautilusTrader v2.0 and beyond
+Contributions should follow the Rust-only product boundary:
 
-- **Achieving Stable Status**: While NautilusTrader is already successfully used in production, v2.0 represents a significant milestone toward establishing a stable API.
-- **Focus Areas**: The v2.0 initiative will prioritize API consistency, long-term maintainability, and meeting the rigorous standards of live trading environments.
-- **Formal Deprecations**: v2.0 will introduce formal deprecations, making it easier to adopt changes and new features while maintaining clarity for developers.
-- **Python API Commitment**: Despite transitioning the core to Rust, NautilusTrader will continue to provide a user-facing Python API.
+- Prefer Rust crates, Rust CLI, Rust examples, and Rust documentation.
+- For adapters, start with classification, fixtures, mock validation, and clear
+  support boundaries.
+- Do not revive Python/PyO3/Cython product paths in new work.
+- Do not present a stub, dry-run, or simulated demo as a completed runtime
+  workflow.
 
-## Charting the future
+## Future Phases
 
-This roadmap builds on NautilusTrader’s strong foundation, driving continuous refinement while
-expanding its possibilities and capabilities for algorithmic traders and developers.
+After v0.2, the project can consider:
+
+- stronger binary release automation;
+- broader adapter parity;
+- deeper trace coverage;
+- richer CLI-driven operational workflows;
+- optional dashboard/control-plane design only after runtime status and control
+  APIs are ready.
