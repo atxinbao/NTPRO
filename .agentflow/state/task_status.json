@@ -3134,7 +3134,7 @@
     },
     "V02-009": {
       "title": "two-node local smoke test",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "rust_core_runtime_agent",
       "risk_level": "high",
@@ -3148,13 +3148,16 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-009.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-009.md",
-      "updated_at": "2026-06-06T13:07:21Z",
+      "updated_at": "2026-06-06T13:14:20Z",
       "local_backlog": true,
-      "evidence_summary": "V02-009 adds a repeatable two-node supervisor smoke, verifies isolated sandbox-a/sandbox-b artifacts, fixes stale pid artifact cleanup on stop, and passed targeted local validation. High-risk task stops at REVIEW_REQUIRED."
+      "evidence_summary": "V02-009 merged in PR #200 with smoke passing; two-node local supervisor smoke is closed as DONE.",
+      "pr": 200,
+      "merged_at": "2026-06-06T13:11:16Z",
+      "merge_commit": "af44366b1455294bfb045dcdd165e2f6c2c065ca"
     },
     "V02-010": {
       "title": "v0.2 readiness report",
-      "status": "TODO",
+      "status": "QA_REQUIRED",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -3168,9 +3171,10 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-010.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-010.md",
-      "updated_at": "2026-06-06T04:30:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-06T13:14:20Z",
+      "local_backlog": true,
+      "evidence_summary": "V02-010 adds the final Local Multi-Node Runtime Foundation readiness report, declares V02 PASS for V02-001 through V02-010, and preserves release/tag boundaries."
     }
   },
-  "updated_at": "2026-06-06T04:30:00Z"
+  "updated_at": "2026-06-06T13:14:20Z"
 }
