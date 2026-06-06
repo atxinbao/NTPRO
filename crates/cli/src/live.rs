@@ -20,7 +20,12 @@ use std::{
 
 use anyhow::Context;
 use nautilus_common::enums::Environment;
-use nautilus_live::node::{LiveNode, NodeState};
+use nautilus_live::{
+    node::{LiveNode, NodeState},
+    status::{
+        ConnectionStatus, ExecutionStatus, LifecycleStatus, NodeStatus, ProcessMode, SnapshotValue,
+    },
+};
 use nautilus_model::{
     identifiers::{AccountId, TraderId, Venue},
     types::Money,
@@ -123,6 +128,31 @@ fn run_live_validate(opt: &LiveValidateOpt) -> anyhow::Result<()> {
 }
 
 async fn run_live_run(opt: &LiveRunOpt) -> anyhow::Result<()> {
+    run_live_run_with_command(opt, "live.run", ProcessMode::TestHarness).await
+}
+
+pub(crate) async fn run_ntpro_node(
+    config: PathBuf,
+    run_id: Option<String>,
+    output: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    run_live_run_with_command(
+        &LiveRunOpt {
+            config,
+            run_id,
+            output,
+        },
+        "ntpro-node.run",
+        ProcessMode::SpawnedProcess,
+    )
+    .await
+}
+
+async fn run_live_run_with_command(
+    opt: &LiveRunOpt,
+    command_name: &str,
+    process_mode: ProcessMode,
+) -> anyhow::Result<()> {
     let config = load_minimal_live_config(&opt.config)?;
     let run_id = opt.run_id.as_deref().unwrap_or(config.run.id.as_str());
     validate_non_empty("run_id", run_id)?;
@@ -133,15 +163,25 @@ async fn run_live_run(opt: &LiveRunOpt) -> anyhow::Result<()> {
 
     let summary_path = output_dir.join("summary.txt");
     let events_path = output_dir.join("events.log");
+    let status_path = output_dir.join("status.json");
 
     let smoke = run_live_init_smoke(&config).await?;
+    let status = build_node_status(
+        &config,
+        &opt.config,
+        run_id,
+        &output_dir,
+        process_mode,
+        &smoke,
+    );
 
     let summary = format!(
-        "command=live.run\nstatus=ok\nmode={}\nrun_id={run_id}\nconfig={}\nenvironment={}\nnode_name={}\nadapter={}\naccount_id={}\nvenue={}\npre_start_state={}\nrunning_state={}\nfinal_state={}\naccount_cached={}\nexternal_venue_connection=false\nreal_orders_submitted=false\nruntime_status=completed\nshutdown_reason=start-stop\n",
+        "command={command_name}\nstatus=ok\nmode={}\nrun_id={run_id}\nconfig={}\nenvironment={}\nnode_name={}\nprocess_mode={}\nadapter={}\naccount_id={}\nvenue={}\npre_start_state={}\nrunning_state={}\nfinal_state={}\naccount_cached={}\nstatus_artifact={}\nexternal_venue_connection=false\nreal_orders_submitted=false\nruntime_status=completed\nshutdown_reason=start-stop\n",
         config.run.mode,
         opt.config.display(),
         config.run.environment,
         node_name(&config),
+        process_mode_label(process_mode),
         config.adapter.kind,
         config.adapter.account_id,
         config.adapter.venue,
@@ -149,9 +189,14 @@ async fn run_live_run(opt: &LiveRunOpt) -> anyhow::Result<()> {
         smoke.running_state,
         smoke.final_state,
         smoke.account_cached,
+        status_path.display(),
     );
     fs::write(&summary_path, summary)
         .with_context(|| format!("failed to write summary '{}'", summary_path.display()))?;
+
+    let status_json = serde_json::to_string_pretty(&status)?;
+    fs::write(&status_path, format!("{status_json}\n"))
+        .with_context(|| format!("failed to write status '{}'", status_path.display()))?;
 
     let event_log = format!(
         "phase=validate_config status=ok\n\
@@ -170,13 +215,14 @@ async fn run_live_run(opt: &LiveRunOpt) -> anyhow::Result<()> {
         .with_context(|| format!("failed to write events '{}'", events_path.display()))?;
 
     println!(
-        "live.run status=ok mode={} run_id={} config={} output={} summary={} events={} node_name={} adapter={} final_state={} external_venue_connection=false real_orders_submitted=false runtime_status=completed",
+        "{command_name} status=ok mode={} run_id={} config={} output={} summary={} events={} status_artifact={} node_name={} adapter={} final_state={} external_venue_connection=false real_orders_submitted=false runtime_status=completed",
         config.run.mode,
         run_id,
         opt.config.display(),
         output_dir.display(),
         summary_path.display(),
         events_path.display(),
+        status_path.display(),
         node_name(&config),
         config.adapter.kind,
         smoke.final_state,
@@ -265,6 +311,7 @@ struct LiveSmokeResult {
     pre_start_state: String,
     running_state: String,
     final_state: String,
+    final_node_state: NodeState,
     account_cached: bool,
 }
 
@@ -329,13 +376,62 @@ async fn run_live_init_smoke(config: &MinimalLiveConfig) -> anyhow::Result<LiveS
     if handle.state() != NodeState::Stopped {
         anyhow::bail!("live-init-smoke expected Stopped after stop");
     }
+    let final_node_state = handle.state();
 
     Ok(LiveSmokeResult {
         pre_start_state,
         running_state,
         final_state,
+        final_node_state,
         account_cached,
     })
+}
+
+fn build_node_status(
+    config: &MinimalLiveConfig,
+    config_path: &Path,
+    run_id: &str,
+    output_dir: &Path,
+    process_mode: ProcessMode,
+    smoke: &LiveSmokeResult,
+) -> NodeStatus {
+    let mut status = NodeStatus::from_node_state(node_id(config, run_id), smoke.final_node_state);
+    status.process_mode = process_mode;
+    status.config_path = SnapshotValue::available(config_path.display().to_string());
+    status.artifact_root = SnapshotValue::available(output_dir.display().to_string());
+    status.previous_lifecycle_state = LifecycleStatus::Running;
+    status.data_connection = ConnectionStatus::NotConfigured;
+    status.execution_connection = ConnectionStatus::Disconnected;
+    status.execution = ExecutionStatus {
+        gateway_id: SnapshotValue::available(config.adapter.name.clone()),
+        connection: ConnectionStatus::Disconnected,
+        started: SnapshotValue::available(false),
+        account_ref: SnapshotValue::available("configured".to_string()),
+        orders_open: SnapshotValue::unknown(),
+        orders_inflight: SnapshotValue::unknown(),
+        orders_closed: SnapshotValue::unknown(),
+        last_report_at: SnapshotValue::unknown(),
+        last_reconciliation_at: SnapshotValue::unknown(),
+        last_error: None,
+    };
+    status
+}
+
+fn node_id<'a>(config: &'a MinimalLiveConfig, run_id: &'a str) -> &'a str {
+    config
+        .system
+        .instance_id
+        .as_deref()
+        .or(config.system.node_name.as_deref())
+        .unwrap_or(run_id)
+}
+
+const fn process_mode_label(mode: ProcessMode) -> &'static str {
+    match mode {
+        ProcessMode::SpawnedProcess => "spawned_process",
+        ProcessMode::TestHarness => "test_harness",
+        ProcessMode::Unknown => "unknown",
+    }
 }
 
 fn node_name(config: &MinimalLiveConfig) -> &str {
@@ -458,12 +554,51 @@ write_summary = true
         assert!(summary.contains("command=live.run"));
         assert!(summary.contains("runtime_status=completed"));
         assert!(summary.contains("final_state=Stopped"));
+        assert!(summary.contains("status_artifact="));
         assert!(summary.contains("external_venue_connection=false"));
         assert!(summary.contains("real_orders_submitted=false"));
 
         let events = fs::read_to_string(output_dir.join("events.log")).unwrap();
         assert!(events.contains("phase=start status=ok"));
         assert!(events.contains("phase=stop status=ok"));
+
+        let status: NodeStatus =
+            serde_json::from_str(&fs::read_to_string(output_dir.join("status.json")).unwrap())
+                .unwrap();
+        assert_eq!(status.node_id, "LiveInitSmoke");
+        assert_eq!(status.lifecycle_state, LifecycleStatus::Stopped);
+        assert_eq!(status.process_mode, ProcessMode::TestHarness);
+        assert_eq!(status.execution_connection, ConnectionStatus::Disconnected);
+        assert!(!status.external_venue_connection);
+        assert!(!status.real_orders_submitted);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn run_ntpro_node_writes_spawned_process_status() {
+        let output_dir =
+            std::env::temp_dir().join(format!("ntpro-v02-004-node-run-{}", std::process::id()));
+        let path = write_config("ntpro-node", &minimal_config(&output_dir));
+
+        run_ntpro_node(path, Some("sandbox-a".to_string()), None)
+            .await
+            .unwrap();
+
+        let summary = fs::read_to_string(output_dir.join("summary.txt")).unwrap();
+        assert!(summary.contains("command=ntpro-node.run"));
+        assert!(summary.contains("process_mode=spawned_process"));
+        assert!(summary.contains("final_state=Stopped"));
+
+        let status: NodeStatus =
+            serde_json::from_str(&fs::read_to_string(output_dir.join("status.json")).unwrap())
+                .unwrap();
+        assert_eq!(status.lifecycle_state, LifecycleStatus::Stopped);
+        assert_eq!(status.process_mode, ProcessMode::SpawnedProcess);
+        assert_eq!(
+            status.config_path.availability,
+            nautilus_live::status::SnapshotAvailability::Available
+        );
+        assert!(!status.external_venue_connection);
+        assert!(!status.real_orders_submitted);
     }
 
     #[test]

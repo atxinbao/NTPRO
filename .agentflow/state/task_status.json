@@ -2999,7 +2999,7 @@
     },
     "V02-003": {
       "title": "Node status DTOs",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3015,11 +3015,13 @@
       "evidence_file": "docs/rust-cutover/evidence/V02-003.md",
       "updated_at": "2026-06-06T04:56:16Z",
       "local_backlog": true,
-      "evidence_summary": "V02-003 adds nautilus-live status DTOs and NodeState lifecycle mapping helpers with tests for stopped, running, unknown, and explicit missing-field serialization; no runtime wiring or dashboard/control API was added."
+      "evidence_summary": "V02-003 adds nautilus-live status DTOs and NodeState lifecycle mapping helpers with tests for stopped, running, unknown, and explicit missing-field serialization; no runtime wiring or dashboard/control API was added.",
+      "pr": 194,
+      "merged_at": "2026-06-06T04:58:47Z"
     },
     "V02-004": {
       "title": "ntpro-node sandbox-only real LiveNode start/stop",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -3033,8 +3035,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-004.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-004.md",
-      "updated_at": "2026-06-06T04:30:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-06T05:12:52Z",
+      "local_backlog": true,
+      "evidence_summary": "V02-004 adds an ntpro-node sandbox-only binary that runs a real LiveNode build/start/stop smoke, writes summary/events/status artifacts, proves final_state=Stopped, external_venue_connection=false, and real_orders_submitted=false, and stops at REVIEW_REQUIRED because the task is high risk."
     },
     "V02-005": {
       "title": "ntpro-supervisor registry",
