@@ -831,8 +831,31 @@ pub fn is_subscribed_any<T: AsRef<str>>(pattern: T, handler: ShareableMessageHan
 }
 
 /// Returns the count of Any-based subscriptions for a topic.
+///
+/// # Panics
+///
+/// Panics if the topic is invalid. Use [`try_subscriptions_count_any`] for
+/// product or user input boundaries.
 pub fn subscriptions_count_any<S: AsRef<str>>(topic: S) -> usize {
     get_message_bus().borrow().subscriptions_count(topic)
+}
+
+/// Returns the count of Any-based subscriptions for a topic.
+///
+/// # Errors
+///
+/// Returns an error if the topic is invalid.
+pub fn try_subscriptions_count_any<S: AsRef<str>>(topic: S) -> anyhow::Result<usize> {
+    get_message_bus().borrow().try_subscriptions_count(topic)
+}
+
+/// Returns whether Any-based subscribers exist for a topic.
+///
+/// # Errors
+///
+/// Returns an error if the topic is invalid.
+pub fn try_has_subscribers_any<S: AsRef<str>>(topic: S) -> anyhow::Result<bool> {
+    get_message_bus().borrow().try_has_subscribers(topic)
 }
 
 /// Returns the subscriber count for order book deltas on a topic.
@@ -1725,6 +1748,19 @@ mod tests {
         assert_eq!(*received.borrow(), 0);
         assert_eq!(stats.typed_publish_with_any_subscribers, 0);
         assert_eq!(stats.any_publish_with_typed_subscribers, 1);
+    }
+
+    #[rstest]
+    fn test_try_subscriptions_count_any_handles_product_boundary_input() {
+        *get_message_bus().borrow_mut() = MessageBus::default();
+
+        let handler = ShareableMessageHandler::from_typed(|_payload: &u32| {});
+        subscribe_any("data.try.*".into(), handler, None);
+
+        assert_eq!(try_subscriptions_count_any("data.try.TEST").unwrap(), 1);
+        assert!(try_has_subscribers_any("data.try.TEST").unwrap());
+        assert!(try_subscriptions_count_any("data.*").is_err());
+        assert!(try_has_subscribers_any("data.?").is_err());
     }
 
     #[rstest]
