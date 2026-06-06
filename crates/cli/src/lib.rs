@@ -71,6 +71,7 @@ use crate::{
     live::run_live_command,
     opt::{Commands, NautilusCli},
     sandbox::run_sandbox_command,
+    supervisor::run_supervisor_command,
 };
 
 /// Runs the NTPRO CLI based on the provided options.
@@ -85,6 +86,7 @@ pub async fn run(opt: NautilusCli) -> anyhow::Result<()> {
         Commands::Live(live_opt) => run_live_command(live_opt).await?,
         Commands::Data(data_opt) => run_data_command(data_opt)?,
         Commands::Config(config_opt) => run_config_command(config_opt)?,
+        Commands::Supervisor(supervisor_opt) => run_supervisor_command(supervisor_opt)?,
         Commands::Database(database_opt) => run_database_command(database_opt).await?,
         #[cfg(feature = "defi")]
         Commands::Blockchain(blockchain_opt) => run_blockchain_command(blockchain_opt).await?,
