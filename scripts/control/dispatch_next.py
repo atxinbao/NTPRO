@@ -16,6 +16,7 @@ DEFAULT_SHRIMP_TASKS = Path("/Users/mac/.codex/shrimp-data/NTPRO/tasks.json")
 ROOT = Path(__file__).resolve().parents[2]
 RISK_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 AUTO_DISPATCH_FORBIDDEN = ("RREM-", "RREL-", "NREM-", "NREL-", "NGATE-")
+TASK_ID_RE = re.compile(r"^([A-Z][A-Z0-9]*-\d+)\b")
 
 
 def now() -> str:
@@ -63,7 +64,12 @@ def task_title(task: dict[str, Any]) -> str:
 
 
 def short_task_id(task: dict[str, Any]) -> str:
-    match = re.match(r"^([A-Z]+-\d+)\b", task_title(task))
+    task_id = str(task.get("id") or "")
+    match = TASK_ID_RE.match(task_id)
+    if match:
+        return match.group(1)
+
+    match = TASK_ID_RE.match(task_title(task))
     if not match:
         raise SystemExit(f"cannot parse task id from Shrimp task title: {task_title(task)}")
     return match.group(1)

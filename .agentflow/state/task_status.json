@@ -2950,7 +2950,197 @@
       "updated_at": "2026-06-05T16:12:19Z",
       "pr": 169,
       "merged_at": "2026-06-05T13:17:44Z"
+    },
+    "V02-001": {
+      "title": "Scope decision and roadmap rewrite",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "depends_on": [
+        "DRG-010"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V02-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/V02-001.md",
+      "updated_at": "2026-06-06T04:30:00Z",
+      "local_backlog": true
+    },
+    "V02-002": {
+      "title": "Node and Supervisor product contract",
+      "status": "TODO",
+      "owner_role": "control_scope_agent",
+      "review_role": "rust_product_surface_agent",
+      "risk_level": "medium",
+      "depends_on": [
+        "V02-001"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V02-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/V02-002.md",
+      "updated_at": "2026-06-06T04:30:00Z",
+      "local_backlog": true
+    },
+    "V02-003": {
+      "title": "Node status DTOs",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "depends_on": [
+        "V02-002"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V02-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/V02-003.md",
+      "updated_at": "2026-06-06T04:30:00Z",
+      "local_backlog": true
+    },
+    "V02-004": {
+      "title": "ntpro-node sandbox-only real LiveNode start/stop",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "depends_on": [
+        "V02-003"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V02-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/V02-004.md",
+      "updated_at": "2026-06-06T04:30:00Z",
+      "local_backlog": true
+    },
+    "V02-005": {
+      "title": "ntpro-supervisor registry",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "depends_on": [
+        "V02-004"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V02-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/V02-005.md",
+      "updated_at": "2026-06-06T04:30:00Z",
+      "local_backlog": true
+    },
+    "V02-006": {
+      "title": "supervisor start stop status",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "depends_on": [
+        "V02-005"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V02-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/V02-006.md",
+      "updated_at": "2026-06-06T04:30:00Z",
+      "local_backlog": true
+    },
+    "V02-007": {
+      "title": "logs and minimal metrics JSON",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "depends_on": [
+        "V02-006"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V02-007.md",
+      "evidence_file": "docs/rust-cutover/evidence/V02-007.md",
+      "updated_at": "2026-06-06T04:30:00Z",
+      "local_backlog": true
+    },
+    "V02-008": {
+      "title": "CLI controls supervisor",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "depends_on": [
+        "V02-007"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V02-008.md",
+      "evidence_file": "docs/rust-cutover/evidence/V02-008.md",
+      "updated_at": "2026-06-06T04:30:00Z",
+      "local_backlog": true
+    },
+    "V02-009": {
+      "title": "two-node local smoke test",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "rust_core_runtime_agent",
+      "risk_level": "high",
+      "depends_on": [
+        "V02-008"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V02-009.md",
+      "evidence_file": "docs/rust-cutover/evidence/V02-009.md",
+      "updated_at": "2026-06-06T04:30:00Z",
+      "local_backlog": true
+    },
+    "V02-010": {
+      "title": "v0.2 readiness report",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "depends_on": [
+        "V02-009"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V02-010.md",
+      "evidence_file": "docs/rust-cutover/evidence/V02-010.md",
+      "updated_at": "2026-06-06T04:30:00Z",
+      "local_backlog": true
     }
   },
-  "updated_at": "2026-06-06T04:10:00Z"
+  "updated_at": "2026-06-06T04:30:00Z"
 }
