@@ -226,7 +226,7 @@ impl NodeMetricArtifacts {
 }
 
 fn count_connection(actual: ConnectionStatus, expected: ConnectionStatus) -> u64 {
-    if actual == expected { 1 } else { 0 }
+    u64::from(actual == expected)
 }
 
 /// Runs local supervisor controls through registry and node artifacts.
@@ -288,11 +288,12 @@ fn run_supervisor_list(opt: SupervisorListOpt) -> anyhow::Result<()> {
 
 fn run_supervisor_start(opt: SupervisorStartOpt) -> anyhow::Result<()> {
     let store = SupervisorRegistryStore::new(opt.registry.registry);
-    let record = store.start_node_process(StartNodeRequest {
+    let request = StartNodeRequest {
         node_id: opt.node_id,
         ntpro_node_bin: opt.ntpro_node_bin,
         startup_timeout: Duration::from_millis(opt.startup_timeout_ms),
-    })?;
+    };
+    let record = store.start_node_process(&request)?;
     println!(
         "supervisor.start status=ok node_id={} process_state={} lifecycle_state={} pid={} external_venue_connection=false real_orders_submitted=false",
         record.node_id,
@@ -444,8 +445,7 @@ fn snapshot_display<T: Display>(value: &SnapshotValue<T>) -> String {
     value
         .value
         .as_ref()
-        .map(ToString::to_string)
-        .unwrap_or_else(|| json_label(&value.availability))
+        .map_or_else(|| json_label(&value.availability), ToString::to_string)
 }
 
 impl Default for SupervisorProcessRecord {
@@ -664,10 +664,7 @@ impl SupervisorRegistryStore {
             .get_mut(node_id)
             .with_context(|| format!("node '{node_id}' is not registered"))?;
 
-        if !record.status_path.exists() {
-            record.status_artifact = RegistryArtifactState::Missing;
-            record.last_known_status.generated_at = SnapshotValue::stale();
-        } else {
+        if record.status_path.exists() {
             let raw = fs::read_to_string(&record.status_path).with_context(|| {
                 format!(
                     "failed to read status artifact '{}'",
@@ -686,6 +683,9 @@ impl SupervisorRegistryStore {
                     record.last_known_status.generated_at = SnapshotValue::stale();
                 }
             }
+        } else {
+            record.status_artifact = RegistryArtifactState::Missing;
+            record.last_known_status.generated_at = SnapshotValue::stale();
         }
 
         record.updated_at = SnapshotValue::available(now_millis());
@@ -722,7 +722,7 @@ impl SupervisorRegistryStore {
     /// is not observed before the timeout.
     pub fn start_node_process(
         &self,
-        request: StartNodeRequest,
+        request: &StartNodeRequest,
     ) -> anyhow::Result<SupervisorNodeRecord> {
         validate_node_id(&request.node_id)?;
         ensure!(
@@ -988,6 +988,10 @@ fn create_node_dirs(artifact_root: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error if the metrics directory cannot be created, metrics cannot
+/// be serialized, or the artifact cannot be written.
 pub fn write_node_metrics_artifact(path: &Path, metrics: &NodeMetrics) -> anyhow::Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).with_context(|| {
@@ -1467,25 +1471,25 @@ EOF
             })
             .unwrap();
 
-        let started = store
-            .start_node_process(StartNodeRequest {
-                node_id: "sandbox-a".to_string(),
-                ntpro_node_bin: fixture,
-                startup_timeout: Duration::from_secs(3),
-            })
-            .unwrap();
+        let start_request = StartNodeRequest {
+            node_id: "sandbox-a".to_string(),
+            ntpro_node_bin: fixture,
+            startup_timeout: Duration::from_secs(3),
+        };
+        let started = store.start_node_process(&start_request).unwrap();
         assert_eq!(started.process.state, SupervisorProcessState::Running);
         assert_eq!(
             started.last_known_status.lifecycle_state,
             LifecycleStatus::Running
         );
 
+        let duplicate_start_request = StartNodeRequest {
+            node_id: "sandbox-a".to_string(),
+            ntpro_node_bin: root.join("fixture-ntpro-node.sh"),
+            startup_timeout: Duration::from_secs(1),
+        };
         let duplicate_start = store
-            .start_node_process(StartNodeRequest {
-                node_id: "sandbox-a".to_string(),
-                ntpro_node_bin: root.join("fixture-ntpro-node.sh"),
-                startup_timeout: Duration::from_secs(1),
-            })
+            .start_node_process(&duplicate_start_request)
             .unwrap_err()
             .to_string();
         assert!(duplicate_start.contains("already running"));
@@ -1612,7 +1616,7 @@ EOF
             run_supervisor_command(SupervisorOpt { command }).unwrap();
         }
 
-        let store = SupervisorRegistryStore::new(registry.clone());
+        let store = SupervisorRegistryStore::new(registry);
         assert_eq!(
             store.node_status("sandbox-a").unwrap().lifecycle_state,
             LifecycleStatus::Running
