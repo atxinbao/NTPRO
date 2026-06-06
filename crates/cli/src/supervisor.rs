@@ -844,6 +844,7 @@ impl SupervisorRegistryStore {
             state: SupervisorProcessState::Stopped,
             updated_at: SnapshotValue::available(now_millis()),
         };
+        write_or_remove_pid_artifact(&stopped)?;
 
         let mut registry = self.load()?;
         registry.nodes.insert(request.node_id, stopped.clone());
@@ -1525,6 +1526,7 @@ EOF
             })
             .unwrap();
         assert_eq!(stopped.process.state, SupervisorProcessState::Stopped);
+        assert!(!stopped.pid_path.exists());
         assert_eq!(
             stopped.last_known_status.lifecycle_state,
             LifecycleStatus::Stopped
