@@ -20,6 +20,11 @@ use ustr::Ustr;
 
 use crate::{enums::LogColor, logging::log_info};
 
+const PRODUCT_TITLE: &str = " NTPRO - Rust-only Trading Engine Workspace";
+const PRODUCT_LINEAGE: &str = " Rust-only cutover from NautilusTrader lineage.";
+const PRODUCT_COPYRIGHT: &str = " Copyright (C) 2015-2026. All rights reserved.";
+const PRODUCT_VERSION_LABEL: &str = "ntpro";
+
 #[rustfmt::skip]
 pub fn log_header(trader_id: TraderId, machine_id: &str, instance_id: UUID4, component: Ustr) {
     let mut sys = System::new();
@@ -33,9 +38,9 @@ pub fn log_header(trader_id: TraderId, machine_id: &str, instance_id: UUID4, com
     let pid = std::process::id();
 
     header_sepr(c, "=================================================================");
-    header_sepr(c, " NAUTILUS TRADER - Automated Algorithmic Trading Platform");
-    header_sepr(c, " by Nautech Systems Pty Ltd.");
-    header_sepr(c, " Copyright (C) 2015-2026. All rights reserved.");
+    header_sepr(c, PRODUCT_TITLE);
+    header_sepr(c, PRODUCT_LINEAGE);
+    header_sepr(c, PRODUCT_COPYRIGHT);
     header_sepr(c, "=================================================================");
     header_line(c, "");
     header_line(c, "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣴⣶⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀");
@@ -84,7 +89,7 @@ pub fn log_header(trader_id: TraderId, machine_id: &str, instance_id: UUID4, com
 #[rustfmt::skip]
 fn log_rust_versioning(c: Ustr) {
     use nautilus_core::consts::NAUTILUS_VERSION;
-    header_line(c, &format!("nautilus_trader: {NAUTILUS_VERSION}"));
+    header_line(c, &format!("{PRODUCT_VERSION_LABEL}: {NAUTILUS_VERSION}"));
 }
 
 #[rustfmt::skip]
@@ -131,4 +136,23 @@ fn header_line(c: Ustr, s: &str) {
 
 fn bytes_to_gib(b: u64) -> f64 {
     b as f64 / (2u64.pow(30) as f64)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{PRODUCT_LINEAGE, PRODUCT_TITLE, PRODUCT_VERSION_LABEL};
+
+    #[test]
+    fn runtime_banner_uses_ntpro_product_identity() {
+        assert!(PRODUCT_TITLE.contains("NTPRO"));
+        assert!(PRODUCT_TITLE.contains("Rust-only"));
+        assert!(PRODUCT_LINEAGE.contains("cutover"));
+        assert_eq!(PRODUCT_VERSION_LABEL, "ntpro");
+
+        let public_banner = format!("{PRODUCT_TITLE}\n{PRODUCT_LINEAGE}\n{PRODUCT_VERSION_LABEL}");
+        assert!(!public_banner.contains("NAUTILUS TRADER"));
+        assert!(!public_banner.contains("Automated Algorithmic Trading Platform"));
+        assert!(!public_banner.contains("by Nautech Systems Pty Ltd."));
+        assert!(!public_banner.contains("nautilus_trader:"));
+    }
 }
