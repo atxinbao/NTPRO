@@ -6,10 +6,13 @@ permissions: # Principle of least privilege
 
 on:
   push:
-    branches: [master, nightly]
+    branches: [main, nightly]
 
 jobs:
   build-docs:
+    # This upstream docs dispatch is retained as lineage only. NTPRO must not
+    # publish into nautechsystems/nautilus_docs from main.
+    if: github.repository == 'nautechsystems/nautilus_trader'
     runs-on: ubuntu-latest
     steps:
       # https://github.com/step-security/harden-runner

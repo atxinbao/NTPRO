@@ -7,7 +7,7 @@ permissions: # Principle of least privilege
 on:
   workflow_dispatch:
   push:
-    branches: [master, nightly, test-ci, test-pre-commit]
+    branches: [main, nightly, test-ci, test-pre-commit]
 
 concurrency:
   # yamllint disable-line rule:line-length
@@ -113,10 +113,10 @@ jobs:
         if: github.event_name != 'pull_request'
         run: prek run --all-files
 
-  # Dependency license, advisory, and ban checks (master only - gates releases)
+  # Dependency license, advisory, and ban checks (main only - gates releases)
   # https://embarkstudios.github.io/cargo-deny/
   cargo-deny:
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
     steps:
       # https://github.com/step-security/harden-runner
@@ -141,10 +141,10 @@ jobs:
       - name: Run cargo-deny (advisories, licenses, sources, bans)
         run: cargo deny --all-features check advisories licenses sources bans
 
-  # Supply chain security auditing (master only - gates releases)
+  # Supply chain security auditing (main only - gates releases)
   # https://mozilla.github.io/cargo-vet/configuring-ci.html
   cargo-vet:
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
     steps:
       # https://github.com/step-security/harden-runner
@@ -170,7 +170,12 @@ jobs:
         run: cargo vet --locked
 
   build-linux-x86:
-    if: github.ref != 'refs/heads/test-pre-commit' && needs.plan.outputs.run-tests == 'true'
+    # NTPRO main uses Rust-only smoke and audit gates. The legacy wheel-oriented
+    # build matrix remains available for nightly/test branches only.
+    if: >
+      github.ref != 'refs/heads/main' &&
+      github.ref != 'refs/heads/test-pre-commit' &&
+      needs.plan.outputs.run-tests == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -344,7 +349,8 @@ jobs:
       needs.plan.outputs.run-tests == 'true' &&
       !(
         (github.event_name == 'push' &&
-          (github.ref_name == 'develop' ||
+          (github.ref_name == 'main' ||
+            github.ref_name == 'develop' ||
             github.ref_name == 'test-pre-commit'))
         || github.event_name == 'pull_request'
       )
@@ -458,6 +464,7 @@ jobs:
     if: >
       needs.plan.outputs.run-tests == 'true' &&
       github.event_name == 'push' &&
+      github.ref != 'refs/heads/main' &&
       github.ref != 'refs/heads/develop' &&
       github.ref != 'refs/heads/test-pre-commit'
     strategy:
@@ -617,7 +624,8 @@ jobs:
       needs.plan.outputs.run-tests == 'true' &&
       !(
         (github.event_name == 'push' &&
-          (github.ref_name == 'develop' ||
+          (github.ref_name == 'main' ||
+            github.ref_name == 'develop' ||
             github.ref_name == 'test-pre-commit'))
         || github.event_name == 'pull_request'
       )
