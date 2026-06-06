@@ -2919,7 +2919,7 @@
     },
     "DRG-010": {
       "title": "Final design-readiness audit",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -2930,9 +2930,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-010.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-010.md",
-      "updated_at": "2026-06-06T04:10:00Z",
+      "updated_at": "2026-06-06T04:45:30Z",
       "local_backlog": true,
-      "evidence_summary": "G9 final audit records Design Readiness Gate: PASS after DRG-001 through DRG-009 evidence review, no open GitHub PR/issues, Shrimp DRG-010 in progress with V02 tasks pending, verify_fast PASS, verify_full PASS, and final design_readiness_report.md created."
+      "evidence_summary": "G9 final audit records Design Readiness Gate: PASS after DRG-001 through DRG-009 evidence review, no open GitHub PR/issues, Shrimp DRG-010 in progress with V02 tasks pending, verify_fast PASS, verify_full PASS, and final design_readiness_report.md created.",
+      "pr": 190,
+      "merged_at": "2026-06-06T04:23:16Z"
     },
     "NCTL-001": {
       "title": "Register GitHub audit issues and v0.2 backlog",
@@ -2953,7 +2955,7 @@
     },
     "V02-001": {
       "title": "Scope decision and roadmap rewrite",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -2967,13 +2969,15 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-001.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-001.md",
-      "updated_at": "2026-06-06T04:34:03Z",
+      "updated_at": "2026-06-06T04:45:30Z",
       "local_backlog": true,
-      "evidence_summary": "V02 scope decision records Local Multi-Node Runtime Foundation as the active v0.2 execution track, marks the older v0_2_0_roadmap.md as superseded historical context, verifies DRG-010 PASS, and runs verify_fast plus diff/json checks."
+      "evidence_summary": "V02 scope decision records Local Multi-Node Runtime Foundation as the active v0.2 execution track, marks the older v0_2_0_roadmap.md as superseded historical context, verifies DRG-010 PASS, and runs verify_fast plus diff/json checks.",
+      "pr": 192,
+      "merged_at": "2026-06-06T04:37:06Z"
     },
     "V02-002": {
       "title": "Node and Supervisor product contract",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "control_scope_agent",
       "review_role": "rust_product_surface_agent",
       "risk_level": "medium",
@@ -2987,8 +2991,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-002.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-002.md",
-      "updated_at": "2026-06-06T04:30:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-06T04:45:30Z",
+      "local_backlog": true,
+      "evidence_summary": "V02-002 defines the ntpro-node and ntpro-supervisor product contract, node_id rules, local file layout, lifecycle command boundary, config ownership, and sandbox-only first release behavior without runtime code changes."
     },
     "V02-003": {
       "title": "Node status DTOs",
