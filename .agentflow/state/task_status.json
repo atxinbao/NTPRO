@@ -3065,7 +3065,7 @@
     },
     "V02-006": {
       "title": "supervisor start stop status",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -3079,13 +3079,16 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-006.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-006.md",
-      "updated_at": "2026-06-06T09:04:57Z",
+      "updated_at": "2026-06-06T12:31:45Z",
       "local_backlog": true,
-      "evidence_summary": "V02-006 adds ntpro-node stop-file mode plus supervisor start/stop/status support, with tests and smoke evidence proving running then stopped status, duplicate start/stop errors, external_venue_connection=false, and real_orders_submitted=false; it stops at REVIEW_REQUIRED because the task is high risk."
+      "evidence_summary": "V02-006 merged in PR #197 with smoke passing; supervisor start/stop/status support is closed as DONE.",
+      "pr": 197,
+      "merged_at": "2026-06-06T12:01:11Z",
+      "merge_commit": "840e49b014c2a21b58f99f00eb6993b04121222d"
     },
     "V02-007": {
       "title": "logs and minimal metrics JSON",
-      "status": "TODO",
+      "status": "QA_REQUIRED",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3099,8 +3102,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-007.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-007.md",
-      "updated_at": "2026-06-06T04:30:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-06T12:31:45Z",
+      "local_backlog": true,
+      "evidence_summary": "V02-007 adds per-node metrics.json, logs/events.log, supervisor stdout/stderr log redirection, and node_metrics query support; cargo fmt/check/tests, direct ntpro-node metrics/log smoke, verify_fast, and agentflow role validation passed."
     },
     "V02-008": {
       "title": "CLI controls supervisor",
