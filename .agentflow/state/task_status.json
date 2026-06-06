@@ -3088,7 +3088,7 @@
     },
     "V02-007": {
       "title": "logs and minimal metrics JSON",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3102,13 +3102,16 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-007.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-007.md",
-      "updated_at": "2026-06-06T12:31:45Z",
+      "updated_at": "2026-06-06T12:50:02Z",
       "local_backlog": true,
-      "evidence_summary": "V02-007 adds per-node metrics.json, logs/events.log, supervisor stdout/stderr log redirection, and node_metrics query support; cargo fmt/check/tests, direct ntpro-node metrics/log smoke, verify_fast, and agentflow role validation passed."
+      "evidence_summary": "V02-007 merged in PR #198 with smoke passing; logs and minimal metrics JSON artifacts are closed as DONE.",
+      "pr": 198,
+      "merged_at": "2026-06-06T12:34:58Z",
+      "merge_commit": "0af4b4d4cc835b20d33c351f34230de69357fcc7"
     },
     "V02-008": {
       "title": "CLI controls supervisor",
-      "status": "TODO",
+      "status": "QA_REQUIRED",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3122,8 +3125,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-008.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-008.md",
-      "updated_at": "2026-06-06T04:30:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-06T12:50:02Z",
+      "local_backlog": true,
+      "evidence_summary": "V02-008 adds nautilus supervisor register/list/start/stop/status/connections/execution/risk/logs/metrics commands; cargo fmt/check/tests, CLI help, full supervisor CLI smoke, verify_fast, and agentflow validation passed."
     },
     "V02-009": {
       "title": "two-node local smoke test",

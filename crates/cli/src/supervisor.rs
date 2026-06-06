@@ -15,6 +15,7 @@
 
 use std::{
     collections::BTreeMap,
+    fmt::Display,
     fs,
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -27,6 +28,11 @@ use nautilus_live::status::{
     ConnectionStatus, LifecycleStatus, NodeStatus, ProcessMode, SnapshotValue,
 };
 use serde::{Deserialize, Serialize};
+
+use crate::opt::{
+    SupervisorCommand, SupervisorListOpt, SupervisorNodeOpt, SupervisorOpt, SupervisorRegisterOpt,
+    SupervisorStartOpt, SupervisorStopOpt,
+};
 
 pub const SUPERVISOR_REGISTRY_SCHEMA_VERSION: &str = "ntpro.supervisor_registry.v1";
 pub const NODE_METRICS_SCHEMA_VERSION: &str = "ntpro.node_metrics.v1";
@@ -221,6 +227,225 @@ impl NodeMetricArtifacts {
 
 fn count_connection(actual: ConnectionStatus, expected: ConnectionStatus) -> u64 {
     if actual == expected { 1 } else { 0 }
+}
+
+/// Runs local supervisor controls through registry and node artifacts.
+///
+/// # Errors
+///
+/// Returns an error if the registry cannot be read/written, the requested node
+/// is missing, a node process cannot be started/stopped, or an artifact is
+/// missing or invalid.
+pub(crate) fn run_supervisor_command(opt: SupervisorOpt) -> anyhow::Result<()> {
+    match opt.command {
+        SupervisorCommand::Register(register) => run_supervisor_register(register),
+        SupervisorCommand::List(list) => run_supervisor_list(list),
+        SupervisorCommand::Start(start) => run_supervisor_start(start),
+        SupervisorCommand::Stop(stop) => run_supervisor_stop(stop),
+        SupervisorCommand::Status(node) => run_supervisor_status(node),
+        SupervisorCommand::Connections(node) => run_supervisor_connections(node),
+        SupervisorCommand::Execution(node) => run_supervisor_execution(node),
+        SupervisorCommand::Risk(node) => run_supervisor_risk(node),
+        SupervisorCommand::Logs(node) => run_supervisor_logs(node),
+        SupervisorCommand::Metrics(node) => run_supervisor_metrics(node),
+    }
+}
+
+fn run_supervisor_register(opt: SupervisorRegisterOpt) -> anyhow::Result<()> {
+    let store = SupervisorRegistryStore::new(opt.registry.registry);
+    let record = store.register_node(RegisterNodeRequest {
+        node_id: opt.node_id,
+        config_path: opt.config,
+        artifact_root: opt.artifact_root,
+    })?;
+    println!(
+        "supervisor.register status=ok node_id={} registry={} artifact_root={} status_artifact={} metrics_artifact={}",
+        record.node_id,
+        store.registry_path().display(),
+        record.artifact_root.display(),
+        json_label(&record.status_artifact),
+        json_label(&record.metrics_artifact),
+    );
+    Ok(())
+}
+
+fn run_supervisor_list(opt: SupervisorListOpt) -> anyhow::Result<()> {
+    let store = SupervisorRegistryStore::new(opt.registry.registry);
+    let nodes = store.list_nodes()?;
+    let node_ids = nodes
+        .iter()
+        .map(|record| record.node_id.as_str())
+        .collect::<Vec<_>>()
+        .join(",");
+    println!(
+        "supervisor.list status=ok registry={} nodes={} node_ids={}",
+        store.registry_path().display(),
+        nodes.len(),
+        node_ids,
+    );
+    Ok(())
+}
+
+fn run_supervisor_start(opt: SupervisorStartOpt) -> anyhow::Result<()> {
+    let store = SupervisorRegistryStore::new(opt.registry.registry);
+    let record = store.start_node_process(StartNodeRequest {
+        node_id: opt.node_id,
+        ntpro_node_bin: opt.ntpro_node_bin,
+        startup_timeout: Duration::from_millis(opt.startup_timeout_ms),
+    })?;
+    println!(
+        "supervisor.start status=ok node_id={} process_state={} lifecycle_state={} pid={} external_venue_connection=false real_orders_submitted=false",
+        record.node_id,
+        json_label(&record.process.state),
+        json_label(&record.last_known_status.lifecycle_state),
+        snapshot_display(&record.process.pid),
+    );
+    Ok(())
+}
+
+fn run_supervisor_stop(opt: SupervisorStopOpt) -> anyhow::Result<()> {
+    let store = SupervisorRegistryStore::new(opt.registry.registry);
+    let record = store.stop_node_process(StopNodeRequest {
+        node_id: opt.node_id,
+        stop_timeout: Duration::from_millis(opt.stop_timeout_ms),
+    })?;
+    println!(
+        "supervisor.stop status=ok node_id={} process_state={} lifecycle_state={} external_venue_connection=false real_orders_submitted=false",
+        record.node_id,
+        json_label(&record.process.state),
+        json_label(&record.last_known_status.lifecycle_state),
+    );
+    Ok(())
+}
+
+fn run_supervisor_status(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
+    let store = SupervisorRegistryStore::new(opt.registry.registry);
+    let status = store.node_status(&opt.node_id)?;
+    println!(
+        "supervisor.status status=ok registry_node_id={} status_node_id={} lifecycle_state={} previous_lifecycle_state={} process_mode={} generated_at={} external_venue_connection={} real_orders_submitted={} last_error={}",
+        opt.node_id,
+        status.node_id,
+        json_label(&status.lifecycle_state),
+        json_label(&status.previous_lifecycle_state),
+        json_label(&status.process_mode),
+        snapshot_display(&status.generated_at),
+        status.external_venue_connection,
+        status.real_orders_submitted,
+        status.last_error.as_deref().unwrap_or("none"),
+    );
+    Ok(())
+}
+
+fn run_supervisor_connections(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
+    let store = SupervisorRegistryStore::new(opt.registry.registry);
+    let status = store.node_status(&opt.node_id)?;
+    println!(
+        "supervisor.connections status=ok registry_node_id={} status_node_id={} data_connection={} execution_connection={} external_venue_connection={} real_orders_submitted={}",
+        opt.node_id,
+        status.node_id,
+        json_label(&status.data_connection),
+        json_label(&status.execution_connection),
+        status.external_venue_connection,
+        status.real_orders_submitted,
+    );
+    Ok(())
+}
+
+fn run_supervisor_execution(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
+    let store = SupervisorRegistryStore::new(opt.registry.registry);
+    let status = store.node_status(&opt.node_id)?;
+    println!(
+        "supervisor.execution status=ok registry_node_id={} status_node_id={} gateway_id={} connection={} started={} account_ref={} orders_open={} orders_inflight={} orders_closed={} last_error={}",
+        opt.node_id,
+        status.node_id,
+        snapshot_display(&status.execution.gateway_id),
+        json_label(&status.execution.connection),
+        snapshot_display(&status.execution.started),
+        snapshot_display(&status.execution.account_ref),
+        snapshot_display(&status.execution.orders_open),
+        snapshot_display(&status.execution.orders_inflight),
+        snapshot_display(&status.execution.orders_closed),
+        status.execution.last_error.as_deref().unwrap_or("none"),
+    );
+    Ok(())
+}
+
+fn run_supervisor_risk(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
+    let store = SupervisorRegistryStore::new(opt.registry.registry);
+    let status = store.node_status(&opt.node_id)?;
+    println!(
+        "supervisor.risk status=ok registry_node_id={} status_node_id={} trading_state={} health={} command_count={} event_count={} rejections_total={} last_rejection={} last_error={}",
+        opt.node_id,
+        status.node_id,
+        json_label(&status.risk.trading_state),
+        json_label(&status.risk.health),
+        snapshot_display(&status.risk.command_count),
+        snapshot_display(&status.risk.event_count),
+        snapshot_display(&status.risk.rejections_total),
+        status.risk.last_rejection.as_deref().unwrap_or("none"),
+        status.risk.last_error.as_deref().unwrap_or("none"),
+    );
+    Ok(())
+}
+
+fn run_supervisor_logs(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
+    let store = SupervisorRegistryStore::new(opt.registry.registry);
+    let record = load_node_record(&store, &opt.node_id)?;
+    println!(
+        "supervisor.logs status=ok node_id={} stdout_log={} stderr_log={} events_log={}",
+        record.node_id,
+        record.stdout_log_path.display(),
+        record.stderr_log_path.display(),
+        record.events_log_path.display(),
+    );
+    Ok(())
+}
+
+fn run_supervisor_metrics(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
+    let store = SupervisorRegistryStore::new(opt.registry.registry);
+    let metrics = store.node_metrics(&opt.node_id)?;
+    println!(
+        "supervisor.metrics status=ok registry_node_id={} metrics_node_id={} lifecycle_state={} starts_total={} stops_total={} state_transitions_total={} uptime_ms={} external_venue_connection={} real_orders_submitted={} last_error={}",
+        opt.node_id,
+        metrics.node_id,
+        json_label(&metrics.lifecycle_state),
+        metrics.starts_total,
+        metrics.stops_total,
+        metrics.state_transitions_total,
+        snapshot_display(&metrics.uptime_ms),
+        metrics.external_venue_connection,
+        metrics.real_orders_submitted,
+        metrics.last_error_summary.as_deref().unwrap_or("none"),
+    );
+    Ok(())
+}
+
+fn load_node_record(
+    store: &SupervisorRegistryStore,
+    node_id: &str,
+) -> anyhow::Result<SupervisorNodeRecord> {
+    validate_node_id(node_id)?;
+    let registry = store.load()?;
+    registry
+        .nodes
+        .get(node_id)
+        .cloned()
+        .with_context(|| format!("node '{node_id}' is not registered"))
+}
+
+fn json_label<T: Serialize>(value: &T) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|value| value.as_str().map(ToString::to_string))
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+fn snapshot_display<T: Display>(value: &SnapshotValue<T>) -> String {
+    value
+        .value
+        .as_ref()
+        .map(ToString::to_string)
+        .unwrap_or_else(|| json_label(&value.availability))
 }
 
 impl Default for SupervisorProcessRecord {
@@ -862,6 +1087,7 @@ fn now_millis() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::opt::SupervisorRegistryOpt;
 
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
@@ -1316,5 +1542,103 @@ EOF
             .unwrap_err()
             .to_string();
         assert!(duplicate_stop.contains("not running"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn supervisor_command_handlers_control_fixture_node() {
+        let root = temp_root("commands");
+        let registry = root.join("registry.json");
+        let config = write_config(&root, "sandbox-a");
+        let fixture = write_fixture_node(&root);
+        let artifact_root = root.join("sandbox-a-artifacts");
+        let registry_opt = SupervisorRegistryOpt {
+            registry: registry.clone(),
+        };
+
+        run_supervisor_command(SupervisorOpt {
+            command: SupervisorCommand::Register(SupervisorRegisterOpt {
+                registry: registry_opt.clone(),
+                node_id: "sandbox-a".to_string(),
+                config,
+                artifact_root: Some(artifact_root.clone()),
+            }),
+        })
+        .unwrap();
+        run_supervisor_command(SupervisorOpt {
+            command: SupervisorCommand::List(SupervisorListOpt {
+                registry: registry_opt.clone(),
+            }),
+        })
+        .unwrap();
+        run_supervisor_command(SupervisorOpt {
+            command: SupervisorCommand::Start(SupervisorStartOpt {
+                registry: registry_opt.clone(),
+                node_id: "sandbox-a".to_string(),
+                ntpro_node_bin: fixture,
+                startup_timeout_ms: 3_000,
+            }),
+        })
+        .unwrap();
+
+        for command in [
+            SupervisorCommand::Status(SupervisorNodeOpt {
+                registry: registry_opt.clone(),
+                node_id: "sandbox-a".to_string(),
+            }),
+            SupervisorCommand::Connections(SupervisorNodeOpt {
+                registry: registry_opt.clone(),
+                node_id: "sandbox-a".to_string(),
+            }),
+            SupervisorCommand::Execution(SupervisorNodeOpt {
+                registry: registry_opt.clone(),
+                node_id: "sandbox-a".to_string(),
+            }),
+            SupervisorCommand::Risk(SupervisorNodeOpt {
+                registry: registry_opt.clone(),
+                node_id: "sandbox-a".to_string(),
+            }),
+            SupervisorCommand::Logs(SupervisorNodeOpt {
+                registry: registry_opt.clone(),
+                node_id: "sandbox-a".to_string(),
+            }),
+            SupervisorCommand::Metrics(SupervisorNodeOpt {
+                registry: registry_opt.clone(),
+                node_id: "sandbox-a".to_string(),
+            }),
+        ] {
+            run_supervisor_command(SupervisorOpt { command }).unwrap();
+        }
+
+        let store = SupervisorRegistryStore::new(registry.clone());
+        assert_eq!(
+            store.node_status("sandbox-a").unwrap().lifecycle_state,
+            LifecycleStatus::Running
+        );
+        assert_eq!(
+            store.node_metrics("sandbox-a").unwrap().lifecycle_state,
+            LifecycleStatus::Running
+        );
+
+        run_supervisor_command(SupervisorOpt {
+            command: SupervisorCommand::Stop(SupervisorStopOpt {
+                registry: registry_opt,
+                node_id: "sandbox-a".to_string(),
+                stop_timeout_ms: 3_000,
+            }),
+        })
+        .unwrap();
+
+        assert_eq!(
+            store.node_status("sandbox-a").unwrap().lifecycle_state,
+            LifecycleStatus::Stopped
+        );
+        assert_eq!(
+            store.node_metrics("sandbox-a").unwrap().lifecycle_state,
+            LifecycleStatus::Stopped
+        );
+        assert!(artifact_root.join("logs").join("stdout.log").exists());
+        assert!(artifact_root.join("logs").join("stderr.log").exists());
+        assert!(artifact_root.join("logs").join("events.log").exists());
     }
 }

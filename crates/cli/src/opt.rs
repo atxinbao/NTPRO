@@ -33,6 +33,7 @@ pub enum Commands {
     Live(LiveOpt),
     Data(DataOpt),
     Config(ConfigOpt),
+    Supervisor(SupervisorOpt),
     Database(DatabaseOpt),
     #[cfg(feature = "defi")]
     Blockchain(BlockchainOpt),
@@ -159,6 +160,110 @@ pub struct LiveRunOpt {
     /// Optional directory for run artifacts.
     #[arg(long)]
     pub output: Option<PathBuf>,
+}
+
+/// Local supervisor artifact and process controls.
+#[derive(Parser, Debug)]
+#[command(about = "Local supervisor controls", long_about = None)]
+pub struct SupervisorOpt {
+    #[clap(subcommand)]
+    pub command: SupervisorCommand,
+}
+
+/// Available local supervisor commands.
+#[derive(Parser, Debug, Clone)]
+#[command(about = "Local supervisor controls", long_about = None)]
+pub enum SupervisorCommand {
+    /// Registers or replaces a local sandbox node record.
+    Register(SupervisorRegisterOpt),
+    /// Lists registered local nodes.
+    List(SupervisorListOpt),
+    /// Starts a registered local ntpro-node process.
+    Start(SupervisorStartOpt),
+    /// Stops a registered local ntpro-node process.
+    Stop(SupervisorStopOpt),
+    /// Reads the latest node status artifact.
+    Status(SupervisorNodeOpt),
+    /// Reads data/execution connection status from node artifacts.
+    Connections(SupervisorNodeOpt),
+    /// Reads execution summary from node artifacts.
+    Execution(SupervisorNodeOpt),
+    /// Reads risk summary from node artifacts.
+    Risk(SupervisorNodeOpt),
+    /// Prints per-node log artifact paths.
+    Logs(SupervisorNodeOpt),
+    /// Reads minimal per-node metrics JSON.
+    Metrics(SupervisorNodeOpt),
+}
+
+/// Common supervisor registry option.
+#[derive(Parser, Debug, Clone)]
+pub struct SupervisorRegistryOpt {
+    /// Path to the local supervisor registry JSON file.
+    #[arg(long)]
+    pub registry: PathBuf,
+}
+
+/// Supervisor node registration options.
+#[derive(Parser, Debug, Clone)]
+pub struct SupervisorRegisterOpt {
+    #[clap(flatten)]
+    pub registry: SupervisorRegistryOpt,
+    /// Stable local node identifier.
+    #[arg(long)]
+    pub node_id: String,
+    /// Path to the Rust live-init smoke config file.
+    #[arg(long)]
+    pub config: PathBuf,
+    /// Optional directory for node artifacts.
+    #[arg(long)]
+    pub artifact_root: Option<PathBuf>,
+}
+
+/// Supervisor node listing options.
+#[derive(Parser, Debug, Clone)]
+pub struct SupervisorListOpt {
+    #[clap(flatten)]
+    pub registry: SupervisorRegistryOpt,
+}
+
+/// Supervisor node start options.
+#[derive(Parser, Debug, Clone)]
+pub struct SupervisorStartOpt {
+    #[clap(flatten)]
+    pub registry: SupervisorRegistryOpt,
+    /// Registered local node identifier.
+    #[arg(long)]
+    pub node_id: String,
+    /// Path to the ntpro-node binary.
+    #[arg(long)]
+    pub ntpro_node_bin: PathBuf,
+    /// Startup wait timeout in milliseconds.
+    #[arg(long, default_value_t = 5_000)]
+    pub startup_timeout_ms: u64,
+}
+
+/// Supervisor node stop options.
+#[derive(Parser, Debug, Clone)]
+pub struct SupervisorStopOpt {
+    #[clap(flatten)]
+    pub registry: SupervisorRegistryOpt,
+    /// Registered local node identifier.
+    #[arg(long)]
+    pub node_id: String,
+    /// Stop wait timeout in milliseconds.
+    #[arg(long, default_value_t = 5_000)]
+    pub stop_timeout_ms: u64,
+}
+
+/// Supervisor single-node query options.
+#[derive(Parser, Debug, Clone)]
+pub struct SupervisorNodeOpt {
+    #[clap(flatten)]
+    pub registry: SupervisorRegistryOpt,
+    /// Registered local node identifier.
+    #[arg(long)]
+    pub node_id: String,
 }
 
 /// Data catalog inspection, validation, and loading commands.
@@ -401,6 +506,7 @@ mod tests {
         assert!(help.contains("live"));
         assert!(help.contains("data"));
         assert!(help.contains("config"));
+        assert!(help.contains("supervisor"));
         assert!(help.contains("database"));
     }
 
@@ -611,6 +717,154 @@ mod tests {
         assert!(validate_help.contains("live-init smoke config"));
         assert!(run_help.contains("LiveNode start/stop smoke path"));
         assert!(run_help.contains("without external venue access"));
+    }
+
+    #[test]
+    fn supervisor_help_lists_local_artifact_controls() {
+        let mut command = NautilusCli::command();
+        let supervisor = command
+            .find_subcommand_mut("supervisor")
+            .expect("supervisor command should exist");
+        let help = supervisor.render_help().to_string();
+
+        for command in [
+            "register",
+            "list",
+            "start",
+            "stop",
+            "status",
+            "connections",
+            "execution",
+            "risk",
+            "logs",
+            "metrics",
+        ] {
+            assert!(help.contains(command), "{command} should be listed");
+        }
+    }
+
+    #[test]
+    fn supervisor_help_describes_local_boundary() {
+        let help = render_subcommand_help(&["supervisor", "start"]);
+
+        assert!(help.contains("registered local ntpro-node process"));
+        assert!(help.contains("--registry"));
+        assert!(help.contains("--node-id"));
+        assert!(help.contains("--ntpro-node-bin"));
+    }
+
+    #[test]
+    fn parses_supervisor_register_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "supervisor",
+            "register",
+            "--registry",
+            "runs/supervisor/registry.json",
+            "--node-id",
+            "sandbox-a",
+            "--config",
+            "config/live.toml",
+            "--artifact-root",
+            "runs/supervisor/nodes/sandbox-a",
+        ])
+        .expect("supervisor register should parse");
+
+        let Commands::Supervisor(supervisor) = parsed.command else {
+            panic!("expected supervisor command");
+        };
+        let SupervisorCommand::Register(register) = supervisor.command else {
+            panic!("expected register command");
+        };
+
+        assert_eq!(
+            register.registry.registry,
+            PathBuf::from("runs/supervisor/registry.json")
+        );
+        assert_eq!(register.node_id, "sandbox-a");
+        assert_eq!(register.config, PathBuf::from("config/live.toml"));
+        assert_eq!(
+            register.artifact_root,
+            Some(PathBuf::from("runs/supervisor/nodes/sandbox-a"))
+        );
+    }
+
+    #[test]
+    fn parses_supervisor_start_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "supervisor",
+            "start",
+            "--registry",
+            "runs/supervisor/registry.json",
+            "--node-id",
+            "sandbox-a",
+            "--ntpro-node-bin",
+            "target/debug/ntpro-node",
+            "--startup-timeout-ms",
+            "7500",
+        ])
+        .expect("supervisor start should parse");
+
+        let Commands::Supervisor(supervisor) = parsed.command else {
+            panic!("expected supervisor command");
+        };
+        let SupervisorCommand::Start(start) = supervisor.command else {
+            panic!("expected start command");
+        };
+
+        assert_eq!(
+            start.registry.registry,
+            PathBuf::from("runs/supervisor/registry.json")
+        );
+        assert_eq!(start.node_id, "sandbox-a");
+        assert_eq!(
+            start.ntpro_node_bin,
+            PathBuf::from("target/debug/ntpro-node")
+        );
+        assert_eq!(start.startup_timeout_ms, 7_500);
+    }
+
+    #[test]
+    fn parses_supervisor_query_options() {
+        for command in [
+            "status",
+            "connections",
+            "execution",
+            "risk",
+            "logs",
+            "metrics",
+        ] {
+            let parsed = NautilusCli::try_parse_from([
+                "nautilus",
+                "supervisor",
+                command,
+                "--registry",
+                "runs/supervisor/registry.json",
+                "--node-id",
+                "sandbox-a",
+            ])
+            .unwrap_or_else(|_| panic!("supervisor {command} should parse"));
+
+            let Commands::Supervisor(supervisor) = parsed.command else {
+                panic!("expected supervisor command");
+            };
+            match supervisor.command {
+                SupervisorCommand::Status(node)
+                | SupervisorCommand::Connections(node)
+                | SupervisorCommand::Execution(node)
+                | SupervisorCommand::Risk(node)
+                | SupervisorCommand::Logs(node)
+                | SupervisorCommand::Metrics(node) => {
+                    assert_eq!(
+                        node.registry.registry,
+                        PathBuf::from("runs/supervisor/registry.json")
+                    );
+                    assert_eq!(node.node_id, "sandbox-a");
+                }
+                _ => panic!("expected query command"),
+            }
+        }
     }
 
     #[test]
