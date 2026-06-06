@@ -29,6 +29,7 @@ use nautilus_live::status::{
 use serde::{Deserialize, Serialize};
 
 pub const SUPERVISOR_REGISTRY_SCHEMA_VERSION: &str = "ntpro.supervisor_registry.v1";
+pub const NODE_METRICS_SCHEMA_VERSION: &str = "ntpro.node_metrics.v1";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SupervisorRegistry {
@@ -61,6 +62,8 @@ pub struct SupervisorNodeRecord {
     pub process: SupervisorProcessRecord,
     pub last_known_status: NodeStatus,
     pub status_artifact: RegistryArtifactState,
+    #[serde(default)]
+    pub metrics_artifact: RegistryArtifactState,
     pub updated_at: SnapshotValue<String>,
 }
 
@@ -77,6 +80,147 @@ pub struct SupervisorPidArtifact {
     pub pid: u32,
     pub state: SupervisorProcessState,
     pub updated_at: SnapshotValue<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NodeMetrics {
+    pub schema_version: String,
+    pub node_id: String,
+    pub lifecycle_state: LifecycleStatus,
+    pub previous_lifecycle_state: LifecycleStatus,
+    pub process_mode: ProcessMode,
+    pub uptime_ms: SnapshotValue<u64>,
+    pub starts_total: u64,
+    pub stops_total: u64,
+    pub state_transitions_total: u64,
+    pub connection_counts: NodeConnectionCounts,
+    pub last_error_summary: Option<String>,
+    pub generated_at: SnapshotValue<String>,
+    pub started_at: SnapshotValue<String>,
+    pub stopped_at: SnapshotValue<String>,
+    pub status_artifact_path: SnapshotValue<String>,
+    pub stdout_log_path: SnapshotValue<String>,
+    pub stderr_log_path: SnapshotValue<String>,
+    pub events_log_path: SnapshotValue<String>,
+    pub external_venue_connection: bool,
+    pub real_orders_submitted: bool,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NodeConnectionCounts {
+    pub data_connected: u64,
+    pub data_disconnected: u64,
+    pub data_not_configured: u64,
+    pub execution_connected: u64,
+    pub execution_disconnected: u64,
+    pub execution_not_configured: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NodeMetricArtifacts {
+    pub status_path: PathBuf,
+    pub stdout_log_path: PathBuf,
+    pub stderr_log_path: PathBuf,
+    pub events_log_path: PathBuf,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NodeMetricCounts {
+    pub uptime_ms: Option<u64>,
+    pub starts_total: u64,
+    pub stops_total: u64,
+    pub state_transitions_total: u64,
+}
+
+impl NodeMetrics {
+    #[must_use]
+    pub fn from_status(
+        status: &NodeStatus,
+        artifacts: &NodeMetricArtifacts,
+        counts: NodeMetricCounts,
+    ) -> Self {
+        Self {
+            schema_version: NODE_METRICS_SCHEMA_VERSION.to_string(),
+            node_id: status.node_id.clone(),
+            lifecycle_state: status.lifecycle_state,
+            previous_lifecycle_state: status.previous_lifecycle_state,
+            process_mode: status.process_mode,
+            uptime_ms: counts
+                .uptime_ms
+                .map_or_else(SnapshotValue::unknown, SnapshotValue::available),
+            starts_total: counts.starts_total,
+            stops_total: counts.stops_total,
+            state_transitions_total: counts.state_transitions_total,
+            connection_counts: NodeConnectionCounts::from_status(status),
+            last_error_summary: status
+                .last_error
+                .clone()
+                .or_else(|| status.execution.last_error.clone())
+                .or_else(|| status.risk.last_error.clone()),
+            generated_at: status.generated_at.clone(),
+            started_at: status.started_at.clone(),
+            stopped_at: status.stopped_at.clone(),
+            status_artifact_path: SnapshotValue::available(
+                artifacts.status_path.display().to_string(),
+            ),
+            stdout_log_path: SnapshotValue::available(
+                artifacts.stdout_log_path.display().to_string(),
+            ),
+            stderr_log_path: SnapshotValue::available(
+                artifacts.stderr_log_path.display().to_string(),
+            ),
+            events_log_path: SnapshotValue::available(
+                artifacts.events_log_path.display().to_string(),
+            ),
+            external_venue_connection: status.external_venue_connection,
+            real_orders_submitted: status.real_orders_submitted,
+        }
+    }
+}
+
+impl NodeConnectionCounts {
+    #[must_use]
+    pub fn from_status(status: &NodeStatus) -> Self {
+        Self {
+            data_connected: count_connection(status.data_connection, ConnectionStatus::Connected),
+            data_disconnected: count_connection(
+                status.data_connection,
+                ConnectionStatus::Disconnected,
+            ),
+            data_not_configured: count_connection(
+                status.data_connection,
+                ConnectionStatus::NotConfigured,
+            ),
+            execution_connected: count_connection(
+                status.execution_connection,
+                ConnectionStatus::Connected,
+            ),
+            execution_disconnected: count_connection(
+                status.execution_connection,
+                ConnectionStatus::Disconnected,
+            ),
+            execution_not_configured: count_connection(
+                status.execution_connection,
+                ConnectionStatus::NotConfigured,
+            ),
+        }
+    }
+}
+
+impl NodeMetricArtifacts {
+    #[must_use]
+    pub fn from_record(record: &SupervisorNodeRecord) -> Self {
+        Self {
+            status_path: record.status_path.clone(),
+            stdout_log_path: record.stdout_log_path.clone(),
+            stderr_log_path: record.stderr_log_path.clone(),
+            events_log_path: record.events_log_path.clone(),
+        }
+    }
+}
+
+fn count_connection(actual: ConnectionStatus, expected: ConnectionStatus) -> u64 {
+    if actual == expected { 1 } else { 0 }
 }
 
 impl Default for SupervisorProcessRecord {
@@ -384,6 +528,18 @@ impl SupervisorRegistryStore {
                 format!("failed to remove stale stop file '{}'", stop_file.display())
             })?;
         }
+        let stdout_log = fs::File::create(&record.stdout_log_path).with_context(|| {
+            format!(
+                "failed to create stdout log '{}'",
+                record.stdout_log_path.display()
+            )
+        })?;
+        let stderr_log = fs::File::create(&record.stderr_log_path).with_context(|| {
+            format!(
+                "failed to create stderr log '{}'",
+                record.stderr_log_path.display()
+            )
+        })?;
 
         let child = Command::new(&request.ntpro_node_bin)
             .arg("--config")
@@ -394,8 +550,8 @@ impl SupervisorRegistryStore {
             .arg(&record.artifact_root)
             .arg("--stop-file")
             .arg(&stop_file)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stdout(Stdio::from(stdout_log))
+            .stderr(Stdio::from(stderr_log))
             .spawn()
             .with_context(|| {
                 format!(
@@ -481,6 +637,54 @@ impl SupervisorRegistryStore {
         Ok(record.last_known_status)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the node is missing, the metrics artifact is
+    /// missing, or the JSON shape is invalid.
+    pub fn node_metrics(&self, node_id: &str) -> anyhow::Result<NodeMetrics> {
+        validate_node_id(node_id)?;
+        let mut registry = self.load()?;
+        let record = registry
+            .nodes
+            .get_mut(node_id)
+            .with_context(|| format!("node '{node_id}' is not registered"))?;
+
+        let metrics_path = record.metrics_path.clone();
+        if !metrics_path.exists() {
+            record.metrics_artifact = RegistryArtifactState::Missing;
+            record.updated_at = SnapshotValue::available(now_millis());
+            registry.updated_at = SnapshotValue::available(now_millis());
+            self.save(&registry)?;
+            anyhow::bail!(
+                "metrics artifact '{}' does not exist",
+                metrics_path.display()
+            );
+        }
+
+        let raw = fs::read_to_string(&metrics_path).with_context(|| {
+            format!(
+                "failed to read metrics artifact '{}'",
+                metrics_path.display()
+            )
+        })?;
+        match serde_json::from_str::<NodeMetrics>(&raw) {
+            Ok(metrics) => {
+                record.metrics_artifact = RegistryArtifactState::Available;
+                record.updated_at = SnapshotValue::available(now_millis());
+                registry.updated_at = SnapshotValue::available(now_millis());
+                self.save(&registry)?;
+                Ok(metrics)
+            }
+            Err(error) => {
+                record.metrics_artifact = RegistryArtifactState::Invalid;
+                record.updated_at = SnapshotValue::available(now_millis());
+                registry.updated_at = SnapshotValue::available(now_millis());
+                self.save(&registry)?;
+                anyhow::bail!("invalid metrics artifact: {error}");
+            }
+        }
+    }
+
     fn default_node_artifact_root(&self, node_id: &str) -> PathBuf {
         self.registry_path
             .parent()
@@ -525,6 +729,7 @@ impl SupervisorNodeRecord {
             events_log_path: artifact_root.join("logs").join("events.log"),
             last_known_status: initial_status(&node_id, &config_path, &artifact_root),
             status_artifact: RegistryArtifactState::Missing,
+            metrics_artifact: RegistryArtifactState::Missing,
             process: SupervisorProcessRecord::default(),
             updated_at: SnapshotValue::available(now_millis()),
             node_id,
@@ -554,6 +759,18 @@ fn create_node_dirs(artifact_root: &Path) -> anyhow::Result<()> {
         fs::create_dir_all(path)
             .with_context(|| format!("failed to create node directory '{}'", path.display()))?;
     }
+    Ok(())
+}
+
+pub fn write_node_metrics_artifact(path: &Path, metrics: &NodeMetrics) -> anyhow::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).with_context(|| {
+            format!("failed to create metrics directory '{}'", parent.display())
+        })?;
+    }
+    let raw = serde_json::to_string_pretty(metrics)?;
+    fs::write(path, format!("{raw}\n"))
+        .with_context(|| format!("failed to write metrics artifact '{}'", path.display()))?;
     Ok(())
 }
 
@@ -683,7 +900,12 @@ while [ "$#" -gt 0 ]; do
     *) shift ;;
   esac
 done
-mkdir -p "$output"
+mkdir -p "$output/logs"
+echo "fixture stdout started node_id=$node_id"
+echo "fixture stderr initialized node_id=$node_id" >&2
+cat > "$output/logs/events.log" <<EOF
+phase=start status=ok node_id=$node_id
+EOF
 cat > "$output/status.json" <<EOF
 {
   "schema_version": "ntpro.node_status.v1",
@@ -725,9 +947,43 @@ cat > "$output/status.json" <<EOF
   "real_orders_submitted": false
 }
 EOF
+cat > "$output/metrics.json" <<EOF
+{
+  "schema_version": "ntpro.node_metrics.v1",
+  "node_id": "$node_id",
+  "lifecycle_state": "running",
+  "previous_lifecycle_state": "starting",
+  "process_mode": "spawned_process",
+  "uptime_ms": {"availability": "available", "value": 0},
+  "starts_total": 1,
+  "stops_total": 0,
+  "state_transitions_total": 1,
+  "connection_counts": {
+    "data_connected": 0,
+    "data_disconnected": 0,
+    "data_not_configured": 1,
+    "execution_connected": 0,
+    "execution_disconnected": 1,
+    "execution_not_configured": 0
+  },
+  "last_error_summary": null,
+  "generated_at": {"availability": "available", "value": "1"},
+  "started_at": {"availability": "available", "value": "1"},
+  "stopped_at": {"availability": "unknown"},
+  "status_artifact_path": {"availability": "available", "value": "$output/status.json"},
+  "stdout_log_path": {"availability": "available", "value": "$output/logs/stdout.log"},
+  "stderr_log_path": {"availability": "available", "value": "$output/logs/stderr.log"},
+  "events_log_path": {"availability": "available", "value": "$output/logs/events.log"},
+  "external_venue_connection": false,
+  "real_orders_submitted": false
+}
+EOF
 while [ ! -f "$stop_file" ]; do
   sleep 0.05
 done
+cat >> "$output/logs/events.log" <<EOF
+phase=stop status=ok node_id=$node_id
+EOF
 cat > "$output/status.json" <<EOF
 {
   "schema_version": "ntpro.node_status.v1",
@@ -769,6 +1025,37 @@ cat > "$output/status.json" <<EOF
   "real_orders_submitted": false
 }
 EOF
+cat > "$output/metrics.json" <<EOF
+{
+  "schema_version": "ntpro.node_metrics.v1",
+  "node_id": "$node_id",
+  "lifecycle_state": "stopped",
+  "previous_lifecycle_state": "running",
+  "process_mode": "spawned_process",
+  "uptime_ms": {"availability": "available", "value": 1},
+  "starts_total": 1,
+  "stops_total": 1,
+  "state_transitions_total": 2,
+  "connection_counts": {
+    "data_connected": 0,
+    "data_disconnected": 0,
+    "data_not_configured": 1,
+    "execution_connected": 0,
+    "execution_disconnected": 1,
+    "execution_not_configured": 0
+  },
+  "last_error_summary": null,
+  "generated_at": {"availability": "available", "value": "2"},
+  "started_at": {"availability": "available", "value": "1"},
+  "stopped_at": {"availability": "available", "value": "2"},
+  "status_artifact_path": {"availability": "available", "value": "$output/status.json"},
+  "stdout_log_path": {"availability": "available", "value": "$output/logs/stdout.log"},
+  "stderr_log_path": {"availability": "available", "value": "$output/logs/stderr.log"},
+  "events_log_path": {"availability": "available", "value": "$output/logs/events.log"},
+  "external_venue_connection": false,
+  "real_orders_submitted": false
+}
+EOF
 "#,
         )
         .unwrap();
@@ -796,6 +1083,7 @@ EOF
         assert_eq!(first.config_path, config_a);
         assert_eq!(first.process.state, SupervisorProcessState::NotStarted);
         assert_eq!(first.status_artifact, RegistryArtifactState::Missing);
+        assert_eq!(first.metrics_artifact, RegistryArtifactState::Missing);
         assert!(first.stdout_log_path.ends_with("logs/stdout.log"));
 
         let second_root = root.join("custom-b");
@@ -979,6 +1267,30 @@ EOF
         assert_eq!(status.lifecycle_state, LifecycleStatus::Running);
         assert!(!status.external_venue_connection);
         assert!(!status.real_orders_submitted);
+        let running_metrics = store.node_metrics("sandbox-a").unwrap();
+        assert_eq!(running_metrics.lifecycle_state, LifecycleStatus::Running);
+        assert_eq!(running_metrics.starts_total, 1);
+        assert_eq!(running_metrics.stops_total, 0);
+        assert!(!running_metrics.external_venue_connection);
+        assert!(!running_metrics.real_orders_submitted);
+        let mut registry = store.load().unwrap();
+        let refreshed = registry.nodes.remove("sandbox-a").unwrap();
+        assert_eq!(refreshed.metrics_artifact, RegistryArtifactState::Available);
+        assert!(
+            fs::read_to_string(&started.stdout_log_path)
+                .unwrap()
+                .contains("fixture stdout started")
+        );
+        assert!(
+            fs::read_to_string(&started.stderr_log_path)
+                .unwrap()
+                .contains("fixture stderr initialized")
+        );
+        assert!(
+            fs::read_to_string(&started.events_log_path)
+                .unwrap()
+                .contains("phase=start status=ok")
+        );
 
         let stopped = store
             .stop_node_process(StopNodeRequest {
@@ -991,6 +1303,10 @@ EOF
             stopped.last_known_status.lifecycle_state,
             LifecycleStatus::Stopped
         );
+        let stopped_metrics = store.node_metrics("sandbox-a").unwrap();
+        assert_eq!(stopped_metrics.lifecycle_state, LifecycleStatus::Stopped);
+        assert_eq!(stopped_metrics.starts_total, 1);
+        assert_eq!(stopped_metrics.stops_total, 1);
 
         let duplicate_stop = store
             .stop_node_process(StopNodeRequest {

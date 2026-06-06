@@ -16,6 +16,7 @@
 use std::{
     fs,
     path::{Path, PathBuf},
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::Context;
@@ -35,6 +36,9 @@ use serde::Deserialize;
 use tokio::time::{Duration, sleep};
 
 use crate::opt::{LiveCommand, LiveOpt, LiveRunOpt, LiveValidateOpt};
+use crate::supervisor::{
+    NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, write_node_metrics_artifact,
+};
 
 const LIVE_INIT_SMOKE_MODE: &str = "live-init-smoke";
 const SANDBOX_ENVIRONMENT: &str = "sandbox";
@@ -166,8 +170,16 @@ async fn run_live_run_with_command(
         .with_context(|| format!("failed to create output dir '{}'", output_dir.display()))?;
 
     let summary_path = output_dir.join("summary.txt");
-    let events_path = output_dir.join("events.log");
+    let legacy_events_path = output_dir.join("events.log");
+    let events_path = output_dir.join("logs").join("events.log");
     let status_path = output_dir.join("status.json");
+    let metrics_path = output_dir.join("metrics.json");
+    let stdout_log_path = output_dir.join("logs").join("stdout.log");
+    let stderr_log_path = output_dir.join("logs").join("stderr.log");
+    if let Some(parent) = events_path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create log dir '{}'", parent.display()))?;
+    }
 
     let context = LiveRunContext {
         config: &config,
@@ -176,20 +188,28 @@ async fn run_live_run_with_command(
         output_dir: &output_dir,
         process_mode,
         status_path: &status_path,
+        metrics_path: &metrics_path,
+        stdout_log_path: &stdout_log_path,
+        stderr_log_path: &stderr_log_path,
+        events_log_path: &events_path,
         stop_file,
     };
     let smoke = run_live_init_smoke(&context).await?;
-    let status = build_node_status(
-        &config,
-        &opt.config,
-        run_id,
-        &output_dir,
-        process_mode,
-        &smoke,
-    );
+    let status = build_node_status(&context, &smoke);
+    write_metrics(
+        &metrics_path,
+        &status,
+        &context,
+        NodeMetricCounts {
+            uptime_ms: Some(smoke.uptime_ms),
+            starts_total: 1,
+            stops_total: 1,
+            state_transitions_total: 2,
+        },
+    )?;
 
     let summary = format!(
-        "command={command_name}\nstatus=ok\nmode={}\nrun_id={run_id}\nconfig={}\nenvironment={}\nnode_name={}\nprocess_mode={}\nadapter={}\naccount_id={}\nvenue={}\npre_start_state={}\nrunning_state={}\nfinal_state={}\naccount_cached={}\nstatus_artifact={}\nexternal_venue_connection=false\nreal_orders_submitted=false\nruntime_status=completed\nshutdown_reason=start-stop\n",
+        "command={command_name}\nstatus=ok\nmode={}\nrun_id={run_id}\nconfig={}\nenvironment={}\nnode_name={}\nprocess_mode={}\nadapter={}\naccount_id={}\nvenue={}\npre_start_state={}\nrunning_state={}\nfinal_state={}\naccount_cached={}\nstatus_artifact={}\nmetrics_artifact={}\nevents_log={}\nexternal_venue_connection=false\nreal_orders_submitted=false\nruntime_status=completed\nshutdown_reason=start-stop\n",
         config.run.mode,
         opt.config.display(),
         config.run.environment,
@@ -203,6 +223,8 @@ async fn run_live_run_with_command(
         smoke.final_state,
         smoke.account_cached,
         status_path.display(),
+        metrics_path.display(),
+        events_path.display(),
     );
     fs::write(&summary_path, summary)
         .with_context(|| format!("failed to write summary '{}'", summary_path.display()))?;
@@ -224,11 +246,17 @@ async fn run_live_run_with_command(
         smoke.account_cached,
         smoke.final_state,
     );
-    fs::write(&events_path, event_log)
+    fs::write(&events_path, &event_log)
         .with_context(|| format!("failed to write events '{}'", events_path.display()))?;
+    fs::write(&legacy_events_path, &event_log).with_context(|| {
+        format!(
+            "failed to write legacy events '{}'",
+            legacy_events_path.display()
+        )
+    })?;
 
     println!(
-        "{command_name} status=ok mode={} run_id={} config={} output={} summary={} events={} status_artifact={} node_name={} adapter={} final_state={} external_venue_connection=false real_orders_submitted=false runtime_status=completed",
+        "{command_name} status=ok mode={} run_id={} config={} output={} summary={} events={} status_artifact={} metrics_artifact={} node_name={} adapter={} final_state={} external_venue_connection=false real_orders_submitted=false runtime_status=completed",
         config.run.mode,
         run_id,
         opt.config.display(),
@@ -236,6 +264,7 @@ async fn run_live_run_with_command(
         summary_path.display(),
         events_path.display(),
         status_path.display(),
+        metrics_path.display(),
         node_name(&config),
         config.adapter.kind,
         smoke.final_state,
@@ -326,6 +355,9 @@ struct LiveSmokeResult {
     final_state: String,
     final_node_state: NodeState,
     account_cached: bool,
+    started_at: String,
+    stopped_at: String,
+    uptime_ms: u64,
 }
 
 #[derive(Clone, Copy)]
@@ -336,6 +368,10 @@ struct LiveRunContext<'a> {
     output_dir: &'a Path,
     process_mode: ProcessMode,
     status_path: &'a Path,
+    metrics_path: &'a Path,
+    stdout_log_path: &'a Path,
+    stderr_log_path: &'a Path,
+    events_log_path: &'a Path,
     stop_file: Option<&'a Path>,
 }
 
@@ -382,6 +418,8 @@ async fn run_live_init_smoke(context: &LiveRunContext<'_>) -> anyhow::Result<Liv
     let pre_start_state = format!("{:?}", handle.state());
 
     node.start().await?;
+    let started_at = now_millis();
+    let started_instant = Instant::now();
     let running_state = format!("{:?}", handle.state());
     let account_cached = node
         .kernel()
@@ -403,12 +441,27 @@ async fn run_live_init_smoke(context: &LiveRunContext<'_>) -> anyhow::Result<Liv
             LifecycleStatus::Starting,
             ConnectionStatus::Disconnected,
             true,
+            Some(&started_at),
+            None,
         );
         write_status(context.status_path, &running_status)?;
+        write_metrics(
+            context.metrics_path,
+            &running_status,
+            context,
+            NodeMetricCounts {
+                uptime_ms: Some(0),
+                starts_total: 1,
+                stops_total: 0,
+                state_transitions_total: 1,
+            },
+        )?;
         wait_for_stop_file(stop_file).await?;
     }
 
     node.stop().await?;
+    let stopped_at = now_millis();
+    let uptime_ms = millis_to_u64(started_instant.elapsed().as_millis());
     let final_state = format!("{:?}", handle.state());
     if handle.state() != NodeState::Stopped {
         anyhow::bail!("live-init-smoke expected Stopped after stop");
@@ -421,32 +474,21 @@ async fn run_live_init_smoke(context: &LiveRunContext<'_>) -> anyhow::Result<Liv
         final_state,
         final_node_state,
         account_cached,
+        started_at,
+        stopped_at,
+        uptime_ms,
     })
 }
 
-fn build_node_status(
-    config: &MinimalLiveConfig,
-    config_path: &Path,
-    run_id: &str,
-    output_dir: &Path,
-    process_mode: ProcessMode,
-    smoke: &LiveSmokeResult,
-) -> NodeStatus {
-    let context = LiveRunContext {
-        config,
-        config_path,
-        run_id,
-        output_dir,
-        process_mode,
-        status_path: Path::new("status.json"),
-        stop_file: None,
-    };
+fn build_node_status(context: &LiveRunContext<'_>, smoke: &LiveSmokeResult) -> NodeStatus {
     build_node_status_for_state(
-        &context,
+        context,
         smoke.final_node_state,
         LifecycleStatus::Running,
         ConnectionStatus::Disconnected,
         false,
+        Some(&smoke.started_at),
+        Some(&smoke.stopped_at),
     )
 }
 
@@ -456,9 +498,12 @@ fn build_node_status_for_state(
     previous_lifecycle_state: LifecycleStatus,
     execution_connection: ConnectionStatus,
     execution_started: bool,
+    started_at: Option<&str>,
+    stopped_at: Option<&str>,
 ) -> NodeStatus {
     let config = context.config;
     let mut status = NodeStatus::from_node_state(node_id(config, context.run_id), state);
+    let generated_at = now_millis();
     status.process_mode = context.process_mode;
     status.config_path = SnapshotValue::available(context.config_path.display().to_string());
     status.artifact_root = SnapshotValue::available(context.output_dir.display().to_string());
@@ -477,6 +522,14 @@ fn build_node_status_for_state(
         last_reconciliation_at: SnapshotValue::unknown(),
         last_error: None,
     };
+    status.generated_at = SnapshotValue::available(generated_at.clone());
+    status.started_at = started_at.map_or_else(SnapshotValue::unknown, |value| {
+        SnapshotValue::available(value.to_string())
+    });
+    status.stopped_at = stopped_at.map_or_else(SnapshotValue::unknown, |value| {
+        SnapshotValue::available(value.to_string())
+    });
+    status.last_transition_at = SnapshotValue::available(generated_at);
     status
 }
 
@@ -487,6 +540,22 @@ fn write_status(path: &Path, status: &NodeStatus) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn write_metrics(
+    path: &Path,
+    status: &NodeStatus,
+    context: &LiveRunContext<'_>,
+    counts: NodeMetricCounts,
+) -> anyhow::Result<()> {
+    let artifacts = NodeMetricArtifacts {
+        status_path: context.status_path.to_path_buf(),
+        stdout_log_path: context.stdout_log_path.to_path_buf(),
+        stderr_log_path: context.stderr_log_path.to_path_buf(),
+        events_log_path: context.events_log_path.to_path_buf(),
+    };
+    let metrics = NodeMetrics::from_status(status, &artifacts, counts);
+    write_node_metrics_artifact(path, &metrics)
+}
+
 async fn wait_for_stop_file(path: &Path) -> anyhow::Result<()> {
     loop {
         if path.exists() {
@@ -494,6 +563,17 @@ async fn wait_for_stop_file(path: &Path) -> anyhow::Result<()> {
         }
         sleep(Duration::from_millis(100)).await;
     }
+}
+
+fn now_millis() -> String {
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |duration| duration.as_millis());
+    format!("{millis}")
+}
+
+fn millis_to_u64(millis: u128) -> u64 {
+    u64::try_from(millis).unwrap_or(u64::MAX)
 }
 
 fn node_id<'a>(config: &'a MinimalLiveConfig, run_id: &'a str) -> &'a str {
@@ -634,12 +714,16 @@ write_summary = true
         assert!(summary.contains("runtime_status=completed"));
         assert!(summary.contains("final_state=Stopped"));
         assert!(summary.contains("status_artifact="));
+        assert!(summary.contains("metrics_artifact="));
+        assert!(summary.contains("events_log="));
         assert!(summary.contains("external_venue_connection=false"));
         assert!(summary.contains("real_orders_submitted=false"));
 
-        let events = fs::read_to_string(output_dir.join("events.log")).unwrap();
+        let events = fs::read_to_string(output_dir.join("logs").join("events.log")).unwrap();
         assert!(events.contains("phase=start status=ok"));
         assert!(events.contains("phase=stop status=ok"));
+        let legacy_events = fs::read_to_string(output_dir.join("events.log")).unwrap();
+        assert_eq!(legacy_events, events);
 
         let status: NodeStatus =
             serde_json::from_str(&fs::read_to_string(output_dir.join("status.json")).unwrap())
@@ -648,8 +732,32 @@ write_summary = true
         assert_eq!(status.lifecycle_state, LifecycleStatus::Stopped);
         assert_eq!(status.process_mode, ProcessMode::TestHarness);
         assert_eq!(status.execution_connection, ConnectionStatus::Disconnected);
+        assert_eq!(
+            status.generated_at.availability,
+            nautilus_live::status::SnapshotAvailability::Available
+        );
+        assert_eq!(
+            status.started_at.availability,
+            nautilus_live::status::SnapshotAvailability::Available
+        );
+        assert_eq!(
+            status.stopped_at.availability,
+            nautilus_live::status::SnapshotAvailability::Available
+        );
         assert!(!status.external_venue_connection);
         assert!(!status.real_orders_submitted);
+
+        let metrics: NodeMetrics =
+            serde_json::from_str(&fs::read_to_string(output_dir.join("metrics.json")).unwrap())
+                .unwrap();
+        assert_eq!(metrics.node_id, "LiveInitSmoke");
+        assert_eq!(metrics.lifecycle_state, LifecycleStatus::Stopped);
+        assert_eq!(metrics.starts_total, 1);
+        assert_eq!(metrics.stops_total, 1);
+        assert_eq!(metrics.state_transitions_total, 2);
+        assert_eq!(metrics.connection_counts.execution_disconnected, 1);
+        assert!(!metrics.external_venue_connection);
+        assert!(!metrics.real_orders_submitted);
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -666,6 +774,7 @@ write_summary = true
         assert!(summary.contains("command=ntpro-node.run"));
         assert!(summary.contains("process_mode=spawned_process"));
         assert!(summary.contains("final_state=Stopped"));
+        assert!(summary.contains("metrics_artifact="));
 
         let status: NodeStatus =
             serde_json::from_str(&fs::read_to_string(output_dir.join("status.json")).unwrap())
@@ -678,6 +787,22 @@ write_summary = true
         );
         assert!(!status.external_venue_connection);
         assert!(!status.real_orders_submitted);
+
+        let metrics: NodeMetrics =
+            serde_json::from_str(&fs::read_to_string(output_dir.join("metrics.json")).unwrap())
+                .unwrap();
+        assert_eq!(metrics.lifecycle_state, LifecycleStatus::Stopped);
+        assert_eq!(metrics.process_mode, ProcessMode::SpawnedProcess);
+        assert_eq!(metrics.starts_total, 1);
+        assert_eq!(metrics.stops_total, 1);
+        assert!(
+            metrics
+                .status_artifact_path
+                .value
+                .as_deref()
+                .unwrap()
+                .ends_with("status.json")
+        );
     }
 
     #[test]
