@@ -57,6 +57,7 @@ mod database;
 mod live;
 pub mod opt;
 mod sandbox;
+pub mod supervisor;
 
 use std::path::PathBuf;
 

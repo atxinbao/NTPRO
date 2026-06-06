@@ -3021,7 +3021,7 @@
     },
     "V02-004": {
       "title": "ntpro-node sandbox-only real LiveNode start/stop",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -3035,13 +3035,15 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-004.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-004.md",
-      "updated_at": "2026-06-06T05:12:52Z",
+      "updated_at": "2026-06-06T08:46:02Z",
       "local_backlog": true,
-      "evidence_summary": "V02-004 adds an ntpro-node sandbox-only binary that runs a real LiveNode build/start/stop smoke, writes summary/events/status artifacts, proves final_state=Stopped, external_venue_connection=false, and real_orders_submitted=false, and stops at REVIEW_REQUIRED because the task is high risk."
+      "evidence_summary": "V02-004 adds an ntpro-node sandbox-only binary that runs a real LiveNode build/start/stop smoke, writes summary/events/status artifacts, proves final_state=Stopped, external_venue_connection=false, and real_orders_submitted=false, and stops at REVIEW_REQUIRED because the task is high risk.",
+      "pr": 195,
+      "merged_at": "2026-06-06T07:59:08Z"
     },
     "V02-005": {
       "title": "ntpro-supervisor registry",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3055,8 +3057,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-005.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-005.md",
-      "updated_at": "2026-06-06T04:30:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-06T08:46:02Z",
+      "local_backlog": true,
+      "evidence_summary": "V02-005 adds a file-backed supervisor registry support module for node_id/config/artifact/pid/status/metrics/log paths and last known status, with tests for add/update/remove/list plus stale pid and status artifact behavior; it does not implement start/stop/status commands or CLI controls."
     },
     "V02-006": {
       "title": "supervisor start stop status",
