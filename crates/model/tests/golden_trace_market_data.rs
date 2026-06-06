@@ -96,7 +96,7 @@ fn replay_market_data_event(event: &Value) -> Value {
             instrument_status_event(event, instrument_status_from_event(event))
         }
         "market_data.instrument_definition" => {
-            instrument_definition_event(instrument_definition_from_event(event))
+            instrument_definition_event(&instrument_definition_from_event(event))
         }
         event_type => panic!("unsupported market-data golden trace event {event_type}"),
     }
@@ -310,7 +310,7 @@ fn instrument_status_event(source_event: &Value, status: InstrumentStatus) -> Va
     })
 }
 
-fn instrument_definition_event(definition: CatalogInstrumentDefinition) -> Value {
+fn instrument_definition_event(definition: &CatalogInstrumentDefinition) -> Value {
     json!({
         "event_type": "market_data.instrument_definition",
         "ts_event": definition.ts_event.to_string(),

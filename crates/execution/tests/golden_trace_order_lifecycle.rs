@@ -503,20 +503,20 @@ impl JsonCorrelationExt for Value {
     fn with_correlation(mut self, source_payload: &Value, fallback: &str) -> Self {
         let correlation = source_payload
             .get("correlation_id")
-            .and_then(Value::as_str)
+            .and_then(Self::as_str)
             .unwrap_or(fallback);
         self.as_object_mut().expect("event must be object").insert(
             "correlation_id".to_string(),
-            Value::String(correlation.to_string()),
+            Self::String(correlation.to_string()),
         );
         self
     }
 
     fn without_correlation_if_absent(mut self, source: &Value) -> Self {
-        if let Some(correlation) = source.get("correlation_id").and_then(Value::as_str) {
+        if let Some(correlation) = source.get("correlation_id").and_then(Self::as_str) {
             self.as_object_mut().expect("event must be object").insert(
                 "correlation_id".to_string(),
-                Value::String(correlation.to_string()),
+                Self::String(correlation.to_string()),
             );
         }
         self
