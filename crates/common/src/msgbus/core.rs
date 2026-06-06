@@ -566,21 +566,43 @@ impl MessageBus {
     }
 
     /// Returns whether there are subscribers for the `topic`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `topic` is not a valid topic string. Use
+    /// [`Self::try_has_subscribers`] for product or user input boundaries.
     pub fn has_subscribers<T: AsRef<str>>(&self, topic: T) -> bool {
         self.subscriptions_count(topic) > 0
+    }
+
+    /// Returns whether there are subscribers for the `topic`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the `topic` is not a valid topic string.
+    pub fn try_has_subscribers<T: AsRef<str>>(&self, topic: T) -> anyhow::Result<bool> {
+        Ok(self.try_subscriptions_count(topic)? > 0)
     }
 
     /// Returns the count of subscribers for the `topic`.
     ///
     /// # Panics
     ///
-    /// Panics if the `topic` is not a valid topic string.
+    /// Panics if the `topic` is not a valid topic string. Use
+    /// [`Self::try_subscriptions_count`] for product or user input boundaries.
     #[must_use]
     pub fn subscriptions_count<T: AsRef<str>>(&self, topic: T) -> usize {
-        let topic = MStr::<Topic>::topic(topic).expect(FAILED);
-        self.topics
-            .get(&topic)
-            .map_or_else(|| self.find_topic_matches(topic).len(), Vec::len)
+        self.try_subscriptions_count(topic).expect(FAILED)
+    }
+
+    /// Returns the count of subscribers for the `topic`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the `topic` is not a valid topic string.
+    pub fn try_subscriptions_count<T: AsRef<str>>(&self, topic: T) -> anyhow::Result<usize> {
+        let topic = MStr::<Topic>::topic(topic)?;
+        Ok(self.any_subscriber_count_for_topic(topic))
     }
 
     /// Returns active subscriptions.
@@ -823,6 +845,13 @@ mod tests {
         let msgbus = get_message_bus();
         assert!(msgbus.borrow().patterns().is_empty());
         assert!(!msgbus.borrow().has_subscribers("my-topic"));
+    }
+
+    #[rstest]
+    fn test_try_subscriptions_count_rejects_invalid_topic_without_panic() {
+        let msgbus = MessageBus::default();
+        assert!(msgbus.try_subscriptions_count("data.*").is_err());
+        assert!(msgbus.try_has_subscribers("data.?").is_err());
     }
 
     #[rstest]
