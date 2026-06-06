@@ -711,10 +711,19 @@ pub fn log<T: AsRef<str>>(level: LogLevel, color: LogColor, component: Ustr, mes
 /// The system supports a maximum of 255 concurrent `LogGuard` instances.
 #[derive(Debug)]
 pub struct LogGuard {
-    tx: std::sync::mpsc::Sender<LogEvent>,
+    tx: Option<std::sync::mpsc::Sender<LogEvent>>,
 }
 
 impl LogGuard {
+    /// Creates a no-op guard for callers which deliberately bypass Nautilus logging.
+    ///
+    /// This is only intended for contexts where logging is explicitly disabled and
+    /// another logger has already claimed the process-global `log` facade.
+    #[must_use]
+    pub const fn noop() -> Self {
+        Self { tx: None }
+    }
+
     /// Creates a new [`LogGuard`] instance from the global logger.
     ///
     /// Returns `None` if logging has not been initialized or the active `LogGuard`
@@ -732,7 +741,9 @@ impl LogGuard {
             })
             .ok()?;
 
-        Some(Self { tx: tx.clone() })
+        Some(Self {
+            tx: Some(tx.clone()),
+        })
     }
 }
 
@@ -742,6 +753,10 @@ impl Drop for LogGuard {
     /// Sends `Flush` if other guards remain active, otherwise sends `Close`, joins the
     /// logging thread, and resets the subsystem state.
     fn drop(&mut self) {
+        let Some(tx) = &self.tx else {
+            return;
+        };
+
         let previous_count = LOGGING_GUARDS_ACTIVE
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |count| {
                 assert!(count != 0, "LogGuard reference count underflow");
@@ -760,7 +775,7 @@ impl Drop for LogGuard {
             log::set_max_level(log::LevelFilter::Off);
 
             // Ensure Close is delivered before joining (critical for shutdown)
-            let _ = self.tx.send(LogEvent::Close);
+            let _ = tx.send(LogEvent::Close);
 
             // Join the logging thread to ensure all pending logs are written
             if let Ok(mut handle_guard) = LOGGER_HANDLE.lock()
@@ -776,13 +791,15 @@ impl Drop for LogGuard {
             LOGGING_INITIALIZED.store(false, Ordering::SeqCst);
         } else {
             // Other LogGuards are still active, just flush our logs
-            let _ = self.tx.send(LogEvent::Flush);
+            let _ = tx.send(LogEvent::Flush);
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::Ordering;
+
     use ahash::AHashMap;
     use log::LevelFilter;
     use nautilus_core::UUID4;
@@ -794,6 +811,13 @@ mod tests {
 
     use super::*;
     use crate::enums::LogColor;
+
+    #[rstest]
+    fn noop_log_guard_drop_does_not_touch_global_guard_count() {
+        let count_before = LOGGING_GUARDS_ACTIVE.load(Ordering::SeqCst);
+        drop(LogGuard::noop());
+        assert_eq!(LOGGING_GUARDS_ACTIVE.load(Ordering::SeqCst), count_before);
+    }
 
     #[rstest]
     fn log_message_serialization() {

@@ -269,6 +269,7 @@ impl NautilusKernel {
     ) -> anyhow::Result<LogGuard> {
         #[cfg(feature = "tracing-bridge")]
         let use_tracing = config.use_tracing;
+        let bypass_logging = config.bypass_logging;
 
         let file_config = config.file_config.clone().unwrap_or_default();
         let log_guard = match init_logging(trader_id, instance_id, config, file_config) {
@@ -281,6 +282,8 @@ impl NautilusKernel {
                 if e.downcast_ref::<log::SetLoggerError>().is_some() {
                     if let Some(guard) = LogGuard::new() {
                         guard
+                    } else if bypass_logging {
+                        LogGuard::noop()
                     } else {
                         return Err(e.context(
                             "A non-Nautilus logger is already registered; \
