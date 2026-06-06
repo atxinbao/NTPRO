@@ -2,7 +2,26 @@
 
 Date: 2026-06-04
 Executor: Codex
-Status: Planning record only
+Status: Superseded planning record only
+
+## Superseded By V02 Scope Decision
+
+This document is retained as historical planning context. It is not the active
+execution source for the current v0.2 queue.
+
+The active v0.2 scope is:
+
+```text
+Local Multi-Node Runtime Foundation
+```
+
+Use `docs/rust-cutover/scope/v0_2_local_multi_node_runtime.md` and `V02-001`
+through `V02-010` for executable task scope.
+
+The product-hardening items below were useful during post-release cleanup and
+design readiness work, but they must not be used to start Dashboard UI, control
+API endpoint implementation, production exchange connectivity, manual order
+entry, distributed deployment, or release/tag work in the V02 queue.
 
 ## Purpose
 
