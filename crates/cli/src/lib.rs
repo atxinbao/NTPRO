@@ -102,6 +102,7 @@ pub async fn run_ntpro_node(
     config: PathBuf,
     run_id: Option<String>,
     output: Option<PathBuf>,
+    stop_file: Option<PathBuf>,
 ) -> anyhow::Result<()> {
-    live::run_ntpro_node(config, run_id, output).await
+    live::run_ntpro_node(config, run_id, output, stop_file).await
 }

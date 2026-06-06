@@ -31,6 +31,9 @@ struct NtproNodeCli {
     /// Optional directory for node run artifacts.
     #[arg(long)]
     output: Option<PathBuf>,
+    /// Optional file path the node watches before stopping.
+    #[arg(long)]
+    stop_file: Option<PathBuf>,
 }
 
 #[tokio::main]
@@ -39,7 +42,9 @@ async fn main() {
     ensure_logging_initialized();
 
     let opt = NtproNodeCli::parse();
-    if let Err(e) = nautilus_cli::run_ntpro_node(opt.config, opt.run_id, opt.output).await {
+    if let Err(e) =
+        nautilus_cli::run_ntpro_node(opt.config, opt.run_id, opt.output, opt.stop_file).await
+    {
         log::error!("Error executing ntpro-node: {e}");
         eprintln!("Error executing ntpro-node: {e}");
         std::process::exit(1);
