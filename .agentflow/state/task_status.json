@@ -2977,7 +2977,7 @@
     },
     "V02-002": {
       "title": "Node and Supervisor product contract",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "rust_product_surface_agent",
       "risk_level": "medium",
@@ -2991,13 +2991,15 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-002.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-002.md",
-      "updated_at": "2026-06-06T04:45:30Z",
+      "updated_at": "2026-06-06T04:56:16Z",
       "local_backlog": true,
-      "evidence_summary": "V02-002 defines the ntpro-node and ntpro-supervisor product contract, node_id rules, local file layout, lifecycle command boundary, config ownership, and sandbox-only first release behavior without runtime code changes."
+      "evidence_summary": "V02-002 defines the ntpro-node and ntpro-supervisor product contract, node_id rules, local file layout, lifecycle command boundary, config ownership, and sandbox-only first release behavior without runtime code changes.",
+      "pr": 193,
+      "merged_at": "2026-06-06T04:49:12Z"
     },
     "V02-003": {
       "title": "Node status DTOs",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3011,8 +3013,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-003.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-003.md",
-      "updated_at": "2026-06-06T04:30:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-06T04:56:16Z",
+      "local_backlog": true,
+      "evidence_summary": "V02-003 adds nautilus-live status DTOs and NodeState lifecycle mapping helpers with tests for stopped, running, unknown, and explicit missing-field serialization; no runtime wiring or dashboard/control API was added."
     },
     "V02-004": {
       "title": "ntpro-node sandbox-only real LiveNode start/stop",

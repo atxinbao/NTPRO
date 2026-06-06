@@ -94,6 +94,9 @@ pub mod manager;
 #[cfg(feature = "node")]
 pub mod node;
 
+#[cfg(feature = "node")]
+pub mod status;
+
 /// Re-export of the shared plug-in host bridge.
 ///
 /// The host-side adapters and `HostVTable` implementation live in

@@ -1,0 +1,24 @@
+{
+  "task_id": "V02-003",
+  "agent_id": "Codex",
+  "branch": "codex/V02-003-node-status-dtos",
+  "touched_paths": [
+    "crates/live/src/status.rs",
+    "crates/live/src/lib.rs",
+    "docs/rust-cutover/evidence/V02-003.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/V02-003.json"
+  ],
+  "claimed_at": "2026-06-06T04:49:27.975355+00:00",
+  "status": "PR_OPEN",
+  "updated_at": "2026-06-06T04:56:16Z",
+  "validation_summary": {
+    "cargo fmt --check": "PASS",
+    "cargo test -p nautilus-live status --lib": "PASS: 5 passed",
+    "cargo check -p nautilus-live": "PASS",
+    "scripts/ai/verify_fast.sh": "PASS: fast smoke only",
+    "scripts/ai/validate_agentflow_roles.py": "PASS",
+    "git diff --check": "PASS"
+  },
+  "notes": "Adds DTOs only. No runtime wiring, dashboard/control endpoint, adapter behavior, or trading semantic change."
+}
