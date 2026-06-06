@@ -4,6 +4,27 @@ Date: 2026-06-06
 Executor: Codex
 Task ID: NQA-001, DRG-001, DRG-002, DRG-003, DRG-004, DRG-005, DRG-006, DRG-007, DRG-008, DRG-009, DRG-010
 
+## V02-001 Scope Update
+
+Date: 2026-06-06
+Executor: Codex
+
+The active v0.2 execution track is now:
+
+```text
+Local Multi-Node Runtime Foundation
+```
+
+The active scope source is
+`docs/rust-cutover/scope/v0_2_local_multi_node_runtime.md`.
+The older `docs/rust-cutover/scope/v0_2_0_roadmap.md` is retained only as a
+superseded historical planning record.
+
+V02 work must continue in order from `V02-001` through `V02-010`. This scope
+does not authorize Dashboard UI implementation, production exchange operation,
+manual order entry, distributed deployment, release tag creation, or GitHub
+Release publication.
+
 ## DRG-010 Final Update
 
 Date: 2026-06-06
