@@ -191,6 +191,19 @@ impl Hash for Subscription {
     }
 }
 
+/// Counts publishes where the opposite routing path also had matching subscribers.
+///
+/// Typed and Any routes intentionally do not cross-deliver messages. These
+/// counters make route-mismatch usage visible without changing dispatch
+/// semantics.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RouteMismatchStats {
+    /// Typed publishes whose topic also matched one or more Any subscriptions.
+    pub typed_publish_with_any_subscribers: u64,
+    /// Any publishes whose topic and payload type also matched one or more typed subscriptions.
+    pub any_publish_with_typed_subscribers: u64,
+}
+
 /// A generic message bus to facilitate various messaging patterns.
 ///
 /// The bus provides both a producer and consumer API for Pub/Sub, Req/Rep, as
@@ -275,6 +288,7 @@ pub struct MessageBus {
     req_count: u64,
     res_count: u64,
     pub_count: u64,
+    route_mismatch_stats: RouteMismatchStats,
 }
 
 impl Default for MessageBus {
@@ -352,6 +366,7 @@ impl MessageBus {
             req_count: 0,
             res_count: 0,
             pub_count: 0,
+            route_mismatch_stats: RouteMismatchStats::default(),
         }
     }
 
@@ -444,6 +459,7 @@ impl MessageBus {
         self.req_count = 0;
         self.res_count = 0;
         self.pub_count = 0;
+        self.route_mismatch_stats = RouteMismatchStats::default();
     }
 
     /// Returns the memory address of this instance as a hexadecimal string.
@@ -482,6 +498,12 @@ impl MessageBus {
         self.pub_count
     }
 
+    /// Returns route-mismatch observability counters.
+    #[must_use]
+    pub const fn route_mismatch_stats(&self) -> RouteMismatchStats {
+        self.route_mismatch_stats
+    }
+
     pub(crate) fn increment_sent_count(&mut self) {
         self.sent_count += 1;
     }
@@ -496,6 +518,36 @@ impl MessageBus {
 
     pub(crate) fn increment_pub_count(&mut self) {
         self.pub_count += 1;
+    }
+
+    pub(crate) fn record_typed_publish_with_any_subscribers(
+        &mut self,
+        topic: MStr<Topic>,
+        message_type: &'static str,
+        typed_handler_count: usize,
+        any_subscriber_count: usize,
+    ) {
+        self.route_mismatch_stats.typed_publish_with_any_subscribers += 1;
+        log::debug!(
+            "MessageBus route mismatch: typed publish type {message_type} on '{topic}' has \
+             {any_subscriber_count} Any subscriber(s) that will not receive it; typed handlers \
+             matched={typed_handler_count}",
+        );
+    }
+
+    pub(crate) fn record_any_publish_with_typed_subscribers(
+        &mut self,
+        topic: MStr<Topic>,
+        message_type: &'static str,
+        any_handler_count: usize,
+        typed_subscriber_count: usize,
+    ) {
+        self.route_mismatch_stats.any_publish_with_typed_subscribers += 1;
+        log::debug!(
+            "MessageBus route mismatch: Any publish type {message_type} on '{topic}' has \
+             {typed_subscriber_count} typed subscriber(s) that will not receive it; Any handlers \
+             matched={any_handler_count}",
+        );
     }
 
     /// Returns the registered endpoint addresses.
@@ -603,6 +655,64 @@ impl MessageBus {
                 }
             })
             .collect()
+    }
+
+    pub(crate) fn any_subscriber_count_for_topic(&self, topic: MStr<Topic>) -> usize {
+        self.topics
+            .get(&topic)
+            .map_or_else(|| self.find_topic_matches(topic).len(), Vec::len)
+    }
+
+    pub(crate) fn typed_subscriber_count_for_message(
+        &self,
+        topic: MStr<Topic>,
+        message: &dyn Any,
+    ) -> Option<(&'static str, usize)> {
+        macro_rules! count_typed_route {
+            ($ty:ty, $router:ident) => {
+                if message.is::<$ty>() {
+                    return Some((
+                        std::any::type_name::<$ty>(),
+                        self.$router.subscriber_count(topic),
+                    ));
+                }
+            };
+        }
+
+        count_typed_route!(InstrumentAny, router_instruments);
+        count_typed_route!(OrderBookDeltas, router_deltas);
+        count_typed_route!(OrderBookDepth10, router_depth10);
+        count_typed_route!(OrderBook, router_book_snapshots);
+        count_typed_route!(QuoteTick, router_quotes);
+        count_typed_route!(TradeTick, router_trades);
+        count_typed_route!(Bar, router_bars);
+        count_typed_route!(MarkPriceUpdate, router_mark_prices);
+        count_typed_route!(IndexPriceUpdate, router_index_prices);
+        count_typed_route!(FundingRateUpdate, router_funding_rates);
+        count_typed_route!(GreeksData, router_greeks);
+        count_typed_route!(OptionGreeks, router_option_greeks);
+        count_typed_route!(OptionChainSlice, router_option_chain);
+        count_typed_route!(AccountState, router_account_state);
+        count_typed_route!(PortfolioSnapshot, router_portfolio);
+        count_typed_route!(OrderEventAny, router_order_events);
+        count_typed_route!(PositionEvent, router_position_events);
+        count_typed_route!(OrderAny, router_orders);
+        count_typed_route!(Position, router_positions);
+
+        #[cfg(feature = "defi")]
+        {
+            count_typed_route!(nautilus_model::defi::Block, router_defi_blocks);
+            count_typed_route!(nautilus_model::defi::Pool, router_defi_pools);
+            count_typed_route!(nautilus_model::defi::PoolSwap, router_defi_swaps);
+            count_typed_route!(
+                nautilus_model::defi::PoolLiquidityUpdate,
+                router_defi_liquidity
+            );
+            count_typed_route!(nautilus_model::defi::PoolFeeCollect, router_defi_collects);
+            count_typed_route!(nautilus_model::defi::PoolFlash, router_defi_flash);
+        }
+
+        None
     }
 
     /// Finds the subscriptions which match the `topic` and caches the

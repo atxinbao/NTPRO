@@ -51,7 +51,7 @@ use super::{
     INDEX_PRICE_HANDLERS, INSTRUMENT_HANDLERS, MARK_PRICE_HANDLERS, OPTION_CHAIN_HANDLERS,
     OPTION_GREEKS_HANDLERS, ORDER_EVENT_HANDLERS, PORTFOLIO_SNAPSHOT_HANDLERS,
     POSITION_EVENT_HANDLERS, QUOTE_HANDLERS, TRADE_HANDLERS,
-    core::{MessageBus, Subscription},
+    core::{MessageBus, RouteMismatchStats, Subscription},
     dispatch_tap_publish, dispatch_tap_response, dispatch_tap_send, get_message_bus,
     matching::is_matching_backtracking,
     mstr::{Endpoint, MStr, Pattern, Topic},
@@ -922,6 +922,12 @@ pub fn exact_subscriber_count_bars(topic: MStr<Topic>) -> usize {
         .exact_subscriber_count(topic)
 }
 
+/// Returns route-mismatch observability counters for the current thread-local bus.
+#[must_use]
+pub fn route_mismatch_stats() -> RouteMismatchStats {
+    get_message_bus().borrow().route_mismatch_stats()
+}
+
 /// Publishes a message to the topic using runtime type dispatch (Any).
 pub fn publish_any(topic: MStr<Topic>, message: &dyn Any) {
     dispatch_tap_publish(topic, message);
@@ -933,6 +939,17 @@ pub fn publish_any(topic: MStr<Topic>, message: &dyn Any) {
         let bus_rc = get_message_bus();
         let mut bus = bus_rc.borrow_mut();
         bus.fill_matching_any_handlers(topic, &mut handlers);
+        let typed_route = bus.typed_subscriber_count_for_message(topic, message);
+        if let Some((message_type, typed_subscriber_count)) = typed_route
+            && typed_subscriber_count > 0
+        {
+            bus.record_any_publish_with_typed_subscribers(
+                topic,
+                message_type,
+                handlers.len(),
+                typed_subscriber_count,
+            );
+        }
         bus.increment_pub_count();
     }
 
@@ -1212,6 +1229,15 @@ fn publish_typed<T: 'static>(
     {
         let mut bus = bus_rc.borrow_mut();
         fill_fn(&mut bus, &mut handlers);
+        let any_subscriber_count = bus.any_subscriber_count_for_topic(topic);
+        if any_subscriber_count > 0 {
+            bus.record_typed_publish_with_any_subscribers(
+                topic,
+                std::any::type_name::<T>(),
+                handlers.len(),
+                any_subscriber_count,
+            );
+        }
         bus.increment_pub_count();
     }
 
@@ -1642,6 +1668,27 @@ mod tests {
     }
 
     #[rstest]
+    fn test_route_mismatch_stats_observe_any_subscriber_on_typed_publish() {
+        *get_message_bus().borrow_mut() = MessageBus::default();
+
+        let received = Rc::new(RefCell::new(0));
+        let received_clone = received.clone();
+        let handler = ShareableMessageHandler::from_typed(move |_quote: &QuoteTick| {
+            *received_clone.borrow_mut() += 1;
+        });
+
+        subscribe_any("data.quotes.mismatch.*".into(), handler, None);
+
+        let quote = QuoteTick::default();
+        publish_quote("data.quotes.mismatch.TEST".into(), &quote);
+
+        let stats = route_mismatch_stats();
+        assert_eq!(*received.borrow(), 0);
+        assert_eq!(stats.typed_publish_with_any_subscribers, 1);
+        assert_eq!(stats.any_publish_with_typed_subscribers, 0);
+    }
+
+    #[rstest]
     fn test_route_separation_typed_subscriber_does_not_receive_any_quote() {
         *get_message_bus().borrow_mut() = MessageBus::default();
 
@@ -1657,6 +1704,27 @@ mod tests {
         publish_any("data.quotes.RCORE008.TEST".into(), &quote);
 
         assert_eq!(*received.borrow(), 0);
+    }
+
+    #[rstest]
+    fn test_route_mismatch_stats_observe_typed_subscriber_on_any_publish() {
+        *get_message_bus().borrow_mut() = MessageBus::default();
+
+        let received = Rc::new(RefCell::new(0));
+        let received_clone = received.clone();
+        let handler = TypedHandler::from(move |_quote: &QuoteTick| {
+            *received_clone.borrow_mut() += 1;
+        });
+
+        subscribe_quotes("data.quotes.mismatch.*".into(), handler, None);
+
+        let quote = QuoteTick::default();
+        publish_any("data.quotes.mismatch.TEST".into(), &quote);
+
+        let stats = route_mismatch_stats();
+        assert_eq!(*received.borrow(), 0);
+        assert_eq!(stats.typed_publish_with_any_subscribers, 0);
+        assert_eq!(stats.any_publish_with_typed_subscribers, 1);
     }
 
     #[rstest]
