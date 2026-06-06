@@ -67,7 +67,7 @@ use smallvec::SmallVec;
 
 pub use self::{
     api::*,
-    core::{MessageBus, Subscription},
+    core::{MessageBus, RouteMismatchStats, Subscription},
     message::BusMessage,
     mstr::{Endpoint, MStr, Pattern, Topic},
     switchboard::MessagingSwitchboard,
