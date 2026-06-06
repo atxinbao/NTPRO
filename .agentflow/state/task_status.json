@@ -3111,7 +3111,7 @@
     },
     "V02-008": {
       "title": "CLI controls supervisor",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3125,13 +3125,16 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-008.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-008.md",
-      "updated_at": "2026-06-06T12:50:02Z",
+      "updated_at": "2026-06-06T13:07:21Z",
       "local_backlog": true,
-      "evidence_summary": "V02-008 adds nautilus supervisor register/list/start/stop/status/connections/execution/risk/logs/metrics commands; cargo fmt/check/tests, CLI help, full supervisor CLI smoke, verify_fast, and agentflow validation passed."
+      "evidence_summary": "V02-008 merged in PR #199 with smoke passing; supervisor CLI controls are closed as DONE.",
+      "pr": 199,
+      "merged_at": "2026-06-06T12:52:42Z",
+      "merge_commit": "070093e2d56a3149046c4346e2da4e1b74d23b44"
     },
     "V02-009": {
       "title": "two-node local smoke test",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "rust_core_runtime_agent",
       "risk_level": "high",
@@ -3145,8 +3148,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V02-009.md",
       "evidence_file": "docs/rust-cutover/evidence/V02-009.md",
-      "updated_at": "2026-06-06T04:30:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-06T13:07:21Z",
+      "local_backlog": true,
+      "evidence_summary": "V02-009 adds a repeatable two-node supervisor smoke, verifies isolated sandbox-a/sandbox-b artifacts, fixes stale pid artifact cleanup on stop, and passed targeted local validation. High-risk task stops at REVIEW_REQUIRED."
     },
     "V02-010": {
       "title": "v0.2 readiness report",
