@@ -58,6 +58,8 @@ mod live;
 pub mod opt;
 mod sandbox;
 
+use std::path::PathBuf;
+
 #[cfg(feature = "defi")]
 use crate::blockchain::run_blockchain_command;
 use crate::{
@@ -87,4 +89,18 @@ pub async fn run(opt: NautilusCli) -> anyhow::Result<()> {
         Commands::Blockchain(blockchain_opt) => run_blockchain_command(blockchain_opt).await?,
     }
     Ok(())
+}
+
+/// Runs the sandbox-only `ntpro-node` local node entrypoint.
+///
+/// # Errors
+///
+/// Returns an error if config validation, node startup, node shutdown, or
+/// artifact writing fails.
+pub async fn run_ntpro_node(
+    config: PathBuf,
+    run_id: Option<String>,
+    output: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    live::run_ntpro_node(config, run_id, output).await
 }
