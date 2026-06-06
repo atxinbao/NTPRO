@@ -153,16 +153,24 @@ The validation command runs the JSONL schema validator and the Rust harness:
 
 ```bash
 cargo test -p nautilus-testkit --test golden_trace_schema
+cargo test -p nautilus-model --test golden_trace_market_data
 cargo test -p nautilus-common --test golden_trace_cache_msgbus
 cargo test -p nautilus-backtest --test golden_trace_backtest
+cargo test -p nautilus-backtest --test backtest_live_semantic_parity
 cargo test -p nautilus-live --test golden_trace_live_sandbox
+cargo test -p nautilus-execution --test golden_trace_order_lifecycle
+cargo test -p nautilus-risk --test golden_trace_risk_rejection
 cargo test -p nautilus-okx --test golden_trace_adapter_payload
 ```
 
 Set `RUN_RUST_GOLDEN_TRACE_HARNESS=0` or
+`RUN_RUST_MARKET_DATA_TRACE_REPLAY=0` or
 `RUN_RUST_CACHE_MSGBUS_TRACE_REPLAY=0` or
 `RUN_RUST_BACKTEST_TRACE_REPLAY=0` or
+`RUN_RUST_BACKTEST_LIVE_PARITY_TRACE_REPLAY=0` or
 `RUN_RUST_LIVE_SANDBOX_TRACE_REPLAY=0` or
+`RUN_RUST_ORDER_LIFECYCLE_TRACE_REPLAY=0` or
+`RUN_RUST_RISK_REJECTION_TRACE_REPLAY=0` or
 `RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY=0` only when documenting an explicit
 local toolchain or scoped replay blocker in task evidence.
 

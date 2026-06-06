@@ -1,18 +1,23 @@
 # Golden Trace Gate Evidence
 
-Date: 2026-06-03
+Date: 2026-06-06
 Executor: Codex
-Task ID: RTRACE-008 / RREL-008 refresh / RREL-009
+Task ID: RTRACE-008 / RREL-008 refresh / RREL-009 / DRG-009
 
 ## Gate Status
 
-The R2 golden trace gate has an executable Rust validation spine and a final
-release replay/scope manifest. Current evidence proves that the trace schema is
-enforced locally, representative backtest/live/adapter traces replay through
-Rust code, and final release mode explicitly classifies every golden trace row.
+The R2 golden trace gate has an executable Rust validation spine, and DRG-009
+promotes the v0.2 product-claimed trace areas required by the Design Readiness
+Gate into executable Rust replay evidence.
 
-This is not a final Rust-only release signoff. Human owner signoff remains
-pending.
+Current evidence proves that the trace schema is enforced locally and that
+backtest, live/sandbox lifecycle, data source / market data, execution order
+lifecycle, risk rejection, cache/message-bus, and adapter payload traces replay
+through repeatable Rust commands. The only schema-only row left in the release
+scope manifest is the non-product envelope smoke row.
+
+This is not a final design-readiness signoff. DRG-009 is high-risk and remains
+pending review/merge until the PR is approved.
 
 ## Standard Command
 
@@ -26,10 +31,13 @@ The command currently validates all `tests/golden/*.jsonl` files and runs:
 
 ```bash
 cargo test -p nautilus-testkit --test golden_trace_schema
+cargo test -p nautilus-model --test golden_trace_market_data
 cargo test -p nautilus-common --test golden_trace_cache_msgbus
 cargo test -p nautilus-backtest --test golden_trace_backtest
 cargo test -p nautilus-backtest --test backtest_live_semantic_parity
 cargo test -p nautilus-live --test golden_trace_live_sandbox
+cargo test -p nautilus-execution --test golden_trace_order_lifecycle
+cargo test -p nautilus-risk --test golden_trace_risk_rejection
 cargo test -p nautilus-okx --test golden_trace_adapter_payload
 ```
 
@@ -57,48 +65,45 @@ The manifest requires each `tests/golden/*.jsonl` case to be either
 | `tests/golden/backtest_replay_schema.jsonl` | 1 | `backtest_live` | Rust backtest replay |
 | `tests/golden/cache_msgbus_schema.jsonl` | 1 | `cache_msgbus` | Rust common cache/message-bus replay |
 | `tests/golden/live_sandbox_lifecycle_schema.jsonl` | 1 | `backtest_live` | Rust live/sandbox lifecycle replay |
-| `tests/golden/market_data_schema.jsonl` | 6 | `market_data` | Schema-only scoped in release manifest |
-| `tests/golden/order_lifecycle_schema.jsonl` | 6 | `order_lifecycle` | Schema-only scoped in release manifest |
+| `tests/golden/market_data_schema.jsonl` | 6 | `market_data` | Rust market-data model replay |
+| `tests/golden/order_lifecycle_schema.jsonl` | 6 | `order_lifecycle` | Rust execution lifecycle replay |
+| `tests/golden/risk_rejection_schema.jsonl` | 1 | `risk` | Rust `RiskEngine` rejection replay |
 | `tests/golden/schema_smoke.jsonl` | 1 | `market_data` | Schema-only scoped in release manifest |
 
-Total: 8 JSONL files, 18 trace rows.
+Total: 9 JSONL files, 19 trace rows.
 
 ## Executable Evidence
 
 | Evidence | Rust entrypoint | Covered behavior |
 | --- | --- | --- |
 | RTRACE-004 | `nautilus-testkit::golden_trace_schema` | Enforces `golden-trace-v1` row fields, category allowlist, event envelopes, timestamp shape, payload objects, and tolerance objects. |
+| DRG-009 | `nautilus-model::golden_trace_market_data` | Replays the six v0.2 market-data rows through Rust model constructors for quote, trade, bar, order book delta, instrument status, and catalog-style ordering. |
 | RCORE-009 | `nautilus-common::golden_trace_cache_msgbus` | Replays deterministic common-cache quote storage, typed message-bus publish ordering, BusTap-before-subscriber capture, and common object dispose state. |
 | RTRACE-005 | `nautilus-backtest::golden_trace_backtest` | Replays one deterministic quote through `BacktestEngine` and compares normalized `BacktestResult` output. |
 | RTRACE-006 | `nautilus-live::golden_trace_live_sandbox` | Builds and stops one Rust sandbox `LiveNode`, comparing deterministic lifecycle states. |
+| DRG-009 | `nautilus-execution::golden_trace_order_lifecycle` | Replays submit accept/reject, modify accept, cancel accept, triggered fill, and partial-to-filled lifecycle traces through Rust order event constructors and a deterministic execution lifecycle harness. |
+| DRG-009 | `nautilus-risk::golden_trace_risk_rejection` | Replays a valid submit command through `RiskEngine` with halted trading state, proving one denial event and no forwarded execution command. |
 | RTRACE-007 | `nautilus-okx::golden_trace_adapter_payload` | Parses one OKX WebSocket trade payload fixture through the Rust adapter parser into a normalized `TradeTick`. |
 | RBTL-009 | `nautilus-backtest::backtest_live_semantic_parity` | Compares a scoped Rust backtest quote replay against a Rust live sandbox lifecycle summary. |
 
 ## Schema-Only Seed Evidence
 
-The following categories currently have valid trace rows but do not yet claim
-full runtime replay parity:
-
-- `market_data`: quote, trade, bar, order book delta, instrument status, and
-  catalog ordering fixtures exist.
-- `order_lifecycle`: submit accept/reject, modify accept, cancel accept,
-  triggered fill, and partial-to-filled fixtures exist.
-
-These fixtures are intentionally useful before full replay hooks exist. They
-are explicitly scoped in
-`docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json`; they are not claimed
-as runtime replay evidence.
+`market_data.schema_smoke.001` remains schema-only by design. It exists only to
+validate the golden trace envelope contract and is not a product runtime trace
+area. All v0.2 product-claimed trace areas required by G8 now have executable
+Rust replay evidence in `docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json`.
 
 ## Residual Scoped Gaps
 
-The golden trace gate now has executable local release-mode evidence. The
-following gaps remain explicitly scoped and should be expanded by later
-runtime, adapter, and release tasks:
+The golden trace gate now has executable local release-mode evidence for the G8
+product-claimed areas. The following gaps remain explicitly scoped and should
+be expanded by later runtime, adapter, and release tasks:
 
-- `risk`: no executable Rust golden trace replay yet for risk accept/reject,
-  rate limits, notional checks, or trading-state gates.
-- `execution`: order routing and venue report replay is not fully bound beyond
-  the current OKX adapter payload parser fixture.
+- `risk`: halted-state rejection is executable; rate limits, notional checks,
+  and broader trading-state gates remain later expansion scope.
+- `execution`: scoped lifecycle replay is executable; full order routing,
+  matching-engine semantics, and venue report replay remain later expansion
+  scope.
 - `position`: no executable position open/increase/reduce/close trace replay
   yet.
 - `portfolio_pnl`: no executable account balance, margin, realized PnL,

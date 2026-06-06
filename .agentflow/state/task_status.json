@@ -2882,7 +2882,7 @@
     },
     "DRG-009": {
       "title": "Executable trace gate",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "rust_core_runtime_agent",
       "risk_level": "high",
@@ -2893,8 +2893,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/DRG-009.md",
       "evidence_file": "docs/rust-cutover/evidence/DRG-009.md",
-      "updated_at": "2026-06-05T16:10:00Z",
-      "local_backlog": true
+      "updated_at": "2026-06-06T00:00:00Z",
+      "local_backlog": true,
+      "evidence_summary": "G8 executable trace evidence PASS in branch: run_golden_traces, targeted market-data/order-lifecycle/risk tests, manifest validation, and verify_fast passed. High-risk task stops at REVIEW_REQUIRED."
     },
     "DRG-010": {
       "title": "Final design-readiness audit",

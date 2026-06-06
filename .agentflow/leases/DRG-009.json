@@ -1,0 +1,34 @@
+{
+  "task_id": "DRG-009",
+  "agent_id": "Codex",
+  "branch": "codex/DRG-009-executable-trace-gate",
+  "touched_paths": [
+    ".agentflow/leases/DRG-009.json",
+    ".agentflow/state/task_status.json",
+    "Cargo.lock",
+    "crates/execution/Cargo.toml",
+    "crates/execution/tests/golden_trace_order_lifecycle.rs",
+    "crates/model/tests/golden_trace_market_data.rs",
+    "crates/risk/Cargo.toml",
+    "crates/risk/tests/golden_trace_risk_rejection.rs",
+    "docs/rust-cutover/evidence/DRG-009.md",
+    "docs/rust-cutover/golden_trace/GATE_EVIDENCE.md",
+    "docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json",
+    "docs/rust-cutover/golden_trace/SCHEMA.md",
+    "docs/rust-cutover/release/v0_2_readiness_report.md",
+    "docs/rust-cutover/tasks/DRG-009.md",
+    "scripts/ai/run_golden_traces.sh",
+    "tests/golden/risk_rejection_schema.jsonl"
+  ],
+  "claimed_at": "2026-06-05T23:14:19.732794+00:00",
+  "status": "REVIEW_REQUIRED",
+  "updated_at": "2026-06-06T00:00:00Z",
+  "validation_summary": [
+    "cargo test -p nautilus-model --test golden_trace_market_data: PASS",
+    "cargo test -p nautilus-execution --test golden_trace_order_lifecycle: PASS",
+    "cargo test -p nautilus-risk --test golden_trace_risk_rejection: PASS",
+    "scripts/ai/run_golden_traces.sh: PASS",
+    "python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl': PASS",
+    "scripts/ai/verify_fast.sh: PASS"
+  ]
+}
