@@ -6,7 +6,7 @@ permissions: # Principle of least privilege
 
 on:
   push:
-    branches: [master, nightly, test-docker]
+    branches: [main, nightly, test-docker]
   workflow_dispatch:
 
 env:
@@ -139,7 +139,10 @@ jobs:
 
   build-docker-images-nautilus-trader:
     name: build-docker-images (nautilus_trader-${{ matrix.platform }})
-    if: github.ref != 'refs/heads/test-docker'
+    # NTPRO main must not publish container images implicitly. Keep publishing
+    # limited to the explicit nightly branch until a Rust-only Docker release
+    # workflow is designed.
+    if: github.ref == 'refs/heads/nightly'
     runs-on: ${{ matrix.runner }}
     permissions:
       packages: write
@@ -229,7 +232,7 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/nautilus_trader
           tags: |
             type=raw,value=nightly,enable=${{ steps.branch-name.outputs.current_branch == 'nightly' }}
-            type=raw,value=latest,enable=${{ steps.branch-name.outputs.current_branch == 'master' }}
+            type=raw,value=latest,enable=${{ steps.branch-name.outputs.current_branch == 'main' }}
 
       - name: Build and push by digest
         id: build
@@ -319,7 +322,7 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/nautilus_trader
           tags: |
             type=raw,value=nightly,enable=${{ steps.branch-name.outputs.current_branch == 'nightly' }}
-            type=raw,value=latest,enable=${{ steps.branch-name.outputs.current_branch == 'master' }}
+            type=raw,value=latest,enable=${{ steps.branch-name.outputs.current_branch == 'main' }}
 
       - name: Create manifest list and push
         id: push
@@ -401,7 +404,10 @@ jobs:
 
   build-docker-images-jupyterlab:
     name: build-docker-images (jupyterlab-${{ matrix.platform }})
-    if: github.ref != 'refs/heads/test-docker'
+    # NTPRO main must not publish container images implicitly. Keep publishing
+    # limited to the explicit nightly branch until a Rust-only Docker release
+    # workflow is designed.
+    if: github.ref == 'refs/heads/nightly'
     runs-on: ${{ matrix.runner }}
     permissions:
       packages: write
@@ -487,7 +493,7 @@ jobs:
       - name: Determine image tag
         id: image-tag
         run: |
-          if [ "${{ steps.branch-name.outputs.current_branch }}" = "master" ]; then
+          if [ "${{ steps.branch-name.outputs.current_branch }}" = "main" ]; then
             echo "tag=latest" >> "$GITHUB_OUTPUT"
           else
             echo "tag=${{ steps.branch-name.outputs.current_branch }}" >> "$GITHUB_OUTPUT"
@@ -501,7 +507,7 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/jupyterlab
           tags: |
             type=raw,value=nightly,enable=${{ steps.branch-name.outputs.current_branch == 'nightly' }}
-            type=raw,value=latest,enable=${{ steps.branch-name.outputs.current_branch == 'master' }}
+            type=raw,value=latest,enable=${{ steps.branch-name.outputs.current_branch == 'main' }}
 
       - name: Build and push by digest
         id: build
@@ -593,7 +599,7 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/jupyterlab
           tags: |
             type=raw,value=nightly,enable=${{ steps.branch-name.outputs.current_branch == 'nightly' }}
-            type=raw,value=latest,enable=${{ steps.branch-name.outputs.current_branch == 'master' }}
+            type=raw,value=latest,enable=${{ steps.branch-name.outputs.current_branch == 'main' }}
 
       - name: Create manifest list and push
         id: push
