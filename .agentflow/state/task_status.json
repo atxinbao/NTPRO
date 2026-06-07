@@ -3237,7 +3237,7 @@
     },
     "V03-004": {
       "title": "Supervisor artifacts to DashboardSnapshot aggregator",
-      "status": "TODO",
+      "status": "QA_REQUIRED",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3248,7 +3248,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-004.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-004.md",
-      "updated_at": "2026-06-07T14:02:23Z"
+      "updated_at": "2026-06-07T18:09:38Z"
     },
     "V03-005": {
       "title": "Local dashboard HTTP server",
