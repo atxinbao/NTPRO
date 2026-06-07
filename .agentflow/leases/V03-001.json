@@ -1,0 +1,27 @@
+{
+  "task_id": "V03-001",
+  "agent_id": "Codex",
+  "branch": "codex/V03-001-dashboard-scope",
+  "touched_paths": [
+    "docs/rust-cutover/scope/v0_3_dashboard_mvp.md",
+    "docs/rust-cutover/tasks/V03-001.md",
+    "docs/rust-cutover/tasks/V03-002.md",
+    "docs/rust-cutover/tasks/V03-003.md",
+    "docs/rust-cutover/tasks/V03-004.md",
+    "docs/rust-cutover/tasks/V03-005.md",
+    "docs/rust-cutover/tasks/V03-006.md",
+    "docs/rust-cutover/tasks/V03-007.md",
+    "docs/rust-cutover/tasks/V03-008.md",
+    "docs/rust-cutover/tasks/V03-009.md",
+    "docs/rust-cutover/tasks/V03-010.md",
+    "docs/rust-cutover/evidence/V03-001.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/V03-001.json"
+  ],
+  "claimed_at": "2026-06-07T14:02:23Z",
+  "status": "PR_OPEN",
+  "updated_at": "2026-06-07T14:04:49Z",
+  "notes": "V03-001 is low-risk scope/control-plane work. It records the v0.3 Dashboard MVP boundary and task sequence only; no runtime, HTTP server, UI, trading semantics, tag, or GitHub Release changes.",
+  "pr_number": 214,
+  "pr_url": "https://github.com/atxinbao/NTPRO/pull/214"
+}

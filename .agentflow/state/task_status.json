@@ -3177,6 +3177,158 @@
       "pr": 201,
       "merged_at": "2026-06-06T13:20:19Z",
       "merge_commit": "b26efe51307387de6ece62a299f03c760136fe31"
+    },
+    "V03-001": {
+      "title": "Scope decision / Dashboard system-status MVP",
+      "status": "PR_OPEN",
+      "owner_role": "control_scope_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "low",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V03-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/V03-001.md",
+      "updated_at": "2026-06-07T14:04:49Z",
+      "pr_number": 214,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/214"
+    },
+    "V03-002": {
+      "title": "DashboardSnapshot DTO",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V03-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/V03-002.md",
+      "updated_at": "2026-06-07T14:02:23Z"
+    },
+    "V03-003": {
+      "title": "Status detail DTOs",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V03-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/V03-003.md",
+      "updated_at": "2026-06-07T14:02:23Z"
+    },
+    "V03-004": {
+      "title": "Supervisor artifacts to DashboardSnapshot aggregator",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V03-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/V03-004.md",
+      "updated_at": "2026-06-07T14:02:23Z"
+    },
+    "V03-005": {
+      "title": "Local dashboard HTTP server",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V03-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/V03-005.md",
+      "updated_at": "2026-06-07T14:02:23Z"
+    },
+    "V03-006": {
+      "title": "Overview and Nodes UI",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V03-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/V03-006.md",
+      "updated_at": "2026-06-07T14:02:23Z"
+    },
+    "V03-007": {
+      "title": "Data source / execution / risk panels",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V03-007.md",
+      "evidence_file": "docs/rust-cutover/evidence/V03-007.md",
+      "updated_at": "2026-06-07T14:02:23Z"
+    },
+    "V03-008": {
+      "title": "Runtime modules diagnostic panel",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V03-008.md",
+      "evidence_file": "docs/rust-cutover/evidence/V03-008.md",
+      "updated_at": "2026-06-07T14:02:23Z"
+    },
+    "V03-009": {
+      "title": "Dashboard start/stop controls",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V03-009.md",
+      "evidence_file": "docs/rust-cutover/evidence/V03-009.md",
+      "updated_at": "2026-06-07T14:02:23Z"
+    },
+    "V03-010": {
+      "title": "Dashboard smoke and v0.3 readiness report",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/V03-010.md",
+      "evidence_file": "docs/rust-cutover/evidence/V03-010.md",
+      "updated_at": "2026-06-07T14:02:23Z"
     }
   },
   "updated_at": "2026-06-06T13:23:13Z"
