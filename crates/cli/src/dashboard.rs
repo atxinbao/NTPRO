@@ -70,7 +70,7 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
     </section>
     <section class="band">
       <h2>Nodes</h2>
-      <div id="nodes" class="grid"></div>
+      <div id="nodes" class="table-wrap"></div>
     </section>
     <section class="band">
       <h2>Alerts</h2>
@@ -144,7 +144,7 @@ main {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 12px;
 }
 
@@ -167,6 +167,47 @@ main {
   font-size: 18px;
   font-weight: 700;
   overflow-wrap: anywhere;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid #d8dee6;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 980px;
+}
+
+th,
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5eaf0;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: #eef2f6;
+  color: #334155;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+td {
+  font-size: 13px;
+}
+
+.path {
+  max-width: 260px;
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: #64748b;
 }
 
 .list {
@@ -192,6 +233,67 @@ main {
 .status-unknown {
   color: #92400e;
 }
+
+@media (max-width: 720px) {
+  .topbar {
+    align-items: flex-start;
+    padding: 24px 32px;
+  }
+
+  .topbar h1 {
+    font-size: 28px;
+  }
+
+  .table-wrap {
+    overflow-x: visible;
+  }
+
+  table,
+  tbody,
+  tr,
+  td {
+    display: block;
+    min-width: 0;
+    width: 100%;
+  }
+
+  table {
+    min-width: 0;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tr {
+    border-bottom: 1px solid #e5eaf0;
+    padding: 8px 0;
+  }
+
+  tr:last-child {
+    border-bottom: 0;
+  }
+
+  td {
+    display: grid;
+    grid-template-columns: 116px minmax(0, 1fr);
+    gap: 10px;
+    border-bottom: 0;
+    padding: 6px 12px;
+  }
+
+  td::before {
+    content: attr(data-label);
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .path {
+    max-width: none;
+  }
+}
 "#;
 
 const DASHBOARD_JS: &str = r#"const renderTile = (label, value, extraClass = "") =>
@@ -211,33 +313,86 @@ const snapshotValue = (value) => {
   return value.value ?? value.availability ?? "unknown";
 };
 
+const availability = (value) => value && typeof value === "object" ? value.availability : "unknown";
+
+const redactedError = (value) => {
+  const present = value && typeof value === "string" && value.trim().length > 0;
+  return present ? "present (redacted)" : "none";
+};
+
 async function loadSnapshot() {
-  const response = await fetch("/api/snapshot");
-  if (!response.ok) {
-    throw new Error(`snapshot request failed: ${response.status}`);
+  const [metaResponse, snapshotResponse] = await Promise.all([
+    fetch("/api/server"),
+    fetch("/api/snapshot"),
+  ]);
+  if (!metaResponse.ok) {
+    throw new Error(`server metadata request failed: ${metaResponse.status}`);
   }
-  return response.json();
+  if (!snapshotResponse.ok) {
+    throw new Error(`snapshot request failed: ${snapshotResponse.status}`);
+  }
+  return {
+    metadata: await metaResponse.json(),
+    snapshot: await snapshotResponse.json(),
+  };
 }
 
-function render(snapshot) {
+function render(payload) {
+  const metadata = payload.metadata || {};
+  const snapshot = payload.snapshot || {};
   const overview = snapshot.overview || {};
+  const nodes = snapshot.nodes || [];
+  const staleNodes = nodes.filter((node) => node.health === "stale").length;
   document.getElementById("overview").innerHTML = [
+    renderTile("Registry", safe(metadata.registry_path)),
     renderTile("Nodes", safe(overview.node_count)),
     renderTile("Running", safe(overview.running_nodes), "status-healthy"),
     renderTile("Stopped", safe(overview.stopped_nodes)),
     renderTile("Errors", safe(overview.error_nodes), "status-error"),
+    renderTile("Stale", safe(staleNodes), "status-stale"),
+    renderTile("Unknown", safe(overview.unknown_nodes), "status-unknown"),
     renderTile("Health", safe(overview.health), `status-${safe(overview.health)}`),
+    renderTile("Sandbox Only", safe(overview.sandbox_only)),
+    renderTile("External Venue", safe(overview.external_venue_connection)),
+    renderTile("Real Orders", safe(overview.real_orders_submitted)),
+    renderTile("Latest Transition", snapshotValue(overview.latest_transition_at)),
+    renderTile("Latest Error", redactedError(overview.latest_error), overview.latest_error ? "status-error" : ""),
     renderTile("Generated", snapshotValue(snapshot.generated_at)),
   ].join("");
 
-  document.getElementById("nodes").innerHTML = (snapshot.nodes || []).map((node) =>
-    `<div class="tile">
-      <div class="label">${text(node.node_id)}</div>
-      <div class="value status-${safe(node.health)}">${text(node.lifecycle_state)}</div>
-      <div>data: ${text(node.external_venue_connection ? "external" : "local artifact")}</div>
-      <div>orders: ${text(node.real_orders_submitted ? "real" : "none")}</div>
-    </div>`
-  ).join("") || `<div class="tile"><div class="value">No registered nodes</div></div>`;
+  document.getElementById("nodes").innerHTML = nodes.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>Node</th>
+          <th>Lifecycle</th>
+          <th>Process</th>
+          <th>PID</th>
+          <th>Config</th>
+          <th>Artifacts</th>
+          <th>Started</th>
+          <th>Stopped</th>
+          <th>Last Transition</th>
+          <th>Last Error</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${nodes.map((node) => `
+          <tr>
+            <td data-label="Node"><strong>${text(node.node_id)}</strong><div class="muted">${text(node.process_mode)}</div></td>
+            <td data-label="Lifecycle"><span class="status-${safe(node.health)}">${text(node.lifecycle_state)}</span></td>
+            <td data-label="Process">${text(node.process_state)}</td>
+            <td data-label="PID">${text(snapshotValue(node.pid))}<div class="muted">${text(availability(node.pid))}</div></td>
+            <td data-label="Config" class="path">${text(snapshotValue(node.config_path))}</td>
+            <td data-label="Artifacts" class="path">${text(snapshotValue(node.artifact_root))}</td>
+            <td data-label="Started">${text(snapshotValue(node.started_at))}</td>
+            <td data-label="Stopped">${text(snapshotValue(node.stopped_at))}</td>
+            <td data-label="Last Transition">${text(snapshotValue(node.last_transition_at))}</td>
+            <td data-label="Last Error">${text(redactedError(node.last_error))}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>` : `<div class="tile"><div class="value">No registered nodes</div></div>`;
 
   document.getElementById("alerts").innerHTML = ((snapshot.alerts || {}).active || []).map((alert) =>
     `<div class="row"><strong>${text(alert.severity)}: ${text(alert.source)}</strong><span>${text(alert.message)}</span></div>`
@@ -262,6 +417,12 @@ refresh().catch((error) => {
 #[derive(Clone, Debug)]
 struct DashboardServerState {
     registry_path: PathBuf,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+struct DashboardServerMetadata {
+    registry_path: String,
+    local_only: bool,
 }
 
 type ApiResult<T> = Result<Json<T>, (StatusCode, Json<Value>)>;
@@ -313,6 +474,7 @@ fn dashboard_router(registry_path: PathBuf) -> Router {
         .route("/dashboard", get(dashboard_shell))
         .route("/assets/dashboard.css", get(dashboard_css))
         .route("/assets/dashboard.js", get(dashboard_js))
+        .route("/api/server", get(server_metadata_api))
         .route("/api/snapshot", get(snapshot_api))
         .route("/api/nodes", get(nodes_api))
         .route("/api/nodes/{node_id}", get(node_detail_api))
@@ -342,6 +504,15 @@ async fn dashboard_js() -> impl IntoResponse {
         [(CONTENT_TYPE, "application/javascript; charset=utf-8")],
         DASHBOARD_JS,
     )
+}
+
+async fn server_metadata_api(
+    State(state): State<DashboardServerState>,
+) -> Json<DashboardServerMetadata> {
+    Json(DashboardServerMetadata {
+        registry_path: state.registry_path.display().to_string(),
+        local_only: true,
+    })
 }
 
 async fn snapshot_api(State(state): State<DashboardServerState>) -> ApiResult<DashboardSnapshot> {
@@ -662,6 +833,8 @@ pub struct DashboardNodeSummary {
     pub node_id: String,
     pub lifecycle_state: LifecycleStatus,
     pub process_mode: ProcessMode,
+    pub process_state: SupervisorProcessState,
+    pub pid: SnapshotValue<u32>,
     pub health: HealthStatus,
     pub config_path: SnapshotValue<String>,
     pub artifact_root: SnapshotValue<String>,
@@ -682,6 +855,8 @@ impl DashboardNodeSummary {
             node_id: status.node_id.clone(),
             lifecycle_state: status.lifecycle_state,
             process_mode: status.process_mode,
+            process_state: SupervisorProcessState::Unknown,
+            pid: SnapshotValue::unknown(),
             health: derive_node_health(status),
             config_path: status.config_path.clone(),
             artifact_root: status.artifact_root.clone(),
@@ -1017,6 +1192,8 @@ pub fn snapshot_from_supervisor_artifacts(
             "supervisor artifacts do not expose runtime module internals yet",
         ));
         let mut node = DashboardNodeSummary::from_status(&status);
+        node.process_state = record.process.state;
+        node.pid = record.process.pid.clone();
         node.gaps = gaps.clone();
         snapshot.gaps.extend(gaps);
 
@@ -1911,6 +2088,8 @@ mod tests {
         write_log_artifacts(&record);
         record.status_artifact = RegistryArtifactState::Available;
         record.metrics_artifact = RegistryArtifactState::Available;
+        record.process.state = SupervisorProcessState::Running;
+        record.process.pid = SnapshotValue::available(42_001);
         write_registry(&registry_path, [record.clone()]);
 
         let snapshot =
@@ -1921,6 +2100,11 @@ mod tests {
         assert!(!snapshot.overview.external_venue_connection);
         assert!(!snapshot.overview.real_orders_submitted);
         assert_eq!(snapshot.nodes[0].node_id, "sandbox-a");
+        assert_eq!(
+            snapshot.nodes[0].process_state,
+            SupervisorProcessState::Running
+        );
+        assert_eq!(snapshot.nodes[0].pid.value, Some(42_001));
         assert_eq!(snapshot.data_sources[0].source_id, "sandbox-a:data");
         assert_eq!(
             snapshot.execution_gateways[0].gateway_id,
@@ -1972,6 +2156,18 @@ mod tests {
         let shell = http_request(addr, "GET", "/dashboard").await;
         assert!(shell.contains("HTTP/1.1 200 OK"));
         assert!(shell.contains("NTPRO Dashboard"));
+
+        let metadata = http_request(addr, "GET", "/api/server").await;
+        assert!(metadata.contains("HTTP/1.1 200 OK"));
+        let metadata_body = response_body(&metadata);
+        let metadata_value: Value = serde_json::from_str(metadata_body).unwrap();
+        assert_eq!(metadata_value["local_only"], true);
+        assert!(
+            metadata_value["registry_path"]
+                .as_str()
+                .unwrap()
+                .ends_with("registry.json")
+        );
 
         let snapshot = http_request(addr, "GET", "/api/snapshot").await;
         assert!(snapshot.contains("HTTP/1.1 200 OK"));
