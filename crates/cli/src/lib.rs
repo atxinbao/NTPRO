@@ -67,6 +67,7 @@ use crate::blockchain::run_blockchain_command;
 use crate::{
     backtest::run_backtest_command,
     config::run_config_command,
+    dashboard::run_dashboard_command,
     data::run_data_command,
     database::postgres::run_database_command,
     live::run_live_command,
@@ -88,6 +89,7 @@ pub async fn run(opt: NautilusCli) -> anyhow::Result<()> {
         Commands::Data(data_opt) => run_data_command(data_opt)?,
         Commands::Config(config_opt) => run_config_command(config_opt)?,
         Commands::Supervisor(supervisor_opt) => run_supervisor_command(supervisor_opt)?,
+        Commands::Dashboard(dashboard_opt) => run_dashboard_command(dashboard_opt).await?,
         Commands::Database(database_opt) => run_database_command(database_opt).await?,
         #[cfg(feature = "defi")]
         Commands::Blockchain(blockchain_opt) => run_blockchain_command(blockchain_opt).await?,

@@ -5536,6 +5536,7 @@ name = "nautilus-cli"
 version = "0.58.0"
 dependencies = [
  "anyhow",
+ "axum",
  "clap",
  "dotenvy",
  "log",

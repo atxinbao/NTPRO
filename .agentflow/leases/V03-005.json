@@ -1,0 +1,19 @@
+{
+  "task_id": "V03-005",
+  "agent_id": "Codex",
+  "branch": "codex/V03-005-local-dashboard-http-server",
+  "touched_paths": [
+    "Cargo.lock",
+    "crates/cli/Cargo.toml",
+    "crates/cli/src/opt.rs",
+    "crates/cli/src/lib.rs",
+    "crates/cli/src/dashboard.rs",
+    "docs/rust-cutover/tasks/V03-005.md",
+    "docs/rust-cutover/evidence/V03-005.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/V03-005.json"
+  ],
+  "claimed_at": "2026-06-07T18:18:10.800928+00:00",
+  "status": "QA_REQUIRED",
+  "updated_at": "2026-06-07T18:39:34Z"
+}

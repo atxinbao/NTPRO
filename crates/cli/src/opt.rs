@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-use std::path::PathBuf;
+use std::{net::SocketAddr, path::PathBuf};
 
 use clap::{Parser, ValueEnum};
 
@@ -34,6 +34,7 @@ pub enum Commands {
     Data(DataOpt),
     Config(ConfigOpt),
     Supervisor(SupervisorOpt),
+    Dashboard(DashboardOpt),
     Database(DatabaseOpt),
     #[cfg(feature = "defi")]
     Blockchain(BlockchainOpt),
@@ -264,6 +265,33 @@ pub struct SupervisorNodeOpt {
     /// Registered local node identifier.
     #[arg(long)]
     pub node_id: String,
+}
+
+/// Local dashboard HTTP server commands.
+#[derive(Parser, Debug)]
+#[command(about = "Local dashboard HTTP server", long_about = None)]
+pub struct DashboardOpt {
+    #[clap(subcommand)]
+    pub command: DashboardCommand,
+}
+
+/// Available local dashboard commands.
+#[derive(Parser, Debug, Clone)]
+#[command(about = "Local dashboard HTTP server", long_about = None)]
+pub enum DashboardCommand {
+    /// Serves the static dashboard shell and local JSON API.
+    Serve(DashboardServeOpt),
+}
+
+/// Local dashboard server options.
+#[derive(Parser, Debug, Clone)]
+pub struct DashboardServeOpt {
+    /// Path to the local supervisor registry JSON file.
+    #[arg(long)]
+    pub registry: PathBuf,
+    /// Local loopback address for the dashboard HTTP server.
+    #[arg(long, default_value = "127.0.0.1:5173")]
+    pub bind: SocketAddr,
 }
 
 /// Data catalog inspection, validation, and loading commands.
@@ -507,6 +535,7 @@ mod tests {
         assert!(help.contains("data"));
         assert!(help.contains("config"));
         assert!(help.contains("supervisor"));
+        assert!(help.contains("dashboard"));
         assert!(help.contains("database"));
     }
 
@@ -865,6 +894,72 @@ mod tests {
                 _ => panic!("expected query command"),
             }
         }
+    }
+
+    #[test]
+    fn dashboard_help_lists_local_http_server() {
+        let mut command = NautilusCli::command();
+        let dashboard = command
+            .find_subcommand_mut("dashboard")
+            .expect("dashboard command should exist");
+        let help = dashboard.render_help().to_string();
+
+        assert!(help.contains("serve"));
+        assert!(help.contains("Local dashboard HTTP server"));
+    }
+
+    #[test]
+    fn dashboard_serve_help_describes_local_boundary() {
+        let help = render_subcommand_help(&["dashboard", "serve"]);
+
+        assert!(help.contains("static dashboard shell"));
+        assert!(help.contains("local JSON API"));
+        assert!(help.contains("--registry"));
+        assert!(help.contains("--bind"));
+    }
+
+    #[test]
+    fn parses_dashboard_serve_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "dashboard",
+            "serve",
+            "--registry",
+            "runs/supervisor/registry.json",
+            "--bind",
+            "127.0.0.1:5174",
+        ])
+        .expect("dashboard serve should parse");
+
+        let Commands::Dashboard(dashboard) = parsed.command else {
+            panic!("expected dashboard command");
+        };
+        let DashboardCommand::Serve(serve) = dashboard.command;
+
+        assert_eq!(
+            serve.registry,
+            PathBuf::from("runs/supervisor/registry.json")
+        );
+        assert_eq!(serve.bind.to_string(), "127.0.0.1:5174");
+    }
+
+    #[test]
+    fn dashboard_serve_defaults_to_loopback() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "dashboard",
+            "serve",
+            "--registry",
+            "runs/supervisor/registry.json",
+        ])
+        .expect("dashboard serve should parse with default bind");
+
+        let Commands::Dashboard(dashboard) = parsed.command else {
+            panic!("expected dashboard command");
+        };
+        let DashboardCommand::Serve(serve) = dashboard.command;
+
+        assert_eq!(serve.bind.to_string(), "127.0.0.1:5173");
     }
 
     #[test]
