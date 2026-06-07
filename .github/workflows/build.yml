@@ -7,7 +7,10 @@ permissions: # Principle of least privilege
 on:
   workflow_dispatch:
   push:
-    branches: [main, nightly, test-ci, test-pre-commit]
+    # NTPRO does not provide the upstream self-hosted build runner pool. Keep
+    # this upstream-heavy workflow available for explicit CI test branches, but
+    # do not run it on every main push.
+    branches: [nightly, test-ci, test-pre-commit]
 
 concurrency:
   # yamllint disable-line rule:line-length
