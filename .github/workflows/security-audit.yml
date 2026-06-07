@@ -56,6 +56,17 @@ jobs:
           allowed-endpoints: >-
             github.com:443
             api.github.com:443
+            raw.githubusercontent.com:443
+            objects.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            github-releases.githubusercontent.com:443
+            static.rust-lang.org:443
+            crates.io:443
+            index.crates.io:443
+            static.crates.io:443
+            api.osv.dev:443
+            pypi.org:443
+            files.pythonhosted.org:443
             ${{ vars.COMMON_ALLOWED_ENDPOINTS }}
 
       - name: Checkout repository
@@ -91,6 +102,17 @@ jobs:
           allowed-endpoints: >-
             github.com:443
             api.github.com:443
+            raw.githubusercontent.com:443
+            objects.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            github-releases.githubusercontent.com:443
+            static.rust-lang.org:443
+            crates.io:443
+            index.crates.io:443
+            static.crates.io:443
+            api.osv.dev:443
+            pypi.org:443
+            files.pythonhosted.org:443
             ${{ vars.COMMON_ALLOWED_ENDPOINTS }}
             ${{ vars.SECURITY_AUDIT_ALLOWED_ENDPOINTS }}
 
@@ -139,6 +161,17 @@ jobs:
           allowed-endpoints: >-
             github.com:443
             api.github.com:443
+            raw.githubusercontent.com:443
+            objects.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            github-releases.githubusercontent.com:443
+            static.rust-lang.org:443
+            crates.io:443
+            index.crates.io:443
+            static.crates.io:443
+            api.osv.dev:443
+            pypi.org:443
+            files.pythonhosted.org:443
             ${{ vars.COMMON_ALLOWED_ENDPOINTS }}
             ${{ vars.SECURITY_AUDIT_ALLOWED_ENDPOINTS }}
 
@@ -167,6 +200,17 @@ jobs:
           allowed-endpoints: >-
             github.com:443
             api.github.com:443
+            raw.githubusercontent.com:443
+            objects.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            github-releases.githubusercontent.com:443
+            static.rust-lang.org:443
+            crates.io:443
+            index.crates.io:443
+            static.crates.io:443
+            api.osv.dev:443
+            pypi.org:443
+            files.pythonhosted.org:443
             ${{ vars.COMMON_ALLOWED_ENDPOINTS }}
             ${{ vars.SECURITY_AUDIT_ALLOWED_ENDPOINTS }}
 
@@ -195,6 +239,17 @@ jobs:
           allowed-endpoints: >-
             github.com:443
             api.github.com:443
+            raw.githubusercontent.com:443
+            objects.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            github-releases.githubusercontent.com:443
+            static.rust-lang.org:443
+            crates.io:443
+            index.crates.io:443
+            static.crates.io:443
+            api.osv.dev:443
+            pypi.org:443
+            files.pythonhosted.org:443
             ${{ vars.COMMON_ALLOWED_ENDPOINTS }}
             ${{ vars.SECURITY_AUDIT_ALLOWED_ENDPOINTS }}
 
@@ -223,6 +278,17 @@ jobs:
           allowed-endpoints: >-
             github.com:443
             api.github.com:443
+            raw.githubusercontent.com:443
+            objects.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            github-releases.githubusercontent.com:443
+            static.rust-lang.org:443
+            crates.io:443
+            index.crates.io:443
+            static.crates.io:443
+            api.osv.dev:443
+            pypi.org:443
+            files.pythonhosted.org:443
             ${{ vars.COMMON_ALLOWED_ENDPOINTS }}
             ${{ vars.SECURITY_AUDIT_ALLOWED_ENDPOINTS }}
 
@@ -262,6 +328,17 @@ jobs:
           allowed-endpoints: >-
             github.com:443
             api.github.com:443
+            raw.githubusercontent.com:443
+            objects.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            github-releases.githubusercontent.com:443
+            static.rust-lang.org:443
+            crates.io:443
+            index.crates.io:443
+            static.crates.io:443
+            api.osv.dev:443
+            pypi.org:443
+            files.pythonhosted.org:443
             ${{ vars.COMMON_ALLOWED_ENDPOINTS }}
             ${{ vars.SECURITY_AUDIT_ALLOWED_ENDPOINTS }}
 
