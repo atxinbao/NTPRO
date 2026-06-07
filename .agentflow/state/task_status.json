@@ -3200,7 +3200,7 @@
     },
     "V03-002": {
       "title": "DashboardSnapshot DTO",
-      "status": "RUNNING",
+      "status": "PR_OPEN",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3211,7 +3211,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-002.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-002.md",
-      "updated_at": "2026-06-07T14:13:50Z"
+      "updated_at": "2026-06-07T15:29:15Z",
+      "pr_number": 215,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/215"
     },
     "V03-003": {
       "title": "Status detail DTOs",

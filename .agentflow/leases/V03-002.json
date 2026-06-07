@@ -9,5 +9,8 @@
     ".agentflow/leases/V03-002.json"
   ],
   "claimed_at": "2026-06-07T14:13:50.617452+00:00",
-  "status": "LEASED"
+  "status": "PR_OPEN",
+  "pr_number": 215,
+  "pr_url": "https://github.com/atxinbao/NTPRO/pull/215",
+  "updated_at": "2026-06-07T15:29:15Z"
 }
