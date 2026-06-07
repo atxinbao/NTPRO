@@ -73,6 +73,18 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
       <div id="nodes" class="table-wrap"></div>
     </section>
     <section class="band">
+      <h2>Data Sources</h2>
+      <div id="data-sources" class="table-wrap"></div>
+    </section>
+    <section class="band">
+      <h2>Execution Gateways</h2>
+      <div id="execution-gateways" class="table-wrap"></div>
+    </section>
+    <section class="band">
+      <h2>Risk Engine</h2>
+      <div id="risk" class="grid"></div>
+    </section>
+    <section class="band">
       <h2>Alerts</h2>
       <div id="alerts" class="list"></div>
     </section>
@@ -320,6 +332,21 @@ const redactedError = (value) => {
   return present ? "present (redacted)" : "none";
 };
 
+const redactedDashboardValue = (value) => {
+  if (!value || typeof value !== "object") return "unknown";
+  if (value.availability === "redacted") return "redacted";
+  if (value.value !== null && value.value !== undefined) return "present (redacted)";
+  return value.availability ?? "unknown";
+};
+
+const dashboardErrorValue = (value) => {
+  if (!value || typeof value !== "object") return "unknown";
+  if (value.value !== null && value.value !== undefined) return "present (redacted)";
+  return value.availability ?? "unknown";
+};
+
+const emptyTable = (message) => `<div class="tile"><div class="value">${text(message)}</div></div>`;
+
 async function loadSnapshot() {
   const [metaResponse, snapshotResponse] = await Promise.all([
     fetch("/api/server"),
@@ -394,6 +421,10 @@ function render(payload) {
       </tbody>
     </table>` : `<div class="tile"><div class="value">No registered nodes</div></div>`;
 
+  renderDataSources(snapshot.data_sources || []);
+  renderExecutionGateways(snapshot.execution_gateways || []);
+  renderRisk(snapshot.risk || {});
+
   document.getElementById("alerts").innerHTML = ((snapshot.alerts || {}).active || []).map((alert) =>
     `<div class="row"><strong>${text(alert.severity)}: ${text(alert.source)}</strong><span>${text(alert.message)}</span></div>`
   ).join("") || `<div class="row">No active alerts</div>`;
@@ -401,6 +432,83 @@ function render(payload) {
   document.getElementById("gaps").innerHTML = (snapshot.gaps || []).map((gap) =>
     `<div class="row"><strong>${text(gap.field_path)}</strong><span>${text(gap.reason)} - ${text(snapshotValue(gap.notes))}</span></div>`
   ).join("") || `<div class="row">No dashboard gaps</div>`;
+}
+
+function renderDataSources(dataSources) {
+  document.getElementById("data-sources").innerHTML = dataSources.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>Source</th>
+          <th>Kind</th>
+          <th>Provider</th>
+          <th>Connection</th>
+          <th>Freshness</th>
+          <th>Lag</th>
+          <th>Health</th>
+          <th>Last Error</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${dataSources.map((source) => `
+          <tr>
+            <td data-label="Source"><strong>${text(source.source_id)}</strong></td>
+            <td data-label="Kind">${text(snapshotValue(source.source_kind))}</td>
+            <td data-label="Provider">${text(snapshotValue(source.provider))}</td>
+            <td data-label="Connection">${text(source.connection)}</td>
+            <td data-label="Freshness">${text(snapshotValue(source.freshness))}</td>
+            <td data-label="Lag">${text(snapshotValue(source.lag_ms))}</td>
+            <td data-label="Health"><span class="status-${safe(source.health)}">${text(source.health)}</span></td>
+            <td data-label="Last Error">${text(dashboardErrorValue(source.last_error))}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>` : emptyTable("No data sources reported");
+}
+
+function renderExecutionGateways(gateways) {
+  document.getElementById("execution-gateways").innerHTML = gateways.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>Gateway</th>
+          <th>Venue</th>
+          <th>Connection</th>
+          <th>Started</th>
+          <th>Account</th>
+          <th>Orders</th>
+          <th>Last Report</th>
+          <th>Last Error</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${gateways.map((gateway) => `
+          <tr>
+            <td data-label="Gateway"><strong>${text(gateway.gateway_id)}</strong></td>
+            <td data-label="Venue">${text(snapshotValue(gateway.venue))}</td>
+            <td data-label="Connection">${text(gateway.connection)}</td>
+            <td data-label="Started">${text(snapshotValue(gateway.started))}</td>
+            <td data-label="Account">${text(redactedDashboardValue(gateway.account_ref))}</td>
+            <td data-label="Orders">open ${text(snapshotValue(gateway.order_counts?.open))} / in-flight ${text(snapshotValue(gateway.order_counts?.inflight))} / closed ${text(snapshotValue(gateway.order_counts?.closed))}</td>
+            <td data-label="Last Report">${text(snapshotValue(gateway.last_report_at))}</td>
+            <td data-label="Last Error">${text(dashboardErrorValue(gateway.last_error))}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>` : emptyTable("No execution gateways reported");
+}
+
+function renderRisk(risk) {
+  const lastRejection = risk.last_rejection && risk.last_rejection.value ? "present (redacted)" : snapshotValue(risk.last_rejection);
+  document.getElementById("risk").innerHTML = [
+    renderTile("Trading State", safe(risk.trading_state)),
+    renderTile("Health", safe(risk.health), `status-${safe(risk.health)}`),
+    renderTile("Commands", snapshotValue(risk.command_count)),
+    renderTile("Events", snapshotValue(risk.event_count)),
+    renderTile("Rejections", snapshotValue(risk.rejections_total)),
+    renderTile("Last Rejection", lastRejection),
+    renderTile("Last Error", dashboardErrorValue(risk.last_error)),
+  ].join("");
 }
 
 async function refresh() {
@@ -1823,6 +1931,31 @@ mod tests {
     }
 
     #[test]
+    fn dashboard_shell_includes_system_panel_mounts_and_redaction_helpers() {
+        for mount_id in ["data-sources", "execution-gateways", "risk"] {
+            assert!(
+                DASHBOARD_HTML.contains(mount_id),
+                "dashboard shell missing mount id {mount_id}"
+            );
+        }
+
+        for js_symbol in [
+            "renderDataSources",
+            "renderExecutionGateways",
+            "renderRisk",
+            "redactedDashboardValue",
+            "dashboardErrorValue",
+            "No data sources reported",
+            "No execution gateways reported",
+        ] {
+            assert!(
+                DASHBOARD_JS.contains(js_symbol),
+                "dashboard JS missing {js_symbol}"
+            );
+        }
+    }
+
+    #[test]
     fn one_node_snapshot_counts_running_node() {
         let status = NodeStatus {
             lifecycle_state: LifecycleStatus::Running,
@@ -2175,6 +2308,29 @@ mod tests {
         let snapshot_value: Value = serde_json::from_str(snapshot_body).unwrap();
         assert_eq!(snapshot_value["nodes"][0]["node_id"], "sandbox-a");
         assert_eq!(snapshot_value["overview"]["running_nodes"], 1);
+        assert_eq!(
+            snapshot_value["data_sources"][0]["source_id"],
+            "sandbox-a:data"
+        );
+        assert_eq!(
+            snapshot_value["data_sources"][0]["source_kind"],
+            json!({"availability": "available", "value": "supervisor_artifact"})
+        );
+        assert_eq!(
+            snapshot_value["data_sources"][0]["provider"],
+            json!({"availability": "available", "value": "local"})
+        );
+        assert_eq!(
+            snapshot_value["execution_gateways"][0]["gateway_id"],
+            "sandbox-a:gateway"
+        );
+        assert_eq!(
+            snapshot_value["execution_gateways"][0]["account_ref"],
+            json!({"availability": "redacted"})
+        );
+        assert_eq!(snapshot_value["risk"]["trading_state"], "active");
+        assert_eq!(snapshot_value["risk"]["health"], "healthy");
+        assert_forbidden_keys_absent(&snapshot_value);
 
         let metrics = http_request(addr, "GET", "/api/nodes/sandbox-a/metrics").await;
         assert!(metrics.contains("HTTP/1.1 200 OK"));

@@ -1,0 +1,14 @@
+{
+  "task_id": "V03-007",
+  "agent_id": "Codex",
+  "branch": "codex/V03-007-data-source-execution-risk-panels",
+  "touched_paths": [
+    "crates/cli/src/dashboard.rs",
+    "docs/rust-cutover/evidence/V03-007.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/V03-007.json"
+  ],
+  "claimed_at": "2026-06-07T19:12:38.756816+00:00",
+  "status": "QA_REQUIRED",
+  "updated_at": "2026-06-07T19:22:18Z"
+}
