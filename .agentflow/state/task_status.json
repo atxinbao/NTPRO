@@ -3220,7 +3220,7 @@
     },
     "V03-003": {
       "title": "Status detail DTOs",
-      "status": "RUNNING",
+      "status": "PR_OPEN",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3231,7 +3231,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-003.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-003.md",
-      "updated_at": "2026-06-07T15:52:50Z"
+      "updated_at": "2026-06-07T15:54:42Z",
+      "pr_number": 216,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/216"
     },
     "V03-004": {
       "title": "Supervisor artifacts to DashboardSnapshot aggregator",

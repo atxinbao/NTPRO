@@ -10,6 +10,8 @@
     "crates/cli/src/dashboard.rs"
   ],
   "claimed_at": "2026-06-07T15:37:02.517266+00:00",
-  "status": "RUNNING",
-  "updated_at": "2026-06-07T15:52:50Z"
+  "status": "PR_OPEN",
+  "updated_at": "2026-06-07T15:54:42Z",
+  "pr_number": 216,
+  "pr_url": "https://github.com/atxinbao/NTPRO/pull/216"
 }
