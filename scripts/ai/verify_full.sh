@@ -6,6 +6,7 @@ cd "$ROOT"
 source scripts/ai/toolchain_env.sh
 
 FEATURES="${NAUTILUS_RUST_FEATURES:-arrow,ffi,high-precision,streaming,defi}"
+CARGO_DOC_JOBS="${VERIFY_FULL_CARGO_DOC_JOBS:-1}"
 
 feature_args_for_crate() {
   local supported_csv="$1"
@@ -134,6 +135,7 @@ echo "== verify_full: golden trace validation =="
 scripts/ai/run_golden_traces.sh
 
 echo "== verify_full: rust docs =="
-cargo doc --workspace --features "$FEATURES" --no-deps
+echo "== verify_full: cargo doc jobs=$CARGO_DOC_JOBS =="
+cargo doc --workspace --features "$FEATURES" --no-deps --jobs "$CARGO_DOC_JOBS"
 
 echo "== verify_full complete =="
