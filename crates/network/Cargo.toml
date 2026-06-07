@@ -4,6 +4,7 @@ readme = "README.md"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+autotests = false
 authors.workspace = true
 license.workspace = true
 description = "Network communication machinery for the Nautilus trading engine"
@@ -99,3 +100,30 @@ harness = false
 name = "websocket_latency"
 path = "benches/websocket_latency.rs"
 harness = false
+
+[[test]]
+name = "property_backoff"
+path = "tests/property_backoff.rs"
+
+[[test]]
+name = "property_ratelimiter"
+path = "tests/property_ratelimiter.rs"
+
+[[test]]
+name = "turmoil_socket"
+path = "tests/turmoil_socket.rs"
+required-features = ["turmoil"]
+
+[[test]]
+name = "turmoil_websocket"
+path = "tests/turmoil_websocket.rs"
+required-features = ["turmoil"]
+
+[[test]]
+name = "turmoil_sockudo"
+path = "tests/turmoil_sockudo.rs"
+required-features = ["turmoil", "transport-sockudo"]
+
+[[test]]
+name = "websocket_proxy"
+path = "tests/websocket_proxy.rs"
