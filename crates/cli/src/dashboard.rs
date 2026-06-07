@@ -15,13 +15,19 @@
 
 //! Dashboard read-model DTOs for the local v0.3 MVP.
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fs, path::Path};
 
+use anyhow::Context;
 use nautilus_live::status::{
     ConnectionStatus, HealthStatus, LifecycleStatus, NodeStatus, ProcessMode, RiskTradingState,
-    SnapshotValue,
+    SnapshotAvailability, SnapshotValue,
 };
 use serde::{Deserialize, Serialize};
+
+use crate::supervisor::{
+    NodeMetrics, RegistryArtifactState, SupervisorNodeRecord, SupervisorProcessState,
+    SupervisorRegistry,
+};
 
 pub const DASHBOARD_SNAPSHOT_SCHEMA_VERSION: &str = "ntpro.dashboard_snapshot.v1";
 
@@ -483,6 +489,630 @@ impl DashboardGap {
     }
 }
 
+/// Builds a dashboard snapshot from local supervisor registry and node artifacts.
+///
+/// # Errors
+///
+/// Returns an error if the registry file exists but cannot be read. Missing or
+/// invalid supervisor artifacts are represented as explicit dashboard gaps so
+/// callers can still render an owner-visible partial snapshot.
+pub fn snapshot_from_supervisor_artifacts(
+    registry_path: impl AsRef<Path>,
+    generated_at: impl Into<String>,
+) -> anyhow::Result<DashboardSnapshot> {
+    let registry_path = registry_path.as_ref();
+    let mut snapshot = DashboardSnapshot::empty(generated_at);
+
+    if !registry_path.exists() {
+        snapshot.gaps.push(DashboardGap::new(
+            "supervisor.registry",
+            DashboardAvailability::Unknown,
+            "V03-004",
+            format!(
+                "supervisor registry artifact '{}' is missing",
+                registry_path.display()
+            ),
+        ));
+        return Ok(snapshot);
+    }
+
+    let raw = fs::read_to_string(registry_path).with_context(|| {
+        format!(
+            "failed to read supervisor registry '{}'",
+            registry_path.display()
+        )
+    })?;
+    let registry = match serde_json::from_str::<SupervisorRegistry>(&raw) {
+        Ok(registry) => registry,
+        Err(error) => {
+            snapshot.gaps.push(DashboardGap::new(
+                "supervisor.registry",
+                DashboardAvailability::Unknown,
+                "V03-004",
+                format!("invalid supervisor registry artifact: {error}"),
+            ));
+            return Ok(snapshot);
+        }
+    };
+
+    if registry.nodes.is_empty() {
+        snapshot.gaps.push(DashboardGap::new(
+            "nodes",
+            DashboardAvailability::NotConfigured,
+            "V03-004",
+            "supervisor registry contains no nodes",
+        ));
+        return Ok(snapshot);
+    }
+
+    let mut nodes = Vec::with_capacity(registry.nodes.len());
+    let mut statuses = Vec::with_capacity(registry.nodes.len());
+
+    for record in registry.nodes.values() {
+        let ArtifactStatus {
+            status,
+            status_availability,
+            mut gaps,
+        } = read_status_artifact(record);
+
+        gaps.extend(process_gaps(record));
+        gaps.push(DashboardGap::new(
+            format!("runtime_modules.{}.module_details", record.node_id),
+            DashboardAvailability::NotSupported,
+            "V03-008",
+            "supervisor artifacts do not expose runtime module internals yet",
+        ));
+        let mut node = DashboardNodeSummary::from_status(&status);
+        node.gaps = gaps.clone();
+        snapshot.gaps.extend(gaps);
+
+        snapshot
+            .data_sources
+            .push(data_source_from_status(record, &status));
+        snapshot
+            .execution_gateways
+            .push(execution_gateway_from_status(record, &status));
+        snapshot
+            .runtime_modules
+            .extend(runtime_modules_from_status(record, &status));
+        snapshot
+            .logs
+            .extend(log_statuses_from_record(record, &status));
+        snapshot
+            .metrics
+            .extend(metric_statuses_from_record(record, status_availability));
+
+        nodes.push(node);
+        statuses.push(status);
+    }
+
+    snapshot.overview = DashboardOverview::from_nodes(&nodes);
+    snapshot.nodes = nodes;
+    snapshot.risk = aggregate_risk_status(&statuses);
+    snapshot.controls = control_statuses_from_nodes(&snapshot.nodes);
+    snapshot.alerts = alert_summary_from_gaps(&snapshot.gaps);
+    Ok(snapshot)
+}
+
+struct ArtifactStatus {
+    status: NodeStatus,
+    status_availability: DashboardAvailability,
+    gaps: Vec<DashboardGap>,
+}
+
+fn read_status_artifact(record: &SupervisorNodeRecord) -> ArtifactStatus {
+    let mut gaps = Vec::new();
+
+    if !record.status_path.exists() {
+        let mut status = record.last_known_status.clone();
+        status.generated_at = SnapshotValue::stale();
+        status.last_error = Some(format!(
+            "status artifact '{}' is missing",
+            record.status_path.display()
+        ));
+        gaps.push(DashboardGap::new(
+            format!("nodes.{}.status", record.node_id),
+            DashboardAvailability::Unknown,
+            "V03-004",
+            format!(
+                "status artifact '{}' is missing",
+                record.status_path.display()
+            ),
+        ));
+        return ArtifactStatus {
+            status,
+            status_availability: DashboardAvailability::Unknown,
+            gaps,
+        };
+    }
+
+    let raw = match fs::read_to_string(&record.status_path) {
+        Ok(raw) => raw,
+        Err(error) => {
+            let mut status = record.last_known_status.clone();
+            status.generated_at = SnapshotValue::stale();
+            status.last_error = Some(format!("failed to read status artifact: {error}"));
+            gaps.push(DashboardGap::new(
+                format!("nodes.{}.status", record.node_id),
+                DashboardAvailability::Unknown,
+                "V03-004",
+                format!(
+                    "failed to read status artifact '{}': {error}",
+                    record.status_path.display()
+                ),
+            ));
+            return ArtifactStatus {
+                status,
+                status_availability: DashboardAvailability::Unknown,
+                gaps,
+            };
+        }
+    };
+
+    match serde_json::from_str::<NodeStatus>(&raw) {
+        Ok(status) => {
+            let mut availability = availability_from_registry_state(record.status_artifact);
+            if status.generated_at.availability == SnapshotAvailability::Stale {
+                availability = DashboardAvailability::Stale;
+                gaps.push(DashboardGap::new(
+                    format!("nodes.{}.status.generated_at", record.node_id),
+                    DashboardAvailability::Stale,
+                    "V03-004",
+                    "status artifact generated_at is stale",
+                ));
+            }
+            ArtifactStatus {
+                status,
+                status_availability: availability,
+                gaps,
+            }
+        }
+        Err(error) => {
+            let mut status = record.last_known_status.clone();
+            status.generated_at = SnapshotValue::stale();
+            status.last_error = Some(format!("invalid status artifact: {error}"));
+            gaps.push(DashboardGap::new(
+                format!("nodes.{}.status", record.node_id),
+                DashboardAvailability::Unknown,
+                "V03-004",
+                format!(
+                    "invalid status artifact '{}': {error}",
+                    record.status_path.display()
+                ),
+            ));
+            ArtifactStatus {
+                status,
+                status_availability: DashboardAvailability::Unknown,
+                gaps,
+            }
+        }
+    }
+}
+
+fn process_gaps(record: &SupervisorNodeRecord) -> Vec<DashboardGap> {
+    let mut gaps = Vec::new();
+    if record.process.state == SupervisorProcessState::Stale {
+        gaps.push(DashboardGap::new(
+            format!("nodes.{}.process", record.node_id),
+            DashboardAvailability::Stale,
+            "V03-004",
+            "supervisor process state is stale",
+        ));
+    }
+    if record.status_artifact == RegistryArtifactState::Stale {
+        gaps.push(DashboardGap::new(
+            format!("nodes.{}.status", record.node_id),
+            DashboardAvailability::Stale,
+            "V03-004",
+            "registry marks status artifact as stale",
+        ));
+    }
+    if record.metrics_artifact == RegistryArtifactState::Stale {
+        gaps.push(DashboardGap::new(
+            format!("nodes.{}.metrics", record.node_id),
+            DashboardAvailability::Stale,
+            "V03-004",
+            "registry marks metrics artifact as stale",
+        ));
+    }
+    gaps
+}
+
+fn data_source_from_status(record: &SupervisorNodeRecord, status: &NodeStatus) -> DataSourceStatus {
+    DataSourceStatus {
+        source_id: format!("{}:data", record.node_id),
+        source_kind: DashboardValue::available("supervisor_artifact".to_string()),
+        provider: DashboardValue::available("local".to_string()),
+        connection: status.data_connection,
+        freshness: dashboard_value_from_snapshot(&status.generated_at),
+        lag_ms: DashboardValue::unknown(),
+        health: health_from_connection(status.data_connection),
+        last_error: optional_dashboard_value(status.last_error.clone()),
+    }
+}
+
+fn execution_gateway_from_status(
+    record: &SupervisorNodeRecord,
+    status: &NodeStatus,
+) -> ExecutionGatewayStatus {
+    ExecutionGatewayStatus {
+        gateway_id: status
+            .execution
+            .gateway_id
+            .value
+            .clone()
+            .unwrap_or_else(|| format!("{}:execution", record.node_id)),
+        venue: DashboardValue::unknown(),
+        connection: status.execution.connection,
+        started: dashboard_value_from_snapshot(&status.execution.started),
+        account_ref: DashboardValue::redacted(),
+        order_counts: OrderCountSummary {
+            open: dashboard_value_from_snapshot(&status.execution.orders_open),
+            inflight: dashboard_value_from_snapshot(&status.execution.orders_inflight),
+            closed: dashboard_value_from_snapshot(&status.execution.orders_closed),
+        },
+        last_report_at: dashboard_value_from_snapshot(&status.execution.last_report_at),
+        last_error: optional_dashboard_value(status.execution.last_error.clone()),
+    }
+}
+
+fn runtime_modules_from_status(
+    record: &SupervisorNodeRecord,
+    status: &NodeStatus,
+) -> Vec<RuntimeModuleStatus> {
+    let evidence_source = DashboardValue::available(record.status_path.display().to_string());
+    vec![
+        RuntimeModuleStatus {
+            module_name: format!("{}:node", record.node_id),
+            status: DashboardValue::available(json_label(&status.lifecycle_state)),
+            health: derive_node_health(status),
+            last_seen_at: dashboard_value_from_snapshot(&status.generated_at),
+            last_error: optional_dashboard_value(status.last_error.clone()),
+            evidence_source: evidence_source.clone(),
+        },
+        RuntimeModuleStatus {
+            module_name: format!("{}:data", record.node_id),
+            status: DashboardValue::available(json_label(&status.data_connection)),
+            health: health_from_connection(status.data_connection),
+            last_seen_at: dashboard_value_from_snapshot(&status.generated_at),
+            last_error: DashboardValue::unknown(),
+            evidence_source: evidence_source.clone(),
+        },
+        RuntimeModuleStatus {
+            module_name: format!("{}:execution", record.node_id),
+            status: DashboardValue::available(json_label(&status.execution.connection)),
+            health: health_from_connection(status.execution.connection),
+            last_seen_at: dashboard_value_from_snapshot(&status.generated_at),
+            last_error: optional_dashboard_value(status.execution.last_error.clone()),
+            evidence_source: evidence_source.clone(),
+        },
+        RuntimeModuleStatus {
+            module_name: format!("{}:risk", record.node_id),
+            status: DashboardValue::available(json_label(&status.risk.trading_state)),
+            health: status.risk.health,
+            last_seen_at: dashboard_value_from_snapshot(&status.generated_at),
+            last_error: optional_dashboard_value(status.risk.last_error.clone()),
+            evidence_source,
+        },
+        RuntimeModuleStatus {
+            module_name: format!("{}:module_details", record.node_id),
+            status: DashboardValue::not_supported(),
+            health: HealthStatus::Unknown,
+            last_seen_at: DashboardValue::not_supported(),
+            last_error: DashboardValue::not_supported(),
+            evidence_source: DashboardValue::not_supported(),
+        },
+    ]
+}
+
+fn log_statuses_from_record(record: &SupervisorNodeRecord, status: &NodeStatus) -> Vec<LogStatus> {
+    [
+        ("stdout", &record.stdout_log_path),
+        ("stderr", &record.stderr_log_path),
+        ("events", &record.events_log_path),
+    ]
+    .into_iter()
+    .map(|(kind, path)| {
+        let exists = path.exists();
+        LogStatus {
+            log_id: format!("{}:{kind}", record.node_id),
+            node_id: DashboardValue::available(record.node_id.clone()),
+            path: DashboardValue::available(path.display().to_string()),
+            availability: if exists {
+                DashboardAvailability::Available
+            } else {
+                DashboardAvailability::Unknown
+            },
+            last_seen_at: if exists {
+                dashboard_value_from_snapshot(&status.generated_at)
+            } else {
+                DashboardValue::unknown()
+            },
+            last_error: if exists {
+                DashboardValue::unknown()
+            } else {
+                DashboardValue::available(format!("log artifact '{}' is missing", path.display()))
+            },
+        }
+    })
+    .collect()
+}
+
+fn metric_statuses_from_record(
+    record: &SupervisorNodeRecord,
+    status_availability: DashboardAvailability,
+) -> Vec<MetricStatus> {
+    if !record.metrics_path.exists() {
+        return vec![MetricStatus {
+            metric_id: format!("{}:node-metrics", record.node_id),
+            node_id: DashboardValue::available(record.node_id.clone()),
+            value: DashboardValue::unknown(),
+            availability: DashboardAvailability::Unknown,
+            last_seen_at: DashboardValue::unknown(),
+            last_error: DashboardValue::available(format!(
+                "metrics artifact '{}' is missing",
+                record.metrics_path.display()
+            )),
+        }];
+    }
+
+    let raw = match fs::read_to_string(&record.metrics_path) {
+        Ok(raw) => raw,
+        Err(error) => {
+            return vec![MetricStatus {
+                metric_id: format!("{}:node-metrics", record.node_id),
+                node_id: DashboardValue::available(record.node_id.clone()),
+                value: DashboardValue::unknown(),
+                availability: DashboardAvailability::Unknown,
+                last_seen_at: DashboardValue::unknown(),
+                last_error: DashboardValue::available(format!(
+                    "failed to read metrics artifact '{}': {error}",
+                    record.metrics_path.display()
+                )),
+            }];
+        }
+    };
+
+    let metrics = match serde_json::from_str::<NodeMetrics>(&raw) {
+        Ok(metrics) => metrics,
+        Err(error) => {
+            return vec![MetricStatus {
+                metric_id: format!("{}:node-metrics", record.node_id),
+                node_id: DashboardValue::available(record.node_id.clone()),
+                value: DashboardValue::unknown(),
+                availability: DashboardAvailability::Unknown,
+                last_seen_at: DashboardValue::unknown(),
+                last_error: DashboardValue::available(format!(
+                    "invalid metrics artifact '{}': {error}",
+                    record.metrics_path.display()
+                )),
+            }];
+        }
+    };
+
+    let availability = if metrics.generated_at.availability == SnapshotAvailability::Stale
+        || record.metrics_artifact == RegistryArtifactState::Stale
+        || status_availability == DashboardAvailability::Stale
+    {
+        DashboardAvailability::Stale
+    } else {
+        availability_from_registry_state(record.metrics_artifact)
+    };
+
+    [
+        ("starts_total", metrics.starts_total.to_string()),
+        ("stops_total", metrics.stops_total.to_string()),
+        (
+            "state_transitions_total",
+            metrics.state_transitions_total.to_string(),
+        ),
+        (
+            "uptime_ms",
+            metrics
+                .uptime_ms
+                .value
+                .map_or_else(|| "unknown".to_string(), |value| value.to_string()),
+        ),
+    ]
+    .into_iter()
+    .map(|(name, value)| MetricStatus {
+        metric_id: format!("{}:{name}", record.node_id),
+        node_id: DashboardValue::available(record.node_id.clone()),
+        value: DashboardValue::available(value),
+        availability,
+        last_seen_at: dashboard_value_from_snapshot(&metrics.generated_at),
+        last_error: optional_dashboard_value(metrics.last_error_summary.clone()),
+    })
+    .collect()
+}
+
+fn aggregate_risk_status(statuses: &[NodeStatus]) -> RiskStatus {
+    if statuses.is_empty() {
+        return RiskStatus::unknown();
+    }
+
+    let mut risk = RiskStatus {
+        availability: DashboardAvailability::Available,
+        trading_state: RiskTradingState::Unknown,
+        health: HealthStatus::Unknown,
+        command_count: DashboardValue::unknown(),
+        event_count: DashboardValue::unknown(),
+        rejections_total: DashboardValue::unknown(),
+        last_rejection: DashboardValue::unknown(),
+        last_error: DashboardValue::unknown(),
+    };
+
+    let mut commands = 0;
+    let mut events = 0;
+    let mut rejections = 0;
+    let mut has_commands = false;
+    let mut has_events = false;
+    let mut has_rejections = false;
+
+    for status in statuses {
+        risk.trading_state = strongest_trading_state(risk.trading_state, status.risk.trading_state);
+        risk.health = strongest_health(risk.health, status.risk.health);
+        if let Some(value) = status.risk.command_count.value {
+            commands += value;
+            has_commands = true;
+        }
+        if let Some(value) = status.risk.event_count.value {
+            events += value;
+            has_events = true;
+        }
+        if let Some(value) = status.risk.rejections_total.value {
+            rejections += value;
+            has_rejections = true;
+        }
+        if risk.last_rejection.value.is_none()
+            && let Some(reason) = status.risk.last_rejection.clone()
+        {
+            risk.last_rejection = DashboardValue::available(RejectionSummary {
+                reason: DashboardValue::available(reason),
+                last_rejected_at: dashboard_value_from_snapshot(&status.generated_at),
+            });
+        }
+        if risk.last_error.value.is_none()
+            && let Some(error) = status.risk.last_error.clone()
+        {
+            risk.last_error = DashboardValue::available(error);
+        }
+    }
+
+    if has_commands {
+        risk.command_count = DashboardValue::available(commands);
+    }
+    if has_events {
+        risk.event_count = DashboardValue::available(events);
+    }
+    if has_rejections {
+        risk.rejections_total = DashboardValue::available(rejections);
+    }
+    risk
+}
+
+fn control_statuses_from_nodes(nodes: &[DashboardNodeSummary]) -> Vec<ControlStatus> {
+    let mut controls = Vec::with_capacity(nodes.len() * 2);
+    for node in nodes {
+        controls.push(ControlStatus {
+            action: format!("start:{}", node.node_id),
+            availability: DashboardAvailability::Available,
+            enabled: node.lifecycle_state != LifecycleStatus::Running,
+            reason: if node.lifecycle_state == LifecycleStatus::Running {
+                DashboardValue::available("node is already running".to_string())
+            } else {
+                DashboardValue::available("node can be started by supervisor control".to_string())
+            },
+        });
+        controls.push(ControlStatus {
+            action: format!("stop:{}", node.node_id),
+            availability: DashboardAvailability::Available,
+            enabled: node.lifecycle_state == LifecycleStatus::Running,
+            reason: if node.lifecycle_state == LifecycleStatus::Running {
+                DashboardValue::available("node can be stopped by supervisor control".to_string())
+            } else {
+                DashboardValue::available("node is not running".to_string())
+            },
+        });
+    }
+    controls
+}
+
+fn alert_summary_from_gaps(gaps: &[DashboardGap]) -> AlertSummary {
+    let mut summary = AlertSummary::default();
+    for (index, gap) in gaps.iter().enumerate() {
+        let severity = match gap.reason {
+            DashboardAvailability::Stale => "warning",
+            DashboardAvailability::NotSupported | DashboardAvailability::NotConfigured => "info",
+            DashboardAvailability::Available
+            | DashboardAvailability::Redacted
+            | DashboardAvailability::Unknown => "warning",
+        };
+        *summary
+            .counts_by_severity
+            .entry(severity.to_string())
+            .or_insert(0) += 1;
+        summary.active.push(DashboardAlert {
+            alert_id: format!("gap-{index}"),
+            severity: severity.to_string(),
+            source: gap.field_path.clone(),
+            message: gap
+                .notes
+                .value
+                .clone()
+                .unwrap_or_else(|| "dashboard gap detected".to_string()),
+            first_seen_at: DashboardValue::unknown(),
+            last_seen_at: DashboardValue::unknown(),
+        });
+    }
+    summary.active_count = summary.active.len() as u64;
+    summary
+}
+
+fn dashboard_value_from_snapshot<T: Clone>(value: &SnapshotValue<T>) -> DashboardValue<T> {
+    match value.availability {
+        SnapshotAvailability::Available => value
+            .value
+            .clone()
+            .map_or_else(DashboardValue::unknown, DashboardValue::available),
+        SnapshotAvailability::NotConfigured => DashboardValue::not_configured(),
+        SnapshotAvailability::NotSupported => DashboardValue::not_supported(),
+        SnapshotAvailability::Stale => DashboardValue::stale(),
+        SnapshotAvailability::Unknown => DashboardValue::unknown(),
+    }
+}
+
+fn optional_dashboard_value(value: Option<String>) -> DashboardValue<String> {
+    value.map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn availability_from_registry_state(state: RegistryArtifactState) -> DashboardAvailability {
+    match state {
+        RegistryArtifactState::Available => DashboardAvailability::Available,
+        RegistryArtifactState::Missing
+        | RegistryArtifactState::Invalid
+        | RegistryArtifactState::Unknown => DashboardAvailability::Unknown,
+        RegistryArtifactState::Stale => DashboardAvailability::Stale,
+    }
+}
+
+fn health_from_connection(connection: ConnectionStatus) -> HealthStatus {
+    match connection {
+        ConnectionStatus::Connected | ConnectionStatus::NotConfigured => HealthStatus::Healthy,
+        ConnectionStatus::Connecting | ConnectionStatus::Disconnecting => HealthStatus::Degraded,
+        ConnectionStatus::Disconnected | ConnectionStatus::Stale => HealthStatus::Stale,
+        ConnectionStatus::NotSupported | ConnectionStatus::Unknown => HealthStatus::Unknown,
+    }
+}
+
+fn strongest_health(current: HealthStatus, next: HealthStatus) -> HealthStatus {
+    match (current, next) {
+        (HealthStatus::Error, _) | (_, HealthStatus::Error) => HealthStatus::Error,
+        (HealthStatus::Stale, _) | (_, HealthStatus::Stale) => HealthStatus::Stale,
+        (HealthStatus::Degraded, _) | (_, HealthStatus::Degraded) => HealthStatus::Degraded,
+        (HealthStatus::Healthy, _) | (_, HealthStatus::Healthy) => HealthStatus::Healthy,
+        _ => HealthStatus::Unknown,
+    }
+}
+
+fn strongest_trading_state(current: RiskTradingState, next: RiskTradingState) -> RiskTradingState {
+    match (current, next) {
+        (RiskTradingState::Halted, _) | (_, RiskTradingState::Halted) => RiskTradingState::Halted,
+        (RiskTradingState::Reducing, _) | (_, RiskTradingState::Reducing) => {
+            RiskTradingState::Reducing
+        }
+        (RiskTradingState::Active, _) | (_, RiskTradingState::Active) => RiskTradingState::Active,
+        _ => RiskTradingState::Unknown,
+    }
+}
+
+fn json_label<T: Serialize>(value: &T) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|value| value.as_str().map(ToString::to_string))
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
 fn derive_node_health(status: &NodeStatus) -> HealthStatus {
     if status.last_error.is_some() {
         return HealthStatus::Error;
@@ -514,6 +1144,17 @@ fn derive_overview_health(overview: &DashboardOverview) -> HealthStatus {
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        fs,
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    use crate::supervisor::{
+        NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, RegistryArtifactState,
+        SupervisorNodeRecord, SupervisorProcessState, SupervisorRegistry,
+        write_node_metrics_artifact,
+    };
     use serde_json::{Value, json};
 
     use super::*;
@@ -762,6 +1403,350 @@ mod tests {
         let value = serde_json::to_value(snapshot).unwrap();
 
         assert_forbidden_keys_absent(&value);
+    }
+
+    #[test]
+    fn missing_supervisor_registry_records_gap() {
+        let root = temp_root("missing-registry");
+        let snapshot =
+            snapshot_from_supervisor_artifacts(root.join("registry.json"), "2026-06-07T15:00:00Z")
+                .unwrap();
+
+        assert!(snapshot.nodes.is_empty());
+        assert_eq!(snapshot.gaps.len(), 1);
+        assert_eq!(snapshot.gaps[0].field_path, "supervisor.registry");
+        assert_eq!(snapshot.gaps[0].reason, DashboardAvailability::Unknown);
+        assert!(
+            snapshot.gaps[0]
+                .notes
+                .value
+                .as_deref()
+                .unwrap()
+                .contains("missing")
+        );
+    }
+
+    #[test]
+    fn empty_supervisor_registry_records_not_configured_gap() {
+        let root = temp_root("empty-registry");
+        let registry_path = root.join("registry.json");
+        write_registry(&registry_path, []);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:01:00Z").unwrap();
+
+        assert!(snapshot.nodes.is_empty());
+        assert_eq!(snapshot.overview.node_count, 0);
+        assert_eq!(snapshot.gaps[0].field_path, "nodes");
+        assert_eq!(
+            snapshot.gaps[0].reason,
+            DashboardAvailability::NotConfigured
+        );
+    }
+
+    #[test]
+    fn one_node_supervisor_artifacts_populate_dashboard_sections() {
+        let root = temp_root("one-node");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "sandbox-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Running);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record.clone()]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:02:00Z").unwrap();
+
+        assert_eq!(snapshot.overview.node_count, 1);
+        assert_eq!(snapshot.overview.running_nodes, 1);
+        assert!(!snapshot.overview.external_venue_connection);
+        assert!(!snapshot.overview.real_orders_submitted);
+        assert_eq!(snapshot.nodes[0].node_id, "sandbox-a");
+        assert_eq!(snapshot.data_sources[0].source_id, "sandbox-a:data");
+        assert_eq!(
+            snapshot.execution_gateways[0].gateway_id,
+            "sandbox-a:gateway"
+        );
+        assert_eq!(snapshot.risk.availability, DashboardAvailability::Available);
+        assert_eq!(snapshot.logs.len(), 3);
+        assert!(
+            snapshot
+                .logs
+                .iter()
+                .all(|log| log.availability == DashboardAvailability::Available)
+        );
+        assert!(snapshot.metrics.iter().any(|metric| {
+            metric.metric_id == "sandbox-a:starts_total"
+                && metric.value.value.as_deref() == Some("1")
+        }));
+        assert!(snapshot.runtime_modules.iter().any(|module| {
+            module.module_name == "sandbox-a:module_details"
+                && module.status.availability == DashboardAvailability::NotSupported
+        }));
+        assert!(snapshot.gaps.iter().any(|gap| {
+            gap.field_path == "runtime_modules.sandbox-a.module_details"
+                && gap.reason == DashboardAvailability::NotSupported
+        }));
+    }
+
+    #[test]
+    fn two_node_supervisor_artifacts_aggregate_overview() {
+        let root = temp_root("two-node");
+        let registry_path = root.join("registry.json");
+        let mut first = node_record(&root, "sandbox-a");
+        let mut second = node_record(&root, "sandbox-b");
+        let first_status = node_status_for_record(&first, LifecycleStatus::Running);
+        let second_status = node_status_for_record(&second, LifecycleStatus::Stopped);
+
+        for (record, status) in [(&mut first, &first_status), (&mut second, &second_status)] {
+            write_status_artifact(record, status);
+            write_metrics_artifact(record, status);
+            write_log_artifacts(record);
+            record.status_artifact = RegistryArtifactState::Available;
+            record.metrics_artifact = RegistryArtifactState::Available;
+        }
+        write_registry(&registry_path, [first, second]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:03:00Z").unwrap();
+
+        assert_eq!(snapshot.overview.node_count, 2);
+        assert_eq!(snapshot.overview.running_nodes, 1);
+        assert_eq!(snapshot.overview.stopped_nodes, 1);
+        assert_eq!(snapshot.nodes.len(), 2);
+        assert_eq!(snapshot.data_sources.len(), 2);
+        assert_eq!(snapshot.execution_gateways.len(), 2);
+        assert!(!snapshot.overview.external_venue_connection);
+        assert!(!snapshot.overview.real_orders_submitted);
+    }
+
+    #[test]
+    fn missing_status_artifact_is_marked_explicitly() {
+        let root = temp_root("missing-status");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "sandbox-a");
+        record.status_artifact = RegistryArtifactState::Missing;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:04:00Z").unwrap();
+
+        assert_eq!(
+            snapshot.nodes[0].generated_at.availability,
+            SnapshotAvailability::Stale
+        );
+        assert!(snapshot.gaps.iter().any(|gap| {
+            gap.field_path == "nodes.sandbox-a.status"
+                && gap.notes.value.as_deref().unwrap().contains("missing")
+        }));
+    }
+
+    #[test]
+    fn invalid_status_artifact_is_marked_explicitly() {
+        let root = temp_root("invalid-status");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "sandbox-a");
+        create_node_dirs(&record);
+        fs::write(&record.status_path, "not-json").unwrap();
+        record.status_artifact = RegistryArtifactState::Invalid;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:05:00Z").unwrap();
+
+        assert!(
+            snapshot.nodes[0]
+                .last_error
+                .as_deref()
+                .unwrap()
+                .contains("invalid status")
+        );
+        assert!(snapshot.gaps.iter().any(|gap| {
+            gap.field_path == "nodes.sandbox-a.status"
+                && gap.notes.value.as_deref().unwrap().contains("invalid")
+        }));
+    }
+
+    #[test]
+    fn missing_metrics_artifact_is_marked_explicitly() {
+        let root = temp_root("missing-metrics");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "sandbox-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Running);
+        write_status_artifact(&record, &status);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Missing;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:06:00Z").unwrap();
+
+        assert_eq!(snapshot.metrics.len(), 1);
+        assert_eq!(
+            snapshot.metrics[0].availability,
+            DashboardAvailability::Unknown
+        );
+        assert!(
+            snapshot.metrics[0]
+                .last_error
+                .value
+                .as_deref()
+                .unwrap()
+                .contains("missing")
+        );
+    }
+
+    #[test]
+    fn stale_process_and_artifact_states_are_marked_explicitly() {
+        let root = temp_root("stale");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "sandbox-a");
+        let mut status = node_status_for_record(&record, LifecycleStatus::Running);
+        status.generated_at = SnapshotValue::stale();
+        write_status_artifact(&record, &status);
+        let mut metrics = NodeMetrics::from_status(
+            &status,
+            &NodeMetricArtifacts::from_record(&record),
+            NodeMetricCounts {
+                uptime_ms: Some(100),
+                starts_total: 1,
+                stops_total: 0,
+                state_transitions_total: 1,
+            },
+        );
+        metrics.generated_at = SnapshotValue::stale();
+        write_node_metrics_artifact(&record.metrics_path, &metrics).unwrap();
+        record.process.state = SupervisorProcessState::Stale;
+        record.status_artifact = RegistryArtifactState::Stale;
+        record.metrics_artifact = RegistryArtifactState::Stale;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:07:00Z").unwrap();
+
+        assert!(snapshot.gaps.iter().any(|gap| {
+            gap.field_path == "nodes.sandbox-a.process"
+                && gap.reason == DashboardAvailability::Stale
+        }));
+        assert!(snapshot.gaps.iter().any(|gap| {
+            gap.field_path == "nodes.sandbox-a.status.generated_at"
+                && gap.reason == DashboardAvailability::Stale
+        }));
+        assert!(
+            snapshot
+                .metrics
+                .iter()
+                .all(|metric| metric.availability == DashboardAvailability::Stale)
+        );
+        assert!(snapshot.alerts.active_count >= 3);
+    }
+
+    fn temp_root(name: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "ntpro-v03-004-{name}-{}-{unique}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    fn node_record(root: &std::path::Path, node_id: &str) -> SupervisorNodeRecord {
+        let config_path = root.join(format!("{node_id}.toml"));
+        fs::write(&config_path, "environment = \"sandbox\"\n").unwrap();
+        SupervisorNodeRecord::new(
+            node_id.to_string(),
+            config_path,
+            root.join("nodes").join(node_id),
+        )
+    }
+
+    fn node_status_for_record(
+        record: &SupervisorNodeRecord,
+        lifecycle_state: LifecycleStatus,
+    ) -> NodeStatus {
+        let mut status = NodeStatus::unknown(record.node_id.clone());
+        status.process_mode = ProcessMode::TestHarness;
+        status.config_path = SnapshotValue::available(record.config_path.display().to_string());
+        status.artifact_root = SnapshotValue::available(record.artifact_root.display().to_string());
+        status.lifecycle_state = lifecycle_state;
+        status.previous_lifecycle_state = LifecycleStatus::Stopped;
+        status.data_connection = ConnectionStatus::NotConfigured;
+        status.execution_connection = ConnectionStatus::NotConfigured;
+        status.execution.gateway_id =
+            SnapshotValue::available(format!("{}:gateway", record.node_id));
+        status.execution.connection = ConnectionStatus::NotConfigured;
+        status.execution.started =
+            SnapshotValue::available(lifecycle_state == LifecycleStatus::Running);
+        status.execution.orders_open = SnapshotValue::available(0);
+        status.execution.orders_inflight = SnapshotValue::available(0);
+        status.execution.orders_closed = SnapshotValue::available(0);
+        status.execution.last_report_at =
+            SnapshotValue::available("2026-06-07T15:00:00Z".to_string());
+        status.risk.trading_state = RiskTradingState::Active;
+        status.risk.health = HealthStatus::Healthy;
+        status.risk.command_count = SnapshotValue::available(0);
+        status.risk.event_count = SnapshotValue::available(0);
+        status.risk.rejections_total = SnapshotValue::available(0);
+        status.generated_at = SnapshotValue::available("2026-06-07T15:00:00Z".to_string());
+        status.last_transition_at = SnapshotValue::available("2026-06-07T15:00:00Z".to_string());
+        status
+    }
+
+    fn write_registry(
+        registry_path: &std::path::Path,
+        records: impl IntoIterator<Item = SupervisorNodeRecord>,
+    ) {
+        let mut registry = SupervisorRegistry::default();
+        for record in records {
+            registry.nodes.insert(record.node_id.clone(), record);
+        }
+        registry.updated_at = SnapshotValue::available("2026-06-07T15:00:00Z".to_string());
+        if let Some(parent) = registry_path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        let raw = serde_json::to_string_pretty(&registry).unwrap();
+        fs::write(registry_path, format!("{raw}\n")).unwrap();
+    }
+
+    fn write_status_artifact(record: &SupervisorNodeRecord, status: &NodeStatus) {
+        create_node_dirs(record);
+        fs::write(
+            &record.status_path,
+            serde_json::to_string_pretty(status).unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn write_metrics_artifact(record: &SupervisorNodeRecord, status: &NodeStatus) {
+        let metrics = NodeMetrics::from_status(
+            status,
+            &NodeMetricArtifacts::from_record(record),
+            NodeMetricCounts {
+                uptime_ms: Some(100),
+                starts_total: 1,
+                stops_total: 0,
+                state_transitions_total: 1,
+            },
+        );
+        write_node_metrics_artifact(&record.metrics_path, &metrics).unwrap();
+    }
+
+    fn write_log_artifacts(record: &SupervisorNodeRecord) {
+        create_node_dirs(record);
+        fs::write(&record.stdout_log_path, "stdout\n").unwrap();
+        fs::write(&record.stderr_log_path, "stderr\n").unwrap();
+        fs::write(&record.events_log_path, "event=start status=ok\n").unwrap();
+    }
+
+    fn create_node_dirs(record: &SupervisorNodeRecord) {
+        fs::create_dir_all(record.artifact_root.join("logs")).unwrap();
     }
 
     fn assert_forbidden_keys_absent(value: &Value) {

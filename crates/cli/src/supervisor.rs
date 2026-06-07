@@ -1498,6 +1498,7 @@ EOF
         assert_eq!(status.lifecycle_state, LifecycleStatus::Running);
         assert!(!status.external_venue_connection);
         assert!(!status.real_orders_submitted);
+        wait_for_metrics_state(&store, "sandbox-a", LifecycleStatus::Running);
         let running_metrics = store.node_metrics("sandbox-a").unwrap();
         assert_eq!(running_metrics.lifecycle_state, LifecycleStatus::Running);
         assert_eq!(running_metrics.starts_total, 1);
@@ -1535,6 +1536,7 @@ EOF
             stopped.last_known_status.lifecycle_state,
             LifecycleStatus::Stopped
         );
+        wait_for_metrics_state(&store, "sandbox-a", LifecycleStatus::Stopped);
         let stopped_metrics = store.node_metrics("sandbox-a").unwrap();
         assert_eq!(stopped_metrics.lifecycle_state, LifecycleStatus::Stopped);
         assert_eq!(stopped_metrics.starts_total, 1);
@@ -1587,6 +1589,9 @@ EOF
         })
         .unwrap();
 
+        let store = SupervisorRegistryStore::new(registry.clone());
+        wait_for_metrics_state(&store, "sandbox-a", LifecycleStatus::Running);
+
         for command in [
             SupervisorCommand::Status(SupervisorNodeOpt {
                 registry: registry_opt.clone(),
@@ -1616,7 +1621,6 @@ EOF
             run_supervisor_command(SupervisorOpt { command }).unwrap();
         }
 
-        let store = SupervisorRegistryStore::new(registry);
         assert_eq!(
             store.node_status("sandbox-a").unwrap().lifecycle_state,
             LifecycleStatus::Running
@@ -1635,6 +1639,7 @@ EOF
         })
         .unwrap();
 
+        wait_for_metrics_state(&store, "sandbox-a", LifecycleStatus::Stopped);
         assert_eq!(
             store.node_status("sandbox-a").unwrap().lifecycle_state,
             LifecycleStatus::Stopped
@@ -1646,5 +1651,27 @@ EOF
         assert!(artifact_root.join("logs").join("stdout.log").exists());
         assert!(artifact_root.join("logs").join("stderr.log").exists());
         assert!(artifact_root.join("logs").join("events.log").exists());
+    }
+
+    fn wait_for_metrics_state(
+        store: &SupervisorRegistryStore,
+        node_id: &str,
+        expected: LifecycleStatus,
+    ) {
+        let started = SystemTime::now();
+        loop {
+            if let Ok(metrics) = store.node_metrics(node_id)
+                && metrics.lifecycle_state == expected
+            {
+                return;
+            }
+            if started
+                .elapsed()
+                .is_ok_and(|elapsed| elapsed >= Duration::from_secs(3))
+            {
+                panic!("timed out waiting for metrics artifact state {expected:?}");
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
     }
 }
