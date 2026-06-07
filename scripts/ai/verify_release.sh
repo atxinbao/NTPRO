@@ -16,7 +16,7 @@ cargo build --workspace --release --features "$FEATURES"
 
 echo "== verify_release: Rust CLI product surface =="
 if cargo metadata --no-deps --format-version=1 | grep -q '"name":"nautilus-cli"'; then
-  cargo run -q -p nautilus-cli -- --help >/tmp/nautilus_cli_help.txt
+  cargo run -q -p nautilus-cli --bin nautilus -- --help >/tmp/nautilus_cli_help.txt
   grep -Ei 'backtest|live|sandbox|data|database|blockchain' /tmp/nautilus_cli_help.txt >/dev/null
 else
   echo "nautilus-cli package is missing" >&2
