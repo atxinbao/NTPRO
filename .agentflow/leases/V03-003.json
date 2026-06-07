@@ -1,0 +1,15 @@
+{
+  "task_id": "V03-003",
+  "agent_id": "Codex",
+  "branch": "codex/V03-003-status-detail-dtos",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/V03-003.md",
+    "docs/rust-cutover/evidence/V03-003.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/V03-003.json",
+    "crates/cli/src/dashboard.rs"
+  ],
+  "claimed_at": "2026-06-07T15:37:02.517266+00:00",
+  "status": "RUNNING",
+  "updated_at": "2026-06-07T15:52:50Z"
+}

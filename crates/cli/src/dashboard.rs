@@ -18,7 +18,8 @@
 use std::collections::BTreeMap;
 
 use nautilus_live::status::{
-    HealthStatus, LifecycleStatus, NodeStatus, ProcessMode, SnapshotValue,
+    ConnectionStatus, HealthStatus, LifecycleStatus, NodeStatus, ProcessMode, RiskTradingState,
+    SnapshotValue,
 };
 use serde::{Deserialize, Serialize};
 
@@ -105,12 +106,12 @@ pub struct DashboardSnapshot {
     pub generated_at: DashboardValue<String>,
     pub overview: DashboardOverview,
     pub nodes: Vec<DashboardNodeSummary>,
-    pub data_sources: Vec<DashboardSectionStatus>,
-    pub execution_gateways: Vec<DashboardSectionStatus>,
-    pub risk: DashboardSectionStatus,
-    pub runtime_modules: Vec<DashboardSectionStatus>,
-    pub logs: Vec<DashboardArtifactStatus>,
-    pub metrics: Vec<DashboardArtifactStatus>,
+    pub data_sources: Vec<DataSourceStatus>,
+    pub execution_gateways: Vec<ExecutionGatewayStatus>,
+    pub risk: RiskStatus,
+    pub runtime_modules: Vec<RuntimeModuleStatus>,
+    pub logs: Vec<LogStatus>,
+    pub metrics: Vec<MetricStatus>,
     pub alerts: AlertSummary,
     pub controls: Vec<ControlStatus>,
     pub gaps: Vec<DashboardGap>,
@@ -126,7 +127,7 @@ impl DashboardSnapshot {
             nodes: Vec::new(),
             data_sources: Vec::new(),
             execution_gateways: Vec::new(),
-            risk: DashboardSectionStatus::unknown("risk", "Risk"),
+            risk: RiskStatus::unknown(),
             runtime_modules: Vec::new(),
             logs: Vec::new(),
             metrics: Vec::new(),
@@ -237,36 +238,172 @@ impl DashboardNodeSummary {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DashboardSectionStatus {
-    pub section_id: String,
-    pub label: String,
-    pub availability: DashboardAvailability,
+pub struct DataSourceStatus {
+    pub source_id: String,
+    pub source_kind: DashboardValue<String>,
+    pub provider: DashboardValue<String>,
+    pub connection: ConnectionStatus,
+    pub freshness: DashboardValue<String>,
+    pub lag_ms: DashboardValue<u64>,
     pub health: HealthStatus,
-    pub status: DashboardValue<String>,
-    pub last_error: Option<String>,
+    pub last_error: DashboardValue<String>,
 }
 
-impl DashboardSectionStatus {
+impl DataSourceStatus {
     #[must_use]
-    pub fn unknown(section_id: impl Into<String>, label: impl Into<String>) -> Self {
+    pub fn unknown(source_id: impl Into<String>) -> Self {
         Self {
-            section_id: section_id.into(),
-            label: label.into(),
-            availability: DashboardAvailability::Unknown,
+            source_id: source_id.into(),
+            source_kind: DashboardValue::unknown(),
+            provider: DashboardValue::unknown(),
+            connection: ConnectionStatus::Unknown,
+            freshness: DashboardValue::unknown(),
+            lag_ms: DashboardValue::unknown(),
             health: HealthStatus::Unknown,
-            status: DashboardValue::unknown(),
-            last_error: None,
+            last_error: DashboardValue::unknown(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OrderCountSummary {
+    pub open: DashboardValue<u64>,
+    pub inflight: DashboardValue<u64>,
+    pub closed: DashboardValue<u64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExecutionGatewayStatus {
+    pub gateway_id: String,
+    pub venue: DashboardValue<String>,
+    pub connection: ConnectionStatus,
+    pub started: DashboardValue<bool>,
+    pub account_ref: DashboardValue<String>,
+    pub order_counts: OrderCountSummary,
+    pub last_report_at: DashboardValue<String>,
+    pub last_error: DashboardValue<String>,
+}
+
+impl ExecutionGatewayStatus {
+    #[must_use]
+    pub fn unknown(gateway_id: impl Into<String>) -> Self {
+        Self {
+            gateway_id: gateway_id.into(),
+            venue: DashboardValue::unknown(),
+            connection: ConnectionStatus::Unknown,
+            started: DashboardValue::unknown(),
+            account_ref: DashboardValue::redacted(),
+            order_counts: OrderCountSummary::default(),
+            last_report_at: DashboardValue::unknown(),
+            last_error: DashboardValue::unknown(),
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DashboardArtifactStatus {
-    pub artifact_id: String,
-    pub label: String,
+pub struct RejectionSummary {
+    pub reason: DashboardValue<String>,
+    pub last_rejected_at: DashboardValue<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RiskStatus {
+    pub availability: DashboardAvailability,
+    pub trading_state: RiskTradingState,
+    pub health: HealthStatus,
+    pub command_count: DashboardValue<u64>,
+    pub event_count: DashboardValue<u64>,
+    pub rejections_total: DashboardValue<u64>,
+    pub last_rejection: DashboardValue<RejectionSummary>,
+    pub last_error: DashboardValue<String>,
+}
+
+impl RiskStatus {
+    #[must_use]
+    pub fn unknown() -> Self {
+        Self {
+            availability: DashboardAvailability::Unknown,
+            trading_state: RiskTradingState::Unknown,
+            health: HealthStatus::Unknown,
+            command_count: DashboardValue::unknown(),
+            event_count: DashboardValue::unknown(),
+            rejections_total: DashboardValue::unknown(),
+            last_rejection: DashboardValue::unknown(),
+            last_error: DashboardValue::unknown(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeModuleStatus {
+    pub module_name: String,
+    pub status: DashboardValue<String>,
+    pub health: HealthStatus,
+    pub last_seen_at: DashboardValue<String>,
+    pub last_error: DashboardValue<String>,
+    pub evidence_source: DashboardValue<String>,
+}
+
+impl RuntimeModuleStatus {
+    #[must_use]
+    pub fn unknown(module_name: impl Into<String>) -> Self {
+        Self {
+            module_name: module_name.into(),
+            status: DashboardValue::unknown(),
+            health: HealthStatus::Unknown,
+            last_seen_at: DashboardValue::unknown(),
+            last_error: DashboardValue::unknown(),
+            evidence_source: DashboardValue::unknown(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LogStatus {
+    pub log_id: String,
+    pub node_id: DashboardValue<String>,
     pub path: DashboardValue<String>,
     pub availability: DashboardAvailability,
     pub last_seen_at: DashboardValue<String>,
+    pub last_error: DashboardValue<String>,
+}
+
+impl LogStatus {
+    #[must_use]
+    pub fn unknown(log_id: impl Into<String>) -> Self {
+        Self {
+            log_id: log_id.into(),
+            node_id: DashboardValue::unknown(),
+            path: DashboardValue::unknown(),
+            availability: DashboardAvailability::Unknown,
+            last_seen_at: DashboardValue::unknown(),
+            last_error: DashboardValue::unknown(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MetricStatus {
+    pub metric_id: String,
+    pub node_id: DashboardValue<String>,
+    pub value: DashboardValue<String>,
+    pub availability: DashboardAvailability,
+    pub last_seen_at: DashboardValue<String>,
+    pub last_error: DashboardValue<String>,
+}
+
+impl MetricStatus {
+    #[must_use]
+    pub fn unknown(metric_id: impl Into<String>) -> Self {
+        Self {
+            metric_id: metric_id.into(),
+            node_id: DashboardValue::unknown(),
+            value: DashboardValue::unknown(),
+            availability: DashboardAvailability::Unknown,
+            last_seen_at: DashboardValue::unknown(),
+            last_error: DashboardValue::unknown(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -292,6 +429,33 @@ pub struct ControlStatus {
     pub availability: DashboardAvailability,
     pub enabled: bool,
     pub reason: DashboardValue<String>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ControlActionStatus {
+    Accepted,
+    Rejected,
+    Running,
+    Succeeded,
+    Failed,
+    Cancelled,
+    #[default]
+    Unknown,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ControlActionResponse {
+    pub action_id: String,
+    pub action: String,
+    pub status: ControlActionStatus,
+    pub previous_state: LifecycleStatus,
+    pub current_state: LifecycleStatus,
+    pub started_at: DashboardValue<String>,
+    pub finished_at: DashboardValue<String>,
+    pub error_code: DashboardValue<String>,
+    pub message: DashboardValue<String>,
+    pub observability_ref: DashboardValue<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -426,6 +590,17 @@ mod tests {
     #[test]
     fn explicit_unavailable_states_survive_json_shape() {
         let mut snapshot = DashboardSnapshot::empty("2026-06-07T14:03:00Z");
+        snapshot
+            .data_sources
+            .push(DataSourceStatus::unknown("sandbox-data"));
+        snapshot
+            .execution_gateways
+            .push(ExecutionGatewayStatus::unknown("sandbox-exec"));
+        snapshot
+            .runtime_modules
+            .push(RuntimeModuleStatus::unknown("MessageBus"));
+        snapshot.logs.push(LogStatus::unknown("events"));
+        snapshot.metrics.push(MetricStatus::unknown("node-metrics"));
         snapshot.gaps = vec![
             DashboardGap::new(
                 "data_sources[0].last_event_at",
@@ -488,6 +663,92 @@ mod tests {
             value["controls"][0]["reason"],
             json!({"availability": "not_supported"})
         );
+        assert_eq!(value["data_sources"][0]["connection"], "unknown");
+        assert_eq!(
+            value["execution_gateways"][0]["account_ref"],
+            json!({"availability": "redacted"})
+        );
+        assert_eq!(value["runtime_modules"][0]["module_name"], "MessageBus");
+        assert_eq!(value["logs"][0]["availability"], "unknown");
+        assert_eq!(value["metrics"][0]["availability"], "unknown");
+        assert_eq!(value["risk"]["availability"], "unknown");
+        assert_eq!(value["risk"]["trading_state"], "unknown");
+    }
+
+    #[test]
+    fn detail_dtos_serialize_without_raw_or_secret_fields() {
+        let mut snapshot = DashboardSnapshot::empty("2026-06-07T14:05:00Z");
+        snapshot.data_sources.push(DataSourceStatus {
+            source_id: "sandbox-data".to_string(),
+            source_kind: DashboardValue::available("sandbox".to_string()),
+            provider: DashboardValue::available("sandbox".to_string()),
+            connection: ConnectionStatus::NotConfigured,
+            freshness: DashboardValue::not_configured(),
+            lag_ms: DashboardValue::not_configured(),
+            health: HealthStatus::Unknown,
+            last_error: DashboardValue::unknown(),
+        });
+        snapshot.execution_gateways.push(ExecutionGatewayStatus {
+            gateway_id: "sandbox-exec".to_string(),
+            venue: DashboardValue::available("SIM".to_string()),
+            connection: ConnectionStatus::NotConfigured,
+            started: DashboardValue::not_configured(),
+            account_ref: DashboardValue::redacted(),
+            order_counts: OrderCountSummary {
+                open: DashboardValue::available(0),
+                inflight: DashboardValue::available(0),
+                closed: DashboardValue::available(0),
+            },
+            last_report_at: DashboardValue::unknown(),
+            last_error: DashboardValue::unknown(),
+        });
+        snapshot.risk = RiskStatus {
+            availability: DashboardAvailability::Available,
+            trading_state: RiskTradingState::Active,
+            health: HealthStatus::Healthy,
+            command_count: DashboardValue::available(0),
+            event_count: DashboardValue::available(0),
+            rejections_total: DashboardValue::available(0),
+            last_rejection: DashboardValue::unknown(),
+            last_error: DashboardValue::unknown(),
+        };
+        snapshot
+            .runtime_modules
+            .push(RuntimeModuleStatus::unknown("RiskEngine"));
+        snapshot.controls.push(ControlStatus {
+            action: "start".to_string(),
+            availability: DashboardAvailability::Available,
+            enabled: true,
+            reason: DashboardValue::available("node is stopped".to_string()),
+        });
+
+        let response = ControlActionResponse {
+            action_id: "action-001".to_string(),
+            action: "start".to_string(),
+            status: ControlActionStatus::Accepted,
+            previous_state: LifecycleStatus::Stopped,
+            current_state: LifecycleStatus::Starting,
+            started_at: DashboardValue::available("2026-06-07T14:05:01Z".to_string()),
+            finished_at: DashboardValue::unknown(),
+            error_code: DashboardValue::unknown(),
+            message: DashboardValue::available("start accepted".to_string()),
+            observability_ref: DashboardValue::unknown(),
+        };
+
+        let snapshot_value = serde_json::to_value(snapshot).unwrap();
+        let response_value = serde_json::to_value(response).unwrap();
+
+        assert_eq!(
+            snapshot_value["execution_gateways"][0]["account_ref"],
+            json!({"availability": "redacted"})
+        );
+        assert_eq!(snapshot_value["risk"]["trading_state"], "active");
+        assert_eq!(snapshot_value["controls"][0]["enabled"], true);
+        assert_eq!(response_value["status"], "accepted");
+        assert_eq!(response_value["previous_state"], "stopped");
+        assert_eq!(response_value["current_state"], "starting");
+        assert_forbidden_keys_absent(&snapshot_value);
+        assert_forbidden_keys_absent(&response_value);
     }
 
     #[test]
