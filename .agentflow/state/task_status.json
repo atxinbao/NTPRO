@@ -3200,7 +3200,7 @@
     },
     "V03-002": {
       "title": "DashboardSnapshot DTO",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3211,13 +3211,16 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-002.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-002.md",
-      "updated_at": "2026-06-07T15:29:15Z",
+      "updated_at": "2026-06-07T15:52:50Z",
       "pr_number": 215,
-      "pr_url": "https://github.com/atxinbao/NTPRO/pull/215"
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/215",
+      "merged_pr_number": 215,
+      "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/215",
+      "merge_commit": "770f06695ced0164572bd5daeae56d810f0a48d5"
     },
     "V03-003": {
       "title": "Status detail DTOs",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3228,7 +3231,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-003.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-003.md",
-      "updated_at": "2026-06-07T14:02:23Z"
+      "updated_at": "2026-06-07T15:54:42Z",
+      "pr_number": 216,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/216"
     },
     "V03-004": {
       "title": "Supervisor artifacts to DashboardSnapshot aggregator",
