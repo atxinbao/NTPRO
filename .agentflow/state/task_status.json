@@ -3180,7 +3180,7 @@
     },
     "V03-001": {
       "title": "Scope decision / Dashboard system-status MVP",
-      "status": "RUNNING",
+      "status": "PR_OPEN",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -3191,7 +3191,9 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-001.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-001.md",
-      "updated_at": "2026-06-07T14:02:23Z"
+      "updated_at": "2026-06-07T14:04:49Z",
+      "pr_number": 214,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/214"
     },
     "V03-002": {
       "title": "DashboardSnapshot DTO",
