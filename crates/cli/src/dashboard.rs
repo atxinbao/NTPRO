@@ -85,6 +85,10 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
       <div id="risk" class="grid"></div>
     </section>
     <section class="band">
+      <h2>Runtime Modules</h2>
+      <div id="runtime-modules" class="table-wrap"></div>
+    </section>
+    <section class="band">
       <h2>Alerts</h2>
       <div id="alerts" class="list"></div>
     </section>
@@ -424,6 +428,7 @@ function render(payload) {
   renderDataSources(snapshot.data_sources || []);
   renderExecutionGateways(snapshot.execution_gateways || []);
   renderRisk(snapshot.risk || {});
+  renderRuntimeModules(snapshot.runtime_modules || []);
 
   document.getElementById("alerts").innerHTML = ((snapshot.alerts || {}).active || []).map((alert) =>
     `<div class="row"><strong>${text(alert.severity)}: ${text(alert.source)}</strong><span>${text(alert.message)}</span></div>`
@@ -509,6 +514,34 @@ function renderRisk(risk) {
     renderTile("Last Rejection", lastRejection),
     renderTile("Last Error", dashboardErrorValue(risk.last_error)),
   ].join("");
+}
+
+function renderRuntimeModules(modules) {
+  document.getElementById("runtime-modules").innerHTML = modules.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>Module</th>
+          <th>Status</th>
+          <th>Health</th>
+          <th>Last Seen</th>
+          <th>Last Error</th>
+          <th>Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${modules.map((module) => `
+          <tr>
+            <td data-label="Module"><strong>${text(module.module_name)}</strong></td>
+            <td data-label="Status">${text(snapshotValue(module.status))}<div class="muted">${text(availability(module.status))}</div></td>
+            <td data-label="Health"><span class="status-${safe(module.health)}">${text(module.health)}</span></td>
+            <td data-label="Last Seen">${text(snapshotValue(module.last_seen_at))}</td>
+            <td data-label="Last Error">${text(dashboardErrorValue(module.last_error))}</td>
+            <td data-label="Evidence" class="path">${text(snapshotValue(module.evidence_source))}<div class="muted">${text(availability(module.evidence_source))}</div></td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>` : emptyTable("No runtime modules reported");
 }
 
 async function refresh() {
@@ -1293,12 +1326,11 @@ pub fn snapshot_from_supervisor_artifacts(
         } = read_status_artifact(record);
 
         gaps.extend(process_gaps(record));
-        gaps.push(DashboardGap::new(
-            format!("runtime_modules.{}.module_details", record.node_id),
-            DashboardAvailability::NotSupported,
-            "V03-008",
-            "supervisor artifacts do not expose runtime module internals yet",
-        ));
+        let RuntimeModuleReadout {
+            modules,
+            gaps: module_gaps,
+        } = runtime_modules_from_status(record, &status);
+        gaps.extend(module_gaps);
         let mut node = DashboardNodeSummary::from_status(&status);
         node.process_state = record.process.state;
         node.pid = record.process.pid.clone();
@@ -1311,9 +1343,7 @@ pub fn snapshot_from_supervisor_artifacts(
         snapshot
             .execution_gateways
             .push(execution_gateway_from_status(record, &status));
-        snapshot
-            .runtime_modules
-            .extend(runtime_modules_from_status(record, &status));
+        snapshot.runtime_modules.extend(modules);
         snapshot
             .logs
             .extend(log_statuses_from_record(record, &status));
@@ -1495,22 +1525,29 @@ fn execution_gateway_from_status(
     }
 }
 
+struct RuntimeModuleReadout {
+    modules: Vec<RuntimeModuleStatus>,
+    gaps: Vec<DashboardGap>,
+}
+
 fn runtime_modules_from_status(
     record: &SupervisorNodeRecord,
     status: &NodeStatus,
-) -> Vec<RuntimeModuleStatus> {
+) -> RuntimeModuleReadout {
     let evidence_source = DashboardValue::available(record.status_path.display().to_string());
-    vec![
+    let logging = logging_module_status(record, status);
+    let metrics_writer = metrics_writer_module_status(record, status);
+    let mut modules = vec![
         RuntimeModuleStatus {
-            module_name: format!("{}:node", record.node_id),
+            module_name: module_name(record, "LiveNode"),
             status: DashboardValue::available(json_label(&status.lifecycle_state)),
             health: derive_node_health(status),
             last_seen_at: dashboard_value_from_snapshot(&status.generated_at),
-            last_error: optional_dashboard_value(status.last_error.clone()),
+            last_error: redacted_optional_dashboard_error(status.last_error.clone()),
             evidence_source: evidence_source.clone(),
         },
         RuntimeModuleStatus {
-            module_name: format!("{}:data", record.node_id),
+            module_name: module_name(record, "DataEngine"),
             status: DashboardValue::available(json_label(&status.data_connection)),
             health: health_from_connection(status.data_connection),
             last_seen_at: dashboard_value_from_snapshot(&status.generated_at),
@@ -1518,30 +1555,178 @@ fn runtime_modules_from_status(
             evidence_source: evidence_source.clone(),
         },
         RuntimeModuleStatus {
-            module_name: format!("{}:execution", record.node_id),
+            module_name: module_name(record, "ExecutionEngine"),
             status: DashboardValue::available(json_label(&status.execution.connection)),
             health: health_from_connection(status.execution.connection),
             last_seen_at: dashboard_value_from_snapshot(&status.generated_at),
-            last_error: optional_dashboard_value(status.execution.last_error.clone()),
+            last_error: redacted_optional_dashboard_error(status.execution.last_error.clone()),
             evidence_source: evidence_source.clone(),
         },
         RuntimeModuleStatus {
-            module_name: format!("{}:risk", record.node_id),
+            module_name: module_name(record, "RiskEngine"),
             status: DashboardValue::available(json_label(&status.risk.trading_state)),
             health: status.risk.health,
             last_seen_at: dashboard_value_from_snapshot(&status.generated_at),
-            last_error: optional_dashboard_value(status.risk.last_error.clone()),
+            last_error: redacted_optional_dashboard_error(status.risk.last_error.clone()),
             evidence_source,
         },
+        logging.clone(),
+        metrics_writer.clone(),
+        supervisor_module_status(record),
+    ];
+
+    let mut gaps = Vec::new();
+    if logging.status.availability != DashboardAvailability::Available {
+        gaps.push(DashboardGap::new(
+            module_gap_path(record, "Logging"),
+            logging.status.availability,
+            "V03-008",
+            "one or more log artifacts are unavailable",
+        ));
+    }
+    if metrics_writer.status.availability != DashboardAvailability::Available {
+        gaps.push(DashboardGap::new(
+            module_gap_path(record, "Metrics writer"),
+            metrics_writer.status.availability,
+            "V03-008",
+            "metrics writer artifact is unavailable",
+        ));
+    }
+    for module in ["NautilusKernel", "Portfolio", "Cache", "MessageBus"] {
+        let (status, gap) = unsupported_runtime_module(
+            record,
+            module,
+            "supervisor artifacts do not expose this module detail yet",
+        );
+        modules.push(status);
+        gaps.push(gap);
+    }
+
+    RuntimeModuleReadout { modules, gaps }
+}
+
+fn logging_module_status(
+    record: &SupervisorNodeRecord,
+    status: &NodeStatus,
+) -> RuntimeModuleStatus {
+    let log_paths = [
+        &record.stdout_log_path,
+        &record.stderr_log_path,
+        &record.events_log_path,
+    ];
+    let all_logs_present = log_paths.iter().all(|path| path.exists());
+    RuntimeModuleStatus {
+        module_name: module_name(record, "Logging"),
+        status: if all_logs_present {
+            DashboardValue::available("logs_available".to_string())
+        } else {
+            DashboardValue::unknown()
+        },
+        health: if all_logs_present {
+            HealthStatus::Healthy
+        } else {
+            HealthStatus::Unknown
+        },
+        last_seen_at: if all_logs_present {
+            dashboard_value_from_snapshot(&status.generated_at)
+        } else {
+            DashboardValue::unknown()
+        },
+        last_error: if all_logs_present {
+            DashboardValue::unknown()
+        } else {
+            DashboardValue::available("present".to_string())
+        },
+        evidence_source: DashboardValue::available(
+            record.artifact_root.join("logs").display().to_string(),
+        ),
+    }
+}
+
+fn metrics_writer_module_status(
+    record: &SupervisorNodeRecord,
+    status: &NodeStatus,
+) -> RuntimeModuleStatus {
+    let availability = availability_from_registry_state(record.metrics_artifact);
+    RuntimeModuleStatus {
+        module_name: module_name(record, "Metrics writer"),
+        status: match availability {
+            DashboardAvailability::Available => {
+                DashboardValue::available("metrics_available".to_string())
+            }
+            DashboardAvailability::Stale => DashboardValue::stale(),
+            DashboardAvailability::NotConfigured => DashboardValue::not_configured(),
+            DashboardAvailability::NotSupported => DashboardValue::not_supported(),
+            DashboardAvailability::Redacted | DashboardAvailability::Unknown => {
+                DashboardValue::unknown()
+            }
+        },
+        health: match availability {
+            DashboardAvailability::Available => HealthStatus::Healthy,
+            DashboardAvailability::Stale => HealthStatus::Stale,
+            DashboardAvailability::Unknown
+            | DashboardAvailability::NotConfigured
+            | DashboardAvailability::NotSupported
+            | DashboardAvailability::Redacted => HealthStatus::Unknown,
+        },
+        last_seen_at: if record.metrics_path.exists() {
+            dashboard_value_from_snapshot(&status.generated_at)
+        } else {
+            DashboardValue::unknown()
+        },
+        last_error: if record.metrics_path.exists() {
+            DashboardValue::unknown()
+        } else {
+            DashboardValue::available("present".to_string())
+        },
+        evidence_source: DashboardValue::available(record.metrics_path.display().to_string()),
+    }
+}
+
+fn supervisor_module_status(record: &SupervisorNodeRecord) -> RuntimeModuleStatus {
+    RuntimeModuleStatus {
+        module_name: module_name(record, "Supervisor"),
+        status: DashboardValue::available(json_label(&record.process.state)),
+        health: health_from_process_state(record.process.state),
+        last_seen_at: dashboard_value_from_snapshot(&record.process.updated_at),
+        last_error: DashboardValue::unknown(),
+        evidence_source: DashboardValue::available(record.pid_path.display().to_string()),
+    }
+}
+
+fn unsupported_runtime_module(
+    record: &SupervisorNodeRecord,
+    module: &str,
+    notes: &str,
+) -> (RuntimeModuleStatus, DashboardGap) {
+    (
         RuntimeModuleStatus {
-            module_name: format!("{}:module_details", record.node_id),
+            module_name: module_name(record, module),
             status: DashboardValue::not_supported(),
             health: HealthStatus::Unknown,
             last_seen_at: DashboardValue::not_supported(),
             last_error: DashboardValue::not_supported(),
             evidence_source: DashboardValue::not_supported(),
         },
-    ]
+        DashboardGap::new(
+            module_gap_path(record, module),
+            DashboardAvailability::NotSupported,
+            "V03-008",
+            notes,
+        ),
+    )
+}
+
+fn module_name(record: &SupervisorNodeRecord, module: &str) -> String {
+    format!("{}:{module}", record.node_id)
+}
+
+fn module_gap_path(record: &SupervisorNodeRecord, module: &str) -> String {
+    format!(
+        "runtime_modules.{}.{}",
+        record.node_id,
+        module.to_ascii_lowercase().replace(' ', "_")
+    )
 }
 
 fn log_statuses_from_record(record: &SupervisorNodeRecord, status: &NodeStatus) -> Vec<LogStatus> {
@@ -1805,6 +1990,14 @@ fn optional_dashboard_value(value: Option<String>) -> DashboardValue<String> {
     value.map_or_else(DashboardValue::unknown, DashboardValue::available)
 }
 
+fn redacted_optional_dashboard_error(value: Option<String>) -> DashboardValue<String> {
+    if value.is_some() {
+        DashboardValue::available("present".to_string())
+    } else {
+        DashboardValue::unknown()
+    }
+}
+
 fn availability_from_registry_state(state: RegistryArtifactState) -> DashboardAvailability {
     match state {
         RegistryArtifactState::Available => DashboardAvailability::Available,
@@ -1812,6 +2005,16 @@ fn availability_from_registry_state(state: RegistryArtifactState) -> DashboardAv
         | RegistryArtifactState::Invalid
         | RegistryArtifactState::Unknown => DashboardAvailability::Unknown,
         RegistryArtifactState::Stale => DashboardAvailability::Stale,
+    }
+}
+
+fn health_from_process_state(state: SupervisorProcessState) -> HealthStatus {
+    match state {
+        SupervisorProcessState::Running | SupervisorProcessState::Stopped => HealthStatus::Healthy,
+        SupervisorProcessState::Stale => HealthStatus::Stale,
+        SupervisorProcessState::NotStarted | SupervisorProcessState::Unknown => {
+            HealthStatus::Unknown
+        }
     }
 }
 
@@ -1932,7 +2135,12 @@ mod tests {
 
     #[test]
     fn dashboard_shell_includes_system_panel_mounts_and_redaction_helpers() {
-        for mount_id in ["data-sources", "execution-gateways", "risk"] {
+        for mount_id in [
+            "data-sources",
+            "execution-gateways",
+            "risk",
+            "runtime-modules",
+        ] {
             assert!(
                 DASHBOARD_HTML.contains(mount_id),
                 "dashboard shell missing mount id {mount_id}"
@@ -1943,10 +2151,12 @@ mod tests {
             "renderDataSources",
             "renderExecutionGateways",
             "renderRisk",
+            "renderRuntimeModules",
             "redactedDashboardValue",
             "dashboardErrorValue",
             "No data sources reported",
             "No execution gateways reported",
+            "No runtime modules reported",
         ] {
             assert!(
                 DASHBOARD_JS.contains(js_symbol),
@@ -2256,11 +2466,21 @@ mod tests {
                 && metric.value.value.as_deref() == Some("1")
         }));
         assert!(snapshot.runtime_modules.iter().any(|module| {
-            module.module_name == "sandbox-a:module_details"
+            module.module_name == "sandbox-a:NautilusKernel"
                 && module.status.availability == DashboardAvailability::NotSupported
         }));
+        assert!(snapshot.runtime_modules.iter().any(|module| {
+            module.module_name == "sandbox-a:LiveNode"
+                && module.status.value.as_deref() == Some("running")
+                && module.health == HealthStatus::Healthy
+        }));
+        assert!(snapshot.runtime_modules.iter().any(|module| {
+            module.module_name == "sandbox-a:Metrics writer"
+                && module.status.availability == DashboardAvailability::Available
+        }));
+        assert_eq!(snapshot.runtime_modules.len(), 11);
         assert!(snapshot.gaps.iter().any(|gap| {
-            gap.field_path == "runtime_modules.sandbox-a.module_details"
+            gap.field_path == "runtime_modules.sandbox-a.nautiluskernel"
                 && gap.reason == DashboardAvailability::NotSupported
         }));
     }
@@ -2330,6 +2550,21 @@ mod tests {
         );
         assert_eq!(snapshot_value["risk"]["trading_state"], "active");
         assert_eq!(snapshot_value["risk"]["health"], "healthy");
+        assert!(
+            snapshot_value["runtime_modules"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|module| module["module_name"] == "sandbox-a:LiveNode")
+        );
+        assert!(
+            snapshot_value["runtime_modules"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|module| module["module_name"] == "sandbox-a:MessageBus"
+                    && module["status"]["availability"] == "not_supported")
+        );
         assert_forbidden_keys_absent(&snapshot_value);
 
         let metrics = http_request(addr, "GET", "/api/nodes/sandbox-a/metrics").await;
@@ -2384,6 +2619,7 @@ mod tests {
         assert_eq!(snapshot.nodes.len(), 2);
         assert_eq!(snapshot.data_sources.len(), 2);
         assert_eq!(snapshot.execution_gateways.len(), 2);
+        assert_eq!(snapshot.runtime_modules.len(), 22);
         assert!(!snapshot.overview.external_venue_connection);
         assert!(!snapshot.overview.real_orders_submitted);
     }
@@ -2454,6 +2690,15 @@ mod tests {
             snapshot.metrics[0].availability,
             DashboardAvailability::Unknown
         );
+        assert!(snapshot.runtime_modules.iter().any(|module| {
+            module.module_name == "sandbox-a:Metrics writer"
+                && module.status.availability == DashboardAvailability::Unknown
+                && module.health == HealthStatus::Unknown
+        }));
+        assert!(snapshot.gaps.iter().any(|gap| {
+            gap.field_path == "runtime_modules.sandbox-a.metrics_writer"
+                && gap.reason == DashboardAvailability::Unknown
+        }));
         assert!(
             snapshot.metrics[0]
                 .last_error
