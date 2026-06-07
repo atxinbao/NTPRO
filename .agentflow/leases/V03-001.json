@@ -19,9 +19,13 @@
     ".agentflow/leases/V03-001.json"
   ],
   "claimed_at": "2026-06-07T14:02:23Z",
-  "status": "PR_OPEN",
-  "updated_at": "2026-06-07T14:04:49Z",
+  "status": "DONE",
+  "updated_at": "2026-06-07T15:27:48Z",
   "notes": "V03-001 is low-risk scope/control-plane work. It records the v0.3 Dashboard MVP boundary and task sequence only; no runtime, HTTP server, UI, trading semantics, tag, or GitHub Release changes.",
   "pr_number": 214,
-  "pr_url": "https://github.com/atxinbao/NTPRO/pull/214"
+  "pr_url": "https://github.com/atxinbao/NTPRO/pull/214",
+  "merged_pr_number": 214,
+  "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/214",
+  "merge_commit": "f32bcc459aa3cadcf09fb428d635c2c5198bdc19",
+  "closed_at": "2026-06-07T15:27:48Z"
 }
