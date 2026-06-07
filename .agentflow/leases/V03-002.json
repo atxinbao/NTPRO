@@ -1,0 +1,13 @@
+{
+  "task_id": "V03-002",
+  "agent_id": "Codex",
+  "branch": "codex/V03-002-dashboardsnapshot-dto",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/V03-002.md",
+    "docs/rust-cutover/evidence/V03-002.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/V03-002.json"
+  ],
+  "claimed_at": "2026-06-07T14:13:50.617452+00:00",
+  "status": "LEASED"
+}

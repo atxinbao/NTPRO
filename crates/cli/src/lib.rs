@@ -52,6 +52,7 @@ mod backtest;
 #[cfg(feature = "defi")]
 mod blockchain;
 mod config;
+pub mod dashboard;
 mod data;
 mod database;
 mod live;

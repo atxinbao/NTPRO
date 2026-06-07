@@ -3180,7 +3180,7 @@
     },
     "V03-001": {
       "title": "Scope decision / Dashboard system-status MVP",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "control_scope_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "low",
@@ -3191,13 +3191,16 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-001.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-001.md",
-      "updated_at": "2026-06-07T14:04:49Z",
+      "updated_at": "2026-06-07T15:27:48Z",
       "pr_number": 214,
-      "pr_url": "https://github.com/atxinbao/NTPRO/pull/214"
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/214",
+      "merged_pr_number": 214,
+      "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/214",
+      "merge_commit": "f32bcc459aa3cadcf09fb428d635c2c5198bdc19"
     },
     "V03-002": {
       "title": "DashboardSnapshot DTO",
-      "status": "TODO",
+      "status": "RUNNING",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3208,7 +3211,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-002.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-002.md",
-      "updated_at": "2026-06-07T14:02:23Z"
+      "updated_at": "2026-06-07T14:13:50Z"
     },
     "V03-003": {
       "title": "Status detail DTOs",
