@@ -13,23 +13,477 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Dashboard read-model DTOs for the local v0.3 MVP.
+//! Dashboard read-model DTOs and local HTTP server for the local v0.3 MVP.
 
-use std::{collections::BTreeMap, fs, path::Path};
+use std::{
+    collections::BTreeMap,
+    fs,
+    path::{Path as FsPath, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
-use anyhow::Context;
+use anyhow::{Context, ensure};
+use axum::{
+    Json, Router,
+    extract::{Path as AxumPath, State},
+    http::{StatusCode, header::CONTENT_TYPE},
+    response::{Html, IntoResponse},
+    routing::{get, post},
+};
 use nautilus_live::status::{
     ConnectionStatus, HealthStatus, LifecycleStatus, NodeStatus, ProcessMode, RiskTradingState,
     SnapshotAvailability, SnapshotValue,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
 
-use crate::supervisor::{
-    NodeMetrics, RegistryArtifactState, SupervisorNodeRecord, SupervisorProcessState,
-    SupervisorRegistry,
+use crate::{
+    opt::{DashboardCommand, DashboardOpt, DashboardServeOpt},
+    supervisor::{
+        NodeMetrics, RegistryArtifactState, SupervisorNodeRecord, SupervisorProcessState,
+        SupervisorRegistry,
+    },
 };
 
 pub const DASHBOARD_SNAPSHOT_SCHEMA_VERSION: &str = "ntpro.dashboard_snapshot.v1";
+
+const DASHBOARD_HTML: &str = r#"<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NTPRO Dashboard</title>
+  <link rel="stylesheet" href="/assets/dashboard.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>NTPRO Dashboard</h1>
+      <p>Local supervisor artifact view. No external venue connection is opened by this page.</p>
+    </div>
+    <button id="refresh" type="button">Refresh</button>
+  </header>
+  <main>
+    <section class="band">
+      <h2>Overview</h2>
+      <div id="overview" class="grid"></div>
+    </section>
+    <section class="band">
+      <h2>Nodes</h2>
+      <div id="nodes" class="grid"></div>
+    </section>
+    <section class="band">
+      <h2>Alerts</h2>
+      <div id="alerts" class="list"></div>
+    </section>
+    <section class="band">
+      <h2>Gaps</h2>
+      <div id="gaps" class="list"></div>
+    </section>
+  </main>
+  <script src="/assets/dashboard.js"></script>
+</body>
+</html>
+"#;
+
+const DASHBOARD_CSS: &str = r#":root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f6f7f9;
+  color: #1f2933;
+}
+
+body {
+  margin: 0;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+  padding: 24px 32px;
+  background: #111827;
+  color: #ffffff;
+}
+
+.topbar h1 {
+  margin: 0 0 6px;
+  font-size: 28px;
+  letter-spacing: 0;
+}
+
+.topbar p {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+button {
+  border: 1px solid #94a3b8;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+main {
+  width: min(1180px, calc(100vw - 32px));
+  margin: 24px auto 48px;
+}
+
+.band {
+  margin: 0 0 28px;
+}
+
+.band h2 {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.tile,
+.row {
+  background: #ffffff;
+  border: 1px solid #d8dee6;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.label {
+  color: #64748b;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.value {
+  margin-top: 6px;
+  font-size: 18px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.list {
+  display: grid;
+  gap: 8px;
+}
+
+.row {
+  display: grid;
+  gap: 4px;
+}
+
+.status-healthy {
+  color: #166534;
+}
+
+.status-error,
+.status-stale {
+  color: #991b1b;
+}
+
+.status-degraded,
+.status-unknown {
+  color: #92400e;
+}
+"#;
+
+const DASHBOARD_JS: &str = r#"const renderTile = (label, value, extraClass = "") =>
+  `<div class="tile ${extraClass}"><div class="label">${text(label)}</div><div class="value">${text(value)}</div></div>`;
+
+const safe = (value) => value === null || value === undefined ? "unknown" : String(value);
+
+const text = (value) => safe(value)
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;")
+  .replaceAll("\"", "&quot;")
+  .replaceAll("'", "&#39;");
+
+const snapshotValue = (value) => {
+  if (!value || typeof value !== "object") return "unknown";
+  return value.value ?? value.availability ?? "unknown";
+};
+
+async function loadSnapshot() {
+  const response = await fetch("/api/snapshot");
+  if (!response.ok) {
+    throw new Error(`snapshot request failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+function render(snapshot) {
+  const overview = snapshot.overview || {};
+  document.getElementById("overview").innerHTML = [
+    renderTile("Nodes", safe(overview.node_count)),
+    renderTile("Running", safe(overview.running_nodes), "status-healthy"),
+    renderTile("Stopped", safe(overview.stopped_nodes)),
+    renderTile("Errors", safe(overview.error_nodes), "status-error"),
+    renderTile("Health", safe(overview.health), `status-${safe(overview.health)}`),
+    renderTile("Generated", snapshotValue(snapshot.generated_at)),
+  ].join("");
+
+  document.getElementById("nodes").innerHTML = (snapshot.nodes || []).map((node) =>
+    `<div class="tile">
+      <div class="label">${text(node.node_id)}</div>
+      <div class="value status-${safe(node.health)}">${text(node.lifecycle_state)}</div>
+      <div>data: ${text(node.external_venue_connection ? "external" : "local artifact")}</div>
+      <div>orders: ${text(node.real_orders_submitted ? "real" : "none")}</div>
+    </div>`
+  ).join("") || `<div class="tile"><div class="value">No registered nodes</div></div>`;
+
+  document.getElementById("alerts").innerHTML = ((snapshot.alerts || {}).active || []).map((alert) =>
+    `<div class="row"><strong>${text(alert.severity)}: ${text(alert.source)}</strong><span>${text(alert.message)}</span></div>`
+  ).join("") || `<div class="row">No active alerts</div>`;
+
+  document.getElementById("gaps").innerHTML = (snapshot.gaps || []).map((gap) =>
+    `<div class="row"><strong>${text(gap.field_path)}</strong><span>${text(gap.reason)} - ${text(snapshotValue(gap.notes))}</span></div>`
+  ).join("") || `<div class="row">No dashboard gaps</div>`;
+}
+
+async function refresh() {
+  const snapshot = await loadSnapshot();
+  render(snapshot);
+}
+
+document.getElementById("refresh").addEventListener("click", () => refresh().catch(console.error));
+refresh().catch((error) => {
+  document.getElementById("overview").innerHTML = renderTile("Error", error.message, "status-error");
+});
+"#;
+
+#[derive(Clone, Debug)]
+struct DashboardServerState {
+    registry_path: PathBuf,
+}
+
+type ApiResult<T> = Result<Json<T>, (StatusCode, Json<Value>)>;
+type ApiStatusResult<T> = Result<(StatusCode, Json<T>), (StatusCode, Json<Value>)>;
+type SnapshotLoadResult = Result<DashboardSnapshot, (StatusCode, Json<Value>)>;
+
+/// Runs local dashboard commands.
+///
+/// # Errors
+///
+/// Returns an error if the server cannot bind the requested loopback address or
+/// if the HTTP server exits with an error.
+pub(crate) async fn run_dashboard_command(opt: DashboardOpt) -> anyhow::Result<()> {
+    match opt.command {
+        DashboardCommand::Serve(serve) => serve_dashboard(serve).await?,
+    }
+    Ok(())
+}
+
+async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
+    ensure!(
+        opt.bind.ip().is_loopback(),
+        "dashboard server is local-only for v0.3; use a loopback bind address"
+    );
+
+    let registry_path = opt.registry;
+    let listener = tokio::net::TcpListener::bind(opt.bind)
+        .await
+        .with_context(|| format!("failed to bind dashboard server at {}", opt.bind))?;
+    let local_addr = listener
+        .local_addr()
+        .context("failed to read dashboard server local address")?;
+    println!(
+        "dashboard.serve status=ok bind={} registry={} dashboard_url=http://{}/dashboard",
+        local_addr,
+        registry_path.display(),
+        local_addr
+    );
+    axum::serve(listener, dashboard_router(registry_path))
+        .await
+        .context("dashboard HTTP server exited with an error")?;
+    Ok(())
+}
+
+fn dashboard_router(registry_path: PathBuf) -> Router {
+    let state = DashboardServerState { registry_path };
+    Router::new()
+        .route("/", get(dashboard_shell))
+        .route("/dashboard", get(dashboard_shell))
+        .route("/assets/dashboard.css", get(dashboard_css))
+        .route("/assets/dashboard.js", get(dashboard_js))
+        .route("/api/snapshot", get(snapshot_api))
+        .route("/api/nodes", get(nodes_api))
+        .route("/api/nodes/{node_id}", get(node_detail_api))
+        .route("/api/nodes/{node_id}/metrics", get(node_metrics_api))
+        .route("/api/nodes/{node_id}/logs", get(node_logs_api))
+        .route(
+            "/api/nodes/{node_id}/actions/start",
+            post(unsupported_start_action_api),
+        )
+        .route(
+            "/api/nodes/{node_id}/actions/stop",
+            post(unsupported_stop_action_api),
+        )
+        .with_state(state)
+}
+
+async fn dashboard_shell() -> Html<&'static str> {
+    Html(DASHBOARD_HTML)
+}
+
+async fn dashboard_css() -> impl IntoResponse {
+    ([(CONTENT_TYPE, "text/css; charset=utf-8")], DASHBOARD_CSS)
+}
+
+async fn dashboard_js() -> impl IntoResponse {
+    (
+        [(CONTENT_TYPE, "application/javascript; charset=utf-8")],
+        DASHBOARD_JS,
+    )
+}
+
+async fn snapshot_api(State(state): State<DashboardServerState>) -> ApiResult<DashboardSnapshot> {
+    load_dashboard_snapshot(&state.registry_path).map(Json)
+}
+
+async fn nodes_api(
+    State(state): State<DashboardServerState>,
+) -> ApiResult<Vec<DashboardNodeSummary>> {
+    let snapshot = load_dashboard_snapshot(&state.registry_path)?;
+    Ok(Json(snapshot.nodes))
+}
+
+async fn node_detail_api(
+    State(state): State<DashboardServerState>,
+    AxumPath(node_id): AxumPath<String>,
+) -> ApiResult<DashboardNodeSummary> {
+    let snapshot = load_dashboard_snapshot(&state.registry_path)?;
+    snapshot
+        .nodes
+        .into_iter()
+        .find(|node| node.node_id == node_id)
+        .map(Json)
+        .ok_or_else(|| not_found_response("node_not_found", &node_id))
+}
+
+async fn node_metrics_api(
+    State(state): State<DashboardServerState>,
+    AxumPath(node_id): AxumPath<String>,
+) -> ApiResult<Vec<MetricStatus>> {
+    let snapshot = load_dashboard_snapshot(&state.registry_path)?;
+    if !snapshot.nodes.iter().any(|node| node.node_id == node_id) {
+        return Err(not_found_response("node_not_found", &node_id));
+    }
+    let metric_prefix = format!("{node_id}:");
+    let metrics = snapshot
+        .metrics
+        .into_iter()
+        .filter(|metric| {
+            metric.node_id.value.as_deref() == Some(node_id.as_str())
+                || metric.metric_id.starts_with(&metric_prefix)
+        })
+        .collect();
+    Ok(Json(metrics))
+}
+
+async fn node_logs_api(
+    State(state): State<DashboardServerState>,
+    AxumPath(node_id): AxumPath<String>,
+) -> ApiResult<Vec<LogStatus>> {
+    let snapshot = load_dashboard_snapshot(&state.registry_path)?;
+    if !snapshot.nodes.iter().any(|node| node.node_id == node_id) {
+        return Err(not_found_response("node_not_found", &node_id));
+    }
+    let log_prefix = format!("{node_id}:");
+    let logs = snapshot
+        .logs
+        .into_iter()
+        .filter(|log| {
+            log.node_id.value.as_deref() == Some(node_id.as_str())
+                || log.log_id.starts_with(&log_prefix)
+        })
+        .collect();
+    Ok(Json(logs))
+}
+
+async fn unsupported_start_action_api(
+    State(state): State<DashboardServerState>,
+    AxumPath(node_id): AxumPath<String>,
+) -> ApiStatusResult<ControlActionResponse> {
+    unsupported_control_action_response(&state.registry_path, &node_id, "start")
+}
+
+async fn unsupported_stop_action_api(
+    State(state): State<DashboardServerState>,
+    AxumPath(node_id): AxumPath<String>,
+) -> ApiStatusResult<ControlActionResponse> {
+    unsupported_control_action_response(&state.registry_path, &node_id, "stop")
+}
+
+fn unsupported_control_action_response(
+    registry_path: &FsPath,
+    node_id: &str,
+    action: &str,
+) -> ApiStatusResult<ControlActionResponse> {
+    let snapshot = load_dashboard_snapshot(registry_path)?;
+    let lifecycle_state = snapshot
+        .nodes
+        .iter()
+        .find(|node| node.node_id == node_id)
+        .map_or(LifecycleStatus::Unknown, |node| node.lifecycle_state);
+    Ok((
+        StatusCode::NOT_IMPLEMENTED,
+        Json(ControlActionResponse {
+            action_id: format!("{action}:{node_id}:unsupported"),
+            action: format!("{action}:{node_id}"),
+            status: ControlActionStatus::Rejected,
+            previous_state: lifecycle_state,
+            current_state: lifecycle_state,
+            started_at: DashboardValue::unknown(),
+            finished_at: DashboardValue::unknown(),
+            error_code: DashboardValue::available("unsupported_v03_local_mvp".to_string()),
+            message: DashboardValue::available(
+                "dashboard start/stop controls are API placeholders in V03-005".to_string(),
+            ),
+            observability_ref: DashboardValue::not_supported(),
+        }),
+    ))
+}
+
+fn load_dashboard_snapshot(registry_path: &FsPath) -> SnapshotLoadResult {
+    snapshot_from_supervisor_artifacts(registry_path, generated_at_now())
+        .map_err(|error| server_error_response("snapshot_load_failed", error.to_string()))
+}
+
+fn not_found_response(error_code: &str, node_id: &str) -> (StatusCode, Json<Value>) {
+    (
+        StatusCode::NOT_FOUND,
+        Json(json!({
+            "error_code": error_code,
+            "node_id": node_id,
+            "message": "dashboard node was not found in the local supervisor registry"
+        })),
+    )
+}
+
+fn server_error_response(error_code: &str, message: String) -> (StatusCode, Json<Value>) {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(json!({
+            "error_code": error_code,
+            "message": message
+        })),
+    )
+}
+
+fn generated_at_now() -> String {
+    let seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |duration| duration.as_secs());
+    format!("unix_seconds:{seconds}")
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -497,7 +951,7 @@ impl DashboardGap {
 /// invalid supervisor artifacts are represented as explicit dashboard gaps so
 /// callers can still render an owner-visible partial snapshot.
 pub fn snapshot_from_supervisor_artifacts(
-    registry_path: impl AsRef<Path>,
+    registry_path: impl AsRef<FsPath>,
     generated_at: impl Into<String>,
 ) -> anyhow::Result<DashboardSnapshot> {
     let registry_path = registry_path.as_ref();
@@ -1146,6 +1600,7 @@ fn derive_overview_health(overview: &DashboardOverview) -> HealthStatus {
 mod tests {
     use std::{
         fs,
+        net::SocketAddr,
         path::PathBuf,
         time::{SystemTime, UNIX_EPOCH},
     };
@@ -1156,6 +1611,7 @@ mod tests {
         write_node_metrics_artifact,
     };
     use serde_json::{Value, json};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use super::*;
 
@@ -1492,6 +1948,63 @@ mod tests {
         }));
     }
 
+    #[tokio::test]
+    async fn dashboard_http_server_serves_shell_snapshot_and_unsupported_actions() {
+        let root = temp_root("http-server");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "sandbox-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Running);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            axum::serve(listener, dashboard_router(registry_path))
+                .await
+                .unwrap();
+        });
+
+        let shell = http_request(addr, "GET", "/dashboard").await;
+        assert!(shell.contains("HTTP/1.1 200 OK"));
+        assert!(shell.contains("NTPRO Dashboard"));
+
+        let snapshot = http_request(addr, "GET", "/api/snapshot").await;
+        assert!(snapshot.contains("HTTP/1.1 200 OK"));
+        let snapshot_body = response_body(&snapshot);
+        let snapshot_value: Value = serde_json::from_str(snapshot_body).unwrap();
+        assert_eq!(snapshot_value["nodes"][0]["node_id"], "sandbox-a");
+        assert_eq!(snapshot_value["overview"]["running_nodes"], 1);
+
+        let metrics = http_request(addr, "GET", "/api/nodes/sandbox-a/metrics").await;
+        assert!(metrics.contains("HTTP/1.1 200 OK"));
+        let metrics_body = response_body(&metrics);
+        let metrics_value: Value = serde_json::from_str(metrics_body).unwrap();
+        assert!(
+            metrics_value
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|metric| metric["metric_id"] == "sandbox-a:starts_total")
+        );
+
+        let action = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/start").await;
+        assert!(action.contains("HTTP/1.1 501 Not Implemented"));
+        let action_body = response_body(&action);
+        let action_value: Value = serde_json::from_str(action_body).unwrap();
+        assert_eq!(action_value["status"], "rejected");
+        assert_eq!(
+            action_value["error_code"],
+            json!({"availability": "available", "value": "unsupported_v03_local_mvp"})
+        );
+
+        server.abort();
+    }
+
     #[test]
     fn two_node_supervisor_artifacts_aggregate_overview() {
         let root = temp_root("two-node");
@@ -1747,6 +2260,22 @@ mod tests {
 
     fn create_node_dirs(record: &SupervisorNodeRecord) {
         fs::create_dir_all(record.artifact_root.join("logs")).unwrap();
+    }
+
+    async fn http_request(addr: SocketAddr, method: &str, path: &str) -> String {
+        let mut stream = tokio::net::TcpStream::connect(addr).await.unwrap();
+        let request =
+            format!("{method} {path} HTTP/1.1\r\nHost: {addr}\r\nConnection: close\r\n\r\n");
+        stream.write_all(request.as_bytes()).await.unwrap();
+        let mut response = String::new();
+        stream.read_to_string(&mut response).await.unwrap();
+        response
+    }
+
+    fn response_body(response: &str) -> &str {
+        response
+            .split_once("\r\n\r\n")
+            .map_or("", |(_, body)| body.trim())
     }
 
     fn assert_forbidden_keys_absent(value: &Value) {
