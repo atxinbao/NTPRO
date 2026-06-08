@@ -292,6 +292,9 @@ pub struct DashboardServeOpt {
     /// Local loopback address for the dashboard HTTP server.
     #[arg(long, default_value = "127.0.0.1:5173")]
     pub bind: SocketAddr,
+    /// Optional path to the local ntpro-node binary used by start controls.
+    #[arg(long)]
+    pub ntpro_node_bin: Option<PathBuf>,
 }
 
 /// Data catalog inspection, validation, and loading commands.
@@ -941,6 +944,7 @@ mod tests {
             PathBuf::from("runs/supervisor/registry.json")
         );
         assert_eq!(serve.bind.to_string(), "127.0.0.1:5174");
+        assert!(serve.ntpro_node_bin.is_none());
     }
 
     #[test]
@@ -960,6 +964,30 @@ mod tests {
         let DashboardCommand::Serve(serve) = dashboard.command;
 
         assert_eq!(serve.bind.to_string(), "127.0.0.1:5173");
+    }
+
+    #[test]
+    fn parses_dashboard_serve_ntpro_node_bin() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "dashboard",
+            "serve",
+            "--registry",
+            "runs/supervisor/registry.json",
+            "--ntpro-node-bin",
+            "target/debug/ntpro-node",
+        ])
+        .expect("dashboard serve should parse with ntpro-node binary");
+
+        let Commands::Dashboard(dashboard) = parsed.command else {
+            panic!("expected dashboard command");
+        };
+        let DashboardCommand::Serve(serve) = dashboard.command;
+
+        assert_eq!(
+            serve.ntpro_node_bin,
+            Some(PathBuf::from("target/debug/ntpro-node"))
+        );
     }
 
     #[test]

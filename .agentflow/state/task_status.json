@@ -3312,7 +3312,7 @@
     },
     "V03-009": {
       "title": "Dashboard start/stop controls",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -3323,7 +3323,7 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-009.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-009.md",
-      "updated_at": "2026-06-07T14:02:23Z"
+      "updated_at": "2026-06-07T20:31:20Z"
     },
     "V03-010": {
       "title": "Dashboard smoke and v0.3 readiness report",

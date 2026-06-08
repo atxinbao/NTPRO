@@ -19,6 +19,7 @@ use std::{
     collections::BTreeMap,
     fs,
     path::{Path as FsPath, PathBuf},
+    time::Duration,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -40,8 +41,8 @@ use serde_json::{Value, json};
 use crate::{
     opt::{DashboardCommand, DashboardOpt, DashboardServeOpt},
     supervisor::{
-        NodeMetrics, RegistryArtifactState, SupervisorNodeRecord, SupervisorProcessState,
-        SupervisorRegistry,
+        NodeMetrics, RegistryArtifactState, StartNodeRequest, StopNodeRequest,
+        SupervisorNodeRecord, SupervisorProcessState, SupervisorRegistry, SupervisorRegistryStore,
     },
 };
 
@@ -71,6 +72,11 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
     <section class="band">
       <h2>Nodes</h2>
       <div id="nodes" class="table-wrap"></div>
+    </section>
+    <section class="band">
+      <h2>Controls</h2>
+      <div id="controls" class="table-wrap"></div>
+      <div id="control-result" class="list"></div>
     </section>
     <section class="band">
       <h2>Data Sources</h2>
@@ -429,6 +435,7 @@ function render(payload) {
   renderExecutionGateways(snapshot.execution_gateways || []);
   renderRisk(snapshot.risk || {});
   renderRuntimeModules(snapshot.runtime_modules || []);
+  renderControls(snapshot.controls || []);
 
   document.getElementById("alerts").innerHTML = ((snapshot.alerts || {}).active || []).map((alert) =>
     `<div class="row"><strong>${text(alert.severity)}: ${text(alert.source)}</strong><span>${text(alert.message)}</span></div>`
@@ -437,6 +444,53 @@ function render(payload) {
   document.getElementById("gaps").innerHTML = (snapshot.gaps || []).map((gap) =>
     `<div class="row"><strong>${text(gap.field_path)}</strong><span>${text(gap.reason)} - ${text(snapshotValue(gap.notes))}</span></div>`
   ).join("") || `<div class="row">No dashboard gaps</div>`;
+}
+
+const controlLabel = (action) => {
+  const name = safe(action).split(":")[0];
+  return {
+    start: "Start",
+    stop: "Stop",
+    pause: "Pause",
+    resume: "Resume",
+    reconnect_data: "Reconnect data",
+    reconnect_execution: "Reconnect execution",
+  }[name] || name;
+};
+
+const controlNodeId = (action) => safe(action).split(":").slice(1).join(":");
+const controlActionName = (action) => safe(action).split(":")[0];
+
+function renderControls(controls) {
+  document.getElementById("controls").innerHTML = controls.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>Node</th>
+          <th>Action</th>
+          <th>Availability</th>
+          <th>Enabled</th>
+          <th>Reason</th>
+          <th>Run</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${controls.map((control) => {
+          const action = controlActionName(control.action);
+          const nodeId = controlNodeId(control.action);
+          const runnable = control.enabled && (action === "start" || action === "stop");
+          return `
+            <tr>
+              <td data-label="Node"><strong>${text(nodeId)}</strong></td>
+              <td data-label="Action">${text(controlLabel(control.action))}</td>
+              <td data-label="Availability">${text(control.availability)}</td>
+              <td data-label="Enabled">${text(control.enabled)}</td>
+              <td data-label="Reason">${text(snapshotValue(control.reason))}</td>
+              <td data-label="Run"><button type="button" data-dashboard-action="${text(action)}" data-node-id="${text(nodeId)}" ${runnable ? "" : "disabled"}>${text(controlLabel(control.action))}</button></td>
+            </tr>`;
+        }).join("")}
+      </tbody>
+    </table>` : emptyTable("No controls reported");
 }
 
 function renderDataSources(dataSources) {
@@ -550,6 +604,22 @@ async function refresh() {
 }
 
 document.getElementById("refresh").addEventListener("click", () => refresh().catch(console.error));
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-dashboard-action]");
+  if (!button || button.disabled) return;
+  const action = button.getAttribute("data-dashboard-action");
+  const nodeId = button.getAttribute("data-node-id");
+  button.disabled = true;
+  document.getElementById("control-result").innerHTML = `<div class="row">Running ${text(action)} for ${text(nodeId)}</div>`;
+  try {
+    const response = await fetch(`/api/nodes/${encodeURIComponent(nodeId)}/actions/${encodeURIComponent(action)}`, { method: "POST" });
+    const payload = await response.json();
+    document.getElementById("control-result").innerHTML = `<div class="row"><strong>${text(snapshotValue(payload.message))}</strong><span>${text(payload.status)} ${text(snapshotValue(payload.error_code))}</span></div>`;
+    await refresh();
+  } catch (error) {
+    document.getElementById("control-result").innerHTML = `<div class="row"><strong>Control failed</strong><span>${text(error.message)}</span></div>`;
+  }
+});
 refresh().catch((error) => {
   document.getElementById("overview").innerHTML = renderTile("Error", error.message, "status-error");
 });
@@ -558,6 +628,7 @@ refresh().catch((error) => {
 #[derive(Clone, Debug)]
 struct DashboardServerState {
     registry_path: PathBuf,
+    ntpro_node_bin: PathBuf,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -565,6 +636,8 @@ struct DashboardServerMetadata {
     registry_path: String,
     local_only: bool,
 }
+
+const DASHBOARD_ACTION_TIMEOUT_MS: u64 = 5_000;
 
 type ApiResult<T> = Result<Json<T>, (StatusCode, Json<Value>)>;
 type ApiStatusResult<T> = Result<(StatusCode, Json<T>), (StatusCode, Json<Value>)>;
@@ -590,6 +663,9 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
     );
 
     let registry_path = opt.registry;
+    let ntpro_node_bin = opt
+        .ntpro_node_bin
+        .unwrap_or_else(default_ntpro_node_bin_path);
     let listener = tokio::net::TcpListener::bind(opt.bind)
         .await
         .with_context(|| format!("failed to bind dashboard server at {}", opt.bind))?;
@@ -602,14 +678,17 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
         registry_path.display(),
         local_addr
     );
-    axum::serve(listener, dashboard_router(registry_path))
+    axum::serve(listener, dashboard_router(registry_path, ntpro_node_bin))
         .await
         .context("dashboard HTTP server exited with an error")?;
     Ok(())
 }
 
-fn dashboard_router(registry_path: PathBuf) -> Router {
-    let state = DashboardServerState { registry_path };
+fn dashboard_router(registry_path: PathBuf, ntpro_node_bin: PathBuf) -> Router {
+    let state = DashboardServerState {
+        registry_path,
+        ntpro_node_bin,
+    };
     Router::new()
         .route("/", get(dashboard_shell))
         .route("/dashboard", get(dashboard_shell))
@@ -621,15 +700,23 @@ fn dashboard_router(registry_path: PathBuf) -> Router {
         .route("/api/nodes/{node_id}", get(node_detail_api))
         .route("/api/nodes/{node_id}/metrics", get(node_metrics_api))
         .route("/api/nodes/{node_id}/logs", get(node_logs_api))
-        .route(
-            "/api/nodes/{node_id}/actions/start",
-            post(unsupported_start_action_api),
-        )
-        .route(
-            "/api/nodes/{node_id}/actions/stop",
-            post(unsupported_stop_action_api),
-        )
+        .route("/api/nodes/{node_id}/actions/start", post(start_action_api))
+        .route("/api/nodes/{node_id}/actions/stop", post(stop_action_api))
         .with_state(state)
+}
+
+fn default_ntpro_node_bin_path() -> PathBuf {
+    std::env::current_exe().map_or_else(
+        |_| PathBuf::from("ntpro-node"),
+        |path| {
+            let file_name = if cfg!(windows) {
+                "ntpro-node.exe"
+            } else {
+                "ntpro-node"
+            };
+            path.with_file_name(file_name)
+        },
+    )
 }
 
 async fn dashboard_shell() -> Html<&'static str> {
@@ -720,48 +807,212 @@ async fn node_logs_api(
     Ok(Json(logs))
 }
 
-async fn unsupported_start_action_api(
+async fn start_action_api(
     State(state): State<DashboardServerState>,
     AxumPath(node_id): AxumPath<String>,
 ) -> ApiStatusResult<ControlActionResponse> {
-    unsupported_control_action_response(&state.registry_path, &node_id, "start")
+    control_action_response(&state, &node_id, "start")
 }
 
-async fn unsupported_stop_action_api(
+async fn stop_action_api(
     State(state): State<DashboardServerState>,
     AxumPath(node_id): AxumPath<String>,
 ) -> ApiStatusResult<ControlActionResponse> {
-    unsupported_control_action_response(&state.registry_path, &node_id, "stop")
+    control_action_response(&state, &node_id, "stop")
 }
 
-fn unsupported_control_action_response(
-    registry_path: &FsPath,
+fn control_action_response(
+    state: &DashboardServerState,
     node_id: &str,
     action: &str,
 ) -> ApiStatusResult<ControlActionResponse> {
-    let snapshot = load_dashboard_snapshot(registry_path)?;
-    let lifecycle_state = snapshot
-        .nodes
-        .iter()
-        .find(|node| node.node_id == node_id)
-        .map_or(LifecycleStatus::Unknown, |node| node.lifecycle_state);
-    Ok((
-        StatusCode::NOT_IMPLEMENTED,
-        Json(ControlActionResponse {
-            action_id: format!("{action}:{node_id}:unsupported"),
-            action: format!("{action}:{node_id}"),
-            status: ControlActionStatus::Rejected,
-            previous_state: lifecycle_state,
-            current_state: lifecycle_state,
-            started_at: DashboardValue::unknown(),
-            finished_at: DashboardValue::unknown(),
-            error_code: DashboardValue::available("unsupported_v03_local_mvp".to_string()),
-            message: DashboardValue::available(
-                "dashboard start/stop controls are API placeholders in V03-005".to_string(),
-            ),
-            observability_ref: DashboardValue::not_supported(),
-        }),
-    ))
+    let started_at = generated_at_now();
+    let snapshot = load_dashboard_snapshot(&state.registry_path)?;
+    let Some(node) = snapshot.nodes.iter().find(|node| node.node_id == node_id) else {
+        return Ok((
+            StatusCode::NOT_FOUND,
+            Json(action_response(
+                action,
+                node_id,
+                ControlActionStatus::Rejected,
+                LifecycleStatus::Unknown,
+                LifecycleStatus::Unknown,
+                started_at,
+                DashboardValue::available("node_not_found".to_string()),
+                DashboardValue::available(
+                    "node was not found in local supervisor registry".to_string(),
+                ),
+            )),
+        ));
+    };
+    let previous_state = node.lifecycle_state;
+
+    match action {
+        "start" if previous_state != LifecycleStatus::Stopped => Ok((
+            StatusCode::CONFLICT,
+            Json(action_response(
+                action,
+                node_id,
+                ControlActionStatus::Rejected,
+                previous_state,
+                previous_state,
+                started_at,
+                DashboardValue::available("invalid_lifecycle_state".to_string()),
+                DashboardValue::available("start is only available for stopped nodes".to_string()),
+            )),
+        )),
+        "stop" if previous_state != LifecycleStatus::Running => Ok((
+            StatusCode::CONFLICT,
+            Json(action_response(
+                action,
+                node_id,
+                ControlActionStatus::Rejected,
+                previous_state,
+                previous_state,
+                started_at,
+                DashboardValue::available("invalid_lifecycle_state".to_string()),
+                DashboardValue::available("stop is only available for running nodes".to_string()),
+            )),
+        )),
+        "start" => run_start_action(state, node_id, previous_state, started_at),
+        "stop" => run_stop_action(state, node_id, previous_state, started_at),
+        _ => Ok((
+            StatusCode::NOT_IMPLEMENTED,
+            Json(action_response(
+                action,
+                node_id,
+                ControlActionStatus::Rejected,
+                previous_state,
+                previous_state,
+                started_at,
+                DashboardValue::available("unsupported_control_action".to_string()),
+                DashboardValue::available("control action is not supported in v0.3".to_string()),
+            )),
+        )),
+    }
+}
+
+fn run_start_action(
+    state: &DashboardServerState,
+    node_id: &str,
+    previous_state: LifecycleStatus,
+    started_at: String,
+) -> ApiStatusResult<ControlActionResponse> {
+    let store = SupervisorRegistryStore::new(state.registry_path.clone());
+    let result = store.start_node_process(&StartNodeRequest {
+        node_id: node_id.to_string(),
+        ntpro_node_bin: state.ntpro_node_bin.clone(),
+        startup_timeout: Duration::from_millis(DASHBOARD_ACTION_TIMEOUT_MS),
+    });
+    match result {
+        Ok(record) => Ok((
+            StatusCode::OK,
+            Json(action_response(
+                "start",
+                node_id,
+                ControlActionStatus::Succeeded,
+                previous_state,
+                record.last_known_status.lifecycle_state,
+                started_at,
+                DashboardValue::unknown(),
+                DashboardValue::available("start completed through local supervisor".to_string()),
+            )),
+        )),
+        Err(error) => Ok((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(action_response(
+                "start",
+                node_id,
+                ControlActionStatus::Failed,
+                previous_state,
+                previous_state,
+                started_at,
+                DashboardValue::available(control_error_code(&error)),
+                DashboardValue::available("start failed; details are redacted".to_string()),
+            )),
+        )),
+    }
+}
+
+fn run_stop_action(
+    state: &DashboardServerState,
+    node_id: &str,
+    previous_state: LifecycleStatus,
+    started_at: String,
+) -> ApiStatusResult<ControlActionResponse> {
+    let store = SupervisorRegistryStore::new(state.registry_path.clone());
+    let result = store.stop_node_process(StopNodeRequest {
+        node_id: node_id.to_string(),
+        stop_timeout: Duration::from_millis(DASHBOARD_ACTION_TIMEOUT_MS),
+    });
+    match result {
+        Ok(record) => Ok((
+            StatusCode::OK,
+            Json(action_response(
+                "stop",
+                node_id,
+                ControlActionStatus::Succeeded,
+                previous_state,
+                record.last_known_status.lifecycle_state,
+                started_at,
+                DashboardValue::unknown(),
+                DashboardValue::available("stop completed through local supervisor".to_string()),
+            )),
+        )),
+        Err(error) => Ok((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(action_response(
+                "stop",
+                node_id,
+                ControlActionStatus::Failed,
+                previous_state,
+                previous_state,
+                started_at,
+                DashboardValue::available(control_error_code(&error)),
+                DashboardValue::available("stop failed; details are redacted".to_string()),
+            )),
+        )),
+    }
+}
+
+fn action_response(
+    action: &str,
+    node_id: &str,
+    status: ControlActionStatus,
+    previous_state: LifecycleStatus,
+    current_state: LifecycleStatus,
+    started_at: String,
+    error_code: DashboardValue<String>,
+    message: DashboardValue<String>,
+) -> ControlActionResponse {
+    let finished_at = generated_at_now();
+    ControlActionResponse {
+        action_id: format!("{action}:{node_id}:{started_at}"),
+        action: format!("{action}:{node_id}"),
+        status,
+        previous_state,
+        current_state,
+        started_at: DashboardValue::available(started_at),
+        finished_at: DashboardValue::available(finished_at),
+        error_code,
+        message,
+        observability_ref: DashboardValue::available(format!("registry:{node_id}")),
+    }
+}
+
+fn control_error_code(error: &anyhow::Error) -> String {
+    let message = error.to_string();
+    if message.contains("already running") || message.contains("not running") {
+        "invalid_lifecycle_state".to_string()
+    } else if message.contains("ntpro-node binary") {
+        "ntpro_node_binary_unavailable".to_string()
+    } else if message.contains("timed out") {
+        "lifecycle_timeout".to_string()
+    } else if message.contains("not registered") {
+        "node_not_found".to_string()
+    } else {
+        "supervisor_action_failed".to_string()
+    }
 }
 
 fn load_dashboard_snapshot(registry_path: &FsPath) -> SnapshotLoadResult {
@@ -1332,6 +1583,7 @@ pub fn snapshot_from_supervisor_artifacts(
         } = runtime_modules_from_status(record, &status);
         gaps.extend(module_gaps);
         let mut node = DashboardNodeSummary::from_status(&status);
+        node.node_id = record.node_id.clone();
         node.process_state = record.process.state;
         node.pid = record.process.pid.clone();
         node.gaps = gaps.clone();
@@ -1916,16 +2168,18 @@ fn aggregate_risk_status(statuses: &[NodeStatus]) -> RiskStatus {
 }
 
 fn control_statuses_from_nodes(nodes: &[DashboardNodeSummary]) -> Vec<ControlStatus> {
-    let mut controls = Vec::with_capacity(nodes.len() * 2);
+    let mut controls = Vec::with_capacity(nodes.len() * 6);
     for node in nodes {
         controls.push(ControlStatus {
             action: format!("start:{}", node.node_id),
             availability: DashboardAvailability::Available,
-            enabled: node.lifecycle_state != LifecycleStatus::Running,
+            enabled: node.lifecycle_state == LifecycleStatus::Stopped,
             reason: if node.lifecycle_state == LifecycleStatus::Running {
                 DashboardValue::available("node is already running".to_string())
-            } else {
+            } else if node.lifecycle_state == LifecycleStatus::Stopped {
                 DashboardValue::available("node can be started by supervisor control".to_string())
+            } else {
+                DashboardValue::available("node is not stopped".to_string())
             },
         });
         controls.push(ControlStatus {
@@ -1938,6 +2192,31 @@ fn control_statuses_from_nodes(nodes: &[DashboardNodeSummary]) -> Vec<ControlSta
                 DashboardValue::available("node is not running".to_string())
             },
         });
+        for (action, reason) in [
+            (
+                "pause",
+                "pause is not supported by the v0.3 local dashboard MVP",
+            ),
+            (
+                "resume",
+                "resume is not supported by the v0.3 local dashboard MVP",
+            ),
+            (
+                "reconnect_data",
+                "data reconnect is not supported by the v0.3 local dashboard MVP",
+            ),
+            (
+                "reconnect_execution",
+                "execution reconnect is not supported by the v0.3 local dashboard MVP",
+            ),
+        ] {
+            controls.push(ControlStatus {
+                action: format!("{action}:{}", node.node_id),
+                availability: DashboardAvailability::NotSupported,
+                enabled: false,
+                reason: DashboardValue::available(reason.to_string()),
+            });
+        }
     }
     controls
 }
@@ -2089,19 +2368,22 @@ mod tests {
     use std::{
         fs,
         net::SocketAddr,
-        path::PathBuf,
+        path::{Path, PathBuf},
         time::{SystemTime, UNIX_EPOCH},
     };
 
     use crate::supervisor::{
-        NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, RegistryArtifactState,
-        SupervisorNodeRecord, SupervisorProcessState, SupervisorRegistry,
-        write_node_metrics_artifact,
+        NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, RegisterNodeRequest,
+        RegistryArtifactState, SupervisorNodeRecord, SupervisorProcessState, SupervisorRegistry,
+        SupervisorRegistryStore, write_node_metrics_artifact,
     };
     use serde_json::{Value, json};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use super::*;
+
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
 
     #[test]
     fn empty_snapshot_serializes_stable_top_level_sections() {
@@ -2140,6 +2422,8 @@ mod tests {
             "execution-gateways",
             "risk",
             "runtime-modules",
+            "controls",
+            "control-result",
         ] {
             assert!(
                 DASHBOARD_HTML.contains(mount_id),
@@ -2152,11 +2436,13 @@ mod tests {
             "renderExecutionGateways",
             "renderRisk",
             "renderRuntimeModules",
+            "renderControls",
             "redactedDashboardValue",
             "dashboardErrorValue",
             "No data sources reported",
             "No execution gateways reported",
             "No runtime modules reported",
+            "No controls reported",
         ] {
             assert!(
                 DASHBOARD_JS.contains(js_symbol),
@@ -2425,7 +2711,8 @@ mod tests {
         let root = temp_root("one-node");
         let registry_path = root.join("registry.json");
         let mut record = node_record(&root, "sandbox-a");
-        let status = node_status_for_record(&record, LifecycleStatus::Running);
+        let mut status = node_status_for_record(&record, LifecycleStatus::Running);
+        status.node_id = "LiveInitSmoke".to_string();
         write_status_artifact(&record, &status);
         write_metrics_artifact(&record, &status);
         write_log_artifacts(&record);
@@ -2479,6 +2766,22 @@ mod tests {
                 && module.status.availability == DashboardAvailability::Available
         }));
         assert_eq!(snapshot.runtime_modules.len(), 11);
+        assert_eq!(snapshot.controls.len(), 6);
+        assert!(snapshot.controls.iter().any(|control| {
+            control.action == "start:sandbox-a"
+                && !control.enabled
+                && control.availability == DashboardAvailability::Available
+        }));
+        assert!(snapshot.controls.iter().any(|control| {
+            control.action == "stop:sandbox-a"
+                && control.enabled
+                && control.availability == DashboardAvailability::Available
+        }));
+        assert!(snapshot.controls.iter().any(|control| {
+            control.action == "reconnect_execution:sandbox-a"
+                && !control.enabled
+                && control.availability == DashboardAvailability::NotSupported
+        }));
         assert!(snapshot.gaps.iter().any(|gap| {
             gap.field_path == "runtime_modules.sandbox-a.nautiluskernel"
                 && gap.reason == DashboardAvailability::NotSupported
@@ -2486,7 +2789,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn dashboard_http_server_serves_shell_snapshot_and_unsupported_actions() {
+    async fn dashboard_http_server_serves_shell_snapshot_and_rejects_invalid_action_state() {
         let root = temp_root("http-server");
         let registry_path = root.join("registry.json");
         let mut record = node_record(&root, "sandbox-a");
@@ -2500,8 +2803,9 @@ mod tests {
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
+        let ntpro_node_bin = root.join("ntpro-node-missing");
         let server = tokio::spawn(async move {
-            axum::serve(listener, dashboard_router(registry_path))
+            axum::serve(listener, dashboard_router(registry_path, ntpro_node_bin))
                 .await
                 .unwrap();
         });
@@ -2580,13 +2884,96 @@ mod tests {
         );
 
         let action = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/start").await;
-        assert!(action.contains("HTTP/1.1 501 Not Implemented"));
+        assert!(action.contains("HTTP/1.1 409 Conflict"));
         let action_body = response_body(&action);
         let action_value: Value = serde_json::from_str(action_body).unwrap();
         assert_eq!(action_value["status"], "rejected");
         assert_eq!(
             action_value["error_code"],
-            json!({"availability": "available", "value": "unsupported_v03_local_mvp"})
+            json!({"availability": "available", "value": "invalid_lifecycle_state"})
+        );
+
+        server.abort();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn dashboard_http_server_starts_and_stops_fixture_node() {
+        let root = temp_root("http-control");
+        let registry_path = root.join("registry.json");
+        let config = write_config(&root, "sandbox-a");
+        let fixture = write_fixture_node(&root);
+        let store = SupervisorRegistryStore::new(registry_path.clone());
+        store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: Some(root.join("nodes").join("sandbox-a")),
+            })
+            .unwrap();
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            axum::serve(listener, dashboard_router(registry_path, fixture))
+                .await
+                .unwrap();
+        });
+
+        let before = http_request(addr, "GET", "/api/snapshot").await;
+        let before_value: Value = serde_json::from_str(response_body(&before)).unwrap();
+        assert!(
+            before_value["controls"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|control| control["action"] == "start:sandbox-a"
+                    && control["enabled"] == true)
+        );
+
+        let started = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/start").await;
+        assert!(started.contains("HTTP/1.1 200 OK"));
+        let started_value: Value = serde_json::from_str(response_body(&started)).unwrap();
+        assert_eq!(started_value["status"], "succeeded");
+        assert_eq!(started_value["previous_state"], "stopped");
+        assert_eq!(started_value["current_state"], "running");
+        assert_eq!(
+            started_value["error_code"],
+            json!({"availability": "unknown"})
+        );
+
+        let running = http_request(addr, "GET", "/api/snapshot").await;
+        let running_value: Value = serde_json::from_str(response_body(&running)).unwrap();
+        assert_eq!(running_value["overview"]["running_nodes"], 1);
+        assert!(
+            running_value["controls"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|control| control["action"] == "stop:sandbox-a" && control["enabled"] == true)
+        );
+
+        let stopped = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/stop").await;
+        assert!(stopped.contains("HTTP/1.1 200 OK"));
+        let stopped_value: Value = serde_json::from_str(response_body(&stopped)).unwrap();
+        assert_eq!(stopped_value["status"], "succeeded");
+        assert_eq!(stopped_value["previous_state"], "running");
+        assert_eq!(stopped_value["current_state"], "stopped");
+        assert_eq!(
+            stopped_value["error_code"],
+            json!({"availability": "unknown"})
+        );
+
+        let after = http_request(addr, "GET", "/api/snapshot").await;
+        let after_value: Value = serde_json::from_str(response_body(&after)).unwrap();
+        assert_eq!(after_value["overview"]["stopped_nodes"], 1);
+        assert!(
+            after_value["controls"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|control| control["action"] == "start:sandbox-a"
+                    && control["enabled"] == true)
         );
 
         server.abort();
@@ -2767,6 +3154,12 @@ mod tests {
         root
     }
 
+    fn write_config(root: &Path, name: &str) -> PathBuf {
+        let path = root.join(format!("{name}.toml"));
+        fs::write(&path, "[run]\nid = \"dashboard-control-smoke\"\n").unwrap();
+        path
+    }
+
     fn node_record(root: &std::path::Path, node_id: &str) -> SupervisorNodeRecord {
         let config_path = root.join(format!("{node_id}.toml"));
         fs::write(&config_path, "environment = \"sandbox\"\n").unwrap();
@@ -2857,6 +3250,189 @@ mod tests {
 
     fn create_node_dirs(record: &SupervisorNodeRecord) {
         fs::create_dir_all(record.artifact_root.join("logs")).unwrap();
+    }
+
+    #[cfg(unix)]
+    fn write_fixture_node(root: &Path) -> PathBuf {
+        let path = root.join("fixture-ntpro-node.sh");
+        fs::write(
+            &path,
+            r#"#!/bin/sh
+set -eu
+node_id=""
+output=""
+stop_file=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --run-id) node_id="$2"; shift 2 ;;
+    --output) output="$2"; shift 2 ;;
+    --stop-file) stop_file="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+mkdir -p "$output/logs"
+echo "fixture stdout started node_id=$node_id"
+echo "fixture stderr initialized node_id=$node_id" >&2
+cat > "$output/logs/events.log" <<EOF
+phase=start status=ok node_id=$node_id
+EOF
+cat > "$output/status.json" <<EOF
+{
+  "schema_version": "ntpro.node_status.v1",
+  "node_id": "$node_id",
+  "process_mode": "spawned_process",
+  "config_path": {"availability": "available", "value": "fixture.toml"},
+  "artifact_root": {"availability": "available", "value": "$output"},
+  "lifecycle_state": "running",
+  "previous_lifecycle_state": "starting",
+  "data_connection": "not_configured",
+  "execution_connection": "disconnected",
+  "execution": {
+    "gateway_id": {"availability": "available", "value": "SANDBOX"},
+    "connection": "disconnected",
+    "started": {"availability": "available", "value": true},
+    "account_ref": {"availability": "available", "value": "configured"},
+    "orders_open": {"availability": "unknown"},
+    "orders_inflight": {"availability": "unknown"},
+    "orders_closed": {"availability": "unknown"},
+    "last_report_at": {"availability": "unknown"},
+    "last_reconciliation_at": {"availability": "unknown"},
+    "last_error": null
+  },
+  "risk": {
+    "trading_state": "unknown",
+    "health": "unknown",
+    "command_count": {"availability": "unknown"},
+    "event_count": {"availability": "unknown"},
+    "rejections_total": {"availability": "unknown"},
+    "last_rejection": null,
+    "last_error": null
+  },
+  "generated_at": {"availability": "unknown"},
+  "started_at": {"availability": "unknown"},
+  "stopped_at": {"availability": "unknown"},
+  "last_transition_at": {"availability": "unknown"},
+  "last_error": null,
+  "external_venue_connection": false,
+  "real_orders_submitted": false
+}
+EOF
+cat > "$output/metrics.json" <<EOF
+{
+  "schema_version": "ntpro.node_metrics.v1",
+  "node_id": "$node_id",
+  "lifecycle_state": "running",
+  "previous_lifecycle_state": "starting",
+  "process_mode": "spawned_process",
+  "uptime_ms": {"availability": "available", "value": 0},
+  "starts_total": 1,
+  "stops_total": 0,
+  "state_transitions_total": 1,
+  "connection_counts": {
+    "data_connected": 0,
+    "data_disconnected": 0,
+    "data_not_configured": 1,
+    "execution_connected": 0,
+    "execution_disconnected": 1,
+    "execution_not_configured": 0
+  },
+  "last_error_summary": null,
+  "generated_at": {"availability": "available", "value": "1"},
+  "started_at": {"availability": "available", "value": "1"},
+  "stopped_at": {"availability": "unknown"},
+  "status_artifact_path": {"availability": "available", "value": "$output/status.json"},
+  "stdout_log_path": {"availability": "available", "value": "$output/logs/stdout.log"},
+  "stderr_log_path": {"availability": "available", "value": "$output/logs/stderr.log"},
+  "events_log_path": {"availability": "available", "value": "$output/logs/events.log"},
+  "external_venue_connection": false,
+  "real_orders_submitted": false
+}
+EOF
+while [ ! -f "$stop_file" ]; do
+  sleep 0.05
+done
+cat >> "$output/logs/events.log" <<EOF
+phase=stop status=ok node_id=$node_id
+EOF
+cat > "$output/status.json" <<EOF
+{
+  "schema_version": "ntpro.node_status.v1",
+  "node_id": "$node_id",
+  "process_mode": "spawned_process",
+  "config_path": {"availability": "available", "value": "fixture.toml"},
+  "artifact_root": {"availability": "available", "value": "$output"},
+  "lifecycle_state": "stopped",
+  "previous_lifecycle_state": "running",
+  "data_connection": "not_configured",
+  "execution_connection": "disconnected",
+  "execution": {
+    "gateway_id": {"availability": "available", "value": "SANDBOX"},
+    "connection": "disconnected",
+    "started": {"availability": "available", "value": false},
+    "account_ref": {"availability": "available", "value": "configured"},
+    "orders_open": {"availability": "unknown"},
+    "orders_inflight": {"availability": "unknown"},
+    "orders_closed": {"availability": "unknown"},
+    "last_report_at": {"availability": "unknown"},
+    "last_reconciliation_at": {"availability": "unknown"},
+    "last_error": null
+  },
+  "risk": {
+    "trading_state": "unknown",
+    "health": "unknown",
+    "command_count": {"availability": "unknown"},
+    "event_count": {"availability": "unknown"},
+    "rejections_total": {"availability": "unknown"},
+    "last_rejection": null,
+    "last_error": null
+  },
+  "generated_at": {"availability": "unknown"},
+  "started_at": {"availability": "unknown"},
+  "stopped_at": {"availability": "unknown"},
+  "last_transition_at": {"availability": "unknown"},
+  "last_error": null,
+  "external_venue_connection": false,
+  "real_orders_submitted": false
+}
+EOF
+cat > "$output/metrics.json" <<EOF
+{
+  "schema_version": "ntpro.node_metrics.v1",
+  "node_id": "$node_id",
+  "lifecycle_state": "stopped",
+  "previous_lifecycle_state": "running",
+  "process_mode": "spawned_process",
+  "uptime_ms": {"availability": "available", "value": 1},
+  "starts_total": 1,
+  "stops_total": 1,
+  "state_transitions_total": 2,
+  "connection_counts": {
+    "data_connected": 0,
+    "data_disconnected": 0,
+    "data_not_configured": 1,
+    "execution_connected": 0,
+    "execution_disconnected": 1,
+    "execution_not_configured": 0
+  },
+  "last_error_summary": null,
+  "generated_at": {"availability": "available", "value": "2"},
+  "started_at": {"availability": "available", "value": "1"},
+  "stopped_at": {"availability": "available", "value": "2"},
+  "status_artifact_path": {"availability": "available", "value": "$output/status.json"},
+  "stdout_log_path": {"availability": "available", "value": "$output/logs/stdout.log"},
+  "stderr_log_path": {"availability": "available", "value": "$output/logs/stderr.log"},
+  "events_log_path": {"availability": "available", "value": "$output/logs/events.log"},
+  "external_venue_connection": false,
+  "real_orders_submitted": false
+}
+EOF
+"#,
+        )
+        .unwrap();
+        let mut perms = fs::metadata(&path).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&path, perms).unwrap();
+        path
     }
 
     async fn http_request(addr: SocketAddr, method: &str, path: &str) -> String {
