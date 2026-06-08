@@ -10,8 +10,11 @@
     "crates/cli/src/dashboard.rs"
   ],
   "claimed_at": "2026-06-07T15:37:02.517266+00:00",
-  "status": "PR_OPEN",
-  "updated_at": "2026-06-07T15:54:42Z",
+  "status": "DONE",
+  "updated_at": "2026-06-08T13:12:22Z",
   "pr_number": 216,
-  "pr_url": "https://github.com/atxinbao/NTPRO/pull/216"
+  "pr_url": "https://github.com/atxinbao/NTPRO/pull/216",
+  "merged_pr_number": 216,
+  "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/216",
+  "merge_commit": "74f4b2caeaf9459591525e6280c7b9b1582b6161"
 }
