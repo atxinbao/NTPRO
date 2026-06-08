@@ -3360,7 +3360,7 @@
     },
     "V03-010": {
       "title": "Dashboard smoke and v0.3 readiness report",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -3371,11 +3371,14 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-010.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-010.md",
-      "updated_at": "2026-06-08T13:31:46Z",
+      "updated_at": "2026-06-08T13:41:50Z",
       "branch": "codex/V03-010-dashboard-smoke-readiness",
       "pr_number": 229,
-      "pr_url": "https://github.com/atxinbao/NTPRO/pull/229"
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/229",
+      "merged_pr_number": 229,
+      "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/229",
+      "merge_commit": "9b39b83e37f7547ebb6d210aa17973372a4a2b7e"
     }
   },
-  "updated_at": "2026-06-08T13:31:46Z"
+  "updated_at": "2026-06-08T13:41:50Z"
 }
