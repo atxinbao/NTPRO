@@ -14,6 +14,11 @@
     ".agentflow/leases/V03-005.json"
   ],
   "claimed_at": "2026-06-07T18:18:10.800928+00:00",
-  "status": "QA_REQUIRED",
-  "updated_at": "2026-06-07T18:39:34Z"
+  "status": "DONE",
+  "updated_at": "2026-06-08T13:12:22Z",
+  "pr_number": 223,
+  "pr_url": "https://github.com/atxinbao/NTPRO/pull/223",
+  "merged_pr_number": 223,
+  "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/223",
+  "merge_commit": "8565ef7821f73b5ce3f9980433a6d105d199c11e"
 }

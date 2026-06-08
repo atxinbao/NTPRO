@@ -95,6 +95,10 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
       <div id="runtime-modules" class="table-wrap"></div>
     </section>
     <section class="band">
+      <h2>Logs / Metrics</h2>
+      <div id="logs-metrics" class="table-wrap"></div>
+    </section>
+    <section class="band">
       <h2>Alerts</h2>
       <div id="alerts" class="list"></div>
     </section>
@@ -117,6 +121,12 @@ const DASHBOARD_CSS: &str = r#":root {
 
 body {
   margin: 0;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 .topbar {
@@ -257,13 +267,25 @@ td {
 }
 
 @media (max-width: 720px) {
+  main {
+    width: min(100%, calc(100vw - 24px));
+    margin-top: 18px;
+  }
+
   .topbar {
     align-items: flex-start;
-    padding: 24px 32px;
+    flex-direction: column;
+    padding: 20px 16px;
   }
 
   .topbar h1 {
-    font-size: 28px;
+    font-size: 24px;
+  }
+
+  .topbar button,
+  td button {
+    max-width: 100%;
+    white-space: normal;
   }
 
   .table-wrap {
@@ -435,6 +457,7 @@ function render(payload) {
   renderExecutionGateways(snapshot.execution_gateways || []);
   renderRisk(snapshot.risk || {});
   renderRuntimeModules(snapshot.runtime_modules || []);
+  renderLogsMetrics(snapshot.logs || [], snapshot.metrics || []);
   renderControls(snapshot.controls || []);
 
   document.getElementById("alerts").innerHTML = ((snapshot.alerts || {}).active || []).map((alert) =>
@@ -596,6 +619,56 @@ function renderRuntimeModules(modules) {
         `).join("")}
       </tbody>
     </table>` : emptyTable("No runtime modules reported");
+}
+
+function renderLogsMetrics(logs, metrics) {
+  const rows = [
+    ...logs.map((log) => ({
+      kind: "log",
+      id: log.log_id,
+      node: snapshotValue(log.node_id),
+      path: snapshotValue(log.path),
+      availability: log.availability,
+      value: snapshotValue(log.last_seen_at),
+      lastError: dashboardErrorValue(log.last_error),
+    })),
+    ...metrics.map((metric) => ({
+      kind: "metric",
+      id: metric.metric_id,
+      node: snapshotValue(metric.node_id),
+      path: "metric artifact",
+      availability: metric.availability,
+      value: snapshotValue(metric.value),
+      lastError: dashboardErrorValue(metric.last_error),
+    })),
+  ];
+  document.getElementById("logs-metrics").innerHTML = rows.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>Kind</th>
+          <th>ID</th>
+          <th>Node</th>
+          <th>Evidence</th>
+          <th>Availability</th>
+          <th>Value / Seen</th>
+          <th>Last Error</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((row) => `
+          <tr>
+            <td data-label="Kind">${text(row.kind)}</td>
+            <td data-label="ID"><strong>${text(row.id)}</strong></td>
+            <td data-label="Node">${text(row.node)}</td>
+            <td data-label="Evidence" class="path">${text(row.path)}</td>
+            <td data-label="Availability">${text(row.availability)}</td>
+            <td data-label="Value / Seen">${text(row.value)}</td>
+            <td data-label="Last Error">${text(row.lastError)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>` : emptyTable("No logs or metrics reported");
 }
 
 async function refresh() {
@@ -2422,6 +2495,7 @@ mod tests {
             "execution-gateways",
             "risk",
             "runtime-modules",
+            "logs-metrics",
             "controls",
             "control-result",
         ] {
@@ -2436,12 +2510,14 @@ mod tests {
             "renderExecutionGateways",
             "renderRisk",
             "renderRuntimeModules",
+            "renderLogsMetrics",
             "renderControls",
             "redactedDashboardValue",
             "dashboardErrorValue",
             "No data sources reported",
             "No execution gateways reported",
             "No runtime modules reported",
+            "No logs or metrics reported",
             "No controls reported",
         ] {
             assert!(

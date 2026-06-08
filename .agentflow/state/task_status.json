@@ -3220,7 +3220,7 @@
     },
     "V03-003": {
       "title": "Status detail DTOs",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3231,13 +3231,16 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-003.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-003.md",
-      "updated_at": "2026-06-07T15:54:42Z",
+      "updated_at": "2026-06-08T13:12:22Z",
       "pr_number": 216,
-      "pr_url": "https://github.com/atxinbao/NTPRO/pull/216"
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/216",
+      "merged_pr_number": 216,
+      "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/216",
+      "merge_commit": "74f4b2caeaf9459591525e6280c7b9b1582b6161"
     },
     "V03-004": {
       "title": "Supervisor artifacts to DashboardSnapshot aggregator",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3248,11 +3251,16 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-004.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-004.md",
-      "updated_at": "2026-06-07T18:09:38Z"
+      "updated_at": "2026-06-08T13:12:22Z",
+      "pr_number": 222,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/222",
+      "merged_pr_number": 222,
+      "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/222",
+      "merge_commit": "b70a5737a026d178c35f794d50928e16ad57aa0a"
     },
     "V03-005": {
       "title": "Local dashboard HTTP server",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3263,11 +3271,16 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-005.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-005.md",
-      "updated_at": "2026-06-07T18:39:34Z"
+      "updated_at": "2026-06-08T13:12:22Z",
+      "pr_number": 223,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/223",
+      "merged_pr_number": 223,
+      "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/223",
+      "merge_commit": "8565ef7821f73b5ce3f9980433a6d105d199c11e"
     },
     "V03-006": {
       "title": "Overview and Nodes UI",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3278,11 +3291,16 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-006.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-006.md",
-      "updated_at": "2026-06-07T19:03:18Z"
+      "updated_at": "2026-06-08T13:12:22Z",
+      "pr_number": 224,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/224",
+      "merged_pr_number": 224,
+      "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/224",
+      "merge_commit": "17fa2895f34a8b96437bebd57567da942bac09cc"
     },
     "V03-007": {
       "title": "Data source / execution / risk panels",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3293,11 +3311,16 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-007.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-007.md",
-      "updated_at": "2026-06-07T19:22:18Z"
+      "updated_at": "2026-06-08T13:12:22Z",
+      "pr_number": 225,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/225",
+      "merged_pr_number": 225,
+      "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/225",
+      "merge_commit": "eb7cd4f4ddea3ff982760fa0215cbe90dad74ad6"
     },
     "V03-008": {
       "title": "Runtime modules diagnostic panel",
-      "status": "QA_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3308,11 +3331,16 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-008.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-008.md",
-      "updated_at": "2026-06-07T19:43:16Z"
+      "updated_at": "2026-06-08T13:12:22Z",
+      "pr_number": 226,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/226",
+      "merged_pr_number": 226,
+      "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/226",
+      "merge_commit": "82e3c7147b9f0b7559452e28eccc19c700e0b05a"
     },
     "V03-009": {
       "title": "Dashboard start/stop controls",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -3323,11 +3351,16 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-009.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-009.md",
-      "updated_at": "2026-06-07T20:31:20Z"
+      "updated_at": "2026-06-08T13:12:22Z",
+      "pr_number": 228,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/228",
+      "merged_pr_number": 228,
+      "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/228",
+      "merge_commit": "60bb42093972724d754e6b41d510a9199ca0a312"
     },
     "V03-010": {
       "title": "Dashboard smoke and v0.3 readiness report",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -3338,8 +3371,11 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/V03-010.md",
       "evidence_file": "docs/rust-cutover/evidence/V03-010.md",
-      "updated_at": "2026-06-07T14:02:23Z"
+      "updated_at": "2026-06-08T13:31:46Z",
+      "branch": "codex/V03-010-dashboard-smoke-readiness",
+      "pr_number": 229,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/229"
     }
   },
-  "updated_at": "2026-06-06T13:23:13Z"
+  "updated_at": "2026-06-08T13:31:46Z"
 }
