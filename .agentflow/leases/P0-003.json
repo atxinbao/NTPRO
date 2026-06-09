@@ -9,6 +9,8 @@
     ".github/workflows/security-audit.yml",
     ".github/workflows/release-tag.yml",
     ".github/workflows/build.yml",
+    "deny.toml",
+    "osv-scanner.toml",
     ".agentflow/state/task_status.json",
     ".agentflow/leases/P0-003.json"
   ],
