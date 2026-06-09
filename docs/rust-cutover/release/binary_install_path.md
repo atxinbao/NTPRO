@@ -29,14 +29,14 @@ cargo run -p nautilus-cli -- --help
 For a fixed release source point, clone the release tag:
 
 ```bash
-git clone --branch ntpro-rust-only-v0.1.0 --depth 1 https://github.com/atxinbao/NTPRO.git
+git clone --branch ntpro-rust-only-v0.2.0 --depth 1 https://github.com/atxinbao/NTPRO.git
 cd NTPRO
 rustup toolchain install 1.95.0
 rustup override set 1.95.0
 cargo run -p nautilus-cli -- --help
 ```
 
-Active v0.2.0 development uses `main`.
+Active development after the v0.2.0 source release uses `main`.
 
 ### Local Cargo Install
 

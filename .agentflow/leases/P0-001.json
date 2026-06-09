@@ -1,0 +1,21 @@
+{
+  "task_id": "P0-001",
+  "agent_id": "Codex",
+  "branch": "codex/P0-001-public-surface-cleanup",
+  "touched_paths": [
+    "README.md",
+    "docs/rust-cutover/release/v0_2_0_release_notes.md",
+    "docs/rust-cutover/release/v0_2_0_known_limits.md",
+    "crates/cli/src/opt.rs",
+    "crates/cli/src/lib.rs",
+    "docs/rust-cutover/evidence/P0-001.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/P0-001.json",
+    "/Users/mac/.codex/shrimp-data/NTPRO/tasks.json"
+  ],
+  "claimed_at": "2026-06-09T12:42:32Z",
+  "status": "PR_OPEN",
+  "updated_at": "2026-06-09T12:50:20Z",
+  "pr_number": 231,
+  "pr_url": "https://github.com/atxinbao/NTPRO/pull/231"
+}

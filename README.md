@@ -6,14 +6,16 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-ntpro-rust-only-v0.1.0
+Current source tag: ntpro-rust-only-v0.2.0
+Capability: Local Multi-Node Runtime Foundation
 ```
 
-This tag is the first Rust-only formal release source point after the RC3
-validation path. It is published as the current GitHub Release:
+This tag is the current v0.2.0 source release point for the local multi-node
+runtime foundation. It is published as a GitHub Release for the tagged source
+tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.1.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.2.0
 ```
 
 ## Current Status
@@ -88,6 +90,23 @@ The current binary name is `nautilus`, provided by the `nautilus-cli` package.
 NTPRO does not currently publish prebuilt binaries, Python wheels, PyPI
 packages, or Docker images as product delivery paths.
 
+## v0.2.0 Capability Boundary
+
+v0.2.0 is a local-only runtime foundation. It supports source-build Rust CLI
+workflows for local sandbox node registration, local `ntpro-node` process
+startup and shutdown, status/log/metrics inspection, and two-node local smoke
+evidence.
+
+Not included in the v0.2.0 product claim:
+
+- Dashboard release scope.
+- Production exchange connectivity.
+- Real account connectivity.
+- Real order submission.
+- Manual order entry.
+- Distributed multi-server deployment.
+- Prebuilt binary or Docker release artifact delivery.
+
 ## Verification
 
 Fast local validation:
@@ -132,6 +151,9 @@ Core cutover documents:
 
 Release documents:
 
+- `docs/rust-cutover/release/v0_2_0_release_notes.md`
+- `docs/rust-cutover/release/v0_2_0_known_limits.md`
+- `docs/rust-cutover/release/v0_2_local_multi_node_readiness_report.md`
 - `docs/rust-cutover/release/rust_only_release_notes.md`
 - `docs/rust-cutover/release/final_release_verification.md`
 - `docs/rust-cutover/release/final_completion_report.md`
@@ -160,8 +182,9 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.1.0` is the current formal Rust-only release. The previous
-pre-release source point is `ntpro-rust-only-rc.3`.
+`ntpro-rust-only-v0.2.0` is the current Rust-only source release for the Local
+Multi-Node Runtime Foundation. `ntpro-rust-only-v0.1.0` remains the first formal
+Rust-only cutover release and historical baseline.
 
 Before cutting a later release, review:
 

@@ -17,7 +17,7 @@ use std::{net::SocketAddr, path::PathBuf};
 
 use clap::{Parser, ValueEnum};
 
-/// Command-line interface for NautilusTrader.
+/// Command-line interface for NTPRO.
 #[derive(Debug, Parser)]
 #[clap(version, about, author)]
 pub struct NautilusCli {
@@ -25,7 +25,7 @@ pub struct NautilusCli {
     pub command: Commands,
 }
 
-/// Available top-level commands for the NautilusTrader CLI.
+/// Available top-level commands for the NTPRO CLI.
 #[derive(Parser, Debug)]
 pub enum Commands {
     Backtest(BacktestOpt),
@@ -123,21 +123,27 @@ pub struct SandboxRunOpt {
     pub output: Option<PathBuf>,
 }
 
-/// Live trading operations and validation commands.
+/// Local sandbox LiveNode validation and smoke commands.
 #[derive(Parser, Debug)]
-#[command(about = "Live trading operations", long_about = None)]
+#[command(
+    about = "Local sandbox LiveNode smoke commands (no production venue access)",
+    long_about = None
+)]
 pub struct LiveOpt {
     #[clap(subcommand)]
     pub command: LiveCommand,
 }
 
-/// Available live commands.
+/// Available local sandbox live commands.
 #[derive(Parser, Debug, Clone)]
-#[command(about = "Live trading operations", long_about = None)]
+#[command(
+    about = "Local sandbox LiveNode smoke commands (no production venue access)",
+    long_about = None
+)]
 pub enum LiveCommand {
     /// Validates the Rust live-init smoke config.
     Validate(LiveValidateOpt),
-    /// Runs a sandbox LiveNode start/stop smoke path without external venue access.
+    /// Runs a local sandbox LiveNode start/stop smoke path without external venue access or real orders.
     Run(LiveRunOpt),
 }
 
@@ -163,9 +169,12 @@ pub struct LiveRunOpt {
     pub output: Option<PathBuf>,
 }
 
-/// Local supervisor artifact and process controls.
+/// Local supervisor controls for sandbox-only node artifacts and processes.
 #[derive(Parser, Debug)]
-#[command(about = "Local supervisor controls", long_about = None)]
+#[command(
+    about = "Local supervisor controls for sandbox-only ntpro-node processes",
+    long_about = None
+)]
 pub struct SupervisorOpt {
     #[clap(subcommand)]
     pub command: SupervisorCommand,
@@ -173,13 +182,16 @@ pub struct SupervisorOpt {
 
 /// Available local supervisor commands.
 #[derive(Parser, Debug, Clone)]
-#[command(about = "Local supervisor controls", long_about = None)]
+#[command(
+    about = "Local supervisor controls for sandbox-only ntpro-node processes",
+    long_about = None
+)]
 pub enum SupervisorCommand {
     /// Registers or replaces a local sandbox node record.
     Register(SupervisorRegisterOpt),
     /// Lists registered local nodes.
     List(SupervisorListOpt),
-    /// Starts a registered local ntpro-node process.
+    /// Starts a registered local sandbox-only ntpro-node process.
     Start(SupervisorStartOpt),
     /// Stops a registered local ntpro-node process.
     Stop(SupervisorStopOpt),
@@ -749,6 +761,7 @@ mod tests {
         assert!(validate_help.contains("live-init smoke config"));
         assert!(run_help.contains("LiveNode start/stop smoke path"));
         assert!(run_help.contains("without external venue access"));
+        assert!(run_help.contains("real orders"));
     }
 
     #[test]
@@ -779,7 +792,8 @@ mod tests {
     fn supervisor_help_describes_local_boundary() {
         let help = render_subcommand_help(&["supervisor", "start"]);
 
-        assert!(help.contains("registered local ntpro-node process"));
+        assert!(help.contains("registered local sandbox-only ntpro-node process"));
+        assert!(help.contains("sandbox-only"));
         assert!(help.contains("--registry"));
         assert!(help.contains("--node-id"));
         assert!(help.contains("--ntpro-node-bin"));

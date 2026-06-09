@@ -15,9 +15,9 @@
 
 //! Command-line interface and tools for NTPRO.
 //!
-//! The `nautilus-cli` crate provides a command-line interface for managing and
-//! operating NTPRO workspaces. It includes tools for database management,
-//! system configuration, and operational utilities:
+//! The `nautilus-cli` crate provides a Rust command-line interface for managing
+//! local NTPRO workspaces. Its v0.2.0 product boundary is a local multi-node
+//! runtime foundation, not production live trading:
 //!
 //! - Database initialization and management commands.
 //! - PostgreSQL schema setup and maintenance.
@@ -26,11 +26,14 @@
 //!
 //! # NTPRO
 //!
-//! NTPRO is an open-source, production-grade, Rust-native
-//! engine for multi-asset, multi-venue trading systems.
+//! NTPRO is a Rust-only local runtime foundation for sandbox-first multi-node
+//! orchestration. The current public product claim covers local node
+//! registration, local `ntpro-node` process control, local status/log/metrics
+//! inspection, and sandbox smoke evidence.
 //!
-//! The system spans research, deterministic simulation, and live execution within a single
-//! event-driven architecture, providing research-to-live semantic parity.
+//! v0.2.0 does not claim production exchange connectivity, real account
+//! connectivity, real order submission, manual order entry, distributed
+//! deployment, or prebuilt release artifact delivery.
 //!
 //! # Feature Flags
 //!
