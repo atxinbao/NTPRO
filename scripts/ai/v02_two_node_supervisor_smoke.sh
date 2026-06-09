@@ -6,6 +6,12 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
+source scripts/ai/toolchain_env.sh
+
+if [[ "${NTPRO_RELEASE_GATE:-0}" == "1" && "${NTPRO_V02_009_SKIP_BUILD:-0}" == "1" ]]; then
+  echo "NTPRO_RELEASE_GATE=1 forbids NTPRO_V02_009_SKIP_BUILD=1" >&2
+  exit 1
+fi
 
 if [[ "${NTPRO_V02_009_SKIP_BUILD:-0}" != "1" ]]; then
   cargo build -p nautilus-cli --bin nautilus --bin ntpro-node

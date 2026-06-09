@@ -904,18 +904,18 @@ fn control_action_response(
     let Some(node) = snapshot.nodes.iter().find(|node| node.node_id == node_id) else {
         return Ok((
             StatusCode::NOT_FOUND,
-            Json(action_response(
+            Json(action_response(ControlActionResponseParts {
                 action,
                 node_id,
-                ControlActionStatus::Rejected,
-                LifecycleStatus::Unknown,
-                LifecycleStatus::Unknown,
+                status: ControlActionStatus::Rejected,
+                previous_state: LifecycleStatus::Unknown,
+                current_state: LifecycleStatus::Unknown,
                 started_at,
-                DashboardValue::available("node_not_found".to_string()),
-                DashboardValue::available(
+                error_code: DashboardValue::available("node_not_found".to_string()),
+                message: DashboardValue::available(
                     "node was not found in local supervisor registry".to_string(),
                 ),
-            )),
+            })),
         ));
     };
     let previous_state = node.lifecycle_state;
@@ -923,44 +923,50 @@ fn control_action_response(
     match action {
         "start" if previous_state != LifecycleStatus::Stopped => Ok((
             StatusCode::CONFLICT,
-            Json(action_response(
+            Json(action_response(ControlActionResponseParts {
                 action,
                 node_id,
-                ControlActionStatus::Rejected,
+                status: ControlActionStatus::Rejected,
                 previous_state,
-                previous_state,
+                current_state: previous_state,
                 started_at,
-                DashboardValue::available("invalid_lifecycle_state".to_string()),
-                DashboardValue::available("start is only available for stopped nodes".to_string()),
-            )),
+                error_code: DashboardValue::available("invalid_lifecycle_state".to_string()),
+                message: DashboardValue::available(
+                    "start is only available for stopped nodes".to_string(),
+                ),
+            })),
         )),
         "stop" if previous_state != LifecycleStatus::Running => Ok((
             StatusCode::CONFLICT,
-            Json(action_response(
+            Json(action_response(ControlActionResponseParts {
                 action,
                 node_id,
-                ControlActionStatus::Rejected,
+                status: ControlActionStatus::Rejected,
                 previous_state,
-                previous_state,
+                current_state: previous_state,
                 started_at,
-                DashboardValue::available("invalid_lifecycle_state".to_string()),
-                DashboardValue::available("stop is only available for running nodes".to_string()),
-            )),
+                error_code: DashboardValue::available("invalid_lifecycle_state".to_string()),
+                message: DashboardValue::available(
+                    "stop is only available for running nodes".to_string(),
+                ),
+            })),
         )),
-        "start" => run_start_action(state, node_id, previous_state, started_at),
-        "stop" => run_stop_action(state, node_id, previous_state, started_at),
+        "start" => Ok(run_start_action(state, node_id, previous_state, started_at)),
+        "stop" => Ok(run_stop_action(state, node_id, previous_state, started_at)),
         _ => Ok((
             StatusCode::NOT_IMPLEMENTED,
-            Json(action_response(
+            Json(action_response(ControlActionResponseParts {
                 action,
                 node_id,
-                ControlActionStatus::Rejected,
+                status: ControlActionStatus::Rejected,
                 previous_state,
-                previous_state,
+                current_state: previous_state,
                 started_at,
-                DashboardValue::available("unsupported_control_action".to_string()),
-                DashboardValue::available("control action is not supported in v0.3".to_string()),
-            )),
+                error_code: DashboardValue::available("unsupported_control_action".to_string()),
+                message: DashboardValue::available(
+                    "control action is not supported in v0.3".to_string(),
+                ),
+            })),
         )),
     }
 }
@@ -970,7 +976,7 @@ fn run_start_action(
     node_id: &str,
     previous_state: LifecycleStatus,
     started_at: String,
-) -> ApiStatusResult<ControlActionResponse> {
+) -> (StatusCode, Json<ControlActionResponse>) {
     let store = SupervisorRegistryStore::new(state.registry_path.clone());
     let result = store.start_node_process(&StartNodeRequest {
         node_id: node_id.to_string(),
@@ -978,32 +984,36 @@ fn run_start_action(
         startup_timeout: Duration::from_millis(DASHBOARD_ACTION_TIMEOUT_MS),
     });
     match result {
-        Ok(record) => Ok((
+        Ok(record) => (
             StatusCode::OK,
-            Json(action_response(
-                "start",
+            Json(action_response(ControlActionResponseParts {
+                action: "start",
                 node_id,
-                ControlActionStatus::Succeeded,
+                status: ControlActionStatus::Succeeded,
                 previous_state,
-                record.last_known_status.lifecycle_state,
+                current_state: record.last_known_status.lifecycle_state,
                 started_at,
-                DashboardValue::unknown(),
-                DashboardValue::available("start completed through local supervisor".to_string()),
-            )),
-        )),
-        Err(error) => Ok((
+                error_code: DashboardValue::unknown(),
+                message: DashboardValue::available(
+                    "start completed through local supervisor".to_string(),
+                ),
+            })),
+        ),
+        Err(error) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(action_response(
-                "start",
+            Json(action_response(ControlActionResponseParts {
+                action: "start",
                 node_id,
-                ControlActionStatus::Failed,
+                status: ControlActionStatus::Failed,
                 previous_state,
-                previous_state,
+                current_state: previous_state,
                 started_at,
-                DashboardValue::available(control_error_code(&error)),
-                DashboardValue::available("start failed; details are redacted".to_string()),
-            )),
-        )),
+                error_code: DashboardValue::available(control_error_code(&error)),
+                message: DashboardValue::available(
+                    "start failed; details are redacted".to_string(),
+                ),
+            })),
+        ),
     }
 }
 
@@ -1012,64 +1022,69 @@ fn run_stop_action(
     node_id: &str,
     previous_state: LifecycleStatus,
     started_at: String,
-) -> ApiStatusResult<ControlActionResponse> {
+) -> (StatusCode, Json<ControlActionResponse>) {
     let store = SupervisorRegistryStore::new(state.registry_path.clone());
     let result = store.stop_node_process(StopNodeRequest {
         node_id: node_id.to_string(),
         stop_timeout: Duration::from_millis(DASHBOARD_ACTION_TIMEOUT_MS),
     });
     match result {
-        Ok(record) => Ok((
+        Ok(record) => (
             StatusCode::OK,
-            Json(action_response(
-                "stop",
+            Json(action_response(ControlActionResponseParts {
+                action: "stop",
                 node_id,
-                ControlActionStatus::Succeeded,
+                status: ControlActionStatus::Succeeded,
                 previous_state,
-                record.last_known_status.lifecycle_state,
+                current_state: record.last_known_status.lifecycle_state,
                 started_at,
-                DashboardValue::unknown(),
-                DashboardValue::available("stop completed through local supervisor".to_string()),
-            )),
-        )),
-        Err(error) => Ok((
+                error_code: DashboardValue::unknown(),
+                message: DashboardValue::available(
+                    "stop completed through local supervisor".to_string(),
+                ),
+            })),
+        ),
+        Err(error) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(action_response(
-                "stop",
+            Json(action_response(ControlActionResponseParts {
+                action: "stop",
                 node_id,
-                ControlActionStatus::Failed,
+                status: ControlActionStatus::Failed,
                 previous_state,
-                previous_state,
+                current_state: previous_state,
                 started_at,
-                DashboardValue::available(control_error_code(&error)),
-                DashboardValue::available("stop failed; details are redacted".to_string()),
-            )),
-        )),
+                error_code: DashboardValue::available(control_error_code(&error)),
+                message: DashboardValue::available("stop failed; details are redacted".to_string()),
+            })),
+        ),
     }
 }
 
-fn action_response(
-    action: &str,
-    node_id: &str,
+#[derive(Debug)]
+struct ControlActionResponseParts<'a> {
+    action: &'a str,
+    node_id: &'a str,
     status: ControlActionStatus,
     previous_state: LifecycleStatus,
     current_state: LifecycleStatus,
     started_at: String,
     error_code: DashboardValue<String>,
     message: DashboardValue<String>,
-) -> ControlActionResponse {
+}
+
+fn action_response(parts: ControlActionResponseParts<'_>) -> ControlActionResponse {
     let finished_at = generated_at_now();
     ControlActionResponse {
-        action_id: format!("{action}:{node_id}:{started_at}"),
-        action: format!("{action}:{node_id}"),
-        status,
-        previous_state,
-        current_state,
-        started_at: DashboardValue::available(started_at),
+        action_id: format!("{}:{}:{}", parts.action, parts.node_id, parts.started_at),
+        action: format!("{}:{}", parts.action, parts.node_id),
+        status: parts.status,
+        previous_state: parts.previous_state,
+        current_state: parts.current_state,
+        started_at: DashboardValue::available(parts.started_at),
         finished_at: DashboardValue::available(finished_at),
-        error_code,
-        message,
-        observability_ref: DashboardValue::available(format!("registry:{node_id}")),
+        error_code: parts.error_code,
+        message: parts.message,
+        observability_ref: DashboardValue::available(format!("registry:{}", parts.node_id)),
     }
 }
 
@@ -1089,8 +1104,10 @@ fn control_error_code(error: &anyhow::Error) -> String {
 }
 
 fn load_dashboard_snapshot(registry_path: &FsPath) -> SnapshotLoadResult {
-    snapshot_from_supervisor_artifacts(registry_path, generated_at_now())
-        .map_err(|error| server_error_response("snapshot_load_failed", error.to_string()))
+    snapshot_from_supervisor_artifacts(registry_path, generated_at_now()).map_err(|error| {
+        let message = error.to_string();
+        server_error_response("snapshot_load_failed", &message)
+    })
 }
 
 fn not_found_response(error_code: &str, node_id: &str) -> (StatusCode, Json<Value>) {
@@ -1104,7 +1121,7 @@ fn not_found_response(error_code: &str, node_id: &str) -> (StatusCode, Json<Valu
     )
 }
 
-fn server_error_response(error_code: &str, message: String) -> (StatusCode, Json<Value>) {
+fn server_error_response(error_code: &str, message: &str) -> (StatusCode, Json<Value>) {
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         Json(json!({
@@ -1868,7 +1885,7 @@ fn runtime_modules_from_status(
             status: DashboardValue::available(json_label(&status.lifecycle_state)),
             health: derive_node_health(status),
             last_seen_at: dashboard_value_from_snapshot(&status.generated_at),
-            last_error: redacted_optional_dashboard_error(status.last_error.clone()),
+            last_error: redacted_optional_dashboard_error(status.last_error.as_deref()),
             evidence_source: evidence_source.clone(),
         },
         RuntimeModuleStatus {
@@ -1884,7 +1901,7 @@ fn runtime_modules_from_status(
             status: DashboardValue::available(json_label(&status.execution.connection)),
             health: health_from_connection(status.execution.connection),
             last_seen_at: dashboard_value_from_snapshot(&status.generated_at),
-            last_error: redacted_optional_dashboard_error(status.execution.last_error.clone()),
+            last_error: redacted_optional_dashboard_error(status.execution.last_error.as_deref()),
             evidence_source: evidence_source.clone(),
         },
         RuntimeModuleStatus {
@@ -1892,7 +1909,7 @@ fn runtime_modules_from_status(
             status: DashboardValue::available(json_label(&status.risk.trading_state)),
             health: status.risk.health,
             last_seen_at: dashboard_value_from_snapshot(&status.generated_at),
-            last_error: redacted_optional_dashboard_error(status.risk.last_error.clone()),
+            last_error: redacted_optional_dashboard_error(status.risk.last_error.as_deref()),
             evidence_source,
         },
         logging.clone(),
@@ -2342,7 +2359,7 @@ fn optional_dashboard_value(value: Option<String>) -> DashboardValue<String> {
     value.map_or_else(DashboardValue::unknown, DashboardValue::available)
 }
 
-fn redacted_optional_dashboard_error(value: Option<String>) -> DashboardValue<String> {
+fn redacted_optional_dashboard_error(value: Option<&str>) -> DashboardValue<String> {
     if value.is_some() {
         DashboardValue::available("present".to_string())
     } else {
@@ -2796,7 +2813,7 @@ mod tests {
         record.metrics_artifact = RegistryArtifactState::Available;
         record.process.state = SupervisorProcessState::Running;
         record.process.pid = SnapshotValue::available(42_001);
-        write_registry(&registry_path, [record.clone()]);
+        write_registry(&registry_path, [record]);
 
         let snapshot =
             snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:02:00Z").unwrap();

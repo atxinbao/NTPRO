@@ -1,0 +1,17 @@
+{
+  "task_id": "P0-002",
+  "agent_id": "Codex",
+  "branch": "codex/P0-002-release-gate-strengthening",
+  "touched_paths": [
+    "scripts/ai/verify_release.sh",
+    "scripts/ai/v02_two_node_supervisor_smoke.sh",
+    ".github/workflows/release-tag.yml",
+    "docs/rust-cutover/evidence/P0-002.md",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/P0-002.json",
+    "/Users/mac/.codex/shrimp-data/NTPRO/tasks.json"
+  ],
+  "claimed_at": "2026-06-09T13:34:59Z",
+  "status": "RUNNING",
+  "updated_at": "2026-06-09T13:34:59Z"
+}
