@@ -1589,7 +1589,7 @@ EOF
         })
         .unwrap();
 
-        let store = SupervisorRegistryStore::new(registry.clone());
+        let store = SupervisorRegistryStore::new(registry);
         wait_for_metrics_state(&store, "sandbox-a", LifecycleStatus::Running);
 
         for command in [
