@@ -2,7 +2,10 @@ name: Rust Cutover Smoke
 
 on:
   pull_request:
-    branches: [main, develop, rust-only-cutover-agentflow]
+    branches: [main]
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -16,15 +19,23 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
         with:
           toolchain: 1.95.0
-          components: rustfmt
+          components: rustfmt, clippy
           cache: false
           override: true
       - name: Fast verification
         env:
           VERIFY_FAST_CARGO_CHECK: "1"
+          VERIFY_FAST_CLIPPY: "1"
         run: scripts/ai/verify_fast.sh
+      - name: CLI unit tests
+        run: cargo test -p nautilus-cli --lib
       - name: Golden trace schema smoke
         run: python scripts/ai/golden_trace_runner.py tests/golden/schema_smoke.jsonl --mode validate-only
-      - name: Rust-only runtime smoke
-        if: github.base_ref == 'rust-only-cutover-agentflow'
+      - name: Rust-only runtime gate
         run: scripts/ai/check_rust_only_runtime.sh
+      - name: Cython removal gate
+        run: scripts/ai/check_cython_removed.sh
+      - name: v0.2 two-node supervisor smoke
+        env:
+          NTPRO_V02_009_SKIP_BUILD: "0"
+        run: scripts/ai/v02_two_node_supervisor_smoke.sh

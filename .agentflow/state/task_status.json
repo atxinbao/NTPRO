@@ -3407,7 +3407,7 @@
     },
     "P0-002": {
       "title": "Release Gate Strengthening",
-      "status": "PR_OPEN",
+      "status": "DONE",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -3421,17 +3421,21 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/P0-002.md",
       "evidence_file": "docs/rust-cutover/evidence/P0-002.md",
-      "updated_at": "2026-06-09T16:38:23Z",
+      "updated_at": "2026-06-09T16:45:30Z",
       "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
       "local_backlog": true,
       "started_at": "2026-06-09T13:34:59Z",
       "branch": "codex/P0-002-release-gate-strengthening",
       "pr_number": 232,
-      "pr_url": "https://github.com/atxinbao/NTPRO/pull/232"
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/232",
+      "merged_pr_number": 232,
+      "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/232",
+      "merge_commit": "54f91dd8bec9a9e348812819f719c7771fd19297",
+      "merged_at": "2026-06-09T16:45:30Z"
     },
     "P0-003": {
       "title": "PR and Tag CI Gate",
-      "status": "TODO",
+      "status": "PR_OPEN",
       "owner_role": "verification_release_gatekeeper",
       "review_role": "control_scope_agent",
       "risk_level": "medium",
@@ -3445,9 +3449,13 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/P0-003.md",
       "evidence_file": "docs/rust-cutover/evidence/P0-003.md",
-      "updated_at": "2026-06-09T12:42:32Z",
+      "updated_at": "2026-06-09T16:48:44Z",
       "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
-      "local_backlog": true
+      "local_backlog": true,
+      "started_at": "2026-06-09T16:48:44Z",
+      "branch": "codex/P0-003-pr-and-tag-ci-gate",
+      "pr_number": 233,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/233"
     },
     "P0-004": {
       "title": "Atomic Registry and Artifact Writes",
