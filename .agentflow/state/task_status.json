@@ -3378,6 +3378,286 @@
       "merged_pr_number": 229,
       "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/229",
       "merge_commit": "9b39b83e37f7547ebb6d210aa17973372a4a2b7e"
+    },
+    "P0-001": {
+      "title": "Public Surface Cleanup",
+      "status": "RUNNING",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "depends_on": [],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/P0-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/P0-001.md",
+      "updated_at": "2026-06-09T12:42:32Z",
+      "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
+      "local_backlog": true,
+      "started_at": "2026-06-09T12:42:32Z",
+      "branch": "codex/P0-001-public-surface-cleanup"
+    },
+    "P0-002": {
+      "title": "Release Gate Strengthening",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "depends_on": [
+        "P0-001"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/P0-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/P0-002.md",
+      "updated_at": "2026-06-09T12:42:32Z",
+      "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
+      "local_backlog": true
+    },
+    "P0-003": {
+      "title": "PR and Tag CI Gate",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "depends_on": [
+        "P0-002"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/P0-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/P0-003.md",
+      "updated_at": "2026-06-09T12:42:32Z",
+      "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
+      "local_backlog": true
+    },
+    "P0-004": {
+      "title": "Atomic Registry and Artifact Writes",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "depends_on": [
+        "P0-003"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/P0-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/P0-004.md",
+      "updated_at": "2026-06-09T12:42:32Z",
+      "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
+      "local_backlog": true
+    },
+    "P0-005": {
+      "title": "Real Process Lifecycle",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "depends_on": [
+        "P0-004"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/P0-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/P0-005.md",
+      "updated_at": "2026-06-09T12:42:32Z",
+      "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
+      "local_backlog": true
+    },
+    "P0-006": {
+      "title": "Node Identity Contract",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "depends_on": [
+        "P0-005"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/P0-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/P0-006.md",
+      "updated_at": "2026-06-09T12:42:32Z",
+      "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
+      "local_backlog": true
+    },
+    "P0-007": {
+      "title": "ntpro-node Shutdown Hardening",
+      "status": "TODO",
+      "owner_role": "rust_product_surface_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "depends_on": [
+        "P0-006"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/P0-007.md",
+      "evidence_file": "docs/rust-cutover/evidence/P0-007.md",
+      "updated_at": "2026-06-09T12:42:32Z",
+      "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
+      "local_backlog": true
+    },
+    "P0-008": {
+      "title": "LiveNode Startup Cancellation",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "depends_on": [
+        "P0-007"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/P0-008.md",
+      "evidence_file": "docs/rust-cutover/evidence/P0-008.md",
+      "updated_at": "2026-06-09T12:42:32Z",
+      "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
+      "local_backlog": true
+    },
+    "P1-001": {
+      "title": "Disconnect Timeout Result",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "high",
+      "depends_on": [
+        "P0-008"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/P1-001.md",
+      "evidence_file": "docs/rust-cutover/evidence/P1-001.md",
+      "updated_at": "2026-06-09T12:42:32Z",
+      "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
+      "local_backlog": true
+    },
+    "P1-002": {
+      "title": "LiveNodeHandle Atomic Ordering",
+      "status": "TODO",
+      "owner_role": "rust_core_runtime_agent",
+      "review_role": "verification_release_gatekeeper",
+      "risk_level": "medium",
+      "depends_on": [
+        "P0-008"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/P1-002.md",
+      "evidence_file": "docs/rust-cutover/evidence/P1-002.md",
+      "updated_at": "2026-06-09T12:42:32Z",
+      "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
+      "local_backlog": true
+    },
+    "P1-003": {
+      "title": "Product Path Lint Rollout",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "rust_core_runtime_agent",
+      "risk_level": "medium",
+      "depends_on": [
+        "P0-003"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/P1-003.md",
+      "evidence_file": "docs/rust-cutover/evidence/P1-003.md",
+      "updated_at": "2026-06-09T12:42:32Z",
+      "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
+      "local_backlog": true
+    },
+    "P1-004": {
+      "title": "Dev Profile Safety",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "depends_on": [
+        "P0-003"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/P1-004.md",
+      "evidence_file": "docs/rust-cutover/evidence/P1-004.md",
+      "updated_at": "2026-06-09T12:42:32Z",
+      "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
+      "local_backlog": true
+    },
+    "P1-005": {
+      "title": "Plugin Unsafe Alpha Boundary",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "medium",
+      "depends_on": [
+        "P0-001"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/P1-005.md",
+      "evidence_file": "docs/rust-cutover/evidence/P1-005.md",
+      "updated_at": "2026-06-09T12:42:32Z",
+      "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
+      "local_backlog": true
+    },
+    "P1-006": {
+      "title": "Ignored Tests Follow-up Register",
+      "status": "TODO",
+      "owner_role": "verification_release_gatekeeper",
+      "review_role": "control_scope_agent",
+      "risk_level": "low",
+      "depends_on": [
+        "P0-003"
+      ],
+      "done_requires": [
+        "qa_passed",
+        "review_passed",
+        "pr_merged"
+      ],
+      "source_task_file": "docs/rust-cutover/tasks/P1-006.md",
+      "evidence_file": "docs/rust-cutover/evidence/P1-006.md",
+      "updated_at": "2026-06-09T12:42:32Z",
+      "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
+      "local_backlog": true
     }
   },
   "updated_at": "2026-06-08T13:41:50Z"

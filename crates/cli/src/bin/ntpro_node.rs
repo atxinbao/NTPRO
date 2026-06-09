@@ -20,7 +20,10 @@ use nautilus_common::logging::ensure_logging_initialized;
 
 /// Runs one local sandbox-only NTPRO node start/stop smoke.
 #[derive(Debug, Parser)]
-#[command(version, about = "Run a local sandbox-only NTPRO node")]
+#[command(
+    version,
+    about = "Run a local sandbox-only NTPRO node process with no external venue access or real orders"
+)]
 struct NtproNodeCli {
     /// Path to the Rust live-init smoke config file.
     #[arg(long)]
