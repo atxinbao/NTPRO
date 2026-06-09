@@ -3381,7 +3381,7 @@
     },
     "P0-001": {
       "title": "Public Surface Cleanup",
-      "status": "RUNNING",
+      "status": "PR_OPEN",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "medium",
@@ -3393,11 +3393,13 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/P0-001.md",
       "evidence_file": "docs/rust-cutover/evidence/P0-001.md",
-      "updated_at": "2026-06-09T12:42:32Z",
+      "updated_at": "2026-06-09T12:50:20Z",
       "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
       "local_backlog": true,
       "started_at": "2026-06-09T12:42:32Z",
-      "branch": "codex/P0-001-public-surface-cleanup"
+      "branch": "codex/P0-001-public-surface-cleanup",
+      "pr_number": 231,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/231"
     },
     "P0-002": {
       "title": "Release Gate Strengthening",
