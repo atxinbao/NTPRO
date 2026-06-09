@@ -1,0 +1,17 @@
+{
+  "task_id": "P0-003",
+  "agent_id": "Codex",
+  "branch": "codex/P0-003-pr-and-tag-ci-gate",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/P0-003.md",
+    "docs/rust-cutover/evidence/P0-003.md",
+    ".github/workflows/rust-cutover-smoke.yml",
+    ".github/workflows/security-audit.yml",
+    ".github/workflows/release-tag.yml",
+    ".github/workflows/build.yml",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/P0-003.json"
+  ],
+  "claimed_at": "2026-06-09T16:48:44.749537+00:00",
+  "status": "LEASED"
+}

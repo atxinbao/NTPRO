@@ -16,6 +16,29 @@ env:
   EGRESS_POLICY: ${{ vars.STEP_SECURITY_EGRESS_POLICY || 'block' }}
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - Cargo.lock # Keep in sync with scripts/ci/security-audit-gate.sh.
+      - Cargo.toml
+      - crates/**/Cargo.toml
+      - uv.lock
+      - pyproject.toml
+      - .pre-commit-config.yaml
+      - deny.toml
+      - osv-scanner.toml
+      - .supply-chain/**
+      - tools.toml
+      - .cargo/config.toml
+      - .cargo/audit.toml
+      - rust-toolchain.toml
+      - scripts/cargo-tool-version.sh
+      - scripts/rust-toolchain.sh
+      - scripts/uv-version.sh
+      - scripts/ci/security-audit-gate.sh
+      - .zizmor.yml
+      - .github/actions/**
+      - .github/workflows/**
   push:
     branches: [main, test-security]
     paths:
