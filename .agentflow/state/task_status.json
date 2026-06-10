@@ -3492,7 +3492,7 @@
     },
     "P0-005": {
       "title": "Real Process Lifecycle",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -3506,14 +3506,18 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/P0-005.md",
       "evidence_file": "docs/rust-cutover/evidence/P0-005.md",
-      "updated_at": "2026-06-10T13:17:14Z",
+      "updated_at": "2026-06-10T13:34:14Z",
       "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
       "local_backlog": true,
       "started_at": "2026-06-10T12:40:39Z",
       "branch": "codex/P0-005-real-process-lifecycle",
       "evidence_summary": "P0-005 verifies actual OS child lifecycle during supervisor start and stop, including Linux zombie classification, early-exit detection, startup-timeout cleanup, TERM/KILL escalation, and two-node PID-exit smoke evidence.",
       "pr_number": 237,
-      "pr_url": "https://github.com/atxinbao/NTPRO/pull/237"
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/237",
+      "merged_pr_number": 237,
+      "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/237",
+      "merged_at": "2026-06-10T13:34:14Z",
+      "merge_commit": "2b6bba20b4ae571f397f56934b6ceedbf194f05e"
     },
     "P0-006": {
       "title": "Node Identity Contract",
