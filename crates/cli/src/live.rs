@@ -35,9 +35,10 @@ use nautilus_sandbox::{SandboxExecutionClientConfig, SandboxExecutionClientFacto
 use serde::Deserialize;
 use tokio::time::{Duration, sleep};
 
-use crate::opt::{LiveCommand, LiveOpt, LiveRunOpt, LiveValidateOpt};
-use crate::supervisor::{
-    NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, write_node_metrics_artifact,
+use crate::{
+    artifacts::atomic_write_text,
+    opt::{LiveCommand, LiveOpt, LiveRunOpt, LiveValidateOpt},
+    supervisor::{NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, write_node_metrics_artifact},
 };
 
 const LIVE_INIT_SMOKE_MODE: &str = "live-init-smoke";
@@ -226,11 +227,11 @@ async fn run_live_run_with_command(
         metrics_path.display(),
         events_path.display(),
     );
-    fs::write(&summary_path, summary)
+    atomic_write_text(&summary_path, &summary)
         .with_context(|| format!("failed to write summary '{}'", summary_path.display()))?;
 
     let status_json = serde_json::to_string_pretty(&status)?;
-    fs::write(&status_path, format!("{status_json}\n"))
+    atomic_write_text(&status_path, &format!("{status_json}\n"))
         .with_context(|| format!("failed to write status '{}'", status_path.display()))?;
 
     let event_log = format!(
@@ -246,9 +247,9 @@ async fn run_live_run_with_command(
         smoke.account_cached,
         smoke.final_state,
     );
-    fs::write(&events_path, &event_log)
+    atomic_write_text(&events_path, &event_log)
         .with_context(|| format!("failed to write events '{}'", events_path.display()))?;
-    fs::write(&legacy_events_path, &event_log).with_context(|| {
+    atomic_write_text(&legacy_events_path, &event_log).with_context(|| {
         format!(
             "failed to write legacy events '{}'",
             legacy_events_path.display()
@@ -535,7 +536,7 @@ fn build_node_status_for_state(
 
 fn write_status(path: &Path, status: &NodeStatus) -> anyhow::Result<()> {
     let status_json = serde_json::to_string_pretty(status)?;
-    fs::write(path, format!("{status_json}\n"))
+    atomic_write_text(path, &format!("{status_json}\n"))
         .with_context(|| format!("failed to write status '{}'", path.display()))?;
     Ok(())
 }

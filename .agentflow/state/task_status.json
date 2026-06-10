@@ -3463,7 +3463,7 @@
     },
     "P0-004": {
       "title": "Atomic Registry and Artifact Writes",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -3477,9 +3477,12 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/P0-004.md",
       "evidence_file": "docs/rust-cutover/evidence/P0-004.md",
-      "updated_at": "2026-06-09T12:42:32Z",
+      "updated_at": "2026-06-10T11:57:28Z",
       "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
-      "local_backlog": true
+      "local_backlog": true,
+      "started_at": "2026-06-10T11:45:36Z",
+      "branch": "codex/P0-004-atomic-registry-and-artifact-writes",
+      "evidence_summary": "Atomic registry/artifact writes implemented; local validation passed; high-risk task is waiting for review and merge."
     },
     "P0-005": {
       "title": "Real Process Lifecycle",
@@ -3682,5 +3685,5 @@
       "local_backlog": true
     }
   },
-  "updated_at": "2026-06-08T13:41:50Z"
+  "updated_at": "2026-06-10T11:57:28Z"
 }
