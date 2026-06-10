@@ -335,7 +335,7 @@ fn run_supervisor_status(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
     let store = SupervisorRegistryStore::new(opt.registry.registry);
     let status = store.node_status(&opt.node_id)?;
     println!(
-        "supervisor.status status=ok registry_node_id={} status_node_id={} lifecycle_state={} previous_lifecycle_state={} process_mode={} generated_at={} external_venue_connection={} real_orders_submitted={} last_error={}",
+        "supervisor.status status=ok registry_node_id={} runtime_node_id={} lifecycle_state={} previous_lifecycle_state={} process_mode={} generated_at={} external_venue_connection={} real_orders_submitted={} last_error={}",
         opt.node_id,
         status.node_id,
         json_label(&status.lifecycle_state),
@@ -353,7 +353,7 @@ fn run_supervisor_connections(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
     let store = SupervisorRegistryStore::new(opt.registry.registry);
     let status = store.node_status(&opt.node_id)?;
     println!(
-        "supervisor.connections status=ok registry_node_id={} status_node_id={} data_connection={} execution_connection={} external_venue_connection={} real_orders_submitted={}",
+        "supervisor.connections status=ok registry_node_id={} runtime_node_id={} data_connection={} execution_connection={} external_venue_connection={} real_orders_submitted={}",
         opt.node_id,
         status.node_id,
         json_label(&status.data_connection),
@@ -368,7 +368,7 @@ fn run_supervisor_execution(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
     let store = SupervisorRegistryStore::new(opt.registry.registry);
     let status = store.node_status(&opt.node_id)?;
     println!(
-        "supervisor.execution status=ok registry_node_id={} status_node_id={} gateway_id={} connection={} started={} account_ref={} orders_open={} orders_inflight={} orders_closed={} last_error={}",
+        "supervisor.execution status=ok registry_node_id={} runtime_node_id={} gateway_id={} connection={} started={} account_ref={} orders_open={} orders_inflight={} orders_closed={} last_error={}",
         opt.node_id,
         status.node_id,
         snapshot_display(&status.execution.gateway_id),
@@ -387,7 +387,7 @@ fn run_supervisor_risk(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
     let store = SupervisorRegistryStore::new(opt.registry.registry);
     let status = store.node_status(&opt.node_id)?;
     println!(
-        "supervisor.risk status=ok registry_node_id={} status_node_id={} trading_state={} health={} command_count={} event_count={} rejections_total={} last_rejection={} last_error={}",
+        "supervisor.risk status=ok registry_node_id={} runtime_node_id={} trading_state={} health={} command_count={} event_count={} rejections_total={} last_rejection={} last_error={}",
         opt.node_id,
         status.node_id,
         json_label(&status.risk.trading_state),
@@ -418,7 +418,7 @@ fn run_supervisor_metrics(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
     let store = SupervisorRegistryStore::new(opt.registry.registry);
     let metrics = store.node_metrics(&opt.node_id)?;
     println!(
-        "supervisor.metrics status=ok registry_node_id={} metrics_node_id={} lifecycle_state={} starts_total={} stops_total={} state_transitions_total={} uptime_ms={} external_venue_connection={} real_orders_submitted={} last_error={}",
+        "supervisor.metrics status=ok registry_node_id={} runtime_node_id={} lifecycle_state={} starts_total={} stops_total={} state_transitions_total={} uptime_ms={} external_venue_connection={} real_orders_submitted={} last_error={}",
         opt.node_id,
         metrics.node_id,
         json_label(&metrics.lifecycle_state),
@@ -759,9 +759,17 @@ impl SupervisorRegistryStore {
                 )
             })?;
             match serde_json::from_str::<NodeStatus>(&raw) {
-                Ok(status) => {
+                Ok(status) if status.node_id == record.node_id => {
                     record.status_artifact = RegistryArtifactState::Available;
                     record.last_known_status = status;
+                }
+                Ok(status) => {
+                    record.status_artifact = RegistryArtifactState::Invalid;
+                    record.last_known_status.last_error = Some(format!(
+                        "status node identity mismatch: registry node '{}' received runtime node '{}'",
+                        record.node_id, status.node_id
+                    ));
+                    record.last_known_status.generated_at = SnapshotValue::stale();
                 }
                 Err(error) => {
                     record.status_artifact = RegistryArtifactState::Invalid;
@@ -848,6 +856,18 @@ impl SupervisorRegistryStore {
                     format!("failed to remove stale stop file '{}'", stop_file.display())
                 })?;
             }
+            for artifact_path in [&record.status_path, &record.metrics_path] {
+                if artifact_path.exists() {
+                    remove_file_if_exists(artifact_path).with_context(|| {
+                        format!(
+                            "failed to remove stale node artifact '{}'",
+                            artifact_path.display()
+                        )
+                    })?;
+                }
+            }
+            record.status_artifact = RegistryArtifactState::Missing;
+            record.metrics_artifact = RegistryArtifactState::Missing;
             let stdout_log = fs::File::create(&record.stdout_log_path).with_context(|| {
                 format!(
                     "failed to create stdout log '{}'",
@@ -1000,6 +1020,16 @@ impl SupervisorRegistryStore {
     pub fn node_status(&self, node_id: &str) -> anyhow::Result<NodeStatus> {
         validate_node_id(node_id)?;
         let record = self.refresh_status_from_artifact(node_id)?;
+        if record.status_artifact == RegistryArtifactState::Invalid {
+            anyhow::bail!(
+                "invalid status artifact for registry node '{node_id}': {}",
+                record
+                    .last_known_status
+                    .last_error
+                    .as_deref()
+                    .unwrap_or("unknown status artifact error")
+            );
+        }
         Ok(record.last_known_status)
     }
 
@@ -1036,12 +1066,23 @@ impl SupervisorRegistryStore {
             )
         })?;
         match serde_json::from_str::<NodeMetrics>(&raw) {
-            Ok(metrics) => {
+            Ok(metrics) if metrics.node_id == record.node_id => {
                 record.metrics_artifact = RegistryArtifactState::Available;
                 record.updated_at = SnapshotValue::available(now_millis());
                 registry.updated_at = SnapshotValue::available(now_millis());
                 self.save(&registry)?;
                 Ok(metrics)
+            }
+            Ok(metrics) => {
+                let message = format!(
+                    "metrics node identity mismatch: registry node '{}' received runtime node '{}'",
+                    record.node_id, metrics.node_id
+                );
+                record.metrics_artifact = RegistryArtifactState::Invalid;
+                record.updated_at = SnapshotValue::available(now_millis());
+                registry.updated_at = SnapshotValue::available(now_millis());
+                self.save(&registry)?;
+                anyhow::bail!("{message}");
             }
             Err(error) => {
                 record.metrics_artifact = RegistryArtifactState::Invalid;
@@ -1130,6 +1171,16 @@ fn wait_for_startup(
             );
         }
         let record = store.refresh_status_from_artifact(node_id)?;
+        if record.status_artifact == RegistryArtifactState::Invalid {
+            anyhow::bail!(
+                "node '{node_id}' published an invalid status artifact: {}",
+                record
+                    .last_known_status
+                    .last_error
+                    .as_deref()
+                    .unwrap_or("unknown status artifact error")
+            );
+        }
         if record.last_known_status.lifecycle_state == LifecycleStatus::Running {
             if let Some(status) = child
                 .try_wait()
@@ -1792,6 +1843,142 @@ done
                 .as_deref()
                 .unwrap()
                 .contains("invalid status artifact")
+        );
+    }
+
+    #[test]
+    fn refresh_status_rejects_runtime_identity_mismatch() {
+        let root = temp_root("status-identity-mismatch");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let record = store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+
+        let mut status = NodeStatus::unknown("sandbox-b");
+        status.lifecycle_state = LifecycleStatus::Running;
+        fs::write(
+            &record.status_path,
+            serde_json::to_string_pretty(&status).unwrap(),
+        )
+        .unwrap();
+
+        let refreshed = store.refresh_status_from_artifact("sandbox-a").unwrap();
+        assert_eq!(refreshed.status_artifact, RegistryArtifactState::Invalid);
+        assert_eq!(refreshed.last_known_status.node_id, "sandbox-a");
+        assert_ne!(
+            refreshed.last_known_status.lifecycle_state,
+            LifecycleStatus::Running
+        );
+        assert!(
+            refreshed
+                .last_known_status
+                .last_error
+                .as_deref()
+                .unwrap()
+                .contains(
+                    "status node identity mismatch: registry node 'sandbox-a' received runtime node 'sandbox-b'"
+                )
+        );
+        let error = store.node_status("sandbox-a").unwrap_err().to_string();
+        assert!(error.contains(
+            "invalid status artifact for registry node 'sandbox-a': status node identity mismatch"
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn start_replaces_stale_identity_artifacts() {
+        let root = temp_root("replace-stale-identity");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let fixture = write_fixture_node(&root);
+        let record = store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+
+        let stale_status = NodeStatus::unknown("legacy-display-name");
+        fs::write(
+            &record.status_path,
+            serde_json::to_string_pretty(&stale_status).unwrap(),
+        )
+        .unwrap();
+        let stale_metrics = NodeMetrics::from_status(
+            &stale_status,
+            &NodeMetricArtifacts::from_record(&record),
+            NodeMetricCounts {
+                uptime_ms: Some(0),
+                starts_total: 1,
+                stops_total: 1,
+                state_transitions_total: 2,
+            },
+        );
+        write_node_metrics_artifact(&record.metrics_path, &stale_metrics).unwrap();
+
+        let started = store
+            .start_node_process(&StartNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                ntpro_node_bin: fixture,
+                startup_timeout: Duration::from_secs(3),
+            })
+            .unwrap();
+        assert_eq!(started.last_known_status.node_id, "sandbox-a");
+        assert_eq!(started.status_artifact, RegistryArtifactState::Available);
+        assert_eq!(
+            store.node_metrics("sandbox-a").unwrap().node_id,
+            "sandbox-a"
+        );
+
+        store
+            .stop_node_process(&StopNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                stop_timeout: Duration::from_secs(3),
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn node_metrics_rejects_runtime_identity_mismatch() {
+        let root = temp_root("metrics-identity-mismatch");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let record = store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+
+        let status = NodeStatus::unknown("sandbox-b");
+        let metrics = NodeMetrics::from_status(
+            &status,
+            &NodeMetricArtifacts::from_record(&record),
+            NodeMetricCounts {
+                uptime_ms: Some(0),
+                starts_total: 1,
+                stops_total: 0,
+                state_transitions_total: 1,
+            },
+        );
+        write_node_metrics_artifact(&record.metrics_path, &metrics).unwrap();
+
+        let error = store.node_metrics("sandbox-a").unwrap_err().to_string();
+        assert!(error.contains(
+            "metrics node identity mismatch: registry node 'sandbox-a' received runtime node 'sandbox-b'"
+        ));
+        let registry = store.load().unwrap();
+        assert_eq!(
+            registry.nodes["sandbox-a"].metrics_artifact,
+            RegistryArtifactState::Invalid
         );
     }
 

@@ -151,9 +151,10 @@ This claim is local-only and sandbox-first. It does not imply:
 
 ## Remaining Risks
 
-- `status_node_id` can still reflect the live config node name while
-  `registry_node_id` is the supervisor node id. V02-008 and V02-009 evidence
-  explicitly distinguish these fields.
+- P0-006 tightens the node identity contract: status and metrics artifacts use
+  the runtime run ID, supervisor-managed nodes must match their registry node
+  ID, and mismatched artifacts are rejected. Configuration node names remain
+  display labels only.
 - The smoke evidence uses sandbox live-init config and local artifacts only.
   Real adapter cancellation and production venue behavior remain outside this
   V02 readiness claim.
