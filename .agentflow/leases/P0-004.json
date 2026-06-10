@@ -1,0 +1,21 @@
+{
+  "task_id": "P0-004",
+  "agent_id": "Codex",
+  "branch": "codex/P0-004-atomic-registry-and-artifact-writes",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/P0-004.md",
+    "docs/rust-cutover/evidence/P0-004.md",
+    "crates/cli/src/artifacts.rs",
+    "crates/cli/src/lib.rs",
+    "crates/cli/src/live.rs",
+    "crates/cli/src/supervisor.rs",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/P0-004.json"
+  ],
+  "claimed_at": "2026-06-10T11:45:36.718105+00:00",
+  "status": "REVIEW_REQUIRED",
+  "updated_at": "2026-06-10T12:02:00Z",
+  "review_required_at": "2026-06-10T11:57:28Z",
+  "pr_number": 235,
+  "pr_url": "https://github.com/atxinbao/NTPRO/pull/235"
+}

@@ -51,6 +51,7 @@
 #![deny(clippy::missing_panics_doc)]
 #![deny(rustdoc::broken_intra_doc_links)]
 
+mod artifacts;
 mod backtest;
 #[cfg(feature = "defi")]
 mod blockchain;

@@ -16,9 +16,10 @@
 use std::{
     collections::BTreeMap,
     fmt::Display,
-    fs,
+    fs::{self, OpenOptions},
+    io::Write,
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::{self, Command, Stdio},
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -29,13 +30,18 @@ use nautilus_live::status::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::opt::{
-    SupervisorCommand, SupervisorListOpt, SupervisorNodeOpt, SupervisorOpt, SupervisorRegisterOpt,
-    SupervisorStartOpt, SupervisorStopOpt,
+use crate::{
+    artifacts::{atomic_write_json, atomic_write_text, remove_file_if_exists},
+    opt::{
+        SupervisorCommand, SupervisorListOpt, SupervisorNodeOpt, SupervisorOpt,
+        SupervisorRegisterOpt, SupervisorStartOpt, SupervisorStopOpt,
+    },
 };
 
 pub const SUPERVISOR_REGISTRY_SCHEMA_VERSION: &str = "ntpro.supervisor_registry.v1";
 pub const NODE_METRICS_SCHEMA_VERSION: &str = "ntpro.node_metrics.v1";
+const REGISTRY_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
+const REGISTRY_LOCK_RETRY: Duration = Duration::from_millis(25);
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SupervisorRegistry {
@@ -505,6 +511,17 @@ pub struct SupervisorRegistryStore {
     registry_path: PathBuf,
 }
 
+#[derive(Debug)]
+struct RegistryFileLock {
+    path: PathBuf,
+}
+
+impl Drop for RegistryFileLock {
+    fn drop(&mut self) {
+        let _ = remove_file_if_exists(&self.path);
+    }
+}
+
 impl SupervisorRegistryStore {
     #[must_use]
     pub fn new(registry_path: impl Into<PathBuf>) -> Self {
@@ -551,14 +568,73 @@ impl SupervisorRegistryStore {
                 format!("failed to create registry directory '{}'", parent.display())
             })?;
         }
-        let raw = serde_json::to_string_pretty(registry)?;
-        fs::write(&self.registry_path, format!("{raw}\n")).with_context(|| {
+        atomic_write_json(&self.registry_path, registry).with_context(|| {
             format!(
                 "failed to write supervisor registry '{}'",
                 self.registry_path.display()
             )
         })?;
         Ok(())
+    }
+
+    fn acquire_registry_lock(&self) -> anyhow::Result<RegistryFileLock> {
+        let lock_path = self.registry_lock_path();
+        if let Some(parent) = lock_path.parent() {
+            fs::create_dir_all(parent).with_context(|| {
+                format!(
+                    "failed to create registry lock directory '{}'",
+                    parent.display()
+                )
+            })?;
+        }
+
+        let started = SystemTime::now();
+        loop {
+            match OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&lock_path)
+            {
+                Ok(mut file) => {
+                    let lock = RegistryFileLock {
+                        path: lock_path.clone(),
+                    };
+                    writeln!(file, "pid={} acquired_at={}", process::id(), now_millis())
+                        .with_context(|| {
+                            format!("failed to write registry lock '{}'", lock_path.display())
+                        })?;
+                    file.sync_all().with_context(|| {
+                        format!("failed to sync registry lock '{}'", lock_path.display())
+                    })?;
+                    return Ok(lock);
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                    if started
+                        .elapsed()
+                        .is_ok_and(|elapsed| elapsed >= REGISTRY_LOCK_TIMEOUT)
+                    {
+                        anyhow::bail!(
+                            "timed out waiting for supervisor registry lock '{}'",
+                            lock_path.display()
+                        );
+                    }
+                    thread::sleep(REGISTRY_LOCK_RETRY);
+                }
+                Err(error) => {
+                    return Err(error).with_context(|| {
+                        format!("failed to create registry lock '{}'", lock_path.display())
+                    });
+                }
+            }
+        }
+    }
+
+    fn registry_lock_path(&self) -> PathBuf {
+        let lock_name = self.registry_path.file_name().map_or_else(
+            || "registry.json.lock".to_string(),
+            |name| format!("{}.lock", name.to_string_lossy()),
+        );
+        self.registry_path.with_file_name(lock_name)
     }
 
     /// # Errors
@@ -576,6 +652,7 @@ impl SupervisorRegistryStore {
             request.config_path.display()
         );
 
+        let _lock = self.acquire_registry_lock()?;
         let mut registry = self.load()?;
         if let Some(existing) = registry.nodes.get(&request.node_id)
             && existing.process.state == SupervisorProcessState::Running
@@ -608,6 +685,7 @@ impl SupervisorRegistryStore {
         pid: Option<u32>,
         state: SupervisorProcessState,
     ) -> anyhow::Result<SupervisorNodeRecord> {
+        let _lock = self.acquire_registry_lock()?;
         let mut registry = self.load()?;
         let record = registry
             .nodes
@@ -631,6 +709,7 @@ impl SupervisorRegistryStore {
     /// Returns an error if the registry cannot be loaded or saved, or if the
     /// node is missing.
     pub fn refresh_process_state(&self, node_id: &str) -> anyhow::Result<SupervisorNodeRecord> {
+        let _lock = self.acquire_registry_lock()?;
         let mut registry = self.load()?;
         let record = registry
             .nodes
@@ -658,6 +737,7 @@ impl SupervisorRegistryStore {
         &self,
         node_id: &str,
     ) -> anyhow::Result<SupervisorNodeRecord> {
+        let _lock = self.acquire_registry_lock()?;
         let mut registry = self.load()?;
         let record = registry
             .nodes
@@ -706,6 +786,7 @@ impl SupervisorRegistryStore {
     ///
     /// Returns an error if the registry cannot be loaded or saved.
     pub fn remove_node(&self, node_id: &str) -> anyhow::Result<Option<SupervisorNodeRecord>> {
+        let _lock = self.acquire_registry_lock()?;
         let mut registry = self.load()?;
         let removed = registry.nodes.remove(node_id);
         if removed.is_some() {
@@ -731,69 +812,72 @@ impl SupervisorRegistryStore {
             request.ntpro_node_bin.display()
         );
 
-        let mut registry = self.load()?;
-        let record = registry
-            .nodes
-            .get_mut(&request.node_id)
-            .with_context(|| format!("node '{}' is not registered", request.node_id))?;
-        ensure!(
-            record.process.state != SupervisorProcessState::Running,
-            "node '{}' is already running",
-            request.node_id
-        );
-        ensure!(
-            record.config_path.exists(),
-            "config path '{}' does not exist",
-            record.config_path.display()
-        );
-        create_node_dirs(&record.artifact_root)?;
-        let stop_file = stop_file_path(record);
-        if stop_file.exists() {
-            fs::remove_file(&stop_file).with_context(|| {
-                format!("failed to remove stale stop file '{}'", stop_file.display())
-            })?;
-        }
-        let stdout_log = fs::File::create(&record.stdout_log_path).with_context(|| {
-            format!(
-                "failed to create stdout log '{}'",
-                record.stdout_log_path.display()
-            )
-        })?;
-        let stderr_log = fs::File::create(&record.stderr_log_path).with_context(|| {
-            format!(
-                "failed to create stderr log '{}'",
-                record.stderr_log_path.display()
-            )
-        })?;
-
-        let child = Command::new(&request.ntpro_node_bin)
-            .arg("--config")
-            .arg(&record.config_path)
-            .arg("--run-id")
-            .arg(&record.node_id)
-            .arg("--output")
-            .arg(&record.artifact_root)
-            .arg("--stop-file")
-            .arg(&stop_file)
-            .stdout(Stdio::from(stdout_log))
-            .stderr(Stdio::from(stderr_log))
-            .spawn()
-            .with_context(|| {
+        {
+            let _lock = self.acquire_registry_lock()?;
+            let mut registry = self.load()?;
+            let record = registry
+                .nodes
+                .get_mut(&request.node_id)
+                .with_context(|| format!("node '{}' is not registered", request.node_id))?;
+            ensure!(
+                record.process.state != SupervisorProcessState::Running,
+                "node '{}' is already running",
+                request.node_id
+            );
+            ensure!(
+                record.config_path.exists(),
+                "config path '{}' does not exist",
+                record.config_path.display()
+            );
+            create_node_dirs(&record.artifact_root)?;
+            let stop_file = stop_file_path(record);
+            if stop_file.exists() {
+                remove_file_if_exists(&stop_file).with_context(|| {
+                    format!("failed to remove stale stop file '{}'", stop_file.display())
+                })?;
+            }
+            let stdout_log = fs::File::create(&record.stdout_log_path).with_context(|| {
                 format!(
-                    "failed to spawn ntpro-node '{}'",
-                    request.ntpro_node_bin.display()
+                    "failed to create stdout log '{}'",
+                    record.stdout_log_path.display()
+                )
+            })?;
+            let stderr_log = fs::File::create(&record.stderr_log_path).with_context(|| {
+                format!(
+                    "failed to create stderr log '{}'",
+                    record.stderr_log_path.display()
                 )
             })?;
 
-        record.process = SupervisorProcessRecord {
-            pid: SnapshotValue::available(child.id()),
-            state: SupervisorProcessState::Running,
-            updated_at: SnapshotValue::available(now_millis()),
-        };
-        write_or_remove_pid_artifact(record)?;
-        record.updated_at = SnapshotValue::available(now_millis());
-        registry.updated_at = SnapshotValue::available(now_millis());
-        self.save(&registry)?;
+            let child = Command::new(&request.ntpro_node_bin)
+                .arg("--config")
+                .arg(&record.config_path)
+                .arg("--run-id")
+                .arg(&record.node_id)
+                .arg("--output")
+                .arg(&record.artifact_root)
+                .arg("--stop-file")
+                .arg(&stop_file)
+                .stdout(Stdio::from(stdout_log))
+                .stderr(Stdio::from(stderr_log))
+                .spawn()
+                .with_context(|| {
+                    format!(
+                        "failed to spawn ntpro-node '{}'",
+                        request.ntpro_node_bin.display()
+                    )
+                })?;
+
+            record.process = SupervisorProcessRecord {
+                pid: SnapshotValue::available(child.id()),
+                state: SupervisorProcessState::Running,
+                updated_at: SnapshotValue::available(now_millis()),
+            };
+            write_or_remove_pid_artifact(record)?;
+            record.updated_at = SnapshotValue::available(now_millis());
+            registry.updated_at = SnapshotValue::available(now_millis());
+            self.save(&registry)?;
+        }
 
         wait_for_lifecycle(
             self,
@@ -813,25 +897,27 @@ impl SupervisorRegistryStore {
         request: StopNodeRequest,
     ) -> anyhow::Result<SupervisorNodeRecord> {
         validate_node_id(&request.node_id)?;
-        let mut registry = self.load()?;
-        let record = registry
-            .nodes
-            .get_mut(&request.node_id)
-            .with_context(|| format!("node '{}' is not registered", request.node_id))?;
-        ensure!(
-            record.process.state == SupervisorProcessState::Running,
-            "node '{}' is not running",
-            request.node_id
-        );
-        let stop_file = stop_file_path(record);
-        if let Some(parent) = stop_file.parent() {
-            fs::create_dir_all(parent).with_context(|| {
-                format!("failed to create stop directory '{}'", parent.display())
-            })?;
+        {
+            let _lock = self.acquire_registry_lock()?;
+            let mut registry = self.load()?;
+            let record = registry
+                .nodes
+                .get_mut(&request.node_id)
+                .with_context(|| format!("node '{}' is not registered", request.node_id))?;
+            ensure!(
+                record.process.state == SupervisorProcessState::Running,
+                "node '{}' is not running",
+                request.node_id
+            );
+            let stop_file = stop_file_path(record);
+            if let Some(parent) = stop_file.parent() {
+                fs::create_dir_all(parent).with_context(|| {
+                    format!("failed to create stop directory '{}'", parent.display())
+                })?;
+            }
+            atomic_write_text(&stop_file, &format!("{}\n", now_millis()))
+                .with_context(|| format!("failed to write stop file '{}'", stop_file.display()))?;
         }
-        fs::write(&stop_file, format!("{}\n", now_millis()))
-            .with_context(|| format!("failed to write stop file '{}'", stop_file.display()))?;
-        drop(registry);
 
         let mut stopped = wait_for_lifecycle(
             self,
@@ -844,8 +930,9 @@ impl SupervisorRegistryStore {
             state: SupervisorProcessState::Stopped,
             updated_at: SnapshotValue::available(now_millis()),
         };
-        write_or_remove_pid_artifact(&stopped)?;
 
+        let _lock = self.acquire_registry_lock()?;
+        write_or_remove_pid_artifact(&stopped)?;
         let mut registry = self.load()?;
         registry.nodes.insert(request.node_id, stopped.clone());
         registry.updated_at = SnapshotValue::available(now_millis());
@@ -869,6 +956,7 @@ impl SupervisorRegistryStore {
     /// missing, or the JSON shape is invalid.
     pub fn node_metrics(&self, node_id: &str) -> anyhow::Result<NodeMetrics> {
         validate_node_id(node_id)?;
+        let _lock = self.acquire_registry_lock()?;
         let mut registry = self.load()?;
         let record = registry
             .nodes
@@ -998,8 +1086,7 @@ pub fn write_node_metrics_artifact(path: &Path, metrics: &NodeMetrics) -> anyhow
             format!("failed to create metrics directory '{}'", parent.display())
         })?;
     }
-    let raw = serde_json::to_string_pretty(metrics)?;
-    fs::write(path, format!("{raw}\n"))
+    atomic_write_json(path, metrics)
         .with_context(|| format!("failed to write metrics artifact '{}'", path.display()))?;
     Ok(())
 }
@@ -1018,8 +1105,7 @@ fn write_or_remove_pid_artifact(record: &SupervisorNodeRecord) -> anyhow::Result
                 state: record.process.state,
                 updated_at: record.process.updated_at.clone(),
             };
-            let raw = serde_json::to_string_pretty(&artifact)?;
-            fs::write(&record.pid_path, format!("{raw}\n")).with_context(|| {
+            atomic_write_json(&record.pid_path, &artifact).with_context(|| {
                 format!(
                     "failed to write pid artifact '{}'",
                     record.pid_path.display()
@@ -1028,7 +1114,7 @@ fn write_or_remove_pid_artifact(record: &SupervisorNodeRecord) -> anyhow::Result
         }
         None => {
             if record.pid_path.exists() {
-                fs::remove_file(&record.pid_path).with_context(|| {
+                remove_file_if_exists(&record.pid_path).with_context(|| {
                     format!(
                         "failed to remove pid artifact '{}'",
                         record.pid_path.display()
@@ -1096,6 +1182,7 @@ mod tests {
 
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
+    use std::sync::{Arc, Barrier};
 
     fn temp_root(name: &str) -> PathBuf {
         let root = std::env::temp_dir().join(format!(
@@ -1111,6 +1198,32 @@ mod tests {
         let path = root.join(format!("{name}.toml"));
         fs::write(&path, "[run]\nid = \"live-init-smoke\"\n").unwrap();
         path
+    }
+
+    fn temp_artifacts(root: &Path) -> Vec<PathBuf> {
+        let mut paths = Vec::new();
+        if let Ok(entries) = fs::read_dir(root) {
+            for entry in entries.filter_map(Result::ok) {
+                let path = entry.path();
+                if path.is_dir() {
+                    paths.extend(temp_artifacts(&path));
+                } else if path
+                    .file_name()
+                    .is_some_and(|name| name.to_string_lossy().contains(".tmp."))
+                {
+                    paths.push(path);
+                }
+            }
+        }
+        paths
+    }
+
+    fn assert_no_temp_artifacts(root: &Path) {
+        let temp_paths = temp_artifacts(root);
+        assert!(
+            temp_paths.is_empty(),
+            "unexpected temp files: {temp_paths:?}"
+        );
     }
 
     #[cfg(unix)]
@@ -1335,6 +1448,53 @@ EOF
         let removed = store.remove_node("sandbox-a").unwrap().unwrap();
         assert_eq!(removed.node_id, "sandbox-a");
         assert_eq!(store.list_nodes().unwrap().len(), 1);
+        assert!(!store.registry_lock_path().exists());
+        assert_no_temp_artifacts(&root);
+    }
+
+    #[test]
+    fn concurrent_registers_are_serialized_by_registry_lock() {
+        let root = temp_root("concurrent-register");
+        let store = Arc::new(SupervisorRegistryStore::new(root.join("registry.json")));
+        let node_ids = (0..8)
+            .map(|idx| format!("sandbox-{idx}"))
+            .collect::<Vec<_>>();
+        let configs = node_ids
+            .iter()
+            .map(|node_id| write_config(&root, node_id))
+            .collect::<Vec<_>>();
+        let barrier = Arc::new(Barrier::new(node_ids.len()));
+        let handles = node_ids
+            .iter()
+            .cloned()
+            .zip(configs)
+            .map(|(node_id, config_path)| {
+                let store = Arc::clone(&store);
+                let barrier = Arc::clone(&barrier);
+                thread::spawn(move || {
+                    barrier.wait();
+                    store
+                        .register_node(RegisterNodeRequest {
+                            node_id,
+                            config_path,
+                            artifact_root: None,
+                        })
+                        .unwrap();
+                })
+            })
+            .collect::<Vec<_>>();
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        let registry = store.load().unwrap();
+        assert_eq!(registry.nodes.len(), 8);
+        for node_id in node_ids {
+            assert!(registry.nodes.contains_key(&node_id));
+        }
+        assert!(!store.registry_lock_path().exists());
+        assert_no_temp_artifacts(&root);
     }
 
     #[test]
@@ -1450,10 +1610,13 @@ EOF
             serde_json::from_str(&fs::read_to_string(&registered.pid_path).unwrap()).unwrap();
         assert_eq!(pid_artifact.node_id, "sandbox-a");
         assert_eq!(pid_artifact.pid, 123_456);
+        assert!(!store.registry_lock_path().exists());
+        assert_no_temp_artifacts(&root);
 
         fs::remove_file(&registered.pid_path).unwrap();
         let refreshed = store.refresh_process_state("sandbox-a").unwrap();
         assert_eq!(refreshed.process.state, SupervisorProcessState::Stale);
+        assert!(!store.registry_lock_path().exists());
     }
 
     #[cfg(unix)]
