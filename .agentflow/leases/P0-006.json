@@ -18,6 +18,8 @@
   ],
   "claimed_at": "2026-06-10T13:52:47.062889+00:00",
   "status": "REVIEW_REQUIRED",
-  "updated_at": "2026-06-10T14:06:05Z",
-  "review_required_at": "2026-06-10T14:06:05Z"
+  "updated_at": "2026-06-10T14:12:16Z",
+  "review_required_at": "2026-06-10T14:06:05Z",
+  "pr_number": 239,
+  "pr_url": "https://github.com/atxinbao/NTPRO/pull/239"
 }
