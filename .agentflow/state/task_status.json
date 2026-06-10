@@ -3511,7 +3511,9 @@
       "local_backlog": true,
       "started_at": "2026-06-10T12:40:39Z",
       "branch": "codex/P0-005-real-process-lifecycle",
-      "evidence_summary": "P0-005 now verifies actual OS child lifecycle during supervisor start and stop, including early-exit detection, startup-timeout cleanup, TERM/KILL escalation, and two-node PID-exit smoke evidence."
+      "evidence_summary": "P0-005 now verifies actual OS child lifecycle during supervisor start and stop, including early-exit detection, startup-timeout cleanup, TERM/KILL escalation, and two-node PID-exit smoke evidence.",
+      "pr_number": 237,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/237"
     },
     "P0-006": {
       "title": "Node Identity Contract",
