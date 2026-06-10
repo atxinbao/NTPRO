@@ -19,7 +19,7 @@ use std::{
 };
 
 use anyhow::Context;
-use sysinfo::{Pid, ProcessesToUpdate, Signal, System};
+use sysinfo::{Pid, ProcessStatus, ProcessesToUpdate, Signal, System};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SignalDelivery {
@@ -33,7 +33,9 @@ pub(crate) fn process_is_alive(pid: u32) -> bool {
     let sys_pid = Pid::from_u32(pid);
     let mut system = System::new();
     system.refresh_processes(ProcessesToUpdate::Some(&[sys_pid]), true);
-    system.process(sys_pid).is_some()
+    system
+        .process(sys_pid)
+        .is_some_and(|process| process_status_is_alive(process.status()))
 }
 
 /// # Errors
@@ -55,6 +57,9 @@ pub(crate) fn send_kill(pid: u32) -> anyhow::Result<SignalDelivery> {
     let Some(process) = system.process(sys_pid) else {
         return Ok(SignalDelivery::ProcessExited);
     };
+    if !process_status_is_alive(process.status()) {
+        return Ok(SignalDelivery::ProcessExited);
+    }
     if process.kill() {
         Ok(SignalDelivery::Sent)
     } else {
@@ -83,6 +88,9 @@ fn send_signal(pid: u32, signal: Signal) -> anyhow::Result<SignalDelivery> {
     let Some(process) = system.process(sys_pid) else {
         return Ok(SignalDelivery::ProcessExited);
     };
+    if !process_status_is_alive(process.status()) {
+        return Ok(SignalDelivery::ProcessExited);
+    }
     match process.kill_with(signal) {
         Some(true) => Ok(SignalDelivery::Sent),
         Some(false) => Err(anyhow::anyhow!(
@@ -90,5 +98,26 @@ fn send_signal(pid: u32, signal: Signal) -> anyhow::Result<SignalDelivery> {
         ))
         .with_context(|| format!("failed to signal local node process {pid}")),
         None => Ok(SignalDelivery::Unsupported),
+    }
+}
+
+fn process_status_is_alive(status: ProcessStatus) -> bool {
+    status != ProcessStatus::Zombie
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn zombie_process_is_not_treated_as_alive() {
+        assert!(!process_status_is_alive(ProcessStatus::Zombie));
+    }
+
+    #[test]
+    fn running_and_uninterruptible_processes_remain_alive() {
+        assert!(process_status_is_alive(ProcessStatus::Run));
+        assert!(process_status_is_alive(ProcessStatus::Sleep));
+        assert!(process_status_is_alive(ProcessStatus::Dead));
     }
 }

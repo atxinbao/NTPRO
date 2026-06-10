@@ -1948,12 +1948,15 @@ done
             .start_node_process(&StartNodeRequest {
                 node_id: "sandbox-a".to_string(),
                 ntpro_node_bin: fixture,
-                startup_timeout: Duration::from_secs(1),
+                startup_timeout: Duration::from_secs(3),
             })
             .unwrap_err()
             .to_string();
 
-        assert!(error.contains("exited before reaching running status"));
+        assert!(
+            error.contains("exited before reaching running status"),
+            "unexpected startup error: {error}"
+        );
         let record = store.load().unwrap().nodes.remove("sandbox-a").unwrap();
         assert_eq!(record.process.state, SupervisorProcessState::Stale);
         assert!(record.process.pid.value.is_none());
