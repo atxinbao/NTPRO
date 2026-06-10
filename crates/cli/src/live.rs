@@ -503,7 +503,7 @@ fn build_node_status_for_state(
     stopped_at: Option<&str>,
 ) -> NodeStatus {
     let config = context.config;
-    let mut status = NodeStatus::from_node_state(node_id(config, context.run_id), state);
+    let mut status = NodeStatus::from_node_state(context.run_id, state);
     let generated_at = now_millis();
     status.process_mode = context.process_mode;
     status.config_path = SnapshotValue::available(context.config_path.display().to_string());
@@ -575,15 +575,6 @@ fn now_millis() -> String {
 
 fn millis_to_u64(millis: u128) -> u64 {
     u64::try_from(millis).unwrap_or(u64::MAX)
-}
-
-fn node_id<'a>(config: &'a MinimalLiveConfig, run_id: &'a str) -> &'a str {
-    config
-        .system
-        .instance_id
-        .as_deref()
-        .or(config.system.node_name.as_deref())
-        .unwrap_or(run_id)
 }
 
 const fn process_mode_label(mode: ProcessMode) -> &'static str {
@@ -729,7 +720,7 @@ write_summary = true
         let status: NodeStatus =
             serde_json::from_str(&fs::read_to_string(output_dir.join("status.json")).unwrap())
                 .unwrap();
-        assert_eq!(status.node_id, "LiveInitSmoke");
+        assert_eq!(status.node_id, "live-init-smoke");
         assert_eq!(status.lifecycle_state, LifecycleStatus::Stopped);
         assert_eq!(status.process_mode, ProcessMode::TestHarness);
         assert_eq!(status.execution_connection, ConnectionStatus::Disconnected);
@@ -751,7 +742,7 @@ write_summary = true
         let metrics: NodeMetrics =
             serde_json::from_str(&fs::read_to_string(output_dir.join("metrics.json")).unwrap())
                 .unwrap();
-        assert_eq!(metrics.node_id, "LiveInitSmoke");
+        assert_eq!(metrics.node_id, "live-init-smoke");
         assert_eq!(metrics.lifecycle_state, LifecycleStatus::Stopped);
         assert_eq!(metrics.starts_total, 1);
         assert_eq!(metrics.stops_total, 1);
@@ -780,6 +771,7 @@ write_summary = true
         let status: NodeStatus =
             serde_json::from_str(&fs::read_to_string(output_dir.join("status.json")).unwrap())
                 .unwrap();
+        assert_eq!(status.node_id, "sandbox-a");
         assert_eq!(status.lifecycle_state, LifecycleStatus::Stopped);
         assert_eq!(status.process_mode, ProcessMode::SpawnedProcess);
         assert_eq!(
@@ -792,6 +784,7 @@ write_summary = true
         let metrics: NodeMetrics =
             serde_json::from_str(&fs::read_to_string(output_dir.join("metrics.json")).unwrap())
                 .unwrap();
+        assert_eq!(metrics.node_id, "sandbox-a");
         assert_eq!(metrics.lifecycle_state, LifecycleStatus::Stopped);
         assert_eq!(metrics.process_mode, ProcessMode::SpawnedProcess);
         assert_eq!(metrics.starts_total, 1);

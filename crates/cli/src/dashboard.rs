@@ -1761,7 +1761,7 @@ fn read_status_artifact(record: &SupervisorNodeRecord) -> ArtifactStatus {
     };
 
     match serde_json::from_str::<NodeStatus>(&raw) {
-        Ok(status) => {
+        Ok(status) if status.node_id == record.node_id => {
             let mut availability = availability_from_registry_state(record.status_artifact);
             if status.generated_at.availability == SnapshotAvailability::Stale {
                 availability = DashboardAvailability::Stale;
@@ -1775,6 +1775,26 @@ fn read_status_artifact(record: &SupervisorNodeRecord) -> ArtifactStatus {
             ArtifactStatus {
                 status,
                 status_availability: availability,
+                gaps,
+            }
+        }
+        Ok(status) => {
+            let mut fallback = record.last_known_status.clone();
+            fallback.node_id.clone_from(&record.node_id);
+            fallback.generated_at = SnapshotValue::stale();
+            fallback.last_error = Some(format!(
+                "status node identity mismatch: registry node '{}' received runtime node '{}'",
+                record.node_id, status.node_id
+            ));
+            gaps.push(DashboardGap::new(
+                format!("nodes.{}.status.node_id", record.node_id),
+                DashboardAvailability::Unknown,
+                "P0-006",
+                fallback.last_error.clone().unwrap(),
+            ));
+            ArtifactStatus {
+                status: fallback,
+                status_availability: DashboardAvailability::Unknown,
                 gaps,
             }
         }
@@ -2140,7 +2160,20 @@ fn metric_statuses_from_record(
     };
 
     let metrics = match serde_json::from_str::<NodeMetrics>(&raw) {
-        Ok(metrics) => metrics,
+        Ok(metrics) if metrics.node_id == record.node_id => metrics,
+        Ok(metrics) => {
+            return vec![MetricStatus {
+                metric_id: format!("{}:node-metrics", record.node_id),
+                node_id: DashboardValue::available(record.node_id.clone()),
+                value: DashboardValue::unknown(),
+                availability: DashboardAvailability::Unknown,
+                last_seen_at: DashboardValue::unknown(),
+                last_error: DashboardValue::available(format!(
+                    "metrics node identity mismatch: registry node '{}' received runtime node '{}'",
+                    record.node_id, metrics.node_id
+                )),
+            }];
+        }
         Err(error) => {
             return vec![MetricStatus {
                 metric_id: format!("{}:node-metrics", record.node_id),
@@ -2804,8 +2837,7 @@ mod tests {
         let root = temp_root("one-node");
         let registry_path = root.join("registry.json");
         let mut record = node_record(&root, "sandbox-a");
-        let mut status = node_status_for_record(&record, LifecycleStatus::Running);
-        status.node_id = "LiveInitSmoke".to_string();
+        let status = node_status_for_record(&record, LifecycleStatus::Running);
         write_status_artifact(&record, &status);
         write_metrics_artifact(&record, &status);
         write_log_artifacts(&record);
@@ -3152,6 +3184,39 @@ mod tests {
     }
 
     #[test]
+    fn mismatched_status_identity_is_marked_explicitly() {
+        let root = temp_root("mismatched-status-identity");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "sandbox-a");
+        let mut status = node_status_for_record(&record, LifecycleStatus::Running);
+        status.node_id = "sandbox-b".to_string();
+        write_status_artifact(&record, &status);
+        record.status_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:05:30Z").unwrap();
+
+        assert_eq!(snapshot.overview.running_nodes, 0);
+        assert!(
+            snapshot.nodes[0]
+                .last_error
+                .as_deref()
+                .unwrap()
+                .contains("status node identity mismatch")
+        );
+        assert!(snapshot.gaps.iter().any(|gap| {
+            gap.field_path == "nodes.sandbox-a.status.node_id"
+                && gap
+                    .notes
+                    .value
+                    .as_deref()
+                    .unwrap()
+                    .contains("registry node 'sandbox-a' received runtime node 'sandbox-b'")
+        }));
+    }
+
+    #[test]
     fn missing_metrics_artifact_is_marked_explicitly() {
         let root = temp_root("missing-metrics");
         let registry_path = root.join("registry.json");
@@ -3186,6 +3251,49 @@ mod tests {
                 .as_deref()
                 .unwrap()
                 .contains("missing")
+        );
+    }
+
+    #[test]
+    fn mismatched_metrics_identity_is_marked_explicitly() {
+        let root = temp_root("mismatched-metrics-identity");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "sandbox-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Running);
+        write_status_artifact(&record, &status);
+        let mut metrics = NodeMetrics::from_status(
+            &status,
+            &NodeMetricArtifacts::from_record(&record),
+            NodeMetricCounts {
+                uptime_ms: Some(100),
+                starts_total: 1,
+                stops_total: 0,
+                state_transitions_total: 1,
+            },
+        );
+        metrics.node_id = "sandbox-b".to_string();
+        write_node_metrics_artifact(&record.metrics_path, &metrics).unwrap();
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:06:30Z").unwrap();
+
+        assert_eq!(snapshot.metrics.len(), 1);
+        assert_eq!(
+            snapshot.metrics[0].availability,
+            DashboardAvailability::Unknown
+        );
+        assert!(
+            snapshot.metrics[0]
+                .last_error
+                .value
+                .as_deref()
+                .unwrap()
+                .contains(
+                    "metrics node identity mismatch: registry node 'sandbox-a' received runtime node 'sandbox-b'"
+                )
         );
     }
 

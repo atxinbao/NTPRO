@@ -3521,7 +3521,7 @@
     },
     "P0-006": {
       "title": "Node Identity Contract",
-      "status": "TODO",
+      "status": "REVIEW_REQUIRED",
       "owner_role": "rust_core_runtime_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -3535,9 +3535,14 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/P0-006.md",
       "evidence_file": "docs/rust-cutover/evidence/P0-006.md",
-      "updated_at": "2026-06-09T12:42:32Z",
+      "updated_at": "2026-06-10T14:06:05Z",
       "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
-      "local_backlog": true
+      "local_backlog": true,
+      "started_at": "2026-06-10T13:52:47Z",
+      "branch": "codex/P0-006-node-identity-contract",
+      "evidence_summary": "P0-006 defines status/metrics node_id as the canonical run identity, rejects registry/runtime identity mismatch in supervisor and Dashboard consumers, and verifies unique two-node identity through start and stop.",
+      "pr_number": 239,
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/239"
     },
     "P0-007": {
       "title": "ntpro-node Shutdown Hardening",

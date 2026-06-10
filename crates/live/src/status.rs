@@ -185,6 +185,11 @@ pub struct RiskStatus {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NodeStatus {
     pub schema_version: String,
+    /// Canonical runtime identity for this status artifact.
+    ///
+    /// A supervisor-managed node must use the registry `node_id` passed to the
+    /// runtime as its run ID. Display names from runtime configuration are not
+    /// valid substitutes for this field.
     pub node_id: String,
     pub process_mode: ProcessMode,
     pub config_path: SnapshotValue<String>,

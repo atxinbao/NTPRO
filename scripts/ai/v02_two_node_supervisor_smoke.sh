@@ -149,6 +149,14 @@ for node_id in expected:
 
     status = json.loads(Path(record["status_path"]).read_text())
     metrics = json.loads(Path(record["metrics_path"]).read_text())
+    if status["node_id"] != node_id:
+        raise SystemExit(
+            f"{node_id}: runtime status identity mismatch: {status['node_id']}"
+        )
+    if metrics["node_id"] != node_id:
+        raise SystemExit(
+            f"{node_id}: runtime metrics identity mismatch: {metrics['node_id']}"
+        )
     if status["lifecycle_state"] != "running":
         raise SystemExit(f"{node_id}: expected running status artifact")
     if status["process_mode"] != "spawned_process":
@@ -209,6 +217,14 @@ for node_id in ["sandbox-a", "sandbox-b"]:
     stderr = Path(record["stderr_log_path"]).read_text()
     events = Path(record["events_log_path"]).read_text()
 
+    if status["node_id"] != node_id:
+        raise SystemExit(
+            f"{node_id}: stopped status identity mismatch: {status['node_id']}"
+        )
+    if metrics["node_id"] != node_id:
+        raise SystemExit(
+            f"{node_id}: stopped metrics identity mismatch: {metrics['node_id']}"
+        )
     if status["lifecycle_state"] != "stopped":
         raise SystemExit(f"{node_id}: expected stopped status artifact")
     if status["process_mode"] != "spawned_process":
