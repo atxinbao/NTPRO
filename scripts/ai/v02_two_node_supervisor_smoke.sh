@@ -40,6 +40,7 @@ NODE_A_ROOT="$SMOKE_ROOT/nodes/sandbox-a"
 NODE_B_ROOT="$SMOKE_ROOT/nodes/sandbox-b"
 OUTPUT_DIR="$SMOKE_ROOT/command-output"
 COMMAND_LOG="$SMOKE_ROOT/commands.log"
+RUNNING_PIDS="$SMOKE_ROOT/running-pids.json"
 
 mkdir -p "$OUTPUT_DIR"
 : > "$COMMAND_LOG"
@@ -98,13 +99,14 @@ for node_id in sandbox-a sandbox-b; do
   run_cmd "${node_id}_metrics_running" "$NAUTILUS_BIN" supervisor metrics --registry "$REGISTRY" --node-id "$node_id"
 done
 
-python3 - "$REGISTRY" <<'PY'
+python3 - "$REGISTRY" "$RUNNING_PIDS" <<'PY'
 import json
 import os
 import sys
 from pathlib import Path
 
 registry_path = Path(sys.argv[1])
+running_pids_path = Path(sys.argv[2])
 registry = json.loads(registry_path.read_text())
 nodes = registry["nodes"]
 expected = ["sandbox-a", "sandbox-b"]
@@ -163,6 +165,7 @@ for node_id in expected:
 if len(set(pids.values())) != len(pids):
     raise SystemExit(f"pid collision: {pids}")
 
+running_pids_path.write_text(json.dumps(pids, indent=2) + "\n")
 print("running_artifact_assertions status=ok nodes=sandbox-a,sandbox-b")
 PY
 
@@ -181,15 +184,17 @@ for node_id in sandbox-a sandbox-b; do
   run_cmd "${node_id}_metrics_stopped" "$NAUTILUS_BIN" supervisor metrics --registry "$REGISTRY" --node-id "$node_id"
 done
 
-python3 - "$REGISTRY" <<'PY'
+python3 - "$REGISTRY" "$RUNNING_PIDS" <<'PY'
 import json
 import os
 import sys
 from pathlib import Path
 
 registry_path = Path(sys.argv[1])
+running_pids_path = Path(sys.argv[2])
 registry = json.loads(registry_path.read_text())
 nodes = registry["nodes"]
+running_pids = json.loads(running_pids_path.read_text())
 
 for node_id in ["sandbox-a", "sandbox-b"]:
     record = nodes[node_id]
@@ -222,6 +227,16 @@ for node_id in ["sandbox-a", "sandbox-b"]:
         raise SystemExit(f"{node_id}: stderr log is not empty")
     if "phase=start status=ok" not in events or "phase=stop status=ok" not in events:
         raise SystemExit(f"{node_id}: events log missing start/stop phases")
+
+    pid = running_pids[node_id]
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        pass
+    except PermissionError as error:
+        raise SystemExit(f"{node_id}: process {pid} still exists but cannot be inspected: {error}")
+    else:
+        raise SystemExit(f"{node_id}: process {pid} is still alive after supervisor stop")
 
 print("stopped_artifact_assertions status=ok nodes=sandbox-a,sandbox-b")
 PY

@@ -1024,7 +1024,7 @@ fn run_stop_action(
     started_at: String,
 ) -> (StatusCode, Json<ControlActionResponse>) {
     let store = SupervisorRegistryStore::new(state.registry_path.clone());
-    let result = store.stop_node_process(StopNodeRequest {
+    let result = store.stop_node_process(&StopNodeRequest {
         node_id: node_id.to_string(),
         stop_timeout: Duration::from_millis(DASHBOARD_ACTION_TIMEOUT_MS),
     });

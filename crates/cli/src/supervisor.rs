@@ -19,7 +19,7 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
-    process::{self, Command, Stdio},
+    process::{self, Child, Command, Stdio},
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -36,12 +36,17 @@ use crate::{
         SupervisorCommand, SupervisorListOpt, SupervisorNodeOpt, SupervisorOpt,
         SupervisorRegisterOpt, SupervisorStartOpt, SupervisorStopOpt,
     },
+    process::{
+        SignalDelivery, process_is_alive, send_kill, send_termination, wait_for_process_exit,
+    },
 };
 
 pub const SUPERVISOR_REGISTRY_SCHEMA_VERSION: &str = "ntpro.supervisor_registry.v1";
 pub const NODE_METRICS_SCHEMA_VERSION: &str = "ntpro.node_metrics.v1";
 const REGISTRY_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 const REGISTRY_LOCK_RETRY: Duration = Duration::from_millis(25);
+const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(100);
+const PROCESS_SIGNAL_GRACE: Duration = Duration::from_secs(1);
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SupervisorRegistry {
@@ -312,10 +317,11 @@ fn run_supervisor_start(opt: SupervisorStartOpt) -> anyhow::Result<()> {
 
 fn run_supervisor_stop(opt: SupervisorStopOpt) -> anyhow::Result<()> {
     let store = SupervisorRegistryStore::new(opt.registry.registry);
-    let record = store.stop_node_process(StopNodeRequest {
+    let request = StopNodeRequest {
         node_id: opt.node_id,
         stop_timeout: Duration::from_millis(opt.stop_timeout_ms),
-    })?;
+    };
+    let record = store.stop_node_process(&request)?;
     println!(
         "supervisor.stop status=ok node_id={} process_state={} lifecycle_state={} external_venue_connection=false real_orders_submitted=false",
         record.node_id,
@@ -737,6 +743,7 @@ impl SupervisorRegistryStore {
         &self,
         node_id: &str,
     ) -> anyhow::Result<SupervisorNodeRecord> {
+        self.refresh_process_state(node_id)?;
         let _lock = self.acquire_registry_lock()?;
         let mut registry = self.load()?;
         let record = registry
@@ -779,6 +786,10 @@ impl SupervisorRegistryStore {
     ///
     /// Returns an error if the registry cannot be loaded.
     pub fn list_nodes(&self) -> anyhow::Result<Vec<SupervisorNodeRecord>> {
+        let node_ids = self.load()?.nodes.into_keys().collect::<Vec<_>>();
+        for node_id in node_ids {
+            self.refresh_process_state(&node_id)?;
+        }
         Ok(self.load()?.nodes.into_values().collect())
     }
 
@@ -811,8 +822,9 @@ impl SupervisorRegistryStore {
             "ntpro-node binary '{}' does not exist",
             request.ntpro_node_bin.display()
         );
+        self.refresh_process_state(&request.node_id)?;
 
-        {
+        let mut child = {
             let _lock = self.acquire_registry_lock()?;
             let mut registry = self.load()?;
             let record = registry
@@ -877,14 +889,31 @@ impl SupervisorRegistryStore {
             record.updated_at = SnapshotValue::available(now_millis());
             registry.updated_at = SnapshotValue::available(now_millis());
             self.save(&registry)?;
-        }
+            child
+        };
 
-        wait_for_lifecycle(
-            self,
-            &request.node_id,
-            LifecycleStatus::Running,
-            request.startup_timeout,
-        )
+        let startup_result =
+            wait_for_startup(self, &request.node_id, &mut child, request.startup_timeout);
+        match startup_result {
+            Ok(record) => Ok(record),
+            Err(error) => {
+                let pid = child.id();
+                let cleanup_error = stop_child_after_start_failure(&mut child).err();
+                let process_exited = cleanup_error.is_none();
+                let retained_pid = (!process_exited).then_some(pid);
+                let message = cleanup_error.as_ref().map_or_else(
+                    || format!("node startup failed: {error}"),
+                    |cleanup| format!("node startup failed: {error}; cleanup failed: {cleanup}"),
+                );
+                self.record_process_failure(&request.node_id, retained_pid, &message)?;
+                if let Some(cleanup) = cleanup_error {
+                    return Err(
+                        error.context(format!("failed to clean up node process {pid}: {cleanup}"))
+                    );
+                }
+                Err(error)
+            }
+        }
     }
 
     /// # Errors
@@ -894,10 +923,11 @@ impl SupervisorRegistryStore {
     /// the timeout.
     pub fn stop_node_process(
         &self,
-        request: StopNodeRequest,
+        request: &StopNodeRequest,
     ) -> anyhow::Result<SupervisorNodeRecord> {
         validate_node_id(&request.node_id)?;
-        {
+        self.refresh_process_state(&request.node_id)?;
+        let pid = {
             let _lock = self.acquire_registry_lock()?;
             let mut registry = self.load()?;
             let record = registry
@@ -909,6 +939,11 @@ impl SupervisorRegistryStore {
                 "node '{}' is not running",
                 request.node_id
             );
+            let pid = record
+                .process
+                .pid
+                .value
+                .with_context(|| format!("node '{}' has no process pid", request.node_id))?;
             let stop_file = stop_file_path(record);
             if let Some(parent) = stop_file.parent() {
                 fs::create_dir_all(parent).with_context(|| {
@@ -917,27 +952,45 @@ impl SupervisorRegistryStore {
             }
             atomic_write_text(&stop_file, &format!("{}\n", now_millis()))
                 .with_context(|| format!("failed to write stop file '{}'", stop_file.display()))?;
-        }
-
-        let mut stopped = wait_for_lifecycle(
-            self,
-            &request.node_id,
-            LifecycleStatus::Stopped,
-            request.stop_timeout,
-        )?;
-        stopped.process = SupervisorProcessRecord {
-            pid: SnapshotValue::not_configured(),
-            state: SupervisorProcessState::Stopped,
-            updated_at: SnapshotValue::available(now_millis()),
+            pid
         };
 
-        let _lock = self.acquire_registry_lock()?;
-        write_or_remove_pid_artifact(&stopped)?;
-        let mut registry = self.load()?;
-        registry.nodes.insert(request.node_id, stopped.clone());
-        registry.updated_at = SnapshotValue::available(now_millis());
-        self.save(&registry)?;
-        Ok(stopped)
+        if let Some(stopped) =
+            wait_for_stopped_process(self, &request.node_id, pid, request.stop_timeout)?
+        {
+            return self.finalize_stopped_process(&request.node_id, stopped);
+        }
+
+        match send_termination(pid)? {
+            SignalDelivery::Sent => {
+                let _ = wait_for_process_exit(pid, PROCESS_SIGNAL_GRACE);
+            }
+            SignalDelivery::ProcessExited | SignalDelivery::Unsupported => {}
+        }
+        if process_is_alive(pid) {
+            send_kill(pid)?;
+            let _ = wait_for_process_exit(pid, PROCESS_SIGNAL_GRACE);
+        }
+
+        if process_is_alive(pid) {
+            let message = format!(
+                "node '{}' process {pid} did not exit after termination escalation",
+                request.node_id
+            );
+            self.record_process_failure(&request.node_id, Some(pid), &message)?;
+            anyhow::bail!("{message}");
+        }
+
+        let stopped = self.refresh_status_from_artifact(&request.node_id)?;
+        if stopped.last_known_status.lifecycle_state != LifecycleStatus::Stopped {
+            let message = format!(
+                "node '{}' process {pid} exited without a stopped status artifact",
+                request.node_id
+            );
+            self.record_process_failure(&request.node_id, None, &message)?;
+            anyhow::bail!("{message}");
+        }
+        self.finalize_stopped_process(&request.node_id, stopped)
     }
 
     /// # Errors
@@ -956,6 +1009,7 @@ impl SupervisorRegistryStore {
     /// missing, or the JSON shape is invalid.
     pub fn node_metrics(&self, node_id: &str) -> anyhow::Result<NodeMetrics> {
         validate_node_id(node_id)?;
+        self.refresh_process_state(node_id)?;
         let _lock = self.acquire_registry_lock()?;
         let mut registry = self.load()?;
         let record = registry
@@ -1006,29 +1060,134 @@ impl SupervisorRegistryStore {
             .join("nodes")
             .join(node_id)
     }
+
+    fn finalize_stopped_process(
+        &self,
+        node_id: &str,
+        mut stopped: SupervisorNodeRecord,
+    ) -> anyhow::Result<SupervisorNodeRecord> {
+        stopped.process = SupervisorProcessRecord {
+            pid: SnapshotValue::not_configured(),
+            state: SupervisorProcessState::Stopped,
+            updated_at: SnapshotValue::available(now_millis()),
+        };
+
+        let _lock = self.acquire_registry_lock()?;
+        write_or_remove_pid_artifact(&stopped)?;
+        let mut registry = self.load()?;
+        registry.nodes.insert(node_id.to_string(), stopped.clone());
+        registry.updated_at = SnapshotValue::available(now_millis());
+        self.save(&registry)?;
+        Ok(stopped)
+    }
+
+    fn record_process_failure(
+        &self,
+        node_id: &str,
+        pid: Option<u32>,
+        message: &str,
+    ) -> anyhow::Result<SupervisorNodeRecord> {
+        let _lock = self.acquire_registry_lock()?;
+        let mut registry = self.load()?;
+        let record = registry
+            .nodes
+            .get_mut(node_id)
+            .with_context(|| format!("node '{node_id}' is not registered"))?;
+        record.process = SupervisorProcessRecord {
+            pid: pid.map_or_else(SnapshotValue::not_configured, SnapshotValue::available),
+            state: SupervisorProcessState::Stale,
+            updated_at: SnapshotValue::available(now_millis()),
+        };
+        record.last_known_status.last_error = Some(message.to_string());
+        record.updated_at = SnapshotValue::available(now_millis());
+        write_or_remove_pid_artifact(record)?;
+        let updated = record.clone();
+        registry.updated_at = SnapshotValue::available(now_millis());
+        self.save(&registry)?;
+        Ok(updated)
+    }
 }
 
 fn stop_file_path(record: &SupervisorNodeRecord) -> PathBuf {
     record.artifact_root.join("stop.request")
 }
 
-fn wait_for_lifecycle(
+fn wait_for_startup(
     store: &SupervisorRegistryStore,
     node_id: &str,
-    expected: LifecycleStatus,
+    child: &mut Child,
     timeout: Duration,
 ) -> anyhow::Result<SupervisorNodeRecord> {
     let started = SystemTime::now();
     loop {
+        if let Some(status) = child
+            .try_wait()
+            .context("failed to inspect child process state")?
+        {
+            anyhow::bail!(
+                "node '{node_id}' process {} exited before reaching running status: {status}",
+                child.id()
+            );
+        }
         let record = store.refresh_status_from_artifact(node_id)?;
-        if record.last_known_status.lifecycle_state == expected {
+        if record.last_known_status.lifecycle_state == LifecycleStatus::Running {
+            if let Some(status) = child
+                .try_wait()
+                .context("failed to inspect child process state")?
+            {
+                anyhow::bail!(
+                    "node '{node_id}' process {} exited while reporting running status: {status}",
+                    child.id()
+                );
+            }
             return Ok(record);
         }
         if started.elapsed().is_ok_and(|elapsed| elapsed >= timeout) {
-            anyhow::bail!("timed out waiting for node '{node_id}' to reach {expected:?}");
+            anyhow::bail!(
+                "node '{node_id}' process {} timed out waiting for running status",
+                child.id()
+            );
         }
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(PROCESS_POLL_INTERVAL);
     }
+}
+
+fn wait_for_stopped_process(
+    store: &SupervisorRegistryStore,
+    node_id: &str,
+    pid: u32,
+    timeout: Duration,
+) -> anyhow::Result<Option<SupervisorNodeRecord>> {
+    let started = SystemTime::now();
+    loop {
+        let record = store.refresh_status_from_artifact(node_id)?;
+        if record.last_known_status.lifecycle_state == LifecycleStatus::Stopped
+            && !process_is_alive(pid)
+        {
+            return Ok(Some(record));
+        }
+        if started.elapsed().is_ok_and(|elapsed| elapsed >= timeout) {
+            return Ok(None);
+        }
+        thread::sleep(PROCESS_POLL_INTERVAL);
+    }
+}
+
+fn stop_child_after_start_failure(child: &mut Child) -> anyhow::Result<bool> {
+    if child
+        .try_wait()
+        .context("failed to inspect failed child process")?
+        .is_some()
+    {
+        return Ok(true);
+    }
+    child
+        .kill()
+        .context("failed to kill child after startup failure")?;
+    child
+        .wait()
+        .context("failed to wait for child after startup failure")?;
+    Ok(true)
 }
 
 impl SupervisorNodeRecord {
@@ -1130,6 +1289,9 @@ fn pid_artifact_is_stale(record: &SupervisorNodeRecord) -> anyhow::Result<bool> 
     let Some(expected_pid) = record.process.pid.value else {
         return Ok(true);
     };
+    if !process_is_alive(expected_pid) {
+        return Ok(true);
+    }
     if !record.pid_path.exists() {
         return Ok(true);
     }
@@ -1322,6 +1484,12 @@ cat > "$output/metrics.json" <<EOF
   "real_orders_submitted": false
 }
 EOF
+if [ -f "$output/ignore-stop" ]; then
+  trap 'echo term > "$output/term.signal"; exit 0' TERM
+  while :; do
+    sleep 0.05
+  done
+fi
 while [ ! -f "$stop_file" ]; do
   sleep 0.05
 done
@@ -1400,6 +1568,43 @@ cat > "$output/metrics.json" <<EOF
   "real_orders_submitted": false
 }
 EOF
+"#,
+        )
+        .unwrap();
+        let mut perms = fs::metadata(&path).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&path, perms).unwrap();
+        path
+    }
+
+    #[cfg(unix)]
+    fn write_early_exit_node(root: &Path) -> PathBuf {
+        let path = root.join("early-exit-ntpro-node.sh");
+        fs::write(&path, "#!/bin/sh\nexit 23\n").unwrap();
+        let mut perms = fs::metadata(&path).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&path, perms).unwrap();
+        path
+    }
+
+    #[cfg(unix)]
+    fn write_hanging_node(root: &Path) -> PathBuf {
+        let path = root.join("hanging-ntpro-node.sh");
+        fs::write(
+            &path,
+            r#"#!/bin/sh
+set -eu
+output=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --output) output="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+mkdir -p "$output"
+while :; do
+  sleep 1
+done
 "#,
         )
         .unwrap();
@@ -1591,7 +1796,7 @@ EOF
     }
 
     #[test]
-    fn update_process_writes_pid_artifact_and_missing_artifact_marks_stale() {
+    fn update_process_writes_pid_artifact_and_dead_or_missing_process_marks_stale() {
         let root = temp_root("stale-pid");
         let store = SupervisorRegistryStore::new(root.join("registry.json"));
         let config = write_config(&root, "sandbox-a");
@@ -1613,6 +1818,12 @@ EOF
         assert!(!store.registry_lock_path().exists());
         assert_no_temp_artifacts(&root);
 
+        let dead = store.refresh_process_state("sandbox-a").unwrap();
+        assert_eq!(dead.process.state, SupervisorProcessState::Stale);
+
+        store
+            .update_process("sandbox-a", Some(123_456), SupervisorProcessState::Running)
+            .unwrap();
         fs::remove_file(&registered.pid_path).unwrap();
         let refreshed = store.refresh_process_state("sandbox-a").unwrap();
         assert_eq!(refreshed.process.state, SupervisorProcessState::Stale);
@@ -1640,7 +1851,9 @@ EOF
             startup_timeout: Duration::from_secs(3),
         };
         let started = store.start_node_process(&start_request).unwrap();
+        let started_pid = started.process.pid.value.unwrap();
         assert_eq!(started.process.state, SupervisorProcessState::Running);
+        assert!(process_is_alive(started_pid));
         assert_eq!(
             started.last_known_status.lifecycle_state,
             LifecycleStatus::Running
@@ -1688,13 +1901,14 @@ EOF
         );
 
         let stopped = store
-            .stop_node_process(StopNodeRequest {
+            .stop_node_process(&StopNodeRequest {
                 node_id: "sandbox-a".to_string(),
                 stop_timeout: Duration::from_secs(3),
             })
             .unwrap();
         assert_eq!(stopped.process.state, SupervisorProcessState::Stopped);
         assert!(!stopped.pid_path.exists());
+        assert!(!process_is_alive(started_pid));
         assert_eq!(
             stopped.last_known_status.lifecycle_state,
             LifecycleStatus::Stopped
@@ -1706,13 +1920,128 @@ EOF
         assert_eq!(stopped_metrics.stops_total, 1);
 
         let duplicate_stop = store
-            .stop_node_process(StopNodeRequest {
+            .stop_node_process(&StopNodeRequest {
                 node_id: "sandbox-a".to_string(),
                 stop_timeout: Duration::from_secs(1),
             })
             .unwrap_err()
             .to_string();
         assert!(duplicate_stop.contains("not running"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn start_rejects_child_that_exits_before_running_status() {
+        let root = temp_root("early-exit");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let fixture = write_early_exit_node(&root);
+        store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+
+        let error = store
+            .start_node_process(&StartNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                ntpro_node_bin: fixture,
+                startup_timeout: Duration::from_secs(3),
+            })
+            .unwrap_err()
+            .to_string();
+
+        assert!(
+            error.contains("exited before reaching running status"),
+            "unexpected startup error: {error}"
+        );
+        let record = store.load().unwrap().nodes.remove("sandbox-a").unwrap();
+        assert_eq!(record.process.state, SupervisorProcessState::Stale);
+        assert!(record.process.pid.value.is_none());
+        assert!(!record.pid_path.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn start_timeout_kills_child_and_marks_registry_stale() {
+        let root = temp_root("startup-timeout");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let fixture = write_hanging_node(&root);
+        store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+
+        let error = store
+            .start_node_process(&StartNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                ntpro_node_bin: fixture,
+                startup_timeout: Duration::from_secs(1),
+            })
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("timed out waiting"));
+        let child_pid = error
+            .split(" process ")
+            .nth(1)
+            .and_then(|suffix| suffix.split_whitespace().next())
+            .unwrap()
+            .parse::<u32>()
+            .unwrap();
+        assert!(!process_is_alive(child_pid));
+        let record = store.load().unwrap().nodes.remove("sandbox-a").unwrap();
+        assert_eq!(record.process.state, SupervisorProcessState::Stale);
+        assert!(record.process.pid.value.is_none());
+        assert!(!record.pid_path.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stop_escalates_but_rejects_missing_stopped_status() {
+        let root = temp_root("stop-escalation");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let fixture = write_fixture_node(&root);
+        let registered = store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+        fs::write(registered.artifact_root.join("ignore-stop"), "").unwrap();
+
+        let started = store
+            .start_node_process(&StartNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                ntpro_node_bin: fixture,
+                startup_timeout: Duration::from_secs(3),
+            })
+            .unwrap();
+        let pid = started.process.pid.value.unwrap();
+
+        let error = store
+            .stop_node_process(&StopNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                stop_timeout: Duration::from_millis(200),
+            })
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("exited without a stopped status artifact"));
+        assert!(registered.artifact_root.join("term.signal").exists());
+        assert!(!process_is_alive(pid));
+        let record = store.load().unwrap().nodes.remove("sandbox-a").unwrap();
+        assert_eq!(record.process.state, SupervisorProcessState::Stale);
+        assert!(record.process.pid.value.is_none());
+        assert!(!record.pid_path.exists());
     }
 
     #[cfg(unix)]
