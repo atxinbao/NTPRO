@@ -195,6 +195,10 @@ pub enum SupervisorCommand {
     Start(SupervisorStartOpt),
     /// Stops a registered local ntpro-node process.
     Stop(SupervisorStopOpt),
+    /// Pauses a running local sandbox node at the supervisor artifact layer.
+    Pause(SupervisorNodeOpt),
+    /// Resumes a paused local sandbox node at the supervisor artifact layer.
+    Resume(SupervisorNodeOpt),
     /// Reads the latest node status artifact.
     Status(SupervisorNodeOpt),
     /// Reads data/execution connection status from node artifacts.
@@ -789,6 +793,8 @@ mod tests {
             "list",
             "start",
             "stop",
+            "pause",
+            "resume",
             "status",
             "connections",
             "execution",
@@ -890,6 +896,8 @@ mod tests {
     #[test]
     fn parses_supervisor_query_options() {
         for command in [
+            "pause",
+            "resume",
             "status",
             "connections",
             "execution",
@@ -913,6 +921,8 @@ mod tests {
             };
             match supervisor.command {
                 SupervisorCommand::Status(node)
+                | SupervisorCommand::Pause(node)
+                | SupervisorCommand::Resume(node)
                 | SupervisorCommand::Connections(node)
                 | SupervisorCommand::Execution(node)
                 | SupervisorCommand::Risk(node)
