@@ -1208,7 +1208,7 @@ fn run_pause_action(
                 ),
             })),
         ),
-        Err(error) => failed_control_response("pause", node_id, previous_state, started_at, error),
+        Err(error) => failed_control_response("pause", node_id, previous_state, started_at, &error),
     }
 }
 
@@ -1236,7 +1236,7 @@ fn run_resume_action(
                 ),
             })),
         ),
-        Err(error) => failed_control_response("resume", node_id, previous_state, started_at, error),
+        Err(error) => failed_control_response("resume", node_id, previous_state, started_at, &error),
     }
 }
 
@@ -1267,9 +1267,13 @@ fn run_reconnect_data_action(
                 ),
             })),
         ),
-        Err(error) => {
-            failed_control_response("reconnect_data", node_id, previous_state, started_at, error)
-        }
+        Err(error) => failed_control_response(
+            "reconnect_data",
+            node_id,
+            previous_state,
+            started_at,
+            &error,
+        ),
     }
 }
 
@@ -1305,7 +1309,7 @@ fn run_reconnect_execution_action(
             node_id,
             previous_state,
             started_at,
-            error,
+            &error,
         ),
     }
 }
@@ -1315,7 +1319,7 @@ fn failed_control_response(
     node_id: &str,
     previous_state: LifecycleStatus,
     started_at: String,
-    error: anyhow::Error,
+    error: &anyhow::Error,
 ) -> (StatusCode, Json<ControlActionResponse>) {
     (
         StatusCode::INTERNAL_SERVER_ERROR,
@@ -1326,7 +1330,7 @@ fn failed_control_response(
             previous_state,
             current_state: previous_state,
             started_at,
-            error_code: DashboardValue::available(control_error_code(&error)),
+            error_code: DashboardValue::available(control_error_code(error)),
             message: DashboardValue::available(format!("{action} failed; details are redacted")),
         })),
     )
