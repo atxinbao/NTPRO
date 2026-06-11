@@ -1236,7 +1236,9 @@ fn run_resume_action(
                 ),
             })),
         ),
-        Err(error) => failed_control_response("resume", node_id, previous_state, started_at, &error),
+        Err(error) => {
+            failed_control_response("resume", node_id, previous_state, started_at, &error)
+        }
     }
 }
 
