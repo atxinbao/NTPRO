@@ -224,35 +224,60 @@ run_pw eval "$(cat <<'JS'
   const expectedControls = {
     "start:sandbox-a": true,
     "stop:sandbox-a": false,
+    "pause:sandbox-a": false,
+    "resume:sandbox-a": false,
+    "reconnect_data:sandbox-a": false,
+    "reconnect_execution:sandbox-a": false,
     "start:sandbox-b": false,
     "stop:sandbox-b": true,
+    "pause:sandbox-b": true,
+    "resume:sandbox-b": false,
+    "reconnect_data:sandbox-b": true,
+    "reconnect_execution:sandbox-b": true,
   };
   for (const [action, enabled] of Object.entries(expectedControls)) {
     const control = controls.get(action);
-    if (!control || control.enabled !== enabled) {
+    if (!control || control.enabled !== enabled || control.availability !== "available") {
       throw new Error(`unexpected control state ${action}: ${JSON.stringify(control)}`);
     }
   }
-  for (const action of ["pause:sandbox-a", "resume:sandbox-a", "reconnect_data:sandbox-a", "reconnect_execution:sandbox-a"]) {
-    const control = controls.get(action);
-    if (!control || control.enabled || control.availability !== "not_supported") {
-      throw new Error(`unsupported control is not disabled: ${action} ${JSON.stringify(control)}`);
-    }
-  }
 
-  const startA = document.querySelector('button[data-dashboard-action="start"][data-node-id="sandbox-a"]');
-  const stopB = document.querySelector('button[data-dashboard-action="stop"][data-node-id="sandbox-b"]');
-  if (!startA || startA.disabled) throw new Error("start button for sandbox-a is not enabled");
-  if (!stopB || stopB.disabled) throw new Error("stop button for sandbox-b is not enabled");
-  startA.click();
+  const clickControl = async (action, nodeId, label, expectedStatus = "succeeded") => {
+    const button = document.querySelector(`button[data-dashboard-action="${action}"][data-node-id="${nodeId}"]`);
+    if (!button || button.disabled) {
+      throw new Error(`${label} button is not enabled`);
+    }
+    const result = document.getElementById("control-result");
+    result.innerHTML = "";
+    button.click();
+    await waitFor(
+      () => result.innerText.includes(expectedStatus),
+      `${label} control result`,
+    );
+  };
+
+  await clickControl("reconnect_data", "sandbox-b", "reconnect data sandbox-b", "not_supported");
+  await clickControl("reconnect_execution", "sandbox-b", "reconnect execution sandbox-b", "not_supported");
+
+  await clickControl("pause", "sandbox-b", "pause sandbox-b");
+  await waitFor(async () => {
+    const next = await fetch("/api/snapshot").then((response) => response.json());
+    return next.nodes.find((node) => node.node_id === "sandbox-b")?.lifecycle_state === "paused";
+  }, "pause sandbox-b through dashboard control");
+
+  await clickControl("resume", "sandbox-b", "resume sandbox-b");
+  await waitFor(async () => {
+    const next = await fetch("/api/snapshot").then((response) => response.json());
+    return next.nodes.find((node) => node.node_id === "sandbox-b")?.lifecycle_state === "running";
+  }, "resume sandbox-b through dashboard control");
+
+  await clickControl("start", "sandbox-a", "start sandbox-a");
   await waitFor(async () => {
     const next = await fetch("/api/snapshot").then((response) => response.json());
     return next.nodes.find((node) => node.node_id === "sandbox-a")?.lifecycle_state === "running";
   }, "start sandbox-a through dashboard control");
 
-  const refreshedStopB = document.querySelector('button[data-dashboard-action="stop"][data-node-id="sandbox-b"]');
-  if (!refreshedStopB || refreshedStopB.disabled) throw new Error("stop button for sandbox-b disappeared after start");
-  refreshedStopB.click();
+  await clickControl("stop", "sandbox-b", "stop sandbox-b");
   await waitFor(async () => {
     const next = await fetch("/api/snapshot").then((response) => response.json());
     return next.nodes.find((node) => node.node_id === "sandbox-b")?.lifecycle_state === "stopped";

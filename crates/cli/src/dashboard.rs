@@ -501,7 +501,7 @@ function renderControls(controls) {
         ${controls.map((control) => {
           const action = controlActionName(control.action);
           const nodeId = controlNodeId(control.action);
-          const runnable = control.enabled && (action === "start" || action === "stop");
+          const runnable = control.enabled && ["start", "stop", "pause", "resume", "reconnect_data", "reconnect_execution"].includes(action);
           return `
             <tr>
               <td data-label="Node"><strong>${text(nodeId)}</strong></td>
@@ -775,6 +775,19 @@ fn dashboard_router(registry_path: PathBuf, ntpro_node_bin: PathBuf) -> Router {
         .route("/api/nodes/{node_id}/logs", get(node_logs_api))
         .route("/api/nodes/{node_id}/actions/start", post(start_action_api))
         .route("/api/nodes/{node_id}/actions/stop", post(stop_action_api))
+        .route("/api/nodes/{node_id}/actions/pause", post(pause_action_api))
+        .route(
+            "/api/nodes/{node_id}/actions/resume",
+            post(resume_action_api),
+        )
+        .route(
+            "/api/nodes/{node_id}/actions/reconnect_data",
+            post(reconnect_data_action_api),
+        )
+        .route(
+            "/api/nodes/{node_id}/actions/reconnect_execution",
+            post(reconnect_execution_action_api),
+        )
         .with_state(state)
 }
 
@@ -894,6 +907,34 @@ async fn stop_action_api(
     control_action_response(&state, &node_id, "stop")
 }
 
+async fn pause_action_api(
+    State(state): State<DashboardServerState>,
+    AxumPath(node_id): AxumPath<String>,
+) -> ApiStatusResult<ControlActionResponse> {
+    control_action_response(&state, &node_id, "pause")
+}
+
+async fn resume_action_api(
+    State(state): State<DashboardServerState>,
+    AxumPath(node_id): AxumPath<String>,
+) -> ApiStatusResult<ControlActionResponse> {
+    control_action_response(&state, &node_id, "resume")
+}
+
+async fn reconnect_data_action_api(
+    State(state): State<DashboardServerState>,
+    AxumPath(node_id): AxumPath<String>,
+) -> ApiStatusResult<ControlActionResponse> {
+    control_action_response(&state, &node_id, "reconnect_data")
+}
+
+async fn reconnect_execution_action_api(
+    State(state): State<DashboardServerState>,
+    AxumPath(node_id): AxumPath<String>,
+) -> ApiStatusResult<ControlActionResponse> {
+    control_action_response(&state, &node_id, "reconnect_execution")
+}
+
 fn control_action_response(
     state: &DashboardServerState,
     node_id: &str,
@@ -936,7 +977,29 @@ fn control_action_response(
                 ),
             })),
         )),
-        "stop" if previous_state != LifecycleStatus::Running => Ok((
+        "stop"
+            if !matches!(
+                previous_state,
+                LifecycleStatus::Running | LifecycleStatus::Paused
+            ) =>
+        {
+            Ok((
+                StatusCode::CONFLICT,
+                Json(action_response(ControlActionResponseParts {
+                    action,
+                    node_id,
+                    status: ControlActionStatus::Rejected,
+                    previous_state,
+                    current_state: previous_state,
+                    started_at,
+                    error_code: DashboardValue::available("invalid_lifecycle_state".to_string()),
+                    message: DashboardValue::available(
+                        "stop is only available for running or paused nodes".to_string(),
+                    ),
+                })),
+            ))
+        }
+        "pause" if previous_state != LifecycleStatus::Running => Ok((
             StatusCode::CONFLICT,
             Json(action_response(ControlActionResponseParts {
                 action,
@@ -947,12 +1010,69 @@ fn control_action_response(
                 started_at,
                 error_code: DashboardValue::available("invalid_lifecycle_state".to_string()),
                 message: DashboardValue::available(
-                    "stop is only available for running nodes".to_string(),
+                    "pause is only available for running nodes".to_string(),
                 ),
             })),
         )),
+        "resume" if previous_state != LifecycleStatus::Paused => Ok((
+            StatusCode::CONFLICT,
+            Json(action_response(ControlActionResponseParts {
+                action,
+                node_id,
+                status: ControlActionStatus::Rejected,
+                previous_state,
+                current_state: previous_state,
+                started_at,
+                error_code: DashboardValue::available("invalid_lifecycle_state".to_string()),
+                message: DashboardValue::available(
+                    "resume is only available for paused nodes".to_string(),
+                ),
+            })),
+        )),
+        "reconnect_data" | "reconnect_execution"
+            if !matches!(
+                previous_state,
+                LifecycleStatus::Running | LifecycleStatus::Paused
+            ) =>
+        {
+            Ok((
+                StatusCode::CONFLICT,
+                Json(action_response(ControlActionResponseParts {
+                    action,
+                    node_id,
+                    status: ControlActionStatus::Rejected,
+                    previous_state,
+                    current_state: previous_state,
+                    started_at,
+                    error_code: DashboardValue::available("invalid_lifecycle_state".to_string()),
+                    message: DashboardValue::available(
+                        "reconnect controls are only available for running or paused nodes"
+                            .to_string(),
+                    ),
+                })),
+            ))
+        }
         "start" => Ok(run_start_action(state, node_id, previous_state, started_at)),
         "stop" => Ok(run_stop_action(state, node_id, previous_state, started_at)),
+        "pause" => Ok(run_pause_action(state, node_id, previous_state, started_at)),
+        "resume" => Ok(run_resume_action(
+            state,
+            node_id,
+            previous_state,
+            started_at,
+        )),
+        "reconnect_data" => Ok(run_reconnect_data_action(
+            state,
+            node_id,
+            previous_state,
+            started_at,
+        )),
+        "reconnect_execution" => Ok(run_reconnect_execution_action(
+            state,
+            node_id,
+            previous_state,
+            started_at,
+        )),
         _ => Ok((
             StatusCode::NOT_IMPLEMENTED,
             Json(action_response(ControlActionResponseParts {
@@ -1062,6 +1182,160 @@ fn run_stop_action(
             })),
         ),
     }
+}
+
+fn run_pause_action(
+    state: &DashboardServerState,
+    node_id: &str,
+    previous_state: LifecycleStatus,
+    started_at: String,
+) -> (StatusCode, Json<ControlActionResponse>) {
+    let store = SupervisorRegistryStore::new(state.registry_path.clone());
+    let result = store.pause_node(node_id);
+    match result {
+        Ok(record) => (
+            StatusCode::OK,
+            Json(action_response(ControlActionResponseParts {
+                action: "pause",
+                node_id,
+                status: ControlActionStatus::Succeeded,
+                previous_state,
+                current_state: record.last_known_status.lifecycle_state,
+                started_at,
+                error_code: DashboardValue::unknown(),
+                message: DashboardValue::available(
+                    "pause completed through local supervisor".to_string(),
+                ),
+            })),
+        ),
+        Err(error) => failed_control_response("pause", node_id, previous_state, started_at, &error),
+    }
+}
+
+fn run_resume_action(
+    state: &DashboardServerState,
+    node_id: &str,
+    previous_state: LifecycleStatus,
+    started_at: String,
+) -> (StatusCode, Json<ControlActionResponse>) {
+    let store = SupervisorRegistryStore::new(state.registry_path.clone());
+    let result = store.resume_node(node_id);
+    match result {
+        Ok(record) => (
+            StatusCode::OK,
+            Json(action_response(ControlActionResponseParts {
+                action: "resume",
+                node_id,
+                status: ControlActionStatus::Succeeded,
+                previous_state,
+                current_state: record.last_known_status.lifecycle_state,
+                started_at,
+                error_code: DashboardValue::unknown(),
+                message: DashboardValue::available(
+                    "resume completed through local supervisor".to_string(),
+                ),
+            })),
+        ),
+        Err(error) => {
+            failed_control_response("resume", node_id, previous_state, started_at, &error)
+        }
+    }
+}
+
+fn run_reconnect_data_action(
+    state: &DashboardServerState,
+    node_id: &str,
+    previous_state: LifecycleStatus,
+    started_at: String,
+) -> (StatusCode, Json<ControlActionResponse>) {
+    let store = SupervisorRegistryStore::new(state.registry_path.clone());
+    let result = store.reconnect_data_source(node_id);
+    match result {
+        Ok(record) => (
+            StatusCode::OK,
+            Json(action_response(ControlActionResponseParts {
+                action: "reconnect_data",
+                node_id,
+                status: ControlActionStatus::NotSupported,
+                previous_state,
+                current_state: record.last_known_status.lifecycle_state,
+                started_at,
+                error_code: DashboardValue::available(
+                    "sandbox_reconnect_not_supported".to_string(),
+                ),
+                message: DashboardValue::available(
+                    "data reconnect recorded as not supported for local sandbox supervisor"
+                        .to_string(),
+                ),
+            })),
+        ),
+        Err(error) => failed_control_response(
+            "reconnect_data",
+            node_id,
+            previous_state,
+            started_at,
+            &error,
+        ),
+    }
+}
+
+fn run_reconnect_execution_action(
+    state: &DashboardServerState,
+    node_id: &str,
+    previous_state: LifecycleStatus,
+    started_at: String,
+) -> (StatusCode, Json<ControlActionResponse>) {
+    let store = SupervisorRegistryStore::new(state.registry_path.clone());
+    let result = store.reconnect_execution_gateway(node_id);
+    match result {
+        Ok(record) => (
+            StatusCode::OK,
+            Json(action_response(ControlActionResponseParts {
+                action: "reconnect_execution",
+                node_id,
+                status: ControlActionStatus::NotSupported,
+                previous_state,
+                current_state: record.last_known_status.lifecycle_state,
+                started_at,
+                error_code: DashboardValue::available(
+                    "sandbox_reconnect_not_supported".to_string(),
+                ),
+                message: DashboardValue::available(
+                    "execution reconnect recorded as not supported for local sandbox supervisor"
+                        .to_string(),
+                ),
+            })),
+        ),
+        Err(error) => failed_control_response(
+            "reconnect_execution",
+            node_id,
+            previous_state,
+            started_at,
+            &error,
+        ),
+    }
+}
+
+fn failed_control_response(
+    action: &'static str,
+    node_id: &str,
+    previous_state: LifecycleStatus,
+    started_at: String,
+    error: &anyhow::Error,
+) -> (StatusCode, Json<ControlActionResponse>) {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(action_response(ControlActionResponseParts {
+            action,
+            node_id,
+            status: ControlActionStatus::Failed,
+            previous_state,
+            current_state: previous_state,
+            started_at,
+            error_code: DashboardValue::available(control_error_code(error)),
+            message: DashboardValue::available(format!("{action} failed; details are redacted")),
+        })),
+    )
 }
 
 #[derive(Debug)]
@@ -1561,6 +1835,7 @@ pub enum ControlActionStatus {
     Succeeded,
     Failed,
     Cancelled,
+    NotSupported,
     #[default]
     Unknown,
 }
@@ -2312,36 +2587,64 @@ fn control_statuses_from_nodes(nodes: &[DashboardNodeSummary]) -> Vec<ControlSta
         controls.push(ControlStatus {
             action: format!("stop:{}", node.node_id),
             availability: DashboardAvailability::Available,
+            enabled: matches!(
+                node.lifecycle_state,
+                LifecycleStatus::Running | LifecycleStatus::Paused
+            ),
+            reason: if matches!(
+                node.lifecycle_state,
+                LifecycleStatus::Running | LifecycleStatus::Paused
+            ) {
+                DashboardValue::available("node can be stopped by supervisor control".to_string())
+            } else {
+                DashboardValue::available("node is not running or paused".to_string())
+            },
+        });
+        controls.push(ControlStatus {
+            action: format!("pause:{}", node.node_id),
+            availability: DashboardAvailability::Available,
             enabled: node.lifecycle_state == LifecycleStatus::Running,
             reason: if node.lifecycle_state == LifecycleStatus::Running {
-                DashboardValue::available("node can be stopped by supervisor control".to_string())
+                DashboardValue::available("node can be paused by supervisor control".to_string())
             } else {
                 DashboardValue::available("node is not running".to_string())
             },
         });
+        controls.push(ControlStatus {
+            action: format!("resume:{}", node.node_id),
+            availability: DashboardAvailability::Available,
+            enabled: node.lifecycle_state == LifecycleStatus::Paused,
+            reason: if node.lifecycle_state == LifecycleStatus::Paused {
+                DashboardValue::available("node can be resumed by supervisor control".to_string())
+            } else {
+                DashboardValue::available("node is not paused".to_string())
+            },
+        });
         for (action, reason) in [
             (
-                "pause",
-                "pause is not supported by the v0.3 local dashboard MVP",
-            ),
-            (
-                "resume",
-                "resume is not supported by the v0.3 local dashboard MVP",
-            ),
-            (
                 "reconnect_data",
-                "data reconnect is not supported by the v0.3 local dashboard MVP",
+                "data reconnect records explicit local sandbox not_supported result",
             ),
             (
                 "reconnect_execution",
-                "execution reconnect is not supported by the v0.3 local dashboard MVP",
+                "execution reconnect records explicit local sandbox not_supported result",
             ),
         ] {
+            let control_available = matches!(
+                node.lifecycle_state,
+                LifecycleStatus::Running | LifecycleStatus::Paused
+            );
             controls.push(ControlStatus {
                 action: format!("{action}:{}", node.node_id),
-                availability: DashboardAvailability::NotSupported,
-                enabled: false,
-                reason: DashboardValue::available(reason.to_string()),
+                availability: DashboardAvailability::Available,
+                enabled: control_available,
+                reason: if control_available {
+                    DashboardValue::available(reason.to_string())
+                } else {
+                    DashboardValue::available(
+                        "reconnect controls require a running or paused node".to_string(),
+                    )
+                },
             });
         }
     }
@@ -2908,8 +3211,8 @@ mod tests {
         }));
         assert!(snapshot.controls.iter().any(|control| {
             control.action == "reconnect_execution:sandbox-a"
-                && !control.enabled
-                && control.availability == DashboardAvailability::NotSupported
+                && control.enabled
+                && control.availability == DashboardAvailability::Available
         }));
         assert!(snapshot.gaps.iter().any(|gap| {
             gap.field_path == "runtime_modules.sandbox-a.nautiluskernel"
@@ -3081,6 +3384,82 @@ mod tests {
                 .iter()
                 .any(|control| control["action"] == "stop:sandbox-a" && control["enabled"] == true)
         );
+        assert!(
+            running_value["controls"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|control| control["action"] == "pause:sandbox-a"
+                    && control["enabled"] == true)
+        );
+        assert!(
+            running_value["controls"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|control| control["action"] == "reconnect_data:sandbox-a"
+                    && control["enabled"] == true)
+        );
+
+        let reconnected_data =
+            http_request(addr, "POST", "/api/nodes/sandbox-a/actions/reconnect_data").await;
+        assert!(reconnected_data.contains("HTTP/1.1 200 OK"));
+        let reconnected_data_value: Value =
+            serde_json::from_str(response_body(&reconnected_data)).unwrap();
+        assert_eq!(reconnected_data_value["status"], "not_supported");
+        assert_eq!(
+            reconnected_data_value["error_code"],
+            json!({"availability": "available", "value": "sandbox_reconnect_not_supported"})
+        );
+
+        let reconnected_execution = http_request(
+            addr,
+            "POST",
+            "/api/nodes/sandbox-a/actions/reconnect_execution",
+        )
+        .await;
+        assert!(reconnected_execution.contains("HTTP/1.1 200 OK"));
+        let reconnected_execution_value: Value =
+            serde_json::from_str(response_body(&reconnected_execution)).unwrap();
+        assert_eq!(reconnected_execution_value["status"], "not_supported");
+        assert_eq!(
+            reconnected_execution_value["error_code"],
+            json!({"availability": "available", "value": "sandbox_reconnect_not_supported"})
+        );
+
+        let paused = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/pause").await;
+        assert!(paused.contains("HTTP/1.1 200 OK"));
+        let paused_value: Value = serde_json::from_str(response_body(&paused)).unwrap();
+        assert_eq!(paused_value["status"], "succeeded");
+        assert_eq!(paused_value["previous_state"], "running");
+        assert_eq!(paused_value["current_state"], "paused");
+
+        let paused_snapshot = http_request(addr, "GET", "/api/snapshot").await;
+        let paused_snapshot_value: Value =
+            serde_json::from_str(response_body(&paused_snapshot)).unwrap();
+        assert!(
+            paused_snapshot_value["controls"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(
+                    |control| control["action"] == "resume:sandbox-a" && control["enabled"] == true
+                )
+        );
+        assert!(
+            paused_snapshot_value["controls"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|control| control["action"] == "stop:sandbox-a" && control["enabled"] == true)
+        );
+
+        let resumed = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/resume").await;
+        assert!(resumed.contains("HTTP/1.1 200 OK"));
+        let resumed_value: Value = serde_json::from_str(response_body(&resumed)).unwrap();
+        assert_eq!(resumed_value["status"], "succeeded");
+        assert_eq!(resumed_value["previous_state"], "paused");
+        assert_eq!(resumed_value["current_state"], "running");
 
         let stopped = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/stop").await;
         assert!(stopped.contains("HTTP/1.1 200 OK"));
