@@ -37,6 +37,18 @@ struct NtproNodeCli {
     /// Optional file path the node watches before stopping.
     #[arg(long)]
     stop_file: Option<PathBuf>,
+    /// Optional maximum runtime before the node stops itself.
+    #[arg(long)]
+    max_runtime_ms: Option<u64>,
+    /// Heartbeat artifact rewrite interval while waiting for shutdown.
+    #[arg(long, default_value_t = 1_000)]
+    heartbeat_interval_ms: u64,
+    /// Optional parent process PID. The node stops when this process exits.
+    #[arg(long)]
+    parent_pid: Option<u32>,
+    /// Maximum time allowed for the local LiveNode stop call.
+    #[arg(long, default_value_t = 5_000)]
+    shutdown_timeout_ms: u64,
 }
 
 #[tokio::main]
@@ -45,8 +57,27 @@ async fn main() {
     ensure_logging_initialized();
 
     let opt = NtproNodeCli::parse();
-    if let Err(e) =
-        nautilus_cli::run_ntpro_node(opt.config, opt.run_id, opt.output, opt.stop_file).await
+    let controls = match nautilus_cli::NtproNodeRunControls::from_millis(
+        opt.max_runtime_ms,
+        opt.heartbeat_interval_ms,
+        opt.parent_pid,
+        opt.shutdown_timeout_ms,
+    ) {
+        Ok(controls) => controls,
+        Err(e) => {
+            log::error!("Error validating ntpro-node shutdown controls: {e}");
+            eprintln!("Error validating ntpro-node shutdown controls: {e}");
+            std::process::exit(2);
+        }
+    };
+    if let Err(e) = nautilus_cli::run_ntpro_node_with_controls(
+        opt.config,
+        opt.run_id,
+        opt.output,
+        opt.stop_file,
+        controls,
+    )
+    .await
     {
         log::error!("Error executing ntpro-node: {e}");
         eprintln!("Error executing ntpro-node: {e}");

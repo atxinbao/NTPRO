@@ -81,6 +81,8 @@ use crate::{
     supervisor::run_supervisor_command,
 };
 
+pub use live::NtproNodeRunControls;
+
 /// Runs the NTPRO CLI based on the provided options.
 ///
 /// # Errors
@@ -115,4 +117,21 @@ pub async fn run_ntpro_node(
     stop_file: Option<PathBuf>,
 ) -> anyhow::Result<()> {
     live::run_ntpro_node(config, run_id, output, stop_file).await
+}
+
+/// Runs the sandbox-only `ntpro-node` local node entrypoint with explicit
+/// shutdown controls.
+///
+/// # Errors
+///
+/// Returns an error if config validation, node startup, node shutdown, or
+/// artifact writing fails.
+pub async fn run_ntpro_node_with_controls(
+    config: PathBuf,
+    run_id: Option<String>,
+    output: Option<PathBuf>,
+    stop_file: Option<PathBuf>,
+    controls: NtproNodeRunControls,
+) -> anyhow::Result<()> {
+    live::run_ntpro_node_with_controls(config, run_id, output, stop_file, controls).await
 }

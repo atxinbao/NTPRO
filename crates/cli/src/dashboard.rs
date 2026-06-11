@@ -982,6 +982,10 @@ fn run_start_action(
         node_id: node_id.to_string(),
         ntpro_node_bin: state.ntpro_node_bin.clone(),
         startup_timeout: Duration::from_millis(DASHBOARD_ACTION_TIMEOUT_MS),
+        node_max_runtime: Duration::from_millis(3_600_000),
+        node_heartbeat_interval: Duration::from_millis(1_000),
+        node_parent_pid: Some(std::process::id()),
+        node_shutdown_timeout: Duration::from_millis(5_000),
     });
     match result {
         Ok(record) => (

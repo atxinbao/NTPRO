@@ -16,7 +16,7 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    time::{Instant, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::Context;
@@ -33,11 +33,12 @@ use nautilus_model::{
 };
 use nautilus_sandbox::{SandboxExecutionClientConfig, SandboxExecutionClientFactory};
 use serde::Deserialize;
-use tokio::time::{Duration, sleep};
+use tokio::time::{sleep, timeout};
 
 use crate::{
     artifacts::atomic_write_text,
     opt::{LiveCommand, LiveOpt, LiveRunOpt, LiveValidateOpt},
+    process::process_is_alive,
     supervisor::{NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, write_node_metrics_artifact},
 };
 
@@ -46,6 +47,52 @@ const SANDBOX_ENVIRONMENT: &str = "sandbox";
 const SANDBOX_SIMULATED_EXECUTION: &str = "sandbox-simulated-execution";
 const DISABLED_ORDER_SUBMISSION: &str = "disabled";
 const START_STOP_SHUTDOWN: &str = "start-stop";
+const DEFAULT_NTPRO_NODE_HEARTBEAT_INTERVAL_MS: u64 = 1_000;
+const DEFAULT_NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: u64 = 5_000;
+const SHUTDOWN_POLL_INTERVAL: Duration = Duration::from_millis(100);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NtproNodeRunControls {
+    pub max_runtime: Option<Duration>,
+    pub heartbeat_interval: Duration,
+    pub parent_pid: Option<u32>,
+    pub shutdown_timeout: Duration,
+}
+
+impl NtproNodeRunControls {
+    /// # Errors
+    ///
+    /// Returns an error when any non-optional duration is zero.
+    pub fn from_millis(
+        max_runtime_ms: Option<u64>,
+        heartbeat_interval_ms: u64,
+        parent_pid: Option<u32>,
+        shutdown_timeout_ms: u64,
+    ) -> anyhow::Result<Self> {
+        let max_runtime = match max_runtime_ms {
+            Some(0) => anyhow::bail!("max_runtime_ms must be greater than zero when set"),
+            Some(millis) => Some(Duration::from_millis(millis)),
+            None => None,
+        };
+        Ok(Self {
+            max_runtime,
+            heartbeat_interval: non_zero_duration("heartbeat_interval_ms", heartbeat_interval_ms)?,
+            parent_pid,
+            shutdown_timeout: non_zero_duration("shutdown_timeout_ms", shutdown_timeout_ms)?,
+        })
+    }
+}
+
+impl Default for NtproNodeRunControls {
+    fn default() -> Self {
+        Self {
+            max_runtime: None,
+            heartbeat_interval: Duration::from_millis(DEFAULT_NTPRO_NODE_HEARTBEAT_INTERVAL_MS),
+            parent_pid: None,
+            shutdown_timeout: Duration::from_millis(DEFAULT_NTPRO_NODE_SHUTDOWN_TIMEOUT_MS),
+        }
+    }
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -134,7 +181,14 @@ fn run_live_validate(opt: &LiveValidateOpt) -> anyhow::Result<()> {
 }
 
 async fn run_live_run(opt: &LiveRunOpt) -> anyhow::Result<()> {
-    run_live_run_with_command(opt, "live.run", ProcessMode::TestHarness, None).await
+    run_live_run_with_command(
+        opt,
+        "live.run",
+        ProcessMode::TestHarness,
+        None,
+        NtproNodeRunControls::default(),
+    )
+    .await
 }
 
 pub(crate) async fn run_ntpro_node(
@@ -142,6 +196,23 @@ pub(crate) async fn run_ntpro_node(
     run_id: Option<String>,
     output: Option<PathBuf>,
     stop_file: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    run_ntpro_node_with_controls(
+        config,
+        run_id,
+        output,
+        stop_file,
+        NtproNodeRunControls::default(),
+    )
+    .await
+}
+
+pub(crate) async fn run_ntpro_node_with_controls(
+    config: PathBuf,
+    run_id: Option<String>,
+    output: Option<PathBuf>,
+    stop_file: Option<PathBuf>,
+    controls: NtproNodeRunControls,
 ) -> anyhow::Result<()> {
     run_live_run_with_command(
         &LiveRunOpt {
@@ -152,6 +223,7 @@ pub(crate) async fn run_ntpro_node(
         "ntpro-node.run",
         ProcessMode::SpawnedProcess,
         stop_file.as_deref(),
+        controls,
     )
     .await
 }
@@ -161,6 +233,7 @@ async fn run_live_run_with_command(
     command_name: &str,
     process_mode: ProcessMode,
     stop_file: Option<&Path>,
+    shutdown_controls: NtproNodeRunControls,
 ) -> anyhow::Result<()> {
     let config = load_minimal_live_config(&opt.config)?;
     let run_id = opt.run_id.as_deref().unwrap_or(config.run.id.as_str());
@@ -194,6 +267,7 @@ async fn run_live_run_with_command(
         stderr_log_path: &stderr_log_path,
         events_log_path: &events_path,
         stop_file,
+        shutdown_controls,
     };
     let smoke = run_live_init_smoke(&context).await?;
     let status = build_node_status(&context, &smoke);
@@ -210,7 +284,7 @@ async fn run_live_run_with_command(
     )?;
 
     let summary = format!(
-        "command={command_name}\nstatus=ok\nmode={}\nrun_id={run_id}\nconfig={}\nenvironment={}\nnode_name={}\nprocess_mode={}\nadapter={}\naccount_id={}\nvenue={}\npre_start_state={}\nrunning_state={}\nfinal_state={}\naccount_cached={}\nstatus_artifact={}\nmetrics_artifact={}\nevents_log={}\nexternal_venue_connection=false\nreal_orders_submitted=false\nruntime_status=completed\nshutdown_reason=start-stop\n",
+        "command={command_name}\nstatus=ok\nmode={}\nrun_id={run_id}\nconfig={}\nenvironment={}\nnode_name={}\nprocess_mode={}\nadapter={}\naccount_id={}\nvenue={}\npre_start_state={}\nrunning_state={}\nfinal_state={}\naccount_cached={}\nstatus_artifact={}\nmetrics_artifact={}\nevents_log={}\nexternal_venue_connection=false\nreal_orders_submitted=false\nruntime_status=completed\nshutdown_reason={}\n",
         config.run.mode,
         opt.config.display(),
         config.run.environment,
@@ -226,6 +300,7 @@ async fn run_live_run_with_command(
         status_path.display(),
         metrics_path.display(),
         events_path.display(),
+        smoke.shutdown_reason.label(),
     );
     atomic_write_text(&summary_path, &summary)
         .with_context(|| format!("failed to write summary '{}'", summary_path.display()))?;
@@ -239,12 +314,14 @@ async fn run_live_run_with_command(
          phase=build_node status=ok node_name={}\n\
          phase=register_adapter status=ok adapter={} venue={}\n\
          phase=start status=ok state={} account_cached={}\n\
+         phase=shutdown_trigger status=ok reason={}\n\
          phase=stop status=ok state={} external_venue_connection=false real_orders_submitted=false\n",
         node_name(&config),
         config.adapter.kind,
         config.adapter.venue,
         smoke.running_state,
         smoke.account_cached,
+        smoke.shutdown_reason.label(),
         smoke.final_state,
     );
     atomic_write_text(&events_path, &event_log)
@@ -359,6 +436,7 @@ struct LiveSmokeResult {
     started_at: String,
     stopped_at: String,
     uptime_ms: u64,
+    shutdown_reason: ShutdownReason,
 }
 
 #[derive(Clone, Copy)]
@@ -374,6 +452,28 @@ struct LiveRunContext<'a> {
     stderr_log_path: &'a Path,
     events_log_path: &'a Path,
     stop_file: Option<&'a Path>,
+    shutdown_controls: NtproNodeRunControls,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ShutdownReason {
+    StartStop,
+    StopFile,
+    Signal,
+    MaxRuntime,
+    ParentExited,
+}
+
+impl ShutdownReason {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::StartStop => "start-stop",
+            Self::StopFile => "stop-file",
+            Self::Signal => "signal",
+            Self::MaxRuntime => "max-runtime",
+            Self::ParentExited => "parent-exited",
+        }
+    }
 }
 
 async fn run_live_init_smoke(context: &LiveRunContext<'_>) -> anyhow::Result<LiveSmokeResult> {
@@ -435,32 +535,16 @@ async fn run_live_init_smoke(context: &LiveRunContext<'_>) -> anyhow::Result<Liv
         anyhow::bail!("live-init-smoke expected sandbox account to be cached");
     }
 
-    if let Some(stop_file) = context.stop_file {
-        let running_status = build_node_status_for_state(
-            context,
-            NodeState::Running,
-            LifecycleStatus::Starting,
-            ConnectionStatus::Disconnected,
-            true,
-            Some(&started_at),
-            None,
-        );
-        write_status(context.status_path, &running_status)?;
-        write_metrics(
-            context.metrics_path,
-            &running_status,
-            context,
-            NodeMetricCounts {
-                uptime_ms: Some(0),
-                starts_total: 1,
-                stops_total: 0,
-                state_transitions_total: 1,
-            },
-        )?;
-        wait_for_stop_file(stop_file).await?;
-    }
+    let shutdown_reason = wait_for_shutdown_trigger(context, &started_at, started_instant).await?;
 
-    node.stop().await?;
+    timeout(context.shutdown_controls.shutdown_timeout, node.stop())
+        .await
+        .with_context(|| {
+            format!(
+                "ntpro-node shutdown timed out after {} ms",
+                millis_to_u64(context.shutdown_controls.shutdown_timeout.as_millis())
+            )
+        })??;
     let stopped_at = now_millis();
     let uptime_ms = millis_to_u64(started_instant.elapsed().as_millis());
     let final_state = format!("{:?}", handle.state());
@@ -478,6 +562,7 @@ async fn run_live_init_smoke(context: &LiveRunContext<'_>) -> anyhow::Result<Liv
         started_at,
         stopped_at,
         uptime_ms,
+        shutdown_reason,
     })
 }
 
@@ -557,12 +642,94 @@ fn write_metrics(
     write_node_metrics_artifact(path, &metrics)
 }
 
-async fn wait_for_stop_file(path: &Path) -> anyhow::Result<()> {
+async fn wait_for_shutdown_trigger(
+    context: &LiveRunContext<'_>,
+    started_at: &str,
+    started_instant: Instant,
+) -> anyhow::Result<ShutdownReason> {
+    let Some(stop_file) = context.stop_file else {
+        return Ok(ShutdownReason::StartStop);
+    };
+    let shutdown_signal = wait_for_shutdown_signal();
+    tokio::pin!(shutdown_signal);
+    let mut last_heartbeat: Option<Instant> = None;
+
     loop {
-        if path.exists() {
-            return Ok(());
+        if stop_file.exists() {
+            return Ok(ShutdownReason::StopFile);
         }
-        sleep(Duration::from_millis(100)).await;
+        if let Some(parent_pid) = context.shutdown_controls.parent_pid
+            && !process_is_alive(parent_pid)
+        {
+            return Ok(ShutdownReason::ParentExited);
+        }
+        if let Some(max_runtime) = context.shutdown_controls.max_runtime
+            && started_instant.elapsed() >= max_runtime
+        {
+            return Ok(ShutdownReason::MaxRuntime);
+        }
+        if last_heartbeat
+            .is_none_or(|last| last.elapsed() >= context.shutdown_controls.heartbeat_interval)
+        {
+            write_running_heartbeat(context, started_at, started_instant)?;
+            last_heartbeat = Some(Instant::now());
+        }
+
+        tokio::select! {
+            result = &mut shutdown_signal => return result,
+            () = sleep(SHUTDOWN_POLL_INTERVAL) => {}
+        }
+    }
+}
+
+fn write_running_heartbeat(
+    context: &LiveRunContext<'_>,
+    started_at: &str,
+    started_instant: Instant,
+) -> anyhow::Result<()> {
+    let running_status = build_node_status_for_state(
+        context,
+        NodeState::Running,
+        LifecycleStatus::Starting,
+        ConnectionStatus::Disconnected,
+        true,
+        Some(started_at),
+        None,
+    );
+    write_status(context.status_path, &running_status)?;
+    write_metrics(
+        context.metrics_path,
+        &running_status,
+        context,
+        NodeMetricCounts {
+            uptime_ms: Some(millis_to_u64(started_instant.elapsed().as_millis())),
+            starts_total: 1,
+            stops_total: 0,
+            state_transitions_total: 1,
+        },
+    )
+}
+
+async fn wait_for_shutdown_signal() -> anyhow::Result<ShutdownReason> {
+    #[cfg(unix)]
+    {
+        let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .context("failed to register SIGTERM handler for ntpro-node shutdown")?;
+        tokio::select! {
+            result = tokio::signal::ctrl_c() => {
+                result.context("failed to wait for Ctrl-C shutdown signal")?;
+                Ok(ShutdownReason::Signal)
+            }
+            _ = sigterm.recv() => Ok(ShutdownReason::Signal),
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        tokio::signal::ctrl_c()
+            .await
+            .context("failed to wait for Ctrl-C shutdown signal")?;
+        Ok(ShutdownReason::Signal)
     }
 }
 
@@ -606,6 +773,13 @@ fn validate_exact(field: &str, value: &str, expected: &str) -> anyhow::Result<()
         anyhow::bail!("{field} must be '{expected}', got '{value}'");
     }
     Ok(())
+}
+
+fn non_zero_duration(field: &str, millis: u64) -> anyhow::Result<Duration> {
+    if millis == 0 {
+        anyhow::bail!("{field} must be greater than zero");
+    }
+    Ok(Duration::from_millis(millis))
 }
 
 fn resolve_output_dir(
@@ -767,6 +941,7 @@ write_summary = true
         assert!(summary.contains("process_mode=spawned_process"));
         assert!(summary.contains("final_state=Stopped"));
         assert!(summary.contains("metrics_artifact="));
+        assert!(summary.contains("shutdown_reason=start-stop"));
 
         let status: NodeStatus =
             serde_json::from_str(&fs::read_to_string(output_dir.join("status.json")).unwrap())
@@ -797,6 +972,81 @@ write_summary = true
                 .unwrap()
                 .ends_with("status.json")
         );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn run_ntpro_node_stops_when_stop_file_is_written() {
+        let output_dir =
+            std::env::temp_dir().join(format!("ntpro-p0-007-stop-file-{}", std::process::id()));
+        let stop_file = output_dir.join("stop.request");
+        let path = write_config("ntpro-node-stop-file", &minimal_config(&output_dir));
+        let stop_file_writer = stop_file.clone();
+        let writer = tokio::spawn(async move {
+            sleep(Duration::from_millis(150)).await;
+            fs::write(stop_file_writer, "stop\n").unwrap();
+        });
+
+        run_ntpro_node_with_controls(
+            path,
+            Some("sandbox-stop-file".to_string()),
+            None,
+            Some(stop_file),
+            NtproNodeRunControls::from_millis(Some(2_000), 50, None, 3_000).unwrap(),
+        )
+        .await
+        .unwrap();
+        writer.await.unwrap();
+
+        let summary = fs::read_to_string(output_dir.join("summary.txt")).unwrap();
+        assert!(summary.contains("shutdown_reason=stop-file"));
+        let events = fs::read_to_string(output_dir.join("logs").join("events.log")).unwrap();
+        assert!(events.contains("phase=shutdown_trigger status=ok reason=stop-file"));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn run_ntpro_node_stops_when_max_runtime_expires() {
+        let output_dir =
+            std::env::temp_dir().join(format!("ntpro-p0-007-max-runtime-{}", std::process::id()));
+        let stop_file = output_dir.join("missing-stop.request");
+        let path = write_config("ntpro-node-max-runtime", &minimal_config(&output_dir));
+
+        run_ntpro_node_with_controls(
+            path,
+            Some("sandbox-max-runtime".to_string()),
+            None,
+            Some(stop_file),
+            NtproNodeRunControls::from_millis(Some(150), 50, None, 3_000).unwrap(),
+        )
+        .await
+        .unwrap();
+
+        let summary = fs::read_to_string(output_dir.join("summary.txt")).unwrap();
+        assert!(summary.contains("shutdown_reason=max-runtime"));
+        let events = fs::read_to_string(output_dir.join("logs").join("events.log")).unwrap();
+        assert!(events.contains("phase=shutdown_trigger status=ok reason=max-runtime"));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn run_ntpro_node_stops_when_parent_process_is_dead() {
+        let output_dir =
+            std::env::temp_dir().join(format!("ntpro-p0-007-parent-dead-{}", std::process::id()));
+        let stop_file = output_dir.join("missing-stop.request");
+        let path = write_config("ntpro-node-parent-dead", &minimal_config(&output_dir));
+
+        run_ntpro_node_with_controls(
+            path,
+            Some("sandbox-parent-dead".to_string()),
+            None,
+            Some(stop_file),
+            NtproNodeRunControls::from_millis(Some(2_000), 50, Some(u32::MAX), 3_000).unwrap(),
+        )
+        .await
+        .unwrap();
+
+        let summary = fs::read_to_string(output_dir.join("summary.txt")).unwrap();
+        assert!(summary.contains("shutdown_reason=parent-exited"));
+        let events = fs::read_to_string(output_dir.join("logs").join("events.log")).unwrap();
+        assert!(events.contains("phase=shutdown_trigger status=ok reason=parent-exited"));
     }
 
     #[test]

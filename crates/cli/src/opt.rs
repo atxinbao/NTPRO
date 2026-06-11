@@ -254,6 +254,18 @@ pub struct SupervisorStartOpt {
     /// Startup wait timeout in milliseconds.
     #[arg(long, default_value_t = 5_000)]
     pub startup_timeout_ms: u64,
+    /// Maximum runtime passed to the spawned ntpro-node process.
+    #[arg(long, default_value_t = 3_600_000)]
+    pub node_max_runtime_ms: u64,
+    /// Heartbeat interval passed to the spawned ntpro-node process.
+    #[arg(long, default_value_t = 1_000)]
+    pub node_heartbeat_interval_ms: u64,
+    /// Optional parent process PID passed to the spawned ntpro-node process.
+    #[arg(long)]
+    pub node_parent_pid: Option<u32>,
+    /// Shutdown timeout passed to the spawned ntpro-node process.
+    #[arg(long, default_value_t = 5_000)]
+    pub node_shutdown_timeout_ms: u64,
 }
 
 /// Supervisor node stop options.
@@ -869,6 +881,10 @@ mod tests {
             PathBuf::from("target/debug/ntpro-node")
         );
         assert_eq!(start.startup_timeout_ms, 7_500);
+        assert_eq!(start.node_max_runtime_ms, 3_600_000);
+        assert_eq!(start.node_heartbeat_interval_ms, 1_000);
+        assert_eq!(start.node_parent_pid, None);
+        assert_eq!(start.node_shutdown_timeout_ms, 5_000);
     }
 
     #[test]
