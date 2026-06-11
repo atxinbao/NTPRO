@@ -199,6 +199,8 @@ pub enum SupervisorCommand {
     Pause(SupervisorNodeOpt),
     /// Resumes a paused local sandbox node at the supervisor artifact layer.
     Resume(SupervisorNodeOpt),
+    /// Records a local sandbox data-source reconnect result.
+    ReconnectData(SupervisorNodeOpt),
     /// Reads the latest node status artifact.
     Status(SupervisorNodeOpt),
     /// Reads data/execution connection status from node artifacts.
@@ -795,6 +797,7 @@ mod tests {
             "stop",
             "pause",
             "resume",
+            "reconnect-data",
             "status",
             "connections",
             "execution",
@@ -898,6 +901,7 @@ mod tests {
         for command in [
             "pause",
             "resume",
+            "reconnect-data",
             "status",
             "connections",
             "execution",
@@ -923,6 +927,7 @@ mod tests {
                 SupervisorCommand::Status(node)
                 | SupervisorCommand::Pause(node)
                 | SupervisorCommand::Resume(node)
+                | SupervisorCommand::ReconnectData(node)
                 | SupervisorCommand::Connections(node)
                 | SupervisorCommand::Execution(node)
                 | SupervisorCommand::Risk(node)
