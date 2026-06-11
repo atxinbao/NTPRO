@@ -10,6 +10,10 @@ echo "extra_cargo_args=${EXTRA_CARGO_ARGS:-<none>}"
 echo "lints=unwrap_used,expect_used,indexing_slicing,unused_result_ok"
 echo "mode=warning-only; existing warnings are tracked in docs/rust-cutover/quality/product_path_lint_register.md"
 
+# This rollout must remain warning-only even when CI uses global rustflags for
+# stricter gates in earlier steps.
+unset RUSTFLAGS CARGO_ENCODED_RUSTFLAGS
+
 pkg_args=()
 for package in $PACKAGES; do
   pkg_args+=("-p" "$package")
