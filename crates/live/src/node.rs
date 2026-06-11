@@ -156,6 +156,19 @@ pub enum NodeState {
 }
 
 impl NodeState {
+    /// Attempts to create a `NodeState` from its `u8` representation.
+    #[must_use]
+    pub const fn try_from_u8(value: u8) -> Option<Self> {
+        match value {
+            0 => Some(Self::Idle),
+            1 => Some(Self::Starting),
+            2 => Some(Self::Running),
+            3 => Some(Self::ShuttingDown),
+            4 => Some(Self::Stopped),
+            _ => None,
+        }
+    }
+
     /// Creates a `NodeState` from its `u8` representation.
     ///
     /// # Panics
@@ -163,13 +176,9 @@ impl NodeState {
     /// Panics if the value is not a valid `NodeState` discriminant (0-4).
     #[must_use]
     pub const fn from_u8(value: u8) -> Self {
-        match value {
-            0 => Self::Idle,
-            1 => Self::Starting,
-            2 => Self::Running,
-            3 => Self::ShuttingDown,
-            4 => Self::Stopped,
-            _ => panic!("Invalid NodeState value"),
+        match Self::try_from_u8(value) {
+            Some(state) => state,
+            None => panic!("Invalid NodeState value"),
         }
     }
 
@@ -237,23 +246,32 @@ impl LiveNodeHandle {
 
     /// Sets the node state (internal use).
     pub(crate) fn set_state(&self, state: NodeState) {
-        self.state.store(state.as_u8(), Ordering::Relaxed);
+        self.state.store(state.as_u8(), Ordering::Release);
         if state == NodeState::Running {
             // Clear stop flag when entering running state
-            self.stop_flag.store(false, Ordering::Relaxed);
+            self.stop_flag.store(false, Ordering::Release);
         }
     }
 
     /// Returns the current node state.
     #[must_use]
     pub fn state(&self) -> NodeState {
-        NodeState::from_u8(self.state.load(Ordering::Relaxed))
+        let raw_state = self.state.load(Ordering::Acquire);
+        match NodeState::try_from_u8(raw_state) {
+            Some(state) => state,
+            None => {
+                log::warn!(
+                    "Invalid LiveNodeHandle state value {raw_state}, falling back to Stopped"
+                );
+                NodeState::Stopped
+            }
+        }
     }
 
     /// Returns whether the node should stop.
     #[must_use]
     pub fn should_stop(&self) -> bool {
-        self.stop_flag.load(Ordering::Relaxed)
+        self.stop_flag.load(Ordering::Acquire)
     }
 
     /// Returns whether the node is currently running.
@@ -264,7 +282,7 @@ impl LiveNodeHandle {
 
     /// Signals the node to stop.
     pub fn stop(&self) {
-        self.stop_flag.store(true, Ordering::Relaxed);
+        self.stop_flag.store(true, Ordering::Release);
     }
 }
 
@@ -2683,6 +2701,18 @@ mod tests {
     }
 
     #[rstest]
+    #[case(0, Some(NodeState::Idle))]
+    #[case(1, Some(NodeState::Starting))]
+    #[case(2, Some(NodeState::Running))]
+    #[case(3, Some(NodeState::ShuttingDown))]
+    #[case(4, Some(NodeState::Stopped))]
+    #[case(5, None)]
+    #[case(255, None)]
+    fn test_node_state_try_from_u8(#[case] value: u8, #[case] expected: Option<NodeState>) {
+        assert_eq!(NodeState::try_from_u8(value), expected);
+    }
+
+    #[rstest]
     fn test_node_state_roundtrip() {
         for state in [
             NodeState::Idle,
@@ -3118,6 +3148,15 @@ mod tests {
 
         handle.set_state(NodeState::Running);
         assert!(!handle.should_stop()); // Cleared
+    }
+
+    #[rstest]
+    fn test_handle_state_falls_back_to_stopped_for_invalid_atomic_value() {
+        let handle = LiveNodeHandle::new();
+        handle.state.store(255, Ordering::Release);
+
+        assert_eq!(handle.state(), NodeState::Stopped);
+        assert!(!handle.is_running());
     }
 
     #[rstest]
