@@ -49,6 +49,8 @@ const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(100);
 const PROCESS_SIGNAL_GRACE: Duration = Duration::from_secs(1);
 const DATA_RECONNECT_UNSUPPORTED_MESSAGE: &str =
     "data source reconnect is not supported for local sandbox-only supervisor artifacts";
+const EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE: &str =
+    "execution gateway reconnect is not supported for local sandbox-only supervisor artifacts";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SupervisorRegistry {
@@ -258,6 +260,7 @@ pub(crate) fn run_supervisor_command(opt: SupervisorOpt) -> anyhow::Result<()> {
         SupervisorCommand::Pause(node) => run_supervisor_pause(node),
         SupervisorCommand::Resume(node) => run_supervisor_resume(node),
         SupervisorCommand::ReconnectData(node) => run_supervisor_reconnect_data(node),
+        SupervisorCommand::ReconnectExecution(node) => run_supervisor_reconnect_execution(node),
         SupervisorCommand::Status(node) => run_supervisor_status(node),
         SupervisorCommand::Connections(node) => run_supervisor_connections(node),
         SupervisorCommand::Execution(node) => run_supervisor_execution(node),
@@ -375,6 +378,19 @@ fn run_supervisor_reconnect_data(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
         json_label(&record.process.state),
         json_label(&record.last_known_status.lifecycle_state),
         json_label(&record.last_known_status.data_connection),
+    );
+    Ok(())
+}
+
+fn run_supervisor_reconnect_execution(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
+    let store = SupervisorRegistryStore::new(opt.registry.registry);
+    let record = store.reconnect_execution_gateway(&opt.node_id)?;
+    println!(
+        "supervisor.reconnect_execution status=not_supported node_id={} process_state={} lifecycle_state={} execution_connection={} external_venue_connection=false real_orders_submitted=false reason=execution_gateway_reconnect_not_supported_for_local_sandbox",
+        record.node_id,
+        json_label(&record.process.state),
+        json_label(&record.last_known_status.lifecycle_state),
+        json_label(&record.last_known_status.execution_connection),
     );
     Ok(())
 }
@@ -1166,6 +1182,74 @@ impl SupervisorRegistryStore {
         );
         write_node_metrics_artifact(&record.metrics_path, &metrics)?;
         append_supervisor_event_with_status(record, "reconnect_data", "not_supported")?;
+
+        let updated = record.clone();
+        registry.updated_at = SnapshotValue::available(transition_at);
+        self.save(&registry)?;
+        Ok(updated)
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error if the node is missing, the process is not running, or
+    /// supervisor artifacts cannot be written.
+    pub fn reconnect_execution_gateway(
+        &self,
+        node_id: &str,
+    ) -> anyhow::Result<SupervisorNodeRecord> {
+        validate_node_id(node_id)?;
+        self.refresh_status_from_artifact(node_id)?;
+
+        let _lock = self.acquire_registry_lock()?;
+        let mut registry = self.load()?;
+        let record = registry
+            .nodes
+            .get_mut(node_id)
+            .with_context(|| format!("node '{node_id}' is not registered"))?;
+        ensure!(
+            record.process.state == SupervisorProcessState::Running,
+            "node '{node_id}' process is not running"
+        );
+        ensure!(
+            matches!(
+                record.last_known_status.lifecycle_state,
+                LifecycleStatus::Running | LifecycleStatus::Paused
+            ),
+            "node '{}' lifecycle state is {}, expected running or paused",
+            node_id,
+            json_label(&record.last_known_status.lifecycle_state),
+        );
+
+        let transition_at = now_millis();
+        record.last_known_status.execution_connection = ConnectionStatus::NotSupported;
+        record.last_known_status.execution.connection = ConnectionStatus::NotSupported;
+        record.last_known_status.execution.last_error =
+            Some(EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE.to_string());
+        record.last_known_status.generated_at = SnapshotValue::available(transition_at.clone());
+        record.last_known_status.last_transition_at =
+            SnapshotValue::available(transition_at.clone());
+        record.last_known_status.last_error =
+            Some(EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE.to_string());
+        record.last_known_status.external_venue_connection = false;
+        record.last_known_status.real_orders_submitted = false;
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        record.updated_at = SnapshotValue::available(transition_at.clone());
+
+        atomic_write_json(&record.status_path, &record.last_known_status).with_context(|| {
+            format!(
+                "failed to write status artifact '{}'",
+                record.status_path.display()
+            )
+        })?;
+        let counts = control_metric_counts(record, &transition_at);
+        let metrics = NodeMetrics::from_status(
+            &record.last_known_status,
+            &NodeMetricArtifacts::from_record(record),
+            counts,
+        );
+        write_node_metrics_artifact(&record.metrics_path, &metrics)?;
+        append_supervisor_event_with_status(record, "reconnect_execution", "not_supported")?;
 
         let updated = record.clone();
         registry.updated_at = SnapshotValue::available(transition_at);
@@ -2492,6 +2576,50 @@ done
         assert!(!reconnected_metrics.external_venue_connection);
         assert!(!reconnected_metrics.real_orders_submitted);
 
+        let reconnected_execution = store.reconnect_execution_gateway("sandbox-a").unwrap();
+        assert_eq!(
+            reconnected_execution.process.state,
+            SupervisorProcessState::Running
+        );
+        assert_eq!(
+            reconnected_execution.last_known_status.lifecycle_state,
+            LifecycleStatus::Running
+        );
+        assert_eq!(
+            reconnected_execution.last_known_status.execution_connection,
+            ConnectionStatus::NotSupported
+        );
+        assert_eq!(
+            reconnected_execution.last_known_status.execution.connection,
+            ConnectionStatus::NotSupported
+        );
+        assert!(
+            !reconnected_execution
+                .last_known_status
+                .external_venue_connection
+        );
+        assert!(
+            !reconnected_execution
+                .last_known_status
+                .real_orders_submitted
+        );
+        assert_eq!(
+            reconnected_execution
+                .last_known_status
+                .execution
+                .last_error
+                .as_deref(),
+            Some(EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE)
+        );
+        let reconnected_execution_metrics = store.node_metrics("sandbox-a").unwrap();
+        assert_eq!(
+            reconnected_execution_metrics.last_error_summary.as_deref(),
+            Some(EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE)
+        );
+        assert_eq!(reconnected_execution_metrics.state_transitions_total, 3);
+        assert!(!reconnected_execution_metrics.external_venue_connection);
+        assert!(!reconnected_execution_metrics.real_orders_submitted);
+
         let mut registry = store.load().unwrap();
         let refreshed = registry.nodes.remove("sandbox-a").unwrap();
         assert_eq!(refreshed.metrics_artifact, RegistryArtifactState::Available);
@@ -2514,6 +2642,7 @@ done
         assert!(events.contains("phase=pause status=ok"));
         assert!(events.contains("phase=resume status=ok"));
         assert!(events.contains("phase=reconnect_data status=not_supported"));
+        assert!(events.contains("phase=reconnect_execution status=not_supported"));
 
         let stopped = store
             .stop_node_process(&StopNodeRequest {
@@ -2768,6 +2897,17 @@ done
         .unwrap();
         assert_eq!(
             store.node_status("sandbox-a").unwrap().data_connection,
+            ConnectionStatus::NotSupported
+        );
+        run_supervisor_command(SupervisorOpt {
+            command: SupervisorCommand::ReconnectExecution(SupervisorNodeOpt {
+                registry: registry_opt.clone(),
+                node_id: "sandbox-a".to_string(),
+            }),
+        })
+        .unwrap();
+        assert_eq!(
+            store.node_status("sandbox-a").unwrap().execution_connection,
             ConnectionStatus::NotSupported
         );
 
