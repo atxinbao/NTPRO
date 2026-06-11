@@ -253,6 +253,8 @@ pub(crate) fn run_supervisor_command(opt: SupervisorOpt) -> anyhow::Result<()> {
         SupervisorCommand::List(list) => run_supervisor_list(list),
         SupervisorCommand::Start(start) => run_supervisor_start(start),
         SupervisorCommand::Stop(stop) => run_supervisor_stop(stop),
+        SupervisorCommand::Pause(node) => run_supervisor_pause(node),
+        SupervisorCommand::Resume(node) => run_supervisor_resume(node),
         SupervisorCommand::Status(node) => run_supervisor_status(node),
         SupervisorCommand::Connections(node) => run_supervisor_connections(node),
         SupervisorCommand::Execution(node) => run_supervisor_execution(node),
@@ -331,6 +333,32 @@ fn run_supervisor_stop(opt: SupervisorStopOpt) -> anyhow::Result<()> {
         record.node_id,
         json_label(&record.process.state),
         json_label(&record.last_known_status.lifecycle_state),
+    );
+    Ok(())
+}
+
+fn run_supervisor_pause(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
+    let store = SupervisorRegistryStore::new(opt.registry.registry);
+    let record = store.pause_node(&opt.node_id)?;
+    println!(
+        "supervisor.pause status=ok node_id={} process_state={} lifecycle_state={} previous_lifecycle_state={} external_venue_connection=false real_orders_submitted=false",
+        record.node_id,
+        json_label(&record.process.state),
+        json_label(&record.last_known_status.lifecycle_state),
+        json_label(&record.last_known_status.previous_lifecycle_state),
+    );
+    Ok(())
+}
+
+fn run_supervisor_resume(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
+    let store = SupervisorRegistryStore::new(opt.registry.registry);
+    let record = store.resume_node(&opt.node_id)?;
+    println!(
+        "supervisor.resume status=ok node_id={} process_state={} lifecycle_state={} previous_lifecycle_state={} external_venue_connection=false real_orders_submitted=false",
+        record.node_id,
+        json_label(&record.process.state),
+        json_label(&record.last_known_status.lifecycle_state),
+        json_label(&record.last_known_status.previous_lifecycle_state),
     );
     Ok(())
 }
@@ -1044,6 +1072,32 @@ impl SupervisorRegistryStore {
 
     /// # Errors
     ///
+    /// Returns an error if the node is missing, not running, or supervisor
+    /// artifacts cannot be written.
+    pub fn pause_node(&self, node_id: &str) -> anyhow::Result<SupervisorNodeRecord> {
+        self.transition_local_lifecycle(
+            node_id,
+            LifecycleStatus::Running,
+            LifecycleStatus::Paused,
+            "pause",
+        )
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error if the node is missing, not paused, or supervisor
+    /// artifacts cannot be written.
+    pub fn resume_node(&self, node_id: &str) -> anyhow::Result<SupervisorNodeRecord> {
+        self.transition_local_lifecycle(
+            node_id,
+            LifecycleStatus::Paused,
+            LifecycleStatus::Running,
+            "resume",
+        )
+    }
+
+    /// # Errors
+    ///
     /// Returns an error if the node is missing or the registry/status artifact
     /// cannot be read.
     pub fn node_status(&self, node_id: &str) -> anyhow::Result<NodeStatus> {
@@ -1173,6 +1227,69 @@ impl SupervisorRegistryStore {
         write_or_remove_pid_artifact(record)?;
         let updated = record.clone();
         registry.updated_at = SnapshotValue::available(now_millis());
+        self.save(&registry)?;
+        Ok(updated)
+    }
+
+    fn transition_local_lifecycle(
+        &self,
+        node_id: &str,
+        expected: LifecycleStatus,
+        next: LifecycleStatus,
+        event_phase: &str,
+    ) -> anyhow::Result<SupervisorNodeRecord> {
+        validate_node_id(node_id)?;
+        self.refresh_status_from_artifact(node_id)?;
+
+        let _lock = self.acquire_registry_lock()?;
+        let mut registry = self.load()?;
+        let record = registry
+            .nodes
+            .get_mut(node_id)
+            .with_context(|| format!("node '{node_id}' is not registered"))?;
+        ensure!(
+            record.process.state == SupervisorProcessState::Running,
+            "node '{node_id}' process is not running"
+        );
+        ensure!(
+            record.last_known_status.lifecycle_state == expected,
+            "node '{}' lifecycle state is {}, expected {}",
+            node_id,
+            json_label(&record.last_known_status.lifecycle_state),
+            json_label(&expected),
+        );
+
+        let previous = record.last_known_status.lifecycle_state;
+        let transition_at = now_millis();
+        record.last_known_status.previous_lifecycle_state = previous;
+        record.last_known_status.lifecycle_state = next;
+        record.last_known_status.generated_at = SnapshotValue::available(transition_at.clone());
+        record.last_known_status.last_transition_at =
+            SnapshotValue::available(transition_at.clone());
+        record.last_known_status.last_error = None;
+        record.last_known_status.external_venue_connection = false;
+        record.last_known_status.real_orders_submitted = false;
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        record.updated_at = SnapshotValue::available(transition_at.clone());
+
+        atomic_write_json(&record.status_path, &record.last_known_status).with_context(|| {
+            format!(
+                "failed to write status artifact '{}'",
+                record.status_path.display()
+            )
+        })?;
+        let counts = transition_metric_counts(record, &transition_at);
+        let metrics = NodeMetrics::from_status(
+            &record.last_known_status,
+            &NodeMetricArtifacts::from_record(record),
+            counts,
+        );
+        write_node_metrics_artifact(&record.metrics_path, &metrics)?;
+        append_supervisor_event(record, event_phase)?;
+
+        let updated = record.clone();
+        registry.updated_at = SnapshotValue::available(transition_at);
         self.save(&registry)?;
         Ok(updated)
     }
@@ -1344,6 +1461,66 @@ pub fn write_node_metrics_artifact(path: &Path, metrics: &NodeMetrics) -> anyhow
     }
     atomic_write_json(path, metrics)
         .with_context(|| format!("failed to write metrics artifact '{}'", path.display()))?;
+    Ok(())
+}
+
+fn transition_metric_counts(
+    record: &SupervisorNodeRecord,
+    transition_at: &str,
+) -> NodeMetricCounts {
+    let current = if record.metrics_path.exists() {
+        fs::read_to_string(&record.metrics_path)
+            .ok()
+            .and_then(|raw| serde_json::from_str::<NodeMetrics>(&raw).ok())
+            .filter(|metrics| metrics.node_id == record.node_id)
+    } else {
+        None
+    };
+    let uptime_ms = current
+        .as_ref()
+        .and_then(|metrics| metrics.uptime_ms.value)
+        .or_else(|| transition_at.parse::<u64>().ok().map(|_| 0));
+    NodeMetricCounts {
+        uptime_ms,
+        starts_total: current.as_ref().map_or(0, |metrics| metrics.starts_total),
+        stops_total: current.as_ref().map_or(0, |metrics| metrics.stops_total),
+        state_transitions_total: current.as_ref().map_or(1, |metrics| {
+            metrics.state_transitions_total.saturating_add(1)
+        }),
+    }
+}
+
+fn append_supervisor_event(record: &SupervisorNodeRecord, phase: &str) -> anyhow::Result<()> {
+    if let Some(parent) = record.events_log_path.parent() {
+        fs::create_dir_all(parent).with_context(|| {
+            format!(
+                "failed to create events log directory '{}'",
+                parent.display()
+            )
+        })?;
+    }
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&record.events_log_path)
+        .with_context(|| {
+            format!(
+                "failed to open events log '{}'",
+                record.events_log_path.display()
+            )
+        })?;
+    writeln!(
+        file,
+        "phase={phase} status=ok node_id={} lifecycle_state={} external_venue_connection=false real_orders_submitted=false",
+        record.node_id,
+        json_label(&record.last_known_status.lifecycle_state),
+    )
+    .with_context(|| {
+        format!(
+            "failed to append supervisor event '{}'",
+            record.events_log_path.display()
+        )
+    })?;
     Ok(())
 }
 
@@ -2147,6 +2324,44 @@ done
         assert_eq!(running_metrics.stops_total, 0);
         assert!(!running_metrics.external_venue_connection);
         assert!(!running_metrics.real_orders_submitted);
+
+        let paused = store.pause_node("sandbox-a").unwrap();
+        assert_eq!(paused.process.state, SupervisorProcessState::Running);
+        assert!(process_is_alive(started_pid));
+        assert_eq!(
+            paused.last_known_status.lifecycle_state,
+            LifecycleStatus::Paused
+        );
+        assert_eq!(
+            paused.last_known_status.previous_lifecycle_state,
+            LifecycleStatus::Running
+        );
+        let paused_status = store.node_status("sandbox-a").unwrap();
+        assert_eq!(paused_status.lifecycle_state, LifecycleStatus::Paused);
+        assert!(!paused_status.external_venue_connection);
+        assert!(!paused_status.real_orders_submitted);
+        let paused_metrics = store.node_metrics("sandbox-a").unwrap();
+        assert_eq!(paused_metrics.lifecycle_state, LifecycleStatus::Paused);
+        assert_eq!(paused_metrics.starts_total, 1);
+        assert_eq!(paused_metrics.stops_total, 0);
+        assert_eq!(paused_metrics.state_transitions_total, 2);
+
+        let resumed = store.resume_node("sandbox-a").unwrap();
+        assert_eq!(resumed.process.state, SupervisorProcessState::Running);
+        assert_eq!(
+            resumed.last_known_status.lifecycle_state,
+            LifecycleStatus::Running
+        );
+        assert_eq!(
+            resumed.last_known_status.previous_lifecycle_state,
+            LifecycleStatus::Paused
+        );
+        let resumed_status = store.node_status("sandbox-a").unwrap();
+        assert_eq!(resumed_status.lifecycle_state, LifecycleStatus::Running);
+        let resumed_metrics = store.node_metrics("sandbox-a").unwrap();
+        assert_eq!(resumed_metrics.lifecycle_state, LifecycleStatus::Running);
+        assert_eq!(resumed_metrics.state_transitions_total, 3);
+
         let mut registry = store.load().unwrap();
         let refreshed = registry.nodes.remove("sandbox-a").unwrap();
         assert_eq!(refreshed.metrics_artifact, RegistryArtifactState::Available);
@@ -2165,6 +2380,9 @@ done
                 .unwrap()
                 .contains("phase=start status=ok")
         );
+        let events = fs::read_to_string(&started.events_log_path).unwrap();
+        assert!(events.contains("phase=pause status=ok"));
+        assert!(events.contains("phase=resume status=ok"));
 
         let stopped = store
             .stop_node_process(&StopNodeRequest {
@@ -2193,6 +2411,48 @@ done
             .unwrap_err()
             .to_string();
         assert!(duplicate_stop.contains("not running"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stop_accepts_paused_running_process() {
+        let _process_test_guard = supervisor_process_test_guard();
+        let root = temp_root("stop-paused");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let fixture = write_fixture_node(&root);
+        store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+
+        let started = store
+            .start_node_process(&start_request("sandbox-a", fixture, Duration::from_secs(3)))
+            .unwrap();
+        let started_pid = started.process.pid.value.unwrap();
+        store.pause_node("sandbox-a").unwrap();
+        let paused_status = store.node_status("sandbox-a").unwrap();
+        assert_eq!(paused_status.lifecycle_state, LifecycleStatus::Paused);
+
+        let stopped = store
+            .stop_node_process(&StopNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                stop_timeout: Duration::from_secs(3),
+            })
+            .unwrap();
+        assert_eq!(stopped.process.state, SupervisorProcessState::Stopped);
+        assert_eq!(
+            stopped.last_known_status.lifecycle_state,
+            LifecycleStatus::Stopped
+        );
+        assert!(!process_is_alive(started_pid));
+        let stopped_metrics = store.node_metrics("sandbox-a").unwrap();
+        assert_eq!(stopped_metrics.lifecycle_state, LifecycleStatus::Stopped);
+        assert_eq!(stopped_metrics.stops_total, 1);
+        assert!(!stopped_metrics.real_orders_submitted);
     }
 
     #[cfg(unix)]
@@ -2345,6 +2605,29 @@ done
 
         let store = SupervisorRegistryStore::new(registry);
         wait_for_metrics_state(&store, "sandbox-a", LifecycleStatus::Running);
+
+        run_supervisor_command(SupervisorOpt {
+            command: SupervisorCommand::Pause(SupervisorNodeOpt {
+                registry: registry_opt.clone(),
+                node_id: "sandbox-a".to_string(),
+            }),
+        })
+        .unwrap();
+        assert_eq!(
+            store.node_status("sandbox-a").unwrap().lifecycle_state,
+            LifecycleStatus::Paused
+        );
+        run_supervisor_command(SupervisorOpt {
+            command: SupervisorCommand::Resume(SupervisorNodeOpt {
+                registry: registry_opt.clone(),
+                node_id: "sandbox-a".to_string(),
+            }),
+        })
+        .unwrap();
+        assert_eq!(
+            store.node_status("sandbox-a").unwrap().lifecycle_state,
+            LifecycleStatus::Running
+        );
 
         for command in [
             SupervisorCommand::Status(SupervisorNodeOpt {
