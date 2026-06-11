@@ -1,0 +1,19 @@
+{
+  "task_id": "P0-007",
+  "agent_id": "Codex",
+  "branch": "codex/P0-007-ntpro-node-shutdown-hardening",
+  "touched_paths": [
+    "docs/rust-cutover/tasks/P0-007.md",
+    "docs/rust-cutover/evidence/P0-007.md",
+    "crates/cli/src/bin/ntpro_node.rs",
+    "crates/cli/src/dashboard.rs",
+    "crates/cli/src/lib.rs",
+    "crates/cli/src/live.rs",
+    "crates/cli/src/opt.rs",
+    "crates/cli/src/supervisor.rs",
+    ".agentflow/state/task_status.json",
+    ".agentflow/leases/P0-007.json"
+  ],
+  "claimed_at": "2026-06-11T12:18:24.588104+00:00",
+  "status": "LEASED"
+}

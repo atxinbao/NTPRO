@@ -303,6 +303,10 @@ fn run_supervisor_start(opt: SupervisorStartOpt) -> anyhow::Result<()> {
         node_id: opt.node_id,
         ntpro_node_bin: opt.ntpro_node_bin,
         startup_timeout: Duration::from_millis(opt.startup_timeout_ms),
+        node_max_runtime: Duration::from_millis(opt.node_max_runtime_ms),
+        node_heartbeat_interval: Duration::from_millis(opt.node_heartbeat_interval_ms),
+        node_parent_pid: opt.node_parent_pid,
+        node_shutdown_timeout: Duration::from_millis(opt.node_shutdown_timeout_ms),
     };
     let record = store.start_node_process(&request)?;
     println!(
@@ -504,6 +508,10 @@ pub struct StartNodeRequest {
     pub node_id: String,
     pub ntpro_node_bin: PathBuf,
     pub startup_timeout: Duration,
+    pub node_max_runtime: Duration,
+    pub node_heartbeat_interval: Duration,
+    pub node_parent_pid: Option<u32>,
+    pub node_shutdown_timeout: Duration,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -826,6 +834,18 @@ impl SupervisorRegistryStore {
     ) -> anyhow::Result<SupervisorNodeRecord> {
         validate_node_id(&request.node_id)?;
         ensure!(
+            !request.node_max_runtime.is_zero(),
+            "node_max_runtime must be greater than zero"
+        );
+        ensure!(
+            !request.node_heartbeat_interval.is_zero(),
+            "node_heartbeat_interval must be greater than zero"
+        );
+        ensure!(
+            !request.node_shutdown_timeout.is_zero(),
+            "node_shutdown_timeout must be greater than zero"
+        );
+        ensure!(
             request.ntpro_node_bin.exists(),
             "ntpro-node binary '{}' does not exist",
             request.ntpro_node_bin.display()
@@ -881,7 +901,8 @@ impl SupervisorRegistryStore {
                 )
             })?;
 
-            let child = Command::new(&request.ntpro_node_bin)
+            let mut command = Command::new(&request.ntpro_node_bin);
+            command
                 .arg("--config")
                 .arg(&record.config_path)
                 .arg("--run-id")
@@ -890,15 +911,23 @@ impl SupervisorRegistryStore {
                 .arg(&record.artifact_root)
                 .arg("--stop-file")
                 .arg(&stop_file)
+                .arg("--max-runtime-ms")
+                .arg(duration_millis_arg(request.node_max_runtime))
+                .arg("--heartbeat-interval-ms")
+                .arg(duration_millis_arg(request.node_heartbeat_interval))
+                .arg("--shutdown-timeout-ms")
+                .arg(duration_millis_arg(request.node_shutdown_timeout))
                 .stdout(Stdio::from(stdout_log))
-                .stderr(Stdio::from(stderr_log))
-                .spawn()
-                .with_context(|| {
-                    format!(
-                        "failed to spawn ntpro-node '{}'",
-                        request.ntpro_node_bin.display()
-                    )
-                })?;
+                .stderr(Stdio::from(stderr_log));
+            if let Some(parent_pid) = request.node_parent_pid {
+                command.arg("--parent-pid").arg(parent_pid.to_string());
+            }
+            let child = command.spawn().with_context(|| {
+                format!(
+                    "failed to spawn ntpro-node '{}'",
+                    request.ntpro_node_bin.display()
+                )
+            })?;
 
             record.process = SupervisorProcessRecord {
                 pid: SnapshotValue::available(child.id()),
@@ -1274,6 +1303,12 @@ fn initial_status(node_id: &str, config_path: &Path, artifact_root: &Path) -> No
     status
 }
 
+fn duration_millis_arg(duration: Duration) -> String {
+    u64::try_from(duration.as_millis())
+        .unwrap_or(u64::MAX)
+        .to_string()
+}
+
 fn create_node_dirs(artifact_root: &Path) -> anyhow::Result<()> {
     for path in [
         artifact_root,
@@ -1413,6 +1448,22 @@ mod tests {
         path
     }
 
+    fn start_request(
+        node_id: &str,
+        ntpro_node_bin: PathBuf,
+        startup_timeout: Duration,
+    ) -> StartNodeRequest {
+        StartNodeRequest {
+            node_id: node_id.to_string(),
+            ntpro_node_bin,
+            startup_timeout,
+            node_max_runtime: Duration::from_secs(60),
+            node_heartbeat_interval: Duration::from_millis(100),
+            node_parent_pid: None,
+            node_shutdown_timeout: Duration::from_secs(3),
+        }
+    }
+
     fn temp_artifacts(root: &Path) -> Vec<PathBuf> {
         let mut paths = Vec::new();
         if let Ok(entries) = fs::read_dir(root) {
@@ -1454,6 +1505,10 @@ while [ "$#" -gt 0 ]; do
     --run-id) node_id="$2"; shift 2 ;;
     --output) output="$2"; shift 2 ;;
     --stop-file) stop_file="$2"; shift 2 ;;
+    --max-runtime-ms) shift 2 ;;
+    --heartbeat-interval-ms) shift 2 ;;
+    --parent-pid) shift 2 ;;
+    --shutdown-timeout-ms) shift 2 ;;
     *) shift ;;
   esac
 done
@@ -1924,11 +1979,7 @@ done
         write_node_metrics_artifact(&record.metrics_path, &stale_metrics).unwrap();
 
         let started = store
-            .start_node_process(&StartNodeRequest {
-                node_id: "sandbox-a".to_string(),
-                ntpro_node_bin: fixture,
-                startup_timeout: Duration::from_secs(3),
-            })
+            .start_node_process(&start_request("sandbox-a", fixture, Duration::from_secs(3)))
             .unwrap();
         assert_eq!(started.last_known_status.node_id, "sandbox-a");
         assert_eq!(started.status_artifact, RegistryArtifactState::Available);
@@ -2032,12 +2083,8 @@ done
             })
             .unwrap();
 
-        let start_request = StartNodeRequest {
-            node_id: "sandbox-a".to_string(),
-            ntpro_node_bin: fixture,
-            startup_timeout: Duration::from_secs(3),
-        };
-        let started = store.start_node_process(&start_request).unwrap();
+        let initial_start_request = start_request("sandbox-a", fixture, Duration::from_secs(3));
+        let started = store.start_node_process(&initial_start_request).unwrap();
         let started_pid = started.process.pid.value.unwrap();
         assert_eq!(started.process.state, SupervisorProcessState::Running);
         assert!(process_is_alive(started_pid));
@@ -2046,11 +2093,11 @@ done
             LifecycleStatus::Running
         );
 
-        let duplicate_start_request = StartNodeRequest {
-            node_id: "sandbox-a".to_string(),
-            ntpro_node_bin: root.join("fixture-ntpro-node.sh"),
-            startup_timeout: Duration::from_secs(1),
-        };
+        let duplicate_start_request = start_request(
+            "sandbox-a",
+            root.join("fixture-ntpro-node.sh"),
+            Duration::from_secs(1),
+        );
         let duplicate_start = store
             .start_node_process(&duplicate_start_request)
             .unwrap_err()
@@ -2132,11 +2179,7 @@ done
             .unwrap();
 
         let error = store
-            .start_node_process(&StartNodeRequest {
-                node_id: "sandbox-a".to_string(),
-                ntpro_node_bin: fixture,
-                startup_timeout: Duration::from_secs(3),
-            })
+            .start_node_process(&start_request("sandbox-a", fixture, Duration::from_secs(3)))
             .unwrap_err()
             .to_string();
 
@@ -2166,11 +2209,7 @@ done
             .unwrap();
 
         let error = store
-            .start_node_process(&StartNodeRequest {
-                node_id: "sandbox-a".to_string(),
-                ntpro_node_bin: fixture,
-                startup_timeout: Duration::from_secs(1),
-            })
+            .start_node_process(&start_request("sandbox-a", fixture, Duration::from_secs(1)))
             .unwrap_err()
             .to_string();
 
@@ -2206,11 +2245,7 @@ done
         fs::write(registered.artifact_root.join("ignore-stop"), "").unwrap();
 
         let started = store
-            .start_node_process(&StartNodeRequest {
-                node_id: "sandbox-a".to_string(),
-                ntpro_node_bin: fixture,
-                startup_timeout: Duration::from_secs(3),
-            })
+            .start_node_process(&start_request("sandbox-a", fixture, Duration::from_secs(3)))
             .unwrap();
         let pid = started.process.pid.value.unwrap();
 
@@ -2264,6 +2299,10 @@ done
                 node_id: "sandbox-a".to_string(),
                 ntpro_node_bin: fixture,
                 startup_timeout_ms: 3_000,
+                node_max_runtime_ms: 60_000,
+                node_heartbeat_interval_ms: 100,
+                node_parent_pid: None,
+                node_shutdown_timeout_ms: 3_000,
             }),
         })
         .unwrap();
