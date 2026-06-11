@@ -198,7 +198,8 @@ enum EngineConnectionStatus {
 impl EngineConnectionStatus {
     const fn abort_reason(self) -> Option<&'static str> {
         match self {
-            Self::Connected | Self::TimedOut => None,
+            Self::Connected => None,
+            Self::TimedOut => Some("Engine connection timed out during startup"),
             Self::InterruptReceived => Some("Interrupt signal received during startup"),
             Self::StopRequested => Some("Stop signal received during startup"),
             Self::ShutdownRequested => Some("Shutdown signal received during startup"),
@@ -558,9 +559,18 @@ impl LiveNode {
             runner.flush_pending_data();
         }
 
-        self.kernel.connect_exec_clients().await;
+        let exec_connection_status = await_startup_connection_future(
+            self.kernel.connect_exec_clients(),
+            &self.handle,
+            shutdown_flag.as_ref(),
+            self.config.timeout_connection,
+        )
+        .await;
 
-        if let Some(reason) = self.startup_abort_reason() {
+        if let Some(reason) = exec_connection_status
+            .abort_reason()
+            .or_else(|| self.startup_abort_reason())
+        {
             self.abort_startup(reason).await?;
             return Ok(());
         }
@@ -569,7 +579,8 @@ impl LiveNode {
             EngineConnectionStatus::Connected => {}
             EngineConnectionStatus::TimedOut => {
                 log::error!("Cannot start trader: engine client(s) not connected");
-                self.handle.set_state(NodeState::Running);
+                self.abort_startup("Engine connection timed out during startup")
+                    .await?;
                 return Ok(());
             }
             EngineConnectionStatus::StopRequested => {
@@ -957,14 +968,22 @@ impl LiveNode {
         }
 
         // Startup phase 2: Connect execution clients (instruments now in cache)
-        let engine_connection_status = drive_with_event_buffering(
+        let timeout_connection = self.config.timeout_connection;
+        let engine_connection_status = drive_exec_connect_with_event_buffering(
             self.connect_exec_phase(),
             &mut pending,
-            &mut time_evt_rx,
-            &mut data_evt_rx,
-            &mut data_cmd_rx,
-            &mut exec_evt_rx,
-            &mut exec_cmd_rx,
+            StartupControls {
+                stop_handle: &stop_handle,
+                shutdown_flag: shutdown_flag.as_ref(),
+            },
+            StartupEventReceivers {
+                time_evt_rx: &mut time_evt_rx,
+                data_evt_rx: &mut data_evt_rx,
+                data_cmd_rx: &mut data_cmd_rx,
+                exec_evt_rx: &mut exec_evt_rx,
+                exec_cmd_rx: &mut exec_cmd_rx,
+            },
+            timeout_connection,
         )
         .await?;
 
@@ -1003,7 +1022,19 @@ impl LiveNode {
             self.perform_startup_reconciliation().await?;
             self.kernel.start_trader();
         } else {
-            log::error!("Not starting trader: engine client(s) not connected");
+            let reason = engine_connection_status
+                .abort_reason()
+                .unwrap_or("Engine connection did not complete during startup");
+            self.abort_startup(reason).await?;
+            self.drain_channels(
+                &mut time_evt_rx,
+                &mut data_evt_rx,
+                &mut data_cmd_rx,
+                &mut exec_evt_rx,
+                &mut exec_cmd_rx,
+            );
+            log::info!("Event loop stopped");
+            return Ok(());
         }
 
         self.handle.set_state(NodeState::Running);
@@ -1971,6 +2002,37 @@ async fn await_startup_future<F: std::future::Future<Output = ()>>(
     }
 }
 
+async fn await_startup_connection_future<F: std::future::Future<Output = ()>>(
+    future: F,
+    stop_handle: &LiveNodeHandle,
+    shutdown_flag: &Cell<bool>,
+    timeout: Duration,
+) -> EngineConnectionStatus {
+    tokio::pin!(future);
+    let timeout = dst::time::sleep(timeout);
+    tokio::pin!(timeout);
+    let mut stop_check_timer = dst::time::interval(Duration::from_millis(100));
+    stop_check_timer.set_missed_tick_behavior(dst::time::MissedTickBehavior::Skip);
+
+    loop {
+        tokio::select! {
+            biased;
+
+            () = &mut future => {
+                return EngineConnectionStatus::Connected;
+            }
+            () = &mut timeout => {
+                return EngineConnectionStatus::TimedOut;
+            }
+            _ = stop_check_timer.tick() => {
+                if let Some(status) = startup_control_status(stop_handle, shutdown_flag) {
+                    return status;
+                }
+            }
+        }
+    }
+}
+
 /// Drives the data-client startup future while buffering channel events and
 /// watching startup cancellation controls.
 async fn drive_data_connect_with_event_buffering<F: std::future::Future<Output = ()>>(
@@ -2051,20 +2113,27 @@ async fn drive_data_connect_with_event_buffering<F: std::future::Future<Output =
     }
 }
 
-/// Drives a future to completion while buffering channel events.
+/// Drives the execution-client startup future while buffering channel events
+/// and watching startup cancellation controls.
 ///
 /// Time events are handled immediately. Account events are forwarded directly.
 /// All other events are buffered in `pending` for later processing.
-async fn drive_with_event_buffering<F: std::future::Future>(
+async fn drive_exec_connect_with_event_buffering<
+    F: std::future::Future<Output = anyhow::Result<EngineConnectionStatus>>,
+>(
     future: F,
     pending: &mut PendingEvents,
-    time_evt_rx: &mut tokio::sync::mpsc::UnboundedReceiver<TimeEventHandler>,
-    data_evt_rx: &mut tokio::sync::mpsc::UnboundedReceiver<DataEvent>,
-    data_cmd_rx: &mut tokio::sync::mpsc::UnboundedReceiver<DataCommand>,
-    exec_evt_rx: &mut tokio::sync::mpsc::UnboundedReceiver<ExecutionEvent>,
-    exec_cmd_rx: &mut tokio::sync::mpsc::UnboundedReceiver<TradingCommand>,
-) -> F::Output {
+    controls: StartupControls<'_>,
+    receivers: StartupEventReceivers<'_>,
+    timeout: Duration,
+) -> anyhow::Result<EngineConnectionStatus> {
     tokio::pin!(future);
+    let ctrl_c = dst::signal::ctrl_c();
+    tokio::pin!(ctrl_c);
+    let timeout = dst::time::sleep(timeout);
+    tokio::pin!(timeout);
+    let mut stop_check_timer = dst::time::interval(Duration::from_millis(100));
+    stop_check_timer.set_missed_tick_behavior(dst::time::MissedTickBehavior::Skip);
 
     loop {
         tokio::select! {
@@ -2073,10 +2142,25 @@ async fn drive_with_event_buffering<F: std::future::Future>(
             result = &mut future => {
                 break result;
             }
-            Some(handler) = time_evt_rx.recv() => {
+            result = &mut ctrl_c => {
+                match result {
+                    Ok(()) => log::info!("Received SIGINT during startup"),
+                    Err(e) => log::error!("Failed to listen for SIGINT during startup: {e}"),
+                }
+                break Ok(EngineConnectionStatus::InterruptReceived);
+            }
+            () = &mut timeout => {
+                break Ok(EngineConnectionStatus::TimedOut);
+            }
+            _ = stop_check_timer.tick() => {
+                if let Some(status) = startup_control_status(controls.stop_handle, controls.shutdown_flag) {
+                    break Ok(status);
+                }
+            }
+            Some(handler) = receivers.time_evt_rx.recv() => {
                 AsyncRunner::handle_time_event(handler);
             }
-            Some(evt) = exec_evt_rx.recv() => {
+            Some(evt) = receivers.exec_evt_rx.recv() => {
                 // Account events are safe to process immediately. Report and
                 // Order events need ExecEngine borrow_mut which may conflict
                 // with the borrow held by the driven future.
@@ -2107,13 +2191,13 @@ async fn drive_with_event_buffering<F: std::future::Future>(
                     }
                 }
             }
-            Some(cmd) = exec_cmd_rx.recv() => {
+            Some(cmd) = receivers.exec_cmd_rx.recv() => {
                 pending.exec_cmds.push(cmd);
             }
-            Some(evt) = data_evt_rx.recv() => {
+            Some(evt) = receivers.data_evt_rx.recv() => {
                 pending.data_evts.push(evt);
             }
-            Some(cmd) = data_cmd_rx.recv() => {
+            Some(cmd) = receivers.data_cmd_rx.recv() => {
                 pending.data_cmds.push(cmd);
             }
         }
@@ -2215,11 +2299,18 @@ mod tests {
         rc::Rc,
     };
 
-    use nautilus_common::{cache::Cache, clients::DataClient, clock::Clock};
+    use nautilus_common::{
+        cache::Cache,
+        clients::{DataClient, ExecutionClient},
+        clock::Clock,
+    };
     use nautilus_core::{UUID4, UnixNanos};
     use nautilus_execution::engine::SnapshotAnchorer;
+    use nautilus_model::accounts::AccountAny;
+    use nautilus_model::enums::OmsType;
     use nautilus_model::identifiers::TraderId;
-    use nautilus_model::identifiers::{ClientId, Venue};
+    use nautilus_model::identifiers::{AccountId, ClientId, Venue};
+    use nautilus_model::types::{AccountBalance, MarginBalance};
     use nautilus_system::{KernelEventStore, RegisteredComponents, event_store::EventStoreConfig};
     use rstest::*;
 
@@ -2378,6 +2469,87 @@ mod tests {
         }
     }
 
+    #[derive(Debug)]
+    struct CancellationProbeExecutionClient {
+        probe: ConnectCancellationProbe,
+    }
+
+    impl CancellationProbeExecutionClient {
+        fn new(probe: ConnectCancellationProbe) -> Self {
+            Self { probe }
+        }
+    }
+
+    #[async_trait::async_trait(?Send)]
+    impl ExecutionClient for CancellationProbeExecutionClient {
+        fn is_connected(&self) -> bool {
+            self.probe.connected.get()
+        }
+
+        fn client_id(&self) -> ClientId {
+            ClientId::from("CANCEL-PROBE")
+        }
+
+        fn account_id(&self) -> AccountId {
+            AccountId::from("SIM-001")
+        }
+
+        fn venue(&self) -> Venue {
+            Venue::from("SIM")
+        }
+
+        fn oms_type(&self) -> OmsType {
+            OmsType::Netting
+        }
+
+        fn get_account(&self) -> Option<AccountAny> {
+            None
+        }
+
+        fn generate_account_state(
+            &self,
+            _balances: Vec<AccountBalance>,
+            _margins: Vec<MarginBalance>,
+            _reported: bool,
+            _ts_event: UnixNanos,
+        ) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        fn start(&mut self) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        fn stop(&mut self) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        fn reset(&mut self) -> anyhow::Result<()> {
+            self.probe.connected.set(false);
+            self.probe.resource_acquired.set(false);
+            self.probe.half_connected.set(false);
+            Ok(())
+        }
+
+        fn dispose(&mut self) -> anyhow::Result<()> {
+            self.reset()
+        }
+
+        async fn connect(&mut self) -> anyhow::Result<()> {
+            self.probe.connect_started.set(true);
+            self.probe.resource_acquired.set(true);
+            self.probe.half_connected.set(true);
+
+            let _cleanup = ConnectCleanupGuard {
+                probe: self.probe.clone(),
+            };
+
+            std::future::pending::<()>().await;
+            self.probe.connected.set(true);
+            Ok(())
+        }
+    }
+
     async fn drive_probe_data_client_connect_until_cancel(
         handle: &LiveNodeHandle,
         shutdown_flag: &Cell<bool>,
@@ -2415,7 +2587,56 @@ mod tests {
         (status, probe)
     }
 
+    async fn drive_probe_exec_client_connect_until_cancel(
+        handle: &LiveNodeHandle,
+        shutdown_flag: &Cell<bool>,
+        timeout: Duration,
+    ) -> (EngineConnectionStatus, ConnectCancellationProbe) {
+        let (_time_tx, mut time_evt_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_data_evt_tx, mut data_evt_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_data_cmd_tx, mut data_cmd_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_exec_evt_tx, mut exec_evt_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_exec_cmd_tx, mut exec_cmd_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut pending = PendingEvents::default();
+        let probe = ConnectCancellationProbe::default();
+        let mut client = CancellationProbeExecutionClient::new(probe.clone());
+
+        let status = drive_exec_connect_with_event_buffering(
+            async {
+                client.connect().await?;
+                Ok(EngineConnectionStatus::Connected)
+            },
+            &mut pending,
+            StartupControls {
+                stop_handle: handle,
+                shutdown_flag,
+            },
+            StartupEventReceivers {
+                time_evt_rx: &mut time_evt_rx,
+                data_evt_rx: &mut data_evt_rx,
+                data_cmd_rx: &mut data_cmd_rx,
+                exec_evt_rx: &mut exec_evt_rx,
+                exec_cmd_rx: &mut exec_cmd_rx,
+            },
+            timeout,
+        )
+        .await
+        .unwrap();
+
+        assert!(pending.is_empty());
+
+        (status, probe)
+    }
+
     fn assert_probe_data_client_cancelled(probe: &ConnectCancellationProbe) {
+        assert!(probe.connect_started.get());
+        assert!(probe.connect_future_dropped.get());
+        assert!(!probe.resource_acquired.get());
+        assert!(!probe.half_connected.get());
+        assert!(!probe.connected.get());
+    }
+
+    fn assert_probe_exec_client_cancelled(probe: &ConnectCancellationProbe) {
         assert!(probe.connect_started.get());
         assert!(probe.connect_future_dropped.get());
         assert!(!probe.resource_acquired.get());
@@ -2575,6 +2796,58 @@ mod tests {
 
         assert_eq!(status, EngineConnectionStatus::ShutdownRequested);
         assert_probe_data_client_cancelled(&probe);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_exec_client_connect_future_cleanup_on_stop_request() {
+        let handle = LiveNodeHandle::new();
+        let shutdown_flag = Cell::new(false);
+        handle.stop();
+
+        let (status, probe) = drive_probe_exec_client_connect_until_cancel(
+            &handle,
+            &shutdown_flag,
+            Duration::from_secs(60),
+        )
+        .await;
+
+        assert_eq!(status, EngineConnectionStatus::StopRequested);
+        assert_probe_exec_client_cancelled(&probe);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_exec_client_connect_future_cleanup_on_shutdown_request() {
+        let handle = LiveNodeHandle::new();
+        let shutdown_flag = Cell::new(true);
+
+        let (status, probe) = drive_probe_exec_client_connect_until_cancel(
+            &handle,
+            &shutdown_flag,
+            Duration::from_secs(60),
+        )
+        .await;
+
+        assert_eq!(status, EngineConnectionStatus::ShutdownRequested);
+        assert_probe_exec_client_cancelled(&probe);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_exec_client_connect_future_cleanup_on_timeout() {
+        let handle = LiveNodeHandle::new();
+        let shutdown_flag = Cell::new(false);
+
+        let (status, probe) = drive_probe_exec_client_connect_until_cancel(
+            &handle,
+            &shutdown_flag,
+            Duration::from_millis(1),
+        )
+        .await;
+
+        assert_eq!(status, EngineConnectionStatus::TimedOut);
+        assert_probe_exec_client_cancelled(&probe);
     }
 
     #[rstest]
