@@ -385,12 +385,17 @@ store = { path = '.supply-chain' }
 [profile.dev]
 opt-level = 0
 debug = false # Improves compile times
-debug-assertions = false
-overflow-checks = false # test profile keeps these on for catching overflow bugs
+debug-assertions = true
+overflow-checks = true
 strip = "debuginfo" # Improves compile times
 lto = false
 panic = "unwind"
 incremental = true
+
+[profile.dev-fast]
+inherits = "dev"
+debug-assertions = false
+overflow-checks = false
 
 # Compile third-party deps at opt-level=1 in dev/test profiles. Workspace
 # members keep opt-level=0 (fast iteration); deps recompile rarely so the

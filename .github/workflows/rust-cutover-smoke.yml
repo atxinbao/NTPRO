@@ -54,6 +54,9 @@ jobs:
       - name: Workspace clippy
         if: steps.changes.outputs.heavy_rust == 'true'
         run: cargo clippy --workspace --lib --tests --features "$NAUTILUS_RUST_FEATURES" -- -D warnings
+      - name: Product path lint warning rollout
+        if: steps.changes.outputs.heavy_rust == 'true'
+        run: scripts/ai/check_product_path_lints.sh
       - name: Heavy Rust checks skipped
         if: steps.changes.outputs.heavy_rust != 'true'
         run: echo "Skipping cargo check, clippy, CLI unit tests, and supervisor smoke for docs/local-state-only changes."
