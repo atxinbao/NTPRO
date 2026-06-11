@@ -11,6 +11,28 @@ Plug-in system for NTPRO.
 > the host-side adapters, `HostVTable` surface, and `LiveNodeConfig` wiring land. Plug-in builds
 > must be pinned to the matching Nautilus version.
 
+## Trusted local alpha boundary
+
+The plug-in loader executes trusted local cdylib code in the host process. A
+configured plug-in path is therefore equivalent to giving that compiled library
+the same process privileges as the live node. NTPRO v0.2 does not treat this as
+a production plug-in product surface and does not include untrusted third-party
+plug-in loading in its release claim.
+
+Current v0.2 boundaries:
+
+- Plug-ins are trusted local alpha artifacts, not a sandboxed extension system.
+- Plug-in paths must be controlled by the operator and reviewed before being
+  added to `LiveNodeConfig`.
+- Optional `sha256` config validation exists, but v0.2 does not yet require a
+  digest for every configured plug-in.
+- Path allowlists, canonical path enforcement, symlink escape checks,
+  mandatory sha256, ABI/build-id policy hardening, crash isolation, and panic
+  boundary hardening are tracked as follow-up work in
+  `docs/rust-cutover/security/plugin_unsafe_register.md`.
+- Public v0.2 product claims must not describe plug-ins as production-ready,
+  untrusted-code safe, hot-reloadable, or enabled by default.
+
 The `nautilus-plugin` crate defines the C-ABI boundary between a Nautilus host (the live node)
 and independently compiled Rust plug-in cdylibs. The host `dlopen`s a plug-in, calls a single
 `nautilus_plugin_init` entry symbol, and registers every plug point the returned manifest
