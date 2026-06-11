@@ -669,8 +669,10 @@ impl LiveNode {
 
     /// Awaits engine clients to disconnect with timeout.
     ///
-    /// Logs an error with client status on timeout but does not fail.
-    async fn await_engines_disconnected(&self) {
+    /// # Errors
+    ///
+    /// Returns an error if engine clients are still connected after the configured timeout.
+    async fn await_engines_disconnected(&self) -> anyhow::Result<()> {
         log::info!(
             "Awaiting engine disconnections ({:?} timeout)...",
             self.config.timeout_disconnection
@@ -683,7 +685,7 @@ impl LiveNode {
         while start.elapsed() < timeout {
             if self.kernel.check_engines_disconnected() {
                 log::info!("All engine clients disconnected");
-                return;
+                return Ok(());
             }
             dst::time::sleep(interval).await;
         }
@@ -696,6 +698,8 @@ impl LiveNode {
             self.kernel.data_engine().check_disconnected(),
             self.kernel.exec_engine().borrow().check_disconnected(),
         );
+
+        anyhow::bail!("Engine client disconnection timed out after {timeout:?}");
     }
 
     fn log_connection_status(&self) {
@@ -1469,12 +1473,13 @@ impl LiveNode {
             log::error!("Error disconnecting clients: {e}");
         }
 
-        self.await_engines_disconnected().await;
+        let disconnection_wait_result = self.await_engines_disconnected().await;
         self.kernel.finalize_stop().await;
 
         self.handle.set_state(NodeState::Stopped);
 
-        disconnect_result
+        disconnect_result?;
+        disconnection_wait_result
     }
 
     fn drain_channels(
@@ -2303,6 +2308,7 @@ mod tests {
         cache::Cache,
         clients::{DataClient, ExecutionClient},
         clock::Clock,
+        logging::logger::LoggerConfig,
     };
     use nautilus_core::{UUID4, UnixNanos};
     use nautilus_execution::engine::SnapshotAnchorer;
@@ -2375,6 +2381,10 @@ mod tests {
                 reconciliation: false,
                 ..Default::default()
             })
+            .with_logging(LoggerConfig {
+                bypass_logging: true,
+                ..Default::default()
+            })
             .with_load_state(true)
             .with_name("TestKernel")
             .with_event_store(move |_instance_id: UUID4, _clock: Rc<RefCell<dyn Clock>>| {
@@ -2382,6 +2392,16 @@ mod tests {
             });
 
         builder.build().unwrap()
+    }
+
+    fn live_node_test_config() -> LiveNodeConfig {
+        LiveNodeConfig {
+            logging: LoggerConfig {
+                bypass_logging: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
     }
 
     #[derive(Clone, Debug, Default)]
@@ -2687,7 +2707,7 @@ mod tests {
     #[rstest]
     #[tokio::test]
     async fn test_await_engines_connected_returns_stop_requested() {
-        let node = LiveNode::build("TestNode".to_string(), None).unwrap();
+        let node = LiveNode::build("TestNode".to_string(), Some(live_node_test_config())).unwrap();
         let handle = node.handle();
 
         handle.stop();
@@ -2701,7 +2721,7 @@ mod tests {
     #[rstest]
     #[tokio::test]
     async fn test_await_engines_connected_returns_shutdown_requested() {
-        let node = LiveNode::build("TestNode".to_string(), None).unwrap();
+        let node = LiveNode::build("TestNode".to_string(), Some(live_node_test_config())).unwrap();
 
         node.kernel().shutdown_flag().set(true);
 
@@ -2852,8 +2872,51 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
+    async fn test_await_engines_disconnected_returns_error_on_timeout() {
+        let config = LiveNodeConfig {
+            logging: LoggerConfig {
+                bypass_logging: true,
+                ..Default::default()
+            },
+            exec_engine: crate::config::LiveExecEngineConfig {
+                reconciliation: false,
+                ..Default::default()
+            },
+            timeout_disconnection: Duration::from_millis(1),
+            ..Default::default()
+        };
+        let node = LiveNode::build("TestNode".to_string(), Some(config)).unwrap();
+        let probe = ConnectCancellationProbe::default();
+        probe.connected.set(true);
+        node.kernel
+            .exec_engine
+            .borrow_mut()
+            .register_client(Box::new(CancellationProbeExecutionClient::new(
+                probe.clone(),
+            )))
+            .unwrap();
+
+        let err = node
+            .await_engines_disconnected()
+            .await
+            .expect_err("connected execution client should make disconnection wait fail");
+
+        assert!(probe.connected.get());
+        assert!(
+            err.to_string()
+                .contains("Engine client disconnection timed out"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[rstest]
+    #[tokio::test]
     async fn test_start_stop_request_aborts_startup_without_running() {
         let config = LiveNodeConfig {
+            logging: LoggerConfig {
+                bypass_logging: true,
+                ..Default::default()
+            },
             exec_engine: crate::config::LiveExecEngineConfig {
                 reconciliation: false,
                 ..Default::default()
