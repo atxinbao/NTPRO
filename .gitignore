@@ -167,6 +167,7 @@ PERF.JSON
 output.json
 
 # AI assistants and tools
+.agentflow/
 .codex
 .cursorignore
 .mcp.json
