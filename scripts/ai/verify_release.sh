@@ -59,6 +59,10 @@ require_help_contains /tmp/nautilus_supervisor_help.txt \
   'list' \
   'start' \
   'stop' \
+  'pause' \
+  'resume' \
+  'reconnect-data' \
+  'reconnect-execution' \
   'status' \
   'logs' \
   'metrics' \
@@ -84,5 +88,11 @@ if [[ "${NTPRO_V02_009_SKIP_BUILD:-0}" == "1" ]]; then
   exit 1
 fi
 NTPRO_RELEASE_GATE=1 NTPRO_V02_009_SKIP_BUILD=0 scripts/ai/v02_two_node_supervisor_smoke.sh
+
+echo "== verify_release: v0.3 supervisor control smoke =="
+NTPRO_V03_CONTROL_SKIP_BUILD=1 scripts/ai/v03_supervisor_control_smoke.sh
+
+echo "== verify_release: v0.3 dashboard control smoke =="
+NTPRO_V03_010_SKIP_BUILD=1 scripts/ai/v03_dashboard_smoke.sh
 
 echo "== verify_release complete =="
