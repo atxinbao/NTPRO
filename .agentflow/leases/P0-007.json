@@ -15,5 +15,12 @@
     ".agentflow/leases/P0-007.json"
   ],
   "claimed_at": "2026-06-11T12:18:24.588104+00:00",
-  "status": "LEASED"
+  "status": "COMPLETED",
+  "updated_at": "2026-06-11T13:49:04Z",
+  "pr_number": 241,
+  "pr_url": "https://github.com/atxinbao/NTPRO/pull/241",
+  "completed_at": "2026-06-11T13:49:04Z",
+  "merged_pr_number": 241,
+  "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/241",
+  "merge_commit": "11ed16ad34d39f067c65857929e091374e667511"
 }

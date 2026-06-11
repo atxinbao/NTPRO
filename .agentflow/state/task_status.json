@@ -3550,7 +3550,7 @@
     },
     "P0-007": {
       "title": "ntpro-node Shutdown Hardening",
-      "status": "REVIEW_REQUIRED",
+      "status": "DONE",
       "owner_role": "rust_product_surface_agent",
       "review_role": "verification_release_gatekeeper",
       "risk_level": "high",
@@ -3564,14 +3564,18 @@
       ],
       "source_task_file": "docs/rust-cutover/tasks/P0-007.md",
       "evidence_file": "docs/rust-cutover/evidence/P0-007.md",
-      "updated_at": "2026-06-11T12:32:00Z",
+      "updated_at": "2026-06-11T13:49:04Z",
       "source": "/Users/mac/Downloads/ntpro_v0_2_0_audit_remediation_requirements.md",
       "local_backlog": true,
       "started_at": "2026-06-11T12:18:24Z",
       "branch": "codex/P0-007-ntpro-node-shutdown-hardening",
       "evidence_summary": "P0-007 adds bounded ntpro-node shutdown controls for stop files, signals, max runtime, parent-dead detection, heartbeat artifacts, and shutdown timeout while preserving CLI supervisor start behavior.",
       "pr_number": 241,
-      "pr_url": "https://github.com/atxinbao/NTPRO/pull/241"
+      "pr_url": "https://github.com/atxinbao/NTPRO/pull/241",
+      "merged_pr_number": 241,
+      "merged_pr_url": "https://github.com/atxinbao/NTPRO/pull/241",
+      "merged_at": "2026-06-11T13:49:04Z",
+      "merge_commit": "11ed16ad34d39f067c65857929e091374e667511"
     },
     "P0-008": {
       "title": "LiveNode Startup Cancellation",
