@@ -4218,9 +4218,10 @@ EOF
             if response.contains("HTTP/1.1 200 OK") {
                 return response;
             }
-            if tokio::time::Instant::now() >= deadline {
-                panic!("{context} expected HTTP 200 OK, got:\n{response}");
-            }
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "{context} expected HTTP 200 OK, got:\n{response}",
+            );
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
     }
@@ -4250,11 +4251,10 @@ EOF
                     return value;
                 }
             }
-            if tokio::time::Instant::now() >= deadline {
-                panic!(
-                    "{context} expected node_id={node_id} lifecycle_state={expected_lifecycle} process_state={expected_process}, got:\n{response}",
-                );
-            }
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "{context} expected node_id={node_id} lifecycle_state={expected_lifecycle} process_state={expected_process}, got:\n{response}",
+            );
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
     }
