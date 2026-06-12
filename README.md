@@ -6,16 +6,16 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.2.0
-Capability: Local Multi-Node Runtime Foundation
+Current source tag: ntpro-rust-only-v0.3.0
+Capability: Local Supervisor Control Console
 ```
 
-This tag is the current v0.2.0 source release point for the local multi-node
-runtime foundation. It is published as a GitHub Release for the tagged source
-tree:
+This tag is the current v0.3.0 source release point for the local sandbox-only
+Supervisor control console. It is published as a GitHub Release for the tagged
+source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.2.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.3.0
 ```
 
 ## Current Status
@@ -90,21 +90,30 @@ The current binary name is `nautilus`, provided by the `nautilus-cli` package.
 NTPRO does not currently publish prebuilt binaries, Python wheels, PyPI
 packages, or Docker images as product delivery paths.
 
-## v0.2.0 Capability Boundary
+## Current Capability Boundary
 
-v0.2.0 is a local-only runtime foundation. It supports source-build Rust CLI
-workflows for local sandbox node registration, local `ntpro-node` process
-startup and shutdown, status/log/metrics inspection, and two-node local smoke
-evidence.
+v0.3.0 is a local-only Supervisor control-console release. It supports
+source-build Rust CLI and local Dashboard workflows for sandbox node
+registration, local `ntpro-node` process startup and shutdown, status/log/
+metrics inspection, local two-node smoke evidence, and local control actions:
 
-Not included in the v0.2.0 product claim:
+- `start`
+- `stop`
+- `pause`
+- `resume`
+- `reconnect data source` as an explicit local sandbox `not_supported` result
+- `reconnect execution gateway` as an explicit local sandbox `not_supported`
+  result
 
-- Dashboard release scope.
+Not included in the v0.3.0 product claim:
+
 - Production exchange connectivity.
 - Real account connectivity.
 - Real order submission.
 - Manual order entry.
+- Production reconnect behavior.
 - Distributed multi-server deployment.
+- Remote or multi-user Dashboard operation.
 - Prebuilt binary or Docker release artifact delivery.
 
 ## Verification
@@ -154,6 +163,7 @@ Release documents:
 - `docs/rust-cutover/release/v0_2_0_release_notes.md`
 - `docs/rust-cutover/release/v0_2_0_known_limits.md`
 - `docs/rust-cutover/release/v0_2_local_multi_node_readiness_report.md`
+- `docs/rust-cutover/release/v0_3_0_supervisor_control_readiness_report.md`
 - `docs/rust-cutover/release/rust_only_release_notes.md`
 - `docs/rust-cutover/release/final_release_verification.md`
 - `docs/rust-cutover/release/final_completion_report.md`
@@ -182,9 +192,10 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.2.0` is the current Rust-only source release for the Local
-Multi-Node Runtime Foundation. `ntpro-rust-only-v0.1.0` remains the first formal
-Rust-only cutover release and historical baseline.
+`ntpro-rust-only-v0.3.0` is the current Rust-only source release for the Local
+Supervisor Control Console. v0.2.0 remains the local multi-node runtime
+foundation baseline, and v0.1.0 remains the first formal Rust-only cutover
+release and historical baseline.
 
 Before cutting a later release, review:
 
