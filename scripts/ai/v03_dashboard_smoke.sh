@@ -7,16 +7,20 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
-if ! command -v npx >/dev/null 2>&1; then
-  echo "missing npx; Playwright wrapper requires Node.js/npm" >&2
-  exit 1
-fi
-
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 PWCLI="$CODEX_HOME/skills/playwright/scripts/playwright_cli.sh"
-if [[ ! -x "$PWCLI" ]]; then
+HAS_PLAYWRIGHT_WRAPPER=0
+if [[ -x "$PWCLI" ]]; then
+  HAS_PLAYWRIGHT_WRAPPER=1
+  if ! command -v npx >/dev/null 2>&1; then
+    echo "missing npx; Playwright wrapper requires Node.js/npm" >&2
+    exit 1
+  fi
+elif [[ "${NTPRO_V03_DASHBOARD_REQUIRE_PLAYWRIGHT:-0}" == "1" ]]; then
   echo "missing Playwright wrapper: $PWCLI" >&2
   exit 1
+else
+  echo "Playwright wrapper unavailable; using API/HTML dashboard smoke fallback: $PWCLI"
 fi
 
 if [[ "${NTPRO_V03_010_SKIP_BUILD:-0}" != "1" &&
@@ -68,8 +72,10 @@ run_cmd() {
 
 cleanup() {
   set +e
-  TMPDIR="$PW_TMPDIR" "$PWCLI" --session "$PW_SESSION" close >/dev/null 2>&1
-  rm -rf "$ROOT_DIR/.playwright-cli"
+  if [[ "$HAS_PLAYWRIGHT_WRAPPER" == "1" ]]; then
+    TMPDIR="$PW_TMPDIR" "$PWCLI" --session "$PW_SESSION" close >/dev/null 2>&1
+    rm -rf "$ROOT_DIR/.playwright-cli"
+  fi
   if [[ -n "$DASHBOARD_PID" ]]; then
     kill "$DASHBOARD_PID" >/dev/null 2>&1
     wait "$DASHBOARD_PID" >/dev/null 2>&1
@@ -82,6 +88,10 @@ cleanup() {
 trap cleanup EXIT
 
 run_pw() {
+  if [[ "$HAS_PLAYWRIGHT_WRAPPER" != "1" ]]; then
+    echo "Playwright wrapper unavailable: $PWCLI" >&2
+    exit 1
+  fi
   TMPDIR="$PW_TMPDIR" "$PWCLI" --session "$PW_SESSION" "$@"
 }
 
@@ -125,6 +135,171 @@ PY
   return 1
 }
 
+run_api_dashboard_smoke() {
+  local bind="$1"
+  local artifact_dir="$2"
+
+  python3 - "$bind" "$artifact_dir" <<'PY'
+import json
+import sys
+import time
+import urllib.request
+from pathlib import Path
+
+bind = sys.argv[1]
+artifact_dir = Path(sys.argv[2])
+artifact_dir.mkdir(parents=True, exist_ok=True)
+base_url = f"http://{bind}"
+
+
+def write_json(name, payload):
+    (artifact_dir / name).write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def request_text(path):
+    with urllib.request.urlopen(f"{base_url}{path}", timeout=5) as response:
+        return response.read().decode("utf-8")
+
+
+def request_json(path):
+    with urllib.request.urlopen(f"{base_url}{path}", timeout=5) as response:
+        return json.load(response)
+
+
+def post_json(path):
+    request = urllib.request.Request(f"{base_url}{path}", method="POST")
+    with urllib.request.urlopen(request, timeout=15) as response:
+        return response.status, json.load(response)
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+
+def node_states(snapshot):
+    return {node["node_id"]: node["lifecycle_state"] for node in snapshot["nodes"]}
+
+
+def assert_snapshot_contract(snapshot):
+    node_ids = sorted(node["node_id"] for node in snapshot["nodes"])
+    require(node_ids == ["sandbox-a", "sandbox-b"], f"unexpected node ids: {node_ids}")
+    overview = snapshot["overview"]
+    require(overview["node_count"] == 2, f"unexpected node count: {overview}")
+    require(overview["running_nodes"] == 1, f"unexpected running count: {overview}")
+    require(overview["stopped_nodes"] == 1, f"unexpected stopped count: {overview}")
+    for section in [
+        "data_sources",
+        "execution_gateways",
+        "runtime_modules",
+        "logs",
+        "metrics",
+        "gaps",
+    ]:
+        require(
+            isinstance(snapshot.get(section), list) and len(snapshot[section]) > 0,
+            f"dashboard snapshot missing section {section}",
+        )
+    require(snapshot.get("risk", {}).get("health") is not None, "dashboard snapshot missing risk summary")
+
+
+def assert_initial_controls(snapshot):
+    controls = {control["action"]: control for control in snapshot["controls"]}
+    expected = {
+        "start:sandbox-a": True,
+        "stop:sandbox-a": False,
+        "pause:sandbox-a": False,
+        "resume:sandbox-a": False,
+        "reconnect_data:sandbox-a": False,
+        "reconnect_execution:sandbox-a": False,
+        "start:sandbox-b": False,
+        "stop:sandbox-b": True,
+        "pause:sandbox-b": True,
+        "resume:sandbox-b": False,
+        "reconnect_data:sandbox-b": True,
+        "reconnect_execution:sandbox-b": True,
+    }
+    for action, enabled in expected.items():
+        control = controls.get(action)
+        require(control is not None, f"missing control state {action}")
+        require(control["enabled"] is enabled, f"unexpected control enabled {action}: {control}")
+        require(control["availability"] == "available", f"unexpected control availability {action}: {control}")
+
+
+def wait_state(node_id, expected_state, label, timeout_seconds=20):
+    deadline = time.time() + timeout_seconds
+    last_states = {}
+    while time.time() < deadline:
+        snapshot = request_json("/api/snapshot")
+        last_states = node_states(snapshot)
+        if last_states.get(node_id) == expected_state:
+            return snapshot
+        time.sleep(0.25)
+    raise SystemExit(f"{label} timed out; last states: {last_states}")
+
+
+def run_action(node_id, action, expected_status, expected_state):
+    status, payload = post_json(f"/api/nodes/{node_id}/actions/{action}")
+    write_json(f"api-action-{action}-{node_id}.json", payload)
+    require(status == 200, f"{action} {node_id} returned HTTP {status}: {payload}")
+    require(payload["status"] == expected_status, f"{action} {node_id} status mismatch: {payload}")
+    require(payload["current_state"] == expected_state, f"{action} {node_id} state mismatch: {payload}")
+    return payload
+
+
+html = request_text("/dashboard")
+(artifact_dir / "api-html-shell.html").write_text(html, encoding="utf-8")
+for required in [
+    "NTPRO 监督器控制台",
+    "control-result",
+    "dashboard.js",
+]:
+    require(required in html, f"dashboard shell missing {required}")
+
+dashboard_js = request_text("/assets/dashboard.js")
+(artifact_dir / "api-dashboard.js").write_text(dashboard_js, encoding="utf-8")
+for required in [
+    "/api/snapshot",
+    "data-dashboard-action",
+    "reconnect_data",
+]:
+    require(required in dashboard_js, f"dashboard JS missing {required}")
+
+initial = request_json("/api/snapshot")
+write_json("api-initial-snapshot.json", initial)
+assert_snapshot_contract(initial)
+assert_initial_controls(initial)
+
+run_action("sandbox-b", "reconnect_data", "not_supported", "running")
+run_action("sandbox-b", "reconnect_execution", "not_supported", "running")
+run_action("sandbox-b", "pause", "succeeded", "paused")
+wait_state("sandbox-b", "paused", "pause sandbox-b through dashboard API")
+run_action("sandbox-b", "resume", "succeeded", "running")
+wait_state("sandbox-b", "running", "resume sandbox-b through dashboard API")
+run_action("sandbox-a", "start", "succeeded", "running")
+wait_state("sandbox-a", "running", "start sandbox-a through dashboard API")
+run_action("sandbox-b", "stop", "succeeded", "stopped")
+final = wait_state("sandbox-b", "stopped", "stop sandbox-b through dashboard API")
+write_json("api-final-snapshot.json", final)
+
+states = node_states(final)
+require(states == {"sandbox-a": "running", "sandbox-b": "stopped"}, f"unexpected final states: {states}")
+write_json(
+    "api-fallback-summary.json",
+    {
+        "status": "ok",
+        "mode": "api-html-fallback",
+        "node_states": states,
+        "browser_wrapper": "not_available",
+    },
+)
+print(f"api_html_dashboard_smoke status=ok final_states={states}")
+PY
+}
+
 run_cmd register_a "$NAUTILUS_BIN" supervisor register \
   --registry "$REGISTRY" \
   --node-id sandbox-a \
@@ -159,6 +334,12 @@ if ! wait_http "http://$BIND/api/snapshot" 80; then
   echo "dashboard server did not become ready; log=$SERVER_LOG" >&2
   cat "$SERVER_LOG" >&2 || true
   exit 1
+fi
+
+if [[ "$HAS_PLAYWRIGHT_WRAPPER" != "1" ]]; then
+  run_api_dashboard_smoke "$BIND" "$ARTIFACT_DIR"
+  echo "v03_dashboard_smoke status=ok mode=api-html-fallback root=$SMOKE_ROOT registry=$REGISTRY dashboard_url=$DASHBOARD_URL artifacts=$ARTIFACT_DIR nodes=sandbox-a,sandbox-b"
+  exit 0
 fi
 
 run_pw open "$DASHBOARD_URL" >"$ARTIFACT_DIR/open.txt"
