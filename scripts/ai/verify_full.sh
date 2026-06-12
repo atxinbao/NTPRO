@@ -54,16 +54,23 @@ run_exact_cargo_tests_with_args() {
   done
 }
 
-echo "== verify_full: fast checks =="
-scripts/ai/verify_fast.sh
+run_fast_checks() {
+  echo "== verify_full: fast checks =="
+  scripts/ai/verify_fast.sh
+}
 
-echo "== verify_full: clippy =="
-cargo clippy --workspace --lib --tests --features "$FEATURES" -- -D warnings
+run_clippy() {
+  echo "== verify_full: clippy =="
+  cargo clippy --workspace --lib --tests --features "$FEATURES" -- -D warnings
+}
 
-echo "== verify_full: rust tests =="
-if cargo nextest --version >/dev/null 2>&1; then
-  cargo nextest run --workspace --lib --tests --features "$FEATURES" --no-fail-fast
-else
+run_rust_tests() {
+  echo "== verify_full: rust tests =="
+  if cargo nextest --version >/dev/null 2>&1; then
+    cargo nextest run --workspace --lib --tests --features "$FEATURES" --no-fail-fast
+    return
+  fi
+
   live_lib_log_global_tests=(
     node::tests::test_await_engines_connected_returns_shutdown_requested
     node::tests::test_await_engines_connected_returns_stop_requested
@@ -129,13 +136,58 @@ else
   )
 
   run_exact_cargo_tests_with_args nautilus-live "${#live_node_test_args[@]}" "${live_node_test_args[@]}" "${live_node_serial_tests[@]}"
+}
+
+run_golden_trace_validation() {
+  echo "== verify_full: golden trace validation =="
+  scripts/ai/run_golden_traces.sh
+}
+
+run_rust_docs() {
+  echo "== verify_full: rust docs =="
+  echo "== verify_full: cargo doc jobs=$CARGO_DOC_JOBS =="
+  cargo doc --workspace --features "$FEATURES" --no-deps --jobs "$CARGO_DOC_JOBS"
+}
+
+run_stage() {
+  local stage="$1"
+  case "$stage" in
+    fast)
+      run_fast_checks
+      ;;
+    clippy)
+      run_clippy
+      ;;
+    rust-tests)
+      run_rust_tests
+      ;;
+    golden-traces)
+      run_golden_trace_validation
+      ;;
+    rust-docs)
+      run_rust_docs
+      ;;
+    all)
+      run_fast_checks
+      run_clippy
+      run_rust_tests
+      run_golden_trace_validation
+      run_rust_docs
+      ;;
+    *)
+      echo "unknown verify_full stage: $stage" >&2
+      echo "valid stages: all, fast, clippy, rust-tests, golden-traces, rust-docs" >&2
+      exit 2
+      ;;
+  esac
+}
+
+if (( $# == 0 )); then
+  run_stage all
+else
+  for stage in "$@"; do
+    run_stage "$stage"
+  done
 fi
-
-echo "== verify_full: golden trace validation =="
-scripts/ai/run_golden_traces.sh
-
-echo "== verify_full: rust docs =="
-echo "== verify_full: cargo doc jobs=$CARGO_DOC_JOBS =="
-cargo doc --workspace --features "$FEATURES" --no-deps --jobs "$CARGO_DOC_JOBS"
 
 echo "== verify_full complete =="
