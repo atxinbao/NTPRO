@@ -70,6 +70,13 @@ reconnect data source -> explicit not_supported result
 reconnect execution gateway -> explicit not_supported result
 ```
 
+V031 clarification:
+
+- reconnect controls record unsupported local sandbox results only
+- reconnect controls do not perform production venue reconnect
+- reconnect controls do not reconnect real data or execution adapters
+- reconnect controls do not recover real accounts or real orders
+
 Observable guarantees:
 
 - `external_venue_connection=false`

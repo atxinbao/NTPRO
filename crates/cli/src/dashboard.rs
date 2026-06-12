@@ -47,6 +47,10 @@ use crate::{
 };
 
 pub const DASHBOARD_SNAPSHOT_SCHEMA_VERSION: &str = "ntpro.dashboard_snapshot.v1";
+const DASHBOARD_DATA_RECONNECT_UNSUPPORTED_MESSAGE: &str =
+    "本地沙盒仅记录数据源重连为不支持，不会连接真实交易所或真实 adapter";
+const DASHBOARD_EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE: &str =
+    "本地沙盒仅记录执行网关重连为不支持，不会连接真实交易所或真实 adapter";
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
 <html lang="zh-CN">
@@ -383,7 +387,7 @@ const DISPLAY_TEXT = {
   node_not_found: "节点不存在",
   invalid_lifecycle_state: "生命周期状态不允许",
   unsupported_control_action: "控制动作不支持",
-  sandbox_reconnect_not_supported: "沙盒重连不支持",
+  sandbox_reconnect_not_supported: "本地沙盒重连不支持",
   process_state_conflict: "进程状态冲突",
   ntpro_node_binary_unavailable: "ntpro-node 二进制不可用",
   supervisor_action_failed: "监督器动作失败",
@@ -544,8 +548,8 @@ const controlLabel = (action) => {
     stop: "停止",
     pause: "暂停",
     resume: "恢复",
-    reconnect_data: "重连数据源",
-    reconnect_execution: "重连执行网关",
+    reconnect_data: "记录数据源重连不支持",
+    reconnect_execution: "记录执行网关重连不支持",
   }[name] || name;
 };
 
@@ -1311,7 +1315,7 @@ fn run_reconnect_data_action(
                     "sandbox_reconnect_not_supported".to_string(),
                 ),
                 message: DashboardValue::available(
-                    "本地沙盒监督器已记录数据源重连为不支持".to_string(),
+                    DASHBOARD_DATA_RECONNECT_UNSUPPORTED_MESSAGE.to_string(),
                 ),
             })),
         ),
@@ -1347,7 +1351,7 @@ fn run_reconnect_execution_action(
                     "sandbox_reconnect_not_supported".to_string(),
                 ),
                 message: DashboardValue::available(
-                    "本地沙盒监督器已记录执行网关重连为不支持".to_string(),
+                    DASHBOARD_EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE.to_string(),
                 ),
             })),
         ),
@@ -1392,8 +1396,8 @@ fn control_action_display_name(action: &str) -> &'static str {
         "stop" => "停止",
         "pause" => "暂停",
         "resume" => "恢复",
-        "reconnect_data" => "重连数据源",
-        "reconnect_execution" => "重连执行网关",
+        "reconnect_data" => "记录数据源重连不支持",
+        "reconnect_execution" => "记录执行网关重连不支持",
         _ => "控制动作",
     }
 }
@@ -2666,10 +2670,13 @@ fn control_statuses_from_nodes(nodes: &[DashboardNodeSummary]) -> Vec<ControlSta
             },
         });
         for (action, reason) in [
-            ("reconnect_data", "数据源重连会在本地沙盒中明确记录为不支持"),
+            (
+                "reconnect_data",
+                "本地沙盒仅记录数据源重连为不支持，不会连接真实交易所或真实 adapter",
+            ),
             (
                 "reconnect_execution",
-                "执行网关重连会在本地沙盒中明确记录为不支持",
+                "本地沙盒仅记录执行网关重连为不支持，不会连接真实交易所或真实 adapter",
             ),
         ] {
             let control_available = matches!(
@@ -2844,7 +2851,8 @@ mod tests {
 
     use crate::supervisor::{
         NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, RegisterNodeRequest,
-        RegistryArtifactState, SupervisorNodeRecord, SupervisorProcessState, SupervisorRegistry,
+        RegistryArtifactState, SupervisorNodeRecord, SupervisorPidArtifact,
+        SupervisorProcessIdentity, SupervisorProcessState, SupervisorRegistry,
         SupervisorRegistryStore, write_node_metrics_artifact,
     };
     use serde_json::{Value, json};
@@ -3269,8 +3277,12 @@ mod tests {
         write_status_artifact(&record, &status);
         write_metrics_artifact(&record, &status);
         write_log_artifacts(&record);
+        record.last_known_status = status.clone();
         record.status_artifact = RegistryArtifactState::Available;
         record.metrics_artifact = RegistryArtifactState::Available;
+        record.process.state = SupervisorProcessState::Running;
+        record.process.pid = SnapshotValue::available(std::process::id());
+        write_pid_artifact(&record);
         write_registry(&registry_path, [record]);
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -3353,6 +3365,40 @@ mod tests {
                 .unwrap()
                 .iter()
                 .any(|metric| metric["metric_id"] == "sandbox-a:starts_total")
+        );
+
+        let reconnected_data =
+            http_request(addr, "POST", "/api/nodes/sandbox-a/actions/reconnect_data").await;
+        assert_http_ok(&reconnected_data, "reconnect_data");
+        let reconnected_data_value: Value =
+            serde_json::from_str(response_body(&reconnected_data)).unwrap();
+        assert_eq!(reconnected_data_value["status"], "not_supported");
+        assert_eq!(
+            reconnected_data_value["error_code"],
+            json!({"availability": "available", "value": "sandbox_reconnect_not_supported"})
+        );
+        assert_eq!(
+            reconnected_data_value["message"],
+            json!({"availability": "available", "value": DASHBOARD_DATA_RECONNECT_UNSUPPORTED_MESSAGE})
+        );
+
+        let reconnected_execution = http_request(
+            addr,
+            "POST",
+            "/api/nodes/sandbox-a/actions/reconnect_execution",
+        )
+        .await;
+        assert_http_ok(&reconnected_execution, "reconnect_execution");
+        let reconnected_execution_value: Value =
+            serde_json::from_str(response_body(&reconnected_execution)).unwrap();
+        assert_eq!(reconnected_execution_value["status"], "not_supported");
+        assert_eq!(
+            reconnected_execution_value["error_code"],
+            json!({"availability": "available", "value": "sandbox_reconnect_not_supported"})
+        );
+        assert_eq!(
+            reconnected_execution_value["message"],
+            json!({"availability": "available", "value": DASHBOARD_EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE})
         );
 
         let action = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/start").await;
@@ -3439,32 +3485,6 @@ mod tests {
                 .iter()
                 .any(|control| control["action"] == "reconnect_data:sandbox-a"
                     && control["enabled"] == true)
-        );
-
-        let reconnected_data =
-            http_request(addr, "POST", "/api/nodes/sandbox-a/actions/reconnect_data").await;
-        assert!(reconnected_data.contains("HTTP/1.1 200 OK"));
-        let reconnected_data_value: Value =
-            serde_json::from_str(response_body(&reconnected_data)).unwrap();
-        assert_eq!(reconnected_data_value["status"], "not_supported");
-        assert_eq!(
-            reconnected_data_value["error_code"],
-            json!({"availability": "available", "value": "sandbox_reconnect_not_supported"})
-        );
-
-        let reconnected_execution = http_request(
-            addr,
-            "POST",
-            "/api/nodes/sandbox-a/actions/reconnect_execution",
-        )
-        .await;
-        assert!(reconnected_execution.contains("HTTP/1.1 200 OK"));
-        let reconnected_execution_value: Value =
-            serde_json::from_str(response_body(&reconnected_execution)).unwrap();
-        assert_eq!(reconnected_execution_value["status"], "not_supported");
-        assert_eq!(
-            reconnected_execution_value["error_code"],
-            json!({"availability": "available", "value": "sandbox_reconnect_not_supported"})
         );
 
         let paused = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/pause").await;
@@ -3863,6 +3883,23 @@ mod tests {
         write_node_metrics_artifact(&record.metrics_path, &metrics).unwrap();
     }
 
+    fn write_pid_artifact(record: &SupervisorNodeRecord) {
+        create_node_dirs(record);
+        let pid = record.process.pid.value.expect("test process pid");
+        let artifact = SupervisorPidArtifact {
+            node_id: record.node_id.clone(),
+            pid,
+            state: record.process.state,
+            updated_at: record.process.updated_at.clone(),
+            process_identity: Some(SupervisorProcessIdentity::from_record(record)),
+        };
+        fs::write(
+            &record.pid_path,
+            serde_json::to_string_pretty(&artifact).unwrap(),
+        )
+        .unwrap();
+    }
+
     fn write_log_artifacts(record: &SupervisorNodeRecord) {
         create_node_dirs(record);
         fs::write(&record.stdout_log_path, "stdout\n").unwrap();
@@ -4065,6 +4102,13 @@ EOF
         let mut response = String::new();
         stream.read_to_string(&mut response).await.unwrap();
         response
+    }
+
+    fn assert_http_ok(response: &str, context: &str) {
+        assert!(
+            response.contains("HTTP/1.1 200 OK"),
+            "{context} expected HTTP 200 OK, got:\n{response}"
+        );
     }
 
     fn response_body(response: &str) -> &str {
