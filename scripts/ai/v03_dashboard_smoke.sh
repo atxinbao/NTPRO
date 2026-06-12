@@ -244,16 +244,29 @@ run_pw eval "$(cat <<'JS'
   }
 
   const clickControl = async (action, nodeId, label, expectedStatus = "成功") => {
-    const button = document.querySelector(`button[data-dashboard-action="${action}"][data-node-id="${nodeId}"]`);
-    if (!button || button.disabled) {
-      throw new Error(`${label} button is not enabled`);
-    }
+    const selector = `button[data-dashboard-action="${action}"][data-node-id="${nodeId}"]`;
+    await waitFor(() => {
+      const candidate = document.querySelector(selector);
+      return Boolean(candidate && !candidate.disabled);
+    }, `${label} button enabled`);
+    const button = document.querySelector(selector);
     const result = document.getElementById("control-result");
     result.innerHTML = "";
     button.click();
     await waitFor(
-      () => result.innerText.includes(expectedStatus),
+      () => {
+        const text = result.innerText;
+        if (text.includes(expectedStatus)) return true;
+        if (text.includes("控制失败") || text.includes("失败") || text.includes("已拒绝")) {
+          throw new Error(`result text: ${text}`);
+        }
+        return false;
+      },
       `${label} control result`,
+    );
+    await waitFor(
+      () => !button.isConnected || !button.disabled,
+      `${label} dashboard refresh`,
     );
   };
 

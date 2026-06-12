@@ -2851,8 +2851,9 @@ mod tests {
 
     use crate::supervisor::{
         NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, RegisterNodeRequest,
-        RegistryArtifactState, SupervisorNodeRecord, SupervisorProcessState, SupervisorRegistry,
-        SupervisorRegistryStore, write_node_metrics_artifact,
+        RegistryArtifactState, SupervisorNodeRecord, SupervisorPidArtifact,
+        SupervisorProcessIdentity, SupervisorProcessState, SupervisorRegistry,
+        SupervisorRegistryStore, supervisor_process_test_guard, write_node_metrics_artifact,
     };
     use serde_json::{Value, json};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -3276,8 +3277,12 @@ mod tests {
         write_status_artifact(&record, &status);
         write_metrics_artifact(&record, &status);
         write_log_artifacts(&record);
+        record.last_known_status = status.clone();
         record.status_artifact = RegistryArtifactState::Available;
         record.metrics_artifact = RegistryArtifactState::Available;
+        record.process.state = SupervisorProcessState::Running;
+        record.process.pid = SnapshotValue::available(std::process::id());
+        write_pid_artifact(&record);
         write_registry(&registry_path, [record]);
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -3362,6 +3367,40 @@ mod tests {
                 .any(|metric| metric["metric_id"] == "sandbox-a:starts_total")
         );
 
+        let reconnected_data =
+            http_request(addr, "POST", "/api/nodes/sandbox-a/actions/reconnect_data").await;
+        assert_http_ok(&reconnected_data, "reconnect_data");
+        let reconnected_data_value: Value =
+            serde_json::from_str(response_body(&reconnected_data)).unwrap();
+        assert_eq!(reconnected_data_value["status"], "not_supported");
+        assert_eq!(
+            reconnected_data_value["error_code"],
+            json!({"availability": "available", "value": "sandbox_reconnect_not_supported"})
+        );
+        assert_eq!(
+            reconnected_data_value["message"],
+            json!({"availability": "available", "value": DASHBOARD_DATA_RECONNECT_UNSUPPORTED_MESSAGE})
+        );
+
+        let reconnected_execution = http_request(
+            addr,
+            "POST",
+            "/api/nodes/sandbox-a/actions/reconnect_execution",
+        )
+        .await;
+        assert_http_ok(&reconnected_execution, "reconnect_execution");
+        let reconnected_execution_value: Value =
+            serde_json::from_str(response_body(&reconnected_execution)).unwrap();
+        assert_eq!(reconnected_execution_value["status"], "not_supported");
+        assert_eq!(
+            reconnected_execution_value["error_code"],
+            json!({"availability": "available", "value": "sandbox_reconnect_not_supported"})
+        );
+        assert_eq!(
+            reconnected_execution_value["message"],
+            json!({"availability": "available", "value": DASHBOARD_EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE})
+        );
+
         let action = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/start").await;
         assert!(action.contains("HTTP/1.1 409 Conflict"));
         let action_body = response_body(&action);
@@ -3378,6 +3417,7 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn dashboard_http_server_starts_and_stops_fixture_node() {
+        let _process_test_guard = supervisor_process_test_guard();
         let root = temp_root("http-control");
         let registry_path = root.join("registry.json");
         let config = write_config(&root, "sandbox-a");
@@ -3446,40 +3486,6 @@ mod tests {
                 .iter()
                 .any(|control| control["action"] == "reconnect_data:sandbox-a"
                     && control["enabled"] == true)
-        );
-
-        let reconnected_data =
-            http_request(addr, "POST", "/api/nodes/sandbox-a/actions/reconnect_data").await;
-        assert!(reconnected_data.contains("HTTP/1.1 200 OK"));
-        let reconnected_data_value: Value =
-            serde_json::from_str(response_body(&reconnected_data)).unwrap();
-        assert_eq!(reconnected_data_value["status"], "not_supported");
-        assert_eq!(
-            reconnected_data_value["error_code"],
-            json!({"availability": "available", "value": "sandbox_reconnect_not_supported"})
-        );
-        assert_eq!(
-            reconnected_data_value["message"],
-            json!({"availability": "available", "value": DASHBOARD_DATA_RECONNECT_UNSUPPORTED_MESSAGE})
-        );
-
-        let reconnected_execution = http_request(
-            addr,
-            "POST",
-            "/api/nodes/sandbox-a/actions/reconnect_execution",
-        )
-        .await;
-        assert!(reconnected_execution.contains("HTTP/1.1 200 OK"));
-        let reconnected_execution_value: Value =
-            serde_json::from_str(response_body(&reconnected_execution)).unwrap();
-        assert_eq!(reconnected_execution_value["status"], "not_supported");
-        assert_eq!(
-            reconnected_execution_value["error_code"],
-            json!({"availability": "available", "value": "sandbox_reconnect_not_supported"})
-        );
-        assert_eq!(
-            reconnected_execution_value["message"],
-            json!({"availability": "available", "value": DASHBOARD_EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE})
         );
 
         let paused = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/pause").await;
@@ -3878,6 +3884,23 @@ mod tests {
         write_node_metrics_artifact(&record.metrics_path, &metrics).unwrap();
     }
 
+    fn write_pid_artifact(record: &SupervisorNodeRecord) {
+        create_node_dirs(record);
+        let pid = record.process.pid.value.expect("test process pid");
+        let artifact = SupervisorPidArtifact {
+            node_id: record.node_id.clone(),
+            pid,
+            state: record.process.state,
+            updated_at: record.process.updated_at.clone(),
+            process_identity: Some(SupervisorProcessIdentity::from_record(record)),
+        };
+        fs::write(
+            &record.pid_path,
+            serde_json::to_string_pretty(&artifact).unwrap(),
+        )
+        .unwrap();
+    }
+
     fn write_log_artifacts(record: &SupervisorNodeRecord) {
         create_node_dirs(record);
         fs::write(&record.stdout_log_path, "stdout\n").unwrap();
@@ -4080,6 +4103,13 @@ EOF
         let mut response = String::new();
         stream.read_to_string(&mut response).await.unwrap();
         response
+    }
+
+    fn assert_http_ok(response: &str, context: &str) {
+        assert!(
+            response.contains("HTTP/1.1 200 OK"),
+            "{context} expected HTTP 200 OK, got:\n{response}"
+        );
     }
 
     fn response_body(response: &str) -> &str {

@@ -53,6 +53,16 @@ const DATA_RECONNECT_UNSUPPORTED_MESSAGE: &str =
 const EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE: &str =
     "execution gateway reconnect is not supported for local sandbox-only supervisor artifacts";
 
+#[cfg(test)]
+pub(crate) static SUPERVISOR_PROCESS_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(test)]
+pub(crate) fn supervisor_process_test_guard() -> std::sync::MutexGuard<'static, ()> {
+    SUPERVISOR_PROCESS_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SupervisorRegistry {
     pub schema_version: String,
@@ -1987,17 +1997,7 @@ mod tests {
 
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
-    use std::sync::{Arc, Barrier, Mutex, MutexGuard};
-
-    #[cfg(unix)]
-    static SUPERVISOR_PROCESS_TEST_LOCK: Mutex<()> = Mutex::new(());
-
-    #[cfg(unix)]
-    fn supervisor_process_test_guard() -> MutexGuard<'static, ()> {
-        SUPERVISOR_PROCESS_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-    }
+    use std::sync::{Arc, Barrier};
 
     fn temp_root(name: &str) -> PathBuf {
         let unique = std::time::SystemTime::now()
