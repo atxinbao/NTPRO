@@ -2469,6 +2469,98 @@ done
     }
 
     #[test]
+    fn control_actions_reject_missing_nodes_and_invalid_lifecycle() {
+        let root = temp_root("negative-control");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let record = store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+
+        let missing_pause = store.pause_node("missing").unwrap_err().to_string();
+        assert!(missing_pause.contains("node 'missing' is not registered"));
+
+        let missing_resume = store.resume_node("missing").unwrap_err().to_string();
+        assert!(missing_resume.contains("node 'missing' is not registered"));
+
+        let missing_reconnect = store
+            .reconnect_data_source("missing")
+            .unwrap_err()
+            .to_string();
+        assert!(missing_reconnect.contains("node 'missing' is not registered"));
+
+        let missing_stop = store
+            .stop_node_process(&StopNodeRequest {
+                node_id: "missing".to_string(),
+                stop_timeout: Duration::from_millis(1),
+            })
+            .unwrap_err()
+            .to_string();
+        assert!(missing_stop.contains("node 'missing' is not registered"));
+
+        let stopped_stop = store
+            .stop_node_process(&StopNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                stop_timeout: Duration::from_millis(1),
+            })
+            .unwrap_err()
+            .to_string();
+        assert!(stopped_stop.contains("node 'sandbox-a' is not running"));
+
+        let stopped_pause = store.pause_node("sandbox-a").unwrap_err().to_string();
+        assert!(stopped_pause.contains("node 'sandbox-a' process is not running"));
+
+        let stopped_resume = store.resume_node("sandbox-a").unwrap_err().to_string();
+        assert!(stopped_resume.contains("node 'sandbox-a' process is not running"));
+
+        let mut stopped_status = record.last_known_status.clone();
+        stopped_status.lifecycle_state = LifecycleStatus::Stopped;
+        if let Some(parent) = record.status_path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        fs::write(
+            &record.status_path,
+            serde_json::to_string_pretty(&stopped_status).unwrap(),
+        )
+        .unwrap();
+        store
+            .update_process(
+                "sandbox-a",
+                Some(std::process::id()),
+                SupervisorProcessState::Running,
+            )
+            .unwrap();
+
+        let running_process_pause = store.pause_node("sandbox-a").unwrap_err().to_string();
+        assert!(running_process_pause.contains("lifecycle state is stopped, expected running"));
+
+        let running_process_resume = store.resume_node("sandbox-a").unwrap_err().to_string();
+        assert!(running_process_resume.contains("lifecycle state is stopped, expected paused"));
+
+        let running_process_reconnect_data = store
+            .reconnect_data_source("sandbox-a")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            running_process_reconnect_data
+                .contains("lifecycle state is stopped, expected running or paused")
+        );
+
+        let running_process_reconnect_execution = store
+            .reconnect_execution_gateway("sandbox-a")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            running_process_reconnect_execution
+                .contains("lifecycle state is stopped, expected running or paused")
+        );
+    }
+
+    #[test]
     fn refresh_status_reads_available_artifact() {
         let root = temp_root("status");
         let store = SupervisorRegistryStore::new(root.join("registry.json"));
