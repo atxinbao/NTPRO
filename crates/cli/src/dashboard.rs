@@ -2846,7 +2846,7 @@ mod tests {
         fs,
         net::SocketAddr,
         path::{Path, PathBuf},
-        time::{SystemTime, UNIX_EPOCH},
+        time::{Duration, SystemTime, UNIX_EPOCH},
     };
 
     use crate::supervisor::{
@@ -3529,7 +3529,7 @@ mod tests {
         );
 
         let started = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/start").await;
-        assert!(started.contains("HTTP/1.1 200 OK"));
+        assert_http_ok(&started, "start fixture node");
         let started_value: Value = serde_json::from_str(response_body(&started)).unwrap();
         assert_eq!(started_value["status"], "succeeded");
         assert_eq!(started_value["previous_state"], "stopped");
@@ -3539,8 +3539,14 @@ mod tests {
             json!({"availability": "unknown"})
         );
 
-        let running = http_request(addr, "GET", "/api/snapshot").await;
-        let running_value: Value = serde_json::from_str(response_body(&running)).unwrap();
+        let running_value = wait_for_http_node_state(
+            addr,
+            "sandbox-a",
+            LifecycleStatus::Running,
+            SupervisorProcessState::Running,
+            "fixture node running before pause",
+        )
+        .await;
         assert_eq!(running_value["overview"]["running_nodes"], 1);
         assert!(
             running_value["controls"]
@@ -3566,16 +3572,25 @@ mod tests {
                     && control["enabled"] == true)
         );
 
-        let paused = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/pause").await;
-        assert!(paused.contains("HTTP/1.1 200 OK"));
+        let paused = post_action_until_ok(
+            addr,
+            "/api/nodes/sandbox-a/actions/pause",
+            "pause fixture node",
+        )
+        .await;
         let paused_value: Value = serde_json::from_str(response_body(&paused)).unwrap();
         assert_eq!(paused_value["status"], "succeeded");
         assert_eq!(paused_value["previous_state"], "running");
         assert_eq!(paused_value["current_state"], "paused");
 
-        let paused_snapshot = http_request(addr, "GET", "/api/snapshot").await;
-        let paused_snapshot_value: Value =
-            serde_json::from_str(response_body(&paused_snapshot)).unwrap();
+        let paused_snapshot_value = wait_for_http_node_state(
+            addr,
+            "sandbox-a",
+            LifecycleStatus::Paused,
+            SupervisorProcessState::Running,
+            "fixture node paused before resume",
+        )
+        .await;
         assert!(
             paused_snapshot_value["controls"]
                 .as_array()
@@ -3593,15 +3608,28 @@ mod tests {
                 .any(|control| control["action"] == "stop:sandbox-a" && control["enabled"] == true)
         );
 
-        let resumed = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/resume").await;
-        assert!(resumed.contains("HTTP/1.1 200 OK"));
+        let resumed = post_action_until_ok(
+            addr,
+            "/api/nodes/sandbox-a/actions/resume",
+            "resume fixture node",
+        )
+        .await;
         let resumed_value: Value = serde_json::from_str(response_body(&resumed)).unwrap();
         assert_eq!(resumed_value["status"], "succeeded");
         assert_eq!(resumed_value["previous_state"], "paused");
         assert_eq!(resumed_value["current_state"], "running");
 
+        wait_for_http_node_state(
+            addr,
+            "sandbox-a",
+            LifecycleStatus::Running,
+            SupervisorProcessState::Running,
+            "fixture node resumed before stop",
+        )
+        .await;
+
         let stopped = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/stop").await;
-        assert!(stopped.contains("HTTP/1.1 200 OK"));
+        assert_http_ok(&stopped, "stop fixture node");
         let stopped_value: Value = serde_json::from_str(response_body(&stopped)).unwrap();
         assert_eq!(stopped_value["status"], "succeeded");
         assert_eq!(stopped_value["previous_state"], "running");
@@ -4181,6 +4209,54 @@ EOF
         let mut response = String::new();
         stream.read_to_string(&mut response).await.unwrap();
         response
+    }
+
+    async fn post_action_until_ok(addr: SocketAddr, path: &str, context: &str) -> String {
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(3);
+        loop {
+            let response = http_request(addr, "POST", path).await;
+            if response.contains("HTTP/1.1 200 OK") {
+                return response;
+            }
+            if tokio::time::Instant::now() >= deadline {
+                panic!("{context} expected HTTP 200 OK, got:\n{response}");
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    }
+
+    async fn wait_for_http_node_state(
+        addr: SocketAddr,
+        node_id: &str,
+        lifecycle_state: LifecycleStatus,
+        process_state: SupervisorProcessState,
+        context: &str,
+    ) -> Value {
+        let expected_lifecycle = json_label(&lifecycle_state);
+        let expected_process = json_label(&process_state);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(3);
+        loop {
+            let response = http_request(addr, "GET", "/api/snapshot").await;
+            if response.contains("HTTP/1.1 200 OK") {
+                let value: Value = serde_json::from_str(response_body(&response)).unwrap();
+                let node_matches = value["nodes"].as_array().is_some_and(|nodes| {
+                    nodes.iter().any(|node| {
+                        node["node_id"] == node_id
+                            && node["lifecycle_state"] == expected_lifecycle
+                            && node["process_state"] == expected_process
+                    })
+                });
+                if node_matches {
+                    return value;
+                }
+            }
+            if tokio::time::Instant::now() >= deadline {
+                panic!(
+                    "{context} expected node_id={node_id} lifecycle_state={expected_lifecycle} process_state={expected_process}, got:\n{response}",
+                );
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
     }
 
     fn assert_http_ok(response: &str, context: &str) {
