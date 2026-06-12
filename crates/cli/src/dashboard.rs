@@ -47,6 +47,10 @@ use crate::{
 };
 
 pub const DASHBOARD_SNAPSHOT_SCHEMA_VERSION: &str = "ntpro.dashboard_snapshot.v1";
+const DASHBOARD_DATA_RECONNECT_UNSUPPORTED_MESSAGE: &str =
+    "本地沙盒仅记录数据源重连为不支持，不会连接真实交易所或真实 adapter";
+const DASHBOARD_EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE: &str =
+    "本地沙盒仅记录执行网关重连为不支持，不会连接真实交易所或真实 adapter";
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
 <html lang="zh-CN">
@@ -383,7 +387,7 @@ const DISPLAY_TEXT = {
   node_not_found: "节点不存在",
   invalid_lifecycle_state: "生命周期状态不允许",
   unsupported_control_action: "控制动作不支持",
-  sandbox_reconnect_not_supported: "沙盒重连不支持",
+  sandbox_reconnect_not_supported: "本地沙盒重连不支持",
   process_state_conflict: "进程状态冲突",
   ntpro_node_binary_unavailable: "ntpro-node 二进制不可用",
   supervisor_action_failed: "监督器动作失败",
@@ -544,8 +548,8 @@ const controlLabel = (action) => {
     stop: "停止",
     pause: "暂停",
     resume: "恢复",
-    reconnect_data: "重连数据源",
-    reconnect_execution: "重连执行网关",
+    reconnect_data: "记录数据源重连不支持",
+    reconnect_execution: "记录执行网关重连不支持",
   }[name] || name;
 };
 
@@ -1311,7 +1315,7 @@ fn run_reconnect_data_action(
                     "sandbox_reconnect_not_supported".to_string(),
                 ),
                 message: DashboardValue::available(
-                    "本地沙盒监督器已记录数据源重连为不支持".to_string(),
+                    DASHBOARD_DATA_RECONNECT_UNSUPPORTED_MESSAGE.to_string(),
                 ),
             })),
         ),
@@ -1347,7 +1351,7 @@ fn run_reconnect_execution_action(
                     "sandbox_reconnect_not_supported".to_string(),
                 ),
                 message: DashboardValue::available(
-                    "本地沙盒监督器已记录执行网关重连为不支持".to_string(),
+                    DASHBOARD_EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE.to_string(),
                 ),
             })),
         ),
@@ -1392,8 +1396,8 @@ fn control_action_display_name(action: &str) -> &'static str {
         "stop" => "停止",
         "pause" => "暂停",
         "resume" => "恢复",
-        "reconnect_data" => "重连数据源",
-        "reconnect_execution" => "重连执行网关",
+        "reconnect_data" => "记录数据源重连不支持",
+        "reconnect_execution" => "记录执行网关重连不支持",
         _ => "控制动作",
     }
 }
@@ -2666,10 +2670,13 @@ fn control_statuses_from_nodes(nodes: &[DashboardNodeSummary]) -> Vec<ControlSta
             },
         });
         for (action, reason) in [
-            ("reconnect_data", "数据源重连会在本地沙盒中明确记录为不支持"),
+            (
+                "reconnect_data",
+                "本地沙盒仅记录数据源重连为不支持，不会连接真实交易所或真实 adapter",
+            ),
             (
                 "reconnect_execution",
-                "执行网关重连会在本地沙盒中明确记录为不支持",
+                "本地沙盒仅记录执行网关重连为不支持，不会连接真实交易所或真实 adapter",
             ),
         ] {
             let control_available = matches!(
@@ -3451,6 +3458,10 @@ mod tests {
             reconnected_data_value["error_code"],
             json!({"availability": "available", "value": "sandbox_reconnect_not_supported"})
         );
+        assert_eq!(
+            reconnected_data_value["message"],
+            json!({"availability": "available", "value": DASHBOARD_DATA_RECONNECT_UNSUPPORTED_MESSAGE})
+        );
 
         let reconnected_execution = http_request(
             addr,
@@ -3465,6 +3476,10 @@ mod tests {
         assert_eq!(
             reconnected_execution_value["error_code"],
             json!({"availability": "available", "value": "sandbox_reconnect_not_supported"})
+        );
+        assert_eq!(
+            reconnected_execution_value["message"],
+            json!({"availability": "available", "value": DASHBOARD_EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE})
         );
 
         let paused = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/pause").await;
