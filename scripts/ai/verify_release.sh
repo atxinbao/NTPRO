@@ -90,9 +90,15 @@ fi
 NTPRO_RELEASE_GATE=1 NTPRO_V02_009_SKIP_BUILD=0 scripts/ai/v02_two_node_supervisor_smoke.sh
 
 echo "== verify_release: v0.3 supervisor control smoke =="
-NTPRO_V03_CONTROL_SKIP_BUILD=1 scripts/ai/v03_supervisor_control_smoke.sh
+NTPRO_V03_CONTROL_SKIP_BUILD=1 \
+  NTPRO_V03_NAUTILUS_BIN="$NAUTILUS_RELEASE_BIN" \
+  NTPRO_V03_NODE_BIN="$NTPRO_NODE_RELEASE_BIN" \
+  scripts/ai/v03_supervisor_control_smoke.sh
 
 echo "== verify_release: v0.3 dashboard control smoke =="
-NTPRO_V03_010_SKIP_BUILD=1 scripts/ai/v03_dashboard_smoke.sh
+NTPRO_V03_010_SKIP_BUILD=1 \
+  NTPRO_V03_NAUTILUS_BIN="$NAUTILUS_RELEASE_BIN" \
+  NTPRO_V03_NODE_BIN="$NTPRO_NODE_RELEASE_BIN" \
+  scripts/ai/v03_dashboard_smoke.sh
 
 echo "== verify_release complete =="
