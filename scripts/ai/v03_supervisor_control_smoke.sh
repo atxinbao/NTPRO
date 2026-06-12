@@ -7,12 +7,13 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
-if [[ "${NTPRO_V03_CONTROL_SKIP_BUILD:-0}" != "1" ]]; then
+if [[ "${NTPRO_V03_CONTROL_SKIP_BUILD:-0}" != "1" &&
+      ( -z "${NTPRO_V03_NAUTILUS_BIN:-}" || -z "${NTPRO_V03_NODE_BIN:-}" ) ]]; then
   cargo build -p nautilus-cli --bin nautilus --bin ntpro-node
 fi
 
-NAUTILUS_BIN="$ROOT_DIR/target/debug/nautilus"
-NTPRO_NODE_BIN="$ROOT_DIR/target/debug/ntpro-node"
+NAUTILUS_BIN="${NTPRO_V03_NAUTILUS_BIN:-$ROOT_DIR/target/debug/nautilus}"
+NTPRO_NODE_BIN="${NTPRO_V03_NODE_BIN:-$ROOT_DIR/target/debug/ntpro-node}"
 CONFIG="$ROOT_DIR/examples/rust/live/live_init_smoke.toml"
 
 if [[ ! -x "$NAUTILUS_BIN" ]]; then

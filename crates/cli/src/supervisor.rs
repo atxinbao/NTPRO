@@ -42,6 +42,7 @@ use crate::{
 };
 
 pub const SUPERVISOR_REGISTRY_SCHEMA_VERSION: &str = "ntpro.supervisor_registry.v1";
+pub const SUPERVISOR_REGISTRY_LOCK_SCHEMA_VERSION: &str = "ntpro.supervisor_registry_lock.v1";
 pub const NODE_METRICS_SCHEMA_VERSION: &str = "ntpro.node_metrics.v1";
 const REGISTRY_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 const REGISTRY_LOCK_RETRY: Duration = Duration::from_millis(25);
@@ -101,6 +102,16 @@ pub struct SupervisorPidArtifact {
     pub pid: u32,
     pub state: SupervisorProcessState,
     pub updated_at: SnapshotValue<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub process_identity: Option<SupervisorProcessIdentity>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SupervisorProcessIdentity {
+    pub node_id: String,
+    pub artifact_root: String,
+    pub status_path: String,
+    pub started_at: SnapshotValue<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -590,10 +601,88 @@ struct RegistryFileLock {
     path: PathBuf,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+struct RegistryLockArtifact {
+    schema_version: String,
+    pid: u32,
+    acquired_at: String,
+}
+
+#[derive(Debug)]
+enum RegistryLockState {
+    Active(Option<RegistryLockArtifact>),
+    Recoverable(String),
+    Vanished,
+}
+
 impl Drop for RegistryFileLock {
     fn drop(&mut self) {
         let _ = remove_file_if_exists(&self.path);
     }
+}
+
+impl RegistryLockArtifact {
+    fn new(pid: u32) -> Self {
+        Self {
+            schema_version: SUPERVISOR_REGISTRY_LOCK_SCHEMA_VERSION.to_string(),
+            pid,
+            acquired_at: now_millis(),
+        }
+    }
+}
+
+fn inspect_registry_lock(lock_path: &Path) -> anyhow::Result<RegistryLockState> {
+    let raw = match fs::read_to_string(lock_path) {
+        Ok(raw) => raw,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(RegistryLockState::Vanished);
+        }
+        Err(error) => {
+            return Err(error).with_context(|| {
+                format!(
+                    "failed to read supervisor registry lock '{}'",
+                    lock_path.display()
+                )
+            });
+        }
+    };
+
+    let Some(artifact) = parse_registry_lock_artifact(&raw) else {
+        return Ok(RegistryLockState::Active(None));
+    };
+
+    if process_is_alive(artifact.pid) {
+        Ok(RegistryLockState::Active(Some(artifact)))
+    } else {
+        Ok(RegistryLockState::Recoverable(format!(
+            "owner pid {} is not alive",
+            artifact.pid
+        )))
+    }
+}
+
+fn parse_registry_lock_artifact(raw: &str) -> Option<RegistryLockArtifact> {
+    serde_json::from_str::<RegistryLockArtifact>(raw)
+        .ok()
+        .or_else(|| parse_legacy_registry_lock_artifact(raw))
+}
+
+fn parse_legacy_registry_lock_artifact(raw: &str) -> Option<RegistryLockArtifact> {
+    let mut pid = None;
+    let mut acquired_at = None;
+    for token in raw.split_whitespace() {
+        if let Some(value) = token.strip_prefix("pid=") {
+            pid = value.parse::<u32>().ok();
+        } else if let Some(value) = token.strip_prefix("acquired_at=") {
+            acquired_at = Some(value.to_string());
+        }
+    }
+
+    Some(RegistryLockArtifact {
+        schema_version: "legacy.supervisor_registry_lock.v0".to_string(),
+        pid: pid?,
+        acquired_at: acquired_at.unwrap_or_else(|| "unknown".to_string()),
+    })
 }
 
 impl SupervisorRegistryStore {
@@ -652,6 +741,13 @@ impl SupervisorRegistryStore {
     }
 
     fn acquire_registry_lock(&self) -> anyhow::Result<RegistryFileLock> {
+        self.acquire_registry_lock_with_timeout(REGISTRY_LOCK_TIMEOUT)
+    }
+
+    fn acquire_registry_lock_with_timeout(
+        &self,
+        timeout: Duration,
+    ) -> anyhow::Result<RegistryFileLock> {
         let lock_path = self.registry_lock_path();
         if let Some(parent) = lock_path.parent() {
             fs::create_dir_all(parent).with_context(|| {
@@ -673,24 +769,50 @@ impl SupervisorRegistryStore {
                     let lock = RegistryFileLock {
                         path: lock_path.clone(),
                     };
-                    writeln!(file, "pid={} acquired_at={}", process::id(), now_millis())
-                        .with_context(|| {
-                            format!("failed to write registry lock '{}'", lock_path.display())
-                        })?;
+                    let artifact = RegistryLockArtifact::new(process::id());
+                    serde_json::to_writer_pretty(&mut file, &artifact).with_context(|| {
+                        format!(
+                            "failed to serialize registry lock '{}'",
+                            lock_path.display()
+                        )
+                    })?;
+                    writeln!(file).with_context(|| {
+                        format!("failed to write registry lock '{}'", lock_path.display())
+                    })?;
                     file.sync_all().with_context(|| {
                         format!("failed to sync registry lock '{}'", lock_path.display())
                     })?;
                     return Ok(lock);
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-                    if started
-                        .elapsed()
-                        .is_ok_and(|elapsed| elapsed >= REGISTRY_LOCK_TIMEOUT)
-                    {
-                        anyhow::bail!(
-                            "timed out waiting for supervisor registry lock '{}'",
-                            lock_path.display()
-                        );
+                    match inspect_registry_lock(&lock_path)? {
+                        RegistryLockState::Recoverable(reason) => {
+                            remove_file_if_exists(&lock_path).with_context(|| {
+                                format!(
+                                    "failed to recover stale supervisor registry lock '{}' ({reason})",
+                                    lock_path.display()
+                                )
+                            })?;
+                            continue;
+                        }
+                        RegistryLockState::Vanished => continue,
+                        RegistryLockState::Active(owner) => {
+                            if started.elapsed().is_ok_and(|elapsed| elapsed >= timeout) {
+                                let owner = owner.as_ref().map_or_else(
+                                    || "unknown owner".to_string(),
+                                    |artifact| {
+                                        format!(
+                                            "active pid={} acquired_at={}",
+                                            artifact.pid, artifact.acquired_at
+                                        )
+                                    },
+                                );
+                                anyhow::bail!(
+                                    "timed out waiting for supervisor registry lock '{}' ({owner})",
+                                    lock_path.display()
+                                );
+                            }
+                        }
                     }
                     thread::sleep(REGISTRY_LOCK_RETRY);
                 }
@@ -1503,6 +1625,7 @@ fn wait_for_startup(
                     child.id()
                 );
             }
+            write_or_remove_pid_artifact(&record)?;
             return Ok(record);
         }
         if started.elapsed().is_ok_and(|elapsed| elapsed >= timeout) {
@@ -1723,6 +1846,7 @@ fn write_or_remove_pid_artifact(record: &SupervisorNodeRecord) -> anyhow::Result
                 pid,
                 state: record.process.state,
                 updated_at: record.process.updated_at.clone(),
+                process_identity: Some(SupervisorProcessIdentity::from_record(record)),
             };
             atomic_write_json(&record.pid_path, &artifact).with_context(|| {
                 format!(
@@ -1766,7 +1890,66 @@ fn pid_artifact_is_stale(record: &SupervisorNodeRecord) -> anyhow::Result<bool> 
         Ok(artifact) => artifact,
         Err(_) => return Ok(true),
     };
-    Ok(artifact.node_id != record.node_id || artifact.pid != expected_pid)
+    if artifact.node_id != record.node_id || artifact.pid != expected_pid {
+        return Ok(true);
+    }
+
+    let Some(identity) = artifact.process_identity.as_ref() else {
+        return Ok(false);
+    };
+
+    if identity.node_id != record.node_id
+        || identity.artifact_root != record.artifact_root.display().to_string()
+        || identity.status_path != record.status_path.display().to_string()
+    {
+        return Ok(true);
+    }
+
+    if !record.status_path.exists() {
+        return Ok(false);
+    }
+
+    let raw = fs::read_to_string(&record.status_path).with_context(|| {
+        format!(
+            "failed to read status artifact '{}'",
+            record.status_path.display()
+        )
+    })?;
+    let status = match serde_json::from_str::<NodeStatus>(&raw) {
+        Ok(status) => status,
+        Err(_) => return Ok(true),
+    };
+    if status.node_id != identity.node_id {
+        return Ok(true);
+    }
+    if status
+        .artifact_root
+        .value
+        .as_deref()
+        .is_some_and(|artifact_root| artifact_root != identity.artifact_root)
+    {
+        return Ok(true);
+    }
+    if let (Some(expected), Some(actual)) = (
+        identity.started_at.value.as_deref(),
+        status.started_at.value.as_deref(),
+    ) {
+        return Ok(expected != actual);
+    }
+
+    Ok(false)
+}
+
+impl SupervisorProcessIdentity {
+    #[must_use]
+    pub fn from_record(record: &SupervisorNodeRecord) -> Self {
+        Self {
+            node_id: record.node_id.clone(),
+            artifact_root: record.artifact_root.display().to_string(),
+            status_path: record.status_path.display().to_string(),
+            started_at: record.last_known_status.started_at.clone(),
+        }
+    }
 }
 
 fn validate_node_id(node_id: &str) -> anyhow::Result<()> {
@@ -2202,6 +2385,64 @@ done
     }
 
     #[test]
+    fn stale_registry_lock_owned_by_dead_process_is_recovered() {
+        let root = temp_root("stale-registry-lock");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let lock_path = store.registry_lock_path();
+        let artifact = RegistryLockArtifact {
+            schema_version: SUPERVISOR_REGISTRY_LOCK_SCHEMA_VERSION.to_string(),
+            pid: u32::MAX,
+            acquired_at: "1".to_string(),
+        };
+        fs::write(
+            &lock_path,
+            format!("{}\n", serde_json::to_string_pretty(&artifact).unwrap()),
+        )
+        .unwrap();
+
+        {
+            let _lock = store
+                .acquire_registry_lock_with_timeout(Duration::from_millis(100))
+                .unwrap();
+            let recovered: RegistryLockArtifact =
+                serde_json::from_str(&fs::read_to_string(&lock_path).unwrap()).unwrap();
+            assert_eq!(
+                recovered.schema_version,
+                SUPERVISOR_REGISTRY_LOCK_SCHEMA_VERSION
+            );
+            assert_eq!(recovered.pid, process::id());
+            assert!(process_is_alive(recovered.pid));
+        }
+
+        assert!(!lock_path.exists());
+        assert_no_temp_artifacts(&root);
+    }
+
+    #[test]
+    fn active_registry_lock_is_refused_after_timeout() {
+        let root = temp_root("active-registry-lock");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let lock_path = store.registry_lock_path();
+        let artifact = RegistryLockArtifact::new(process::id());
+        fs::write(
+            &lock_path,
+            format!("{}\n", serde_json::to_string_pretty(&artifact).unwrap()),
+        )
+        .unwrap();
+
+        let error = store
+            .acquire_registry_lock_with_timeout(Duration::from_millis(50))
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("timed out waiting for supervisor registry lock"));
+        assert!(error.contains(&format!("active pid={}", process::id())));
+        assert!(lock_path.exists());
+        fs::remove_file(&lock_path).unwrap();
+        assert_no_temp_artifacts(&root);
+    }
+
+    #[test]
     fn rejects_invalid_node_id_and_missing_config() {
         let root = temp_root("reject");
         let store = SupervisorRegistryStore::new(root.join("registry.json"));
@@ -2225,6 +2466,98 @@ done
             .unwrap_err()
             .to_string();
         assert!(missing.contains("does not exist"));
+    }
+
+    #[test]
+    fn control_actions_reject_missing_nodes_and_invalid_lifecycle() {
+        let root = temp_root("negative-control");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let record = store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+
+        let missing_pause = store.pause_node("missing").unwrap_err().to_string();
+        assert!(missing_pause.contains("node 'missing' is not registered"));
+
+        let missing_resume = store.resume_node("missing").unwrap_err().to_string();
+        assert!(missing_resume.contains("node 'missing' is not registered"));
+
+        let missing_reconnect = store
+            .reconnect_data_source("missing")
+            .unwrap_err()
+            .to_string();
+        assert!(missing_reconnect.contains("node 'missing' is not registered"));
+
+        let missing_stop = store
+            .stop_node_process(&StopNodeRequest {
+                node_id: "missing".to_string(),
+                stop_timeout: Duration::from_millis(1),
+            })
+            .unwrap_err()
+            .to_string();
+        assert!(missing_stop.contains("node 'missing' is not registered"));
+
+        let stopped_stop = store
+            .stop_node_process(&StopNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                stop_timeout: Duration::from_millis(1),
+            })
+            .unwrap_err()
+            .to_string();
+        assert!(stopped_stop.contains("node 'sandbox-a' is not running"));
+
+        let stopped_pause = store.pause_node("sandbox-a").unwrap_err().to_string();
+        assert!(stopped_pause.contains("node 'sandbox-a' process is not running"));
+
+        let stopped_resume = store.resume_node("sandbox-a").unwrap_err().to_string();
+        assert!(stopped_resume.contains("node 'sandbox-a' process is not running"));
+
+        let mut stopped_status = record.last_known_status.clone();
+        stopped_status.lifecycle_state = LifecycleStatus::Stopped;
+        if let Some(parent) = record.status_path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        fs::write(
+            &record.status_path,
+            serde_json::to_string_pretty(&stopped_status).unwrap(),
+        )
+        .unwrap();
+        store
+            .update_process(
+                "sandbox-a",
+                Some(std::process::id()),
+                SupervisorProcessState::Running,
+            )
+            .unwrap();
+
+        let running_process_pause = store.pause_node("sandbox-a").unwrap_err().to_string();
+        assert!(running_process_pause.contains("lifecycle state is stopped, expected running"));
+
+        let running_process_resume = store.resume_node("sandbox-a").unwrap_err().to_string();
+        assert!(running_process_resume.contains("lifecycle state is stopped, expected paused"));
+
+        let running_process_reconnect_data = store
+            .reconnect_data_source("sandbox-a")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            running_process_reconnect_data
+                .contains("lifecycle state is stopped, expected running or paused")
+        );
+
+        let running_process_reconnect_execution = store
+            .reconnect_execution_gateway("sandbox-a")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            running_process_reconnect_execution
+                .contains("lifecycle state is stopped, expected running or paused")
+        );
     }
 
     #[test]
@@ -2460,6 +2793,92 @@ done
         let refreshed = store.refresh_process_state("sandbox-a").unwrap();
         assert_eq!(refreshed.process.state, SupervisorProcessState::Stale);
         assert!(!store.registry_lock_path().exists());
+    }
+
+    #[test]
+    fn refresh_process_state_accepts_matching_process_identity() {
+        let root = temp_root("process-identity-match");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let record = store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+        store
+            .update_process(
+                "sandbox-a",
+                Some(process::id()),
+                SupervisorProcessState::Running,
+            )
+            .unwrap();
+
+        let mut pid_artifact: SupervisorPidArtifact =
+            serde_json::from_str(&fs::read_to_string(&record.pid_path).unwrap()).unwrap();
+        pid_artifact.process_identity.as_mut().unwrap().started_at =
+            SnapshotValue::available("identity-1".to_string());
+        fs::write(
+            &record.pid_path,
+            serde_json::to_string_pretty(&pid_artifact).unwrap(),
+        )
+        .unwrap();
+        let mut status = NodeStatus::unknown("sandbox-a");
+        status.lifecycle_state = LifecycleStatus::Running;
+        status.artifact_root = SnapshotValue::available(record.artifact_root.display().to_string());
+        status.started_at = SnapshotValue::available("identity-1".to_string());
+        fs::write(
+            &record.status_path,
+            serde_json::to_string_pretty(&status).unwrap(),
+        )
+        .unwrap();
+
+        let refreshed = store.refresh_process_state("sandbox-a").unwrap();
+        assert_eq!(refreshed.process.state, SupervisorProcessState::Running);
+    }
+
+    #[test]
+    fn refresh_process_state_marks_identity_mismatch_stale() {
+        let root = temp_root("process-identity-mismatch");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let record = store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+        store
+            .update_process(
+                "sandbox-a",
+                Some(process::id()),
+                SupervisorProcessState::Running,
+            )
+            .unwrap();
+
+        let mut pid_artifact: SupervisorPidArtifact =
+            serde_json::from_str(&fs::read_to_string(&record.pid_path).unwrap()).unwrap();
+        pid_artifact.process_identity.as_mut().unwrap().started_at =
+            SnapshotValue::available("identity-1".to_string());
+        fs::write(
+            &record.pid_path,
+            serde_json::to_string_pretty(&pid_artifact).unwrap(),
+        )
+        .unwrap();
+        let mut status = NodeStatus::unknown("sandbox-a");
+        status.lifecycle_state = LifecycleStatus::Running;
+        status.artifact_root = SnapshotValue::available(record.artifact_root.display().to_string());
+        status.started_at = SnapshotValue::available("identity-2".to_string());
+        fs::write(
+            &record.status_path,
+            serde_json::to_string_pretty(&status).unwrap(),
+        )
+        .unwrap();
+
+        let refreshed = store.refresh_process_state("sandbox-a").unwrap();
+        assert_eq!(refreshed.process.state, SupervisorProcessState::Stale);
     }
 
     #[cfg(unix)]

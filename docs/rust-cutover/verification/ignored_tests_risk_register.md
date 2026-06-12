@@ -53,6 +53,42 @@ readiness result, not a runtime fix.
 | `BLOCKER_RECORDED` | 10 | The ignored test remains outside the default suite, but is no longer an unclassified `OPEN` item. Product design must not depend on that behavior until the blocker is fixed or formally scoped out. |
 | Restored to default suite | 0 | No high-impact item had enough passing, meaningful test coverage to restore safely. |
 
+## V031-009 v0.3.1 Batch-1 Closure Result
+
+V031-009 applies the first patch-release closure pass after the local
+supervisor control-console hardening work. It does not mark the runtime,
+adapter, or stress ignored tests as fixed. Instead it records whether the
+`ntpro-rust-only-v0.3.1` release claim depends on each batch.
+
+`v0.3.1` is scoped to Local Supervisor Control Console Hardening:
+
+- local supervisor registry and process bookkeeping;
+- local pause/resume/reconnect status semantics;
+- Dashboard/API negative-path behavior;
+- release-smoke wiring for the already scoped local sandbox control surface.
+
+It explicitly does not claim production matching-engine parity, risk-engine
+order-list/emulator routing parity, dYdX live reconnect support, or live-node
+throughput/starvation performance guarantees. Those behaviors remain blocked
+for future runtime/adapter hardening, but they are not allowed to be used as
+evidence for the `v0.3.1` patch release.
+
+Batch-1 decision:
+
+| Batch | Covered IDs | V031-009 decision | Why the v0.3.1 release claim does not rely on it |
+| --- | --- | --- | --- |
+| Execution/risk high-impact runtime blockers | `IGN-HIGH-003` through `IGN-HIGH-011` | `SCOPED_OUT_FOR_V031`; still `BLOCKER_RECORDED` for future runtime releases. | `v0.3.1` does not advertise new trading-semantic, matching-engine, risk-engine, emulator, or account-balance behavior. The patch release is limited to local supervisor control-console hardening. |
+| dYdX reconnect high-impact adapter blocker | `IGN-HIGH-012` | `SCOPED_OUT_FOR_V031`; still `BLOCKER_RECORDED` for future adapter releases. | `v0.3.1` reconnect controls are explicitly local sandbox `not_supported` results. They do not claim real venue reconnect or subscription replay. |
+| Live stress/performance ignored tests | `IGN-MED-001`, `IGN-MED-002` | `RELEASE/PERF_ONLY`; deterministic v0.3 smoke covers the current local supervisor boundary. | `v0.3.1` does not claim live throughput or starvation-performance guarantees. The patch release uses `v03_supervisor_control_smoke.sh` and `v03_dashboard_smoke.sh` for deterministic local control evidence. |
+
+Closure rule:
+
+- These tests must not be counted as `v0.3.1` release evidence.
+- They must remain visible in this register until a later task restores,
+  replaces, or explicitly scopes each product behavior.
+- `SCOPED_OUT_FOR_V031` is not `DONE`; it only prevents the patch release from
+  accidentally depending on ignored trading/runtime/adapter evidence.
+
 Formal blocker groups:
 
 | Blocker ID | Covered ignored tests | Required follow-up |

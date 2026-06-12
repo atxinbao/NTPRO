@@ -3,7 +3,7 @@
 Date: 2026-06-12
 Executor: Codex
 Milestone: v0.3.0 Local Supervisor Control Console
-Decision: PASS
+Decision: PASS for local scope; hosted release gate requires v0.3.1 rerun
 
 ## Plain Chinese Summary
 
@@ -70,6 +70,13 @@ reconnect data source -> explicit not_supported result
 reconnect execution gateway -> explicit not_supported result
 ```
 
+V031 clarification:
+
+- reconnect controls record unsupported local sandbox results only
+- reconnect controls do not perform production venue reconnect
+- reconnect controls do not reconnect real data or execution adapters
+- reconnect controls do not recover real accounts or real orders
+
 Observable guarantees:
 
 - `external_venue_connection=false`
@@ -125,9 +132,40 @@ Direct smoke highlights from this run:
 | `cargo test -p nautilus-cli supervisor --lib` | PASS | 24 passed, 0 failed. |
 | `scripts/ai/v03_supervisor_control_smoke.sh` | PASS | Local CLI control smoke passed and preserved `external_venue_connection=false` and `real_orders_submitted=false`. |
 | `scripts/ai/v03_dashboard_smoke.sh` | PASS | Local Dashboard browser smoke passed with six controls and no mobile overflow. |
-| `scripts/ai/verify_release.sh` | PASS | Release gate now includes v0.3 supervisor control smoke and v0.3 dashboard control smoke. |
+| `scripts/ai/verify_release.sh` | LOCAL PASS / HOSTED NOT CLEAN | Local release verification covered the v0.3 supervisor and Dashboard smoke. Hosted GitHub `Rust Cutover Release Gate` did not produce a clean PASS; see V031-003. |
 | `scripts/ai/check_rust_only_runtime.sh` | PASS | Rust-only product surface gate passed. |
 | `git diff --check` | PASS | No whitespace diff errors. |
+
+## Hosted GitHub Actions Status
+
+V031-003 records the hosted release-gate closeout:
+
+- `Rust Cutover Release Gate` run `27384342541`
+  - trigger: `push`
+  - ref: `ntpro-rust-only-v0.3.0`
+  - commit: `2822ef8c29771de8ef1b90b96507ac6f1bcefcb3`
+  - conclusion: `failure`
+  - summary: hosted runner hit `No space left on device` and linker `Bus error`
+    while compiling `nautilus-architect-ax` targets.
+- `Rust Cutover Release Gate` run `27421121134`
+  - trigger: `workflow_dispatch`
+  - ref: `main`
+  - commit: `afc805396ad731e93f99252fbf3ca9e81010753a`
+  - conclusion: `failure`
+  - summary: hosted runner hit linker `Bus error` while compiling
+    `nautilus-event-store` test targets.
+- `Rust Cutover Release Gate` run `27423501016`
+  - trigger: `workflow_dispatch`
+  - ref: `main`
+  - commit: `5bc497e6e7aa93d615e2d3580c61757de9eb7fbe`
+  - conclusion: `cancelled`
+  - summary: the verify-release job remained in progress for more than 90
+    minutes and was cancelled.
+
+This report remains valid as local scope evidence for the v0.3.0 Supervisor
+Control Console, but it is not a clean hosted-release approval. Finish the
+V031 hardening queue and rerun the hosted release gate before making the next
+tag or GitHub Release claim.
 
 ## Release Gate Coverage
 
@@ -173,6 +211,9 @@ task, not a breaking user API change.
 ## Remaining Risks
 
 - This report proves only the local sandbox control-console boundary.
+- Hosted GitHub `Rust Cutover Release Gate` did not produce a clean PASS for
+  the v0.3.0 release line; V031-003 tracks the exact runs and requires a
+  v0.3.1 rerun after hardening.
 - Real adapter reconnect remains explicitly unsupported in v0.3.0.
 - Temporary smoke artifact paths are local to this verification run.
 - Tag creation and GitHub Release publication are owner actions outside this
@@ -180,9 +221,11 @@ task, not a breaking user API change.
 
 ## Final Decision
 
-PASS.
+PASS for local scope.
 
 NTPRO `v0.3.0` is technically ready under the
 `Local Supervisor Control Console` scope. The ready state means the local Rust
 CLI and local Dashboard control paths are verified and the release gate now
-checks them. It does not by itself create a tag or publish a GitHub Release.
+checks them. It does not by itself create a tag or publish a GitHub Release,
+and it does not replace the need for a clean hosted GitHub release-gate PASS
+before the next release claim.

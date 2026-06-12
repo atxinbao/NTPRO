@@ -19,12 +19,13 @@ if [[ ! -x "$PWCLI" ]]; then
   exit 1
 fi
 
-if [[ "${NTPRO_V03_010_SKIP_BUILD:-0}" != "1" ]]; then
+if [[ "${NTPRO_V03_010_SKIP_BUILD:-0}" != "1" &&
+      ( -z "${NTPRO_V03_NAUTILUS_BIN:-}" || -z "${NTPRO_V03_NODE_BIN:-}" ) ]]; then
   cargo build -p nautilus-cli --bin nautilus --bin ntpro-node
 fi
 
-NAUTILUS_BIN="$ROOT_DIR/target/debug/nautilus"
-NTPRO_NODE_BIN="$ROOT_DIR/target/debug/ntpro-node"
+NAUTILUS_BIN="${NTPRO_V03_NAUTILUS_BIN:-$ROOT_DIR/target/debug/nautilus}"
+NTPRO_NODE_BIN="${NTPRO_V03_NODE_BIN:-$ROOT_DIR/target/debug/ntpro-node}"
 CONFIG="$ROOT_DIR/examples/rust/live/live_init_smoke.toml"
 
 if [[ ! -x "$NAUTILUS_BIN" ]]; then
@@ -243,16 +244,29 @@ run_pw eval "$(cat <<'JS'
   }
 
   const clickControl = async (action, nodeId, label, expectedStatus = "成功") => {
-    const button = document.querySelector(`button[data-dashboard-action="${action}"][data-node-id="${nodeId}"]`);
-    if (!button || button.disabled) {
-      throw new Error(`${label} button is not enabled`);
-    }
+    const selector = `button[data-dashboard-action="${action}"][data-node-id="${nodeId}"]`;
+    await waitFor(() => {
+      const candidate = document.querySelector(selector);
+      return Boolean(candidate && !candidate.disabled);
+    }, `${label} button enabled`);
+    const button = document.querySelector(selector);
     const result = document.getElementById("control-result");
     result.innerHTML = "";
     button.click();
     await waitFor(
-      () => result.innerText.includes(expectedStatus),
+      () => {
+        const text = result.innerText;
+        if (text.includes(expectedStatus)) return true;
+        if (text.includes("控制失败") || text.includes("失败") || text.includes("已拒绝")) {
+          throw new Error(`result text: ${text}`);
+        }
+        return false;
+      },
       `${label} control result`,
+    );
+    await waitFor(
+      () => !button.isConnected || !button.disabled,
+      `${label} dashboard refresh`,
     );
   };
 
