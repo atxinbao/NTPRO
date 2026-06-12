@@ -2853,7 +2853,7 @@ mod tests {
         NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, RegisterNodeRequest,
         RegistryArtifactState, SupervisorNodeRecord, SupervisorPidArtifact,
         SupervisorProcessIdentity, SupervisorProcessState, SupervisorRegistry,
-        SupervisorRegistryStore, supervisor_process_test_guard, write_node_metrics_artifact,
+        SupervisorRegistryStore, write_node_metrics_artifact,
     };
     use serde_json::{Value, json};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -3417,7 +3417,6 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn dashboard_http_server_starts_and_stops_fixture_node() {
-        let _process_test_guard = supervisor_process_test_guard();
         let root = temp_root("http-control");
         let registry_path = root.join("registry.json");
         let config = write_config(&root, "sandbox-a");
