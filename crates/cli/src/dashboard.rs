@@ -3414,6 +3414,85 @@ mod tests {
         server.abort();
     }
 
+    #[tokio::test]
+    async fn dashboard_http_server_rejects_missing_and_stopped_control_actions() {
+        let root = temp_root("http-negative-control");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "sandbox-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        record.last_known_status = status;
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let ntpro_node_bin = root.join("ntpro-node-missing");
+        let server = tokio::spawn({
+            let registry_path = registry_path.clone();
+            async move {
+                axum::serve(listener, dashboard_router(registry_path, ntpro_node_bin))
+                    .await
+                    .unwrap();
+            }
+        });
+
+        let missing = http_request(addr, "POST", "/api/nodes/missing/actions/pause").await;
+        assert!(missing.contains("HTTP/1.1 404 Not Found"));
+        let missing_value: Value = serde_json::from_str(response_body(&missing)).unwrap();
+        assert_eq!(missing_value["status"], "rejected");
+        assert_eq!(missing_value["previous_state"], "unknown");
+        assert_eq!(missing_value["current_state"], "unknown");
+        assert_eq!(
+            missing_value["error_code"],
+            json!({"availability": "available", "value": "node_not_found"})
+        );
+
+        for action in [
+            "stop",
+            "pause",
+            "resume",
+            "reconnect_data",
+            "reconnect_execution",
+        ] {
+            let path = format!("/api/nodes/sandbox-a/actions/{action}");
+            let response = http_request(addr, "POST", &path).await;
+            assert!(
+                response.contains("HTTP/1.1 409 Conflict"),
+                "{action} expected HTTP 409 Conflict, got:\n{response}"
+            );
+            let value: Value = serde_json::from_str(response_body(&response)).unwrap();
+            assert_eq!(value["status"], "rejected", "{action}");
+            assert_eq!(value["previous_state"], "stopped", "{action}");
+            assert_eq!(value["current_state"], "stopped", "{action}");
+            assert_eq!(
+                value["error_code"],
+                json!({"availability": "available", "value": "invalid_lifecycle_state"}),
+                "{action}",
+            );
+        }
+
+        let state = DashboardServerState {
+            registry_path,
+            ntpro_node_bin: root.join("ntpro-node-missing"),
+        };
+        let (status, Json(unknown_action)) =
+            control_action_response(&state, "sandbox-a", "reboot").unwrap();
+        assert_eq!(status, StatusCode::NOT_IMPLEMENTED);
+        assert_eq!(unknown_action.status, ControlActionStatus::Rejected);
+        assert_eq!(
+            unknown_action.error_code,
+            DashboardValue::available("unsupported_control_action".to_string())
+        );
+        assert_eq!(unknown_action.previous_state, LifecycleStatus::Stopped);
+        assert_eq!(unknown_action.current_state, LifecycleStatus::Stopped);
+
+        server.abort();
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn dashboard_http_server_starts_and_stops_fixture_node() {
