@@ -42,6 +42,7 @@ use crate::{
 };
 
 pub const SUPERVISOR_REGISTRY_SCHEMA_VERSION: &str = "ntpro.supervisor_registry.v1";
+pub const SUPERVISOR_REGISTRY_LOCK_SCHEMA_VERSION: &str = "ntpro.supervisor_registry_lock.v1";
 pub const NODE_METRICS_SCHEMA_VERSION: &str = "ntpro.node_metrics.v1";
 const REGISTRY_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 const REGISTRY_LOCK_RETRY: Duration = Duration::from_millis(25);
@@ -590,10 +591,88 @@ struct RegistryFileLock {
     path: PathBuf,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+struct RegistryLockArtifact {
+    schema_version: String,
+    pid: u32,
+    acquired_at: String,
+}
+
+#[derive(Debug)]
+enum RegistryLockState {
+    Active(Option<RegistryLockArtifact>),
+    Recoverable(String),
+    Vanished,
+}
+
 impl Drop for RegistryFileLock {
     fn drop(&mut self) {
         let _ = remove_file_if_exists(&self.path);
     }
+}
+
+impl RegistryLockArtifact {
+    fn new(pid: u32) -> Self {
+        Self {
+            schema_version: SUPERVISOR_REGISTRY_LOCK_SCHEMA_VERSION.to_string(),
+            pid,
+            acquired_at: now_millis(),
+        }
+    }
+}
+
+fn inspect_registry_lock(lock_path: &Path) -> anyhow::Result<RegistryLockState> {
+    let raw = match fs::read_to_string(lock_path) {
+        Ok(raw) => raw,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(RegistryLockState::Vanished);
+        }
+        Err(error) => {
+            return Err(error).with_context(|| {
+                format!(
+                    "failed to read supervisor registry lock '{}'",
+                    lock_path.display()
+                )
+            });
+        }
+    };
+
+    let Some(artifact) = parse_registry_lock_artifact(&raw) else {
+        return Ok(RegistryLockState::Active(None));
+    };
+
+    if process_is_alive(artifact.pid) {
+        Ok(RegistryLockState::Active(Some(artifact)))
+    } else {
+        Ok(RegistryLockState::Recoverable(format!(
+            "owner pid {} is not alive",
+            artifact.pid
+        )))
+    }
+}
+
+fn parse_registry_lock_artifact(raw: &str) -> Option<RegistryLockArtifact> {
+    serde_json::from_str::<RegistryLockArtifact>(raw)
+        .ok()
+        .or_else(|| parse_legacy_registry_lock_artifact(raw))
+}
+
+fn parse_legacy_registry_lock_artifact(raw: &str) -> Option<RegistryLockArtifact> {
+    let mut pid = None;
+    let mut acquired_at = None;
+    for token in raw.split_whitespace() {
+        if let Some(value) = token.strip_prefix("pid=") {
+            pid = value.parse::<u32>().ok();
+        } else if let Some(value) = token.strip_prefix("acquired_at=") {
+            acquired_at = Some(value.to_string());
+        }
+    }
+
+    Some(RegistryLockArtifact {
+        schema_version: "legacy.supervisor_registry_lock.v0".to_string(),
+        pid: pid?,
+        acquired_at: acquired_at.unwrap_or_else(|| "unknown".to_string()),
+    })
 }
 
 impl SupervisorRegistryStore {
@@ -652,6 +731,13 @@ impl SupervisorRegistryStore {
     }
 
     fn acquire_registry_lock(&self) -> anyhow::Result<RegistryFileLock> {
+        self.acquire_registry_lock_with_timeout(REGISTRY_LOCK_TIMEOUT)
+    }
+
+    fn acquire_registry_lock_with_timeout(
+        &self,
+        timeout: Duration,
+    ) -> anyhow::Result<RegistryFileLock> {
         let lock_path = self.registry_lock_path();
         if let Some(parent) = lock_path.parent() {
             fs::create_dir_all(parent).with_context(|| {
@@ -673,24 +759,50 @@ impl SupervisorRegistryStore {
                     let lock = RegistryFileLock {
                         path: lock_path.clone(),
                     };
-                    writeln!(file, "pid={} acquired_at={}", process::id(), now_millis())
-                        .with_context(|| {
-                            format!("failed to write registry lock '{}'", lock_path.display())
-                        })?;
+                    let artifact = RegistryLockArtifact::new(process::id());
+                    serde_json::to_writer_pretty(&mut file, &artifact).with_context(|| {
+                        format!(
+                            "failed to serialize registry lock '{}'",
+                            lock_path.display()
+                        )
+                    })?;
+                    writeln!(file).with_context(|| {
+                        format!("failed to write registry lock '{}'", lock_path.display())
+                    })?;
                     file.sync_all().with_context(|| {
                         format!("failed to sync registry lock '{}'", lock_path.display())
                     })?;
                     return Ok(lock);
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-                    if started
-                        .elapsed()
-                        .is_ok_and(|elapsed| elapsed >= REGISTRY_LOCK_TIMEOUT)
-                    {
-                        anyhow::bail!(
-                            "timed out waiting for supervisor registry lock '{}'",
-                            lock_path.display()
-                        );
+                    match inspect_registry_lock(&lock_path)? {
+                        RegistryLockState::Recoverable(reason) => {
+                            remove_file_if_exists(&lock_path).with_context(|| {
+                                format!(
+                                    "failed to recover stale supervisor registry lock '{}' ({reason})",
+                                    lock_path.display()
+                                )
+                            })?;
+                            continue;
+                        }
+                        RegistryLockState::Vanished => continue,
+                        RegistryLockState::Active(owner) => {
+                            if started.elapsed().is_ok_and(|elapsed| elapsed >= timeout) {
+                                let owner = owner.as_ref().map_or_else(
+                                    || "unknown owner".to_string(),
+                                    |artifact| {
+                                        format!(
+                                            "active pid={} acquired_at={}",
+                                            artifact.pid, artifact.acquired_at
+                                        )
+                                    },
+                                );
+                                anyhow::bail!(
+                                    "timed out waiting for supervisor registry lock '{}' ({owner})",
+                                    lock_path.display()
+                                );
+                            }
+                        }
                     }
                     thread::sleep(REGISTRY_LOCK_RETRY);
                 }
@@ -2198,6 +2310,64 @@ done
             assert!(registry.nodes.contains_key(&node_id));
         }
         assert!(!store.registry_lock_path().exists());
+        assert_no_temp_artifacts(&root);
+    }
+
+    #[test]
+    fn stale_registry_lock_owned_by_dead_process_is_recovered() {
+        let root = temp_root("stale-registry-lock");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let lock_path = store.registry_lock_path();
+        let artifact = RegistryLockArtifact {
+            schema_version: SUPERVISOR_REGISTRY_LOCK_SCHEMA_VERSION.to_string(),
+            pid: u32::MAX,
+            acquired_at: "1".to_string(),
+        };
+        fs::write(
+            &lock_path,
+            format!("{}\n", serde_json::to_string_pretty(&artifact).unwrap()),
+        )
+        .unwrap();
+
+        {
+            let _lock = store
+                .acquire_registry_lock_with_timeout(Duration::from_millis(100))
+                .unwrap();
+            let recovered: RegistryLockArtifact =
+                serde_json::from_str(&fs::read_to_string(&lock_path).unwrap()).unwrap();
+            assert_eq!(
+                recovered.schema_version,
+                SUPERVISOR_REGISTRY_LOCK_SCHEMA_VERSION
+            );
+            assert_eq!(recovered.pid, process::id());
+            assert!(process_is_alive(recovered.pid));
+        }
+
+        assert!(!lock_path.exists());
+        assert_no_temp_artifacts(&root);
+    }
+
+    #[test]
+    fn active_registry_lock_is_refused_after_timeout() {
+        let root = temp_root("active-registry-lock");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let lock_path = store.registry_lock_path();
+        let artifact = RegistryLockArtifact::new(process::id());
+        fs::write(
+            &lock_path,
+            format!("{}\n", serde_json::to_string_pretty(&artifact).unwrap()),
+        )
+        .unwrap();
+
+        let error = store
+            .acquire_registry_lock_with_timeout(Duration::from_millis(50))
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("timed out waiting for supervisor registry lock"));
+        assert!(error.contains(&format!("active pid={}", process::id())));
+        assert!(lock_path.exists());
+        fs::remove_file(&lock_path).unwrap();
         assert_no_temp_artifacts(&root);
     }
 
