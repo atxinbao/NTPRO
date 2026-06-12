@@ -49,61 +49,61 @@ use crate::{
 pub const DASHBOARD_SNAPSHOT_SCHEMA_VERSION: &str = "ntpro.dashboard_snapshot.v1";
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NTPRO Dashboard</title>
+  <title>NTPRO 控制台</title>
   <link rel="stylesheet" href="/assets/dashboard.css">
 </head>
 <body>
   <header class="topbar">
     <div>
-      <h1>NTPRO Dashboard</h1>
-      <p>Local supervisor artifact view. No external venue connection is opened by this page.</p>
+      <h1>NTPRO 监督器控制台</h1>
+      <p>本页面只查看本地监督器工件，不会连接外部交易场所，也不会提交真实订单。</p>
     </div>
-    <button id="refresh" type="button">Refresh</button>
+    <button id="refresh" type="button">刷新</button>
   </header>
   <main>
     <section class="band">
-      <h2>Overview</h2>
+      <h2>概览</h2>
       <div id="overview" class="grid"></div>
     </section>
     <section class="band">
-      <h2>Nodes</h2>
+      <h2>节点</h2>
       <div id="nodes" class="table-wrap"></div>
     </section>
     <section class="band">
-      <h2>Controls</h2>
+      <h2>控制</h2>
       <div id="controls" class="table-wrap"></div>
       <div id="control-result" class="list"></div>
     </section>
     <section class="band">
-      <h2>Data Sources</h2>
+      <h2>数据源</h2>
       <div id="data-sources" class="table-wrap"></div>
     </section>
     <section class="band">
-      <h2>Execution Gateways</h2>
+      <h2>执行网关</h2>
       <div id="execution-gateways" class="table-wrap"></div>
     </section>
     <section class="band">
-      <h2>Risk Engine</h2>
+      <h2>风控引擎</h2>
       <div id="risk" class="grid"></div>
     </section>
     <section class="band">
-      <h2>Runtime Modules</h2>
+      <h2>运行模块</h2>
       <div id="runtime-modules" class="table-wrap"></div>
     </section>
     <section class="band">
-      <h2>Logs / Metrics</h2>
+      <h2>日志 / 指标</h2>
       <div id="logs-metrics" class="table-wrap"></div>
     </section>
     <section class="band">
-      <h2>Alerts</h2>
+      <h2>告警</h2>
       <div id="alerts" class="list"></div>
     </section>
     <section class="band">
-      <h2>Gaps</h2>
+      <h2>待补能力</h2>
       <div id="gaps" class="list"></div>
     </section>
   </main>
@@ -345,6 +345,74 @@ const DASHBOARD_JS: &str = r#"const renderTile = (label, value, extraClass = "")
 
 const safe = (value) => value === null || value === undefined ? "unknown" : String(value);
 
+const DISPLAY_TEXT = {
+  "true": "是",
+  "false": "否",
+  unknown: "未知",
+  available: "可用",
+  not_supported: "不支持",
+  redacted: "已脱敏",
+  "present (redacted)": "存在（已脱敏）",
+  none: "无",
+  present: "存在",
+  running: "运行中",
+  stopped: "已停止",
+  starting: "启动中",
+  stopping: "停止中",
+  paused: "已暂停",
+  pausing: "暂停中",
+  resuming: "恢复中",
+  healthy: "健康",
+  stale: "已失联",
+  degraded: "降级",
+  error: "错误",
+  not_started: "未启动",
+  connected: "已连接",
+  disconnected: "已断开",
+  connecting: "连接中",
+  disconnecting: "断开中",
+  not_configured: "未配置",
+  accepted: "已接收",
+  succeeded: "成功",
+  failed: "失败",
+  rejected: "已拒绝",
+  log: "日志",
+  metric: "指标",
+  local: "本地",
+  supervisor_artifact: "监督器工件",
+  node_not_found: "节点不存在",
+  invalid_lifecycle_state: "生命周期状态不允许",
+  unsupported_control_action: "控制动作不支持",
+  sandbox_reconnect_not_supported: "沙盒重连不支持",
+  process_state_conflict: "进程状态冲突",
+  ntpro_node_binary_unavailable: "ntpro-node 二进制不可用",
+  supervisor_action_failed: "监督器动作失败",
+  snapshot_load_failed: "快照加载失败",
+  logs_available: "日志可用",
+  metrics_available: "指标可用",
+  lifecycle_timeout: "生命周期操作超时",
+  sandbox: "沙盒",
+  spawned_process: "托管进程",
+  test_harness: "测试夹具",
+  active: "活跃",
+  reducing: "减仓中",
+  halted: "已暂停交易",
+  warning: "警告",
+  info: "信息",
+  missing: "缺失",
+  invalid: "无效",
+  configured: "已配置",
+};
+
+const displayValue = (value) => {
+  const normalized = safe(value);
+  if (normalized.startsWith("unix_seconds:")) {
+    return `时间戳秒：${normalized.slice("unix_seconds:".length)}`;
+  }
+  return DISPLAY_TEXT[normalized] || normalized;
+};
+const displayText = (value) => text(displayValue(value));
+
 const text = (value) => safe(value)
   .replaceAll("&", "&amp;")
   .replaceAll("<", "&lt;")
@@ -361,20 +429,20 @@ const availability = (value) => value && typeof value === "object" ? value.avail
 
 const redactedError = (value) => {
   const present = value && typeof value === "string" && value.trim().length > 0;
-  return present ? "present (redacted)" : "none";
+  return present ? "存在（已脱敏）" : "无";
 };
 
 const redactedDashboardValue = (value) => {
-  if (!value || typeof value !== "object") return "unknown";
-  if (value.availability === "redacted") return "redacted";
-  if (value.value !== null && value.value !== undefined) return "present (redacted)";
-  return value.availability ?? "unknown";
+  if (!value || typeof value !== "object") return "未知";
+  if (value.availability === "redacted") return "已脱敏";
+  if (value.value !== null && value.value !== undefined) return "存在（已脱敏）";
+  return displayValue(value.availability ?? "unknown");
 };
 
 const dashboardErrorValue = (value) => {
-  if (!value || typeof value !== "object") return "unknown";
-  if (value.value !== null && value.value !== undefined) return "present (redacted)";
-  return value.availability ?? "unknown";
+  if (!value || typeof value !== "object") return "未知";
+  if (value.value !== null && value.value !== undefined) return "存在（已脱敏）";
+  return displayValue(value.availability ?? "unknown");
 };
 
 const emptyTable = (message) => `<div class="tile"><div class="value">${text(message)}</div></div>`;
@@ -385,10 +453,10 @@ async function loadSnapshot() {
     fetch("/api/snapshot"),
   ]);
   if (!metaResponse.ok) {
-    throw new Error(`server metadata request failed: ${metaResponse.status}`);
+    throw new Error(`服务元数据请求失败：${metaResponse.status}`);
   }
   if (!snapshotResponse.ok) {
-    throw new Error(`snapshot request failed: ${snapshotResponse.status}`);
+    throw new Error(`快照请求失败：${snapshotResponse.status}`);
   }
   return {
     metadata: await metaResponse.json(),
@@ -403,55 +471,55 @@ function render(payload) {
   const nodes = snapshot.nodes || [];
   const staleNodes = nodes.filter((node) => node.health === "stale").length;
   document.getElementById("overview").innerHTML = [
-    renderTile("Registry", safe(metadata.registry_path)),
-    renderTile("Nodes", safe(overview.node_count)),
-    renderTile("Running", safe(overview.running_nodes), "status-healthy"),
-    renderTile("Stopped", safe(overview.stopped_nodes)),
-    renderTile("Errors", safe(overview.error_nodes), "status-error"),
-    renderTile("Stale", safe(staleNodes), "status-stale"),
-    renderTile("Unknown", safe(overview.unknown_nodes), "status-unknown"),
-    renderTile("Health", safe(overview.health), `status-${safe(overview.health)}`),
-    renderTile("Sandbox Only", safe(overview.sandbox_only)),
-    renderTile("External Venue", safe(overview.external_venue_connection)),
-    renderTile("Real Orders", safe(overview.real_orders_submitted)),
-    renderTile("Latest Transition", snapshotValue(overview.latest_transition_at)),
-    renderTile("Latest Error", redactedError(overview.latest_error), overview.latest_error ? "status-error" : ""),
-    renderTile("Generated", snapshotValue(snapshot.generated_at)),
+    renderTile("注册表路径", safe(metadata.registry_path)),
+    renderTile("节点总数", safe(overview.node_count)),
+    renderTile("运行中", safe(overview.running_nodes), "status-healthy"),
+    renderTile("已停止", safe(overview.stopped_nodes)),
+    renderTile("错误", safe(overview.error_nodes), "status-error"),
+    renderTile("已失联", safe(staleNodes), "status-stale"),
+    renderTile("未知", safe(overview.unknown_nodes), "status-unknown"),
+    renderTile("健康状态", displayValue(overview.health), `status-${safe(overview.health)}`),
+    renderTile("仅沙盒", displayValue(overview.sandbox_only)),
+    renderTile("外部交易场所", displayValue(overview.external_venue_connection)),
+    renderTile("真实订单", displayValue(overview.real_orders_submitted)),
+    renderTile("最近状态变化", displayValue(snapshotValue(overview.latest_transition_at))),
+    renderTile("最近错误", redactedError(overview.latest_error), overview.latest_error ? "status-error" : ""),
+    renderTile("生成时间", displayValue(snapshotValue(snapshot.generated_at))),
   ].join("");
 
   document.getElementById("nodes").innerHTML = nodes.length > 0 ? `
     <table>
       <thead>
         <tr>
-          <th>Node</th>
-          <th>Lifecycle</th>
-          <th>Process</th>
+          <th>节点</th>
+          <th>生命周期</th>
+          <th>进程</th>
           <th>PID</th>
-          <th>Config</th>
-          <th>Artifacts</th>
-          <th>Started</th>
-          <th>Stopped</th>
-          <th>Last Transition</th>
-          <th>Last Error</th>
+          <th>配置</th>
+          <th>工件</th>
+          <th>启动时间</th>
+          <th>停止时间</th>
+          <th>最近状态变化</th>
+          <th>最近错误</th>
         </tr>
       </thead>
       <tbody>
         ${nodes.map((node) => `
           <tr>
-            <td data-label="Node"><strong>${text(node.node_id)}</strong><div class="muted">${text(node.process_mode)}</div></td>
-            <td data-label="Lifecycle"><span class="status-${safe(node.health)}">${text(node.lifecycle_state)}</span></td>
-            <td data-label="Process">${text(node.process_state)}</td>
-            <td data-label="PID">${text(snapshotValue(node.pid))}<div class="muted">${text(availability(node.pid))}</div></td>
-            <td data-label="Config" class="path">${text(snapshotValue(node.config_path))}</td>
-            <td data-label="Artifacts" class="path">${text(snapshotValue(node.artifact_root))}</td>
-            <td data-label="Started">${text(snapshotValue(node.started_at))}</td>
-            <td data-label="Stopped">${text(snapshotValue(node.stopped_at))}</td>
-            <td data-label="Last Transition">${text(snapshotValue(node.last_transition_at))}</td>
-            <td data-label="Last Error">${text(redactedError(node.last_error))}</td>
+            <td data-label="节点"><strong>${text(node.node_id)}</strong><div class="muted">${displayText(node.process_mode)}</div></td>
+            <td data-label="生命周期"><span class="status-${safe(node.health)}">${displayText(node.lifecycle_state)}</span></td>
+            <td data-label="进程">${displayText(node.process_state)}</td>
+            <td data-label="PID">${displayText(snapshotValue(node.pid))}<div class="muted">${displayText(availability(node.pid))}</div></td>
+            <td data-label="配置" class="path">${text(snapshotValue(node.config_path))}</td>
+            <td data-label="工件" class="path">${text(snapshotValue(node.artifact_root))}</td>
+            <td data-label="启动时间">${displayText(snapshotValue(node.started_at))}</td>
+            <td data-label="停止时间">${displayText(snapshotValue(node.stopped_at))}</td>
+            <td data-label="最近状态变化">${displayText(snapshotValue(node.last_transition_at))}</td>
+            <td data-label="最近错误">${text(redactedError(node.last_error))}</td>
           </tr>
         `).join("")}
       </tbody>
-    </table>` : `<div class="tile"><div class="value">No registered nodes</div></div>`;
+    </table>` : `<div class="tile"><div class="value">没有已注册节点</div></div>`;
 
   renderDataSources(snapshot.data_sources || []);
   renderExecutionGateways(snapshot.execution_gateways || []);
@@ -461,23 +529,23 @@ function render(payload) {
   renderControls(snapshot.controls || []);
 
   document.getElementById("alerts").innerHTML = ((snapshot.alerts || {}).active || []).map((alert) =>
-    `<div class="row"><strong>${text(alert.severity)}: ${text(alert.source)}</strong><span>${text(alert.message)}</span></div>`
-  ).join("") || `<div class="row">No active alerts</div>`;
+    `<div class="row"><strong>${displayText(alert.severity)}: ${text(alert.source)}</strong><span>${text(alert.message)}</span></div>`
+  ).join("") || `<div class="row">没有活动告警</div>`;
 
   document.getElementById("gaps").innerHTML = (snapshot.gaps || []).map((gap) =>
-    `<div class="row"><strong>${text(gap.field_path)}</strong><span>${text(gap.reason)} - ${text(snapshotValue(gap.notes))}</span></div>`
-  ).join("") || `<div class="row">No dashboard gaps</div>`;
+    `<div class="row"><strong>${text(gap.field_path)}</strong><span>${displayText(gap.reason)} - ${displayText(snapshotValue(gap.notes))}</span></div>`
+  ).join("") || `<div class="row">没有待补能力</div>`;
 }
 
 const controlLabel = (action) => {
   const name = safe(action).split(":")[0];
   return {
-    start: "Start",
-    stop: "Stop",
-    pause: "Pause",
-    resume: "Resume",
-    reconnect_data: "Reconnect data",
-    reconnect_execution: "Reconnect execution",
+    start: "启动",
+    stop: "停止",
+    pause: "暂停",
+    resume: "恢复",
+    reconnect_data: "重连数据源",
+    reconnect_execution: "重连执行网关",
   }[name] || name;
 };
 
@@ -489,12 +557,12 @@ function renderControls(controls) {
     <table>
       <thead>
         <tr>
-          <th>Node</th>
-          <th>Action</th>
-          <th>Availability</th>
-          <th>Enabled</th>
-          <th>Reason</th>
-          <th>Run</th>
+          <th>节点</th>
+          <th>操作</th>
+          <th>可用性</th>
+          <th>是否启用</th>
+          <th>原因</th>
+          <th>执行</th>
         </tr>
       </thead>
       <tbody>
@@ -504,16 +572,16 @@ function renderControls(controls) {
           const runnable = control.enabled && ["start", "stop", "pause", "resume", "reconnect_data", "reconnect_execution"].includes(action);
           return `
             <tr>
-              <td data-label="Node"><strong>${text(nodeId)}</strong></td>
-              <td data-label="Action">${text(controlLabel(control.action))}</td>
-              <td data-label="Availability">${text(control.availability)}</td>
-              <td data-label="Enabled">${text(control.enabled)}</td>
-              <td data-label="Reason">${text(snapshotValue(control.reason))}</td>
-              <td data-label="Run"><button type="button" data-dashboard-action="${text(action)}" data-node-id="${text(nodeId)}" ${runnable ? "" : "disabled"}>${text(controlLabel(control.action))}</button></td>
+              <td data-label="节点"><strong>${text(nodeId)}</strong></td>
+              <td data-label="操作">${text(controlLabel(control.action))}</td>
+              <td data-label="可用性">${displayText(control.availability)}</td>
+              <td data-label="是否启用">${displayText(control.enabled)}</td>
+              <td data-label="原因">${displayText(snapshotValue(control.reason))}</td>
+              <td data-label="执行"><button type="button" data-dashboard-action="${text(action)}" data-node-id="${text(nodeId)}" ${runnable ? "" : "disabled"}>${text(controlLabel(control.action))}</button></td>
             </tr>`;
         }).join("")}
       </tbody>
-    </table>` : emptyTable("No controls reported");
+    </table>` : emptyTable("没有控制项");
 }
 
 function renderDataSources(dataSources) {
@@ -521,31 +589,31 @@ function renderDataSources(dataSources) {
     <table>
       <thead>
         <tr>
-          <th>Source</th>
-          <th>Kind</th>
-          <th>Provider</th>
-          <th>Connection</th>
-          <th>Freshness</th>
-          <th>Lag</th>
-          <th>Health</th>
-          <th>Last Error</th>
+          <th>数据源</th>
+          <th>类型</th>
+          <th>提供方</th>
+          <th>连接</th>
+          <th>新鲜度</th>
+          <th>延迟</th>
+          <th>健康状态</th>
+          <th>最近错误</th>
         </tr>
       </thead>
       <tbody>
         ${dataSources.map((source) => `
           <tr>
-            <td data-label="Source"><strong>${text(source.source_id)}</strong></td>
-            <td data-label="Kind">${text(snapshotValue(source.source_kind))}</td>
-            <td data-label="Provider">${text(snapshotValue(source.provider))}</td>
-            <td data-label="Connection">${text(source.connection)}</td>
-            <td data-label="Freshness">${text(snapshotValue(source.freshness))}</td>
-            <td data-label="Lag">${text(snapshotValue(source.lag_ms))}</td>
-            <td data-label="Health"><span class="status-${safe(source.health)}">${text(source.health)}</span></td>
-            <td data-label="Last Error">${text(dashboardErrorValue(source.last_error))}</td>
+            <td data-label="数据源"><strong>${text(source.source_id)}</strong></td>
+            <td data-label="类型">${displayText(snapshotValue(source.source_kind))}</td>
+            <td data-label="提供方">${text(snapshotValue(source.provider))}</td>
+            <td data-label="连接">${displayText(source.connection)}</td>
+            <td data-label="新鲜度">${displayText(snapshotValue(source.freshness))}</td>
+            <td data-label="延迟">${displayText(snapshotValue(source.lag_ms))}</td>
+            <td data-label="健康状态"><span class="status-${safe(source.health)}">${displayText(source.health)}</span></td>
+            <td data-label="最近错误">${text(dashboardErrorValue(source.last_error))}</td>
           </tr>
         `).join("")}
       </tbody>
-    </table>` : emptyTable("No data sources reported");
+    </table>` : emptyTable("没有数据源上报");
 }
 
 function renderExecutionGateways(gateways) {
@@ -553,43 +621,43 @@ function renderExecutionGateways(gateways) {
     <table>
       <thead>
         <tr>
-          <th>Gateway</th>
-          <th>Venue</th>
-          <th>Connection</th>
-          <th>Started</th>
-          <th>Account</th>
-          <th>Orders</th>
-          <th>Last Report</th>
-          <th>Last Error</th>
+          <th>网关</th>
+          <th>场所</th>
+          <th>连接</th>
+          <th>已启动</th>
+          <th>账户</th>
+          <th>订单</th>
+          <th>最近上报</th>
+          <th>最近错误</th>
         </tr>
       </thead>
       <tbody>
         ${gateways.map((gateway) => `
           <tr>
-            <td data-label="Gateway"><strong>${text(gateway.gateway_id)}</strong></td>
-            <td data-label="Venue">${text(snapshotValue(gateway.venue))}</td>
-            <td data-label="Connection">${text(gateway.connection)}</td>
-            <td data-label="Started">${text(snapshotValue(gateway.started))}</td>
-            <td data-label="Account">${text(redactedDashboardValue(gateway.account_ref))}</td>
-            <td data-label="Orders">open ${text(snapshotValue(gateway.order_counts?.open))} / in-flight ${text(snapshotValue(gateway.order_counts?.inflight))} / closed ${text(snapshotValue(gateway.order_counts?.closed))}</td>
-            <td data-label="Last Report">${text(snapshotValue(gateway.last_report_at))}</td>
-            <td data-label="Last Error">${text(dashboardErrorValue(gateway.last_error))}</td>
+            <td data-label="网关"><strong>${text(gateway.gateway_id)}</strong></td>
+            <td data-label="场所">${text(snapshotValue(gateway.venue))}</td>
+            <td data-label="连接">${displayText(gateway.connection)}</td>
+            <td data-label="已启动">${displayText(snapshotValue(gateway.started))}</td>
+            <td data-label="账户">${text(redactedDashboardValue(gateway.account_ref))}</td>
+            <td data-label="订单">未完成 ${text(snapshotValue(gateway.order_counts?.open))} / 处理中 ${text(snapshotValue(gateway.order_counts?.inflight))} / 已关闭 ${text(snapshotValue(gateway.order_counts?.closed))}</td>
+            <td data-label="最近上报">${displayText(snapshotValue(gateway.last_report_at))}</td>
+            <td data-label="最近错误">${text(dashboardErrorValue(gateway.last_error))}</td>
           </tr>
         `).join("")}
       </tbody>
-    </table>` : emptyTable("No execution gateways reported");
+    </table>` : emptyTable("没有执行网关上报");
 }
 
 function renderRisk(risk) {
-  const lastRejection = risk.last_rejection && risk.last_rejection.value ? "present (redacted)" : snapshotValue(risk.last_rejection);
+  const lastRejection = risk.last_rejection && risk.last_rejection.value ? "存在（已脱敏）" : displayValue(snapshotValue(risk.last_rejection));
   document.getElementById("risk").innerHTML = [
-    renderTile("Trading State", safe(risk.trading_state)),
-    renderTile("Health", safe(risk.health), `status-${safe(risk.health)}`),
-    renderTile("Commands", snapshotValue(risk.command_count)),
-    renderTile("Events", snapshotValue(risk.event_count)),
-    renderTile("Rejections", snapshotValue(risk.rejections_total)),
-    renderTile("Last Rejection", lastRejection),
-    renderTile("Last Error", dashboardErrorValue(risk.last_error)),
+    renderTile("交易状态", displayValue(risk.trading_state)),
+    renderTile("健康状态", displayValue(risk.health), `status-${safe(risk.health)}`),
+    renderTile("命令数", displayValue(snapshotValue(risk.command_count))),
+    renderTile("事件数", displayValue(snapshotValue(risk.event_count))),
+    renderTile("拒绝数", displayValue(snapshotValue(risk.rejections_total))),
+    renderTile("最近拒绝", lastRejection),
+    renderTile("最近错误", dashboardErrorValue(risk.last_error)),
   ].join("");
 }
 
@@ -598,27 +666,27 @@ function renderRuntimeModules(modules) {
     <table>
       <thead>
         <tr>
-          <th>Module</th>
-          <th>Status</th>
-          <th>Health</th>
-          <th>Last Seen</th>
-          <th>Last Error</th>
-          <th>Evidence</th>
+          <th>模块</th>
+          <th>状态</th>
+          <th>健康状态</th>
+          <th>最近可见</th>
+          <th>最近错误</th>
+          <th>证据</th>
         </tr>
       </thead>
       <tbody>
         ${modules.map((module) => `
           <tr>
-            <td data-label="Module"><strong>${text(module.module_name)}</strong></td>
-            <td data-label="Status">${text(snapshotValue(module.status))}<div class="muted">${text(availability(module.status))}</div></td>
-            <td data-label="Health"><span class="status-${safe(module.health)}">${text(module.health)}</span></td>
-            <td data-label="Last Seen">${text(snapshotValue(module.last_seen_at))}</td>
-            <td data-label="Last Error">${text(dashboardErrorValue(module.last_error))}</td>
-            <td data-label="Evidence" class="path">${text(snapshotValue(module.evidence_source))}<div class="muted">${text(availability(module.evidence_source))}</div></td>
+            <td data-label="模块"><strong>${text(module.module_name)}</strong></td>
+            <td data-label="状态">${displayText(snapshotValue(module.status))}<div class="muted">${displayText(availability(module.status))}</div></td>
+            <td data-label="健康状态"><span class="status-${safe(module.health)}">${displayText(module.health)}</span></td>
+            <td data-label="最近可见">${displayText(snapshotValue(module.last_seen_at))}</td>
+            <td data-label="最近错误">${text(dashboardErrorValue(module.last_error))}</td>
+            <td data-label="证据" class="path">${displayText(snapshotValue(module.evidence_source))}<div class="muted">${displayText(availability(module.evidence_source))}</div></td>
           </tr>
         `).join("")}
       </tbody>
-    </table>` : emptyTable("No runtime modules reported");
+    </table>` : emptyTable("没有运行模块上报");
 }
 
 function renderLogsMetrics(logs, metrics) {
@@ -636,7 +704,7 @@ function renderLogsMetrics(logs, metrics) {
       kind: "metric",
       id: metric.metric_id,
       node: snapshotValue(metric.node_id),
-      path: "metric artifact",
+      path: "指标工件",
       availability: metric.availability,
       value: snapshotValue(metric.value),
       lastError: dashboardErrorValue(metric.last_error),
@@ -646,29 +714,29 @@ function renderLogsMetrics(logs, metrics) {
     <table>
       <thead>
         <tr>
-          <th>Kind</th>
+          <th>类型</th>
           <th>ID</th>
-          <th>Node</th>
-          <th>Evidence</th>
-          <th>Availability</th>
-          <th>Value / Seen</th>
-          <th>Last Error</th>
+          <th>节点</th>
+          <th>证据</th>
+          <th>可用性</th>
+          <th>值 / 最近可见</th>
+          <th>最近错误</th>
         </tr>
       </thead>
       <tbody>
         ${rows.map((row) => `
           <tr>
-            <td data-label="Kind">${text(row.kind)}</td>
+            <td data-label="类型">${displayText(row.kind)}</td>
             <td data-label="ID"><strong>${text(row.id)}</strong></td>
-            <td data-label="Node">${text(row.node)}</td>
-            <td data-label="Evidence" class="path">${text(row.path)}</td>
-            <td data-label="Availability">${text(row.availability)}</td>
-            <td data-label="Value / Seen">${text(row.value)}</td>
-            <td data-label="Last Error">${text(row.lastError)}</td>
+            <td data-label="节点">${text(row.node)}</td>
+            <td data-label="证据" class="path">${text(row.path)}</td>
+            <td data-label="可用性">${displayText(row.availability)}</td>
+            <td data-label="值 / 最近可见">${displayText(row.value)}</td>
+            <td data-label="最近错误">${text(row.lastError)}</td>
           </tr>
         `).join("")}
       </tbody>
-    </table>` : emptyTable("No logs or metrics reported");
+    </table>` : emptyTable("没有日志或指标上报");
 }
 
 async function refresh() {
@@ -683,18 +751,18 @@ document.addEventListener("click", async (event) => {
   const action = button.getAttribute("data-dashboard-action");
   const nodeId = button.getAttribute("data-node-id");
   button.disabled = true;
-  document.getElementById("control-result").innerHTML = `<div class="row">Running ${text(action)} for ${text(nodeId)}</div>`;
+  document.getElementById("control-result").innerHTML = `<div class="row">正在对 ${text(nodeId)} 执行 ${text(controlLabel(action))}</div>`;
   try {
     const response = await fetch(`/api/nodes/${encodeURIComponent(nodeId)}/actions/${encodeURIComponent(action)}`, { method: "POST" });
     const payload = await response.json();
-    document.getElementById("control-result").innerHTML = `<div class="row"><strong>${text(snapshotValue(payload.message))}</strong><span>${text(payload.status)} ${text(snapshotValue(payload.error_code))}</span></div>`;
+    document.getElementById("control-result").innerHTML = `<div class="row"><strong>${displayText(snapshotValue(payload.message))}</strong><span>${displayText(payload.status)} ${displayText(snapshotValue(payload.error_code))}</span></div>`;
     await refresh();
   } catch (error) {
-    document.getElementById("control-result").innerHTML = `<div class="row"><strong>Control failed</strong><span>${text(error.message)}</span></div>`;
+    document.getElementById("control-result").innerHTML = `<div class="row"><strong>控制失败</strong><span>${text(error.message)}</span></div>`;
   }
 });
 refresh().catch((error) => {
-  document.getElementById("overview").innerHTML = renderTile("Error", error.message, "status-error");
+  document.getElementById("overview").innerHTML = renderTile("错误", error.message, "status-error");
 });
 "#;
 
@@ -953,9 +1021,7 @@ fn control_action_response(
                 current_state: LifecycleStatus::Unknown,
                 started_at,
                 error_code: DashboardValue::available("node_not_found".to_string()),
-                message: DashboardValue::available(
-                    "node was not found in local supervisor registry".to_string(),
-                ),
+                message: DashboardValue::available("本地监督器注册表中没有找到该节点".to_string()),
             })),
         ));
     };
@@ -972,9 +1038,7 @@ fn control_action_response(
                 current_state: previous_state,
                 started_at,
                 error_code: DashboardValue::available("invalid_lifecycle_state".to_string()),
-                message: DashboardValue::available(
-                    "start is only available for stopped nodes".to_string(),
-                ),
+                message: DashboardValue::available("只有已停止的节点可以启动".to_string()),
             })),
         )),
         "stop"
@@ -994,7 +1058,7 @@ fn control_action_response(
                     started_at,
                     error_code: DashboardValue::available("invalid_lifecycle_state".to_string()),
                     message: DashboardValue::available(
-                        "stop is only available for running or paused nodes".to_string(),
+                        "只有运行中或已暂停的节点可以停止".to_string(),
                     ),
                 })),
             ))
@@ -1009,9 +1073,7 @@ fn control_action_response(
                 current_state: previous_state,
                 started_at,
                 error_code: DashboardValue::available("invalid_lifecycle_state".to_string()),
-                message: DashboardValue::available(
-                    "pause is only available for running nodes".to_string(),
-                ),
+                message: DashboardValue::available("只有运行中的节点可以暂停".to_string()),
             })),
         )),
         "resume" if previous_state != LifecycleStatus::Paused => Ok((
@@ -1024,9 +1086,7 @@ fn control_action_response(
                 current_state: previous_state,
                 started_at,
                 error_code: DashboardValue::available("invalid_lifecycle_state".to_string()),
-                message: DashboardValue::available(
-                    "resume is only available for paused nodes".to_string(),
-                ),
+                message: DashboardValue::available("只有已暂停的节点可以恢复".to_string()),
             })),
         )),
         "reconnect_data" | "reconnect_execution"
@@ -1046,8 +1106,7 @@ fn control_action_response(
                     started_at,
                     error_code: DashboardValue::available("invalid_lifecycle_state".to_string()),
                     message: DashboardValue::available(
-                        "reconnect controls are only available for running or paused nodes"
-                            .to_string(),
+                        "只有运行中或已暂停的节点可以执行重连控制".to_string(),
                     ),
                 })),
             ))
@@ -1083,9 +1142,7 @@ fn control_action_response(
                 current_state: previous_state,
                 started_at,
                 error_code: DashboardValue::available("unsupported_control_action".to_string()),
-                message: DashboardValue::available(
-                    "control action is not supported in v0.3".to_string(),
-                ),
+                message: DashboardValue::available("v0.3 暂不支持该控制动作".to_string()),
             })),
         )),
     }
@@ -1118,9 +1175,7 @@ fn run_start_action(
                 current_state: record.last_known_status.lifecycle_state,
                 started_at,
                 error_code: DashboardValue::unknown(),
-                message: DashboardValue::available(
-                    "start completed through local supervisor".to_string(),
-                ),
+                message: DashboardValue::available("已通过本地监督器完成启动".to_string()),
             })),
         ),
         Err(error) => (
@@ -1133,9 +1188,7 @@ fn run_start_action(
                 current_state: previous_state,
                 started_at,
                 error_code: DashboardValue::available(control_error_code(&error)),
-                message: DashboardValue::available(
-                    "start failed; details are redacted".to_string(),
-                ),
+                message: DashboardValue::available("启动失败，详细信息已脱敏".to_string()),
             })),
         ),
     }
@@ -1163,9 +1216,7 @@ fn run_stop_action(
                 current_state: record.last_known_status.lifecycle_state,
                 started_at,
                 error_code: DashboardValue::unknown(),
-                message: DashboardValue::available(
-                    "stop completed through local supervisor".to_string(),
-                ),
+                message: DashboardValue::available("已通过本地监督器完成停止".to_string()),
             })),
         ),
         Err(error) => (
@@ -1178,7 +1229,7 @@ fn run_stop_action(
                 current_state: previous_state,
                 started_at,
                 error_code: DashboardValue::available(control_error_code(&error)),
-                message: DashboardValue::available("stop failed; details are redacted".to_string()),
+                message: DashboardValue::available("停止失败，详细信息已脱敏".to_string()),
             })),
         ),
     }
@@ -1203,9 +1254,7 @@ fn run_pause_action(
                 current_state: record.last_known_status.lifecycle_state,
                 started_at,
                 error_code: DashboardValue::unknown(),
-                message: DashboardValue::available(
-                    "pause completed through local supervisor".to_string(),
-                ),
+                message: DashboardValue::available("已通过本地监督器完成暂停".to_string()),
             })),
         ),
         Err(error) => failed_control_response("pause", node_id, previous_state, started_at, &error),
@@ -1231,9 +1280,7 @@ fn run_resume_action(
                 current_state: record.last_known_status.lifecycle_state,
                 started_at,
                 error_code: DashboardValue::unknown(),
-                message: DashboardValue::available(
-                    "resume completed through local supervisor".to_string(),
-                ),
+                message: DashboardValue::available("已通过本地监督器完成恢复".to_string()),
             })),
         ),
         Err(error) => {
@@ -1264,8 +1311,7 @@ fn run_reconnect_data_action(
                     "sandbox_reconnect_not_supported".to_string(),
                 ),
                 message: DashboardValue::available(
-                    "data reconnect recorded as not supported for local sandbox supervisor"
-                        .to_string(),
+                    "本地沙盒监督器已记录数据源重连为不支持".to_string(),
                 ),
             })),
         ),
@@ -1301,8 +1347,7 @@ fn run_reconnect_execution_action(
                     "sandbox_reconnect_not_supported".to_string(),
                 ),
                 message: DashboardValue::available(
-                    "execution reconnect recorded as not supported for local sandbox supervisor"
-                        .to_string(),
+                    "本地沙盒监督器已记录执行网关重连为不支持".to_string(),
                 ),
             })),
         ),
@@ -1333,9 +1378,24 @@ fn failed_control_response(
             current_state: previous_state,
             started_at,
             error_code: DashboardValue::available(control_error_code(error)),
-            message: DashboardValue::available(format!("{action} failed; details are redacted")),
+            message: DashboardValue::available(format!(
+                "{}失败，详细信息已脱敏",
+                control_action_display_name(action)
+            )),
         })),
     )
+}
+
+fn control_action_display_name(action: &str) -> &'static str {
+    match action {
+        "start" => "启动",
+        "stop" => "停止",
+        "pause" => "暂停",
+        "resume" => "恢复",
+        "reconnect_data" => "重连数据源",
+        "reconnect_execution" => "重连执行网关",
+        _ => "控制动作",
+    }
 }
 
 #[derive(Debug)]
@@ -1394,7 +1454,7 @@ fn not_found_response(error_code: &str, node_id: &str) -> (StatusCode, Json<Valu
         Json(json!({
             "error_code": error_code,
             "node_id": node_id,
-            "message": "dashboard node was not found in the local supervisor registry"
+            "message": "本地监督器注册表中没有找到该节点"
         })),
     )
 }
@@ -1898,10 +1958,7 @@ pub fn snapshot_from_supervisor_artifacts(
             "supervisor.registry",
             DashboardAvailability::Unknown,
             "V03-004",
-            format!(
-                "supervisor registry artifact '{}' is missing",
-                registry_path.display()
-            ),
+            format!("监督器注册表工件 '{}' 缺失", registry_path.display()),
         ));
         return Ok(snapshot);
     }
@@ -1919,7 +1976,7 @@ pub fn snapshot_from_supervisor_artifacts(
                 "supervisor.registry",
                 DashboardAvailability::Unknown,
                 "V03-004",
-                format!("invalid supervisor registry artifact: {error}"),
+                format!("监督器注册表工件无效：{error}"),
             ));
             return Ok(snapshot);
         }
@@ -1930,7 +1987,7 @@ pub fn snapshot_from_supervisor_artifacts(
             "nodes",
             DashboardAvailability::NotConfigured,
             "V03-004",
-            "supervisor registry contains no nodes",
+            "监督器注册表中没有节点",
         ));
         return Ok(snapshot);
     }
@@ -1996,18 +2053,12 @@ fn read_status_artifact(record: &SupervisorNodeRecord) -> ArtifactStatus {
     if !record.status_path.exists() {
         let mut status = record.last_known_status.clone();
         status.generated_at = SnapshotValue::stale();
-        status.last_error = Some(format!(
-            "status artifact '{}' is missing",
-            record.status_path.display()
-        ));
+        status.last_error = Some(format!("状态工件 '{}' 缺失", record.status_path.display()));
         gaps.push(DashboardGap::new(
             format!("nodes.{}.status", record.node_id),
             DashboardAvailability::Unknown,
             "V03-004",
-            format!(
-                "status artifact '{}' is missing",
-                record.status_path.display()
-            ),
+            format!("状态工件 '{}' 缺失", record.status_path.display()),
         ));
         return ArtifactStatus {
             status,
@@ -2021,13 +2072,13 @@ fn read_status_artifact(record: &SupervisorNodeRecord) -> ArtifactStatus {
         Err(error) => {
             let mut status = record.last_known_status.clone();
             status.generated_at = SnapshotValue::stale();
-            status.last_error = Some(format!("failed to read status artifact: {error}"));
+            status.last_error = Some(format!("读取状态工件失败：{error}"));
             gaps.push(DashboardGap::new(
                 format!("nodes.{}.status", record.node_id),
                 DashboardAvailability::Unknown,
                 "V03-004",
                 format!(
-                    "failed to read status artifact '{}': {error}",
+                    "读取状态工件 '{}' 失败：{error}",
                     record.status_path.display()
                 ),
             ));
@@ -2048,7 +2099,7 @@ fn read_status_artifact(record: &SupervisorNodeRecord) -> ArtifactStatus {
                     format!("nodes.{}.status.generated_at", record.node_id),
                     DashboardAvailability::Stale,
                     "V03-004",
-                    "status artifact generated_at is stale",
+                    "状态工件 generated_at 已过期",
                 ));
             }
             ArtifactStatus {
@@ -2062,7 +2113,7 @@ fn read_status_artifact(record: &SupervisorNodeRecord) -> ArtifactStatus {
             fallback.node_id.clone_from(&record.node_id);
             fallback.generated_at = SnapshotValue::stale();
             fallback.last_error = Some(format!(
-                "status node identity mismatch: registry node '{}' received runtime node '{}'",
+                "状态节点身份不匹配：注册表节点 '{}' 收到运行时节点 '{}'",
                 record.node_id, status.node_id
             ));
             gaps.push(DashboardGap::new(
@@ -2080,15 +2131,12 @@ fn read_status_artifact(record: &SupervisorNodeRecord) -> ArtifactStatus {
         Err(error) => {
             let mut status = record.last_known_status.clone();
             status.generated_at = SnapshotValue::stale();
-            status.last_error = Some(format!("invalid status artifact: {error}"));
+            status.last_error = Some(format!("状态工件无效：{error}"));
             gaps.push(DashboardGap::new(
                 format!("nodes.{}.status", record.node_id),
                 DashboardAvailability::Unknown,
                 "V03-004",
-                format!(
-                    "invalid status artifact '{}': {error}",
-                    record.status_path.display()
-                ),
+                format!("状态工件 '{}' 无效：{error}", record.status_path.display()),
             ));
             ArtifactStatus {
                 status,
@@ -2106,7 +2154,7 @@ fn process_gaps(record: &SupervisorNodeRecord) -> Vec<DashboardGap> {
             format!("nodes.{}.process", record.node_id),
             DashboardAvailability::Stale,
             "V03-004",
-            "supervisor process state is stale",
+            "监督器进程状态已过期",
         ));
     }
     if record.status_artifact == RegistryArtifactState::Stale {
@@ -2114,7 +2162,7 @@ fn process_gaps(record: &SupervisorNodeRecord) -> Vec<DashboardGap> {
             format!("nodes.{}.status", record.node_id),
             DashboardAvailability::Stale,
             "V03-004",
-            "registry marks status artifact as stale",
+            "注册表将状态工件标记为过期",
         ));
     }
     if record.metrics_artifact == RegistryArtifactState::Stale {
@@ -2122,7 +2170,7 @@ fn process_gaps(record: &SupervisorNodeRecord) -> Vec<DashboardGap> {
             format!("nodes.{}.metrics", record.node_id),
             DashboardAvailability::Stale,
             "V03-004",
-            "registry marks metrics artifact as stale",
+            "注册表将指标工件标记为过期",
         ));
     }
     gaps
@@ -2222,7 +2270,7 @@ fn runtime_modules_from_status(
             module_gap_path(record, "Logging"),
             logging.status.availability,
             "V03-008",
-            "one or more log artifacts are unavailable",
+            "一个或多个日志工件不可用",
         ));
     }
     if metrics_writer.status.availability != DashboardAvailability::Available {
@@ -2230,15 +2278,12 @@ fn runtime_modules_from_status(
             module_gap_path(record, "Metrics writer"),
             metrics_writer.status.availability,
             "V03-008",
-            "metrics writer artifact is unavailable",
+            "指标写入工件不可用",
         ));
     }
     for module in ["NautilusKernel", "Portfolio", "Cache", "MessageBus"] {
-        let (status, gap) = unsupported_runtime_module(
-            record,
-            module,
-            "supervisor artifacts do not expose this module detail yet",
-        );
+        let (status, gap) =
+            unsupported_runtime_module(record, module, "监督器工件暂未暴露该模块细节");
         modules.push(status);
         gaps.push(gap);
     }
@@ -2396,7 +2441,7 @@ fn log_statuses_from_record(record: &SupervisorNodeRecord, status: &NodeStatus) 
             last_error: if exists {
                 DashboardValue::unknown()
             } else {
-                DashboardValue::available(format!("log artifact '{}' is missing", path.display()))
+                DashboardValue::available(format!("日志工件 '{}' 缺失", path.display()))
             },
         }
     })
@@ -2415,7 +2460,7 @@ fn metric_statuses_from_record(
             availability: DashboardAvailability::Unknown,
             last_seen_at: DashboardValue::unknown(),
             last_error: DashboardValue::available(format!(
-                "metrics artifact '{}' is missing",
+                "指标工件 '{}' 缺失",
                 record.metrics_path.display()
             )),
         }];
@@ -2431,7 +2476,7 @@ fn metric_statuses_from_record(
                 availability: DashboardAvailability::Unknown,
                 last_seen_at: DashboardValue::unknown(),
                 last_error: DashboardValue::available(format!(
-                    "failed to read metrics artifact '{}': {error}",
+                    "读取指标工件 '{}' 失败：{error}",
                     record.metrics_path.display()
                 )),
             }];
@@ -2448,7 +2493,7 @@ fn metric_statuses_from_record(
                 availability: DashboardAvailability::Unknown,
                 last_seen_at: DashboardValue::unknown(),
                 last_error: DashboardValue::available(format!(
-                    "metrics node identity mismatch: registry node '{}' received runtime node '{}'",
+                    "指标节点身份不匹配：注册表节点 '{}' 收到运行时节点 '{}'",
                     record.node_id, metrics.node_id
                 )),
             }];
@@ -2461,7 +2506,7 @@ fn metric_statuses_from_record(
                 availability: DashboardAvailability::Unknown,
                 last_seen_at: DashboardValue::unknown(),
                 last_error: DashboardValue::available(format!(
-                    "invalid metrics artifact '{}': {error}",
+                    "指标工件 '{}' 无效：{error}",
                     record.metrics_path.display()
                 )),
             }];
@@ -2577,11 +2622,11 @@ fn control_statuses_from_nodes(nodes: &[DashboardNodeSummary]) -> Vec<ControlSta
             availability: DashboardAvailability::Available,
             enabled: node.lifecycle_state == LifecycleStatus::Stopped,
             reason: if node.lifecycle_state == LifecycleStatus::Running {
-                DashboardValue::available("node is already running".to_string())
+                DashboardValue::available("节点已经在运行".to_string())
             } else if node.lifecycle_state == LifecycleStatus::Stopped {
-                DashboardValue::available("node can be started by supervisor control".to_string())
+                DashboardValue::available("可以通过监督器控制启动该节点".to_string())
             } else {
-                DashboardValue::available("node is not stopped".to_string())
+                DashboardValue::available("节点不是已停止状态".to_string())
             },
         });
         controls.push(ControlStatus {
@@ -2595,9 +2640,9 @@ fn control_statuses_from_nodes(nodes: &[DashboardNodeSummary]) -> Vec<ControlSta
                 node.lifecycle_state,
                 LifecycleStatus::Running | LifecycleStatus::Paused
             ) {
-                DashboardValue::available("node can be stopped by supervisor control".to_string())
+                DashboardValue::available("可以通过监督器控制停止该节点".to_string())
             } else {
-                DashboardValue::available("node is not running or paused".to_string())
+                DashboardValue::available("节点不是运行中或已暂停状态".to_string())
             },
         });
         controls.push(ControlStatus {
@@ -2605,9 +2650,9 @@ fn control_statuses_from_nodes(nodes: &[DashboardNodeSummary]) -> Vec<ControlSta
             availability: DashboardAvailability::Available,
             enabled: node.lifecycle_state == LifecycleStatus::Running,
             reason: if node.lifecycle_state == LifecycleStatus::Running {
-                DashboardValue::available("node can be paused by supervisor control".to_string())
+                DashboardValue::available("可以通过监督器控制暂停该节点".to_string())
             } else {
-                DashboardValue::available("node is not running".to_string())
+                DashboardValue::available("节点不是运行中状态".to_string())
             },
         });
         controls.push(ControlStatus {
@@ -2615,19 +2660,16 @@ fn control_statuses_from_nodes(nodes: &[DashboardNodeSummary]) -> Vec<ControlSta
             availability: DashboardAvailability::Available,
             enabled: node.lifecycle_state == LifecycleStatus::Paused,
             reason: if node.lifecycle_state == LifecycleStatus::Paused {
-                DashboardValue::available("node can be resumed by supervisor control".to_string())
+                DashboardValue::available("可以通过监督器控制恢复该节点".to_string())
             } else {
-                DashboardValue::available("node is not paused".to_string())
+                DashboardValue::available("节点不是已暂停状态".to_string())
             },
         });
         for (action, reason) in [
-            (
-                "reconnect_data",
-                "data reconnect records explicit local sandbox not_supported result",
-            ),
+            ("reconnect_data", "数据源重连会在本地沙盒中明确记录为不支持"),
             (
                 "reconnect_execution",
-                "execution reconnect records explicit local sandbox not_supported result",
+                "执行网关重连会在本地沙盒中明确记录为不支持",
             ),
         ] {
             let control_available = matches!(
@@ -2641,9 +2683,7 @@ fn control_statuses_from_nodes(nodes: &[DashboardNodeSummary]) -> Vec<ControlSta
                 reason: if control_available {
                     DashboardValue::available(reason.to_string())
                 } else {
-                    DashboardValue::available(
-                        "reconnect controls require a running or paused node".to_string(),
-                    )
+                    DashboardValue::available("重连控制要求节点处于运行中或已暂停状态".to_string())
                 },
             });
         }
@@ -2673,7 +2713,7 @@ fn alert_summary_from_gaps(gaps: &[DashboardGap]) -> AlertSummary {
                 .notes
                 .value
                 .clone()
-                .unwrap_or_else(|| "dashboard gap detected".to_string()),
+                .unwrap_or_else(|| "检测到 Dashboard 待补能力".to_string()),
             first_seen_at: DashboardValue::unknown(),
             last_seen_at: DashboardValue::unknown(),
         });
@@ -2871,11 +2911,11 @@ mod tests {
             "renderControls",
             "redactedDashboardValue",
             "dashboardErrorValue",
-            "No data sources reported",
-            "No execution gateways reported",
-            "No runtime modules reported",
-            "No logs or metrics reported",
-            "No controls reported",
+            "没有数据源上报",
+            "没有执行网关上报",
+            "没有运行模块上报",
+            "没有日志或指标上报",
+            "没有控制项",
         ] {
             assert!(
                 DASHBOARD_JS.contains(js_symbol),
@@ -3244,7 +3284,7 @@ mod tests {
 
         let shell = http_request(addr, "GET", "/dashboard").await;
         assert!(shell.contains("HTTP/1.1 200 OK"));
-        assert!(shell.contains("NTPRO Dashboard"));
+        assert!(shell.contains("NTPRO 监督器控制台"));
 
         let metadata = http_request(addr, "GET", "/api/server").await;
         assert!(metadata.contains("HTTP/1.1 200 OK"));
@@ -3558,11 +3598,11 @@ mod tests {
                 .last_error
                 .as_deref()
                 .unwrap()
-                .contains("invalid status")
+                .contains("状态工件无效")
         );
         assert!(snapshot.gaps.iter().any(|gap| {
             gap.field_path == "nodes.sandbox-a.status"
-                && gap.notes.value.as_deref().unwrap().contains("invalid")
+                && gap.notes.value.as_deref().unwrap().contains("无效")
         }));
     }
 
@@ -3586,7 +3626,7 @@ mod tests {
                 .last_error
                 .as_deref()
                 .unwrap()
-                .contains("status node identity mismatch")
+                .contains("状态节点身份不匹配")
         );
         assert!(snapshot.gaps.iter().any(|gap| {
             gap.field_path == "nodes.sandbox-a.status.node_id"
@@ -3595,7 +3635,7 @@ mod tests {
                     .value
                     .as_deref()
                     .unwrap()
-                    .contains("registry node 'sandbox-a' received runtime node 'sandbox-b'")
+                    .contains("注册表节点 'sandbox-a' 收到运行时节点 'sandbox-b'")
         }));
     }
 
@@ -3674,9 +3714,7 @@ mod tests {
                 .value
                 .as_deref()
                 .unwrap()
-                .contains(
-                    "metrics node identity mismatch: registry node 'sandbox-a' received runtime node 'sandbox-b'"
-                )
+                .contains("指标节点身份不匹配：注册表节点 'sandbox-a' 收到运行时节点 'sandbox-b'")
         );
     }
 

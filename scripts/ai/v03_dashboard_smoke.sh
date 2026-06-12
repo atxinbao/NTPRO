@@ -186,16 +186,16 @@ run_pw eval "$(cat <<'JS'
   );
 
   const requiredText = [
-    "Overview",
-    "Nodes",
-    "Controls",
-    "Data Sources",
-    "Execution Gateways",
-    "Risk Engine",
-    "Logs",
-    "Metrics",
-    "Runtime Modules",
-    "Gaps",
+    "概览",
+    "节点",
+    "控制",
+    "数据源",
+    "执行网关",
+    "风控引擎",
+    "日志",
+    "指标",
+    "运行模块",
+    "待补能力",
   ];
   const bodyText = document.body.innerText;
   const missingText = requiredText.filter((text) => !bodyText.includes(text));
@@ -242,7 +242,7 @@ run_pw eval "$(cat <<'JS'
     }
   }
 
-  const clickControl = async (action, nodeId, label, expectedStatus = "succeeded") => {
+  const clickControl = async (action, nodeId, label, expectedStatus = "成功") => {
     const button = document.querySelector(`button[data-dashboard-action="${action}"][data-node-id="${nodeId}"]`);
     if (!button || button.disabled) {
       throw new Error(`${label} button is not enabled`);
@@ -256,8 +256,8 @@ run_pw eval "$(cat <<'JS'
     );
   };
 
-  await clickControl("reconnect_data", "sandbox-b", "reconnect data sandbox-b", "not_supported");
-  await clickControl("reconnect_execution", "sandbox-b", "reconnect execution sandbox-b", "not_supported");
+  await clickControl("reconnect_data", "sandbox-b", "reconnect data sandbox-b", "不支持");
+  await clickControl("reconnect_execution", "sandbox-b", "reconnect execution sandbox-b", "不支持");
 
   await clickControl("pause", "sandbox-b", "pause sandbox-b");
   await waitFor(async () => {
