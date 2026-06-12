@@ -26,10 +26,34 @@ jobs:
             command: scripts/ai/verify_full.sh fast
           - stage: full-clippy
             command: scripts/ai/verify_full.sh clippy
-          - stage: full-rust-tests
-            command: scripts/ai/verify_full.sh rust-tests
-          - stage: full-golden-traces
-            command: scripts/ai/verify_full.sh golden-traces
+          - stage: full-rust-tests-workspace
+            command: scripts/ai/verify_full.sh rust-tests-workspace
+          - stage: full-rust-tests-common-log-global
+            command: scripts/ai/verify_full.sh rust-tests-common-log-global
+          - stage: full-rust-tests-live-log-global
+            command: scripts/ai/verify_full.sh rust-tests-live-log-global
+          - stage: full-rust-tests-live-node-serial
+            command: scripts/ai/verify_full.sh rust-tests-live-node-serial
+          - stage: full-golden-traces-files
+            command: scripts/ai/verify_full.sh golden-traces-files
+          - stage: full-golden-traces-harness
+            command: scripts/ai/verify_full.sh golden-traces-harness
+          - stage: full-golden-traces-market-data
+            command: scripts/ai/verify_full.sh golden-traces-market-data
+          - stage: full-golden-traces-cache-msgbus
+            command: scripts/ai/verify_full.sh golden-traces-cache-msgbus
+          - stage: full-golden-traces-backtest
+            command: scripts/ai/verify_full.sh golden-traces-backtest
+          - stage: full-golden-traces-backtest-live-parity
+            command: scripts/ai/verify_full.sh golden-traces-backtest-live-parity
+          - stage: full-golden-traces-live-sandbox
+            command: scripts/ai/verify_full.sh golden-traces-live-sandbox
+          - stage: full-golden-traces-order-lifecycle
+            command: scripts/ai/verify_full.sh golden-traces-order-lifecycle
+          - stage: full-golden-traces-risk-rejection
+            command: scripts/ai/verify_full.sh golden-traces-risk-rejection
+          - stage: full-golden-traces-adapter-payload
+            command: scripts/ai/verify_full.sh golden-traces-adapter-payload
           - stage: full-rust-docs
             command: scripts/ai/verify_full.sh rust-docs
           - stage: release-build-product-surface
