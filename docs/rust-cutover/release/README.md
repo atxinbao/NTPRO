@@ -19,3 +19,7 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_6_0_binance_testnet_dry_run_readiness_report.md` - V06-012 final
   PASS/FAIL readiness report for the v0.6 offline Binance testnet dry-run
   foundation.
+- `v0_6_0_release_notes.md` - release notes for the
+  `ntpro-rust-only-v0.6.0` GitHub Release. This release absorbs the completed
+  `v0.5.0` workflow-artifact foundation and does not publish a separate
+  `v0.5.0` tag/release.

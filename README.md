@@ -6,16 +6,16 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.4.1
-Capability: Binance Sandbox Product Foundation release-surface hardening
+Current source tag: ntpro-rust-only-v0.6.0
+Capability: Binance testnet dry-run runtime foundation
 ```
 
-This tag is the current v0.4.1 patch source release point for the scoped
-Binance sandbox product foundation. It is published as a GitHub Release for the
+This tag is the current v0.6.0 source release point for the scoped Binance
+testnet dry-run runtime foundation. It is published as a GitHub Release for the
 tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.4.1
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.6.0
 ```
 
 ## Current Status
@@ -92,51 +92,58 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.4.1 is a patch-only release-surface hardening release for the same
-Binance sandbox-only product foundation. It supports the same local,
-deterministic, evidence-backed product path as v0.4.0:
+v0.6.0 is the current formal release line. It builds on two earlier internal
+foundation layers:
 
-- checked-in Binance fixture replay;
-- mock order lifecycle evidence;
-- deterministic halted-state risk rejection smoke;
-- EMA / RSI sandbox strategy smokes;
-- local Dashboard exchange / strategy / order / risk panels;
-- V04 ignored-test scope closure.
+- `v0.4.x`: Binance sandbox product foundation;
+- `v0.5.0`: local Binance sandbox workflow artifacts;
+- `v0.6.0`: Binance testnet dry-run runtime foundation.
 
-v0.4.1 does not add new Binance capability. It only keeps the public README,
-release wording, named smoke gate, hosted evidence, and readiness report aligned
-with the already scoped Binance sandbox foundation.
+`v0.5.0` was completed as a scoped readiness milestone and is absorbed into the
+`v0.6.0` release tree. It is not published as a separate public GitHub Release.
 
-The v0.3.0 local Supervisor control console remains part of the validated
-release history, but it is no longer the current public milestone.
+The current release path supports:
 
-Not included in the v0.4.1 product claim:
+- Rust CLI `workflow run --workflow binance-sandbox`;
+- Rust CLI `workflow run --workflow binance-testnet --mode dry-run`;
+- deterministic local artifact directories and manifest / summary / events
+  contracts;
+- checked-in testnet dry-run config;
+- env-var-only credential policy artifact;
+- offline connectivity probe artifact;
+- dry-run order lifecycle artifact;
+- artifact-only reconciliation artifact;
+- Dashboard read-only workflow and testnet workflow surfaces.
 
-- Production exchange connectivity.
-- Real account connectivity.
-- Real order submission.
+The v0.3.0 local Supervisor control console and the v0.4.x Binance sandbox
+foundation remain part of validated release history, but they are no longer the
+current public milestone.
+
+Not included in the v0.6.0 product claim:
+
+- Live Binance testnet network connection.
+- Real Binance testnet order submission.
+- Real account reconciliation.
+- Production Binance connectivity.
+- Real account credential values in repository artifacts.
 - Real funds.
-- Production Binance Spot or USDT-M parity.
-- Manual order entry.
-- Production reconnect behavior.
-- Distributed multi-server deployment.
+- Production trading parity.
 - Remote or multi-user Dashboard operation.
 - Prebuilt binary or Docker release artifact delivery.
 
-## Binance Sandbox Boundary
+## Binance Testnet Dry-Run Boundary
 
-The v0.4.1 product boundary is still Binance sandbox-only. It is fixture /
-testnet / mock first, with no real funds, no production trading, and no real
-order submission.
+The v0.6.0 product boundary is Binance testnet dry-run only. It is offline,
+artifact-first, Rust-only, and explicitly non-production.
 
-The scope contract is:
+This release does not connect to Binance, does not store or load real API key
+values, does not submit real orders, and does not claim live or production
+trading readiness.
 
-- `docs/rust-cutover/scope/v0_4_0_binance_sandbox_product_foundation.md`
-- `docs/rust-cutover/scope/v0_4_1_binance_sandbox_release_surface_hardening.md`
+The scope and readiness documents are:
 
-The readiness report is:
-
-- `docs/rust-cutover/release/v0_4_0_binance_sandbox_readiness_report.md`
+- `docs/rust-cutover/release/v0_5_0_workflow_artifacts_readiness_report.md`
+- `docs/rust-cutover/release/v0_6_0_binance_testnet_dry_run_readiness_report.md`
 
 ## Verification
 
@@ -187,7 +194,9 @@ Release documents:
 - `docs/rust-cutover/release/v0_2_local_multi_node_readiness_report.md`
 - `docs/rust-cutover/release/v0_3_0_supervisor_control_readiness_report.md`
 - `docs/rust-cutover/release/v0_4_0_binance_sandbox_readiness_report.md`
-- `docs/rust-cutover/scope/v0_4_1_binance_sandbox_release_surface_hardening.md`
+- `docs/rust-cutover/release/v0_5_0_workflow_artifacts_readiness_report.md`
+- `docs/rust-cutover/release/v0_6_0_binance_testnet_dry_run_readiness_report.md`
+- `docs/rust-cutover/release/v0_6_0_release_notes.md`
 - `docs/rust-cutover/release/rust_only_release_notes.md`
 - `docs/rust-cutover/release/final_release_verification.md`
 - `docs/rust-cutover/release/final_completion_report.md`
@@ -216,12 +225,13 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.4.1` is the current Rust-only patch source release for the
-Binance Sandbox Product Foundation release-surface hardening line. v0.4.0
-remains the first Binance Sandbox Product Foundation baseline, v0.3.0 remains
-the Local Supervisor Control Console baseline, v0.2.0 remains the local
-multi-node runtime foundation baseline, and v0.1.0 remains the first formal
-Rust-only cutover release and historical baseline.
+`ntpro-rust-only-v0.6.0` is the current Rust-only source release for the
+Binance testnet dry-run runtime foundation line. `v0.5.0` remains a completed
+internal workflow-artifact milestone absorbed into `v0.6.0`, `v0.4.1` remains
+the latest Binance sandbox public patch baseline, `v0.3.0` remains the Local
+Supervisor Control Console baseline, `v0.2.0` remains the local multi-node
+runtime foundation baseline, and `v0.1.0` remains the first formal Rust-only
+cutover release and historical baseline.
 
 Before cutting the next release, review:
 
