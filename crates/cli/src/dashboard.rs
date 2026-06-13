@@ -91,6 +91,10 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
       <div id="sandbox-business" class="grid"></div>
     </section>
     <section class="band">
+      <h2>Workflow 工件</h2>
+      <div id="workflow-artifacts" class="table-wrap"></div>
+    </section>
+    <section class="band">
       <h2>节点</h2>
       <div id="nodes" class="table-wrap"></div>
     </section>
@@ -409,6 +413,7 @@ const DISPLAY_TEXT = {
   not_configured: "未配置",
   accepted: "已接收",
   succeeded: "成功",
+  completed: "已完成",
   failed: "失败",
   rejected: "已拒绝",
   log: "日志",
@@ -427,6 +432,9 @@ const DISPLAY_TEXT = {
   metrics_available: "指标可用",
   lifecycle_timeout: "生命周期操作超时",
   sandbox: "沙盒",
+  "binance-sandbox": "Binance 沙盒",
+  fixture_replay: "Fixture replay",
+  mock_execution: "Mock execution",
   spawned_process: "托管进程",
   test_harness: "测试夹具",
   active: "活跃",
@@ -560,6 +568,7 @@ function render(payload) {
     </table>` : `<div class="tile"><div class="value">没有已注册节点</div></div>`;
 
   renderSandboxBusiness(snapshot.sandbox_business || {});
+  renderWorkflowArtifacts(snapshot.workflow_artifacts || []);
   renderDataSources(snapshot.data_sources || []);
   renderExecutionGateways(snapshot.execution_gateways || []);
   renderRisk(snapshot.risk || {});
@@ -677,6 +686,36 @@ function renderControls(controls) {
         }).join("")}
       </tbody>
     </table>` : emptyTable("没有控制项");
+}
+
+function renderWorkflowArtifacts(workflows) {
+  document.getElementById("workflow-artifacts").innerHTML = workflows.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>Run ID</th>
+          <th>Workflow</th>
+          <th>状态</th>
+          <th>Manifest</th>
+          <th>Artifact</th>
+          <th>边界</th>
+          <th>证据</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${workflows.map((workflow) => `
+          <tr>
+            <td data-label="Run ID"><strong>${text(workflow.run_id)}</strong></td>
+            <td data-label="Workflow">${displayText(workflow.workflow)}</td>
+            <td data-label="状态"><span class="status-${safe(workflow.health)}">${displayText(workflow.runtime_status)}</span></td>
+            <td data-label="Manifest" class="path">${text(workflow.manifest_path)}</td>
+            <td data-label="Artifact">${displayText(workflow.artifact_count)} 个<div class="muted">${displayText(workflow.schema_version)}</div></td>
+            <td data-label="边界">${panelRow("沙盒", workflow.sandbox_only)}${panelRow("外部连接", workflow.external_venue_connection)}${panelRow("真实资金", workflow.real_funds)}${panelRow("生产交易", workflow.production_trading)}${panelRow("真实订单", workflow.real_orders_submitted)}</td>
+            <td data-label="证据">${text(snapshotValue(workflow.market_fixture_id))}<div class="muted">${text(snapshotValue(workflow.risk_smoke_id))}</div></td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>` : emptyTable("没有 workflow manifest 工件");
 }
 
 function renderDataSources(dataSources) {
@@ -1656,6 +1695,7 @@ pub struct DashboardSnapshot {
     pub execution_gateways: Vec<ExecutionGatewayStatus>,
     pub risk: RiskStatus,
     pub sandbox_business: SandboxBusinessStatus,
+    pub workflow_artifacts: Vec<WorkflowArtifactStatus>,
     pub runtime_modules: Vec<RuntimeModuleStatus>,
     pub logs: Vec<LogStatus>,
     pub metrics: Vec<MetricStatus>,
@@ -1676,6 +1716,7 @@ impl DashboardSnapshot {
             execution_gateways: Vec::new(),
             risk: RiskStatus::unknown(),
             sandbox_business: sandbox_business_status_from_v04_evidence(),
+            workflow_artifacts: Vec::new(),
             runtime_modules: Vec::new(),
             logs: Vec::new(),
             metrics: Vec::new(),
@@ -2023,6 +2064,56 @@ impl SandboxRiskPanel {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkflowArtifactStatus {
+    pub run_id: String,
+    pub workflow: String,
+    pub workflow_id: DashboardValue<String>,
+    pub schema_version: String,
+    pub runtime_status: String,
+    pub health: HealthStatus,
+    pub manifest_path: String,
+    pub artifact_count: u64,
+    pub market_fixture_id: DashboardValue<String>,
+    pub order_lifecycle_id: DashboardValue<String>,
+    pub risk_smoke_id: DashboardValue<String>,
+    pub sandbox_only: bool,
+    pub fixture_replay: bool,
+    pub mock_execution: bool,
+    pub external_venue_connection: bool,
+    pub real_funds: bool,
+    pub production_trading: bool,
+    pub real_orders_submitted: bool,
+    pub diagnostic: DashboardValue<String>,
+}
+
+impl WorkflowArtifactStatus {
+    #[must_use]
+    pub fn unknown(manifest_path: impl Into<String>, diagnostic: impl Into<String>) -> Self {
+        Self {
+            run_id: "unknown".to_string(),
+            workflow: "unknown".to_string(),
+            workflow_id: DashboardValue::unknown(),
+            schema_version: "unknown".to_string(),
+            runtime_status: "unknown".to_string(),
+            health: HealthStatus::Unknown,
+            manifest_path: manifest_path.into(),
+            artifact_count: 0,
+            market_fixture_id: DashboardValue::unknown(),
+            order_lifecycle_id: DashboardValue::unknown(),
+            risk_smoke_id: DashboardValue::unknown(),
+            sandbox_only: false,
+            fixture_replay: false,
+            mock_execution: false,
+            external_venue_connection: false,
+            real_funds: false,
+            production_trading: false,
+            real_orders_submitted: false,
+            diagnostic: DashboardValue::available(diagnostic.into()),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeModuleStatus {
     pub module_name: String,
     pub status: DashboardValue<String>,
@@ -2214,6 +2305,8 @@ pub fn snapshot_from_supervisor_artifacts(
             return Ok(snapshot);
         }
     };
+    snapshot.workflow_artifacts =
+        workflow_artifacts_from_registry_path(registry_path, &mut snapshot.gaps);
 
     if registry.nodes.is_empty() {
         snapshot.gaps.push(DashboardGap::new(
@@ -2782,6 +2875,179 @@ fn metric_statuses_from_record(
     .collect()
 }
 
+#[derive(Debug, Deserialize)]
+struct DashboardWorkflowManifest {
+    schema_version: String,
+    workflow_id: String,
+    workflow: String,
+    run_id: String,
+    runtime_status: String,
+    artifact_count: u64,
+    summary: DashboardWorkflowSummary,
+}
+
+#[derive(Debug, Deserialize)]
+struct DashboardWorkflowSummary {
+    market_fixture_id: Option<String>,
+    order_lifecycle_id: Option<String>,
+    risk_smoke_id: Option<String>,
+    sandbox_only: bool,
+    fixture_replay: bool,
+    mock_execution: bool,
+    external_venue_connection: bool,
+    real_funds: bool,
+    production_trading: bool,
+    real_orders_submitted: bool,
+}
+
+fn workflow_artifacts_from_registry_path(
+    registry_path: &FsPath,
+    gaps: &mut Vec<DashboardGap>,
+) -> Vec<WorkflowArtifactStatus> {
+    let mut manifest_paths = Vec::new();
+    for dir in workflow_artifact_candidate_dirs(registry_path) {
+        collect_workflow_manifest_paths(&dir, &mut manifest_paths, gaps);
+    }
+    manifest_paths.sort();
+    manifest_paths.dedup();
+
+    let mut statuses = Vec::with_capacity(manifest_paths.len());
+    for manifest_path in manifest_paths {
+        statuses.push(read_workflow_manifest_status(&manifest_path, gaps));
+    }
+    statuses.sort_by(|left, right| left.run_id.cmp(&right.run_id));
+    statuses
+}
+
+fn workflow_artifact_candidate_dirs(registry_path: &FsPath) -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    if let Some(parent) = registry_path.parent() {
+        dirs.push(parent.join("workflows"));
+        if let Some(root) = parent.parent() {
+            dirs.push(root.join("workflows"));
+        }
+    }
+    dirs.push(PathBuf::from("runs/workflows"));
+    dirs.sort();
+    dirs.dedup();
+    dirs
+}
+
+fn collect_workflow_manifest_paths(
+    dir: &FsPath,
+    manifest_paths: &mut Vec<PathBuf>,
+    gaps: &mut Vec<DashboardGap>,
+) {
+    if !dir.exists() {
+        return;
+    }
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(error) => {
+            gaps.push(DashboardGap::new(
+                "workflow_artifacts",
+                DashboardAvailability::Unknown,
+                "V05-006",
+                format!("读取 workflow 目录 '{}' 失败：{error}", dir.display()),
+            ));
+            return;
+        }
+    };
+
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        if path.is_dir() {
+            let manifest = path.join("manifest.json");
+            if manifest.exists() {
+                manifest_paths.push(manifest);
+            }
+        } else if path.file_name().and_then(|name| name.to_str()) == Some("manifest.json") {
+            manifest_paths.push(path);
+        }
+    }
+}
+
+fn read_workflow_manifest_status(
+    manifest_path: &FsPath,
+    gaps: &mut Vec<DashboardGap>,
+) -> WorkflowArtifactStatus {
+    let raw = match fs::read_to_string(manifest_path) {
+        Ok(raw) => raw,
+        Err(error) => {
+            gaps.push(workflow_manifest_gap(
+                manifest_path,
+                format!("读取 manifest 失败：{error}"),
+            ));
+            return WorkflowArtifactStatus::unknown(
+                manifest_path.display().to_string(),
+                "读取 workflow manifest 失败",
+            );
+        }
+    };
+
+    match serde_json::from_str::<DashboardWorkflowManifest>(&raw) {
+        Ok(manifest) => workflow_status_from_manifest(manifest_path, manifest),
+        Err(error) => {
+            gaps.push(workflow_manifest_gap(
+                manifest_path,
+                format!("manifest 无效：{error}"),
+            ));
+            WorkflowArtifactStatus::unknown(
+                manifest_path.display().to_string(),
+                "workflow manifest JSON 无效",
+            )
+        }
+    }
+}
+
+fn workflow_status_from_manifest(
+    manifest_path: &FsPath,
+    manifest: DashboardWorkflowManifest,
+) -> WorkflowArtifactStatus {
+    let summary = manifest.summary;
+    let health = if summary.external_venue_connection
+        || summary.real_funds
+        || summary.production_trading
+        || summary.real_orders_submitted
+        || !summary.sandbox_only
+    {
+        HealthStatus::Error
+    } else {
+        HealthStatus::Healthy
+    };
+
+    WorkflowArtifactStatus {
+        run_id: manifest.run_id,
+        workflow: manifest.workflow,
+        workflow_id: DashboardValue::available(manifest.workflow_id),
+        schema_version: manifest.schema_version,
+        runtime_status: manifest.runtime_status,
+        health,
+        manifest_path: manifest_path.display().to_string(),
+        artifact_count: manifest.artifact_count,
+        market_fixture_id: optional_dashboard_value(summary.market_fixture_id),
+        order_lifecycle_id: optional_dashboard_value(summary.order_lifecycle_id),
+        risk_smoke_id: optional_dashboard_value(summary.risk_smoke_id),
+        sandbox_only: summary.sandbox_only,
+        fixture_replay: summary.fixture_replay,
+        mock_execution: summary.mock_execution,
+        external_venue_connection: summary.external_venue_connection,
+        real_funds: summary.real_funds,
+        production_trading: summary.production_trading,
+        real_orders_submitted: summary.real_orders_submitted,
+        diagnostic: DashboardValue::available("V05 workflow manifest loaded".to_string()),
+    }
+}
+
+fn workflow_manifest_gap(manifest_path: &FsPath, notes: String) -> DashboardGap {
+    DashboardGap::new(
+        format!("workflow_artifacts.{}", manifest_path.display()),
+        DashboardAvailability::Unknown,
+        "V05-006",
+        notes,
+    )
+}
+
 fn aggregate_risk_status(statuses: &[NodeStatus]) -> RiskStatus {
     if statuses.is_empty() {
         return RiskStatus::unknown();
@@ -3317,6 +3583,7 @@ mod tests {
             "execution_gateways",
             "risk",
             "sandbox_business",
+            "workflow_artifacts",
             "runtime_modules",
             "logs",
             "metrics",
@@ -3329,6 +3596,7 @@ mod tests {
         assert_eq!(value["overview"]["node_count"], 0);
         assert_eq!(value["overview"]["health"], "unknown");
         assert_eq!(value["risk"]["availability"], "unknown");
+        assert_eq!(value["workflow_artifacts"], json!([]));
         assert_eq!(value["sandbox_business"]["availability"], "available");
         assert_eq!(
             value["sandbox_business"]["exchange"]["venue"],
@@ -3342,6 +3610,7 @@ mod tests {
             "data-sources",
             "execution-gateways",
             "sandbox-business",
+            "workflow-artifacts",
             "risk",
             "runtime-modules",
             "logs-metrics",
@@ -3358,6 +3627,7 @@ mod tests {
             "renderDataSources",
             "renderExecutionGateways",
             "renderSandboxBusiness",
+            "renderWorkflowArtifacts",
             "renderRisk",
             "renderRuntimeModules",
             "renderLogsMetrics",
@@ -3366,6 +3636,7 @@ mod tests {
             "dashboardErrorValue",
             "没有数据源上报",
             "没有执行网关上报",
+            "没有 workflow manifest 工件",
             "没有运行模块上报",
             "没有日志或指标上报",
             "没有控制项",
@@ -3630,6 +3901,67 @@ mod tests {
             snapshot.gaps[0].reason,
             DashboardAvailability::NotConfigured
         );
+    }
+
+    #[test]
+    fn workflow_manifest_artifacts_populate_dashboard_snapshot() {
+        let root = temp_root("workflow-manifest");
+        let registry_path = root.join("runs/supervisor/registry.json");
+        write_registry(&registry_path, []);
+        let manifest_path = root.join("runs/workflows/v05-smoke/manifest.json");
+        write_workflow_manifest(&manifest_path, "v05-smoke", false);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:01:30Z").unwrap();
+
+        assert_eq!(snapshot.workflow_artifacts.len(), 1);
+        let workflow = &snapshot.workflow_artifacts[0];
+        assert_eq!(workflow.run_id, "v05-smoke");
+        assert_eq!(workflow.workflow, "binance-sandbox");
+        assert_eq!(workflow.schema_version, "ntpro.workflow_manifest.v1");
+        assert_eq!(workflow.runtime_status, "completed");
+        assert_eq!(workflow.health, HealthStatus::Healthy);
+        assert_eq!(workflow.artifact_count, 9);
+        assert_eq!(
+            workflow.market_fixture_id.value.as_deref(),
+            Some("v04-binance-spot-bars")
+        );
+        assert_eq!(
+            workflow.order_lifecycle_id.value.as_deref(),
+            Some("v04-binance-mock-order-lifecycle")
+        );
+        assert_eq!(
+            workflow.risk_smoke_id.value.as_deref(),
+            Some("v04-binance-risk-rejection-smoke")
+        );
+        assert!(workflow.sandbox_only);
+        assert!(workflow.fixture_replay);
+        assert!(workflow.mock_execution);
+        assert!(!workflow.external_venue_connection);
+        assert!(!workflow.real_funds);
+        assert!(!workflow.production_trading);
+        assert!(!workflow.real_orders_submitted);
+    }
+
+    #[test]
+    fn invalid_workflow_manifest_records_gap() {
+        let root = temp_root("invalid-workflow-manifest");
+        let registry_path = root.join("runs/supervisor/registry.json");
+        write_registry(&registry_path, []);
+        let manifest_path = root.join("runs/workflows/broken/manifest.json");
+        fs::create_dir_all(manifest_path.parent().unwrap()).unwrap();
+        fs::write(&manifest_path, "not-json").unwrap();
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:01:45Z").unwrap();
+
+        assert_eq!(snapshot.workflow_artifacts.len(), 1);
+        assert_eq!(snapshot.workflow_artifacts[0].run_id, "unknown");
+        assert!(snapshot.gaps.iter().any(|gap| {
+            gap.field_path.contains("workflow_artifacts")
+                && gap.reason == DashboardAvailability::Unknown
+                && gap.owner_task.value.as_deref() == Some("V05-006")
+        }));
     }
 
     #[test]
@@ -4454,6 +4786,54 @@ mod tests {
         }
         let raw = serde_json::to_string_pretty(&registry).unwrap();
         fs::write(registry_path, format!("{raw}\n")).unwrap();
+    }
+
+    fn write_workflow_manifest(path: &Path, run_id: &str, real_orders_submitted: bool) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        let manifest = json!({
+            "schema_version": "ntpro.workflow_manifest.v1",
+            "workflow_id": "v05-binance-sandbox-local-workflow",
+            "workflow": "binance-sandbox",
+            "run_id": run_id,
+            "runtime_status": "completed",
+            "artifact_count": 9,
+            "artifacts": [],
+            "summary": {
+                "schema_version": "ntpro.workflow_summary.v1",
+                "workflow_id": "v05-binance-sandbox-local-workflow",
+                "workflow": "binance-sandbox",
+                "run_id": run_id,
+                "runtime_status": "completed",
+                "market_fixture_id": "v04-binance-spot-bars",
+                "market_bar_count": 12,
+                "market_checksum": "be481da0f80f7ca2",
+                "ema_smoke_id": "v04-binance-ema-smoke",
+                "ema_signals_emitted": 3,
+                "ema_checksum": "ema-checksum",
+                "rsi_smoke_id": "v04-binance-rsi-smoke",
+                "rsi_signals_emitted": 4,
+                "rsi_checksum": "rsi-checksum",
+                "order_lifecycle_id": "v04-binance-mock-order-lifecycle",
+                "order_event_count": 5,
+                "order_checksum": "order-checksum",
+                "risk_smoke_id": "v04-binance-risk-rejection-smoke",
+                "risk_checksum": "60b0dc50f47caea8",
+                "sandbox_only": true,
+                "fixture_replay": true,
+                "mock_execution": true,
+                "external_venue_connection": false,
+                "real_funds": false,
+                "production_trading": false,
+                "real_orders_submitted": real_orders_submitted
+            }
+        });
+        fs::write(
+            path,
+            format!("{}\n", serde_json::to_string_pretty(&manifest).unwrap()),
+        )
+        .unwrap();
     }
 
     fn write_status_artifact(record: &SupervisorNodeRecord, status: &NodeStatus) {
