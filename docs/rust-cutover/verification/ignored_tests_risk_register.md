@@ -98,6 +98,47 @@ Closure rule:
 - `SCOPED_OUT_FOR_V031` is not `DONE`; it only prevents the patch release from
   accidentally depending on ignored trading/runtime/adapter evidence.
 
+## V04-011 Binance Sandbox Closure Result
+
+V04-011 applies the v0.4 Binance Sandbox Product Foundation closure pass. It
+does not mark existing runtime, adapter, database, or stress ignored tests as
+fixed. Instead it records that the v0.4 release claim does not depend on those
+ignored tests.
+
+The v0.4 claim is limited to:
+
+- Binance fixture replay;
+- mock Binance order lifecycle;
+- deterministic halted-state risk rejection;
+- EMA and RSI strategy smokes;
+- local Dashboard exchange/strategy/order/risk panels.
+
+The scoped v0.4 files were scanned for ignored tests:
+
+```bash
+rg -n "#\[ignore" crates/adapters/binance crates/trading/tests \
+  crates/risk/tests/v04_binance_risk_rejection.rs crates/cli/src/dashboard.rs --glob '*.rs'
+```
+
+Result: no ignored tests were found in the scoped v0.4 evidence files.
+
+V04-011 decision:
+
+| Batch | Covered IDs | V04-011 decision | Why the v0.4 release claim does not rely on it |
+| --- | --- | --- | --- |
+| Execution matching-engine blockers | `IGN-HIGH-003`, `IGN-HIGH-004`, `IGN-HIGH-005` | `SCOPED_OUT_FOR_V04`; still `BLOCKER_RECORDED` for future runtime releases. | v0.4 uses deterministic mock Binance lifecycle evidence and does not claim production contingent/OCO/trailing-stop matching-engine behavior. |
+| Broad risk-engine blockers | `IGN-HIGH-006` through `IGN-HIGH-011` | `SCOPED_OUT_FOR_V04`; still `BLOCKER_RECORDED` for future runtime releases. | v0.4 proves one halted-state Binance sandbox rejection through `V04-009`; it does not claim order-list reducing, emulator routing, or account-balance tracking. |
+| PostgreSQL cache rejected-order tests | `IGN-MED-004`, `IGN-MED-005` | `SCOPED_OUT_FOR_V04`; still open for infrastructure hardening. | v0.4 uses local fixture/read-model evidence and does not claim durable PostgreSQL cache persistence. |
+| Live stress/performance ignored tests | `IGN-MED-001`, `IGN-MED-002` | `RELEASE/PERF_ONLY_FOR_V04`; still manual/performance scoped. | v0.4 does not claim live-node throughput or cancellation-starvation performance guarantees. |
+
+Closure rule:
+
+- These tests must not be counted as `v0.4.0` release evidence.
+- The v0.4 readiness report must cite the active V04 evidence tests instead.
+- `SCOPED_OUT_FOR_V04` is not `DONE`; it only prevents the Binance sandbox
+  release claim from accidentally depending on ignored runtime or integration
+  evidence.
+
 Formal blocker groups:
 
 | Blocker ID | Covered ignored tests | Required follow-up |
