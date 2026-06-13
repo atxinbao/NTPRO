@@ -64,6 +64,7 @@ pub mod opt;
 mod process;
 mod sandbox;
 pub mod supervisor;
+mod workflow;
 
 use std::path::PathBuf;
 
@@ -79,6 +80,7 @@ use crate::{
     opt::{Commands, NautilusCli},
     sandbox::run_sandbox_command,
     supervisor::run_supervisor_command,
+    workflow::run_workflow_command,
 };
 
 pub use live::NtproNodeRunControls;
@@ -97,6 +99,7 @@ pub async fn run(opt: NautilusCli) -> anyhow::Result<()> {
         Commands::Config(config_opt) => run_config_command(config_opt)?,
         Commands::Supervisor(supervisor_opt) => run_supervisor_command(supervisor_opt)?,
         Commands::Dashboard(dashboard_opt) => run_dashboard_command(dashboard_opt).await?,
+        Commands::Workflow(workflow_opt) => run_workflow_command(workflow_opt)?,
         Commands::Database(database_opt) => run_database_command(database_opt).await?,
         #[cfg(feature = "defi")]
         Commands::Blockchain(blockchain_opt) => run_blockchain_command(blockchain_opt).await?,
