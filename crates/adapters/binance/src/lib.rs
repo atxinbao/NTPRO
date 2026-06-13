@@ -59,5 +59,6 @@ pub mod config;
 pub mod data_types;
 pub mod factories;
 pub mod futures;
+pub mod mock_lifecycle;
 pub mod replay;
 pub mod spot;

@@ -54,6 +54,25 @@
       ]
     },
     {
+      "id": "v04-binance-sandbox-mock-order-lifecycle",
+      "surface": "v04_sandbox_mock_order_lifecycle",
+      "product_scope": "Spot sandbox mock execution lifecycle",
+      "classification": "supported",
+      "covers": [
+        "deterministic submit accepted filled flow",
+        "deterministic submit accepted canceled flow",
+        "deterministic scoped rejected flow",
+        "dashboard-readable order lifecycle summary"
+      ],
+      "fixture_paths": [
+        "v04/mock_order_lifecycle.jsonl"
+      ],
+      "primary_tests": [
+        "src/mock_lifecycle.rs",
+        "tests/v04_mock_lifecycle.rs"
+      ]
+    },
+    {
       "id": "spot-http-execution-lifecycle",
       "surface": "spot_execution_lifecycle",
       "product_scope": "Spot",
