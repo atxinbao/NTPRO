@@ -26,11 +26,13 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 nautilus-backtest = { workspace = true }
+nautilus-binance = { workspace = true }
 nautilus-common = { workspace = true }
 nautilus-core = { workspace = true }
 nautilus-infrastructure = { workspace = true, features = ["postgres"] }
 nautilus-live = { workspace = true, features = ["node"] }
 nautilus-model = { workspace = true }
+nautilus-risk = { workspace = true }
 nautilus-sandbox = { workspace = true }
 nautilus-trading = { workspace = true, features = ["examples"] }
 

@@ -35,6 +35,7 @@ pub enum Commands {
     Config(ConfigOpt),
     Supervisor(SupervisorOpt),
     Dashboard(DashboardOpt),
+    Workflow(WorkflowOpt),
     Database(DatabaseOpt),
     #[cfg(feature = "defi")]
     Blockchain(BlockchainOpt),
@@ -329,6 +330,49 @@ pub struct DashboardServeOpt {
     pub ntpro_node_bin: Option<PathBuf>,
 }
 
+/// Local workflow artifact commands for sandbox-only product smokes.
+#[derive(Parser, Debug)]
+#[command(
+    about = "Local sandbox-only workflow artifact commands",
+    long_about = None
+)]
+pub struct WorkflowOpt {
+    #[clap(subcommand)]
+    pub command: WorkflowCommand,
+}
+
+/// Available local workflow artifact commands.
+#[derive(Parser, Debug, Clone)]
+#[command(
+    about = "Local sandbox-only workflow artifact commands",
+    long_about = None
+)]
+pub enum WorkflowCommand {
+    /// Runs the local Binance sandbox workflow and writes dashboard-readable artifacts.
+    Run(WorkflowRunOpt),
+}
+
+/// Supported local workflow kinds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum WorkflowKind {
+    /// Local Binance sandbox workflow using checked-in fixtures and mock execution only.
+    BinanceSandbox,
+}
+
+/// Local workflow run options.
+#[derive(Parser, Debug, Clone)]
+pub struct WorkflowRunOpt {
+    /// Workflow kind to run.
+    #[arg(long, value_enum, default_value_t = WorkflowKind::BinanceSandbox)]
+    pub workflow: WorkflowKind,
+    /// Owner-visible run identifier used in the artifact directory.
+    #[arg(long)]
+    pub run_id: Option<String>,
+    /// Optional output directory for workflow artifacts.
+    #[arg(long)]
+    pub output: Option<PathBuf>,
+}
+
 /// Data catalog inspection, validation, and loading commands.
 #[derive(Parser, Debug)]
 #[command(about = "Data catalog operations", long_about = None)]
@@ -571,6 +615,7 @@ mod tests {
         assert!(help.contains("config"));
         assert!(help.contains("supervisor"));
         assert!(help.contains("dashboard"));
+        assert!(help.contains("workflow"));
         assert!(help.contains("database"));
     }
 
@@ -1038,6 +1083,54 @@ mod tests {
             serve.ntpro_node_bin,
             Some(PathBuf::from("target/debug/ntpro-node"))
         );
+    }
+
+    #[test]
+    fn workflow_help_lists_local_artifact_run() {
+        let mut command = NautilusCli::command();
+        let workflow = command
+            .find_subcommand_mut("workflow")
+            .expect("workflow command should exist");
+        let help = workflow.render_help().to_string();
+
+        assert!(help.contains("run"));
+        assert!(help.contains("Local sandbox-only workflow artifact commands"));
+    }
+
+    #[test]
+    fn workflow_run_help_describes_sandbox_boundary() {
+        let help = render_subcommand_help(&["workflow", "run"]);
+
+        assert!(help.contains("local Binance sandbox workflow"));
+        assert!(help.contains("dashboard-readable artifacts"));
+        assert!(help.contains("--workflow"));
+        assert!(help.contains("--run-id"));
+        assert!(help.contains("--output"));
+    }
+
+    #[test]
+    fn parses_workflow_run_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "workflow",
+            "run",
+            "--workflow",
+            "binance-sandbox",
+            "--run-id",
+            "v05-smoke",
+            "--output",
+            "runs/workflows/v05-smoke",
+        ])
+        .expect("workflow run should parse");
+
+        let Commands::Workflow(workflow) = parsed.command else {
+            panic!("expected workflow command");
+        };
+        let WorkflowCommand::Run(run) = workflow.command;
+
+        assert_eq!(run.workflow, WorkflowKind::BinanceSandbox);
+        assert_eq!(run.run_id.as_deref(), Some("v05-smoke"));
+        assert_eq!(run.output, Some(PathBuf::from("runs/workflows/v05-smoke")));
     }
 
     #[test]
