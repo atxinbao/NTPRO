@@ -8,6 +8,61 @@ source scripts/ai/toolchain_env.sh
 FEATURES="${NAUTILUS_RUST_FEATURES:-arrow,ffi,high-precision,streaming,defi}"
 CARGO_DOC_JOBS="${VERIFY_FULL_CARGO_DOC_JOBS:-1}"
 
+WORKSPACE_TEST_PACKAGES=(
+  nautilus-trader
+  nautilus-architect-ax
+  nautilus-common
+  nautilus-core
+  nautilus-indicators
+  nautilus-model
+  nautilus-serialization
+  nautilus-live
+  nautilus-data
+  nautilus-persistence
+  nautilus-persistence-macros
+  nautilus-testkit
+  nautilus-network
+  nautilus-cryptography
+  nautilus-portfolio
+  nautilus-analysis
+  nautilus-trading
+  nautilus-execution
+  nautilus-plugin
+  nautilus-risk
+  nautilus-system
+  nautilus-sandbox
+  nautilus-databento
+  nautilus-betfair
+  nautilus-backtest
+  nautilus-binance
+  nautilus-bitmex
+  nautilus-blockchain
+  nautilus-infrastructure
+  nautilus-bybit
+  nautilus-coinbase
+  nautilus-deribit
+  nautilus-dydx
+  nautilus-hyperliquid
+  nautilus-interactive-brokers
+  nautilus-kraken
+  nautilus-tardis
+  nautilus-okx
+  nautilus-polymarket
+  nautilus-cli
+  nautilus-event-store
+)
+
+LIVE_LIB_LOG_GLOBAL_TESTS=(
+  node::tests::test_await_engines_connected_returns_shutdown_requested
+  node::tests::test_await_engines_connected_returns_stop_requested
+  node::tests::test_direct_build_rejects_event_store_config
+  node::tests::test_run_event_store_replay_config_failure_aborts_startup
+  node::tests::test_run_event_store_replay_consumes_runner_and_stops_before_connections
+  node::tests::test_start_event_store_replay_config_failure_aborts_startup
+  node::tests::test_start_event_store_replay_skips_live_connections
+  node::tests::test_start_stop_request_aborts_startup_without_running
+)
+
 feature_args_for_crate() {
   local supported_csv="$1"
   local selected=()
@@ -54,6 +109,33 @@ run_exact_cargo_tests_with_args() {
   done
 }
 
+package_is_selected() {
+  local needle="$1"
+  shift
+
+  local selected
+  for selected in "$@"; do
+    if [[ "$selected" == "$needle" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+set_rust_test_skip_args() {
+  RUST_TEST_SKIP_ARGS=(
+    --skip logging::logger::tests::serial_tests
+    --skip logging::macros::tests::test_colored_logging_macros
+    --skip logging::macros::tests::test_default_macro_captures_module_path
+    --skip serial_tests
+  )
+
+  local test_name
+  for test_name in "${LIVE_LIB_LOG_GLOBAL_TESTS[@]}"; do
+    RUST_TEST_SKIP_ARGS+=(--skip "$test_name")
+  done
+}
+
 run_fast_checks() {
   echo "== verify_full: fast checks =="
   scripts/ai/verify_fast.sh
@@ -66,30 +148,95 @@ run_clippy() {
 
 run_rust_workspace_tests() {
   echo "== verify_full: rust tests workspace =="
-  live_lib_log_global_tests=(
-    node::tests::test_await_engines_connected_returns_shutdown_requested
-    node::tests::test_await_engines_connected_returns_stop_requested
-    node::tests::test_direct_build_rejects_event_store_config
-    node::tests::test_run_event_store_replay_config_failure_aborts_startup
-    node::tests::test_run_event_store_replay_consumes_runner_and_stops_before_connections
-    node::tests::test_start_event_store_replay_config_failure_aborts_startup
-    node::tests::test_start_event_store_replay_skips_live_connections
-    node::tests::test_start_stop_request_aborts_startup_without_running
-  )
-
-  rust_test_skip_args=(
-    --skip logging::logger::tests::serial_tests
-    --skip logging::macros::tests::test_colored_logging_macros
-    --skip logging::macros::tests::test_default_macro_captures_module_path
-    --skip serial_tests
-  )
-
-  for test_name in "${live_lib_log_global_tests[@]}"; do
-    rust_test_skip_args+=(--skip "$test_name")
-  done
+  set_rust_test_skip_args
 
   cargo test --workspace --lib --tests --features "$FEATURES" -- \
-    "${rust_test_skip_args[@]}"
+    "${RUST_TEST_SKIP_ARGS[@]}"
+}
+
+run_rust_workspace_partition_tests() {
+  local partition="$1"
+  shift
+  local partition_features="$1"
+  shift
+  local selected_packages=("$@")
+  local exclude_args=()
+  local package
+
+  for package in "${WORKSPACE_TEST_PACKAGES[@]}"; do
+    if ! package_is_selected "$package" "${selected_packages[@]}"; then
+      exclude_args+=(--exclude "$package")
+    fi
+  done
+
+  set_rust_test_skip_args
+
+  echo "== verify_full: rust tests workspace partition $partition =="
+  printf 'packages=%s\n' "${selected_packages[*]}"
+  printf 'features=%s\n' "$partition_features"
+  cargo test --workspace "${exclude_args[@]}" --lib --tests --features "$partition_features" -- \
+    "${RUST_TEST_SKIP_ARGS[@]}"
+}
+
+run_rust_workspace_core_tests() {
+  run_rust_workspace_partition_tests core \
+    arrow,ffi,high-precision,streaming,defi \
+    nautilus-trader \
+    nautilus-common \
+    nautilus-core \
+    nautilus-indicators \
+    nautilus-model \
+    nautilus-serialization \
+    nautilus-testkit \
+    nautilus-network \
+    nautilus-cryptography \
+    nautilus-system \
+    nautilus-plugin
+}
+
+run_rust_workspace_runtime_tests() {
+  run_rust_workspace_partition_tests runtime \
+    ffi,high-precision,streaming,defi \
+    nautilus-live \
+    nautilus-data \
+    nautilus-persistence \
+    nautilus-persistence-macros \
+    nautilus-portfolio \
+    nautilus-analysis \
+    nautilus-trading \
+    nautilus-execution \
+    nautilus-risk \
+    nautilus-sandbox \
+    nautilus-backtest \
+    nautilus-infrastructure \
+    nautilus-event-store \
+    nautilus-cli
+}
+
+run_rust_workspace_adapters_a_tests() {
+  run_rust_workspace_partition_tests adapters-a \
+    arrow,high-precision \
+    nautilus-architect-ax \
+    nautilus-databento \
+    nautilus-betfair \
+    nautilus-binance \
+    nautilus-bitmex \
+    nautilus-blockchain \
+    nautilus-bybit \
+    nautilus-coinbase
+}
+
+run_rust_workspace_adapters_b_tests() {
+  run_rust_workspace_partition_tests adapters-b \
+    arrow,high-precision \
+    nautilus-deribit \
+    nautilus-dydx \
+    nautilus-hyperliquid \
+    nautilus-interactive-brokers \
+    nautilus-kraken \
+    nautilus-tardis \
+    nautilus-okx \
+    nautilus-polymarket
 }
 
 run_common_log_global_tests() {
@@ -115,17 +262,6 @@ run_common_log_global_tests() {
 
 run_live_log_global_tests() {
   echo "== verify_full: nautilus-live log-global tests =="
-  live_lib_log_global_tests=(
-    node::tests::test_await_engines_connected_returns_shutdown_requested
-    node::tests::test_await_engines_connected_returns_stop_requested
-    node::tests::test_direct_build_rejects_event_store_config
-    node::tests::test_run_event_store_replay_config_failure_aborts_startup
-    node::tests::test_run_event_store_replay_consumes_runner_and_stops_before_connections
-    node::tests::test_start_event_store_replay_config_failure_aborts_startup
-    node::tests::test_start_event_store_replay_skips_live_connections
-    node::tests::test_start_stop_request_aborts_startup_without_running
-  )
-
   live_feature_args=()
   while IFS= read -r arg; do
     live_feature_args+=("$arg")
@@ -134,7 +270,7 @@ run_live_log_global_tests() {
   )
   live_lib_args=("${live_feature_args[@]}" --lib)
 
-  run_exact_cargo_tests_with_args nautilus-live "${#live_lib_args[@]}" "${live_lib_args[@]}" "${live_lib_log_global_tests[@]}"
+  run_exact_cargo_tests_with_args nautilus-live "${#live_lib_args[@]}" "${live_lib_args[@]}" "${LIVE_LIB_LOG_GLOBAL_TESTS[@]}"
 }
 
 run_live_node_serial_tests() {
@@ -265,6 +401,18 @@ run_stage() {
     rust-tests-workspace)
       run_rust_workspace_tests
       ;;
+    rust-tests-workspace-core)
+      run_rust_workspace_core_tests
+      ;;
+    rust-tests-workspace-runtime)
+      run_rust_workspace_runtime_tests
+      ;;
+    rust-tests-workspace-adapters-a)
+      run_rust_workspace_adapters_a_tests
+      ;;
+    rust-tests-workspace-adapters-b)
+      run_rust_workspace_adapters_b_tests
+      ;;
     rust-tests-common-log-global)
       run_common_log_global_tests
       ;;
@@ -319,7 +467,7 @@ run_stage() {
       ;;
     *)
       echo "unknown verify_full stage: $stage" >&2
-      echo "valid stages: all, fast, clippy, rust-tests, rust-tests-workspace, rust-tests-common-log-global, rust-tests-live-log-global, rust-tests-live-node-serial, golden-traces, golden-traces-files, golden-traces-harness, golden-traces-market-data, golden-traces-cache-msgbus, golden-traces-backtest, golden-traces-backtest-live-parity, golden-traces-live-sandbox, golden-traces-order-lifecycle, golden-traces-risk-rejection, golden-traces-adapter-payload, rust-docs" >&2
+      echo "valid stages: all, fast, clippy, rust-tests, rust-tests-workspace, rust-tests-workspace-core, rust-tests-workspace-runtime, rust-tests-workspace-adapters-a, rust-tests-workspace-adapters-b, rust-tests-common-log-global, rust-tests-live-log-global, rust-tests-live-node-serial, golden-traces, golden-traces-files, golden-traces-harness, golden-traces-market-data, golden-traces-cache-msgbus, golden-traces-backtest, golden-traces-backtest-live-parity, golden-traces-live-sandbox, golden-traces-order-lifecycle, golden-traces-risk-rejection, golden-traces-adapter-payload, rust-docs" >&2
       exit 2
       ;;
   esac
