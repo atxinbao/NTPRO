@@ -35,6 +35,10 @@ use nautilus_live::status::{
     ConnectionStatus, HealthStatus, LifecycleStatus, NodeStatus, ProcessMode, RiskTradingState,
     SnapshotAvailability, SnapshotValue,
 };
+use nautilus_trading::strategy::v04_smoke::{
+    V04_BINANCE_EMA_MOCK_LIFECYCLE_ID, V04_BINANCE_EMA_RISK_SMOKE_ID, v04_ema_smoke_from_csv,
+    v04_rsi_smoke_from_csv,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -51,6 +55,15 @@ const DASHBOARD_DATA_RECONNECT_UNSUPPORTED_MESSAGE: &str =
     "本地沙盒仅记录数据源重连为不支持，不会连接真实交易所或真实 adapter";
 const DASHBOARD_EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE: &str =
     "本地沙盒仅记录执行网关重连为不支持，不会连接真实交易所或真实 adapter";
+const V04_BINANCE_SPOT_BARS_CSV: &str =
+    include_str!("../../adapters/binance/test_data/v04/binance_spot_bars.csv");
+const V04_BINANCE_MOCK_ORDER_LIFECYCLE_JSONL: &str =
+    include_str!("../../adapters/binance/test_data/v04/mock_order_lifecycle.jsonl");
+const V04_BINANCE_MOCK_ORDER_LIFECYCLE_PATH: &str =
+    "crates/adapters/binance/test_data/v04/mock_order_lifecycle.jsonl";
+const V04_BINANCE_RISK_REJECTION_CLIENT_ORDER_ID: &str = "O-V04-003";
+const V04_BINANCE_RISK_REJECTION_FIXTURE_REASON: &str = "mock_reject_requested";
+const V04_BINANCE_RISK_REJECTION_REASON: &str = "TradingState::HALTED";
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
 <html lang="zh-CN">
@@ -72,6 +85,10 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
     <section class="band">
       <h2>概览</h2>
       <div id="overview" class="grid"></div>
+    </section>
+    <section class="band">
+      <h2>Binance 沙盒业务状态</h2>
+      <div id="sandbox-business" class="grid"></div>
     </section>
     <section class="band">
       <h2>节点</h2>
@@ -202,6 +219,20 @@ main {
   margin-top: 6px;
   font-size: 18px;
   font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.panel-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #edf1f6;
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.panel-row span:last-child {
+  text-align: right;
   overflow-wrap: anywhere;
 }
 
@@ -430,6 +461,9 @@ const snapshotValue = (value) => {
 };
 
 const availability = (value) => value && typeof value === "object" ? value.availability : "unknown";
+const dashboardValueText = (value) => displayValue(snapshotValue(value));
+const panelRow = (label, value) =>
+  `<div class="panel-row"><span class="muted">${text(label)}</span><span>${displayText(value)}</span></div>`;
 
 const redactedError = (value) => {
   const present = value && typeof value === "string" && value.trim().length > 0;
@@ -525,6 +559,7 @@ function render(payload) {
       </tbody>
     </table>` : `<div class="tile"><div class="value">没有已注册节点</div></div>`;
 
+  renderSandboxBusiness(snapshot.sandbox_business || {});
   renderDataSources(snapshot.data_sources || []);
   renderExecutionGateways(snapshot.execution_gateways || []);
   renderRisk(snapshot.risk || {});
@@ -555,6 +590,62 @@ const controlLabel = (action) => {
 
 const controlNodeId = (action) => safe(action).split(":").slice(1).join(":");
 const controlActionName = (action) => safe(action).split(":")[0];
+
+function renderSandboxBusiness(business) {
+  const exchange = business.exchange || {};
+  const strategies = business.strategies || [];
+  const order = business.order || {};
+  const risk = business.risk || {};
+  const strategySignals = strategies.map((strategy) =>
+    `${snapshotValue(strategy.strategy_name)} ${snapshotValue(strategy.signals_emitted)}`
+  ).join(" / ") || "unknown";
+  const strategyFinalSignals = strategies.map((strategy) =>
+    `${snapshotValue(strategy.strategy_name)} ${snapshotValue(strategy.final_signal)}`
+  ).join(" / ") || "unknown";
+  const orderCounts = [
+    `提交 ${dashboardValueText(order.submitted_count)}`,
+    `接收 ${dashboardValueText(order.accepted_count)}`,
+    `成交 ${dashboardValueText(order.filled_count)}`,
+    `撤单 ${dashboardValueText(order.canceled_count)}`,
+    `拒绝 ${dashboardValueText(order.rejected_count)}`,
+  ].join(" / ");
+  document.getElementById("sandbox-business").innerHTML = [
+    `<div class="tile">
+      <div class="label">交易场所</div>
+      <div class="value">${dashboardValueText(exchange.venue)}</div>
+      ${panelRow("合约", snapshotValue(exchange.instrument_id))}
+      ${panelRow("Bar 类型", snapshotValue(exchange.bar_type))}
+      ${panelRow("Fixture", snapshotValue(exchange.fixture_id))}
+      ${panelRow("Bar 数量", dashboardValueText(exchange.bars_processed))}
+      ${panelRow("外部连接", displayValue(exchange.external_venue_connection))}
+    </div>`,
+    `<div class="tile">
+      <div class="label">策略</div>
+      <div class="value">${text(strategies.length)} 条 smoke</div>
+      ${panelRow("信号数量", strategySignals)}
+      ${panelRow("最终信号", strategyFinalSignals)}
+      ${panelRow("运行状态", strategies.map((strategy) => snapshotValue(strategy.runtime_status)).join(" / ") || "unknown")}
+      ${panelRow("真实订单", displayValue(strategies.some((strategy) => strategy.real_orders_submitted)))}
+    </div>`,
+    `<div class="tile">
+      <div class="label">订单</div>
+      <div class="value">${dashboardValueText(order.lifecycle_id)}</div>
+      ${panelRow("事件数", dashboardValueText(order.event_count))}
+      ${panelRow("状态覆盖", orderCounts)}
+      ${panelRow("策略请求", dashboardValueText(order.mock_orders_requested))}
+      ${panelRow("真实订单", displayValue(order.real_orders_submitted))}
+    </div>`,
+    `<div class="tile status-${safe(risk.health)}">
+      <div class="label">风控</div>
+      <div class="value">${dashboardValueText(risk.smoke_id)}</div>
+      ${panelRow("拒绝原因", snapshotValue(risk.risk_reason))}
+      ${panelRow("拒绝订单", snapshotValue(risk.client_order_id))}
+      ${panelRow("拒绝数", dashboardValueText(risk.rejection_count))}
+      ${panelRow("转发执行", displayValue(risk.forwarded_to_execution))}
+      ${panelRow("真实订单", displayValue(risk.real_orders_submitted))}
+    </div>`,
+  ].join("");
+}
 
 function renderControls(controls) {
   document.getElementById("controls").innerHTML = controls.length > 0 ? `
@@ -1564,6 +1655,7 @@ pub struct DashboardSnapshot {
     pub data_sources: Vec<DataSourceStatus>,
     pub execution_gateways: Vec<ExecutionGatewayStatus>,
     pub risk: RiskStatus,
+    pub sandbox_business: SandboxBusinessStatus,
     pub runtime_modules: Vec<RuntimeModuleStatus>,
     pub logs: Vec<LogStatus>,
     pub metrics: Vec<MetricStatus>,
@@ -1583,6 +1675,7 @@ impl DashboardSnapshot {
             data_sources: Vec::new(),
             execution_gateways: Vec::new(),
             risk: RiskStatus::unknown(),
+            sandbox_business: sandbox_business_status_from_v04_evidence(),
             runtime_modules: Vec::new(),
             logs: Vec::new(),
             metrics: Vec::new(),
@@ -1789,6 +1882,142 @@ impl RiskStatus {
             rejections_total: DashboardValue::unknown(),
             last_rejection: DashboardValue::unknown(),
             last_error: DashboardValue::unknown(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SandboxBusinessStatus {
+    pub availability: DashboardAvailability,
+    pub exchange: SandboxExchangePanel,
+    pub strategies: Vec<SandboxStrategyPanel>,
+    pub order: SandboxOrderPanel,
+    pub risk: SandboxRiskPanel,
+    pub diagnostic: DashboardValue<String>,
+}
+
+impl SandboxBusinessStatus {
+    #[must_use]
+    pub fn unknown(diagnostic: impl Into<String>) -> Self {
+        Self {
+            availability: DashboardAvailability::Unknown,
+            exchange: SandboxExchangePanel::unknown(),
+            strategies: Vec::new(),
+            order: SandboxOrderPanel::unknown(),
+            risk: SandboxRiskPanel::unknown(),
+            diagnostic: DashboardValue::available(diagnostic.into()),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SandboxExchangePanel {
+    pub venue: DashboardValue<String>,
+    pub instrument_id: DashboardValue<String>,
+    pub bar_type: DashboardValue<String>,
+    pub fixture_id: DashboardValue<String>,
+    pub fixture_checksum: DashboardValue<String>,
+    pub bars_processed: DashboardValue<u64>,
+    pub connection_mode: DashboardValue<String>,
+    pub external_venue_connection: bool,
+}
+
+impl SandboxExchangePanel {
+    #[must_use]
+    pub fn unknown() -> Self {
+        Self {
+            venue: DashboardValue::unknown(),
+            instrument_id: DashboardValue::unknown(),
+            bar_type: DashboardValue::unknown(),
+            fixture_id: DashboardValue::unknown(),
+            fixture_checksum: DashboardValue::unknown(),
+            bars_processed: DashboardValue::unknown(),
+            connection_mode: DashboardValue::unknown(),
+            external_venue_connection: false,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SandboxStrategyPanel {
+    pub strategy_id: String,
+    pub strategy_name: DashboardValue<String>,
+    pub smoke_id: DashboardValue<String>,
+    pub runtime_status: DashboardValue<String>,
+    pub signal_mode: DashboardValue<String>,
+    pub bars_processed: DashboardValue<u64>,
+    pub signals_emitted: DashboardValue<u64>,
+    pub mock_orders_requested: DashboardValue<u64>,
+    pub final_signal: DashboardValue<String>,
+    pub indicator_value: DashboardValue<String>,
+    pub checksum: DashboardValue<String>,
+    pub real_orders_submitted: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SandboxOrderPanel {
+    pub lifecycle_id: DashboardValue<String>,
+    pub source_path: DashboardValue<String>,
+    pub event_count: DashboardValue<u64>,
+    pub submitted_count: DashboardValue<u64>,
+    pub accepted_count: DashboardValue<u64>,
+    pub filled_count: DashboardValue<u64>,
+    pub canceled_count: DashboardValue<u64>,
+    pub rejected_count: DashboardValue<u64>,
+    pub event_types: Vec<String>,
+    pub mock_orders_requested: DashboardValue<u64>,
+    pub real_orders_submitted: bool,
+    pub evidence_source: DashboardValue<String>,
+}
+
+impl SandboxOrderPanel {
+    #[must_use]
+    pub fn unknown() -> Self {
+        Self {
+            lifecycle_id: DashboardValue::unknown(),
+            source_path: DashboardValue::unknown(),
+            event_count: DashboardValue::unknown(),
+            submitted_count: DashboardValue::unknown(),
+            accepted_count: DashboardValue::unknown(),
+            filled_count: DashboardValue::unknown(),
+            canceled_count: DashboardValue::unknown(),
+            rejected_count: DashboardValue::unknown(),
+            event_types: Vec::new(),
+            mock_orders_requested: DashboardValue::unknown(),
+            real_orders_submitted: false,
+            evidence_source: DashboardValue::unknown(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SandboxRiskPanel {
+    pub smoke_id: DashboardValue<String>,
+    pub lifecycle_id: DashboardValue<String>,
+    pub client_order_id: DashboardValue<String>,
+    pub fixture_reason: DashboardValue<String>,
+    pub risk_reason: DashboardValue<String>,
+    pub order_status: DashboardValue<String>,
+    pub forwarded_to_execution: bool,
+    pub rejection_count: DashboardValue<u64>,
+    pub real_orders_submitted: bool,
+    pub health: HealthStatus,
+}
+
+impl SandboxRiskPanel {
+    #[must_use]
+    pub fn unknown() -> Self {
+        Self {
+            smoke_id: DashboardValue::unknown(),
+            lifecycle_id: DashboardValue::unknown(),
+            client_order_id: DashboardValue::unknown(),
+            fixture_reason: DashboardValue::unknown(),
+            risk_reason: DashboardValue::unknown(),
+            order_status: DashboardValue::unknown(),
+            forwarded_to_execution: false,
+            rejection_count: DashboardValue::unknown(),
+            real_orders_submitted: false,
+            health: HealthStatus::Unknown,
         }
     }
 }
@@ -2618,6 +2847,214 @@ fn aggregate_risk_status(statuses: &[NodeStatus]) -> RiskStatus {
     risk
 }
 
+#[derive(Debug, Deserialize)]
+struct DashboardMockOrderLifecycleEvent {
+    event_type: String,
+    client_order_id: String,
+    order_status: String,
+    reason: Option<String>,
+}
+
+#[derive(Debug, Default)]
+struct DashboardMockOrderLifecycleSummary {
+    event_count: u64,
+    submitted_count: u64,
+    accepted_count: u64,
+    filled_count: u64,
+    canceled_count: u64,
+    rejected_count: u64,
+    event_types: Vec<String>,
+    rejected_client_order_id: Option<String>,
+    rejected_order_status: Option<String>,
+    rejected_reason: Option<String>,
+}
+
+fn sandbox_business_status_from_v04_evidence() -> SandboxBusinessStatus {
+    build_sandbox_business_status_from_v04_evidence().unwrap_or_else(|error| {
+        SandboxBusinessStatus::unknown(format!("V04 Binance sandbox evidence unavailable: {error}"))
+    })
+}
+
+fn build_sandbox_business_status_from_v04_evidence() -> anyhow::Result<SandboxBusinessStatus> {
+    let ema = v04_ema_smoke_from_csv(V04_BINANCE_SPOT_BARS_CSV)
+        .context("failed to build V04 EMA sandbox smoke summary")?;
+    let rsi = v04_rsi_smoke_from_csv(V04_BINANCE_SPOT_BARS_CSV)
+        .context("failed to build V04 RSI sandbox smoke summary")?;
+    let order = summarize_v04_mock_order_lifecycle(V04_BINANCE_MOCK_ORDER_LIFECYCLE_JSONL)
+        .context("failed to build V04 mock order lifecycle summary")?;
+
+    ensure!(
+        ema.instrument_id == rsi.instrument_id,
+        "EMA and RSI smokes use different instruments"
+    );
+    ensure!(
+        ema.bar_type == rsi.bar_type,
+        "EMA and RSI smokes use different bar types"
+    );
+    ensure!(
+        ema.fixture_id == rsi.fixture_id && ema.fixture_checksum == rsi.fixture_checksum,
+        "EMA and RSI smokes use different fixtures"
+    );
+    ensure!(
+        ema.mock_lifecycle_id == V04_BINANCE_EMA_MOCK_LIFECYCLE_ID
+            && rsi.mock_lifecycle_id == V04_BINANCE_EMA_MOCK_LIFECYCLE_ID,
+        "strategy smokes do not point at the V04 mock lifecycle"
+    );
+    ensure!(
+        ema.risk_smoke_id == V04_BINANCE_EMA_RISK_SMOKE_ID
+            && rsi.risk_smoke_id == V04_BINANCE_EMA_RISK_SMOKE_ID,
+        "strategy smokes do not point at the V04 risk rejection smoke"
+    );
+    ensure!(
+        !ema.real_exchange_connection
+            && !rsi.real_exchange_connection
+            && !ema.real_orders_submitted
+            && !rsi.real_orders_submitted,
+        "V04 dashboard sandbox evidence must not report real venue or order activity"
+    );
+
+    let rejected_client_order_id = order
+        .rejected_client_order_id
+        .clone()
+        .context("mock lifecycle does not contain a rejected order")?;
+    let rejected_order_status = order
+        .rejected_order_status
+        .clone()
+        .context("mock lifecycle rejected order has no status")?;
+    let rejected_reason = order
+        .rejected_reason
+        .clone()
+        .context("mock lifecycle rejected order has no reason")?;
+    ensure!(
+        rejected_client_order_id == V04_BINANCE_RISK_REJECTION_CLIENT_ORDER_ID,
+        "mock lifecycle rejected order does not match V04 risk smoke"
+    );
+    ensure!(
+        rejected_reason == V04_BINANCE_RISK_REJECTION_FIXTURE_REASON,
+        "mock lifecycle rejected reason does not match V04 risk fixture reason"
+    );
+
+    let mock_orders_requested = ema.mock_orders_requested as u64 + rsi.mock_orders_requested as u64;
+    Ok(SandboxBusinessStatus {
+        availability: DashboardAvailability::Available,
+        exchange: SandboxExchangePanel {
+            venue: DashboardValue::available("BINANCE".to_string()),
+            instrument_id: DashboardValue::available(ema.instrument_id.clone()),
+            bar_type: DashboardValue::available(ema.bar_type.clone()),
+            fixture_id: DashboardValue::available(ema.fixture_id.clone()),
+            fixture_checksum: DashboardValue::available(ema.fixture_checksum.clone()),
+            bars_processed: DashboardValue::available(ema.bars_processed as u64),
+            connection_mode: DashboardValue::available("fixture_replay".to_string()),
+            external_venue_connection: ema.real_exchange_connection || rsi.real_exchange_connection,
+        },
+        strategies: vec![
+            SandboxStrategyPanel {
+                strategy_id: "ema".to_string(),
+                strategy_name: DashboardValue::available(ema.strategy_name.clone()),
+                smoke_id: DashboardValue::available(ema.smoke_id.clone()),
+                runtime_status: DashboardValue::available("ema_smoke_ready".to_string()),
+                signal_mode: DashboardValue::available(ema.signal_mode.clone()),
+                bars_processed: DashboardValue::available(ema.bars_processed as u64),
+                signals_emitted: DashboardValue::available(ema.signals_emitted as u64),
+                mock_orders_requested: DashboardValue::available(ema.mock_orders_requested as u64),
+                final_signal: DashboardValue::available(ema.final_signal.clone()),
+                indicator_value: DashboardValue::available(format!(
+                    "fast={} slow={}",
+                    ema.final_fast_ema, ema.final_slow_ema
+                )),
+                checksum: DashboardValue::available(ema.checksum.clone()),
+                real_orders_submitted: ema.real_orders_submitted,
+            },
+            SandboxStrategyPanel {
+                strategy_id: "rsi".to_string(),
+                strategy_name: DashboardValue::available(rsi.strategy_name.clone()),
+                smoke_id: DashboardValue::available(rsi.smoke_id.clone()),
+                runtime_status: DashboardValue::available("rsi_smoke_ready".to_string()),
+                signal_mode: DashboardValue::available(format!(
+                    "oversold={} overbought={}",
+                    rsi.oversold_threshold, rsi.overbought_threshold
+                )),
+                bars_processed: DashboardValue::available(rsi.bars_processed as u64),
+                signals_emitted: DashboardValue::available(rsi.signals_emitted as u64),
+                mock_orders_requested: DashboardValue::available(rsi.mock_orders_requested as u64),
+                final_signal: DashboardValue::available(rsi.final_signal.clone()),
+                indicator_value: DashboardValue::available(format!("rsi={}", rsi.final_rsi)),
+                checksum: DashboardValue::available(rsi.checksum.clone()),
+                real_orders_submitted: rsi.real_orders_submitted,
+            },
+        ],
+        order: SandboxOrderPanel {
+            lifecycle_id: DashboardValue::available(V04_BINANCE_EMA_MOCK_LIFECYCLE_ID.to_string()),
+            source_path: DashboardValue::available(
+                V04_BINANCE_MOCK_ORDER_LIFECYCLE_PATH.to_string(),
+            ),
+            event_count: DashboardValue::available(order.event_count),
+            submitted_count: DashboardValue::available(order.submitted_count),
+            accepted_count: DashboardValue::available(order.accepted_count),
+            filled_count: DashboardValue::available(order.filled_count),
+            canceled_count: DashboardValue::available(order.canceled_count),
+            rejected_count: DashboardValue::available(order.rejected_count),
+            event_types: order.event_types,
+            mock_orders_requested: DashboardValue::available(mock_orders_requested),
+            real_orders_submitted: false,
+            evidence_source: DashboardValue::available("V04-008".to_string()),
+        },
+        risk: SandboxRiskPanel {
+            smoke_id: DashboardValue::available(V04_BINANCE_EMA_RISK_SMOKE_ID.to_string()),
+            lifecycle_id: DashboardValue::available(V04_BINANCE_EMA_MOCK_LIFECYCLE_ID.to_string()),
+            client_order_id: DashboardValue::available(rejected_client_order_id),
+            fixture_reason: DashboardValue::available(rejected_reason),
+            risk_reason: DashboardValue::available(V04_BINANCE_RISK_REJECTION_REASON.to_string()),
+            order_status: DashboardValue::available(rejected_order_status),
+            forwarded_to_execution: false,
+            rejection_count: DashboardValue::available(order.rejected_count),
+            real_orders_submitted: false,
+            health: HealthStatus::Healthy,
+        },
+        diagnostic: DashboardValue::available(
+            "V04 Binance sandbox fixture, strategy, order, and risk evidence loaded".to_string(),
+        ),
+    })
+}
+
+fn summarize_v04_mock_order_lifecycle(
+    jsonl: &str,
+) -> anyhow::Result<DashboardMockOrderLifecycleSummary> {
+    let mut summary = DashboardMockOrderLifecycleSummary::default();
+    let mut event_types = BTreeMap::<String, ()>::new();
+
+    for (index, line) in jsonl.lines().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let event: DashboardMockOrderLifecycleEvent = serde_json::from_str(trimmed)
+            .with_context(|| format!("invalid V04 mock lifecycle JSONL at line {}", index + 1))?;
+        summary.event_count += 1;
+        event_types.insert(event.event_type.clone(), ());
+        match event.event_type.as_str() {
+            "order.submitted" => summary.submitted_count += 1,
+            "order.accepted" => summary.accepted_count += 1,
+            "order.filled" => summary.filled_count += 1,
+            "order.canceled" => summary.canceled_count += 1,
+            "order.rejected" => {
+                summary.rejected_count += 1;
+                summary.rejected_client_order_id = Some(event.client_order_id);
+                summary.rejected_order_status = Some(event.order_status);
+                summary.rejected_reason = event.reason;
+            }
+            event_type => anyhow::bail!("unsupported V04 mock lifecycle event type {event_type}"),
+        }
+    }
+
+    ensure!(
+        summary.event_count > 0,
+        "V04 mock lifecycle JSONL has no events"
+    );
+    summary.event_types = event_types.into_keys().collect();
+    Ok(summary)
+}
+
 fn control_statuses_from_nodes(nodes: &[DashboardNodeSummary]) -> Vec<ControlStatus> {
     let mut controls = Vec::with_capacity(nodes.len() * 6);
     for node in nodes {
@@ -2879,6 +3316,7 @@ mod tests {
             "data_sources",
             "execution_gateways",
             "risk",
+            "sandbox_business",
             "runtime_modules",
             "logs",
             "metrics",
@@ -2891,6 +3329,11 @@ mod tests {
         assert_eq!(value["overview"]["node_count"], 0);
         assert_eq!(value["overview"]["health"], "unknown");
         assert_eq!(value["risk"]["availability"], "unknown");
+        assert_eq!(value["sandbox_business"]["availability"], "available");
+        assert_eq!(
+            value["sandbox_business"]["exchange"]["venue"],
+            json!({"availability": "available", "value": "BINANCE"})
+        );
     }
 
     #[test]
@@ -2898,6 +3341,7 @@ mod tests {
         for mount_id in [
             "data-sources",
             "execution-gateways",
+            "sandbox-business",
             "risk",
             "runtime-modules",
             "logs-metrics",
@@ -2913,6 +3357,7 @@ mod tests {
         for js_symbol in [
             "renderDataSources",
             "renderExecutionGateways",
+            "renderSandboxBusiness",
             "renderRisk",
             "renderRuntimeModules",
             "renderLogsMetrics",
@@ -3221,6 +3666,23 @@ mod tests {
             "sandbox-a:gateway"
         );
         assert_eq!(snapshot.risk.availability, DashboardAvailability::Available);
+        assert_eq!(
+            snapshot.sandbox_business.availability,
+            DashboardAvailability::Available
+        );
+        assert_eq!(
+            snapshot.sandbox_business.exchange.venue.value.as_deref(),
+            Some("BINANCE")
+        );
+        assert_eq!(snapshot.sandbox_business.strategies.len(), 2);
+        assert_eq!(
+            snapshot.sandbox_business.order.mock_orders_requested.value,
+            Some(7)
+        );
+        assert_eq!(
+            snapshot.sandbox_business.risk.risk_reason.value.as_deref(),
+            Some(V04_BINANCE_RISK_REJECTION_REASON)
+        );
         assert_eq!(snapshot.logs.len(), 3);
         assert!(
             snapshot
@@ -3338,6 +3800,33 @@ mod tests {
         );
         assert_eq!(snapshot_value["risk"]["trading_state"], "active");
         assert_eq!(snapshot_value["risk"]["health"], "healthy");
+        assert_eq!(
+            snapshot_value["sandbox_business"]["availability"],
+            "available"
+        );
+        assert_eq!(
+            snapshot_value["sandbox_business"]["exchange"]["venue"],
+            json!({"availability": "available", "value": "BINANCE"})
+        );
+        assert_eq!(
+            snapshot_value["sandbox_business"]["exchange"]["instrument_id"],
+            json!({"availability": "available", "value": "BTCUSDT.BINANCE"})
+        );
+        assert_eq!(
+            snapshot_value["sandbox_business"]["strategies"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(
+            snapshot_value["sandbox_business"]["order"]["mock_orders_requested"],
+            json!({"availability": "available", "value": 7})
+        );
+        assert_eq!(
+            snapshot_value["sandbox_business"]["risk"]["risk_reason"],
+            json!({"availability": "available", "value": "TradingState::HALTED"})
+        );
         assert!(
             snapshot_value["runtime_modules"]
                 .as_array()
