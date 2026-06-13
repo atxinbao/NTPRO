@@ -116,6 +116,19 @@ Not included in the v0.3.0 product claim:
 - Remote or multi-user Dashboard operation.
 - Prebuilt binary or Docker release artifact delivery.
 
+## Planned v0.4 Boundary
+
+The planned v0.4 product boundary is Binance sandbox-only. It is fixture /
+testnet / mock first, with no real funds, no production trading, and no real
+order submission.
+
+The scope contract is:
+
+- `docs/rust-cutover/scope/v0_4_0_binance_sandbox_product_foundation.md`
+
+This is a planning boundary for the next milestone. It does not change the
+current v0.3.0 product claim.
+
 ## Verification
 
 Fast local validation:
