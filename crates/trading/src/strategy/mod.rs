@@ -15,6 +15,7 @@
 
 pub mod config;
 pub mod core;
+pub mod v04_smoke;
 
 pub use core::StrategyCore;
 use std::panic::{AssertUnwindSafe, catch_unwind};
