@@ -3,7 +3,7 @@
 Date: 2026-06-13
 Executor: Codex
 Milestone: v0.3.1 Local Supervisor Control Console Hardening
-Status: in progress until hosted gate PASS, tag push, and formal GitHub Release
+Status: final release-accounting source tree; formal publication requires clean hosted PASS, tag push, and GitHub Release on this same commit
 
 ## Purpose
 
@@ -118,30 +118,44 @@ commands.
 
 ## Hosted Release Gate
 
-Interim status during release closeout:
+Hosted release evidence is split into two layers:
+
+- historical baseline context, which shows the gate can pass on `main`;
+- final publication evidence, which must be a clean hosted PASS on the exact
+  commit used for the `v0.3.1` tag.
+
+Recorded context during closeout:
 
 - baseline `main` already had a clean hosted `Rust Cutover Release Gate` PASS
   on run `27455863969` for commit
   `6fd5a68aea938dd7f60f0a443241694b095a0325`;
-- a dedicated rerun for the release-closeout branch was dispatched on commit
-  `ea37948292aa31ade959a4558ccd16e9af788bd3`;
-- final publication still requires a clean hosted PASS on the final publish
-  commit, not just on baseline `main`.
+- later closeout accounting had to absorb additional docs-only merged deltas
+  `#279` through `#281`, moving the publish baseline to
+  `cbce10b03cfb725a2479b3fc8696f2c646911332`;
+- any branch reruns before the final publish commit are audit context only;
+  they do not replace the clean hosted PASS requirement on the final release
+  commit.
 
 ## Tag And Release Publication
 
-This section is updated after:
+Formal publication is valid only when all of the following point at the same
+source tree:
 
-- tag creation
-- tag push
-- formal GitHub Release publication
+- `main`
+- `origin/main`
+- tag `ntpro-rust-only-v0.3.1`
+- formal GitHub Release body
+- hosted `Rust Cutover Release Gate` PASS evidence
 
 ## Final Decision
 
-This section is updated only after all of the following are true:
+`v0.3.1` may be closed only when all of the following are true:
 
 - local verification passed;
 - hosted release gate passed on the release commit;
 - `ntpro-rust-only-v0.3.1` tag exists and is pushed;
 - formal GitHub Release is published;
-- `main` and `origin/main` are aligned.
+- `main` and `origin/main` are aligned;
+- merged PR accounting remains disclosed for `#258` through `#281`, including
+  docs-only and planning-only source-tree deltas that do not expand the
+  shipped capability claim.

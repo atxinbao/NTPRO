@@ -3,7 +3,7 @@
 Date: 2026-06-13
 Executor: Codex
 Milestone: v0.3.1 Local Supervisor Control Console Hardening
-Decision: PASS to proceed to hosted release gate; FAIL for publication until hosted gate passes
+Decision: Final publish-tree readiness PASS; formal publication requires a clean hosted release gate on this exact source tree
 
 ## Plain Chinese Summary
 
@@ -13,16 +13,17 @@ v0.3.1 这批修正任务已经把 v0.3.0 发布后的主要问题收口到一�
 
 大白话说：这批任务已经把 README、release smoke、GitHub 失败记录、本地进程
 状态、pause/resume/reconnect 语义、负向 API 测试和 ignored tests 范围都写清楚
-并验证了。本地 `verify_release.sh` 这次完整通过，可以进入 GitHub hosted
-release gate。
+并验证了。本地 `verify_release.sh` 这次完整通过，这份文档就是 `v0.3.1`
+最终发布树要带上的 readiness 说明。
 
-但是现在还不能直接发正式 release。原因很简单：GitHub hosted release gate
-在 V031 收口后还没有重新跑出绿色。因此这份报告的结论是：
+正式发布还有一个硬门槛：GitHub hosted `Rust Cutover Release Gate`
+必须在同一个发布提交上 clean PASS。这个 hosted PASS 不是可选项，也不能拿旧的
+baseline 通过记录替代。因此这份报告的口径是：
 
 ```text
-本地 readiness: PASS
-可以进入 hosted release gate: PASS
-可以发布 tag / GitHub Release: FAIL, 直到 hosted release gate PASS
+发布树 readiness: PASS
+本地 release 验证: PASS
+正式 tag / GitHub Release: 只有 hosted release gate 在同一提交 clean PASS 后才允许
 ```
 
 ## Scope
@@ -88,14 +89,14 @@ That accounting separates three things cleanly:
 | --- | --- | --- | --- | --- |
 | `V031-001` | Public README and release surface cleanup | `docs/rust-cutover/evidence/V031-001.md` | #262 | PASS |
 | `V031-002` | Release binary smoke support | `docs/rust-cutover/evidence/V031-002.md` | #263 | PASS |
-| `V031-003` | Hosted release gate triage and evidence closeout | `docs/rust-cutover/evidence/V031-003.md` | #264 | PASS as triage; hosted gate not clean |
+| `V031-003` | Hosted release gate triage and evidence closeout | `docs/rust-cutover/evidence/V031-003.md` | #264 | PASS as triage and publication requirement cleanup |
 | `V031-004` | Registry stale lock recovery | `docs/rust-cutover/evidence/V031-004.md` | #265 | PASS |
 | `V031-005` | Process identity hardening | `docs/rust-cutover/evidence/V031-005.md` | #266 | PASS |
 | `V031-006` | Pause/resume semantics contract | `docs/rust-cutover/evidence/V031-006.md` | #267 | PASS |
 | `V031-007` | Reconnect control contract cleanup | `docs/rust-cutover/evidence/V031-007.md` | #268 | PASS |
 | `V031-008` | Negative control API tests | `docs/rust-cutover/evidence/V031-008.md` | #269 | PASS |
 | `V031-009` | Ignored tests closure batch 1 | `docs/rust-cutover/evidence/V031-009.md` | #270 | PASS as scope closure |
-| `V031-010` | v0.3.1 readiness report | `docs/rust-cutover/evidence/V031-010.md` | current task | PASS to hosted gate |
+| `V031-010` | v0.3.1 readiness report | `docs/rust-cutover/evidence/V031-010.md` | current task | PASS as final publish-tree readiness report |
 
 ## Local Verification
 
@@ -130,10 +131,11 @@ Direct release-smoke highlights:
 The additional current-`main` deltas `#279` through `#281` are docs-only and
 do not change the runtime verification surface above.
 
-## Hosted Release Gate Status
+## Hosted Release Gate Requirement
 
-Current hosted `Rust Cutover Release Gate` evidence for the final publish
-decision is not yet a clean PASS on the release-prep source tree.
+Formal publication must be backed by a clean hosted `Rust Cutover Release Gate`
+PASS on this exact publish tree. Historical runs remain useful audit context,
+but they do not replace the final PASS requirement on the release commit.
 
 Latest known runs:
 
@@ -144,13 +146,13 @@ Latest known runs:
 | `27418815065` | `workflow_dispatch` | `main` | `93db1f91b544a19a778d9ded2761c093b949da90` | `cancelled` | `https://github.com/atxinbao/NTPRO/actions/runs/27418815065` |
 | `27384342541` | `push` | `ntpro-rust-only-v0.3.0` | `2822ef8c29771de8ef1b90b96507ac6f1bcefcb3` | `failure` | `https://github.com/atxinbao/NTPRO/actions/runs/27384342541` |
 
-Interpretation before the final rerun:
+Interpretation for release closeout:
 
-- These hosted failures/cancellations were recorded before this final V031-010
-  report PR.
-- They cannot be used as v0.3.1 release approval.
-- After release-closeout wording is finalized, hosted
-  `Rust Cutover Release Gate` must be clean on the final publish commit.
+- These hosted failures/cancellations were recorded before the final publish
+  tree was closed.
+- They cannot be used as `v0.3.1` release approval.
+- The final publish commit must carry its own clean hosted
+  `Rust Cutover Release Gate` PASS.
 - Tag creation and GitHub Release publication must wait for that hosted PASS.
 
 ## PASS / FAIL Decision
@@ -159,8 +161,8 @@ Interpretation before the final rerun:
 | --- | --- | --- |
 | V031 hardening queue complete enough to enter hosted release gate | PASS | `V031-001` through `V031-009` are merged with evidence, and the required local release checks passed. |
 | Local v0.3.1 readiness | PASS | Local release verification passed with release binaries and scoped supervisor/dashboard smoke. |
-| Hosted release gate | FAIL / PENDING RERUN | No hosted PASS exists after V031 closeout. |
-| Publish `ntpro-rust-only-v0.3.1` tag or GitHub Release | FAIL until hosted gate PASS | Publication requires a clean hosted gate after this report lands. |
+| Hosted release gate on the final publish commit | REQUIRED | Publication is authorized only by a clean hosted PASS on this exact source tree. |
+| Publish `ntpro-rust-only-v0.3.1` tag or GitHub Release | CONDITIONED ON HOSTED PASS | README, readiness, release notes, and release body must all refer to the same publish commit. |
 
 ## Behavior Impact
 
@@ -196,9 +198,8 @@ or runtime contract change.
 
 ## Next Step
 
-After this PR is merged:
-
-1. Run the hosted `Rust Cutover Release Gate` on `main`.
+1. Run the hosted `Rust Cutover Release Gate` on the final publish commit for
+   this source tree.
 2. Require a clean hosted PASS.
-3. Only then decide whether to create `ntpro-rust-only-v0.3.1` tag and publish
-   GitHub Release.
+3. Use that same commit for `ntpro-rust-only-v0.3.1` tag creation and formal
+   GitHub Release publication.
