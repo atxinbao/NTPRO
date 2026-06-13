@@ -37,6 +37,11 @@ Release claim:
 Local Supervisor Control Console Hardening
 ```
 
+Accounting companion documents:
+
+- `docs/rust-cutover/release/v0_3_1_supervisor_control_hardening_release_notes.md`
+- `docs/rust-cutover/release/v0_3_1_supervisor_control_hardening_closeout.md`
+
 In scope:
 
 - public README and release wording aligned with v0.3.x;
@@ -60,6 +65,22 @@ Out of scope:
 - remote or distributed dashboard operation;
 - Docker or prebuilt binary delivery;
 - v0.4 exchange or strategy productization.
+
+## Source-Tree Delta Accounting
+
+This report is the readiness gate for the shipped `v0.3.1` claim. It is not
+allowed to silently ignore other PRs already merged into `main`.
+
+The merged-PR accounting for `#258` through `#278` is maintained in:
+
+- `docs/rust-cutover/release/v0_3_1_supervisor_control_hardening_closeout.md`
+
+That accounting separates three things cleanly:
+
+- hardening/gate/evidence work that belongs to the v0.3.1 claim;
+- docs/product/planning deltas that are in the source tree;
+- source-tree deltas that must be disclosed but must not be turned into new
+  shipped capability claims.
 
 ## V031 Task Readiness
 

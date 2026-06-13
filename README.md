@@ -6,16 +6,18 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.3.0
-Capability: Local Supervisor Control Console
+Current source tag: ntpro-rust-only-v0.3.1
+Capability: Local Supervisor Control Console Hardening
 ```
 
-This tag is the current v0.3.0 source release point for the local sandbox-only
-Supervisor control console. It is published as a GitHub Release for the tagged
-source tree:
+This tag is the current v0.3.1 source release point for the local sandbox-only
+Supervisor control-console release line. It preserves the v0.3.0 local control
+surface and closes the patch hardening queue for release accounting, release
+gate behavior, hosted evidence, and control-surface wording. It is published as
+a GitHub Release for the tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.3.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.3.1
 ```
 
 ## Current Status
@@ -92,10 +94,19 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.3.0 is a local-only Supervisor control-console release. It supports
-source-build Rust CLI and local Dashboard workflows for sandbox node
-registration, local `ntpro-node` process startup and shutdown, status/log/
-metrics inspection, local two-node smoke evidence, and local control actions:
+v0.3.1 is still a local-only Supervisor control-console release line. It does
+not add a new trading product milestone. It keeps the same sandbox-only control
+surface as v0.3.0 and hardens how that surface is documented, verified, and
+released.
+
+Supported shipped capability in the v0.3.1 claim:
+
+- source-build Rust CLI and local Dashboard workflows for sandbox node
+  registration;
+- local `ntpro-node` process startup and shutdown;
+- status / logs / metrics inspection;
+- local two-node smoke evidence;
+- local control actions:
 
 - `start`
 - `stop`
@@ -105,7 +116,7 @@ metrics inspection, local two-node smoke evidence, and local control actions:
 - `reconnect execution gateway` as an explicit local sandbox `not_supported`
   result
 
-Not included in the v0.3.0 product claim:
+Not included in the v0.3.1 product claim:
 
 - Production exchange connectivity.
 - Real account connectivity.
@@ -116,18 +127,33 @@ Not included in the v0.3.0 product claim:
 - Remote or multi-user Dashboard operation.
 - Prebuilt binary or Docker release artifact delivery.
 
+Source-tree deltas that are present in the v0.3.1 tag but do not expand the
+shipped capability claim:
+
+- Dashboard UI copy localization.
+- Supervisor / trader product-shape documents under `docs/architecture/`.
+- v0.4 planning/task documents under `docs/rust-cutover/tasks/V04-*`.
+- v0.4 scope/spec documents under `docs/rust-cutover/scope/` and
+  `docs/rust-cutover/specs/`.
+- supporting v0.4 planning evidence under `docs/rust-cutover/evidence/V04-*.md`.
+
+Those files are part of the tagged source tree, but they do not mean that NTPRO
+now claims a trader terminal, v0.4 product scope, production order entry, or
+distributed runtime support in v0.3.1.
+
 ## Planned v0.4 Boundary
 
 The planned v0.4 product boundary is Binance sandbox-only. It is fixture /
 testnet / mock first, with no real funds, no production trading, and no real
 order submission.
 
-The scope contract is:
+The scope and planning references include:
 
 - `docs/rust-cutover/scope/v0_4_0_binance_sandbox_product_foundation.md`
+- `docs/rust-cutover/specs/v0_4_strategy_contracts.md`
 
-This is a planning boundary for the next milestone. It does not change the
-current v0.3.0 product claim.
+These are planning boundaries for the next milestone. They do not change the
+current v0.3.1 product claim.
 
 ## Verification
 
@@ -177,6 +203,9 @@ Release documents:
 - `docs/rust-cutover/release/v0_2_0_known_limits.md`
 - `docs/rust-cutover/release/v0_2_local_multi_node_readiness_report.md`
 - `docs/rust-cutover/release/v0_3_0_supervisor_control_readiness_report.md`
+- `docs/rust-cutover/release/v0_3_1_supervisor_control_hardening_release_notes.md`
+- `docs/rust-cutover/release/v0_3_1_supervisor_control_hardening_readiness_report.md`
+- `docs/rust-cutover/release/v0_3_1_supervisor_control_hardening_closeout.md`
 - `docs/rust-cutover/release/rust_only_release_notes.md`
 - `docs/rust-cutover/release/final_release_verification.md`
 - `docs/rust-cutover/release/final_completion_report.md`
@@ -205,10 +234,14 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.3.0` is the current Rust-only source release for the Local
-Supervisor Control Console. v0.2.0 remains the local multi-node runtime
-foundation baseline, and v0.1.0 remains the first formal Rust-only cutover
-release and historical baseline.
+`ntpro-rust-only-v0.3.1` is the current Rust-only source release for the Local
+Supervisor Control Console Hardening line. It does not expand the v0.3.0
+product claim; it closes the patch release surface around release gate
+hardening, hosted evidence, release accounting, and control-surface wording.
+
+`v0.2.0` remains the local multi-node runtime foundation baseline, and
+`v0.1.0` remains the first formal Rust-only cutover release and historical
+baseline.
 
 Before cutting a later release, review:
 
