@@ -63,4 +63,7 @@ pub use algorithm::{
     ImportableExecAlgorithmConfig, TWAP_HORIZON_SECS_PARAM, TWAP_INTERVAL_SECS_PARAM,
     TwapAlgorithm, TwapAlgorithmConfig, TwapExecParams,
 };
-pub use strategy::{ImportableStrategyConfig, Strategy, StrategyConfig, StrategyCore};
+pub use strategy::{
+    ImportableStrategyConfig, Strategy, StrategyConfig, StrategyCore, V04EmaSignalMode,
+    V04SandboxStrategyConfig, V04SandboxStrategyName,
+};
