@@ -39,14 +39,14 @@ jobs:
             echo "release_verify=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if grep -Ev '^(README\.md|CHANGELOG.*|MIGRATION.*|docs/|release/|\.agentflow/|\.github/(ISSUE_TEMPLATE/|pull_request_template\.md|workflows/(release-tag|rust-cutover-smoke)\.yml)|scripts/ai/(verify_full|verify_release|v03_dashboard_smoke)\.sh|\.gitignore$)' /tmp/changed-files.txt >/tmp/heavy-files.txt; then
+          if grep -Ev '^(README\.md|CHANGELOG.*|MIGRATION.*|docs/|release/|\.agentflow/|\.github/(ISSUE_TEMPLATE/|pull_request_template\.md|workflows/(release-tag|rust-cutover-smoke)\.yml)|scripts/ai/(verify_full|verify_release|v03_dashboard_smoke|verify_v05_workflow_artifacts)\.sh|\.gitignore$)' /tmp/changed-files.txt >/tmp/heavy-files.txt; then
             echo "heavy_rust=true" >> "$GITHUB_OUTPUT"
             echo "release_verify=false" >> "$GITHUB_OUTPUT"
             echo "heavy Rust checks required by:"
             cat /tmp/heavy-files.txt
           else
             echo "heavy_rust=false" >> "$GITHUB_OUTPUT"
-            if grep -E '^(\.github/workflows/(release-tag|rust-cutover-smoke)\.yml|scripts/ai/(verify_full|verify_release|v03_dashboard_smoke)\.sh|docs/rust-cutover/evidence/GH-RELEASE-)' /tmp/changed-files.txt >/dev/null; then
+            if grep -E '^(\.github/workflows/(release-tag|rust-cutover-smoke)\.yml|scripts/ai/(verify_full|verify_release|v03_dashboard_smoke|verify_v05_workflow_artifacts)\.sh|docs/rust-cutover/evidence/GH-RELEASE-)' /tmp/changed-files.txt >/dev/null; then
               echo "release_verify=true" >> "$GITHUB_OUTPUT"
               echo "heavy Rust checks skipped for release verification script/workflow change set"
             else
@@ -71,7 +71,7 @@ jobs:
       - name: Release verification script checks
         if: steps.changes.outputs.release_verify == 'true'
         run: |
-          bash -n scripts/ai/verify_full.sh scripts/ai/verify_release.sh scripts/ai/v03_dashboard_smoke.sh
+          bash -n scripts/ai/verify_full.sh scripts/ai/verify_release.sh scripts/ai/v03_dashboard_smoke.sh scripts/ai/verify_v05_workflow_artifacts.sh
           ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); puts "release-tag yaml ok"'
       - name: CLI unit tests
         if: steps.changes.outputs.heavy_rust == 'true'

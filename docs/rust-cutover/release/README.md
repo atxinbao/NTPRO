@@ -14,3 +14,5 @@ Final release checks, benchmark summaries, and audit reports live here.
   release-surface hardening patch.
 - `v0_4_1_release_notes.md` - V041-005 release notes for the
   `ntpro-rust-only-v0.4.1` GitHub Release.
+- `v0_5_0_workflow_artifacts_readiness_report.md` - V05-011 final PASS/FAIL
+  readiness report for the v0.5 local Binance sandbox workflow artifact scope.
