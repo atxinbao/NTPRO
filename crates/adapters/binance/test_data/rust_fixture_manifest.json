@@ -36,6 +36,24 @@
       ]
     },
     {
+      "id": "v04-binance-sandbox-bar-replay",
+      "surface": "v04_sandbox_market_data_replay",
+      "product_scope": "Spot sandbox fixture replay",
+      "classification": "supported",
+      "covers": [
+        "deterministic checked-in bar replay",
+        "EMA and RSI strategy smoke input",
+        "dashboard-readable replay summary"
+      ],
+      "fixture_paths": [
+        "v04/binance_spot_bars.csv"
+      ],
+      "primary_tests": [
+        "src/replay.rs",
+        "tests/v04_replay.rs"
+      ]
+    },
+    {
       "id": "spot-http-execution-lifecycle",
       "surface": "spot_execution_lifecycle",
       "product_scope": "Spot",
