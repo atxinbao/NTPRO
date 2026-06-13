@@ -20,7 +20,10 @@ pub use core::StrategyCore;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use ahash::AHashSet;
-pub use config::{ImportableStrategyConfig, StrategyConfig};
+pub use config::{
+    ImportableStrategyConfig, StrategyConfig, V04EmaSignalMode, V04SandboxStrategyConfig,
+    V04SandboxStrategyName,
+};
 use nautilus_common::{
     actor::DataActor,
     component::Component,

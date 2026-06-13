@@ -19,6 +19,7 @@ use std::{
 };
 
 use anyhow::Context;
+use nautilus_trading::strategy::V04SandboxStrategyConfig;
 use serde::Deserialize;
 
 use crate::opt::{SandboxCommand, SandboxOpt, SandboxRunOpt, SandboxValidateOpt};
@@ -38,6 +39,7 @@ struct MinimalSandboxConfig {
     system: SandboxSystemConfig,
     venues: Vec<SandboxVenueConfig>,
     data: Vec<SandboxDataConfig>,
+    strategy: V04SandboxStrategyConfig,
     execution: SandboxExecutionConfig,
     risk: SandboxRiskConfig,
     portfolio: SandboxPortfolioConfig,
@@ -135,7 +137,7 @@ fn run_sandbox_validate(opt: &SandboxValidateOpt) -> anyhow::Result<()> {
     let data = primary_data(&config);
 
     println!(
-        "sandbox.validate status=ok mode={} run_id={} config={} environment={} trader_id={} venue_count={} data_source={} instrument_id={} events={} execution={} risk_state=simulated portfolio_state=simulated cache_state=in-memory external_venue_connection=false real_orders_submitted=false",
+        "sandbox.validate status=ok mode={} run_id={} config={} environment={} trader_id={} venue_count={} data_source={} instrument_id={} events={} strategy={} warmup_bars={} execution={} risk_state=simulated portfolio_state=simulated cache_state=in-memory external_venue_connection=false real_orders_submitted=false",
         config.run.mode,
         config.run.id,
         opt.config.display(),
@@ -145,6 +147,8 @@ fn run_sandbox_validate(opt: &SandboxValidateOpt) -> anyhow::Result<()> {
         data.source,
         data.instrument_id,
         data.events,
+        config.strategy.strategy_label(),
+        config.strategy.resolved_warmup_bars()?,
         config.execution.order_submission,
     );
 
@@ -171,7 +175,7 @@ fn run_sandbox_run(opt: &SandboxRunOpt) -> anyhow::Result<()> {
     let events_path = output_dir.join("events.log");
 
     let summary = format!(
-        "command=sandbox.run\nstatus=ok\nmode={}\nrun_id={run_id}\nconfig={}\nenvironment={}\ntrader_id={}\ninstance_id={}\nvenue={}\nadapter={}\ndata_source={}\ninstrument_id={}\nevents={}\nexecution_state=simulated\nrisk_state=simulated\nportfolio_state=simulated\ncache_state=in-memory\nlive_node_started=false\nlive_node_stopped=false\nsimulated_lifecycle_status=completed\nshutdown_reason=once\nexternal_venue_connection=false\nreal_orders_submitted=false\nruntime_status=simulated_demo\n",
+        "command=sandbox.run\nstatus=ok\nmode={}\nrun_id={run_id}\nconfig={}\nenvironment={}\ntrader_id={}\ninstance_id={}\nvenue={}\nadapter={}\ndata_source={}\ninstrument_id={}\nevents={}\nstrategy={}\nwarmup_bars={}\nexecution_state=simulated\nrisk_state=simulated\nportfolio_state=simulated\ncache_state=in-memory\nlive_node_started=false\nlive_node_stopped=false\nsimulated_lifecycle_status=completed\nshutdown_reason=once\nexternal_venue_connection=false\nreal_orders_submitted=false\nruntime_status=simulated_demo\n",
         config.run.mode,
         opt.config.display(),
         config.run.environment,
@@ -182,6 +186,8 @@ fn run_sandbox_run(opt: &SandboxRunOpt) -> anyhow::Result<()> {
         data.source,
         data.instrument_id,
         data.events,
+        config.strategy.strategy_label(),
+        config.strategy.resolved_warmup_bars()?,
     );
     fs::write(&summary_path, summary)
         .with_context(|| format!("failed to write summary '{}'", summary_path.display()))?;
@@ -191,6 +197,7 @@ fn run_sandbox_run(opt: &SandboxRunOpt) -> anyhow::Result<()> {
          event=simulate_node_build status=ok trader_id={} instance_id={}\n\
          event=simulate_node_start status=ok environment={}\n\
          event=market_data status=loaded source={} instrument_id={} events={}\n\
+         event=strategy_config status=accepted strategy={} warmup_bars={}\n\
          event=risk_check status=passed mode={} max_order_qty={}\n\
          event=execution status=simulated order_submission={} venue={}\n\
          event=portfolio_update status=simulated starting_balance={}\n\
@@ -202,6 +209,8 @@ fn run_sandbox_run(opt: &SandboxRunOpt) -> anyhow::Result<()> {
         data.source,
         data.instrument_id,
         data.events,
+        config.strategy.strategy_label(),
+        config.strategy.resolved_warmup_bars()?,
         config.risk.mode,
         config.risk.max_order_qty,
         config.execution.order_submission,
@@ -215,7 +224,7 @@ fn run_sandbox_run(opt: &SandboxRunOpt) -> anyhow::Result<()> {
         .with_context(|| format!("failed to write events '{}'", events_path.display()))?;
 
     println!(
-        "sandbox.run status=ok mode={} run_id={} config={} output={} summary={} events={} live_node_started=false live_node_stopped=false simulated_lifecycle_status=completed data_source={} instrument_id={} event_count={} execution_state=simulated risk_state=simulated portfolio_state=simulated cache_state=in-memory external_venue_connection=false real_orders_submitted=false runtime_status=simulated_demo",
+        "sandbox.run status=ok mode={} run_id={} config={} output={} summary={} events={} live_node_started=false live_node_stopped=false simulated_lifecycle_status=completed data_source={} instrument_id={} event_count={} strategy={} warmup_bars={} execution_state=simulated risk_state=simulated portfolio_state=simulated cache_state=in-memory external_venue_connection=false real_orders_submitted=false runtime_status=simulated_demo",
         config.run.mode,
         run_id,
         opt.config.display(),
@@ -225,6 +234,8 @@ fn run_sandbox_run(opt: &SandboxRunOpt) -> anyhow::Result<()> {
         data.source,
         data.instrument_id,
         data.events,
+        config.strategy.strategy_label(),
+        config.strategy.resolved_warmup_bars()?,
     );
 
     Ok(())
@@ -285,6 +296,7 @@ fn validate_minimal_sandbox_config(config: &MinimalSandboxConfig) -> anyhow::Res
             anyhow::bail!("{prefix}.events must be greater than zero");
         }
     }
+    config.strategy.validate()?;
 
     validate_exact(
         "execution.order_submission",
@@ -409,6 +421,17 @@ source = "synthetic-quotes"
 instrument_id = "AUD/USD.SIM"
 events = 3
 
+[strategy]
+strategy_name = "ema"
+instrument_id = "AUD/USD.SIM"
+bar_type = "AUD/USD.SIM-1-MINUTE-LAST-EXTERNAL"
+trade_size = "1000"
+max_orders = 2
+risk_profile = "sandbox"
+fast_period = 10
+slow_period = 20
+signal_mode = "cross"
+
 [execution]
 order_submission = "simulated"
 reconciliation = "disabled"
@@ -451,6 +474,8 @@ write_summary = true
         assert_eq!(config.run.environment, SANDBOX_MODE);
         assert_eq!(primary_venue(&config).adapter, SANDBOX_ADAPTER);
         assert_eq!(primary_data(&config).source, SYNTHETIC_QUOTES_SOURCE);
+        assert_eq!(config.strategy.strategy_label(), "ema");
+        assert_eq!(config.strategy.resolved_warmup_bars().unwrap(), 20);
     }
 
     #[test]
@@ -471,10 +496,13 @@ write_summary = true
         assert!(summary.contains("live_node_started=false"));
         assert!(summary.contains("live_node_stopped=false"));
         assert!(summary.contains("simulated_lifecycle_status=completed"));
+        assert!(summary.contains("strategy=ema"));
+        assert!(summary.contains("warmup_bars=20"));
         assert!(summary.contains("real_orders_submitted=false"));
 
         let events = fs::read_to_string(output_dir.join("events.log")).unwrap();
         assert!(events.contains("event=simulate_node_start status=ok"));
+        assert!(events.contains("event=strategy_config status=accepted strategy=ema"));
         assert!(events.contains("event=risk_check status=passed"));
         assert!(events.contains("event=simulate_node_stop status=ok"));
     }
@@ -492,6 +520,19 @@ write_summary = true
         let error = load_minimal_sandbox_config(&path).unwrap_err().to_string();
 
         assert!(error.contains("venues[0].adapter must be 'sandbox'"));
+        assert!(!output_dir.join("summary.txt").exists());
+    }
+
+    #[test]
+    fn rejects_invalid_strategy_config() {
+        let output_dir =
+            std::env::temp_dir().join(format!("ntpro-v04-004-reject-{}", std::process::id()));
+        let config = minimal_config(&output_dir).replace("slow_period = 20", "slow_period = 5");
+        let path = write_config("reject-strategy", &config);
+
+        let error = load_minimal_sandbox_config(&path).unwrap_err().to_string();
+
+        assert!(error.contains("strategy.slow_period must be greater than strategy.fast_period"));
         assert!(!output_dir.join("summary.txt").exists());
     }
 }

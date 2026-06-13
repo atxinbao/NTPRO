@@ -147,6 +147,17 @@ source = "synthetic-quotes"
 instrument_id = "AUD/USD.SIM"
 events = 3
 
+[strategy]
+strategy_name = "ema"
+instrument_id = "AUD/USD.SIM"
+bar_type = "AUD/USD.SIM-1-MINUTE-LAST-EXTERNAL"
+trade_size = "1000"
+max_orders = 2
+risk_profile = "sandbox"
+fast_period = 10
+slow_period = 20
+signal_mode = "cross"
+
 [execution]
 order_submission = "simulated"
 reconciliation = "disabled"
