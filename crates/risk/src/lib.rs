@@ -49,6 +49,7 @@
 
 pub mod engine;
 pub mod sizing;
+pub mod v04_rejection;
 
 // Re-exports
 pub use engine::RiskEngine;
