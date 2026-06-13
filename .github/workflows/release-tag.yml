@@ -26,8 +26,14 @@ jobs:
             command: scripts/ai/verify_full.sh fast
           - stage: full-clippy
             command: scripts/ai/verify_full.sh clippy
-          - stage: full-rust-tests-workspace
-            command: scripts/ai/verify_full.sh rust-tests-workspace
+          - stage: full-rust-tests-workspace-core
+            command: scripts/ai/verify_full.sh rust-tests-workspace-core
+          - stage: full-rust-tests-workspace-runtime
+            command: scripts/ai/verify_full.sh rust-tests-workspace-runtime
+          - stage: full-rust-tests-workspace-adapters-a
+            command: scripts/ai/verify_full.sh rust-tests-workspace-adapters-a
+          - stage: full-rust-tests-workspace-adapters-b
+            command: scripts/ai/verify_full.sh rust-tests-workspace-adapters-b
           - stage: full-rust-tests-common-log-global
             command: scripts/ai/verify_full.sh rust-tests-common-log-global
           - stage: full-rust-tests-live-log-global
