@@ -72,6 +72,8 @@ jobs:
             command: scripts/ai/verify_release.sh v03-supervisor-control-smoke
           - stage: release-v03-dashboard-smoke
             command: scripts/ai/verify_release.sh v03-dashboard-smoke
+          - stage: release-v05-workflow-artifacts-smoke
+            command: scripts/ai/verify_release.sh v05-workflow-artifacts-smoke
     env:
       CARGO_BUILD_JOBS: "1"
       CARGO_INCREMENTAL: "0"
