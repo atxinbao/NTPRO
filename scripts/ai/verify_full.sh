@@ -64,13 +64,8 @@ run_clippy() {
   cargo clippy --workspace --lib --tests --features "$FEATURES" -- -D warnings
 }
 
-run_rust_tests() {
-  echo "== verify_full: rust tests =="
-  if cargo nextest --version >/dev/null 2>&1; then
-    cargo nextest run --workspace --lib --tests --features "$FEATURES" --no-fail-fast
-    return
-  fi
-
+run_rust_workspace_tests() {
+  echo "== verify_full: rust tests workspace =="
   live_lib_log_global_tests=(
     node::tests::test_await_engines_connected_returns_shutdown_requested
     node::tests::test_await_engines_connected_returns_stop_requested
@@ -95,25 +90,18 @@ run_rust_tests() {
 
   cargo test --workspace --lib --tests --features "$FEATURES" -- \
     "${rust_test_skip_args[@]}"
+}
 
+run_common_log_global_tests() {
+  echo "== verify_full: nautilus-common log-global tests =="
   common_feature_args=()
   while IFS= read -r arg; do
     common_feature_args+=("$arg")
   done < <(
     feature_args_for_crate "capnp,defi,ffi,high-precision,indicators,live,simulation,tracing-bridge"
   )
-
-  live_feature_args=()
-  while IFS= read -r arg; do
-    live_feature_args+=("$arg")
-  done < <(
-    feature_args_for_crate "defi,examples,ffi,ignored,node,plugin,simulation,streaming"
-  )
   common_lib_args=("${common_feature_args[@]}" --lib)
-  live_lib_args=("${live_feature_args[@]}" --lib)
-  live_node_test_args=("${live_feature_args[@]}" --test node)
 
-  echo "== verify_full: nautilus-common log-global tests =="
   logging_tests=()
   while IFS= read -r test_name; do
     logging_tests+=("$test_name")
@@ -123,9 +111,41 @@ run_rust_tests() {
   )
 
   run_exact_cargo_tests_with_args nautilus-common "${#common_lib_args[@]}" "${common_lib_args[@]}" "${logging_tests[@]}"
+}
 
+run_live_log_global_tests() {
   echo "== verify_full: nautilus-live log-global tests =="
+  live_lib_log_global_tests=(
+    node::tests::test_await_engines_connected_returns_shutdown_requested
+    node::tests::test_await_engines_connected_returns_stop_requested
+    node::tests::test_direct_build_rejects_event_store_config
+    node::tests::test_run_event_store_replay_config_failure_aborts_startup
+    node::tests::test_run_event_store_replay_consumes_runner_and_stops_before_connections
+    node::tests::test_start_event_store_replay_config_failure_aborts_startup
+    node::tests::test_start_event_store_replay_skips_live_connections
+    node::tests::test_start_stop_request_aborts_startup_without_running
+  )
+
+  live_feature_args=()
+  while IFS= read -r arg; do
+    live_feature_args+=("$arg")
+  done < <(
+    feature_args_for_crate "defi,examples,ffi,ignored,node,plugin,simulation,streaming"
+  )
+  live_lib_args=("${live_feature_args[@]}" --lib)
+
   run_exact_cargo_tests_with_args nautilus-live "${#live_lib_args[@]}" "${live_lib_args[@]}" "${live_lib_log_global_tests[@]}"
+}
+
+run_live_node_serial_tests() {
+  echo "== verify_full: nautilus-live node serial tests =="
+  live_feature_args=()
+  while IFS= read -r arg; do
+    live_feature_args+=("$arg")
+  done < <(
+    feature_args_for_crate "defi,examples,ffi,ignored,node,plugin,simulation,streaming"
+  )
+  live_node_test_args=("${live_feature_args[@]}" --test node)
 
   live_node_serial_tests=()
   while IFS= read -r test_name; do
@@ -138,9 +158,90 @@ run_rust_tests() {
   run_exact_cargo_tests_with_args nautilus-live "${#live_node_test_args[@]}" "${live_node_test_args[@]}" "${live_node_serial_tests[@]}"
 }
 
+run_rust_tests() {
+  echo "== verify_full: rust tests =="
+  if cargo nextest --version >/dev/null 2>&1; then
+    cargo nextest run --workspace --lib --tests --features "$FEATURES" --no-fail-fast
+    return
+  fi
+
+  run_rust_workspace_tests
+  run_common_log_global_tests
+  run_live_log_global_tests
+  run_live_node_serial_tests
+}
+
 run_golden_trace_validation() {
   echo "== verify_full: golden trace validation =="
-  scripts/ai/run_golden_traces.sh
+  run_golden_trace_file_validation
+  run_golden_trace_harness
+  run_golden_market_data_trace
+  run_golden_cache_msgbus_trace
+  run_golden_backtest_trace
+  run_golden_backtest_live_parity_trace
+  run_golden_live_sandbox_trace
+  run_golden_order_lifecycle_trace
+  run_golden_risk_rejection_trace
+  run_golden_adapter_payload_trace
+}
+
+run_golden_trace_file_validation() {
+  echo "== verify_full: golden trace file validation =="
+  RUN_RUST_GOLDEN_TRACE_HARNESS=0 \
+    RUN_RUST_MARKET_DATA_TRACE_REPLAY=0 \
+    RUN_RUST_CACHE_MSGBUS_TRACE_REPLAY=0 \
+    RUN_RUST_BACKTEST_TRACE_REPLAY=0 \
+    RUN_RUST_BACKTEST_LIVE_PARITY_TRACE_REPLAY=0 \
+    RUN_RUST_LIVE_SANDBOX_TRACE_REPLAY=0 \
+    RUN_RUST_ORDER_LIFECYCLE_TRACE_REPLAY=0 \
+    RUN_RUST_RISK_REJECTION_TRACE_REPLAY=0 \
+    RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY=0 \
+    scripts/ai/run_golden_traces.sh
+}
+
+run_golden_trace_harness() {
+  echo "== verify_full: golden trace harness =="
+  cargo test -p nautilus-testkit --test golden_trace_schema
+}
+
+run_golden_market_data_trace() {
+  echo "== verify_full: golden trace market data =="
+  cargo test -p nautilus-model --test golden_trace_market_data
+}
+
+run_golden_cache_msgbus_trace() {
+  echo "== verify_full: golden trace cache msgbus =="
+  cargo test -p nautilus-common --test golden_trace_cache_msgbus
+}
+
+run_golden_backtest_trace() {
+  echo "== verify_full: golden trace backtest =="
+  cargo test -p nautilus-backtest --test golden_trace_backtest
+}
+
+run_golden_backtest_live_parity_trace() {
+  echo "== verify_full: golden trace backtest/live parity =="
+  cargo test -p nautilus-backtest --test backtest_live_semantic_parity
+}
+
+run_golden_live_sandbox_trace() {
+  echo "== verify_full: golden trace live sandbox =="
+  cargo test -p nautilus-live --test golden_trace_live_sandbox
+}
+
+run_golden_order_lifecycle_trace() {
+  echo "== verify_full: golden trace order lifecycle =="
+  cargo test -p nautilus-execution --test golden_trace_order_lifecycle
+}
+
+run_golden_risk_rejection_trace() {
+  echo "== verify_full: golden trace risk rejection =="
+  cargo test -p nautilus-risk --test golden_trace_risk_rejection
+}
+
+run_golden_adapter_payload_trace() {
+  echo "== verify_full: golden trace adapter payload =="
+  cargo test -p nautilus-okx --test golden_trace_adapter_payload
 }
 
 run_rust_docs() {
@@ -161,8 +262,50 @@ run_stage() {
     rust-tests)
       run_rust_tests
       ;;
+    rust-tests-workspace)
+      run_rust_workspace_tests
+      ;;
+    rust-tests-common-log-global)
+      run_common_log_global_tests
+      ;;
+    rust-tests-live-log-global)
+      run_live_log_global_tests
+      ;;
+    rust-tests-live-node-serial)
+      run_live_node_serial_tests
+      ;;
     golden-traces)
       run_golden_trace_validation
+      ;;
+    golden-traces-files)
+      run_golden_trace_file_validation
+      ;;
+    golden-traces-harness)
+      run_golden_trace_harness
+      ;;
+    golden-traces-market-data)
+      run_golden_market_data_trace
+      ;;
+    golden-traces-cache-msgbus)
+      run_golden_cache_msgbus_trace
+      ;;
+    golden-traces-backtest)
+      run_golden_backtest_trace
+      ;;
+    golden-traces-backtest-live-parity)
+      run_golden_backtest_live_parity_trace
+      ;;
+    golden-traces-live-sandbox)
+      run_golden_live_sandbox_trace
+      ;;
+    golden-traces-order-lifecycle)
+      run_golden_order_lifecycle_trace
+      ;;
+    golden-traces-risk-rejection)
+      run_golden_risk_rejection_trace
+      ;;
+    golden-traces-adapter-payload)
+      run_golden_adapter_payload_trace
       ;;
     rust-docs)
       run_rust_docs
@@ -176,7 +319,7 @@ run_stage() {
       ;;
     *)
       echo "unknown verify_full stage: $stage" >&2
-      echo "valid stages: all, fast, clippy, rust-tests, golden-traces, rust-docs" >&2
+      echo "valid stages: all, fast, clippy, rust-tests, rust-tests-workspace, rust-tests-common-log-global, rust-tests-live-log-global, rust-tests-live-node-serial, golden-traces, golden-traces-files, golden-traces-harness, golden-traces-market-data, golden-traces-cache-msgbus, golden-traces-backtest, golden-traces-backtest-live-parity, golden-traces-live-sandbox, golden-traces-order-lifecycle, golden-traces-risk-rejection, golden-traces-adapter-payload, rust-docs" >&2
       exit 2
       ;;
   esac
