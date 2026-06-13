@@ -330,10 +330,10 @@ pub struct DashboardServeOpt {
     pub ntpro_node_bin: Option<PathBuf>,
 }
 
-/// Local workflow artifact commands for sandbox-only product smokes.
+/// Local workflow artifact commands for sandbox/testnet product smokes.
 #[derive(Parser, Debug)]
 #[command(
-    about = "Local sandbox-only workflow artifact commands",
+    about = "Local sandbox/testnet workflow artifact commands",
     long_about = None
 )]
 pub struct WorkflowOpt {
@@ -344,11 +344,11 @@ pub struct WorkflowOpt {
 /// Available local workflow artifact commands.
 #[derive(Parser, Debug, Clone)]
 #[command(
-    about = "Local sandbox-only workflow artifact commands",
+    about = "Local sandbox/testnet workflow artifact commands",
     long_about = None
 )]
 pub enum WorkflowCommand {
-    /// Runs the local Binance sandbox workflow and writes dashboard-readable artifacts.
+    /// Runs a local Binance sandbox/testnet workflow and writes dashboard-readable artifacts.
     Run(WorkflowRunOpt),
 }
 
@@ -357,6 +357,17 @@ pub enum WorkflowCommand {
 pub enum WorkflowKind {
     /// Local Binance sandbox workflow using checked-in fixtures and mock execution only.
     BinanceSandbox,
+    /// Local Binance testnet dry-run workflow; no network or real orders by default.
+    BinanceTestnet,
+}
+
+/// Supported local workflow run modes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum WorkflowRunMode {
+    /// Validate config and write local dry-run artifacts only.
+    DryRun,
+    /// Validate the testnet connectivity contract without opening a network connection.
+    ConnectivityProbe,
 }
 
 /// Local workflow run options.
@@ -365,6 +376,15 @@ pub struct WorkflowRunOpt {
     /// Workflow kind to run.
     #[arg(long, value_enum, default_value_t = WorkflowKind::BinanceSandbox)]
     pub workflow: WorkflowKind,
+    /// Workflow run mode. Testnet modes are offline unless explicitly documented otherwise.
+    #[arg(long, value_enum, default_value_t = WorkflowRunMode::DryRun)]
+    pub mode: WorkflowRunMode,
+    /// Optional workflow config. Required for the Binance testnet workflow.
+    #[arg(long)]
+    pub config: Option<PathBuf>,
+    /// Acknowledge optional testnet-network intent. The current v0.6 gate still records dry-run artifacts only.
+    #[arg(long)]
+    pub allow_testnet_network: bool,
     /// Owner-visible run identifier used in the artifact directory.
     #[arg(long)]
     pub run_id: Option<String>,
@@ -1094,16 +1114,19 @@ mod tests {
         let help = workflow.render_help().to_string();
 
         assert!(help.contains("run"));
-        assert!(help.contains("Local sandbox-only workflow artifact commands"));
+        assert!(help.contains("Local sandbox/testnet workflow artifact commands"));
     }
 
     #[test]
     fn workflow_run_help_describes_sandbox_boundary() {
         let help = render_subcommand_help(&["workflow", "run"]);
 
-        assert!(help.contains("local Binance sandbox workflow"));
+        assert!(help.contains("local Binance sandbox/testnet workflow"));
         assert!(help.contains("dashboard-readable artifacts"));
         assert!(help.contains("--workflow"));
+        assert!(help.contains("--mode"));
+        assert!(help.contains("--config"));
+        assert!(help.contains("--allow-testnet-network"));
         assert!(help.contains("--run-id"));
         assert!(help.contains("--output"));
     }
@@ -1129,8 +1152,47 @@ mod tests {
         let WorkflowCommand::Run(run) = workflow.command;
 
         assert_eq!(run.workflow, WorkflowKind::BinanceSandbox);
+        assert_eq!(run.mode, WorkflowRunMode::DryRun);
+        assert_eq!(run.config, None);
+        assert!(!run.allow_testnet_network);
         assert_eq!(run.run_id.as_deref(), Some("v05-smoke"));
         assert_eq!(run.output, Some(PathBuf::from("runs/workflows/v05-smoke")));
+    }
+
+    #[test]
+    fn parses_workflow_binance_testnet_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "workflow",
+            "run",
+            "--workflow",
+            "binance-testnet",
+            "--mode",
+            "connectivity-probe",
+            "--config",
+            "examples/rust/binance/testnet_dry_run.toml",
+            "--allow-testnet-network",
+            "--run-id",
+            "v06-smoke",
+            "--output",
+            "runs/workflows/v06-smoke",
+        ])
+        .expect("workflow run should parse");
+
+        let Commands::Workflow(workflow) = parsed.command else {
+            panic!("expected workflow command");
+        };
+        let WorkflowCommand::Run(run) = workflow.command;
+
+        assert_eq!(run.workflow, WorkflowKind::BinanceTestnet);
+        assert_eq!(run.mode, WorkflowRunMode::ConnectivityProbe);
+        assert_eq!(
+            run.config,
+            Some(PathBuf::from("examples/rust/binance/testnet_dry_run.toml"))
+        );
+        assert!(run.allow_testnet_network);
+        assert_eq!(run.run_id.as_deref(), Some("v06-smoke"));
+        assert_eq!(run.output, Some(PathBuf::from("runs/workflows/v06-smoke")));
     }
 
     #[test]

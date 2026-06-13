@@ -1,0 +1,25 @@
+[run]
+id = "v06-binance-testnet-dry-run"
+mode = "dry-run"
+
+[venue]
+name = "BINANCE"
+product = "spot"
+environment = "testnet"
+
+[credentials]
+api_key_env = "BINANCE_TESTNET_API_KEY"
+api_secret_env = "BINANCE_TESTNET_API_SECRET"
+values_in_file = false
+required_for_network = true
+
+[connectivity]
+mode = "dry-run"
+http_base_url = "https://testnet.binance.vision"
+ws_base_url = "wss://stream.testnet.binance.vision/ws"
+network_attempted = false
+
+[execution]
+order_submission = "disabled"
+reconciliation = "artifact-only"
+real_orders_submitted = false

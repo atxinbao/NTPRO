@@ -16,3 +16,6 @@ Final release checks, benchmark summaries, and audit reports live here.
   `ntpro-rust-only-v0.4.1` GitHub Release.
 - `v0_5_0_workflow_artifacts_readiness_report.md` - V05-011 final PASS/FAIL
   readiness report for the v0.5 local Binance sandbox workflow artifact scope.
+- `v0_6_0_binance_testnet_dry_run_readiness_report.md` - V06-012 final
+  PASS/FAIL readiness report for the v0.6 offline Binance testnet dry-run
+  foundation.
