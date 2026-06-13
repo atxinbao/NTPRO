@@ -1,6 +1,6 @@
 # NTPRO v0.3.1 Supervisor Control Hardening Readiness Report
 
-Date: 2026-06-12
+Date: 2026-06-13
 Executor: Codex
 Milestone: v0.3.1 Local Supervisor Control Console Hardening
 Decision: PASS to proceed to hosted release gate; FAIL for publication until hosted gate passes
@@ -71,7 +71,7 @@ Out of scope:
 This report is the readiness gate for the shipped `v0.3.1` claim. It is not
 allowed to silently ignore other PRs already merged into `main`.
 
-The merged-PR accounting for `#258` through `#278` is maintained in:
+The merged-PR accounting for `#258` through `#281` is maintained in:
 
 - `docs/rust-cutover/release/v0_3_1_supervisor_control_hardening_closeout.md`
 
@@ -99,13 +99,18 @@ That accounting separates three things cleanly:
 
 ## Local Verification
 
+All required local verification commands were rerun for the release-prep source
+tree before publication:
+
 | Command | Result | Summary |
 | --- | --- | --- |
-| `scripts/ai/verify_release.sh` | PASS | Full local release verification passed. `verify_full` passed, release build passed, CLI help checks passed, Rust-only/Cython checks passed, v0.2 two-node smoke passed, v0.3 supervisor smoke passed, and v0.3 dashboard smoke passed. Release build took `11m 54s`. |
-| `scripts/ai/check_rust_only_runtime.sh` | PASS | Rust-only runtime product-surface gate passed. |
+| `scripts/ai/verify_full.sh fast` | PASS | Fast release baseline passed. |
+| `cargo test -p nautilus-cli dashboard --lib` | PASS | Dashboard lib tests passed: `25 passed; 0 failed`. |
+| `cargo test -p nautilus-cli supervisor --lib` | PASS | Supervisor lib tests passed: `29 passed; 0 failed`. |
+| `scripts/ai/verify_release.sh release-build-product-surface rust-only-gates v03-supervisor-control-smoke v03-dashboard-smoke` | PASS | Release build product surface, Rust-only gates, v0.3 supervisor control smoke, and v0.3 dashboard smoke all passed with release binaries. |
 | `git diff --check` | PASS | No whitespace diff errors. |
 
-Direct smoke highlights:
+Direct release-smoke highlights:
 
 - v0.2 two-node supervisor smoke:
   - result: `v02_two_node_smoke status=ok`
@@ -122,9 +127,13 @@ Direct smoke highlights:
   - dashboard URL during smoke: `http://127.0.0.1:65276/dashboard`
   - final dashboard states: `sandbox-a=running`, `sandbox-b=stopped`
 
+The additional current-`main` deltas `#279` through `#281` are docs-only and
+do not change the runtime verification surface above.
+
 ## Hosted Release Gate Status
 
-Current hosted `Rust Cutover Release Gate` evidence is not a clean PASS.
+Current hosted `Rust Cutover Release Gate` evidence for the final publish
+decision is not yet a clean PASS on the release-prep source tree.
 
 Latest known runs:
 
@@ -135,20 +144,20 @@ Latest known runs:
 | `27418815065` | `workflow_dispatch` | `main` | `93db1f91b544a19a778d9ded2761c093b949da90` | `cancelled` | `https://github.com/atxinbao/NTPRO/actions/runs/27418815065` |
 | `27384342541` | `push` | `ntpro-rust-only-v0.3.0` | `2822ef8c29771de8ef1b90b96507ac6f1bcefcb3` | `failure` | `https://github.com/atxinbao/NTPRO/actions/runs/27384342541` |
 
-Interpretation:
+Interpretation before the final rerun:
 
 - These hosted failures/cancellations were recorded before this final V031-010
   report PR.
 - They cannot be used as v0.3.1 release approval.
-- After this PR is merged, hosted `Rust Cutover Release Gate` must be rerun
-  on `main`.
-- Tag creation and GitHub Release publication must wait for a hosted PASS.
+- After release-closeout wording is finalized, hosted
+  `Rust Cutover Release Gate` must be clean on the final publish commit.
+- Tag creation and GitHub Release publication must wait for that hosted PASS.
 
 ## PASS / FAIL Decision
 
 | Decision item | Result | Reason |
 | --- | --- | --- |
-| V031 hardening queue complete enough to enter hosted release gate | PASS | `V031-001` through `V031-009` are merged with evidence, and local `verify_release.sh` passed. |
+| V031 hardening queue complete enough to enter hosted release gate | PASS | `V031-001` through `V031-009` are merged with evidence, and the required local release checks passed. |
 | Local v0.3.1 readiness | PASS | Local release verification passed with release binaries and scoped supervisor/dashboard smoke. |
 | Hosted release gate | FAIL / PENDING RERUN | No hosted PASS exists after V031 closeout. |
 | Publish `ntpro-rust-only-v0.3.1` tag or GitHub Release | FAIL until hosted gate PASS | Publication requires a clean hosted gate after this report lands. |

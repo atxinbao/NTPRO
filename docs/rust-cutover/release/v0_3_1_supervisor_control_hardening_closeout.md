@@ -24,10 +24,13 @@ These facts were re-verified during `v0.3.1` release closeout:
 | Item | Value | Evidence source |
 | --- | --- | --- |
 | Current working branch at audit start | `main` | local git |
-| Audit baseline `origin/main` commit | `6fd5a68aea938dd7f60f0a443241694b095a0325` | local git / `gh pr list` |
+| Audit baseline `origin/main` commit at closeout start | `6fd5a68aea938dd7f60f0a443241694b095a0325` | local git / `gh pr list` |
+| Refreshed `origin/main` commit before tag preparation | `cbce10b03cfb725a2479b3fc8696f2c646911332` | local git / `gh pr list` |
 | Prior formal tag | `ntpro-rust-only-v0.3.0` | local git / GitHub Release |
 | Prior formal tag commit | `2822ef8c29771de8ef1b90b96507ac6f1bcefcb3` | local git |
 | Latest formal GitHub Release before v0.3.1 publication | `ntpro-rust-only-v0.3.0` | `gh release list` |
+| Latest clean hosted gate on baseline `main` during audit | run `27455863969` on `6fd5a68aea938dd7f60f0a443241694b095a0325` | `gh run list` / `gh run view` |
+| Additional merged docs-only deltas after closeout start | `#279`, `#280`, `#281` | `gh pr list --state merged` |
 | GitHub open PR count at audit start | `0` | `gh pr list --state open` |
 
 ## Category Rules
@@ -65,6 +68,9 @@ All PRs below are already merged to `main` after `ntpro-rust-only-v0.3.0`.
 | #276 | scope high precision catalog fixtures | `C` | Yes | No | Disclose as test/quality delta only. |
 | #277 | add v0.4 task queue docs | `B` | Yes | No | Disclose as planning-only delta; do not turn into v0.3.1 claim. |
 | #278 | refine trader terminal product docs | `B` | Yes | No | Disclose as product-doc delta only; do not turn into trader-terminal release claim. |
+| #279 | docs: define v0.4 Binance sandbox boundary | `B` | Yes | No | Disclose as scope-only delta; do not turn into v0.3.1 claim. |
+| #280 | docs: classify Binance v0.4 sandbox capability | `B` | Yes | No | Disclose as capability-matrix planning delta only. |
+| #281 | docs: define v0.4 EMA RSI strategy contracts | `B` | Yes | No | Disclose as strategy-spec planning delta only. |
 
 ## Release-Surface Consistency Rules
 
@@ -87,13 +93,40 @@ Required consistency points:
 
 ## Local Verification
 
-This section is updated after the final local release verification run on the
-release-prep commit.
+Required local verification ran on the release-prep source tree:
+
+| Command | Result | Notes |
+| --- | --- | --- |
+| `scripts/ai/verify_full.sh fast` | PASS | Fast baseline gate passed. |
+| `cargo test -p nautilus-cli dashboard --lib` | PASS | Dashboard lib tests passed: `25 passed; 0 failed`. |
+| `cargo test -p nautilus-cli supervisor --lib` | PASS | Supervisor lib tests passed: `29 passed; 0 failed`. |
+| `scripts/ai/verify_release.sh release-build-product-surface rust-only-gates v03-supervisor-control-smoke v03-dashboard-smoke` | PASS | Release product surface, Rust-only gates, v0.3 supervisor control smoke, and v0.3 dashboard smoke all passed with release binaries. |
+| `git diff --check` | PASS | No whitespace diff errors. |
+
+Key smoke details recorded during local verification:
+
+- v0.3 supervisor control smoke: `status=ok`
+- v0.3 dashboard smoke: `status=ok`
+- dashboard final states: `sandbox-a=running`, `sandbox-b=stopped`
+- release binaries used:
+  - `target/release/nautilus`
+  - `target/release/ntpro-node`
+
+The later `origin/main` deltas `#279` through `#281` are docs-only and do not
+change the runtime or release-binary verification surface covered by these
+commands.
 
 ## Hosted Release Gate
 
-This section is updated after the final hosted `Rust Cutover Release Gate` run
-on the release commit.
+Interim status during release closeout:
+
+- baseline `main` already had a clean hosted `Rust Cutover Release Gate` PASS
+  on run `27455863969` for commit
+  `6fd5a68aea938dd7f60f0a443241694b095a0325`;
+- a dedicated rerun for the release-closeout branch was dispatched on commit
+  `ea37948292aa31ade959a4558ccd16e9af788bd3`;
+- final publication still requires a clean hosted PASS on the final publish
+  commit, not just on baseline `main`.
 
 ## Tag And Release Publication
 

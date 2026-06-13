@@ -65,6 +65,9 @@ claim:
 - Supervisor / trader product-shape documents under `docs/architecture/`
 - High-precision catalog fixture scoping and ignored-test register updates
 - v0.4 planning/task documents under `docs/rust-cutover/tasks/V04-*`
+- v0.4 scope/spec/capability-planning documents under
+  `docs/rust-cutover/scope/`, `docs/rust-cutover/specs/`, and
+  `docs/rust-cutover/evidence/V04-*.md`
 
 These changes are present in the tagged source tree, but they do **not** mean
 that v0.3.1 now claims:

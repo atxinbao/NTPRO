@@ -106,15 +106,10 @@ Supported shipped capability in the v0.3.1 claim:
 - local `ntpro-node` process startup and shutdown;
 - status / logs / metrics inspection;
 - local two-node smoke evidence;
-- local control actions:
-
-- `start`
-- `stop`
-- `pause`
-- `resume`
-- `reconnect data source` as an explicit local sandbox `not_supported` result
-- `reconnect execution gateway` as an explicit local sandbox `not_supported`
-  result
+- local control actions: `start`, `stop`, `pause`, `resume`,
+  `reconnect data source` as an explicit local sandbox `not_supported` result,
+  and `reconnect execution gateway` as an explicit local sandbox
+  `not_supported` result.
 
 Not included in the v0.3.1 product claim:
 
