@@ -23,6 +23,15 @@ rg -n '^\s*#\[ignore(?:\s*=\s*"[^"]*")?\]' crates tests --glob '*.rs' -S | cut -
 
 Result after NAUDIT-003: 28 active ignored Rust test attributes were found.
 
+Release gate fixture note after GH-RELEASE-PERSISTENCE-HIGH-PRECISION-FIXTURES:
+the direct `#[ignore]` count remains 28, and there are 6 additional
+high-precision-only `cfg_attr(..., ignore = "...")` test skips in
+`crates/persistence/tests/test_catalog.rs`. These skips apply only when the
+`high-precision` feature is enabled, because the legacy parquet fixtures encode
+standard-precision 8-byte price fields while the release high-precision build
+expects 16-byte fields. They are tracked below as `IGN-MED-009` and must not be
+used as high-precision release evidence.
+
 DRG-008 re-ran and classified every High impact item. The active ignored-test
 count remains 28 because no high-impact test was safely restored to the default
 suite in this task. Several high-impact risk tests are empty placeholder
@@ -135,6 +144,7 @@ Formal blocker groups:
 | IGN-MED-006 | `crates/adapters/hyperliquid/tests/exec_client.rs:5004` | Hyperliquid account registration timeout test | Blocks about 30 seconds on hard-coded timeout. | Hyperliquid execution registration failure handling is not default-gated. | Adapter & Integration Agent | OPEN | Make timeout injectable and move to deterministic adapter fixture. |
 | IGN-MED-007 | `crates/adapters/bitmex/tests/http.rs:527` | `test_rate_limiting` | Slow integration test around eight seconds. | BitMEX rate limiter behavior is not part of default PR gate. | Adapter & Integration Agent | MANUAL/SLOW | Keep manual unless adapter support matrix requires default rate-limit evidence. |
 | IGN-MED-008 | `crates/plugin/tests/load_example_cdylib.rs:102` | `loads_example_cdylib_and_walks_manifest` | Plain Cargo tests stay fast; required Linux cdylib smoke uses a make target. | Plugin cdylib loading is outside default Rust-only product smoke. | Verification & Release Gatekeeper | MANUAL/PLATFORM | Keep manual platform smoke; do not treat as core CLI blocker. |
+| IGN-MED-009 | `crates/persistence/tests/test_catalog.rs` | 6 legacy parquet fixture read tests under `feature = "high-precision"` | Standard-precision parquet fixtures store 8-byte price fields; high-precision release builds expect 16-byte fixed precision. | High-precision release evidence must not rely on these legacy fixture reads. Generated high-precision catalog roundtrip coverage remains active. | Rust Core Runtime Agent | HIGH-PRECISION FIXTURE SCOPED OUT | Regenerate equivalent high-precision parquet fixtures or add a documented compatibility reader before using these fixture reads as release evidence. |
 
 ## Low / External Dependency Register
 

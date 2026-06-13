@@ -262,6 +262,10 @@ fn create_index_bar(ts_init: u64) -> Bar {
 }
 
 #[rstest]
+#[cfg_attr(
+    feature = "high-precision",
+    ignore = "standard-precision parquet fixture is incompatible with high-precision decode"
+)]
 fn test_quote_tick_query() {
     let expected_length = 9_500;
     let file_path = get_nautilus_test_data_file_path("quotes.parquet");
@@ -302,6 +306,10 @@ fn test_quote_tick_query_with_filter() {
 }
 
 #[rstest]
+#[cfg_attr(
+    feature = "high-precision",
+    ignore = "standard-precision parquet fixture is incompatible with high-precision decode"
+)]
 fn test_quote_tick_multiple_query() {
     let expected_length = 9_600;
     let mut catalog = DataBackendSession::new(5_000);
@@ -322,6 +330,10 @@ fn test_quote_tick_multiple_query() {
 }
 
 #[rstest]
+#[cfg_attr(
+    feature = "high-precision",
+    ignore = "standard-precision parquet fixture is incompatible with high-precision decode"
+)]
 fn test_trade_tick_query() {
     let expected_length = 100;
     let file_path = get_nautilus_test_data_file_path("trades.parquet");
@@ -344,6 +356,10 @@ fn test_trade_tick_query() {
 }
 
 #[rstest]
+#[cfg_attr(
+    feature = "high-precision",
+    ignore = "standard-precision parquet fixture is incompatible with high-precision decode"
+)]
 fn test_bar_query() {
     let expected_length = 10;
     let file_path = get_nautilus_test_data_file_path("bars.parquet");
@@ -689,6 +705,10 @@ fn test_rust_consolidate_index_with_deduplication() {
 }
 
 #[rstest]
+#[cfg_attr(
+    feature = "high-precision",
+    ignore = "standard-precision parquet fixture is incompatible with high-precision decode"
+)]
 fn test_register_object_store_from_uri_local_file() {
     // Test registering object store from local file URI
     let file_path = get_nautilus_test_data_file_path("trades.parquet");
@@ -3911,6 +3931,10 @@ fn test_query_directory_based_registration_with_cloud_uri() {
 }
 
 #[rstest]
+#[cfg_attr(
+    feature = "high-precision",
+    ignore = "standard-precision parquet fixture is incompatible with high-precision decode"
+)]
 fn test_duplicate_table_registration() {
     // Test that registering the same table twice doesn't cause duplicate data
     let mut session = DataBackendSession::new(1000);

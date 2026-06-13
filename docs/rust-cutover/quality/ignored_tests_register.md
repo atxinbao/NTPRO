@@ -19,7 +19,14 @@ Command used:
 rg -n "^\s*#\[ignore" crates tests
 ```
 
-Current count: 28 ignored test attributes.
+Current direct `#[ignore]` count: 28 ignored test attributes.
+
+GH-RELEASE-PERSISTENCE-HIGH-PRECISION-FIXTURES note: there are also 6
+high-precision-only `cfg_attr(..., ignore = "...")` fixture skips in
+`crates/persistence/tests/test_catalog.rs`. They are not counted by the direct
+`#[ignore]` scan above. They apply only to legacy standard-precision parquet
+fixture reads under the `high-precision` feature, and are tracked as
+`IGN-PERSIST-002`.
 
 V031-009 note: the first v0.3.1 closure batch does not reduce this count. It
 classifies the high-impact execution/risk/dYdX blockers and the live stress
@@ -45,6 +52,7 @@ Those tests remain ignored, but they are explicitly not evidence for v0.3.1.
 | `IGN-LIVE-002` | `stress_cancel_starvation` | `crates/live/tests/stress.rs:337` | Stress test excluded from routine default tests. | Live-node cancellation starvation regression is manual only. | Rust Core Runtime Agent | v0.3 hardening | Keep ignored with documented manual cadence or split a smaller default smoke. | Release/perf only for v0.3.1; deterministic local supervisor smoke covers the patch boundary. |
 | `IGN-PLUGIN-001` | `loads_example_cdylib_and_walks_manifest` | `crates/plugin/tests/load_example_cdylib.rs:102` | Example cdylib smoke kept out of default test path. | Plug-in load integration is manual only. | Verification & Release Gatekeeper | v0.3 hardening | Keep an explicit release smoke command or make a platform-stable default test. | Open |
 | `IGN-PERSIST-001` | `test_write_data_enum_mixed_custom_data_identifiers` | `crates/persistence/tests/test_catalog.rs:3685` | Slow custom-data regression over 120s. | Custom data identifier batching regression is manual only. | Rust Core Runtime Agent | v0.3 hardening | Reduce runtime or move to scheduled/release-only validation with evidence. | Open |
+| `IGN-PERSIST-002` | 6 legacy parquet fixture read tests under `feature = "high-precision"` | `crates/persistence/tests/test_catalog.rs` | Existing fixture files encode standard-precision 8-byte price fields; high-precision decode expects 16-byte fixed precision. | Release high-precision gate must use generated high-precision roundtrip tests instead of these legacy fixture reads. | Rust Core Runtime Agent | release gate hardening | Regenerate high-precision fixture equivalents or add an explicit compatibility reader before treating these fixtures as high-precision release evidence. | Scoped out for high-precision release builds; active in standard-precision builds. |
 | `IGN-DYDX-001` | `test_subscription_restoration_tracking` | `crates/adapters/dydx/tests/websocket.rs:1408` | Server-triggered disconnect causes reconnect loop. | dYdX reconnect/subscription replay gap remains tracked but not default-covered. | Adapter & Integration Agent | v0.3 hardening | Fix reconnect trigger reset or replace with deterministic fixture. | Scoped out for v0.3.1; open for adapter hardening. |
 | `IGN-HL-001` | `test_connect_times_out_when_account_never_registers` | `crates/adapters/hyperliquid/tests/exec_client.rs:5004` | Hard-coded account registration timeout blocks about 30s. | Hyperliquid connect timeout behavior is manual only. | Adapter & Integration Agent | v0.3 hardening | Make timeout injectable and unignore or add faster fixture. | Open |
 | `IGN-BLOCK-001` | `pool_snapshot_request_does_not_emit_snapshot_when_bootstrap_fails` | `crates/adapters/blockchain/src/data/client.rs:1024` | Requires `ENVIO_API_TOKEN` and live HyperSync access. | Blockchain live bootstrap failure path is external-service gated. | Adapter & Integration Agent | v0.3 adapter scope | Replace with fixture/mock or keep documented as live-only manual test. | Open |
