@@ -150,6 +150,14 @@ run_v05_workflow_artifacts_smoke() {
     scripts/ai/verify_v05_workflow_artifacts.sh
 }
 
+run_v06_binance_testnet_dry_run_smoke() {
+  echo "== verify_release: v0.6 Binance testnet dry-run smoke =="
+  ensure_release_cli_binaries
+  NTPRO_V06_SKIP_BUILD=1 \
+    NTPRO_V06_NAUTILUS_BIN="$NAUTILUS_RELEASE_BIN" \
+    scripts/ai/verify_v06_binance_testnet_dry_run.sh
+}
+
 run_stage() {
   local stage="$1"
   case "$stage" in
@@ -161,6 +169,7 @@ run_stage() {
       run_v03_supervisor_control_smoke
       run_v03_dashboard_smoke
       run_v05_workflow_artifacts_smoke
+      run_v06_binance_testnet_dry_run_smoke
       ;;
     full)
       run_full_checks
@@ -183,9 +192,12 @@ run_stage() {
     v05-workflow-artifacts-smoke)
       run_v05_workflow_artifacts_smoke
       ;;
+    v06-binance-testnet-dry-run-smoke)
+      run_v06_binance_testnet_dry_run_smoke
+      ;;
     *)
       echo "unknown verify_release stage: $stage" >&2
-      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke" >&2
+      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke" >&2
       exit 2
       ;;
   esac

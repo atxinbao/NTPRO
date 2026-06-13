@@ -710,8 +710,8 @@ function renderWorkflowArtifacts(workflows) {
             <td data-label="状态"><span class="status-${safe(workflow.health)}">${displayText(workflow.runtime_status)}</span></td>
             <td data-label="Manifest" class="path">${text(workflow.manifest_path)}</td>
             <td data-label="Artifact">${displayText(workflow.artifact_count)} 个<div class="muted">${displayText(workflow.schema_version)}</div></td>
-            <td data-label="边界">${panelRow("沙盒", workflow.sandbox_only)}${panelRow("外部连接", workflow.external_venue_connection)}${panelRow("真实资金", workflow.real_funds)}${panelRow("生产交易", workflow.production_trading)}${panelRow("真实订单", workflow.real_orders_submitted)}</td>
-            <td data-label="证据">${text(snapshotValue(workflow.market_fixture_id))}<div class="muted">${text(snapshotValue(workflow.risk_smoke_id))}</div></td>
+            <td data-label="边界">${panelRow("沙盒", workflow.sandbox_only)}${panelRow("Testnet", workflow.testnet_connection)}${panelRow("网络", workflow.network_attempted)}${panelRow("外部连接", workflow.external_venue_connection)}${panelRow("真实资金", workflow.real_funds)}${panelRow("生产交易", workflow.production_trading)}${panelRow("真实订单", workflow.real_orders_submitted)}</td>
+            <td data-label="证据">${text(snapshotValue(workflow.market_fixture_id))}<div class="muted">${text(snapshotValue(workflow.risk_smoke_id))}</div><div class="muted">${text(snapshotValue(workflow.connectivity_mode))} / ${text(snapshotValue(workflow.order_submission_mode))}</div></td>
           </tr>
         `).join("")}
       </tbody>
@@ -2083,6 +2083,12 @@ pub struct WorkflowArtifactStatus {
     pub real_funds: bool,
     pub production_trading: bool,
     pub real_orders_submitted: bool,
+    pub testnet_connection: bool,
+    pub network_attempted: bool,
+    pub credential_policy: DashboardValue<String>,
+    pub connectivity_mode: DashboardValue<String>,
+    pub order_submission_mode: DashboardValue<String>,
+    pub reconciliation_mode: DashboardValue<String>,
     pub diagnostic: DashboardValue<String>,
 }
 
@@ -2108,6 +2114,12 @@ impl WorkflowArtifactStatus {
             real_funds: false,
             production_trading: false,
             real_orders_submitted: false,
+            testnet_connection: false,
+            network_attempted: false,
+            credential_policy: DashboardValue::unknown(),
+            connectivity_mode: DashboardValue::unknown(),
+            order_submission_mode: DashboardValue::unknown(),
+            reconciliation_mode: DashboardValue::unknown(),
             diagnostic: DashboardValue::available(diagnostic.into()),
         }
     }
@@ -2898,6 +2910,14 @@ struct DashboardWorkflowSummary {
     real_funds: bool,
     production_trading: bool,
     real_orders_submitted: bool,
+    #[serde(default)]
+    testnet_connection: bool,
+    #[serde(default)]
+    network_attempted: bool,
+    credential_policy: Option<String>,
+    connectivity_mode: Option<String>,
+    order_submission_mode: Option<String>,
+    reconciliation_mode: Option<String>,
 }
 
 fn workflow_artifacts_from_registry_path(
@@ -3035,7 +3055,13 @@ fn workflow_status_from_manifest(
         real_funds: summary.real_funds,
         production_trading: summary.production_trading,
         real_orders_submitted: summary.real_orders_submitted,
-        diagnostic: DashboardValue::available("V05 workflow manifest loaded".to_string()),
+        testnet_connection: summary.testnet_connection,
+        network_attempted: summary.network_attempted,
+        credential_policy: optional_dashboard_value(summary.credential_policy),
+        connectivity_mode: optional_dashboard_value(summary.connectivity_mode),
+        order_submission_mode: optional_dashboard_value(summary.order_submission_mode),
+        reconciliation_mode: optional_dashboard_value(summary.reconciliation_mode),
+        diagnostic: DashboardValue::available("workflow manifest loaded".to_string()),
     }
 }
 
@@ -3941,6 +3967,58 @@ mod tests {
         assert!(!workflow.real_funds);
         assert!(!workflow.production_trading);
         assert!(!workflow.real_orders_submitted);
+        assert!(!workflow.testnet_connection);
+        assert!(!workflow.network_attempted);
+        assert_eq!(
+            workflow.credential_policy.availability,
+            DashboardAvailability::Unknown
+        );
+        assert_eq!(
+            workflow.connectivity_mode.availability,
+            DashboardAvailability::Unknown
+        );
+    }
+
+    #[test]
+    fn testnet_workflow_manifest_populates_dashboard_runtime_surface() {
+        let root = temp_root("testnet-workflow-manifest");
+        let registry_path = root.join("runs/supervisor/registry.json");
+        write_registry(&registry_path, []);
+        let manifest_path = root.join("runs/workflows/v06-smoke/manifest.json");
+        write_testnet_workflow_manifest(&manifest_path, "v06-smoke");
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:01:40Z").unwrap();
+
+        assert_eq!(snapshot.workflow_artifacts.len(), 1);
+        let workflow = &snapshot.workflow_artifacts[0];
+        assert_eq!(workflow.run_id, "v06-smoke");
+        assert_eq!(workflow.workflow, "binance-testnet");
+        assert_eq!(workflow.runtime_status, "dry_run_completed");
+        assert_eq!(workflow.health, HealthStatus::Healthy);
+        assert_eq!(workflow.artifact_count, 9);
+        assert!(workflow.sandbox_only);
+        assert!(workflow.mock_execution);
+        assert!(!workflow.fixture_replay);
+        assert!(!workflow.testnet_connection);
+        assert!(!workflow.network_attempted);
+        assert!(!workflow.external_venue_connection);
+        assert!(!workflow.real_funds);
+        assert!(!workflow.production_trading);
+        assert!(!workflow.real_orders_submitted);
+        assert_eq!(
+            workflow.credential_policy.value.as_deref(),
+            Some("env-var-only-no-secret-persistence")
+        );
+        assert_eq!(workflow.connectivity_mode.value.as_deref(), Some("dry-run"));
+        assert_eq!(
+            workflow.order_submission_mode.value.as_deref(),
+            Some("disabled")
+        );
+        assert_eq!(
+            workflow.reconciliation_mode.value.as_deref(),
+            Some("artifact-only")
+        );
     }
 
     #[test]
@@ -4827,6 +4905,60 @@ mod tests {
                 "real_funds": false,
                 "production_trading": false,
                 "real_orders_submitted": real_orders_submitted
+            }
+        });
+        fs::write(
+            path,
+            format!("{}\n", serde_json::to_string_pretty(&manifest).unwrap()),
+        )
+        .unwrap();
+    }
+
+    fn write_testnet_workflow_manifest(path: &Path, run_id: &str) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        let manifest = json!({
+            "schema_version": "ntpro.workflow_manifest.v1",
+            "workflow_id": "v06-binance-testnet-runtime-foundation",
+            "workflow": "binance-testnet",
+            "run_id": run_id,
+            "runtime_status": "dry_run_completed",
+            "artifact_count": 9,
+            "artifacts": [],
+            "summary": {
+                "schema_version": "ntpro.workflow_summary.v1",
+                "workflow_id": "v06-binance-testnet-runtime-foundation",
+                "workflow": "binance-testnet",
+                "run_id": run_id,
+                "runtime_status": "dry_run_completed",
+                "market_fixture_id": "not-applicable-testnet-dry-run",
+                "market_bar_count": 0,
+                "market_checksum": "dry_run_validated",
+                "ema_smoke_id": "not-applicable-testnet-dry-run",
+                "ema_signals_emitted": 0,
+                "ema_checksum": "not-applicable",
+                "rsi_smoke_id": "not-applicable-testnet-dry-run",
+                "rsi_signals_emitted": 0,
+                "rsi_checksum": "not-applicable",
+                "order_lifecycle_id": "v06-binance-testnet-dry-run-v06-smoke",
+                "order_event_count": 1,
+                "order_checksum": "v06-testnet-dry-run-no-real-orders",
+                "risk_smoke_id": "v06-binance-testnet-reconciliation-v06-smoke",
+                "risk_checksum": "ok",
+                "sandbox_only": true,
+                "fixture_replay": false,
+                "mock_execution": true,
+                "external_venue_connection": false,
+                "real_funds": false,
+                "production_trading": false,
+                "real_orders_submitted": false,
+                "testnet_connection": false,
+                "network_attempted": false,
+                "credential_policy": "env-var-only-no-secret-persistence",
+                "connectivity_mode": "dry-run",
+                "order_submission_mode": "disabled",
+                "reconciliation_mode": "artifact-only"
             }
         });
         fs::write(
