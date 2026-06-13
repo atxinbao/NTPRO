@@ -6,16 +6,16 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.4.0
-Capability: Binance Sandbox Product Foundation
+Current source tag: ntpro-rust-only-v0.4.1
+Capability: Binance Sandbox Product Foundation release-surface hardening
 ```
 
-This tag is the current v0.4.0 source release point for the scoped Binance
-sandbox product foundation. It is published as a GitHub Release for the tagged
-source tree:
+This tag is the current v0.4.1 patch source release point for the scoped
+Binance sandbox product foundation. It is published as a GitHub Release for the
+tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.4.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.4.1
 ```
 
 ## Current Status
@@ -92,8 +92,9 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.4.0 is a Binance sandbox-only product foundation release. It supports a
-local, deterministic, evidence-backed product path:
+v0.4.1 is a patch-only release-surface hardening release for the same
+Binance sandbox-only product foundation. It supports the same local,
+deterministic, evidence-backed product path as v0.4.0:
 
 - checked-in Binance fixture replay;
 - mock order lifecycle evidence;
@@ -102,10 +103,14 @@ local, deterministic, evidence-backed product path:
 - local Dashboard exchange / strategy / order / risk panels;
 - V04 ignored-test scope closure.
 
+v0.4.1 does not add new Binance capability. It only keeps the public README,
+release wording, named smoke gate, hosted evidence, and readiness report aligned
+with the already scoped Binance sandbox foundation.
+
 The v0.3.0 local Supervisor control console remains part of the validated
 release history, but it is no longer the current public milestone.
 
-Not included in the v0.4.0 product claim:
+Not included in the v0.4.1 product claim:
 
 - Production exchange connectivity.
 - Real account connectivity.
@@ -120,13 +125,14 @@ Not included in the v0.4.0 product claim:
 
 ## Binance Sandbox Boundary
 
-The v0.4.0 product boundary is Binance sandbox-only. It is fixture / testnet /
-mock first, with no real funds, no production trading, and no real order
-submission.
+The v0.4.1 product boundary is still Binance sandbox-only. It is fixture /
+testnet / mock first, with no real funds, no production trading, and no real
+order submission.
 
 The scope contract is:
 
 - `docs/rust-cutover/scope/v0_4_0_binance_sandbox_product_foundation.md`
+- `docs/rust-cutover/scope/v0_4_1_binance_sandbox_release_surface_hardening.md`
 
 The readiness report is:
 
@@ -181,6 +187,7 @@ Release documents:
 - `docs/rust-cutover/release/v0_2_local_multi_node_readiness_report.md`
 - `docs/rust-cutover/release/v0_3_0_supervisor_control_readiness_report.md`
 - `docs/rust-cutover/release/v0_4_0_binance_sandbox_readiness_report.md`
+- `docs/rust-cutover/scope/v0_4_1_binance_sandbox_release_surface_hardening.md`
 - `docs/rust-cutover/release/rust_only_release_notes.md`
 - `docs/rust-cutover/release/final_release_verification.md`
 - `docs/rust-cutover/release/final_completion_report.md`
@@ -209,11 +216,12 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.4.0` is the current Rust-only source release for the
-Binance Sandbox Product Foundation. v0.3.0 remains the Local Supervisor Control
-Console baseline, v0.2.0 remains the local multi-node runtime foundation
-baseline, and v0.1.0 remains the first formal Rust-only cutover release and
-historical baseline.
+`ntpro-rust-only-v0.4.1` is the current Rust-only patch source release for the
+Binance Sandbox Product Foundation release-surface hardening line. v0.4.0
+remains the first Binance Sandbox Product Foundation baseline, v0.3.0 remains
+the Local Supervisor Control Console baseline, v0.2.0 remains the local
+multi-node runtime foundation baseline, and v0.1.0 remains the first formal
+Rust-only cutover release and historical baseline.
 
 Before cutting the next release, review:
 
