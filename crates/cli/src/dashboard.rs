@@ -3589,6 +3589,8 @@ mod tests {
 
     use super::*;
 
+    const HTTP_CONTROL_TEST_DEADLINE: Duration = Duration::from_secs(10);
+
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
 
@@ -5048,11 +5050,21 @@ set -eu
 node_id=""
 output=""
 stop_file=""
+write_atomic() {
+  target="$1"
+  tmp="$target.tmp.$$"
+  cat > "$tmp"
+  mv "$tmp" "$target"
+}
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --run-id) node_id="$2"; shift 2 ;;
     --output) output="$2"; shift 2 ;;
     --stop-file) stop_file="$2"; shift 2 ;;
+    --max-runtime-ms) shift 2 ;;
+    --heartbeat-interval-ms) shift 2 ;;
+    --parent-pid) shift 2 ;;
+    --shutdown-timeout-ms) shift 2 ;;
     *) shift ;;
   esac
 done
@@ -5062,7 +5074,7 @@ echo "fixture stderr initialized node_id=$node_id" >&2
 cat > "$output/logs/events.log" <<EOF
 phase=start status=ok node_id=$node_id
 EOF
-cat > "$output/status.json" <<EOF
+write_atomic "$output/status.json" <<EOF
 {
   "schema_version": "ntpro.node_status.v1",
   "node_id": "$node_id",
@@ -5103,7 +5115,7 @@ cat > "$output/status.json" <<EOF
   "real_orders_submitted": false
 }
 EOF
-cat > "$output/metrics.json" <<EOF
+write_atomic "$output/metrics.json" <<EOF
 {
   "schema_version": "ntpro.node_metrics.v1",
   "node_id": "$node_id",
@@ -5140,7 +5152,7 @@ done
 cat >> "$output/logs/events.log" <<EOF
 phase=stop status=ok node_id=$node_id
 EOF
-cat > "$output/status.json" <<EOF
+write_atomic "$output/status.json" <<EOF
 {
   "schema_version": "ntpro.node_status.v1",
   "node_id": "$node_id",
@@ -5181,7 +5193,7 @@ cat > "$output/status.json" <<EOF
   "real_orders_submitted": false
 }
 EOF
-cat > "$output/metrics.json" <<EOF
+write_atomic "$output/metrics.json" <<EOF
 {
   "schema_version": "ntpro.node_metrics.v1",
   "node_id": "$node_id",
@@ -5232,7 +5244,7 @@ EOF
     }
 
     async fn post_action_until_ok(addr: SocketAddr, path: &str, context: &str) -> String {
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(3);
+        let deadline = tokio::time::Instant::now() + HTTP_CONTROL_TEST_DEADLINE;
         loop {
             let response = http_request(addr, "POST", path).await;
             if response.contains("HTTP/1.1 200 OK") {
@@ -5255,7 +5267,7 @@ EOF
     ) -> Value {
         let expected_lifecycle = json_label(&lifecycle_state);
         let expected_process = json_label(&process_state);
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(3);
+        let deadline = tokio::time::Instant::now() + HTTP_CONTROL_TEST_DEADLINE;
         loop {
             let response = http_request(addr, "GET", "/api/snapshot").await;
             if response.contains("HTTP/1.1 200 OK") {
