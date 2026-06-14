@@ -700,6 +700,7 @@ function renderWorkflowArtifacts(workflows) {
           <th>Manifest</th>
           <th>Artifact</th>
           <th>边界</th>
+          <th>探测</th>
           <th>证据</th>
         </tr>
       </thead>
@@ -711,8 +712,9 @@ function renderWorkflowArtifacts(workflows) {
             <td data-label="状态"><span class="status-${safe(workflow.health)}">${displayText(workflow.runtime_status)}</span></td>
             <td data-label="Manifest" class="path">${text(workflow.manifest_path)}</td>
             <td data-label="Artifact">${displayText(workflow.artifact_count)} 个<div class="muted">${displayText(workflow.schema_version)}</div></td>
-            <td data-label="边界">${panelRow("沙盒", workflow.sandbox_only)}${panelRow("Testnet", workflow.testnet_connection)}${panelRow("网络", workflow.network_attempted)}${panelRow("外部连接", workflow.external_venue_connection)}${panelRow("真实资金", workflow.real_funds)}${panelRow("生产交易", workflow.production_trading)}${panelRow("真实订单", workflow.real_orders_submitted)}</td>
-            <td data-label="证据">${text(snapshotValue(workflow.market_fixture_id))}<div class="muted">${text(snapshotValue(workflow.risk_smoke_id))}</div><div class="muted">${text(snapshotValue(workflow.connectivity_mode))} / ${text(snapshotValue(workflow.order_submission_mode))}</div></td>
+            <td data-label="边界">${panelRow("沙盒", workflow.sandbox_only)}${panelRow("Testnet", workflow.testnet_connection)}${panelRow("网络许可", workflow.network_permission_requested)}${panelRow("网络", workflow.network_attempted)}${panelRow("外部连接", workflow.external_venue_connection)}${panelRow("真实资金", workflow.real_funds)}${panelRow("生产交易", workflow.production_trading)}${panelRow("真实订单", workflow.real_orders_submitted)}</td>
+            <td data-label="探测">${text(snapshotValue(workflow.probe_status))}<div class="muted">${text(snapshotValue(workflow.probe_endpoint_class))}</div><div class="muted">latency=${text(snapshotValue(workflow.probe_latency_ms))} error=${text(snapshotValue(workflow.probe_error_code))}</div><div class="muted">ws=${text(snapshotValue(workflow.websocket_probe_status))} / ${text(snapshotValue(workflow.websocket_error_code))}</div><div class="muted">${panelRow("WS尝试", workflow.websocket_attempted)}${panelRow("WS订阅", workflow.websocket_subscription_attempted)}${panelRow("密钥记录", snapshotValue(workflow.values_recorded))}${panelRow("密钥脱敏", snapshotValue(workflow.secrets_redacted))}</div></td>
+            <td data-label="证据">${text(snapshotValue(workflow.market_fixture_id))}<div class="muted">${text(snapshotValue(workflow.risk_smoke_id))}</div><div class="muted">${text(snapshotValue(workflow.credential_policy))}</div><div class="muted">${text(snapshotValue(workflow.connectivity_mode))} / ${text(snapshotValue(workflow.order_submission_mode))}</div></td>
           </tr>
         `).join("")}
       </tbody>
@@ -2113,11 +2115,23 @@ pub struct WorkflowArtifactStatus {
     pub production_trading: bool,
     pub real_orders_submitted: bool,
     pub testnet_connection: bool,
+    pub network_permission_requested: bool,
     pub network_attempted: bool,
     pub credential_policy: DashboardValue<String>,
     pub connectivity_mode: DashboardValue<String>,
     pub order_submission_mode: DashboardValue<String>,
     pub reconciliation_mode: DashboardValue<String>,
+    pub probe_status: DashboardValue<String>,
+    pub probe_latency_ms: DashboardValue<u64>,
+    pub probe_endpoint_class: DashboardValue<String>,
+    pub probe_error_code: DashboardValue<String>,
+    pub values_recorded: DashboardValue<bool>,
+    pub secrets_redacted: DashboardValue<bool>,
+    pub websocket_probe_status: DashboardValue<String>,
+    pub websocket_error_code: DashboardValue<String>,
+    pub websocket_attempted: bool,
+    pub websocket_subscription_attempted: bool,
+    pub websocket_message_count: DashboardValue<u64>,
     pub diagnostic: DashboardValue<String>,
 }
 
@@ -2144,11 +2158,23 @@ impl WorkflowArtifactStatus {
             production_trading: false,
             real_orders_submitted: false,
             testnet_connection: false,
+            network_permission_requested: false,
             network_attempted: false,
             credential_policy: DashboardValue::unknown(),
             connectivity_mode: DashboardValue::unknown(),
             order_submission_mode: DashboardValue::unknown(),
             reconciliation_mode: DashboardValue::unknown(),
+            probe_status: DashboardValue::unknown(),
+            probe_latency_ms: DashboardValue::unknown(),
+            probe_endpoint_class: DashboardValue::unknown(),
+            probe_error_code: DashboardValue::unknown(),
+            values_recorded: DashboardValue::unknown(),
+            secrets_redacted: DashboardValue::unknown(),
+            websocket_probe_status: DashboardValue::unknown(),
+            websocket_error_code: DashboardValue::unknown(),
+            websocket_attempted: false,
+            websocket_subscription_attempted: false,
+            websocket_message_count: DashboardValue::unknown(),
             diagnostic: DashboardValue::available(diagnostic.into()),
         }
     }
@@ -3063,6 +3089,7 @@ fn workflow_status_from_manifest(
     gaps: &mut Vec<DashboardGap>,
 ) -> WorkflowArtifactStatus {
     let child_audit = audit_workflow_manifest_artifacts(manifest_path, &manifest, gaps);
+    let probe_artifacts = read_workflow_probe_artifacts(manifest_path, &manifest);
     let summary = manifest.summary;
     let product_health = if summary.external_venue_connection
         || summary.real_funds
@@ -3095,14 +3122,119 @@ fn workflow_status_from_manifest(
         real_funds: summary.real_funds,
         production_trading: summary.production_trading,
         real_orders_submitted: summary.real_orders_submitted,
-        testnet_connection: summary.testnet_connection,
-        network_attempted: summary.network_attempted,
+        testnet_connection: probe_artifacts
+            .testnet_connection
+            .unwrap_or(summary.testnet_connection),
+        network_permission_requested: probe_artifacts
+            .network_permission_requested
+            .unwrap_or(summary.network_permission_requested),
+        network_attempted: probe_artifacts
+            .network_attempted
+            .unwrap_or(summary.network_attempted),
         credential_policy: non_empty_dashboard_value(summary.credential_policy),
         connectivity_mode: non_empty_dashboard_value(summary.connectivity_mode),
         order_submission_mode: non_empty_dashboard_value(summary.order_submission_mode),
         reconciliation_mode: non_empty_dashboard_value(summary.reconciliation_mode),
+        probe_status: probe_artifacts.probe_status,
+        probe_latency_ms: probe_artifacts.probe_latency_ms,
+        probe_endpoint_class: probe_artifacts.probe_endpoint_class,
+        probe_error_code: probe_artifacts.probe_error_code,
+        values_recorded: probe_artifacts.values_recorded,
+        secrets_redacted: probe_artifacts.secrets_redacted,
+        websocket_probe_status: probe_artifacts.websocket_probe_status,
+        websocket_error_code: probe_artifacts.websocket_error_code,
+        websocket_attempted: probe_artifacts.websocket_attempted,
+        websocket_subscription_attempted: probe_artifacts.websocket_subscription_attempted,
+        websocket_message_count: probe_artifacts.websocket_message_count,
         diagnostic: DashboardValue::available(child_audit.diagnostic),
     }
+}
+
+struct WorkflowProbeArtifactStatus {
+    network_permission_requested: Option<bool>,
+    network_attempted: Option<bool>,
+    testnet_connection: Option<bool>,
+    probe_status: DashboardValue<String>,
+    probe_latency_ms: DashboardValue<u64>,
+    probe_endpoint_class: DashboardValue<String>,
+    probe_error_code: DashboardValue<String>,
+    values_recorded: DashboardValue<bool>,
+    secrets_redacted: DashboardValue<bool>,
+    websocket_probe_status: DashboardValue<String>,
+    websocket_error_code: DashboardValue<String>,
+    websocket_attempted: bool,
+    websocket_subscription_attempted: bool,
+    websocket_message_count: DashboardValue<u64>,
+}
+
+impl WorkflowProbeArtifactStatus {
+    fn unknown() -> Self {
+        Self {
+            network_permission_requested: None,
+            network_attempted: None,
+            testnet_connection: None,
+            probe_status: DashboardValue::unknown(),
+            probe_latency_ms: DashboardValue::unknown(),
+            probe_endpoint_class: DashboardValue::unknown(),
+            probe_error_code: DashboardValue::unknown(),
+            values_recorded: DashboardValue::unknown(),
+            secrets_redacted: DashboardValue::unknown(),
+            websocket_probe_status: DashboardValue::unknown(),
+            websocket_error_code: DashboardValue::unknown(),
+            websocket_attempted: false,
+            websocket_subscription_attempted: false,
+            websocket_message_count: DashboardValue::unknown(),
+        }
+    }
+}
+
+fn read_workflow_probe_artifacts(
+    manifest_path: &FsPath,
+    manifest: &WorkflowManifest,
+) -> WorkflowProbeArtifactStatus {
+    let Some(manifest_dir) = manifest_path.parent() else {
+        return WorkflowProbeArtifactStatus::unknown();
+    };
+    let mut status = WorkflowProbeArtifactStatus::unknown();
+
+    for artifact in &manifest.artifacts {
+        let artifact_path = manifest_dir.join(&artifact.path);
+        let Ok(raw) = fs::read_to_string(&artifact_path) else {
+            continue;
+        };
+        let Ok(value) = serde_json::from_str::<Value>(&raw) else {
+            continue;
+        };
+        match artifact.path.as_str() {
+            "testnet/connectivity_probe.json" => {
+                status.network_permission_requested = value
+                    .get("network_permission_requested")
+                    .and_then(Value::as_bool);
+                status.network_attempted = value.get("network_attempted").and_then(Value::as_bool);
+                status.testnet_connection =
+                    value.get("testnet_connection").and_then(Value::as_bool);
+                status.probe_status = json_string_field(&value, "status");
+                status.probe_latency_ms = json_u64_field(&value, "latency_ms");
+                status.probe_endpoint_class = json_string_field(&value, "endpoint_class");
+                status.probe_error_code = json_string_field(&value, "error_code");
+            }
+            "testnet/credential_policy.json" => {
+                status.values_recorded = json_bool_field(&value, "values_recorded");
+                status.secrets_redacted = json_bool_field(&value, "secrets_redacted");
+            }
+            "testnet/ws_connectivity_probe.json" => {
+                status.websocket_probe_status = json_string_field(&value, "status");
+                status.websocket_error_code = json_string_field(&value, "error_code");
+                status.websocket_attempted = json_bool(&value, "websocket_attempted");
+                status.websocket_subscription_attempted =
+                    json_bool(&value, "subscription_attempted");
+                status.websocket_message_count = json_u64_field(&value, "message_count");
+            }
+            _ => {}
+        }
+    }
+
+    status
 }
 
 struct WorkflowArtifactAudit {
@@ -3666,6 +3798,32 @@ fn non_empty_dashboard_value(value: String) -> DashboardValue<String> {
     } else {
         DashboardValue::available(value)
     }
+}
+
+fn json_string_field(value: &Value, field: &str) -> DashboardValue<String> {
+    value
+        .get(field)
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn json_u64_field(value: &Value, field: &str) -> DashboardValue<u64> {
+    value
+        .get(field)
+        .and_then(Value::as_u64)
+        .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn json_bool_field(value: &Value, field: &str) -> DashboardValue<bool> {
+    value
+        .get(field)
+        .and_then(Value::as_bool)
+        .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn json_bool(value: &Value, field: &str) -> bool {
+    value.get(field).and_then(Value::as_bool).unwrap_or(false)
 }
 
 fn redacted_optional_dashboard_error(value: Option<&str>) -> DashboardValue<String> {
@@ -4241,6 +4399,119 @@ mod tests {
         assert_eq!(
             workflow.reconciliation_mode.value.as_deref(),
             Some("artifact-only")
+        );
+    }
+
+    #[test]
+    fn testnet_probe_artifacts_populate_dashboard_read_only_fields() {
+        let root = temp_root("testnet-probe-artifacts");
+        let registry_path = root.join("runs/supervisor/registry.json");
+        write_registry(&registry_path, []);
+        let workflow_dir = root.join("runs/workflows/v07-probe");
+        let manifest_path = workflow_dir.join("manifest.json");
+        write_testnet_workflow_manifest_with_artifacts(
+            &manifest_path,
+            "v07-probe",
+            &json!([
+                {
+                    "path": "testnet/credential_policy.json",
+                    "schema_version": "ntpro.v07_binance_testnet_credential_policy.v1"
+                },
+                {
+                    "path": "testnet/connectivity_probe.json",
+                    "schema_version": "ntpro.v07_binance_testnet_connectivity_probe.v1"
+                },
+                {
+                    "path": "testnet/ws_connectivity_probe.json",
+                    "schema_version": "ntpro.v07_binance_testnet_ws_probe.v1"
+                }
+            ]),
+        );
+        fs::create_dir_all(workflow_dir.join("testnet")).unwrap();
+        fs::write(
+            workflow_dir.join("testnet/credential_policy.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": "ntpro.v07_binance_testnet_credential_policy.v1",
+                "policy": "env-var-only-no-secret-persistence",
+                "credential_source": "environment_variables_only",
+                "values_recorded": false,
+                "secrets_redacted": true
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            workflow_dir.join("testnet/connectivity_probe.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": "ntpro.v07_binance_testnet_connectivity_probe.v1",
+                "status": "http_read_only_probe_ok",
+                "latency_ms": 42,
+                "endpoint_class": "binance-testnet-public-http-time",
+                "error_code": "none",
+                "network_permission_requested": true,
+                "network_attempted": true,
+                "testnet_connection": true
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            workflow_dir.join("testnet/ws_connectivity_probe.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": "ntpro.v07_binance_testnet_ws_probe.v1",
+                "status": "websocket_read_only_probe_failed",
+                "error_code": "handshake_error",
+                "websocket_attempted": true,
+                "network_attempted": true,
+                "testnet_connection": false,
+                "subscription_attempted": false,
+                "message_count": 0,
+                "order_submission": "disabled",
+                "real_orders_submitted": false,
+                "values_recorded": false,
+                "secrets_redacted": true
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:01:43Z").unwrap();
+
+        assert_eq!(snapshot.workflow_artifacts.len(), 1);
+        let workflow = &snapshot.workflow_artifacts[0];
+        assert_eq!(workflow.workflow, "binance-testnet");
+        assert_eq!(workflow.health, HealthStatus::Healthy);
+        assert!(workflow.network_permission_requested);
+        assert!(workflow.network_attempted);
+        assert!(workflow.testnet_connection);
+        assert_eq!(
+            workflow.probe_status.value.as_deref(),
+            Some("http_read_only_probe_ok")
+        );
+        assert_eq!(workflow.probe_latency_ms.value, Some(42));
+        assert_eq!(
+            workflow.probe_endpoint_class.value.as_deref(),
+            Some("binance-testnet-public-http-time")
+        );
+        assert_eq!(workflow.probe_error_code.value.as_deref(), Some("none"));
+        assert_eq!(workflow.values_recorded.value, Some(false));
+        assert_eq!(workflow.secrets_redacted.value, Some(true));
+        assert_eq!(
+            workflow.websocket_probe_status.value.as_deref(),
+            Some("websocket_read_only_probe_failed")
+        );
+        assert_eq!(
+            workflow.websocket_error_code.value.as_deref(),
+            Some("handshake_error")
+        );
+        assert!(workflow.websocket_attempted);
+        assert!(!workflow.websocket_subscription_attempted);
+        assert_eq!(workflow.websocket_message_count.value, Some(0));
+        assert!(!workflow.real_orders_submitted);
+        assert_eq!(
+            workflow.order_submission_mode.value.as_deref(),
+            Some("disabled")
         );
     }
 
