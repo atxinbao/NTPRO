@@ -2944,7 +2944,15 @@ struct DashboardWorkflowManifest {
     run_id: String,
     runtime_status: String,
     artifact_count: u64,
+    #[serde(default)]
+    artifacts: Vec<DashboardWorkflowManifestArtifact>,
     summary: DashboardWorkflowSummary,
+}
+
+#[derive(Debug, Deserialize)]
+struct DashboardWorkflowManifestArtifact {
+    path: String,
+    schema_version: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -3075,7 +3083,7 @@ fn read_workflow_manifest_status(
     };
 
     match serde_json::from_str::<DashboardWorkflowManifest>(&raw) {
-        Ok(manifest) => workflow_status_from_manifest(manifest_path, manifest),
+        Ok(manifest) => workflow_status_from_manifest(manifest_path, manifest, gaps),
         Err(error) => {
             gaps.push(workflow_manifest_gap(
                 manifest_path,
@@ -3092,9 +3100,11 @@ fn read_workflow_manifest_status(
 fn workflow_status_from_manifest(
     manifest_path: &FsPath,
     manifest: DashboardWorkflowManifest,
+    gaps: &mut Vec<DashboardGap>,
 ) -> WorkflowArtifactStatus {
+    let child_audit = audit_workflow_manifest_artifacts(manifest_path, &manifest, gaps);
     let summary = manifest.summary;
-    let health = if summary.external_venue_connection
+    let product_health = if summary.external_venue_connection
         || summary.real_funds
         || summary.production_trading
         || summary.real_orders_submitted
@@ -3104,6 +3114,7 @@ fn workflow_status_from_manifest(
     } else {
         HealthStatus::Healthy
     };
+    let health = strongest_health(product_health, child_audit.health);
 
     WorkflowArtifactStatus {
         run_id: manifest.run_id,
@@ -3130,8 +3141,153 @@ fn workflow_status_from_manifest(
         connectivity_mode: optional_dashboard_value(summary.connectivity_mode),
         order_submission_mode: optional_dashboard_value(summary.order_submission_mode),
         reconciliation_mode: optional_dashboard_value(summary.reconciliation_mode),
-        diagnostic: DashboardValue::available("workflow manifest loaded".to_string()),
+        diagnostic: DashboardValue::available(child_audit.diagnostic),
     }
+}
+
+struct WorkflowArtifactAudit {
+    health: HealthStatus,
+    diagnostic: String,
+}
+
+fn audit_workflow_manifest_artifacts(
+    manifest_path: &FsPath,
+    manifest: &DashboardWorkflowManifest,
+    gaps: &mut Vec<DashboardGap>,
+) -> WorkflowArtifactAudit {
+    let Some(manifest_dir) = manifest_path.parent() else {
+        return WorkflowArtifactAudit {
+            health: HealthStatus::Degraded,
+            diagnostic: "workflow manifest parent directory unavailable".to_string(),
+        };
+    };
+    if manifest.artifacts.is_empty() {
+        return WorkflowArtifactAudit {
+            health: HealthStatus::Healthy,
+            diagnostic: "workflow manifest loaded; child artifact audit skipped".to_string(),
+        };
+    }
+
+    let mut health = HealthStatus::Healthy;
+    let mut checked = 0_u64;
+    for artifact in &manifest.artifacts {
+        checked += 1;
+        if let Err(message) = audit_workflow_child_artifact(manifest_dir, artifact) {
+            health = strongest_health(health, HealthStatus::Degraded);
+            gaps.push(workflow_child_artifact_gap(
+                manifest_path,
+                artifact,
+                message,
+            ));
+        }
+    }
+
+    WorkflowArtifactAudit {
+        health,
+        diagnostic: if health == HealthStatus::Healthy {
+            format!("workflow manifest loaded; child_artifacts={checked} ok")
+        } else {
+            format!("workflow manifest loaded; child_artifacts={checked} degraded")
+        },
+    }
+}
+
+fn audit_workflow_child_artifact(
+    manifest_dir: &FsPath,
+    artifact: &DashboardWorkflowManifestArtifact,
+) -> Result<(), String> {
+    if artifact.path.trim().is_empty() {
+        return Err("artifact path is empty".to_string());
+    }
+    let artifact_path = manifest_dir.join(&artifact.path);
+    if !artifact_path.is_file() {
+        return Err(format!("artifact missing: {}", artifact_path.display()));
+    }
+
+    let raw = fs::read_to_string(&artifact_path)
+        .map_err(|error| format!("读取 artifact 失败：{}: {error}", artifact_path.display()))?;
+    if artifact.path.ends_with(".jsonl") {
+        return audit_workflow_jsonl_artifact(&raw, &artifact.schema_version, &artifact_path);
+    }
+    audit_workflow_json_artifact(&raw, &artifact.schema_version, &artifact_path)
+}
+
+fn audit_workflow_json_artifact(
+    raw: &str,
+    expected_schema_version: &str,
+    artifact_path: &FsPath,
+) -> Result<(), String> {
+    let value: serde_json::Value = serde_json::from_str(raw)
+        .map_err(|error| format!("artifact JSON 无效：{}: {error}", artifact_path.display()))?;
+    let actual = value
+        .get("schema_version")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("missing");
+    if actual != expected_schema_version {
+        return Err(format!(
+            "artifact schema_version mismatch: {} expected={} actual={actual}",
+            artifact_path.display(),
+            expected_schema_version
+        ));
+    }
+    Ok(())
+}
+
+fn audit_workflow_jsonl_artifact(
+    raw: &str,
+    expected_schema_version: &str,
+    artifact_path: &FsPath,
+) -> Result<(), String> {
+    let mut records = 0_u64;
+    for (index, line) in raw.lines().enumerate() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        records += 1;
+        let value: serde_json::Value = serde_json::from_str(line).map_err(|error| {
+            format!(
+                "artifact JSONL 无效：{} line {}: {error}",
+                artifact_path.display(),
+                index + 1
+            )
+        })?;
+        let actual = value
+            .get("schema_version")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("missing");
+        if actual != expected_schema_version {
+            return Err(format!(
+                "artifact schema_version mismatch: {} line {} expected={} actual={actual}",
+                artifact_path.display(),
+                index + 1,
+                expected_schema_version
+            ));
+        }
+    }
+    if records == 0 {
+        return Err(format!(
+            "artifact JSONL is empty: {}",
+            artifact_path.display()
+        ));
+    }
+    Ok(())
+}
+
+fn workflow_child_artifact_gap(
+    manifest_path: &FsPath,
+    artifact: &DashboardWorkflowManifestArtifact,
+    notes: String,
+) -> DashboardGap {
+    DashboardGap::new(
+        format!(
+            "workflow_artifacts.{}.artifacts.{}",
+            manifest_path.display(),
+            artifact.path
+        ),
+        DashboardAvailability::Unknown,
+        "V061-005",
+        notes,
+    )
 }
 
 fn workflow_manifest_gap(manifest_path: &FsPath, notes: String) -> DashboardGap {
@@ -4121,6 +4277,87 @@ mod tests {
     }
 
     #[test]
+    fn missing_workflow_child_artifact_records_gap_and_degrades_health() {
+        let root = temp_root("missing-workflow-child-artifact");
+        let registry_path = root.join("runs/supervisor/registry.json");
+        write_registry(&registry_path, []);
+        let manifest_path = root.join("runs/workflows/v06-smoke/manifest.json");
+        write_testnet_workflow_manifest_with_artifacts(
+            &manifest_path,
+            "v06-smoke",
+            &json!([
+                {
+                    "path": "testnet/credential_policy.json",
+                    "schema_version": "ntpro.v06_binance_testnet_credential_policy.v1"
+                }
+            ]),
+        );
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:01:41Z").unwrap();
+
+        assert_eq!(snapshot.workflow_artifacts.len(), 1);
+        assert_eq!(
+            snapshot.workflow_artifacts[0].health,
+            HealthStatus::Degraded
+        );
+        assert!(
+            snapshot.workflow_artifacts[0]
+                .diagnostic
+                .value
+                .as_deref()
+                .is_some_and(|value| value.contains("degraded"))
+        );
+        assert!(snapshot.gaps.iter().any(|gap| {
+            gap.owner_task.value.as_deref() == Some("V061-005")
+                && gap.field_path.contains("testnet/credential_policy.json")
+                && gap
+                    .notes
+                    .value
+                    .as_deref()
+                    .is_some_and(|notes| notes.contains("artifact missing"))
+        }));
+    }
+
+    #[test]
+    fn invalid_workflow_child_jsonl_records_gap_and_degrades_health() {
+        let root = temp_root("invalid-workflow-child-jsonl");
+        let registry_path = root.join("runs/supervisor/registry.json");
+        write_registry(&registry_path, []);
+        let workflow_dir = root.join("runs/workflows/v06-smoke");
+        let manifest_path = workflow_dir.join("manifest.json");
+        write_testnet_workflow_manifest_with_artifacts(
+            &manifest_path,
+            "v06-smoke",
+            &json!([
+                {
+                    "path": "events.jsonl",
+                    "schema_version": "ntpro.workflow_event.v1"
+                }
+            ]),
+        );
+        fs::write(workflow_dir.join("events.jsonl"), "not-json\n").unwrap();
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:01:41Z").unwrap();
+
+        assert_eq!(snapshot.workflow_artifacts.len(), 1);
+        assert_eq!(
+            snapshot.workflow_artifacts[0].health,
+            HealthStatus::Degraded
+        );
+        assert!(snapshot.gaps.iter().any(|gap| {
+            gap.owner_task.value.as_deref() == Some("V061-005")
+                && gap.field_path.contains("events.jsonl")
+                && gap
+                    .notes
+                    .value
+                    .as_deref()
+                    .is_some_and(|notes| notes.contains("JSONL"))
+        }));
+    }
+
+    #[test]
     fn testnet_workflow_dashboard_uses_manifest_run_id_not_directory_name() {
         let root = temp_root("testnet-workflow-effective-run-id");
         let registry_path = root.join("runs/supervisor/registry.json");
@@ -5034,6 +5271,14 @@ mod tests {
     }
 
     fn write_testnet_workflow_manifest(path: &Path, run_id: &str) {
+        write_testnet_workflow_manifest_with_artifacts(path, run_id, &json!([]));
+    }
+
+    fn write_testnet_workflow_manifest_with_artifacts(
+        path: &Path,
+        run_id: &str,
+        artifacts: &Value,
+    ) {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).unwrap();
         }
@@ -5044,7 +5289,7 @@ mod tests {
             "run_id": run_id,
             "runtime_status": "dry_run_completed",
             "artifact_count": 9,
-            "artifacts": [],
+            "artifacts": artifacts,
             "summary": {
                 "schema_version": "ntpro.workflow_summary.v1",
                 "workflow_id": "v06-binance-testnet-runtime-foundation",
