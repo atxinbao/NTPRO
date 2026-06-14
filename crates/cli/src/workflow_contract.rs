@@ -25,7 +25,7 @@ pub(crate) const TESTNET_CONFIG_SCHEMA_VERSION: &str = "ntpro.v06_binance_testne
 pub(crate) const TESTNET_CREDENTIAL_POLICY_SCHEMA_VERSION: &str =
     "ntpro.v06_binance_testnet_credential_policy.v1";
 pub(crate) const TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION: &str =
-    "ntpro.v06_binance_testnet_connectivity_probe.v1";
+    "ntpro.v07_binance_testnet_connectivity_probe.v1";
 pub(crate) const TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION: &str =
     "ntpro.v06_binance_testnet_order_lifecycle.v1";
 pub(crate) const TESTNET_RECONCILIATION_SCHEMA_VERSION: &str =
@@ -70,6 +70,12 @@ pub(crate) struct TestnetConnectivityProbe {
     pub(crate) http_base_url: String,
     pub(crate) ws_base_url: String,
     pub(crate) network_permission_requested: bool,
+    #[serde(default)]
+    pub(crate) env_network_permission: bool,
+    #[serde(default)]
+    pub(crate) network_gate_status: String,
+    #[serde(default)]
+    pub(crate) network_gate_reasons: Vec<String>,
     pub(crate) network_attempted: bool,
     pub(crate) testnet_connection: bool,
     pub(crate) status: String,

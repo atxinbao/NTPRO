@@ -8,18 +8,24 @@ product = "spot"
 environment = "testnet"
 
 [credentials]
+# v0.7 online probes may read credentials from these env vars only.
+# Never put API key or API secret values in this file.
 api_key_env = "BINANCE_TESTNET_API_KEY"
 api_secret_env = "BINANCE_TESTNET_API_SECRET"
 values_in_file = false
 required_for_network = true
 
 [connectivity]
+# Default workflow runs stay offline. Real read-only testnet networking is
+# fail-closed and additionally requires --allow-testnet-network plus
+# NTPRO_ALLOW_TESTNET_NETWORK=1.
 mode = "dry-run"
 http_base_url = "https://testnet.binance.vision"
 ws_base_url = "wss://stream.testnet.binance.vision/ws"
 network_attempted = false
 
 [execution]
+# v0.7 read-only connectivity proof never submits orders.
 order_submission = "disabled"
 reconciliation = "artifact-only"
 real_orders_submitted = false
