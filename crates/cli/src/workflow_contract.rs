@@ -26,6 +26,8 @@ pub(crate) const TESTNET_CREDENTIAL_POLICY_SCHEMA_VERSION: &str =
     "ntpro.v07_binance_testnet_credential_policy.v1";
 pub(crate) const TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION: &str =
     "ntpro.v07_binance_testnet_connectivity_probe.v1";
+pub(crate) const TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION: &str =
+    "ntpro.v07_binance_testnet_ws_probe.v1";
 pub(crate) const TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION: &str =
     "ntpro.v06_binance_testnet_order_lifecycle.v1";
 pub(crate) const TESTNET_RECONCILIATION_SCHEMA_VERSION: &str =
@@ -110,6 +112,35 @@ pub(crate) struct TestnetConnectivityProbe {
     pub(crate) testnet_connection: bool,
     pub(crate) status: String,
     pub(crate) diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct TestnetWebSocketConnectivityProbe {
+    pub(crate) schema_version: String,
+    pub(crate) run_id: String,
+    pub(crate) mode: String,
+    pub(crate) requested_mode: String,
+    pub(crate) endpoint_kind: String,
+    pub(crate) endpoint_class: String,
+    pub(crate) ws_base_url: String,
+    pub(crate) network_gate_status: String,
+    pub(crate) network_gate_reasons: Vec<String>,
+    pub(crate) network_permission_requested: bool,
+    pub(crate) env_network_permission: bool,
+    pub(crate) websocket_probe_gate: String,
+    pub(crate) websocket_attempted: bool,
+    pub(crate) network_attempted: bool,
+    pub(crate) testnet_connection: bool,
+    pub(crate) subscription_attempted: bool,
+    pub(crate) message_count: u64,
+    pub(crate) order_submission: String,
+    pub(crate) real_orders_submitted: bool,
+    pub(crate) values_recorded: bool,
+    pub(crate) secrets_redacted: bool,
+    pub(crate) status: String,
+    pub(crate) error_code: String,
+    pub(crate) diagnostic: String,
+    pub(crate) generated_at: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -91,6 +91,7 @@ expected_files = [
     "testnet/config.json",
     "testnet/connectivity_probe.json",
     "testnet/credential_policy.json",
+    "testnet/ws_connectivity_probe.json",
 ]
 
 for relative in expected_files:
@@ -103,6 +104,7 @@ summary = json.loads((workflow_dir / "summary.json").read_text())
 boundary = json.loads((workflow_dir / "boundary.json").read_text())
 policy = json.loads((workflow_dir / "testnet/credential_policy.json").read_text())
 probe = json.loads((workflow_dir / "testnet/connectivity_probe.json").read_text())
+ws_probe = json.loads((workflow_dir / "testnet/ws_connectivity_probe.json").read_text())
 lifecycle = json.loads((workflow_dir / "orders/testnet_dry_run_lifecycle.json").read_text())
 reconciliation = json.loads((workflow_dir / "orders/reconciliation.json").read_text())
 events = [
@@ -119,7 +121,7 @@ require(manifest["schema_version"] == "ntpro.workflow_manifest.v1", manifest)
 require(manifest["workflow"] == "binance-testnet", manifest)
 require(manifest["run_id"] == run_id, manifest)
 require(manifest["runtime_status"] == "dry_run_completed", manifest)
-require(manifest["artifact_count"] == 9, manifest)
+require(manifest["artifact_count"] == 10, manifest)
 require({item["path"] for item in manifest["artifacts"]} == set(expected_files), manifest["artifacts"])
 
 for item in manifest["artifacts"]:
@@ -164,11 +166,26 @@ require(policy["secrets_redacted"] is True, policy)
 require(probe["network_attempted"] is False, probe)
 require(probe["testnet_connection"] is False, probe)
 require(probe["status"] == "dry_run_completed", probe)
+require(ws_probe["schema_version"] == "ntpro.v07_binance_testnet_ws_probe.v1", ws_probe)
+require(ws_probe["endpoint_kind"] == "websocket_read_only", ws_probe)
+require(ws_probe["websocket_probe_gate"] == "manual-online-only", ws_probe)
+require(ws_probe["websocket_attempted"] is False, ws_probe)
+require(ws_probe["network_attempted"] is False, ws_probe)
+require(ws_probe["testnet_connection"] is False, ws_probe)
+require(ws_probe["subscription_attempted"] is False, ws_probe)
+require(ws_probe["message_count"] == 0, ws_probe)
+require(ws_probe["order_submission"] == "disabled", ws_probe)
+require(ws_probe["real_orders_submitted"] is False, ws_probe)
+require(ws_probe["values_recorded"] is False, ws_probe)
+require(ws_probe["secrets_redacted"] is True, ws_probe)
+require(ws_probe["status"] == "websocket_read_only_probe_deferred", ws_probe)
+require(ws_probe["error_code"] == "network_gate_blocked", ws_probe)
+require(str(ws_probe["generated_at"]).startswith("unix:"), ws_probe)
 require(lifecycle["submitted_count"] == 0, lifecycle)
 require(lifecycle["real_orders_submitted"] is False, lifecycle)
 require(reconciliation["external_account_state_loaded"] is False, reconciliation)
 require(reconciliation["real_orders_submitted"] is False, reconciliation)
-require(len(events) == 7, f"expected 7 events, got {len(events)}")
+require(len(events) == 8, f"expected 8 events, got {len(events)}")
 require(events[0]["event_type"] == "workflow.testnet_config.ready", events[0])
 require(events[-1]["event_type"] == "workflow.events.ready", events[-1])
 for event in events:
