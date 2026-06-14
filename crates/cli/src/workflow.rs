@@ -701,7 +701,7 @@ impl TestnetConnectivityProbe {
             network_attempted: false,
             testnet_connection: false,
             status: status.to_string(),
-            diagnostic: diagnostic.to_string(),
+            diagnostic,
         }
     }
 }
