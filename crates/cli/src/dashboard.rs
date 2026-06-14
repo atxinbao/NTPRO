@@ -13,7 +13,7 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-//! Dashboard read-model DTOs and local HTTP server for the local v0.3 MVP.
+//! Dashboard read-model DTOs and local HTTP server for local Rust-only artifacts.
 
 use std::{
     collections::BTreeMap,
@@ -934,7 +934,7 @@ pub(crate) async fn run_dashboard_command(opt: DashboardOpt) -> anyhow::Result<(
 async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
     ensure!(
         opt.bind.ip().is_loopback(),
-        "dashboard server is local-only for v0.3; use a loopback bind address"
+        "dashboard server is local-only; use a loopback bind address"
     );
 
     let registry_path = opt.registry;
@@ -1276,7 +1276,7 @@ fn control_action_response(
                 current_state: previous_state,
                 started_at,
                 error_code: DashboardValue::available("unsupported_control_action".to_string()),
-                message: DashboardValue::available("v0.3 暂不支持该控制动作".to_string()),
+                message: DashboardValue::available("当前本地控制台暂不支持该控制动作".to_string()),
             })),
         )),
     }
