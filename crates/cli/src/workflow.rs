@@ -54,6 +54,7 @@ use crate::{
 
 const WORKFLOW_ID: &str = "v05-binance-sandbox-local-workflow";
 const DEFAULT_RUN_ID: &str = "v05-binance-sandbox-local";
+const TESTNET_NETWORK_OPT_IN_ENV: &str = "NTPRO_ALLOW_TESTNET_NETWORK";
 const BINANCE_SPOT_BARS_CSV: &str =
     include_str!("../../adapters/binance/test_data/v04/binance_spot_bars.csv");
 
@@ -94,7 +95,10 @@ pub(crate) fn run_workflow_command(opt: WorkflowOpt) -> anyhow::Result<()> {
 fn run_workflow(opt: WorkflowRunOpt) -> anyhow::Result<WorkflowRunResult> {
     match opt.workflow {
         WorkflowKind::BinanceSandbox => run_binance_sandbox_workflow(opt),
-        WorkflowKind::BinanceTestnet => run_binance_testnet_workflow(opt),
+        WorkflowKind::BinanceTestnet => run_binance_testnet_workflow_with_env_permission(
+            opt,
+            testnet_network_env_permission_enabled(),
+        ),
     }
 }
 
@@ -174,7 +178,10 @@ fn run_binance_sandbox_workflow(opt: WorkflowRunOpt) -> anyhow::Result<WorkflowR
     })
 }
 
-fn run_binance_testnet_workflow(opt: WorkflowRunOpt) -> anyhow::Result<WorkflowRunResult> {
+fn run_binance_testnet_workflow_with_env_permission(
+    opt: WorkflowRunOpt,
+    env_network_permission: bool,
+) -> anyhow::Result<WorkflowRunResult> {
     let config_path = opt
         .config
         .as_ref()
@@ -190,8 +197,14 @@ fn run_binance_testnet_workflow(opt: WorkflowRunOpt) -> anyhow::Result<WorkflowR
     let testnet_paths = TestnetArtifactPaths::new(&output_dir);
 
     let credential_policy = TestnetCredentialPolicy::from_config(&config);
-    let connectivity_probe =
-        TestnetConnectivityProbe::from_config(&config, opt.mode, opt.allow_testnet_network);
+    let network_gate =
+        TestnetNetworkGate::evaluate(&config, opt.allow_testnet_network, env_network_permission);
+    let connectivity_probe = TestnetConnectivityProbe::from_config(
+        &config,
+        opt.mode,
+        opt.allow_testnet_network,
+        &network_gate,
+    );
     let order_lifecycle = TestnetOrderLifecycle::from_config(&run_id, &config);
     let reconciliation = TestnetReconciliation::from_order_lifecycle(&run_id, &order_lifecycle);
     let boundary =
@@ -496,10 +509,10 @@ impl TestnetWorkflowConfig {
             &self.credentials.api_secret_env,
         )?;
         if self.credentials.values_in_file {
-            anyhow::bail!("credentials.values_in_file must be false for the V06 testnet workflow");
+            anyhow::bail!("credentials.values_in_file must be false for the testnet workflow");
         }
         if self.connectivity.network_attempted {
-            anyhow::bail!("connectivity.network_attempted must be false for checked-in V06 config");
+            anyhow::bail!("connectivity.network_attempted must be false for checked-in config");
         }
         ensure_equals("connectivity.mode", &self.connectivity.mode, "dry-run")?;
         ensure_field(
@@ -608,28 +621,73 @@ impl TestnetCredentialPolicy {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TestnetNetworkGate {
+    env_network_permission: bool,
+    status: String,
+    reasons: Vec<String>,
+}
+
+impl TestnetNetworkGate {
+    fn evaluate(
+        config: &TestnetWorkflowConfig,
+        allow_testnet_network: bool,
+        env_network_permission: bool,
+    ) -> Self {
+        let mut reasons = Vec::new();
+        if !allow_testnet_network {
+            reasons.push("missing --allow-testnet-network".to_string());
+        }
+        if !env_network_permission {
+            reasons.push(format!("{TESTNET_NETWORK_OPT_IN_ENV}=1 is not set"));
+        }
+        if config.venue.environment != "testnet" {
+            reasons.push(format!(
+                "venue.environment must be 'testnet', got '{}'",
+                config.venue.environment
+            ));
+        }
+        if config.execution.order_submission != "disabled" {
+            reasons.push(format!(
+                "execution.order_submission must be 'disabled', got '{}'",
+                config.execution.order_submission
+            ));
+        }
+        if config.execution.real_orders_submitted {
+            reasons.push("execution.real_orders_submitted must be false".to_string());
+        }
+
+        let status = if reasons.is_empty() {
+            "allowed"
+        } else {
+            "blocked"
+        };
+
+        Self {
+            env_network_permission,
+            status: status.to_string(),
+            reasons,
+        }
+    }
+}
+
+fn testnet_network_env_permission_enabled() -> bool {
+    matches!(
+        std::env::var(TESTNET_NETWORK_OPT_IN_ENV).as_deref(),
+        Ok("1")
+    )
+}
+
 impl TestnetConnectivityProbe {
     fn from_config(
         config: &TestnetWorkflowConfig,
         mode: WorkflowRunMode,
         allow_testnet_network: bool,
+        network_gate: &TestnetNetworkGate,
     ) -> Self {
         let requested_mode = requested_mode_label(mode);
         let status = runtime_status_for_testnet_mode(mode);
-        let diagnostic = match (mode, allow_testnet_network) {
-            (WorkflowRunMode::ConnectivityProbe, true) => {
-                "Connectivity-probe intent and network permission were recorded, but v0.6.1 remains offline-only; no socket is opened."
-            }
-            (WorkflowRunMode::ConnectivityProbe, false) => {
-                "Connectivity-probe intent was recorded, but v0.6.1 remains offline-only; no socket is opened."
-            }
-            (WorkflowRunMode::DryRun, true) => {
-                "Network permission was recorded with dry-run mode, but v0.6.1 remains offline-only; no socket is opened."
-            }
-            (WorkflowRunMode::DryRun, false) => {
-                "V06 validates the Binance testnet runtime contract offline; no socket is opened."
-            }
-        };
+        let diagnostic = network_gate_diagnostic(mode, network_gate);
         Self {
             schema_version: TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION.to_string(),
             mode: config.connectivity.mode.clone(),
@@ -637,10 +695,31 @@ impl TestnetConnectivityProbe {
             http_base_url: config.connectivity.http_base_url.clone(),
             ws_base_url: config.connectivity.ws_base_url.clone(),
             network_permission_requested: allow_testnet_network,
+            env_network_permission: network_gate.env_network_permission,
+            network_gate_status: network_gate.status.clone(),
+            network_gate_reasons: network_gate.reasons.clone(),
             network_attempted: false,
             testnet_connection: false,
             status: status.to_string(),
             diagnostic: diagnostic.to_string(),
+        }
+    }
+}
+
+fn network_gate_diagnostic(mode: WorkflowRunMode, network_gate: &TestnetNetworkGate) -> String {
+    if network_gate.status == "blocked" {
+        return format!(
+            "V070 network gate blocked before socket creation: {}. No socket is opened.",
+            network_gate.reasons.join("; ")
+        );
+    }
+
+    match mode {
+        WorkflowRunMode::ConnectivityProbe => {
+            "V070 network gate allowed, but V070-001 only records the guard; HTTP read-only probe is implemented by V070-003. No socket is opened.".to_string()
+        }
+        WorkflowRunMode::DryRun => {
+            "V070 network gate allowed for future online probes, but dry-run mode stays offline. No socket is opened.".to_string()
         }
     }
 }
@@ -1040,9 +1119,17 @@ real_orders_submitted = false
     }
 
     fn write_testnet_config(dir: &Path) -> PathBuf {
+        write_testnet_config_body(dir, &testnet_config())
+    }
+
+    fn write_testnet_config_body(dir: &Path, body: &str) -> PathBuf {
         let path = dir.join("testnet.toml");
-        fs::write(&path, testnet_config()).unwrap();
+        fs::write(&path, body).unwrap();
         path
+    }
+
+    fn parsed_testnet_config() -> TestnetWorkflowConfig {
+        toml::from_str(&testnet_config()).unwrap()
     }
 
     #[test]
@@ -1263,14 +1350,17 @@ real_orders_submitted = false
         let root = temp_root("testnet-connectivity-probe");
         let config = write_testnet_config(&root);
         let output = root.join("artifacts");
-        let result = run_workflow(WorkflowRunOpt {
-            workflow: WorkflowKind::BinanceTestnet,
-            mode: WorkflowRunMode::ConnectivityProbe,
-            config: Some(config),
-            allow_testnet_network: true,
-            run_id: Some("probe-run".to_string()),
-            output: Some(output),
-        })
+        let result = run_binance_testnet_workflow_with_env_permission(
+            WorkflowRunOpt {
+                workflow: WorkflowKind::BinanceTestnet,
+                mode: WorkflowRunMode::ConnectivityProbe,
+                config: Some(config),
+                allow_testnet_network: true,
+                run_id: Some("probe-run".to_string()),
+                output: Some(output),
+            },
+            false,
+        )
         .unwrap();
 
         assert_eq!(result.runtime_status, "offline_probe_validated");
@@ -1296,10 +1386,121 @@ real_orders_submitted = false
             serde_json::from_str(&fs::read_to_string(probe_path).unwrap()).unwrap();
         assert_eq!(probe.requested_mode, "connectivity-probe");
         assert!(probe.network_permission_requested);
+        assert!(!probe.env_network_permission);
+        assert_eq!(probe.network_gate_status, "blocked");
+        assert_eq!(
+            probe.network_gate_reasons,
+            vec![format!("{TESTNET_NETWORK_OPT_IN_ENV}=1 is not set")]
+        );
         assert!(!probe.network_attempted);
         assert!(!probe.testnet_connection);
         assert_eq!(probe.status, "offline_probe_validated");
-        assert!(probe.diagnostic.contains("offline-only"));
+        assert!(probe.diagnostic.contains("blocked before socket creation"));
+        assert!(probe.diagnostic.contains("No socket is opened"));
+    }
+
+    #[test]
+    fn binance_testnet_network_gate_blocks_without_cli_permission() {
+        let config = parsed_testnet_config();
+        let gate = TestnetNetworkGate::evaluate(&config, false, true);
+
+        assert!(gate.env_network_permission);
+        assert_eq!(gate.status, "blocked");
+        assert_eq!(gate.reasons, vec!["missing --allow-testnet-network"]);
+    }
+
+    #[test]
+    fn binance_testnet_network_gate_allows_only_read_only_testnet_config() {
+        let config = parsed_testnet_config();
+        let gate = TestnetNetworkGate::evaluate(&config, true, true);
+
+        assert!(gate.env_network_permission);
+        assert_eq!(gate.status, "allowed");
+        assert!(gate.reasons.is_empty());
+    }
+
+    #[test]
+    fn binance_testnet_connectivity_probe_records_allowed_gate_without_network_attempt() {
+        let root = temp_root("testnet-connectivity-probe-allowed");
+        let config = write_testnet_config(&root);
+        let output = root.join("artifacts");
+        let result = run_binance_testnet_workflow_with_env_permission(
+            WorkflowRunOpt {
+                workflow: WorkflowKind::BinanceTestnet,
+                mode: WorkflowRunMode::ConnectivityProbe,
+                config: Some(config),
+                allow_testnet_network: true,
+                run_id: Some("probe-allowed-run".to_string()),
+                output: Some(output),
+            },
+            true,
+        )
+        .unwrap();
+
+        assert_eq!(result.runtime_status, "offline_probe_validated");
+        assert!(result.network_permission_requested);
+        assert!(!result.network_attempted);
+        assert!(!result.testnet_connection);
+
+        let probe_path = result.output_dir.join("testnet/connectivity_probe.json");
+        let probe: TestnetConnectivityProbe =
+            serde_json::from_str(&fs::read_to_string(probe_path).unwrap()).unwrap();
+        assert!(probe.env_network_permission);
+        assert_eq!(probe.network_gate_status, "allowed");
+        assert!(probe.network_gate_reasons.is_empty());
+        assert!(!probe.network_attempted);
+        assert!(!probe.testnet_connection);
+        assert!(probe.diagnostic.contains("V070 network gate allowed"));
+        assert!(probe.diagnostic.contains("V070-003"));
+    }
+
+    #[test]
+    fn binance_testnet_workflow_rejects_non_testnet_environment() {
+        let root = temp_root("testnet-non-testnet-environment");
+        let body = testnet_config().replace("environment = \"testnet\"", "environment = \"prod\"");
+        let config = write_testnet_config_body(&root, &body);
+        let output = root.join("artifacts");
+        let error = run_binance_testnet_workflow_with_env_permission(
+            WorkflowRunOpt {
+                workflow: WorkflowKind::BinanceTestnet,
+                mode: WorkflowRunMode::ConnectivityProbe,
+                config: Some(config),
+                allow_testnet_network: true,
+                run_id: Some("bad-env-run".to_string()),
+                output: Some(output),
+            },
+            true,
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("venue.environment"));
+        assert!(error.to_string().contains("testnet"));
+    }
+
+    #[test]
+    fn binance_testnet_workflow_rejects_enabled_order_submission() {
+        let root = temp_root("testnet-order-submission-enabled");
+        let body = testnet_config().replace(
+            "order_submission = \"disabled\"",
+            "order_submission = \"enabled\"",
+        );
+        let config = write_testnet_config_body(&root, &body);
+        let output = root.join("artifacts");
+        let error = run_binance_testnet_workflow_with_env_permission(
+            WorkflowRunOpt {
+                workflow: WorkflowKind::BinanceTestnet,
+                mode: WorkflowRunMode::ConnectivityProbe,
+                config: Some(config),
+                allow_testnet_network: true,
+                run_id: Some("bad-order-run".to_string()),
+                output: Some(output),
+            },
+            true,
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("execution.order_submission"));
+        assert!(error.to_string().contains("disabled"));
     }
 
     #[test]

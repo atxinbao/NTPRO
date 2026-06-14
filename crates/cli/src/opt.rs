@@ -360,7 +360,7 @@ pub enum WorkflowCommand {
 pub enum WorkflowKind {
     /// Local Binance sandbox workflow using checked-in fixtures and mock execution only.
     BinanceSandbox,
-    /// Local Binance testnet workflow contract; v0.6.1 remains offline-only.
+    /// Local Binance testnet workflow contract with fail-closed v0.7 network gating.
     BinanceTestnet,
 }
 
@@ -369,7 +369,7 @@ pub enum WorkflowKind {
 pub enum WorkflowRunMode {
     /// Validate config and write local dry-run artifacts only.
     DryRun,
-    /// Record connectivity-probe intent without opening a network connection.
+    /// Record connectivity-probe intent behind the fail-closed testnet network gate.
     ConnectivityProbe,
 }
 
@@ -379,13 +379,13 @@ pub struct WorkflowRunOpt {
     /// Workflow kind to run.
     #[arg(long, value_enum, default_value_t = WorkflowKind::BinanceSandbox)]
     pub workflow: WorkflowKind,
-    /// Workflow run mode. v0.6.1 testnet modes are offline-only.
+    /// Workflow run mode. Default dry-run opens no sockets.
     #[arg(long, value_enum, default_value_t = WorkflowRunMode::DryRun)]
     pub mode: WorkflowRunMode,
     /// Optional workflow config. Required for the Binance testnet workflow.
     #[arg(long)]
     pub config: Option<PathBuf>,
-    /// Record optional testnet-network intent; v0.6.1 still opens no sockets.
+    /// First opt-in for future Binance testnet networking; also requires NTPRO_ALLOW_TESTNET_NETWORK=1 and read-only config.
     #[arg(long)]
     pub allow_testnet_network: bool,
     /// Owner-visible run identifier used in the artifact directory.
