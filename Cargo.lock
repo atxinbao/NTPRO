@@ -5551,6 +5551,7 @@ dependencies = [
  "nautilus-risk",
  "nautilus-sandbox",
  "nautilus-trading",
+ "reqwest 0.13.3",
  "serde",
  "serde_json",
  "sysinfo",

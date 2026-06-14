@@ -385,7 +385,7 @@ pub struct WorkflowRunOpt {
     /// Optional workflow config. Required for the Binance testnet workflow.
     #[arg(long)]
     pub config: Option<PathBuf>,
-    /// Fail-closed first opt-in for future Binance testnet networking; also requires NTPRO_ALLOW_TESTNET_NETWORK=1 and read-only config.
+    /// Fail-closed opt-in for Binance testnet read-only networking; also requires NTPRO_ALLOW_TESTNET_NETWORK=1 and read-only config.
     #[arg(long)]
     pub allow_testnet_network: bool,
     /// Owner-visible run identifier used in the artifact directory.

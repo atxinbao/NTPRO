@@ -91,6 +91,14 @@ pub(crate) struct TestnetConnectivityProbe {
     pub(crate) authenticated_read_only_probe_requires_credentials: bool,
     pub(crate) http_base_url: String,
     pub(crate) ws_base_url: String,
+    #[serde(default)]
+    pub(crate) endpoint_class: String,
+    #[serde(default)]
+    pub(crate) latency_ms: Option<u64>,
+    #[serde(default)]
+    pub(crate) http_status: Option<u16>,
+    #[serde(default)]
+    pub(crate) error_code: String,
     pub(crate) network_permission_requested: bool,
     #[serde(default)]
     pub(crate) env_network_permission: bool,
