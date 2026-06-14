@@ -37,7 +37,14 @@ jobs:
           if [ ! -s /tmp/changed-files.txt ]; then
             echo "heavy_rust=true" >> "$GITHUB_OUTPUT"
             echo "release_verify=false" >> "$GITHUB_OUTPUT"
+            echo "v06_smoke=false" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+          if grep -E '^(crates/cli/src/(workflow|dashboard|opt)\.rs|examples/rust/binance/testnet_dry_run\.toml|scripts/ai/verify_v06_binance_testnet_dry_run\.sh|docs/rust-cutover/product/V06_BINANCE_TESTNET_DRY_RUN_USER_GUIDE\.md)$' /tmp/changed-files.txt >/dev/null; then
+            echo "v06_smoke=true" >> "$GITHUB_OUTPUT"
+            echo "v0.6 Binance testnet dry-run smoke required by changed files"
+          else
+            echo "v06_smoke=false" >> "$GITHUB_OUTPUT"
           fi
           if grep -Ev '^(README\.md|CHANGELOG.*|MIGRATION.*|docs/|release/|\.agentflow/|\.github/(ISSUE_TEMPLATE/|pull_request_template\.md|workflows/(release-tag|rust-cutover-smoke)\.yml)|scripts/ai/(verify_full|verify_release|v03_dashboard_smoke|verify_v05_workflow_artifacts|verify_v06_binance_testnet_dry_run)\.sh|\.gitignore$)' /tmp/changed-files.txt >/tmp/heavy-files.txt; then
             echo "heavy_rust=true" >> "$GITHUB_OUTPUT"
@@ -76,6 +83,9 @@ jobs:
       - name: CLI unit tests
         if: steps.changes.outputs.heavy_rust == 'true'
         run: cargo test -p nautilus-cli --lib
+      - name: v06-binance-testnet-dry-run-smoke
+        if: steps.changes.outputs.v06_smoke == 'true'
+        run: scripts/ai/verify_v06_binance_testnet_dry_run.sh
       - name: Golden trace schema smoke
         run: python scripts/ai/golden_trace_runner.py tests/golden/schema_smoke.jsonl --mode validate-only
       - name: Rust-only runtime gate
