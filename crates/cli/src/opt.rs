@@ -322,6 +322,9 @@ pub struct DashboardServeOpt {
     /// Path to the local supervisor registry JSON file.
     #[arg(long)]
     pub registry: PathBuf,
+    /// Optional local workflow artifact root to scan independently of supervisor registry.
+    #[arg(long)]
+    pub workflow_root: Option<PathBuf>,
     /// Local loopback address for the dashboard HTTP server.
     #[arg(long, default_value = "127.0.0.1:5173")]
     pub bind: SocketAddr,
@@ -1033,6 +1036,7 @@ mod tests {
         assert!(help.contains("static dashboard shell"));
         assert!(help.contains("local JSON API"));
         assert!(help.contains("--registry"));
+        assert!(help.contains("--workflow-root"));
         assert!(help.contains("--bind"));
     }
 
@@ -1044,6 +1048,8 @@ mod tests {
             "serve",
             "--registry",
             "runs/supervisor/registry.json",
+            "--workflow-root",
+            "runs/workflows",
             "--bind",
             "127.0.0.1:5174",
         ])
@@ -1058,6 +1064,7 @@ mod tests {
             serve.registry,
             PathBuf::from("runs/supervisor/registry.json")
         );
+        assert_eq!(serve.workflow_root, Some(PathBuf::from("runs/workflows")));
         assert_eq!(serve.bind.to_string(), "127.0.0.1:5174");
         assert!(serve.ntpro_node_bin.is_none());
     }
