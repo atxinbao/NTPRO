@@ -16,6 +16,7 @@
 use std::{
     fs,
     path::{Path, PathBuf},
+    time::{Duration, Instant},
 };
 
 use anyhow::Context;
@@ -55,6 +56,8 @@ use crate::{
 const WORKFLOW_ID: &str = "v05-binance-sandbox-local-workflow";
 const DEFAULT_RUN_ID: &str = "v05-binance-sandbox-local";
 const TESTNET_NETWORK_OPT_IN_ENV: &str = "NTPRO_ALLOW_TESTNET_NETWORK";
+const TESTNET_HTTP_READ_ONLY_ENDPOINT: &str = "/api/v3/time";
+const TESTNET_HTTP_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 const BINANCE_SPOT_BARS_CSV: &str =
     include_str!("../../adapters/binance/test_data/v04/binance_spot_bars.csv");
 
@@ -182,6 +185,21 @@ fn run_binance_testnet_workflow_with_env_permission(
     opt: WorkflowRunOpt,
     env_network_permission: bool,
 ) -> anyhow::Result<WorkflowRunResult> {
+    run_binance_testnet_workflow_with_env_permission_and_http_probe(
+        opt,
+        env_network_permission,
+        execute_testnet_http_read_only_probe,
+    )
+}
+
+fn run_binance_testnet_workflow_with_env_permission_and_http_probe<F>(
+    opt: WorkflowRunOpt,
+    env_network_permission: bool,
+    http_probe: F,
+) -> anyhow::Result<WorkflowRunResult>
+where
+    F: Fn(&TestnetWorkflowConfig) -> TestnetHttpReadOnlyProbeResult,
+{
     let config_path = opt
         .config
         .as_ref()
@@ -199,12 +217,15 @@ fn run_binance_testnet_workflow_with_env_permission(
     let credential_policy = TestnetCredentialPolicy::from_config(&config);
     let network_gate =
         TestnetNetworkGate::evaluate(&config, opt.allow_testnet_network, env_network_permission);
+    let http_probe_result =
+        should_attempt_testnet_http_probe(opt.mode, &network_gate).then(|| http_probe(&config));
     let connectivity_probe = TestnetConnectivityProbe::from_config(
         &config,
         opt.mode,
         opt.allow_testnet_network,
         &network_gate,
         &credential_policy,
+        http_probe_result.as_ref(),
     );
     let order_lifecycle = TestnetOrderLifecycle::from_config(&run_id, &config);
     let reconciliation = TestnetReconciliation::from_order_lifecycle(&run_id, &order_lifecycle);
@@ -706,6 +727,10 @@ impl TestnetNetworkGate {
             reasons,
         }
     }
+
+    fn is_allowed(&self) -> bool {
+        self.status == "allowed"
+    }
 }
 
 fn testnet_network_env_permission_enabled() -> bool {
@@ -715,6 +740,134 @@ fn testnet_network_env_permission_enabled() -> bool {
     )
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TestnetHttpReadOnlyProbeResult {
+    endpoint_class: String,
+    latency_ms: Option<u64>,
+    http_status: Option<u16>,
+    error_code: String,
+    network_attempted: bool,
+    testnet_connection: bool,
+    status: String,
+    diagnostic: String,
+}
+
+impl TestnetHttpReadOnlyProbeResult {
+    fn success(latency_ms: u64, http_status: u16) -> Self {
+        Self {
+            endpoint_class: "binance-testnet-public-http-time".to_string(),
+            latency_ms: Some(latency_ms),
+            http_status: Some(http_status),
+            error_code: "none".to_string(),
+            network_attempted: true,
+            testnet_connection: true,
+            status: "http_read_only_probe_ok".to_string(),
+            diagnostic: format!(
+                "V070 HTTP read-only probe succeeded against Binance testnet public time endpoint with HTTP {http_status}."
+            ),
+        }
+    }
+
+    fn failure(latency_ms: Option<u64>, http_status: Option<u16>, error_code: &str) -> Self {
+        let status_detail = http_status
+            .map(|status| format!(" HTTP {status}"))
+            .unwrap_or_default();
+        Self {
+            endpoint_class: "binance-testnet-public-http-time".to_string(),
+            latency_ms,
+            http_status,
+            error_code: error_code.to_string(),
+            network_attempted: true,
+            testnet_connection: false,
+            status: "http_read_only_probe_failed".to_string(),
+            diagnostic: format!(
+                "V070 HTTP read-only probe attempted Binance testnet public time endpoint and failed with {error_code}.{status_detail}"
+            ),
+        }
+    }
+}
+
+fn should_attempt_testnet_http_probe(
+    mode: WorkflowRunMode,
+    network_gate: &TestnetNetworkGate,
+) -> bool {
+    mode == WorkflowRunMode::ConnectivityProbe && network_gate.is_allowed()
+}
+
+fn testnet_http_read_only_probe_url(config: &TestnetWorkflowConfig) -> String {
+    format!(
+        "{}{}",
+        config.connectivity.http_base_url.trim_end_matches('/'),
+        TESTNET_HTTP_READ_ONLY_ENDPOINT
+    )
+}
+
+fn execute_testnet_http_read_only_probe(
+    config: &TestnetWorkflowConfig,
+) -> TestnetHttpReadOnlyProbeResult {
+    let url = testnet_http_read_only_probe_url(config);
+    std::thread::spawn(move || execute_testnet_http_read_only_probe_on_thread(&url))
+        .join()
+        .unwrap_or_else(|_| {
+            TestnetHttpReadOnlyProbeResult::failure(None, None, "http_probe_thread_panicked")
+        })
+}
+
+fn execute_testnet_http_read_only_probe_on_thread(url: &str) -> TestnetHttpReadOnlyProbeResult {
+    let started = Instant::now();
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(TESTNET_HTTP_PROBE_TIMEOUT)
+        .user_agent("NTPRO-v070-read-only-probe")
+        .build()
+    {
+        Ok(client) => client,
+        Err(_) => {
+            return TestnetHttpReadOnlyProbeResult::failure(None, None, "http_client_build_failed");
+        }
+    };
+
+    match client.get(url).send() {
+        Ok(response) => {
+            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            let status = response.status().as_u16();
+            if response.status().is_success() {
+                TestnetHttpReadOnlyProbeResult::success(latency_ms, status)
+            } else {
+                TestnetHttpReadOnlyProbeResult::failure(
+                    Some(latency_ms),
+                    Some(status),
+                    "http_status_not_success",
+                )
+            }
+        }
+        Err(error) => {
+            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            let error_code = classify_http_probe_error(&error);
+            TestnetHttpReadOnlyProbeResult::failure(
+                Some(latency_ms),
+                error.status().map(|s| s.as_u16()),
+                error_code,
+            )
+        }
+    }
+}
+
+fn classify_http_probe_error(error: &reqwest::Error) -> &'static str {
+    if error.is_timeout() {
+        "timeout"
+    } else if error.is_connect() {
+        "connect_error"
+    } else if error.is_decode() {
+        "decode_error"
+    } else if error.is_request() {
+        "request_error"
+    } else if error.is_body() {
+        "body_error"
+    } else {
+        "unknown_http_error"
+    }
+}
+
 impl TestnetConnectivityProbe {
     fn from_config(
         config: &TestnetWorkflowConfig,
@@ -722,10 +875,17 @@ impl TestnetConnectivityProbe {
         allow_testnet_network: bool,
         network_gate: &TestnetNetworkGate,
         credential_policy: &TestnetCredentialPolicy,
+        http_probe_result: Option<&TestnetHttpReadOnlyProbeResult>,
     ) -> Self {
         let requested_mode = requested_mode_label(mode);
-        let status = runtime_status_for_testnet_mode(mode);
-        let diagnostic = network_gate_diagnostic(mode, network_gate, credential_policy);
+        let status = http_probe_result.map_or_else(
+            || runtime_status_for_testnet_mode(mode),
+            |result| result.status.as_str(),
+        );
+        let diagnostic = http_probe_result.map_or_else(
+            || network_gate_diagnostic(mode, network_gate, credential_policy),
+            |result| result.diagnostic.clone(),
+        );
         Self {
             schema_version: TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION.to_string(),
             mode: config.connectivity.mode.clone(),
@@ -741,12 +901,22 @@ impl TestnetConnectivityProbe {
                 .authenticated_read_only_probe_requires_credentials,
             http_base_url: config.connectivity.http_base_url.clone(),
             ws_base_url: config.connectivity.ws_base_url.clone(),
+            endpoint_class: http_probe_result.map_or_else(
+                || "binance-testnet-public-http-time".to_string(),
+                |result| result.endpoint_class.clone(),
+            ),
+            latency_ms: http_probe_result.and_then(|result| result.latency_ms),
+            http_status: http_probe_result.and_then(|result| result.http_status),
+            error_code: http_probe_result.map_or_else(
+                || "not_attempted".to_string(),
+                |result| result.error_code.clone(),
+            ),
             network_permission_requested: allow_testnet_network,
             env_network_permission: network_gate.env_network_permission,
             network_gate_status: network_gate.status.clone(),
             network_gate_reasons: network_gate.reasons.clone(),
-            network_attempted: false,
-            testnet_connection: false,
+            network_attempted: http_probe_result.is_some_and(|result| result.network_attempted),
+            testnet_connection: http_probe_result.is_some_and(|result| result.testnet_connection),
             status: status.to_string(),
             diagnostic,
         }
@@ -1539,6 +1709,7 @@ real_orders_submitted = false
             true,
             &gate,
             &policy,
+            None,
         );
 
         assert_eq!(
@@ -1611,14 +1782,14 @@ real_orders_submitted = false
     }
 
     #[test]
-    fn binance_testnet_connectivity_probe_records_allowed_gate_without_network_attempt() {
-        let root = temp_root("testnet-connectivity-probe-allowed");
+    fn binance_testnet_dry_run_records_allowed_gate_without_network_attempt() {
+        let root = temp_root("testnet-dry-run-allowed");
         let config = write_testnet_config(&root);
         let output = root.join("artifacts");
         let result = run_binance_testnet_workflow_with_env_permission(
             WorkflowRunOpt {
                 workflow: WorkflowKind::BinanceTestnet,
-                mode: WorkflowRunMode::ConnectivityProbe,
+                mode: WorkflowRunMode::DryRun,
                 config: Some(config),
                 allow_testnet_network: true,
                 run_id: Some("probe-allowed-run".to_string()),
@@ -1628,7 +1799,7 @@ real_orders_submitted = false
         )
         .unwrap();
 
-        assert_eq!(result.runtime_status, "offline_probe_validated");
+        assert_eq!(result.runtime_status, "dry_run_completed");
         assert!(result.network_permission_requested);
         assert!(!result.network_attempted);
         assert!(!result.testnet_connection);
@@ -1642,7 +1813,89 @@ real_orders_submitted = false
         assert!(!probe.network_attempted);
         assert!(!probe.testnet_connection);
         assert!(probe.diagnostic.contains("V070 network gate allowed"));
-        assert!(probe.diagnostic.contains("V070-003"));
+        assert!(probe.diagnostic.contains("dry-run mode stays offline"));
+    }
+
+    #[test]
+    fn binance_testnet_connectivity_probe_records_http_success_artifact() {
+        let root = temp_root("testnet-http-success");
+        let config = write_testnet_config(&root);
+        let output = root.join("artifacts");
+        let result = run_binance_testnet_workflow_with_env_permission_and_http_probe(
+            WorkflowRunOpt {
+                workflow: WorkflowKind::BinanceTestnet,
+                mode: WorkflowRunMode::ConnectivityProbe,
+                config: Some(config),
+                allow_testnet_network: true,
+                run_id: Some("http-success-run".to_string()),
+                output: Some(output),
+            },
+            true,
+            |_| TestnetHttpReadOnlyProbeResult::success(42, 200),
+        )
+        .unwrap();
+
+        assert_eq!(result.runtime_status, "http_read_only_probe_ok");
+        assert!(result.network_permission_requested);
+        assert!(result.network_attempted);
+        assert!(result.testnet_connection);
+        assert!(!result.real_orders_submitted);
+
+        let probe_path = result.output_dir.join("testnet/connectivity_probe.json");
+        let probe: TestnetConnectivityProbe =
+            serde_json::from_str(&fs::read_to_string(probe_path).unwrap()).unwrap();
+        assert_eq!(probe.endpoint_class, "binance-testnet-public-http-time");
+        assert_eq!(probe.latency_ms, Some(42));
+        assert_eq!(probe.http_status, Some(200));
+        assert_eq!(probe.error_code, "none");
+        assert_eq!(probe.status, "http_read_only_probe_ok");
+        assert!(probe.network_attempted);
+        assert!(probe.testnet_connection);
+        assert!(probe.diagnostic.contains("read-only probe succeeded"));
+    }
+
+    #[test]
+    fn binance_testnet_connectivity_probe_records_http_failure_artifact() {
+        let root = temp_root("testnet-http-failure");
+        let config = write_testnet_config(&root);
+        let output = root.join("artifacts");
+        let result = run_binance_testnet_workflow_with_env_permission_and_http_probe(
+            WorkflowRunOpt {
+                workflow: WorkflowKind::BinanceTestnet,
+                mode: WorkflowRunMode::ConnectivityProbe,
+                config: Some(config),
+                allow_testnet_network: true,
+                run_id: Some("http-failure-run".to_string()),
+                output: Some(output),
+            },
+            true,
+            |_| {
+                TestnetHttpReadOnlyProbeResult::failure(
+                    Some(7),
+                    Some(503),
+                    "http_status_not_success",
+                )
+            },
+        )
+        .unwrap();
+
+        assert_eq!(result.runtime_status, "http_read_only_probe_failed");
+        assert!(result.network_permission_requested);
+        assert!(result.network_attempted);
+        assert!(!result.testnet_connection);
+        assert!(!result.real_orders_submitted);
+
+        let probe_path = result.output_dir.join("testnet/connectivity_probe.json");
+        let probe: TestnetConnectivityProbe =
+            serde_json::from_str(&fs::read_to_string(probe_path).unwrap()).unwrap();
+        assert_eq!(probe.endpoint_class, "binance-testnet-public-http-time");
+        assert_eq!(probe.latency_ms, Some(7));
+        assert_eq!(probe.http_status, Some(503));
+        assert_eq!(probe.error_code, "http_status_not_success");
+        assert_eq!(probe.status, "http_read_only_probe_failed");
+        assert!(probe.network_attempted);
+        assert!(!probe.testnet_connection);
+        assert!(probe.diagnostic.contains("read-only probe attempted"));
     }
 
     #[test]

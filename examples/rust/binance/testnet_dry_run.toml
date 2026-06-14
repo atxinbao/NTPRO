@@ -18,8 +18,8 @@ values_in_file = false
 required_for_network = true
 
 [connectivity]
-# Default workflow runs stay offline. Real read-only testnet networking is
-# fail-closed and additionally requires --allow-testnet-network plus
+# Default workflow runs stay offline. The V070 HTTP public read-only testnet
+# probe is fail-closed and additionally requires --allow-testnet-network plus
 # NTPRO_ALLOW_TESTNET_NETWORK=1.
 mode = "dry-run"
 http_base_url = "https://testnet.binance.vision"
