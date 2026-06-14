@@ -16,7 +16,7 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::Context;
@@ -47,9 +47,10 @@ use crate::{
         SUMMARY_SCHEMA_VERSION, TESTNET_CONFIG_SCHEMA_VERSION,
         TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION, TESTNET_CREDENTIAL_POLICY_SCHEMA_VERSION,
         TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION, TESTNET_RECONCILIATION_SCHEMA_VERSION,
-        TestnetConfigArtifact, TestnetConnectivityProbe, TestnetCredentialPolicy,
-        TestnetOrderLifecycle, TestnetReconciliation, WorkflowBoundary, WorkflowEvent,
-        WorkflowManifest, WorkflowManifestArtifact, WorkflowSummary,
+        TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION, TestnetConfigArtifact, TestnetConnectivityProbe,
+        TestnetCredentialPolicy, TestnetOrderLifecycle, TestnetReconciliation,
+        TestnetWebSocketConnectivityProbe, WorkflowBoundary, WorkflowEvent, WorkflowManifest,
+        WorkflowManifestArtifact, WorkflowSummary,
     },
 };
 
@@ -227,6 +228,15 @@ where
         &credential_policy,
         http_probe_result.as_ref(),
     );
+    let websocket_probe = TestnetWebSocketConnectivityProbe::from_config(
+        &run_id,
+        &config,
+        opt.mode,
+        opt.allow_testnet_network,
+        &network_gate,
+        &credential_policy,
+        None,
+    );
     let order_lifecycle = TestnetOrderLifecycle::from_config(&run_id, &config);
     let reconciliation = TestnetReconciliation::from_order_lifecycle(&run_id, &order_lifecycle);
     let boundary =
@@ -251,6 +261,10 @@ where
             (
                 "workflow.connectivity_probe.ready",
                 "testnet/connectivity_probe.json",
+            ),
+            (
+                "workflow.websocket_probe.ready",
+                "testnet/ws_connectivity_probe.json",
             ),
             (
                 "workflow.testnet_order_lifecycle.ready",
@@ -286,6 +300,10 @@ where
                     &artifact_paths.output_dir,
                 ),
                 TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION,
+            ),
+            WorkflowManifestArtifact::new(
+                relative_artifact_path(&testnet_paths.websocket_probe, &artifact_paths.output_dir),
+                TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION,
             ),
             WorkflowManifestArtifact::new(
                 relative_artifact_path(&testnet_paths.order_lifecycle, &artifact_paths.output_dir),
@@ -328,6 +346,11 @@ where
     write_json_artifact(
         &testnet_paths.connectivity_probe,
         &connectivity_probe,
+        &mut written,
+    )?;
+    write_json_artifact(
+        &testnet_paths.websocket_probe,
+        &websocket_probe,
         &mut written,
     )?;
     write_json_artifact(
@@ -491,6 +514,7 @@ struct TestnetArtifactPaths {
     config: PathBuf,
     credential_policy: PathBuf,
     connectivity_probe: PathBuf,
+    websocket_probe: PathBuf,
     order_lifecycle: PathBuf,
     reconciliation: PathBuf,
 }
@@ -501,6 +525,7 @@ impl TestnetArtifactPaths {
             config: output_dir.join("testnet/config.json"),
             credential_policy: output_dir.join("testnet/credential_policy.json"),
             connectivity_probe: output_dir.join("testnet/connectivity_probe.json"),
+            websocket_probe: output_dir.join("testnet/ws_connectivity_probe.json"),
             order_lifecycle: output_dir.join("orders/testnet_dry_run_lifecycle.json"),
             reconciliation: output_dir.join("orders/reconciliation.json"),
         }
@@ -920,6 +945,121 @@ impl TestnetConnectivityProbe {
             status: status.to_string(),
             diagnostic,
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TestnetWebSocketReadOnlyProbeResult {
+    error_code: String,
+    network_attempted: bool,
+    testnet_connection: bool,
+    status: String,
+    diagnostic: String,
+}
+
+impl TestnetWebSocketReadOnlyProbeResult {
+    #[cfg(test)]
+    fn classified_failure(error_code: &str) -> Self {
+        Self {
+            error_code: error_code.to_string(),
+            network_attempted: true,
+            testnet_connection: false,
+            status: "websocket_read_only_probe_failed".to_string(),
+            diagnostic: format!(
+                "V070 WebSocket read-only probe fixture classified the manual failure as {error_code}. No subscription was attempted and no order API was used."
+            ),
+        }
+    }
+}
+
+impl TestnetWebSocketConnectivityProbe {
+    fn from_config(
+        run_id: &str,
+        config: &TestnetWorkflowConfig,
+        mode: WorkflowRunMode,
+        allow_testnet_network: bool,
+        network_gate: &TestnetNetworkGate,
+        credential_policy: &TestnetCredentialPolicy,
+        websocket_probe_result: Option<&TestnetWebSocketReadOnlyProbeResult>,
+    ) -> Self {
+        let (status, error_code, diagnostic) = websocket_probe_result.map_or_else(
+            || websocket_probe_not_attempted_result(mode, network_gate),
+            |result| {
+                (
+                    result.status.clone(),
+                    result.error_code.clone(),
+                    result.diagnostic.clone(),
+                )
+            },
+        );
+        let network_attempted =
+            websocket_probe_result.is_some_and(|result| result.network_attempted);
+        let testnet_connection =
+            websocket_probe_result.is_some_and(|result| result.testnet_connection);
+
+        Self {
+            schema_version: TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION.to_string(),
+            run_id: run_id.to_string(),
+            mode: config.connectivity.mode.clone(),
+            requested_mode: requested_mode_label(mode).to_string(),
+            endpoint_kind: "websocket_read_only".to_string(),
+            endpoint_class: "binance-testnet-public-websocket-handshake".to_string(),
+            ws_base_url: config.connectivity.ws_base_url.clone(),
+            network_gate_status: network_gate.status.clone(),
+            network_gate_reasons: network_gate.reasons.clone(),
+            network_permission_requested: allow_testnet_network,
+            env_network_permission: network_gate.env_network_permission,
+            websocket_probe_gate: "manual-online-only".to_string(),
+            websocket_attempted: network_attempted,
+            network_attempted,
+            testnet_connection,
+            subscription_attempted: false,
+            message_count: 0,
+            order_submission: config.execution.order_submission.clone(),
+            real_orders_submitted: false,
+            values_recorded: credential_policy.values_recorded,
+            secrets_redacted: credential_policy.secrets_redacted,
+            status,
+            error_code,
+            diagnostic,
+            generated_at: workflow_generated_at(),
+        }
+    }
+}
+
+fn workflow_generated_at() -> String {
+    SystemTime::now().duration_since(UNIX_EPOCH).map_or_else(
+        |_| "unix:0".to_string(),
+        |duration| format!("unix:{}", duration.as_secs()),
+    )
+}
+
+fn websocket_probe_not_attempted_result(
+    mode: WorkflowRunMode,
+    network_gate: &TestnetNetworkGate,
+) -> (String, String, String) {
+    if network_gate.status == "blocked" {
+        return (
+            "websocket_read_only_probe_deferred".to_string(),
+            "network_gate_blocked".to_string(),
+            format!(
+                "V070 WebSocket read-only probe skipped before socket creation: {}. WebSocket proof is optional/manual; no subscription, no orders, and no secrets are recorded.",
+                network_gate.reasons.join("; ")
+            ),
+        );
+    }
+
+    match mode {
+        WorkflowRunMode::ConnectivityProbe => (
+            "websocket_read_only_probe_manual_not_run".to_string(),
+            "manual_websocket_probe_not_enabled".to_string(),
+            "V070 WebSocket read-only probe is optional/manual and is not opened by default CI. HTTP read-only probe remains the primary online connectivity proof; no subscription or order API is used.".to_string(),
+        ),
+        WorkflowRunMode::DryRun => (
+            "websocket_read_only_probe_not_requested".to_string(),
+            "not_requested".to_string(),
+            "V070 WebSocket read-only probe is not requested for dry-run mode; no socket is opened, no subscription is attempted, and no orders are submitted.".to_string(),
+        ),
     }
 }
 
@@ -1454,7 +1594,7 @@ real_orders_submitted = false
         assert_eq!(result.requested_mode, "dry-run");
         assert!(!result.network_permission_requested);
         assert!(!result.network_attempted);
-        assert_eq!(result.artifact_paths.len(), 9);
+        assert_eq!(result.artifact_paths.len(), 10);
         assert_eq!(result.artifact_paths.last(), Some(&result.manifest_path));
         assert!(!result.testnet_connection);
         assert!(!result.external_venue_connection);
@@ -1464,7 +1604,7 @@ real_orders_submitted = false
             serde_json::from_str(&fs::read_to_string(&result.manifest_path).unwrap()).unwrap();
         assert_eq!(manifest.workflow, "binance-testnet");
         assert_eq!(manifest.runtime_status, "dry_run_completed");
-        assert_eq!(manifest.artifact_count, 9);
+        assert_eq!(manifest.artifact_count, 10);
         assert_eq!(manifest.summary.requested_mode, "dry-run");
         assert!(!manifest.summary.network_permission_requested);
         assert_eq!(
@@ -1484,7 +1624,7 @@ real_orders_submitted = false
             .map(serde_json::from_str::<WorkflowEvent>)
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
-        assert_eq!(parsed.len(), 7);
+        assert_eq!(parsed.len(), 8);
         assert_eq!(
             parsed.first().map(|event| event.event_type.as_str()),
             Some("workflow.testnet_config.ready")
@@ -1527,6 +1667,9 @@ real_orders_submitted = false
                 .unwrap();
         let connectivity_probe: TestnetConnectivityProbe =
             serde_json::from_str(&fs::read_to_string(&testnet_paths.connectivity_probe).unwrap())
+                .unwrap();
+        let websocket_probe: TestnetWebSocketConnectivityProbe =
+            serde_json::from_str(&fs::read_to_string(&testnet_paths.websocket_probe).unwrap())
                 .unwrap();
         let order_lifecycle: TestnetOrderLifecycle =
             serde_json::from_str(&fs::read_to_string(&testnet_paths.order_lifecycle).unwrap())
@@ -1590,6 +1733,21 @@ real_orders_submitted = false
         );
         assert!(connectivity_probe.authenticated_read_only_probe_requires_credentials);
         assert_eq!(
+            websocket_probe.schema_version,
+            TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION
+        );
+        assert_eq!(websocket_probe.endpoint_kind, "websocket_read_only");
+        assert_eq!(websocket_probe.websocket_probe_gate, "manual-online-only");
+        assert!(!websocket_probe.websocket_attempted);
+        assert!(!websocket_probe.network_attempted);
+        assert!(!websocket_probe.testnet_connection);
+        assert!(!websocket_probe.subscription_attempted);
+        assert_eq!(websocket_probe.message_count, 0);
+        assert_eq!(websocket_probe.order_submission, "disabled");
+        assert!(!websocket_probe.real_orders_submitted);
+        assert!(!websocket_probe.values_recorded);
+        assert!(websocket_probe.secrets_redacted);
+        assert_eq!(
             order_lifecycle.schema_version,
             TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION
         );
@@ -1597,11 +1755,102 @@ real_orders_submitted = false
             reconciliation.schema_version,
             TESTNET_RECONCILIATION_SCHEMA_VERSION
         );
-        assert_eq!(events.len(), 7);
+        assert_eq!(events.len(), 8);
         assert!(events.iter().all(|event| event.run_id == summary.run_id));
         assert!(!connectivity_probe.network_attempted);
         assert!(!order_lifecycle.real_orders_submitted);
         assert!(!reconciliation.real_orders_submitted);
+    }
+
+    #[test]
+    fn binance_testnet_websocket_probe_artifact_is_manual_optional_by_default() {
+        let root = temp_root("testnet-websocket-default");
+        let config = write_testnet_config(&root);
+        let output = root.join("artifacts");
+        let result = run_workflow(WorkflowRunOpt {
+            workflow: WorkflowKind::BinanceTestnet,
+            mode: WorkflowRunMode::DryRun,
+            config: Some(config),
+            allow_testnet_network: false,
+            run_id: Some("ws-default-run".to_string()),
+            output: Some(output),
+        })
+        .unwrap();
+        let testnet_paths = TestnetArtifactPaths::new(&result.output_dir);
+        let websocket_probe: TestnetWebSocketConnectivityProbe =
+            serde_json::from_str(&fs::read_to_string(&testnet_paths.websocket_probe).unwrap())
+                .unwrap();
+
+        assert_eq!(
+            websocket_probe.schema_version,
+            TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION
+        );
+        assert_eq!(websocket_probe.run_id, "ws-default-run");
+        assert_eq!(websocket_probe.endpoint_kind, "websocket_read_only");
+        assert_eq!(
+            websocket_probe.endpoint_class,
+            "binance-testnet-public-websocket-handshake"
+        );
+        assert_eq!(websocket_probe.network_gate_status, "blocked");
+        assert!(!websocket_probe.network_permission_requested);
+        assert!(!websocket_probe.env_network_permission);
+        assert_eq!(websocket_probe.websocket_probe_gate, "manual-online-only");
+        assert!(!websocket_probe.websocket_attempted);
+        assert!(!websocket_probe.network_attempted);
+        assert!(!websocket_probe.testnet_connection);
+        assert!(!websocket_probe.subscription_attempted);
+        assert_eq!(websocket_probe.message_count, 0);
+        assert_eq!(websocket_probe.order_submission, "disabled");
+        assert!(!websocket_probe.real_orders_submitted);
+        assert!(!websocket_probe.values_recorded);
+        assert!(websocket_probe.secrets_redacted);
+        assert_eq!(websocket_probe.status, "websocket_read_only_probe_deferred");
+        assert_eq!(websocket_probe.error_code, "network_gate_blocked");
+        assert!(websocket_probe.generated_at.starts_with("unix:"));
+        assert!(
+            websocket_probe
+                .diagnostic
+                .contains("skipped before socket creation")
+        );
+    }
+
+    #[test]
+    fn binance_testnet_websocket_probe_records_classified_failure_codes() {
+        let config = parsed_testnet_config();
+        let policy = TestnetCredentialPolicy::from_config_with_presence(&config, true, true);
+        let gate = TestnetNetworkGate::evaluate(&config, true, true);
+
+        for error_code in ["timeout", "dns_error", "handshake_error", "protocol_error"] {
+            let failure = TestnetWebSocketReadOnlyProbeResult::classified_failure(error_code);
+            let probe = TestnetWebSocketConnectivityProbe::from_config(
+                "ws-classified-run",
+                &config,
+                WorkflowRunMode::ConnectivityProbe,
+                true,
+                &gate,
+                &policy,
+                Some(&failure),
+            );
+
+            assert_eq!(probe.schema_version, TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION);
+            assert_eq!(probe.endpoint_kind, "websocket_read_only");
+            assert_eq!(probe.network_gate_status, "allowed");
+            assert!(probe.network_permission_requested);
+            assert!(probe.env_network_permission);
+            assert!(probe.websocket_attempted);
+            assert!(probe.network_attempted);
+            assert!(!probe.testnet_connection);
+            assert!(!probe.subscription_attempted);
+            assert_eq!(probe.message_count, 0);
+            assert_eq!(probe.order_submission, "disabled");
+            assert!(!probe.real_orders_submitted);
+            assert!(!probe.values_recorded);
+            assert!(probe.secrets_redacted);
+            assert_eq!(probe.status, "websocket_read_only_probe_failed");
+            assert_eq!(probe.error_code, error_code);
+            assert!(probe.generated_at.starts_with("unix:"));
+            assert!(probe.diagnostic.contains(error_code));
+        }
     }
 
     #[test]

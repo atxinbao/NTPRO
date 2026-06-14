@@ -148,11 +148,13 @@ The v0.7.0 development queue adds optional Binance testnet read-only network
 proof behind manual gates. The current implemented probe is a public HTTP
 read-only `/api/v3/time` connectivity check; it requires
 `--allow-testnet-network` plus `NTPRO_ALLOW_TESTNET_NETWORK=1` and never submits
-orders. Credential values remain environment-only: artifacts may record
-environment variable names and presence booleans, but must not record API key or
-API secret values. Public read-only probes must not require credentials.
-Authenticated read-only probes are manual-online-only and still must not submit,
-cancel, replace, or amend orders.
+orders. The workflow also emits an optional WebSocket read-only probe artifact,
+but the default path records it as manual-only and does not open a WebSocket,
+subscribe to streams, or make it a CI/release blocker. Credential values remain
+environment-only: artifacts may record environment variable names and presence
+booleans, but must not record API key or API secret values. Public read-only
+probes must not require credentials. Authenticated read-only probes are
+manual-online-only and still must not submit, cancel, replace, or amend orders.
 
 ## Binance Testnet Dry-Run Boundary
 

@@ -4219,7 +4219,7 @@ mod tests {
         assert_eq!(workflow.workflow, "binance-testnet");
         assert_eq!(workflow.runtime_status, "dry_run_completed");
         assert_eq!(workflow.health, HealthStatus::Healthy);
-        assert_eq!(workflow.artifact_count, 9);
+        assert_eq!(workflow.artifact_count, 10);
         assert!(workflow.sandbox_only);
         assert!(workflow.mock_execution);
         assert!(!workflow.fixture_replay);
@@ -5256,7 +5256,7 @@ mod tests {
             "workflow": "binance-testnet",
             "run_id": run_id,
             "runtime_status": "dry_run_completed",
-            "artifact_count": 9,
+            "artifact_count": 10,
             "artifacts": artifacts,
             "summary": {
                 "schema_version": "ntpro.workflow_summary.v1",
