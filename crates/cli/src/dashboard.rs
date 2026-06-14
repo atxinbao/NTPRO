@@ -4022,6 +4022,25 @@ mod tests {
     }
 
     #[test]
+    fn testnet_workflow_dashboard_uses_manifest_run_id_not_directory_name() {
+        let root = temp_root("testnet-workflow-effective-run-id");
+        let registry_path = root.join("runs/supervisor/registry.json");
+        write_registry(&registry_path, []);
+        let manifest_path = root.join("runs/workflows/config-declared-run-id/manifest.json");
+        write_testnet_workflow_manifest(&manifest_path, "custom-run-id");
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:01:42Z").unwrap();
+
+        assert_eq!(snapshot.workflow_artifacts.len(), 1);
+        let workflow = &snapshot.workflow_artifacts[0];
+        assert_eq!(workflow.run_id, "custom-run-id");
+        assert_eq!(workflow.workflow, "binance-testnet");
+        assert_eq!(workflow.runtime_status, "dry_run_completed");
+        assert_eq!(workflow.health, HealthStatus::Healthy);
+    }
+
+    #[test]
     fn invalid_workflow_manifest_records_gap() {
         let root = temp_root("invalid-workflow-manifest");
         let registry_path = root.join("runs/supervisor/registry.json");
