@@ -166,6 +166,10 @@ pub fn secs_to_millis(secs: f64) -> anyhow::Result<u64> {
 ///
 /// Panics if [`secs_to_nanos`] would return an error for `secs`.
 #[must_use]
+#[expect(
+    clippy::expect_used,
+    reason = "unchecked conversion wrapper intentionally panics on invalid input"
+)]
 pub fn secs_to_nanos_unchecked(secs: f64) -> u64 {
     secs_to_nanos(secs).expect("secs_to_nanos_unchecked: invalid or overflowing input")
 }
@@ -219,6 +223,10 @@ pub fn millis_to_nanos(millis: f64) -> anyhow::Result<u64> {
 ///
 /// Panics if [`millis_to_nanos`] would return an error for `millis`.
 #[must_use]
+#[expect(
+    clippy::expect_used,
+    reason = "unchecked conversion wrapper intentionally panics on invalid input"
+)]
 pub fn millis_to_nanos_unchecked(millis: f64) -> u64 {
     millis_to_nanos(millis).expect("millis_to_nanos_unchecked: invalid or overflowing input")
 }
@@ -260,6 +268,10 @@ pub fn micros_to_nanos(micros: f64) -> anyhow::Result<u64> {
 ///
 /// Panics if [`micros_to_nanos`] would return an error for `micros`.
 #[must_use]
+#[expect(
+    clippy::expect_used,
+    reason = "unchecked conversion wrapper intentionally panics on invalid input"
+)]
 pub fn micros_to_nanos_unchecked(micros: f64) -> u64 {
     micros_to_nanos(micros).expect("micros_to_nanos_unchecked: invalid or overflowing input")
 }
