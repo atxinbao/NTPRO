@@ -23,7 +23,7 @@ pub(crate) const BOUNDARY_SCHEMA_VERSION: &str = "ntpro.workflow_boundary.v1";
 pub(crate) const EVENT_SCHEMA_VERSION: &str = "ntpro.workflow_event.v1";
 pub(crate) const TESTNET_CONFIG_SCHEMA_VERSION: &str = "ntpro.v06_binance_testnet_config.v1";
 pub(crate) const TESTNET_CREDENTIAL_POLICY_SCHEMA_VERSION: &str =
-    "ntpro.v06_binance_testnet_credential_policy.v1";
+    "ntpro.v07_binance_testnet_credential_policy.v1";
 pub(crate) const TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION: &str =
     "ntpro.v07_binance_testnet_connectivity_probe.v1";
 pub(crate) const TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION: &str =
@@ -52,12 +52,26 @@ pub(crate) struct TestnetConfigArtifact {
 pub(crate) struct TestnetCredentialPolicy {
     pub(crate) schema_version: String,
     pub(crate) policy: String,
+    #[serde(default)]
+    pub(crate) credential_source: String,
     pub(crate) api_key_env: String,
     pub(crate) api_secret_env: String,
     pub(crate) values_in_file: bool,
     pub(crate) values_recorded: bool,
+    #[serde(default)]
+    pub(crate) api_key_value_recorded: bool,
+    #[serde(default)]
+    pub(crate) api_secret_value_recorded: bool,
     pub(crate) secrets_redacted: bool,
     pub(crate) required_for_network: bool,
+    #[serde(default)]
+    pub(crate) public_read_only_probe_requires_credentials: bool,
+    #[serde(default)]
+    pub(crate) authenticated_read_only_probe_requires_credentials: bool,
+    #[serde(default)]
+    pub(crate) authenticated_read_only_probe_gate: String,
+    #[serde(default)]
+    pub(crate) authenticated_read_only_probe_status: String,
     pub(crate) api_key_present: bool,
     pub(crate) api_secret_present: bool,
 }
@@ -67,6 +81,14 @@ pub(crate) struct TestnetConnectivityProbe {
     pub(crate) schema_version: String,
     pub(crate) mode: String,
     pub(crate) requested_mode: String,
+    #[serde(default)]
+    pub(crate) public_read_only_probe_status: String,
+    #[serde(default)]
+    pub(crate) authenticated_read_only_probe_status: String,
+    #[serde(default)]
+    pub(crate) authenticated_read_only_probe_gate: String,
+    #[serde(default)]
+    pub(crate) authenticated_read_only_probe_requires_credentials: bool,
     pub(crate) http_base_url: String,
     pub(crate) ws_base_url: String,
     pub(crate) network_permission_requested: bool,
