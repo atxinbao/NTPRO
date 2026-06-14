@@ -82,6 +82,12 @@ testnet_connection = false
 The default gate runs in local development and normal CI. It must not require
 Binance credentials and must not open sockets.
 
+Script:
+
+```bash
+scripts/ai/verify_v07_default_offline_gate.sh
+```
+
 Required proof:
 
 - CLI help exposes the opt-in contract;
@@ -90,11 +96,36 @@ Required proof:
 - `network_attempted=false`;
 - `testnet_connection=false`;
 - no secret value is present in artifacts or logs.
+- both dry-run and blocked connectivity-probe artifacts remain offline when
+  opt-in is missing.
 
 ### Manual Online Gate
 
 The manual online gate is the only place where real Binance testnet read-only
 network access may occur.
+
+Default classified preflight:
+
+```bash
+scripts/ai/verify_v07_manual_online_gate.sh
+```
+
+The default preflight intentionally unsets `NTPRO_ALLOW_TESTNET_NETWORK`, passes
+`--allow-testnet-network`, and proves the missing environment opt-in keeps
+`network_attempted=false`.
+
+Real read-only online proof:
+
+```bash
+NTPRO_V07_MANUAL_ONLINE=1 \
+NTPRO_ALLOW_TESTNET_NETWORK=1 \
+scripts/ai/verify_v07_manual_online_gate.sh
+```
+
+The real online proof opens only the configured Binance testnet public HTTP
+time endpoint. It must record `network_attempted=true` and either
+`testnet_connection=true` or a stable classified `error_code`. It does not
+submit, cancel, replace, or amend orders.
 
 Required proof:
 

@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# V070-006: manual online gate.
+# By default this script proves the manual online path fails closed before any
+# socket is created. To run the real read-only Binance testnet HTTP probe, set:
+#
+#   NTPRO_V07_MANUAL_ONLINE=1 NTPRO_ALLOW_TESTNET_NETWORK=1 scripts/ai/verify_v07_manual_online_gate.sh
+#
+# The real online mode remains read-only and asserts no order submission,
+# no credential values recorded, and either a validated testnet connection or
+# a stable classified error_code after network_attempted=true.
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT_DIR"
+source scripts/ai/toolchain_env.sh
+
+if [[ "${NTPRO_V07_SKIP_BUILD:-0}" != "1" && -z "${NTPRO_V07_NAUTILUS_BIN:-}" ]]; then
+  cargo build -p nautilus-cli --bin nautilus
+fi
+
+NAUTILUS_BIN="${NTPRO_V07_NAUTILUS_BIN:-$ROOT_DIR/target/debug/nautilus}"
+CONFIG="${NTPRO_V07_CONFIG:-$ROOT_DIR/examples/rust/binance/testnet_dry_run.toml}"
+
+if [[ ! -x "$NAUTILUS_BIN" ]]; then
+  echo "missing nautilus binary: $NAUTILUS_BIN" >&2
+  exit 1
+fi
+if [[ ! -f "$CONFIG" ]]; then
+  echo "missing Binance testnet config: $CONFIG" >&2
+  exit 1
+fi
+
+GATE_ROOT="${NTPRO_V07_MANUAL_ROOT:-$(mktemp -d "${TMPDIR:-/tmp}/ntpro-v07-manual.XXXXXX")}"
+OUTPUT_DIR="$GATE_ROOT/command-output"
+WORKFLOW_DIR="$GATE_ROOT/workflows/v070-manual-online"
+
+mkdir -p "$OUTPUT_DIR"
+
+if [[ "${NTPRO_V07_MANUAL_ONLINE:-0}" != "1" ]]; then
+  env -u NTPRO_ALLOW_TESTNET_NETWORK "$NAUTILUS_BIN" workflow run \
+    --workflow binance-testnet \
+    --mode connectivity-probe \
+    --allow-testnet-network \
+    --config "$CONFIG" \
+    --run-id v070-manual-online-blocked \
+    --output "$WORKFLOW_DIR" \
+    | tee "$OUTPUT_DIR/manual_online_blocked.txt"
+
+  python3 - "$WORKFLOW_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+probe = json.loads((root / "testnet/connectivity_probe.json").read_text())
+ws_probe = json.loads((root / "testnet/ws_connectivity_probe.json").read_text())
+summary = json.loads((root / "summary.json").read_text())
+policy = json.loads((root / "testnet/credential_policy.json").read_text())
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+require(probe["network_permission_requested"] is True, probe)
+require(probe["env_network_permission"] is False, probe)
+require(probe["network_gate_status"] == "blocked", probe)
+require(probe["network_gate_reasons"] == ["NTPRO_ALLOW_TESTNET_NETWORK=1 is not set"], probe)
+require(probe["network_attempted"] is False, probe)
+require(probe["testnet_connection"] is False, probe)
+require(summary["network_attempted"] is False, summary)
+require(summary["testnet_connection"] is False, summary)
+require(summary["real_orders_submitted"] is False, summary)
+require(ws_probe["network_attempted"] is False, ws_probe)
+require(ws_probe["websocket_attempted"] is False, ws_probe)
+require(ws_probe["subscription_attempted"] is False, ws_probe)
+require(ws_probe["real_orders_submitted"] is False, ws_probe)
+require(ws_probe["values_recorded"] is False, ws_probe)
+require(ws_probe["secrets_redacted"] is True, ws_probe)
+require(policy["values_recorded"] is False, policy)
+require(policy["secrets_redacted"] is True, policy)
+
+print(
+    "v07_manual_online_gate status=blocked_missing_env "
+    "network_permission_requested=true network_attempted=false "
+    "set NTPRO_V07_MANUAL_ONLINE=1 and NTPRO_ALLOW_TESTNET_NETWORK=1 to run real read-only probe"
+)
+PY
+  echo "v07_manual_online_gate status=blocked_missing_env root=$GATE_ROOT"
+  exit 0
+fi
+
+if [[ "${NTPRO_ALLOW_TESTNET_NETWORK:-0}" != "1" ]]; then
+  echo "manual online probe requires NTPRO_ALLOW_TESTNET_NETWORK=1" >&2
+  exit 1
+fi
+
+"$NAUTILUS_BIN" workflow run \
+  --workflow binance-testnet \
+  --mode connectivity-probe \
+  --allow-testnet-network \
+  --config "$CONFIG" \
+  --run-id v070-manual-online \
+  --output "$WORKFLOW_DIR" \
+  | tee "$OUTPUT_DIR/manual_online_probe.txt"
+
+python3 - "$WORKFLOW_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+manifest = json.loads((root / "manifest.json").read_text())
+summary = json.loads((root / "summary.json").read_text())
+probe = json.loads((root / "testnet/connectivity_probe.json").read_text())
+ws_probe = json.loads((root / "testnet/ws_connectivity_probe.json").read_text())
+policy = json.loads((root / "testnet/credential_policy.json").read_text())
+lifecycle = json.loads((root / "orders/testnet_dry_run_lifecycle.json").read_text())
+reconciliation = json.loads((root / "orders/reconciliation.json").read_text())
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+
+stable_errors = {
+    "none",
+    "timeout",
+    "connect_error",
+    "decode_error",
+    "request_error",
+    "body_error",
+    "unknown_http_error",
+    "http_client_build_failed",
+    "http_probe_thread_panicked",
+    "http_status_not_success",
+}
+
+require(manifest["run_id"] == "v070-manual-online", manifest)
+require(manifest["runtime_status"] in {"http_read_only_probe_ok", "http_read_only_probe_failed"}, manifest)
+require(summary["requested_mode"] == "connectivity-probe", summary)
+require(summary["network_permission_requested"] is True, summary)
+require(summary["network_attempted"] is True, summary)
+require(summary["real_orders_submitted"] is False, summary)
+require(probe["network_permission_requested"] is True, probe)
+require(probe["env_network_permission"] is True, probe)
+require(probe["network_gate_status"] == "allowed", probe)
+require(probe["network_gate_reasons"] == [], probe)
+require(probe["network_attempted"] is True, probe)
+require(probe["error_code"] in stable_errors, probe)
+if probe["testnet_connection"] is True:
+    require(probe["error_code"] == "none", probe)
+    require(probe["http_status"] is not None, probe)
+else:
+    require(probe["error_code"] != "none", probe)
+    require(probe["status"] == "http_read_only_probe_failed", probe)
+require(summary["testnet_connection"] == probe["testnet_connection"], summary)
+require(policy["values_recorded"] is False, policy)
+require(policy["api_key_value_recorded"] is False, policy)
+require(policy["api_secret_value_recorded"] is False, policy)
+require(policy["secrets_redacted"] is True, policy)
+require(ws_probe["websocket_probe_gate"] == "manual-online-only", ws_probe)
+require(ws_probe["network_attempted"] is False, ws_probe)
+require(ws_probe["subscription_attempted"] is False, ws_probe)
+require(ws_probe["message_count"] == 0, ws_probe)
+require(ws_probe["real_orders_submitted"] is False, ws_probe)
+require(ws_probe["values_recorded"] is False, ws_probe)
+require(ws_probe["secrets_redacted"] is True, ws_probe)
+require(lifecycle["real_orders_submitted"] is False, lifecycle)
+require(reconciliation["real_orders_submitted"] is False, reconciliation)
+
+print(
+    "v07_manual_online_gate status=ok "
+    f"network_attempted={str(probe['network_attempted']).lower()} "
+    f"testnet_connection={str(probe['testnet_connection']).lower()} "
+    f"error_code={probe['error_code']} "
+    "real_orders_submitted=false values_recorded=false secrets_redacted=true"
+)
+PY
+
+echo "v07_manual_online_gate status=ok root=$GATE_ROOT"
