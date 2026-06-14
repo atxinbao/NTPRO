@@ -34,7 +34,7 @@ Final release checks, benchmark summaries, and audit reports live here.
   implement networking.
 - `v0_7_0_readonly_testnet_readiness_report.md` - V070-007 final readiness
   report for the scoped v0.7 real Binance testnet read-only connectivity proof.
-- `v0_7_0_release_notes.md` - release notes draft for the scoped v0.7
-  read-only Binance testnet connectivity proof. It explicitly excludes testnet
+- `v0_7_0_release_notes.md` - release notes for the scoped v0.7 read-only
+  Binance testnet connectivity proof. It explicitly excludes testnet
   order submission, production Binance connectivity, real funds, production
   trading, and production parity.

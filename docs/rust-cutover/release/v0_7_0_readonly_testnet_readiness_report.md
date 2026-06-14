@@ -3,7 +3,7 @@
 Date: 2026-06-15
 Executor: Codex
 Task: V070-007
-Decision: PASS for scoped v0.7.0 release closure preparation
+Decision: PASS for scoped v0.7.0 release
 
 ## Plain Chinese Summary
 
@@ -145,7 +145,11 @@ PASS
 
 ## Final Readiness Decision
 
-v0.7.0 is ready for owner release decision as a scoped read-only Binance testnet
-connectivity proof.
+v0.7.0 is ready to publish as a scoped read-only Binance testnet connectivity
+proof.
 
-This report does not create a tag and does not publish a GitHub Release.
+Release tag:
+
+```text
+ntpro-rust-only-v0.7.0
+```

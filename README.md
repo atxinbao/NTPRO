@@ -6,17 +6,17 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.6.0
-Capability: Binance testnet dry-run runtime foundation
-Active hardening track: v0.6.1 contract/dashboard/CI hardening
+Current source tag: ntpro-rust-only-v0.7.0
+Capability: Binance testnet read-only connectivity proof
+Boundary: manual online HTTP read-only proof; no orders, no real funds, no production trading
 ```
 
-This tag is the current v0.6.0 source release point for the scoped Binance
-testnet dry-run runtime foundation. It is published as a GitHub Release for the
-tagged source tree:
+This tag is the current v0.7.0 source release point for the scoped Binance
+testnet read-only connectivity proof. It is published as a GitHub Release for
+the tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.6.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.7.0
 ```
 
 ## Current Status
@@ -93,30 +93,34 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.6.0 is the current formal release line. It builds on two earlier internal
-foundation layers:
+v0.7.0 is the current formal release line. It builds on the earlier foundation
+layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
 - `v0.5.0`: local Binance sandbox workflow artifacts;
 - `v0.6.0`: Binance testnet dry-run runtime foundation.
+- `v0.6.1`: offline wording, Dashboard, artifact-contract, and PR smoke
+  hardening.
 
 `v0.5.0` was completed as a scoped readiness milestone and is absorbed into the
 `v0.6.0` release tree. It is not published as a separate public GitHub Release.
 
-`v0.6.1` is the active hardening track for the same published v0.6.0 release
-surface. It aligns version wording, Dashboard copy, workflow artifact contracts,
-offline-only probe semantics, and PR-stage smoke coverage. It does not expand
-NTPRO into real Binance testnet connectivity.
+`v0.6.1` aligned version wording, Dashboard copy, workflow artifact contracts,
+offline-only probe semantics, and PR-stage smoke coverage.
 
 The current release path supports:
 
 - Rust CLI `workflow run --workflow binance-sandbox`;
 - Rust CLI `workflow run --workflow binance-testnet --mode dry-run`;
+- Rust CLI `workflow run --workflow binance-testnet --mode connectivity-probe`
+  behind explicit manual online opt-in;
 - deterministic local artifact directories and manifest / summary / events
   contracts;
 - checked-in testnet dry-run config;
 - env-var-only credential policy artifact;
-- offline connectivity probe artifact;
+- offline connectivity probe artifact and manual-online HTTP read-only probe
+  artifact;
+- optional/manual WebSocket read-only probe artifact schema;
 - dry-run order lifecycle artifact;
 - artifact-only reconciliation artifact;
 - Dashboard read-only workflow and testnet workflow surfaces.
@@ -125,10 +129,11 @@ The v0.3.0 local Supervisor control console and the v0.4.x Binance sandbox
 foundation remain part of validated release history, but they are no longer the
 current public milestone.
 
-Not included in the v0.6.0 product claim:
+Not included in the v0.7.0 product claim:
 
-- Live Binance testnet network connection.
 - Real Binance testnet order submission.
+- Testnet order cancel, replace, amend, or live order management.
+- Testnet account mutation.
 - Real account reconciliation.
 - Production Binance connectivity.
 - Real account credential values in repository artifacts.
@@ -137,15 +142,8 @@ Not included in the v0.6.0 product claim:
 - Remote or multi-user Dashboard operation.
 - Prebuilt binary or Docker release artifact delivery.
 
-Also not included in the v0.6.1 hardening track:
-
-- Any new live Binance testnet network capability.
-- Any real Binance testnet order submission.
-- Any production trading claim.
-- Any Dashboard control that starts a network probe or reads credentials.
-
-The v0.7.0 development queue adds optional Binance testnet read-only network
-proof behind manual gates. The current implemented probe is a public HTTP
+The v0.7.0 release adds optional Binance testnet read-only network proof behind
+manual gates. The implemented probe is a public HTTP
 read-only `/api/v3/time` connectivity check; it requires
 `--allow-testnet-network` plus `NTPRO_ALLOW_TESTNET_NETWORK=1` and never submits
 orders. The workflow also emits an optional WebSocket read-only probe artifact,
@@ -156,13 +154,15 @@ booleans, but must not record API key or API secret values. Public read-only
 probes must not require credentials. Authenticated read-only probes are
 manual-online-only and still must not submit, cancel, replace, or amend orders.
 
-## Binance Testnet Dry-Run Boundary
+## Binance Testnet Read-Only Boundary
 
-The v0.6.0 product boundary is Binance testnet dry-run only. It is offline,
-artifact-first, Rust-only, and explicitly non-production.
+The v0.7.0 product boundary is Binance testnet read-only connectivity proof.
+Default local and CI runs remain offline, artifact-first, Rust-only, and
+explicitly non-production.
 
-This release does not connect to Binance, does not store or load real API key
-values, does not submit real orders, and does not claim live or production
+Manual online proof may connect only to Binance testnet public read-only HTTP
+endpoints after explicit opt-in. This release does not store or load real API
+key values, does not submit real orders, and does not claim live or production
 trading readiness.
 
 The scope and readiness documents are:
@@ -171,6 +171,9 @@ The scope and readiness documents are:
 - `docs/rust-cutover/release/v0_6_0_binance_testnet_dry_run_readiness_report.md`
 - `docs/rust-cutover/release/v0_6_1_offline_hardening_readiness_report.md`
 - `docs/rust-cutover/release/v0_6_1_release_notes.md`
+- `docs/rust-cutover/release/v0_7_0_readonly_testnet_boundary.md`
+- `docs/rust-cutover/release/v0_7_0_readonly_testnet_readiness_report.md`
+- `docs/rust-cutover/release/v0_7_0_release_notes.md`
 - `docs/versioning.md`
 
 ## Verification
@@ -255,17 +258,15 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.6.0` is the current Rust-only source release for the
-Binance testnet dry-run runtime foundation line. `v0.5.0` remains a completed
-internal workflow-artifact milestone absorbed into `v0.6.0`, `v0.4.1` remains
-the latest Binance sandbox public patch baseline, `v0.3.0` remains the Local
-Supervisor Control Console baseline, `v0.2.0` remains the local multi-node
-runtime foundation baseline, and `v0.1.0` remains the first formal Rust-only
-cutover release and historical baseline.
-
-`v0.6.1` is the current hardening closure for the v0.6 line. It is documented
-as an offline readiness/hardening scope, not as a new Binance testnet network,
-real-order, or production-trading release.
+`ntpro-rust-only-v0.7.0` is the current Rust-only source release for the
+Binance testnet read-only connectivity proof line. `v0.6.1` remains the v0.6
+offline hardening closure, `v0.6.0` remains the Binance testnet dry-run runtime
+foundation, `v0.5.0` remains a completed internal workflow-artifact milestone
+absorbed into `v0.6.0`, `v0.4.1` remains the latest Binance sandbox public patch
+baseline, `v0.3.0` remains the Local Supervisor Control Console baseline,
+`v0.2.0` remains the local multi-node runtime foundation baseline, and
+`v0.1.0` remains the first formal Rust-only cutover release and historical
+baseline.
 
 Before cutting the next release, review:
 
