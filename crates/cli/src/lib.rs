@@ -65,6 +65,7 @@ mod process;
 mod sandbox;
 pub mod supervisor;
 mod workflow;
+mod workflow_contract;
 
 use std::path::PathBuf;
 

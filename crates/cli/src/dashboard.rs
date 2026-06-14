@@ -48,6 +48,7 @@ use crate::{
         NodeMetrics, RegistryArtifactState, StartNodeRequest, StopNodeRequest,
         SupervisorNodeRecord, SupervisorProcessState, SupervisorRegistry, SupervisorRegistryStore,
     },
+    workflow_contract::{WorkflowManifest, WorkflowManifestArtifact},
 };
 
 pub const DASHBOARD_SNAPSHOT_SCHEMA_VERSION: &str = "ntpro.dashboard_snapshot.v1";
@@ -2936,47 +2937,6 @@ fn metric_statuses_from_record(
     .collect()
 }
 
-#[derive(Debug, Deserialize)]
-struct DashboardWorkflowManifest {
-    schema_version: String,
-    workflow_id: String,
-    workflow: String,
-    run_id: String,
-    runtime_status: String,
-    artifact_count: u64,
-    #[serde(default)]
-    artifacts: Vec<DashboardWorkflowManifestArtifact>,
-    summary: DashboardWorkflowSummary,
-}
-
-#[derive(Debug, Deserialize)]
-struct DashboardWorkflowManifestArtifact {
-    path: String,
-    schema_version: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct DashboardWorkflowSummary {
-    market_fixture_id: Option<String>,
-    order_lifecycle_id: Option<String>,
-    risk_smoke_id: Option<String>,
-    sandbox_only: bool,
-    fixture_replay: bool,
-    mock_execution: bool,
-    external_venue_connection: bool,
-    real_funds: bool,
-    production_trading: bool,
-    real_orders_submitted: bool,
-    #[serde(default)]
-    testnet_connection: bool,
-    #[serde(default)]
-    network_attempted: bool,
-    credential_policy: Option<String>,
-    connectivity_mode: Option<String>,
-    order_submission_mode: Option<String>,
-    reconciliation_mode: Option<String>,
-}
-
 fn workflow_artifacts_from_explicit_root(
     workflow_root: &FsPath,
     gaps: &mut Vec<DashboardGap>,
@@ -3082,7 +3042,7 @@ fn read_workflow_manifest_status(
         }
     };
 
-    match serde_json::from_str::<DashboardWorkflowManifest>(&raw) {
+    match serde_json::from_str::<WorkflowManifest>(&raw) {
         Ok(manifest) => workflow_status_from_manifest(manifest_path, manifest, gaps),
         Err(error) => {
             gaps.push(workflow_manifest_gap(
@@ -3099,7 +3059,7 @@ fn read_workflow_manifest_status(
 
 fn workflow_status_from_manifest(
     manifest_path: &FsPath,
-    manifest: DashboardWorkflowManifest,
+    manifest: WorkflowManifest,
     gaps: &mut Vec<DashboardGap>,
 ) -> WorkflowArtifactStatus {
     let child_audit = audit_workflow_manifest_artifacts(manifest_path, &manifest, gaps);
@@ -3124,10 +3084,10 @@ fn workflow_status_from_manifest(
         runtime_status: manifest.runtime_status,
         health,
         manifest_path: manifest_path.display().to_string(),
-        artifact_count: manifest.artifact_count,
-        market_fixture_id: optional_dashboard_value(summary.market_fixture_id),
-        order_lifecycle_id: optional_dashboard_value(summary.order_lifecycle_id),
-        risk_smoke_id: optional_dashboard_value(summary.risk_smoke_id),
+        artifact_count: u64::try_from(manifest.artifact_count).unwrap_or(u64::MAX),
+        market_fixture_id: non_empty_dashboard_value(summary.market_fixture_id),
+        order_lifecycle_id: non_empty_dashboard_value(summary.order_lifecycle_id),
+        risk_smoke_id: non_empty_dashboard_value(summary.risk_smoke_id),
         sandbox_only: summary.sandbox_only,
         fixture_replay: summary.fixture_replay,
         mock_execution: summary.mock_execution,
@@ -3137,10 +3097,10 @@ fn workflow_status_from_manifest(
         real_orders_submitted: summary.real_orders_submitted,
         testnet_connection: summary.testnet_connection,
         network_attempted: summary.network_attempted,
-        credential_policy: optional_dashboard_value(summary.credential_policy),
-        connectivity_mode: optional_dashboard_value(summary.connectivity_mode),
-        order_submission_mode: optional_dashboard_value(summary.order_submission_mode),
-        reconciliation_mode: optional_dashboard_value(summary.reconciliation_mode),
+        credential_policy: non_empty_dashboard_value(summary.credential_policy),
+        connectivity_mode: non_empty_dashboard_value(summary.connectivity_mode),
+        order_submission_mode: non_empty_dashboard_value(summary.order_submission_mode),
+        reconciliation_mode: non_empty_dashboard_value(summary.reconciliation_mode),
         diagnostic: DashboardValue::available(child_audit.diagnostic),
     }
 }
@@ -3152,7 +3112,7 @@ struct WorkflowArtifactAudit {
 
 fn audit_workflow_manifest_artifacts(
     manifest_path: &FsPath,
-    manifest: &DashboardWorkflowManifest,
+    manifest: &WorkflowManifest,
     gaps: &mut Vec<DashboardGap>,
 ) -> WorkflowArtifactAudit {
     let Some(manifest_dir) = manifest_path.parent() else {
@@ -3194,7 +3154,7 @@ fn audit_workflow_manifest_artifacts(
 
 fn audit_workflow_child_artifact(
     manifest_dir: &FsPath,
-    artifact: &DashboardWorkflowManifestArtifact,
+    artifact: &WorkflowManifestArtifact,
 ) -> Result<(), String> {
     if artifact.path.trim().is_empty() {
         return Err("artifact path is empty".to_string());
@@ -3275,7 +3235,7 @@ fn audit_workflow_jsonl_artifact(
 
 fn workflow_child_artifact_gap(
     manifest_path: &FsPath,
-    artifact: &DashboardWorkflowManifestArtifact,
+    artifact: &WorkflowManifestArtifact,
     notes: String,
 ) -> DashboardGap {
     DashboardGap::new(
@@ -3698,6 +3658,14 @@ fn dashboard_value_from_snapshot<T: Clone>(value: &SnapshotValue<T>) -> Dashboar
 
 fn optional_dashboard_value(value: Option<String>) -> DashboardValue<String> {
     value.map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn non_empty_dashboard_value(value: String) -> DashboardValue<String> {
+    if value.trim().is_empty() {
+        DashboardValue::unknown()
+    } else {
+        DashboardValue::available(value)
+    }
 }
 
 fn redacted_optional_dashboard_error(value: Option<&str>) -> DashboardValue<String> {

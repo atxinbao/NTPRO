@@ -41,20 +41,18 @@ use serde::{Deserialize, Serialize};
 use crate::{
     artifacts::{atomic_write_json, atomic_write_text},
     opt::{WorkflowCommand, WorkflowKind, WorkflowOpt, WorkflowRunMode, WorkflowRunOpt},
+    workflow_contract::{
+        BOUNDARY_SCHEMA_VERSION, EVENT_SCHEMA_VERSION, MANIFEST_SCHEMA_VERSION,
+        SUMMARY_SCHEMA_VERSION, TESTNET_CONFIG_SCHEMA_VERSION,
+        TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION, TESTNET_CREDENTIAL_POLICY_SCHEMA_VERSION,
+        TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION, TESTNET_RECONCILIATION_SCHEMA_VERSION,
+        TestnetConfigArtifact, TestnetConnectivityProbe, TestnetCredentialPolicy,
+        TestnetOrderLifecycle, TestnetReconciliation, WorkflowBoundary, WorkflowEvent,
+        WorkflowManifest, WorkflowManifestArtifact, WorkflowSummary,
+    },
 };
 
 const WORKFLOW_ID: &str = "v05-binance-sandbox-local-workflow";
-const MANIFEST_SCHEMA_VERSION: &str = "ntpro.workflow_manifest.v1";
-const SUMMARY_SCHEMA_VERSION: &str = "ntpro.workflow_summary.v1";
-const BOUNDARY_SCHEMA_VERSION: &str = "ntpro.workflow_boundary.v1";
-const EVENT_SCHEMA_VERSION: &str = "ntpro.workflow_event.v1";
-const TESTNET_CONFIG_SCHEMA_VERSION: &str = "ntpro.v06_binance_testnet_config.v1";
-const TESTNET_CREDENTIAL_POLICY_SCHEMA_VERSION: &str =
-    "ntpro.v06_binance_testnet_credential_policy.v1";
-const TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION: &str =
-    "ntpro.v06_binance_testnet_connectivity_probe.v1";
-const TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION: &str = "ntpro.v06_binance_testnet_order_lifecycle.v1";
-const TESTNET_RECONCILIATION_SCHEMA_VERSION: &str = "ntpro.v06_binance_testnet_reconciliation.v1";
 const DEFAULT_RUN_ID: &str = "v05-binance-sandbox-local";
 const BINANCE_SPOT_BARS_CSV: &str =
     include_str!("../../adapters/binance/test_data/v04/binance_spot_bars.csv");
@@ -593,37 +591,6 @@ struct TestnetExecutionConfig {
     real_orders_submitted: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct TestnetConfigArtifact {
-    schema_version: String,
-    source_path: String,
-    run_id: String,
-    config_declared_run_id: String,
-    mode: String,
-    venue: String,
-    product: String,
-    environment: String,
-    http_base_url: String,
-    ws_base_url: String,
-    order_submission: String,
-    reconciliation: String,
-    real_orders_submitted: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct TestnetCredentialPolicy {
-    schema_version: String,
-    policy: String,
-    api_key_env: String,
-    api_secret_env: String,
-    values_in_file: bool,
-    values_recorded: bool,
-    secrets_redacted: bool,
-    required_for_network: bool,
-    api_key_present: bool,
-    api_secret_present: bool,
-}
-
 impl TestnetCredentialPolicy {
     fn from_config(config: &TestnetWorkflowConfig) -> Self {
         Self {
@@ -639,20 +606,6 @@ impl TestnetCredentialPolicy {
             api_secret_present: std::env::var(&config.credentials.api_secret_env).is_ok(),
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct TestnetConnectivityProbe {
-    schema_version: String,
-    mode: String,
-    requested_mode: String,
-    http_base_url: String,
-    ws_base_url: String,
-    network_permission_requested: bool,
-    network_attempted: bool,
-    testnet_connection: bool,
-    status: String,
-    diagnostic: String,
 }
 
 impl TestnetConnectivityProbe {
@@ -692,22 +645,6 @@ impl TestnetConnectivityProbe {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct TestnetOrderLifecycle {
-    schema_version: String,
-    lifecycle_id: String,
-    mode: String,
-    order_submission: String,
-    submitted_count: u64,
-    accepted_count: u64,
-    filled_count: u64,
-    canceled_count: u64,
-    rejected_count: u64,
-    real_orders_submitted: bool,
-    external_venue_connection: bool,
-    checksum: String,
-}
-
 impl TestnetOrderLifecycle {
     fn from_config(run_id: &str, config: &TestnetWorkflowConfig) -> Self {
         Self {
@@ -725,18 +662,6 @@ impl TestnetOrderLifecycle {
             checksum: "v06-testnet-dry-run-no-real-orders".to_string(),
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct TestnetReconciliation {
-    schema_version: String,
-    reconciliation_id: String,
-    mode: String,
-    matched_orders: u64,
-    unmatched_orders: u64,
-    external_account_state_loaded: bool,
-    real_orders_submitted: bool,
-    status: String,
 }
 
 impl TestnetReconciliation {
@@ -766,25 +691,6 @@ fn ensure_equals(name: &str, value: &str, expected: &str) -> anyhow::Result<()> 
         anyhow::bail!("{name} must be '{expected}', got '{value}'");
     }
     Ok(())
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct WorkflowBoundary {
-    schema_version: String,
-    sandbox_only: bool,
-    fixture_replay: bool,
-    mock_execution: bool,
-    external_venue_connection: bool,
-    real_funds: bool,
-    production_trading: bool,
-    real_orders_submitted: bool,
-    testnet_connection: bool,
-    network_attempted: bool,
-    credential_policy: String,
-    connectivity_mode: String,
-    order_submission_mode: String,
-    reconciliation_mode: String,
-    notes: Vec<String>,
 }
 
 impl WorkflowBoundary {
@@ -838,44 +744,6 @@ impl WorkflowBoundary {
             ],
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct WorkflowSummary {
-    schema_version: String,
-    workflow_id: String,
-    workflow: String,
-    run_id: String,
-    runtime_status: String,
-    market_fixture_id: String,
-    market_bar_count: usize,
-    market_checksum: String,
-    ema_smoke_id: String,
-    ema_signals_emitted: usize,
-    ema_checksum: String,
-    rsi_smoke_id: String,
-    rsi_signals_emitted: usize,
-    rsi_checksum: String,
-    order_lifecycle_id: String,
-    order_event_count: usize,
-    order_checksum: String,
-    risk_smoke_id: String,
-    risk_checksum: String,
-    sandbox_only: bool,
-    fixture_replay: bool,
-    mock_execution: bool,
-    external_venue_connection: bool,
-    real_funds: bool,
-    production_trading: bool,
-    real_orders_submitted: bool,
-    testnet_connection: bool,
-    network_attempted: bool,
-    requested_mode: String,
-    network_permission_requested: bool,
-    credential_policy: String,
-    connectivity_mode: String,
-    order_submission_mode: String,
-    reconciliation_mode: String,
 }
 
 impl WorkflowSummary {
@@ -975,19 +843,6 @@ impl WorkflowSummary {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct WorkflowEvent {
-    schema_version: String,
-    workflow_id: String,
-    run_id: String,
-    sequence: u64,
-    event_type: String,
-    status: String,
-    artifact: String,
-    sandbox_only: bool,
-    real_orders_submitted: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct WorkflowEvents {
     events: Vec<WorkflowEvent>,
 }
@@ -1029,33 +884,6 @@ impl WorkflowEvents {
             .collect();
         Self { events }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct WorkflowManifestArtifact {
-    path: String,
-    schema_version: String,
-}
-
-impl WorkflowManifestArtifact {
-    fn new(path: String, schema_version: &str) -> Self {
-        Self {
-            path,
-            schema_version: schema_version.to_string(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct WorkflowManifest {
-    schema_version: String,
-    workflow_id: String,
-    workflow: String,
-    run_id: String,
-    runtime_status: String,
-    artifact_count: usize,
-    artifacts: Vec<WorkflowManifestArtifact>,
-    summary: WorkflowSummary,
 }
 
 impl WorkflowManifest {
@@ -1351,6 +1179,83 @@ real_orders_submitted = false
             Some("workflow.events.ready")
         );
         assert!(parsed.iter().all(|event| !event.real_orders_submitted));
+    }
+
+    #[test]
+    fn binance_testnet_artifacts_deserialize_through_shared_contract() {
+        let root = temp_root("testnet-shared-contract");
+        let config = write_testnet_config(&root);
+        let output = root.join("artifacts");
+        let result = run_workflow(WorkflowRunOpt {
+            workflow: WorkflowKind::BinanceTestnet,
+            mode: WorkflowRunMode::DryRun,
+            config: Some(config),
+            allow_testnet_network: false,
+            run_id: Some("shared-contract-run".to_string()),
+            output: Some(output),
+        })
+        .unwrap();
+        let testnet_paths = TestnetArtifactPaths::new(&result.output_dir);
+
+        let manifest: WorkflowManifest =
+            serde_json::from_str(&fs::read_to_string(&result.manifest_path).unwrap()).unwrap();
+        let summary: WorkflowSummary =
+            serde_json::from_str(&fs::read_to_string(&result.summary_path).unwrap()).unwrap();
+        let boundary: WorkflowBoundary = serde_json::from_str(
+            &fs::read_to_string(result.output_dir.join("boundary.json")).unwrap(),
+        )
+        .unwrap();
+        let config_artifact: TestnetConfigArtifact =
+            serde_json::from_str(&fs::read_to_string(&testnet_paths.config).unwrap()).unwrap();
+        let credential_policy: TestnetCredentialPolicy =
+            serde_json::from_str(&fs::read_to_string(&testnet_paths.credential_policy).unwrap())
+                .unwrap();
+        let connectivity_probe: TestnetConnectivityProbe =
+            serde_json::from_str(&fs::read_to_string(&testnet_paths.connectivity_probe).unwrap())
+                .unwrap();
+        let order_lifecycle: TestnetOrderLifecycle =
+            serde_json::from_str(&fs::read_to_string(&testnet_paths.order_lifecycle).unwrap())
+                .unwrap();
+        let reconciliation: TestnetReconciliation =
+            serde_json::from_str(&fs::read_to_string(&testnet_paths.reconciliation).unwrap())
+                .unwrap();
+        let events = fs::read_to_string(&result.events_path).unwrap();
+        let events = events
+            .lines()
+            .map(serde_json::from_str::<WorkflowEvent>)
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+
+        assert_eq!(manifest.schema_version, MANIFEST_SCHEMA_VERSION);
+        assert_eq!(manifest.summary, summary);
+        assert_eq!(manifest.artifact_count, manifest.artifacts.len());
+        assert_eq!(summary.run_id, "shared-contract-run");
+        assert_eq!(boundary.schema_version, BOUNDARY_SCHEMA_VERSION);
+        assert_eq!(
+            config_artifact.schema_version,
+            TESTNET_CONFIG_SCHEMA_VERSION
+        );
+        assert_eq!(
+            credential_policy.schema_version,
+            TESTNET_CREDENTIAL_POLICY_SCHEMA_VERSION
+        );
+        assert_eq!(
+            connectivity_probe.schema_version,
+            TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION
+        );
+        assert_eq!(
+            order_lifecycle.schema_version,
+            TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION
+        );
+        assert_eq!(
+            reconciliation.schema_version,
+            TESTNET_RECONCILIATION_SCHEMA_VERSION
+        );
+        assert_eq!(events.len(), 7);
+        assert!(events.iter().all(|event| event.run_id == summary.run_id));
+        assert!(!connectivity_probe.network_attempted);
+        assert!(!order_lifecycle.real_orders_submitted);
+        assert!(!reconciliation.real_orders_submitted);
     }
 
     #[test]
