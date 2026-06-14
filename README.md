@@ -157,6 +157,8 @@ The scope and readiness documents are:
 
 - `docs/rust-cutover/release/v0_5_0_workflow_artifacts_readiness_report.md`
 - `docs/rust-cutover/release/v0_6_0_binance_testnet_dry_run_readiness_report.md`
+- `docs/rust-cutover/release/v0_6_1_offline_hardening_readiness_report.md`
+- `docs/rust-cutover/release/v0_6_1_release_notes.md`
 - `docs/versioning.md`
 
 ## Verification
@@ -211,6 +213,8 @@ Release documents:
 - `docs/rust-cutover/release/v0_5_0_workflow_artifacts_readiness_report.md`
 - `docs/rust-cutover/release/v0_6_0_binance_testnet_dry_run_readiness_report.md`
 - `docs/rust-cutover/release/v0_6_0_release_notes.md`
+- `docs/rust-cutover/release/v0_6_1_offline_hardening_readiness_report.md`
+- `docs/rust-cutover/release/v0_6_1_release_notes.md`
 - `docs/rust-cutover/release/rust_only_release_notes.md`
 - `docs/rust-cutover/release/final_release_verification.md`
 - `docs/rust-cutover/release/final_completion_report.md`
@@ -246,6 +250,10 @@ the latest Binance sandbox public patch baseline, `v0.3.0` remains the Local
 Supervisor Control Console baseline, `v0.2.0` remains the local multi-node
 runtime foundation baseline, and `v0.1.0` remains the first formal Rust-only
 cutover release and historical baseline.
+
+`v0.6.1` is the current hardening closure for the v0.6 line. It is documented
+as an offline readiness/hardening scope, not as a new Binance testnet network,
+real-order, or production-trading release.
 
 Before cutting the next release, review:
 

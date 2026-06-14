@@ -23,3 +23,8 @@ Final release checks, benchmark summaries, and audit reports live here.
   `ntpro-rust-only-v0.6.0` GitHub Release. This release absorbs the completed
   `v0.5.0` workflow-artifact foundation and does not publish a separate
   `v0.5.0` tag/release.
+- `v0_6_1_offline_hardening_readiness_report.md` - V061-008 final PASS/FAIL
+  readiness report for the v0.6.1 offline hardening track.
+- `v0_6_1_release_notes.md` - release notes for the v0.6.1 hardening scope.
+  This is not a real Binance testnet network release and does not claim
+  production trading.
