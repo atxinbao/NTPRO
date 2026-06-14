@@ -1132,7 +1132,7 @@ mod tests {
         assert!(help.contains("dashboard-readable artifacts"));
         assert!(help.contains("Default dry-run opens no sockets"));
         assert!(help.contains("Fail-closed"));
-        assert!(help.contains("testnet network"));
+        assert!(help.contains("read-only networking"));
         assert!(help.contains("NTPRO_ALLOW_TESTNET_NETWORK=1"));
         assert!(help.contains("read-only config"));
         assert!(help.contains("--workflow"));

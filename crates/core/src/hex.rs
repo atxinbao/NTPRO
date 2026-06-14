@@ -55,10 +55,6 @@ const DECODE_NIBBLE: [u8; 256] = {
 
 /// Encodes a byte slice as a lowercase hexadecimal string.
 ///
-/// # Panics
-///
-/// Never panics in practice: the output buffer is built from ASCII hex pairs in
-/// `ENCODE_PAIR`, so [`String::from_utf8`] always succeeds.
 #[must_use]
 #[expect(
     clippy::indexing_slicing,
@@ -70,15 +66,11 @@ pub fn encode(data: impl AsRef<[u8]>) -> String {
     for &b in bytes {
         buf.extend_from_slice(&ENCODE_PAIR[b as usize]);
     }
-    String::from_utf8(buf).unwrap()
+    String::from_utf8_lossy(&buf).into_owned()
 }
 
 /// Encodes a byte slice as a `"0x"`-prefixed lowercase hexadecimal string.
 ///
-/// # Panics
-///
-/// Never panics in practice: the output buffer is built from ASCII (`"0x"` plus
-/// `ENCODE_PAIR` entries), so [`String::from_utf8`] always succeeds.
 #[must_use]
 #[expect(
     clippy::indexing_slicing,
@@ -91,7 +83,7 @@ pub fn encode_prefixed(data: impl AsRef<[u8]>) -> String {
     for &b in bytes {
         buf.extend_from_slice(&ENCODE_PAIR[b as usize]);
     }
-    String::from_utf8(buf).unwrap()
+    String::from_utf8_lossy(&buf).into_owned()
 }
 
 /// Decodes a hexadecimal string into bytes.
@@ -143,17 +135,20 @@ pub fn decode_array<const N: usize>(data: impl AsRef<[u8]>) -> Result<[u8; N], D
     }
     let mut out = [0u8; N];
 
-    for (i, pair) in hex.chunks_exact(2).enumerate() {
-        let hi = DECODE_NIBBLE[pair[0] as usize];
-        let lo = DECODE_NIBBLE[pair[1] as usize];
+    for (out_byte, pair) in out.iter_mut().zip(hex.chunks_exact(2)) {
+        let mut chars = pair.iter().copied();
+        let hi_char = chars.next().ok_or(DecodeError::OddLength)?;
+        let lo_char = chars.next().ok_or(DecodeError::OddLength)?;
+        let hi = DECODE_NIBBLE[hi_char as usize];
+        let lo = DECODE_NIBBLE[lo_char as usize];
         if (hi | lo) & 0xF0 != 0 {
             return Err(if hi == 0xFF {
-                DecodeError::InvalidChar(pair[0])
+                DecodeError::InvalidChar(hi_char)
             } else {
-                DecodeError::InvalidChar(pair[1])
+                DecodeError::InvalidChar(lo_char)
             });
         }
-        out[i] = (hi << 4) | lo;
+        *out_byte = (hi << 4) | lo;
     }
     Ok(out)
 }
