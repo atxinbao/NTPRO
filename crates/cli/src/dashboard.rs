@@ -4256,7 +4256,7 @@ mod tests {
             &json!([
                 {
                     "path": "testnet/credential_policy.json",
-                    "schema_version": "ntpro.v06_binance_testnet_credential_policy.v1"
+                    "schema_version": "ntpro.v07_binance_testnet_credential_policy.v1"
                 }
             ]),
         );

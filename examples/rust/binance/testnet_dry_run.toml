@@ -10,6 +10,8 @@ environment = "testnet"
 [credentials]
 # v0.7 online probes may read credentials from these env vars only.
 # Never put API key or API secret values in this file.
+# Public read-only probes do not require credentials. Authenticated read-only
+# probes are manual-online-only and only record env var presence, never values.
 api_key_env = "BINANCE_TESTNET_API_KEY"
 api_secret_env = "BINANCE_TESTNET_API_SECRET"
 values_in_file = false

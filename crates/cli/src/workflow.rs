@@ -204,6 +204,7 @@ fn run_binance_testnet_workflow_with_env_permission(
         opt.mode,
         opt.allow_testnet_network,
         &network_gate,
+        &credential_policy,
     );
     let order_lifecycle = TestnetOrderLifecycle::from_config(&run_id, &config);
     let reconciliation = TestnetReconciliation::from_order_lifecycle(&run_id, &order_lifecycle);
@@ -511,6 +512,11 @@ impl TestnetWorkflowConfig {
         if self.credentials.values_in_file {
             anyhow::bail!("credentials.values_in_file must be false for the testnet workflow");
         }
+        if !self.credentials.required_for_network {
+            anyhow::bail!(
+                "credentials.required_for_network must be true for authenticated testnet online probes"
+            );
+        }
         if self.connectivity.network_attempted {
             anyhow::bail!("connectivity.network_attempted must be false for checked-in config");
         }
@@ -606,18 +612,49 @@ struct TestnetExecutionConfig {
 
 impl TestnetCredentialPolicy {
     fn from_config(config: &TestnetWorkflowConfig) -> Self {
+        Self::from_config_with_presence(
+            config,
+            std::env::var(&config.credentials.api_key_env).is_ok(),
+            std::env::var(&config.credentials.api_secret_env).is_ok(),
+        )
+    }
+
+    fn from_config_with_presence(
+        config: &TestnetWorkflowConfig,
+        api_key_present: bool,
+        api_secret_present: bool,
+    ) -> Self {
         Self {
             schema_version: TESTNET_CREDENTIAL_POLICY_SCHEMA_VERSION.to_string(),
             policy: "env-var-only-no-secret-persistence".to_string(),
+            credential_source: "environment_variables_only".to_string(),
             api_key_env: config.credentials.api_key_env.clone(),
             api_secret_env: config.credentials.api_secret_env.clone(),
             values_in_file: config.credentials.values_in_file,
             values_recorded: false,
+            api_key_value_recorded: false,
+            api_secret_value_recorded: false,
             secrets_redacted: true,
             required_for_network: config.credentials.required_for_network,
-            api_key_present: std::env::var(&config.credentials.api_key_env).is_ok(),
-            api_secret_present: std::env::var(&config.credentials.api_secret_env).is_ok(),
+            public_read_only_probe_requires_credentials: false,
+            authenticated_read_only_probe_requires_credentials: true,
+            authenticated_read_only_probe_gate: "manual-online-only".to_string(),
+            authenticated_read_only_probe_status: authenticated_probe_status(
+                api_key_present,
+                api_secret_present,
+            )
+            .to_string(),
+            api_key_present,
+            api_secret_present,
         }
+    }
+}
+
+fn authenticated_probe_status(api_key_present: bool, api_secret_present: bool) -> &'static str {
+    if api_key_present && api_secret_present {
+        "manual_gate_ready"
+    } else {
+        "manual_gate_blocked_missing_credentials"
     }
 }
 
@@ -684,14 +721,24 @@ impl TestnetConnectivityProbe {
         mode: WorkflowRunMode,
         allow_testnet_network: bool,
         network_gate: &TestnetNetworkGate,
+        credential_policy: &TestnetCredentialPolicy,
     ) -> Self {
         let requested_mode = requested_mode_label(mode);
         let status = runtime_status_for_testnet_mode(mode);
-        let diagnostic = network_gate_diagnostic(mode, network_gate);
+        let diagnostic = network_gate_diagnostic(mode, network_gate, credential_policy);
         Self {
             schema_version: TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION.to_string(),
             mode: config.connectivity.mode.clone(),
             requested_mode: requested_mode.to_string(),
+            public_read_only_probe_status: "available_without_credentials".to_string(),
+            authenticated_read_only_probe_status: credential_policy
+                .authenticated_read_only_probe_status
+                .clone(),
+            authenticated_read_only_probe_gate: credential_policy
+                .authenticated_read_only_probe_gate
+                .clone(),
+            authenticated_read_only_probe_requires_credentials: credential_policy
+                .authenticated_read_only_probe_requires_credentials,
             http_base_url: config.connectivity.http_base_url.clone(),
             ws_base_url: config.connectivity.ws_base_url.clone(),
             network_permission_requested: allow_testnet_network,
@@ -706,20 +753,31 @@ impl TestnetConnectivityProbe {
     }
 }
 
-fn network_gate_diagnostic(mode: WorkflowRunMode, network_gate: &TestnetNetworkGate) -> String {
+fn network_gate_diagnostic(
+    mode: WorkflowRunMode,
+    network_gate: &TestnetNetworkGate,
+    credential_policy: &TestnetCredentialPolicy,
+) -> String {
     if network_gate.status == "blocked" {
         return format!(
-            "V070 network gate blocked before socket creation: {}. No socket is opened.",
-            network_gate.reasons.join("; ")
+            "V070 network gate blocked before socket creation: {}. Public read-only probe does not require credentials; authenticated read-only probe is {}. No socket is opened.",
+            network_gate.reasons.join("; "),
+            credential_policy.authenticated_read_only_probe_status,
         );
     }
 
     match mode {
         WorkflowRunMode::ConnectivityProbe => {
-            "V070 network gate allowed, but V070-001 only records the guard; HTTP read-only probe is implemented by V070-003. No socket is opened.".to_string()
+            format!(
+                "V070 network gate allowed, but V070-002 only records env-only credential policy. Public read-only probe does not require credentials; authenticated read-only probe is {}. HTTP read-only probe is implemented by V070-003. No socket is opened.",
+                credential_policy.authenticated_read_only_probe_status,
+            )
         }
         WorkflowRunMode::DryRun => {
-            "V070 network gate allowed for future online probes, but dry-run mode stays offline. No socket is opened.".to_string()
+            format!(
+                "V070 network gate allowed for future online probes, but dry-run mode stays offline. Public read-only probe does not require credentials; authenticated read-only probe is {}. No socket is opened.",
+                credential_policy.authenticated_read_only_probe_status,
+            )
         }
     }
 }
@@ -1327,9 +1385,40 @@ real_orders_submitted = false
             TESTNET_CREDENTIAL_POLICY_SCHEMA_VERSION
         );
         assert_eq!(
+            credential_policy.credential_source,
+            "environment_variables_only"
+        );
+        assert!(!credential_policy.values_recorded);
+        assert!(!credential_policy.api_key_value_recorded);
+        assert!(!credential_policy.api_secret_value_recorded);
+        assert!(credential_policy.secrets_redacted);
+        assert!(!credential_policy.public_read_only_probe_requires_credentials);
+        assert!(credential_policy.authenticated_read_only_probe_requires_credentials);
+        assert_eq!(
+            credential_policy.authenticated_read_only_probe_gate,
+            "manual-online-only"
+        );
+        assert_eq!(
+            credential_policy.authenticated_read_only_probe_status,
+            "manual_gate_blocked_missing_credentials"
+        );
+        assert_eq!(
             connectivity_probe.schema_version,
             TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION
         );
+        assert_eq!(
+            connectivity_probe.public_read_only_probe_status,
+            "available_without_credentials"
+        );
+        assert_eq!(
+            connectivity_probe.authenticated_read_only_probe_status,
+            "manual_gate_blocked_missing_credentials"
+        );
+        assert_eq!(
+            connectivity_probe.authenticated_read_only_probe_gate,
+            "manual-online-only"
+        );
+        assert!(connectivity_probe.authenticated_read_only_probe_requires_credentials);
         assert_eq!(
             order_lifecycle.schema_version,
             TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION
@@ -1396,7 +1485,109 @@ real_orders_submitted = false
         assert!(!probe.testnet_connection);
         assert_eq!(probe.status, "offline_probe_validated");
         assert!(probe.diagnostic.contains("blocked before socket creation"));
+        assert!(
+            probe
+                .diagnostic
+                .contains("Public read-only probe does not require credentials")
+        );
+        assert!(
+            probe.diagnostic.contains(
+                "authenticated read-only probe is manual_gate_blocked_missing_credentials"
+            )
+        );
         assert!(probe.diagnostic.contains("No socket is opened"));
+    }
+
+    #[test]
+    fn binance_testnet_credential_policy_records_env_presence_only() {
+        let config = parsed_testnet_config();
+        let policy = TestnetCredentialPolicy::from_config_with_presence(&config, true, false);
+        let serialized = serde_json::to_string(&policy).unwrap();
+
+        assert_eq!(policy.policy, "env-var-only-no-secret-persistence");
+        assert_eq!(policy.credential_source, "environment_variables_only");
+        assert_eq!(policy.api_key_env, "BINANCE_TESTNET_API_KEY");
+        assert_eq!(policy.api_secret_env, "BINANCE_TESTNET_API_SECRET");
+        assert!(policy.api_key_present);
+        assert!(!policy.api_secret_present);
+        assert!(!policy.values_in_file);
+        assert!(!policy.values_recorded);
+        assert!(!policy.api_key_value_recorded);
+        assert!(!policy.api_secret_value_recorded);
+        assert!(policy.secrets_redacted);
+        assert!(!policy.public_read_only_probe_requires_credentials);
+        assert!(policy.authenticated_read_only_probe_requires_credentials);
+        assert_eq!(
+            policy.authenticated_read_only_probe_gate,
+            "manual-online-only"
+        );
+        assert_eq!(
+            policy.authenticated_read_only_probe_status,
+            "manual_gate_blocked_missing_credentials"
+        );
+        assert!(!serialized.contains("credential_value"));
+    }
+
+    #[test]
+    fn binance_testnet_authenticated_probe_is_manual_ready_only_with_both_credentials_present() {
+        let config = parsed_testnet_config();
+        let policy = TestnetCredentialPolicy::from_config_with_presence(&config, true, true);
+        let gate = TestnetNetworkGate::evaluate(&config, true, true);
+        let probe = TestnetConnectivityProbe::from_config(
+            &config,
+            WorkflowRunMode::ConnectivityProbe,
+            true,
+            &gate,
+            &policy,
+        );
+
+        assert_eq!(
+            policy.authenticated_read_only_probe_status,
+            "manual_gate_ready"
+        );
+        assert_eq!(
+            probe.public_read_only_probe_status,
+            "available_without_credentials"
+        );
+        assert_eq!(
+            probe.authenticated_read_only_probe_status,
+            "manual_gate_ready"
+        );
+        assert_eq!(
+            probe.authenticated_read_only_probe_gate,
+            "manual-online-only"
+        );
+        assert!(probe.authenticated_read_only_probe_requires_credentials);
+        assert_eq!(probe.network_gate_status, "allowed");
+        assert!(!probe.network_attempted);
+        assert!(probe.diagnostic.contains("V070-003"));
+        assert!(probe.diagnostic.contains("No socket is opened"));
+    }
+
+    #[test]
+    fn binance_testnet_workflow_rejects_inline_credential_values() {
+        let root = temp_root("testnet-inline-credential-values");
+        let body = testnet_config().replace("values_in_file = false", "values_in_file = true");
+        let config = write_testnet_config_body(&root, &body);
+        let output = root.join("artifacts");
+        let error = run_binance_testnet_workflow_with_env_permission(
+            WorkflowRunOpt {
+                workflow: WorkflowKind::BinanceTestnet,
+                mode: WorkflowRunMode::DryRun,
+                config: Some(config),
+                allow_testnet_network: false,
+                run_id: Some("inline-credentials-run".to_string()),
+                output: Some(output),
+            },
+            false,
+        )
+        .unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("credentials.values_in_file must be false")
+        );
     }
 
     #[test]
