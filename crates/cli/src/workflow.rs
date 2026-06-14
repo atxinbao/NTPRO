@@ -56,7 +56,6 @@ const TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION: &str =
 const TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION: &str = "ntpro.v06_binance_testnet_order_lifecycle.v1";
 const TESTNET_RECONCILIATION_SCHEMA_VERSION: &str = "ntpro.v06_binance_testnet_reconciliation.v1";
 const DEFAULT_RUN_ID: &str = "v05-binance-sandbox-local";
-const DEFAULT_TESTNET_RUN_ID: &str = "v06-binance-testnet-dry-run";
 const BINANCE_SPOT_BARS_CSV: &str =
     include_str!("../../adapters/binance/test_data/v04/binance_spot_bars.csv");
 
@@ -172,16 +171,13 @@ fn run_binance_sandbox_workflow(opt: WorkflowRunOpt) -> anyhow::Result<WorkflowR
 }
 
 fn run_binance_testnet_workflow(opt: WorkflowRunOpt) -> anyhow::Result<WorkflowRunResult> {
-    let run_id = opt
-        .run_id
-        .unwrap_or_else(|| DEFAULT_TESTNET_RUN_ID.to_string());
-    validate_run_id(&run_id)?;
     let config_path = opt
         .config
         .as_ref()
         .context("binance-testnet workflow requires --config")?;
     let config = load_testnet_workflow_config(config_path)?;
     config.validate()?;
+    let run_id = resolve_testnet_run_id(opt.run_id.as_deref(), &config)?;
 
     let output_dir = opt
         .output
@@ -280,7 +276,11 @@ fn run_binance_testnet_workflow(opt: WorkflowRunOpt) -> anyhow::Result<WorkflowR
     );
 
     let mut written = Vec::new();
-    write_json_artifact(&testnet_paths.config, &config.to_artifact(), &mut written)?;
+    write_json_artifact(
+        &testnet_paths.config,
+        &config.to_artifact(&run_id),
+        &mut written,
+    )?;
     write_json_artifact(
         &testnet_paths.credential_policy,
         &credential_policy,
@@ -330,6 +330,15 @@ fn validate_run_id(run_id: &str) -> anyhow::Result<()> {
         anyhow::bail!("workflow run_id may only contain ASCII letters, digits, '-', '_', and '.'");
     }
     Ok(())
+}
+
+fn resolve_testnet_run_id(
+    cli_run_id: Option<&str>,
+    config: &TestnetWorkflowConfig,
+) -> anyhow::Result<String> {
+    let run_id = cli_run_id.unwrap_or(&config.run.id).to_string();
+    validate_run_id(&run_id)?;
+    Ok(run_id)
 }
 
 fn load_testnet_workflow_config(path: &Path) -> anyhow::Result<TestnetWorkflowConfig> {
@@ -503,14 +512,15 @@ impl TestnetWorkflowConfig {
         Ok(())
     }
 
-    fn to_artifact(&self) -> TestnetConfigArtifact {
+    fn to_artifact(&self, effective_run_id: &str) -> TestnetConfigArtifact {
         TestnetConfigArtifact {
             schema_version: TESTNET_CONFIG_SCHEMA_VERSION.to_string(),
             source_path: self
                 .source_path
                 .clone()
                 .unwrap_or_else(|| "unknown".to_string()),
-            run_id: self.run.id.clone(),
+            run_id: effective_run_id.to_string(),
+            config_declared_run_id: self.run.id.clone(),
             mode: self.run.mode.clone(),
             venue: self.venue.name.clone(),
             product: self.venue.product.clone(),
@@ -565,6 +575,7 @@ struct TestnetConfigArtifact {
     schema_version: String,
     source_path: String,
     run_id: String,
+    config_declared_run_id: String,
     mode: String,
     venue: String,
     product: String,
@@ -1296,6 +1307,77 @@ real_orders_submitted = false
             Some("workflow.events.ready")
         );
         assert!(parsed.iter().all(|event| !event.real_orders_submitted));
+    }
+
+    #[test]
+    fn binance_testnet_workflow_uses_cli_run_id_as_single_artifact_identity() {
+        let root = temp_root("testnet-effective-run-id");
+        let config = write_testnet_config(&root);
+        let output = root.join("artifacts");
+        let result = run_workflow(WorkflowRunOpt {
+            workflow: WorkflowKind::BinanceTestnet,
+            mode: WorkflowRunMode::DryRun,
+            config: Some(config),
+            allow_testnet_network: false,
+            run_id: Some("custom-run-id".to_string()),
+            output: Some(output),
+        })
+        .unwrap();
+
+        assert_eq!(result.run_id, "custom-run-id");
+
+        let manifest: WorkflowManifest =
+            serde_json::from_str(&fs::read_to_string(&result.manifest_path).unwrap()).unwrap();
+        assert_eq!(manifest.run_id, "custom-run-id");
+        assert_eq!(manifest.summary.run_id, "custom-run-id");
+        assert_eq!(
+            manifest.summary.order_lifecycle_id,
+            "v06-binance-testnet-dry-run-custom-run-id"
+        );
+        assert_eq!(
+            manifest.summary.risk_smoke_id,
+            "v06-binance-testnet-reconciliation-custom-run-id"
+        );
+
+        let config_artifact_path = result.output_dir.join("testnet/config.json");
+        let config_artifact: TestnetConfigArtifact =
+            serde_json::from_str(&fs::read_to_string(config_artifact_path).unwrap()).unwrap();
+        assert_eq!(config_artifact.run_id, "custom-run-id");
+        assert_eq!(
+            config_artifact.config_declared_run_id,
+            "v06-binance-testnet-dry-run"
+        );
+
+        let events = fs::read_to_string(&result.events_path).unwrap();
+        let parsed = events
+            .lines()
+            .map(serde_json::from_str::<WorkflowEvent>)
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert!(parsed.iter().all(|event| event.run_id == "custom-run-id"));
+    }
+
+    #[test]
+    fn binance_testnet_workflow_uses_config_run_id_when_cli_run_id_absent() {
+        let root = temp_root("testnet-config-run-id");
+        let config = write_testnet_config(&root);
+        let output = root.join("artifacts");
+        let result = run_workflow(WorkflowRunOpt {
+            workflow: WorkflowKind::BinanceTestnet,
+            mode: WorkflowRunMode::DryRun,
+            config: Some(config),
+            allow_testnet_network: false,
+            run_id: None,
+            output: Some(output),
+        })
+        .unwrap();
+
+        assert_eq!(result.run_id, "v06-binance-testnet-dry-run");
+
+        let manifest: WorkflowManifest =
+            serde_json::from_str(&fs::read_to_string(&result.manifest_path).unwrap()).unwrap();
+        assert_eq!(manifest.run_id, "v06-binance-testnet-dry-run");
+        assert_eq!(manifest.summary.run_id, "v06-binance-testnet-dry-run");
     }
 
     #[test]
