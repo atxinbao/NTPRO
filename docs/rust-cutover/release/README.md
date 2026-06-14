@@ -28,3 +28,7 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_6_1_release_notes.md` - release notes for the v0.6.1 hardening scope.
   This is not a real Binance testnet network release and does not claim
   production trading.
+- `v0_7_0_readonly_testnet_boundary.md` - V070-000 boundary, threat model, gate
+  split, and artifact schema for the v0.7 real Binance testnet read-only
+  connectivity proof. This document is a high-risk design gate and does not
+  implement networking.
