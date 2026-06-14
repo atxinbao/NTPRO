@@ -357,7 +357,7 @@ pub enum WorkflowCommand {
 pub enum WorkflowKind {
     /// Local Binance sandbox workflow using checked-in fixtures and mock execution only.
     BinanceSandbox,
-    /// Local Binance testnet dry-run workflow; no network or real orders by default.
+    /// Local Binance testnet workflow contract; v0.6.1 remains offline-only.
     BinanceTestnet,
 }
 
@@ -366,7 +366,7 @@ pub enum WorkflowKind {
 pub enum WorkflowRunMode {
     /// Validate config and write local dry-run artifacts only.
     DryRun,
-    /// Validate the testnet connectivity contract without opening a network connection.
+    /// Record connectivity-probe intent without opening a network connection.
     ConnectivityProbe,
 }
 
@@ -376,13 +376,13 @@ pub struct WorkflowRunOpt {
     /// Workflow kind to run.
     #[arg(long, value_enum, default_value_t = WorkflowKind::BinanceSandbox)]
     pub workflow: WorkflowKind,
-    /// Workflow run mode. Testnet modes are offline unless explicitly documented otherwise.
+    /// Workflow run mode. v0.6.1 testnet modes are offline-only.
     #[arg(long, value_enum, default_value_t = WorkflowRunMode::DryRun)]
     pub mode: WorkflowRunMode,
     /// Optional workflow config. Required for the Binance testnet workflow.
     #[arg(long)]
     pub config: Option<PathBuf>,
-    /// Acknowledge optional testnet-network intent. The current v0.6 gate still records dry-run artifacts only.
+    /// Record optional testnet-network intent; v0.6.1 still opens no sockets.
     #[arg(long)]
     pub allow_testnet_network: bool,
     /// Owner-visible run identifier used in the artifact directory.
@@ -1123,6 +1123,9 @@ mod tests {
 
         assert!(help.contains("local Binance sandbox/testnet workflow"));
         assert!(help.contains("dashboard-readable artifacts"));
+        assert!(help.contains("v0.6.1 testnet modes are offline-only"));
+        assert!(help.contains("Record optional testnet-network intent"));
+        assert!(help.contains("v0.6.1 still opens no sockets"));
         assert!(help.contains("--workflow"));
         assert!(help.contains("--mode"));
         assert!(help.contains("--config"));

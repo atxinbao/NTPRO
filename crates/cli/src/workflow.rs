@@ -70,7 +70,7 @@ pub(crate) fn run_workflow_command(opt: WorkflowOpt) -> anyhow::Result<()> {
         WorkflowCommand::Run(run) => {
             let result = run_workflow(run)?;
             println!(
-                "workflow.run status=ok workflow={} run_id={} output={} manifest={} summary={} events={} artifact_count={} external_venue_connection={} real_funds={} production_trading={} real_orders_submitted={} testnet_connection={} runtime_status={}",
+                "workflow.run status=ok workflow={} run_id={} output={} manifest={} summary={} events={} artifact_count={} requested_mode={} network_permission_requested={} network_attempted={} external_venue_connection={} real_funds={} production_trading={} real_orders_submitted={} testnet_connection={} runtime_status={}",
                 result.workflow,
                 result.run_id,
                 result.output_dir.display(),
@@ -78,6 +78,9 @@ pub(crate) fn run_workflow_command(opt: WorkflowOpt) -> anyhow::Result<()> {
                 result.summary_path.display(),
                 result.events_path.display(),
                 result.artifact_paths.len(),
+                result.requested_mode,
+                result.network_permission_requested,
+                result.network_attempted,
                 result.external_venue_connection,
                 result.real_funds,
                 result.production_trading,
@@ -167,6 +170,9 @@ fn run_binance_sandbox_workflow(opt: WorkflowRunOpt) -> anyhow::Result<WorkflowR
         production_trading: false,
         real_orders_submitted: false,
         testnet_connection: false,
+        requested_mode: "dry-run".to_string(),
+        network_permission_requested: false,
+        network_attempted: false,
     })
 }
 
@@ -316,6 +322,9 @@ fn run_binance_testnet_workflow(opt: WorkflowRunOpt) -> anyhow::Result<WorkflowR
         production_trading: boundary.production_trading,
         real_orders_submitted: boundary.real_orders_submitted,
         testnet_connection: boundary.testnet_connection,
+        requested_mode: connectivity_probe.requested_mode,
+        network_permission_requested: connectivity_probe.network_permission_requested,
+        network_attempted: connectivity_probe.network_attempted,
     })
 }
 
@@ -339,6 +348,20 @@ fn resolve_testnet_run_id(
     let run_id = cli_run_id.unwrap_or(&config.run.id).to_string();
     validate_run_id(&run_id)?;
     Ok(run_id)
+}
+
+fn requested_mode_label(mode: WorkflowRunMode) -> &'static str {
+    match mode {
+        WorkflowRunMode::DryRun => "dry-run",
+        WorkflowRunMode::ConnectivityProbe => "connectivity-probe",
+    }
+}
+
+fn runtime_status_for_testnet_mode(mode: WorkflowRunMode) -> &'static str {
+    match mode {
+        WorkflowRunMode::DryRun => "dry_run_completed",
+        WorkflowRunMode::ConnectivityProbe => "offline_probe_validated",
+    }
 }
 
 fn load_testnet_workflow_config(path: &Path) -> anyhow::Result<TestnetWorkflowConfig> {
@@ -638,9 +661,21 @@ impl TestnetConnectivityProbe {
         mode: WorkflowRunMode,
         allow_testnet_network: bool,
     ) -> Self {
-        let requested_mode = match mode {
-            WorkflowRunMode::DryRun => "dry-run",
-            WorkflowRunMode::ConnectivityProbe => "connectivity-probe",
+        let requested_mode = requested_mode_label(mode);
+        let status = runtime_status_for_testnet_mode(mode);
+        let diagnostic = match (mode, allow_testnet_network) {
+            (WorkflowRunMode::ConnectivityProbe, true) => {
+                "Connectivity-probe intent and network permission were recorded, but v0.6.1 remains offline-only; no socket is opened."
+            }
+            (WorkflowRunMode::ConnectivityProbe, false) => {
+                "Connectivity-probe intent was recorded, but v0.6.1 remains offline-only; no socket is opened."
+            }
+            (WorkflowRunMode::DryRun, true) => {
+                "Network permission was recorded with dry-run mode, but v0.6.1 remains offline-only; no socket is opened."
+            }
+            (WorkflowRunMode::DryRun, false) => {
+                "V06 validates the Binance testnet runtime contract offline; no socket is opened."
+            }
         };
         Self {
             schema_version: TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION.to_string(),
@@ -651,14 +686,8 @@ impl TestnetConnectivityProbe {
             network_permission_requested: allow_testnet_network,
             network_attempted: false,
             testnet_connection: false,
-            status: if mode == WorkflowRunMode::ConnectivityProbe {
-                "offline_probe_validated".to_string()
-            } else {
-                "dry_run_validated".to_string()
-            },
-            diagnostic:
-                "V06 validates the Binance testnet runtime contract offline; no socket is opened."
-                    .to_string(),
+            status: status.to_string(),
+            diagnostic: diagnostic.to_string(),
         }
     }
 }
@@ -841,6 +870,8 @@ struct WorkflowSummary {
     real_orders_submitted: bool,
     testnet_connection: bool,
     network_attempted: bool,
+    requested_mode: String,
+    network_permission_requested: bool,
     credential_policy: String,
     connectivity_mode: String,
     order_submission_mode: String,
@@ -886,6 +917,8 @@ impl WorkflowSummary {
             real_orders_submitted: boundary.real_orders_submitted,
             testnet_connection: boundary.testnet_connection,
             network_attempted: boundary.network_attempted,
+            requested_mode: "dry-run".to_string(),
+            network_permission_requested: false,
             credential_policy: boundary.credential_policy.clone(),
             connectivity_mode: boundary.connectivity_mode.clone(),
             order_submission_mode: boundary.order_submission_mode.clone(),
@@ -907,7 +940,7 @@ impl WorkflowSummary {
             workflow_id: "v06-binance-testnet-runtime-foundation".to_string(),
             workflow: "binance-testnet".to_string(),
             run_id: run_id.to_string(),
-            runtime_status: "dry_run_completed".to_string(),
+            runtime_status: connectivity_probe.status.clone(),
             market_fixture_id: "not-applicable-testnet-dry-run".to_string(),
             market_bar_count: 0,
             market_checksum: connectivity_probe.status.clone(),
@@ -931,6 +964,8 @@ impl WorkflowSummary {
             real_orders_submitted: boundary.real_orders_submitted,
             testnet_connection: boundary.testnet_connection,
             network_attempted: boundary.network_attempted,
+            requested_mode: connectivity_probe.requested_mode.clone(),
+            network_permission_requested: connectivity_probe.network_permission_requested,
             credential_policy: credential_policy.policy.clone(),
             connectivity_mode: config.connectivity.mode.clone(),
             order_submission_mode: config.execution.order_submission.clone(),
@@ -1113,6 +1148,9 @@ struct WorkflowRunResult {
     production_trading: bool,
     real_orders_submitted: bool,
     testnet_connection: bool,
+    requested_mode: String,
+    network_permission_requested: bool,
+    network_attempted: bool,
 }
 
 #[cfg(test)]
@@ -1270,6 +1308,9 @@ real_orders_submitted = false
 
         assert_eq!(result.workflow, "binance-testnet");
         assert_eq!(result.runtime_status, "dry_run_completed");
+        assert_eq!(result.requested_mode, "dry-run");
+        assert!(!result.network_permission_requested);
+        assert!(!result.network_attempted);
         assert_eq!(result.artifact_paths.len(), 9);
         assert_eq!(result.artifact_paths.last(), Some(&result.manifest_path));
         assert!(!result.testnet_connection);
@@ -1279,7 +1320,10 @@ real_orders_submitted = false
         let manifest: WorkflowManifest =
             serde_json::from_str(&fs::read_to_string(&result.manifest_path).unwrap()).unwrap();
         assert_eq!(manifest.workflow, "binance-testnet");
+        assert_eq!(manifest.runtime_status, "dry_run_completed");
         assert_eq!(manifest.artifact_count, 9);
+        assert_eq!(manifest.summary.requested_mode, "dry-run");
+        assert!(!manifest.summary.network_permission_requested);
         assert_eq!(
             manifest.summary.order_lifecycle_id,
             "v06-binance-testnet-dry-run-v06-smoke"
@@ -1307,6 +1351,50 @@ real_orders_submitted = false
             Some("workflow.events.ready")
         );
         assert!(parsed.iter().all(|event| !event.real_orders_submitted));
+    }
+
+    #[test]
+    fn binance_testnet_connectivity_probe_records_offline_probe_semantics() {
+        let root = temp_root("testnet-connectivity-probe");
+        let config = write_testnet_config(&root);
+        let output = root.join("artifacts");
+        let result = run_workflow(WorkflowRunOpt {
+            workflow: WorkflowKind::BinanceTestnet,
+            mode: WorkflowRunMode::ConnectivityProbe,
+            config: Some(config),
+            allow_testnet_network: true,
+            run_id: Some("probe-run".to_string()),
+            output: Some(output),
+        })
+        .unwrap();
+
+        assert_eq!(result.runtime_status, "offline_probe_validated");
+        assert_eq!(result.requested_mode, "connectivity-probe");
+        assert!(result.network_permission_requested);
+        assert!(!result.network_attempted);
+        assert!(!result.testnet_connection);
+        assert!(!result.external_venue_connection);
+        assert!(!result.real_orders_submitted);
+
+        let manifest: WorkflowManifest =
+            serde_json::from_str(&fs::read_to_string(&result.manifest_path).unwrap()).unwrap();
+        assert_eq!(manifest.runtime_status, "offline_probe_validated");
+        assert_eq!(manifest.summary.runtime_status, "offline_probe_validated");
+        assert_eq!(manifest.summary.requested_mode, "connectivity-probe");
+        assert!(manifest.summary.network_permission_requested);
+        assert!(!manifest.summary.network_attempted);
+        assert!(!manifest.summary.testnet_connection);
+        assert!(!manifest.summary.real_orders_submitted);
+
+        let probe_path = result.output_dir.join("testnet/connectivity_probe.json");
+        let probe: TestnetConnectivityProbe =
+            serde_json::from_str(&fs::read_to_string(probe_path).unwrap()).unwrap();
+        assert_eq!(probe.requested_mode, "connectivity-probe");
+        assert!(probe.network_permission_requested);
+        assert!(!probe.network_attempted);
+        assert!(!probe.testnet_connection);
+        assert_eq!(probe.status, "offline_probe_validated");
+        assert!(probe.diagnostic.contains("offline-only"));
     }
 
     #[test]
