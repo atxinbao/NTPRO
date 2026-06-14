@@ -903,12 +903,14 @@ refresh().catch((error) => {
 #[derive(Clone, Debug)]
 struct DashboardServerState {
     registry_path: PathBuf,
+    workflow_root: Option<PathBuf>,
     ntpro_node_bin: PathBuf,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct DashboardServerMetadata {
     registry_path: String,
+    workflow_root: Option<String>,
     local_only: bool,
 }
 
@@ -938,6 +940,7 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
     );
 
     let registry_path = opt.registry;
+    let workflow_root = opt.workflow_root;
     let ntpro_node_bin = opt
         .ntpro_node_bin
         .unwrap_or_else(default_ntpro_node_bin_path);
@@ -948,20 +951,36 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
         .local_addr()
         .context("failed to read dashboard server local address")?;
     println!(
-        "dashboard.serve status=ok bind={} registry={} dashboard_url=http://{}/dashboard",
+        "dashboard.serve status=ok bind={} registry={} workflow_root={} dashboard_url=http://{}/dashboard",
         local_addr,
         registry_path.display(),
+        workflow_root
+            .as_ref()
+            .map_or_else(|| "auto".to_string(), |path| path.display().to_string()),
         local_addr
     );
-    axum::serve(listener, dashboard_router(registry_path, ntpro_node_bin))
-        .await
-        .context("dashboard HTTP server exited with an error")?;
+    axum::serve(
+        listener,
+        dashboard_router_with_workflow_root(registry_path, ntpro_node_bin, workflow_root),
+    )
+    .await
+    .context("dashboard HTTP server exited with an error")?;
     Ok(())
 }
 
+#[cfg(test)]
 fn dashboard_router(registry_path: PathBuf, ntpro_node_bin: PathBuf) -> Router {
+    dashboard_router_with_workflow_root(registry_path, ntpro_node_bin, None)
+}
+
+fn dashboard_router_with_workflow_root(
+    registry_path: PathBuf,
+    ntpro_node_bin: PathBuf,
+    workflow_root: Option<PathBuf>,
+) -> Router {
     let state = DashboardServerState {
         registry_path,
+        workflow_root,
         ntpro_node_bin,
     };
     Router::new()
@@ -1027,18 +1046,22 @@ async fn server_metadata_api(
 ) -> Json<DashboardServerMetadata> {
     Json(DashboardServerMetadata {
         registry_path: state.registry_path.display().to_string(),
+        workflow_root: state
+            .workflow_root
+            .as_ref()
+            .map(|path| path.display().to_string()),
         local_only: true,
     })
 }
 
 async fn snapshot_api(State(state): State<DashboardServerState>) -> ApiResult<DashboardSnapshot> {
-    load_dashboard_snapshot(&state.registry_path).map(Json)
+    load_dashboard_snapshot(&state).map(Json)
 }
 
 async fn nodes_api(
     State(state): State<DashboardServerState>,
 ) -> ApiResult<Vec<DashboardNodeSummary>> {
-    let snapshot = load_dashboard_snapshot(&state.registry_path)?;
+    let snapshot = load_dashboard_snapshot(&state)?;
     Ok(Json(snapshot.nodes))
 }
 
@@ -1046,7 +1069,7 @@ async fn node_detail_api(
     State(state): State<DashboardServerState>,
     AxumPath(node_id): AxumPath<String>,
 ) -> ApiResult<DashboardNodeSummary> {
-    let snapshot = load_dashboard_snapshot(&state.registry_path)?;
+    let snapshot = load_dashboard_snapshot(&state)?;
     snapshot
         .nodes
         .into_iter()
@@ -1059,7 +1082,7 @@ async fn node_metrics_api(
     State(state): State<DashboardServerState>,
     AxumPath(node_id): AxumPath<String>,
 ) -> ApiResult<Vec<MetricStatus>> {
-    let snapshot = load_dashboard_snapshot(&state.registry_path)?;
+    let snapshot = load_dashboard_snapshot(&state)?;
     if !snapshot.nodes.iter().any(|node| node.node_id == node_id) {
         return Err(not_found_response("node_not_found", &node_id));
     }
@@ -1079,7 +1102,7 @@ async fn node_logs_api(
     State(state): State<DashboardServerState>,
     AxumPath(node_id): AxumPath<String>,
 ) -> ApiResult<Vec<LogStatus>> {
-    let snapshot = load_dashboard_snapshot(&state.registry_path)?;
+    let snapshot = load_dashboard_snapshot(&state)?;
     if !snapshot.nodes.iter().any(|node| node.node_id == node_id) {
         return Err(not_found_response("node_not_found", &node_id));
     }
@@ -1143,7 +1166,7 @@ fn control_action_response(
     action: &str,
 ) -> ApiStatusResult<ControlActionResponse> {
     let started_at = generated_at_now();
-    let snapshot = load_dashboard_snapshot(&state.registry_path)?;
+    let snapshot = load_dashboard_snapshot(state)?;
     let Some(node) = snapshot.nodes.iter().find(|node| node.node_id == node_id) else {
         return Ok((
             StatusCode::NOT_FOUND,
@@ -1575,8 +1598,13 @@ fn control_error_code(error: &anyhow::Error) -> String {
     }
 }
 
-fn load_dashboard_snapshot(registry_path: &FsPath) -> SnapshotLoadResult {
-    snapshot_from_supervisor_artifacts(registry_path, generated_at_now()).map_err(|error| {
+fn load_dashboard_snapshot(state: &DashboardServerState) -> SnapshotLoadResult {
+    snapshot_from_supervisor_artifacts_with_workflow_root(
+        &state.registry_path,
+        state.workflow_root.as_deref(),
+        generated_at_now(),
+    )
+    .map_err(|error| {
         let message = error.to_string();
         server_error_response("snapshot_load_failed", &message)
     })
@@ -2286,8 +2314,30 @@ pub fn snapshot_from_supervisor_artifacts(
     registry_path: impl AsRef<FsPath>,
     generated_at: impl Into<String>,
 ) -> anyhow::Result<DashboardSnapshot> {
+    snapshot_from_supervisor_artifacts_with_workflow_root(
+        registry_path,
+        None::<&FsPath>,
+        generated_at,
+    )
+}
+
+/// Builds a dashboard snapshot from local supervisor artifacts plus an
+/// optional explicit workflow artifact root.
+///
+/// # Errors
+///
+/// Returns an error if the registry file exists but cannot be read.
+pub fn snapshot_from_supervisor_artifacts_with_workflow_root(
+    registry_path: impl AsRef<FsPath>,
+    workflow_root: Option<&FsPath>,
+    generated_at: impl Into<String>,
+) -> anyhow::Result<DashboardSnapshot> {
     let registry_path = registry_path.as_ref();
     let mut snapshot = DashboardSnapshot::empty(generated_at);
+    if let Some(workflow_root) = workflow_root {
+        snapshot.workflow_artifacts =
+            workflow_artifacts_from_explicit_root(workflow_root, &mut snapshot.gaps);
+    }
 
     if !registry_path.exists() {
         snapshot.gaps.push(DashboardGap::new(
@@ -2318,8 +2368,7 @@ pub fn snapshot_from_supervisor_artifacts(
         }
     };
     snapshot.workflow_artifacts =
-        workflow_artifacts_from_registry_path(registry_path, &mut snapshot.gaps);
-
+        workflow_artifacts_from_paths(registry_path, workflow_root, &mut snapshot.gaps);
     if registry.nodes.is_empty() {
         snapshot.gaps.push(DashboardGap::new(
             "nodes",
@@ -2920,14 +2969,34 @@ struct DashboardWorkflowSummary {
     reconciliation_mode: Option<String>,
 }
 
-fn workflow_artifacts_from_registry_path(
-    registry_path: &FsPath,
+fn workflow_artifacts_from_explicit_root(
+    workflow_root: &FsPath,
     gaps: &mut Vec<DashboardGap>,
 ) -> Vec<WorkflowArtifactStatus> {
     let mut manifest_paths = Vec::new();
+    collect_workflow_manifest_paths(workflow_root, &mut manifest_paths, gaps);
+    workflow_statuses_from_manifest_paths(manifest_paths, gaps)
+}
+
+fn workflow_artifacts_from_paths(
+    registry_path: &FsPath,
+    workflow_root: Option<&FsPath>,
+    gaps: &mut Vec<DashboardGap>,
+) -> Vec<WorkflowArtifactStatus> {
+    let mut manifest_paths = Vec::new();
+    if let Some(dir) = workflow_root {
+        collect_workflow_manifest_paths(dir, &mut manifest_paths, gaps);
+    }
     for dir in workflow_artifact_candidate_dirs(registry_path) {
         collect_workflow_manifest_paths(&dir, &mut manifest_paths, gaps);
     }
+    workflow_statuses_from_manifest_paths(manifest_paths, gaps)
+}
+
+fn workflow_statuses_from_manifest_paths(
+    mut manifest_paths: Vec<PathBuf>,
+    gaps: &mut Vec<DashboardGap>,
+) -> Vec<WorkflowArtifactStatus> {
     manifest_paths.sort();
     manifest_paths.dedup();
 
@@ -3982,6 +4051,34 @@ mod tests {
     }
 
     #[test]
+    fn explicit_workflow_root_populates_snapshot_when_registry_is_missing() {
+        let root = temp_root("workflow-root-missing-registry");
+        let registry_path = root.join("runs/supervisor/missing-registry.json");
+        let workflow_root = root.join("runs/workflows");
+        let manifest_path = workflow_root.join("v06-smoke/manifest.json");
+        write_testnet_workflow_manifest(&manifest_path, "v06-smoke");
+
+        let snapshot = snapshot_from_supervisor_artifacts_with_workflow_root(
+            &registry_path,
+            Some(workflow_root.as_path()),
+            "2026-06-07T15:01:35Z",
+        )
+        .unwrap();
+
+        assert!(snapshot.nodes.is_empty());
+        assert_eq!(snapshot.workflow_artifacts.len(), 1);
+        assert_eq!(snapshot.workflow_artifacts[0].run_id, "v06-smoke");
+        assert_eq!(snapshot.workflow_artifacts[0].workflow, "binance-testnet");
+        assert_eq!(
+            snapshot.workflow_artifacts[0].runtime_status,
+            "dry_run_completed"
+        );
+        assert!(snapshot.gaps.iter().any(|gap| {
+            gap.field_path == "supervisor.registry" && gap.reason == DashboardAvailability::Unknown
+        }));
+    }
+
+    #[test]
     fn testnet_workflow_manifest_populates_dashboard_runtime_surface() {
         let root = temp_root("testnet-workflow-manifest");
         let registry_path = root.join("runs/supervisor/registry.json");
@@ -4397,6 +4494,7 @@ mod tests {
 
         let state = DashboardServerState {
             registry_path,
+            workflow_root: None,
             ntpro_node_bin: root.join("ntpro-node-missing"),
         };
         let (status, Json(unknown_action)) =
