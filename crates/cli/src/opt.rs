@@ -385,7 +385,7 @@ pub struct WorkflowRunOpt {
     /// Optional workflow config. Required for the Binance testnet workflow.
     #[arg(long)]
     pub config: Option<PathBuf>,
-    /// First opt-in for future Binance testnet networking; also requires NTPRO_ALLOW_TESTNET_NETWORK=1 and read-only config.
+    /// Fail-closed first opt-in for future Binance testnet networking; also requires NTPRO_ALLOW_TESTNET_NETWORK=1 and read-only config.
     #[arg(long)]
     pub allow_testnet_network: bool,
     /// Owner-visible run identifier used in the artifact directory.
@@ -1130,9 +1130,11 @@ mod tests {
 
         assert!(help.contains("local Binance sandbox/testnet workflow"));
         assert!(help.contains("dashboard-readable artifacts"));
-        assert!(help.contains("v0.6.1 testnet modes are offline-only"));
-        assert!(help.contains("Record optional testnet-network intent"));
-        assert!(help.contains("v0.6.1 still opens no sockets"));
+        assert!(help.contains("Default dry-run opens no sockets"));
+        assert!(help.contains("Fail-closed"));
+        assert!(help.contains("testnet network"));
+        assert!(help.contains("NTPRO_ALLOW_TESTNET_NETWORK=1"));
+        assert!(help.contains("read-only config"));
         assert!(help.contains("--workflow"));
         assert!(help.contains("--mode"));
         assert!(help.contains("--config"));
