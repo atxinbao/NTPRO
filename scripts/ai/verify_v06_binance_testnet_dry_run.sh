@@ -122,6 +122,28 @@ require(manifest["runtime_status"] == "dry_run_completed", manifest)
 require(manifest["artifact_count"] == 9, manifest)
 require({item["path"] for item in manifest["artifacts"]} == set(expected_files), manifest["artifacts"])
 
+for item in manifest["artifacts"]:
+    artifact_path = workflow_dir / item["path"]
+    expected_schema = item["schema_version"]
+    if item["path"].endswith(".jsonl"):
+        records = 0
+        for line_number, line in enumerate(artifact_path.read_text().splitlines(), start=1):
+            if not line.strip():
+                continue
+            records += 1
+            payload = json.loads(line)
+            require(
+                payload.get("schema_version") == expected_schema,
+                f"{item['path']} line {line_number} schema mismatch: {payload}",
+            )
+        require(records > 0, f"{item['path']} must contain at least one JSONL record")
+    else:
+        payload = json.loads(artifact_path.read_text())
+        require(
+            payload.get("schema_version") == expected_schema,
+            f"{item['path']} schema mismatch: {payload}",
+        )
+
 for name, payload in [("summary", summary), ("boundary", boundary)]:
     require(payload["sandbox_only"] is True, f"{name}.sandbox_only must be true")
     require(payload["mock_execution"] is True, f"{name}.mock_execution must be true")
@@ -141,7 +163,7 @@ require(policy["values_recorded"] is False, policy)
 require(policy["secrets_redacted"] is True, policy)
 require(probe["network_attempted"] is False, probe)
 require(probe["testnet_connection"] is False, probe)
-require(probe["status"] == "dry_run_validated", probe)
+require(probe["status"] == "dry_run_completed", probe)
 require(lifecycle["submitted_count"] == 0, lifecycle)
 require(lifecycle["real_orders_submitted"] is False, lifecycle)
 require(reconciliation["external_account_state_loaded"] is False, reconciliation)
