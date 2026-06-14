@@ -20,9 +20,9 @@ control API、live trading product、manual order entry 或其他正式产品实
 
 ## Scope
 
-This gate sits after the Rust-only v0.1.0 release and before formal v0.2 product
-design and product implementation. It is stricter than the earlier v0.2 planning
-roadmap: roadmap tasks can be done while the product-design gate still fails.
+This gate sits after the Rust-only v0.1.0 release and before formal product
+design and product implementation. It is stricter than the earlier roadmap
+drafts: roadmap tasks can be done while the product-design gate still fails.
 
 ## Gate Matrix
 

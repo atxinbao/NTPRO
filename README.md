@@ -8,6 +8,7 @@ The current public milestone is:
 ```text
 Current source tag: ntpro-rust-only-v0.6.0
 Capability: Binance testnet dry-run runtime foundation
+Active hardening track: v0.6.1 contract/dashboard/CI hardening
 ```
 
 This tag is the current v0.6.0 source release point for the scoped Binance
@@ -102,6 +103,11 @@ foundation layers:
 `v0.5.0` was completed as a scoped readiness milestone and is absorbed into the
 `v0.6.0` release tree. It is not published as a separate public GitHub Release.
 
+`v0.6.1` is the active hardening track for the same published v0.6.0 release
+surface. It aligns version wording, Dashboard copy, workflow artifact contracts,
+offline-only probe semantics, and PR-stage smoke coverage. It does not expand
+NTPRO into real Binance testnet connectivity.
+
 The current release path supports:
 
 - Rust CLI `workflow run --workflow binance-sandbox`;
@@ -131,6 +137,13 @@ Not included in the v0.6.0 product claim:
 - Remote or multi-user Dashboard operation.
 - Prebuilt binary or Docker release artifact delivery.
 
+Also not included in the v0.6.1 hardening track:
+
+- Any new live Binance testnet network capability.
+- Any real Binance testnet order submission.
+- Any production trading claim.
+- Any Dashboard control that starts a network probe or reads credentials.
+
 ## Binance Testnet Dry-Run Boundary
 
 The v0.6.0 product boundary is Binance testnet dry-run only. It is offline,
@@ -144,6 +157,7 @@ The scope and readiness documents are:
 
 - `docs/rust-cutover/release/v0_5_0_workflow_artifacts_readiness_report.md`
 - `docs/rust-cutover/release/v0_6_0_binance_testnet_dry_run_readiness_report.md`
+- `docs/versioning.md`
 
 ## Verification
 
