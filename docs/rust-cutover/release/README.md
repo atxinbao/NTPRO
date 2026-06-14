@@ -32,3 +32,9 @@ Final release checks, benchmark summaries, and audit reports live here.
   split, and artifact schema for the v0.7 real Binance testnet read-only
   connectivity proof. This document is a high-risk design gate and does not
   implement networking.
+- `v0_7_0_readonly_testnet_readiness_report.md` - V070-007 final readiness
+  report for the scoped v0.7 real Binance testnet read-only connectivity proof.
+- `v0_7_0_release_notes.md` - release notes draft for the scoped v0.7
+  read-only Binance testnet connectivity proof. It explicitly excludes testnet
+  order submission, production Binance connectivity, real funds, production
+  trading, and production parity.
