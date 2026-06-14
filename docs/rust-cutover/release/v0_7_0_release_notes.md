@@ -1,14 +1,14 @@
-# NTPRO Rust-only v0.7.0 Release Notes Draft
+# NTPRO Rust-only v0.7.0 Release Notes
 
 Date: 2026-06-15
 Executor: Codex
 Release line: v0.7.0
-Status: Draft for owner release decision
+Status: Final release notes
 
 ## Release Identity
 
 ```text
-Current source tag: pending owner release decision
+Current source tag: ntpro-rust-only-v0.7.0
 Capability: real Binance testnet read-only connectivity proof
 Boundary: no orders, no real funds, no production trading
 ```
@@ -118,5 +118,4 @@ semantics or public order APIs.
 
 ## Release Action Status
 
-This document is a release notes draft. It does not create a tag and does not
-publish a GitHub Release.
+These notes are intended for the `ntpro-rust-only-v0.7.0` GitHub Release.
