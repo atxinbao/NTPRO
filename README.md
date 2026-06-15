@@ -6,17 +6,17 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.7.0
+Current source tag: ntpro-rust-only-v0.7.1
 Capability: Binance testnet read-only connectivity proof
-Boundary: manual online HTTP read-only proof; no orders, no real funds, no production trading
+Boundary: v0.7.1 hardening for manual online HTTP read-only proof; no orders, no real funds, no production trading
 ```
 
-This tag is the current v0.7.0 source release point for the scoped Binance
-testnet read-only connectivity proof. It is published as a GitHub Release for
-the tagged source tree:
+This tag is the current v0.7.1 source release point for the scoped Binance
+testnet read-only connectivity proof hardening patch. It is published as a
+GitHub Release for the tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.7.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.7.1
 ```
 
 ## Current Status
@@ -93,7 +93,7 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.7.0 is the current formal release line. It builds on the earlier foundation
+v0.7.1 is the current formal release line. It builds on the earlier foundation
 layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
@@ -101,6 +101,7 @@ layers:
 - `v0.6.0`: Binance testnet dry-run runtime foundation.
 - `v0.6.1`: offline wording, Dashboard, artifact-contract, and PR smoke
   hardening.
+- `v0.7.0`: Binance testnet public read-only connectivity proof.
 
 `v0.5.0` was completed as a scoped readiness milestone and is absorbed into the
 `v0.6.0` release tree. It is not published as a separate public GitHub Release.
@@ -129,7 +130,7 @@ The v0.3.0 local Supervisor control console and the v0.4.x Binance sandbox
 foundation remain part of validated release history, but they are no longer the
 current public milestone.
 
-Not included in the v0.7.0 product claim:
+Not included in the v0.7.1 product claim:
 
 - Real Binance testnet order submission.
 - Testnet order cancel, replace, amend, or live order management.
@@ -142,7 +143,7 @@ Not included in the v0.7.0 product claim:
 - Remote or multi-user Dashboard operation.
 - Prebuilt binary or Docker release artifact delivery.
 
-The v0.7.0 release adds optional Binance testnet read-only network proof behind
+The v0.7.0 release introduced optional Binance testnet read-only network proof behind
 manual gates. The implemented probe is a public HTTP
 read-only `/api/v3/time` connectivity check; it requires
 `--allow-testnet-network` plus `NTPRO_ALLOW_TESTNET_NETWORK=1` and never submits
@@ -156,7 +157,8 @@ manual-online-only and still must not submit, cancel, replace, or amend orders.
 
 ## Binance Testnet Read-Only Boundary
 
-The v0.7.0 product boundary is Binance testnet read-only connectivity proof.
+The current v0.7.1 product boundary remains Binance testnet read-only
+connectivity proof.
 Default local and CI runs remain offline, artifact-first, Rust-only, and
 explicitly non-production.
 
@@ -258,7 +260,7 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.7.0` is the current Rust-only source release for the
+`ntpro-rust-only-v0.7.1` is the current Rust-only source release for the
 Binance testnet read-only connectivity proof line. `v0.6.1` remains the v0.6
 offline hardening closure, `v0.6.0` remains the Binance testnet dry-run runtime
 foundation, `v0.5.0` remains a completed internal workflow-artifact milestone
