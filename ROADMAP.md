@@ -5,14 +5,14 @@ Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is
-`ntpro-rust-only-v0.7.0`, and the active hardening track is `v0.7.1`.
+`ntpro-rust-only-v0.7.1`, and the next capability track is `v0.8.0`.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.7.0
+ntpro-rust-only-v0.7.1
 ```
 
 Current capability boundary:
@@ -30,17 +30,17 @@ no production trading
 artifact coverage in the release tree. The current public claim is limited to
 public read-only testnet connectivity proof behind fail-closed gates.
 
-## Active Hardening Track: v0.7.1
+## Published Hardening Patch: v0.7.1
 
-`v0.7.1` is a hardening track for the published `v0.7.0` surface. It does not
-expand the capability claim, does not add order submission, and must keep the
+`v0.7.1` is the published hardening patch for the `v0.7.0` surface. It does
+not expand the capability claim, does not add order submission, and keeps the
 default local/CI path offline.
 
-Planned work:
+Completed hardening work:
 
 - wire v0.7 default offline and manual-online preflight scripts into
   `verify_release.sh`, PR smoke, and hosted release gate;
-- align Roadmap, readiness, and release-facing wording with v0.7.0 as the
+- align Roadmap, readiness, and release-facing wording with v0.7.1 as the
   current public release;
 - normalize the v0.7 HTTP connectivity probe artifact path/schema contract;
 - validate Binance `/api/v3/time` response shape before claiming HTTP
@@ -60,7 +60,8 @@ v0.7.1 explicitly does not include:
 
 ## Next Capability Track: v0.8.0
 
-`v0.8.0` is the next planned capability track after v0.7.1 hardening. Its
+`v0.8.0` is the next planned capability track after the v0.7.1 hardening
+release. Its
 intended direction is authenticated Binance testnet read-only proof.
 
 The only intended boundary change is:
