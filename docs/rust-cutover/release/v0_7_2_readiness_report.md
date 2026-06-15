@@ -36,7 +36,9 @@ v0.7.2 不是新交易能力版本，只是把 v0.7.1 正式发布后的公开�
 | V072-004 / #329 | merged | Record v0.7.1 hosted gate, tag-triggered gate, and Release URL evidence. |
 | V072-005 / #330 | merged | Prepare v0.7.2 candidate notes and readiness closeout. |
 | V080-PRE-001 / #331 | merged | Finalize v0.7.2 release notes as published. |
-| V080-PRE-002 | this PR | Finalize v0.7.2 readiness report as released. |
+| V080-PRE-002 / #332 | merged | Finalize v0.7.2 readiness report as released. |
+| V080-PRE-003 / #333 | merged | Align README and ROADMAP current release wording to v0.7.2. |
+| V080-PRE-004 | this PR | Record detailed v0.7.2 release-closure evidence. |
 
 ## Not Included
 
@@ -96,6 +98,7 @@ release name = NTPRO Rust-only v0.7.2
 isDraft = false
 isPrerelease = false
 publishedAt = 2026-06-15T19:13:26Z
+detailed evidence = docs/rust-cutover/evidence/V080-PRE-004.md
 ```
 
 ## Current Validation For This Post-Release PR
