@@ -5,14 +5,14 @@ Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is
-`ntpro-rust-only-v0.7.1`, and the next capability track is `v0.8.0`.
+`ntpro-rust-only-v0.7.2`, and the next capability track is `v0.8.0`.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.7.1
+ntpro-rust-only-v0.7.2
 ```
 
 Current capability boundary:
@@ -40,8 +40,8 @@ Completed hardening work:
 
 - wire v0.7 default offline and manual-online preflight scripts into
   `verify_release.sh`, PR smoke, and hosted release gate;
-- align Roadmap, readiness, and release-facing wording with v0.7.1 as the
-  current public release;
+- align Roadmap, readiness, and release-facing wording for the v0.7.1
+  hardening release;
 - normalize the v0.7 HTTP connectivity probe artifact path/schema contract;
 - validate Binance `/api/v3/time` response shape before claiming HTTP
   connectivity success;
@@ -58,10 +58,33 @@ v0.7.1 explicitly does not include:
 - remote or multi-user Dashboard operation;
 - prebuilt binary or Docker release delivery.
 
+## Published Wording/Evidence Patch: v0.7.2
+
+`v0.7.2` is the published wording and evidence patch for the `v0.7.1`
+hardening surface. It does not expand the capability claim, does not add
+authenticated account access, and keeps the default local/CI path offline.
+
+Completed release-surface cleanup:
+
+- finalize v0.7.2 release notes as published;
+- finalize v0.7.2 readiness report as released/PASS;
+- record formal tag, GitHub Release URL, hosted release gates, and publication
+  flags;
+- keep the no orders / no real funds / no production trading boundary explicit.
+
+v0.7.2 explicitly does not include:
+
+- real Binance testnet order submission;
+- authenticated Binance testnet account access;
+- real account reconciliation;
+- production Binance connectivity;
+- production trading;
+- Dashboard-started network probes.
+
 ## Next Capability Track: v0.8.0
 
-`v0.8.0` is the next planned capability track after the v0.7.1 hardening
-release. Its
+`v0.8.0` is the next planned capability track after the v0.7.2 wording and
+evidence patch. Its
 intended direction is authenticated Binance testnet read-only proof.
 
 The only intended boundary change is:
