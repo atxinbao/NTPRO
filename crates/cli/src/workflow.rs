@@ -1308,13 +1308,29 @@ impl WorkflowBoundary {
             connectivity_mode: connectivity_probe.mode.clone(),
             order_submission_mode: "disabled".to_string(),
             reconciliation_mode: "artifact-only".to_string(),
-            notes: vec![
-                "Binance testnet workflow foundation runs as offline dry-run evidence.".to_string(),
-                "No socket is opened and no Binance credential value is recorded.".to_string(),
-                "No real funds, no production trading, no real orders.".to_string(),
-            ],
+            notes: binance_testnet_boundary_notes(connectivity_probe),
         }
     }
+}
+
+fn binance_testnet_boundary_notes(connectivity_probe: &TestnetConnectivityProbe) -> Vec<String> {
+    let foundation_note = if connectivity_probe.network_attempted {
+        "Binance testnet workflow foundation records explicit opt-in public HTTP read-only evidence."
+            .to_string()
+    } else {
+        "Binance testnet workflow foundation runs as offline dry-run evidence.".to_string()
+    };
+    let connectivity_note = if connectivity_probe.network_attempted {
+        "A Binance testnet public HTTP read-only socket was opened after explicit opt-in; no Binance credential value is recorded.".to_string()
+    } else {
+        "No socket is opened and no Binance credential value is recorded.".to_string()
+    };
+
+    vec![
+        foundation_note,
+        connectivity_note,
+        "No real funds, no production trading, no real orders.".to_string(),
+    ]
 }
 
 impl WorkflowSummary {
@@ -1834,6 +1850,12 @@ real_orders_submitted = false
         assert!(!boundary.production_venue_connection);
         assert!(!boundary.testnet_public_network_connection);
         assert!(!boundary.external_network_attempted);
+        assert!(
+            boundary
+                .notes
+                .iter()
+                .any(|note| note.contains("No socket is opened"))
+        );
         assert_eq!(
             config_artifact.schema_version,
             TESTNET_CONFIG_SCHEMA_VERSION
@@ -2260,6 +2282,35 @@ real_orders_submitted = false
         assert!(probe.network_attempted);
         assert!(probe.testnet_connection);
         assert!(probe.diagnostic.contains("read-only probe succeeded"));
+
+        let boundary: WorkflowBoundary = serde_json::from_str(
+            &fs::read_to_string(result.output_dir.join("boundary.json")).unwrap(),
+        )
+        .unwrap();
+        assert!(boundary.network_attempted);
+        assert!(boundary.testnet_public_network_connection);
+        assert!(!boundary.production_venue_connection);
+        assert!(boundary.notes.iter().any(|note| {
+            note.contains("public HTTP read-only socket was opened after explicit opt-in")
+        }));
+        assert!(
+            boundary
+                .notes
+                .iter()
+                .all(|note| !note.contains("No socket is opened"))
+        );
+        assert!(
+            boundary
+                .notes
+                .iter()
+                .any(|note| note.contains("no Binance credential value is recorded"))
+        );
+        assert!(
+            boundary
+                .notes
+                .iter()
+                .any(|note| note.contains("No real funds, no production trading, no real orders"))
+        );
     }
 
     #[test]
@@ -2339,6 +2390,29 @@ real_orders_submitted = false
         assert!(probe.network_attempted);
         assert!(!probe.testnet_connection);
         assert!(probe.diagnostic.contains("read-only probe attempted"));
+
+        let boundary: WorkflowBoundary = serde_json::from_str(
+            &fs::read_to_string(result.output_dir.join("boundary.json")).unwrap(),
+        )
+        .unwrap();
+        assert!(boundary.network_attempted);
+        assert!(!boundary.testnet_public_network_connection);
+        assert!(!boundary.production_venue_connection);
+        assert!(boundary.notes.iter().any(|note| {
+            note.contains("public HTTP read-only socket was opened after explicit opt-in")
+        }));
+        assert!(
+            boundary
+                .notes
+                .iter()
+                .all(|note| !note.contains("No socket is opened"))
+        );
+        assert!(
+            boundary
+                .notes
+                .iter()
+                .any(|note| note.contains("no Binance credential value is recorded"))
+        );
     }
 
     #[test]
