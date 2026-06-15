@@ -38,9 +38,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   Binance testnet connectivity proof. It explicitly excludes testnet
   order submission, production Binance connectivity, real funds, production
   trading, and production parity.
-- `v0_7_1_release_gate_hardening_readiness_report.md` - draft readiness report
-  for the v0.7.1 release-gate, artifact-contract, and public-boundary
-  hardening patch.
-- `v0_7_1_release_notes.md` - draft release notes for the v0.7.1 hardening
-  scope. This is not a new trading capability release and does not claim
-  order submission, production connectivity, real funds, or production trading.
+- `v0_7_1_release_gate_hardening_readiness_report.md` - release-closure
+  candidate readiness report for the v0.7.1 release-gate, artifact-contract,
+  and public-boundary hardening patch.
+- `v0_7_1_release_notes.md` - release-closure candidate notes for the v0.7.1
+  hardening scope. This is not a new trading capability release and does not
+  claim order submission, production connectivity, real funds, or production
+  trading.
