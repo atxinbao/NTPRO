@@ -94,7 +94,11 @@ Workflow `summary.json`, `boundary.json`, and `manifest.summary` must include:
 
 Dashboard should show `production_venue_connection`,
 `testnet_public_network_connection`, and `external_network_attempted` as the
-primary labels. It may keep reading legacy fields only as fallback.
+primary labels in both the workflow artifact row and the top-level overview.
+It may keep reading legacy fields only as fallback. A public testnet read-only
+probe can set `testnet_public_network_connection=true` and
+`external_network_attempted=true`, but must not set
+`production_venue_connection=true`.
 
 ## Gate Separation
 
