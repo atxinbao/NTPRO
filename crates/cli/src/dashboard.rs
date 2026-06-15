@@ -4365,8 +4365,8 @@ mod tests {
         let root = temp_root("workflow-root-missing-registry");
         let registry_path = root.join("runs/supervisor/missing-registry.json");
         let workflow_root = root.join("runs/workflows");
-        let manifest_path = workflow_root.join("v06-smoke/manifest.json");
-        write_testnet_workflow_manifest(&manifest_path, "v06-smoke");
+        let manifest_path = workflow_root.join("v07-readonly-smoke/manifest.json");
+        write_testnet_workflow_manifest(&manifest_path, "v07-readonly-smoke");
 
         let snapshot = snapshot_from_supervisor_artifacts_with_workflow_root(
             &registry_path,
@@ -4377,7 +4377,7 @@ mod tests {
 
         assert!(snapshot.nodes.is_empty());
         assert_eq!(snapshot.workflow_artifacts.len(), 1);
-        assert_eq!(snapshot.workflow_artifacts[0].run_id, "v06-smoke");
+        assert_eq!(snapshot.workflow_artifacts[0].run_id, "v07-readonly-smoke");
         assert_eq!(snapshot.workflow_artifacts[0].workflow, "binance-testnet");
         assert_eq!(
             snapshot.workflow_artifacts[0].runtime_status,
@@ -4393,15 +4393,15 @@ mod tests {
         let root = temp_root("testnet-workflow-manifest");
         let registry_path = root.join("runs/supervisor/registry.json");
         write_registry(&registry_path, []);
-        let manifest_path = root.join("runs/workflows/v06-smoke/manifest.json");
-        write_testnet_workflow_manifest(&manifest_path, "v06-smoke");
+        let manifest_path = root.join("runs/workflows/v07-readonly-smoke/manifest.json");
+        write_testnet_workflow_manifest(&manifest_path, "v07-readonly-smoke");
 
         let snapshot =
             snapshot_from_supervisor_artifacts(&registry_path, "2026-06-07T15:01:40Z").unwrap();
 
         assert_eq!(snapshot.workflow_artifacts.len(), 1);
         let workflow = &snapshot.workflow_artifacts[0];
-        assert_eq!(workflow.run_id, "v06-smoke");
+        assert_eq!(workflow.run_id, "v07-readonly-smoke");
         assert_eq!(workflow.workflow, "binance-testnet");
         assert_eq!(workflow.runtime_status, "dry_run_completed");
         assert_eq!(workflow.health, HealthStatus::Healthy);
@@ -4572,10 +4572,10 @@ mod tests {
         let root = temp_root("missing-workflow-child-artifact");
         let registry_path = root.join("runs/supervisor/registry.json");
         write_registry(&registry_path, []);
-        let manifest_path = root.join("runs/workflows/v06-smoke/manifest.json");
+        let manifest_path = root.join("runs/workflows/v07-readonly-smoke/manifest.json");
         write_testnet_workflow_manifest_with_artifacts(
             &manifest_path,
-            "v06-smoke",
+            "v07-readonly-smoke",
             &json!([
                 {
                     "path": "testnet/credential_policy.json",
@@ -4615,11 +4615,11 @@ mod tests {
         let root = temp_root("invalid-workflow-child-jsonl");
         let registry_path = root.join("runs/supervisor/registry.json");
         write_registry(&registry_path, []);
-        let workflow_dir = root.join("runs/workflows/v06-smoke");
+        let workflow_dir = root.join("runs/workflows/v07-readonly-smoke");
         let manifest_path = workflow_dir.join("manifest.json");
         write_testnet_workflow_manifest_with_artifacts(
             &manifest_path,
-            "v06-smoke",
+            "v07-readonly-smoke",
             &json!([
                 {
                     "path": "events.jsonl",
