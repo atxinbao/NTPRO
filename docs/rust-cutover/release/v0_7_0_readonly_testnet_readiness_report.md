@@ -35,7 +35,8 @@ Included capability:
   - credential values are never stored;
   - only env var names, presence booleans, policy labels, and redaction status
     may be recorded.
-- HTTP probe artifact with success or stable classified failure.
+- HTTP probe artifact with validated success or classified diagnostic failure.
+  Classified failure is not connectivity proof.
 - Optional/manual WebSocket probe artifact schema.
 - Dashboard read-only display of generated V07 probe artifacts.
 - Dual verification:
@@ -99,6 +100,7 @@ status: PASS
 network_attempted=true
 testnet_connection=true
 error_code=none
+response_shape_validated=true
 real_orders_submitted=false
 values_recorded=false
 secrets_redacted=true

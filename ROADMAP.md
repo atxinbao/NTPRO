@@ -5,70 +5,74 @@ Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is
-`ntpro-rust-only-v0.6.0`, and the active hardening track is `v0.6.1`.
+`ntpro-rust-only-v0.7.0`, and the active hardening track is `v0.7.1`.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.6.0
+ntpro-rust-only-v0.7.0
 ```
 
 Current capability boundary:
 
 ```text
-Binance testnet dry-run runtime foundation
-offline-only
+real Binance testnet public HTTP read-only connectivity proof
+default offline, manual online gate only
+no authenticated account access
 no real funds
 no real order submission
 no production trading
 ```
 
-`v0.6.0` absorbed the completed `v0.5.0` workflow artifact milestone. `v0.5.0`
-is therefore part of the current release surface, but it is not a separate
-public GitHub Release.
+`v0.7.0` builds on the v0.6 testnet dry-run foundation and keeps v0.5 workflow
+artifact coverage in the release tree. The current public claim is limited to
+public read-only testnet connectivity proof behind fail-closed gates.
 
-## Active Hardening Track: v0.6.1
+## Active Hardening Track: v0.7.1
 
-`v0.6.1` is a hardening track for the published `v0.6.0` surface. It does not
-expand the capability claim and must remain offline-only.
+`v0.7.1` is a hardening track for the published `v0.7.0` surface. It does not
+expand the capability claim, does not add order submission, and must keep the
+default local/CI path offline.
 
 Planned work:
 
-- align README, roadmap, release wording, Dashboard copy, and versioning docs;
-- enforce a single source of truth for workflow `run_id`;
-- harden `dry-run` and `connectivity-probe` wording so both remain offline;
-- make workflow artifact browsing independent from supervisor registry state;
-- audit child artifacts referenced by workflow manifests in Dashboard health;
-- move v0.6 workflow smoke coverage into PR-stage CI;
-- extract a shared workflow artifact contract for writer and reader;
-- prepare v0.6.1 readiness report, release notes, and final gate.
+- wire v0.7 default offline and manual-online preflight scripts into
+  `verify_release.sh`, PR smoke, and hosted release gate;
+- align Roadmap, readiness, and release-facing wording with v0.7.0 as the
+  current public release;
+- normalize the v0.7 HTTP connectivity probe artifact path/schema contract;
+- validate Binance `/api/v3/time` response shape before claiming HTTP
+  connectivity success;
+- split manual-online classification from manual-online connectivity proof;
+- prepare v0.7.1 readiness notes and final gate evidence.
 
-v0.6.1 explicitly does not include:
+v0.7.1 explicitly does not include:
 
-- real Binance testnet network connection;
 - real Binance testnet order submission;
+- authenticated Binance testnet account access;
 - real account reconciliation;
 - production Binance connectivity;
 - production trading;
 - remote or multi-user Dashboard operation;
 - prebuilt binary or Docker release delivery.
 
-## Next Capability Track: v0.7.0
+## Next Capability Track: v0.8.0
 
-`v0.7.0` is the first planned track allowed to cross from offline dry-run into
-real Binance testnet read-only connectivity proof.
+`v0.8.0` is the next planned capability track after v0.7.1 hardening. Its
+intended direction is authenticated Binance testnet read-only proof.
 
 The only intended boundary change is:
 
 ```text
-offline dry-run -> real Binance testnet read-only connectivity proof
+public read-only testnet proof -> authenticated read-only testnet proof
 ```
 
 Required constraints:
 
 - no order submission;
+- no account mutation;
 - no real account trading;
 - no production trading claim;
 - Dashboard remains read-only and must not start probes;
@@ -76,17 +80,18 @@ Required constraints:
 - default CI remains offline;
 - manual online verification is opt-in only.
 
-Real network access must fail closed unless all of these are true:
+Authenticated read-only access must fail closed unless all of these are true:
 
 - `--allow-testnet-network` is passed;
 - `NTPRO_ALLOW_TESTNET_NETWORK=1` is set;
 - config environment is `testnet`;
 - `order_submission = disabled`;
 - `real_orders_submitted = false`.
+- required credential env vars are present;
+- credential values are never persisted or printed.
 
-The v0.7.0 primary online proof is HTTP read-only connectivity. WebSocket
-read-only connectivity is optional/manual and must not become a default CI
-release blocker.
+The v0.8.0 proof must stay read-only. It must not place, cancel, amend, or query
+through any endpoint that mutates account state.
 
 ## Product Surface Direction
 
