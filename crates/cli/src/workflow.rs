@@ -45,13 +45,14 @@ use crate::{
     workflow_contract::{
         BOUNDARY_SCHEMA_VERSION, EVENT_SCHEMA_VERSION, MANIFEST_SCHEMA_VERSION,
         SUMMARY_SCHEMA_VERSION, TESTNET_CONFIG_SCHEMA_VERSION,
-        TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION, TESTNET_CREDENTIAL_POLICY_SCHEMA_VERSION,
+        TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH, TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION,
+        TESTNET_CREDENTIAL_POLICY_SCHEMA_VERSION, TESTNET_HTTP_CONNECTIVITY_PROBE_ARTIFACT_PATH,
         TESTNET_HTTP_CONNECTIVITY_PROBE_SCHEMA_VERSION, TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION,
-        TESTNET_RECONCILIATION_SCHEMA_VERSION, TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION,
-        TestnetConfigArtifact, TestnetConnectivityProbe, TestnetCredentialPolicy,
-        TestnetHttpConnectivityProbe, TestnetOrderLifecycle, TestnetReconciliation,
-        TestnetWebSocketConnectivityProbe, WorkflowBoundary, WorkflowEvent, WorkflowManifest,
-        WorkflowManifestArtifact, WorkflowSummary,
+        TESTNET_RECONCILIATION_SCHEMA_VERSION, TESTNET_WEBSOCKET_PROBE_ARTIFACT_PATH,
+        TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION, TestnetConfigArtifact, TestnetConnectivityProbe,
+        TestnetCredentialPolicy, TestnetHttpConnectivityProbe, TestnetOrderLifecycle,
+        TestnetReconciliation, TestnetWebSocketConnectivityProbe, WorkflowBoundary, WorkflowEvent,
+        WorkflowManifest, WorkflowManifestArtifact, WorkflowSummary,
     },
 };
 
@@ -275,15 +276,15 @@ where
             ),
             (
                 "workflow.connectivity_probe.ready",
-                "testnet/connectivity_probe.json",
+                TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH,
             ),
             (
                 "workflow.http_connectivity_probe.ready",
-                "testnet/http_connectivity_probe.json",
+                TESTNET_HTTP_CONNECTIVITY_PROBE_ARTIFACT_PATH,
             ),
             (
                 "workflow.websocket_probe.ready",
-                "testnet/ws_connectivity_probe.json",
+                TESTNET_WEBSOCKET_PROBE_ARTIFACT_PATH,
             ),
             (
                 "workflow.testnet_order_lifecycle.ready",
@@ -559,9 +560,9 @@ impl TestnetArtifactPaths {
         Self {
             config: output_dir.join("testnet/config.json"),
             credential_policy: output_dir.join("testnet/credential_policy.json"),
-            connectivity_probe: output_dir.join("testnet/connectivity_probe.json"),
-            http_connectivity_probe: output_dir.join("testnet/http_connectivity_probe.json"),
-            websocket_probe: output_dir.join("testnet/ws_connectivity_probe.json"),
+            connectivity_probe: output_dir.join(TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH),
+            http_connectivity_probe: output_dir.join(TESTNET_HTTP_CONNECTIVITY_PROBE_ARTIFACT_PATH),
+            websocket_probe: output_dir.join(TESTNET_WEBSOCKET_PROBE_ARTIFACT_PATH),
             order_lifecycle: output_dir.join("orders/testnet_dry_run_lifecycle.json"),
             reconciliation: output_dir.join("orders/reconciliation.json"),
         }
@@ -2033,7 +2034,9 @@ real_orders_submitted = false
         assert!(!manifest.summary.external_network_attempted);
         assert!(!manifest.summary.real_orders_submitted);
 
-        let probe_path = result.output_dir.join("testnet/connectivity_probe.json");
+        let probe_path = result
+            .output_dir
+            .join(TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH);
         let probe: TestnetConnectivityProbe =
             serde_json::from_str(&fs::read_to_string(probe_path).unwrap()).unwrap();
         assert_eq!(probe.requested_mode, "connectivity-probe");
@@ -2197,7 +2200,9 @@ real_orders_submitted = false
         assert!(!result.network_attempted);
         assert!(!result.testnet_connection);
 
-        let probe_path = result.output_dir.join("testnet/connectivity_probe.json");
+        let probe_path = result
+            .output_dir
+            .join(TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH);
         let probe: TestnetConnectivityProbe =
             serde_json::from_str(&fs::read_to_string(probe_path).unwrap()).unwrap();
         assert!(probe.env_network_permission);
@@ -2234,7 +2239,9 @@ real_orders_submitted = false
         assert!(result.testnet_connection);
         assert!(!result.real_orders_submitted);
 
-        let probe_path = result.output_dir.join("testnet/connectivity_probe.json");
+        let probe_path = result
+            .output_dir
+            .join(TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH);
         let probe: TestnetConnectivityProbe =
             serde_json::from_str(&fs::read_to_string(probe_path).unwrap()).unwrap();
         assert_eq!(probe.endpoint_class, "binance-testnet-public-http-time");
@@ -2280,7 +2287,9 @@ real_orders_submitted = false
         assert!(!result.testnet_connection);
         assert!(!result.real_orders_submitted);
 
-        let probe_path = result.output_dir.join("testnet/connectivity_probe.json");
+        let probe_path = result
+            .output_dir
+            .join(TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH);
         let probe: TestnetConnectivityProbe =
             serde_json::from_str(&fs::read_to_string(probe_path).unwrap()).unwrap();
         assert_eq!(probe.endpoint_class, "binance-testnet-public-http-time");
