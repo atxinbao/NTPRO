@@ -8,10 +8,13 @@ Status: Draft release notes
 ## Release Identity
 
 ```text
-Current source tag: ntpro-rust-only-v0.7.1
+Planned source tag: ntpro-rust-only-v0.7.1
 Capability: v0.7 read-only Binance testnet connectivity proof hardening
 Boundary: release-gate and artifact-contract hardening only
 ```
+
+`ntpro-rust-only-v0.7.1` remains a planned tag until release closure creates and
+publishes it after the hosted release gate passes.
 
 ## Plain Chinese Summary
 
