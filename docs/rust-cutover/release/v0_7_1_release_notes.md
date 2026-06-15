@@ -49,8 +49,7 @@ proof。
   - `external_network_attempted`.
 - Current v0.7 testnet workflow identities no longer use v06 IDs.
 - Roadmap aligned to:
-  - current public release: `ntpro-rust-only-v0.7.0`;
-  - published hardening patch: `v0.7.1`;
+  - current public release: `ntpro-rust-only-v0.7.1`;
   - next capability: `v0.8.0`.
 
 ## Hardening PRs
@@ -94,3 +93,30 @@ Published from exact release commit
 `d20179301c99f05b4f11c6d4ee67ee48c7b7768a` after both hosted release gates
 passed. The release remains hardening only: no order submission, no real funds,
 no production Binance connectivity, and no production trading.
+
+## Release Closure Evidence
+
+```text
+workflow_dispatch Release Gate:
+  https://github.com/atxinbao/NTPRO/actions/runs/27549225688
+  status: PASS
+  headSha: d20179301c99f05b4f11c6d4ee67ee48c7b7768a
+
+tag-triggered Release Gate:
+  https://github.com/atxinbao/NTPRO/actions/runs/27552805993
+  status: PASS
+  headSha: d20179301c99f05b4f11c6d4ee67ee48c7b7768a
+
+GitHub Release:
+  https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.7.1
+  isDraft: false
+  isPrerelease: false
+  publishedAt: 2026-06-15T15:17:01Z
+```
+
+Optional manual online proof is not a default CI or release blocker. Owners may
+run it explicitly with:
+
+```bash
+NTPRO_V07_MANUAL_ONLINE=1 NTPRO_ALLOW_TESTNET_NETWORK=1 scripts/ai/verify_v07_manual_online_gate.sh
+```
