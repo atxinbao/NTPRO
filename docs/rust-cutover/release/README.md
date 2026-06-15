@@ -44,3 +44,9 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_7_1_release_notes.md` - released notes for the v0.7.1 hardening scope.
   This is not a new trading capability release and does not claim order
   submission, production connectivity, real funds, or production trading.
+- `v0_7_2_readiness_report.md` - release-candidate readiness report for the
+  v0.7.2 wording/evidence patch. This is not tagged or published unless the
+  owner separately approves release closure.
+- `v0_7_2_release_notes.md` - candidate release notes for the v0.7.2
+  wording/evidence patch. It does not expand the v0.7 capability claim and
+  does not include order submission, real funds, or production trading.
