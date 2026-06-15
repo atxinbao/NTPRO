@@ -44,9 +44,12 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_7_1_release_notes.md` - released notes for the v0.7.1 hardening scope.
   This is not a new trading capability release and does not claim order
   submission, production connectivity, real funds, or production trading.
-- `v0_7_2_readiness_report.md` - release-candidate readiness report for the
-  v0.7.2 wording/evidence patch. This is not tagged or published unless the
-  owner separately approves release closure.
-- `v0_7_2_release_notes.md` - candidate release notes for the v0.7.2
-  wording/evidence patch. It does not expand the v0.7 capability claim and
-  does not include order submission, real funds, or production trading.
+- `v0_7_2_readiness_report.md` - released PASS readiness report for the
+  v0.7.2 wording/evidence patch. The formal tag
+  `ntpro-rust-only-v0.7.2` and GitHub Release are complete.
+- `v0_7_2_release_notes.md` - released notes for the v0.7.2 wording/evidence
+  patch. It does not expand the v0.7 capability claim and does not include
+  order submission, real funds, or production trading.
+- `../evidence/V080-PRE-004.md` - dedicated v0.7.2 release-closure evidence
+  with exact release commit, hosted gates, formal tag, GitHub Release URL, and
+  publication flags.
