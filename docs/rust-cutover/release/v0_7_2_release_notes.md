@@ -22,13 +22,13 @@ Publication: formal GitHub Release after owner approval and hosted gates passed
 
 - 把 v0.7.1 发布后的 README、ROADMAP、release notes/readiness wording 收口；
 - 修正 explicit opt-in HTTP 只读探测 artifact notes，避免已经尝试联网时还写“没有打开 socket”；
-- 把 v0.7.1 正式发布的 hosted gate、tag-triggered gate、GitHub Release URL 记录清楚。
+- 把 v0.7.1 和 v0.7.2 的 hosted gate、tag-triggered gate、GitHub Release URL
+  记录清楚。
 
 ## Included
 
 - v0.7.1 post-release wording finalized.
-- README and ROADMAP current release wording aligned to
-  `ntpro-rust-only-v0.7.1`.
+- v0.7.1 historical release-surface wording finalized.
 - Manual online HTTP read-only boundary notes corrected:
   - offline/blocked artifacts may still say no socket is opened;
   - explicit opt-in HTTP read-only attempts state that a Binance testnet public
@@ -40,6 +40,14 @@ Publication: formal GitHub Release after owner approval and hosted gates passed
   - tag-triggered Release Gate;
   - formal GitHub Release URL.
 - v0.7.2 readiness package prepared.
+- v0.7.2 release-closure evidence recorded:
+  - exact release commit;
+  - workflow_dispatch Release Gate;
+  - tag-triggered Release Gate;
+  - formal GitHub Release URL;
+  - publication flags.
+- README and ROADMAP current release wording aligned to
+  `ntpro-rust-only-v0.7.2`.
 
 ## Not Included
 
@@ -64,7 +72,11 @@ V072-001 / #326: v0.7.1 post-release wording
 V072-002 / #327: README and ROADMAP current release alignment
 V072-003 / #328: online HTTP read-only boundary notes
 V072-004 / #329: v0.7.1 release-closure evidence
-V072-005: v0.7.2 release notes and readiness closeout
+V072-005 / #330: v0.7.2 release notes and readiness closeout
+V080-PRE-001 / #331: v0.7.2 release notes published wording
+V080-PRE-002 / #332: v0.7.2 readiness released wording
+V080-PRE-003 / #333: README and ROADMAP v0.7.2 current release alignment
+V080-PRE-004: v0.7.2 release-closure evidence
 ```
 
 ## Validation Evidence
@@ -103,4 +115,5 @@ release name = NTPRO Rust-only v0.7.2
 isDraft = false
 isPrerelease = false
 publishedAt = 2026-06-15T19:13:26Z
+detailed evidence = docs/rust-cutover/evidence/V080-PRE-004.md
 ```
