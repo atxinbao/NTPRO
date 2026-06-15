@@ -75,6 +75,27 @@ network_attempted = false
 testnet_connection = false
 ```
 
+## Connection Field Semantics
+
+v0.7 distinguishes production venue contact from public testnet read-only
+network contact. The release artifacts must not use one ambiguous field for
+both meanings.
+
+Workflow `summary.json`, `boundary.json`, and `manifest.summary` must include:
+
+| Field | Meaning |
+| --- | --- |
+| `production_venue_connection` | True only for production venue connectivity. Must remain false in v0.7. |
+| `testnet_public_network_connection` | True only after the Binance testnet public read-only HTTP response succeeds and its shape is validated. |
+| `external_network_attempted` | True only after the workflow actually attempts an external network request. |
+| `external_venue_connection` | Compatibility field retained for older local artifacts. It must remain false for v0.7 read-only testnet proof. |
+| `testnet_connection` | Compatibility/summary field for v0.7 testnet read-only proof. |
+| `network_attempted` | Compatibility/summary field for v0.7 network attempt proof. |
+
+Dashboard should show `production_venue_connection`,
+`testnet_public_network_connection`, and `external_network_attempted` as the
+primary labels. It may keep reading legacy fields only as fallback.
+
 ## Gate Separation
 
 ### Default Offline Gate
@@ -123,9 +144,11 @@ scripts/ai/verify_v07_manual_online_gate.sh
 ```
 
 The real online proof opens only the configured Binance testnet public HTTP
-time endpoint. It must record `network_attempted=true` and either
-`testnet_connection=true` or a stable classified `error_code`. It does not
-submit, cancel, replace, or amend orders.
+time endpoint. Connectivity proof requires `network_attempted=true`,
+`testnet_connection=true`, `error_code=none`, and
+`response_shape_validated=true` for the Binance server-time response. A stable
+classified `error_code` is diagnostic/classification evidence only; it is not
+connectivity proof. It does not submit, cancel, replace, or amend orders.
 
 Required proof:
 
@@ -178,6 +201,7 @@ Required fields:
 | `request_target` | string | yes | Redacted path or endpoint label. |
 | `response_status_code` | number/null | yes | Null when blocked before network. |
 | `response_shape` | string | yes | Schema/shape label, not raw response if it may include sensitive data. |
+| `response_shape_validated` | bool | yes | True only when `/api/v3/time` returned a JSON object with numeric `serverTime`. |
 | `latency_ms` | number/null | yes | Optional when blocked or failed before response. |
 | `diagnostic` | string | yes | Human-readable result without secrets. |
 | `generated_at` | string | yes | Timestamp. |

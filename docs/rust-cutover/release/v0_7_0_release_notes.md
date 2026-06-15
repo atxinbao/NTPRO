@@ -38,7 +38,9 @@ production Binance connectivity，也不声明 production trading parity。
 - HTTP probe artifact with:
   - `network_attempted=true` when real probe runs;
   - `testnet_connection=true` on successful public testnet response;
-  - stable `error_code` on classified failure.
+  - `response_shape_validated=true` after validating the Binance server-time
+    response shape;
+  - stable `error_code` on classified failure as diagnostic evidence only.
 - Optional/manual WebSocket probe artifact schema.
 - Dashboard read-only display of generated HTTP/WebSocket probe artifacts.
 - Dual verification scripts:

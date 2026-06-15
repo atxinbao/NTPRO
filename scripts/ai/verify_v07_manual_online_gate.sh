@@ -7,9 +7,9 @@ set -euo pipefail
 #
 #   NTPRO_V07_MANUAL_ONLINE=1 NTPRO_ALLOW_TESTNET_NETWORK=1 scripts/ai/verify_v07_manual_online_gate.sh
 #
-# The real online mode remains read-only and asserts no order submission,
-# no credential values recorded, and either a validated testnet connection or
-# a stable classified error_code after network_attempted=true.
+# The default mode is a CI-safe preflight. The real online mode remains
+# read-only and requires a validated Binance server-time response shape before
+# it can count as connectivity proof.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
@@ -54,6 +54,7 @@ from pathlib import Path
 
 root = Path(sys.argv[1])
 probe = json.loads((root / "testnet/connectivity_probe.json").read_text())
+http_probe = json.loads((root / "testnet/http_connectivity_probe.json").read_text())
 ws_probe = json.loads((root / "testnet/ws_connectivity_probe.json").read_text())
 summary = json.loads((root / "summary.json").read_text())
 policy = json.loads((root / "testnet/credential_policy.json").read_text())
@@ -68,8 +69,15 @@ require(probe["network_gate_status"] == "blocked", probe)
 require(probe["network_gate_reasons"] == ["NTPRO_ALLOW_TESTNET_NETWORK=1 is not set"], probe)
 require(probe["network_attempted"] is False, probe)
 require(probe["testnet_connection"] is False, probe)
+require(http_probe["network_attempted"] is False, http_probe)
+require(http_probe["testnet_connection"] is False, http_probe)
+require(http_probe["response_shape"] == "binance_server_time_v1", http_probe)
+require(http_probe["response_shape_validated"] is False, http_probe)
 require(summary["network_attempted"] is False, summary)
 require(summary["testnet_connection"] is False, summary)
+require(summary["production_venue_connection"] is False, summary)
+require(summary["testnet_public_network_connection"] is False, summary)
+require(summary["external_network_attempted"] is False, summary)
 require(summary["real_orders_submitted"] is False, summary)
 require(ws_probe["network_attempted"] is False, ws_probe)
 require(ws_probe["websocket_attempted"] is False, ws_probe)
@@ -113,6 +121,7 @@ root = Path(sys.argv[1])
 manifest = json.loads((root / "manifest.json").read_text())
 summary = json.loads((root / "summary.json").read_text())
 probe = json.loads((root / "testnet/connectivity_probe.json").read_text())
+http_probe = json.loads((root / "testnet/http_connectivity_probe.json").read_text())
 ws_probe = json.loads((root / "testnet/ws_connectivity_probe.json").read_text())
 policy = json.loads((root / "testnet/credential_policy.json").read_text())
 lifecycle = json.loads((root / "orders/testnet_dry_run_lifecycle.json").read_text())
@@ -135,6 +144,7 @@ stable_errors = {
     "http_client_build_failed",
     "http_probe_thread_panicked",
     "http_status_not_success",
+    "response_shape_invalid",
 }
 
 require(manifest["run_id"] == "v070-manual-online", manifest)
@@ -142,6 +152,9 @@ require(manifest["runtime_status"] in {"http_read_only_probe_ok", "http_read_onl
 require(summary["requested_mode"] == "connectivity-probe", summary)
 require(summary["network_permission_requested"] is True, summary)
 require(summary["network_attempted"] is True, summary)
+require(summary["production_venue_connection"] is False, summary)
+require(summary["testnet_public_network_connection"] is True, summary)
+require(summary["external_network_attempted"] is True, summary)
 require(summary["real_orders_submitted"] is False, summary)
 require(probe["network_permission_requested"] is True, probe)
 require(probe["env_network_permission"] is True, probe)
@@ -149,12 +162,22 @@ require(probe["network_gate_status"] == "allowed", probe)
 require(probe["network_gate_reasons"] == [], probe)
 require(probe["network_attempted"] is True, probe)
 require(probe["error_code"] in stable_errors, probe)
-if probe["testnet_connection"] is True:
-    require(probe["error_code"] == "none", probe)
-    require(probe["http_status"] is not None, probe)
-else:
-    require(probe["error_code"] != "none", probe)
-    require(probe["status"] == "http_read_only_probe_failed", probe)
+require(http_probe["schema_version"] == "ntpro.v07_binance_testnet_http_probe.v1", http_probe)
+require(http_probe["endpoint_kind"] == "http_read_only", http_probe)
+require(http_probe["request_method"] == "GET", http_probe)
+require(http_probe["request_target"] == "/api/v3/time", http_probe)
+require(http_probe["network_attempted"] is True, http_probe)
+require(http_probe["error_code"] in stable_errors, http_probe)
+require(http_probe["testnet_connection"] is True, http_probe)
+require(http_probe["error_code"] == "none", http_probe)
+require(http_probe["response_status_code"] is not None, http_probe)
+require(http_probe["response_shape"] == "binance_server_time_v1", http_probe)
+require(http_probe["response_shape_validated"] is True, http_probe)
+require(probe["testnet_connection"] is True, probe)
+require(probe["error_code"] == "none", probe)
+require(probe["http_status"] is not None, probe)
+require(probe["response_shape"] == "binance_server_time_v1", probe)
+require(probe["response_shape_validated"] is True, probe)
 require(summary["testnet_connection"] == probe["testnet_connection"], summary)
 require(policy["values_recorded"] is False, policy)
 require(policy["api_key_value_recorded"] is False, policy)

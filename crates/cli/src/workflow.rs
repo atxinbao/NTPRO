@@ -46,9 +46,10 @@ use crate::{
         BOUNDARY_SCHEMA_VERSION, EVENT_SCHEMA_VERSION, MANIFEST_SCHEMA_VERSION,
         SUMMARY_SCHEMA_VERSION, TESTNET_CONFIG_SCHEMA_VERSION,
         TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION, TESTNET_CREDENTIAL_POLICY_SCHEMA_VERSION,
-        TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION, TESTNET_RECONCILIATION_SCHEMA_VERSION,
-        TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION, TestnetConfigArtifact, TestnetConnectivityProbe,
-        TestnetCredentialPolicy, TestnetOrderLifecycle, TestnetReconciliation,
+        TESTNET_HTTP_CONNECTIVITY_PROBE_SCHEMA_VERSION, TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION,
+        TESTNET_RECONCILIATION_SCHEMA_VERSION, TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION,
+        TestnetConfigArtifact, TestnetConnectivityProbe, TestnetCredentialPolicy,
+        TestnetHttpConnectivityProbe, TestnetOrderLifecycle, TestnetReconciliation,
         TestnetWebSocketConnectivityProbe, WorkflowBoundary, WorkflowEvent, WorkflowManifest,
         WorkflowManifestArtifact, WorkflowSummary,
     },
@@ -73,7 +74,7 @@ pub(crate) fn run_workflow_command(opt: WorkflowOpt) -> anyhow::Result<()> {
         WorkflowCommand::Run(run) => {
             let result = run_workflow(run)?;
             println!(
-                "workflow.run status=ok workflow={} run_id={} output={} manifest={} summary={} events={} artifact_count={} requested_mode={} network_permission_requested={} network_attempted={} external_venue_connection={} real_funds={} production_trading={} real_orders_submitted={} testnet_connection={} runtime_status={}",
+                "workflow.run status=ok workflow={} run_id={} output={} manifest={} summary={} events={} artifact_count={} requested_mode={} network_permission_requested={} network_attempted={} external_venue_connection={} production_venue_connection={} testnet_public_network_connection={} external_network_attempted={} real_funds={} production_trading={} real_orders_submitted={} testnet_connection={} runtime_status={}",
                 result.workflow,
                 result.run_id,
                 result.output_dir.display(),
@@ -85,6 +86,9 @@ pub(crate) fn run_workflow_command(opt: WorkflowOpt) -> anyhow::Result<()> {
                 result.network_permission_requested,
                 result.network_attempted,
                 result.external_venue_connection,
+                result.production_venue_connection,
+                result.testnet_public_network_connection,
+                result.external_network_attempted,
                 result.real_funds,
                 result.production_trading,
                 result.real_orders_submitted,
@@ -172,6 +176,9 @@ fn run_binance_sandbox_workflow(opt: WorkflowRunOpt) -> anyhow::Result<WorkflowR
         events_path: artifact_paths.events,
         artifact_paths: written,
         external_venue_connection: false,
+        production_venue_connection: false,
+        testnet_public_network_connection: false,
+        external_network_attempted: false,
         real_funds: false,
         production_trading: false,
         real_orders_submitted: false,
@@ -228,6 +235,14 @@ where
         &credential_policy,
         http_probe_result.as_ref(),
     );
+    let http_connectivity_probe = TestnetHttpConnectivityProbe::from_config(
+        &run_id,
+        &config,
+        opt.allow_testnet_network,
+        &network_gate,
+        &credential_policy,
+        &connectivity_probe,
+    );
     let websocket_probe = TestnetWebSocketConnectivityProbe::from_config(
         &run_id,
         &config,
@@ -261,6 +276,10 @@ where
             (
                 "workflow.connectivity_probe.ready",
                 "testnet/connectivity_probe.json",
+            ),
+            (
+                "workflow.http_connectivity_probe.ready",
+                "testnet/http_connectivity_probe.json",
             ),
             (
                 "workflow.websocket_probe.ready",
@@ -300,6 +319,13 @@ where
                     &artifact_paths.output_dir,
                 ),
                 TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION,
+            ),
+            WorkflowManifestArtifact::new(
+                relative_artifact_path(
+                    &testnet_paths.http_connectivity_probe,
+                    &artifact_paths.output_dir,
+                ),
+                TESTNET_HTTP_CONNECTIVITY_PROBE_SCHEMA_VERSION,
             ),
             WorkflowManifestArtifact::new(
                 relative_artifact_path(&testnet_paths.websocket_probe, &artifact_paths.output_dir),
@@ -349,6 +375,11 @@ where
         &mut written,
     )?;
     write_json_artifact(
+        &testnet_paths.http_connectivity_probe,
+        &http_connectivity_probe,
+        &mut written,
+    )?;
+    write_json_artifact(
         &testnet_paths.websocket_probe,
         &websocket_probe,
         &mut written,
@@ -374,6 +405,9 @@ where
         events_path: artifact_paths.events,
         artifact_paths: written,
         external_venue_connection: boundary.external_venue_connection,
+        production_venue_connection: boundary.production_venue_connection,
+        testnet_public_network_connection: boundary.testnet_public_network_connection,
+        external_network_attempted: boundary.external_network_attempted,
         real_funds: boundary.real_funds,
         production_trading: boundary.production_trading,
         real_orders_submitted: boundary.real_orders_submitted,
@@ -514,6 +548,7 @@ struct TestnetArtifactPaths {
     config: PathBuf,
     credential_policy: PathBuf,
     connectivity_probe: PathBuf,
+    http_connectivity_probe: PathBuf,
     websocket_probe: PathBuf,
     order_lifecycle: PathBuf,
     reconciliation: PathBuf,
@@ -525,6 +560,7 @@ impl TestnetArtifactPaths {
             config: output_dir.join("testnet/config.json"),
             credential_policy: output_dir.join("testnet/credential_policy.json"),
             connectivity_probe: output_dir.join("testnet/connectivity_probe.json"),
+            http_connectivity_probe: output_dir.join("testnet/http_connectivity_probe.json"),
             websocket_probe: output_dir.join("testnet/ws_connectivity_probe.json"),
             order_lifecycle: output_dir.join("orders/testnet_dry_run_lifecycle.json"),
             reconciliation: output_dir.join("orders/reconciliation.json"),
@@ -770,6 +806,8 @@ struct TestnetHttpReadOnlyProbeResult {
     endpoint_class: String,
     latency_ms: Option<u64>,
     http_status: Option<u16>,
+    response_shape: String,
+    response_shape_validated: bool,
     error_code: String,
     network_attempted: bool,
     testnet_connection: bool,
@@ -778,11 +816,13 @@ struct TestnetHttpReadOnlyProbeResult {
 }
 
 impl TestnetHttpReadOnlyProbeResult {
-    fn success(latency_ms: u64, http_status: u16) -> Self {
+    fn success(latency_ms: u64, http_status: u16, response_shape: &str) -> Self {
         Self {
             endpoint_class: "binance-testnet-public-http-time".to_string(),
             latency_ms: Some(latency_ms),
             http_status: Some(http_status),
+            response_shape: response_shape.to_string(),
+            response_shape_validated: true,
             error_code: "none".to_string(),
             network_attempted: true,
             testnet_connection: true,
@@ -801,6 +841,8 @@ impl TestnetHttpReadOnlyProbeResult {
             endpoint_class: "binance-testnet-public-http-time".to_string(),
             latency_ms,
             http_status,
+            response_shape: "binance_server_time_v1".to_string(),
+            response_shape_validated: false,
             error_code: error_code.to_string(),
             network_attempted: true,
             testnet_connection: false,
@@ -810,6 +852,12 @@ impl TestnetHttpReadOnlyProbeResult {
             ),
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct BinanceServerTimeResponse {
+    #[serde(rename = "serverTime")]
+    server_time: u64,
 }
 
 fn should_attempt_testnet_http_probe(
@@ -856,7 +904,23 @@ fn execute_testnet_http_read_only_probe_on_thread(url: &str) -> TestnetHttpReadO
             let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
             let status = response.status().as_u16();
             if response.status().is_success() {
-                TestnetHttpReadOnlyProbeResult::success(latency_ms, status)
+                match response.json::<BinanceServerTimeResponse>() {
+                    Ok(body) if body.server_time > 0 => TestnetHttpReadOnlyProbeResult::success(
+                        latency_ms,
+                        status,
+                        "binance_server_time_v1",
+                    ),
+                    Ok(_) => TestnetHttpReadOnlyProbeResult::failure(
+                        Some(latency_ms),
+                        Some(status),
+                        "response_shape_invalid",
+                    ),
+                    Err(_) => TestnetHttpReadOnlyProbeResult::failure(
+                        Some(latency_ms),
+                        Some(status),
+                        "response_shape_invalid",
+                    ),
+                }
             } else {
                 TestnetHttpReadOnlyProbeResult::failure(
                     Some(latency_ms),
@@ -932,6 +996,12 @@ impl TestnetConnectivityProbe {
             ),
             latency_ms: http_probe_result.and_then(|result| result.latency_ms),
             http_status: http_probe_result.and_then(|result| result.http_status),
+            response_shape: http_probe_result.map_or_else(
+                || "binance_server_time_v1".to_string(),
+                |result| result.response_shape.clone(),
+            ),
+            response_shape_validated: http_probe_result
+                .is_some_and(|result| result.response_shape_validated),
             error_code: http_probe_result.map_or_else(
                 || "not_attempted".to_string(),
                 |result| result.error_code.clone(),
@@ -944,6 +1014,47 @@ impl TestnetConnectivityProbe {
             testnet_connection: http_probe_result.is_some_and(|result| result.testnet_connection),
             status: status.to_string(),
             diagnostic,
+        }
+    }
+}
+
+impl TestnetHttpConnectivityProbe {
+    fn from_config(
+        run_id: &str,
+        config: &TestnetWorkflowConfig,
+        allow_testnet_network: bool,
+        network_gate: &TestnetNetworkGate,
+        credential_policy: &TestnetCredentialPolicy,
+        connectivity_probe: &TestnetConnectivityProbe,
+    ) -> Self {
+        Self {
+            schema_version: TESTNET_HTTP_CONNECTIVITY_PROBE_SCHEMA_VERSION.to_string(),
+            run_id: run_id.to_string(),
+            environment: config.venue.environment.clone(),
+            product: config.venue.product.clone(),
+            endpoint_kind: "http_read_only".to_string(),
+            endpoint_url_redacted: testnet_http_read_only_probe_url(config),
+            network_gate_status: network_gate.status.clone(),
+            network_gate_reasons: network_gate.reasons.clone(),
+            network_permission_requested: allow_testnet_network,
+            env_network_permission: network_gate.env_network_permission,
+            network_attempted: connectivity_probe.network_attempted,
+            testnet_connection: connectivity_probe.testnet_connection,
+            order_submission: config.execution.order_submission.clone(),
+            real_orders_submitted: false,
+            credential_policy: credential_policy.policy.clone(),
+            api_key_present: credential_policy.api_key_present,
+            api_secret_present: credential_policy.api_secret_present,
+            request_method: "GET".to_string(),
+            request_target: TESTNET_HTTP_READ_ONLY_ENDPOINT.to_string(),
+            response_status_code: connectivity_probe.http_status,
+            response_shape: connectivity_probe.response_shape.clone(),
+            response_shape_validated: connectivity_probe.response_shape_validated,
+            latency_ms: connectivity_probe.latency_ms,
+            error_code: connectivity_probe.error_code.clone(),
+            status: connectivity_probe.status.clone(),
+            diagnostic: connectivity_probe.diagnostic.clone(),
+            generated_at: workflow_generated_at(),
         }
     }
 }
@@ -1096,7 +1207,7 @@ impl TestnetOrderLifecycle {
     fn from_config(run_id: &str, config: &TestnetWorkflowConfig) -> Self {
         Self {
             schema_version: TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION.to_string(),
-            lifecycle_id: format!("v06-binance-testnet-dry-run-{run_id}"),
+            lifecycle_id: format!("binance-testnet-readonly-no-order-lifecycle-{run_id}"),
             mode: config.run.mode.clone(),
             order_submission: config.execution.order_submission.clone(),
             submitted_count: 0,
@@ -1106,7 +1217,7 @@ impl TestnetOrderLifecycle {
             rejected_count: 1,
             real_orders_submitted: false,
             external_venue_connection: false,
-            checksum: "v06-testnet-dry-run-no-real-orders".to_string(),
+            checksum: "binance-testnet-readonly-no-real-orders".to_string(),
         }
     }
 }
@@ -1115,7 +1226,7 @@ impl TestnetReconciliation {
     fn from_order_lifecycle(run_id: &str, lifecycle: &TestnetOrderLifecycle) -> Self {
         Self {
             schema_version: TESTNET_RECONCILIATION_SCHEMA_VERSION.to_string(),
-            reconciliation_id: format!("v06-binance-testnet-reconciliation-{run_id}"),
+            reconciliation_id: format!("binance-testnet-artifact-only-reconciliation-{run_id}"),
             mode: "artifact-only".to_string(),
             matched_orders: lifecycle.submitted_count,
             unmatched_orders: 0,
@@ -1148,6 +1259,9 @@ impl WorkflowBoundary {
             fixture_replay: true,
             mock_execution: true,
             external_venue_connection: false,
+            production_venue_connection: false,
+            testnet_public_network_connection: false,
+            external_network_attempted: false,
             real_funds: false,
             production_trading: false,
             real_orders_submitted: false,
@@ -1175,6 +1289,9 @@ impl WorkflowBoundary {
             fixture_replay: false,
             mock_execution: true,
             external_venue_connection: false,
+            production_venue_connection: false,
+            testnet_public_network_connection: connectivity_probe.testnet_connection,
+            external_network_attempted: connectivity_probe.network_attempted,
             real_funds: false,
             production_trading: false,
             real_orders_submitted: false,
@@ -1227,6 +1344,9 @@ impl WorkflowSummary {
             fixture_replay: boundary.fixture_replay,
             mock_execution: boundary.mock_execution,
             external_venue_connection: boundary.external_venue_connection,
+            production_venue_connection: boundary.production_venue_connection,
+            testnet_public_network_connection: boundary.testnet_public_network_connection,
+            external_network_attempted: boundary.external_network_attempted,
             real_funds: boundary.real_funds,
             production_trading: boundary.production_trading,
             real_orders_submitted: boundary.real_orders_submitted,
@@ -1252,7 +1372,7 @@ impl WorkflowSummary {
     ) -> Self {
         Self {
             schema_version: SUMMARY_SCHEMA_VERSION.to_string(),
-            workflow_id: "v06-binance-testnet-runtime-foundation".to_string(),
+            workflow_id: "binance-testnet-readonly-connectivity-foundation".to_string(),
             workflow: "binance-testnet".to_string(),
             run_id: run_id.to_string(),
             runtime_status: connectivity_probe.status.clone(),
@@ -1274,6 +1394,9 @@ impl WorkflowSummary {
             fixture_replay: boundary.fixture_replay,
             mock_execution: boundary.mock_execution,
             external_venue_connection: boundary.external_venue_connection,
+            production_venue_connection: boundary.production_venue_connection,
+            testnet_public_network_connection: boundary.testnet_public_network_connection,
+            external_network_attempted: boundary.external_network_attempted,
             real_funds: boundary.real_funds,
             production_trading: boundary.production_trading,
             real_orders_submitted: boundary.real_orders_submitted,
@@ -1419,6 +1542,9 @@ struct WorkflowRunResult {
     events_path: PathBuf,
     artifact_paths: Vec<PathBuf>,
     external_venue_connection: bool,
+    production_venue_connection: bool,
+    testnet_public_network_connection: bool,
+    external_network_attempted: bool,
     real_funds: bool,
     production_trading: bool,
     real_orders_submitted: bool,
@@ -1531,6 +1657,9 @@ real_orders_submitted = false
         assert!(summary.fixture_replay);
         assert!(summary.mock_execution);
         assert!(!summary.external_venue_connection);
+        assert!(!summary.production_venue_connection);
+        assert!(!summary.testnet_public_network_connection);
+        assert!(!summary.external_network_attempted);
         assert!(!summary.real_funds);
         assert!(!summary.production_trading);
         assert!(!summary.real_orders_submitted);
@@ -1594,28 +1723,34 @@ real_orders_submitted = false
         assert_eq!(result.requested_mode, "dry-run");
         assert!(!result.network_permission_requested);
         assert!(!result.network_attempted);
-        assert_eq!(result.artifact_paths.len(), 10);
+        assert_eq!(result.artifact_paths.len(), 11);
         assert_eq!(result.artifact_paths.last(), Some(&result.manifest_path));
         assert!(!result.testnet_connection);
         assert!(!result.external_venue_connection);
+        assert!(!result.production_venue_connection);
+        assert!(!result.testnet_public_network_connection);
+        assert!(!result.external_network_attempted);
         assert!(!result.real_orders_submitted);
 
         let manifest: WorkflowManifest =
             serde_json::from_str(&fs::read_to_string(&result.manifest_path).unwrap()).unwrap();
         assert_eq!(manifest.workflow, "binance-testnet");
         assert_eq!(manifest.runtime_status, "dry_run_completed");
-        assert_eq!(manifest.artifact_count, 10);
+        assert_eq!(manifest.artifact_count, 11);
         assert_eq!(manifest.summary.requested_mode, "dry-run");
         assert!(!manifest.summary.network_permission_requested);
         assert_eq!(
             manifest.summary.order_lifecycle_id,
-            "v06-binance-testnet-dry-run-v06-smoke"
+            "binance-testnet-readonly-no-order-lifecycle-v06-smoke"
         );
         assert_eq!(manifest.summary.connectivity_mode, "dry-run");
         assert_eq!(manifest.summary.order_submission_mode, "disabled");
         assert_eq!(manifest.summary.reconciliation_mode, "artifact-only");
         assert!(!manifest.summary.testnet_connection);
         assert!(!manifest.summary.network_attempted);
+        assert!(!manifest.summary.production_venue_connection);
+        assert!(!manifest.summary.testnet_public_network_connection);
+        assert!(!manifest.summary.external_network_attempted);
         assert!(!manifest.summary.real_orders_submitted);
 
         let events = fs::read_to_string(&result.events_path).unwrap();
@@ -1624,7 +1759,7 @@ real_orders_submitted = false
             .map(serde_json::from_str::<WorkflowEvent>)
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
-        assert_eq!(parsed.len(), 8);
+        assert_eq!(parsed.len(), 9);
         assert_eq!(
             parsed.first().map(|event| event.event_type.as_str()),
             Some("workflow.testnet_config.ready")
@@ -1689,6 +1824,9 @@ real_orders_submitted = false
         assert_eq!(manifest.artifact_count, manifest.artifacts.len());
         assert_eq!(summary.run_id, "shared-contract-run");
         assert_eq!(boundary.schema_version, BOUNDARY_SCHEMA_VERSION);
+        assert!(!boundary.production_venue_connection);
+        assert!(!boundary.testnet_public_network_connection);
+        assert!(!boundary.external_network_attempted);
         assert_eq!(
             config_artifact.schema_version,
             TESTNET_CONFIG_SCHEMA_VERSION
@@ -1755,7 +1893,7 @@ real_orders_submitted = false
             reconciliation.schema_version,
             TESTNET_RECONCILIATION_SCHEMA_VERSION
         );
-        assert_eq!(events.len(), 8);
+        assert_eq!(events.len(), 9);
         assert!(events.iter().all(|event| event.run_id == summary.run_id));
         assert!(!connectivity_probe.network_attempted);
         assert!(!order_lifecycle.real_orders_submitted);
@@ -1877,6 +2015,9 @@ real_orders_submitted = false
         assert!(!result.network_attempted);
         assert!(!result.testnet_connection);
         assert!(!result.external_venue_connection);
+        assert!(!result.production_venue_connection);
+        assert!(!result.testnet_public_network_connection);
+        assert!(!result.external_network_attempted);
         assert!(!result.real_orders_submitted);
 
         let manifest: WorkflowManifest =
@@ -1887,6 +2028,9 @@ real_orders_submitted = false
         assert!(manifest.summary.network_permission_requested);
         assert!(!manifest.summary.network_attempted);
         assert!(!manifest.summary.testnet_connection);
+        assert!(!manifest.summary.production_venue_connection);
+        assert!(!manifest.summary.testnet_public_network_connection);
+        assert!(!manifest.summary.external_network_attempted);
         assert!(!manifest.summary.real_orders_submitted);
 
         let probe_path = result.output_dir.join("testnet/connectivity_probe.json");
@@ -2080,7 +2224,7 @@ real_orders_submitted = false
                 output: Some(output),
             },
             true,
-            |_| TestnetHttpReadOnlyProbeResult::success(42, 200),
+            |_| TestnetHttpReadOnlyProbeResult::success(42, 200, "binance_server_time_v1"),
         )
         .unwrap();
 
@@ -2097,6 +2241,8 @@ real_orders_submitted = false
         assert_eq!(probe.latency_ms, Some(42));
         assert_eq!(probe.http_status, Some(200));
         assert_eq!(probe.error_code, "none");
+        assert_eq!(probe.response_shape, "binance_server_time_v1");
+        assert!(probe.response_shape_validated);
         assert_eq!(probe.status, "http_read_only_probe_ok");
         assert!(probe.network_attempted);
         assert!(probe.testnet_connection);
@@ -2219,11 +2365,11 @@ real_orders_submitted = false
         assert_eq!(manifest.summary.run_id, "custom-run-id");
         assert_eq!(
             manifest.summary.order_lifecycle_id,
-            "v06-binance-testnet-dry-run-custom-run-id"
+            "binance-testnet-readonly-no-order-lifecycle-custom-run-id"
         );
         assert_eq!(
             manifest.summary.risk_smoke_id,
-            "v06-binance-testnet-reconciliation-custom-run-id"
+            "binance-testnet-artifact-only-reconciliation-custom-run-id"
         );
 
         let config_artifact_path = result.output_dir.join("testnet/config.json");

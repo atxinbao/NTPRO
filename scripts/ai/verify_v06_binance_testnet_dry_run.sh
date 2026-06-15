@@ -91,6 +91,7 @@ expected_files = [
     "testnet/config.json",
     "testnet/connectivity_probe.json",
     "testnet/credential_policy.json",
+    "testnet/http_connectivity_probe.json",
     "testnet/ws_connectivity_probe.json",
 ]
 
@@ -104,6 +105,7 @@ summary = json.loads((workflow_dir / "summary.json").read_text())
 boundary = json.loads((workflow_dir / "boundary.json").read_text())
 policy = json.loads((workflow_dir / "testnet/credential_policy.json").read_text())
 probe = json.loads((workflow_dir / "testnet/connectivity_probe.json").read_text())
+http_probe = json.loads((workflow_dir / "testnet/http_connectivity_probe.json").read_text())
 ws_probe = json.loads((workflow_dir / "testnet/ws_connectivity_probe.json").read_text())
 lifecycle = json.loads((workflow_dir / "orders/testnet_dry_run_lifecycle.json").read_text())
 reconciliation = json.loads((workflow_dir / "orders/reconciliation.json").read_text())
@@ -121,7 +123,7 @@ require(manifest["schema_version"] == "ntpro.workflow_manifest.v1", manifest)
 require(manifest["workflow"] == "binance-testnet", manifest)
 require(manifest["run_id"] == run_id, manifest)
 require(manifest["runtime_status"] == "dry_run_completed", manifest)
-require(manifest["artifact_count"] == 10, manifest)
+require(manifest["artifact_count"] == 11, manifest)
 require({item["path"] for item in manifest["artifacts"]} == set(expected_files), manifest["artifacts"])
 
 for item in manifest["artifacts"]:
@@ -150,6 +152,9 @@ for name, payload in [("summary", summary), ("boundary", boundary)]:
     require(payload["sandbox_only"] is True, f"{name}.sandbox_only must be true")
     require(payload["mock_execution"] is True, f"{name}.mock_execution must be true")
     require(payload["external_venue_connection"] is False, f"{name}.external_venue_connection must be false")
+    require(payload["production_venue_connection"] is False, f"{name}.production_venue_connection must be false")
+    require(payload["testnet_public_network_connection"] is False, f"{name}.testnet_public_network_connection must be false")
+    require(payload["external_network_attempted"] is False, f"{name}.external_network_attempted must be false")
     require(payload["real_funds"] is False, f"{name}.real_funds must be false")
     require(payload["production_trading"] is False, f"{name}.production_trading must be false")
     require(payload["real_orders_submitted"] is False, f"{name}.real_orders_submitted must be false")
@@ -166,6 +171,15 @@ require(policy["secrets_redacted"] is True, policy)
 require(probe["network_attempted"] is False, probe)
 require(probe["testnet_connection"] is False, probe)
 require(probe["status"] == "dry_run_completed", probe)
+require(http_probe["schema_version"] == "ntpro.v07_binance_testnet_http_probe.v1", http_probe)
+require(http_probe["endpoint_kind"] == "http_read_only", http_probe)
+require(http_probe["request_method"] == "GET", http_probe)
+require(http_probe["request_target"] == "/api/v3/time", http_probe)
+require(http_probe["response_shape"] == "binance_server_time_v1", http_probe)
+require(http_probe["response_shape_validated"] is False, http_probe)
+require(http_probe["network_attempted"] is False, http_probe)
+require(http_probe["testnet_connection"] is False, http_probe)
+require(http_probe["real_orders_submitted"] is False, http_probe)
 require(ws_probe["schema_version"] == "ntpro.v07_binance_testnet_ws_probe.v1", ws_probe)
 require(ws_probe["endpoint_kind"] == "websocket_read_only", ws_probe)
 require(ws_probe["websocket_probe_gate"] == "manual-online-only", ws_probe)
@@ -185,7 +199,7 @@ require(lifecycle["submitted_count"] == 0, lifecycle)
 require(lifecycle["real_orders_submitted"] is False, lifecycle)
 require(reconciliation["external_account_state_loaded"] is False, reconciliation)
 require(reconciliation["real_orders_submitted"] is False, reconciliation)
-require(len(events) == 8, f"expected 8 events, got {len(events)}")
+require(len(events) == 9, f"expected 9 events, got {len(events)}")
 require(events[0]["event_type"] == "workflow.testnet_config.ready", events[0])
 require(events[-1]["event_type"] == "workflow.events.ready", events[-1])
 for event in events:

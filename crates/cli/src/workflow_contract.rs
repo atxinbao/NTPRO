@@ -26,6 +26,8 @@ pub(crate) const TESTNET_CREDENTIAL_POLICY_SCHEMA_VERSION: &str =
     "ntpro.v07_binance_testnet_credential_policy.v1";
 pub(crate) const TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION: &str =
     "ntpro.v07_binance_testnet_connectivity_probe.v1";
+pub(crate) const TESTNET_HTTP_CONNECTIVITY_PROBE_SCHEMA_VERSION: &str =
+    "ntpro.v07_binance_testnet_http_probe.v1";
 pub(crate) const TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION: &str =
     "ntpro.v07_binance_testnet_ws_probe.v1";
 pub(crate) const TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION: &str =
@@ -100,6 +102,10 @@ pub(crate) struct TestnetConnectivityProbe {
     #[serde(default)]
     pub(crate) http_status: Option<u16>,
     #[serde(default)]
+    pub(crate) response_shape: String,
+    #[serde(default)]
+    pub(crate) response_shape_validated: bool,
+    #[serde(default)]
     pub(crate) error_code: String,
     pub(crate) network_permission_requested: bool,
     #[serde(default)]
@@ -112,6 +118,37 @@ pub(crate) struct TestnetConnectivityProbe {
     pub(crate) testnet_connection: bool,
     pub(crate) status: String,
     pub(crate) diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct TestnetHttpConnectivityProbe {
+    pub(crate) schema_version: String,
+    pub(crate) run_id: String,
+    pub(crate) environment: String,
+    pub(crate) product: String,
+    pub(crate) endpoint_kind: String,
+    pub(crate) endpoint_url_redacted: String,
+    pub(crate) network_gate_status: String,
+    pub(crate) network_gate_reasons: Vec<String>,
+    pub(crate) network_permission_requested: bool,
+    pub(crate) env_network_permission: bool,
+    pub(crate) network_attempted: bool,
+    pub(crate) testnet_connection: bool,
+    pub(crate) order_submission: String,
+    pub(crate) real_orders_submitted: bool,
+    pub(crate) credential_policy: String,
+    pub(crate) api_key_present: bool,
+    pub(crate) api_secret_present: bool,
+    pub(crate) request_method: String,
+    pub(crate) request_target: String,
+    pub(crate) response_status_code: Option<u16>,
+    pub(crate) response_shape: String,
+    pub(crate) response_shape_validated: bool,
+    pub(crate) latency_ms: Option<u64>,
+    pub(crate) error_code: String,
+    pub(crate) status: String,
+    pub(crate) diagnostic: String,
+    pub(crate) generated_at: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -178,6 +215,12 @@ pub(crate) struct WorkflowBoundary {
     pub(crate) fixture_replay: bool,
     pub(crate) mock_execution: bool,
     pub(crate) external_venue_connection: bool,
+    #[serde(default)]
+    pub(crate) production_venue_connection: bool,
+    #[serde(default)]
+    pub(crate) testnet_public_network_connection: bool,
+    #[serde(default)]
+    pub(crate) external_network_attempted: bool,
     pub(crate) real_funds: bool,
     pub(crate) production_trading: bool,
     pub(crate) real_orders_submitted: bool,
@@ -215,6 +258,12 @@ pub(crate) struct WorkflowSummary {
     pub(crate) fixture_replay: bool,
     pub(crate) mock_execution: bool,
     pub(crate) external_venue_connection: bool,
+    #[serde(default)]
+    pub(crate) production_venue_connection: bool,
+    #[serde(default)]
+    pub(crate) testnet_public_network_connection: bool,
+    #[serde(default)]
+    pub(crate) external_network_attempted: bool,
     pub(crate) real_funds: bool,
     pub(crate) production_trading: bool,
     pub(crate) real_orders_submitted: bool,

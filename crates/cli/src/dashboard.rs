@@ -712,7 +712,7 @@ function renderWorkflowArtifacts(workflows) {
             <td data-label="状态"><span class="status-${safe(workflow.health)}">${displayText(workflow.runtime_status)}</span></td>
             <td data-label="Manifest" class="path">${text(workflow.manifest_path)}</td>
             <td data-label="Artifact">${displayText(workflow.artifact_count)} 个<div class="muted">${displayText(workflow.schema_version)}</div></td>
-            <td data-label="边界">${panelRow("沙盒", workflow.sandbox_only)}${panelRow("Testnet", workflow.testnet_connection)}${panelRow("网络许可", workflow.network_permission_requested)}${panelRow("网络", workflow.network_attempted)}${panelRow("外部连接", workflow.external_venue_connection)}${panelRow("真实资金", workflow.real_funds)}${panelRow("生产交易", workflow.production_trading)}${panelRow("真实订单", workflow.real_orders_submitted)}</td>
+            <td data-label="边界">${panelRow("沙盒", workflow.sandbox_only)}${panelRow("Testnet 只读", workflow.testnet_public_network_connection ?? workflow.testnet_connection)}${panelRow("网络许可", workflow.network_permission_requested)}${panelRow("网络尝试", workflow.external_network_attempted ?? workflow.network_attempted)}${panelRow("生产连接", workflow.production_venue_connection ?? workflow.external_venue_connection)}${panelRow("真实资金", workflow.real_funds)}${panelRow("生产交易", workflow.production_trading)}${panelRow("真实订单", workflow.real_orders_submitted)}</td>
             <td data-label="探测">${text(snapshotValue(workflow.probe_status))}<div class="muted">${text(snapshotValue(workflow.probe_endpoint_class))}</div><div class="muted">latency=${text(snapshotValue(workflow.probe_latency_ms))} error=${text(snapshotValue(workflow.probe_error_code))}</div><div class="muted">ws=${text(snapshotValue(workflow.websocket_probe_status))} / ${text(snapshotValue(workflow.websocket_error_code))}</div><div class="muted">${panelRow("WS尝试", workflow.websocket_attempted)}${panelRow("WS订阅", workflow.websocket_subscription_attempted)}${panelRow("密钥记录", snapshotValue(workflow.values_recorded))}${panelRow("密钥脱敏", snapshotValue(workflow.secrets_redacted))}</div></td>
             <td data-label="证据">${text(snapshotValue(workflow.market_fixture_id))}<div class="muted">${text(snapshotValue(workflow.risk_smoke_id))}</div><div class="muted">${text(snapshotValue(workflow.credential_policy))}</div><div class="muted">${text(snapshotValue(workflow.connectivity_mode))} / ${text(snapshotValue(workflow.order_submission_mode))}</div></td>
           </tr>
@@ -2111,6 +2111,9 @@ pub struct WorkflowArtifactStatus {
     pub fixture_replay: bool,
     pub mock_execution: bool,
     pub external_venue_connection: bool,
+    pub production_venue_connection: bool,
+    pub testnet_public_network_connection: bool,
+    pub external_network_attempted: bool,
     pub real_funds: bool,
     pub production_trading: bool,
     pub real_orders_submitted: bool,
@@ -2154,6 +2157,9 @@ impl WorkflowArtifactStatus {
             fixture_replay: false,
             mock_execution: false,
             external_venue_connection: false,
+            production_venue_connection: false,
+            testnet_public_network_connection: false,
+            external_network_attempted: false,
             real_funds: false,
             production_trading: false,
             real_orders_submitted: false,
@@ -3091,7 +3097,8 @@ fn workflow_status_from_manifest(
     let child_audit = audit_workflow_manifest_artifacts(manifest_path, &manifest, gaps);
     let probe_artifacts = read_workflow_probe_artifacts(manifest_path, &manifest);
     let summary = manifest.summary;
-    let product_health = if summary.external_venue_connection
+    let product_health = if summary.production_venue_connection
+        || summary.external_venue_connection
         || summary.real_funds
         || summary.production_trading
         || summary.real_orders_submitted
@@ -3119,6 +3126,9 @@ fn workflow_status_from_manifest(
         fixture_replay: summary.fixture_replay,
         mock_execution: summary.mock_execution,
         external_venue_connection: summary.external_venue_connection,
+        production_venue_connection: summary.production_venue_connection,
+        testnet_public_network_connection: summary.testnet_public_network_connection,
+        external_network_attempted: summary.external_network_attempted,
         real_funds: summary.real_funds,
         production_trading: summary.production_trading,
         real_orders_submitted: summary.real_orders_submitted,
@@ -3216,6 +3226,18 @@ fn read_workflow_probe_artifacts(
                 status.probe_status = json_string_field(&value, "status");
                 status.probe_latency_ms = json_u64_field(&value, "latency_ms");
                 status.probe_endpoint_class = json_string_field(&value, "endpoint_class");
+                status.probe_error_code = json_string_field(&value, "error_code");
+            }
+            "testnet/http_connectivity_probe.json" => {
+                status.network_permission_requested = value
+                    .get("network_permission_requested")
+                    .and_then(Value::as_bool);
+                status.network_attempted = value.get("network_attempted").and_then(Value::as_bool);
+                status.testnet_connection =
+                    value.get("testnet_connection").and_then(Value::as_bool);
+                status.probe_status = json_string_field(&value, "status");
+                status.probe_latency_ms = json_u64_field(&value, "latency_ms");
+                status.probe_endpoint_class = json_string_field(&value, "endpoint_kind");
                 status.probe_error_code = json_string_field(&value, "error_code");
             }
             "testnet/credential_policy.json" => {
@@ -4317,6 +4339,9 @@ mod tests {
         assert!(workflow.fixture_replay);
         assert!(workflow.mock_execution);
         assert!(!workflow.external_venue_connection);
+        assert!(!workflow.production_venue_connection);
+        assert!(!workflow.testnet_public_network_connection);
+        assert!(!workflow.external_network_attempted);
         assert!(!workflow.real_funds);
         assert!(!workflow.production_trading);
         assert!(!workflow.real_orders_submitted);
@@ -4377,13 +4402,16 @@ mod tests {
         assert_eq!(workflow.workflow, "binance-testnet");
         assert_eq!(workflow.runtime_status, "dry_run_completed");
         assert_eq!(workflow.health, HealthStatus::Healthy);
-        assert_eq!(workflow.artifact_count, 10);
+        assert_eq!(workflow.artifact_count, 11);
         assert!(workflow.sandbox_only);
         assert!(workflow.mock_execution);
         assert!(!workflow.fixture_replay);
         assert!(!workflow.testnet_connection);
         assert!(!workflow.network_attempted);
         assert!(!workflow.external_venue_connection);
+        assert!(!workflow.production_venue_connection);
+        assert!(!workflow.testnet_public_network_connection);
+        assert!(!workflow.external_network_attempted);
         assert!(!workflow.real_funds);
         assert!(!workflow.production_trading);
         assert!(!workflow.real_orders_submitted);
@@ -4422,6 +4450,10 @@ mod tests {
                     "schema_version": "ntpro.v07_binance_testnet_connectivity_probe.v1"
                 },
                 {
+                    "path": "testnet/http_connectivity_probe.json",
+                    "schema_version": "ntpro.v07_binance_testnet_http_probe.v1"
+                },
+                {
                     "path": "testnet/ws_connectivity_probe.json",
                     "schema_version": "ntpro.v07_binance_testnet_ws_probe.v1"
                 }
@@ -4451,6 +4483,23 @@ mod tests {
                 "network_permission_requested": true,
                 "network_attempted": true,
                 "testnet_connection": true
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            workflow_dir.join("testnet/http_connectivity_probe.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": "ntpro.v07_binance_testnet_http_probe.v1",
+                "status": "http_read_only_probe_ok",
+                "latency_ms": 42,
+                "endpoint_kind": "http_read_only",
+                "error_code": "none",
+                "network_permission_requested": true,
+                "network_attempted": true,
+                "testnet_connection": true,
+                "response_shape": "binance_server_time_v1",
+                "response_shape_validated": true
             }))
             .unwrap(),
         )
@@ -4492,7 +4541,7 @@ mod tests {
         assert_eq!(workflow.probe_latency_ms.value, Some(42));
         assert_eq!(
             workflow.probe_endpoint_class.value.as_deref(),
-            Some("binance-testnet-public-http-time")
+            Some("http_read_only")
         );
         assert_eq!(workflow.probe_error_code.value.as_deref(), Some("none"));
         assert_eq!(workflow.values_recorded.value, Some(false));
@@ -5521,48 +5570,54 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).unwrap();
         }
-        let manifest = json!({
-            "schema_version": "ntpro.workflow_manifest.v1",
-            "workflow_id": "v06-binance-testnet-runtime-foundation",
+        let order_lifecycle_id = format!("binance-testnet-readonly-no-order-lifecycle-{run_id}");
+        let reconciliation_id = format!("binance-testnet-artifact-only-reconciliation-{run_id}");
+        let summary = json!({
+            "schema_version": "ntpro.workflow_summary.v1",
+            "workflow_id": "binance-testnet-readonly-connectivity-foundation",
             "workflow": "binance-testnet",
             "run_id": run_id,
             "runtime_status": "dry_run_completed",
-            "artifact_count": 10,
+            "market_fixture_id": "not-applicable-testnet-dry-run",
+            "market_bar_count": 0,
+            "market_checksum": "dry_run_validated",
+            "ema_smoke_id": "not-applicable-testnet-dry-run",
+            "ema_signals_emitted": 0,
+            "ema_checksum": "not-applicable",
+            "rsi_smoke_id": "not-applicable-testnet-dry-run",
+            "rsi_signals_emitted": 0,
+            "rsi_checksum": "not-applicable",
+            "order_lifecycle_id": order_lifecycle_id,
+            "order_event_count": 1,
+            "order_checksum": "binance-testnet-readonly-no-real-orders",
+            "risk_smoke_id": reconciliation_id,
+            "risk_checksum": "ok",
+            "sandbox_only": true,
+            "fixture_replay": false,
+            "mock_execution": true,
+            "external_venue_connection": false,
+            "production_venue_connection": false,
+            "testnet_public_network_connection": false,
+            "external_network_attempted": false,
+            "real_funds": false,
+            "production_trading": false,
+            "real_orders_submitted": false,
+            "testnet_connection": false,
+            "network_attempted": false,
+            "credential_policy": "env-var-only-no-secret-persistence",
+            "connectivity_mode": "dry-run",
+            "order_submission_mode": "disabled",
+            "reconciliation_mode": "artifact-only"
+        });
+        let manifest = json!({
+            "schema_version": "ntpro.workflow_manifest.v1",
+            "workflow_id": "binance-testnet-readonly-connectivity-foundation",
+            "workflow": "binance-testnet",
+            "run_id": run_id,
+            "runtime_status": "dry_run_completed",
+            "artifact_count": 11,
             "artifacts": artifacts,
-            "summary": {
-                "schema_version": "ntpro.workflow_summary.v1",
-                "workflow_id": "v06-binance-testnet-runtime-foundation",
-                "workflow": "binance-testnet",
-                "run_id": run_id,
-                "runtime_status": "dry_run_completed",
-                "market_fixture_id": "not-applicable-testnet-dry-run",
-                "market_bar_count": 0,
-                "market_checksum": "dry_run_validated",
-                "ema_smoke_id": "not-applicable-testnet-dry-run",
-                "ema_signals_emitted": 0,
-                "ema_checksum": "not-applicable",
-                "rsi_smoke_id": "not-applicable-testnet-dry-run",
-                "rsi_signals_emitted": 0,
-                "rsi_checksum": "not-applicable",
-                "order_lifecycle_id": "v06-binance-testnet-dry-run-v06-smoke",
-                "order_event_count": 1,
-                "order_checksum": "v06-testnet-dry-run-no-real-orders",
-                "risk_smoke_id": "v06-binance-testnet-reconciliation-v06-smoke",
-                "risk_checksum": "ok",
-                "sandbox_only": true,
-                "fixture_replay": false,
-                "mock_execution": true,
-                "external_venue_connection": false,
-                "real_funds": false,
-                "production_trading": false,
-                "real_orders_submitted": false,
-                "testnet_connection": false,
-                "network_attempted": false,
-                "credential_policy": "env-var-only-no-secret-persistence",
-                "connectivity_mode": "dry-run",
-                "order_submission_mode": "disabled",
-                "reconciliation_mode": "artifact-only"
-            }
+            "summary": summary
         });
         fs::write(
             path,
