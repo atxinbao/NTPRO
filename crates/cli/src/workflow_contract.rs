@@ -30,6 +30,10 @@ pub(crate) const TESTNET_HTTP_CONNECTIVITY_PROBE_SCHEMA_VERSION: &str =
     "ntpro.v07_binance_testnet_http_probe.v1";
 pub(crate) const TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION: &str =
     "ntpro.v07_binance_testnet_ws_probe.v1";
+pub(crate) const TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH: &str = "testnet/connectivity_probe.json";
+pub(crate) const TESTNET_HTTP_CONNECTIVITY_PROBE_ARTIFACT_PATH: &str =
+    "testnet/http_connectivity_probe.json";
+pub(crate) const TESTNET_WEBSOCKET_PROBE_ARTIFACT_PATH: &str = "testnet/ws_connectivity_probe.json";
 pub(crate) const TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION: &str =
     "ntpro.v06_binance_testnet_order_lifecycle.v1";
 pub(crate) const TESTNET_RECONCILIATION_SCHEMA_VERSION: &str =

@@ -48,7 +48,10 @@ use crate::{
         NodeMetrics, RegistryArtifactState, StartNodeRequest, StopNodeRequest,
         SupervisorNodeRecord, SupervisorProcessState, SupervisorRegistry, SupervisorRegistryStore,
     },
-    workflow_contract::{WorkflowManifest, WorkflowManifestArtifact},
+    workflow_contract::{
+        TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH, TESTNET_HTTP_CONNECTIVITY_PROBE_ARTIFACT_PATH,
+        TESTNET_WEBSOCKET_PROBE_ARTIFACT_PATH, WorkflowManifest, WorkflowManifestArtifact,
+    },
 };
 
 pub const DASHBOARD_SNAPSHOT_SCHEMA_VERSION: &str = "ntpro.dashboard_snapshot.v1";
@@ -3216,7 +3219,7 @@ fn read_workflow_probe_artifacts(
             continue;
         };
         match artifact.path.as_str() {
-            "testnet/connectivity_probe.json" => {
+            TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH => {
                 status.network_permission_requested = value
                     .get("network_permission_requested")
                     .and_then(Value::as_bool);
@@ -3228,7 +3231,7 @@ fn read_workflow_probe_artifacts(
                 status.probe_endpoint_class = json_string_field(&value, "endpoint_class");
                 status.probe_error_code = json_string_field(&value, "error_code");
             }
-            "testnet/http_connectivity_probe.json" => {
+            TESTNET_HTTP_CONNECTIVITY_PROBE_ARTIFACT_PATH => {
                 status.network_permission_requested = value
                     .get("network_permission_requested")
                     .and_then(Value::as_bool);
@@ -3244,7 +3247,7 @@ fn read_workflow_probe_artifacts(
                 status.values_recorded = json_bool_field(&value, "values_recorded");
                 status.secrets_redacted = json_bool_field(&value, "secrets_redacted");
             }
-            "testnet/ws_connectivity_probe.json" => {
+            TESTNET_WEBSOCKET_PROBE_ARTIFACT_PATH => {
                 status.websocket_probe_status = json_string_field(&value, "status");
                 status.websocket_error_code = json_string_field(&value, "error_code");
                 status.websocket_attempted = json_bool(&value, "websocket_attempted");
@@ -4446,15 +4449,15 @@ mod tests {
                     "schema_version": "ntpro.v07_binance_testnet_credential_policy.v1"
                 },
                 {
-                    "path": "testnet/connectivity_probe.json",
+                    "path": TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH,
                     "schema_version": "ntpro.v07_binance_testnet_connectivity_probe.v1"
                 },
                 {
-                    "path": "testnet/http_connectivity_probe.json",
+                    "path": TESTNET_HTTP_CONNECTIVITY_PROBE_ARTIFACT_PATH,
                     "schema_version": "ntpro.v07_binance_testnet_http_probe.v1"
                 },
                 {
-                    "path": "testnet/ws_connectivity_probe.json",
+                    "path": TESTNET_WEBSOCKET_PROBE_ARTIFACT_PATH,
                     "schema_version": "ntpro.v07_binance_testnet_ws_probe.v1"
                 }
             ]),
@@ -4473,7 +4476,7 @@ mod tests {
         )
         .unwrap();
         fs::write(
-            workflow_dir.join("testnet/connectivity_probe.json"),
+            workflow_dir.join(TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH),
             serde_json::to_string_pretty(&json!({
                 "schema_version": "ntpro.v07_binance_testnet_connectivity_probe.v1",
                 "status": "http_read_only_probe_ok",
@@ -4488,7 +4491,7 @@ mod tests {
         )
         .unwrap();
         fs::write(
-            workflow_dir.join("testnet/http_connectivity_probe.json"),
+            workflow_dir.join(TESTNET_HTTP_CONNECTIVITY_PROBE_ARTIFACT_PATH),
             serde_json::to_string_pretty(&json!({
                 "schema_version": "ntpro.v07_binance_testnet_http_probe.v1",
                 "status": "http_read_only_probe_ok",
@@ -4505,7 +4508,7 @@ mod tests {
         )
         .unwrap();
         fs::write(
-            workflow_dir.join("testnet/ws_connectivity_probe.json"),
+            workflow_dir.join(TESTNET_WEBSOCKET_PROBE_ARTIFACT_PATH),
             serde_json::to_string_pretty(&json!({
                 "schema_version": "ntpro.v07_binance_testnet_ws_probe.v1",
                 "status": "websocket_read_only_probe_failed",
