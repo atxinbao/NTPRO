@@ -153,8 +153,6 @@ require(summary["requested_mode"] == "connectivity-probe", summary)
 require(summary["network_permission_requested"] is True, summary)
 require(summary["network_attempted"] is True, summary)
 require(summary["production_venue_connection"] is False, summary)
-require(summary["testnet_public_network_connection"] is True, summary)
-require(summary["external_network_attempted"] is True, summary)
 require(summary["real_orders_submitted"] is False, summary)
 require(probe["network_permission_requested"] is True, probe)
 require(probe["env_network_permission"] is True, probe)
@@ -168,8 +166,27 @@ require(http_probe["request_method"] == "GET", http_probe)
 require(http_probe["request_target"] == "/api/v3/time", http_probe)
 require(http_probe["network_attempted"] is True, http_probe)
 require(http_probe["error_code"] in stable_errors, http_probe)
+
+if http_probe["error_code"] != "none":
+    print(
+        "v07_manual_online_gate status=classified_failure "
+        "connectivity_proof=false "
+        f"error_code={http_probe['error_code']} "
+        f"response_shape_validated={str(http_probe.get('response_shape_validated')).lower()}",
+        file=sys.stderr,
+    )
+    raise SystemExit({
+        "reason": "stable_failure_is_classification_only_not_connectivity_proof",
+        "http_probe": {
+            "error_code": http_probe["error_code"],
+            "network_attempted": http_probe["network_attempted"],
+            "testnet_connection": http_probe.get("testnet_connection"),
+            "response_shape": http_probe.get("response_shape"),
+            "response_shape_validated": http_probe.get("response_shape_validated"),
+        },
+    })
+
 require(http_probe["testnet_connection"] is True, http_probe)
-require(http_probe["error_code"] == "none", http_probe)
 require(http_probe["response_status_code"] is not None, http_probe)
 require(http_probe["response_shape"] == "binance_server_time_v1", http_probe)
 require(http_probe["response_shape_validated"] is True, http_probe)
@@ -179,6 +196,8 @@ require(probe["http_status"] is not None, probe)
 require(probe["response_shape"] == "binance_server_time_v1", probe)
 require(probe["response_shape_validated"] is True, probe)
 require(summary["testnet_connection"] == probe["testnet_connection"], summary)
+require(summary["testnet_public_network_connection"] is True, summary)
+require(summary["external_network_attempted"] is True, summary)
 require(policy["values_recorded"] is False, policy)
 require(policy["api_key_value_recorded"] is False, policy)
 require(policy["api_secret_value_recorded"] is False, policy)
