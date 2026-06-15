@@ -1720,7 +1720,7 @@ real_orders_submitted = false
             mode: WorkflowRunMode::DryRun,
             config: Some(config),
             allow_testnet_network: false,
-            run_id: Some("v06-smoke".to_string()),
+            run_id: Some("v07-readonly-smoke".to_string()),
             output: Some(output),
         })
         .unwrap();
@@ -1748,7 +1748,7 @@ real_orders_submitted = false
         assert!(!manifest.summary.network_permission_requested);
         assert_eq!(
             manifest.summary.order_lifecycle_id,
-            "binance-testnet-readonly-no-order-lifecycle-v06-smoke"
+            "binance-testnet-readonly-no-order-lifecycle-v07-readonly-smoke"
         );
         assert_eq!(manifest.summary.connectivity_mode, "dry-run");
         assert_eq!(manifest.summary.order_submission_mode, "disabled");

@@ -95,6 +95,28 @@ def assert_no_network(root: Path, expected_run_id: str, expected_runtime: str, e
     require(manifest["run_id"] == expected_run_id, manifest)
     require(manifest["runtime_status"] == expected_runtime, manifest)
     require(manifest["artifact_count"] == 11, manifest)
+    require(
+        manifest["summary"]["workflow_id"] == "binance-testnet-readonly-connectivity-foundation",
+        manifest["summary"],
+    )
+    require(
+        lifecycle["lifecycle_id"].startswith("binance-testnet-readonly-no-order-lifecycle-"),
+        lifecycle,
+    )
+    require(
+        reconciliation["reconciliation_id"].startswith("binance-testnet-artifact-only-reconciliation-"),
+        reconciliation,
+    )
+    current_identity_payload = json.dumps(
+        {
+            "manifest_summary": manifest["summary"],
+            "summary": summary,
+            "lifecycle": lifecycle,
+            "reconciliation": reconciliation,
+        },
+        sort_keys=True,
+    )
+    require("v06-binance-testnet-runtime-foundation" not in current_identity_payload, current_identity_payload)
     require(summary["runtime_status"] == expected_runtime, summary)
     require(summary["requested_mode"] == expected_mode, summary)
     require(probe["requested_mode"] == expected_mode, probe)
