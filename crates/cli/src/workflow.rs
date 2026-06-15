@@ -224,7 +224,9 @@ where
     let artifact_paths = WorkflowArtifactPaths::new(&output_dir);
     let testnet_paths = TestnetArtifactPaths::new(&output_dir);
 
-    let credential_policy = TestnetCredentialPolicy::from_config(&config);
+    let env_credentials = EnvOnlyTestnetCredentials::load(&config.credentials);
+    let credential_policy =
+        TestnetCredentialPolicy::from_config_and_credentials(&config, &env_credentials);
     let network_gate =
         TestnetNetworkGate::evaluate(&config, opt.allow_testnet_network, env_network_permission);
     let http_probe_result =
@@ -361,41 +363,72 @@ where
     );
 
     let mut written = Vec::new();
-    write_json_artifact(
+    write_secret_redacted_json_artifact(
         &testnet_paths.config,
         &config.to_artifact(&run_id),
         &mut written,
+        &env_credentials,
     )?;
-    write_json_artifact(
+    write_secret_redacted_json_artifact(
         &testnet_paths.credential_policy,
         &credential_policy,
         &mut written,
+        &env_credentials,
     )?;
-    write_json_artifact(
+    write_secret_redacted_json_artifact(
         &testnet_paths.connectivity_probe,
         &connectivity_probe,
         &mut written,
+        &env_credentials,
     )?;
-    write_json_artifact(
+    write_secret_redacted_json_artifact(
         &testnet_paths.http_connectivity_probe,
         &http_connectivity_probe,
         &mut written,
+        &env_credentials,
     )?;
-    write_json_artifact(
+    write_secret_redacted_json_artifact(
         &testnet_paths.websocket_probe,
         &websocket_probe,
         &mut written,
+        &env_credentials,
     )?;
-    write_json_artifact(
+    write_secret_redacted_json_artifact(
         &testnet_paths.order_lifecycle,
         &order_lifecycle,
         &mut written,
+        &env_credentials,
     )?;
-    write_json_artifact(&testnet_paths.reconciliation, &reconciliation, &mut written)?;
-    write_json_artifact(&artifact_paths.boundary, &boundary, &mut written)?;
-    write_json_artifact(&artifact_paths.summary, &summary, &mut written)?;
-    write_events_artifact(&artifact_paths.events, &events, &mut written)?;
-    write_json_artifact(&artifact_paths.manifest, &manifest, &mut written)?;
+    write_secret_redacted_json_artifact(
+        &testnet_paths.reconciliation,
+        &reconciliation,
+        &mut written,
+        &env_credentials,
+    )?;
+    write_secret_redacted_json_artifact(
+        &artifact_paths.boundary,
+        &boundary,
+        &mut written,
+        &env_credentials,
+    )?;
+    write_secret_redacted_json_artifact(
+        &artifact_paths.summary,
+        &summary,
+        &mut written,
+        &env_credentials,
+    )?;
+    write_secret_redacted_events_artifact(
+        &artifact_paths.events,
+        &events,
+        &mut written,
+        &env_credentials,
+    )?;
+    write_secret_redacted_json_artifact(
+        &artifact_paths.manifest,
+        &manifest,
+        &mut written,
+        &env_credentials,
+    )?;
 
     Ok(WorkflowRunResult {
         workflow: "binance-testnet".to_string(),
@@ -482,6 +515,23 @@ where
     Ok(())
 }
 
+fn write_secret_redacted_json_artifact<T>(
+    path: &Path,
+    value: &T,
+    written: &mut Vec<PathBuf>,
+    credentials: &EnvOnlyTestnetCredentials,
+) -> anyhow::Result<()>
+where
+    T: Serialize,
+{
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    credentials.ensure_no_secret_values_absent(&path.display().to_string(), &body)?;
+    atomic_write_text(path, &body)?;
+    written.push(path.to_path_buf());
+    Ok(())
+}
+
 fn write_events_artifact(
     path: &Path,
     events: &WorkflowEvents,
@@ -492,6 +542,23 @@ fn write_events_artifact(
         body.push_str(&serde_json::to_string(event)?);
         body.push('\n');
     }
+    atomic_write_text(path, &body)?;
+    written.push(path.to_path_buf());
+    Ok(())
+}
+
+fn write_secret_redacted_events_artifact(
+    path: &Path,
+    events: &WorkflowEvents,
+    written: &mut Vec<PathBuf>,
+    credentials: &EnvOnlyTestnetCredentials,
+) -> anyhow::Result<()> {
+    let mut body = String::new();
+    for event in &events.events {
+        body.push_str(&serde_json::to_string(event)?);
+        body.push('\n');
+    }
+    credentials.ensure_no_secret_values_absent(&path.display().to_string(), &body)?;
     atomic_write_text(path, &body)?;
     written.push(path.to_path_buf());
     Ok(())
@@ -723,6 +790,91 @@ impl TestnetCredentialConfig {
     }
 }
 
+struct EnvOnlyTestnetCredentials {
+    api_key_env: String,
+    api_secret_env: String,
+    api_key_present: bool,
+    api_secret_present: bool,
+    sensitive_values: Vec<String>,
+}
+
+impl EnvOnlyTestnetCredentials {
+    fn load(config: &TestnetCredentialConfig) -> Self {
+        let api_key_value = read_env_secret_value(&config.api_key_env);
+        let api_secret_value = read_env_secret_value(&config.api_secret_env);
+        Self::from_values(
+            config.api_key_env.clone(),
+            api_key_value,
+            config.api_secret_env.clone(),
+            api_secret_value,
+        )
+    }
+
+    #[cfg(test)]
+    fn from_presence(
+        api_key_env: String,
+        api_key_present: bool,
+        api_secret_env: String,
+        api_secret_present: bool,
+    ) -> Self {
+        Self {
+            api_key_env,
+            api_secret_env,
+            api_key_present,
+            api_secret_present,
+            sensitive_values: Vec::new(),
+        }
+    }
+
+    fn from_values(
+        api_key_env: String,
+        api_key_value: Option<String>,
+        api_secret_env: String,
+        api_secret_value: Option<String>,
+    ) -> Self {
+        let api_key_present = api_key_value
+            .as_ref()
+            .is_some_and(|value| !value.is_empty());
+        let api_secret_present = api_secret_value
+            .as_ref()
+            .is_some_and(|value| !value.is_empty());
+        let sensitive_values = [api_key_value, api_secret_value]
+            .into_iter()
+            .flatten()
+            .filter(|value| !value.is_empty())
+            .collect();
+
+        Self {
+            api_key_env,
+            api_secret_env,
+            api_key_present,
+            api_secret_present,
+            sensitive_values,
+        }
+    }
+
+    fn authenticated_read_only_ready(&self) -> bool {
+        self.api_key_present && self.api_secret_present
+    }
+
+    fn ensure_no_secret_values_absent(&self, label: &str, body: &str) -> anyhow::Result<()> {
+        for secret_value in &self.sensitive_values {
+            if body.contains(secret_value) {
+                anyhow::bail!(
+                    "testnet secret redaction guard blocked secret value leak in {label}"
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
+fn read_env_secret_value(env_var: &str) -> Option<String> {
+    std::env::var(env_var)
+        .ok()
+        .filter(|value| !value.is_empty())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct TestnetConnectivityConfig {
     mode: String,
@@ -739,25 +891,31 @@ struct TestnetExecutionConfig {
 }
 
 impl TestnetCredentialPolicy {
-    fn from_config(config: &TestnetWorkflowConfig) -> Self {
-        Self::from_config_with_presence(
-            config,
-            std::env::var(&config.credentials.api_key_env).is_ok(),
-            std::env::var(&config.credentials.api_secret_env).is_ok(),
-        )
-    }
-
+    #[cfg(test)]
     fn from_config_with_presence(
         config: &TestnetWorkflowConfig,
         api_key_present: bool,
         api_secret_present: bool,
     ) -> Self {
+        let credentials = EnvOnlyTestnetCredentials::from_presence(
+            config.credentials.api_key_env.clone(),
+            api_key_present,
+            config.credentials.api_secret_env.clone(),
+            api_secret_present,
+        );
+        Self::from_config_and_credentials(config, &credentials)
+    }
+
+    fn from_config_and_credentials(
+        config: &TestnetWorkflowConfig,
+        credentials: &EnvOnlyTestnetCredentials,
+    ) -> Self {
         Self {
             schema_version: TESTNET_CREDENTIAL_POLICY_SCHEMA_VERSION.to_string(),
             policy: "env-var-only-no-secret-persistence".to_string(),
             credential_source: "environment_variables_only".to_string(),
-            api_key_env: config.credentials.api_key_env.clone(),
-            api_secret_env: config.credentials.api_secret_env.clone(),
+            api_key_env: credentials.api_key_env.clone(),
+            api_secret_env: credentials.api_secret_env.clone(),
             values_in_file: config.credentials.values_in_file,
             values_recorded: false,
             api_key_value_recorded: false,
@@ -784,12 +942,13 @@ impl TestnetCredentialPolicy {
                 .authenticated_read_only_probe_requires_credentials(),
             authenticated_read_only_probe_gate: "manual-online-only".to_string(),
             authenticated_read_only_probe_status: authenticated_probe_status(
-                api_key_present,
-                api_secret_present,
+                credentials.api_key_present,
+                credentials.api_secret_present,
             )
             .to_string(),
-            api_key_present,
-            api_secret_present,
+            authenticated_read_only_probe_fail_closed: !credentials.authenticated_read_only_ready(),
+            api_key_present: credentials.api_key_present,
+            api_secret_present: credentials.api_secret_present,
         }
     }
 }
@@ -1952,6 +2111,7 @@ real_orders_submitted = false
             credential_policy.authenticated_read_only_probe_status,
             "manual_gate_blocked_missing_credentials"
         );
+        assert!(credential_policy.authenticated_read_only_probe_fail_closed);
         assert_eq!(
             connectivity_probe.schema_version,
             TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION
@@ -2196,6 +2356,7 @@ real_orders_submitted = false
             policy.authenticated_read_only_probe_status,
             "manual_gate_blocked_missing_credentials"
         );
+        assert!(policy.authenticated_read_only_probe_fail_closed);
         assert!(!serialized.contains("credential_value"));
     }
 
@@ -2218,6 +2379,7 @@ real_orders_submitted = false
             policy.authenticated_read_only_probe_status,
             "manual_gate_ready"
         );
+        assert!(!policy.authenticated_read_only_probe_fail_closed);
     }
 
     #[test]
@@ -2241,6 +2403,78 @@ real_orders_submitted = false
             policy.credential_config_migration_warning,
             TESTNET_CREDENTIAL_LEGACY_REQUIRED_FOR_NETWORK_WARNING
         );
+        assert!(!policy.authenticated_read_only_probe_fail_closed);
+    }
+
+    #[test]
+    fn binance_testnet_credential_policy_fails_closed_when_secret_missing() {
+        let config = parsed_testnet_config();
+        let policy = TestnetCredentialPolicy::from_config_with_presence(&config, true, false);
+
+        assert!(policy.api_key_present);
+        assert!(!policy.api_secret_present);
+        assert_eq!(
+            policy.authenticated_read_only_probe_status,
+            "manual_gate_blocked_missing_credentials"
+        );
+        assert!(policy.authenticated_read_only_probe_fail_closed);
+        assert!(!policy.values_recorded);
+        assert!(!policy.api_key_value_recorded);
+        assert!(!policy.api_secret_value_recorded);
+        assert!(policy.secrets_redacted);
+    }
+
+    #[test]
+    fn binance_testnet_secret_redaction_guard_blocks_synthetic_secret_leak() {
+        let credentials = EnvOnlyTestnetCredentials::from_values(
+            "BINANCE_TESTNET_API_KEY".to_string(),
+            Some("ntpro_v080002_synthetic_api_key_value".to_string()),
+            "BINANCE_TESTNET_API_SECRET".to_string(),
+            Some("ntpro_v080002_synthetic_api_secret_value".to_string()),
+        );
+        let error = credentials
+            .ensure_no_secret_values_absent(
+                "synthetic-artifact",
+                "credential=ntpro_v080002_synthetic_api_secret_value",
+            )
+            .unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("testnet secret redaction guard blocked secret value leak")
+        );
+    }
+
+    #[test]
+    fn binance_testnet_credential_policy_does_not_record_synthetic_secret_values() {
+        let config = parsed_testnet_config();
+        let credentials = EnvOnlyTestnetCredentials::from_values(
+            config.credentials.api_key_env.clone(),
+            Some("ntpro_v080002_synthetic_api_key_value".to_string()),
+            config.credentials.api_secret_env.clone(),
+            Some("ntpro_v080002_synthetic_api_secret_value".to_string()),
+        );
+        let policy = TestnetCredentialPolicy::from_config_and_credentials(&config, &credentials);
+        let root = temp_root("testnet-secret-redaction");
+        let artifact_path = root.join("credential_policy.json");
+        let mut written = Vec::new();
+
+        write_secret_redacted_json_artifact(&artifact_path, &policy, &mut written, &credentials)
+            .unwrap();
+
+        let body = fs::read_to_string(&artifact_path).unwrap();
+        assert_eq!(written, vec![artifact_path]);
+        assert!(policy.api_key_present);
+        assert!(policy.api_secret_present);
+        assert!(!policy.authenticated_read_only_probe_fail_closed);
+        assert!(!body.contains("ntpro_v080002_synthetic_api_key_value"));
+        assert!(!body.contains("ntpro_v080002_synthetic_api_secret_value"));
+        assert!(body.contains("\"api_key_present\": true"));
+        assert!(body.contains("\"api_secret_present\": true"));
+        assert!(body.contains("\"secrets_redacted\": true"));
+        assert!(body.contains("\"api_key_value_recorded\": false"));
+        assert!(body.contains("\"api_secret_value_recorded\": false"));
     }
 
     #[test]
@@ -2295,6 +2529,7 @@ real_orders_submitted = false
             policy.authenticated_read_only_probe_status,
             "manual_gate_ready"
         );
+        assert!(!policy.authenticated_read_only_probe_fail_closed);
         assert_eq!(
             probe.public_read_only_probe_status,
             "available_without_credentials"

@@ -89,6 +89,8 @@ pub(crate) struct TestnetCredentialPolicy {
     pub(crate) authenticated_read_only_probe_gate: String,
     #[serde(default)]
     pub(crate) authenticated_read_only_probe_status: String,
+    #[serde(default)]
+    pub(crate) authenticated_read_only_probe_fail_closed: bool,
     pub(crate) api_key_present: bool,
     pub(crate) api_secret_present: bool,
 }
