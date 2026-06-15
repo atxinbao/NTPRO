@@ -530,7 +530,10 @@ function render(payload) {
     renderTile("未知", safe(overview.unknown_nodes), "status-unknown"),
     renderTile("健康状态", displayValue(overview.health), `status-${safe(overview.health)}`),
     renderTile("仅沙盒", displayValue(overview.sandbox_only)),
-    renderTile("外部交易场所", displayValue(overview.external_venue_connection)),
+    renderTile("生产连接", displayValue(overview.production_venue_connection ?? overview.external_venue_connection)),
+    renderTile("Testnet 只读", displayValue(overview.testnet_public_network_connection)),
+    renderTile("外部网络尝试", displayValue(overview.external_network_attempted)),
+    renderTile("兼容外部交易场所", displayValue(overview.external_venue_connection)),
     renderTile("真实订单", displayValue(overview.real_orders_submitted)),
     renderTile("最近状态变化", displayValue(snapshotValue(overview.latest_transition_at))),
     renderTile("最近错误", redactedError(overview.latest_error), overview.latest_error ? "status-error" : ""),
@@ -1781,6 +1784,9 @@ pub struct DashboardOverview {
     pub health: HealthStatus,
     pub sandbox_only: bool,
     pub external_venue_connection: bool,
+    pub production_venue_connection: bool,
+    pub testnet_public_network_connection: bool,
+    pub external_network_attempted: bool,
     pub real_orders_submitted: bool,
     pub latest_transition_at: DashboardValue<String>,
     pub latest_error: Option<String>,
@@ -1817,6 +1823,29 @@ impl DashboardOverview {
 
         overview.health = derive_overview_health(&overview);
         overview
+    }
+
+    fn apply_workflow_artifacts(&mut self, workflow_artifacts: &[WorkflowArtifactStatus]) {
+        if workflow_artifacts.is_empty() {
+            self.health = derive_overview_health(self);
+            return;
+        }
+        let all_workflows_sandbox_only = workflow_artifacts
+            .iter()
+            .all(|workflow| workflow.sandbox_only);
+        self.sandbox_only = if self.node_count == 0 {
+            all_workflows_sandbox_only
+        } else {
+            self.sandbox_only && all_workflows_sandbox_only
+        };
+        for workflow in workflow_artifacts {
+            self.external_venue_connection |= workflow.external_venue_connection;
+            self.production_venue_connection |= workflow.production_venue_connection;
+            self.testnet_public_network_connection |= workflow.testnet_public_network_connection;
+            self.external_network_attempted |= workflow.external_network_attempted;
+            self.real_orders_submitted |= workflow.real_orders_submitted;
+        }
+        self.health = derive_overview_health(self);
     }
 }
 
@@ -2373,6 +2402,9 @@ pub fn snapshot_from_supervisor_artifacts_with_workflow_root(
     if let Some(workflow_root) = workflow_root {
         snapshot.workflow_artifacts =
             workflow_artifacts_from_explicit_root(workflow_root, &mut snapshot.gaps);
+        snapshot
+            .overview
+            .apply_workflow_artifacts(&snapshot.workflow_artifacts);
     }
 
     if !registry_path.exists() {
@@ -2412,6 +2444,9 @@ pub fn snapshot_from_supervisor_artifacts_with_workflow_root(
             "V03-004",
             "监督器注册表中没有节点",
         ));
+        snapshot
+            .overview
+            .apply_workflow_artifacts(&snapshot.workflow_artifacts);
         return Ok(snapshot);
     }
 
@@ -2457,6 +2492,9 @@ pub fn snapshot_from_supervisor_artifacts_with_workflow_root(
     }
 
     snapshot.overview = DashboardOverview::from_nodes(&nodes);
+    snapshot
+        .overview
+        .apply_workflow_artifacts(&snapshot.workflow_artifacts);
     snapshot.nodes = nodes;
     snapshot.risk = aggregate_risk_status(&statuses);
     snapshot.controls = control_statuses_from_nodes(&snapshot.nodes);
@@ -3100,6 +3138,15 @@ fn workflow_status_from_manifest(
     let child_audit = audit_workflow_manifest_artifacts(manifest_path, &manifest, gaps);
     let probe_artifacts = read_workflow_probe_artifacts(manifest_path, &manifest);
     let summary = manifest.summary;
+    let testnet_connection = probe_artifacts
+        .testnet_connection
+        .unwrap_or(summary.testnet_connection);
+    let network_attempted = probe_artifacts
+        .network_attempted
+        .unwrap_or(summary.network_attempted);
+    let testnet_public_network_connection =
+        summary.testnet_public_network_connection || testnet_connection;
+    let external_network_attempted = summary.external_network_attempted || network_attempted;
     let product_health = if summary.production_venue_connection
         || summary.external_venue_connection
         || summary.real_funds
@@ -3130,20 +3177,16 @@ fn workflow_status_from_manifest(
         mock_execution: summary.mock_execution,
         external_venue_connection: summary.external_venue_connection,
         production_venue_connection: summary.production_venue_connection,
-        testnet_public_network_connection: summary.testnet_public_network_connection,
-        external_network_attempted: summary.external_network_attempted,
+        testnet_public_network_connection,
+        external_network_attempted,
         real_funds: summary.real_funds,
         production_trading: summary.production_trading,
         real_orders_submitted: summary.real_orders_submitted,
-        testnet_connection: probe_artifacts
-            .testnet_connection
-            .unwrap_or(summary.testnet_connection),
+        testnet_connection,
         network_permission_requested: probe_artifacts
             .network_permission_requested
             .unwrap_or(summary.network_permission_requested),
-        network_attempted: probe_artifacts
-            .network_attempted
-            .unwrap_or(summary.network_attempted),
+        network_attempted,
         credential_policy: non_empty_dashboard_value(summary.credential_policy),
         connectivity_mode: non_empty_dashboard_value(summary.connectivity_mode),
         order_submission_mode: non_empty_dashboard_value(summary.order_submission_mode),
@@ -3999,6 +4042,12 @@ mod tests {
         }
         assert_eq!(value["overview"]["node_count"], 0);
         assert_eq!(value["overview"]["health"], "unknown");
+        assert_eq!(value["overview"]["production_venue_connection"], false);
+        assert_eq!(
+            value["overview"]["testnet_public_network_connection"],
+            false
+        );
+        assert_eq!(value["overview"]["external_network_attempted"], false);
         assert_eq!(value["risk"]["availability"], "unknown");
         assert_eq!(value["workflow_artifacts"], json!([]));
         assert_eq!(value["sandbox_business"]["availability"], "available");
@@ -4044,6 +4093,10 @@ mod tests {
             "没有运行模块上报",
             "没有日志或指标上报",
             "没有控制项",
+            "生产连接",
+            "Testnet 只读",
+            "外部网络尝试",
+            "兼容外部交易场所",
         ] {
             assert!(
                 DASHBOARD_JS.contains(js_symbol),
@@ -4345,6 +4398,10 @@ mod tests {
         assert!(!workflow.production_venue_connection);
         assert!(!workflow.testnet_public_network_connection);
         assert!(!workflow.external_network_attempted);
+        assert!(snapshot.overview.sandbox_only);
+        assert!(!snapshot.overview.production_venue_connection);
+        assert!(!snapshot.overview.testnet_public_network_connection);
+        assert!(!snapshot.overview.external_network_attempted);
         assert!(!workflow.real_funds);
         assert!(!workflow.production_trading);
         assert!(!workflow.real_orders_submitted);
@@ -4537,6 +4594,13 @@ mod tests {
         assert!(workflow.network_permission_requested);
         assert!(workflow.network_attempted);
         assert!(workflow.testnet_connection);
+        assert!(!workflow.production_venue_connection);
+        assert!(workflow.testnet_public_network_connection);
+        assert!(workflow.external_network_attempted);
+        assert!(snapshot.overview.sandbox_only);
+        assert!(!snapshot.overview.production_venue_connection);
+        assert!(snapshot.overview.testnet_public_network_connection);
+        assert!(snapshot.overview.external_network_attempted);
         assert_eq!(
             workflow.probe_status.value.as_deref(),
             Some("http_read_only_probe_ok")
