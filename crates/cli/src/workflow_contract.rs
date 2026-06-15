@@ -71,7 +71,16 @@ pub(crate) struct TestnetCredentialPolicy {
     #[serde(default)]
     pub(crate) api_secret_value_recorded: bool,
     pub(crate) secrets_redacted: bool,
+    #[serde(default)]
     pub(crate) required_for_network: bool,
+    #[serde(default)]
+    pub(crate) required_for_public_read_only_probe: bool,
+    #[serde(default)]
+    pub(crate) required_for_authenticated_read_only_probe: bool,
+    #[serde(default)]
+    pub(crate) legacy_required_for_network_present: bool,
+    #[serde(default)]
+    pub(crate) credential_config_migration_warning: String,
     #[serde(default)]
     pub(crate) public_read_only_probe_requires_credentials: bool,
     #[serde(default)]

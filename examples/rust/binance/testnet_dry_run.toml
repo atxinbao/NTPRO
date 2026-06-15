@@ -8,13 +8,18 @@ product = "spot"
 environment = "testnet"
 
 [credentials]
-# v0.7 online probes may read credentials from these env vars only.
+# v0.8 online probes may read credentials from these env vars only.
 # Never put API key or API secret values in this file.
 # Public read-only probes do not require credentials. Authenticated read-only
 # probes are manual-online-only and only record env var presence, never values.
 api_key_env = "BINANCE_TESTNET_API_KEY"
 api_secret_env = "BINANCE_TESTNET_API_SECRET"
 values_in_file = false
+# New split credential contract. These fields take priority over the legacy
+# required_for_network field.
+required_for_public_read_only_probe = false
+required_for_authenticated_read_only_probe = true
+# Legacy compatibility field retained for migration-warning evidence only.
 required_for_network = true
 
 [connectivity]
