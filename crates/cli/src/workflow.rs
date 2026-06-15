@@ -861,6 +861,10 @@ struct BinanceServerTimeResponse {
     server_time: u64,
 }
 
+fn validates_binance_server_time_response_shape(body: &BinanceServerTimeResponse) -> bool {
+    body.server_time > 0
+}
+
 fn should_attempt_testnet_http_probe(
     mode: WorkflowRunMode,
     network_gate: &TestnetNetworkGate,
@@ -906,11 +910,13 @@ fn execute_testnet_http_read_only_probe_on_thread(url: &str) -> TestnetHttpReadO
             let status = response.status().as_u16();
             if response.status().is_success() {
                 match response.json::<BinanceServerTimeResponse>() {
-                    Ok(body) if body.server_time > 0 => TestnetHttpReadOnlyProbeResult::success(
-                        latency_ms,
-                        status,
-                        "binance_server_time_v1",
-                    ),
+                    Ok(body) if validates_binance_server_time_response_shape(&body) => {
+                        TestnetHttpReadOnlyProbeResult::success(
+                            latency_ms,
+                            status,
+                            "binance_server_time_v1",
+                        )
+                    }
                     Ok(_) => TestnetHttpReadOnlyProbeResult::failure(
                         Some(latency_ms),
                         Some(status),
@@ -2254,6 +2260,39 @@ real_orders_submitted = false
         assert!(probe.network_attempted);
         assert!(probe.testnet_connection);
         assert!(probe.diagnostic.contains("read-only probe succeeded"));
+    }
+
+    #[test]
+    fn binance_server_time_response_shape_requires_positive_number() {
+        let valid: BinanceServerTimeResponse =
+            serde_json::from_str(r#"{"serverTime":1718400000000}"#).unwrap();
+        let zero: BinanceServerTimeResponse = serde_json::from_str(r#"{"serverTime":0}"#).unwrap();
+
+        assert!(validates_binance_server_time_response_shape(&valid));
+        assert!(!validates_binance_server_time_response_shape(&zero));
+        assert!(
+            serde_json::from_str::<BinanceServerTimeResponse>(r#"{"serverTime":"bad"}"#).is_err()
+        );
+        assert!(
+            serde_json::from_str::<BinanceServerTimeResponse>(r#"{"time":1718400000000}"#).is_err()
+        );
+    }
+
+    #[test]
+    fn binance_testnet_http_probe_shape_failure_is_not_connectivity_proof() {
+        let result =
+            TestnetHttpReadOnlyProbeResult::failure(Some(3), Some(200), "response_shape_invalid");
+
+        assert_eq!(result.status, "http_read_only_probe_failed");
+        assert_eq!(result.error_code, "response_shape_invalid");
+        assert_eq!(result.http_status, Some(200));
+        assert_eq!(result.response_shape, "binance_server_time_v1");
+        assert!(!result.response_shape_validated);
+        assert!(result.network_attempted);
+        assert!(!result.testnet_connection);
+        assert!(result.diagnostic.contains("response_shape_invalid"));
+        assert!(!result.diagnostic.contains("serverTime"));
+        assert!(!result.diagnostic.contains('{'));
     }
 
     #[test]
