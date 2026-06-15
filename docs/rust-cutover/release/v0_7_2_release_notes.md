@@ -3,15 +3,15 @@
 Date: 2026-06-15
 Executor: Codex
 Release line: v0.7.2
-Status: Release candidate only - not tagged, not published
+Status: Released
 
 ## Release Identity
 
 ```text
-Candidate tag: ntpro-rust-only-v0.7.2
+Source tag: ntpro-rust-only-v0.7.2
 Capability: v0.7 read-only Binance testnet connectivity proof wording/evidence patch
 Boundary: release surface, artifact note accuracy, and release-closure evidence only
-Publication: requires separate owner approval
+Publication: formal GitHub Release after owner approval and hosted gates passed
 ```
 
 ## Plain Chinese Summary
@@ -57,7 +57,7 @@ Publication: requires separate owner approval
 - Dashboard credential access;
 - prebuilt binary or Docker delivery.
 
-## Candidate PRs
+## Included PRs
 
 ```text
 V072-001 / #326: v0.7.1 post-release wording
@@ -67,9 +67,9 @@ V072-004 / #329: v0.7.1 release-closure evidence
 V072-005: v0.7.2 release notes and readiness closeout
 ```
 
-## Validation Required Before Publication
+## Validation Evidence
 
-Before any formal `ntpro-rust-only-v0.7.2` tag or GitHub Release:
+The v0.7.2 release was validated with:
 
 ```bash
 scripts/ai/verify_fast.sh
@@ -79,15 +79,28 @@ scripts/ai/verify_release.sh v07-default-offline-gate v07-manual-online-prefligh
 git diff --check
 ```
 
-The exact post-merge release commit must be used for hosted release-gate
-evidence. A GitHub Release must not be published until the owner explicitly
-approves the tag/release step.
+The exact release commit was used for both hosted release gates before
+publishing the formal GitHub Release.
 
 ## Published Release Boundary
 
-This file is a candidate release note. Until the owner approves a tag and
-GitHub Release, `ntpro-rust-only-v0.7.1` remains the current published release.
-
-If v0.7.2 is published, the release remains wording/evidence only: no order
+`ntpro-rust-only-v0.7.2` is the formal GitHub Release for this
+wording/evidence patch. The release remains wording/evidence only: no order
 submission, no authenticated account access, no real funds, no production
 Binance connectivity, and no production trading.
+
+## Release Closure Evidence
+
+```text
+exact release commit = a978187b56f97d3747f90bc10a2c068ef3f49892
+workflow_dispatch Release Gate = https://github.com/atxinbao/NTPRO/actions/runs/27563266843
+workflow_dispatch status = PASS
+tag-triggered Release Gate = https://github.com/atxinbao/NTPRO/actions/runs/27566041100
+tag-triggered status = PASS
+formal tag = ntpro-rust-only-v0.7.2
+formal GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.7.2
+release name = NTPRO Rust-only v0.7.2
+isDraft = false
+isPrerelease = false
+publishedAt = 2026-06-15T19:13:26Z
+```
