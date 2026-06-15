@@ -61,6 +61,7 @@ const DEFAULT_RUN_ID: &str = "v05-binance-sandbox-local";
 const TESTNET_NETWORK_OPT_IN_ENV: &str = "NTPRO_ALLOW_TESTNET_NETWORK";
 const TESTNET_HTTP_READ_ONLY_ENDPOINT: &str = "/api/v3/time";
 const TESTNET_HTTP_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
+const TESTNET_CREDENTIAL_LEGACY_REQUIRED_FOR_NETWORK_WARNING: &str = "credentials.required_for_network is deprecated; use credentials.required_for_public_read_only_probe and credentials.required_for_authenticated_read_only_probe";
 const BINANCE_SPOT_BARS_CSV: &str =
     include_str!("../../adapters/binance/test_data/v04/binance_spot_bars.csv");
 
@@ -595,9 +596,20 @@ impl TestnetWorkflowConfig {
         if self.credentials.values_in_file {
             anyhow::bail!("credentials.values_in_file must be false for the testnet workflow");
         }
-        if !self.credentials.required_for_network {
+        if self
+            .credentials
+            .public_read_only_probe_requires_credentials()
+        {
             anyhow::bail!(
-                "credentials.required_for_network must be true for authenticated testnet online probes"
+                "credentials.required_for_public_read_only_probe must be false for public read-only testnet probes"
+            );
+        }
+        if !self
+            .credentials
+            .authenticated_read_only_probe_requires_credentials()
+        {
+            anyhow::bail!(
+                "credentials.required_for_authenticated_read_only_probe must be true for authenticated testnet online probes"
             );
         }
         if self.connectivity.network_attempted {
@@ -675,7 +687,40 @@ struct TestnetCredentialConfig {
     api_key_env: String,
     api_secret_env: String,
     values_in_file: bool,
-    required_for_network: bool,
+    #[serde(default)]
+    required_for_network: Option<bool>,
+    #[serde(default)]
+    required_for_public_read_only_probe: Option<bool>,
+    #[serde(default)]
+    required_for_authenticated_read_only_probe: Option<bool>,
+}
+
+impl TestnetCredentialConfig {
+    fn legacy_required_for_network_present(&self) -> bool {
+        self.required_for_network.is_some()
+    }
+
+    fn legacy_required_for_network_value(&self) -> bool {
+        self.required_for_network.unwrap_or(false)
+    }
+
+    fn public_read_only_probe_requires_credentials(&self) -> bool {
+        self.required_for_public_read_only_probe.unwrap_or(false)
+    }
+
+    fn authenticated_read_only_probe_requires_credentials(&self) -> bool {
+        self.required_for_authenticated_read_only_probe
+            .or(self.required_for_network)
+            .unwrap_or(true)
+    }
+
+    fn credential_config_migration_warning(&self) -> String {
+        if self.legacy_required_for_network_present() {
+            TESTNET_CREDENTIAL_LEGACY_REQUIRED_FOR_NETWORK_WARNING.to_string()
+        } else {
+            String::new()
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -718,9 +763,25 @@ impl TestnetCredentialPolicy {
             api_key_value_recorded: false,
             api_secret_value_recorded: false,
             secrets_redacted: true,
-            required_for_network: config.credentials.required_for_network,
-            public_read_only_probe_requires_credentials: false,
-            authenticated_read_only_probe_requires_credentials: true,
+            required_for_network: config.credentials.legacy_required_for_network_value(),
+            required_for_public_read_only_probe: config
+                .credentials
+                .public_read_only_probe_requires_credentials(),
+            required_for_authenticated_read_only_probe: config
+                .credentials
+                .authenticated_read_only_probe_requires_credentials(),
+            legacy_required_for_network_present: config
+                .credentials
+                .legacy_required_for_network_present(),
+            credential_config_migration_warning: config
+                .credentials
+                .credential_config_migration_warning(),
+            public_read_only_probe_requires_credentials: config
+                .credentials
+                .public_read_only_probe_requires_credentials(),
+            authenticated_read_only_probe_requires_credentials: config
+                .credentials
+                .authenticated_read_only_probe_requires_credentials(),
             authenticated_read_only_probe_gate: "manual-online-only".to_string(),
             authenticated_read_only_probe_status: authenticated_probe_status(
                 api_key_present,
@@ -1617,6 +1678,8 @@ environment = "testnet"
 api_key_env = "BINANCE_TESTNET_API_KEY"
 api_secret_env = "BINANCE_TESTNET_API_SECRET"
 values_in_file = false
+required_for_public_read_only_probe = false
+required_for_authenticated_read_only_probe = true
 required_for_network = true
 
 [connectivity]
@@ -1872,6 +1935,13 @@ real_orders_submitted = false
         assert!(!credential_policy.api_key_value_recorded);
         assert!(!credential_policy.api_secret_value_recorded);
         assert!(credential_policy.secrets_redacted);
+        assert!(credential_policy.legacy_required_for_network_present);
+        assert_eq!(
+            credential_policy.credential_config_migration_warning,
+            TESTNET_CREDENTIAL_LEGACY_REQUIRED_FOR_NETWORK_WARNING
+        );
+        assert!(!credential_policy.required_for_public_read_only_probe);
+        assert!(credential_policy.required_for_authenticated_read_only_probe);
         assert!(!credential_policy.public_read_only_probe_requires_credentials);
         assert!(credential_policy.authenticated_read_only_probe_requires_credentials);
         assert_eq!(
@@ -2109,6 +2179,13 @@ real_orders_submitted = false
         assert!(!policy.api_key_value_recorded);
         assert!(!policy.api_secret_value_recorded);
         assert!(policy.secrets_redacted);
+        assert!(policy.legacy_required_for_network_present);
+        assert_eq!(
+            policy.credential_config_migration_warning,
+            TESTNET_CREDENTIAL_LEGACY_REQUIRED_FOR_NETWORK_WARNING
+        );
+        assert!(!policy.required_for_public_read_only_probe);
+        assert!(policy.required_for_authenticated_read_only_probe);
         assert!(!policy.public_read_only_probe_requires_credentials);
         assert!(policy.authenticated_read_only_probe_requires_credentials);
         assert_eq!(
@@ -2120,6 +2197,84 @@ real_orders_submitted = false
             "manual_gate_blocked_missing_credentials"
         );
         assert!(!serialized.contains("credential_value"));
+    }
+
+    #[test]
+    fn binance_testnet_credential_policy_supports_split_probe_fields_without_legacy_field() {
+        let body = testnet_config().replace("required_for_network = true\n", "");
+        let config: TestnetWorkflowConfig = toml::from_str(&body).unwrap();
+
+        config.validate().unwrap();
+        let policy = TestnetCredentialPolicy::from_config_with_presence(&config, true, true);
+
+        assert!(!policy.required_for_network);
+        assert!(!policy.legacy_required_for_network_present);
+        assert!(policy.credential_config_migration_warning.is_empty());
+        assert!(!policy.required_for_public_read_only_probe);
+        assert!(policy.required_for_authenticated_read_only_probe);
+        assert!(!policy.public_read_only_probe_requires_credentials);
+        assert!(policy.authenticated_read_only_probe_requires_credentials);
+        assert_eq!(
+            policy.authenticated_read_only_probe_status,
+            "manual_gate_ready"
+        );
+    }
+
+    #[test]
+    fn binance_testnet_split_probe_fields_take_priority_over_legacy_required_for_network() {
+        let body = testnet_config().replace(
+            "required_for_network = true",
+            "required_for_network = false",
+        );
+        let config: TestnetWorkflowConfig = toml::from_str(&body).unwrap();
+
+        config.validate().unwrap();
+        let policy = TestnetCredentialPolicy::from_config_with_presence(&config, true, true);
+
+        assert!(!policy.required_for_network);
+        assert!(policy.legacy_required_for_network_present);
+        assert!(!policy.required_for_public_read_only_probe);
+        assert!(policy.required_for_authenticated_read_only_probe);
+        assert!(!policy.public_read_only_probe_requires_credentials);
+        assert!(policy.authenticated_read_only_probe_requires_credentials);
+        assert_eq!(
+            policy.credential_config_migration_warning,
+            TESTNET_CREDENTIAL_LEGACY_REQUIRED_FOR_NETWORK_WARNING
+        );
+    }
+
+    #[test]
+    fn binance_testnet_rejects_public_read_only_probe_credentials_requirement() {
+        let body = testnet_config().replace(
+            "required_for_public_read_only_probe = false",
+            "required_for_public_read_only_probe = true",
+        );
+        let config: TestnetWorkflowConfig = toml::from_str(&body).unwrap();
+        let error = config.validate().unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("credentials.required_for_public_read_only_probe must be false")
+        );
+    }
+
+    #[test]
+    fn binance_testnet_rejects_disabled_authenticated_read_only_probe_credentials_requirement() {
+        let body = testnet_config()
+            .replace(
+                "required_for_authenticated_read_only_probe = true",
+                "required_for_authenticated_read_only_probe = false",
+            )
+            .replace("required_for_network = true\n", "");
+        let config: TestnetWorkflowConfig = toml::from_str(&body).unwrap();
+        let error = config.validate().unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("credentials.required_for_authenticated_read_only_probe must be true")
+        );
     }
 
     #[test]
