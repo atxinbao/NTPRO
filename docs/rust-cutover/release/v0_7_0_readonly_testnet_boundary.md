@@ -148,7 +148,9 @@ time endpoint. Connectivity proof requires `network_attempted=true`,
 `testnet_connection=true`, `error_code=none`, and
 `response_shape_validated=true` for the Binance server-time response. A stable
 classified `error_code` is diagnostic/classification evidence only; it is not
-connectivity proof. It does not submit, cancel, replace, or amend orders.
+connectivity proof. In real online mode the script must fail with
+`classified_failure connectivity_proof=false` when a stable failure occurs. It
+does not submit, cancel, replace, or amend orders.
 
 Required proof:
 

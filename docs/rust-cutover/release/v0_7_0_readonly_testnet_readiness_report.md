@@ -106,6 +106,11 @@ values_recorded=false
 secrets_redacted=true
 ```
 
+Stable classified HTTP failures are diagnostic evidence only. They must not be
+reported as connectivity proof; the manual-online script must fail with
+`classified_failure connectivity_proof=false` unless `error_code=none`,
+`testnet_connection=true`, and `response_shape_validated=true` are all present.
+
 Fast local gate:
 
 ```text
