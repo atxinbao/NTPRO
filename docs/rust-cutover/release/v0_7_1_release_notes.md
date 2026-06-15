@@ -3,21 +3,18 @@
 Date: 2026-06-15
 Executor: Codex
 Release line: v0.7.1
-Status: Release closure candidate notes
+Status: Released
 
 ## Release Identity
 
 ```text
-Planned source tag: ntpro-rust-only-v0.7.1
+Source tag: ntpro-rust-only-v0.7.1
 Capability: v0.7 read-only Binance testnet connectivity proof hardening
 Boundary: release-gate and artifact-contract hardening only
 ```
 
-`ntpro-rust-only-v0.7.1` remains a planned tag until release closure creates and
-publishes it after the hosted release gate passes.
-
-These notes do not create the tag and do not publish a GitHub Release. They are
-the release text candidate for the later owner-approved release-closure step.
+`ntpro-rust-only-v0.7.1` was published as a formal GitHub Release after the
+hosted release gate passed on the exact release commit.
 
 ## Plain Chinese Summary
 
@@ -53,7 +50,7 @@ proof。
 - Current v0.7 testnet workflow identities no longer use v06 IDs.
 - Roadmap aligned to:
   - current public release: `ntpro-rust-only-v0.7.0`;
-  - active hardening: `v0.7.1`;
+  - published hardening patch: `v0.7.1`;
   - next capability: `v0.8.0`.
 
 ## Hardening PRs
@@ -91,8 +88,9 @@ No trading migration note is required. `v0.7.1` changes release verification and
 local workflow artifact contracts only. It does not change trading semantics or
 enable any order path.
 
-## Release Closure Boundary
+## Published Release Boundary
 
-Publishing `ntpro-rust-only-v0.7.1` requires a separate owner-approved release
-closure step after this readiness PR is merged. That step must verify the exact
-release commit before creating the tag and GitHub Release.
+Published from exact release commit
+`d20179301c99f05b4f11c6d4ee67ee48c7b7768a` after both hosted release gates
+passed. The release remains hardening only: no order submission, no real funds,
+no production Binance connectivity, and no production trading.

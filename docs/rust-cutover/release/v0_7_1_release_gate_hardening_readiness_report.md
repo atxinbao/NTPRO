@@ -6,16 +6,16 @@ Milestone: v0.7.1 release-gate and artifact-contract hardening
 
 ## Decision
 
-Status: READY FOR RELEASE CLOSURE CANDIDATE.
+Status: RELEASED.
 
 v0.7.1 is a hardening release for the already published v0.7.0 read-only
 Binance testnet connectivity proof. It does not add order submission,
 authenticated account access, production Binance connectivity, real funds, or
 production trading.
 
-This report does not create the `ntpro-rust-only-v0.7.1` tag and does not
-publish a GitHub Release. Release closure still requires an explicit owner
-decision after the final PR is merged.
+The owner-approved release closure created tag `ntpro-rust-only-v0.7.1` and
+published the formal GitHub Release after hosted gates passed on the exact
+release commit.
 
 ## Plain Chinese Summary
 
@@ -37,7 +37,8 @@ v0.7.1 修的是发布门禁和产物合同，不是新能力版本。
 | V071-005 / #322 | merged | Stable HTTP failures are diagnostic classifications, not connectivity proof. |
 | V071-006 / #323 | merged | Current v0.7 workflow identities use read-only testnet names, not v06 runtime-foundation names. |
 | V071-007 / #324 | merged | Dashboard and artifacts distinguish production connectivity, testnet read-only proof, and external network attempts. |
-| V071-008 | this readiness PR | Release notes/readiness closeout only; no tag or GitHub Release. |
+| V071-008 | merged | Release notes/readiness closeout. |
+| V072-001 | this post-release wording PR | Replace pre-release candidate wording with released wording. |
 
 The included hardening scope is:
 
@@ -59,7 +60,7 @@ The included hardening scope is:
 - Current v0.7 testnet workflow identities no longer use v06 runtime-foundation
   names.
 - Roadmap is aligned to current public release `ntpro-rust-only-v0.7.0`, active
-  hardening `v0.7.1`, and next capability `v0.8.0`.
+  published hardening patch `v0.7.1`, and next capability `v0.8.0`.
 
 ## Not Included
 
@@ -95,8 +96,9 @@ Hosted validation:
 
 ```text
 PR smoke for each hardening PR: PASS.
-Rust Cutover Release Gate on the final v0.7.1 release commit: required during
-explicit release closure.
+Workflow-dispatch Rust Cutover Release Gate on the final v0.7.1 release commit:
+PASS.
+Tag-triggered Rust Cutover Release Gate on `ntpro-rust-only-v0.7.1`: PASS.
 ```
 
 ## Validation Evidence
@@ -120,7 +122,7 @@ Hardening PR smoke evidence:
 #324 PASS
 ```
 
-Final release closure must verify the exact release commit before tag creation.
+The exact release commit was verified before tag creation.
 
 ## Release Boundary
 
@@ -132,6 +134,6 @@ no orders
 no real funds
 no production trading
 no Dashboard network initiation
-no tag creation in this readiness PR
-no GitHub Release publication in this readiness PR
+formal tag = ntpro-rust-only-v0.7.1
+formal GitHub Release = NTPRO Rust-only v0.7.1
 ```
