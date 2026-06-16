@@ -48,15 +48,17 @@ use crate::{
     opt::{WorkflowCommand, WorkflowKind, WorkflowOpt, WorkflowRunMode, WorkflowRunOpt},
     workflow_contract::{
         BOUNDARY_SCHEMA_VERSION, EVENT_SCHEMA_VERSION, MANIFEST_SCHEMA_VERSION,
-        SUMMARY_SCHEMA_VERSION, TESTNET_CONFIG_SCHEMA_VERSION,
+        SUMMARY_SCHEMA_VERSION, TESTNET_AUTHENTICATED_READONLY_PROBE_ARTIFACT_PATH,
+        TESTNET_AUTHENTICATED_READONLY_PROBE_SCHEMA_VERSION, TESTNET_CONFIG_SCHEMA_VERSION,
         TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH, TESTNET_CONNECTIVITY_PROBE_SCHEMA_VERSION,
         TESTNET_CREDENTIAL_POLICY_SCHEMA_VERSION, TESTNET_HTTP_CONNECTIVITY_PROBE_ARTIFACT_PATH,
         TESTNET_HTTP_CONNECTIVITY_PROBE_SCHEMA_VERSION, TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION,
         TESTNET_RECONCILIATION_SCHEMA_VERSION, TESTNET_WEBSOCKET_PROBE_ARTIFACT_PATH,
-        TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION, TestnetConfigArtifact, TestnetConnectivityProbe,
-        TestnetCredentialPolicy, TestnetHttpConnectivityProbe, TestnetOrderLifecycle,
-        TestnetReconciliation, TestnetWebSocketConnectivityProbe, WorkflowBoundary, WorkflowEvent,
-        WorkflowManifest, WorkflowManifestArtifact, WorkflowSummary,
+        TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION, TestnetAuthenticatedReadOnlyProbe,
+        TestnetConfigArtifact, TestnetConnectivityProbe, TestnetCredentialPolicy,
+        TestnetHttpConnectivityProbe, TestnetOrderLifecycle, TestnetReconciliation,
+        TestnetWebSocketConnectivityProbe, WorkflowBoundary, WorkflowEvent, WorkflowManifest,
+        WorkflowManifestArtifact, WorkflowSummary,
     },
 };
 
@@ -216,6 +218,27 @@ fn run_binance_testnet_workflow_with_env_permission_and_http_probe<F>(
 where
     F: Fn(&TestnetWorkflowConfig) -> TestnetHttpReadOnlyProbeResult,
 {
+    run_binance_testnet_workflow_with_env_permission_and_probes(
+        opt,
+        env_network_permission,
+        http_probe,
+        execute_testnet_authenticated_read_only_probe,
+    )
+}
+
+fn run_binance_testnet_workflow_with_env_permission_and_probes<F, G>(
+    opt: WorkflowRunOpt,
+    env_network_permission: bool,
+    http_probe: F,
+    authenticated_probe: G,
+) -> anyhow::Result<WorkflowRunResult>
+where
+    F: Fn(&TestnetWorkflowConfig) -> TestnetHttpReadOnlyProbeResult,
+    G: Fn(
+        &TestnetWorkflowConfig,
+        &EnvOnlyTestnetCredentials,
+    ) -> TestnetAuthenticatedReadOnlyProbeResult,
+{
     let config_path = opt
         .config
         .as_ref()
@@ -235,21 +258,14 @@ where
         TestnetCredentialPolicy::from_config_and_credentials(&config, &env_credentials);
     let network_gate =
         TestnetNetworkGate::evaluate(&config, opt.allow_testnet_network, env_network_permission);
-    let _authenticated_read_only_request = if should_prepare_testnet_authenticated_read_only_request(
+    let http_probe_result =
+        should_attempt_testnet_http_probe(opt.mode, &network_gate).then(|| http_probe(&config));
+    let authenticated_probe_result = should_attempt_testnet_authenticated_read_only_probe(
         opt.mode,
         &network_gate,
         &env_credentials,
-    ) {
-        Some(build_testnet_authenticated_read_only_get_request(
-            &config,
-            &env_credentials,
-            current_unix_timestamp_ms()?,
-        )?)
-    } else {
-        None
-    };
-    let http_probe_result =
-        should_attempt_testnet_http_probe(opt.mode, &network_gate).then(|| http_probe(&config));
+    )
+    .then(|| authenticated_probe(&config, &env_credentials));
     let connectivity_probe = TestnetConnectivityProbe::from_config(
         &config,
         opt.mode,
@@ -274,6 +290,15 @@ where
         &network_gate,
         &credential_policy,
         None,
+    );
+    let authenticated_readonly_probe = TestnetAuthenticatedReadOnlyProbe::from_config(
+        &run_id,
+        &config,
+        opt.mode,
+        opt.allow_testnet_network,
+        &network_gate,
+        &credential_policy,
+        authenticated_probe_result.as_ref(),
     );
     let order_lifecycle = TestnetOrderLifecycle::from_config(&run_id, &config);
     let reconciliation = TestnetReconciliation::from_order_lifecycle(&run_id, &order_lifecycle);
@@ -307,6 +332,10 @@ where
             (
                 "workflow.websocket_probe.ready",
                 TESTNET_WEBSOCKET_PROBE_ARTIFACT_PATH,
+            ),
+            (
+                "workflow.authenticated_readonly_probe.ready",
+                TESTNET_AUTHENTICATED_READONLY_PROBE_ARTIFACT_PATH,
             ),
             (
                 "workflow.testnet_order_lifecycle.ready",
@@ -353,6 +382,13 @@ where
             WorkflowManifestArtifact::new(
                 relative_artifact_path(&testnet_paths.websocket_probe, &artifact_paths.output_dir),
                 TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION,
+            ),
+            WorkflowManifestArtifact::new(
+                relative_artifact_path(
+                    &testnet_paths.authenticated_readonly_probe,
+                    &artifact_paths.output_dir,
+                ),
+                TESTNET_AUTHENTICATED_READONLY_PROBE_SCHEMA_VERSION,
             ),
             WorkflowManifestArtifact::new(
                 relative_artifact_path(&testnet_paths.order_lifecycle, &artifact_paths.output_dir),
@@ -409,6 +445,12 @@ where
     write_secret_redacted_json_artifact(
         &testnet_paths.websocket_probe,
         &websocket_probe,
+        &mut written,
+        &env_credentials,
+    )?;
+    write_secret_redacted_json_artifact(
+        &testnet_paths.authenticated_readonly_probe,
+        &authenticated_readonly_probe,
         &mut written,
         &env_credentials,
     )?;
@@ -638,6 +680,7 @@ struct TestnetArtifactPaths {
     connectivity_probe: PathBuf,
     http_connectivity_probe: PathBuf,
     websocket_probe: PathBuf,
+    authenticated_readonly_probe: PathBuf,
     order_lifecycle: PathBuf,
     reconciliation: PathBuf,
 }
@@ -650,6 +693,8 @@ impl TestnetArtifactPaths {
             connectivity_probe: output_dir.join(TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH),
             http_connectivity_probe: output_dir.join(TESTNET_HTTP_CONNECTIVITY_PROBE_ARTIFACT_PATH),
             websocket_probe: output_dir.join(TESTNET_WEBSOCKET_PROBE_ARTIFACT_PATH),
+            authenticated_readonly_probe: output_dir
+                .join(TESTNET_AUTHENTICATED_READONLY_PROBE_ARTIFACT_PATH),
             order_lifecycle: output_dir.join("orders/testnet_dry_run_lifecycle.json"),
             reconciliation: output_dir.join("orders/reconciliation.json"),
         }
@@ -968,6 +1013,10 @@ struct TestnetSignedAuthenticatedGetRequestPreview {
 }
 
 impl TestnetSignedAuthenticatedGetRequest {
+    fn signed_url_for_execution(&self) -> String {
+        format!("{}?{}", self.endpoint_url_redacted, self.signed_query)
+    }
+
     fn redacted_preview(&self) -> TestnetSignedAuthenticatedGetRequestPreview {
         TestnetSignedAuthenticatedGetRequestPreview {
             endpoint_class: "binance-testnet-authenticated-read-only-account".to_string(),
@@ -1313,7 +1362,7 @@ fn should_attempt_testnet_http_probe(
     mode == WorkflowRunMode::ConnectivityProbe && network_gate.is_allowed()
 }
 
-fn should_prepare_testnet_authenticated_read_only_request(
+fn should_attempt_testnet_authenticated_read_only_probe(
     mode: WorkflowRunMode,
     network_gate: &TestnetNetworkGate,
     credentials: &EnvOnlyTestnetCredentials,
@@ -1329,6 +1378,170 @@ fn current_unix_timestamp_ms() -> anyhow::Result<u64> {
         .context("system clock is before UNIX_EPOCH")?
         .as_millis();
     u64::try_from(millis).context("current UNIX timestamp milliseconds exceeds u64")
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TestnetAuthenticatedReadOnlyProbeResult {
+    endpoint_class: String,
+    latency_ms: Option<u64>,
+    http_status: Option<u16>,
+    response_shape: String,
+    response_shape_validated: bool,
+    error_code: String,
+    network_attempted: bool,
+    testnet_connection: bool,
+    status: String,
+    diagnostic: String,
+}
+
+impl TestnetAuthenticatedReadOnlyProbeResult {
+    fn success(latency_ms: u64, http_status: u16) -> Self {
+        Self {
+            endpoint_class: "binance-testnet-authenticated-readonly-account".to_string(),
+            latency_ms: Some(latency_ms),
+            http_status: Some(http_status),
+            response_shape: "binance_account_v1".to_string(),
+            response_shape_validated: true,
+            error_code: "none".to_string(),
+            network_attempted: true,
+            testnet_connection: true,
+            status: "authenticated_readonly_probe_ok".to_string(),
+            diagnostic: format!(
+                "V080 authenticated read-only probe validated Binance testnet account response shape with HTTP {http_status}; raw account body, balances, uid, headers, signature, and signed URL were not recorded."
+            ),
+        }
+    }
+
+    fn failure(latency_ms: Option<u64>, http_status: Option<u16>, error_code: &str) -> Self {
+        let status_detail = http_status
+            .map(|status| format!(" HTTP {status}"))
+            .unwrap_or_default();
+        Self {
+            endpoint_class: "binance-testnet-authenticated-readonly-account".to_string(),
+            latency_ms,
+            http_status,
+            response_shape: "binance_account_v1".to_string(),
+            response_shape_validated: false,
+            error_code: error_code.to_string(),
+            network_attempted: true,
+            testnet_connection: false,
+            status: "authenticated_readonly_probe_failed".to_string(),
+            diagnostic: format!(
+                "V080 authenticated read-only probe attempted Binance testnet account endpoint and failed with {error_code}.{status_detail} Raw account body, balances, uid, headers, signature, and signed URL were not recorded."
+            ),
+        }
+    }
+}
+
+fn execute_testnet_authenticated_read_only_probe(
+    config: &TestnetWorkflowConfig,
+    credentials: &EnvOnlyTestnetCredentials,
+) -> TestnetAuthenticatedReadOnlyProbeResult {
+    match build_testnet_authenticated_read_only_get_request(
+        config,
+        credentials,
+        current_unix_timestamp_ms().unwrap_or(0),
+    ) {
+        Ok(request) => {
+            let url = request.signed_url_for_execution();
+            let header_name = request.api_key_header_name;
+            let header_value = request.api_key_header_value;
+            std::thread::spawn(move || {
+                execute_testnet_authenticated_read_only_probe_on_thread(
+                    &url,
+                    &header_name,
+                    &header_value,
+                )
+            })
+            .join()
+            .unwrap_or_else(|_| {
+                TestnetAuthenticatedReadOnlyProbeResult::failure(
+                    None,
+                    None,
+                    "authenticated_probe_thread_panicked",
+                )
+            })
+        }
+        Err(_) => TestnetAuthenticatedReadOnlyProbeResult::failure(
+            None,
+            None,
+            "signed_request_builder_failed",
+        ),
+    }
+}
+
+fn execute_testnet_authenticated_read_only_probe_on_thread(
+    signed_url: &str,
+    api_key_header_name: &str,
+    api_key_header_value: &str,
+) -> TestnetAuthenticatedReadOnlyProbeResult {
+    let started = Instant::now();
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(TESTNET_HTTP_PROBE_TIMEOUT)
+        .user_agent("NTPRO-v080-authenticated-readonly-probe")
+        .build()
+    {
+        Ok(client) => client,
+        Err(_) => {
+            return TestnetAuthenticatedReadOnlyProbeResult::failure(
+                None,
+                None,
+                "http_client_build_failed",
+            );
+        }
+    };
+
+    match client
+        .get(signed_url)
+        .header(api_key_header_name, api_key_header_value)
+        .send()
+    {
+        Ok(response) => {
+            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            let status = response.status().as_u16();
+            if response.status().is_success() {
+                match response.json::<serde_json::Value>() {
+                    Ok(body) if validates_binance_account_response_shape(&body) => {
+                        TestnetAuthenticatedReadOnlyProbeResult::success(latency_ms, status)
+                    }
+                    Ok(_) | Err(_) => TestnetAuthenticatedReadOnlyProbeResult::failure(
+                        Some(latency_ms),
+                        Some(status),
+                        "response_shape_invalid",
+                    ),
+                }
+            } else {
+                TestnetAuthenticatedReadOnlyProbeResult::failure(
+                    Some(latency_ms),
+                    Some(status),
+                    "http_status_not_success",
+                )
+            }
+        }
+        Err(error) => {
+            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            TestnetAuthenticatedReadOnlyProbeResult::failure(
+                Some(latency_ms),
+                error.status().map(|status| status.as_u16()),
+                classify_http_probe_error(&error),
+            )
+        }
+    }
+}
+
+fn validates_binance_account_response_shape(body: &serde_json::Value) -> bool {
+    let Some(object) = body.as_object() else {
+        return false;
+    };
+    object
+        .get("accountType")
+        .is_some_and(serde_json::Value::is_string)
+        && object
+            .get("balances")
+            .is_some_and(serde_json::Value::is_array)
+        && object
+            .get("canTrade")
+            .is_some_and(serde_json::Value::is_boolean)
 }
 
 fn testnet_http_read_only_probe_url(config: &TestnetWorkflowConfig) -> String {
@@ -1604,11 +1817,137 @@ impl TestnetWebSocketConnectivityProbe {
     }
 }
 
+impl TestnetAuthenticatedReadOnlyProbe {
+    fn from_config(
+        run_id: &str,
+        config: &TestnetWorkflowConfig,
+        mode: WorkflowRunMode,
+        allow_testnet_network: bool,
+        network_gate: &TestnetNetworkGate,
+        credential_policy: &TestnetCredentialPolicy,
+        authenticated_probe_result: Option<&TestnetAuthenticatedReadOnlyProbeResult>,
+    ) -> Self {
+        let (status, error_code, diagnostic) = authenticated_probe_result.map_or_else(
+            || {
+                authenticated_readonly_probe_not_attempted_result(
+                    mode,
+                    network_gate,
+                    credential_policy,
+                )
+            },
+            |result| {
+                (
+                    result.status.clone(),
+                    result.error_code.clone(),
+                    result.diagnostic.clone(),
+                )
+            },
+        );
+        let network_attempted =
+            authenticated_probe_result.is_some_and(|result| result.network_attempted);
+        let testnet_connection =
+            authenticated_probe_result.is_some_and(|result| result.testnet_connection);
+        let response_shape_validated =
+            authenticated_probe_result.is_some_and(|result| result.response_shape_validated);
+
+        Self {
+            schema_version: TESTNET_AUTHENTICATED_READONLY_PROBE_SCHEMA_VERSION.to_string(),
+            run_id: run_id.to_string(),
+            environment: config.venue.environment.clone(),
+            product: config.venue.product.clone(),
+            endpoint_kind: "authenticated_http_read_only".to_string(),
+            endpoint_class: authenticated_probe_result.map_or_else(
+                || "binance-testnet-authenticated-readonly-account".to_string(),
+                |result| result.endpoint_class.clone(),
+            ),
+            endpoint_url_redacted: format!(
+                "{}{}",
+                config.connectivity.http_base_url.trim_end_matches('/'),
+                TESTNET_AUTHENTICATED_READ_ONLY_ENDPOINT,
+            ),
+            network_gate_status: network_gate.status.clone(),
+            network_gate_reasons: network_gate.reasons.clone(),
+            network_permission_requested: allow_testnet_network,
+            env_network_permission: network_gate.env_network_permission,
+            network_attempted,
+            testnet_connection,
+            credential_policy: credential_policy.policy.clone(),
+            api_key_present: credential_policy.api_key_present,
+            api_secret_present: credential_policy.api_secret_present,
+            request_method: "GET".to_string(),
+            request_target: TESTNET_AUTHENTICATED_READ_ONLY_ENDPOINT.to_string(),
+            query_shape: "timestamp=<ms>&recvWindow=<ms>&signature=<redacted>".to_string(),
+            api_key_header_name: BINANCE_API_KEY_HEADER.to_string(),
+            api_key_header_value_recorded: false,
+            signature_recorded: false,
+            signed_query_recorded: false,
+            signed_url_recorded: false,
+            raw_response_recorded: false,
+            balances_recorded: false,
+            uid_recorded: false,
+            account_mutation: false,
+            order_submission: config.execution.order_submission.clone(),
+            real_orders_submitted: false,
+            production_venue_connection: false,
+            real_funds: false,
+            production_trading: false,
+            response_status_code: authenticated_probe_result.and_then(|result| result.http_status),
+            response_shape: authenticated_probe_result.map_or_else(
+                || "binance_account_v1".to_string(),
+                |result| result.response_shape.clone(),
+            ),
+            response_shape_validated,
+            latency_ms: authenticated_probe_result.and_then(|result| result.latency_ms),
+            error_code,
+            status,
+            diagnostic,
+            generated_at: workflow_generated_at(),
+        }
+    }
+}
+
 fn workflow_generated_at() -> String {
     SystemTime::now().duration_since(UNIX_EPOCH).map_or_else(
         |_| "unix:0".to_string(),
         |duration| format!("unix:{}", duration.as_secs()),
     )
+}
+
+fn authenticated_readonly_probe_not_attempted_result(
+    mode: WorkflowRunMode,
+    network_gate: &TestnetNetworkGate,
+    credential_policy: &TestnetCredentialPolicy,
+) -> (String, String, String) {
+    if network_gate.status == "blocked" {
+        return (
+            "authenticated_readonly_probe_deferred".to_string(),
+            "network_gate_blocked".to_string(),
+            format!(
+                "V080 authenticated read-only probe skipped before signed request execution: {}. No raw account body, balances, uid, header value, signature, signed URL, or order API is recorded.",
+                network_gate.reasons.join("; ")
+            ),
+        );
+    }
+    if credential_policy.authenticated_read_only_probe_fail_closed {
+        return (
+            "authenticated_readonly_probe_blocked_missing_credentials".to_string(),
+            "missing_credentials".to_string(),
+            "V080 authenticated read-only probe fail-closed because env-only API key or secret is missing. No signed request is sent and no raw account body, balances, uid, header value, signature, signed URL, or order API is recorded.".to_string(),
+        );
+    }
+
+    match mode {
+        WorkflowRunMode::ConnectivityProbe => (
+            "authenticated_readonly_probe_manual_not_run".to_string(),
+            "manual_authenticated_probe_not_enabled".to_string(),
+            "V080 authenticated read-only probe is manual-online-only and was not executed by this run. No raw account body, balances, uid, header value, signature, signed URL, or order API is recorded.".to_string(),
+        ),
+        WorkflowRunMode::DryRun => (
+            "authenticated_readonly_probe_not_requested".to_string(),
+            "not_requested".to_string(),
+            "V080 authenticated read-only probe is not requested for dry-run mode. No signed request is sent and no raw account body, balances, uid, header value, signature, signed URL, or order API is recorded.".to_string(),
+        ),
+    }
 }
 
 fn websocket_probe_not_attempted_result(
@@ -2207,7 +2546,7 @@ real_orders_submitted = false
         assert_eq!(result.requested_mode, "dry-run");
         assert!(!result.network_permission_requested);
         assert!(!result.network_attempted);
-        assert_eq!(result.artifact_paths.len(), 11);
+        assert_eq!(result.artifact_paths.len(), 12);
         assert_eq!(result.artifact_paths.last(), Some(&result.manifest_path));
         assert!(!result.testnet_connection);
         assert!(!result.external_venue_connection);
@@ -2220,7 +2559,7 @@ real_orders_submitted = false
             serde_json::from_str(&fs::read_to_string(&result.manifest_path).unwrap()).unwrap();
         assert_eq!(manifest.workflow, "binance-testnet");
         assert_eq!(manifest.runtime_status, "dry_run_completed");
-        assert_eq!(manifest.artifact_count, 11);
+        assert_eq!(manifest.artifact_count, 12);
         assert_eq!(manifest.summary.requested_mode, "dry-run");
         assert!(!manifest.summary.network_permission_requested);
         assert_eq!(
@@ -2243,7 +2582,7 @@ real_orders_submitted = false
             .map(serde_json::from_str::<WorkflowEvent>)
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
-        assert_eq!(parsed.len(), 9);
+        assert_eq!(parsed.len(), 10);
         assert_eq!(
             parsed.first().map(|event| event.event_type.as_str()),
             Some("workflow.testnet_config.ready")
@@ -2290,6 +2629,10 @@ real_orders_submitted = false
         let websocket_probe: TestnetWebSocketConnectivityProbe =
             serde_json::from_str(&fs::read_to_string(&testnet_paths.websocket_probe).unwrap())
                 .unwrap();
+        let authenticated_probe: TestnetAuthenticatedReadOnlyProbe = serde_json::from_str(
+            &fs::read_to_string(&testnet_paths.authenticated_readonly_probe).unwrap(),
+        )
+        .unwrap();
         let order_lifecycle: TestnetOrderLifecycle =
             serde_json::from_str(&fs::read_to_string(&testnet_paths.order_lifecycle).unwrap())
                 .unwrap();
@@ -2372,6 +2715,34 @@ real_orders_submitted = false
             websocket_probe.schema_version,
             TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION
         );
+        assert_eq!(
+            authenticated_probe.schema_version,
+            TESTNET_AUTHENTICATED_READONLY_PROBE_SCHEMA_VERSION
+        );
+        assert_eq!(
+            authenticated_probe.endpoint_kind,
+            "authenticated_http_read_only"
+        );
+        assert_eq!(
+            authenticated_probe.status,
+            "authenticated_readonly_probe_deferred"
+        );
+        assert_eq!(authenticated_probe.error_code, "network_gate_blocked");
+        assert!(!authenticated_probe.network_attempted);
+        assert!(!authenticated_probe.testnet_connection);
+        assert!(!authenticated_probe.response_shape_validated);
+        assert!(!authenticated_probe.raw_response_recorded);
+        assert!(!authenticated_probe.balances_recorded);
+        assert!(!authenticated_probe.uid_recorded);
+        assert!(!authenticated_probe.api_key_header_value_recorded);
+        assert!(!authenticated_probe.signature_recorded);
+        assert!(!authenticated_probe.signed_query_recorded);
+        assert!(!authenticated_probe.signed_url_recorded);
+        assert!(!authenticated_probe.account_mutation);
+        assert!(!authenticated_probe.real_orders_submitted);
+        assert!(!authenticated_probe.production_venue_connection);
+        assert!(!authenticated_probe.real_funds);
+        assert!(!authenticated_probe.production_trading);
         assert_eq!(websocket_probe.endpoint_kind, "websocket_read_only");
         assert_eq!(websocket_probe.websocket_probe_gate, "manual-online-only");
         assert!(!websocket_probe.websocket_attempted);
@@ -2391,7 +2762,7 @@ real_orders_submitted = false
             reconciliation.schema_version,
             TESTNET_RECONCILIATION_SCHEMA_VERSION
         );
-        assert_eq!(events.len(), 9);
+        assert_eq!(events.len(), 10);
         assert!(events.iter().all(|event| event.run_id == summary.run_id));
         assert!(!connectivity_probe.network_attempted);
         assert!(!order_lifecycle.real_orders_submitted);
@@ -2487,6 +2858,134 @@ real_orders_submitted = false
             assert!(probe.generated_at.starts_with("unix:"));
             assert!(probe.diagnostic.contains(error_code));
         }
+    }
+
+    #[test]
+    fn binance_testnet_authenticated_readonly_probe_records_success_without_sensitive_body() {
+        let config = parsed_testnet_config();
+        let policy = TestnetCredentialPolicy::from_config_with_presence(&config, true, true);
+        let gate = TestnetNetworkGate::evaluate(&config, true, true);
+        let result = TestnetAuthenticatedReadOnlyProbeResult::success(55, 200);
+        let probe = TestnetAuthenticatedReadOnlyProbe::from_config(
+            "authenticated-success-run",
+            &config,
+            WorkflowRunMode::ConnectivityProbe,
+            true,
+            &gate,
+            &policy,
+            Some(&result),
+        );
+        let body = serde_json::to_string(&probe).unwrap();
+
+        assert_eq!(
+            probe.schema_version,
+            TESTNET_AUTHENTICATED_READONLY_PROBE_SCHEMA_VERSION
+        );
+        assert_eq!(probe.run_id, "authenticated-success-run");
+        assert_eq!(probe.endpoint_kind, "authenticated_http_read_only");
+        assert_eq!(
+            probe.endpoint_class,
+            "binance-testnet-authenticated-readonly-account"
+        );
+        assert_eq!(
+            probe.endpoint_url_redacted,
+            "https://testnet.binance.vision/api/v3/account"
+        );
+        assert_eq!(probe.network_gate_status, "allowed");
+        assert!(probe.network_permission_requested);
+        assert!(probe.env_network_permission);
+        assert!(probe.network_attempted);
+        assert!(probe.testnet_connection);
+        assert!(probe.api_key_present);
+        assert!(probe.api_secret_present);
+        assert_eq!(probe.request_method, "GET");
+        assert_eq!(probe.request_target, "/api/v3/account");
+        assert_eq!(
+            probe.query_shape,
+            "timestamp=<ms>&recvWindow=<ms>&signature=<redacted>"
+        );
+        assert_eq!(probe.api_key_header_name, BINANCE_API_KEY_HEADER);
+        assert!(!probe.api_key_header_value_recorded);
+        assert!(!probe.signature_recorded);
+        assert!(!probe.signed_query_recorded);
+        assert!(!probe.signed_url_recorded);
+        assert!(!probe.raw_response_recorded);
+        assert!(!probe.balances_recorded);
+        assert!(!probe.uid_recorded);
+        assert!(!probe.account_mutation);
+        assert_eq!(probe.order_submission, "disabled");
+        assert!(!probe.real_orders_submitted);
+        assert!(!probe.production_venue_connection);
+        assert!(!probe.real_funds);
+        assert!(!probe.production_trading);
+        assert_eq!(probe.response_status_code, Some(200));
+        assert_eq!(probe.response_shape, "binance_account_v1");
+        assert!(probe.response_shape_validated);
+        assert_eq!(probe.latency_ms, Some(55));
+        assert_eq!(probe.error_code, "none");
+        assert_eq!(probe.status, "authenticated_readonly_probe_ok");
+        assert!(!body.contains("balances\":["));
+        assert!(!body.contains("\"uid\""));
+        assert!(body.contains("signature=<redacted>"));
+        assert!(!body.contains("X-MBX-APIKEY:"));
+    }
+
+    #[test]
+    fn binance_testnet_authenticated_readonly_probe_records_failure_without_raw_body() {
+        let config = parsed_testnet_config();
+        let policy = TestnetCredentialPolicy::from_config_with_presence(&config, true, true);
+        let gate = TestnetNetworkGate::evaluate(&config, true, true);
+        let result = TestnetAuthenticatedReadOnlyProbeResult::failure(
+            Some(9),
+            Some(401),
+            "http_status_not_success",
+        );
+        let probe = TestnetAuthenticatedReadOnlyProbe::from_config(
+            "authenticated-failure-run",
+            &config,
+            WorkflowRunMode::ConnectivityProbe,
+            true,
+            &gate,
+            &policy,
+            Some(&result),
+        );
+
+        assert_eq!(probe.status, "authenticated_readonly_probe_failed");
+        assert_eq!(probe.error_code, "http_status_not_success");
+        assert!(probe.network_attempted);
+        assert!(!probe.testnet_connection);
+        assert_eq!(probe.response_status_code, Some(401));
+        assert!(!probe.response_shape_validated);
+        assert!(!probe.raw_response_recorded);
+        assert!(!probe.balances_recorded);
+        assert!(!probe.uid_recorded);
+        assert!(!probe.account_mutation);
+        assert!(!probe.real_orders_submitted);
+    }
+
+    #[test]
+    fn binance_testnet_account_response_shape_requires_account_fields_without_recording_details() {
+        let valid = serde_json::json!({
+            "accountType": "SPOT",
+            "canTrade": true,
+            "balances": [
+                {"asset": "BTC", "free": "0.00000000", "locked": "0.00000000"}
+            ],
+            "uid": 123456
+        });
+        let missing_balances = serde_json::json!({
+            "accountType": "SPOT",
+            "canTrade": true
+        });
+        let wrong_type = serde_json::json!({
+            "accountType": "SPOT",
+            "canTrade": "yes",
+            "balances": []
+        });
+
+        assert!(validates_binance_account_response_shape(&valid));
+        assert!(!validates_binance_account_response_shape(&missing_balances));
+        assert!(!validates_binance_account_response_shape(&wrong_type));
     }
 
     #[test]
