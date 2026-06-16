@@ -13,7 +13,7 @@ dev = [
   "types-toml>=0.10.2,<1.0.0",
 ]
 test = [
-  "aiohttp==3.14.0,<4.0.0", # Pinned to 3.14.0 for OSV GHSA-hg6j-4rv6-33pg / GHSA-jg22-mg44-37j8 fixes
+  "aiohttp==3.14.1,<4.0.0", # Pinned to 3.14.1 for OSV remediation
   "coverage>=7.14.0,<8.0.0",
   "pytest>=7.4.4,<8.0.0", # Intentionally held at 7.x
   "pytest-aiohttp>=1.1.0,<2.0.0",
