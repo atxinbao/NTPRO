@@ -88,19 +88,20 @@ If an endpoint is not explicitly allowlisted, it is denied.
 
 ## Secret Handling Contract
 
-Credentials are env-only:
+Credentials are env-only and use the names from
+`examples/rust/binance/testnet_dry_run.toml`:
 
 ```text
-NTPRO_BINANCE_TESTNET_API_KEY
-NTPRO_BINANCE_TESTNET_API_SECRET
+BINANCE_TESTNET_API_KEY
+BINANCE_TESTNET_API_SECRET
 ```
 
 Allowed secret-related artifact fields:
 
 ```text
-credential_source = env
-api_key_env_var = NTPRO_BINANCE_TESTNET_API_KEY
-api_secret_env_var = NTPRO_BINANCE_TESTNET_API_SECRET
+credential_source = environment_variables_only
+api_key_env = BINANCE_TESTNET_API_KEY
+api_secret_env = BINANCE_TESTNET_API_SECRET
 api_key_present = true/false
 api_secret_present = true/false
 secrets_redacted = true
@@ -126,31 +127,60 @@ The authenticated read-only probe artifact may record only bounded metadata:
 
 ```json
 {
-  "schema_version": "v0.8-auth-readonly-probe.v1",
+  "schema_version": "ntpro.v08_binance_testnet_authenticated_readonly_probe.v1",
+  "run_id": "v080-auth-readonly",
   "environment": "testnet",
-  "mode": "authenticated-read-only",
-  "manual_online": true,
-  "network_allowed": true,
-  "endpoint_allowlisted": true,
-  "endpoint_method": "GET",
-  "endpoint_path": "/api/v3/account",
-  "endpoint_class": "binance-testnet-authenticated-account-readonly",
+  "product": "spot",
+  "endpoint_kind": "authenticated_http_read_only",
+  "endpoint_class": "binance-testnet-authenticated-readonly-account",
   "endpoint_url_redacted": "https://testnet.binance.vision/api/v3/account",
-  "http_status_class": "2xx|4xx|5xx|network_error",
-  "latency_ms": 0,
-  "credential_source": "env",
-  "api_key_env_var": "NTPRO_BINANCE_TESTNET_API_KEY",
-  "api_secret_env_var": "NTPRO_BINANCE_TESTNET_API_SECRET",
-  "api_key_present": false,
-  "api_secret_present": false,
-  "secrets_redacted": true,
-  "values_recorded": false,
+  "network_gate_status": "allowed|blocked",
+  "network_gate_reasons": [],
+  "network_permission_requested": true,
+  "env_network_permission": true,
+  "network_attempted": true,
+  "testnet_connection": true,
+  "credential_policy": "env-var-only-no-secret-persistence",
+  "api_key_present": true,
+  "api_secret_present": true,
+  "request_method": "GET",
+  "request_target": "/api/v3/account",
+  "query_shape": "timestamp=<ms>&recvWindow=<ms>&signature=<redacted>",
+  "api_key_header_name": "X-MBX-APIKEY",
+  "api_key_header_value_recorded": false,
+  "signature_recorded": false,
+  "signed_query_recorded": false,
+  "signed_url_recorded": false,
   "raw_response_recorded": false,
-  "orders_submitted": false,
-  "account_mutation_attempted": false,
-  "production_endpoint_used": false
+  "balances_recorded": false,
+  "uid_recorded": false,
+  "account_mutation": false,
+  "order_submission": "disabled",
+  "real_orders_submitted": false,
+  "production_venue_connection": false,
+  "real_funds": false,
+  "production_trading": false,
+  "response_status_code": 200,
+  "response_shape": "binance_account_v1",
+  "response_shape_validated": true,
+  "latency_ms": 0,
+  "error_code": "none",
+  "status": "authenticated_readonly_probe_ok",
+  "diagnostic": "redacted status classification only",
+  "generated_at": "unix:<seconds>"
 }
 ```
+
+Offline/default and fail-closed artifacts use the same schema but record
+`network_attempted=false`, `testnet_connection=false`, and
+`response_shape_validated=false`.
+
+Deprecated planning-only aliases such as `network_allowed`,
+`account_mutation_attempted`, `production_endpoint_used`, or
+`orders_submitted` must not be introduced into the shipped artifact. The
+canonical shipped fields are `network_permission_requested`,
+`account_mutation`, `production_venue_connection`, and
+`real_orders_submitted`.
 
 The artifact must not include account balances, account identifiers, asset
 symbols, raw response payloads, signatures, credential values, or raw headers.
