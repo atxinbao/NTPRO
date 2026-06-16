@@ -39,6 +39,7 @@ jobs:
             echo "release_verify=false" >> "$GITHUB_OUTPUT"
             echo "v06_smoke=false" >> "$GITHUB_OUTPUT"
             echo "v07_smoke=false" >> "$GITHUB_OUTPUT"
+            echo "v08_smoke=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if grep -E '^(crates/cli/src/(workflow|dashboard|opt)\.rs|examples/rust/binance/testnet_dry_run\.toml|scripts/ai/verify_v06_binance_testnet_dry_run\.sh|docs/rust-cutover/product/V06_BINANCE_TESTNET_DRY_RUN_USER_GUIDE\.md)$' /tmp/changed-files.txt >/dev/null; then
@@ -53,14 +54,20 @@ jobs:
           else
             echo "v07_smoke=false" >> "$GITHUB_OUTPUT"
           fi
-          if grep -Ev '^(README\.md|CHANGELOG.*|MIGRATION.*|docs/|release/|\.agentflow/|\.github/(ISSUE_TEMPLATE/|pull_request_template\.md|workflows/(release-tag|rust-cutover-smoke)\.yml)|scripts/ai/(verify_full|verify_release|v03_dashboard_smoke|verify_v05_workflow_artifacts|verify_v06_binance_testnet_dry_run|verify_v07_default_offline_gate|verify_v07_manual_online_gate)\.sh|\.gitignore$)' /tmp/changed-files.txt >/tmp/heavy-files.txt; then
+          if grep -E '^(crates/cli/src/(workflow|workflow_contract|dashboard|opt)\.rs|examples/rust/binance/testnet_dry_run\.toml|scripts/ai/(scan_v08_synthetic_secret_leaks|verify_v08_default_offline_gate)\.sh|docs/rust-cutover/release/v0_8_0_authenticated_readonly_boundary\.md)$' /tmp/changed-files.txt >/dev/null; then
+            echo "v08_smoke=true" >> "$GITHUB_OUTPUT"
+            echo "v0.8 Binance testnet synthetic secret leak gate required by changed files"
+          else
+            echo "v08_smoke=false" >> "$GITHUB_OUTPUT"
+          fi
+          if grep -Ev '^(README\.md|CHANGELOG.*|MIGRATION.*|docs/|release/|\.agentflow/|\.github/(ISSUE_TEMPLATE/|pull_request_template\.md|workflows/(release-tag|rust-cutover-smoke)\.yml)|scripts/ai/(verify_full|verify_release|v03_dashboard_smoke|verify_v05_workflow_artifacts|verify_v06_binance_testnet_dry_run|verify_v07_default_offline_gate|verify_v07_manual_online_gate|scan_v08_synthetic_secret_leaks|verify_v08_default_offline_gate)\.sh|\.gitignore$)' /tmp/changed-files.txt >/tmp/heavy-files.txt; then
             echo "heavy_rust=true" >> "$GITHUB_OUTPUT"
             echo "release_verify=false" >> "$GITHUB_OUTPUT"
             echo "heavy Rust checks required by:"
             cat /tmp/heavy-files.txt
           else
             echo "heavy_rust=false" >> "$GITHUB_OUTPUT"
-            if grep -E '^(\.github/workflows/(release-tag|rust-cutover-smoke)\.yml|scripts/ai/(verify_full|verify_release|v03_dashboard_smoke|verify_v05_workflow_artifacts|verify_v06_binance_testnet_dry_run|verify_v07_default_offline_gate|verify_v07_manual_online_gate)\.sh|docs/rust-cutover/evidence/GH-RELEASE-)' /tmp/changed-files.txt >/dev/null; then
+            if grep -E '^(\.github/workflows/(release-tag|rust-cutover-smoke)\.yml|scripts/ai/(verify_full|verify_release|v03_dashboard_smoke|verify_v05_workflow_artifacts|verify_v06_binance_testnet_dry_run|verify_v07_default_offline_gate|verify_v07_manual_online_gate|scan_v08_synthetic_secret_leaks|verify_v08_default_offline_gate)\.sh|docs/rust-cutover/evidence/GH-RELEASE-)' /tmp/changed-files.txt >/dev/null; then
               echo "release_verify=true" >> "$GITHUB_OUTPUT"
               echo "heavy Rust checks skipped for release verification script/workflow change set"
             else
@@ -85,7 +92,7 @@ jobs:
       - name: Release verification script checks
         if: steps.changes.outputs.release_verify == 'true'
         run: |
-          bash -n scripts/ai/verify_full.sh scripts/ai/verify_release.sh scripts/ai/v03_dashboard_smoke.sh scripts/ai/verify_v05_workflow_artifacts.sh scripts/ai/verify_v06_binance_testnet_dry_run.sh scripts/ai/verify_v07_default_offline_gate.sh scripts/ai/verify_v07_manual_online_gate.sh
+          bash -n scripts/ai/verify_full.sh scripts/ai/verify_release.sh scripts/ai/v03_dashboard_smoke.sh scripts/ai/verify_v05_workflow_artifacts.sh scripts/ai/verify_v06_binance_testnet_dry_run.sh scripts/ai/verify_v07_default_offline_gate.sh scripts/ai/verify_v07_manual_online_gate.sh scripts/ai/scan_v08_synthetic_secret_leaks.sh scripts/ai/verify_v08_default_offline_gate.sh
           ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); puts "release-tag yaml ok"'
       - name: CLI unit tests
         if: steps.changes.outputs.heavy_rust == 'true'
@@ -99,6 +106,9 @@ jobs:
       - name: v07-manual-online-preflight
         if: steps.changes.outputs.v07_smoke == 'true'
         run: scripts/ai/verify_v07_manual_online_gate.sh
+      - name: v08-default-offline-gate
+        if: steps.changes.outputs.v08_smoke == 'true'
+        run: scripts/ai/verify_v08_default_offline_gate.sh
       - name: Golden trace schema smoke
         run: python scripts/ai/golden_trace_runner.py tests/golden/schema_smoke.jsonl --mode validate-only
       - name: Rust-only runtime gate
