@@ -182,6 +182,14 @@ run_v08_default_offline_gate() {
     scripts/ai/verify_v08_default_offline_gate.sh
 }
 
+run_v08_authenticated_readonly_preflight() {
+  echo "== verify_release: v0.8 authenticated read-only preflight =="
+  ensure_release_cli_binaries
+  NTPRO_V08_SKIP_BUILD=1 \
+    NTPRO_V08_NAUTILUS_BIN="$NAUTILUS_RELEASE_BIN" \
+    scripts/ai/verify_v08_authenticated_readonly_gate.sh
+}
+
 run_stage() {
   local stage="$1"
   case "$stage" in
@@ -197,6 +205,7 @@ run_stage() {
       run_v07_default_offline_gate
       run_v07_manual_online_preflight
       run_v08_default_offline_gate
+      run_v08_authenticated_readonly_preflight
       ;;
     full)
       run_full_checks
@@ -231,9 +240,12 @@ run_stage() {
     v08-default-offline-gate)
       run_v08_default_offline_gate
       ;;
+    v08-authenticated-readonly-preflight)
+      run_v08_authenticated_readonly_preflight
+      ;;
     *)
       echo "unknown verify_release stage: $stage" >&2
-      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate" >&2
+      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate, v08-authenticated-readonly-preflight" >&2
       exit 2
       ;;
   esac
