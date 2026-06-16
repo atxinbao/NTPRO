@@ -80,6 +80,10 @@ jobs:
             command: scripts/ai/verify_release.sh v07-default-offline-gate
           - stage: release-v07-manual-online-preflight
             command: scripts/ai/verify_release.sh v07-manual-online-preflight
+          - stage: release-v08-default-offline-gate
+            command: scripts/ai/verify_release.sh v08-default-offline-gate
+          - stage: release-v08-authenticated-readonly-preflight
+            command: scripts/ai/verify_release.sh v08-authenticated-readonly-preflight
     env:
       CARGO_BUILD_JOBS: "1"
       CARGO_INCREMENTAL: "0"
