@@ -49,6 +49,7 @@ use crate::{
         SupervisorNodeRecord, SupervisorProcessState, SupervisorRegistry, SupervisorRegistryStore,
     },
     workflow_contract::{
+        TESTNET_AUTHENTICATED_READONLY_PROBE_ARTIFACT_PATH,
         TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH, TESTNET_HTTP_CONNECTIVITY_PROBE_ARTIFACT_PATH,
         TESTNET_WEBSOCKET_PROBE_ARTIFACT_PATH, WorkflowManifest, WorkflowManifestArtifact,
     },
@@ -718,8 +719,8 @@ function renderWorkflowArtifacts(workflows) {
             <td data-label="状态"><span class="status-${safe(workflow.health)}">${displayText(workflow.runtime_status)}</span></td>
             <td data-label="Manifest" class="path">${text(workflow.manifest_path)}</td>
             <td data-label="Artifact">${displayText(workflow.artifact_count)} 个<div class="muted">${displayText(workflow.schema_version)}</div></td>
-            <td data-label="边界">${panelRow("沙盒", workflow.sandbox_only)}${panelRow("Testnet 只读", workflow.testnet_public_network_connection ?? workflow.testnet_connection)}${panelRow("网络许可", workflow.network_permission_requested)}${panelRow("网络尝试", workflow.external_network_attempted ?? workflow.network_attempted)}${panelRow("生产连接", workflow.production_venue_connection ?? workflow.external_venue_connection)}${panelRow("真实资金", workflow.real_funds)}${panelRow("生产交易", workflow.production_trading)}${panelRow("真实订单", workflow.real_orders_submitted)}</td>
-            <td data-label="探测">${text(snapshotValue(workflow.probe_status))}<div class="muted">${text(snapshotValue(workflow.probe_endpoint_class))}</div><div class="muted">latency=${text(snapshotValue(workflow.probe_latency_ms))} error=${text(snapshotValue(workflow.probe_error_code))}</div><div class="muted">ws=${text(snapshotValue(workflow.websocket_probe_status))} / ${text(snapshotValue(workflow.websocket_error_code))}</div><div class="muted">${panelRow("WS尝试", workflow.websocket_attempted)}${panelRow("WS订阅", workflow.websocket_subscription_attempted)}${panelRow("密钥记录", snapshotValue(workflow.values_recorded))}${panelRow("密钥脱敏", snapshotValue(workflow.secrets_redacted))}</div></td>
+            <td data-label="边界">${panelRow("沙盒", workflow.sandbox_only)}${panelRow("Testnet 只读", workflow.testnet_public_network_connection ?? workflow.testnet_connection)}${panelRow("网络许可", workflow.network_permission_requested)}${panelRow("网络尝试", workflow.external_network_attempted ?? workflow.network_attempted)}${panelRow("生产连接", workflow.production_venue_connection ?? workflow.external_venue_connection)}${panelRow("账户变更", snapshotValue(workflow.authenticated_account_mutation))}${panelRow("真实资金", workflow.real_funds)}${panelRow("生产交易", workflow.production_trading)}${panelRow("真实订单", workflow.real_orders_submitted)}</td>
+            <td data-label="探测">${text(snapshotValue(workflow.probe_status))}<div class="muted">${text(snapshotValue(workflow.probe_endpoint_class))}</div><div class="muted">latency=${text(snapshotValue(workflow.probe_latency_ms))} error=${text(snapshotValue(workflow.probe_error_code))}</div><div class="muted">auth=${text(snapshotValue(workflow.authenticated_probe_status))} ${text(snapshotValue(workflow.authenticated_request_method))} ${text(snapshotValue(workflow.authenticated_endpoint_kind))}</div><div class="muted">shape=${text(snapshotValue(workflow.authenticated_response_shape))} validated=${text(snapshotValue(workflow.authenticated_response_shape_validated))}</div><div class="muted">ws=${text(snapshotValue(workflow.websocket_probe_status))} / ${text(snapshotValue(workflow.websocket_error_code))}</div><div class="muted">${panelRow("WS尝试", workflow.websocket_attempted)}${panelRow("WS订阅", workflow.websocket_subscription_attempted)}${panelRow("Key存在", snapshotValue(workflow.authenticated_api_key_present))}${panelRow("Secret存在", snapshotValue(workflow.authenticated_api_secret_present))}${panelRow("密钥记录", snapshotValue(workflow.values_recorded))}${panelRow("密钥脱敏", snapshotValue(workflow.authenticated_secrets_redacted))}</div></td>
             <td data-label="证据">${text(snapshotValue(workflow.market_fixture_id))}<div class="muted">${text(snapshotValue(workflow.risk_smoke_id))}</div><div class="muted">${text(snapshotValue(workflow.credential_policy))}</div><div class="muted">${text(snapshotValue(workflow.connectivity_mode))} / ${text(snapshotValue(workflow.order_submission_mode))}</div></td>
           </tr>
         `).join("")}
@@ -2162,6 +2163,17 @@ pub struct WorkflowArtifactStatus {
     pub probe_error_code: DashboardValue<String>,
     pub values_recorded: DashboardValue<bool>,
     pub secrets_redacted: DashboardValue<bool>,
+    pub authenticated_probe_status: DashboardValue<String>,
+    pub authenticated_endpoint_kind: DashboardValue<String>,
+    pub authenticated_request_method: DashboardValue<String>,
+    pub authenticated_response_shape: DashboardValue<String>,
+    pub authenticated_response_shape_validated: DashboardValue<bool>,
+    pub authenticated_api_key_present: DashboardValue<bool>,
+    pub authenticated_api_secret_present: DashboardValue<bool>,
+    pub authenticated_secrets_redacted: DashboardValue<bool>,
+    pub authenticated_account_mutation: DashboardValue<bool>,
+    pub authenticated_real_orders_submitted: DashboardValue<bool>,
+    pub authenticated_production_venue_connection: DashboardValue<bool>,
     pub websocket_probe_status: DashboardValue<String>,
     pub websocket_error_code: DashboardValue<String>,
     pub websocket_attempted: bool,
@@ -2208,6 +2220,17 @@ impl WorkflowArtifactStatus {
             probe_error_code: DashboardValue::unknown(),
             values_recorded: DashboardValue::unknown(),
             secrets_redacted: DashboardValue::unknown(),
+            authenticated_probe_status: DashboardValue::unknown(),
+            authenticated_endpoint_kind: DashboardValue::unknown(),
+            authenticated_request_method: DashboardValue::unknown(),
+            authenticated_response_shape: DashboardValue::unknown(),
+            authenticated_response_shape_validated: DashboardValue::unknown(),
+            authenticated_api_key_present: DashboardValue::unknown(),
+            authenticated_api_secret_present: DashboardValue::unknown(),
+            authenticated_secrets_redacted: DashboardValue::unknown(),
+            authenticated_account_mutation: DashboardValue::unknown(),
+            authenticated_real_orders_submitted: DashboardValue::unknown(),
+            authenticated_production_venue_connection: DashboardValue::unknown(),
             websocket_probe_status: DashboardValue::unknown(),
             websocket_error_code: DashboardValue::unknown(),
             websocket_attempted: false,
@@ -3197,6 +3220,19 @@ fn workflow_status_from_manifest(
         probe_error_code: probe_artifacts.probe_error_code,
         values_recorded: probe_artifacts.values_recorded,
         secrets_redacted: probe_artifacts.secrets_redacted,
+        authenticated_probe_status: probe_artifacts.authenticated_probe_status,
+        authenticated_endpoint_kind: probe_artifacts.authenticated_endpoint_kind,
+        authenticated_request_method: probe_artifacts.authenticated_request_method,
+        authenticated_response_shape: probe_artifacts.authenticated_response_shape,
+        authenticated_response_shape_validated: probe_artifacts
+            .authenticated_response_shape_validated,
+        authenticated_api_key_present: probe_artifacts.authenticated_api_key_present,
+        authenticated_api_secret_present: probe_artifacts.authenticated_api_secret_present,
+        authenticated_secrets_redacted: probe_artifacts.authenticated_secrets_redacted,
+        authenticated_account_mutation: probe_artifacts.authenticated_account_mutation,
+        authenticated_real_orders_submitted: probe_artifacts.authenticated_real_orders_submitted,
+        authenticated_production_venue_connection: probe_artifacts
+            .authenticated_production_venue_connection,
         websocket_probe_status: probe_artifacts.websocket_probe_status,
         websocket_error_code: probe_artifacts.websocket_error_code,
         websocket_attempted: probe_artifacts.websocket_attempted,
@@ -3216,6 +3252,17 @@ struct WorkflowProbeArtifactStatus {
     probe_error_code: DashboardValue<String>,
     values_recorded: DashboardValue<bool>,
     secrets_redacted: DashboardValue<bool>,
+    authenticated_probe_status: DashboardValue<String>,
+    authenticated_endpoint_kind: DashboardValue<String>,
+    authenticated_request_method: DashboardValue<String>,
+    authenticated_response_shape: DashboardValue<String>,
+    authenticated_response_shape_validated: DashboardValue<bool>,
+    authenticated_api_key_present: DashboardValue<bool>,
+    authenticated_api_secret_present: DashboardValue<bool>,
+    authenticated_secrets_redacted: DashboardValue<bool>,
+    authenticated_account_mutation: DashboardValue<bool>,
+    authenticated_real_orders_submitted: DashboardValue<bool>,
+    authenticated_production_venue_connection: DashboardValue<bool>,
     websocket_probe_status: DashboardValue<String>,
     websocket_error_code: DashboardValue<String>,
     websocket_attempted: bool,
@@ -3235,6 +3282,17 @@ impl WorkflowProbeArtifactStatus {
             probe_error_code: DashboardValue::unknown(),
             values_recorded: DashboardValue::unknown(),
             secrets_redacted: DashboardValue::unknown(),
+            authenticated_probe_status: DashboardValue::unknown(),
+            authenticated_endpoint_kind: DashboardValue::unknown(),
+            authenticated_request_method: DashboardValue::unknown(),
+            authenticated_response_shape: DashboardValue::unknown(),
+            authenticated_response_shape_validated: DashboardValue::unknown(),
+            authenticated_api_key_present: DashboardValue::unknown(),
+            authenticated_api_secret_present: DashboardValue::unknown(),
+            authenticated_secrets_redacted: DashboardValue::unknown(),
+            authenticated_account_mutation: DashboardValue::unknown(),
+            authenticated_real_orders_submitted: DashboardValue::unknown(),
+            authenticated_production_venue_connection: DashboardValue::unknown(),
             websocket_probe_status: DashboardValue::unknown(),
             websocket_error_code: DashboardValue::unknown(),
             websocket_attempted: false,
@@ -3289,6 +3347,37 @@ fn read_workflow_probe_artifacts(
             "testnet/credential_policy.json" => {
                 status.values_recorded = json_bool_field(&value, "values_recorded");
                 status.secrets_redacted = json_bool_field(&value, "secrets_redacted");
+                status.authenticated_secrets_redacted = json_bool_field(&value, "secrets_redacted");
+            }
+            TESTNET_AUTHENTICATED_READONLY_PROBE_ARTIFACT_PATH => {
+                status.network_permission_requested = merge_optional_bool_or(
+                    status.network_permission_requested,
+                    value
+                        .get("network_permission_requested")
+                        .and_then(Value::as_bool),
+                );
+                status.network_attempted = merge_optional_bool_or(
+                    status.network_attempted,
+                    value.get("network_attempted").and_then(Value::as_bool),
+                );
+                status.testnet_connection = merge_optional_bool_or(
+                    status.testnet_connection,
+                    value.get("testnet_connection").and_then(Value::as_bool),
+                );
+                status.authenticated_probe_status = json_string_field(&value, "status");
+                status.authenticated_endpoint_kind = json_string_field(&value, "endpoint_kind");
+                status.authenticated_request_method = json_string_field(&value, "request_method");
+                status.authenticated_response_shape = json_string_field(&value, "response_shape");
+                status.authenticated_response_shape_validated =
+                    json_bool_field(&value, "response_shape_validated");
+                status.authenticated_api_key_present = json_bool_field(&value, "api_key_present");
+                status.authenticated_api_secret_present =
+                    json_bool_field(&value, "api_secret_present");
+                status.authenticated_account_mutation = json_bool_field(&value, "account_mutation");
+                status.authenticated_real_orders_submitted =
+                    json_bool_field(&value, "real_orders_submitted");
+                status.authenticated_production_venue_connection =
+                    json_bool_field(&value, "production_venue_connection");
             }
             TESTNET_WEBSOCKET_PROBE_ARTIFACT_PATH => {
                 status.websocket_probe_status = json_string_field(&value, "status");
@@ -3892,6 +3981,14 @@ fn json_bool_field(value: &Value, field: &str) -> DashboardValue<bool> {
 
 fn json_bool(value: &Value, field: &str) -> bool {
     value.get(field).and_then(Value::as_bool).unwrap_or(false)
+}
+
+fn merge_optional_bool_or(current: Option<bool>, next: Option<bool>) -> Option<bool> {
+    match (current, next) {
+        (Some(left), Some(right)) => Some(left || right),
+        (Some(value), None) | (None, Some(value)) => Some(value),
+        (None, None) => None,
+    }
 }
 
 fn redacted_optional_dashboard_error(value: Option<&str>) -> DashboardValue<String> {
@@ -4629,6 +4726,149 @@ mod tests {
             workflow.order_submission_mode.value.as_deref(),
             Some("disabled")
         );
+    }
+
+    #[test]
+    fn authenticated_readonly_probe_artifact_populates_dashboard_read_only_fields() {
+        let root = temp_root("authenticated-readonly-probe-artifact");
+        let registry_path = root.join("runs/supervisor/registry.json");
+        write_registry(&registry_path, []);
+        let workflow_dir = root.join("runs/workflows/v08-auth-readonly");
+        let manifest_path = workflow_dir.join("manifest.json");
+        write_testnet_workflow_manifest_with_artifacts(
+            &manifest_path,
+            "v08-auth-readonly",
+            &json!([
+                {
+                    "path": "testnet/credential_policy.json",
+                    "schema_version": "ntpro.v08_binance_testnet_credential_policy.v1"
+                },
+                {
+                    "path": TESTNET_AUTHENTICATED_READONLY_PROBE_ARTIFACT_PATH,
+                    "schema_version": "ntpro.v08_binance_testnet_authenticated_readonly_probe.v1"
+                }
+            ]),
+        );
+        fs::create_dir_all(workflow_dir.join("testnet")).unwrap();
+        fs::write(
+            workflow_dir.join("testnet/credential_policy.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": "ntpro.v08_binance_testnet_credential_policy.v1",
+                "policy": "env-var-only-no-secret-persistence",
+                "credential_source": "environment_variables_only",
+                "api_key_present": true,
+                "api_secret_present": true,
+                "values_recorded": false,
+                "api_key_value_recorded": false,
+                "api_secret_value_recorded": false,
+                "secrets_redacted": true
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            workflow_dir.join(TESTNET_AUTHENTICATED_READONLY_PROBE_ARTIFACT_PATH),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": "ntpro.v08_binance_testnet_authenticated_readonly_probe.v1",
+                "run_id": "v08-auth-readonly",
+                "environment": "testnet",
+                "product": "spot",
+                "endpoint_kind": "authenticated_http_read_only",
+                "endpoint_class": "binance-testnet-authenticated-readonly-account",
+                "endpoint_url_redacted": "https://testnet.binance.vision/api/v3/account",
+                "network_gate_status": "manual-online-disabled",
+                "network_gate_reasons": ["manual gate closed"],
+                "network_permission_requested": false,
+                "env_network_permission": false,
+                "network_attempted": false,
+                "testnet_connection": false,
+                "credential_policy": "env-var-only-no-secret-persistence",
+                "api_key_present": true,
+                "api_secret_present": true,
+                "request_method": "GET",
+                "request_target": "/api/v3/account",
+                "query_shape": "timestamp=<ms>&recvWindow=<ms>&signature=<redacted>",
+                "api_key_header_name": "X-MBX-APIKEY",
+                "api_key_header_value_recorded": false,
+                "signature_recorded": false,
+                "signed_query_recorded": false,
+                "signed_url_recorded": false,
+                "raw_response_recorded": false,
+                "balances_recorded": false,
+                "uid_recorded": false,
+                "account_mutation": false,
+                "order_submission": "disabled",
+                "real_orders_submitted": false,
+                "production_venue_connection": false,
+                "real_funds": false,
+                "production_trading": false,
+                "response_status_code": null,
+                "response_shape": "binance_account_v1",
+                "response_shape_validated": false,
+                "latency_ms": null,
+                "error_code": "manual_online_gate_closed",
+                "status": "authenticated_readonly_probe_deferred",
+                "diagnostic": "manual online gate closed; no authenticated request attempted",
+                "generated_at": "2026-06-16T14:30:00Z"
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-16T14:30:01Z").unwrap();
+
+        assert_eq!(snapshot.workflow_artifacts.len(), 1);
+        let workflow = &snapshot.workflow_artifacts[0];
+        assert_eq!(
+            workflow.authenticated_probe_status.value.as_deref(),
+            Some("authenticated_readonly_probe_deferred")
+        );
+        assert_eq!(
+            workflow.authenticated_endpoint_kind.value.as_deref(),
+            Some("authenticated_http_read_only")
+        );
+        assert_eq!(
+            workflow.authenticated_request_method.value.as_deref(),
+            Some("GET")
+        );
+        assert_eq!(
+            workflow.authenticated_response_shape.value.as_deref(),
+            Some("binance_account_v1")
+        );
+        assert_eq!(
+            workflow.authenticated_response_shape_validated.value,
+            Some(false)
+        );
+        assert_eq!(workflow.authenticated_api_key_present.value, Some(true));
+        assert_eq!(workflow.authenticated_api_secret_present.value, Some(true));
+        assert_eq!(workflow.authenticated_secrets_redacted.value, Some(true));
+        assert_eq!(workflow.authenticated_account_mutation.value, Some(false));
+        assert_eq!(
+            workflow.authenticated_real_orders_submitted.value,
+            Some(false)
+        );
+        assert_eq!(
+            workflow.authenticated_production_venue_connection.value,
+            Some(false)
+        );
+        assert!(!workflow.network_permission_requested);
+        assert!(!workflow.network_attempted);
+        assert!(!workflow.testnet_connection);
+        assert!(!workflow.real_orders_submitted);
+        assert!(!workflow.production_venue_connection);
+
+        let snapshot_value = serde_json::to_value(&snapshot).unwrap();
+        assert_forbidden_keys_absent(&snapshot_value);
+        let rendered = serde_json::to_string(&snapshot_value).unwrap();
+        assert!(!rendered.contains("ntpro_v080006_synthetic_key"));
+        assert!(!rendered.contains("ntpro_v080006_synthetic_secret"));
+        assert!(!rendered.contains("raw_response_recorded"));
+        assert!(!rendered.contains("signature_recorded"));
+        assert!(!rendered.contains("signed_query_recorded"));
+        assert!(!rendered.contains("signed_url_recorded"));
+        assert!(!rendered.contains("balances_recorded"));
+        assert!(!rendered.contains("uid_recorded"));
     }
 
     #[test]
