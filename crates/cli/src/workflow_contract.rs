@@ -30,10 +30,14 @@ pub(crate) const TESTNET_HTTP_CONNECTIVITY_PROBE_SCHEMA_VERSION: &str =
     "ntpro.v07_binance_testnet_http_probe.v1";
 pub(crate) const TESTNET_WEBSOCKET_PROBE_SCHEMA_VERSION: &str =
     "ntpro.v07_binance_testnet_ws_probe.v1";
+pub(crate) const TESTNET_AUTHENTICATED_READONLY_PROBE_SCHEMA_VERSION: &str =
+    "ntpro.v08_binance_testnet_authenticated_readonly_probe.v1";
 pub(crate) const TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH: &str = "testnet/connectivity_probe.json";
 pub(crate) const TESTNET_HTTP_CONNECTIVITY_PROBE_ARTIFACT_PATH: &str =
     "testnet/http_connectivity_probe.json";
 pub(crate) const TESTNET_WEBSOCKET_PROBE_ARTIFACT_PATH: &str = "testnet/ws_connectivity_probe.json";
+pub(crate) const TESTNET_AUTHENTICATED_READONLY_PROBE_ARTIFACT_PATH: &str =
+    "testnet/authenticated_readonly_probe.json";
 pub(crate) const TESTNET_ORDER_LIFECYCLE_SCHEMA_VERSION: &str =
     "ntpro.v06_binance_testnet_order_lifecycle.v1";
 pub(crate) const TESTNET_RECONCILIATION_SCHEMA_VERSION: &str =
@@ -191,6 +195,51 @@ pub(crate) struct TestnetWebSocketConnectivityProbe {
     pub(crate) secrets_redacted: bool,
     pub(crate) status: String,
     pub(crate) error_code: String,
+    pub(crate) diagnostic: String,
+    pub(crate) generated_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct TestnetAuthenticatedReadOnlyProbe {
+    pub(crate) schema_version: String,
+    pub(crate) run_id: String,
+    pub(crate) environment: String,
+    pub(crate) product: String,
+    pub(crate) endpoint_kind: String,
+    pub(crate) endpoint_class: String,
+    pub(crate) endpoint_url_redacted: String,
+    pub(crate) network_gate_status: String,
+    pub(crate) network_gate_reasons: Vec<String>,
+    pub(crate) network_permission_requested: bool,
+    pub(crate) env_network_permission: bool,
+    pub(crate) network_attempted: bool,
+    pub(crate) testnet_connection: bool,
+    pub(crate) credential_policy: String,
+    pub(crate) api_key_present: bool,
+    pub(crate) api_secret_present: bool,
+    pub(crate) request_method: String,
+    pub(crate) request_target: String,
+    pub(crate) query_shape: String,
+    pub(crate) api_key_header_name: String,
+    pub(crate) api_key_header_value_recorded: bool,
+    pub(crate) signature_recorded: bool,
+    pub(crate) signed_query_recorded: bool,
+    pub(crate) signed_url_recorded: bool,
+    pub(crate) raw_response_recorded: bool,
+    pub(crate) balances_recorded: bool,
+    pub(crate) uid_recorded: bool,
+    pub(crate) account_mutation: bool,
+    pub(crate) order_submission: String,
+    pub(crate) real_orders_submitted: bool,
+    pub(crate) production_venue_connection: bool,
+    pub(crate) real_funds: bool,
+    pub(crate) production_trading: bool,
+    pub(crate) response_status_code: Option<u16>,
+    pub(crate) response_shape: String,
+    pub(crate) response_shape_validated: bool,
+    pub(crate) latency_ms: Option<u64>,
+    pub(crate) error_code: String,
+    pub(crate) status: String,
     pub(crate) diagnostic: String,
     pub(crate) generated_at: String,
 }

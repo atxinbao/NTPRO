@@ -91,6 +91,7 @@ expected_files = [
     "testnet/config.json",
     "testnet/connectivity_probe.json",
     "testnet/credential_policy.json",
+    "testnet/authenticated_readonly_probe.json",
     "testnet/http_connectivity_probe.json",
     "testnet/ws_connectivity_probe.json",
 ]
@@ -107,6 +108,7 @@ policy = json.loads((workflow_dir / "testnet/credential_policy.json").read_text(
 probe = json.loads((workflow_dir / "testnet/connectivity_probe.json").read_text())
 http_probe = json.loads((workflow_dir / "testnet/http_connectivity_probe.json").read_text())
 ws_probe = json.loads((workflow_dir / "testnet/ws_connectivity_probe.json").read_text())
+auth_probe = json.loads((workflow_dir / "testnet/authenticated_readonly_probe.json").read_text())
 lifecycle = json.loads((workflow_dir / "orders/testnet_dry_run_lifecycle.json").read_text())
 reconciliation = json.loads((workflow_dir / "orders/reconciliation.json").read_text())
 events = [
@@ -123,7 +125,7 @@ require(manifest["schema_version"] == "ntpro.workflow_manifest.v1", manifest)
 require(manifest["workflow"] == "binance-testnet", manifest)
 require(manifest["run_id"] == run_id, manifest)
 require(manifest["runtime_status"] == "dry_run_completed", manifest)
-require(manifest["artifact_count"] == 11, manifest)
+require(manifest["artifact_count"] == 12, manifest)
 require({item["path"] for item in manifest["artifacts"]} == set(expected_files), manifest["artifacts"])
 
 for item in manifest["artifacts"]:
@@ -195,11 +197,38 @@ require(ws_probe["secrets_redacted"] is True, ws_probe)
 require(ws_probe["status"] == "websocket_read_only_probe_deferred", ws_probe)
 require(ws_probe["error_code"] == "network_gate_blocked", ws_probe)
 require(str(ws_probe["generated_at"]).startswith("unix:"), ws_probe)
+require(
+    auth_probe["schema_version"] == "ntpro.v08_binance_testnet_authenticated_readonly_probe.v1",
+    auth_probe,
+)
+require(auth_probe["endpoint_kind"] == "authenticated_http_read_only", auth_probe)
+require(auth_probe["request_method"] == "GET", auth_probe)
+require(auth_probe["request_target"] == "/api/v3/account", auth_probe)
+require(auth_probe["query_shape"] == "timestamp=<ms>&recvWindow=<ms>&signature=<redacted>", auth_probe)
+require(auth_probe["api_key_header_name"] == "X-MBX-APIKEY", auth_probe)
+require(auth_probe["api_key_header_value_recorded"] is False, auth_probe)
+require(auth_probe["signature_recorded"] is False, auth_probe)
+require(auth_probe["signed_query_recorded"] is False, auth_probe)
+require(auth_probe["signed_url_recorded"] is False, auth_probe)
+require(auth_probe["raw_response_recorded"] is False, auth_probe)
+require(auth_probe["balances_recorded"] is False, auth_probe)
+require(auth_probe["uid_recorded"] is False, auth_probe)
+require(auth_probe["account_mutation"] is False, auth_probe)
+require(auth_probe["order_submission"] == "disabled", auth_probe)
+require(auth_probe["real_orders_submitted"] is False, auth_probe)
+require(auth_probe["production_venue_connection"] is False, auth_probe)
+require(auth_probe["real_funds"] is False, auth_probe)
+require(auth_probe["production_trading"] is False, auth_probe)
+require(auth_probe["network_attempted"] is False, auth_probe)
+require(auth_probe["testnet_connection"] is False, auth_probe)
+require(auth_probe["response_shape_validated"] is False, auth_probe)
+require(auth_probe["status"] == "authenticated_readonly_probe_deferred", auth_probe)
+require(auth_probe["error_code"] == "network_gate_blocked", auth_probe)
 require(lifecycle["submitted_count"] == 0, lifecycle)
 require(lifecycle["real_orders_submitted"] is False, lifecycle)
 require(reconciliation["external_account_state_loaded"] is False, reconciliation)
 require(reconciliation["real_orders_submitted"] is False, reconciliation)
-require(len(events) == 9, f"expected 9 events, got {len(events)}")
+require(len(events) == 10, f"expected 10 events, got {len(events)}")
 require(events[0]["event_type"] == "workflow.testnet_config.ready", events[0])
 require(events[-1]["event_type"] == "workflow.events.ready", events[-1])
 for event in events:
