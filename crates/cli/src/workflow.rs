@@ -14,6 +14,7 @@
 // -------------------------------------------------------------------------------------------------
 
 use std::{
+    fmt::Debug,
     fs,
     path::{Path, PathBuf},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -22,12 +23,15 @@ use std::{
 use anyhow::Context;
 use nautilus_binance::{
     common::{
+        consts::BINANCE_API_KEY_HEADER,
+        credential::SigningCredential,
         enums::{BinanceEnvironment, BinanceProductType},
         urls::{get_http_base_url, get_ws_base_url},
     },
     mock_lifecycle::{BinanceMockOrderLifecycleSummary, load_v04_binance_mock_order_lifecycle},
     replay::{BinanceReplaySummary, load_v04_binance_spot_bar_replay},
 };
+use nautilus_core::string::urlencoding;
 use nautilus_risk::v04_rejection::{
     V04_BINANCE_RISK_REJECTION_CLIENT_ORDER_ID, V04_BINANCE_RISK_REJECTION_FIXTURE_REASON,
     V04_BINANCE_RISK_REJECTION_INSTRUMENT_ID, V04_BINANCE_RISK_REJECTION_LIFECYCLE_ID,
@@ -60,6 +64,8 @@ const WORKFLOW_ID: &str = "v05-binance-sandbox-local-workflow";
 const DEFAULT_RUN_ID: &str = "v05-binance-sandbox-local";
 const TESTNET_NETWORK_OPT_IN_ENV: &str = "NTPRO_ALLOW_TESTNET_NETWORK";
 const TESTNET_HTTP_READ_ONLY_ENDPOINT: &str = "/api/v3/time";
+const TESTNET_AUTHENTICATED_READ_ONLY_ENDPOINT: &str = "/api/v3/account";
+const TESTNET_AUTHENTICATED_RECV_WINDOW_MS: u64 = 5_000;
 const TESTNET_HTTP_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 const TESTNET_CREDENTIAL_LEGACY_REQUIRED_FOR_NETWORK_WARNING: &str = "credentials.required_for_network is deprecated; use credentials.required_for_public_read_only_probe and credentials.required_for_authenticated_read_only_probe";
 const BINANCE_SPOT_BARS_CSV: &str =
@@ -229,6 +235,19 @@ where
         TestnetCredentialPolicy::from_config_and_credentials(&config, &env_credentials);
     let network_gate =
         TestnetNetworkGate::evaluate(&config, opt.allow_testnet_network, env_network_permission);
+    let _authenticated_read_only_request = if should_prepare_testnet_authenticated_read_only_request(
+        opt.mode,
+        &network_gate,
+        &env_credentials,
+    ) {
+        Some(build_testnet_authenticated_read_only_get_request(
+            &config,
+            &env_credentials,
+            current_unix_timestamp_ms()?,
+        )?)
+    } else {
+        None
+    };
     let http_probe_result =
         should_attempt_testnet_http_probe(opt.mode, &network_gate).then(|| http_probe(&config));
     let connectivity_probe = TestnetConnectivityProbe::from_config(
@@ -793,6 +812,8 @@ impl TestnetCredentialConfig {
 struct EnvOnlyTestnetCredentials {
     api_key_env: String,
     api_secret_env: String,
+    api_key_value: Option<String>,
+    api_secret_value: Option<String>,
     api_key_present: bool,
     api_secret_present: bool,
     sensitive_values: Vec<String>,
@@ -820,6 +841,8 @@ impl EnvOnlyTestnetCredentials {
         Self {
             api_key_env,
             api_secret_env,
+            api_key_value: None,
+            api_secret_value: None,
             api_key_present,
             api_secret_present,
             sensitive_values: Vec::new(),
@@ -838,15 +861,18 @@ impl EnvOnlyTestnetCredentials {
         let api_secret_present = api_secret_value
             .as_ref()
             .is_some_and(|value| !value.is_empty());
-        let sensitive_values = [api_key_value, api_secret_value]
+        let sensitive_values = [api_key_value.as_ref(), api_secret_value.as_ref()]
             .into_iter()
             .flatten()
             .filter(|value| !value.is_empty())
+            .cloned()
             .collect();
 
         Self {
             api_key_env,
             api_secret_env,
+            api_key_value,
+            api_secret_value,
             api_key_present,
             api_secret_present,
             sensitive_values,
@@ -867,12 +893,207 @@ impl EnvOnlyTestnetCredentials {
         }
         Ok(())
     }
+
+    fn signing_credential(&self) -> anyhow::Result<SigningCredential> {
+        let api_key = self
+            .api_key_value
+            .as_deref()
+            .filter(|value| !value.is_empty())
+            .context("authenticated read-only request requires API key env value")?;
+        let api_secret = self
+            .api_secret_value
+            .as_deref()
+            .filter(|value| !value.is_empty())
+            .context("authenticated read-only request requires API secret env value")?;
+
+        Ok(SigningCredential::new(
+            api_key.to_string(),
+            api_secret.to_string(),
+        ))
+    }
 }
 
 fn read_env_secret_value(env_var: &str) -> Option<String> {
     std::env::var(env_var)
         .ok()
         .filter(|value| !value.is_empty())
+}
+
+struct TestnetSignedAuthenticatedGetRequest {
+    method: String,
+    endpoint_path: String,
+    endpoint_url_redacted: String,
+    query_without_signature: String,
+    signature: String,
+    signed_query: String,
+    api_key_header_name: String,
+    api_key_header_value: String,
+}
+
+impl Debug for TestnetSignedAuthenticatedGetRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("TestnetSignedAuthenticatedGetRequest")
+            .field("method", &self.method)
+            .field("endpoint_path", &self.endpoint_path)
+            .field("endpoint_url_redacted", &self.endpoint_url_redacted)
+            .field("query_without_signature", &self.query_without_signature)
+            .field("signature", &"<redacted>")
+            .field("signed_query", &"<redacted>")
+            .field("api_key_header_name", &self.api_key_header_name)
+            .field("api_key_header_value", &"<redacted>")
+            .finish()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct TestnetSignedAuthenticatedGetRequestPreview {
+    endpoint_class: String,
+    endpoint_url_redacted: String,
+    request_method: String,
+    request_target: String,
+    query_shape: String,
+    api_key_header_name: String,
+    api_key_header_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    request_body_recorded: bool,
+    order_submission: String,
+    account_mutation: bool,
+    production_binance_connectivity: bool,
+    real_funds: bool,
+    production_trading: bool,
+    diagnostic: String,
+}
+
+impl TestnetSignedAuthenticatedGetRequest {
+    fn redacted_preview(&self) -> TestnetSignedAuthenticatedGetRequestPreview {
+        TestnetSignedAuthenticatedGetRequestPreview {
+            endpoint_class: "binance-testnet-authenticated-read-only-account".to_string(),
+            endpoint_url_redacted: self.endpoint_url_redacted.clone(),
+            request_method: self.method.clone(),
+            request_target: self.endpoint_path.clone(),
+            query_shape: "timestamp=<ms>&recvWindow=<ms>&signature=<redacted>".to_string(),
+            api_key_header_name: self.api_key_header_name.clone(),
+            api_key_header_value_recorded: false,
+            signature_recorded: false,
+            signed_query_recorded: false,
+            signed_url_recorded: false,
+            request_body_recorded: false,
+            order_submission: "disabled".to_string(),
+            account_mutation: false,
+            production_binance_connectivity: false,
+            real_funds: false,
+            production_trading: false,
+            diagnostic: "V080 authenticated read-only GET request builder prepared Binance testnet /api/v3/account request metadata; API key header value, signature, signed query, signed URL, and response body stay memory-only and redacted.".to_string(),
+        }
+    }
+
+    fn ensure_preview_redacted(
+        &self,
+        credentials: &EnvOnlyTestnetCredentials,
+    ) -> anyhow::Result<()> {
+        let preview = self.redacted_preview();
+        let body = serde_json::to_string(&preview)?;
+        credentials.ensure_no_secret_values_absent("authenticated-read-only-preview", &body)?;
+        for (label, sensitive_value) in [
+            ("signature", self.signature.as_str()),
+            ("signed query", self.signed_query.as_str()),
+            ("API key header value", self.api_key_header_value.as_str()),
+        ] {
+            if !sensitive_value.is_empty() && body.contains(sensitive_value) {
+                anyhow::bail!("authenticated read-only preview leaked {label}");
+            }
+        }
+        Ok(())
+    }
+}
+
+fn build_testnet_authenticated_read_only_get_request(
+    config: &TestnetWorkflowConfig,
+    credentials: &EnvOnlyTestnetCredentials,
+    timestamp_ms: u64,
+) -> anyhow::Result<TestnetSignedAuthenticatedGetRequest> {
+    build_testnet_authenticated_read_only_request(
+        config,
+        credentials,
+        "GET",
+        TESTNET_AUTHENTICATED_READ_ONLY_ENDPOINT,
+        timestamp_ms,
+        TESTNET_AUTHENTICATED_RECV_WINDOW_MS,
+    )
+}
+
+fn build_testnet_authenticated_read_only_request(
+    config: &TestnetWorkflowConfig,
+    credentials: &EnvOnlyTestnetCredentials,
+    method: &str,
+    endpoint_path: &str,
+    timestamp_ms: u64,
+    recv_window_ms: u64,
+) -> anyhow::Result<TestnetSignedAuthenticatedGetRequest> {
+    let endpoint_path = normalize_testnet_authenticated_endpoint_path(endpoint_path)?;
+    ensure_testnet_authenticated_request_allowed(method, &endpoint_path)?;
+    if recv_window_ms == 0 {
+        anyhow::bail!("authenticated read-only request recvWindow must be positive");
+    }
+
+    let signing_credential = credentials.signing_credential()?;
+    let query_without_signature = format!("timestamp={timestamp_ms}&recvWindow={recv_window_ms}");
+    let signature =
+        urlencoding::encode(&signing_credential.sign(&query_without_signature)).into_owned();
+    let signed_query = format!("{query_without_signature}&signature={signature}");
+    let request = TestnetSignedAuthenticatedGetRequest {
+        method: "GET".to_string(),
+        endpoint_path: endpoint_path.clone(),
+        endpoint_url_redacted: format!(
+            "{}{}",
+            config.connectivity.http_base_url.trim_end_matches('/'),
+            endpoint_path,
+        ),
+        query_without_signature,
+        signature,
+        signed_query,
+        api_key_header_name: BINANCE_API_KEY_HEADER.to_string(),
+        api_key_header_value: signing_credential.api_key().to_string(),
+    };
+    request.ensure_preview_redacted(credentials)?;
+    Ok(request)
+}
+
+fn normalize_testnet_authenticated_endpoint_path(endpoint_path: &str) -> anyhow::Result<String> {
+    let endpoint_path = endpoint_path.trim();
+    if endpoint_path.is_empty() {
+        anyhow::bail!("authenticated read-only request endpoint must not be empty");
+    }
+    if endpoint_path.contains('?') {
+        anyhow::bail!("authenticated read-only request endpoint must not include query parameters");
+    }
+    if !endpoint_path.starts_with('/') {
+        anyhow::bail!("authenticated read-only request endpoint must start with '/'");
+    }
+    Ok(endpoint_path.to_string())
+}
+
+fn ensure_testnet_authenticated_request_allowed(
+    method: &str,
+    endpoint_path: &str,
+) -> anyhow::Result<()> {
+    if method != "GET" {
+        anyhow::bail!("authenticated read-only request builder only allows GET, got {method}");
+    }
+    if endpoint_path.starts_with("/api/v3/order") {
+        anyhow::bail!(
+            "authenticated read-only request builder rejects order mutation endpoint {endpoint_path}"
+        );
+    }
+    if endpoint_path != TESTNET_AUTHENTICATED_READ_ONLY_ENDPOINT {
+        anyhow::bail!(
+            "authenticated read-only request builder allowlist only includes {TESTNET_AUTHENTICATED_READ_ONLY_ENDPOINT}, got {endpoint_path}"
+        );
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -1090,6 +1311,24 @@ fn should_attempt_testnet_http_probe(
     network_gate: &TestnetNetworkGate,
 ) -> bool {
     mode == WorkflowRunMode::ConnectivityProbe && network_gate.is_allowed()
+}
+
+fn should_prepare_testnet_authenticated_read_only_request(
+    mode: WorkflowRunMode,
+    network_gate: &TestnetNetworkGate,
+    credentials: &EnvOnlyTestnetCredentials,
+) -> bool {
+    mode == WorkflowRunMode::ConnectivityProbe
+        && network_gate.is_allowed()
+        && credentials.authenticated_read_only_ready()
+}
+
+fn current_unix_timestamp_ms() -> anyhow::Result<u64> {
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .context("system clock is before UNIX_EPOCH")?
+        .as_millis();
+    u64::try_from(millis).context("current UNIX timestamp milliseconds exceeds u64")
 }
 
 fn testnet_http_read_only_probe_url(config: &TestnetWorkflowConfig) -> String {
@@ -2475,6 +2714,175 @@ real_orders_submitted = false
         assert!(body.contains("\"secrets_redacted\": true"));
         assert!(body.contains("\"api_key_value_recorded\": false"));
         assert!(body.contains("\"api_secret_value_recorded\": false"));
+    }
+
+    #[test]
+    fn binance_testnet_signed_authenticated_get_builder_constructs_account_request() {
+        let config = parsed_testnet_config();
+        let credentials = EnvOnlyTestnetCredentials::from_values(
+            config.credentials.api_key_env.clone(),
+            Some("ntpro_v080003_synthetic_api_key_value".to_string()),
+            config.credentials.api_secret_env.clone(),
+            Some("ntpro_v080003_synthetic_api_secret_value".to_string()),
+        );
+        let request = build_testnet_authenticated_read_only_get_request(
+            &config,
+            &credentials,
+            1_718_400_000_000,
+        )
+        .unwrap();
+
+        assert_eq!(request.method, "GET");
+        assert_eq!(request.endpoint_path, "/api/v3/account");
+        assert_eq!(request.api_key_header_name, BINANCE_API_KEY_HEADER);
+        assert_eq!(
+            request.api_key_header_value,
+            "ntpro_v080003_synthetic_api_key_value"
+        );
+        assert_eq!(
+            request.query_without_signature,
+            "timestamp=1718400000000&recvWindow=5000"
+        );
+        assert!(
+            request
+                .signed_query
+                .starts_with("timestamp=1718400000000&recvWindow=5000&signature=")
+        );
+        assert_eq!(request.signature.len(), 64);
+        assert!(
+            request
+                .signature
+                .chars()
+                .all(|character| character.is_ascii_hexdigit())
+        );
+        assert_eq!(
+            request.endpoint_url_redacted,
+            "https://testnet.binance.vision/api/v3/account"
+        );
+        request.ensure_preview_redacted(&credentials).unwrap();
+    }
+
+    #[test]
+    fn binance_testnet_signed_authenticated_get_builder_rejects_non_get_method() {
+        let config = parsed_testnet_config();
+        let credentials = EnvOnlyTestnetCredentials::from_values(
+            config.credentials.api_key_env.clone(),
+            Some("ntpro_v080003_synthetic_api_key_value".to_string()),
+            config.credentials.api_secret_env.clone(),
+            Some("ntpro_v080003_synthetic_api_secret_value".to_string()),
+        );
+        let error = build_testnet_authenticated_read_only_request(
+            &config,
+            &credentials,
+            "POST",
+            "/api/v3/account",
+            1_718_400_000_000,
+            TESTNET_AUTHENTICATED_RECV_WINDOW_MS,
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("only allows GET, got POST"));
+    }
+
+    #[test]
+    fn binance_testnet_signed_authenticated_get_builder_rejects_order_endpoint() {
+        let config = parsed_testnet_config();
+        let credentials = EnvOnlyTestnetCredentials::from_values(
+            config.credentials.api_key_env.clone(),
+            Some("ntpro_v080003_synthetic_api_key_value".to_string()),
+            config.credentials.api_secret_env.clone(),
+            Some("ntpro_v080003_synthetic_api_secret_value".to_string()),
+        );
+        let error = build_testnet_authenticated_read_only_request(
+            &config,
+            &credentials,
+            "GET",
+            "/api/v3/order",
+            1_718_400_000_000,
+            TESTNET_AUTHENTICATED_RECV_WINDOW_MS,
+        )
+        .unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("rejects order mutation endpoint /api/v3/order")
+        );
+    }
+
+    #[test]
+    fn binance_testnet_signed_authenticated_get_builder_rejects_non_allowlist_endpoint() {
+        let config = parsed_testnet_config();
+        let credentials = EnvOnlyTestnetCredentials::from_values(
+            config.credentials.api_key_env.clone(),
+            Some("ntpro_v080003_synthetic_api_key_value".to_string()),
+            config.credentials.api_secret_env.clone(),
+            Some("ntpro_v080003_synthetic_api_secret_value".to_string()),
+        );
+        let error = build_testnet_authenticated_read_only_request(
+            &config,
+            &credentials,
+            "GET",
+            "/api/v3/time",
+            1_718_400_000_000,
+            TESTNET_AUTHENTICATED_RECV_WINDOW_MS,
+        )
+        .unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("allowlist only includes /api/v3/account")
+        );
+    }
+
+    #[test]
+    fn binance_testnet_signed_authenticated_get_builder_fails_closed_without_secret() {
+        let config = parsed_testnet_config();
+        let credentials = EnvOnlyTestnetCredentials::from_values(
+            config.credentials.api_key_env.clone(),
+            Some("ntpro_v080003_synthetic_api_key_value".to_string()),
+            config.credentials.api_secret_env.clone(),
+            None,
+        );
+        let error = build_testnet_authenticated_read_only_get_request(
+            &config,
+            &credentials,
+            1_718_400_000_000,
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("requires API secret env value"));
+    }
+
+    #[test]
+    fn binance_testnet_signed_authenticated_get_builder_redacts_all_outputs() {
+        let config = parsed_testnet_config();
+        let credentials = EnvOnlyTestnetCredentials::from_values(
+            config.credentials.api_key_env.clone(),
+            Some("ntpro_v080003_synthetic_api_key_value".to_string()),
+            config.credentials.api_secret_env.clone(),
+            Some("ntpro_v080003_synthetic_api_secret_value".to_string()),
+        );
+        let request = build_testnet_authenticated_read_only_get_request(
+            &config,
+            &credentials,
+            1_718_400_000_000,
+        )
+        .unwrap();
+        let preview_body = serde_json::to_string(&request.redacted_preview()).unwrap();
+        let debug_body = format!("{request:?}");
+
+        for body in [&preview_body, &debug_body] {
+            assert!(!body.contains("ntpro_v080003_synthetic_api_key_value"));
+            assert!(!body.contains("ntpro_v080003_synthetic_api_secret_value"));
+            assert!(!body.contains(&request.signature));
+            assert!(!body.contains(&request.signed_query));
+        }
+        assert!(preview_body.contains("\"signature_recorded\":false"));
+        assert!(preview_body.contains("\"signed_query_recorded\":false"));
+        assert!(preview_body.contains("\"signed_url_recorded\":false"));
+        assert!(preview_body.contains("\"api_key_header_value_recorded\":false"));
     }
 
     #[test]
