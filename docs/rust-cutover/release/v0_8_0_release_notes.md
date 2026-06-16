@@ -1,14 +1,14 @@
-# NTPRO Rust-only v0.8.0 Release Notes Candidate
+# NTPRO Rust-only v0.8.0 Release Notes
 
 Date: 2026-06-16
 Executor: Codex
-Status: RELEASE NOTES CANDIDATE - NOT YET PUBLISHED
+Status: PUBLISHED
 
 ## Summary
 
 `v0.8.0` is scoped to authenticated Binance testnet read-only proof.
 
-Plain Chinese summary: 这个版本候选只证明一件事：在人工明确开启 testnet 网络和提供
+Plain Chinese summary: 这个版本只证明一件事：在人工明确开启 testnet 网络和提供
 testnet API key/secret 后，NTPRO 可以做一个只读的 Binance testnet authenticated
 `GET /api/v3/account` 响应 shape 证明，并且只留下脱敏 artifact。它不是实盘交易版本，
 不支持真实资金，不支持生产 Binance，不支持下单、撤单、改单，也不允许 Dashboard
@@ -62,7 +62,7 @@ balance/uid/account-identifying persistence
 
 ## Validation
 
-Release candidate validation includes:
+Release validation includes:
 
 ```bash
 scripts/ai/verify_v08_default_offline_gate.sh
@@ -91,7 +91,13 @@ was validated. It does not mean production trading readiness.
 
 ## Release Status
 
-These notes are a candidate for `ntpro-rust-only-v0.8.0`.
+Tag: `ntpro-rust-only-v0.8.0`
+Release name: `NTPRO Rust-only v0.8.0`
+Release URL:
+`https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.8.0`
+Published at: `2026-06-16T20:20:57Z`
+Release flags: `isDraft=false`, `isPrerelease=false`
 
-Do not treat this file as proof that the tag or GitHub Release exists. Formal
-release publication requires V080-009 owner approval and closure evidence.
+This is a formal GitHub Release. The release boundary remains authenticated
+Binance testnet read-only proof only: no production Binance, no real funds, no
+production trading, and no order submission.
