@@ -53,11 +53,14 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_8_0_authenticated_readonly_boundary.md` - v0.8 authenticated Binance
   testnet read-only proof boundary, endpoint allowlist, secret handling, and
   Dashboard artifact rules.
-- `v0_8_0_authenticated_readonly_readiness_report.md` - v0.8 release-candidate
-  readiness report. It is not formal release publication evidence.
-- `v0_8_0_release_notes.md` - v0.8 release notes candidate for the scoped
-  authenticated Binance testnet read-only proof. Formal publication still
-  requires V080-009 owner approval.
+- `v0_8_0_authenticated_readonly_readiness_report.md` - released readiness
+  report for the scoped v0.8 authenticated Binance testnet read-only proof.
+- `v0_8_0_release_notes.md` - released notes for the scoped authenticated
+  Binance testnet read-only proof. It does not include order submission,
+  production Binance connectivity, real funds, or production trading.
+- `../evidence/V080-009.md` - dedicated v0.8.0 release-closure evidence with
+  exact release commit, hosted gates, formal tag, GitHub Release URL, and
+  publication flags.
 - `../evidence/V080-PRE-004.md` - dedicated v0.7.2 release-closure evidence
   with exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
