@@ -88,13 +88,14 @@ def assert_no_network(root: Path, expected_run_id: str, expected_runtime: str, e
     probe = read_json(root, "testnet/connectivity_probe.json")
     http_probe = read_json(root, "testnet/http_connectivity_probe.json")
     ws_probe = read_json(root, "testnet/ws_connectivity_probe.json")
+    auth_probe = read_json(root, "testnet/authenticated_readonly_probe.json")
     policy = read_json(root, "testnet/credential_policy.json")
     lifecycle = read_json(root, "orders/testnet_dry_run_lifecycle.json")
     reconciliation = read_json(root, "orders/reconciliation.json")
 
     require(manifest["run_id"] == expected_run_id, manifest)
     require(manifest["runtime_status"] == expected_runtime, manifest)
-    require(manifest["artifact_count"] == 11, manifest)
+    require(manifest["artifact_count"] == 12, manifest)
     require(
         manifest["summary"]["workflow_id"] == "binance-testnet-readonly-connectivity-foundation",
         manifest["summary"],
@@ -143,6 +144,31 @@ def assert_no_network(root: Path, expected_run_id: str, expected_runtime: str, e
     require(ws_probe["real_orders_submitted"] is False, ws_probe)
     require(ws_probe["values_recorded"] is False, ws_probe)
     require(ws_probe["secrets_redacted"] is True, ws_probe)
+    require(
+        auth_probe["schema_version"] == "ntpro.v08_binance_testnet_authenticated_readonly_probe.v1",
+        auth_probe,
+    )
+    require(auth_probe["endpoint_kind"] == "authenticated_http_read_only", auth_probe)
+    require(auth_probe["request_method"] == "GET", auth_probe)
+    require(auth_probe["request_target"] == "/api/v3/account", auth_probe)
+    require(auth_probe["query_shape"] == "timestamp=<ms>&recvWindow=<ms>&signature=<redacted>", auth_probe)
+    require(auth_probe["api_key_header_name"] == "X-MBX-APIKEY", auth_probe)
+    require(auth_probe["api_key_header_value_recorded"] is False, auth_probe)
+    require(auth_probe["signature_recorded"] is False, auth_probe)
+    require(auth_probe["signed_query_recorded"] is False, auth_probe)
+    require(auth_probe["signed_url_recorded"] is False, auth_probe)
+    require(auth_probe["raw_response_recorded"] is False, auth_probe)
+    require(auth_probe["balances_recorded"] is False, auth_probe)
+    require(auth_probe["uid_recorded"] is False, auth_probe)
+    require(auth_probe["account_mutation"] is False, auth_probe)
+    require(auth_probe["order_submission"] == "disabled", auth_probe)
+    require(auth_probe["real_orders_submitted"] is False, auth_probe)
+    require(auth_probe["production_venue_connection"] is False, auth_probe)
+    require(auth_probe["real_funds"] is False, auth_probe)
+    require(auth_probe["production_trading"] is False, auth_probe)
+    require(auth_probe["network_attempted"] is False, auth_probe)
+    require(auth_probe["testnet_connection"] is False, auth_probe)
+    require(auth_probe["response_shape_validated"] is False, auth_probe)
     require(policy["values_recorded"] is False, policy)
     require(policy["secrets_redacted"] is True, policy)
     require(lifecycle["real_orders_submitted"] is False, lifecycle)
