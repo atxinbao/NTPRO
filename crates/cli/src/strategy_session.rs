@@ -27,6 +27,7 @@ const STRATEGY_SESSION_EVENT_SCHEMA_VERSION: &str = "ntpro.v09_strategy_session_
 const STRATEGY_MARKET_STATUS_SCHEMA_VERSION: &str = "ntpro.v09_market_stream_status.v1";
 const STRATEGY_MARKET_EVENT_SCHEMA_VERSION: &str = "ntpro.v09_market_stream_event.v1";
 const STRATEGY_SIGNAL_SCHEMA_VERSION: &str = "ntpro.v09_strategy_signal.v1";
+const STRATEGY_ORDER_INTENT_SCHEMA_VERSION: &str = "ntpro.v09_order_intent.v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -76,6 +77,7 @@ pub struct StrategySessionArtifactPaths {
     pub market_status: String,
     pub market_events: String,
     pub signal: String,
+    pub order_intent: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -97,6 +99,7 @@ pub struct StrategySessionArtifacts {
     pub market_status: PathBuf,
     pub market_events: PathBuf,
     pub signal: PathBuf,
+    pub order_intent: PathBuf,
 }
 
 impl StrategySessionArtifacts {
@@ -108,6 +111,7 @@ impl StrategySessionArtifacts {
             market_status: strategy_root.join("market_status.json"),
             market_events: strategy_root.join("market_events.jsonl"),
             signal: strategy_root.join("signal.jsonl"),
+            order_intent: strategy_root.join("order_intent.jsonl"),
         }
     }
 
@@ -118,6 +122,7 @@ impl StrategySessionArtifacts {
             market_status: self.market_status.display().to_string(),
             market_events: self.market_events.display().to_string(),
             signal: self.signal.display().to_string(),
+            order_intent: self.order_intent.display().to_string(),
         }
     }
 }
@@ -185,6 +190,26 @@ pub struct StrategySignal {
     pub generated_at_unix_ms: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StrategyOrderIntent {
+    pub schema_version: String,
+    pub session_id: String,
+    pub strategy_id: String,
+    pub intent_id: String,
+    pub symbol: String,
+    pub side: String,
+    pub order_type: String,
+    pub quantity: f64,
+    pub source_signal: String,
+    pub confidence: f64,
+    pub market_event_seq: u64,
+    pub signal_generated_at: String,
+    pub created_at: String,
+    pub created_at_unix_ms: u64,
+    pub submission_allowed: bool,
+    pub submission_status: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DemoStrategyRuntimeSummary {
     pub schema_version: String,
@@ -194,6 +219,8 @@ pub struct DemoStrategyRuntimeSummary {
     pub processed_events: u64,
     pub signal_count: u64,
     pub signal_artifact: String,
+    pub order_intent_count: u64,
+    pub order_intent_artifact: String,
     pub order_submission_allowed: bool,
 }
 
@@ -217,6 +244,7 @@ pub struct StrategySession {
     market_status: Option<StrategyMarketStreamStatus>,
     market_events: Vec<StrategyMarketEvent>,
     signals: Vec<StrategySignal>,
+    order_intents: Vec<StrategyOrderIntent>,
     artifacts: StrategySessionArtifacts,
 }
 
@@ -262,6 +290,7 @@ impl StrategySession {
             market_status: None,
             market_events: Vec::new(),
             signals: Vec::new(),
+            order_intents: Vec::new(),
             artifacts,
         };
         session.persist()?;
@@ -437,6 +466,7 @@ impl StrategySession {
         if self.signals.is_empty() {
             anyhow::bail!("ema_cross_demo must generate at least one signal for fixture input");
         }
+        self.generate_order_intents_from_signals();
 
         self.transition(StrategySessionState::Stopping, "demo strategy completed")?;
         self.transition(StrategySessionState::Stopped, "demo strategy stopped")?;
@@ -450,8 +480,41 @@ impl StrategySession {
             processed_events: u64::try_from(bars.len()).unwrap_or(u64::MAX),
             signal_count: u64::try_from(self.signals.len()).unwrap_or(u64::MAX),
             signal_artifact: self.artifacts.signal.display().to_string(),
+            order_intent_count: u64::try_from(self.order_intents.len()).unwrap_or(u64::MAX),
+            order_intent_artifact: self.artifacts.order_intent.display().to_string(),
             order_submission_allowed: false,
         })
+    }
+
+    fn generate_order_intents_from_signals(&mut self) {
+        self.order_intents = self
+            .signals
+            .iter()
+            .map(|signal| {
+                let created_at_unix_ms = unix_timestamp_millis();
+                StrategyOrderIntent {
+                    schema_version: STRATEGY_ORDER_INTENT_SCHEMA_VERSION.to_string(),
+                    session_id: signal.session_id.clone(),
+                    strategy_id: signal.strategy_id.clone(),
+                    intent_id: format!(
+                        "{}:{}:{}",
+                        signal.session_id, signal.strategy_id, signal.market_event_seq
+                    ),
+                    symbol: signal.symbol.clone(),
+                    side: order_intent_side(&signal.signal).to_string(),
+                    order_type: "market".to_string(),
+                    quantity: 1.0,
+                    source_signal: signal.signal.clone(),
+                    confidence: signal.confidence,
+                    market_event_seq: signal.market_event_seq,
+                    signal_generated_at: signal.generated_at.clone(),
+                    created_at: format_unix_millis(created_at_unix_ms),
+                    created_at_unix_ms,
+                    submission_allowed: false,
+                    submission_status: "blocked_by_v09_strategy_runtime_boundary".to_string(),
+                }
+            })
+            .collect();
     }
 
     fn record_market_bar_stream(
@@ -540,6 +603,13 @@ impl StrategySession {
             signal_body.push('\n');
         }
         atomic_write_text(&self.artifacts.signal, &signal_body)?;
+
+        let mut order_intent_body = String::new();
+        for order_intent in &self.order_intents {
+            order_intent_body.push_str(&serde_json::to_string(order_intent)?);
+            order_intent_body.push('\n');
+        }
+        atomic_write_text(&self.artifacts.order_intent, &order_intent_body)?;
         Ok(())
     }
 }
@@ -614,6 +684,14 @@ fn ema_next(previous: Option<f64>, price: f64, period: u32) -> f64 {
 fn confidence_from_ema_gap(fast: f64, slow: f64) -> f64 {
     let gap = ((fast - slow).abs() / slow.abs()).min(1.0);
     (0.5 + gap).min(0.99)
+}
+
+fn order_intent_side(signal: &str) -> &'static str {
+    match signal {
+        "long" => "buy",
+        "flat" => "flatten",
+        _ => "observe",
+    }
 }
 
 fn is_legal_transition(previous: StrategySessionState, next: StrategySessionState) -> bool {
@@ -722,6 +800,18 @@ mod tests {
                 .unwrap()
                 .ends_with("strategy/market_events.jsonl")
         );
+        assert!(
+            status["artifacts"]["signal"]
+                .as_str()
+                .unwrap()
+                .ends_with("strategy/signal.jsonl")
+        );
+        assert!(
+            status["artifacts"]["order_intent"]
+                .as_str()
+                .unwrap()
+                .ends_with("strategy/order_intent.jsonl")
+        );
 
         let events = fs::read_to_string(root.join("strategy/events.jsonl")).unwrap();
         let event_lines = events.lines().collect::<Vec<_>>();
@@ -817,6 +907,12 @@ mod tests {
         assert_eq!(summary.strategy, "ema_cross_demo");
         assert_eq!(summary.processed_events, 8);
         assert!(summary.signal_count >= 1);
+        assert_eq!(summary.order_intent_count, summary.signal_count);
+        assert!(
+            summary
+                .order_intent_artifact
+                .ends_with("strategy/order_intent.jsonl")
+        );
         assert!(!summary.order_submission_allowed);
         assert_eq!(session.status().state, StrategySessionState::Stopped);
 
@@ -865,6 +961,13 @@ mod tests {
             assert!(signal["market_event_seq"].as_u64().unwrap() > 0);
             assert!(signal["confidence"].as_f64().unwrap() > 0.5);
         }
+
+        let order_intent_lines =
+            fs::read_to_string(root.join("strategy/order_intent.jsonl")).unwrap();
+        assert_eq!(
+            order_intent_lines.lines().count(),
+            usize::try_from(summary.order_intent_count).unwrap()
+        );
     }
 
     #[test]
@@ -907,6 +1010,72 @@ mod tests {
                 signal["generated_at"]
                     .as_str()
                     .is_some_and(|value| value.starts_with("unix:"))
+            );
+        }
+    }
+
+    #[test]
+    fn order_intent_jsonl_blocks_exchange_submission() {
+        let root = temp_root("order-intent-contract");
+        let mut session = StrategySession::new("session-009", "ema-cross-demo", &root).unwrap();
+
+        session
+            .run_ema_cross_demo(&ema_cross_demo_fixture_bars("BTCUSDT.BINANCE"))
+            .unwrap();
+
+        let order_intent_lines =
+            fs::read_to_string(root.join("strategy/order_intent.jsonl")).unwrap();
+        assert!(!order_intent_lines.trim().is_empty());
+        for line in order_intent_lines.lines() {
+            let order_intent: Value = serde_json::from_str(line).unwrap();
+            assert_eq!(
+                order_intent["schema_version"],
+                STRATEGY_ORDER_INTENT_SCHEMA_VERSION
+            );
+            assert_eq!(order_intent["session_id"], "session-009");
+            assert_eq!(order_intent["strategy_id"], "ema-cross-demo");
+            assert_eq!(order_intent["symbol"], "BTCUSDT.BINANCE");
+            assert!(
+                order_intent["intent_id"]
+                    .as_str()
+                    .is_some_and(|value| value.starts_with("session-009:ema-cross-demo:"))
+            );
+            assert!(
+                order_intent["side"]
+                    .as_str()
+                    .is_some_and(|value| matches!(value, "buy" | "flatten" | "observe"))
+            );
+            assert_eq!(order_intent["order_type"], "market");
+            assert_eq!(order_intent["quantity"], 1.0);
+            assert!(
+                order_intent["source_signal"]
+                    .as_str()
+                    .is_some_and(|value| !value.is_empty())
+            );
+            assert!(order_intent["confidence"].as_f64().is_some());
+            assert!(order_intent["market_event_seq"].as_u64().is_some());
+            assert!(
+                order_intent["signal_generated_at"]
+                    .as_str()
+                    .is_some_and(|value| value.starts_with("unix:"))
+            );
+            assert!(
+                order_intent["created_at"]
+                    .as_str()
+                    .is_some_and(|value| value.starts_with("unix:"))
+            );
+            assert_eq!(order_intent["submission_allowed"], false);
+            assert_eq!(
+                order_intent["submission_status"],
+                "blocked_by_v09_strategy_runtime_boundary"
+            );
+            assert!(
+                order_intent.get("exchange_order_id").is_none(),
+                "v0.9 order intents must not claim exchange order identity"
+            );
+            assert!(
+                order_intent.get("venue_order_id").is_none(),
+                "v0.9 order intents must not claim venue order identity"
             );
         }
     }
