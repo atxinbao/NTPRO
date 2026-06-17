@@ -65,6 +65,7 @@ use crate::{
 const WORKFLOW_ID: &str = "v05-binance-sandbox-local-workflow";
 const DEFAULT_RUN_ID: &str = "v05-binance-sandbox-local";
 const TESTNET_NETWORK_OPT_IN_ENV: &str = "NTPRO_ALLOW_TESTNET_NETWORK";
+const TESTNET_AUTHENTICATED_MANUAL_ONLINE_ENV: &str = "NTPRO_V08_MANUAL_ONLINE";
 const TESTNET_HTTP_READ_ONLY_ENDPOINT: &str = "/api/v3/time";
 const TESTNET_AUTHENTICATED_READ_ONLY_ENDPOINT: &str = "/api/v3/account";
 const TESTNET_AUTHENTICATED_RECV_WINDOW_MS: u64 = 5_000;
@@ -264,6 +265,7 @@ where
         opt.mode,
         &network_gate,
         &env_credentials,
+        testnet_authenticated_manual_online_enabled(),
     )
     .then(|| authenticated_probe(&config, &env_credentials));
     let connectivity_probe = TestnetConnectivityProbe::from_config(
@@ -1292,6 +1294,13 @@ fn testnet_network_env_permission_enabled() -> bool {
     )
 }
 
+fn testnet_authenticated_manual_online_enabled() -> bool {
+    matches!(
+        std::env::var(TESTNET_AUTHENTICATED_MANUAL_ONLINE_ENV).as_deref(),
+        Ok("1")
+    )
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct TestnetHttpReadOnlyProbeResult {
     endpoint_class: String,
@@ -1366,10 +1375,12 @@ fn should_attempt_testnet_authenticated_read_only_probe(
     mode: WorkflowRunMode,
     network_gate: &TestnetNetworkGate,
     credentials: &EnvOnlyTestnetCredentials,
+    authenticated_manual_online_permission: bool,
 ) -> bool {
     mode == WorkflowRunMode::ConnectivityProbe
         && network_gate.is_allowed()
         && credentials.authenticated_read_only_ready()
+        && authenticated_manual_online_permission
 }
 
 fn current_unix_timestamp_ms() -> anyhow::Result<u64> {
@@ -3454,6 +3465,57 @@ real_orders_submitted = false
         assert!(!probe.network_attempted);
         assert!(probe.diagnostic.contains("V070-003"));
         assert!(probe.diagnostic.contains("No socket is opened"));
+    }
+
+    #[test]
+    fn binance_testnet_authenticated_probe_requires_manual_online_runtime_permission() {
+        let config = parsed_testnet_config();
+        let credentials = EnvOnlyTestnetCredentials::from_presence(
+            config.credentials.api_key_env.clone(),
+            true,
+            config.credentials.api_secret_env.clone(),
+            true,
+        );
+        let policy = TestnetCredentialPolicy::from_config_and_credentials(&config, &credentials);
+        let gate = TestnetNetworkGate::evaluate(&config, true, true);
+
+        assert!(!should_attempt_testnet_authenticated_read_only_probe(
+            WorkflowRunMode::ConnectivityProbe,
+            &gate,
+            &credentials,
+            false,
+        ));
+        assert!(should_attempt_testnet_authenticated_read_only_probe(
+            WorkflowRunMode::ConnectivityProbe,
+            &gate,
+            &credentials,
+            true,
+        ));
+
+        let probe = TestnetAuthenticatedReadOnlyProbe::from_config(
+            "authenticated-manual-gate-run",
+            &config,
+            WorkflowRunMode::ConnectivityProbe,
+            true,
+            &gate,
+            &policy,
+            None,
+        );
+
+        assert_eq!(
+            policy.authenticated_read_only_probe_status,
+            "manual_gate_ready"
+        );
+        assert_eq!(probe.network_gate_status, "allowed");
+        assert!(!probe.network_attempted);
+        assert!(!probe.testnet_connection);
+        assert_eq!(probe.status, "authenticated_readonly_probe_manual_not_run");
+        assert_eq!(probe.error_code, "manual_authenticated_probe_not_enabled");
+        assert!(
+            probe
+                .diagnostic
+                .contains("manual-online-only and was not executed")
+        );
     }
 
     #[test]
