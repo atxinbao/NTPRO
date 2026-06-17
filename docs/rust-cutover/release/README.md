@@ -85,6 +85,10 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_9_0_ntpro_node_strategy_session_host.md` - V090-009 `ntpro-node`
   Strategy Session host contract. It runs fixture strategy sessions and writes
   local artifacts while preserving the no-order, no-production v0.9 boundary.
+- `v0_9_0_supervisor_strategy_session_status.md` - V090-010 supervisor
+  Strategy Session read-only status surface. It exposes strategy state, market
+  state, risk state, counts, and artifact paths without adding trading
+  controls.
 - `../evidence/V080-009.md` - dedicated v0.8.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
