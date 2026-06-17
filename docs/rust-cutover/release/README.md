@@ -89,6 +89,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   Strategy Session read-only status surface. It exposes strategy state, market
   state, risk state, counts, and artifact paths without adding trading
   controls.
+- `v0_9_0_dashboard_strategy_runtime_readonly.md` - V090-011 Dashboard
+  Strategy Runtime read-only surface. It displays local session, signal,
+  order-intent, risk-decision, rejection, and artifact-path fields without
+  adding Dashboard order controls.
 - `../evidence/V080-009.md` - dedicated v0.8.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
