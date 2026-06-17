@@ -28,6 +28,7 @@ const STRATEGY_MARKET_STATUS_SCHEMA_VERSION: &str = "ntpro.v09_market_stream_sta
 const STRATEGY_MARKET_EVENT_SCHEMA_VERSION: &str = "ntpro.v09_market_stream_event.v1";
 const STRATEGY_SIGNAL_SCHEMA_VERSION: &str = "ntpro.v09_strategy_signal.v1";
 const STRATEGY_ORDER_INTENT_SCHEMA_VERSION: &str = "ntpro.v09_order_intent.v1";
+const STRATEGY_RISK_DECISION_SCHEMA_VERSION: &str = "ntpro.v09_risk_decision.v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -78,6 +79,7 @@ pub struct StrategySessionArtifactPaths {
     pub market_events: String,
     pub signal: String,
     pub order_intent: String,
+    pub risk_decision: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -100,6 +102,7 @@ pub struct StrategySessionArtifacts {
     pub market_events: PathBuf,
     pub signal: PathBuf,
     pub order_intent: PathBuf,
+    pub risk_decision: PathBuf,
 }
 
 impl StrategySessionArtifacts {
@@ -112,6 +115,7 @@ impl StrategySessionArtifacts {
             market_events: strategy_root.join("market_events.jsonl"),
             signal: strategy_root.join("signal.jsonl"),
             order_intent: strategy_root.join("order_intent.jsonl"),
+            risk_decision: strategy_root.join("risk_decision.jsonl"),
         }
     }
 
@@ -123,6 +127,7 @@ impl StrategySessionArtifacts {
             market_events: self.market_events.display().to_string(),
             signal: self.signal.display().to_string(),
             order_intent: self.order_intent.display().to_string(),
+            risk_decision: self.risk_decision.display().to_string(),
         }
     }
 }
@@ -211,6 +216,26 @@ pub struct StrategyOrderIntent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategyRiskDecision {
+    pub schema_version: String,
+    pub session_id: String,
+    pub strategy_id: String,
+    pub decision_id: String,
+    pub intent_id: String,
+    pub symbol: String,
+    pub decision: String,
+    pub reasons: Vec<String>,
+    pub mode: String,
+    pub order_submission: String,
+    pub kill_switch: bool,
+    pub account_state: String,
+    pub market_state: String,
+    pub actual_submission: bool,
+    pub evaluated_at: String,
+    pub evaluated_at_unix_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DemoStrategyRuntimeSummary {
     pub schema_version: String,
     pub session_id: String,
@@ -221,6 +246,8 @@ pub struct DemoStrategyRuntimeSummary {
     pub signal_artifact: String,
     pub order_intent_count: u64,
     pub order_intent_artifact: String,
+    pub risk_decision_count: u64,
+    pub risk_decision_artifact: String,
     pub order_submission_allowed: bool,
 }
 
@@ -245,6 +272,7 @@ pub struct StrategySession {
     market_events: Vec<StrategyMarketEvent>,
     signals: Vec<StrategySignal>,
     order_intents: Vec<StrategyOrderIntent>,
+    risk_decisions: Vec<StrategyRiskDecision>,
     artifacts: StrategySessionArtifacts,
 }
 
@@ -291,6 +319,7 @@ impl StrategySession {
             market_events: Vec::new(),
             signals: Vec::new(),
             order_intents: Vec::new(),
+            risk_decisions: Vec::new(),
             artifacts,
         };
         session.persist()?;
@@ -467,6 +496,7 @@ impl StrategySession {
             anyhow::bail!("ema_cross_demo must generate at least one signal for fixture input");
         }
         self.generate_order_intents_from_signals();
+        self.evaluate_shadow_risk_decisions();
 
         self.transition(StrategySessionState::Stopping, "demo strategy completed")?;
         self.transition(StrategySessionState::Stopped, "demo strategy stopped")?;
@@ -482,6 +512,8 @@ impl StrategySession {
             signal_artifact: self.artifacts.signal.display().to_string(),
             order_intent_count: u64::try_from(self.order_intents.len()).unwrap_or(u64::MAX),
             order_intent_artifact: self.artifacts.order_intent.display().to_string(),
+            risk_decision_count: u64::try_from(self.risk_decisions.len()).unwrap_or(u64::MAX),
+            risk_decision_artifact: self.artifacts.risk_decision.display().to_string(),
             order_submission_allowed: false,
         })
     }
@@ -512,6 +544,51 @@ impl StrategySession {
                     created_at_unix_ms,
                     submission_allowed: false,
                     submission_status: "blocked_by_v09_strategy_runtime_boundary".to_string(),
+                }
+            })
+            .collect();
+    }
+
+    fn evaluate_shadow_risk_decisions(&mut self) {
+        let market_state = if self
+            .market_status
+            .as_ref()
+            .is_some_and(|status| status.event_count > 0)
+        {
+            "available"
+        } else {
+            "missing"
+        };
+
+        self.risk_decisions = self
+            .order_intents
+            .iter()
+            .map(|order_intent| {
+                let evaluated_at_unix_ms = unix_timestamp_millis();
+                let reasons = shadow_risk_rejection_reasons(
+                    "disabled",
+                    false,
+                    "shadow",
+                    "missing",
+                    market_state,
+                );
+                StrategyRiskDecision {
+                    schema_version: STRATEGY_RISK_DECISION_SCHEMA_VERSION.to_string(),
+                    session_id: order_intent.session_id.clone(),
+                    strategy_id: order_intent.strategy_id.clone(),
+                    decision_id: format!("risk:{}", order_intent.intent_id),
+                    intent_id: order_intent.intent_id.clone(),
+                    symbol: order_intent.symbol.clone(),
+                    decision: "rejected".to_string(),
+                    reasons,
+                    mode: "shadow".to_string(),
+                    order_submission: "disabled".to_string(),
+                    kill_switch: false,
+                    account_state: "missing".to_string(),
+                    market_state: market_state.to_string(),
+                    actual_submission: false,
+                    evaluated_at: format_unix_millis(evaluated_at_unix_ms),
+                    evaluated_at_unix_ms,
                 }
             })
             .collect();
@@ -610,6 +687,13 @@ impl StrategySession {
             order_intent_body.push('\n');
         }
         atomic_write_text(&self.artifacts.order_intent, &order_intent_body)?;
+
+        let mut risk_decision_body = String::new();
+        for risk_decision in &self.risk_decisions {
+            risk_decision_body.push_str(&serde_json::to_string(risk_decision)?);
+            risk_decision_body.push('\n');
+        }
+        atomic_write_text(&self.artifacts.risk_decision, &risk_decision_body)?;
         Ok(())
     }
 }
@@ -692,6 +776,32 @@ fn order_intent_side(signal: &str) -> &'static str {
         "flat" => "flatten",
         _ => "observe",
     }
+}
+
+fn shadow_risk_rejection_reasons(
+    order_submission: &str,
+    kill_switch: bool,
+    mode: &str,
+    account_state: &str,
+    market_state: &str,
+) -> Vec<String> {
+    let mut reasons = Vec::new();
+    if order_submission == "disabled" {
+        reasons.push("order_submission_disabled".to_string());
+    }
+    if kill_switch {
+        reasons.push("kill_switch_active".to_string());
+    }
+    if mode == "shadow" {
+        reasons.push("shadow_mode_actual_submission_disabled".to_string());
+    }
+    if account_state == "missing" {
+        reasons.push("account_state_missing".to_string());
+    }
+    if market_state == "missing" {
+        reasons.push("market_state_missing".to_string());
+    }
+    reasons
 }
 
 fn is_legal_transition(previous: StrategySessionState, next: StrategySessionState) -> bool {
@@ -812,6 +922,12 @@ mod tests {
                 .unwrap()
                 .ends_with("strategy/order_intent.jsonl")
         );
+        assert!(
+            status["artifacts"]["risk_decision"]
+                .as_str()
+                .unwrap()
+                .ends_with("strategy/risk_decision.jsonl")
+        );
 
         let events = fs::read_to_string(root.join("strategy/events.jsonl")).unwrap();
         let event_lines = events.lines().collect::<Vec<_>>();
@@ -913,6 +1029,12 @@ mod tests {
                 .order_intent_artifact
                 .ends_with("strategy/order_intent.jsonl")
         );
+        assert_eq!(summary.risk_decision_count, summary.order_intent_count);
+        assert!(
+            summary
+                .risk_decision_artifact
+                .ends_with("strategy/risk_decision.jsonl")
+        );
         assert!(!summary.order_submission_allowed);
         assert_eq!(session.status().state, StrategySessionState::Stopped);
 
@@ -967,6 +1089,13 @@ mod tests {
         assert_eq!(
             order_intent_lines.lines().count(),
             usize::try_from(summary.order_intent_count).unwrap()
+        );
+
+        let risk_decision_lines =
+            fs::read_to_string(root.join("strategy/risk_decision.jsonl")).unwrap();
+        assert_eq!(
+            risk_decision_lines.lines().count(),
+            usize::try_from(summary.risk_decision_count).unwrap()
         );
     }
 
@@ -1078,6 +1207,106 @@ mod tests {
                 "v0.9 order intents must not claim venue order identity"
             );
         }
+    }
+
+    #[test]
+    fn risk_decision_jsonl_rejects_shadow_order_intents() {
+        let root = temp_root("risk-decision-contract");
+        let mut session = StrategySession::new("session-010", "ema-cross-demo", &root).unwrap();
+
+        session
+            .run_ema_cross_demo(&ema_cross_demo_fixture_bars("BTCUSDT.BINANCE"))
+            .unwrap();
+
+        let order_intent_lines =
+            fs::read_to_string(root.join("strategy/order_intent.jsonl")).unwrap();
+        let order_intents = order_intent_lines
+            .lines()
+            .map(|line| serde_json::from_str::<Value>(line).unwrap())
+            .collect::<Vec<_>>();
+        let risk_decision_lines =
+            fs::read_to_string(root.join("strategy/risk_decision.jsonl")).unwrap();
+        let risk_decisions = risk_decision_lines
+            .lines()
+            .map(|line| serde_json::from_str::<Value>(line).unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(risk_decisions.len(), order_intents.len());
+        assert!(!risk_decisions.is_empty());
+
+        for (risk_decision, order_intent) in risk_decisions.iter().zip(order_intents.iter()) {
+            assert_eq!(
+                risk_decision["schema_version"],
+                STRATEGY_RISK_DECISION_SCHEMA_VERSION
+            );
+            assert_eq!(risk_decision["session_id"], "session-010");
+            assert_eq!(risk_decision["strategy_id"], "ema-cross-demo");
+            assert_eq!(risk_decision["intent_id"], order_intent["intent_id"]);
+            assert_eq!(risk_decision["symbol"], "BTCUSDT.BINANCE");
+            assert_eq!(risk_decision["decision"], "rejected");
+            assert_eq!(risk_decision["mode"], "shadow");
+            assert_eq!(risk_decision["order_submission"], "disabled");
+            assert_eq!(risk_decision["kill_switch"], false);
+            assert_eq!(risk_decision["account_state"], "missing");
+            assert_eq!(risk_decision["market_state"], "available");
+            assert_eq!(risk_decision["actual_submission"], false);
+            assert!(
+                risk_decision["decision_id"]
+                    .as_str()
+                    .is_some_and(|value| value.starts_with("risk:"))
+            );
+            assert!(
+                risk_decision["evaluated_at"]
+                    .as_str()
+                    .is_some_and(|value| value.starts_with("unix:"))
+            );
+            let reasons = risk_decision["reasons"].as_array().unwrap();
+            assert!(
+                reasons
+                    .iter()
+                    .any(|reason| reason == "order_submission_disabled")
+            );
+            assert!(
+                reasons
+                    .iter()
+                    .any(|reason| reason == "shadow_mode_actual_submission_disabled")
+            );
+            assert!(
+                reasons
+                    .iter()
+                    .any(|reason| reason == "account_state_missing")
+            );
+            assert!(
+                !reasons
+                    .iter()
+                    .any(|reason| reason == "market_state_missing"),
+                "fixture market state is available for the demo run"
+            );
+            assert!(
+                risk_decision.get("exchange_order_id").is_none(),
+                "v0.9 risk decisions must not claim exchange order identity"
+            );
+            assert!(
+                risk_decision.get("venue_order_id").is_none(),
+                "v0.9 risk decisions must not claim venue order identity"
+            );
+        }
+    }
+
+    #[test]
+    fn shadow_risk_rejection_reasons_cover_default_reject_rules() {
+        let reasons =
+            shadow_risk_rejection_reasons("disabled", true, "shadow", "missing", "missing");
+
+        assert_eq!(
+            reasons,
+            vec![
+                "order_submission_disabled",
+                "kill_switch_active",
+                "shadow_mode_actual_submission_disabled",
+                "account_state_missing",
+                "market_state_missing",
+            ]
+        );
     }
 
     #[test]
