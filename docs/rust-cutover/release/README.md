@@ -72,6 +72,10 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_9_0_signal_artifact_contract.md` - V090-005 signal JSONL contract for
   local Strategy Runtime signals. It defines required fields and keeps signals
   separate from order intents, exchange orders, and production trading claims.
+- `v0_9_0_order_intent_artifact_contract.md` - V090-006 order intent JSONL
+  contract for local Strategy Runtime shadow order intents. It requires
+  `submission_allowed=false` and keeps intents out of execution adapters and
+  exchange APIs.
 - `../evidence/V080-009.md` - dedicated v0.8.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
