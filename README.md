@@ -6,19 +6,23 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.7.2
-Capability: Binance testnet read-only connectivity proof
-Boundary: v0.7.2 wording/evidence patch for the v0.7 read-only proof line; no orders, no real funds, no production trading
+Current source tag: ntpro-rust-only-v0.8.0
+Capability: authenticated Binance testnet read-only proof
+Boundary: env-only testnet credentials, redacted account-shape artifact evidence, no orders, no real funds, no production trading
 ```
 
-This tag is the current v0.7.2 source release point for the scoped Binance
-testnet read-only connectivity proof line. It is a wording and evidence patch,
-not a new trading capability release. It is published as a GitHub Release for
+This tag is the current v0.8.0 source release point for the scoped authenticated
+Binance testnet read-only proof line. It is published as a GitHub Release for
 the tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.7.2
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.8.0
 ```
+
+The next patch track is `v0.8.1`, a safety and release-surface closure patch.
+It must not expand the v0.8.0 capability into order submission, account
+mutation, production Binance connectivity, real funds, production trading, or
+Dashboard-started network probes.
 
 ## Current Status
 
@@ -94,7 +98,7 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.7.2 is the current formal release line. It builds on the earlier foundation
+v0.8.0 is the current formal release line. It builds on the earlier foundation
 layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
@@ -104,6 +108,8 @@ layers:
   hardening.
 - `v0.7.0`: Binance testnet public read-only connectivity proof.
 - `v0.7.1`: release-gate and artifact-contract hardening for the v0.7 proof.
+- `v0.7.2`: wording and evidence closure for the v0.7 read-only proof line.
+- `v0.8.0`: authenticated Binance testnet read-only account-shape proof.
 
 `v0.5.0` was completed as a scoped readiness milestone and is absorbed into the
 `v0.6.0` release tree. It is not published as a separate public GitHub Release.
@@ -124,6 +130,10 @@ The current release path supports:
 - offline connectivity probe artifact and manual-online HTTP read-only probe
   artifact;
 - optional/manual WebSocket read-only probe artifact schema;
+- authenticated Binance testnet `GET /api/v3/account` read-only proof artifact
+  with redacted account-shape evidence;
+- env-var-only testnet credential policy for authenticated read-only proof;
+- synthetic secret leak scan for v0.8 generated output;
 - dry-run order lifecycle artifact;
 - artifact-only reconciliation artifact;
 - Dashboard read-only workflow and testnet workflow surfaces.
@@ -132,7 +142,7 @@ The v0.3.0 local Supervisor control console and the v0.4.x Binance sandbox
 foundation remain part of validated release history, but they are no longer the
 current public milestone.
 
-Not included in the v0.7.2 product claim:
+Not included in the v0.8.0 product claim:
 
 - Real Binance testnet order submission.
 - Testnet order cancel, replace, amend, or live order management.
@@ -159,15 +169,17 @@ manual-online-only and still must not submit, cancel, replace, or amend orders.
 
 ## Binance Testnet Read-Only Boundary
 
-The current v0.7.2 product boundary remains Binance testnet read-only
-connectivity proof plus release wording/evidence closure.
+The current v0.8.0 product boundary is authenticated Binance testnet read-only
+proof plus release wording/evidence closure.
 Default local and CI runs remain offline, artifact-first, Rust-only, and
 explicitly non-production.
 
-Manual online proof may connect only to Binance testnet public read-only HTTP
-endpoints after explicit opt-in. This release does not store or load real API
-key values, does not submit real orders, and does not claim live or production
-trading readiness.
+Manual online proof may connect only to the Binance testnet authenticated
+read-only `GET /api/v3/account` endpoint after explicit opt-in. The proof may
+record only redacted account response shape, status, and boundary evidence. This
+release does not store real API key values, does not persist raw account bodies,
+does not submit real orders, and does not claim live or production trading
+readiness.
 
 The scope and readiness documents are:
 

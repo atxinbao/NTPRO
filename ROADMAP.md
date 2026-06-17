@@ -1,34 +1,35 @@
 # NTPRO Roadmap
 
-Date: 2026-06-14
+Date: 2026-06-17
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is
-`ntpro-rust-only-v0.7.2`, and the next capability track is `v0.8.0`.
+`ntpro-rust-only-v0.8.0`, and the next patch track is `v0.8.1`.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.7.2
+ntpro-rust-only-v0.8.0
 ```
 
 Current capability boundary:
 
 ```text
-real Binance testnet public HTTP read-only connectivity proof
-default offline, manual online gate only
-no authenticated account access
+authenticated Binance testnet read-only proof
+env-only testnet credentials
+redacted account-shape artifact evidence
 no real funds
 no real order submission
 no production trading
 ```
 
-`v0.7.0` builds on the v0.6 testnet dry-run foundation and keeps v0.5 workflow
-artifact coverage in the release tree. The current public claim is limited to
-public read-only testnet connectivity proof behind fail-closed gates.
+`v0.8.0` builds on the v0.7 public read-only testnet connectivity proof and
+adds an authenticated Binance testnet read-only account-shape proof. The current
+public claim remains fail-closed, testnet-only, artifact-first, and explicitly
+non-production.
 
 ## Published Hardening Patch: v0.7.1
 
@@ -81,11 +82,11 @@ v0.7.2 explicitly does not include:
 - production trading;
 - Dashboard-started network probes.
 
-## Next Capability Track: v0.8.0
+## Published Capability Track: v0.8.0
 
-`v0.8.0` is the next planned capability track after the v0.7.2 wording and
-evidence patch. Its
-intended direction is authenticated Binance testnet read-only proof.
+`v0.8.0` is the published capability track after the v0.7.2 wording and
+evidence patch. It advances the boundary to authenticated Binance testnet
+read-only proof.
 
 The only intended boundary change is:
 
@@ -116,6 +117,30 @@ Authenticated read-only access must fail closed unless all of these are true:
 
 The v0.8.0 proof must stay read-only. It must not place, cancel, amend, or query
 through any endpoint that mutates account state.
+
+Completed release closure:
+
+- formal tag: `ntpro-rust-only-v0.8.0`;
+- GitHub Release:
+  `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.8.0`;
+- hosted workflow-dispatch and tag-triggered release gates passed;
+- closure evidence recorded in `docs/rust-cutover/evidence/V080-009.md`.
+
+## Next Safety Patch Track: v0.8.1
+
+`v0.8.1` is a safety and release-surface closure patch for the v0.8.0 line. It
+must not add order submission, account mutation, production Binance
+connectivity, real funds, production trading, or Dashboard-started network
+probes.
+
+The v0.8.1 patch scope is:
+
+- align README and ROADMAP with the published v0.8.0 release surface;
+- enforce `NTPRO_V08_MANUAL_ONLINE=1` inside the Rust authenticated runtime
+  gate, not only in Bash verification scripts;
+- expose authenticated read-only proof status in summary / manifest output;
+- tighten authenticated response-shape naming and validation;
+- publish v0.8.1 readiness and release notes as a safety/closure patch.
 
 ## Product Surface Direction
 
