@@ -181,6 +181,7 @@ pub struct StrategySignal {
     pub signal: String,
     pub confidence: f64,
     pub market_event_seq: u64,
+    pub generated_at: String,
     pub generated_at_unix_ms: u64,
 }
 
@@ -418,6 +419,7 @@ impl StrategySession {
             });
 
             if let Some(signal) = signal {
+                let generated_at_unix_ms = unix_timestamp_millis();
                 self.signals.push(StrategySignal {
                     schema_version: STRATEGY_SIGNAL_SCHEMA_VERSION.to_string(),
                     session_id: self.status.session_id.clone(),
@@ -426,7 +428,8 @@ impl StrategySession {
                     signal: signal.to_string(),
                     confidence: confidence_from_ema_gap(fast_now, slow_now),
                     market_event_seq: bar.seq,
-                    generated_at_unix_ms: unix_timestamp_millis(),
+                    generated_at: format_unix_millis(generated_at_unix_ms),
+                    generated_at_unix_ms,
                 });
             }
         }
@@ -645,6 +648,10 @@ fn unix_timestamp_millis() -> u64 {
         })
 }
 
+fn format_unix_millis(timestamp_ms: u64) -> String {
+    format!("unix:{timestamp_ms}")
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -849,8 +856,58 @@ mod tests {
             assert_eq!(signal["session_id"], "session-004");
             assert_eq!(signal["strategy_id"], "ema-cross-demo");
             assert_eq!(signal["symbol"], "BTCUSDT.BINANCE");
+            assert!(
+                signal["generated_at"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("unix:")
+            );
             assert!(signal["market_event_seq"].as_u64().unwrap() > 0);
             assert!(signal["confidence"].as_f64().unwrap() > 0.5);
+        }
+    }
+
+    #[test]
+    fn signal_jsonl_contains_required_contract_fields() {
+        let root = temp_root("signal-contract");
+        let mut session = StrategySession::new("session-008", "ema-cross-demo", &root).unwrap();
+
+        session
+            .run_ema_cross_demo(&ema_cross_demo_fixture_bars("BTCUSDT.BINANCE"))
+            .unwrap();
+
+        let signal_lines = fs::read_to_string(root.join("strategy/signal.jsonl")).unwrap();
+        assert!(!signal_lines.trim().is_empty());
+        for line in signal_lines.lines() {
+            let signal: Value = serde_json::from_str(line).unwrap();
+            assert_eq!(signal["schema_version"], STRATEGY_SIGNAL_SCHEMA_VERSION);
+            assert!(
+                signal["session_id"]
+                    .as_str()
+                    .is_some_and(|value| !value.is_empty())
+            );
+            assert!(
+                signal["strategy_id"]
+                    .as_str()
+                    .is_some_and(|value| !value.is_empty())
+            );
+            assert!(
+                signal["symbol"]
+                    .as_str()
+                    .is_some_and(|value| !value.is_empty())
+            );
+            assert!(
+                signal["signal"]
+                    .as_str()
+                    .is_some_and(|value| !value.is_empty())
+            );
+            assert!(signal["confidence"].as_f64().is_some());
+            assert!(signal["market_event_seq"].as_u64().is_some());
+            assert!(
+                signal["generated_at"]
+                    .as_str()
+                    .is_some_and(|value| value.starts_with("unix:"))
+            );
         }
     }
 
