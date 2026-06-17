@@ -76,6 +76,9 @@ Final release checks, benchmark summaries, and audit reports live here.
   contract for local Strategy Runtime shadow order intents. It requires
   `submission_allowed=false` and keeps intents out of execution adapters and
   exchange APIs.
+- `v0_9_0_risk_decision_gate.md` - V090-007 shadow risk decision gate for local
+  order intents. It requires `decision=rejected` and `actual_submission=false`
+  and keeps the v0.9 flow stopped before execution adapters or exchange APIs.
 - `../evidence/V080-009.md` - dedicated v0.8.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
