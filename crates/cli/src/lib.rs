@@ -63,6 +63,7 @@ mod live;
 pub mod opt;
 mod process;
 mod sandbox;
+pub mod strategy_session;
 pub mod supervisor;
 mod workflow;
 mod workflow_contract;
