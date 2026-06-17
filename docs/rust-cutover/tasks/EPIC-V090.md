@@ -51,3 +51,12 @@ v0.12.0 = Guarded Live Alpha
 
 `v0.9.0` must stop at `order_intent + risk_rejection`. Testnet order proof is
 deferred to `v0.10.0`.
+
+## Automation Policy
+
+`V090-000` through `V090-013` are scoped as medium-risk, offline-first
+automation slices. They may use auto-merge after local validation and hosted
+smoke checks pass.
+
+`V090-014` remains a release-closure task. It must not create a tag or publish a
+GitHub Release until the owner gives explicit release approval.
