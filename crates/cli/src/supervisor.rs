@@ -29,6 +29,7 @@ use nautilus_live::status::{
     ConnectionStatus, LifecycleStatus, NodeStatus, ProcessMode, SnapshotValue,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::{
     artifacts::{atomic_write_json, atomic_write_text, remove_file_if_exists},
@@ -134,6 +135,10 @@ pub struct NodeMetrics {
     pub stdout_log_path: SnapshotValue<String>,
     pub stderr_log_path: SnapshotValue<String>,
     pub events_log_path: SnapshotValue<String>,
+    #[serde(default)]
+    pub strategy_signal_count: SnapshotValue<u64>,
+    #[serde(default)]
+    pub strategy_rejection_count: SnapshotValue<u64>,
     pub external_venue_connection: bool,
     pub real_orders_submitted: bool,
 }
@@ -204,6 +209,8 @@ impl NodeMetrics {
             events_log_path: SnapshotValue::available(
                 artifacts.events_log_path.display().to_string(),
             ),
+            strategy_signal_count: status.risk.command_count.clone(),
+            strategy_rejection_count: status.risk.rejections_total.clone(),
             external_venue_connection: status.external_venue_connection,
             real_orders_submitted: status.real_orders_submitted,
         }
@@ -409,14 +416,24 @@ fn run_supervisor_reconnect_execution(opt: SupervisorNodeOpt) -> anyhow::Result<
 fn run_supervisor_status(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
     let store = SupervisorRegistryStore::new(opt.registry.registry);
     let status = store.node_status(&opt.node_id)?;
+    let strategy = strategy_session_status_from_node_status(&status);
     println!(
-        "supervisor.status status=ok registry_node_id={} runtime_node_id={} lifecycle_state={} previous_lifecycle_state={} process_mode={} generated_at={} external_venue_connection={} real_orders_submitted={} last_error={}",
+        "supervisor.status status=ok registry_node_id={} runtime_node_id={} lifecycle_state={} previous_lifecycle_state={} process_mode={} generated_at={} strategy_session_state={} strategy_id={} market_state={} risk_state={} last_signal_at={} last_rejection_reason={} strategy_session_status={} strategy_events={} strategy_summary={} external_venue_connection={} real_orders_submitted={} last_error={}",
         opt.node_id,
         status.node_id,
         json_label(&status.lifecycle_state),
         json_label(&status.previous_lifecycle_state),
         json_label(&status.process_mode),
         snapshot_display(&status.generated_at),
+        strategy.session_state,
+        strategy.strategy_id,
+        strategy.market_state,
+        strategy.risk_state,
+        strategy.last_signal_at,
+        strategy.last_rejection_reason,
+        strategy.session_status_path,
+        strategy.events_path,
+        strategy.summary_path,
         status.external_venue_connection,
         status.real_orders_submitted,
         status.last_error.as_deref().unwrap_or("none"),
@@ -479,12 +496,15 @@ fn run_supervisor_risk(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
 fn run_supervisor_logs(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
     let store = SupervisorRegistryStore::new(opt.registry.registry);
     let record = load_node_record(&store, &opt.node_id)?;
+    let strategy = strategy_session_status_from_node_status(&record.last_known_status);
     println!(
-        "supervisor.logs status=ok node_id={} stdout_log={} stderr_log={} events_log={}",
+        "supervisor.logs status=ok node_id={} stdout_log={} stderr_log={} events_log={} strategy_events={} strategy_summary={}",
         record.node_id,
         record.stdout_log_path.display(),
         record.stderr_log_path.display(),
         record.events_log_path.display(),
+        strategy.events_path,
+        strategy.summary_path,
     );
     Ok(())
 }
@@ -493,7 +513,7 @@ fn run_supervisor_metrics(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
     let store = SupervisorRegistryStore::new(opt.registry.registry);
     let metrics = store.node_metrics(&opt.node_id)?;
     println!(
-        "supervisor.metrics status=ok registry_node_id={} runtime_node_id={} lifecycle_state={} starts_total={} stops_total={} state_transitions_total={} uptime_ms={} external_venue_connection={} real_orders_submitted={} last_error={}",
+        "supervisor.metrics status=ok registry_node_id={} runtime_node_id={} lifecycle_state={} starts_total={} stops_total={} state_transitions_total={} uptime_ms={} strategy_signal_count={} strategy_rejection_count={} external_venue_connection={} real_orders_submitted={} last_error={}",
         opt.node_id,
         metrics.node_id,
         json_label(&metrics.lifecycle_state),
@@ -501,11 +521,131 @@ fn run_supervisor_metrics(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
         metrics.stops_total,
         metrics.state_transitions_total,
         snapshot_display(&metrics.uptime_ms),
+        snapshot_display(&metrics.strategy_signal_count),
+        snapshot_display(&metrics.strategy_rejection_count),
         metrics.external_venue_connection,
         metrics.real_orders_submitted,
         metrics.last_error_summary.as_deref().unwrap_or("none"),
     );
     Ok(())
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct StrategySessionSupervisorStatus {
+    session_state: String,
+    strategy_id: String,
+    market_state: String,
+    risk_state: String,
+    last_signal_at: String,
+    last_rejection_reason: String,
+    session_status_path: String,
+    events_path: String,
+    summary_path: String,
+}
+
+impl Default for StrategySessionSupervisorStatus {
+    fn default() -> Self {
+        Self {
+            session_state: "none".to_string(),
+            strategy_id: "none".to_string(),
+            market_state: "none".to_string(),
+            risk_state: "none".to_string(),
+            last_signal_at: "none".to_string(),
+            last_rejection_reason: "none".to_string(),
+            session_status_path: "none".to_string(),
+            events_path: "none".to_string(),
+            summary_path: "none".to_string(),
+        }
+    }
+}
+
+fn strategy_session_status_from_node_status(
+    status: &NodeStatus,
+) -> StrategySessionSupervisorStatus {
+    let Some(artifact_root) = status.artifact_root.value.as_deref() else {
+        return StrategySessionSupervisorStatus::default();
+    };
+    let strategy_root = Path::new(artifact_root).join("strategy");
+    strategy_session_status_from_artifact_root(&strategy_root)
+}
+
+fn strategy_session_status_from_artifact_root(root: &Path) -> StrategySessionSupervisorStatus {
+    let session_status_path = root.join("session_status.json");
+    let events_path = root.join("events.jsonl");
+    let market_status_path = root.join("market_status.json");
+    let signal_path = root.join("signal.jsonl");
+    let risk_decision_path = root.join("risk_decision.jsonl");
+    let summary_path = root.join("summary.json");
+
+    let mut status = StrategySessionSupervisorStatus {
+        session_status_path: path_display_if_exists(&session_status_path),
+        events_path: path_display_if_exists(&events_path),
+        summary_path: path_display_if_exists(&summary_path),
+        ..StrategySessionSupervisorStatus::default()
+    };
+
+    if let Some(session) = read_json_value(&session_status_path) {
+        status.session_state =
+            string_field(&session, "state").unwrap_or_else(|| "unknown".to_string());
+        status.strategy_id =
+            string_field(&session, "strategy_id").unwrap_or_else(|| "unknown".to_string());
+    }
+    if let Some(market) = read_json_value(&market_status_path) {
+        status.market_state =
+            string_field(&market, "connection").unwrap_or_else(|| "unknown".to_string());
+    }
+    if let Some(signal) = read_latest_jsonl_value(&signal_path) {
+        status.last_signal_at =
+            string_field(&signal, "generated_at").unwrap_or_else(|| "unknown".to_string());
+    }
+    if let Some(decision) = read_latest_jsonl_value(&risk_decision_path) {
+        status.risk_state =
+            string_field(&decision, "decision").unwrap_or_else(|| "unknown".to_string());
+        status.last_rejection_reason =
+            string_array_field(&decision, "reasons").unwrap_or_else(|| "unknown".to_string());
+    }
+
+    status
+}
+
+fn path_display_if_exists(path: &Path) -> String {
+    if path.exists() {
+        path.display().to_string()
+    } else {
+        "none".to_string()
+    }
+}
+
+fn read_json_value(path: &Path) -> Option<Value> {
+    let raw = fs::read_to_string(path).ok()?;
+    serde_json::from_str(&raw).ok()
+}
+
+fn read_latest_jsonl_value(path: &Path) -> Option<Value> {
+    let raw = fs::read_to_string(path).ok()?;
+    raw.lines()
+        .rev()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .and_then(|line| serde_json::from_str(line).ok())
+}
+
+fn string_field(value: &Value, field: &str) -> Option<String> {
+    value.get(field)?.as_str().map(ToString::to_string)
+}
+
+fn string_array_field(value: &Value, field: &str) -> Option<String> {
+    let values = value.get(field)?.as_array()?;
+    let joined = values
+        .iter()
+        .filter_map(Value::as_str)
+        .collect::<Vec<_>>()
+        .join("+");
+    if joined.is_empty() {
+        None
+    } else {
+        Some(joined)
+    }
 }
 
 fn load_node_record(
@@ -2016,6 +2156,130 @@ mod tests {
         let path = root.join(format!("{name}.toml"));
         fs::write(&path, "[run]\nid = \"live-init-smoke\"\n").unwrap();
         path
+    }
+
+    fn write_strategy_artifacts(root: &Path) -> PathBuf {
+        let strategy_root = root.join("strategy");
+        fs::create_dir_all(&strategy_root).unwrap();
+        fs::write(
+            strategy_root.join("session_status.json"),
+            r#"{
+  "schema_version": "ntpro.v09_strategy_session_status.v1",
+  "session_id": "btc-ema-shadow-001",
+  "strategy_id": "ema_cross_btcusdt_v1",
+  "state": "stopped",
+  "reason": "demo strategy stopped",
+  "updated_at_unix_ms": 1,
+  "artifacts": {}
+}
+"#,
+        )
+        .unwrap();
+        fs::write(
+            strategy_root.join("market_status.json"),
+            r#"{
+  "schema_version": "ntpro.v09_market_stream_status.v1",
+  "session_id": "btc-ema-shadow-001",
+  "strategy_id": "ema_cross_btcusdt_v1",
+  "connection": "fixture_stream_running",
+  "source": "fixture_bar_stream",
+  "event_count": 8,
+  "last_event_at_unix_ms": 2,
+  "updated_at_unix_ms": 3
+}
+"#,
+        )
+        .unwrap();
+        fs::write(
+            strategy_root.join("events.jsonl"),
+            r#"{"schema_version":"ntpro.v09_strategy_session_event.v1","event_type":"strategy_session_state_changed","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","state":"stopped","reason":"demo strategy stopped","occurred_at_unix_ms":3}
+"#,
+        )
+        .unwrap();
+        fs::write(
+            strategy_root.join("signal.jsonl"),
+            r#"{"schema_version":"ntpro.v09_strategy_signal.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","symbol":"BTCUSDT.BINANCE","signal":"long","confidence":0.6,"market_event_seq":5,"generated_at":"unix:100","generated_at_unix_ms":100}
+{"schema_version":"ntpro.v09_strategy_signal.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","symbol":"BTCUSDT.BINANCE","signal":"flat","confidence":0.7,"market_event_seq":8,"generated_at":"unix:200","generated_at_unix_ms":200}
+"#,
+        )
+        .unwrap();
+        fs::write(
+            strategy_root.join("risk_decision.jsonl"),
+            r#"{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","decision_id":"risk:1","intent_id":"intent-1","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":["order_submission_disabled"],"mode":"shadow","order_submission":"disabled","kill_switch":true,"account_state":"missing","market_state":"available","actual_submission":false,"evaluated_at":"unix:100","evaluated_at_unix_ms":100}
+{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","decision_id":"risk:2","intent_id":"intent-2","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":["order_submission_disabled","shadow_mode_actual_submission_disabled"],"mode":"shadow","order_submission":"disabled","kill_switch":true,"account_state":"missing","market_state":"available","actual_submission":false,"evaluated_at":"unix:200","evaluated_at_unix_ms":200}
+"#,
+        )
+        .unwrap();
+        fs::write(
+            strategy_root.join("summary.json"),
+            r#"{
+  "schema_version": "ntpro.v09_strategy_session_summary.v1",
+  "session_id": "btc-ema-shadow-001",
+  "strategy_id": "ema_cross_btcusdt_v1",
+  "state": "stopped",
+  "event_count": 10,
+  "market_event_count": 8,
+  "signal_count": 2,
+  "intent_count": 2,
+  "risk_decision_count": 2,
+  "rejection_count": 2,
+  "actual_submission_count": 0,
+  "updated_at_unix_ms": 4
+}
+"#,
+        )
+        .unwrap();
+        strategy_root
+    }
+
+    #[test]
+    fn supervisor_reads_strategy_session_artifact_status() {
+        let root = temp_root("strategy-artifacts");
+        let strategy_root = write_strategy_artifacts(&root);
+
+        let status = strategy_session_status_from_artifact_root(&strategy_root);
+
+        assert_eq!(status.session_state, "stopped");
+        assert_eq!(status.strategy_id, "ema_cross_btcusdt_v1");
+        assert_eq!(status.market_state, "fixture_stream_running");
+        assert_eq!(status.risk_state, "rejected");
+        assert_eq!(status.last_signal_at, "unix:200");
+        assert_eq!(
+            status.last_rejection_reason,
+            "order_submission_disabled+shadow_mode_actual_submission_disabled"
+        );
+        assert!(status.session_status_path.ends_with("session_status.json"));
+        assert!(status.events_path.ends_with("events.jsonl"));
+        assert!(status.summary_path.ends_with("summary.json"));
+    }
+
+    #[test]
+    fn node_metrics_expose_strategy_signal_and_rejection_counts() {
+        let mut status = NodeStatus::unknown("btc-ema-shadow-001");
+        status.risk.command_count = SnapshotValue::available(2);
+        status.risk.rejections_total = SnapshotValue::available(2);
+        let artifacts = NodeMetricArtifacts {
+            status_path: PathBuf::from("status.json"),
+            stdout_log_path: PathBuf::from("stdout.log"),
+            stderr_log_path: PathBuf::from("stderr.log"),
+            events_log_path: PathBuf::from("events.log"),
+        };
+
+        let metrics = NodeMetrics::from_status(
+            &status,
+            &artifacts,
+            NodeMetricCounts {
+                uptime_ms: Some(10),
+                starts_total: 1,
+                stops_total: 1,
+                state_transitions_total: 2,
+            },
+        );
+
+        assert_eq!(metrics.strategy_signal_count.value, Some(2));
+        assert_eq!(metrics.strategy_rejection_count.value, Some(2));
+        assert!(!metrics.external_venue_connection);
+        assert!(!metrics.real_orders_submitted);
     }
 
     fn start_request(
