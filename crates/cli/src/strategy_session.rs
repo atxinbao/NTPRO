@@ -24,6 +24,7 @@ use crate::artifacts::{atomic_write_json, atomic_write_text};
 
 const STRATEGY_SESSION_STATUS_SCHEMA_VERSION: &str = "ntpro.v09_strategy_session_status.v1";
 const STRATEGY_SESSION_EVENT_SCHEMA_VERSION: &str = "ntpro.v09_strategy_session_event.v1";
+const STRATEGY_SIGNAL_SCHEMA_VERSION: &str = "ntpro.v09_strategy_signal.v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -70,6 +71,7 @@ pub struct StrategySessionStatus {
 pub struct StrategySessionArtifactPaths {
     pub session_status: String,
     pub events: String,
+    pub signal: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -88,6 +90,7 @@ pub struct StrategySessionEvent {
 pub struct StrategySessionArtifacts {
     pub session_status: PathBuf,
     pub events: PathBuf,
+    pub signal: PathBuf,
 }
 
 impl StrategySessionArtifacts {
@@ -96,6 +99,7 @@ impl StrategySessionArtifacts {
         Self {
             session_status: strategy_root.join("session_status.json"),
             events: strategy_root.join("events.jsonl"),
+            signal: strategy_root.join("signal.jsonl"),
         }
     }
 
@@ -103,14 +107,48 @@ impl StrategySessionArtifacts {
         StrategySessionArtifactPaths {
             session_status: self.session_status.display().to_string(),
             events: self.events.display().to_string(),
+            signal: self.signal.display().to_string(),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StrategyMarketBar {
+    pub seq: u64,
+    pub symbol: String,
+    pub close: f64,
+    pub closed_at_unix_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StrategySignal {
+    pub schema_version: String,
+    pub session_id: String,
+    pub strategy_id: String,
+    pub symbol: String,
+    pub signal: String,
+    pub confidence: f64,
+    pub market_event_seq: u64,
+    pub generated_at_unix_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DemoStrategyRuntimeSummary {
+    pub schema_version: String,
+    pub session_id: String,
+    pub strategy_id: String,
+    pub strategy: String,
+    pub processed_events: u64,
+    pub signal_count: u64,
+    pub signal_artifact: String,
+    pub order_submission_allowed: bool,
 }
 
 #[derive(Debug)]
 pub struct StrategySession {
     status: StrategySessionStatus,
     events: Vec<StrategySessionEvent>,
+    signals: Vec<StrategySignal>,
     artifacts: StrategySessionArtifacts,
 }
 
@@ -153,6 +191,7 @@ impl StrategySession {
         let session = Self {
             status,
             events,
+            signals: Vec::new(),
             artifacts,
         };
         session.persist()?;
@@ -202,6 +241,77 @@ impl StrategySession {
         self.persist()
     }
 
+    /// Runs the built-in deterministic EMA-cross demo strategy over local
+    /// fixture bars and writes signal artifacts.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the session cannot transition through the demo
+    /// runtime lifecycle, when fixture bars are invalid, or when signal/status
+    /// artifacts cannot be serialized or written.
+    pub fn run_ema_cross_demo(
+        &mut self,
+        bars: &[StrategyMarketBar],
+    ) -> anyhow::Result<DemoStrategyRuntimeSummary> {
+        validate_fixture_bars(bars)?;
+        self.transition(StrategySessionState::Validated, "strategy config validated")?;
+        self.transition(StrategySessionState::Starting, "demo strategy starting")?;
+        self.transition(StrategySessionState::Running, "demo strategy running")?;
+
+        let mut fast: Option<f64> = None;
+        let mut slow: Option<f64> = None;
+
+        for bar in bars {
+            let previous = fast.zip(slow);
+            let fast_now = ema_next(fast, bar.close, 3);
+            let slow_now = ema_next(slow, bar.close, 5);
+            fast = Some(fast_now);
+            slow = Some(slow_now);
+
+            let signal = previous.and_then(|(prev_fast, prev_slow)| {
+                if prev_fast <= prev_slow && fast_now > slow_now {
+                    Some("long")
+                } else if prev_fast >= prev_slow && fast_now < slow_now {
+                    Some("flat")
+                } else {
+                    None
+                }
+            });
+
+            if let Some(signal) = signal {
+                self.signals.push(StrategySignal {
+                    schema_version: STRATEGY_SIGNAL_SCHEMA_VERSION.to_string(),
+                    session_id: self.status.session_id.clone(),
+                    strategy_id: self.status.strategy_id.clone(),
+                    symbol: bar.symbol.clone(),
+                    signal: signal.to_string(),
+                    confidence: confidence_from_ema_gap(fast_now, slow_now),
+                    market_event_seq: bar.seq,
+                    generated_at_unix_ms: unix_timestamp_millis(),
+                });
+            }
+        }
+
+        if self.signals.is_empty() {
+            anyhow::bail!("ema_cross_demo must generate at least one signal for fixture input");
+        }
+
+        self.transition(StrategySessionState::Stopping, "demo strategy completed")?;
+        self.transition(StrategySessionState::Stopped, "demo strategy stopped")?;
+        self.persist()?;
+
+        Ok(DemoStrategyRuntimeSummary {
+            schema_version: "ntpro.v09_demo_strategy_runtime_summary.v1".to_string(),
+            session_id: self.status.session_id.clone(),
+            strategy_id: self.status.strategy_id.clone(),
+            strategy: "ema_cross_demo".to_string(),
+            processed_events: u64::try_from(bars.len()).unwrap_or(u64::MAX),
+            signal_count: u64::try_from(self.signals.len()).unwrap_or(u64::MAX),
+            signal_artifact: self.artifacts.signal.display().to_string(),
+            order_submission_allowed: false,
+        })
+    }
+
     fn persist(&self) -> anyhow::Result<()> {
         atomic_write_json(&self.artifacts.session_status, &self.status)?;
         let mut body = String::new();
@@ -210,8 +320,64 @@ impl StrategySession {
             body.push('\n');
         }
         atomic_write_text(&self.artifacts.events, &body)?;
+
+        let mut signal_body = String::new();
+        for signal in &self.signals {
+            signal_body.push_str(&serde_json::to_string(signal)?);
+            signal_body.push('\n');
+        }
+        atomic_write_text(&self.artifacts.signal, &signal_body)?;
         Ok(())
     }
+}
+
+pub fn ema_cross_demo_fixture_bars(symbol: &str) -> Vec<StrategyMarketBar> {
+    let base_ts = 1_725_000_000_000;
+    [100.0, 99.0, 98.0, 99.5, 101.0, 103.5, 102.0, 100.5]
+        .into_iter()
+        .enumerate()
+        .map(|(index, close)| StrategyMarketBar {
+            seq: u64::try_from(index + 1).unwrap_or(u64::MAX),
+            symbol: symbol.to_string(),
+            close,
+            closed_at_unix_ms: base_ts + u64::try_from(index).unwrap_or(0) * 60_000,
+        })
+        .collect()
+}
+
+fn validate_fixture_bars(bars: &[StrategyMarketBar]) -> anyhow::Result<()> {
+    if bars.is_empty() {
+        anyhow::bail!("fixture bars must not be empty");
+    }
+    let mut previous_seq = 0;
+    for bar in bars {
+        if bar.seq == 0 {
+            anyhow::bail!("fixture bar seq must be greater than zero");
+        }
+        if bar.seq <= previous_seq {
+            anyhow::bail!("fixture bar seq must be strictly increasing");
+        }
+        previous_seq = bar.seq;
+        if bar.symbol.trim().is_empty() {
+            anyhow::bail!("fixture bar symbol must not be empty");
+        }
+        if !bar.close.is_finite() || bar.close <= 0.0 {
+            anyhow::bail!("fixture bar close must be a positive finite number");
+        }
+    }
+    Ok(())
+}
+
+fn ema_next(previous: Option<f64>, price: f64, period: u32) -> f64 {
+    let multiplier = 2.0 / (f64::from(period) + 1.0);
+    previous.map_or(price, |previous| {
+        price.mul_add(multiplier, previous * (1.0 - multiplier))
+    })
+}
+
+fn confidence_from_ema_gap(fast: f64, slow: f64) -> f64 {
+    let gap = ((fast - slow).abs() / slow.abs()).min(1.0);
+    (0.5 + gap).min(0.99)
 }
 
 fn is_legal_transition(previous: StrategySessionState, next: StrategySessionState) -> bool {
@@ -311,6 +477,58 @@ mod tests {
         assert!(event_lines[0].contains(r#""state":"created""#));
         assert!(event_lines[5].contains(r#""state":"stopped""#));
         assert!(event_lines[5].contains(r#""previous_state":"stopping""#));
+    }
+
+    #[test]
+    fn ema_cross_demo_generates_signal_artifact() {
+        let root = temp_root("ema-cross-demo");
+        let mut session = StrategySession::new("session-004", "ema-cross-demo", &root).unwrap();
+
+        let summary = session
+            .run_ema_cross_demo(&ema_cross_demo_fixture_bars("BTCUSDT.BINANCE"))
+            .unwrap();
+
+        assert_eq!(summary.strategy, "ema_cross_demo");
+        assert_eq!(summary.processed_events, 8);
+        assert!(summary.signal_count >= 1);
+        assert!(!summary.order_submission_allowed);
+        assert_eq!(session.status().state, StrategySessionState::Stopped);
+
+        let signal_path = root.join("strategy/signal.jsonl");
+        let signal_lines = fs::read_to_string(signal_path).unwrap();
+        let signals = signal_lines.lines().collect::<Vec<_>>();
+        assert_eq!(
+            signals.len(),
+            usize::try_from(summary.signal_count).unwrap()
+        );
+        let parsed_signals = signals
+            .iter()
+            .map(|line| serde_json::from_str::<Value>(line).unwrap())
+            .collect::<Vec<_>>();
+        assert!(
+            parsed_signals
+                .iter()
+                .any(|signal| signal["signal"] == "long")
+        );
+        for signal in parsed_signals {
+            assert_eq!(signal["schema_version"], STRATEGY_SIGNAL_SCHEMA_VERSION);
+            assert_eq!(signal["session_id"], "session-004");
+            assert_eq!(signal["strategy_id"], "ema-cross-demo");
+            assert_eq!(signal["symbol"], "BTCUSDT.BINANCE");
+            assert!(signal["market_event_seq"].as_u64().unwrap() > 0);
+            assert!(signal["confidence"].as_f64().unwrap() > 0.5);
+        }
+    }
+
+    #[test]
+    fn ema_cross_demo_rejects_empty_fixture() {
+        let root = temp_root("ema-cross-empty");
+        let mut session = StrategySession::new("session-005", "ema-cross-demo", &root).unwrap();
+
+        let error = session.run_ema_cross_demo(&[]).unwrap_err().to_string();
+
+        assert!(error.contains("fixture bars must not be empty"));
+        assert_eq!(session.status().state, StrategySessionState::Created);
     }
 
     #[test]
