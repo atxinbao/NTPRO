@@ -4803,7 +4803,7 @@ mod tests {
                 "real_funds": false,
                 "production_trading": false,
                 "response_status_code": null,
-                "response_shape": "binance_account_v1",
+                "response_shape": "binance_account_readonly_redacted_v1",
                 "response_shape_validated": false,
                 "latency_ms": null,
                 "error_code": "manual_online_gate_closed",
@@ -4834,7 +4834,7 @@ mod tests {
         );
         assert_eq!(
             workflow.authenticated_response_shape.value.as_deref(),
-            Some("binance_account_v1")
+            Some("binance_account_readonly_redacted_v1")
         );
         assert_eq!(
             workflow.authenticated_response_shape_validated.value,

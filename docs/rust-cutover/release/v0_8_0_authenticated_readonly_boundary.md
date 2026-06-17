@@ -161,7 +161,7 @@ The authenticated read-only probe artifact may record only bounded metadata:
   "real_funds": false,
   "production_trading": false,
   "response_status_code": 200,
-  "response_shape": "binance_account_v1",
+  "response_shape": "binance_account_readonly_redacted_v1",
   "response_shape_validated": true,
   "latency_ms": 0,
   "error_code": "none",
@@ -174,6 +174,13 @@ The authenticated read-only probe artifact may record only bounded metadata:
 Offline/default and fail-closed artifacts use the same schema but record
 `network_attempted=false`, `testnet_connection=false`, and
 `response_shape_validated=false`.
+
+`response_shape=binance_account_readonly_redacted_v1` means the probe validated
+only the bounded account response shape: `accountType` is a string, `balances`
+is an array, and `canTrade`, `canWithdraw`, and `canDeposit` are booleans. The
+artifact still must not record balances, account identifiers, permissions,
+commission details, headers, signatures, signed query strings, or raw response
+body content.
 
 Deprecated planning-only aliases such as `network_allowed`,
 `account_mutation_attempted`, `production_endpoint_used`, or
