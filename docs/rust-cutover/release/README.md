@@ -82,6 +82,9 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_9_0_strategy_session_audit_log.md` - V090-008 Strategy Session audit log
   and summary contract. It records lifecycle/risk decision events and
   `summary.json` counts while preserving the no-execution v0.9 boundary.
+- `v0_9_0_ntpro_node_strategy_session_host.md` - V090-009 `ntpro-node`
+  Strategy Session host contract. It runs fixture strategy sessions and writes
+  local artifacts while preserving the no-order, no-production v0.9 boundary.
 - `../evidence/V080-009.md` - dedicated v0.8.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
