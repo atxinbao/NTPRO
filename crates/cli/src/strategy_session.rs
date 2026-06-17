@@ -24,6 +24,8 @@ use crate::artifacts::{atomic_write_json, atomic_write_text};
 
 const STRATEGY_SESSION_STATUS_SCHEMA_VERSION: &str = "ntpro.v09_strategy_session_status.v1";
 const STRATEGY_SESSION_EVENT_SCHEMA_VERSION: &str = "ntpro.v09_strategy_session_event.v1";
+const STRATEGY_MARKET_STATUS_SCHEMA_VERSION: &str = "ntpro.v09_market_stream_status.v1";
+const STRATEGY_MARKET_EVENT_SCHEMA_VERSION: &str = "ntpro.v09_market_stream_event.v1";
 const STRATEGY_SIGNAL_SCHEMA_VERSION: &str = "ntpro.v09_strategy_signal.v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -71,6 +73,8 @@ pub struct StrategySessionStatus {
 pub struct StrategySessionArtifactPaths {
     pub session_status: String,
     pub events: String,
+    pub market_status: String,
+    pub market_events: String,
     pub signal: String,
 }
 
@@ -90,6 +94,8 @@ pub struct StrategySessionEvent {
 pub struct StrategySessionArtifacts {
     pub session_status: PathBuf,
     pub events: PathBuf,
+    pub market_status: PathBuf,
+    pub market_events: PathBuf,
     pub signal: PathBuf,
 }
 
@@ -99,6 +105,8 @@ impl StrategySessionArtifacts {
         Self {
             session_status: strategy_root.join("session_status.json"),
             events: strategy_root.join("events.jsonl"),
+            market_status: strategy_root.join("market_status.json"),
+            market_events: strategy_root.join("market_events.jsonl"),
             signal: strategy_root.join("signal.jsonl"),
         }
     }
@@ -107,6 +115,8 @@ impl StrategySessionArtifacts {
         StrategySessionArtifactPaths {
             session_status: self.session_status.display().to_string(),
             events: self.events.display().to_string(),
+            market_status: self.market_status.display().to_string(),
+            market_events: self.market_events.display().to_string(),
             signal: self.signal.display().to_string(),
         }
     }
@@ -118,6 +128,48 @@ pub struct StrategyMarketBar {
     pub symbol: String,
     pub close: f64,
     pub closed_at_unix_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StrategyMarketTick {
+    pub seq: u64,
+    pub symbol: String,
+    pub price: f64,
+    pub observed_at_unix_ms: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StrategyMarketEventKind {
+    FixtureBar,
+    MockBar,
+    MockTick,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategyMarketStreamStatus {
+    pub schema_version: String,
+    pub session_id: String,
+    pub strategy_id: String,
+    pub connection: String,
+    pub source: String,
+    pub event_count: u64,
+    pub last_event_at_unix_ms: Option<u64>,
+    pub updated_at_unix_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StrategyMarketEvent {
+    pub schema_version: String,
+    pub session_id: String,
+    pub strategy_id: String,
+    pub event_type: StrategyMarketEventKind,
+    pub source: String,
+    pub seq: u64,
+    pub symbol: String,
+    pub price: f64,
+    pub event_at_unix_ms: u64,
+    pub recorded_at_unix_ms: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -144,10 +196,25 @@ pub struct DemoStrategyRuntimeSummary {
     pub order_submission_allowed: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategyMarketStreamSummary {
+    pub schema_version: String,
+    pub session_id: String,
+    pub strategy_id: String,
+    pub connection: String,
+    pub source: String,
+    pub event_count: u64,
+    pub last_event_at_unix_ms: Option<u64>,
+    pub market_status_artifact: String,
+    pub market_events_artifact: String,
+}
+
 #[derive(Debug)]
 pub struct StrategySession {
     status: StrategySessionStatus,
     events: Vec<StrategySessionEvent>,
+    market_status: Option<StrategyMarketStreamStatus>,
+    market_events: Vec<StrategyMarketEvent>,
     signals: Vec<StrategySignal>,
     artifacts: StrategySessionArtifacts,
 }
@@ -191,6 +258,8 @@ impl StrategySession {
         let session = Self {
             status,
             events,
+            market_status: None,
+            market_events: Vec::new(),
             signals: Vec::new(),
             artifacts,
         };
@@ -241,6 +310,75 @@ impl StrategySession {
         self.persist()
     }
 
+    /// Records a deterministic local fixture bar stream for the strategy
+    /// session.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when bars are empty or invalid, or when market status
+    /// and event artifacts cannot be serialized or written.
+    pub fn record_fixture_bar_stream(
+        &mut self,
+        bars: &[StrategyMarketBar],
+    ) -> anyhow::Result<StrategyMarketStreamSummary> {
+        validate_fixture_bars(bars)?;
+        self.record_market_bar_stream(
+            bars,
+            StrategyMarketEventKind::FixtureBar,
+            "fixture_bar_stream",
+            "fixture_stream_running",
+        )
+    }
+
+    /// Records a deterministic local mock bar stream for the strategy session.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when bars are empty or invalid, or when market status
+    /// and event artifacts cannot be serialized or written.
+    pub fn record_mock_bar_stream(
+        &mut self,
+        bars: &[StrategyMarketBar],
+    ) -> anyhow::Result<StrategyMarketStreamSummary> {
+        validate_fixture_bars(bars)?;
+        self.record_market_bar_stream(
+            bars,
+            StrategyMarketEventKind::MockBar,
+            "mock_bar_stream",
+            "mock_stream_running",
+        )
+    }
+
+    /// Records a deterministic local mock tick stream for the strategy session.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when ticks are empty or invalid, or when market status
+    /// and event artifacts cannot be serialized or written.
+    pub fn record_mock_tick_stream(
+        &mut self,
+        ticks: &[StrategyMarketTick],
+    ) -> anyhow::Result<StrategyMarketStreamSummary> {
+        validate_mock_ticks(ticks)?;
+        let now = unix_timestamp_millis();
+        let events = ticks
+            .iter()
+            .map(|tick| StrategyMarketEvent {
+                schema_version: STRATEGY_MARKET_EVENT_SCHEMA_VERSION.to_string(),
+                session_id: self.status.session_id.clone(),
+                strategy_id: self.status.strategy_id.clone(),
+                event_type: StrategyMarketEventKind::MockTick,
+                source: "mock_tick_stream".to_string(),
+                seq: tick.seq,
+                symbol: tick.symbol.clone(),
+                price: tick.price,
+                event_at_unix_ms: tick.observed_at_unix_ms,
+                recorded_at_unix_ms: now,
+            })
+            .collect::<Vec<_>>();
+        self.record_market_events(events, "mock_tick_stream", "mock_stream_running")
+    }
+
     /// Runs the built-in deterministic EMA-cross demo strategy over local
     /// fixture bars and writes signal artifacts.
     ///
@@ -257,6 +395,7 @@ impl StrategySession {
         self.transition(StrategySessionState::Validated, "strategy config validated")?;
         self.transition(StrategySessionState::Starting, "demo strategy starting")?;
         self.transition(StrategySessionState::Running, "demo strategy running")?;
+        self.record_fixture_bar_stream(bars)?;
 
         let mut fast: Option<f64> = None;
         let mut slow: Option<f64> = None;
@@ -312,6 +451,67 @@ impl StrategySession {
         })
     }
 
+    fn record_market_bar_stream(
+        &mut self,
+        bars: &[StrategyMarketBar],
+        event_type: StrategyMarketEventKind,
+        source: &str,
+        connection: &str,
+    ) -> anyhow::Result<StrategyMarketStreamSummary> {
+        let now = unix_timestamp_millis();
+        let events = bars
+            .iter()
+            .map(|bar| StrategyMarketEvent {
+                schema_version: STRATEGY_MARKET_EVENT_SCHEMA_VERSION.to_string(),
+                session_id: self.status.session_id.clone(),
+                strategy_id: self.status.strategy_id.clone(),
+                event_type,
+                source: source.to_string(),
+                seq: bar.seq,
+                symbol: bar.symbol.clone(),
+                price: bar.close,
+                event_at_unix_ms: bar.closed_at_unix_ms,
+                recorded_at_unix_ms: now,
+            })
+            .collect::<Vec<_>>();
+        self.record_market_events(events, source, connection)
+    }
+
+    fn record_market_events(
+        &mut self,
+        events: Vec<StrategyMarketEvent>,
+        source: &str,
+        connection: &str,
+    ) -> anyhow::Result<StrategyMarketStreamSummary> {
+        let last_event_at_unix_ms = events.last().map(|event| event.event_at_unix_ms);
+        self.market_events.extend(events);
+        let event_count = u64::try_from(self.market_events.len()).unwrap_or(u64::MAX);
+        let status = StrategyMarketStreamStatus {
+            schema_version: STRATEGY_MARKET_STATUS_SCHEMA_VERSION.to_string(),
+            session_id: self.status.session_id.clone(),
+            strategy_id: self.status.strategy_id.clone(),
+            connection: connection.to_string(),
+            source: source.to_string(),
+            event_count,
+            last_event_at_unix_ms,
+            updated_at_unix_ms: unix_timestamp_millis(),
+        };
+        self.market_status = Some(status);
+        self.persist()?;
+
+        Ok(StrategyMarketStreamSummary {
+            schema_version: "ntpro.v09_market_stream_summary.v1".to_string(),
+            session_id: self.status.session_id.clone(),
+            strategy_id: self.status.strategy_id.clone(),
+            connection: connection.to_string(),
+            source: source.to_string(),
+            event_count,
+            last_event_at_unix_ms,
+            market_status_artifact: self.artifacts.market_status.display().to_string(),
+            market_events_artifact: self.artifacts.market_events.display().to_string(),
+        })
+    }
+
     fn persist(&self) -> anyhow::Result<()> {
         atomic_write_json(&self.artifacts.session_status, &self.status)?;
         let mut body = String::new();
@@ -320,6 +520,16 @@ impl StrategySession {
             body.push('\n');
         }
         atomic_write_text(&self.artifacts.events, &body)?;
+
+        if let Some(market_status) = &self.market_status {
+            atomic_write_json(&self.artifacts.market_status, market_status)?;
+        }
+        let mut market_body = String::new();
+        for market_event in &self.market_events {
+            market_body.push_str(&serde_json::to_string(market_event)?);
+            market_body.push('\n');
+        }
+        atomic_write_text(&self.artifacts.market_events, &market_body)?;
 
         let mut signal_body = String::new();
         for signal in &self.signals {
@@ -363,6 +573,29 @@ fn validate_fixture_bars(bars: &[StrategyMarketBar]) -> anyhow::Result<()> {
         }
         if !bar.close.is_finite() || bar.close <= 0.0 {
             anyhow::bail!("fixture bar close must be a positive finite number");
+        }
+    }
+    Ok(())
+}
+
+fn validate_mock_ticks(ticks: &[StrategyMarketTick]) -> anyhow::Result<()> {
+    if ticks.is_empty() {
+        anyhow::bail!("mock ticks must not be empty");
+    }
+    let mut previous_seq = 0;
+    for tick in ticks {
+        if tick.seq == 0 {
+            anyhow::bail!("mock tick seq must be greater than zero");
+        }
+        if tick.seq <= previous_seq {
+            anyhow::bail!("mock tick seq must be strictly increasing");
+        }
+        previous_seq = tick.seq;
+        if tick.symbol.trim().is_empty() {
+            anyhow::bail!("mock tick symbol must not be empty");
+        }
+        if !tick.price.is_finite() || tick.price <= 0.0 {
+            anyhow::bail!("mock tick price must be a positive finite number");
         }
     }
     Ok(())
@@ -470,6 +703,18 @@ mod tests {
                 .unwrap()
                 .ends_with("strategy/events.jsonl")
         );
+        assert!(
+            status["artifacts"]["market_status"]
+                .as_str()
+                .unwrap()
+                .ends_with("strategy/market_status.json")
+        );
+        assert!(
+            status["artifacts"]["market_events"]
+                .as_str()
+                .unwrap()
+                .ends_with("strategy/market_events.jsonl")
+        );
 
         let events = fs::read_to_string(root.join("strategy/events.jsonl")).unwrap();
         let event_lines = events.lines().collect::<Vec<_>>();
@@ -477,6 +722,80 @@ mod tests {
         assert!(event_lines[0].contains(r#""state":"created""#));
         assert!(event_lines[5].contains(r#""state":"stopped""#));
         assert!(event_lines[5].contains(r#""previous_state":"stopping""#));
+    }
+
+    #[test]
+    fn fixture_market_stream_writes_status_and_events() {
+        let root = temp_root("fixture-market-stream");
+        let mut session = StrategySession::new("session-006", "ema-cross-demo", &root).unwrap();
+        let bars = ema_cross_demo_fixture_bars("BTCUSDT.BINANCE");
+
+        let summary = session.record_fixture_bar_stream(&bars).unwrap();
+
+        assert_eq!(summary.connection, "fixture_stream_running");
+        assert_eq!(summary.source, "fixture_bar_stream");
+        assert_eq!(summary.event_count, u64::try_from(bars.len()).unwrap());
+        assert_eq!(
+            summary.last_event_at_unix_ms,
+            bars.last().map(|bar| bar.closed_at_unix_ms)
+        );
+
+        let status: Value = serde_json::from_str(
+            &fs::read_to_string(root.join("strategy/market_status.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            status["schema_version"],
+            STRATEGY_MARKET_STATUS_SCHEMA_VERSION
+        );
+        assert_eq!(status["connection"], "fixture_stream_running");
+        assert_eq!(status["source"], "fixture_bar_stream");
+        assert_eq!(status["event_count"], bars.len());
+
+        let events = fs::read_to_string(root.join("strategy/market_events.jsonl")).unwrap();
+        let event_lines = events.lines().collect::<Vec<_>>();
+        assert_eq!(event_lines.len(), bars.len());
+        let first_event: Value = serde_json::from_str(event_lines[0]).unwrap();
+        assert_eq!(
+            first_event["schema_version"],
+            STRATEGY_MARKET_EVENT_SCHEMA_VERSION
+        );
+        assert_eq!(first_event["event_type"], "fixture_bar");
+        assert_eq!(first_event["source"], "fixture_bar_stream");
+        assert_eq!(first_event["symbol"], "BTCUSDT.BINANCE");
+    }
+
+    #[test]
+    fn mock_tick_stream_writes_market_events() {
+        let root = temp_root("mock-tick-stream");
+        let mut session = StrategySession::new("session-007", "ema-cross-demo", &root).unwrap();
+        let ticks = vec![
+            StrategyMarketTick {
+                seq: 1,
+                symbol: "BTCUSDT.BINANCE".to_string(),
+                price: 101.0,
+                observed_at_unix_ms: 1_725_000_000_000,
+            },
+            StrategyMarketTick {
+                seq: 2,
+                symbol: "BTCUSDT.BINANCE".to_string(),
+                price: 102.0,
+                observed_at_unix_ms: 1_725_000_001_000,
+            },
+        ];
+
+        let summary = session.record_mock_tick_stream(&ticks).unwrap();
+
+        assert_eq!(summary.connection, "mock_stream_running");
+        assert_eq!(summary.source, "mock_tick_stream");
+        assert_eq!(summary.event_count, 2);
+
+        let events = fs::read_to_string(root.join("strategy/market_events.jsonl")).unwrap();
+        let event_lines = events.lines().collect::<Vec<_>>();
+        assert_eq!(event_lines.len(), 2);
+        let second_event: Value = serde_json::from_str(event_lines[1]).unwrap();
+        assert_eq!(second_event["event_type"], "mock_tick");
+        assert_eq!(second_event["price"], 102.0);
     }
 
     #[test]
@@ -493,6 +812,21 @@ mod tests {
         assert!(summary.signal_count >= 1);
         assert!(!summary.order_submission_allowed);
         assert_eq!(session.status().state, StrategySessionState::Stopped);
+
+        let market_status: Value = serde_json::from_str(
+            &fs::read_to_string(root.join("strategy/market_status.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            market_status["connection"], "fixture_stream_running",
+            "demo strategy consumes the fixture market stream"
+        );
+        assert_eq!(market_status["event_count"], summary.processed_events);
+        let market_events = fs::read_to_string(root.join("strategy/market_events.jsonl")).unwrap();
+        assert_eq!(
+            market_events.lines().count(),
+            usize::try_from(summary.processed_events).unwrap()
+        );
 
         let signal_path = root.join("strategy/signal.jsonl");
         let signal_lines = fs::read_to_string(signal_path).unwrap();
