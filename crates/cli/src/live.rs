@@ -36,13 +36,18 @@ use serde::Deserialize;
 use tokio::time::{sleep, timeout};
 
 use crate::{
-    artifacts::atomic_write_text,
+    artifacts::{atomic_write_json, atomic_write_text},
     opt::{LiveCommand, LiveOpt, LiveRunOpt, LiveValidateOpt},
     process::process_is_alive,
+    strategy_session::{StrategySession, ema_cross_demo_fixture_bars},
     supervisor::{NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, write_node_metrics_artifact},
 };
 
 const LIVE_INIT_SMOKE_MODE: &str = "live-init-smoke";
+const STRATEGY_SESSION_SHADOW_MODE: &str = "shadow";
+const BUILTIN_STRATEGY_PACKAGE: &str = "builtin";
+const EMA_CROSS_DEMO_STRATEGY: &str = "ema_cross_demo";
+const FIXTURE_STREAM_DATA_MODE: &str = "fixture_stream";
 const SANDBOX_ENVIRONMENT: &str = "sandbox";
 const SANDBOX_SIMULATED_EXECUTION: &str = "sandbox-simulated-execution";
 const DISABLED_ORDER_SUBMISSION: &str = "disabled";
@@ -157,6 +162,49 @@ struct LiveOutputConfig {
     write_summary: Option<bool>,
 }
 
+#[derive(Debug, Deserialize)]
+struct StrategyNodeConfig {
+    node: StrategyNodeSection,
+    strategy: StrategyNodeStrategySection,
+    market: StrategyNodeMarketSection,
+    execution: StrategyNodeExecutionSection,
+    risk: StrategyNodeRiskSection,
+    shutdown: Option<LiveShutdownConfig>,
+    output: Option<LiveOutputConfig>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StrategyNodeSection {
+    node_id: String,
+    mode: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct StrategyNodeStrategySection {
+    strategy_id: String,
+    strategy_package: Option<String>,
+    strategy_runtime: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StrategyNodeMarketSection {
+    venue: Option<String>,
+    symbols: Vec<String>,
+    data_mode: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StrategyNodeExecutionSection {
+    venue: Option<String>,
+    order_submission: String,
+    external_venue_connection: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StrategyNodeRiskSection {
+    kill_switch: bool,
+}
+
 pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
     match opt.command {
         LiveCommand::Validate(validate) => run_live_validate(&validate),
@@ -214,6 +262,21 @@ pub(crate) async fn run_ntpro_node_with_controls(
     stop_file: Option<PathBuf>,
     controls: NtproNodeRunControls,
 ) -> anyhow::Result<()> {
+    if is_strategy_session_node_config(&config)? {
+        return run_strategy_session_node_with_command(
+            &LiveRunOpt {
+                config,
+                run_id,
+                output,
+            },
+            "ntpro-node.run",
+            ProcessMode::SpawnedProcess,
+            stop_file.as_deref(),
+            controls,
+        )
+        .await;
+    }
+
     run_live_run_with_command(
         &LiveRunOpt {
             config,
@@ -351,6 +414,173 @@ async fn run_live_run_with_command(
     Ok(())
 }
 
+async fn run_strategy_session_node_with_command(
+    opt: &LiveRunOpt,
+    command_name: &str,
+    process_mode: ProcessMode,
+    stop_file: Option<&Path>,
+    shutdown_controls: NtproNodeRunControls,
+) -> anyhow::Result<()> {
+    let config = load_strategy_node_config(&opt.config)?;
+    let run_id = opt
+        .run_id
+        .as_deref()
+        .unwrap_or(config.node.node_id.as_str());
+    validate_non_empty("run_id", run_id)?;
+
+    let output_dir = resolve_output_dir(run_id, opt.output.as_ref(), config.output.as_ref());
+    fs::create_dir_all(&output_dir)
+        .with_context(|| format!("failed to create output dir '{}'", output_dir.display()))?;
+
+    let summary_path = output_dir.join("summary.txt");
+    let legacy_events_path = output_dir.join("events.log");
+    let events_path = output_dir.join("logs").join("events.log");
+    let status_path = output_dir.join("status.json");
+    let metrics_path = output_dir.join("metrics.json");
+    let stdout_log_path = output_dir.join("logs").join("stdout.log");
+    let stderr_log_path = output_dir.join("logs").join("stderr.log");
+    if let Some(parent) = events_path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create log dir '{}'", parent.display()))?;
+    }
+
+    let started_at = now_millis();
+    let started_instant = Instant::now();
+    let symbol = config
+        .market
+        .symbols
+        .first()
+        .context("market.symbols must not be empty")?;
+    let mut session = StrategySession::new(run_id, &config.strategy.strategy_id, &output_dir)?;
+    let bars = ema_cross_demo_fixture_bars(symbol);
+    let runtime = session.run_ema_cross_demo(&bars)?;
+
+    let shutdown_reason = wait_for_strategy_shutdown_trigger(
+        stop_file,
+        shutdown_controls,
+        &status_path,
+        &metrics_path,
+        &stdout_log_path,
+        &stderr_log_path,
+        &events_path,
+        &opt.config,
+        &output_dir,
+        run_id,
+        process_mode,
+        &started_at,
+        started_instant,
+    )
+    .await?;
+
+    let stopped_at = now_millis();
+    let uptime_ms = millis_to_u64(started_instant.elapsed().as_millis());
+    let status = build_strategy_node_status(
+        &StrategyNodeStatusContext {
+            config_path: &opt.config,
+            output_dir: &output_dir,
+            run_id,
+            process_mode,
+            started_at: &started_at,
+            stopped_at: Some(&stopped_at),
+            signal_count: runtime.signal_count,
+            rejection_count: runtime.risk_decision_count,
+        },
+        NodeState::Stopped,
+    );
+    atomic_write_json(&status_path, &status)
+        .with_context(|| format!("failed to write status '{}'", status_path.display()))?;
+    write_strategy_node_metrics(
+        &metrics_path,
+        &status,
+        &StrategyNodeMetricPaths {
+            status_path: &status_path,
+            stdout_log_path: &stdout_log_path,
+            stderr_log_path: &stderr_log_path,
+            events_log_path: &events_path,
+        },
+        NodeMetricCounts {
+            uptime_ms: Some(uptime_ms),
+            starts_total: 1,
+            stops_total: 1,
+            state_transitions_total: 2,
+        },
+    )?;
+
+    let strategy_summary_path = runtime.summary_artifact.clone();
+    let summary = format!(
+        "command={command_name}\nstatus=ok\nmode={}\nrun_id={run_id}\nconfig={}\nenvironment=sandbox\nprocess_mode={}\nstrategy_id={}\nstrategy_runtime={}\nmarket_source={}\nmarket_symbol={symbol}\nprocessed_events={}\nsignal_count={}\norder_intent_count={}\nrisk_decision_count={}\norder_submission_allowed=false\nstatus_artifact={}\nmetrics_artifact={}\nevents_log={}\nsession_status_artifact={}\nsignal_artifact={}\norder_intent_artifact={}\nrisk_decision_artifact={}\nstrategy_summary_artifact={}\nfinal_state=Stopped\nexternal_venue_connection=false\nreal_orders_submitted=false\nruntime_status=completed\nshutdown_reason={}\n",
+        config.node.mode,
+        opt.config.display(),
+        process_mode_label(process_mode),
+        config.strategy.strategy_id,
+        config
+            .strategy
+            .strategy_runtime
+            .as_deref()
+            .unwrap_or(EMA_CROSS_DEMO_STRATEGY),
+        config
+            .market
+            .data_mode
+            .as_deref()
+            .unwrap_or(FIXTURE_STREAM_DATA_MODE),
+        runtime.processed_events,
+        runtime.signal_count,
+        runtime.order_intent_count,
+        runtime.risk_decision_count,
+        status_path.display(),
+        metrics_path.display(),
+        events_path.display(),
+        session.status().artifacts.session_status,
+        runtime.signal_artifact,
+        runtime.order_intent_artifact,
+        runtime.risk_decision_artifact,
+        strategy_summary_path,
+        shutdown_reason.label(),
+    );
+    atomic_write_text(&summary_path, &summary)
+        .with_context(|| format!("failed to write summary '{}'", summary_path.display()))?;
+
+    let event_log = format!(
+        "phase=validate_config status=ok mode={} strategy_id={}\n\
+         phase=strategy_session_start status=ok session_id={run_id} strategy_id={}\n\
+         phase=fixture_market_stream status=ok symbol={symbol} processed_events={}\n\
+         phase=strategy_loop status=ok signal_count={} order_intent_count={} risk_decision_count={}\n\
+         phase=shutdown_trigger status=ok reason={}\n\
+         phase=strategy_session_stop status=ok state=stopped external_venue_connection=false real_orders_submitted=false\n",
+        config.node.mode,
+        config.strategy.strategy_id,
+        config.strategy.strategy_id,
+        runtime.processed_events,
+        runtime.signal_count,
+        runtime.order_intent_count,
+        runtime.risk_decision_count,
+        shutdown_reason.label(),
+    );
+    atomic_write_text(&events_path, &event_log)
+        .with_context(|| format!("failed to write events '{}'", events_path.display()))?;
+    atomic_write_text(&legacy_events_path, &event_log).with_context(|| {
+        format!(
+            "failed to write legacy events '{}'",
+            legacy_events_path.display()
+        )
+    })?;
+
+    println!(
+        "{command_name} status=ok mode={} run_id={} config={} output={} summary={} events={} status_artifact={} metrics_artifact={} strategy_id={} final_state=Stopped external_venue_connection=false real_orders_submitted=false runtime_status=completed",
+        config.node.mode,
+        run_id,
+        opt.config.display(),
+        output_dir.display(),
+        summary_path.display(),
+        events_path.display(),
+        status_path.display(),
+        metrics_path.display(),
+        config.strategy.strategy_id,
+    );
+
+    Ok(())
+}
+
 pub(crate) fn validate_minimal_live_config_file(path: &Path) -> anyhow::Result<()> {
     load_minimal_live_config(path)?;
     Ok(())
@@ -426,6 +656,87 @@ fn validate_minimal_live_config(config: &MinimalLiveConfig) -> anyhow::Result<()
     Ok(())
 }
 
+fn is_strategy_session_node_config(path: &Path) -> anyhow::Result<bool> {
+    let raw = fs::read_to_string(path)
+        .with_context(|| format!("failed to read ntpro-node config '{}'", path.display()))?;
+    let value: toml::Value = toml::from_str(&raw)
+        .with_context(|| format!("failed to parse ntpro-node config '{}'", path.display()))?;
+    Ok(value.get("node").is_some())
+}
+
+fn load_strategy_node_config(path: &Path) -> anyhow::Result<StrategyNodeConfig> {
+    let raw = fs::read_to_string(path)
+        .with_context(|| format!("failed to read strategy node config '{}'", path.display()))?;
+    let config: StrategyNodeConfig = toml::from_str(&raw)
+        .with_context(|| format!("failed to parse strategy node config '{}'", path.display()))?;
+    validate_strategy_node_config(&config)?;
+    Ok(config)
+}
+
+fn validate_strategy_node_config(config: &StrategyNodeConfig) -> anyhow::Result<()> {
+    validate_non_empty("node.node_id", &config.node.node_id)?;
+    validate_exact("node.mode", &config.node.mode, STRATEGY_SESSION_SHADOW_MODE)?;
+    validate_non_empty("strategy.strategy_id", &config.strategy.strategy_id)?;
+    if let Some(package) = &config.strategy.strategy_package {
+        validate_exact(
+            "strategy.strategy_package",
+            package,
+            BUILTIN_STRATEGY_PACKAGE,
+        )?;
+    }
+    if let Some(runtime) = &config.strategy.strategy_runtime {
+        validate_exact(
+            "strategy.strategy_runtime",
+            runtime,
+            EMA_CROSS_DEMO_STRATEGY,
+        )?;
+    }
+    if config.market.symbols.is_empty() {
+        anyhow::bail!("market.symbols must not be empty");
+    }
+    for symbol in &config.market.symbols {
+        validate_non_empty("market.symbols", symbol)?;
+    }
+    if let Some(venue) = &config.market.venue {
+        validate_non_empty("market.venue", venue)?;
+    }
+    if let Some(data_mode) = &config.market.data_mode {
+        validate_exact("market.data_mode", data_mode, FIXTURE_STREAM_DATA_MODE)?;
+    }
+    if let Some(venue) = &config.execution.venue {
+        validate_non_empty("execution.venue", venue)?;
+    }
+    validate_exact(
+        "execution.order_submission",
+        &config.execution.order_submission,
+        DISABLED_ORDER_SUBMISSION,
+    )?;
+    if config.execution.external_venue_connection.unwrap_or(false) {
+        anyhow::bail!("execution.external_venue_connection must be false for strategy session");
+    }
+    if !config.risk.kill_switch {
+        anyhow::bail!("risk.kill_switch must be true for v0.9 shadow strategy sessions");
+    }
+    if let Some(shutdown) = &config.shutdown {
+        validate_exact("shutdown.mode", &shutdown.mode, START_STOP_SHUTDOWN)?;
+        if shutdown.connection_timeout_secs == 0 {
+            anyhow::bail!("shutdown.connection_timeout_secs must be greater than zero");
+        }
+        if shutdown.disconnection_timeout_secs == 0 {
+            anyhow::bail!("shutdown.disconnection_timeout_secs must be greater than zero");
+        }
+    }
+    if let Some(output) = &config.output {
+        if let Some(dir) = &output.dir {
+            validate_non_empty("output.dir", dir.to_string_lossy().as_ref())?;
+        }
+        if matches!(output.write_summary, Some(false)) {
+            anyhow::bail!("output.write_summary must be true for strategy session");
+        }
+    }
+    Ok(())
+}
+
 #[derive(Debug)]
 struct LiveSmokeResult {
     pre_start_state: String,
@@ -453,6 +764,24 @@ struct LiveRunContext<'a> {
     events_log_path: &'a Path,
     stop_file: Option<&'a Path>,
     shutdown_controls: NtproNodeRunControls,
+}
+
+struct StrategyNodeStatusContext<'a> {
+    config_path: &'a Path,
+    output_dir: &'a Path,
+    run_id: &'a str,
+    process_mode: ProcessMode,
+    started_at: &'a str,
+    stopped_at: Option<&'a str>,
+    signal_count: u64,
+    rejection_count: u64,
+}
+
+struct StrategyNodeMetricPaths<'a> {
+    status_path: &'a Path,
+    stdout_log_path: &'a Path,
+    stderr_log_path: &'a Path,
+    events_log_path: &'a Path,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -578,6 +907,51 @@ fn build_node_status(context: &LiveRunContext<'_>, smoke: &LiveSmokeResult) -> N
     )
 }
 
+fn build_strategy_node_status(
+    context: &StrategyNodeStatusContext<'_>,
+    state: NodeState,
+) -> NodeStatus {
+    let mut status = NodeStatus::from_node_state(context.run_id, state);
+    let generated_at = now_millis();
+    status.process_mode = context.process_mode;
+    status.config_path = SnapshotValue::available(context.config_path.display().to_string());
+    status.artifact_root = SnapshotValue::available(context.output_dir.display().to_string());
+    status.previous_lifecycle_state = LifecycleStatus::Running;
+    status.data_connection = ConnectionStatus::Connected;
+    status.execution_connection = ConnectionStatus::NotConfigured;
+    status.execution = ExecutionStatus {
+        gateway_id: SnapshotValue::not_configured(),
+        connection: ConnectionStatus::NotConfigured,
+        started: SnapshotValue::available(false),
+        account_ref: SnapshotValue::not_configured(),
+        orders_open: SnapshotValue::available(0),
+        orders_inflight: SnapshotValue::available(0),
+        orders_closed: SnapshotValue::available(0),
+        last_report_at: SnapshotValue::not_configured(),
+        last_reconciliation_at: SnapshotValue::not_configured(),
+        last_error: None,
+    };
+    status.risk.trading_state = nautilus_live::status::RiskTradingState::Halted;
+    status.risk.health = nautilus_live::status::HealthStatus::Healthy;
+    status.risk.command_count = SnapshotValue::available(context.signal_count);
+    status.risk.event_count = SnapshotValue::available(context.signal_count);
+    status.risk.rejections_total = SnapshotValue::available(context.rejection_count);
+    if context.rejection_count > 0 {
+        status.risk.last_rejection = Some("order_submission_disabled".to_string());
+    }
+    status.generated_at = SnapshotValue::available(generated_at.clone());
+    status.started_at = SnapshotValue::available(context.started_at.to_string());
+    status.stopped_at = context
+        .stopped_at
+        .map_or_else(SnapshotValue::unknown, |value| {
+            SnapshotValue::available(value.to_string())
+        });
+    status.last_transition_at = SnapshotValue::available(generated_at);
+    status.external_venue_connection = false;
+    status.real_orders_submitted = false;
+    status
+}
+
 fn build_node_status_for_state(
     context: &LiveRunContext<'_>,
     state: NodeState,
@@ -642,6 +1016,22 @@ fn write_metrics(
     write_node_metrics_artifact(path, &metrics)
 }
 
+fn write_strategy_node_metrics(
+    path: &Path,
+    status: &NodeStatus,
+    paths: &StrategyNodeMetricPaths<'_>,
+    counts: NodeMetricCounts,
+) -> anyhow::Result<()> {
+    let artifacts = NodeMetricArtifacts {
+        status_path: paths.status_path.to_path_buf(),
+        stdout_log_path: paths.stdout_log_path.to_path_buf(),
+        stderr_log_path: paths.stderr_log_path.to_path_buf(),
+        events_log_path: paths.events_log_path.to_path_buf(),
+    };
+    let metrics = NodeMetrics::from_status(status, &artifacts, counts);
+    write_node_metrics_artifact(path, &metrics)
+}
+
 async fn wait_for_shutdown_trigger(
     context: &LiveRunContext<'_>,
     started_at: &str,
@@ -672,6 +1062,85 @@ async fn wait_for_shutdown_trigger(
             .is_none_or(|last| last.elapsed() >= context.shutdown_controls.heartbeat_interval)
         {
             write_running_heartbeat(context, started_at, started_instant)?;
+            last_heartbeat = Some(Instant::now());
+        }
+
+        tokio::select! {
+            result = &mut shutdown_signal => return result,
+            () = sleep(SHUTDOWN_POLL_INTERVAL) => {}
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn wait_for_strategy_shutdown_trigger(
+    stop_file: Option<&Path>,
+    shutdown_controls: NtproNodeRunControls,
+    status_path: &Path,
+    metrics_path: &Path,
+    stdout_log_path: &Path,
+    stderr_log_path: &Path,
+    events_log_path: &Path,
+    config_path: &Path,
+    output_dir: &Path,
+    run_id: &str,
+    process_mode: ProcessMode,
+    started_at: &str,
+    started_instant: Instant,
+) -> anyhow::Result<ShutdownReason> {
+    let Some(stop_file) = stop_file else {
+        return Ok(ShutdownReason::StartStop);
+    };
+    let shutdown_signal = wait_for_shutdown_signal();
+    tokio::pin!(shutdown_signal);
+    let mut last_heartbeat: Option<Instant> = None;
+
+    loop {
+        if stop_file.exists() {
+            return Ok(ShutdownReason::StopFile);
+        }
+        if let Some(parent_pid) = shutdown_controls.parent_pid
+            && !process_is_alive(parent_pid)
+        {
+            return Ok(ShutdownReason::ParentExited);
+        }
+        if let Some(max_runtime) = shutdown_controls.max_runtime
+            && started_instant.elapsed() >= max_runtime
+        {
+            return Ok(ShutdownReason::MaxRuntime);
+        }
+        if last_heartbeat.is_none_or(|last| last.elapsed() >= shutdown_controls.heartbeat_interval)
+        {
+            let status = build_strategy_node_status(
+                &StrategyNodeStatusContext {
+                    config_path,
+                    output_dir,
+                    run_id,
+                    process_mode,
+                    started_at,
+                    stopped_at: None,
+                    signal_count: 0,
+                    rejection_count: 0,
+                },
+                NodeState::Running,
+            );
+            atomic_write_json(status_path, &status)?;
+            write_strategy_node_metrics(
+                metrics_path,
+                &status,
+                &StrategyNodeMetricPaths {
+                    status_path,
+                    stdout_log_path,
+                    stderr_log_path,
+                    events_log_path,
+                },
+                NodeMetricCounts {
+                    uptime_ms: Some(millis_to_u64(started_instant.elapsed().as_millis())),
+                    starts_total: 1,
+                    stops_total: 0,
+                    state_transitions_total: 1,
+                },
+            )?;
             last_heartbeat = Some(Instant::now());
         }
 
@@ -850,6 +1319,44 @@ write_summary = true
         )
     }
 
+    fn strategy_node_config(output_dir: &Path) -> String {
+        format!(
+            r#"[node]
+node_id = "btc-ema-shadow-001"
+mode = "shadow"
+
+[strategy]
+strategy_id = "ema_cross_btcusdt_v1"
+strategy_package = "builtin"
+strategy_runtime = "ema_cross_demo"
+
+[market]
+venue = "BINANCE_TESTNET"
+symbols = ["BTCUSDT.BINANCE"]
+data_mode = "fixture_stream"
+
+[execution]
+venue = "BINANCE_TESTNET"
+order_submission = "disabled"
+external_venue_connection = false
+
+[risk]
+kill_switch = true
+
+[shutdown]
+mode = "start-stop"
+post_stop_delay_secs = 0
+connection_timeout_secs = 1
+disconnection_timeout_secs = 1
+
+[output]
+dir = "{}"
+write_summary = true
+"#,
+            output_dir.display()
+        )
+    }
+
     #[test]
     fn validates_minimal_live_config() {
         let output_dir = std::env::temp_dir().join(format!(
@@ -972,6 +1479,78 @@ write_summary = true
                 .unwrap()
                 .ends_with("status.json")
         );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn run_ntpro_node_hosts_strategy_session_artifacts() {
+        let output_dir =
+            std::env::temp_dir().join(format!("ntpro-v090-009-node-run-{}", std::process::id()));
+        let path = write_config("ntpro-node-strategy", &strategy_node_config(&output_dir));
+
+        run_ntpro_node(path, None, None, None).await.unwrap();
+
+        let summary = fs::read_to_string(output_dir.join("summary.txt")).unwrap();
+        assert!(summary.contains("command=ntpro-node.run"));
+        assert!(summary.contains("mode=shadow"));
+        assert!(summary.contains("strategy_id=ema_cross_btcusdt_v1"));
+        assert!(summary.contains("order_submission_allowed=false"));
+        assert!(summary.contains("session_status_artifact="));
+        assert!(summary.contains("signal_artifact="));
+        assert!(summary.contains("order_intent_artifact="));
+        assert!(summary.contains("risk_decision_artifact="));
+        assert!(summary.contains("final_state=Stopped"));
+        assert!(summary.contains("external_venue_connection=false"));
+        assert!(summary.contains("real_orders_submitted=false"));
+
+        let status: NodeStatus =
+            serde_json::from_str(&fs::read_to_string(output_dir.join("status.json")).unwrap())
+                .unwrap();
+        assert_eq!(status.node_id, "btc-ema-shadow-001");
+        assert_eq!(status.lifecycle_state, LifecycleStatus::Stopped);
+        assert_eq!(status.process_mode, ProcessMode::SpawnedProcess);
+        assert_eq!(status.data_connection, ConnectionStatus::Connected);
+        assert_eq!(status.execution_connection, ConnectionStatus::NotConfigured);
+        assert!(!status.external_venue_connection);
+        assert!(!status.real_orders_submitted);
+
+        let session_status: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(output_dir.join("strategy").join("session_status.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(session_status["state"], "stopped");
+        assert_eq!(session_status["session_id"], "btc-ema-shadow-001");
+        assert_eq!(session_status["strategy_id"], "ema_cross_btcusdt_v1");
+
+        let signals = fs::read_to_string(output_dir.join("strategy").join("signal.jsonl")).unwrap();
+        assert!(!signals.trim().is_empty());
+        let intents =
+            fs::read_to_string(output_dir.join("strategy").join("order_intent.jsonl")).unwrap();
+        assert!(!intents.trim().is_empty());
+        for line in intents.lines() {
+            let intent: serde_json::Value = serde_json::from_str(line).unwrap();
+            assert_eq!(intent["submission_allowed"], false);
+        }
+        let decisions =
+            fs::read_to_string(output_dir.join("strategy").join("risk_decision.jsonl")).unwrap();
+        assert!(!decisions.trim().is_empty());
+        for line in decisions.lines() {
+            let decision: serde_json::Value = serde_json::from_str(line).unwrap();
+            assert_eq!(decision["decision"], "rejected");
+            assert_eq!(decision["actual_submission"], false);
+        }
+
+        let events = fs::read_to_string(output_dir.join("logs").join("events.log")).unwrap();
+        assert!(events.contains("phase=strategy_session_start status=ok"));
+        assert!(events.contains("phase=strategy_session_stop status=ok"));
+
+        let metrics: NodeMetrics =
+            serde_json::from_str(&fs::read_to_string(output_dir.join("metrics.json")).unwrap())
+                .unwrap();
+        assert_eq!(metrics.node_id, "btc-ema-shadow-001");
+        assert_eq!(metrics.lifecycle_state, LifecycleStatus::Stopped);
+        assert_eq!(metrics.process_mode, ProcessMode::SpawnedProcess);
+        assert!(!metrics.external_venue_connection);
+        assert!(!metrics.real_orders_submitted);
     }
 
     #[tokio::test(flavor = "current_thread")]

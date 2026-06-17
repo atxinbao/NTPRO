@@ -1,0 +1,31 @@
+[node]
+node_id = "btc-ema-shadow-001"
+mode = "shadow"
+
+[strategy]
+strategy_id = "ema_cross_btcusdt_v1"
+strategy_package = "builtin"
+strategy_runtime = "ema_cross_demo"
+
+[market]
+venue = "BINANCE_TESTNET"
+symbols = ["BTCUSDT.BINANCE"]
+data_mode = "fixture_stream"
+
+[execution]
+venue = "BINANCE_TESTNET"
+order_submission = "disabled"
+external_venue_connection = false
+
+[risk]
+kill_switch = true
+
+[shutdown]
+mode = "start-stop"
+post_stop_delay_secs = 0
+connection_timeout_secs = 1
+disconnection_timeout_secs = 1
+
+[output]
+dir = "runs/nodes/btc-ema-shadow"
+write_summary = true
