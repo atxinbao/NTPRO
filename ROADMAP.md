@@ -142,6 +142,43 @@ The v0.8.1 patch scope is:
 - tighten authenticated response-shape naming and validation;
 - publish v0.8.1 readiness and release notes as a safety/closure patch.
 
+## Corrected Capability Sequence: v0.9.0 through v0.12.0
+
+The previous idea of making `v0.9.0` a Binance testnet order lifecycle proof is
+superseded. `v0.8.0` is still authenticated Binance testnet read-only proof,
+and the current live smoke surface is still a sandbox/fixture-oriented local
+node foundation. NTPRO must prove that `ntpro-node` can host strategy runtime
+state before it attempts testnet order submission.
+
+Corrected sequence:
+
+```text
+v0.9.0  = Strategy Runtime Foundation
+v0.10.0 = Binance Testnet Order Proof
+v0.11.0 = Production Read-Only + Shadow
+v0.12.0 = Guarded Live Alpha
+```
+
+`v0.9.0` is the next capability track. It must make `ntpro-node` a headless
+strategy runtime host that can load a strategy session config, run a built-in
+demo strategy against fixture/mock market input, write signal/order-intent/risk
+decision/audit artifacts, expose supervisor status, and show read-only
+Dashboard state.
+
+`v0.9.0` explicitly does not include:
+
+- Binance testnet order submission;
+- order cancel/replace/amend;
+- production order submission;
+- real funds;
+- production trading;
+- Dashboard order controls;
+- strategy-driven live execution through an exchange adapter.
+
+`v0.10.0` is the first track where Binance testnet order proof may be planned,
+behind a separate explicit gate and with its own risk, redaction, and lifecycle
+evidence.
+
 ## Product Surface Direction
 
 Supported product surfaces:
