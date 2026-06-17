@@ -153,7 +153,7 @@ require(auth_probe["network_attempted"] is False, auth_probe)
 require(auth_probe["testnet_connection"] is False, auth_probe)
 require(auth_probe["status"] == "authenticated_readonly_probe_deferred", auth_probe)
 require(auth_probe["error_code"] == "network_gate_blocked", auth_probe)
-require(auth_probe["response_shape"] == "binance_account_v1", auth_probe)
+require(auth_probe["response_shape"] == "binance_account_readonly_redacted_v1", auth_probe)
 require(auth_probe["response_shape_validated"] is False, auth_probe)
 
 print(
@@ -253,7 +253,7 @@ if auth_probe["error_code"] != "none":
 require(auth_probe["status"] == "authenticated_readonly_probe_ok", auth_probe)
 require(auth_probe["testnet_connection"] is True, auth_probe)
 require(auth_probe["response_status_code"] is not None, auth_probe)
-require(auth_probe["response_shape"] == "binance_account_v1", auth_probe)
+require(auth_probe["response_shape"] == "binance_account_readonly_redacted_v1", auth_probe)
 require(auth_probe["response_shape_validated"] is True, auth_probe)
 
 print(

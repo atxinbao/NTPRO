@@ -68,6 +68,7 @@ const TESTNET_NETWORK_OPT_IN_ENV: &str = "NTPRO_ALLOW_TESTNET_NETWORK";
 const TESTNET_AUTHENTICATED_MANUAL_ONLINE_ENV: &str = "NTPRO_V08_MANUAL_ONLINE";
 const TESTNET_HTTP_READ_ONLY_ENDPOINT: &str = "/api/v3/time";
 const TESTNET_AUTHENTICATED_READ_ONLY_ENDPOINT: &str = "/api/v3/account";
+const TESTNET_AUTHENTICATED_ACCOUNT_RESPONSE_SHAPE: &str = "binance_account_readonly_redacted_v1";
 const TESTNET_AUTHENTICATED_RECV_WINDOW_MS: u64 = 5_000;
 const TESTNET_HTTP_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 const TESTNET_CREDENTIAL_LEGACY_REQUIRED_FOR_NETWORK_WARNING: &str = "credentials.required_for_network is deprecated; use credentials.required_for_public_read_only_probe and credentials.required_for_authenticated_read_only_probe";
@@ -1411,7 +1412,7 @@ impl TestnetAuthenticatedReadOnlyProbeResult {
             endpoint_class: "binance-testnet-authenticated-readonly-account".to_string(),
             latency_ms: Some(latency_ms),
             http_status: Some(http_status),
-            response_shape: "binance_account_v1".to_string(),
+            response_shape: TESTNET_AUTHENTICATED_ACCOUNT_RESPONSE_SHAPE.to_string(),
             response_shape_validated: true,
             error_code: "none".to_string(),
             network_attempted: true,
@@ -1431,7 +1432,7 @@ impl TestnetAuthenticatedReadOnlyProbeResult {
             endpoint_class: "binance-testnet-authenticated-readonly-account".to_string(),
             latency_ms,
             http_status,
-            response_shape: "binance_account_v1".to_string(),
+            response_shape: TESTNET_AUTHENTICATED_ACCOUNT_RESPONSE_SHAPE.to_string(),
             response_shape_validated: false,
             error_code: error_code.to_string(),
             network_attempted: true,
@@ -1552,6 +1553,12 @@ fn validates_binance_account_response_shape(body: &serde_json::Value) -> bool {
             .is_some_and(serde_json::Value::is_array)
         && object
             .get("canTrade")
+            .is_some_and(serde_json::Value::is_boolean)
+        && object
+            .get("canWithdraw")
+            .is_some_and(serde_json::Value::is_boolean)
+        && object
+            .get("canDeposit")
             .is_some_and(serde_json::Value::is_boolean)
 }
 
@@ -1904,7 +1911,7 @@ impl TestnetAuthenticatedReadOnlyProbe {
             production_trading: false,
             response_status_code: authenticated_probe_result.and_then(|result| result.http_status),
             response_shape: authenticated_probe_result.map_or_else(
-                || "binance_account_v1".to_string(),
+                || TESTNET_AUTHENTICATED_ACCOUNT_RESPONSE_SHAPE.to_string(),
                 |result| result.response_shape.clone(),
             ),
             response_shape_validated,
@@ -2946,7 +2953,10 @@ real_orders_submitted = false
         assert!(!probe.real_funds);
         assert!(!probe.production_trading);
         assert_eq!(probe.response_status_code, Some(200));
-        assert_eq!(probe.response_shape, "binance_account_v1");
+        assert_eq!(
+            probe.response_shape,
+            TESTNET_AUTHENTICATED_ACCOUNT_RESPONSE_SHAPE
+        );
         assert!(probe.response_shape_validated);
         assert_eq!(probe.latency_ms, Some(55));
         assert_eq!(probe.error_code, "none");
@@ -2995,6 +3005,8 @@ real_orders_submitted = false
         let valid = serde_json::json!({
             "accountType": "SPOT",
             "canTrade": true,
+            "canWithdraw": true,
+            "canDeposit": true,
             "balances": [
                 {"asset": "BTC", "free": "0.00000000", "locked": "0.00000000"}
             ],
@@ -3002,17 +3014,39 @@ real_orders_submitted = false
         });
         let missing_balances = serde_json::json!({
             "accountType": "SPOT",
-            "canTrade": true
+            "canTrade": true,
+            "canWithdraw": true,
+            "canDeposit": true
         });
         let wrong_type = serde_json::json!({
             "accountType": "SPOT",
             "canTrade": "yes",
+            "canWithdraw": true,
+            "canDeposit": true,
+            "balances": []
+        });
+        let missing_can_withdraw = serde_json::json!({
+            "accountType": "SPOT",
+            "canTrade": true,
+            "canDeposit": true,
+            "balances": []
+        });
+        let missing_can_deposit = serde_json::json!({
+            "accountType": "SPOT",
+            "canTrade": true,
+            "canWithdraw": true,
             "balances": []
         });
 
         assert!(validates_binance_account_response_shape(&valid));
         assert!(!validates_binance_account_response_shape(&missing_balances));
         assert!(!validates_binance_account_response_shape(&wrong_type));
+        assert!(!validates_binance_account_response_shape(
+            &missing_can_withdraw
+        ));
+        assert!(!validates_binance_account_response_shape(
+            &missing_can_deposit
+        ));
     }
 
     #[test]
