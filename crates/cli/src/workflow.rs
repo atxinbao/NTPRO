@@ -309,8 +309,8 @@ where
     let summary = WorkflowSummary::new_binance_testnet(
         &run_id,
         &config,
-        &credential_policy,
         &connectivity_probe,
+        &authenticated_readonly_probe,
         &order_lifecycle,
         &reconciliation,
         &boundary,
@@ -2186,6 +2186,10 @@ impl WorkflowSummary {
             network_attempted: boundary.network_attempted,
             requested_mode: "dry-run".to_string(),
             network_permission_requested: false,
+            authenticated_probe_attempted: false,
+            authenticated_readonly_probe_status: "not_applicable".to_string(),
+            authenticated_response_shape_validated: false,
+            authenticated_connectivity_proof: false,
             credential_policy: boundary.credential_policy.clone(),
             connectivity_mode: boundary.connectivity_mode.clone(),
             order_submission_mode: boundary.order_submission_mode.clone(),
@@ -2196,8 +2200,8 @@ impl WorkflowSummary {
     fn new_binance_testnet(
         run_id: &str,
         config: &TestnetWorkflowConfig,
-        credential_policy: &TestnetCredentialPolicy,
         connectivity_probe: &TestnetConnectivityProbe,
+        authenticated_readonly_probe: &TestnetAuthenticatedReadOnlyProbe,
         order_lifecycle: &TestnetOrderLifecycle,
         reconciliation: &TestnetReconciliation,
         boundary: &WorkflowBoundary,
@@ -2236,7 +2240,13 @@ impl WorkflowSummary {
             network_attempted: boundary.network_attempted,
             requested_mode: connectivity_probe.requested_mode.clone(),
             network_permission_requested: connectivity_probe.network_permission_requested,
-            credential_policy: credential_policy.policy.clone(),
+            authenticated_probe_attempted: authenticated_readonly_probe.network_attempted,
+            authenticated_readonly_probe_status: authenticated_readonly_probe.status.clone(),
+            authenticated_response_shape_validated: authenticated_readonly_probe
+                .response_shape_validated,
+            authenticated_connectivity_proof: authenticated_readonly_probe.testnet_connection
+                && authenticated_readonly_probe.response_shape_validated,
+            credential_policy: boundary.credential_policy.clone(),
             connectivity_mode: config.connectivity.mode.clone(),
             order_submission_mode: config.execution.order_submission.clone(),
             reconciliation_mode: config.execution.reconciliation.clone(),
@@ -2349,6 +2359,12 @@ impl WorkflowManifest {
             workflow: summary.workflow.clone(),
             run_id: run_id.to_string(),
             runtime_status: summary.runtime_status.clone(),
+            authenticated_probe_attempted: summary.authenticated_probe_attempted,
+            authenticated_readonly_probe_status: summary
+                .authenticated_readonly_probe_status
+                .clone(),
+            authenticated_response_shape_validated: summary.authenticated_response_shape_validated,
+            authenticated_connectivity_proof: summary.authenticated_connectivity_proof,
             artifact_count: artifacts.len(),
             artifacts,
             summary: summary.clone(),
@@ -3516,6 +3532,125 @@ real_orders_submitted = false
                 .diagnostic
                 .contains("manual-online-only and was not executed")
         );
+    }
+
+    #[test]
+    fn binance_testnet_summary_and_manifest_promote_authenticated_proof_status() {
+        let config = parsed_testnet_config();
+        let policy = TestnetCredentialPolicy::from_config_with_presence(&config, true, true);
+        let gate = TestnetNetworkGate::evaluate(&config, true, true);
+        let http_result =
+            TestnetHttpReadOnlyProbeResult::success(12, 200, "binance_server_time_v1");
+        let connectivity = TestnetConnectivityProbe::from_config(
+            &config,
+            WorkflowRunMode::ConnectivityProbe,
+            true,
+            &gate,
+            &policy,
+            Some(&http_result),
+        );
+        let order_lifecycle = TestnetOrderLifecycle::from_config("auth-status-run", &config);
+        let reconciliation =
+            TestnetReconciliation::from_order_lifecycle("auth-status-run", &order_lifecycle);
+        let boundary = WorkflowBoundary::binance_testnet_dry_run(&policy, &connectivity);
+        let paths = WorkflowArtifactPaths::new(Path::new("auth-status-output"));
+
+        for (
+            run_id,
+            auth_probe,
+            expected_attempted,
+            expected_status,
+            expected_shape,
+            expected_proof,
+        ) in [
+            (
+                "auth-success",
+                TestnetAuthenticatedReadOnlyProbe::from_config(
+                    "auth-success",
+                    &config,
+                    WorkflowRunMode::ConnectivityProbe,
+                    true,
+                    &gate,
+                    &policy,
+                    Some(&TestnetAuthenticatedReadOnlyProbeResult::success(55, 200)),
+                ),
+                true,
+                "authenticated_readonly_probe_ok",
+                true,
+                true,
+            ),
+            (
+                "auth-failure",
+                TestnetAuthenticatedReadOnlyProbe::from_config(
+                    "auth-failure",
+                    &config,
+                    WorkflowRunMode::ConnectivityProbe,
+                    true,
+                    &gate,
+                    &policy,
+                    Some(&TestnetAuthenticatedReadOnlyProbeResult::failure(
+                        Some(9),
+                        Some(401),
+                        "http_status_not_success",
+                    )),
+                ),
+                true,
+                "authenticated_readonly_probe_failed",
+                false,
+                false,
+            ),
+            (
+                "auth-deferred",
+                TestnetAuthenticatedReadOnlyProbe::from_config(
+                    "auth-deferred",
+                    &config,
+                    WorkflowRunMode::ConnectivityProbe,
+                    true,
+                    &gate,
+                    &policy,
+                    None,
+                ),
+                false,
+                "authenticated_readonly_probe_manual_not_run",
+                false,
+                false,
+            ),
+        ] {
+            let summary = WorkflowSummary::new_binance_testnet(
+                run_id,
+                &config,
+                &connectivity,
+                &auth_probe,
+                &order_lifecycle,
+                &reconciliation,
+                &boundary,
+            );
+            let manifest = WorkflowManifest::new_with_artifacts(run_id, &paths, &summary, vec![]);
+
+            assert_eq!(summary.authenticated_probe_attempted, expected_attempted);
+            assert_eq!(summary.authenticated_readonly_probe_status, expected_status);
+            assert_eq!(
+                summary.authenticated_response_shape_validated,
+                expected_shape
+            );
+            assert_eq!(summary.authenticated_connectivity_proof, expected_proof);
+            assert_eq!(
+                manifest.authenticated_probe_attempted,
+                summary.authenticated_probe_attempted
+            );
+            assert_eq!(
+                manifest.authenticated_readonly_probe_status,
+                summary.authenticated_readonly_probe_status
+            );
+            assert_eq!(
+                manifest.authenticated_response_shape_validated,
+                summary.authenticated_response_shape_validated
+            );
+            assert_eq!(
+                manifest.authenticated_connectivity_proof,
+                summary.authenticated_connectivity_proof
+            );
+        }
     }
 
     #[test]

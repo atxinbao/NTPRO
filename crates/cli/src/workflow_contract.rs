@@ -340,6 +340,14 @@ pub(crate) struct WorkflowSummary {
     #[serde(default)]
     pub(crate) network_permission_requested: bool,
     #[serde(default)]
+    pub(crate) authenticated_probe_attempted: bool,
+    #[serde(default)]
+    pub(crate) authenticated_readonly_probe_status: String,
+    #[serde(default)]
+    pub(crate) authenticated_response_shape_validated: bool,
+    #[serde(default)]
+    pub(crate) authenticated_connectivity_proof: bool,
+    #[serde(default)]
     pub(crate) credential_policy: String,
     #[serde(default)]
     pub(crate) connectivity_mode: String,
@@ -384,6 +392,14 @@ pub(crate) struct WorkflowManifest {
     pub(crate) workflow: String,
     pub(crate) run_id: String,
     pub(crate) runtime_status: String,
+    #[serde(default)]
+    pub(crate) authenticated_probe_attempted: bool,
+    #[serde(default)]
+    pub(crate) authenticated_readonly_probe_status: String,
+    #[serde(default)]
+    pub(crate) authenticated_response_shape_validated: bool,
+    #[serde(default)]
+    pub(crate) authenticated_connectivity_proof: bool,
     pub(crate) artifact_count: usize,
     #[serde(default)]
     pub(crate) artifacts: Vec<WorkflowManifestArtifact>,
