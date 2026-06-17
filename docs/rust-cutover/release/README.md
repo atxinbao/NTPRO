@@ -69,6 +69,9 @@ Final release checks, benchmark summaries, and audit reports live here.
   v0.9.0 Strategy Runtime Foundation milestone. It explicitly defers Binance
   testnet order proof to v0.10.0 and excludes order submission, real funds,
   production trading, and Dashboard order controls.
+- `v0_9_0_signal_artifact_contract.md` - V090-005 signal JSONL contract for
+  local Strategy Runtime signals. It defines required fields and keeps signals
+  separate from order intents, exchange orders, and production trading claims.
 - `../evidence/V080-009.md` - dedicated v0.8.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
