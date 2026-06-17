@@ -58,6 +58,13 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_8_0_release_notes.md` - released notes for the scoped authenticated
   Binance testnet read-only proof. It does not include order submission,
   production Binance connectivity, real funds, or production trading.
+- `v0_8_1_readiness_report.md` - readiness report for the v0.8.1
+  safety/closure patch. It does not create a tag and does not publish a GitHub
+  Release.
+- `v0_8_1_release_notes.md` - release-note draft for a possible
+  owner-approved v0.8.1 safety/closure release. It does not add order
+  submission, account mutation, production Binance connectivity, real funds, or
+  production trading.
 - `../evidence/V080-009.md` - dedicated v0.8.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
