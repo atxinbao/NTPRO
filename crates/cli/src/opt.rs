@@ -472,6 +472,7 @@ pub enum ConfigKind {
     Sandbox,
     Live,
     Data,
+    StrategySession,
 }
 
 /// Shared Rust config validation options.

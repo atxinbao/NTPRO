@@ -55,6 +55,7 @@ fn validate_workflow_config(kind: ConfigKind, path: &Path) -> anyhow::Result<()>
         ConfigKind::Sandbox => validate_minimal_sandbox_config_file(path),
         ConfigKind::Live => validate_minimal_live_config_file(path),
         ConfigKind::Data => validate_data_catalog_config_file(path),
+        ConfigKind::StrategySession => validate_strategy_session_config_file(path),
     }
 }
 
@@ -82,7 +83,123 @@ fn config_kind_label(kind: ConfigKind) -> &'static str {
         ConfigKind::Sandbox => "sandbox",
         ConfigKind::Live => "live",
         ConfigKind::Data => "data",
+        ConfigKind::StrategySession => "strategy-session",
     }
+}
+
+fn validate_strategy_session_config_file(path: &Path) -> anyhow::Result<()> {
+    let raw = fs::read_to_string(path).with_context(|| {
+        format!(
+            "failed to read strategy-session config '{}'",
+            path.display()
+        )
+    })?;
+    let value: toml::Value = toml::from_str(&raw).with_context(|| {
+        format!(
+            "failed to parse strategy-session config '{}'",
+            path.display()
+        )
+    })?;
+    if value.as_table().is_none_or(toml::value::Table::is_empty) {
+        anyhow::bail!("strategy-session config must not be empty");
+    }
+
+    let node = required_table(&value, "node")?;
+    one_of(node, "node.mode", &["dry-run", "shadow"])?;
+
+    let strategy = required_table(&value, "strategy")?;
+    required_string(strategy, "strategy.strategy_id")?;
+
+    let market = required_table(&value, "market")?;
+    required_string_array(market, "market.symbols")?;
+
+    let execution = required_table(&value, "execution")?;
+    exact_string(execution, "execution.order_submission", "disabled")?;
+
+    let risk = required_table(&value, "risk")?;
+    required_bool(risk, "risk.kill_switch")?;
+
+    Ok(())
+}
+
+fn required_table<'a>(
+    value: &'a toml::Value,
+    name: &str,
+) -> anyhow::Result<&'a toml::value::Table> {
+    value
+        .get(name)
+        .and_then(toml::Value::as_table)
+        .with_context(|| format!("{name} section is required"))
+}
+
+fn required_string(table: &toml::value::Table, field: &str) -> anyhow::Result<String> {
+    let (_, key) = field
+        .rsplit_once('.')
+        .with_context(|| format!("invalid field path '{field}'"))?;
+    let value = table
+        .get(key)
+        .and_then(toml::Value::as_str)
+        .with_context(|| format!("{field} must be a string"))?;
+    if value.trim().is_empty() {
+        anyhow::bail!("{field} must not be empty");
+    }
+    Ok(value.to_string())
+}
+
+fn required_bool(table: &toml::value::Table, field: &str) -> anyhow::Result<bool> {
+    let (_, key) = field
+        .rsplit_once('.')
+        .with_context(|| format!("invalid field path '{field}'"))?;
+    table
+        .get(key)
+        .and_then(toml::Value::as_bool)
+        .with_context(|| format!("{field} must be a boolean"))
+}
+
+fn required_string_array(table: &toml::value::Table, field: &str) -> anyhow::Result<Vec<String>> {
+    let (_, key) = field
+        .rsplit_once('.')
+        .with_context(|| format!("invalid field path '{field}'"))?;
+    let values = table
+        .get(key)
+        .and_then(toml::Value::as_array)
+        .with_context(|| format!("{field} must be an array of strings"))?;
+    if values.is_empty() {
+        anyhow::bail!("{field} must not be empty");
+    }
+
+    values
+        .iter()
+        .enumerate()
+        .map(|(index, value)| {
+            let symbol = value
+                .as_str()
+                .with_context(|| format!("{field}[{index}] must be a string"))?;
+            if symbol.trim().is_empty() {
+                anyhow::bail!("{field}[{index}] must not be empty");
+            }
+            Ok(symbol.to_string())
+        })
+        .collect()
+}
+
+fn exact_string(table: &toml::value::Table, field: &str, expected: &str) -> anyhow::Result<String> {
+    let value = required_string(table, field)?;
+    if value != expected {
+        anyhow::bail!("{field} must be '{expected}', got '{value}'");
+    }
+    Ok(value)
+}
+
+fn one_of(table: &toml::value::Table, field: &str, allowed: &[&str]) -> anyhow::Result<String> {
+    let value = required_string(table, field)?;
+    if !allowed.contains(&value.as_str()) {
+        anyhow::bail!(
+            "{field} must be one of {}, got '{value}'",
+            allowed.join(", ")
+        );
+    }
+    Ok(value)
 }
 
 #[cfg(test)]
@@ -168,6 +285,24 @@ instrument_id = "AUD/USD.SIM"
 "#
     }
 
+    fn minimal_strategy_session_config() -> &'static str {
+        r#"[node]
+mode = "shadow"
+
+[strategy]
+strategy_id = "ema-cross-demo"
+
+[market]
+symbols = ["BTCUSDT.BINANCE"]
+
+[execution]
+order_submission = "disabled"
+
+[risk]
+kill_switch = true
+"#
+    }
+
     #[test]
     fn config_validate_backtest_writes_artifact() {
         let dir = temp_dir("backtest");
@@ -218,6 +353,156 @@ instrument_id = "AUD/USD.SIM"
             }),
         })
         .unwrap();
+    }
+
+    #[test]
+    fn config_validate_strategy_session_accepts_shadow_config() {
+        let dir = temp_dir("strategy-session");
+        let config = write_config(&dir, minimal_strategy_session_config());
+
+        run_config_command(ConfigOpt {
+            command: ConfigCommand::Validate(ConfigValidateOpt {
+                kind: ConfigKind::StrategySession,
+                config,
+                output: None,
+            }),
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn config_validate_strategy_session_rejects_missing_strategy_id() {
+        let dir = temp_dir("strategy-session-missing-id");
+        let config = write_config(
+            &dir,
+            r#"[node]
+mode = "shadow"
+
+[strategy]
+
+[market]
+symbols = ["BTCUSDT.BINANCE"]
+
+[execution]
+order_submission = "disabled"
+
+[risk]
+kill_switch = true
+"#,
+        );
+
+        let error = run_config_command(ConfigOpt {
+            command: ConfigCommand::Validate(ConfigValidateOpt {
+                kind: ConfigKind::StrategySession,
+                config,
+                output: None,
+            }),
+        })
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("strategy.strategy_id must be a string"));
+    }
+
+    #[test]
+    fn config_validate_strategy_session_rejects_order_submission_enabled() {
+        let dir = temp_dir("strategy-session-order-enabled");
+        let config = write_config(
+            &dir,
+            &minimal_strategy_session_config().replace(
+                r#"order_submission = "disabled""#,
+                r#"order_submission = "enabled""#,
+            ),
+        );
+
+        let error = run_config_command(ConfigOpt {
+            command: ConfigCommand::Validate(ConfigValidateOpt {
+                kind: ConfigKind::StrategySession,
+                config,
+                output: None,
+            }),
+        })
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("execution.order_submission must be 'disabled'"));
+    }
+
+    #[test]
+    fn config_validate_strategy_session_rejects_live_mode() {
+        let dir = temp_dir("strategy-session-live");
+        let config = write_config(
+            &dir,
+            &minimal_strategy_session_config().replace(r#"mode = "shadow""#, r#"mode = "live""#),
+        );
+
+        let error = run_config_command(ConfigOpt {
+            command: ConfigCommand::Validate(ConfigValidateOpt {
+                kind: ConfigKind::StrategySession,
+                config,
+                output: None,
+            }),
+        })
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("node.mode must be one of dry-run, shadow"));
+    }
+
+    #[test]
+    fn config_validate_strategy_session_rejects_empty_symbols() {
+        let dir = temp_dir("strategy-session-empty-symbols");
+        let config = write_config(
+            &dir,
+            &minimal_strategy_session_config()
+                .replace(r#"symbols = ["BTCUSDT.BINANCE"]"#, "symbols = []"),
+        );
+
+        let error = run_config_command(ConfigOpt {
+            command: ConfigCommand::Validate(ConfigValidateOpt {
+                kind: ConfigKind::StrategySession,
+                config,
+                output: None,
+            }),
+        })
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("market.symbols must not be empty"));
+    }
+
+    #[test]
+    fn config_validate_strategy_session_rejects_missing_kill_switch() {
+        let dir = temp_dir("strategy-session-missing-kill-switch");
+        let config = write_config(
+            &dir,
+            r#"[node]
+mode = "shadow"
+
+[strategy]
+strategy_id = "ema-cross-demo"
+
+[market]
+symbols = ["BTCUSDT.BINANCE"]
+
+[execution]
+order_submission = "disabled"
+
+[risk]
+"#,
+        );
+
+        let error = run_config_command(ConfigOpt {
+            command: ConfigCommand::Validate(ConfigValidateOpt {
+                kind: ConfigKind::StrategySession,
+                config,
+                output: None,
+            }),
+        })
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("risk.kill_switch must be a boolean"));
     }
 
     #[test]
