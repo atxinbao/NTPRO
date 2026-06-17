@@ -65,6 +65,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   owner-approved v0.8.1 safety/closure release. It does not add order
   submission, account mutation, production Binance connectivity, real funds, or
   production trading.
+- `v0_9_0_strategy_runtime_boundary.md` - V090-000 boundary document for the
+  v0.9.0 Strategy Runtime Foundation milestone. It explicitly defers Binance
+  testnet order proof to v0.10.0 and excludes order submission, real funds,
+  production trading, and Dashboard order controls.
 - `../evidence/V080-009.md` - dedicated v0.8.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
