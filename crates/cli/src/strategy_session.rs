@@ -29,6 +29,7 @@ const STRATEGY_MARKET_EVENT_SCHEMA_VERSION: &str = "ntpro.v09_market_stream_even
 const STRATEGY_SIGNAL_SCHEMA_VERSION: &str = "ntpro.v09_strategy_signal.v1";
 const STRATEGY_ORDER_INTENT_SCHEMA_VERSION: &str = "ntpro.v09_order_intent.v1";
 const STRATEGY_RISK_DECISION_SCHEMA_VERSION: &str = "ntpro.v09_risk_decision.v1";
+const STRATEGY_SESSION_SUMMARY_SCHEMA_VERSION: &str = "ntpro.v09_strategy_session_summary.v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -80,6 +81,7 @@ pub struct StrategySessionArtifactPaths {
     pub signal: String,
     pub order_intent: String,
     pub risk_decision: String,
+    pub summary: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -103,6 +105,7 @@ pub struct StrategySessionArtifacts {
     pub signal: PathBuf,
     pub order_intent: PathBuf,
     pub risk_decision: PathBuf,
+    pub summary: PathBuf,
 }
 
 impl StrategySessionArtifacts {
@@ -116,6 +119,7 @@ impl StrategySessionArtifacts {
             signal: strategy_root.join("signal.jsonl"),
             order_intent: strategy_root.join("order_intent.jsonl"),
             risk_decision: strategy_root.join("risk_decision.jsonl"),
+            summary: strategy_root.join("summary.json"),
         }
     }
 
@@ -128,6 +132,7 @@ impl StrategySessionArtifacts {
             signal: self.signal.display().to_string(),
             order_intent: self.order_intent.display().to_string(),
             risk_decision: self.risk_decision.display().to_string(),
+            summary: self.summary.display().to_string(),
         }
     }
 }
@@ -236,6 +241,22 @@ pub struct StrategyRiskDecision {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategySessionSummary {
+    pub schema_version: String,
+    pub session_id: String,
+    pub strategy_id: String,
+    pub state: StrategySessionState,
+    pub event_count: u64,
+    pub market_event_count: u64,
+    pub signal_count: u64,
+    pub intent_count: u64,
+    pub risk_decision_count: u64,
+    pub rejection_count: u64,
+    pub actual_submission_count: u64,
+    pub updated_at_unix_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DemoStrategyRuntimeSummary {
     pub schema_version: String,
     pub session_id: String,
@@ -248,6 +269,7 @@ pub struct DemoStrategyRuntimeSummary {
     pub order_intent_artifact: String,
     pub risk_decision_count: u64,
     pub risk_decision_artifact: String,
+    pub summary_artifact: String,
     pub order_submission_allowed: bool,
 }
 
@@ -273,6 +295,7 @@ pub struct StrategySession {
     signals: Vec<StrategySignal>,
     order_intents: Vec<StrategyOrderIntent>,
     risk_decisions: Vec<StrategyRiskDecision>,
+    summary: Option<StrategySessionSummary>,
     artifacts: StrategySessionArtifacts,
 }
 
@@ -320,6 +343,7 @@ impl StrategySession {
             signals: Vec::new(),
             order_intents: Vec::new(),
             risk_decisions: Vec::new(),
+            summary: None,
             artifacts,
         };
         session.persist()?;
@@ -500,6 +524,7 @@ impl StrategySession {
 
         self.transition(StrategySessionState::Stopping, "demo strategy completed")?;
         self.transition(StrategySessionState::Stopped, "demo strategy stopped")?;
+        self.record_summary();
         self.persist()?;
 
         Ok(DemoStrategyRuntimeSummary {
@@ -514,6 +539,7 @@ impl StrategySession {
             order_intent_artifact: self.artifacts.order_intent.display().to_string(),
             risk_decision_count: u64::try_from(self.risk_decisions.len()).unwrap_or(u64::MAX),
             risk_decision_artifact: self.artifacts.risk_decision.display().to_string(),
+            summary_artifact: self.artifacts.summary.display().to_string(),
             order_submission_allowed: false,
         })
     }
@@ -560,38 +586,78 @@ impl StrategySession {
             "missing"
         };
 
-        self.risk_decisions = self
-            .order_intents
-            .iter()
-            .map(|order_intent| {
-                let evaluated_at_unix_ms = unix_timestamp_millis();
-                let reasons = shadow_risk_rejection_reasons(
-                    "disabled",
-                    false,
-                    "shadow",
-                    "missing",
-                    market_state,
-                );
-                StrategyRiskDecision {
-                    schema_version: STRATEGY_RISK_DECISION_SCHEMA_VERSION.to_string(),
-                    session_id: order_intent.session_id.clone(),
-                    strategy_id: order_intent.strategy_id.clone(),
-                    decision_id: format!("risk:{}", order_intent.intent_id),
-                    intent_id: order_intent.intent_id.clone(),
-                    symbol: order_intent.symbol.clone(),
-                    decision: "rejected".to_string(),
-                    reasons,
-                    mode: "shadow".to_string(),
-                    order_submission: "disabled".to_string(),
-                    kill_switch: false,
-                    account_state: "missing".to_string(),
-                    market_state: market_state.to_string(),
-                    actual_submission: false,
-                    evaluated_at: format_unix_millis(evaluated_at_unix_ms),
-                    evaluated_at_unix_ms,
-                }
-            })
-            .collect();
+        let mut decisions = Vec::new();
+        let mut events = Vec::new();
+        for order_intent in &self.order_intents {
+            let evaluated_at_unix_ms = unix_timestamp_millis();
+            let reasons =
+                shadow_risk_rejection_reasons("disabled", false, "shadow", "missing", market_state);
+            let decision = StrategyRiskDecision {
+                schema_version: STRATEGY_RISK_DECISION_SCHEMA_VERSION.to_string(),
+                session_id: order_intent.session_id.clone(),
+                strategy_id: order_intent.strategy_id.clone(),
+                decision_id: format!("risk:{}", order_intent.intent_id),
+                intent_id: order_intent.intent_id.clone(),
+                symbol: order_intent.symbol.clone(),
+                decision: "rejected".to_string(),
+                reasons,
+                mode: "shadow".to_string(),
+                order_submission: "disabled".to_string(),
+                kill_switch: false,
+                account_state: "missing".to_string(),
+                market_state: market_state.to_string(),
+                actual_submission: false,
+                evaluated_at: format_unix_millis(evaluated_at_unix_ms),
+                evaluated_at_unix_ms,
+            };
+            events.push(StrategySessionEvent {
+                schema_version: STRATEGY_SESSION_EVENT_SCHEMA_VERSION.to_string(),
+                event_type: "strategy_risk_decision_rejected".to_string(),
+                session_id: self.status.session_id.clone(),
+                strategy_id: self.status.strategy_id.clone(),
+                previous_state: None,
+                state: self.status.state,
+                reason: format!("risk decision rejected intent {}", order_intent.intent_id),
+                occurred_at_unix_ms: evaluated_at_unix_ms,
+            });
+            decisions.push(decision);
+        }
+        self.risk_decisions = decisions;
+        self.events.extend(events);
+    }
+
+    fn record_summary(&mut self) {
+        let signal_count = u64::try_from(self.signals.len()).unwrap_or(u64::MAX);
+        let intent_count = u64::try_from(self.order_intents.len()).unwrap_or(u64::MAX);
+        let risk_decision_count = u64::try_from(self.risk_decisions.len()).unwrap_or(u64::MAX);
+        let rejection_count = u64::try_from(
+            self.risk_decisions
+                .iter()
+                .filter(|decision| decision.decision == "rejected")
+                .count(),
+        )
+        .unwrap_or(u64::MAX);
+        let actual_submission_count = u64::try_from(
+            self.risk_decisions
+                .iter()
+                .filter(|decision| decision.actual_submission)
+                .count(),
+        )
+        .unwrap_or(u64::MAX);
+        self.summary = Some(StrategySessionSummary {
+            schema_version: STRATEGY_SESSION_SUMMARY_SCHEMA_VERSION.to_string(),
+            session_id: self.status.session_id.clone(),
+            strategy_id: self.status.strategy_id.clone(),
+            state: self.status.state,
+            event_count: u64::try_from(self.events.len()).unwrap_or(u64::MAX),
+            market_event_count: u64::try_from(self.market_events.len()).unwrap_or(u64::MAX),
+            signal_count,
+            intent_count,
+            risk_decision_count,
+            rejection_count,
+            actual_submission_count,
+            updated_at_unix_ms: unix_timestamp_millis(),
+        });
     }
 
     fn record_market_bar_stream(
@@ -694,6 +760,10 @@ impl StrategySession {
             risk_decision_body.push('\n');
         }
         atomic_write_text(&self.artifacts.risk_decision, &risk_decision_body)?;
+
+        if let Some(summary) = &self.summary {
+            atomic_write_json(&self.artifacts.summary, summary)?;
+        }
         Ok(())
     }
 }
@@ -873,6 +943,12 @@ mod tests {
             .transition(StrategySessionState::Running, "runtime running")
             .unwrap();
         session
+            .transition(StrategySessionState::Paused, "operator pause")
+            .unwrap();
+        session
+            .transition(StrategySessionState::Running, "operator resume")
+            .unwrap();
+        session
             .transition(StrategySessionState::Stopping, "shutdown requested")
             .unwrap();
         session
@@ -928,13 +1004,24 @@ mod tests {
                 .unwrap()
                 .ends_with("strategy/risk_decision.jsonl")
         );
+        assert!(
+            status["artifacts"]["summary"]
+                .as_str()
+                .unwrap()
+                .ends_with("strategy/summary.json")
+        );
 
         let events = fs::read_to_string(root.join("strategy/events.jsonl")).unwrap();
         let event_lines = events.lines().collect::<Vec<_>>();
-        assert_eq!(event_lines.len(), 6);
+        assert_eq!(event_lines.len(), 8);
         assert!(event_lines[0].contains(r#""state":"created""#));
-        assert!(event_lines[5].contains(r#""state":"stopped""#));
-        assert!(event_lines[5].contains(r#""previous_state":"stopping""#));
+        assert!(
+            event_lines
+                .iter()
+                .any(|event| event.contains(r#""state":"paused""#))
+        );
+        assert!(event_lines[7].contains(r#""state":"stopped""#));
+        assert!(event_lines[7].contains(r#""previous_state":"stopping""#));
     }
 
     #[test]
@@ -1035,6 +1122,7 @@ mod tests {
                 .risk_decision_artifact
                 .ends_with("strategy/risk_decision.jsonl")
         );
+        assert!(summary.summary_artifact.ends_with("strategy/summary.json"));
         assert!(!summary.order_submission_allowed);
         assert_eq!(session.status().state, StrategySessionState::Stopped);
 
@@ -1095,6 +1183,38 @@ mod tests {
             fs::read_to_string(root.join("strategy/risk_decision.jsonl")).unwrap();
         assert_eq!(
             risk_decision_lines.lines().count(),
+            usize::try_from(summary.risk_decision_count).unwrap()
+        );
+
+        let summary_json: Value =
+            serde_json::from_str(&fs::read_to_string(root.join("strategy/summary.json")).unwrap())
+                .unwrap();
+        assert_eq!(
+            summary_json["schema_version"],
+            STRATEGY_SESSION_SUMMARY_SCHEMA_VERSION
+        );
+        assert_eq!(summary_json["state"], "stopped");
+        assert_eq!(summary_json["signal_count"], summary.signal_count);
+        assert_eq!(summary_json["intent_count"], summary.order_intent_count);
+        assert_eq!(
+            summary_json["risk_decision_count"],
+            summary.risk_decision_count
+        );
+        assert_eq!(summary_json["rejection_count"], summary.risk_decision_count);
+        assert_eq!(summary_json["actual_submission_count"], 0);
+
+        let audit_events = fs::read_to_string(root.join("strategy/events.jsonl")).unwrap();
+        assert_eq!(
+            summary_json["event_count"],
+            u64::try_from(audit_events.lines().count()).unwrap()
+        );
+        assert!(audit_events.contains("demo strategy starting"));
+        assert!(audit_events.contains("demo strategy stopped"));
+        assert_eq!(
+            audit_events
+                .lines()
+                .filter(|event| event.contains("strategy_risk_decision_rejected"))
+                .count(),
             usize::try_from(summary.risk_decision_count).unwrap()
         );
     }

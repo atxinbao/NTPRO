@@ -79,6 +79,9 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_9_0_risk_decision_gate.md` - V090-007 shadow risk decision gate for local
   order intents. It requires `decision=rejected` and `actual_submission=false`
   and keeps the v0.9 flow stopped before execution adapters or exchange APIs.
+- `v0_9_0_strategy_session_audit_log.md` - V090-008 Strategy Session audit log
+  and summary contract. It records lifecycle/risk decision events and
+  `summary.json` counts while preserving the no-execution v0.9 boundary.
 - `../evidence/V080-009.md` - dedicated v0.8.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
