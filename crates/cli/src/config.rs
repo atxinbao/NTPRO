@@ -191,7 +191,8 @@ order_submission = "disabled"
 external_venue_connection = false
 
 [risk]
-kill_switch = true
+kill_switch_enabled = true
+kill_switch_active = false
 "#
     }
 
@@ -280,7 +281,8 @@ symbols = ["BTCUSDT.BINANCE"]
 order_submission = "disabled"
 
 [risk]
-kill_switch = true
+kill_switch_enabled = true
+kill_switch_active = false
 "#,
         );
 
@@ -421,7 +423,9 @@ order_submission = "disabled"
         let error = format!("{error:#}");
 
         assert!(
-            error.contains("risk.kill_switch must be true for v0.9.1 shadow strategy sessions")
+            error.contains(
+                "risk.kill_switch_enabled must be true for v0.9.1 shadow strategy sessions"
+            )
         );
     }
 

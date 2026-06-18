@@ -39,7 +39,9 @@ use crate::{
     artifacts::{atomic_write_json, atomic_write_text},
     opt::{LiveCommand, LiveOpt, LiveRunOpt, LiveValidateOpt},
     process::process_is_alive,
-    strategy_session::{StrategyRuntimeCounters, StrategySession, ema_cross_demo_fixture_bars},
+    strategy_session::{
+        StrategyRiskControls, StrategyRuntimeCounters, StrategySession, ema_cross_demo_fixture_bars,
+    },
     supervisor::{NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, write_node_metrics_artifact},
 };
 
@@ -207,7 +209,8 @@ struct StrategyNodeExecutionSection {
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 struct StrategyNodeRiskSection {
-    kill_switch: bool,
+    kill_switch_enabled: bool,
+    kill_switch_active: bool,
 }
 
 pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
@@ -457,6 +460,10 @@ async fn run_strategy_session_node_with_command(
         .first()
         .context("market.symbols must not be empty")?;
     let mut session = StrategySession::new(run_id, &config.strategy.strategy_id, &output_dir)?;
+    session.set_risk_controls(StrategyRiskControls {
+        kill_switch_enabled: config.risk.kill_switch_enabled,
+        kill_switch_active: config.risk.kill_switch_active,
+    });
     let bars = ema_cross_demo_fixture_bars(symbol);
     let runtime = session.run_ema_cross_demo(&bars)?;
     let counters = runtime.counters;
@@ -737,8 +744,8 @@ fn validate_strategy_node_config(config: &StrategyNodeConfig) -> anyhow::Result<
     if config.execution.external_venue_connection.unwrap_or(false) {
         anyhow::bail!("execution.external_venue_connection must be false for strategy session");
     }
-    if !config.risk.kill_switch {
-        anyhow::bail!("risk.kill_switch must be true for v0.9.1 shadow strategy sessions");
+    if !config.risk.kill_switch_enabled {
+        anyhow::bail!("risk.kill_switch_enabled must be true for v0.9.1 shadow strategy sessions");
     }
     if let Some(shutdown) = &config.shutdown {
         validate_exact("shutdown.mode", &shutdown.mode, START_STOP_SHUTDOWN)?;
@@ -1367,7 +1374,8 @@ order_submission = "disabled"
 external_venue_connection = false
 
 [risk]
-kill_switch = true
+kill_switch_enabled = true
+kill_switch_active = false
 
 [shutdown]
 mode = "start-stop"

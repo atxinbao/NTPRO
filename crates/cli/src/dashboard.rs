@@ -6444,8 +6444,8 @@ mod tests {
         .unwrap();
         fs::write(
             strategy_root.join("risk_decision.jsonl"),
-            r#"{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","decision_id":"risk:intent-1","intent_id":"intent-1","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":["order_submission_disabled"],"mode":"shadow","order_submission":"disabled","kill_switch":false,"account_state":"missing","market_state":"available","actual_submission":false,"evaluated_at":"unix:102","evaluated_at_unix_ms":102}
-{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","decision_id":"risk:intent-2","intent_id":"intent-2","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":["order_submission_disabled","shadow_mode_actual_submission_disabled"],"mode":"shadow","order_submission":"disabled","kill_switch":false,"account_state":"missing","market_state":"available","actual_submission":false,"evaluated_at":"unix:202","evaluated_at_unix_ms":202}
+            r#"{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","decision_id":"risk:intent-1","intent_id":"intent-1","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":["order_submission_disabled"],"mode":"shadow","order_submission":"disabled","kill_switch_enabled":true,"kill_switch_active":false,"account_state":"missing","market_state":"available","actual_submission":false,"evaluated_at":"unix:102","evaluated_at_unix_ms":102}
+{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","decision_id":"risk:intent-2","intent_id":"intent-2","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":["order_submission_disabled","shadow_mode_actual_submission_disabled"],"mode":"shadow","order_submission":"disabled","kill_switch_enabled":true,"kill_switch_active":false,"account_state":"missing","market_state":"available","actual_submission":false,"evaluated_at":"unix:202","evaluated_at_unix_ms":202}
 "#,
         )
         .unwrap();

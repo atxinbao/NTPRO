@@ -2207,8 +2207,8 @@ mod tests {
         .unwrap();
         fs::write(
             strategy_root.join("risk_decision.jsonl"),
-            r#"{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","decision_id":"risk:1","intent_id":"intent-1","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":["order_submission_disabled"],"mode":"shadow","order_submission":"disabled","kill_switch":true,"account_state":"missing","market_state":"available","actual_submission":false,"evaluated_at":"unix:100","evaluated_at_unix_ms":100}
-{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","decision_id":"risk:2","intent_id":"intent-2","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":["order_submission_disabled","shadow_mode_actual_submission_disabled"],"mode":"shadow","order_submission":"disabled","kill_switch":true,"account_state":"missing","market_state":"available","actual_submission":false,"evaluated_at":"unix:200","evaluated_at_unix_ms":200}
+            r#"{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","decision_id":"risk:1","intent_id":"intent-1","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":["order_submission_disabled"],"mode":"shadow","order_submission":"disabled","kill_switch_enabled":true,"kill_switch_active":false,"account_state":"missing","market_state":"available","actual_submission":false,"evaluated_at":"unix:100","evaluated_at_unix_ms":100}
+{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","decision_id":"risk:2","intent_id":"intent-2","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":["order_submission_disabled","shadow_mode_actual_submission_disabled"],"mode":"shadow","order_submission":"disabled","kill_switch_enabled":true,"kill_switch_active":false,"account_state":"missing","market_state":"available","actual_submission":false,"evaluated_at":"unix:200","evaluated_at_unix_ms":200}
 "#,
         )
         .unwrap();
