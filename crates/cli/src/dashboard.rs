@@ -449,6 +449,12 @@ const DISPLAY_TEXT = {
   active: "活跃",
   reducing: "减仓中",
   halted: "已暂停交易",
+  starting: "启动中",
+  running: "运行中",
+  exhausted: "已耗尽",
+  paused: "已暂停",
+  stopped: "已停止",
+  failed: "失败",
   fixture_stream_running: "Fixture 流运行中",
   mock_stream_running: "Mock 流运行中",
   shadow: "影子模式",
@@ -3165,7 +3171,7 @@ fn strategy_runtime_from_record(record: &SupervisorNodeRecord) -> Option<Strateg
         market_stream_status: market
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
-                json_string_field(value, "connection")
+                json_string_field_with_fallback(value, "state", "connection")
             }),
         signal_count: summary
             .as_ref()
@@ -4243,6 +4249,19 @@ fn json_string_field(value: &Value, field: &str) -> DashboardValue<String> {
         .and_then(Value::as_str)
         .map(str::to_string)
         .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn json_string_field_with_fallback(
+    value: &Value,
+    primary_field: &str,
+    fallback_field: &str,
+) -> DashboardValue<String> {
+    let primary = json_string_field(value, primary_field);
+    if primary.availability == DashboardAvailability::Available {
+        primary
+    } else {
+        json_string_field(value, fallback_field)
+    }
 }
 
 fn json_u64_field(value: &Value, field: &str) -> DashboardValue<u64> {
@@ -5425,7 +5444,7 @@ mod tests {
         assert_eq!(runtime.symbol.value.as_deref(), Some("BTCUSDT.BINANCE"));
         assert_eq!(
             runtime.market_stream_status.value.as_deref(),
-            Some("fixture_stream_running")
+            Some("exhausted")
         );
         assert_eq!(runtime.signal_count.value, Some(2));
         assert!(
@@ -6399,7 +6418,8 @@ mod tests {
                 "schema_version": "ntpro.v09_market_status.v1",
                 "session_id": "btc-ema-shadow-001",
                 "strategy_id": "ema_cross_btcusdt_v1",
-                "connection": "fixture_stream_running",
+                "connection": "exhausted",
+                "state": "exhausted",
                 "source": "fixture_bar_stream",
                 "event_count": 8,
                 "last_event_at_unix_ms": 2000,

@@ -934,7 +934,11 @@ fn build_strategy_node_status(
     status.config_path = SnapshotValue::available(context.config_path.display().to_string());
     status.artifact_root = SnapshotValue::available(context.output_dir.display().to_string());
     status.previous_lifecycle_state = LifecycleStatus::Running;
-    status.data_connection = ConnectionStatus::Connected;
+    status.data_connection = match state {
+        NodeState::Running => ConnectionStatus::Connected,
+        NodeState::Stopped => ConnectionStatus::Disconnected,
+        _ => ConnectionStatus::NotConfigured,
+    };
     status.execution_connection = ConnectionStatus::NotConfigured;
     status.execution = ExecutionStatus {
         gateway_id: SnapshotValue::not_configured(),
@@ -1525,7 +1529,7 @@ write_summary = true
         assert_eq!(status.node_id, "btc-ema-shadow-001");
         assert_eq!(status.lifecycle_state, LifecycleStatus::Stopped);
         assert_eq!(status.process_mode, ProcessMode::SpawnedProcess);
-        assert_eq!(status.data_connection, ConnectionStatus::Connected);
+        assert_eq!(status.data_connection, ConnectionStatus::Disconnected);
         assert_eq!(status.execution_connection, ConnectionStatus::NotConfigured);
         assert!(!status.external_venue_connection);
         assert!(!status.real_orders_submitted);
@@ -1537,6 +1541,12 @@ write_summary = true
         assert_eq!(session_status["state"], "stopped");
         assert_eq!(session_status["session_id"], "btc-ema-shadow-001");
         assert_eq!(session_status["strategy_id"], "ema_cross_btcusdt_v1");
+        let market_status: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(output_dir.join("strategy").join("market_status.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(market_status["state"], "stopped");
+        assert_eq!(market_status["connection"], "stopped");
 
         let signals = fs::read_to_string(output_dir.join("strategy").join("signal.jsonl")).unwrap();
         assert!(!signals.trim().is_empty());

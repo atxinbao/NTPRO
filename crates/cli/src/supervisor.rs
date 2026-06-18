@@ -591,8 +591,9 @@ fn strategy_session_status_from_artifact_root(root: &Path) -> StrategySessionSup
             string_field(&session, "strategy_id").unwrap_or_else(|| "unknown".to_string());
     }
     if let Some(market) = read_json_value(&market_status_path) {
-        status.market_state =
-            string_field(&market, "connection").unwrap_or_else(|| "unknown".to_string());
+        status.market_state = string_field(&market, "state")
+            .or_else(|| string_field(&market, "connection"))
+            .unwrap_or_else(|| "unknown".to_string());
     }
     if let Some(signal) = read_latest_jsonl_value(&signal_path) {
         status.last_signal_at =
@@ -2181,7 +2182,8 @@ mod tests {
   "schema_version": "ntpro.v09_market_stream_status.v1",
   "session_id": "btc-ema-shadow-001",
   "strategy_id": "ema_cross_btcusdt_v1",
-  "connection": "fixture_stream_running",
+  "connection": "exhausted",
+  "state": "exhausted",
   "source": "fixture_bar_stream",
   "event_count": 8,
   "last_event_at_unix_ms": 2,
@@ -2241,7 +2243,7 @@ mod tests {
 
         assert_eq!(status.session_state, "stopped");
         assert_eq!(status.strategy_id, "ema_cross_btcusdt_v1");
-        assert_eq!(status.market_state, "fixture_stream_running");
+        assert_eq!(status.market_state, "exhausted");
         assert_eq!(status.risk_state, "rejected");
         assert_eq!(status.last_signal_at, "unix:200");
         assert_eq!(

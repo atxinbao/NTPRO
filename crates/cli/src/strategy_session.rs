@@ -30,6 +30,8 @@ const STRATEGY_SIGNAL_SCHEMA_VERSION: &str = "ntpro.v09_strategy_signal.v1";
 const STRATEGY_ORDER_INTENT_SCHEMA_VERSION: &str = "ntpro.v09_order_intent.v1";
 const STRATEGY_RISK_DECISION_SCHEMA_VERSION: &str = "ntpro.v09_risk_decision.v1";
 const STRATEGY_SESSION_SUMMARY_SCHEMA_VERSION: &str = "ntpro.v09_strategy_session_summary.v1";
+const MARKET_STATE_EXHAUSTED: &str = "exhausted";
+const MARKET_STATE_STOPPED: &str = "stopped";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -167,6 +169,7 @@ pub struct StrategyMarketStreamStatus {
     pub session_id: String,
     pub strategy_id: String,
     pub connection: String,
+    pub state: String,
     pub source: String,
     pub event_count: u64,
     pub last_event_at_unix_ms: Option<u64>,
@@ -279,6 +282,7 @@ pub struct StrategyMarketStreamSummary {
     pub session_id: String,
     pub strategy_id: String,
     pub connection: String,
+    pub state: String,
     pub source: String,
     pub event_count: u64,
     pub last_event_at_unix_ms: Option<u64>,
@@ -409,7 +413,7 @@ impl StrategySession {
             bars,
             StrategyMarketEventKind::FixtureBar,
             "fixture_bar_stream",
-            "fixture_stream_running",
+            MARKET_STATE_EXHAUSTED,
         )
     }
 
@@ -428,7 +432,7 @@ impl StrategySession {
             bars,
             StrategyMarketEventKind::MockBar,
             "mock_bar_stream",
-            "mock_stream_running",
+            MARKET_STATE_EXHAUSTED,
         )
     }
 
@@ -459,7 +463,7 @@ impl StrategySession {
                 recorded_at_unix_ms: now,
             })
             .collect::<Vec<_>>();
-        self.record_market_events(events, "mock_tick_stream", "mock_stream_running")
+        self.record_market_events(events, "mock_tick_stream", MARKET_STATE_EXHAUSTED)
     }
 
     /// Runs the built-in deterministic EMA-cross demo strategy over local
@@ -559,8 +563,17 @@ impl StrategySession {
             StrategySessionState::Stopped,
             format!("shutdown complete: {reason}"),
         )?;
+        self.mark_market_stopped();
         self.record_summary();
         self.persist()
+    }
+
+    fn mark_market_stopped(&mut self) {
+        if let Some(market_status) = &mut self.market_status {
+            market_status.connection = MARKET_STATE_STOPPED.to_string();
+            market_status.state = MARKET_STATE_STOPPED.to_string();
+            market_status.updated_at_unix_ms = unix_timestamp_millis();
+        }
     }
 
     fn generate_order_intents_from_signals(&mut self) {
@@ -719,6 +732,7 @@ impl StrategySession {
             session_id: self.status.session_id.clone(),
             strategy_id: self.status.strategy_id.clone(),
             connection: connection.to_string(),
+            state: connection.to_string(),
             source: source.to_string(),
             event_count,
             last_event_at_unix_ms,
@@ -732,6 +746,7 @@ impl StrategySession {
             session_id: self.status.session_id.clone(),
             strategy_id: self.status.strategy_id.clone(),
             connection: connection.to_string(),
+            state: connection.to_string(),
             source: source.to_string(),
             event_count,
             last_event_at_unix_ms,
@@ -1051,7 +1066,8 @@ mod tests {
 
         let summary = session.record_fixture_bar_stream(&bars).unwrap();
 
-        assert_eq!(summary.connection, "fixture_stream_running");
+        assert_eq!(summary.connection, MARKET_STATE_EXHAUSTED);
+        assert_eq!(summary.state, MARKET_STATE_EXHAUSTED);
         assert_eq!(summary.source, "fixture_bar_stream");
         assert_eq!(summary.event_count, u64::try_from(bars.len()).unwrap());
         assert_eq!(
@@ -1067,7 +1083,8 @@ mod tests {
             status["schema_version"],
             STRATEGY_MARKET_STATUS_SCHEMA_VERSION
         );
-        assert_eq!(status["connection"], "fixture_stream_running");
+        assert_eq!(status["connection"], MARKET_STATE_EXHAUSTED);
+        assert_eq!(status["state"], MARKET_STATE_EXHAUSTED);
         assert_eq!(status["source"], "fixture_bar_stream");
         assert_eq!(status["event_count"], bars.len());
 
@@ -1105,7 +1122,8 @@ mod tests {
 
         let summary = session.record_mock_tick_stream(&ticks).unwrap();
 
-        assert_eq!(summary.connection, "mock_stream_running");
+        assert_eq!(summary.connection, MARKET_STATE_EXHAUSTED);
+        assert_eq!(summary.state, MARKET_STATE_EXHAUSTED);
         assert_eq!(summary.source, "mock_tick_stream");
         assert_eq!(summary.event_count, 2);
 
@@ -1150,9 +1168,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            market_status["connection"], "fixture_stream_running",
-            "demo strategy consumes the fixture market stream"
+            market_status["connection"], MARKET_STATE_EXHAUSTED,
+            "demo strategy exhausts the finite fixture market stream"
         );
+        assert_eq!(market_status["state"], MARKET_STATE_EXHAUSTED);
         assert_eq!(market_status["event_count"], summary.processed_events);
         let market_events = fs::read_to_string(root.join("strategy/market_events.jsonl")).unwrap();
         assert_eq!(
@@ -1472,6 +1491,13 @@ mod tests {
             serde_json::from_str(&fs::read_to_string(root.join("strategy/summary.json")).unwrap())
                 .unwrap();
         assert_eq!(summary_json["state"], "stopped");
+
+        let market_status: Value = serde_json::from_str(
+            &fs::read_to_string(root.join("strategy/market_status.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(market_status["connection"], MARKET_STATE_STOPPED);
+        assert_eq!(market_status["state"], MARKET_STATE_STOPPED);
 
         let audit_events = fs::read_to_string(root.join("strategy/events.jsonl")).unwrap();
         assert!(audit_events.contains(r#""state":"running""#));
