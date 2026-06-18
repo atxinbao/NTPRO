@@ -14,6 +14,8 @@
 // -------------------------------------------------------------------------------------------------
 
 use std::{
+    fs,
+    io::ErrorKind,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -30,6 +32,7 @@ const STRATEGY_SIGNAL_SCHEMA_VERSION: &str = "ntpro.v09_strategy_signal.v1";
 const STRATEGY_ORDER_INTENT_SCHEMA_VERSION: &str = "ntpro.v09_order_intent.v1";
 const STRATEGY_RISK_DECISION_SCHEMA_VERSION: &str = "ntpro.v09_risk_decision.v1";
 const STRATEGY_SESSION_SUMMARY_SCHEMA_VERSION: &str = "ntpro.v09_strategy_session_summary.v1";
+const STRATEGY_SESSION_MANIFEST_SCHEMA_VERSION: &str = "ntpro.v091_strategy_session_manifest.v1";
 const MARKET_STATE_EXHAUSTED: &str = "exhausted";
 const MARKET_STATE_STOPPED: &str = "stopped";
 
@@ -84,6 +87,7 @@ pub struct StrategySessionArtifactPaths {
     pub order_intent: String,
     pub risk_decision: String,
     pub summary: String,
+    pub manifest: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -108,6 +112,7 @@ pub struct StrategySessionArtifacts {
     pub order_intent: PathBuf,
     pub risk_decision: PathBuf,
     pub summary: PathBuf,
+    pub manifest: PathBuf,
 }
 
 impl StrategySessionArtifacts {
@@ -122,6 +127,7 @@ impl StrategySessionArtifacts {
             order_intent: strategy_root.join("order_intent.jsonl"),
             risk_decision: strategy_root.join("risk_decision.jsonl"),
             summary: strategy_root.join("summary.json"),
+            manifest: strategy_root.join("manifest.json"),
         }
     }
 
@@ -135,8 +141,31 @@ impl StrategySessionArtifacts {
             order_intent: self.order_intent.display().to_string(),
             risk_decision: self.risk_decision.display().to_string(),
             summary: self.summary.display().to_string(),
+            manifest: self.manifest.display().to_string(),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategySessionManifest {
+    pub schema_version: String,
+    pub session_id: String,
+    pub strategy_id: String,
+    pub state: StrategySessionState,
+    pub created_at_unix_ms: u64,
+    pub updated_at_unix_ms: u64,
+    pub artifacts: Vec<StrategySessionManifestArtifact>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategySessionManifestArtifact {
+    pub name: String,
+    pub path: String,
+    pub format: String,
+    pub present: bool,
+    pub record_count: Option<u64>,
+    pub byte_len: Option<u64>,
+    pub checksum: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -847,8 +876,128 @@ impl StrategySession {
         if let Some(summary) = &self.summary {
             atomic_write_json(&self.artifacts.summary, summary)?;
         }
+        let manifest = self.manifest()?;
+        atomic_write_json(&self.artifacts.manifest, &manifest)?;
         Ok(())
     }
+
+    fn manifest(&self) -> anyhow::Result<StrategySessionManifest> {
+        let created_at_unix_ms = self
+            .events
+            .first()
+            .map_or(self.status.updated_at_unix_ms, |event| {
+                event.occurred_at_unix_ms
+            });
+        let artifacts = vec![
+            manifest_artifact(
+                "session_status",
+                "json",
+                &self.artifacts.session_status,
+                Some(1),
+            )?,
+            manifest_artifact(
+                "events",
+                "jsonl",
+                &self.artifacts.events,
+                Some(u64::try_from(self.events.len()).unwrap_or(u64::MAX)),
+            )?,
+            manifest_artifact(
+                "market_status",
+                "json",
+                &self.artifacts.market_status,
+                self.market_status.as_ref().map(|_| 1),
+            )?,
+            manifest_artifact(
+                "market_events",
+                "jsonl",
+                &self.artifacts.market_events,
+                Some(u64::try_from(self.market_events.len()).unwrap_or(u64::MAX)),
+            )?,
+            manifest_artifact(
+                "signal",
+                "jsonl",
+                &self.artifacts.signal,
+                Some(u64::try_from(self.signals.len()).unwrap_or(u64::MAX)),
+            )?,
+            manifest_artifact(
+                "order_intent",
+                "jsonl",
+                &self.artifacts.order_intent,
+                Some(u64::try_from(self.order_intents.len()).unwrap_or(u64::MAX)),
+            )?,
+            manifest_artifact(
+                "risk_decision",
+                "jsonl",
+                &self.artifacts.risk_decision,
+                Some(u64::try_from(self.risk_decisions.len()).unwrap_or(u64::MAX)),
+            )?,
+            manifest_artifact(
+                "summary",
+                "json",
+                &self.artifacts.summary,
+                self.summary.as_ref().map(|_| 1),
+            )?,
+        ];
+
+        Ok(StrategySessionManifest {
+            schema_version: STRATEGY_SESSION_MANIFEST_SCHEMA_VERSION.to_string(),
+            session_id: self.status.session_id.clone(),
+            strategy_id: self.status.strategy_id.clone(),
+            state: self.status.state,
+            created_at_unix_ms,
+            updated_at_unix_ms: self.status.updated_at_unix_ms,
+            artifacts,
+        })
+    }
+}
+
+fn manifest_artifact(
+    name: &str,
+    format: &str,
+    path: &Path,
+    record_count: Option<u64>,
+) -> anyhow::Result<StrategySessionManifestArtifact> {
+    match fs::read(path) {
+        Ok(bytes) => Ok(StrategySessionManifestArtifact {
+            name: name.to_string(),
+            path: path.display().to_string(),
+            format: format.to_string(),
+            present: true,
+            record_count,
+            byte_len: Some(u64::try_from(bytes.len()).unwrap_or(u64::MAX)),
+            checksum: Some(checksum_bytes(&bytes)),
+        }),
+        Err(err) if err.kind() == ErrorKind::NotFound => Ok(StrategySessionManifestArtifact {
+            name: name.to_string(),
+            path: path.display().to_string(),
+            format: format.to_string(),
+            present: false,
+            record_count: None,
+            byte_len: None,
+            checksum: None,
+        }),
+        Err(err) => Err(err).map_err(|err| {
+            anyhow::anyhow!(
+                "failed to read Strategy Session artifact '{}' for manifest: {err}",
+                path.display()
+            )
+        }),
+    }
+}
+
+#[cfg(test)]
+fn checksum_file(path: &Path) -> anyhow::Result<String> {
+    let bytes = fs::read(path).map_err(|err| {
+        anyhow::anyhow!(
+            "failed to read Strategy Session artifact '{}' for checksum: {err}",
+            path.display()
+        )
+    })?;
+    Ok(checksum_bytes(&bytes))
+}
+
+fn checksum_bytes(bytes: &[u8]) -> String {
+    format!("blake3:{}", blake3::hash(bytes).to_hex())
 }
 
 pub fn ema_cross_demo_fixture_bars(symbol: &str) -> Vec<StrategyMarketBar> {
@@ -1011,6 +1160,15 @@ mod tests {
         root
     }
 
+    fn manifest_artifact<'a>(manifest: &'a Value, name: &str) -> &'a Value {
+        manifest["artifacts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|artifact| artifact["name"] == name)
+            .unwrap_or_else(|| panic!("manifest artifact '{name}' not found"))
+    }
+
     #[test]
     fn strategy_session_lifecycle_writes_status_and_events() {
         let root = temp_root("lifecycle");
@@ -1092,6 +1250,12 @@ mod tests {
                 .as_str()
                 .unwrap()
                 .ends_with("strategy/summary.json")
+        );
+        assert!(
+            status["artifacts"]["manifest"]
+                .as_str()
+                .unwrap()
+                .ends_with("strategy/manifest.json")
         );
 
         let events = fs::read_to_string(root.join("strategy/events.jsonl")).unwrap();
@@ -1323,6 +1487,68 @@ mod tests {
                 .count(),
             usize::try_from(summary.risk_decision_count).unwrap()
         );
+
+        let manifest_path = root.join("strategy/manifest.json");
+        let manifest: Value =
+            serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
+        assert_eq!(
+            manifest["schema_version"],
+            STRATEGY_SESSION_MANIFEST_SCHEMA_VERSION
+        );
+        assert_eq!(manifest["session_id"], "session-004");
+        assert_eq!(manifest["strategy_id"], "ema-cross-demo");
+        assert_eq!(manifest["state"], "running");
+        assert_eq!(manifest["artifacts"].as_array().unwrap().len(), 8);
+        assert!(!manifest.to_string().contains("exchange_order_id"));
+        assert!(!manifest.to_string().contains("venue_order_id"));
+
+        for name in [
+            "session_status",
+            "events",
+            "market_status",
+            "market_events",
+            "signal",
+            "order_intent",
+            "risk_decision",
+            "summary",
+        ] {
+            let artifact = manifest_artifact(&manifest, name);
+            assert_eq!(artifact["present"], true);
+            assert!(
+                artifact["checksum"]
+                    .as_str()
+                    .is_some_and(|checksum| checksum.starts_with("blake3:"))
+            );
+            assert!(artifact["byte_len"].as_u64().is_some_and(|value| value > 0));
+        }
+        assert_eq!(
+            manifest_artifact(&manifest, "events")["record_count"],
+            u64::try_from(audit_events.lines().count()).unwrap()
+        );
+        assert_eq!(
+            manifest_artifact(&manifest, "market_events")["record_count"],
+            summary.processed_events
+        );
+        assert_eq!(
+            manifest_artifact(&manifest, "signal")["record_count"],
+            summary.signal_count
+        );
+        assert_eq!(
+            manifest_artifact(&manifest, "order_intent")["record_count"],
+            summary.order_intent_count
+        );
+        assert_eq!(
+            manifest_artifact(&manifest, "risk_decision")["record_count"],
+            summary.risk_decision_count
+        );
+
+        let signal_manifest_checksum = manifest_artifact(&manifest, "signal")["checksum"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        fs::write(root.join("strategy/signal.jsonl"), "corrupted\n").unwrap();
+        let corrupted_signal_checksum = checksum_file(&root.join("strategy/signal.jsonl")).unwrap();
+        assert_ne!(signal_manifest_checksum, corrupted_signal_checksum);
     }
 
     #[test]
