@@ -2,7 +2,7 @@
 
 Date: 2026-06-18
 Executor: Codex
-Status: RELEASE CANDIDATE - NOT PUBLISHED
+Status: PUBLISHED
 
 ## Summary
 
@@ -81,18 +81,20 @@ The v0.9 gates are local/offline and do not require Binance credentials.
 
 ## Release Status
 
-This document is a release-candidate note. The formal tag and GitHub Release
-are not published by V090-013.
-
-Expected manual-gated release identity, if approved later:
+This is the formal GitHub Release note for the owner-approved v0.9.0 Strategy
+Runtime Foundation publication.
 
 ```text
 Tag: ntpro-rust-only-v0.9.0
 Release name: NTPRO Rust-only v0.9.0
+Release URL: https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.9.0
+Release commit: 83b333503a5c8e8436c98f54a4d94c4a50f919a8
+Published at: 2026-06-18T07:57:04Z
+Draft: false
+Prerelease: false
+Workflow-dispatch release gate: https://github.com/atxinbao/NTPRO/actions/runs/27738080665
+Tag-triggered release gate: https://github.com/atxinbao/NTPRO/actions/runs/27742550316
 ```
-
-V090-014 owns final release closure. Do not create the tag or publish the
-GitHub Release without explicit owner approval.
 
 ## Next Milestone
 

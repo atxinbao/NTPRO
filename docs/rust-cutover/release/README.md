@@ -95,11 +95,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   adding Dashboard order controls.
 - `v0_9_0_strategy_runtime_smoke_gates.md` - V090-012 PR and release gate
   wiring for local Strategy Runtime smoke and shadow-mode no-order verification.
-- `v0_9_0_strategy_runtime_readiness_report.md` - V090-013 release-candidate
-  readiness report for the v0.9.0 Strategy Runtime Foundation milestone.
-- `v0_9_0_release_notes.md` - release-candidate notes for the manual-gated
-  `ntpro-rust-only-v0.9.0` release. These notes do not publish a tag or GitHub
-  Release by themselves.
+- `v0_9_0_strategy_runtime_readiness_report.md` - released readiness report for
+  the v0.9.0 Strategy Runtime Foundation milestone.
+- `v0_9_0_release_notes.md` - released notes for the formal
+  `ntpro-rust-only-v0.9.0` GitHub Release.
+- `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
+  exact release commit, hosted gates, formal tag, GitHub Release URL, and
+  publication flags.
 - `../evidence/V080-009.md` - dedicated v0.8.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
