@@ -476,6 +476,7 @@ async fn run_strategy_session_node_with_command(
         started_instant,
     )
     .await?;
+    session.stop_after_shutdown(shutdown_reason.label())?;
 
     let stopped_at = now_millis();
     let uptime_ms = millis_to_u64(started_instant.elapsed().as_millis());
@@ -1567,6 +1568,59 @@ write_summary = true
         assert_eq!(metrics.process_mode, ProcessMode::SpawnedProcess);
         assert!(!metrics.external_venue_connection);
         assert!(!metrics.real_orders_submitted);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn run_ntpro_node_keeps_strategy_session_running_until_shutdown() {
+        let output_dir =
+            std::env::temp_dir().join(format!("ntpro-v091-003-node-run-{}", std::process::id()));
+        let stop_file = output_dir.join("stop.request");
+        let path = write_config(
+            "ntpro-node-strategy-persistent",
+            &strategy_node_config(&output_dir),
+        );
+        let status_path = output_dir.join("strategy").join("session_status.json");
+        let stop_file_writer = stop_file.clone();
+        let watcher = tokio::spawn(async move {
+            for _ in 0..40 {
+                if status_path.exists() {
+                    let status: serde_json::Value =
+                        serde_json::from_str(&fs::read_to_string(&status_path)?)?;
+                    if status["state"] == "running" {
+                        fs::write(&stop_file_writer, "stop\n")?;
+                        return Ok::<_, anyhow::Error>(());
+                    }
+                }
+                sleep(Duration::from_millis(50)).await;
+            }
+            anyhow::bail!("strategy session did not remain running before shutdown")
+        });
+
+        run_ntpro_node_with_controls(
+            path,
+            None,
+            None,
+            Some(stop_file),
+            NtproNodeRunControls::from_millis(Some(3_000), 50, None, 3_000).unwrap(),
+        )
+        .await
+        .unwrap();
+        watcher.await.unwrap().unwrap();
+
+        let summary = fs::read_to_string(output_dir.join("summary.txt")).unwrap();
+        assert!(summary.contains("shutdown_reason=stop-file"));
+
+        let session_status: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(output_dir.join("strategy").join("session_status.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(session_status["state"], "stopped");
+        assert_eq!(session_status["reason"], "shutdown complete: stop-file");
+
+        let events = fs::read_to_string(output_dir.join("strategy").join("events.jsonl")).unwrap();
+        assert!(events.contains(r#""state":"running""#));
+        assert!(events.contains("shutdown requested: stop-file"));
+        assert!(events.contains("shutdown complete: stop-file"));
     }
 
     #[tokio::test(flavor = "current_thread")]
