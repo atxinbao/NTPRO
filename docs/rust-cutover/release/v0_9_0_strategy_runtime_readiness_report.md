@@ -3,12 +3,12 @@
 Date: 2026-06-18
 Executor: Codex
 Milestone: `ntpro-rust-only-v0.9.0`
-Status: RELEASE CANDIDATE - NOT PUBLISHED
+Status: RELEASED
 
 ## Summary
 
-`v0.9.0` is ready for owner release-closure review as the Strategy Runtime
-Foundation milestone. It proves the local headless strategy runtime path can
+`v0.9.0` is released as the Strategy Runtime Foundation milestone. It proves
+the local headless strategy runtime path can
 load a strategy session, consume fixture/mock market input, emit signal
 artifacts, emit shadow order-intent artifacts, write shadow risk decisions,
 surface supervisor status, and display read-only Dashboard artifacts.
@@ -54,8 +54,8 @@ Dashboard order controls = not included
 | V090-010 | PASS | `docs/rust-cutover/evidence/V090-010.md` | Supervisor exposes read-only Strategy Session status. |
 | V090-011 | PASS | `docs/rust-cutover/evidence/V090-011.md` | Dashboard displays Strategy Runtime artifacts in read-only mode. |
 | V090-012 | PASS | `docs/rust-cutover/evidence/V090-012.md` | PR/release smoke gates for strategy runtime and no-order boundary. |
-| V090-013 | PASS PENDING PR MERGE | `docs/rust-cutover/evidence/V090-013.md` | Readiness report and release notes prepared. |
-| V090-014 | MANUAL GATE | `docs/rust-cutover/tasks/V090-014.md` | Tag and GitHub Release closure require explicit owner approval. |
+| V090-013 | PASS | `docs/rust-cutover/evidence/V090-013.md` | Readiness report and release notes prepared. |
+| V090-014 | PASS | `docs/rust-cutover/evidence/V090-014.md` | Owner-approved tag and formal GitHub Release published. |
 
 ## Validation Evidence
 
@@ -82,9 +82,15 @@ Hosted PR evidence:
 - V090-010 PR #365: Rust Cutover Smoke PASS and security-audit PASS.
 - V090-011 PR #366: Rust Cutover Smoke PASS and security-audit PASS.
 - V090-012 PR #367: Rust Cutover Smoke PASS and security-audit PASS.
+- V090-013 PR #368: Rust Cutover Smoke PASS and security-audit PASS.
 
-V090-013 must also pass hosted PR checks before it can be treated as merged
-readiness evidence.
+Hosted release evidence:
+
+```text
+Workflow-dispatch release gate: https://github.com/atxinbao/NTPRO/actions/runs/27738080665
+Tag-triggered release gate: https://github.com/atxinbao/NTPRO/actions/runs/27742550316
+Both release gates passed 34/34 jobs at release commit 83b333503a5c8e8436c98f54a4d94c4a50f919a8.
+```
 
 ## Out Of Scope For v0.9.0
 
@@ -104,17 +110,21 @@ prebuilt binary or Docker delivery
 
 ## Release Closure
 
-V090-014 is not complete yet. Creating the `ntpro-rust-only-v0.9.0` tag or
-publishing the GitHub Release remains manual-gated and requires explicit owner
-approval.
+V090-014 is complete. The owner-approved release closure published:
 
-Until V090-014 is approved and completed, this report is release-candidate
-readiness evidence only, not a publication record.
+```text
+Tag: ntpro-rust-only-v0.9.0
+Release name: NTPRO Rust-only v0.9.0
+Release URL: https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.9.0
+Release commit: 83b333503a5c8e8436c98f54a4d94c4a50f919a8
+Published at: 2026-06-18T07:57:04Z
+Draft: false
+Prerelease: false
+```
 
 ## Final Verdict
 
-`v0.9.0` is ready to enter release-closure review after V090-013 PR merge and
-hosted checks pass.
+`v0.9.0` is released as the Strategy Runtime Foundation milestone.
 
 Do not describe this PASS as Binance testnet order readiness, real-funds
 readiness, production trading readiness, or Dashboard order-control readiness.

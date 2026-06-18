@@ -154,5 +154,6 @@ The following belongs to `v0.10.0` or later:
 The v0.9 release may be prepared only after the strategy runtime smoke,
 shadow-mode no-order gate, readiness report, and release notes are complete.
 
-Creating the `ntpro-rust-only-v0.9.0` tag or publishing a GitHub Release remains
-manual-gated and requires explicit owner approval.
+Creating the `ntpro-rust-only-v0.9.0` tag and publishing the GitHub Release was
+manual-gated and completed only after explicit owner approval recorded in
+`docs/rust-cutover/evidence/V090-014.md`.
