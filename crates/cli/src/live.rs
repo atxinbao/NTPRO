@@ -39,7 +39,7 @@ use crate::{
     artifacts::{atomic_write_json, atomic_write_text},
     opt::{LiveCommand, LiveOpt, LiveRunOpt, LiveValidateOpt},
     process::process_is_alive,
-    strategy_session::{StrategySession, ema_cross_demo_fixture_bars},
+    strategy_session::{StrategyRuntimeCounters, StrategySession, ema_cross_demo_fixture_bars},
     supervisor::{NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, write_node_metrics_artifact},
 };
 
@@ -459,6 +459,7 @@ async fn run_strategy_session_node_with_command(
     let mut session = StrategySession::new(run_id, &config.strategy.strategy_id, &output_dir)?;
     let bars = ema_cross_demo_fixture_bars(symbol);
     let runtime = session.run_ema_cross_demo(&bars)?;
+    let counters = runtime.counters;
 
     let shutdown_reason = wait_for_strategy_shutdown_trigger(
         stop_file,
@@ -474,6 +475,7 @@ async fn run_strategy_session_node_with_command(
         process_mode,
         &started_at,
         started_instant,
+        counters,
     )
     .await?;
     session.stop_after_shutdown(shutdown_reason.label())?;
@@ -488,8 +490,7 @@ async fn run_strategy_session_node_with_command(
             process_mode,
             started_at: &started_at,
             stopped_at: Some(&stopped_at),
-            signal_count: runtime.signal_count,
-            rejection_count: runtime.risk_decision_count,
+            counters,
         },
         NodeState::Stopped,
     );
@@ -514,7 +515,7 @@ async fn run_strategy_session_node_with_command(
 
     let strategy_summary_path = runtime.summary_artifact.clone();
     let summary = format!(
-        "command={command_name}\nstatus=ok\nmode={}\nrun_id={run_id}\nconfig={}\nenvironment=sandbox\nprocess_mode={}\nstrategy_id={}\nstrategy_runtime={}\nmarket_source={}\nmarket_symbol={symbol}\nprocessed_events={}\nsignal_count={}\norder_intent_count={}\nrisk_decision_count={}\norder_submission_allowed=false\nstatus_artifact={}\nmetrics_artifact={}\nevents_log={}\nsession_status_artifact={}\nsignal_artifact={}\norder_intent_artifact={}\nrisk_decision_artifact={}\nstrategy_summary_artifact={}\nfinal_state=Stopped\nexternal_venue_connection=false\nreal_orders_submitted=false\nruntime_status=completed\nshutdown_reason={}\n",
+        "command={command_name}\nstatus=ok\nmode={}\nrun_id={run_id}\nconfig={}\nenvironment=sandbox\nprocess_mode={}\nstrategy_id={}\nstrategy_runtime={}\nmarket_source={}\nmarket_symbol={symbol}\nprocessed_events={}\nmarket_event_count={}\nsignal_count={}\norder_intent_count={}\nrisk_decision_count={}\nrejection_count={}\nactual_submission_count={}\norder_submission_allowed=false\nstatus_artifact={}\nmetrics_artifact={}\nevents_log={}\nsession_status_artifact={}\nsignal_artifact={}\norder_intent_artifact={}\nrisk_decision_artifact={}\nstrategy_summary_artifact={}\nfinal_state=Stopped\nexternal_venue_connection=false\nreal_orders_submitted=false\nruntime_status=completed\nshutdown_reason={}\n",
         config.node.mode,
         opt.config.display(),
         process_mode_label(process_mode),
@@ -530,9 +531,12 @@ async fn run_strategy_session_node_with_command(
             .as_deref()
             .unwrap_or(FIXTURE_STREAM_DATA_MODE),
         runtime.processed_events,
+        counters.market_event_count,
         runtime.signal_count,
         runtime.order_intent_count,
         runtime.risk_decision_count,
+        counters.rejection_count,
+        counters.actual_submission_count,
         status_path.display(),
         metrics_path.display(),
         events_path.display(),
@@ -550,7 +554,7 @@ async fn run_strategy_session_node_with_command(
         "phase=validate_config status=ok mode={} strategy_id={}\n\
          phase=strategy_session_start status=ok session_id={run_id} strategy_id={}\n\
          phase=fixture_market_stream status=ok symbol={symbol} processed_events={}\n\
-         phase=strategy_loop status=ok signal_count={} order_intent_count={} risk_decision_count={}\n\
+         phase=strategy_loop status=ok signal_count={} order_intent_count={} risk_decision_count={} rejection_count={} actual_submission_count={}\n\
          phase=shutdown_trigger status=ok reason={}\n\
          phase=strategy_session_stop status=ok state=stopped external_venue_connection=false real_orders_submitted=false\n",
         config.node.mode,
@@ -560,6 +564,8 @@ async fn run_strategy_session_node_with_command(
         runtime.signal_count,
         runtime.order_intent_count,
         runtime.risk_decision_count,
+        counters.rejection_count,
+        counters.actual_submission_count,
         shutdown_reason.label(),
     );
     atomic_write_text(&events_path, &event_log)
@@ -790,8 +796,7 @@ struct StrategyNodeStatusContext<'a> {
     process_mode: ProcessMode,
     started_at: &'a str,
     stopped_at: Option<&'a str>,
-    signal_count: u64,
-    rejection_count: u64,
+    counters: StrategyRuntimeCounters,
 }
 
 struct StrategyNodeMetricPaths<'a> {
@@ -954,10 +959,10 @@ fn build_strategy_node_status(
     };
     status.risk.trading_state = nautilus_live::status::RiskTradingState::Halted;
     status.risk.health = nautilus_live::status::HealthStatus::Healthy;
-    status.risk.command_count = SnapshotValue::available(context.signal_count);
-    status.risk.event_count = SnapshotValue::available(context.signal_count);
-    status.risk.rejections_total = SnapshotValue::available(context.rejection_count);
-    if context.rejection_count > 0 {
+    status.risk.command_count = SnapshotValue::available(context.counters.signal_count);
+    status.risk.event_count = SnapshotValue::available(context.counters.risk_decision_count);
+    status.risk.rejections_total = SnapshotValue::available(context.counters.rejection_count);
+    if context.counters.rejection_count > 0 {
         status.risk.last_rejection = Some("order_submission_disabled".to_string());
     }
     status.generated_at = SnapshotValue::available(generated_at.clone());
@@ -1108,6 +1113,7 @@ async fn wait_for_strategy_shutdown_trigger(
     process_mode: ProcessMode,
     started_at: &str,
     started_instant: Instant,
+    counters: StrategyRuntimeCounters,
 ) -> anyhow::Result<ShutdownReason> {
     let Some(stop_file) = stop_file else {
         return Ok(ShutdownReason::StartStop);
@@ -1140,8 +1146,7 @@ async fn wait_for_strategy_shutdown_trigger(
                     process_mode,
                     started_at,
                     stopped_at: None,
-                    signal_count: 0,
-                    rejection_count: 0,
+                    counters,
                 },
                 NodeState::Running,
             );
@@ -1533,6 +1538,9 @@ write_summary = true
         assert_eq!(status.execution_connection, ConnectionStatus::NotConfigured);
         assert!(!status.external_venue_connection);
         assert!(!status.real_orders_submitted);
+        assert_eq!(status.risk.command_count.value, Some(2));
+        assert_eq!(status.risk.event_count.value, Some(2));
+        assert_eq!(status.risk.rejections_total.value, Some(2));
 
         let session_status: serde_json::Value = serde_json::from_str(
             &fs::read_to_string(output_dir.join("strategy").join("session_status.json")).unwrap(),
@@ -1576,6 +1584,8 @@ write_summary = true
         assert_eq!(metrics.node_id, "btc-ema-shadow-001");
         assert_eq!(metrics.lifecycle_state, LifecycleStatus::Stopped);
         assert_eq!(metrics.process_mode, ProcessMode::SpawnedProcess);
+        assert_eq!(metrics.strategy_signal_count.value, Some(2));
+        assert_eq!(metrics.strategy_rejection_count.value, Some(2));
         assert!(!metrics.external_venue_connection);
         assert!(!metrics.real_orders_submitted);
     }
@@ -1589,21 +1599,40 @@ write_summary = true
             "ntpro-node-strategy-persistent",
             &strategy_node_config(&output_dir),
         );
-        let status_path = output_dir.join("strategy").join("session_status.json");
+        let session_status_path = output_dir.join("strategy").join("session_status.json");
+        let node_status_path = output_dir.join("status.json");
+        let node_metrics_path = output_dir.join("metrics.json");
         let stop_file_writer = stop_file.clone();
         let watcher = tokio::spawn(async move {
             for _ in 0..40 {
-                if status_path.exists() {
+                if session_status_path.exists() {
                     let status: serde_json::Value =
-                        serde_json::from_str(&fs::read_to_string(&status_path)?)?;
-                    if status["state"] == "running" {
-                        fs::write(&stop_file_writer, "stop\n")?;
-                        return Ok::<_, anyhow::Error>(());
+                        serde_json::from_str(&fs::read_to_string(&session_status_path)?)?;
+                    if status["state"] == "running"
+                        && node_status_path.exists()
+                        && node_metrics_path.exists()
+                    {
+                        let node_status: NodeStatus =
+                            serde_json::from_str(&fs::read_to_string(&node_status_path)?)?;
+                        let node_metrics: NodeMetrics =
+                            serde_json::from_str(&fs::read_to_string(&node_metrics_path)?)?;
+                        if node_status.lifecycle_state == LifecycleStatus::Running
+                            && node_status.risk.command_count.value == Some(2)
+                            && node_status.risk.event_count.value == Some(2)
+                            && node_status.risk.rejections_total.value == Some(2)
+                            && node_metrics.strategy_signal_count.value == Some(2)
+                            && node_metrics.strategy_rejection_count.value == Some(2)
+                        {
+                            fs::write(&stop_file_writer, "stop\n")?;
+                            return Ok::<_, anyhow::Error>(());
+                        }
                     }
                 }
                 sleep(Duration::from_millis(50)).await;
             }
-            anyhow::bail!("strategy session did not remain running before shutdown")
+            anyhow::bail!(
+                "strategy session heartbeat counters did not remain non-zero before shutdown"
+            )
         });
 
         run_ntpro_node_with_controls(
