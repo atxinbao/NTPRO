@@ -100,6 +100,10 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
       <div id="workflow-artifacts" class="table-wrap"></div>
     </section>
     <section class="band">
+      <h2>Strategy Runtime</h2>
+      <div id="strategy-runtime" class="table-wrap"></div>
+    </section>
+    <section class="band">
       <h2>节点</h2>
       <div id="nodes" class="table-wrap"></div>
     </section>
@@ -445,6 +449,13 @@ const DISPLAY_TEXT = {
   active: "活跃",
   reducing: "减仓中",
   halted: "已暂停交易",
+  fixture_stream_running: "Fixture 流运行中",
+  mock_stream_running: "Mock 流运行中",
+  shadow: "影子模式",
+  disabled: "已禁用",
+  order_submission_disabled: "订单提交已禁用",
+  shadow_mode_actual_submission_disabled: "影子模式未实际提交",
+  blocked_by_v09_strategy_runtime_boundary: "被 v0.9 策略运行边界阻止",
   warning: "警告",
   info: "信息",
   missing: "缺失",
@@ -577,6 +588,7 @@ function render(payload) {
 
   renderSandboxBusiness(snapshot.sandbox_business || {});
   renderWorkflowArtifacts(snapshot.workflow_artifacts || []);
+  renderStrategyRuntime(snapshot.strategy_runtime || []);
   renderDataSources(snapshot.data_sources || []);
   renderExecutionGateways(snapshot.execution_gateways || []);
   renderRisk(snapshot.risk || {});
@@ -726,6 +738,46 @@ function renderWorkflowArtifacts(workflows) {
         `).join("")}
       </tbody>
     </table>` : emptyTable("没有 workflow manifest 工件");
+}
+
+function renderStrategyRuntime(strategyRuntime) {
+  document.getElementById("strategy-runtime").innerHTML = strategyRuntime.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>节点</th>
+          <th>会话</th>
+          <th>市场流</th>
+          <th>信号</th>
+          <th>Order Intent</th>
+          <th>风控决策</th>
+          <th>拒绝原因</th>
+          <th>提交边界</th>
+          <th>工件</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${strategyRuntime.map((runtime) => `
+          <tr>
+            <td data-label="节点"><strong>${text(runtime.node_id)}</strong><div class="muted">${displayText(snapshotValue(runtime.strategy_id))}</div></td>
+            <td data-label="会话"><span class="status-${safe(snapshotValue(runtime.session_state))}">${displayText(snapshotValue(runtime.session_state))}</span><div class="muted">${displayText(snapshotValue(runtime.session_id))}</div></td>
+            <td data-label="市场流">${displayText(snapshotValue(runtime.market_stream_status))}<div class="muted">${displayText(snapshotValue(runtime.symbol))}</div></td>
+            <td data-label="信号">${displayText(snapshotValue(runtime.signal_count))}<div class="muted">${displayText(snapshotValue(runtime.latest_signal))}</div></td>
+            <td data-label="Order Intent">${displayText(snapshotValue(runtime.latest_order_intent))}</td>
+            <td data-label="风控决策">${displayText(snapshotValue(runtime.latest_risk_decision))}</td>
+            <td data-label="拒绝原因">${displayText(snapshotValue(runtime.rejection_reason))}</td>
+            <td data-label="提交边界">${panelRow("模式", snapshotValue(runtime.order_submission_mode))}${panelRow("实际提交", snapshotValue(runtime.actual_submission_count))}</td>
+            <td data-label="工件" class="path">
+              ${panelRow("session", snapshotValue(runtime.session_status_path))}
+              ${panelRow("signal", snapshotValue(runtime.signal_artifact_path))}
+              ${panelRow("intent", snapshotValue(runtime.order_intent_artifact_path))}
+              ${panelRow("risk", snapshotValue(runtime.risk_decision_artifact_path))}
+              ${panelRow("summary", snapshotValue(runtime.summary_artifact_path))}
+            </td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>` : emptyTable("没有 Strategy Runtime 工件");
 }
 
 function renderDataSources(dataSources) {
@@ -1734,6 +1786,7 @@ pub struct DashboardSnapshot {
     pub risk: RiskStatus,
     pub sandbox_business: SandboxBusinessStatus,
     pub workflow_artifacts: Vec<WorkflowArtifactStatus>,
+    pub strategy_runtime: Vec<StrategyRuntimeStatus>,
     pub runtime_modules: Vec<RuntimeModuleStatus>,
     pub logs: Vec<LogStatus>,
     pub metrics: Vec<MetricStatus>,
@@ -1755,6 +1808,7 @@ impl DashboardSnapshot {
             risk: RiskStatus::unknown(),
             sandbox_business: sandbox_business_status_from_v04_evidence(),
             workflow_artifacts: Vec::new(),
+            strategy_runtime: Vec::new(),
             runtime_modules: Vec::new(),
             logs: Vec::new(),
             metrics: Vec::new(),
@@ -2242,6 +2296,28 @@ impl WorkflowArtifactStatus {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategyRuntimeStatus {
+    pub node_id: String,
+    pub session_id: DashboardValue<String>,
+    pub session_state: DashboardValue<String>,
+    pub strategy_id: DashboardValue<String>,
+    pub symbol: DashboardValue<String>,
+    pub market_stream_status: DashboardValue<String>,
+    pub signal_count: DashboardValue<u64>,
+    pub latest_signal: DashboardValue<String>,
+    pub latest_order_intent: DashboardValue<String>,
+    pub latest_risk_decision: DashboardValue<String>,
+    pub rejection_reason: DashboardValue<String>,
+    pub order_submission_mode: DashboardValue<String>,
+    pub actual_submission_count: DashboardValue<u64>,
+    pub session_status_path: DashboardValue<String>,
+    pub signal_artifact_path: DashboardValue<String>,
+    pub order_intent_artifact_path: DashboardValue<String>,
+    pub risk_decision_artifact_path: DashboardValue<String>,
+    pub summary_artifact_path: DashboardValue<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeModuleStatus {
     pub module_name: String,
     pub status: DashboardValue<String>,
@@ -2503,6 +2579,9 @@ pub fn snapshot_from_supervisor_artifacts_with_workflow_root(
             .execution_gateways
             .push(execution_gateway_from_status(record, &status));
         snapshot.runtime_modules.extend(modules);
+        if let Some(strategy_runtime) = strategy_runtime_from_record(record) {
+            snapshot.strategy_runtime.push(strategy_runtime);
+        }
         snapshot
             .logs
             .extend(log_statuses_from_record(record, &status));
@@ -3031,6 +3110,207 @@ fn metric_statuses_from_record(
         last_error: optional_dashboard_value(metrics.last_error_summary.clone()),
     })
     .collect()
+}
+
+fn strategy_runtime_from_record(record: &SupervisorNodeRecord) -> Option<StrategyRuntimeStatus> {
+    let strategy_root = record.artifact_root.join("strategy");
+    let session_status_path = strategy_root.join("session_status.json");
+    let market_status_path = strategy_root.join("market_status.json");
+    let signal_path = strategy_root.join("signal.jsonl");
+    let order_intent_path = strategy_root.join("order_intent.jsonl");
+    let risk_decision_path = strategy_root.join("risk_decision.jsonl");
+    let summary_path = strategy_root.join("summary.json");
+
+    let has_strategy_artifact = [
+        &session_status_path,
+        &market_status_path,
+        &signal_path,
+        &order_intent_path,
+        &risk_decision_path,
+        &summary_path,
+    ]
+    .iter()
+    .any(|path| path.exists());
+    if !has_strategy_artifact {
+        return None;
+    }
+
+    let session = read_json_file_value(&session_status_path);
+    let market = read_json_file_value(&market_status_path);
+    let signal = read_latest_jsonl_file_value(&signal_path);
+    let order_intent = read_latest_jsonl_file_value(&order_intent_path);
+    let risk_decision = read_latest_jsonl_file_value(&risk_decision_path);
+    let summary = read_json_file_value(&summary_path);
+
+    let symbol = first_dashboard_string_field([&signal, &order_intent, &risk_decision], "symbol");
+
+    Some(StrategyRuntimeStatus {
+        node_id: record.node_id.clone(),
+        session_id: session
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "session_id")
+            }),
+        session_state: session
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "state")
+            }),
+        strategy_id: session
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "strategy_id")
+            }),
+        symbol,
+        market_stream_status: market
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "connection")
+            }),
+        signal_count: summary
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_u64_field(value, "signal_count")
+            }),
+        latest_signal: signal
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, latest_signal_label),
+        latest_order_intent: order_intent
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, latest_order_intent_label),
+        latest_risk_decision: risk_decision
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, latest_risk_decision_label),
+        rejection_reason: risk_decision
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_array_field(value, "reasons")
+            }),
+        order_submission_mode: risk_decision
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "order_submission")
+            }),
+        actual_submission_count: summary
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_u64_field(value, "actual_submission_count")
+            }),
+        session_status_path: dashboard_path_if_exists(&session_status_path),
+        signal_artifact_path: dashboard_path_if_exists(&signal_path),
+        order_intent_artifact_path: dashboard_path_if_exists(&order_intent_path),
+        risk_decision_artifact_path: dashboard_path_if_exists(&risk_decision_path),
+        summary_artifact_path: dashboard_path_if_exists(&summary_path),
+    })
+}
+
+fn read_json_file_value(path: &FsPath) -> Option<Value> {
+    let raw = fs::read_to_string(path).ok()?;
+    serde_json::from_str(&raw).ok()
+}
+
+fn read_latest_jsonl_file_value(path: &FsPath) -> Option<Value> {
+    let raw = fs::read_to_string(path).ok()?;
+    raw.lines()
+        .rev()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .and_then(|line| serde_json::from_str(line).ok())
+}
+
+fn first_dashboard_string_field<'a>(
+    values: impl IntoIterator<Item = &'a Option<Value>>,
+    field: &str,
+) -> DashboardValue<String> {
+    values
+        .into_iter()
+        .filter_map(Option::as_ref)
+        .find_map(|value| value.get(field).and_then(Value::as_str))
+        .map(str::to_string)
+        .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn latest_signal_label(value: &Value) -> DashboardValue<String> {
+    let signal = value.get("signal").and_then(Value::as_str);
+    let symbol = value.get("symbol").and_then(Value::as_str);
+    let generated_at = value.get("generated_at").and_then(Value::as_str);
+    match (signal, symbol, generated_at) {
+        (Some(signal), Some(symbol), Some(generated_at)) => {
+            DashboardValue::available(format!("{signal} {symbol} @ {generated_at}"))
+        }
+        (Some(signal), Some(symbol), None) => {
+            DashboardValue::available(format!("{signal} {symbol}"))
+        }
+        (Some(signal), None, _) => DashboardValue::available(signal.to_string()),
+        _ => DashboardValue::unknown(),
+    }
+}
+
+fn latest_order_intent_label(value: &Value) -> DashboardValue<String> {
+    let side = value.get("side").and_then(Value::as_str);
+    let order_type = value.get("order_type").and_then(Value::as_str);
+    let symbol = value.get("symbol").and_then(Value::as_str);
+    let submission_status = value.get("submission_status").and_then(Value::as_str);
+    let submission_allowed = value.get("submission_allowed").and_then(Value::as_bool);
+    match (
+        side,
+        order_type,
+        symbol,
+        submission_status,
+        submission_allowed,
+    ) {
+        (Some(side), Some(order_type), Some(symbol), Some(status), Some(allowed)) => {
+            DashboardValue::available(format!(
+                "{side} {order_type} {symbol}; status={status}; allowed={allowed}"
+            ))
+        }
+        (Some(side), Some(order_type), Some(symbol), Some(status), None) => {
+            DashboardValue::available(format!("{side} {order_type} {symbol}; status={status}"))
+        }
+        (Some(side), Some(order_type), Some(symbol), _, _) => {
+            DashboardValue::available(format!("{side} {order_type} {symbol}"))
+        }
+        _ => DashboardValue::unknown(),
+    }
+}
+
+fn latest_risk_decision_label(value: &Value) -> DashboardValue<String> {
+    let decision = value.get("decision").and_then(Value::as_str);
+    let mode = value.get("mode").and_then(Value::as_str);
+    let actual_submission = value.get("actual_submission").and_then(Value::as_bool);
+    match (decision, mode, actual_submission) {
+        (Some(decision), Some(mode), Some(actual_submission)) => DashboardValue::available(
+            format!("{decision}; mode={mode}; actual_submission={actual_submission}"),
+        ),
+        (Some(decision), Some(mode), None) => {
+            DashboardValue::available(format!("{decision}; mode={mode}"))
+        }
+        (Some(decision), None, _) => DashboardValue::available(decision.to_string()),
+        _ => DashboardValue::unknown(),
+    }
+}
+
+fn json_string_array_field(value: &Value, field: &str) -> DashboardValue<String> {
+    value
+        .get(field)
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>()
+                .join(",")
+        })
+        .filter(|joined| !joined.is_empty())
+        .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn dashboard_path_if_exists(path: &FsPath) -> DashboardValue<String> {
+    if path.exists() {
+        DashboardValue::available(path.display().to_string())
+    } else {
+        DashboardValue::unknown()
+    }
 }
 
 fn workflow_artifacts_from_explicit_root(
@@ -4128,6 +4408,7 @@ mod tests {
             "risk",
             "sandbox_business",
             "workflow_artifacts",
+            "strategy_runtime",
             "runtime_modules",
             "logs",
             "metrics",
@@ -4147,6 +4428,7 @@ mod tests {
         assert_eq!(value["overview"]["external_network_attempted"], false);
         assert_eq!(value["risk"]["availability"], "unknown");
         assert_eq!(value["workflow_artifacts"], json!([]));
+        assert_eq!(value["strategy_runtime"], json!([]));
         assert_eq!(value["sandbox_business"]["availability"], "available");
         assert_eq!(
             value["sandbox_business"]["exchange"]["venue"],
@@ -4161,6 +4443,7 @@ mod tests {
             "execution-gateways",
             "sandbox-business",
             "workflow-artifacts",
+            "strategy-runtime",
             "risk",
             "runtime-modules",
             "logs-metrics",
@@ -4178,6 +4461,7 @@ mod tests {
             "renderExecutionGateways",
             "renderSandboxBusiness",
             "renderWorkflowArtifacts",
+            "renderStrategyRuntime",
             "renderRisk",
             "renderRuntimeModules",
             "renderLogsMetrics",
@@ -4187,6 +4471,7 @@ mod tests {
             "没有数据源上报",
             "没有执行网关上报",
             "没有 workflow manifest 工件",
+            "没有 Strategy Runtime 工件",
             "没有运行模块上报",
             "没有日志或指标上报",
             "没有控制项",
@@ -4198,6 +4483,24 @@ mod tests {
             assert!(
                 DASHBOARD_JS.contains(js_symbol),
                 "dashboard JS missing {js_symbol}"
+            );
+        }
+
+        for (prefix, suffix) in [
+            ("submit", "order"),
+            ("cancel", "order"),
+            ("enable", "live"),
+            ("production", "connect"),
+            ("strategy", "hot_reload"),
+        ] {
+            let forbidden_control = format!("{prefix}_{suffix}");
+            assert!(
+                !DASHBOARD_JS.contains(&forbidden_control),
+                "dashboard JS must not expose trading control {forbidden_control}"
+            );
+            assert!(
+                !DASHBOARD_HTML.contains(&forbidden_control),
+                "dashboard shell must not expose trading control {forbidden_control}"
             );
         }
     }
@@ -5090,6 +5393,90 @@ mod tests {
         }));
     }
 
+    #[test]
+    fn strategy_runtime_artifacts_populate_readonly_dashboard_snapshot() {
+        let root = temp_root("strategy-runtime-readonly");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "strategy-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_strategy_runtime_artifacts(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-18T10:30:00Z").unwrap();
+
+        assert_eq!(snapshot.strategy_runtime.len(), 1);
+        let runtime = &snapshot.strategy_runtime[0];
+        assert_eq!(runtime.node_id, "strategy-a");
+        assert_eq!(
+            runtime.session_id.value.as_deref(),
+            Some("btc-ema-shadow-001")
+        );
+        assert_eq!(runtime.session_state.value.as_deref(), Some("stopped"));
+        assert_eq!(
+            runtime.strategy_id.value.as_deref(),
+            Some("ema_cross_btcusdt_v1")
+        );
+        assert_eq!(runtime.symbol.value.as_deref(), Some("BTCUSDT.BINANCE"));
+        assert_eq!(
+            runtime.market_stream_status.value.as_deref(),
+            Some("fixture_stream_running")
+        );
+        assert_eq!(runtime.signal_count.value, Some(2));
+        assert!(
+            runtime
+                .latest_signal
+                .value
+                .as_deref()
+                .is_some_and(|value| value.contains("flat BTCUSDT.BINANCE"))
+        );
+        assert!(
+            runtime
+                .latest_order_intent
+                .value
+                .as_deref()
+                .is_some_and(|value| value.contains("allowed=false"))
+        );
+        assert!(
+            runtime
+                .latest_risk_decision
+                .value
+                .as_deref()
+                .is_some_and(|value| value.contains("actual_submission=false"))
+        );
+        assert_eq!(
+            runtime.rejection_reason.value.as_deref(),
+            Some("order_submission_disabled,shadow_mode_actual_submission_disabled")
+        );
+        assert_eq!(
+            runtime.order_submission_mode.value.as_deref(),
+            Some("disabled")
+        );
+        assert_eq!(runtime.actual_submission_count.value, Some(0));
+        assert!(
+            runtime
+                .session_status_path
+                .value
+                .as_deref()
+                .is_some_and(|path| path.ends_with("strategy/session_status.json"))
+        );
+        assert!(
+            runtime
+                .order_intent_artifact_path
+                .value
+                .as_deref()
+                .is_some_and(|path| path.ends_with("strategy/order_intent.jsonl"))
+        );
+
+        let snapshot_value = serde_json::to_value(&snapshot).unwrap();
+        assert_forbidden_keys_absent(&snapshot_value);
+    }
+
     #[tokio::test]
     async fn dashboard_http_server_serves_shell_snapshot_and_rejects_invalid_action_state() {
         let root = temp_root("http-server");
@@ -5978,6 +6365,89 @@ mod tests {
         fs::write(&record.stdout_log_path, "stdout\n").unwrap();
         fs::write(&record.stderr_log_path, "stderr\n").unwrap();
         fs::write(&record.events_log_path, "event=start status=ok\n").unwrap();
+    }
+
+    fn write_strategy_runtime_artifacts(record: &SupervisorNodeRecord) {
+        let strategy_root = record.artifact_root.join("strategy");
+        fs::create_dir_all(&strategy_root).unwrap();
+        fs::write(
+            strategy_root.join("session_status.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": "ntpro.v09_strategy_session_status.v1",
+                "session_id": "btc-ema-shadow-001",
+                "strategy_id": "ema_cross_btcusdt_v1",
+                "state": "stopped",
+                "reason": "demo strategy stopped",
+                "updated_at_unix_ms": 1000,
+                "artifacts": {
+                    "session_status": strategy_root.join("session_status.json").display().to_string(),
+                    "events": strategy_root.join("events.jsonl").display().to_string(),
+                    "market_status": strategy_root.join("market_status.json").display().to_string(),
+                    "market_events": strategy_root.join("market_events.jsonl").display().to_string(),
+                    "signal": strategy_root.join("signal.jsonl").display().to_string(),
+                    "order_intent": strategy_root.join("order_intent.jsonl").display().to_string(),
+                    "risk_decision": strategy_root.join("risk_decision.jsonl").display().to_string(),
+                    "summary": strategy_root.join("summary.json").display().to_string()
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            strategy_root.join("market_status.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": "ntpro.v09_market_status.v1",
+                "session_id": "btc-ema-shadow-001",
+                "strategy_id": "ema_cross_btcusdt_v1",
+                "connection": "fixture_stream_running",
+                "source": "fixture_bar_stream",
+                "event_count": 8,
+                "last_event_at_unix_ms": 2000,
+                "updated_at_unix_ms": 2001
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            strategy_root.join("signal.jsonl"),
+            r#"{"schema_version":"ntpro.v09_signal.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","symbol":"BTCUSDT.BINANCE","signal":"long","confidence":0.71,"market_event_seq":3,"generated_at":"unix:100","generated_at_unix_ms":100}
+{"schema_version":"ntpro.v09_signal.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","symbol":"BTCUSDT.BINANCE","signal":"flat","confidence":0.62,"market_event_seq":7,"generated_at":"unix:200","generated_at_unix_ms":200}
+"#,
+        )
+        .unwrap();
+        fs::write(
+            strategy_root.join("order_intent.jsonl"),
+            r#"{"schema_version":"ntpro.v09_order_intent.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","intent_id":"intent-1","symbol":"BTCUSDT.BINANCE","side":"buy","order_type":"market","quantity":1.0,"source_signal":"long","confidence":0.71,"market_event_seq":3,"signal_generated_at":"unix:100","created_at":"unix:101","created_at_unix_ms":101,"submission_allowed":false,"submission_status":"blocked_by_v09_strategy_runtime_boundary"}
+{"schema_version":"ntpro.v09_order_intent.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","intent_id":"intent-2","symbol":"BTCUSDT.BINANCE","side":"sell","order_type":"market","quantity":1.0,"source_signal":"flat","confidence":0.62,"market_event_seq":7,"signal_generated_at":"unix:200","created_at":"unix:201","created_at_unix_ms":201,"submission_allowed":false,"submission_status":"blocked_by_v09_strategy_runtime_boundary"}
+"#,
+        )
+        .unwrap();
+        fs::write(
+            strategy_root.join("risk_decision.jsonl"),
+            r#"{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","decision_id":"risk:intent-1","intent_id":"intent-1","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":["order_submission_disabled"],"mode":"shadow","order_submission":"disabled","kill_switch":false,"account_state":"missing","market_state":"available","actual_submission":false,"evaluated_at":"unix:102","evaluated_at_unix_ms":102}
+{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","decision_id":"risk:intent-2","intent_id":"intent-2","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":["order_submission_disabled","shadow_mode_actual_submission_disabled"],"mode":"shadow","order_submission":"disabled","kill_switch":false,"account_state":"missing","market_state":"available","actual_submission":false,"evaluated_at":"unix:202","evaluated_at_unix_ms":202}
+"#,
+        )
+        .unwrap();
+        fs::write(
+            strategy_root.join("summary.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": "ntpro.v09_strategy_session_summary.v1",
+                "session_id": "btc-ema-shadow-001",
+                "strategy_id": "ema_cross_btcusdt_v1",
+                "state": "stopped",
+                "event_count": 8,
+                "market_event_count": 8,
+                "signal_count": 2,
+                "intent_count": 2,
+                "risk_decision_count": 2,
+                "rejection_count": 2,
+                "actual_submission_count": 0,
+                "updated_at_unix_ms": 3000
+            }))
+            .unwrap(),
+        )
+        .unwrap();
     }
 
     fn create_node_dirs(record: &SupervisorNodeRecord) {
