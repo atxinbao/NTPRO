@@ -235,12 +235,28 @@ pub struct StrategyRiskDecision {
     pub reasons: Vec<String>,
     pub mode: String,
     pub order_submission: String,
-    pub kill_switch: bool,
+    pub kill_switch_enabled: bool,
+    pub kill_switch_active: bool,
     pub account_state: String,
     pub market_state: String,
     pub actual_submission: bool,
     pub evaluated_at: String,
     pub evaluated_at_unix_ms: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StrategyRiskControls {
+    pub kill_switch_enabled: bool,
+    pub kill_switch_active: bool,
+}
+
+impl Default for StrategyRiskControls {
+    fn default() -> Self {
+        Self {
+            kill_switch_enabled: true,
+            kill_switch_active: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -311,6 +327,7 @@ pub struct StrategySession {
     order_intents: Vec<StrategyOrderIntent>,
     risk_decisions: Vec<StrategyRiskDecision>,
     summary: Option<StrategySessionSummary>,
+    risk_controls: StrategyRiskControls,
     artifacts: StrategySessionArtifacts,
 }
 
@@ -359,6 +376,7 @@ impl StrategySession {
             order_intents: Vec::new(),
             risk_decisions: Vec::new(),
             summary: None,
+            risk_controls: StrategyRiskControls::default(),
             artifacts,
         };
         session.persist()?;
@@ -367,6 +385,10 @@ impl StrategySession {
 
     pub const fn status(&self) -> &StrategySessionStatus {
         &self.status
+    }
+
+    pub const fn set_risk_controls(&mut self, risk_controls: StrategyRiskControls) {
+        self.risk_controls = risk_controls;
     }
 
     #[must_use]
@@ -659,8 +681,13 @@ impl StrategySession {
         let mut events = Vec::new();
         for order_intent in &self.order_intents {
             let evaluated_at_unix_ms = unix_timestamp_millis();
-            let reasons =
-                shadow_risk_rejection_reasons("disabled", false, "shadow", "missing", market_state);
+            let reasons = shadow_risk_rejection_reasons(
+                "disabled",
+                self.risk_controls.kill_switch_active,
+                "shadow",
+                "missing",
+                market_state,
+            );
             let decision = StrategyRiskDecision {
                 schema_version: STRATEGY_RISK_DECISION_SCHEMA_VERSION.to_string(),
                 session_id: order_intent.session_id.clone(),
@@ -672,7 +699,8 @@ impl StrategySession {
                 reasons,
                 mode: "shadow".to_string(),
                 order_submission: "disabled".to_string(),
-                kill_switch: false,
+                kill_switch_enabled: self.risk_controls.kill_switch_enabled,
+                kill_switch_active: self.risk_controls.kill_switch_active,
                 account_state: "missing".to_string(),
                 market_state: market_state.to_string(),
                 actual_submission: false,
@@ -905,7 +933,7 @@ fn order_intent_side(signal: &str) -> &'static str {
 
 fn shadow_risk_rejection_reasons(
     order_submission: &str,
-    kill_switch: bool,
+    kill_switch_active: bool,
     mode: &str,
     account_state: &str,
     market_state: &str,
@@ -914,7 +942,7 @@ fn shadow_risk_rejection_reasons(
     if order_submission == "disabled" {
         reasons.push("order_submission_disabled".to_string());
     }
-    if kill_switch {
+    if kill_switch_active {
         reasons.push("kill_switch_active".to_string());
     }
     if mode == "shadow" {
@@ -1443,7 +1471,9 @@ mod tests {
             assert_eq!(risk_decision["decision"], "rejected");
             assert_eq!(risk_decision["mode"], "shadow");
             assert_eq!(risk_decision["order_submission"], "disabled");
-            assert_eq!(risk_decision["kill_switch"], false);
+            assert_eq!(risk_decision["kill_switch_enabled"], true);
+            assert_eq!(risk_decision["kill_switch_active"], false);
+            assert!(risk_decision.get("kill_switch").is_none());
             assert_eq!(risk_decision["account_state"], "missing");
             assert_eq!(risk_decision["market_state"], "available");
             assert_eq!(risk_decision["actual_submission"], false);
@@ -1505,6 +1535,35 @@ mod tests {
                 "market_state_missing",
             ]
         );
+    }
+
+    #[test]
+    fn active_kill_switch_adds_explicit_rejection_reason() {
+        let root = temp_root("risk-decision-active-kill-switch");
+        let mut session = StrategySession::new("session-012", "ema-cross-demo", &root).unwrap();
+        session.set_risk_controls(StrategyRiskControls {
+            kill_switch_enabled: true,
+            kill_switch_active: true,
+        });
+
+        session
+            .run_ema_cross_demo(&ema_cross_demo_fixture_bars("BTCUSDT.BINANCE"))
+            .unwrap();
+
+        let risk_decision_lines =
+            fs::read_to_string(root.join("strategy/risk_decision.jsonl")).unwrap();
+        for line in risk_decision_lines.lines() {
+            let risk_decision: Value = serde_json::from_str(line).unwrap();
+            assert_eq!(risk_decision["kill_switch_enabled"], true);
+            assert_eq!(risk_decision["kill_switch_active"], true);
+            assert!(
+                risk_decision["reasons"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|reason| reason == "kill_switch_active")
+            );
+        }
     }
 
     #[test]

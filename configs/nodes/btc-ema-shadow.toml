@@ -18,7 +18,8 @@ order_submission = "disabled"
 external_venue_connection = false
 
 [risk]
-kill_switch = true
+kill_switch_enabled = true
+kill_switch_active = false
 
 [shutdown]
 mode = "start-stop"
