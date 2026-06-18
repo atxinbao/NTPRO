@@ -93,6 +93,8 @@ Final release checks, benchmark summaries, and audit reports live here.
   Strategy Runtime read-only surface. It displays local session, signal,
   order-intent, risk-decision, rejection, and artifact-path fields without
   adding Dashboard order controls.
+- `v0_9_0_strategy_runtime_smoke_gates.md` - V090-012 PR and release gate
+  wiring for local Strategy Runtime smoke and shadow-mode no-order verification.
 - `../evidence/V080-009.md` - dedicated v0.8.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.

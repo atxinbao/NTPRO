@@ -190,6 +190,22 @@ run_v08_authenticated_readonly_preflight() {
     scripts/ai/verify_v08_authenticated_readonly_gate.sh
 }
 
+run_v09_strategy_runtime_smoke() {
+  echo "== verify_release: v0.9 strategy runtime smoke =="
+  ensure_release_cli_binaries
+  NTPRO_V09_SKIP_BUILD=1 \
+    NTPRO_V09_NTPRO_NODE_BIN="$NTPRO_NODE_RELEASE_BIN" \
+    scripts/ai/verify_v09_strategy_runtime_smoke.sh
+}
+
+run_v09_shadow_mode_no_order_gate() {
+  echo "== verify_release: v0.9 shadow-mode no-order gate =="
+  ensure_release_cli_binaries
+  NTPRO_V09_SKIP_BUILD=1 \
+    NTPRO_V09_NTPRO_NODE_BIN="$NTPRO_NODE_RELEASE_BIN" \
+    scripts/ai/verify_v09_shadow_mode_no_order_gate.sh
+}
+
 run_stage() {
   local stage="$1"
   case "$stage" in
@@ -206,6 +222,8 @@ run_stage() {
       run_v07_manual_online_preflight
       run_v08_default_offline_gate
       run_v08_authenticated_readonly_preflight
+      run_v09_strategy_runtime_smoke
+      run_v09_shadow_mode_no_order_gate
       ;;
     full)
       run_full_checks
@@ -243,9 +261,15 @@ run_stage() {
     v08-authenticated-readonly-preflight)
       run_v08_authenticated_readonly_preflight
       ;;
+    v09-strategy-runtime-smoke)
+      run_v09_strategy_runtime_smoke
+      ;;
+    v09-shadow-mode-no-order-gate)
+      run_v09_shadow_mode_no_order_gate
+      ;;
     *)
       echo "unknown verify_release stage: $stage" >&2
-      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate, v08-authenticated-readonly-preflight" >&2
+      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate, v08-authenticated-readonly-preflight, v09-strategy-runtime-smoke, v09-shadow-mode-no-order-gate" >&2
       exit 2
       ;;
   esac

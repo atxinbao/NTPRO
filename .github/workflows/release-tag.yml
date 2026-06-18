@@ -84,6 +84,10 @@ jobs:
             command: scripts/ai/verify_release.sh v08-default-offline-gate
           - stage: release-v08-authenticated-readonly-preflight
             command: scripts/ai/verify_release.sh v08-authenticated-readonly-preflight
+          - stage: release-v09-strategy-runtime-smoke
+            command: scripts/ai/verify_release.sh v09-strategy-runtime-smoke
+          - stage: release-v09-shadow-mode-no-order-gate
+            command: scripts/ai/verify_release.sh v09-shadow-mode-no-order-gate
     env:
       CARGO_BUILD_JOBS: "1"
       CARGO_INCREMENTAL: "0"
