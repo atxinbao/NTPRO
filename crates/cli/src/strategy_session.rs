@@ -259,6 +259,16 @@ pub struct StrategySessionSummary {
     pub updated_at_unix_ms: u64,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategyRuntimeCounters {
+    pub market_event_count: u64,
+    pub signal_count: u64,
+    pub intent_count: u64,
+    pub risk_decision_count: u64,
+    pub rejection_count: u64,
+    pub actual_submission_count: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DemoStrategyRuntimeSummary {
     pub schema_version: String,
@@ -274,6 +284,7 @@ pub struct DemoStrategyRuntimeSummary {
     pub risk_decision_artifact: String,
     pub summary_artifact: String,
     pub order_submission_allowed: bool,
+    pub counters: StrategyRuntimeCounters,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -356,6 +367,30 @@ impl StrategySession {
 
     pub const fn status(&self) -> &StrategySessionStatus {
         &self.status
+    }
+
+    #[must_use]
+    pub fn counters(&self) -> StrategyRuntimeCounters {
+        StrategyRuntimeCounters {
+            market_event_count: u64::try_from(self.market_events.len()).unwrap_or(u64::MAX),
+            signal_count: u64::try_from(self.signals.len()).unwrap_or(u64::MAX),
+            intent_count: u64::try_from(self.order_intents.len()).unwrap_or(u64::MAX),
+            risk_decision_count: u64::try_from(self.risk_decisions.len()).unwrap_or(u64::MAX),
+            rejection_count: u64::try_from(
+                self.risk_decisions
+                    .iter()
+                    .filter(|decision| decision.decision == "rejected")
+                    .count(),
+            )
+            .unwrap_or(u64::MAX),
+            actual_submission_count: u64::try_from(
+                self.risk_decisions
+                    .iter()
+                    .filter(|decision| decision.actual_submission)
+                    .count(),
+            )
+            .unwrap_or(u64::MAX),
+        }
     }
 
     /// Transitions the session to the next lifecycle state and persists updated
@@ -530,20 +565,22 @@ impl StrategySession {
         self.record_summary();
         self.persist()?;
 
+        let counters = self.counters();
         Ok(DemoStrategyRuntimeSummary {
             schema_version: "ntpro.v09_demo_strategy_runtime_summary.v1".to_string(),
             session_id: self.status.session_id.clone(),
             strategy_id: self.status.strategy_id.clone(),
             strategy: "ema_cross_demo".to_string(),
-            processed_events: u64::try_from(bars.len()).unwrap_or(u64::MAX),
-            signal_count: u64::try_from(self.signals.len()).unwrap_or(u64::MAX),
+            processed_events: counters.market_event_count,
+            signal_count: counters.signal_count,
             signal_artifact: self.artifacts.signal.display().to_string(),
-            order_intent_count: u64::try_from(self.order_intents.len()).unwrap_or(u64::MAX),
+            order_intent_count: counters.intent_count,
             order_intent_artifact: self.artifacts.order_intent.display().to_string(),
-            risk_decision_count: u64::try_from(self.risk_decisions.len()).unwrap_or(u64::MAX),
+            risk_decision_count: counters.risk_decision_count,
             risk_decision_artifact: self.artifacts.risk_decision.display().to_string(),
             summary_artifact: self.artifacts.summary.display().to_string(),
             order_submission_allowed: false,
+            counters,
         })
     }
 
@@ -659,35 +696,19 @@ impl StrategySession {
     }
 
     fn record_summary(&mut self) {
-        let signal_count = u64::try_from(self.signals.len()).unwrap_or(u64::MAX);
-        let intent_count = u64::try_from(self.order_intents.len()).unwrap_or(u64::MAX);
-        let risk_decision_count = u64::try_from(self.risk_decisions.len()).unwrap_or(u64::MAX);
-        let rejection_count = u64::try_from(
-            self.risk_decisions
-                .iter()
-                .filter(|decision| decision.decision == "rejected")
-                .count(),
-        )
-        .unwrap_or(u64::MAX);
-        let actual_submission_count = u64::try_from(
-            self.risk_decisions
-                .iter()
-                .filter(|decision| decision.actual_submission)
-                .count(),
-        )
-        .unwrap_or(u64::MAX);
+        let counters = self.counters();
         self.summary = Some(StrategySessionSummary {
             schema_version: STRATEGY_SESSION_SUMMARY_SCHEMA_VERSION.to_string(),
             session_id: self.status.session_id.clone(),
             strategy_id: self.status.strategy_id.clone(),
             state: self.status.state,
             event_count: u64::try_from(self.events.len()).unwrap_or(u64::MAX),
-            market_event_count: u64::try_from(self.market_events.len()).unwrap_or(u64::MAX),
-            signal_count,
-            intent_count,
-            risk_decision_count,
-            rejection_count,
-            actual_submission_count,
+            market_event_count: counters.market_event_count,
+            signal_count: counters.signal_count,
+            intent_count: counters.intent_count,
+            risk_decision_count: counters.risk_decision_count,
+            rejection_count: counters.rejection_count,
+            actual_submission_count: counters.actual_submission_count,
             updated_at_unix_ms: unix_timestamp_millis(),
         });
     }
@@ -1162,6 +1183,21 @@ mod tests {
         assert!(summary.summary_artifact.ends_with("strategy/summary.json"));
         assert!(!summary.order_submission_allowed);
         assert_eq!(session.status().state, StrategySessionState::Running);
+        assert_eq!(
+            summary.counters.market_event_count,
+            summary.processed_events
+        );
+        assert_eq!(summary.counters.signal_count, summary.signal_count);
+        assert_eq!(summary.counters.intent_count, summary.order_intent_count);
+        assert_eq!(
+            summary.counters.risk_decision_count,
+            summary.risk_decision_count
+        );
+        assert_eq!(
+            summary.counters.rejection_count,
+            summary.risk_decision_count
+        );
+        assert_eq!(summary.counters.actual_submission_count, 0);
 
         let market_status: Value = serde_json::from_str(
             &fs::read_to_string(root.join("strategy/market_status.json")).unwrap(),
@@ -1237,6 +1273,10 @@ mod tests {
         assert_eq!(
             summary_json["risk_decision_count"],
             summary.risk_decision_count
+        );
+        assert_eq!(
+            summary_json["market_event_count"],
+            summary.counters.market_event_count
         );
         assert_eq!(summary_json["rejection_count"], summary.risk_decision_count);
         assert_eq!(summary_json["actual_submission_count"], 0);
