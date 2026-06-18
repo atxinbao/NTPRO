@@ -463,12 +463,13 @@ impl StrategySession {
     }
 
     /// Runs the built-in deterministic EMA-cross demo strategy over local
-    /// fixture bars and writes signal artifacts.
+    /// fixture bars, writes strategy artifacts, and leaves the session in the
+    /// `running` state until an explicit shutdown path stops it.
     ///
     /// # Errors
     ///
-    /// Returns an error when the session cannot transition through the demo
-    /// runtime lifecycle, when fixture bars are invalid, or when signal/status
+    /// Returns an error when the session cannot transition through the startup
+    /// lifecycle, when fixture bars are invalid, or when signal/status
     /// artifacts cannot be serialized or written.
     pub fn run_ema_cross_demo(
         &mut self,
@@ -522,8 +523,6 @@ impl StrategySession {
         self.generate_order_intents_from_signals();
         self.evaluate_shadow_risk_decisions();
 
-        self.transition(StrategySessionState::Stopping, "demo strategy completed")?;
-        self.transition(StrategySessionState::Stopped, "demo strategy stopped")?;
         self.record_summary();
         self.persist()?;
 
@@ -542,6 +541,26 @@ impl StrategySession {
             summary_artifact: self.artifacts.summary.display().to_string(),
             order_submission_allowed: false,
         })
+    }
+
+    /// Stops a running strategy session after a node shutdown trigger.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the reason is empty, the lifecycle transition is
+    /// illegal, or status/event artifacts cannot be serialized or written.
+    pub fn stop_after_shutdown(&mut self, reason: impl Into<String>) -> anyhow::Result<()> {
+        let reason = non_empty("reason", reason.into())?;
+        self.transition(
+            StrategySessionState::Stopping,
+            format!("shutdown requested: {reason}"),
+        )?;
+        self.transition(
+            StrategySessionState::Stopped,
+            format!("shutdown complete: {reason}"),
+        )?;
+        self.record_summary();
+        self.persist()
     }
 
     fn generate_order_intents_from_signals(&mut self) {
@@ -1124,7 +1143,7 @@ mod tests {
         );
         assert!(summary.summary_artifact.ends_with("strategy/summary.json"));
         assert!(!summary.order_submission_allowed);
-        assert_eq!(session.status().state, StrategySessionState::Stopped);
+        assert_eq!(session.status().state, StrategySessionState::Running);
 
         let market_status: Value = serde_json::from_str(
             &fs::read_to_string(root.join("strategy/market_status.json")).unwrap(),
@@ -1193,7 +1212,7 @@ mod tests {
             summary_json["schema_version"],
             STRATEGY_SESSION_SUMMARY_SCHEMA_VERSION
         );
-        assert_eq!(summary_json["state"], "stopped");
+        assert_eq!(summary_json["state"], "running");
         assert_eq!(summary_json["signal_count"], summary.signal_count);
         assert_eq!(summary_json["intent_count"], summary.order_intent_count);
         assert_eq!(
@@ -1209,7 +1228,7 @@ mod tests {
             u64::try_from(audit_events.lines().count()).unwrap()
         );
         assert!(audit_events.contains("demo strategy starting"));
-        assert!(audit_events.contains("demo strategy stopped"));
+        assert!(!audit_events.contains("demo strategy stopped"));
         assert_eq!(
             audit_events
                 .lines()
@@ -1427,6 +1446,37 @@ mod tests {
                 "market_state_missing",
             ]
         );
+    }
+
+    #[test]
+    fn strategy_session_stops_only_after_shutdown_input() {
+        let root = temp_root("shutdown-stop");
+        let mut session = StrategySession::new("session-011", "ema-cross-demo", &root).unwrap();
+
+        session
+            .run_ema_cross_demo(&ema_cross_demo_fixture_bars("BTCUSDT.BINANCE"))
+            .unwrap();
+        assert_eq!(session.status().state, StrategySessionState::Running);
+
+        session.stop_after_shutdown("stop-file").unwrap();
+        assert_eq!(session.status().state, StrategySessionState::Stopped);
+
+        let status: Value = serde_json::from_str(
+            &fs::read_to_string(root.join("strategy/session_status.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(status["state"], "stopped");
+        assert_eq!(status["reason"], "shutdown complete: stop-file");
+
+        let summary_json: Value =
+            serde_json::from_str(&fs::read_to_string(root.join("strategy/summary.json")).unwrap())
+                .unwrap();
+        assert_eq!(summary_json["state"], "stopped");
+
+        let audit_events = fs::read_to_string(root.join("strategy/events.jsonl")).unwrap();
+        assert!(audit_events.contains(r#""state":"running""#));
+        assert!(audit_events.contains("shutdown requested: stop-file"));
+        assert!(audit_events.contains("shutdown complete: stop-file"));
     }
 
     #[test]
