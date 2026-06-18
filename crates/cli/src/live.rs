@@ -173,34 +173,39 @@ struct StrategyNodeConfig {
     output: Option<LiveOutputConfig>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
 struct StrategyNodeSection {
     node_id: String,
     mode: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
 struct StrategyNodeStrategySection {
     strategy_id: String,
     strategy_package: Option<String>,
     strategy_runtime: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
 struct StrategyNodeMarketSection {
     venue: Option<String>,
     symbols: Vec<String>,
     data_mode: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
 struct StrategyNodeExecutionSection {
     venue: Option<String>,
     order_submission: String,
     external_venue_connection: Option<bool>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
 struct StrategyNodeRiskSection {
     kill_switch: bool,
 }
@@ -586,6 +591,11 @@ pub(crate) fn validate_minimal_live_config_file(path: &Path) -> anyhow::Result<(
     Ok(())
 }
 
+pub(crate) fn validate_strategy_node_config_file(path: &Path) -> anyhow::Result<()> {
+    load_strategy_node_config(path)?;
+    Ok(())
+}
+
 fn load_minimal_live_config(path: &Path) -> anyhow::Result<MinimalLiveConfig> {
     let raw = fs::read_to_string(path)
         .with_context(|| format!("failed to read live config '{}'", path.display()))?;
@@ -694,6 +704,12 @@ fn validate_strategy_node_config(config: &StrategyNodeConfig) -> anyhow::Result<
     if config.market.symbols.is_empty() {
         anyhow::bail!("market.symbols must not be empty");
     }
+    if config.market.symbols.len() != 1 {
+        anyhow::bail!(
+            "market.symbols must contain exactly one symbol for v0.9.1 strategy sessions, got {}",
+            config.market.symbols.len()
+        );
+    }
     for symbol in &config.market.symbols {
         validate_non_empty("market.symbols", symbol)?;
     }
@@ -715,7 +731,7 @@ fn validate_strategy_node_config(config: &StrategyNodeConfig) -> anyhow::Result<
         anyhow::bail!("execution.external_venue_connection must be false for strategy session");
     }
     if !config.risk.kill_switch {
-        anyhow::bail!("risk.kill_switch must be true for v0.9 shadow strategy sessions");
+        anyhow::bail!("risk.kill_switch must be true for v0.9.1 shadow strategy sessions");
     }
     if let Some(shutdown) = &config.shutdown {
         validate_exact("shutdown.mode", &shutdown.mode, START_STOP_SHUTDOWN)?;
