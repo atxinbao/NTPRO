@@ -1,35 +1,39 @@
 # NTPRO Roadmap
 
-Date: 2026-06-17
+Date: 2026-06-18
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is
-`ntpro-rust-only-v0.8.0`, and the next patch track is `v0.8.1`.
+`ntpro-rust-only-v0.9.0`, the next patch track is `v0.9.1` Strategy Runtime
+Semantics & Audit Hardening, and the next capability track is `v0.10.0`.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.8.0
+ntpro-rust-only-v0.9.0
 ```
 
 Current capability boundary:
 
 ```text
-authenticated Binance testnet read-only proof
-env-only testnet credentials
-redacted account-shape artifact evidence
+local deterministic Strategy Runtime batch foundation
+local fixture/mock market stream
+signal and shadow order-intent artifacts
+shadow risk decision artifacts
+supervisor and Dashboard read-only status/artifact display
+no persistent Strategy Runtime claim yet
+no Binance testnet order submission
 no real funds
-no real order submission
 no production trading
 ```
 
-`v0.8.0` builds on the v0.7 public read-only testnet connectivity proof and
-adds an authenticated Binance testnet read-only account-shape proof. The current
-public claim remains fail-closed, testnet-only, artifact-first, and explicitly
-non-production.
+`v0.9.0` builds on the v0.8 authenticated Binance testnet read-only proof and
+adds the local deterministic Strategy Runtime batch foundation. The current
+public claim remains artifact-first, shadow-mode, read-only from
+supervisor/Dashboard surfaces, and explicitly non-production.
 
 ## Published Hardening Patch: v0.7.1
 
@@ -126,7 +130,7 @@ Completed release closure:
 - hosted workflow-dispatch and tag-triggered release gates passed;
 - closure evidence recorded in `docs/rust-cutover/evidence/V080-009.md`.
 
-## Next Safety Patch Track: v0.8.1
+## Safety Patch Track: v0.8.1
 
 `v0.8.1` is a safety and release-surface closure patch for the v0.8.0 line. It
 must not add order submission, account mutation, production Binance
@@ -142,28 +146,82 @@ The v0.8.1 patch scope is:
 - tighten authenticated response-shape naming and validation;
 - publish v0.8.1 readiness and release notes as a safety/closure patch.
 
+## Published Capability Track: v0.9.0
+
+`v0.9.0` is the published local deterministic Strategy Runtime batch foundation
+release. It proves that `ntpro-node` can load a local strategy session, consume
+a bounded fixture/mock market input batch, write signal and shadow order-intent
+artifacts, write shadow risk decisions, expose supervisor status, and render
+read-only Dashboard state.
+
+Completed release closure:
+
+- formal tag: `ntpro-rust-only-v0.9.0`;
+- GitHub Release:
+  `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.9.0`;
+- hosted workflow-dispatch and tag-triggered release gates passed;
+- closure evidence recorded in `docs/rust-cutover/evidence/V090-014.md`.
+
+`v0.9.0` explicitly does not include:
+
+- persistent long-running Strategy Runtime semantics;
+- Binance testnet order submission;
+- order cancel/replace/amend;
+- production order submission;
+- real funds;
+- production trading;
+- Dashboard order controls;
+- strategy-driven live execution through an exchange adapter.
+
+## Next Hardening Patch Track: v0.9.1
+
+`v0.9.1` is Strategy Runtime Semantics & Audit Hardening for the published
+v0.9.0 line. It must not add Binance testnet order submission or production
+trading capability. Its scope is to make node/session/market/risk/heartbeat and
+artifact audit semantics true before `v0.10.0` attempts any Binance testnet
+order proof.
+
+The v0.9.1 patch scope is:
+
+- align README and ROADMAP with the published v0.9.0 release surface;
+- mark v0.9 readiness/boundary wording as released rather than planning;
+- unify StrategyNode config validation between CLI and node runtime;
+- make StrategySession lifecycle semantics persistent until stop/pause/risk
+  halt, instead of stopping before the node waits for shutdown;
+- align node/session/market status transitions;
+- keep heartbeat counters monotonic and sourced from one runtime snapshot;
+- split kill-switch enabled/active semantics in config and artifacts;
+- add Strategy Session manifest and artifact integrity audit;
+- surface artifact/status conflicts as degraded in Supervisor and Dashboard;
+- add integration, heartbeat, shutdown, and restart smoke coverage;
+- add v0.9.1 release notes and readiness material after the hardening tasks;
+- document that v0.10.0 is the earliest Binance testnet order proof track.
+
 ## Corrected Capability Sequence: v0.9.0 through v0.12.0
 
 The previous idea of making `v0.9.0` a Binance testnet order lifecycle proof is
-superseded. `v0.8.0` is still authenticated Binance testnet read-only proof,
-and the current live smoke surface is still a sandbox/fixture-oriented local
-node foundation. NTPRO must prove that `ntpro-node` can host strategy runtime
-state before it attempts testnet order submission.
+superseded. `v0.9.0` is now published as Strategy Runtime Foundation, and
+`v0.10.0` is the first track where Binance testnet order proof may be planned.
 
 Corrected sequence:
 
 ```text
-v0.9.0  = Strategy Runtime Foundation
+v0.9.0  = local deterministic Strategy Runtime batch foundation
+v0.9.1  = Strategy Runtime Semantics & Audit Hardening
 v0.10.0 = Binance Testnet Order Proof
 v0.11.0 = Production Read-Only + Shadow
 v0.12.0 = Guarded Live Alpha
 ```
 
-`v0.9.0` is the next capability track. It must make `ntpro-node` a headless
-strategy runtime host that can load a strategy session config, run a built-in
-demo strategy against fixture/mock market input, write signal/order-intent/risk
-decision/audit artifacts, expose supervisor status, and show read-only
-Dashboard state.
+`v0.9.0` is the published batch foundation track. It makes `ntpro-node` load a
+strategy session config, run a bounded built-in demo strategy against
+fixture/mock market input, write signal/order-intent/risk decision/audit
+artifacts, expose supervisor status, and show read-only Dashboard state.
+
+`v0.9.1` is the hardening track that must make the runtime semantics honest:
+node running implies session state is coherent, market exhaustion is not labeled
+running, heartbeat counters do not regress, artifact gaps are visible, and
+release gates verify the Supervisor/Dashboard path.
 
 `v0.9.0` explicitly does not include:
 

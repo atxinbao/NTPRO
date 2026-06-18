@@ -6,23 +6,24 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.8.0
-Capability: authenticated Binance testnet read-only proof
-Boundary: env-only testnet credentials, redacted account-shape artifact evidence, no orders, no real funds, no production trading
+Current source tag: ntpro-rust-only-v0.9.0
+Capability: local deterministic Strategy Runtime batch foundation
+Boundary: fixture/mock input, shadow order-intent/risk artifacts, supervisor and Dashboard read-only display, no persistent strategy runtime claim, no Binance testnet orders, no real funds, no production trading
 ```
 
-This tag is the current v0.8.0 source release point for the scoped authenticated
-Binance testnet read-only proof line. It is published as a GitHub Release for
+This tag is the current v0.9.0 source release point for the scoped Strategy
+Runtime Foundation line. It is published as a GitHub Release for
 the tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.8.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.9.0
 ```
 
-The next patch track is `v0.8.1`, a safety and release-surface closure patch.
-It must not expand the v0.8.0 capability into order submission, account
-mutation, production Binance connectivity, real funds, production trading, or
-Dashboard-started network probes.
+The next patch track is `v0.9.1`, a Strategy Runtime semantics and audit
+hardening patch for the published v0.9.0 line. It must not expand the v0.9.0
+capability into Binance testnet order submission, cancel/replace/amend,
+production Binance connectivity, real funds, production trading, or Dashboard
+order controls.
 
 ## Current Status
 
@@ -98,7 +99,7 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.8.0 is the current formal release line. It builds on the earlier foundation
+v0.9.0 is the current formal release line. It builds on the earlier foundation
 layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
@@ -110,12 +111,18 @@ layers:
 - `v0.7.1`: release-gate and artifact-contract hardening for the v0.7 proof.
 - `v0.7.2`: wording and evidence closure for the v0.7 read-only proof line.
 - `v0.8.0`: authenticated Binance testnet read-only account-shape proof.
+- `v0.9.0`: local deterministic Strategy Runtime batch foundation with
+  fixture/mock market input, signal artifacts, shadow order-intent/risk-decision
+  artifacts, supervisor read-only status, and Dashboard read-only artifact
+  display.
 
 `v0.5.0` was completed as a scoped readiness milestone and is absorbed into the
 `v0.6.0` release tree. It is not published as a separate public GitHub Release.
 
 `v0.6.1` aligned version wording, Dashboard copy, workflow artifact contracts,
-offline-only probe semantics, and PR-stage smoke coverage.
+offline-only probe semantics, and PR-stage smoke coverage. The `v0.9.1` patch
+track is reserved for Strategy Runtime semantics and audit hardening after the
+formal v0.9.0 publication; it does not add a Binance order capability.
 
 The current release path supports:
 
@@ -134,15 +141,19 @@ The current release path supports:
   with redacted account-shape evidence;
 - env-var-only testnet credential policy for authenticated read-only proof;
 - synthetic secret leak scan for v0.8 generated output;
-- dry-run order lifecycle artifact;
-- artifact-only reconciliation artifact;
+- local Strategy Session runtime through `ntpro-node`;
+- fixture/mock market stream input;
+- strategy signal JSONL artifacts;
+- shadow order-intent JSONL artifacts;
+- shadow-mode risk decision artifacts with actual order submission disabled;
+- strategy session audit and summary artifacts;
 - Dashboard read-only workflow and testnet workflow surfaces.
 
 The v0.3.0 local Supervisor control console and the v0.4.x Binance sandbox
 foundation remain part of validated release history, but they are no longer the
 current public milestone.
 
-Not included in the v0.8.0 product claim:
+Not included in the v0.9.0 product claim:
 
 - Real Binance testnet order submission.
 - Testnet order cancel, replace, amend, or live order management.
@@ -153,6 +164,7 @@ Not included in the v0.8.0 product claim:
 - Real funds.
 - Production trading parity.
 - Remote or multi-user Dashboard operation.
+- Dashboard order buttons, order controls, or credential input.
 - Prebuilt binary or Docker release artifact delivery.
 
 The v0.7.0 release introduced optional Binance testnet read-only network proof behind
@@ -167,19 +179,21 @@ booleans, but must not record API key or API secret values. Public read-only
 probes must not require credentials. Authenticated read-only probes are
 manual-online-only and still must not submit, cancel, replace, or amend orders.
 
-## Binance Testnet Read-Only Boundary
+## Strategy Runtime Boundary
 
-The current v0.8.0 product boundary is authenticated Binance testnet read-only
-proof plus release wording/evidence closure.
+The current v0.9.0 product boundary is the local deterministic Strategy Runtime
+batch foundation plus release wording/evidence closure.
 Default local and CI runs remain offline, artifact-first, Rust-only, and
 explicitly non-production.
 
-Manual online proof may connect only to the Binance testnet authenticated
-read-only `GET /api/v3/account` endpoint after explicit opt-in. The proof may
-record only redacted account response shape, status, and boundary evidence. This
-release does not store real API key values, does not persist raw account bodies,
-does not submit real orders, and does not claim live or production trading
-readiness.
+The v0.9 runtime may load a local strategy session, consume a bounded
+fixture/mock input batch, write signal artifacts, write shadow order-intent and
+risk-decision artifacts, and expose read-only supervisor/Dashboard status. This
+release does not prove a persistent long-running strategy runtime, does not
+submit real orders, does not prove Binance testnet order lifecycle, does not
+store real API key values, and does not claim live or production trading
+readiness. Persistent runtime semantics are deferred to v0.9.1, and Binance
+testnet order proof is deferred to v0.10.0.
 
 The scope and readiness documents are:
 
@@ -194,6 +208,16 @@ The scope and readiness documents are:
 - `docs/rust-cutover/release/v0_7_1_release_notes.md`
 - `docs/rust-cutover/release/v0_7_2_readiness_report.md`
 - `docs/rust-cutover/release/v0_7_2_release_notes.md`
+- `docs/rust-cutover/release/v0_8_0_authenticated_readonly_boundary.md`
+- `docs/rust-cutover/release/v0_8_0_authenticated_readonly_readiness_report.md`
+- `docs/rust-cutover/release/v0_8_0_release_notes.md`
+- `docs/rust-cutover/release/v0_8_1_readiness_report.md`
+- `docs/rust-cutover/release/v0_8_1_release_notes.md`
+- `docs/rust-cutover/release/v0_9_0_strategy_runtime_boundary.md`
+- `docs/rust-cutover/release/v0_9_0_strategy_runtime_readiness_report.md`
+- `docs/rust-cutover/release/v0_9_0_release_notes.md`
+- `docs/rust-cutover/release/v0_9_1_readiness_report.md`
+- `docs/rust-cutover/release/v0_9_1_release_notes.md`
 - `docs/versioning.md`
 
 ## Verification
@@ -250,6 +274,23 @@ Release documents:
 - `docs/rust-cutover/release/v0_6_0_release_notes.md`
 - `docs/rust-cutover/release/v0_6_1_offline_hardening_readiness_report.md`
 - `docs/rust-cutover/release/v0_6_1_release_notes.md`
+- `docs/rust-cutover/release/v0_7_0_readonly_testnet_boundary.md`
+- `docs/rust-cutover/release/v0_7_0_readonly_testnet_readiness_report.md`
+- `docs/rust-cutover/release/v0_7_0_release_notes.md`
+- `docs/rust-cutover/release/v0_7_1_release_gate_hardening_readiness_report.md`
+- `docs/rust-cutover/release/v0_7_1_release_notes.md`
+- `docs/rust-cutover/release/v0_7_2_readiness_report.md`
+- `docs/rust-cutover/release/v0_7_2_release_notes.md`
+- `docs/rust-cutover/release/v0_8_0_authenticated_readonly_boundary.md`
+- `docs/rust-cutover/release/v0_8_0_authenticated_readonly_readiness_report.md`
+- `docs/rust-cutover/release/v0_8_0_release_notes.md`
+- `docs/rust-cutover/release/v0_8_1_readiness_report.md`
+- `docs/rust-cutover/release/v0_8_1_release_notes.md`
+- `docs/rust-cutover/release/v0_9_0_strategy_runtime_boundary.md`
+- `docs/rust-cutover/release/v0_9_0_strategy_runtime_readiness_report.md`
+- `docs/rust-cutover/release/v0_9_0_release_notes.md`
+- `docs/rust-cutover/release/v0_9_1_readiness_report.md`
+- `docs/rust-cutover/release/v0_9_1_release_notes.md`
 - `docs/rust-cutover/release/rust_only_release_notes.md`
 - `docs/rust-cutover/release/final_release_verification.md`
 - `docs/rust-cutover/release/final_completion_report.md`
@@ -278,15 +319,18 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.7.2` is the current Rust-only source release for the
-Binance testnet read-only connectivity proof line. `v0.7.1` remains the release
-gate and artifact-contract hardening patch, `v0.6.1` remains the v0.6 offline
-hardening closure, `v0.6.0` remains the Binance testnet dry-run runtime
-foundation, `v0.5.0` remains a completed internal workflow-artifact milestone
-absorbed into `v0.6.0`, `v0.4.1` remains the latest Binance sandbox public
-patch baseline, `v0.3.0` remains the Local Supervisor Control Console baseline,
-`v0.2.0` remains the local multi-node runtime foundation baseline, and `v0.1.0`
-remains the first formal Rust-only cutover release and historical baseline.
+`ntpro-rust-only-v0.9.0` is the current Rust-only source release for the local
+deterministic Strategy Runtime batch foundation line. `v0.9.1` is the next
+Strategy Runtime semantics and audit hardening patch track and does not add a
+Binance order capability. `v0.8.0` remains the authenticated Binance testnet
+read-only proof baseline, `v0.7.2` remains the wording/evidence closure for the
+read-only connectivity proof line, `v0.6.1` remains the v0.6 offline hardening
+closure, `v0.6.0` remains the Binance testnet dry-run runtime foundation,
+`v0.5.0` remains a completed internal workflow-artifact milestone absorbed into
+`v0.6.0`, `v0.4.1` remains the Binance sandbox public patch baseline, `v0.3.0`
+remains the Local Supervisor Control Console baseline, `v0.2.0` remains the
+local multi-node runtime foundation baseline, and `v0.1.0` remains the first
+formal Rust-only cutover release and historical baseline.
 
 Before cutting the next release, review:
 

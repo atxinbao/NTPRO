@@ -13,8 +13,8 @@ load a strategy session, consume fixture/mock market input, emit signal
 artifacts, emit shadow order-intent artifacts, write shadow risk decisions,
 surface supervisor status, and display read-only Dashboard artifacts.
 
-Plain Chinese summary: v0.9.0 可以进入发布决策，但它只代表“策略运行时地基”
-准备好了：本地 `ntpro-node` 能跑策略会话、吃 fixture/mock 行情、生成信号、
+Plain Chinese summary: v0.9.0 已完成 owner-approved GitHub Release 发布闭环，
+但它只代表“策略运行时地基”准备好了：本地 `ntpro-node` 能跑策略会话、吃 fixture/mock 行情、生成信号、
 订单意图、风控拒绝决策和审计文件，并能被 supervisor / Dashboard 只读展示。它不是
 Binance testnet 下单证明，不支持真实资金，不支持生产交易，也不允许 Dashboard 下单。
 
