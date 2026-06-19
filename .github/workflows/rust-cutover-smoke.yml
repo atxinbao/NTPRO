@@ -41,6 +41,7 @@ jobs:
             echo "v07_smoke=false" >> "$GITHUB_OUTPUT"
             echo "v08_smoke=false" >> "$GITHUB_OUTPUT"
             echo "v09_smoke=false" >> "$GITHUB_OUTPUT"
+            echo "v10_smoke=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if grep -E '^(crates/cli/src/(workflow|dashboard|opt)\.rs|examples/rust/binance/testnet_dry_run\.toml|scripts/ai/verify_v06_binance_testnet_dry_run\.sh|docs/rust-cutover/product/V06_BINANCE_TESTNET_DRY_RUN_USER_GUIDE\.md)$' /tmp/changed-files.txt >/dev/null; then
@@ -67,14 +68,20 @@ jobs:
           else
             echo "v09_smoke=false" >> "$GITHUB_OUTPUT"
           fi
-          if grep -Ev '^(README\.md|CHANGELOG.*|MIGRATION.*|docs/|release/|\.agentflow/|\.github/(ISSUE_TEMPLATE/|pull_request_template\.md|workflows/(release-tag|rust-cutover-smoke)\.yml)|scripts/ai/(verify_full|verify_release|v03_dashboard_smoke|verify_v05_workflow_artifacts|verify_v06_binance_testnet_dry_run|verify_v07_default_offline_gate|verify_v07_manual_online_gate|scan_v08_synthetic_secret_leaks|verify_v08_default_offline_gate|verify_v08_authenticated_readonly_gate|verify_v09_strategy_runtime_smoke|verify_v09_shadow_mode_no_order_gate|verify_v091_strategy_supervisor_dashboard_integration)\.sh|\.gitignore$)' /tmp/changed-files.txt >/tmp/heavy-files.txt; then
+          if grep -E '^(crates/cli/src/(live|dashboard|opt)\.rs|configs/nodes/btc-ema-shadow\.toml|scripts/ai/verify_v10_(offline_fail_closed|order_preflight|signed_order_request|order_test_preflight|execution_artifact_contract|reconciliation_fixture|offline_release_gates|manual_order_proof_gate)\.sh|docs/rust-cutover/release/v0_10_0_.*\.md)$' /tmp/changed-files.txt >/dev/null; then
+            echo "v10_smoke=true" >> "$GITHUB_OUTPUT"
+            echo "v0.10 Binance testnet order proof offline gates required by changed files"
+          else
+            echo "v10_smoke=false" >> "$GITHUB_OUTPUT"
+          fi
+          if grep -Ev '^(README\.md|CHANGELOG.*|MIGRATION.*|docs/|release/|\.agentflow/|\.github/(ISSUE_TEMPLATE/|pull_request_template\.md|workflows/(release-tag|rust-cutover-smoke)\.yml)|scripts/ai/(verify_full|verify_release|v03_dashboard_smoke|verify_v05_workflow_artifacts|verify_v06_binance_testnet_dry_run|verify_v07_default_offline_gate|verify_v07_manual_online_gate|scan_v08_synthetic_secret_leaks|verify_v08_default_offline_gate|verify_v08_authenticated_readonly_gate|verify_v09_strategy_runtime_smoke|verify_v09_shadow_mode_no_order_gate|verify_v091_strategy_supervisor_dashboard_integration|verify_v10_offline_fail_closed|verify_v10_order_preflight|verify_v10_signed_order_request|verify_v10_order_test_preflight|verify_v10_execution_artifact_contract|verify_v10_reconciliation_fixture|verify_v10_offline_release_gates|verify_v10_manual_order_proof_gate)\.sh|\.gitignore$)' /tmp/changed-files.txt >/tmp/heavy-files.txt; then
             echo "heavy_rust=true" >> "$GITHUB_OUTPUT"
             echo "release_verify=false" >> "$GITHUB_OUTPUT"
             echo "heavy Rust checks required by:"
             cat /tmp/heavy-files.txt
           else
             echo "heavy_rust=false" >> "$GITHUB_OUTPUT"
-            if grep -E '^(\.github/workflows/(release-tag|rust-cutover-smoke)\.yml|scripts/ai/(verify_full|verify_release|v03_dashboard_smoke|verify_v05_workflow_artifacts|verify_v06_binance_testnet_dry_run|verify_v07_default_offline_gate|verify_v07_manual_online_gate|scan_v08_synthetic_secret_leaks|verify_v08_default_offline_gate|verify_v08_authenticated_readonly_gate|verify_v09_strategy_runtime_smoke|verify_v09_shadow_mode_no_order_gate|verify_v091_strategy_supervisor_dashboard_integration)\.sh|docs/rust-cutover/evidence/GH-RELEASE-)' /tmp/changed-files.txt >/dev/null; then
+            if grep -E '^(\.github/workflows/(release-tag|rust-cutover-smoke)\.yml|scripts/ai/(verify_full|verify_release|v03_dashboard_smoke|verify_v05_workflow_artifacts|verify_v06_binance_testnet_dry_run|verify_v07_default_offline_gate|verify_v07_manual_online_gate|scan_v08_synthetic_secret_leaks|verify_v08_default_offline_gate|verify_v08_authenticated_readonly_gate|verify_v09_strategy_runtime_smoke|verify_v09_shadow_mode_no_order_gate|verify_v091_strategy_supervisor_dashboard_integration|verify_v10_offline_fail_closed|verify_v10_order_preflight|verify_v10_signed_order_request|verify_v10_order_test_preflight|verify_v10_execution_artifact_contract|verify_v10_reconciliation_fixture|verify_v10_offline_release_gates|verify_v10_manual_order_proof_gate)\.sh|docs/rust-cutover/evidence/GH-RELEASE-)' /tmp/changed-files.txt >/dev/null; then
               echo "release_verify=true" >> "$GITHUB_OUTPUT"
               echo "heavy Rust checks skipped for release verification script/workflow change set"
             else
@@ -99,7 +106,7 @@ jobs:
       - name: Release verification script checks
         if: steps.changes.outputs.release_verify == 'true'
         run: |
-          bash -n scripts/ai/verify_full.sh scripts/ai/verify_release.sh scripts/ai/v03_dashboard_smoke.sh scripts/ai/verify_v05_workflow_artifacts.sh scripts/ai/verify_v06_binance_testnet_dry_run.sh scripts/ai/verify_v07_default_offline_gate.sh scripts/ai/verify_v07_manual_online_gate.sh scripts/ai/scan_v08_synthetic_secret_leaks.sh scripts/ai/verify_v08_default_offline_gate.sh scripts/ai/verify_v08_authenticated_readonly_gate.sh scripts/ai/verify_v09_strategy_runtime_smoke.sh scripts/ai/verify_v09_shadow_mode_no_order_gate.sh scripts/ai/verify_v091_strategy_supervisor_dashboard_integration.sh
+          bash -n scripts/ai/verify_full.sh scripts/ai/verify_release.sh scripts/ai/v03_dashboard_smoke.sh scripts/ai/verify_v05_workflow_artifacts.sh scripts/ai/verify_v06_binance_testnet_dry_run.sh scripts/ai/verify_v07_default_offline_gate.sh scripts/ai/verify_v07_manual_online_gate.sh scripts/ai/scan_v08_synthetic_secret_leaks.sh scripts/ai/verify_v08_default_offline_gate.sh scripts/ai/verify_v08_authenticated_readonly_gate.sh scripts/ai/verify_v09_strategy_runtime_smoke.sh scripts/ai/verify_v09_shadow_mode_no_order_gate.sh scripts/ai/verify_v091_strategy_supervisor_dashboard_integration.sh scripts/ai/verify_v10_offline_fail_closed.sh scripts/ai/verify_v10_order_preflight.sh scripts/ai/verify_v10_signed_order_request.sh scripts/ai/verify_v10_order_test_preflight.sh scripts/ai/verify_v10_execution_artifact_contract.sh scripts/ai/verify_v10_reconciliation_fixture.sh scripts/ai/verify_v10_offline_release_gates.sh scripts/ai/verify_v10_manual_order_proof_gate.sh
           ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); puts "release-tag yaml ok"'
       - name: CLI unit tests
         if: steps.changes.outputs.heavy_rust == 'true'
@@ -128,6 +135,12 @@ jobs:
       - name: v091-strategy-supervisor-dashboard-integration
         if: steps.changes.outputs.v09_smoke == 'true'
         run: scripts/ai/verify_v091_strategy_supervisor_dashboard_integration.sh
+      - name: v10-offline-release-gates
+        if: steps.changes.outputs.v10_smoke == 'true'
+        run: scripts/ai/verify_v10_offline_release_gates.sh
+      - name: v10-manual-order-proof-preflight
+        if: steps.changes.outputs.v10_smoke == 'true'
+        run: scripts/ai/verify_v10_manual_order_proof_gate.sh
       - name: Golden trace schema smoke
         run: python scripts/ai/golden_trace_runner.py tests/golden/schema_smoke.jsonl --mode validate-only
       - name: Rust-only runtime gate
