@@ -158,6 +158,8 @@ pub enum LiveCommand {
     TestnetExecutionArtifactContract(LiveTestnetExecutionArtifactContractOpt),
     /// Writes offline v0.10 reconciliation/orphan-order fixtures without network or orders.
     TestnetReconciliationFixture(LiveTestnetReconciliationFixtureOpt),
+    /// Writes a v0.11 production public read-only probe contract without network or orders.
+    ProductionPublicReadProbe(LiveProductionPublicReadProbeOpt),
 }
 
 /// Live validation options.
@@ -372,6 +374,38 @@ pub enum TestnetReconciliationScenario {
     LocalOpenExchangeFilled,
     /// Process restarted with unfinished testnet order state.
     RestartUnfinishedOrder,
+}
+
+/// Production public read-only probe contract options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionPublicReadProbeOpt {
+    /// Production public read-only endpoint to classify.
+    #[arg(long, value_enum, default_value_t = ProductionPublicReadEndpoint::ServerTime)]
+    pub endpoint: ProductionPublicReadEndpoint,
+    /// Optional JSON report output path.
+    #[arg(long)]
+    pub output: Option<PathBuf>,
+    /// Requests the future manual online read path. V110-002 records this as blocked.
+    #[arg(long)]
+    pub manual_online: bool,
+    /// Manual CLI gate for any production public read path.
+    #[arg(long)]
+    pub allow_production_public_read: bool,
+    /// Confirms the probe is read-only and must not use signed/authenticated endpoints.
+    #[arg(long)]
+    pub confirm_read_only: bool,
+    /// Confirms production order submission or mutation remains forbidden.
+    #[arg(long)]
+    pub confirm_no_order_mutation: bool,
+}
+
+/// v0.11 production public read-only probe endpoints.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum ProductionPublicReadEndpoint {
+    /// `GET /api/v3/time`.
+    ServerTime,
+    /// `GET /api/v3/exchangeInfo`.
+    ExchangeInfo,
 }
 
 /// Local supervisor controls for sandbox-only node artifacts and processes.

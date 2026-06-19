@@ -41,10 +41,11 @@ use tokio::time::{sleep, timeout};
 use crate::{
     artifacts::{atomic_write_json, atomic_write_text},
     opt::{
-        LiveCommand, LiveOpt, LiveRunOpt, LiveTestnetExecutionArtifactContractOpt,
-        LiveTestnetOrderGateOpt, LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
+        LiveCommand, LiveOpt, LiveProductionPublicReadProbeOpt, LiveRunOpt,
+        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
-        TestnetReconciliationScenario,
+        ProductionPublicReadEndpoint, TestnetReconciliationScenario,
     },
     process::process_is_alive,
     strategy_session::{
@@ -63,6 +64,7 @@ const SANDBOX_ENVIRONMENT: &str = "sandbox";
 const SANDBOX_SIMULATED_EXECUTION: &str = "sandbox-simulated-execution";
 const DISABLED_ORDER_SUBMISSION: &str = "disabled";
 const BINANCE_TESTNET_HTTP_BASE_URL: &str = "https://testnet.binance.vision";
+const BINANCE_PRODUCTION_HTTP_BASE_URL: &str = "https://api.binance.com";
 const TESTNET_ORDER_DISABLED_MODE: &str = "disabled";
 const TESTNET_ORDER_OWNER_MANUAL_GATE: &str = "owner-approved-manual";
 const TESTNET_ORDER_LIMIT_TYPE: &str = "LIMIT";
@@ -79,6 +81,12 @@ const TESTNET_ORDER_PREVIEW_SCHEMA_VERSION: &str = "ntpro.v100_signed_order_requ
 const TESTNET_EXECUTION_ARTIFACT_SCHEMA_VERSION: &str = "ntpro.v100_execution_artifact_contract.v1";
 const TESTNET_RECONCILIATION_FIXTURE_SCHEMA_VERSION: &str =
     "ntpro.v100_reconciliation_fixture_report.v1";
+const PRODUCTION_PUBLIC_READ_PROBE_SCHEMA_VERSION: &str =
+    "ntpro.v110_production_public_read_probe.v1";
+const PRODUCTION_PUBLIC_READ_ENV_ALLOW: &str = "NTPRO_ALLOW_PRODUCTION_PUBLIC_READ";
+const PRODUCTION_PUBLIC_READ_ENV_READ_ONLY: &str = "NTPRO_CONFIRM_PRODUCTION_PUBLIC_READ_ONLY";
+const PRODUCTION_PUBLIC_READ_ENV_NO_ORDER_MUTATION: &str =
+    "NTPRO_CONFIRM_NO_PRODUCTION_ORDER_MUTATION";
 const START_STOP_SHUTDOWN: &str = "start-stop";
 const DEFAULT_NTPRO_NODE_HEARTBEAT_INTERVAL_MS: u64 = 1_000;
 const DEFAULT_NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: u64 = 5_000;
@@ -501,6 +509,34 @@ struct TestnetReconciliationFixtureEntry {
     diagnostic: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionPublicReadProbeReport {
+    schema_version: String,
+    status: String,
+    endpoint: String,
+    endpoint_class: String,
+    http_base_url: String,
+    method: String,
+    path: String,
+    request_url_redacted: String,
+    requires_api_key: bool,
+    requires_signature: bool,
+    read_allowed: bool,
+    mutation_allowed: bool,
+    manual_gate_required: bool,
+    missing_cli_flags: Vec<String>,
+    missing_env_vars: Vec<String>,
+    manual_online_requested: bool,
+    online_execution_supported: bool,
+    network_attempted: bool,
+    credentials_used: bool,
+    account_mutation_attempted: bool,
+    production_order_submission_attempted: bool,
+    production_order_mutation_attempted: bool,
+    dashboard_order_controls_enabled: bool,
+    diagnostic: String,
+}
+
 impl TestnetSignedOrderRequest {
     fn redacted_preview(
         &self,
@@ -575,6 +611,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         }
         LiveCommand::TestnetReconciliationFixture(fixture) => {
             run_live_testnet_reconciliation_fixture(&fixture)
+        }
+        LiveCommand::ProductionPublicReadProbe(probe) => {
+            run_live_production_public_read_probe(&probe)
         }
     }
 }
@@ -653,6 +692,111 @@ fn run_live_testnet_reconciliation_fixture(
         report.scenario_count,
     );
     Ok(())
+}
+
+fn run_live_production_public_read_probe(
+    opt: &LiveProductionPublicReadProbeOpt,
+) -> anyhow::Result<()> {
+    run_live_production_public_read_probe_with_env(opt, |name| std::env::var(name).ok())
+}
+
+fn run_live_production_public_read_probe_with_env<F>(
+    opt: &LiveProductionPublicReadProbeOpt,
+    mut read_env: F,
+) -> anyhow::Result<()>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    let missing_cli_flags = missing_production_public_read_cli_flags(opt);
+    let missing_env_vars = missing_production_public_read_env_gates(&mut read_env);
+    let report = build_production_public_read_probe_report(
+        opt.endpoint,
+        opt.manual_online,
+        &missing_cli_flags,
+        &missing_env_vars,
+    );
+
+    if let Some(output) = &opt.output {
+        atomic_write_json(output, &report)?;
+    }
+
+    println!(
+        "live.production_public_read_probe status={} endpoint={} endpoint_class={} method={} path={} manual_online_requested={} online_execution_supported=false read_allowed={} mutation_allowed=false credentials_used=false network_attempted=false production_order_submission_attempted=false production_order_mutation_attempted=false dashboard_order_controls_enabled=false",
+        report.status,
+        report.endpoint,
+        report.endpoint_class,
+        report.method,
+        report.path,
+        report.manual_online_requested,
+        report.read_allowed,
+    );
+    Ok(())
+}
+
+fn build_production_public_read_probe_report(
+    endpoint: ProductionPublicReadEndpoint,
+    manual_online_requested: bool,
+    missing_cli_flags: &[&'static str],
+    missing_env_vars: &[&'static str],
+) -> ProductionPublicReadProbeReport {
+    let (endpoint_name, path) = production_public_read_endpoint_parts(endpoint);
+    let gates_missing = !missing_cli_flags.is_empty() || !missing_env_vars.is_empty();
+    let status = if gates_missing {
+        "blocked_missing_gate"
+    } else if manual_online_requested {
+        "blocked_online_execution_not_implemented"
+    } else {
+        "ready_offline_contract"
+    };
+    let diagnostic = if gates_missing {
+        "production public read probe is closed because explicit CLI/env gates are missing"
+    } else if manual_online_requested {
+        "manual online production read is out of scope for V110-002; no network was opened"
+    } else {
+        "offline production public read-only probe contract is ready; no network was opened"
+    };
+
+    ProductionPublicReadProbeReport {
+        schema_version: PRODUCTION_PUBLIC_READ_PROBE_SCHEMA_VERSION.to_string(),
+        status: status.to_string(),
+        endpoint: endpoint_name.to_string(),
+        endpoint_class: "production_public_read_only".to_string(),
+        http_base_url: BINANCE_PRODUCTION_HTTP_BASE_URL.to_string(),
+        method: "GET".to_string(),
+        path: path.to_string(),
+        request_url_redacted: format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{path}"),
+        requires_api_key: false,
+        requires_signature: false,
+        read_allowed: !gates_missing && !manual_online_requested,
+        mutation_allowed: false,
+        manual_gate_required: true,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        missing_env_vars: missing_env_vars
+            .iter()
+            .map(|name| (*name).to_string())
+            .collect(),
+        manual_online_requested,
+        online_execution_supported: false,
+        network_attempted: false,
+        credentials_used: false,
+        account_mutation_attempted: false,
+        production_order_submission_attempted: false,
+        production_order_mutation_attempted: false,
+        dashboard_order_controls_enabled: false,
+        diagnostic: diagnostic.to_string(),
+    }
+}
+
+fn production_public_read_endpoint_parts(
+    endpoint: ProductionPublicReadEndpoint,
+) -> (&'static str, &'static str) {
+    match endpoint {
+        ProductionPublicReadEndpoint::ServerTime => ("server_time", "/api/v3/time"),
+        ProductionPublicReadEndpoint::ExchangeInfo => ("exchange_info", "/api/v3/exchangeInfo"),
+    }
 }
 
 fn run_live_testnet_order_gate_with_env<F>(
@@ -2135,6 +2279,36 @@ where
     .collect()
 }
 
+fn missing_production_public_read_cli_flags(
+    opt: &LiveProductionPublicReadProbeOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_public_read {
+        missing.push("--allow-production-public-read");
+    }
+    if !opt.confirm_read_only {
+        missing.push("--confirm-read-only");
+    }
+    if !opt.confirm_no_order_mutation {
+        missing.push("--confirm-no-order-mutation");
+    }
+    missing
+}
+
+fn missing_production_public_read_env_gates<F>(read_env: &mut F) -> Vec<&'static str>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    [
+        PRODUCTION_PUBLIC_READ_ENV_ALLOW,
+        PRODUCTION_PUBLIC_READ_ENV_READ_ONLY,
+        PRODUCTION_PUBLIC_READ_ENV_NO_ORDER_MUTATION,
+    ]
+    .into_iter()
+    .filter(|name| read_env(name).as_deref() != Some("1"))
+    .collect()
+}
+
 fn join_gate_labels(labels: &[&str]) -> String {
     if labels.is_empty() {
         "none".to_string()
@@ -2939,6 +3113,22 @@ write_summary = true
             confirm_owner_approved_testnet_order: all_cli_gates,
             confirm_tiny_notional: all_cli_gates,
             confirm_cancel_after_submit: all_cli_gates,
+        }
+    }
+
+    fn production_public_read_probe_opt(
+        endpoint: ProductionPublicReadEndpoint,
+        output: Option<PathBuf>,
+        all_cli_gates: bool,
+        manual_online: bool,
+    ) -> LiveProductionPublicReadProbeOpt {
+        LiveProductionPublicReadProbeOpt {
+            endpoint,
+            output,
+            manual_online,
+            allow_production_public_read: all_cli_gates,
+            confirm_read_only: all_cli_gates,
+            confirm_no_order_mutation: all_cli_gates,
         }
     }
 
@@ -3759,6 +3949,101 @@ write_summary = true
         assert!(body.contains("\"scenario_count\": 1"));
         assert!(body.contains("\"name\": \"cancel_timeout\""));
         assert!(!body.contains("\"name\": \"submit_without_local_ack\""));
+    }
+
+    #[test]
+    fn production_public_read_probe_blocks_missing_gates_without_network() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v110-002-public-read-blocked-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("public-read-probe.json");
+        let opt = production_public_read_probe_opt(
+            ProductionPublicReadEndpoint::ServerTime,
+            Some(output.clone()),
+            false,
+            false,
+        );
+
+        run_live_production_public_read_probe_with_env(&opt, |_| None).unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(
+            report["schema_version"],
+            PRODUCTION_PUBLIC_READ_PROBE_SCHEMA_VERSION
+        );
+        assert_eq!(report["status"], "blocked_missing_gate");
+        assert_eq!(report["endpoint_class"], "production_public_read_only");
+        assert_eq!(report["method"], "GET");
+        assert_eq!(report["path"], "/api/v3/time");
+        assert_eq!(report["requires_api_key"], false);
+        assert_eq!(report["requires_signature"], false);
+        assert_eq!(report["read_allowed"], false);
+        assert_eq!(report["mutation_allowed"], false);
+        assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["credentials_used"], false);
+        assert_eq!(report["production_order_submission_attempted"], false);
+        assert_eq!(report["production_order_mutation_attempted"], false);
+        assert_eq!(report["dashboard_order_controls_enabled"], false);
+    }
+
+    #[test]
+    fn production_public_read_probe_writes_ready_offline_contract() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v110-002-public-read-ready-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("public-read-probe.json");
+        let opt = production_public_read_probe_opt(
+            ProductionPublicReadEndpoint::ExchangeInfo,
+            Some(output.clone()),
+            true,
+            false,
+        );
+
+        run_live_production_public_read_probe_with_env(&opt, |_| Some("1".to_string())).unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(report["status"], "ready_offline_contract");
+        assert_eq!(report["endpoint"], "exchange_info");
+        assert_eq!(report["path"], "/api/v3/exchangeInfo");
+        assert_eq!(report["read_allowed"], true);
+        assert_eq!(report["mutation_allowed"], false);
+        assert_eq!(report["online_execution_supported"], false);
+        assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["credentials_used"], false);
+        assert_eq!(report["account_mutation_attempted"], false);
+        assert_eq!(report["production_order_submission_attempted"], false);
+        assert_eq!(report["production_order_mutation_attempted"], false);
+        assert_eq!(report["dashboard_order_controls_enabled"], false);
+    }
+
+    #[test]
+    fn production_public_read_probe_blocks_manual_online_path_in_v110_002() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v110-002-public-read-online-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("public-read-probe.json");
+        let opt = production_public_read_probe_opt(
+            ProductionPublicReadEndpoint::ServerTime,
+            Some(output.clone()),
+            true,
+            true,
+        );
+
+        run_live_production_public_read_probe_with_env(&opt, |_| Some("1".to_string())).unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(report["status"], "blocked_online_execution_not_implemented");
+        assert_eq!(report["manual_online_requested"], true);
+        assert_eq!(report["read_allowed"], false);
+        assert_eq!(report["online_execution_supported"], false);
+        assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["production_order_mutation_attempted"], false);
     }
 
     #[tokio::test(flavor = "current_thread")]
