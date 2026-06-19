@@ -3,14 +3,20 @@
 Date: 2026-06-19
 Executor: Codex
 Task: V100-006
-Status: MANUAL ONLINE PROOF RUNNER AVAILABLE - PROOF NOT EXECUTED BY THIS PR
+Status: PROOF EXECUTED - SPOT DEMO MODE PASS
 
 ## Plain Chinese Summary
 
-这份文档说明 V100-006 怎么人工执行。默认情况下脚本不会联网、不会下单。
-只有 owner 明确设置所有 gate，并提供 Binance spot sandbox API key/secret 后，
-脚本才会在 allowlisted spot sandbox endpoint 上执行一次小额 LIMIT GTC
-submit，然后按配置立刻 cancel，并写出脱敏证据包。
+这份文档说明 V100-006 怎么人工执行，以及 v0.10.0 正式 proof 使用的 endpoint
+边界。默认情况下脚本不会联网、不会下单。只有 owner 明确设置所有 gate，并提供
+Binance spot sandbox API key/secret 后，脚本才会在 allowlisted spot sandbox
+endpoint 上执行一次小额 LIMIT GTC submit，然后按配置立刻 cancel，并写出脱敏证据包。
+
+v0.10.0 正式 proof 使用 Binance Spot Demo Mode：
+
+```text
+NTPRO_V10_SPOT_API_BASE_URL=https://demo-api.binance.com
+```
 
 这不是生产 Binance，不是真实资金，不是生产交易，也不会给 Dashboard 增加下单按钮。
 
@@ -41,6 +47,12 @@ Spot Demo Mode 使用官方 Demo Mode base URL：
 NTPRO_V10_SPOT_API_BASE_URL=https://demo-api.binance.com
 ```
 
+Spot Test Network remains an allowlisted sandbox base URL:
+
+```bash
+NTPRO_V10_SPOT_API_BASE_URL=https://testnet.binance.vision
+```
+
 Optional overrides:
 
 ```bash
@@ -50,7 +62,16 @@ NTPRO_V10_TESTNET_PRICE=...
 NTPRO_V10_TESTNET_QUANTITY=...
 ```
 
-`NTPRO_V10_TESTNET_SYMBOL` must match the configured one-symbol scope.
+`NTPRO_V10_TESTNET_SYMBOL` must match the configured one-symbol scope. The
+selected `NTPRO_V10_SPOT_API_BASE_URL` must be one of the allowlisted spot
+sandbox endpoints:
+
+```text
+https://demo-api.binance.com
+https://testnet.binance.vision
+```
+
+Production `https://api.binance.com` is forbidden for v0.10.0.
 
 ## Artifacts
 
@@ -83,6 +104,9 @@ The runner reads Binance spot sandbox server time from `/api/v3/time` on the
 selected allowlisted endpoint and applies that offset to signed requests. This
 prevents local machine clock drift from causing `-1021` timestamp failures.
 
+The published v0.10.0 proof used `endpoint_mode=spot_demo_mode` with
+`https://demo-api.binance.com`.
+
 ## Required PASS Boundary
 
 ```text
@@ -97,14 +121,17 @@ real_funds=false
 production_trading=false
 ```
 
+The `testnet_orders_*` counter names are retained for v0.10 artifact
+compatibility. For the published v0.10.0 proof they refer to the single Spot
+Demo Mode sandbox submit/cancel event.
+
 If submit succeeds but cancel fails, the script writes failure artifacts,
 sets `risk_halted=true`, sets `new_orders_blocked=true`, and exits non-zero.
 
 ## Release Boundary
 
-This runner does not complete V100-006 until the real owner-approved command
-passes and the artifact package is validated. It only makes the manual proof
-path executable.
+V100-006 completed when the real owner-approved Spot Demo Mode command passed
+and the artifact package was validated for the published v0.10.0 release.
 
 If Binance returns `-2015 Invalid API-key, IP, or permissions for action`, the
 provided key is not accepted for the selected spot sandbox endpoint from the
