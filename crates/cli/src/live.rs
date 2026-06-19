@@ -41,8 +41,9 @@ use tokio::time::{sleep, timeout};
 use crate::{
     artifacts::{atomic_write_json, atomic_write_text},
     opt::{
-        LiveCommand, LiveOpt, LiveRunOpt, LiveTestnetOrderGateOpt, LiveTestnetOrderPreflightOpt,
-        LiveTestnetOrderRequestPreviewOpt, LiveTestnetOrderTestPreflightOpt, LiveValidateOpt,
+        LiveCommand, LiveOpt, LiveRunOpt, LiveTestnetExecutionArtifactContractOpt,
+        LiveTestnetOrderGateOpt, LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
+        LiveTestnetOrderTestPreflightOpt, LiveValidateOpt,
     },
     process::process_is_alive,
     strategy_session::{
@@ -74,6 +75,7 @@ const TESTNET_ORDER_ENDPOINT_ORDER: &str = "/api/v3/order";
 const TESTNET_ORDER_METHOD_POST: &str = "POST";
 const TESTNET_ORDER_METHOD_DELETE: &str = "DELETE";
 const TESTNET_ORDER_PREVIEW_SCHEMA_VERSION: &str = "ntpro.v100_signed_order_request_preview.v1";
+const TESTNET_EXECUTION_ARTIFACT_SCHEMA_VERSION: &str = "ntpro.v100_execution_artifact_contract.v1";
 const START_STOP_SHUTDOWN: &str = "start-stop";
 const DEFAULT_NTPRO_NODE_HEARTBEAT_INTERVAL_MS: u64 = 1_000;
 const DEFAULT_NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: u64 = 5_000;
@@ -424,6 +426,46 @@ struct TestnetOrderTestPreflightReport {
     diagnostic: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct TestnetExecutionArtifactContractReport {
+    schema_version: String,
+    status: String,
+    artifact_family: String,
+    request_artifact: TestnetExecutionArtifactContractEntry,
+    order_test_artifact: TestnetExecutionArtifactContractEntry,
+    submit_ack_artifact: TestnetExecutionArtifactContractEntry,
+    cancel_ack_artifact: TestnetExecutionArtifactContractEntry,
+    lifecycle_artifact: TestnetExecutionArtifactContractEntry,
+    reconciliation_artifact: TestnetExecutionArtifactContractEntry,
+    counters: TestnetExecutionArtifactCounters,
+    manual_submit_cancel_proof_observed: bool,
+    matching_engine_submission: bool,
+    order_submission_remains_disabled: bool,
+    network_attempted: bool,
+    real_orders_submitted: bool,
+    production_endpoint_allowed: bool,
+    dashboard_order_controls: bool,
+    secrets_redacted: bool,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct TestnetExecutionArtifactContractEntry {
+    name: String,
+    schema: String,
+    status: String,
+    source: String,
+    redaction: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct TestnetExecutionArtifactCounters {
+    testnet_orders_submitted: u64,
+    testnet_orders_canceled: u64,
+    production_orders_submitted: u64,
+    production_orders_canceled: u64,
+}
+
 impl TestnetSignedOrderRequest {
     fn redacted_preview(
         &self,
@@ -493,6 +535,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::TestnetOrderTestPreflight(preflight) => {
             run_live_testnet_order_test_preflight(&preflight)
         }
+        LiveCommand::TestnetExecutionArtifactContract(contract) => {
+            run_live_testnet_execution_artifact_contract(&contract)
+        }
     }
 }
 
@@ -541,6 +586,12 @@ fn run_live_testnet_order_test_preflight(
     opt: &LiveTestnetOrderTestPreflightOpt,
 ) -> anyhow::Result<()> {
     run_live_testnet_order_test_preflight_with_env(opt, |name| std::env::var(name).ok())
+}
+
+fn run_live_testnet_execution_artifact_contract(
+    opt: &LiveTestnetExecutionArtifactContractOpt,
+) -> anyhow::Result<()> {
+    run_live_testnet_execution_artifact_contract_with_env(opt, |name| std::env::var(name).ok())
 }
 
 fn run_live_testnet_order_gate_with_env<F>(
@@ -674,6 +725,79 @@ where
         opt.config.display(),
         report.request_method,
         report.request_target,
+    );
+    Ok(())
+}
+
+fn run_live_testnet_execution_artifact_contract_with_env<F>(
+    opt: &LiveTestnetExecutionArtifactContractOpt,
+    mut read_env: F,
+) -> anyhow::Result<()>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    let config = load_strategy_node_config(&opt.config)?;
+    let Some(testnet_order) = &config.testnet_order else {
+        anyhow::bail!("testnet_order section is required for v0.10 execution artifact contract");
+    };
+
+    let missing_cli_flags = missing_testnet_execution_artifact_contract_cli_flags(opt);
+    let missing_env_vars = missing_testnet_order_env_gates(&mut read_env);
+    if !missing_cli_flags.is_empty() || !missing_env_vars.is_empty() {
+        anyhow::bail!(
+            "testnet execution artifact contract blocked: missing_cli_flags={} missing_env_vars={} artifact_built=false matching_engine_submission=false order_submission_remains_disabled=true network_attempted=false real_orders_submitted=false",
+            join_gate_labels(&missing_cli_flags),
+            join_gate_labels(&missing_env_vars),
+        );
+    }
+
+    let credentials = EnvOnlyTestnetOrderCredentials::from_values(
+        opt.api_key_env.clone(),
+        read_env(&opt.api_key_env),
+        opt.api_secret_env.clone(),
+        read_env(&opt.api_secret_env),
+    );
+    let order_test_request = build_testnet_signed_order_request(
+        testnet_order,
+        &credentials,
+        TESTNET_ORDER_METHOD_POST,
+        TESTNET_ORDER_ENDPOINT_TEST,
+        opt.timestamp_ms,
+        opt.recv_window_ms,
+        None,
+    )?;
+    let submit_request = build_testnet_signed_order_request(
+        testnet_order,
+        &credentials,
+        TESTNET_ORDER_METHOD_POST,
+        TESTNET_ORDER_ENDPOINT_ORDER,
+        opt.timestamp_ms,
+        opt.recv_window_ms,
+        None,
+    )?;
+    let cancel_request = build_testnet_signed_order_request(
+        testnet_order,
+        &credentials,
+        TESTNET_ORDER_METHOD_DELETE,
+        TESTNET_ORDER_ENDPOINT_ORDER,
+        opt.timestamp_ms,
+        opt.recv_window_ms,
+        Some(&opt.orig_client_order_id),
+    )?;
+    let report = build_execution_artifact_contract_report(
+        &order_test_request,
+        &submit_request,
+        &cancel_request,
+        &credentials,
+    );
+    if let Some(output) = &opt.output {
+        write_secret_redacted_json(output, &report, &credentials)?;
+    }
+
+    println!(
+        "live.testnet_execution_artifact_contract status=ready config={} schema={} testnet_orders_submitted=0 production_orders_submitted=0 manual_submit_cancel_proof_observed=false matching_engine_submission=false order_submission_remains_disabled=true network_attempted=false real_orders_submitted=false production_endpoint_allowed=false dashboard_order_controls=false secrets_redacted=true",
+        opt.config.display(),
+        report.schema_version,
     );
     Ok(())
 }
@@ -1548,6 +1672,95 @@ fn build_order_test_preflight_report(
     }
 }
 
+fn build_execution_artifact_contract_report(
+    order_test_request: &TestnetSignedOrderRequest,
+    submit_request: &TestnetSignedOrderRequest,
+    cancel_request: &TestnetSignedOrderRequest,
+    credentials: &EnvOnlyTestnetOrderCredentials,
+) -> TestnetExecutionArtifactContractReport {
+    let order_test_preview = order_test_request.redacted_preview(credentials);
+    let submit_preview = submit_request.redacted_preview(credentials);
+    let cancel_preview = cancel_request.redacted_preview(credentials);
+
+    TestnetExecutionArtifactContractReport {
+        schema_version: TESTNET_EXECUTION_ARTIFACT_SCHEMA_VERSION.to_string(),
+        status: "ready".to_string(),
+        artifact_family: "binance-testnet-order-lifecycle-proof".to_string(),
+        request_artifact: TestnetExecutionArtifactContractEntry {
+            name: "request.json".to_string(),
+            schema: "ntpro.v100_execution_request_artifact.v1".to_string(),
+            status: "schema_defined_redacted_preview_only".to_string(),
+            source: format!(
+                "{} {} plus {} {}",
+                submit_preview.request_method,
+                submit_preview.request_target,
+                cancel_preview.request_method,
+                cancel_preview.request_target,
+            ),
+            redaction: "signature, signed query, signed URL, API key value, and body are not recorded".to_string(),
+        },
+        order_test_artifact: TestnetExecutionArtifactContractEntry {
+            name: "order_test.json".to_string(),
+            schema: "ntpro.v100_order_test_preflight_report.v1".to_string(),
+            status: "schema_defined_offline_acceptance_not_attempted".to_string(),
+            source: format!(
+                "{} {}",
+                order_test_preview.request_method, order_test_preview.request_target
+            ),
+            redaction: "signature and API key material are not recorded".to_string(),
+        },
+        submit_ack_artifact: TestnetExecutionArtifactContractEntry {
+            name: "submit_ack.json".to_string(),
+            schema: "ntpro.v100_submit_ack_artifact.v1".to_string(),
+            status: "manual_online_artifact_required_not_observed_offline".to_string(),
+            source: format!(
+                "{} {}",
+                submit_preview.request_method, submit_preview.request_target
+            ),
+            redaction: "exchange order id, client order id, and timestamps only; no secrets or signatures".to_string(),
+        },
+        cancel_ack_artifact: TestnetExecutionArtifactContractEntry {
+            name: "cancel_ack.json".to_string(),
+            schema: "ntpro.v100_cancel_ack_artifact.v1".to_string(),
+            status: "manual_online_artifact_required_not_observed_offline".to_string(),
+            source: format!(
+                "{} {}",
+                cancel_preview.request_method, cancel_preview.request_target
+            ),
+            redaction: "exchange order id, client order id, and terminal status only; no secrets or signatures".to_string(),
+        },
+        lifecycle_artifact: TestnetExecutionArtifactContractEntry {
+            name: "lifecycle.json".to_string(),
+            schema: "ntpro.v100_order_lifecycle_artifact.v1".to_string(),
+            status: "manual_online_artifact_required_not_observed_offline".to_string(),
+            source: "request -> order_test -> submit_ack -> cancel_ack -> terminal_state".to_string(),
+            redaction: "contains state transitions and counters only".to_string(),
+        },
+        reconciliation_artifact: TestnetExecutionArtifactContractEntry {
+            name: "reconciliation.json".to_string(),
+            schema: "ntpro.v100_reconciliation_artifact.v1".to_string(),
+            status: "schema_defined_manual_or_fixture_input_required".to_string(),
+            source: "local lifecycle plus exchange open-order/account readback".to_string(),
+            redaction: "contains reconciliation status and risk_halt decision only".to_string(),
+        },
+        counters: TestnetExecutionArtifactCounters {
+            testnet_orders_submitted: 0,
+            testnet_orders_canceled: 0,
+            production_orders_submitted: 0,
+            production_orders_canceled: 0,
+        },
+        manual_submit_cancel_proof_observed: false,
+        matching_engine_submission: false,
+        order_submission_remains_disabled: true,
+        network_attempted: false,
+        real_orders_submitted: false,
+        production_endpoint_allowed: false,
+        dashboard_order_controls: false,
+        secrets_redacted: true,
+        diagnostic: "V100 execution artifact contract defines redacted artifact schemas and counters only; real Binance testnet submit/cancel proof remains manual-gated and is not observed offline.".to_string(),
+    }
+}
+
 fn normalize_testnet_order_method(method: &str) -> anyhow::Result<String> {
     let method = method.trim().to_ascii_uppercase();
     if method.is_empty() {
@@ -1701,6 +1914,17 @@ fn missing_testnet_order_request_preview_cli_flags(
 
 fn missing_testnet_order_test_preflight_cli_flags(
     opt: &LiveTestnetOrderTestPreflightOpt,
+) -> Vec<&'static str> {
+    missing_testnet_order_manual_cli_flags(
+        opt.allow_testnet_order,
+        opt.confirm_owner_approved_testnet_order,
+        opt.confirm_tiny_notional,
+        opt.confirm_cancel_after_submit,
+    )
+}
+
+fn missing_testnet_execution_artifact_contract_cli_flags(
+    opt: &LiveTestnetExecutionArtifactContractOpt,
 ) -> Vec<&'static str> {
     missing_testnet_order_manual_cli_flags(
         opt.allow_testnet_order,
@@ -2534,6 +2758,26 @@ write_summary = true
         }
     }
 
+    fn testnet_execution_artifact_contract_opt(
+        config: PathBuf,
+        output: Option<PathBuf>,
+        all_cli_gates: bool,
+    ) -> LiveTestnetExecutionArtifactContractOpt {
+        LiveTestnetExecutionArtifactContractOpt {
+            config,
+            timestamp_ms: 1_718_400_000_000,
+            recv_window_ms: 5_000,
+            api_key_env: "NTPRO_V100007_API_KEY".to_string(),
+            api_secret_env: "NTPRO_V100007_API_SECRET".to_string(),
+            orig_client_order_id: "ntpro-v100007-cancel-only".to_string(),
+            output,
+            allow_testnet_order: all_cli_gates,
+            confirm_owner_approved_testnet_order: all_cli_gates,
+            confirm_tiny_notional: all_cli_gates,
+            confirm_cancel_after_submit: all_cli_gates,
+        }
+    }
+
     fn synthetic_order_credentials() -> EnvOnlyTestnetOrderCredentials {
         EnvOnlyTestnetOrderCredentials::from_values(
             "NTPRO_V100004_API_KEY".to_string(),
@@ -3193,6 +3437,103 @@ write_summary = true
 
         assert!(error.contains("testnet_order.http_base_url"));
         assert!(error.contains(BINANCE_TESTNET_HTTP_BASE_URL));
+    }
+
+    #[test]
+    fn testnet_execution_artifact_contract_writes_redacted_report() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-007-artifact-contract-{}",
+            std::process::id()
+        ));
+        let config = write_config(
+            "testnet-execution-artifact-contract",
+            &strategy_node_config(&output_dir),
+        );
+        let output = output_dir.join("execution-artifact-contract.json");
+        let opt = testnet_execution_artifact_contract_opt(config, Some(output.clone()), true);
+
+        run_live_testnet_execution_artifact_contract_with_env(&opt, |name| match name {
+            TESTNET_ORDER_ENV_ALLOW
+            | TESTNET_ORDER_ENV_OWNER_APPROVED
+            | TESTNET_ORDER_ENV_TINY_NOTIONAL
+            | TESTNET_ORDER_ENV_CANCEL_AFTER_SUBMIT => Some("1".to_string()),
+            "NTPRO_V100007_API_KEY" => Some("ntpro_v100007_synthetic_api_key_value".to_string()),
+            "NTPRO_V100007_API_SECRET" => {
+                Some("ntpro_v100007_synthetic_api_secret_value".to_string())
+            }
+            _ => None,
+        })
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(body.contains(TESTNET_EXECUTION_ARTIFACT_SCHEMA_VERSION));
+        assert!(body.contains("\"artifact_family\": \"binance-testnet-order-lifecycle-proof\""));
+        assert!(body.contains("\"name\": \"request.json\""));
+        assert!(body.contains("\"name\": \"submit_ack.json\""));
+        assert!(body.contains("\"name\": \"cancel_ack.json\""));
+        assert!(body.contains("\"name\": \"lifecycle.json\""));
+        assert!(body.contains("\"name\": \"reconciliation.json\""));
+        assert!(body.contains("\"testnet_orders_submitted\": 0"));
+        assert!(body.contains("\"testnet_orders_canceled\": 0"));
+        assert!(body.contains("\"production_orders_submitted\": 0"));
+        assert!(body.contains("\"production_orders_canceled\": 0"));
+        assert!(body.contains("\"manual_submit_cancel_proof_observed\": false"));
+        assert!(body.contains("\"network_attempted\": false"));
+        assert!(body.contains("\"real_orders_submitted\": false"));
+        assert!(!body.contains("ntpro_v100007_synthetic_api_key_value"));
+        assert!(!body.contains("ntpro_v100007_synthetic_api_secret_value"));
+    }
+
+    #[test]
+    fn testnet_execution_artifact_contract_blocks_missing_manual_gates() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-007-artifact-missing-gates-{}",
+            std::process::id()
+        ));
+        let config = write_config(
+            "testnet-execution-artifact-missing-gates",
+            &strategy_node_config(&output_dir),
+        );
+        let opt = testnet_execution_artifact_contract_opt(config, None, false);
+
+        let error = run_live_testnet_execution_artifact_contract_with_env(&opt, |_| None)
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("testnet execution artifact contract blocked"));
+        assert!(error.contains("--allow-testnet-order"));
+        assert!(error.contains("artifact_built=false"));
+        assert!(error.contains("network_attempted=false"));
+        assert!(error.contains("real_orders_submitted=false"));
+    }
+
+    #[test]
+    fn testnet_execution_artifact_contract_fails_closed_without_secret() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-007-artifact-missing-secret-{}",
+            std::process::id()
+        ));
+        let config = write_config(
+            "testnet-execution-artifact-missing-secret",
+            &strategy_node_config(&output_dir),
+        );
+        let opt = testnet_execution_artifact_contract_opt(config, None, true);
+
+        let error =
+            run_live_testnet_execution_artifact_contract_with_env(&opt, |name| match name {
+                TESTNET_ORDER_ENV_ALLOW
+                | TESTNET_ORDER_ENV_OWNER_APPROVED
+                | TESTNET_ORDER_ENV_TINY_NOTIONAL
+                | TESTNET_ORDER_ENV_CANCEL_AFTER_SUBMIT => Some("1".to_string()),
+                "NTPRO_V100007_API_KEY" => {
+                    Some("ntpro_v100007_synthetic_api_key_value".to_string())
+                }
+                _ => None,
+            })
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("requires API secret env value"));
     }
 
     #[tokio::test(flavor = "current_thread")]

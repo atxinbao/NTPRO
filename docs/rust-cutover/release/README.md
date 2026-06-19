@@ -129,6 +129,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   `POST /api/v3/order/test` preflight contract. It records redacted request
   shape readiness while explicitly keeping Binance acceptance, matching-engine
   submission, networking, and real orders out of the offline proof.
+- `v0_10_0_execution_artifact_contract.md` - V100-007 execution artifact
+  contract for request, order-test, submit ack, cancel ack, lifecycle, and
+  reconciliation evidence. It keeps V100-006 manual submit/cancel proof
+  separate and records offline counters as zero.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
