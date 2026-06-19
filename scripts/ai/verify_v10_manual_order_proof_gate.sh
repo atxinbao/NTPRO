@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# V100-010: v0.10 manual Binance testnet order proof gate.
+# V100-010: v0.10 manual Binance spot sandbox order proof gate.
 # Default mode is CI-safe and proves the real submit/cancel gate remains closed.
 # Real online proof is not executed here. If the owner later runs V100-006, this
 # script can validate the resulting artifact package by setting:
@@ -99,6 +99,8 @@ require(lifecycle.get("schema_version") == "ntpro.v100_order_lifecycle_artifact.
 require(reconciliation.get("schema_version") == "ntpro.v100_reconciliation_artifact.v1", reconciliation)
 
 require(summary.get("manual_gate_passed") is True, summary)
+endpoint_mode = summary.get("endpoint_mode")
+require(endpoint_mode in {"spot_test_network", "spot_demo_mode"}, summary)
 require(summary.get("testnet_orders_submitted") == 1, summary)
 require(summary.get("testnet_orders_canceled") == 1, summary)
 require(summary.get("production_orders_submitted") == 0, summary)
@@ -116,6 +118,8 @@ for label, payload in [
     ("lifecycle", lifecycle),
     ("reconciliation", reconciliation),
 ]:
+    if payload.get("endpoint_mode") is not None:
+        require(payload.get("endpoint_mode") == endpoint_mode, f"{label} endpoint mode mismatch")
     require(payload.get("production_endpoint_allowed") is not True, f"{label} production endpoint allowed")
     require(payload.get("dashboard_order_controls") is not True, f"{label} dashboard controls enabled")
     require(payload.get("secrets_redacted") is not False, f"{label} secrets not redacted")
@@ -123,6 +127,6 @@ for label, payload in [
 print(
     "v10_manual_order_proof_gate status=artifact_package_ok "
     "manual_online=true testnet_orders_submitted=1 testnet_orders_canceled=1 "
-    "production_orders_submitted=0 dashboard_order_controls=false"
+    f"production_orders_submitted=0 dashboard_order_controls=false endpoint_mode={endpoint_mode}"
 )
 PY
