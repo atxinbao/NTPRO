@@ -125,6 +125,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   request preview contract. It only builds redacted request metadata for
   allowlisted order endpoints and keeps networking, order submission, secrets,
   signatures, signed queries, and signed URLs out of artifacts.
+- `v0_10_0_order_test_preflight.md` - V100-005 offline
+  `POST /api/v3/order/test` preflight contract. It records redacted request
+  shape readiness while explicitly keeping Binance acceptance, matching-engine
+  submission, networking, and real orders out of the offline proof.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.

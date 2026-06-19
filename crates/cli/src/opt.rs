@@ -152,6 +152,8 @@ pub enum LiveCommand {
     TestnetOrderPreflight(LiveTestnetOrderPreflightOpt),
     /// Builds a redacted v0.10 Binance testnet order request preview without network or orders.
     TestnetOrderRequestPreview(LiveTestnetOrderRequestPreviewOpt),
+    /// Checks the redacted POST /api/v3/order/test preflight without network or orders.
+    TestnetOrderTestPreflight(LiveTestnetOrderTestPreflightOpt),
 }
 
 /// Live validation options.
@@ -249,6 +251,41 @@ pub struct LiveTestnetOrderRequestPreviewOpt {
     /// Optional original client order id for DELETE /api/v3/order previews.
     #[arg(long)]
     pub orig_client_order_id: Option<String>,
+    /// Optional JSON report output path.
+    #[arg(long)]
+    pub output: Option<PathBuf>,
+    /// Manual CLI gate for any Binance testnet order path.
+    #[arg(long)]
+    pub allow_testnet_order: bool,
+    /// Confirms owner approval for the manual Binance testnet order proof.
+    #[arg(long)]
+    pub confirm_owner_approved_testnet_order: bool,
+    /// Confirms the configured testnet order is tiny-notional only.
+    #[arg(long)]
+    pub confirm_tiny_notional: bool,
+    /// Confirms the proof must cancel immediately after submit ack.
+    #[arg(long)]
+    pub confirm_cancel_after_submit: bool,
+}
+
+/// Binance testnet POST /api/v3/order/test preflight options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveTestnetOrderTestPreflightOpt {
+    /// Path to the Rust strategy-session config file.
+    #[arg(long)]
+    pub config: PathBuf,
+    /// Timestamp in milliseconds for deterministic signing.
+    #[arg(long)]
+    pub timestamp_ms: u64,
+    /// Binance recvWindow in milliseconds.
+    #[arg(long, default_value_t = 5_000)]
+    pub recv_window_ms: u64,
+    /// Environment variable name containing the Binance testnet API key.
+    #[arg(long, default_value = "BINANCE_TESTNET_API_KEY")]
+    pub api_key_env: String,
+    /// Environment variable name containing the Binance testnet API secret.
+    #[arg(long, default_value = "BINANCE_TESTNET_API_SECRET")]
+    pub api_secret_env: String,
     /// Optional JSON report output path.
     #[arg(long)]
     pub output: Option<PathBuf>,
@@ -1077,6 +1114,56 @@ mod tests {
     }
 
     #[test]
+    fn parses_live_testnet_order_test_preflight_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "testnet-order-test-preflight",
+            "--config",
+            "configs/nodes/btc-ema-shadow.toml",
+            "--timestamp-ms",
+            "1718400000000",
+            "--recv-window-ms",
+            "2500",
+            "--api-key-env",
+            "NTPRO_TEST_KEY",
+            "--api-secret-env",
+            "NTPRO_TEST_SECRET",
+            "--output",
+            "runs/v100/order-test-preflight.json",
+            "--allow-testnet-order",
+            "--confirm-owner-approved-testnet-order",
+            "--confirm-tiny-notional",
+            "--confirm-cancel-after-submit",
+        ])
+        .expect("live testnet-order-test-preflight should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::TestnetOrderTestPreflight(preflight) = live.command else {
+            panic!("expected testnet-order-test-preflight command");
+        };
+
+        assert_eq!(
+            preflight.config,
+            PathBuf::from("configs/nodes/btc-ema-shadow.toml")
+        );
+        assert_eq!(preflight.timestamp_ms, 1_718_400_000_000);
+        assert_eq!(preflight.recv_window_ms, 2_500);
+        assert_eq!(preflight.api_key_env, "NTPRO_TEST_KEY");
+        assert_eq!(preflight.api_secret_env, "NTPRO_TEST_SECRET");
+        assert_eq!(
+            preflight.output,
+            Some(PathBuf::from("runs/v100/order-test-preflight.json"))
+        );
+        assert!(preflight.allow_testnet_order);
+        assert!(preflight.confirm_owner_approved_testnet_order);
+        assert!(preflight.confirm_tiny_notional);
+        assert!(preflight.confirm_cancel_after_submit);
+    }
+
+    #[test]
     fn live_help_describes_live_init_smoke_boundary() {
         let validate_help = render_subcommand_help(&["live", "validate"]);
         let run_help = render_subcommand_help(&["live", "run"]);
@@ -1084,6 +1171,8 @@ mod tests {
         let preflight_help = render_subcommand_help(&["live", "testnet-order-preflight"]);
         let request_preview_help =
             render_subcommand_help(&["live", "testnet-order-request-preview"]);
+        let order_test_preflight_help =
+            render_subcommand_help(&["live", "testnet-order-test-preflight"]);
 
         assert!(validate_help.contains("live-init smoke config"));
         assert!(run_help.contains("LiveNode start/stop smoke path"));
@@ -1099,6 +1188,9 @@ mod tests {
         assert!(request_preview_help.contains("--endpoint-path"));
         assert!(request_preview_help.contains("--timestamp-ms"));
         assert!(request_preview_help.contains("--api-secret-env"));
+        assert!(order_test_preflight_help.contains("without network or orders"));
+        assert!(order_test_preflight_help.contains("--timestamp-ms"));
+        assert!(order_test_preflight_help.contains("--api-secret-env"));
     }
 
     #[test]
