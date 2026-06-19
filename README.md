@@ -6,30 +6,28 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.9.0
-Capability: local deterministic Strategy Runtime batch foundation
-Boundary: fixture/mock input, shadow order-intent/risk artifacts, supervisor and Dashboard read-only display, no persistent strategy runtime claim, no Binance testnet orders, no real funds, no production trading
+Current source tag: ntpro-rust-only-v0.10.0
+Capability: Binance spot sandbox order proof
+Boundary: owner-gated Spot Demo Mode submit/cancel evidence, redacted artifact package, production orders submitted=0, no real funds, no production trading, no Dashboard order controls
 ```
 
-This tag is the current v0.9.0 source release point for the scoped Strategy
-Runtime Foundation line. It is published as a GitHub Release for
+This tag is the current v0.10.0 source release point for the scoped Binance
+spot sandbox order-proof line. It is published as a GitHub Release for
 the tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.9.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.10.0
 ```
 
-The next patch track is `v0.9.1`, a Strategy Runtime semantics and audit
-hardening patch for the published v0.9.0 line. It must not expand the v0.9.0
-capability into Binance testnet order submission, cancel/replace/amend,
-production Binance connectivity, real funds, production trading, or Dashboard
-order controls.
+The next patch track is `v0.10.1`, a release-surface hotfix line for the
+published v0.10.0 boundary. It must not expand v0.10.0 into production Binance
+connectivity, real funds, production trading, automatic online order mutation,
+or Dashboard order controls.
 
-The next capability track after the v0.9.x line is `v0.10.0` Binance Testnet
-Order Proof. Its boundary is defined in
-`docs/rust-cutover/release/v0_10_0_order_boundary.md`. That track is
-testnet-only, owner/manual-gated for any real order mutation, and not yet a
-published release claim.
+The next capability track after the v0.10.x line is `v0.11.0` Production
+Read-Only + Shadow Portfolio. Its boundary is read-only/shadow-only: production
+order submit, cancel, replace, amend, and automatic correction orders remain
+out of scope.
 
 ## Current Status
 
@@ -105,7 +103,7 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.9.0 is the current formal release line. It builds on the earlier foundation
+v0.10.0 is the current formal release line. It builds on the earlier foundation
 layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
@@ -121,14 +119,18 @@ layers:
   fixture/mock market input, signal artifacts, shadow order-intent/risk-decision
   artifacts, supervisor read-only status, and Dashboard read-only artifact
   display.
+- `v0.10.0`: Binance spot sandbox order proof with owner-gated Spot Demo Mode
+  submit/cancel evidence, redacted execution artifacts, terminal reconciliation,
+  read-only Dashboard evidence display, and production order counters fixed at
+  zero.
 
 `v0.5.0` was completed as a scoped readiness milestone and is absorbed into the
 `v0.6.0` release tree. It is not published as a separate public GitHub Release.
 
 `v0.6.1` aligned version wording, Dashboard copy, workflow artifact contracts,
-offline-only probe semantics, and PR-stage smoke coverage. The `v0.9.1` patch
-track is reserved for Strategy Runtime semantics and audit hardening after the
-formal v0.9.0 publication; it does not add a Binance order capability.
+offline-only probe semantics, and PR-stage smoke coverage. The `v0.10.1` patch
+track is reserved for release-surface hotfixes after the formal v0.10.0
+publication; it does not add a production trading capability.
 
 The current release path supports:
 
@@ -154,18 +156,25 @@ The current release path supports:
 - shadow-mode risk decision artifacts with actual order submission disabled;
 - strategy session audit and summary artifacts;
 - Dashboard read-only workflow and testnet workflow surfaces.
+- disabled-by-default `[testnet_order]` execution config contract;
+- offline order risk preflight;
+- redacted signed Binance spot sandbox request preview;
+- offline `/api/v3/order/test` preflight report;
+- owner-gated Binance Spot Demo Mode submit/cancel proof artifact;
+- terminal `CANCELED` order lifecycle reconciliation evidence;
+- read-only Dashboard order-proof display.
 
 The v0.3.0 local Supervisor control console and the v0.4.x Binance sandbox
 foundation remain part of validated release history, but they are no longer the
 current public milestone.
 
-Not included in the v0.9.0 product claim:
+Not included in the v0.10.0 product claim:
 
-- Real Binance testnet order submission.
-- Testnet order cancel, replace, amend, or live order management.
-- Testnet account mutation.
-- Real account reconciliation.
 - Production Binance connectivity.
+- Production order submit, cancel, replace, amend, or live order management.
+- Automatic online order mutation.
+- Production account mutation.
+- Production account reconciliation.
 - Real account credential values in repository artifacts.
 - Real funds.
 - Production trading parity.
@@ -187,19 +196,19 @@ manual-online-only and still must not submit, cancel, replace, or amend orders.
 
 ## Strategy Runtime Boundary
 
-The current v0.9.0 product boundary is the local deterministic Strategy Runtime
-batch foundation plus release wording/evidence closure.
-Default local and CI runs remain offline, artifact-first, Rust-only, and
-explicitly non-production.
+The v0.9.0 product boundary remains the historical local deterministic Strategy
+Runtime batch foundation plus release wording/evidence closure. The current
+v0.10.0 release builds on that foundation and adds a Binance spot sandbox order
+proof only. Default local and CI runs remain offline, artifact-first,
+Rust-only, and explicitly non-production.
 
 The v0.9 runtime may load a local strategy session, consume a bounded
 fixture/mock input batch, write signal artifacts, write shadow order-intent and
-risk-decision artifacts, and expose read-only supervisor/Dashboard status. This
-release does not prove a persistent long-running strategy runtime, does not
-submit real orders, does not prove Binance testnet order lifecycle, does not
-store real API key values, and does not claim live or production trading
-readiness. Persistent runtime semantics are deferred to v0.9.1, and Binance
-testnet order proof is deferred to v0.10.0.
+risk-decision artifacts, and expose read-only supervisor/Dashboard status. The
+v0.10.0 release proves one owner-gated Binance Spot Demo Mode submit/cancel
+artifact package, but it does not prove persistent long-running strategy
+runtime semantics, production Binance connectivity, real funds, production
+trading readiness, or Dashboard order controls.
 
 The scope and readiness documents are:
 
@@ -225,6 +234,8 @@ The scope and readiness documents are:
 - `docs/rust-cutover/release/v0_9_1_readiness_report.md`
 - `docs/rust-cutover/release/v0_9_1_release_notes.md`
 - `docs/rust-cutover/release/v0_10_0_order_boundary.md`
+- `docs/rust-cutover/release/v0_10_0_readiness_report.md`
+- `docs/rust-cutover/release/v0_10_0_release_notes.md`
 - `docs/versioning.md`
 
 ## Verification
@@ -326,10 +337,12 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.9.0` is the current Rust-only source release for the local
-deterministic Strategy Runtime batch foundation line. `v0.9.1` is the next
-Strategy Runtime semantics and audit hardening patch track and does not add a
-Binance order capability. `v0.8.0` remains the authenticated Binance testnet
+`ntpro-rust-only-v0.10.0` is the current Rust-only source release for the
+Binance spot sandbox order-proof line. `v0.10.1` is the next release-surface
+hotfix track and does not add production Binance connectivity, real funds,
+production trading, automatic online order mutation, or Dashboard order
+controls. `v0.9.0` remains the local deterministic Strategy Runtime batch
+foundation baseline, `v0.8.0` remains the authenticated Binance testnet
 read-only proof baseline, `v0.7.2` remains the wording/evidence closure for the
 read-only connectivity proof line, `v0.6.1` remains the v0.6 offline hardening
 closure, `v0.6.0` remains the Binance testnet dry-run runtime foundation,
