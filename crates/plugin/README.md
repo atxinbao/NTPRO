@@ -30,7 +30,7 @@ Current v0.2 boundaries:
   mandatory sha256, ABI/build-id policy hardening, crash isolation, and panic
   boundary hardening are tracked as follow-up work in
   `docs/rust-cutover/security/plugin_unsafe_register.md`.
-- Public v0.2 product claims must not describe plug-ins as production-ready,
+- Public product claims must not describe plug-ins as operationally ready,
   untrusted-code safe, hot-reloadable, or enabled by default.
 
 The `nautilus-plugin` crate defines the C-ABI boundary between a Nautilus host (the live node)
@@ -134,7 +134,7 @@ or event payloads.
 
 ## NTPRO scope
 
-NTPRO is an open-source, production-grade, Rust-native
+NTPRO is an open-source, Rust-native
 engine for multi-asset, multi-venue trading systems.
 
 The system spans research, deterministic simulation, and live execution within a single
@@ -186,6 +186,6 @@ The NTPRO workspace retains NautilusTrader license lineage and is available unde
 
 ---
 
-NTPRO is a Rust-only release workspace derived from NautilusTrader. It retains NautilusTrader license lineage; review the repository license files and release notes before distribution or production use.
+NTPRO is a Rust-only release workspace derived from NautilusTrader. It retains NautilusTrader license lineage; review the repository license files and release notes before distribution or operational use.
 
 © 2015-2026 Nautech Systems Pty Ltd. All rights reserved.

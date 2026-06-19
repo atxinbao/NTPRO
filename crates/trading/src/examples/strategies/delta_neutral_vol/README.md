@@ -117,7 +117,7 @@ relevant fields:
 - **Contract multipliers**: the portfolio delta computation uses raw
   contract counts. For instruments with non-unit multipliers (OKX inverse
   options), the hedge quantity may need scaling by the contract value.
-  A production deployment should account for this.
+  A live deployment should account for this.
 
 ## Rust usage
 
