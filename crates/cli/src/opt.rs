@@ -156,6 +156,8 @@ pub enum LiveCommand {
     TestnetOrderTestPreflight(LiveTestnetOrderTestPreflightOpt),
     /// Writes the redacted v0.10 execution artifact contract without network or orders.
     TestnetExecutionArtifactContract(LiveTestnetExecutionArtifactContractOpt),
+    /// Writes offline v0.10 reconciliation/orphan-order fixtures without network or orders.
+    TestnetReconciliationFixture(LiveTestnetReconciliationFixtureOpt),
 }
 
 /// Live validation options.
@@ -341,6 +343,35 @@ pub struct LiveTestnetExecutionArtifactContractOpt {
     /// Confirms the proof must cancel immediately after submit ack.
     #[arg(long)]
     pub confirm_cancel_after_submit: bool,
+}
+
+/// Offline Binance testnet reconciliation fixture options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveTestnetReconciliationFixtureOpt {
+    /// Path to the Rust strategy-session config file.
+    #[arg(long)]
+    pub config: PathBuf,
+    /// Reconciliation scenario to render.
+    #[arg(long, value_enum, default_value_t = TestnetReconciliationScenario::All)]
+    pub scenario: TestnetReconciliationScenario,
+    /// Optional JSON report output path.
+    #[arg(long)]
+    pub output: Option<PathBuf>,
+}
+
+/// Offline Binance testnet reconciliation fixture scenarios.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum TestnetReconciliationScenario {
+    /// Render every scoped inconsistent-state fixture.
+    All,
+    /// Submit was sent but no local submit ack was recorded.
+    SubmitWithoutLocalAck,
+    /// Cancel request timed out before terminal confirmation.
+    CancelTimeout,
+    /// Local state is open while exchange state is filled.
+    LocalOpenExchangeFilled,
+    /// Process restarted with unfinished testnet order state.
+    RestartUnfinishedOrder,
 }
 
 /// Local supervisor controls for sandbox-only node artifacts and processes.
@@ -1257,6 +1288,42 @@ mod tests {
     }
 
     #[test]
+    fn parses_live_testnet_reconciliation_fixture_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "testnet-reconciliation-fixture",
+            "--config",
+            "configs/nodes/btc-ema-shadow.toml",
+            "--scenario",
+            "cancel-timeout",
+            "--output",
+            "runs/v100/reconciliation-fixture.json",
+        ])
+        .expect("live testnet-reconciliation-fixture should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::TestnetReconciliationFixture(fixture) = live.command else {
+            panic!("expected testnet-reconciliation-fixture command");
+        };
+
+        assert_eq!(
+            fixture.config,
+            PathBuf::from("configs/nodes/btc-ema-shadow.toml")
+        );
+        assert_eq!(
+            fixture.scenario,
+            TestnetReconciliationScenario::CancelTimeout
+        );
+        assert_eq!(
+            fixture.output,
+            Some(PathBuf::from("runs/v100/reconciliation-fixture.json"))
+        );
+    }
+
+    #[test]
     fn live_help_describes_live_init_smoke_boundary() {
         let validate_help = render_subcommand_help(&["live", "validate"]);
         let run_help = render_subcommand_help(&["live", "run"]);
@@ -1268,6 +1335,8 @@ mod tests {
             render_subcommand_help(&["live", "testnet-order-test-preflight"]);
         let artifact_contract_help =
             render_subcommand_help(&["live", "testnet-execution-artifact-contract"]);
+        let reconciliation_fixture_help =
+            render_subcommand_help(&["live", "testnet-reconciliation-fixture"]);
 
         assert!(validate_help.contains("live-init smoke config"));
         assert!(run_help.contains("LiveNode start/stop smoke path"));
@@ -1289,6 +1358,9 @@ mod tests {
         assert!(artifact_contract_help.contains("without network or orders"));
         assert!(artifact_contract_help.contains("--orig-client-order-id"));
         assert!(artifact_contract_help.contains("--api-secret-env"));
+        assert!(reconciliation_fixture_help.contains("without network or orders"));
+        assert!(reconciliation_fixture_help.contains("--scenario"));
+        assert!(reconciliation_fixture_help.contains("--output"));
     }
 
     #[test]

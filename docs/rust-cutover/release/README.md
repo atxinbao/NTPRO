@@ -133,6 +133,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   contract for request, order-test, submit ack, cancel ack, lifecycle, and
   reconciliation evidence. It keeps V100-006 manual submit/cancel proof
   separate and records offline counters as zero.
+- `v0_10_0_reconciliation_fixture.md` - V100-008 offline reconciliation and
+  orphan-order fixture contract. It records submit-without-local-ack,
+  cancel-timeout, local-open/exchange-filled, and restart-unfinished-order
+  states as risk-halted and blocks new orders without network or order
+  submission.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
