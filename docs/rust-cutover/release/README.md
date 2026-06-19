@@ -146,6 +146,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   It adds default offline fail-closed/schema/redaction gates and a separate
   manual order-proof artifact validator without completing V100-006 or running
   real Binance testnet submit/cancel in CI.
+- `v0_10_0_tiny_submit_cancel.md` - V100-006 owner-gated manual Binance
+  testnet tiny submit-and-cancel runner instructions. The default command is
+  closed and does not open network connections or submit orders; real proof
+  still requires owner gates, testnet credentials, and validated redacted
+  artifacts.
 - `v0_10_0_readiness_report.md` - V100-011 readiness report for owner release
   decision. It records the completed offline V100 queue, keeps V100-006 manual
   online proof pending, and does not create a tag or publish a GitHub Release.
