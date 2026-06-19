@@ -14,7 +14,7 @@ The official OKX API reference can be found at <https://www.okx.com/docs-v5/en/>
 
 ## NTPRO scope
 
-NTPRO is an open-source, production-grade, Rust-native
+NTPRO is an open-source, Rust-native
 engine for multi-asset, multi-venue trading systems.
 
 The system spans research, deterministic simulation, and live execution within a single
@@ -36,6 +36,6 @@ The NTPRO workspace retains NautilusTrader license lineage and is available unde
 
 ---
 
-NTPRO is a Rust-only release workspace derived from NautilusTrader. It retains NautilusTrader license lineage; review the repository license files and release notes before distribution or production use.
+NTPRO is a Rust-only release workspace derived from NautilusTrader. It retains NautilusTrader license lineage; review the repository license files and release notes before distribution or operational use.
 
 © 2015-2026 Nautech Systems Pty Ltd. All rights reserved.

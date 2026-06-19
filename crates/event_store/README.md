@@ -159,7 +159,7 @@ Integrity checks include:
 
 ## NTPRO scope
 
-NTPRO is an open-source, production-grade, Rust-native
+NTPRO is an open-source, Rust-native
 engine for multi-asset, multi-venue trading systems.
 
 The system spans research, deterministic simulation, and live execution within a single
@@ -172,6 +172,6 @@ The source code for the NTPRO Rust-only workspace is available on GitHub under t
 
 ---
 
-NTPRO is a Rust-only release workspace derived from NautilusTrader. It retains NautilusTrader license lineage; review the repository license files and release notes before distribution or production use.
+NTPRO is a Rust-only release workspace derived from NautilusTrader. It retains NautilusTrader license lineage; review the repository license files and release notes before distribution or operational use.
 
 © 2015-2026 Nautech Systems Pty Ltd. All rights reserved.

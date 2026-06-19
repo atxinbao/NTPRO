@@ -7,9 +7,10 @@
 
 Database and messaging infrastructure for NTPRO.
 
-The `nautilus-infrastructure` crate provides backend database implementations and message bus adapters
-that enable NautilusTrader to scale from development to production deployments. This includes
-enterprise-grade data persistence and messaging capabilities:
+The `nautilus-infrastructure` crate provides backend database implementations
+and message bus adapters that support release-scoped local and service
+deployments. This includes configurable data persistence and messaging
+capabilities:
 
 - **Redis integration**: Cache database and message bus implementations using Redis.
 - **PostgreSQL integration**: SQL-based cache database with full data models.
@@ -21,7 +22,7 @@ the appropriate infrastructure components for their specific deployment requirem
 
 ## NTPRO scope
 
-NTPRO is an open-source, production-grade, Rust-native
+NTPRO is an open-source, Rust-native
 engine for multi-asset, multi-venue trading systems.
 
 The system spans research, deterministic simulation, and live execution within a single
@@ -44,6 +45,6 @@ The NTPRO workspace retains NautilusTrader license lineage and is available unde
 
 ---
 
-NTPRO is a Rust-only release workspace derived from NautilusTrader. It retains NautilusTrader license lineage; review the repository license files and release notes before distribution or production use.
+NTPRO is a Rust-only release workspace derived from NautilusTrader. It retains NautilusTrader license lineage; review the repository license files and release notes before distribution or operational use.
 
 © 2015-2026 Nautech Systems Pty Ltd. All rights reserved.

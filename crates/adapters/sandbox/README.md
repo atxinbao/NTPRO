@@ -14,7 +14,7 @@ paper trading and strategy testing in real-time without actual order execution o
 ## Features
 
 - Paper trading against live market data from any data source.
-- Full order matching simulation using the production-grade `OrderMatchingEngine`.
+- Full order matching simulation using the deterministic `OrderMatchingEngine`.
 - Support for all order types (market, limit, stop, etc.).
 - Configurable fill models and fee models.
 - Account balance and position tracking.
@@ -22,7 +22,7 @@ paper trading and strategy testing in real-time without actual order execution o
 
 ## NTPRO scope
 
-NTPRO is an open-source, production-grade, Rust-native
+NTPRO is an open-source, Rust-native
 engine for multi-asset, multi-venue trading systems.
 
 The system spans research, deterministic simulation, and live execution within a single
@@ -44,6 +44,6 @@ The NTPRO workspace retains NautilusTrader license lineage and is available unde
 
 ---
 
-NTPRO is a Rust-only release workspace derived from NautilusTrader. It retains NautilusTrader license lineage; review the repository license files and release notes before distribution or production use.
+NTPRO is a Rust-only release workspace derived from NautilusTrader. It retains NautilusTrader license lineage; review the repository license files and release notes before distribution or operational use.
 
 © 2015-2026 Nautech Systems Pty Ltd. All rights reserved.
