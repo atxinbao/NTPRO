@@ -107,22 +107,25 @@ Final release checks, benchmark summaries, and audit reports live here.
   owner-approved v0.9.1 Strategy Runtime hardening release. It keeps Binance
   testnet order proof deferred to v0.10.0 and remains unpublished until owner
   approval.
-- `v0_10_0_order_boundary.md` - V100-000 boundary document for the v0.10.0
-  Binance Testnet Order Proof milestone. It defines the testnet-only,
-  owner/manual-gated order-test, tiny submit, cancel, reconciliation, redaction,
-  and read-only Dashboard artifact boundary without claiming release readiness.
+- `v0_10_0_order_boundary.md` - released boundary document for the v0.10.0
+  Binance spot sandbox order proof milestone. It defines the Spot Test Network
+  and Spot Demo Mode sandbox allowlist, owner/manual-gated order-test, tiny
+  submit, cancel, reconciliation, redaction, and read-only Dashboard artifact
+  boundary while preserving no production Binance, no real funds, no production
+  trading, and no Dashboard order controls.
 - `v0_10_0_execution_config_contract.md` - V100-001 execution config contract
-  for the disabled-by-default `[testnet_order]` section, including testnet-only
-  URL, one-symbol alignment, string decimal price/quantity/notional fields,
-  owner/manual gates, and forbidden production/Dashboard order controls.
+  for the disabled-by-default `[testnet_order]` section, including allowlisted
+  spot sandbox URL, one-symbol alignment, string decimal
+  price/quantity/notional fields, owner/manual gates, and forbidden
+  production/Dashboard order controls.
 - `v0_10_0_order_gate.md` - V100-002 multi-layer order gate contract for
   fail-closed CLI flags and env vars. It adds local gate readiness only and
   keeps network attempts, real orders, and Dashboard order controls disabled.
 - `v0_10_0_risk_preflight.md` - V100-003 offline order risk preflight contract
   for local session, market, account, kill switch, symbol allowlist, limit,
   clock skew, and endpoint checks before future order request construction.
-- `v0_10_0_signed_order_request.md` - V100-004 signed Binance testnet order
-  request preview contract. It only builds redacted request metadata for
+- `v0_10_0_signed_order_request.md` - V100-004 signed Binance spot sandbox
+  order request preview contract. It only builds redacted request metadata for
   allowlisted order endpoints and keeps networking, order submission, secrets,
   signatures, signed queries, and signed URLs out of artifacts.
 - `v0_10_0_order_test_preflight.md` - V100-005 offline
@@ -146,11 +149,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   It adds default offline fail-closed/schema/redaction gates and a separate
   manual order-proof artifact validator without completing V100-006 or running
   real Binance testnet submit/cancel in CI.
-- `v0_10_0_tiny_submit_cancel.md` - V100-006 owner-gated manual Binance
-  testnet tiny submit-and-cancel runner instructions. The default command is
-  closed and does not open network connections or submit orders; real proof
-  still requires owner gates, testnet credentials, and validated redacted
-  artifacts.
+- `v0_10_0_tiny_submit_cancel.md` - V100-006 owner-gated manual Binance spot
+  sandbox tiny submit-and-cancel runner and proof record. The published
+  v0.10.0 proof used Binance Spot Demo Mode `https://demo-api.binance.com`.
+  The default command remains closed and does not open network connections or
+  submit orders; any future manual proof still requires owner gates, sandbox
+  credentials, and validated redacted artifacts.
 - `v0_10_0_readiness_report.md` - released readiness report for the v0.10.0
   Binance spot sandbox order proof milestone. It records the completed V100
   queue and owner-confirmed Spot Demo Mode submit/cancel proof while preserving
