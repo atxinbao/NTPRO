@@ -168,6 +168,40 @@ pub struct StrategySessionManifestArtifact {
     pub checksum: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StrategySessionArtifactAuditHealth {
+    Healthy,
+    Degraded,
+}
+
+impl StrategySessionArtifactAuditHealth {
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Healthy => "healthy",
+            Self::Degraded => "degraded",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StrategySessionArtifactAudit {
+    pub health: StrategySessionArtifactAuditHealth,
+    pub manifest_path: PathBuf,
+    pub diagnostics: Vec<String>,
+}
+
+impl StrategySessionArtifactAudit {
+    #[must_use]
+    pub fn diagnostic_label(&self) -> String {
+        if self.diagnostics.is_empty() {
+            "strategy_session_artifacts_ok".to_string()
+        } else {
+            self.diagnostics.join("; ")
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StrategyMarketBar {
     pub seq: u64,
@@ -998,6 +1032,202 @@ fn checksum_file(path: &Path) -> anyhow::Result<String> {
 
 fn checksum_bytes(bytes: &[u8]) -> String {
     format!("blake3:{}", blake3::hash(bytes).to_hex())
+}
+
+#[must_use]
+pub fn audit_strategy_session_artifacts(
+    strategy_root: &Path,
+    node_lifecycle_state: Option<&str>,
+) -> StrategySessionArtifactAudit {
+    let manifest_path = strategy_root.join("manifest.json");
+    let mut diagnostics = Vec::new();
+    let manifest = match fs::read_to_string(&manifest_path) {
+        Ok(raw) => match serde_json::from_str::<serde_json::Value>(&raw) {
+            Ok(value) => value,
+            Err(error) => {
+                diagnostics.push(format!("strategy manifest JSON invalid: {error}"));
+                return StrategySessionArtifactAudit {
+                    health: StrategySessionArtifactAuditHealth::Degraded,
+                    manifest_path,
+                    diagnostics,
+                };
+            }
+        },
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            diagnostics.push("strategy manifest missing".to_string());
+            return StrategySessionArtifactAudit {
+                health: StrategySessionArtifactAuditHealth::Degraded,
+                manifest_path,
+                diagnostics,
+            };
+        }
+        Err(error) => {
+            diagnostics.push(format!("strategy manifest unreadable: {error}"));
+            return StrategySessionArtifactAudit {
+                health: StrategySessionArtifactAuditHealth::Degraded,
+                manifest_path,
+                diagnostics,
+            };
+        }
+    };
+
+    if manifest
+        .get("schema_version")
+        .and_then(serde_json::Value::as_str)
+        != Some(STRATEGY_SESSION_MANIFEST_SCHEMA_VERSION)
+    {
+        diagnostics.push("strategy manifest schema mismatch".to_string());
+    }
+
+    let session_state = manifest
+        .get("state")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("unknown");
+    if let Some(node_state) = node_lifecycle_state {
+        if node_state == "stopped" && session_state != "stopped" {
+            diagnostics.push(format!(
+                "node lifecycle stopped but strategy session state is {session_state}"
+            ));
+        }
+        if node_state == "running" && session_state == "stopped" {
+            diagnostics
+                .push("node lifecycle running but strategy session state is stopped".to_string());
+        }
+    }
+
+    if let Some(market_state) = read_strategy_market_state(strategy_root) {
+        if session_state == "running" && market_state == MARKET_STATE_STOPPED {
+            diagnostics.push("strategy session running but market stream is stopped".to_string());
+        }
+        if session_state == "stopped"
+            && !matches!(
+                market_state.as_str(),
+                MARKET_STATE_STOPPED | MARKET_STATE_EXHAUSTED
+            )
+        {
+            diagnostics.push(format!(
+                "strategy session stopped but market stream state is {market_state}"
+            ));
+        }
+    }
+
+    let Some(artifacts) = manifest
+        .get("artifacts")
+        .and_then(serde_json::Value::as_array)
+    else {
+        diagnostics.push("strategy manifest artifacts array missing".to_string());
+        return StrategySessionArtifactAudit {
+            health: StrategySessionArtifactAuditHealth::Degraded,
+            manifest_path,
+            diagnostics,
+        };
+    };
+
+    for artifact in artifacts {
+        audit_manifest_child_artifact(strategy_root, artifact, &mut diagnostics);
+    }
+
+    StrategySessionArtifactAudit {
+        health: if diagnostics.is_empty() {
+            StrategySessionArtifactAuditHealth::Healthy
+        } else {
+            StrategySessionArtifactAuditHealth::Degraded
+        },
+        manifest_path,
+        diagnostics,
+    }
+}
+
+fn read_strategy_market_state(strategy_root: &Path) -> Option<String> {
+    let raw = fs::read_to_string(strategy_root.join("market_status.json")).ok()?;
+    let value = serde_json::from_str::<serde_json::Value>(&raw).ok()?;
+    value
+        .get("state")
+        .or_else(|| value.get("connection"))
+        .and_then(serde_json::Value::as_str)
+        .map(ToString::to_string)
+}
+
+fn audit_manifest_child_artifact(
+    strategy_root: &Path,
+    artifact: &serde_json::Value,
+    diagnostics: &mut Vec<String>,
+) {
+    let name = artifact
+        .get("name")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("unknown");
+    let present = artifact
+        .get("present")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    let Some(path_value) = artifact.get("path").and_then(serde_json::Value::as_str) else {
+        diagnostics.push(format!("strategy artifact {name} path missing"));
+        return;
+    };
+    let path = strategy_artifact_path(strategy_root, path_value);
+    let bytes = match fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            if present {
+                diagnostics.push(format!("strategy artifact {name} missing"));
+            }
+            return;
+        }
+        Err(error) => {
+            diagnostics.push(format!("strategy artifact {name} unreadable: {error}"));
+            return;
+        }
+    };
+
+    if !present {
+        diagnostics.push(format!(
+            "strategy artifact {name} exists but manifest marks it missing"
+        ));
+    }
+
+    if artifact
+        .get("byte_len")
+        .and_then(serde_json::Value::as_u64)
+        .is_some_and(|expected| expected != u64::try_from(bytes.len()).unwrap_or(u64::MAX))
+    {
+        diagnostics.push(format!("strategy artifact {name} byte_len mismatch"));
+    }
+
+    if artifact
+        .get("checksum")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|expected| expected != checksum_bytes(&bytes))
+    {
+        diagnostics.push(format!("strategy artifact {name} checksum mismatch"));
+    }
+
+    let format = artifact
+        .get("format")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("unknown");
+    if format == "jsonl"
+        && artifact
+            .get("record_count")
+            .and_then(serde_json::Value::as_u64)
+            .is_some_and(|expected| expected != jsonl_record_count(&bytes))
+    {
+        diagnostics.push(format!("strategy artifact {name} record_count mismatch"));
+    }
+}
+
+fn strategy_artifact_path(strategy_root: &Path, path_value: &str) -> PathBuf {
+    let path = PathBuf::from(path_value);
+    if path.is_absolute() {
+        path
+    } else {
+        strategy_root.join(path)
+    }
+}
+
+fn jsonl_record_count(bytes: &[u8]) -> u64 {
+    let text = String::from_utf8_lossy(bytes);
+    u64::try_from(text.lines().filter(|line| !line.trim().is_empty()).count()).unwrap_or(u64::MAX)
 }
 
 pub fn ema_cross_demo_fixture_bars(symbol: &str) -> Vec<StrategyMarketBar> {
