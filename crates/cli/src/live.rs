@@ -37,7 +37,7 @@ use tokio::time::{sleep, timeout};
 
 use crate::{
     artifacts::{atomic_write_json, atomic_write_text},
-    opt::{LiveCommand, LiveOpt, LiveRunOpt, LiveValidateOpt},
+    opt::{LiveCommand, LiveOpt, LiveRunOpt, LiveTestnetOrderGateOpt, LiveValidateOpt},
     process::process_is_alive,
     strategy_session::{
         StrategyRiskControls, StrategyRuntimeCounters, StrategySession, ema_cross_demo_fixture_bars,
@@ -58,6 +58,10 @@ const TESTNET_ORDER_DISABLED_MODE: &str = "disabled";
 const TESTNET_ORDER_OWNER_MANUAL_GATE: &str = "owner-approved-manual";
 const TESTNET_ORDER_LIMIT_TYPE: &str = "LIMIT";
 const TESTNET_ORDER_GTC_TIF: &str = "GTC";
+const TESTNET_ORDER_ENV_ALLOW: &str = "NTPRO_ALLOW_BINANCE_TESTNET_ORDER";
+const TESTNET_ORDER_ENV_OWNER_APPROVED: &str = "NTPRO_OWNER_APPROVED_BINANCE_TESTNET_ORDER";
+const TESTNET_ORDER_ENV_TINY_NOTIONAL: &str = "NTPRO_CONFIRM_TESTNET_TINY_NOTIONAL";
+const TESTNET_ORDER_ENV_CANCEL_AFTER_SUBMIT: &str = "NTPRO_CONFIRM_TESTNET_CANCEL_AFTER_SUBMIT";
 const START_STOP_SHUTDOWN: &str = "start-stop";
 const DEFAULT_NTPRO_NODE_HEARTBEAT_INTERVAL_MS: u64 = 1_000;
 const DEFAULT_NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: u64 = 5_000;
@@ -245,6 +249,7 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
     match opt.command {
         LiveCommand::Validate(validate) => run_live_validate(&validate),
         LiveCommand::Run(run) => run_live_run(&run).await,
+        LiveCommand::TestnetOrderGate(gate) => run_live_testnet_order_gate(&gate),
     }
 }
 
@@ -273,6 +278,42 @@ async fn run_live_run(opt: &LiveRunOpt) -> anyhow::Result<()> {
         NtproNodeRunControls::default(),
     )
     .await
+}
+
+fn run_live_testnet_order_gate(opt: &LiveTestnetOrderGateOpt) -> anyhow::Result<()> {
+    run_live_testnet_order_gate_with_env(opt, |name| std::env::var(name).ok())
+}
+
+fn run_live_testnet_order_gate_with_env<F>(
+    opt: &LiveTestnetOrderGateOpt,
+    mut read_env: F,
+) -> anyhow::Result<()>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    let config = load_strategy_node_config(&opt.config)?;
+    let Some(testnet_order) = &config.testnet_order else {
+        anyhow::bail!("testnet_order section is required for v0.10 order gate");
+    };
+
+    let missing_cli_flags = missing_testnet_order_cli_flags(opt);
+    let missing_env_vars = missing_testnet_order_env_gates(&mut read_env);
+    if !missing_cli_flags.is_empty() || !missing_env_vars.is_empty() {
+        anyhow::bail!(
+            "testnet order gate blocked: missing_cli_flags={} missing_env_vars={} config_enabled={} order_submission_remains_disabled=true network_attempted=false real_orders_submitted=false",
+            join_gate_labels(&missing_cli_flags),
+            join_gate_labels(&missing_env_vars),
+            testnet_order.enabled,
+        );
+    }
+
+    println!(
+        "live.testnet_order_gate status=ready config={} symbol={} instrument_id={} manual_gate_ready=true order_submission_remains_disabled=true network_attempted=false real_orders_submitted=false production_endpoint_allowed=false dashboard_order_controls=false",
+        opt.config.display(),
+        testnet_order.symbol,
+        testnet_order.instrument_id,
+    );
+    Ok(())
 }
 
 pub(crate) async fn run_ntpro_node(
@@ -904,6 +945,46 @@ fn validate_positive_decimal_string(field: &str, value: &str) -> anyhow::Result<
         anyhow::bail!("{field} must be greater than zero");
     }
     Ok(())
+}
+
+fn missing_testnet_order_cli_flags(opt: &LiveTestnetOrderGateOpt) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_testnet_order {
+        missing.push("--allow-testnet-order");
+    }
+    if !opt.confirm_owner_approved_testnet_order {
+        missing.push("--confirm-owner-approved-testnet-order");
+    }
+    if !opt.confirm_tiny_notional {
+        missing.push("--confirm-tiny-notional");
+    }
+    if !opt.confirm_cancel_after_submit {
+        missing.push("--confirm-cancel-after-submit");
+    }
+    missing
+}
+
+fn missing_testnet_order_env_gates<F>(read_env: &mut F) -> Vec<&'static str>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    [
+        TESTNET_ORDER_ENV_ALLOW,
+        TESTNET_ORDER_ENV_OWNER_APPROVED,
+        TESTNET_ORDER_ENV_TINY_NOTIONAL,
+        TESTNET_ORDER_ENV_CANCEL_AFTER_SUBMIT,
+    ]
+    .into_iter()
+    .filter(|name| read_env(name).as_deref() != Some("1"))
+    .collect()
+}
+
+fn join_gate_labels(labels: &[&str]) -> String {
+    if labels.is_empty() {
+        "none".to_string()
+    } else {
+        labels.join(",")
+    }
 }
 
 #[derive(Debug)]
@@ -1602,6 +1683,55 @@ write_summary = true
             .to_string();
 
         assert!(error.contains("testnet_order.quantity must be a positive decimal string"));
+    }
+
+    fn testnet_order_gate_opt(config: PathBuf, all_cli_gates: bool) -> LiveTestnetOrderGateOpt {
+        LiveTestnetOrderGateOpt {
+            config,
+            allow_testnet_order: all_cli_gates,
+            confirm_owner_approved_testnet_order: all_cli_gates,
+            confirm_tiny_notional: all_cli_gates,
+            confirm_cancel_after_submit: all_cli_gates,
+        }
+    }
+
+    #[test]
+    fn testnet_order_gate_blocks_missing_cli_and_env_gates() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-002-gate-blocked-{}",
+            std::process::id()
+        ));
+        let path = write_config(
+            "testnet-order-gate-blocked",
+            &strategy_node_config(&output_dir),
+        );
+        let opt = testnet_order_gate_opt(path, false);
+
+        let error = run_live_testnet_order_gate_with_env(&opt, |_| None)
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("testnet order gate blocked"));
+        assert!(error.contains("--allow-testnet-order"));
+        assert!(error.contains("--confirm-owner-approved-testnet-order"));
+        assert!(error.contains("NTPRO_ALLOW_BINANCE_TESTNET_ORDER"));
+        assert!(error.contains("NTPRO_OWNER_APPROVED_BINANCE_TESTNET_ORDER"));
+        assert!(error.contains("order_submission_remains_disabled=true"));
+        assert!(error.contains("network_attempted=false"));
+        assert!(error.contains("real_orders_submitted=false"));
+    }
+
+    #[test]
+    fn testnet_order_gate_accepts_all_manual_gates_without_network() {
+        let output_dir =
+            std::env::temp_dir().join(format!("ntpro-v100-002-gate-ready-{}", std::process::id()));
+        let path = write_config(
+            "testnet-order-gate-ready",
+            &strategy_node_config(&output_dir),
+        );
+        let opt = testnet_order_gate_opt(path, true);
+
+        run_live_testnet_order_gate_with_env(&opt, |_| Some("1".to_string())).unwrap();
     }
 
     #[tokio::test(flavor = "current_thread")]

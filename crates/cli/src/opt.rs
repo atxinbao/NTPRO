@@ -146,6 +146,8 @@ pub enum LiveCommand {
     Validate(LiveValidateOpt),
     /// Runs a local sandbox LiveNode start/stop smoke path without external venue access or real orders.
     Run(LiveRunOpt),
+    /// Checks the v0.10 manual Binance testnet order gate without opening network or submitting orders.
+    TestnetOrderGate(LiveTestnetOrderGateOpt),
 }
 
 /// Live validation options.
@@ -168,6 +170,26 @@ pub struct LiveRunOpt {
     /// Optional directory for run artifacts.
     #[arg(long)]
     pub output: Option<PathBuf>,
+}
+
+/// Binance testnet order gate options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveTestnetOrderGateOpt {
+    /// Path to the Rust strategy-session config file.
+    #[arg(long)]
+    pub config: PathBuf,
+    /// Manual CLI gate for any Binance testnet order path.
+    #[arg(long)]
+    pub allow_testnet_order: bool,
+    /// Confirms owner approval for the manual Binance testnet order proof.
+    #[arg(long)]
+    pub confirm_owner_approved_testnet_order: bool,
+    /// Confirms the configured testnet order is tiny-notional only.
+    #[arg(long)]
+    pub confirm_tiny_notional: bool,
+    /// Confirms the proof must cancel immediately after submit ack.
+    #[arg(long)]
+    pub confirm_cancel_after_submit: bool,
 }
 
 /// Local supervisor controls for sandbox-only node artifacts and processes.
@@ -843,14 +865,50 @@ mod tests {
     }
 
     #[test]
+    fn parses_live_testnet_order_gate_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "testnet-order-gate",
+            "--config",
+            "configs/nodes/btc-ema-shadow.toml",
+            "--allow-testnet-order",
+            "--confirm-owner-approved-testnet-order",
+            "--confirm-tiny-notional",
+            "--confirm-cancel-after-submit",
+        ])
+        .expect("live testnet-order-gate should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::TestnetOrderGate(gate) = live.command else {
+            panic!("expected testnet-order-gate command");
+        };
+
+        assert_eq!(
+            gate.config,
+            PathBuf::from("configs/nodes/btc-ema-shadow.toml")
+        );
+        assert!(gate.allow_testnet_order);
+        assert!(gate.confirm_owner_approved_testnet_order);
+        assert!(gate.confirm_tiny_notional);
+        assert!(gate.confirm_cancel_after_submit);
+    }
+
+    #[test]
     fn live_help_describes_live_init_smoke_boundary() {
         let validate_help = render_subcommand_help(&["live", "validate"]);
         let run_help = render_subcommand_help(&["live", "run"]);
+        let gate_help = render_subcommand_help(&["live", "testnet-order-gate"]);
 
         assert!(validate_help.contains("live-init smoke config"));
         assert!(run_help.contains("LiveNode start/stop smoke path"));
         assert!(run_help.contains("without external venue access"));
         assert!(run_help.contains("real orders"));
+        assert!(gate_help.contains("without opening network or submitting orders"));
+        assert!(gate_help.contains("--allow-testnet-order"));
+        assert!(gate_help.contains("--confirm-owner-approved-testnet-order"));
     }
 
     #[test]
