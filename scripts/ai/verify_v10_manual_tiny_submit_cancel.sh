@@ -16,12 +16,14 @@ set -euo pipefail
 # Optional:
 #   NTPRO_V10_CONFIG=configs/nodes/btc-ema-shadow.toml
 #   NTPRO_V10_MANUAL_ORDER_PROOF_DIR=target/ntpro-v10-manual-order-proof/<run>
+#   NTPRO_V10_SPOT_API_BASE_URL=https://demo-api.binance.com
 #   NTPRO_V10_TESTNET_SYMBOL=BTCUSDT
 #   NTPRO_V10_TESTNET_SIDE=BUY
 #   NTPRO_V10_TESTNET_PRICE=...
 #   NTPRO_V10_TESTNET_QUANTITY=...
 #
-# The script never supports production Binance endpoints and never records API
+# The script never supports production Binance endpoints. It only allows
+# Binance Spot Test Network or Spot Demo Mode endpoints, and never records API
 # keys, secrets, raw signatures, signed URLs, raw account state, or raw response
 # bodies in artifacts.
 
@@ -89,7 +91,14 @@ CONFIG_PATH = Path(sys.argv[1])
 PROOF_ROOT = Path(sys.argv[2])
 RUN_ID = sys.argv[3]
 ARTIFACT_ROOT = PROOF_ROOT / "testnet_order_proof"
-BASE_URL = "https://testnet.binance.vision"
+ALLOWED_BASE_URLS = {
+    "https://testnet.binance.vision": "spot_test_network",
+    "https://demo-api.binance.com": "spot_demo_mode",
+}
+BASE_URL = os.environ.get("NTPRO_V10_SPOT_API_BASE_URL", "https://testnet.binance.vision").rstrip("/")
+if BASE_URL not in ALLOWED_BASE_URLS:
+    raise SystemExit("only Binance Spot Test Network or Spot Demo Mode endpoints are allowed")
+ENDPOINT_MODE = ALLOWED_BASE_URLS[BASE_URL]
 RECV_WINDOW_MS = int(os.environ.get("NTPRO_V10_RECV_WINDOW_MS", "5000"))
 HTTP_TIMEOUT_SECS = float(os.environ.get("NTPRO_V10_HTTP_TIMEOUT_SECS", "10"))
 
@@ -112,7 +121,13 @@ def read_config() -> dict:
     execution = data.get("execution") or {}
     risk = data.get("risk") or {}
 
-    require(order.get("http_base_url") == BASE_URL, "testnet_order.http_base_url must be Binance testnet")
+    configured_base_url = str(order.get("http_base_url", "")).rstrip("/")
+    require(configured_base_url in ALLOWED_BASE_URLS, "configured http_base_url must be a Binance spot sandbox endpoint")
+    if configured_base_url != BASE_URL:
+        require(
+            "NTPRO_V10_SPOT_API_BASE_URL" in os.environ,
+            "base URL override requires NTPRO_V10_SPOT_API_BASE_URL",
+        )
     require(order.get("production_endpoint_allowed") is False, "production_endpoint_allowed must be false")
     require(order.get("dashboard_order_controls") is False, "dashboard_order_controls must be false")
     require(order.get("order_type") == "LIMIT", "only LIMIT order proof is allowed")
@@ -137,6 +152,8 @@ def read_config() -> dict:
         "run_id": RUN_ID,
         "config_path": str(CONFIG_PATH),
         "base_url": BASE_URL,
+        "configured_base_url": configured_base_url,
+        "endpoint_mode": ENDPOINT_MODE,
         "symbol": symbol,
         "instrument_id": order.get("instrument_id"),
         "side": side,
@@ -153,6 +170,25 @@ def read_config() -> dict:
 
 def now_ms() -> int:
     return int(time.time() * 1000)
+
+
+def public_json(path: str) -> tuple[int, dict]:
+    url = f"{BASE_URL}{path}"
+    request = urllib.request.Request(
+        url,
+        method="GET",
+        headers={"User-Agent": "ntpro-v100006-manual-testnet-proof"},
+    )
+    with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT_SECS) as response:
+        body = response.read().decode("utf-8")
+        return response.status, json.loads(body) if body else {}
+
+
+def server_time_offset_ms() -> tuple[int, int]:
+    status, payload = public_json("/api/v3/time")
+    require(status == 200, "server time request must succeed")
+    server_time = int(payload["serverTime"])
+    return server_time - now_ms(), server_time
 
 
 def sign(params: dict[str, str | int]) -> tuple[str, str]:
@@ -226,6 +262,7 @@ def selected_order_fields(payload: dict) -> dict:
 def main() -> int:
     ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
     config = read_config()
+    time_offset_ms, server_time = server_time_offset_ms()
     client_order_id = os.environ.get("NTPRO_V10_TESTNET_CLIENT_ORDER_ID", f"ntpro-v100006-{now_ms()}")
     submitted = False
     canceled = False
@@ -239,6 +276,10 @@ def main() -> int:
         "schema_version": "ntpro.v100_manual_order_proof_config.v1",
         **config,
         "client_order_id": client_order_id,
+        "server_time_source": f"{BASE_URL}/api/v3/time",
+        "endpoint_mode": config["endpoint_mode"],
+        "server_time_ms": server_time,
+        "local_time_offset_ms": time_offset_ms,
         "production_endpoint_allowed": False,
         "dashboard_order_controls": False,
         "real_funds": False,
@@ -273,7 +314,7 @@ def main() -> int:
             "price": config["price"],
             "newClientOrderId": client_order_id,
             "recvWindow": RECV_WINDOW_MS,
-            "timestamp": now_ms(),
+            "timestamp": now_ms() + time_offset_ms,
         }
         test_status, _ = request_json("POST", "/api/v3/order/test", order_test_params)
         order_test_ok = True
@@ -287,6 +328,7 @@ def main() -> int:
             "network_attempted": True,
             "real_orders_submitted": False,
             "production_endpoint_allowed": False,
+            "endpoint_mode": config["endpoint_mode"],
             "dashboard_order_controls": False,
             "secrets_redacted": True,
         })
@@ -300,7 +342,7 @@ def main() -> int:
             "price": config["price"],
             "newClientOrderId": client_order_id,
             "recvWindow": RECV_WINDOW_MS,
-            "timestamp": now_ms(),
+            "timestamp": now_ms() + time_offset_ms,
         }
         submit_status, submit_payload = request_json("POST", "/api/v3/order", submit_params)
         submitted = True
@@ -313,6 +355,7 @@ def main() -> int:
             "network_attempted": True,
             "real_orders_submitted": True,
             "production_endpoint_allowed": False,
+            "endpoint_mode": config["endpoint_mode"],
             "dashboard_order_controls": False,
             "secrets_redacted": True,
         })
@@ -323,7 +366,7 @@ def main() -> int:
             "symbol": config["symbol"],
             "origClientOrderId": client_order_id,
             "recvWindow": RECV_WINDOW_MS,
-            "timestamp": now_ms(),
+            "timestamp": now_ms() + time_offset_ms,
         }
         cancel_status, cancel_payload = request_json("DELETE", "/api/v3/order", cancel_params)
         require(cancel_payload.get("status") == "CANCELED", "cancel ack must report CANCELED")
@@ -338,6 +381,7 @@ def main() -> int:
             "testnet_orders_canceled": 1,
             "production_orders_canceled": 0,
             "production_endpoint_allowed": False,
+            "endpoint_mode": config["endpoint_mode"],
             "dashboard_order_controls": False,
             "secrets_redacted": True,
         })
@@ -346,7 +390,7 @@ def main() -> int:
             "symbol": config["symbol"],
             "origClientOrderId": client_order_id,
             "recvWindow": RECV_WINDOW_MS,
-            "timestamp": now_ms(),
+            "timestamp": now_ms() + time_offset_ms,
         }
         reconcile_status, reconcile_payload = request_json("GET", "/api/v3/order", reconcile_params)
         require(reconcile_payload.get("status") == "CANCELED", "reconciliation must report terminal CANCELED")
@@ -360,6 +404,7 @@ def main() -> int:
             "new_orders_blocked": True,
             "network_attempted": True,
             "production_endpoint_allowed": False,
+            "endpoint_mode": config["endpoint_mode"],
             "dashboard_order_controls": False,
             "secrets_redacted": True,
         })
@@ -371,7 +416,7 @@ def main() -> int:
                     "symbol": config["symbol"],
                     "origClientOrderId": client_order_id,
                     "recvWindow": RECV_WINDOW_MS,
-                    "timestamp": now_ms(),
+                    "timestamp": now_ms() + time_offset_ms,
                 }
                 cancel_status, cancel_payload = request_json("DELETE", "/api/v3/order", cancel_params)
                 require(cancel_payload.get("status") == "CANCELED", "emergency cancel ack must report CANCELED")
@@ -385,7 +430,8 @@ def main() -> int:
                     "network_attempted": True,
                     "testnet_orders_canceled": 1,
                     "production_orders_canceled": 0,
-                    "production_endpoint_allowed": False,
+                   "production_endpoint_allowed": False,
+                    "endpoint_mode": config["endpoint_mode"],
                     "dashboard_order_controls": False,
                     "secrets_redacted": True,
                 })
@@ -401,6 +447,7 @@ def main() -> int:
             "testnet_orders_canceled": 1 if canceled else 0,
             "production_orders_submitted": 0,
             "production_orders_canceled": 0,
+            "endpoint_mode": config["endpoint_mode"],
             "risk_halted": submitted and not canceled,
             "new_orders_blocked": True,
             "dashboard_order_controls": False,
@@ -425,6 +472,7 @@ def main() -> int:
         "testnet_orders_canceled": 1 if canceled else 0,
         "production_orders_submitted": 0,
         "production_orders_canceled": 0,
+        "endpoint_mode": config["endpoint_mode"],
         "manual_submit_cancel_proof_observed": submitted and canceled,
         "production_endpoint_allowed": False,
         "dashboard_order_controls": False,
@@ -442,6 +490,7 @@ def main() -> int:
         "testnet_orders_canceled": 1 if canceled else 0,
         "production_orders_submitted": 0,
         "production_orders_canceled": 0,
+        "endpoint_mode": config["endpoint_mode"],
         "dashboard_order_controls_enabled": False,
         "production_endpoint_allowed": False,
         "real_funds": False,
@@ -459,7 +508,7 @@ def main() -> int:
         "v10_manual_tiny_submit_cancel status=ok "
         f"artifact_root={ARTIFACT_ROOT} testnet_orders_submitted=1 "
         "testnet_orders_canceled=1 production_orders_submitted=0 "
-        "dashboard_order_controls=false"
+        f"dashboard_order_controls=false endpoint_mode={config['endpoint_mode']}"
     )
     return 0
 

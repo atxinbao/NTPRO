@@ -8,9 +8,9 @@ Status: MANUAL ONLINE PROOF RUNNER AVAILABLE - PROOF NOT EXECUTED BY THIS PR
 ## Plain Chinese Summary
 
 这份文档说明 V100-006 怎么人工执行。默认情况下脚本不会联网、不会下单。
-只有 owner 明确设置所有 gate，并提供 Binance testnet API key/secret 后，脚本才会
-在 `https://testnet.binance.vision` 上执行一次小额 LIMIT GTC submit，然后按配置
-立刻 cancel，并写出脱敏证据包。
+只有 owner 明确设置所有 gate，并提供 Binance spot sandbox API key/secret 后，
+脚本才会在 allowlisted spot sandbox endpoint 上执行一次小额 LIMIT GTC
+submit，然后按配置立刻 cancel，并写出脱敏证据包。
 
 这不是生产 Binance，不是真实资金，不是生产交易，也不会给 Dashboard 增加下单按钮。
 
@@ -33,6 +33,12 @@ NTPRO_CONFIRM_TESTNET_CANCEL_AFTER_SUBMIT=1 \
 BINANCE_TESTNET_API_KEY=... \
 BINANCE_TESTNET_API_SECRET=... \
 scripts/ai/verify_v10_manual_tiny_submit_cancel.sh
+```
+
+Spot Demo Mode 使用官方 Demo Mode base URL：
+
+```bash
+NTPRO_V10_SPOT_API_BASE_URL=https://demo-api.binance.com
 ```
 
 Optional overrides:
@@ -73,6 +79,10 @@ not record:
 - account balances;
 - production Binance endpoint data.
 
+The runner reads Binance spot sandbox server time from `/api/v3/time` on the
+selected allowlisted endpoint and applies that offset to signed requests. This
+prevents local machine clock drift from causing `-1021` timestamp failures.
+
 ## Required PASS Boundary
 
 ```text
@@ -95,3 +105,9 @@ sets `risk_halted=true`, sets `new_orders_blocked=true`, and exits non-zero.
 This runner does not complete V100-006 until the real owner-approved command
 passes and the artifact package is validated. It only makes the manual proof
 path executable.
+
+If Binance returns `-2015 Invalid API-key, IP, or permissions for action`, the
+provided key is not accepted for the selected spot sandbox endpoint from the
+current machine. Create or update the matching Spot Test Network or Spot Demo
+Mode key, enable the required trading permission, and make sure any IP allowlist
+includes the current outbound IP.
