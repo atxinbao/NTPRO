@@ -42,7 +42,7 @@ use crate::{
     artifacts::{atomic_write_json, atomic_write_text},
     opt::{
         LiveCommand, LiveOpt, LiveRunOpt, LiveTestnetOrderGateOpt, LiveTestnetOrderPreflightOpt,
-        LiveTestnetOrderRequestPreviewOpt, LiveValidateOpt,
+        LiveTestnetOrderRequestPreviewOpt, LiveTestnetOrderTestPreflightOpt, LiveValidateOpt,
     },
     process::process_is_alive,
     strategy_session::{
@@ -397,6 +397,33 @@ struct TestnetSignedOrderRequestPreview {
     diagnostic: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct TestnetOrderTestPreflightReport {
+    schema_version: String,
+    status: String,
+    endpoint_class: String,
+    request_method: String,
+    request_target: String,
+    query_shape: String,
+    api_key_header_name: String,
+    api_key_header_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    request_body_recorded: bool,
+    signature_preflight: String,
+    binance_order_test_acceptance: String,
+    matching_engine_submission: bool,
+    order_submission: String,
+    order_submission_remains_disabled: bool,
+    network_attempted: bool,
+    real_orders_submitted: bool,
+    production_endpoint_allowed: bool,
+    dashboard_order_controls: bool,
+    secrets_redacted: bool,
+    diagnostic: String,
+}
+
 impl TestnetSignedOrderRequest {
     fn redacted_preview(
         &self,
@@ -463,6 +490,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::TestnetOrderRequestPreview(preview) => {
             run_live_testnet_order_request_preview(&preview)
         }
+        LiveCommand::TestnetOrderTestPreflight(preflight) => {
+            run_live_testnet_order_test_preflight(&preflight)
+        }
     }
 }
 
@@ -505,6 +535,12 @@ fn run_live_testnet_order_request_preview(
     opt: &LiveTestnetOrderRequestPreviewOpt,
 ) -> anyhow::Result<()> {
     run_live_testnet_order_request_preview_with_env(opt, |name| std::env::var(name).ok())
+}
+
+fn run_live_testnet_order_test_preflight(
+    opt: &LiveTestnetOrderTestPreflightOpt,
+) -> anyhow::Result<()> {
+    run_live_testnet_order_test_preflight_with_env(opt, |name| std::env::var(name).ok())
 }
 
 fn run_live_testnet_order_gate_with_env<F>(
@@ -587,6 +623,57 @@ where
         preview.request_method,
         preview.request_target,
         preview.order_action,
+    );
+    Ok(())
+}
+
+fn run_live_testnet_order_test_preflight_with_env<F>(
+    opt: &LiveTestnetOrderTestPreflightOpt,
+    mut read_env: F,
+) -> anyhow::Result<()>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    let config = load_strategy_node_config(&opt.config)?;
+    let Some(testnet_order) = &config.testnet_order else {
+        anyhow::bail!("testnet_order section is required for v0.10 order-test preflight");
+    };
+
+    let missing_cli_flags = missing_testnet_order_test_preflight_cli_flags(opt);
+    let missing_env_vars = missing_testnet_order_env_gates(&mut read_env);
+    if !missing_cli_flags.is_empty() || !missing_env_vars.is_empty() {
+        anyhow::bail!(
+            "testnet order-test preflight blocked: missing_cli_flags={} missing_env_vars={} request_built=false matching_engine_submission=false order_submission_remains_disabled=true network_attempted=false real_orders_submitted=false",
+            join_gate_labels(&missing_cli_flags),
+            join_gate_labels(&missing_env_vars),
+        );
+    }
+
+    let credentials = EnvOnlyTestnetOrderCredentials::from_values(
+        opt.api_key_env.clone(),
+        read_env(&opt.api_key_env),
+        opt.api_secret_env.clone(),
+        read_env(&opt.api_secret_env),
+    );
+    let request = build_testnet_signed_order_request(
+        testnet_order,
+        &credentials,
+        TESTNET_ORDER_METHOD_POST,
+        TESTNET_ORDER_ENDPOINT_TEST,
+        opt.timestamp_ms,
+        opt.recv_window_ms,
+        None,
+    )?;
+    let report = build_order_test_preflight_report(&request, &credentials);
+    if let Some(output) = &opt.output {
+        write_secret_redacted_json(output, &report, &credentials)?;
+    }
+
+    println!(
+        "live.testnet_order_test_preflight status=ready config={} method={} endpoint={} binance_order_test_acceptance=not_attempted_offline_manual_only matching_engine_submission=false order_submission_remains_disabled=true network_attempted=false real_orders_submitted=false production_endpoint_allowed=false dashboard_order_controls=false secrets_redacted=true",
+        opt.config.display(),
+        report.request_method,
+        report.request_target,
     );
     Ok(())
 }
@@ -1429,6 +1516,38 @@ fn build_testnet_signed_order_request(
     Ok(request)
 }
 
+fn build_order_test_preflight_report(
+    request: &TestnetSignedOrderRequest,
+    credentials: &EnvOnlyTestnetOrderCredentials,
+) -> TestnetOrderTestPreflightReport {
+    let preview = request.redacted_preview(credentials);
+    TestnetOrderTestPreflightReport {
+        schema_version: "ntpro.v100_order_test_preflight_report.v1".to_string(),
+        status: "ready".to_string(),
+        endpoint_class: "binance-testnet-order-test-preflight".to_string(),
+        request_method: preview.request_method,
+        request_target: preview.request_target,
+        query_shape: preview.query_shape,
+        api_key_header_name: preview.api_key_header_name,
+        api_key_header_value_recorded: false,
+        signature_recorded: false,
+        signed_query_recorded: false,
+        signed_url_recorded: false,
+        request_body_recorded: false,
+        signature_preflight: "created_in_memory_not_recorded".to_string(),
+        binance_order_test_acceptance: "not_attempted_offline_manual_only".to_string(),
+        matching_engine_submission: false,
+        order_submission: "order_test_preflight_only".to_string(),
+        order_submission_remains_disabled: true,
+        network_attempted: false,
+        real_orders_submitted: false,
+        production_endpoint_allowed: false,
+        dashboard_order_controls: false,
+        secrets_redacted: true,
+        diagnostic: "V100 /api/v3/order/test preflight prepared redacted request metadata only; Binance acceptance is not attempted in offline CI and matching engine submission remains false.".to_string(),
+    }
+}
+
 fn normalize_testnet_order_method(method: &str) -> anyhow::Result<String> {
     let method = method.trim().to_ascii_uppercase();
     if method.is_empty() {
@@ -1571,6 +1690,17 @@ fn missing_testnet_order_preflight_cli_flags(
 
 fn missing_testnet_order_request_preview_cli_flags(
     opt: &LiveTestnetOrderRequestPreviewOpt,
+) -> Vec<&'static str> {
+    missing_testnet_order_manual_cli_flags(
+        opt.allow_testnet_order,
+        opt.confirm_owner_approved_testnet_order,
+        opt.confirm_tiny_notional,
+        opt.confirm_cancel_after_submit,
+    )
+}
+
+fn missing_testnet_order_test_preflight_cli_flags(
+    opt: &LiveTestnetOrderTestPreflightOpt,
 ) -> Vec<&'static str> {
     missing_testnet_order_manual_cli_flags(
         opt.allow_testnet_order,
@@ -2385,6 +2515,25 @@ write_summary = true
         }
     }
 
+    fn testnet_order_test_preflight_opt(
+        config: PathBuf,
+        output: Option<PathBuf>,
+        all_cli_gates: bool,
+    ) -> LiveTestnetOrderTestPreflightOpt {
+        LiveTestnetOrderTestPreflightOpt {
+            config,
+            timestamp_ms: 1_718_400_000_000,
+            recv_window_ms: 5_000,
+            api_key_env: "NTPRO_V100005_API_KEY".to_string(),
+            api_secret_env: "NTPRO_V100005_API_SECRET".to_string(),
+            output,
+            allow_testnet_order: all_cli_gates,
+            confirm_owner_approved_testnet_order: all_cli_gates,
+            confirm_tiny_notional: all_cli_gates,
+            confirm_cancel_after_submit: all_cli_gates,
+        }
+    }
+
     fn synthetic_order_credentials() -> EnvOnlyTestnetOrderCredentials {
         EnvOnlyTestnetOrderCredentials::from_values(
             "NTPRO_V100004_API_KEY".to_string(),
@@ -2923,6 +3072,127 @@ write_summary = true
         assert!(body.contains("\"real_orders_submitted\": false"));
         assert!(!body.contains("ntpro_v100004_synthetic_api_key_value"));
         assert!(!body.contains("ntpro_v100004_synthetic_api_secret_value"));
+    }
+
+    #[test]
+    fn testnet_order_test_preflight_command_writes_redacted_report() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-005-order-test-preflight-{}",
+            std::process::id()
+        ));
+        let config = write_config(
+            "testnet-order-test-preflight",
+            &strategy_node_config(&output_dir),
+        );
+        let output = output_dir.join("order-test-preflight.json");
+        let opt = testnet_order_test_preflight_opt(config, Some(output.clone()), true);
+
+        run_live_testnet_order_test_preflight_with_env(&opt, |name| match name {
+            TESTNET_ORDER_ENV_ALLOW
+            | TESTNET_ORDER_ENV_OWNER_APPROVED
+            | TESTNET_ORDER_ENV_TINY_NOTIONAL
+            | TESTNET_ORDER_ENV_CANCEL_AFTER_SUBMIT => Some("1".to_string()),
+            "NTPRO_V100005_API_KEY" => Some("ntpro_v100005_synthetic_api_key_value".to_string()),
+            "NTPRO_V100005_API_SECRET" => {
+                Some("ntpro_v100005_synthetic_api_secret_value".to_string())
+            }
+            _ => None,
+        })
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(body.contains("ntpro.v100_order_test_preflight_report.v1"));
+        assert!(body.contains("\"status\": \"ready\""));
+        assert!(body.contains("\"request_method\": \"POST\""));
+        assert!(body.contains("\"request_target\": \"/api/v3/order/test\""));
+        assert!(
+            body.contains(
+                "\"binance_order_test_acceptance\": \"not_attempted_offline_manual_only\""
+            )
+        );
+        assert!(body.contains("\"matching_engine_submission\": false"));
+        assert!(body.contains("\"network_attempted\": false"));
+        assert!(body.contains("\"real_orders_submitted\": false"));
+        assert!(!body.contains("ntpro_v100005_synthetic_api_key_value"));
+        assert!(!body.contains("ntpro_v100005_synthetic_api_secret_value"));
+    }
+
+    #[test]
+    fn testnet_order_test_preflight_blocks_missing_manual_gates() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-005-order-test-missing-gates-{}",
+            std::process::id()
+        ));
+        let config = write_config(
+            "testnet-order-test-missing-gates",
+            &strategy_node_config(&output_dir),
+        );
+        let opt = testnet_order_test_preflight_opt(config, None, false);
+
+        let error = run_live_testnet_order_test_preflight_with_env(&opt, |_| None)
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("testnet order-test preflight blocked"));
+        assert!(error.contains("--allow-testnet-order"));
+        assert!(error.contains("matching_engine_submission=false"));
+        assert!(error.contains("network_attempted=false"));
+        assert!(error.contains("real_orders_submitted=false"));
+    }
+
+    #[test]
+    fn testnet_order_test_preflight_fails_closed_without_secret() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-005-order-test-missing-secret-{}",
+            std::process::id()
+        ));
+        let config = write_config(
+            "testnet-order-test-missing-secret",
+            &strategy_node_config(&output_dir),
+        );
+        let opt = testnet_order_test_preflight_opt(config, None, true);
+
+        let error = run_live_testnet_order_test_preflight_with_env(&opt, |name| match name {
+            TESTNET_ORDER_ENV_ALLOW
+            | TESTNET_ORDER_ENV_OWNER_APPROVED
+            | TESTNET_ORDER_ENV_TINY_NOTIONAL
+            | TESTNET_ORDER_ENV_CANCEL_AFTER_SUBMIT => Some("1".to_string()),
+            "NTPRO_V100005_API_KEY" => Some("ntpro_v100005_synthetic_api_key_value".to_string()),
+            _ => None,
+        })
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("requires API secret env value"));
+    }
+
+    #[test]
+    fn testnet_order_test_preflight_rejects_production_base_url() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-005-order-test-production-base-{}",
+            std::process::id()
+        ));
+        let config = strategy_node_config(&output_dir).replace(
+            r#"http_base_url = "https://testnet.binance.vision""#,
+            r#"http_base_url = "https://api.binance.com""#,
+        );
+        let config = write_config("testnet-order-test-production-base", &config);
+        let opt = testnet_order_test_preflight_opt(config, None, true);
+
+        let error = run_live_testnet_order_test_preflight_with_env(&opt, |name| match name {
+            TESTNET_ORDER_ENV_ALLOW
+            | TESTNET_ORDER_ENV_OWNER_APPROVED
+            | TESTNET_ORDER_ENV_TINY_NOTIONAL
+            | TESTNET_ORDER_ENV_CANCEL_AFTER_SUBMIT
+            | "NTPRO_V100005_API_KEY"
+            | "NTPRO_V100005_API_SECRET" => Some("1".to_string()),
+            _ => None,
+        })
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("testnet_order.http_base_url"));
+        assert!(error.contains(BINANCE_TESTNET_HTTP_BASE_URL));
     }
 
     #[tokio::test(flavor = "current_thread")]
