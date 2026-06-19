@@ -33,6 +33,7 @@ const STRATEGY_ORDER_INTENT_SCHEMA_VERSION: &str = "ntpro.v09_order_intent.v1";
 const STRATEGY_RISK_DECISION_SCHEMA_VERSION: &str = "ntpro.v09_risk_decision.v1";
 const STRATEGY_SESSION_SUMMARY_SCHEMA_VERSION: &str = "ntpro.v09_strategy_session_summary.v1";
 const STRATEGY_SESSION_MANIFEST_SCHEMA_VERSION: &str = "ntpro.v091_strategy_session_manifest.v1";
+pub const STRATEGY_ORDER_PREFLIGHT_SCHEMA_VERSION: &str = "ntpro.v100_order_preflight_input.v1";
 const MARKET_STATE_EXHAUSTED: &str = "exhausted";
 const MARKET_STATE_STOPPED: &str = "stopped";
 
@@ -346,6 +347,57 @@ pub struct StrategyRuntimeCounters {
     pub risk_decision_count: u64,
     pub rejection_count: u64,
     pub actual_submission_count: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategyOrderPreflightInput {
+    pub schema_version: String,
+    pub session: StrategyOrderPreflightSession,
+    pub market: StrategyOrderPreflightMarket,
+    pub account: StrategyOrderPreflightAccount,
+    pub risk: StrategyOrderPreflightRisk,
+    pub limits: StrategyOrderPreflightLimits,
+    pub endpoint: StrategyOrderPreflightEndpoint,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategyOrderPreflightSession {
+    pub state: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategyOrderPreflightMarket {
+    pub symbol: String,
+    pub last_event_at_unix_ms: u64,
+    pub now_unix_ms: u64,
+    pub max_age_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategyOrderPreflightAccount {
+    pub readable: bool,
+    pub account_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategyOrderPreflightRisk {
+    pub kill_switch_active: bool,
+    pub allowed_symbols: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategyOrderPreflightLimits {
+    pub max_order_notional: String,
+    pub max_open_orders: u64,
+    pub open_order_count: u64,
+    pub max_clock_skew_ms: u64,
+    pub observed_clock_skew_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategyOrderPreflightEndpoint {
+    pub http_base_url: String,
+    pub production_endpoint_allowed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

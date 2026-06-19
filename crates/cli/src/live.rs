@@ -32,15 +32,19 @@ use nautilus_model::{
     types::Money,
 };
 use nautilus_sandbox::{SandboxExecutionClientConfig, SandboxExecutionClientFactory};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, timeout};
 
 use crate::{
     artifacts::{atomic_write_json, atomic_write_text},
-    opt::{LiveCommand, LiveOpt, LiveRunOpt, LiveTestnetOrderGateOpt, LiveValidateOpt},
+    opt::{
+        LiveCommand, LiveOpt, LiveRunOpt, LiveTestnetOrderGateOpt, LiveTestnetOrderPreflightOpt,
+        LiveValidateOpt,
+    },
     process::process_is_alive,
     strategy_session::{
-        StrategyRiskControls, StrategyRuntimeCounters, StrategySession, ema_cross_demo_fixture_bars,
+        STRATEGY_ORDER_PREFLIGHT_SCHEMA_VERSION, StrategyOrderPreflightInput, StrategyRiskControls,
+        StrategyRuntimeCounters, StrategySession, ema_cross_demo_fixture_bars,
     },
     supervisor::{NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, write_node_metrics_artifact},
 };
@@ -245,11 +249,37 @@ struct StrategyNodeRiskSection {
     kill_switch_active: bool,
 }
 
+#[derive(Debug, Serialize)]
+struct TestnetOrderPreflightReport {
+    schema_version: String,
+    status: String,
+    passed: bool,
+    reasons: Vec<String>,
+    symbol: String,
+    account_id: String,
+    notional: String,
+    max_order_notional: String,
+    open_order_count: u64,
+    max_open_orders: u64,
+    observed_clock_skew_ms: u64,
+    max_clock_skew_ms: u64,
+    market_age_ms: Option<u64>,
+    max_market_age_ms: u64,
+    order_submission_remains_disabled: bool,
+    network_attempted: bool,
+    real_orders_submitted: bool,
+    production_endpoint_allowed: bool,
+    dashboard_order_controls: bool,
+}
+
 pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
     match opt.command {
         LiveCommand::Validate(validate) => run_live_validate(&validate),
         LiveCommand::Run(run) => run_live_run(&run).await,
         LiveCommand::TestnetOrderGate(gate) => run_live_testnet_order_gate(&gate),
+        LiveCommand::TestnetOrderPreflight(preflight) => {
+            run_live_testnet_order_preflight(&preflight)
+        }
     }
 }
 
@@ -284,6 +314,10 @@ fn run_live_testnet_order_gate(opt: &LiveTestnetOrderGateOpt) -> anyhow::Result<
     run_live_testnet_order_gate_with_env(opt, |name| std::env::var(name).ok())
 }
 
+fn run_live_testnet_order_preflight(opt: &LiveTestnetOrderPreflightOpt) -> anyhow::Result<()> {
+    run_live_testnet_order_preflight_with_env(opt, |name| std::env::var(name).ok())
+}
+
 fn run_live_testnet_order_gate_with_env<F>(
     opt: &LiveTestnetOrderGateOpt,
     mut read_env: F,
@@ -312,6 +346,53 @@ where
         opt.config.display(),
         testnet_order.symbol,
         testnet_order.instrument_id,
+    );
+    Ok(())
+}
+
+fn run_live_testnet_order_preflight_with_env<F>(
+    opt: &LiveTestnetOrderPreflightOpt,
+    mut read_env: F,
+) -> anyhow::Result<()>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    let config = load_strategy_node_config(&opt.config)?;
+    let Some(testnet_order) = &config.testnet_order else {
+        anyhow::bail!("testnet_order section is required for v0.10 order preflight");
+    };
+
+    let missing_cli_flags = missing_testnet_order_preflight_cli_flags(opt);
+    let missing_env_vars = missing_testnet_order_env_gates(&mut read_env);
+    if !missing_cli_flags.is_empty() || !missing_env_vars.is_empty() {
+        anyhow::bail!(
+            "testnet order preflight blocked: missing_cli_flags={} missing_env_vars={} preflight_evaluated=false order_submission_remains_disabled=true network_attempted=false real_orders_submitted=false",
+            join_gate_labels(&missing_cli_flags),
+            join_gate_labels(&missing_env_vars),
+        );
+    }
+
+    let input = load_strategy_order_preflight_input(&opt.input)?;
+    let report = evaluate_testnet_order_preflight(&config, testnet_order, &input);
+    if let Some(output) = &opt.output {
+        atomic_write_json(output, &report)?;
+    }
+
+    if !report.passed {
+        anyhow::bail!(
+            "testnet order preflight failed: reasons={} order_submission_remains_disabled=true network_attempted=false real_orders_submitted=false",
+            join_owned_gate_labels(&report.reasons),
+        );
+    }
+
+    println!(
+        "live.testnet_order_preflight status=pass config={} input={} symbol={} notional={} open_order_count={} observed_clock_skew_ms={} order_submission_remains_disabled=true network_attempted=false real_orders_submitted=false",
+        opt.config.display(),
+        opt.input.display(),
+        report.symbol,
+        report.notional,
+        report.open_order_count,
+        report.observed_clock_skew_ms,
     );
     Ok(())
 }
@@ -766,6 +847,13 @@ fn load_strategy_node_config(path: &Path) -> anyhow::Result<StrategyNodeConfig> 
     Ok(config)
 }
 
+fn load_strategy_order_preflight_input(path: &Path) -> anyhow::Result<StrategyOrderPreflightInput> {
+    let raw = fs::read_to_string(path)
+        .with_context(|| format!("failed to read order preflight input '{}'", path.display()))?;
+    serde_json::from_str(&raw)
+        .with_context(|| format!("failed to parse order preflight input '{}'", path.display()))
+}
+
 fn validate_strategy_node_config(config: &StrategyNodeConfig) -> anyhow::Result<()> {
     validate_non_empty("node.node_id", &config.node.node_id)?;
     validate_exact("node.mode", &config.node.mode, STRATEGY_SESSION_SHADOW_MODE)?;
@@ -947,6 +1035,113 @@ fn validate_positive_decimal_string(field: &str, value: &str) -> anyhow::Result<
     Ok(())
 }
 
+fn evaluate_testnet_order_preflight(
+    config: &StrategyNodeConfig,
+    testnet_order: &StrategyNodeTestnetOrderSection,
+    input: &StrategyOrderPreflightInput,
+) -> TestnetOrderPreflightReport {
+    let mut reasons = Vec::new();
+    if input.schema_version != STRATEGY_ORDER_PREFLIGHT_SCHEMA_VERSION {
+        reasons.push("schema_version_mismatch".to_string());
+    }
+    if input.session.state != "running" {
+        reasons.push("session_not_running".to_string());
+    }
+    if input.market.symbol != testnet_order.instrument_id {
+        reasons.push("market_symbol_mismatch".to_string());
+    }
+    let market_age_ms = if input.market.now_unix_ms >= input.market.last_event_at_unix_ms {
+        Some(input.market.now_unix_ms - input.market.last_event_at_unix_ms)
+    } else {
+        reasons.push("market_event_in_future".to_string());
+        None
+    };
+    if market_age_ms.is_some_and(|age| age > input.market.max_age_ms) {
+        reasons.push("market_stale".to_string());
+    }
+    if !input.account.readable {
+        reasons.push("account_unreadable".to_string());
+    }
+    if input.account.readable && input.account.account_id.trim().is_empty() {
+        reasons.push("account_id_missing".to_string());
+    }
+    if config.risk.kill_switch_active || input.risk.kill_switch_active {
+        reasons.push("kill_switch_active".to_string());
+    }
+    if !input
+        .risk
+        .allowed_symbols
+        .iter()
+        .any(|symbol| symbol == &testnet_order.instrument_id)
+    {
+        reasons.push("symbol_not_allowlisted".to_string());
+    }
+    match decimal_string_to_f64(
+        "limits.max_order_notional",
+        &input.limits.max_order_notional,
+    ) {
+        Ok(max_order_notional) => {
+            match decimal_string_to_f64("testnet_order.notional", &testnet_order.notional) {
+                Ok(order_notional) if order_notional > max_order_notional => {
+                    reasons.push("notional_limit_exceeded".to_string());
+                }
+                Ok(_) => {}
+                Err(reason) => reasons.push(reason),
+            }
+        }
+        Err(reason) => reasons.push(reason),
+    }
+    if input.limits.open_order_count >= input.limits.max_open_orders {
+        reasons.push("open_order_limit_exceeded".to_string());
+    }
+    if input.limits.observed_clock_skew_ms > input.limits.max_clock_skew_ms {
+        reasons.push("clock_skew_limit_exceeded".to_string());
+    }
+    if input.endpoint.http_base_url != BINANCE_TESTNET_HTTP_BASE_URL
+        || input.endpoint.http_base_url != testnet_order.http_base_url
+    {
+        reasons.push("endpoint_not_testnet".to_string());
+    }
+    if input.endpoint.production_endpoint_allowed || testnet_order.production_endpoint_allowed {
+        reasons.push("production_endpoint_allowed".to_string());
+    }
+    if testnet_order.dashboard_order_controls {
+        reasons.push("dashboard_order_controls_enabled".to_string());
+    }
+
+    let passed = reasons.is_empty();
+    TestnetOrderPreflightReport {
+        schema_version: "ntpro.v100_order_preflight_report.v1".to_string(),
+        status: if passed { "pass" } else { "fail" }.to_string(),
+        passed,
+        reasons,
+        symbol: testnet_order.instrument_id.clone(),
+        account_id: input.account.account_id.clone(),
+        notional: testnet_order.notional.clone(),
+        max_order_notional: input.limits.max_order_notional.clone(),
+        open_order_count: input.limits.open_order_count,
+        max_open_orders: input.limits.max_open_orders,
+        observed_clock_skew_ms: input.limits.observed_clock_skew_ms,
+        max_clock_skew_ms: input.limits.max_clock_skew_ms,
+        market_age_ms,
+        max_market_age_ms: input.market.max_age_ms,
+        order_submission_remains_disabled: true,
+        network_attempted: false,
+        real_orders_submitted: false,
+        production_endpoint_allowed: false,
+        dashboard_order_controls: false,
+    }
+}
+
+fn decimal_string_to_f64(field: &str, value: &str) -> Result<f64, String> {
+    validate_positive_decimal_string(field, value).map_err(|error| error.to_string())?;
+    value
+        .parse::<f64>()
+        .ok()
+        .filter(|parsed| parsed.is_finite())
+        .ok_or_else(|| format!("{field} must parse as a finite decimal"))
+}
+
 fn missing_testnet_order_cli_flags(opt: &LiveTestnetOrderGateOpt) -> Vec<&'static str> {
     let mut missing = Vec::new();
     if !opt.allow_testnet_order {
@@ -959,6 +1154,39 @@ fn missing_testnet_order_cli_flags(opt: &LiveTestnetOrderGateOpt) -> Vec<&'stati
         missing.push("--confirm-tiny-notional");
     }
     if !opt.confirm_cancel_after_submit {
+        missing.push("--confirm-cancel-after-submit");
+    }
+    missing
+}
+
+fn missing_testnet_order_preflight_cli_flags(
+    opt: &LiveTestnetOrderPreflightOpt,
+) -> Vec<&'static str> {
+    missing_testnet_order_manual_cli_flags(
+        opt.allow_testnet_order,
+        opt.confirm_owner_approved_testnet_order,
+        opt.confirm_tiny_notional,
+        opt.confirm_cancel_after_submit,
+    )
+}
+
+fn missing_testnet_order_manual_cli_flags(
+    allow_testnet_order: bool,
+    confirm_owner_approved_testnet_order: bool,
+    confirm_tiny_notional: bool,
+    confirm_cancel_after_submit: bool,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !allow_testnet_order {
+        missing.push("--allow-testnet-order");
+    }
+    if !confirm_owner_approved_testnet_order {
+        missing.push("--confirm-owner-approved-testnet-order");
+    }
+    if !confirm_tiny_notional {
+        missing.push("--confirm-tiny-notional");
+    }
+    if !confirm_cancel_after_submit {
         missing.push("--confirm-cancel-after-submit");
     }
     missing
@@ -980,6 +1208,14 @@ where
 }
 
 fn join_gate_labels(labels: &[&str]) -> String {
+    if labels.is_empty() {
+        "none".to_string()
+    } else {
+        labels.join(",")
+    }
+}
+
+fn join_owned_gate_labels(labels: &[String]) -> String {
     if labels.is_empty() {
         "none".to_string()
     } else {
@@ -1523,6 +1759,11 @@ fn resolve_output_dir(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::strategy_session::{
+        StrategyOrderPreflightAccount, StrategyOrderPreflightEndpoint,
+        StrategyOrderPreflightLimits, StrategyOrderPreflightMarket, StrategyOrderPreflightRisk,
+        StrategyOrderPreflightSession,
+    };
 
     fn write_config(name: &str, content: &str) -> PathBuf {
         let dir =
@@ -1695,6 +1936,66 @@ write_summary = true
         }
     }
 
+    fn testnet_order_preflight_opt(
+        config: PathBuf,
+        input: PathBuf,
+        output: Option<PathBuf>,
+        all_cli_gates: bool,
+    ) -> LiveTestnetOrderPreflightOpt {
+        LiveTestnetOrderPreflightOpt {
+            config,
+            input,
+            output,
+            allow_testnet_order: all_cli_gates,
+            confirm_owner_approved_testnet_order: all_cli_gates,
+            confirm_tiny_notional: all_cli_gates,
+            confirm_cancel_after_submit: all_cli_gates,
+        }
+    }
+
+    fn passing_preflight_input() -> StrategyOrderPreflightInput {
+        StrategyOrderPreflightInput {
+            schema_version: STRATEGY_ORDER_PREFLIGHT_SCHEMA_VERSION.to_string(),
+            session: StrategyOrderPreflightSession {
+                state: "running".to_string(),
+            },
+            market: StrategyOrderPreflightMarket {
+                symbol: "BTCUSDT.BINANCE".to_string(),
+                last_event_at_unix_ms: 1_000,
+                now_unix_ms: 1_500,
+                max_age_ms: 1_000,
+            },
+            account: StrategyOrderPreflightAccount {
+                readable: true,
+                account_id: "BINANCE_TESTNET-001".to_string(),
+            },
+            risk: StrategyOrderPreflightRisk {
+                kill_switch_active: false,
+                allowed_symbols: vec!["BTCUSDT.BINANCE".to_string()],
+            },
+            limits: StrategyOrderPreflightLimits {
+                max_order_notional: "1.00".to_string(),
+                max_open_orders: 1,
+                open_order_count: 0,
+                max_clock_skew_ms: 100,
+                observed_clock_skew_ms: 25,
+            },
+            endpoint: StrategyOrderPreflightEndpoint {
+                http_base_url: BINANCE_TESTNET_HTTP_BASE_URL.to_string(),
+                production_endpoint_allowed: false,
+            },
+        }
+    }
+
+    fn write_preflight_input(name: &str, input: &StrategyOrderPreflightInput) -> PathBuf {
+        let path = std::env::temp_dir().join(format!(
+            "ntpro-{name}-preflight-input-{}.json",
+            std::process::id()
+        ));
+        fs::write(path.clone(), serde_json::to_string_pretty(input).unwrap()).unwrap();
+        path
+    }
+
     #[test]
     fn testnet_order_gate_blocks_missing_cli_and_env_gates() {
         let output_dir = std::env::temp_dir().join(format!(
@@ -1732,6 +2033,157 @@ write_summary = true
         let opt = testnet_order_gate_opt(path, true);
 
         run_live_testnet_order_gate_with_env(&opt, |_| Some("1".to_string())).unwrap();
+    }
+
+    #[test]
+    fn testnet_order_preflight_passes_with_ready_snapshot() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-003-preflight-pass-{}",
+            std::process::id()
+        ));
+        let config = write_config(
+            "testnet-order-preflight-pass",
+            &strategy_node_config(&output_dir),
+        );
+        let input = write_preflight_input("v100-003-pass", &passing_preflight_input());
+        let report = output_dir.join("preflight-report.json");
+        let opt = testnet_order_preflight_opt(config, input, Some(report.clone()), true);
+
+        run_live_testnet_order_preflight_with_env(&opt, |_| Some("1".to_string())).unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(report).unwrap()).unwrap();
+        assert_eq!(report["status"], "pass");
+        assert_eq!(report["order_submission_remains_disabled"], true);
+        assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["real_orders_submitted"], false);
+    }
+
+    #[test]
+    fn testnet_order_preflight_blocks_missing_manual_gates() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-003-preflight-missing-gates-{}",
+            std::process::id()
+        ));
+        let config = write_config(
+            "testnet-order-preflight-missing-gates",
+            &strategy_node_config(&output_dir),
+        );
+        let input = write_preflight_input("v100-003-missing-gates", &passing_preflight_input());
+        let opt = testnet_order_preflight_opt(config, input, None, false);
+
+        let error = run_live_testnet_order_preflight_with_env(&opt, |_| None)
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("testnet order preflight blocked"));
+        assert!(error.contains("--allow-testnet-order"));
+        assert!(error.contains("NTPRO_ALLOW_BINANCE_TESTNET_ORDER"));
+        assert!(error.contains("preflight_evaluated=false"));
+        assert!(error.contains("network_attempted=false"));
+        assert!(error.contains("real_orders_submitted=false"));
+    }
+
+    #[test]
+    fn testnet_order_preflight_rejects_stale_market() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-003-preflight-stale-{}",
+            std::process::id()
+        ));
+        let config = write_config(
+            "testnet-order-preflight-stale",
+            &strategy_node_config(&output_dir),
+        );
+        let mut input = passing_preflight_input();
+        input.market.now_unix_ms = 3_000;
+        input.market.max_age_ms = 100;
+        let input = write_preflight_input("v100-003-stale", &input);
+        let opt = testnet_order_preflight_opt(config, input, None, true);
+
+        let error = run_live_testnet_order_preflight_with_env(&opt, |_| Some("1".to_string()))
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("market_stale"));
+        assert!(error.contains("network_attempted=false"));
+        assert!(error.contains("real_orders_submitted=false"));
+    }
+
+    #[test]
+    fn testnet_order_preflight_rejects_kill_switch_active() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-003-preflight-kill-switch-{}",
+            std::process::id()
+        ));
+        let config = write_config(
+            "testnet-order-preflight-kill-switch",
+            &strategy_node_config(&output_dir),
+        );
+        let mut input = passing_preflight_input();
+        input.risk.kill_switch_active = true;
+        let input = write_preflight_input("v100-003-kill-switch", &input);
+        let opt = testnet_order_preflight_opt(config, input, None, true);
+
+        let error = run_live_testnet_order_preflight_with_env(&opt, |_| Some("1".to_string()))
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("kill_switch_active"));
+        assert!(error.contains("real_orders_submitted=false"));
+    }
+
+    #[test]
+    fn testnet_order_preflight_rejects_production_endpoint() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-003-preflight-production-endpoint-{}",
+            std::process::id()
+        ));
+        let config = write_config(
+            "testnet-order-preflight-production-endpoint",
+            &strategy_node_config(&output_dir),
+        );
+        let mut input = passing_preflight_input();
+        input.endpoint.http_base_url = "https://api.binance.com".to_string();
+        input.endpoint.production_endpoint_allowed = true;
+        let input = write_preflight_input("v100-003-production-endpoint", &input);
+        let opt = testnet_order_preflight_opt(config, input, None, true);
+
+        let error = run_live_testnet_order_preflight_with_env(&opt, |_| Some("1".to_string()))
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("endpoint_not_testnet"));
+        assert!(error.contains("production_endpoint_allowed"));
+        assert!(error.contains("network_attempted=false"));
+    }
+
+    #[test]
+    fn testnet_order_preflight_rejects_limit_violations() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-003-preflight-limit-violations-{}",
+            std::process::id()
+        ));
+        let config = write_config(
+            "testnet-order-preflight-limit-violations",
+            &strategy_node_config(&output_dir),
+        );
+        let mut input = passing_preflight_input();
+        input.limits.max_order_notional = "0.00000001".to_string();
+        input.limits.max_open_orders = 1;
+        input.limits.open_order_count = 1;
+        input.limits.max_clock_skew_ms = 10;
+        input.limits.observed_clock_skew_ms = 25;
+        let input = write_preflight_input("v100-003-limit-violations", &input);
+        let opt = testnet_order_preflight_opt(config, input, None, true);
+
+        let error = run_live_testnet_order_preflight_with_env(&opt, |_| Some("1".to_string()))
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("notional_limit_exceeded"));
+        assert!(error.contains("open_order_limit_exceeded"));
+        assert!(error.contains("clock_skew_limit_exceeded"));
+        assert!(error.contains("real_orders_submitted=false"));
     }
 
     #[tokio::test(flavor = "current_thread")]

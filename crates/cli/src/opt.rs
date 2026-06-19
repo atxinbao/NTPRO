@@ -148,6 +148,8 @@ pub enum LiveCommand {
     Run(LiveRunOpt),
     /// Checks the v0.10 manual Binance testnet order gate without opening network or submitting orders.
     TestnetOrderGate(LiveTestnetOrderGateOpt),
+    /// Checks local v0.10 Binance testnet order risk preflight without network or orders.
+    TestnetOrderPreflight(LiveTestnetOrderPreflightOpt),
 }
 
 /// Live validation options.
@@ -178,6 +180,32 @@ pub struct LiveTestnetOrderGateOpt {
     /// Path to the Rust strategy-session config file.
     #[arg(long)]
     pub config: PathBuf,
+    /// Manual CLI gate for any Binance testnet order path.
+    #[arg(long)]
+    pub allow_testnet_order: bool,
+    /// Confirms owner approval for the manual Binance testnet order proof.
+    #[arg(long)]
+    pub confirm_owner_approved_testnet_order: bool,
+    /// Confirms the configured testnet order is tiny-notional only.
+    #[arg(long)]
+    pub confirm_tiny_notional: bool,
+    /// Confirms the proof must cancel immediately after submit ack.
+    #[arg(long)]
+    pub confirm_cancel_after_submit: bool,
+}
+
+/// Binance testnet order preflight options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveTestnetOrderPreflightOpt {
+    /// Path to the Rust strategy-session config file.
+    #[arg(long)]
+    pub config: PathBuf,
+    /// Path to the local order preflight input JSON.
+    #[arg(long)]
+    pub input: PathBuf,
+    /// Optional JSON report output path.
+    #[arg(long)]
+    pub output: Option<PathBuf>,
     /// Manual CLI gate for any Binance testnet order path.
     #[arg(long)]
     pub allow_testnet_order: bool,
@@ -897,10 +925,55 @@ mod tests {
     }
 
     #[test]
+    fn parses_live_testnet_order_preflight_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "testnet-order-preflight",
+            "--config",
+            "configs/nodes/btc-ema-shadow.toml",
+            "--input",
+            "runs/v100/preflight-input.json",
+            "--output",
+            "runs/v100/preflight-report.json",
+            "--allow-testnet-order",
+            "--confirm-owner-approved-testnet-order",
+            "--confirm-tiny-notional",
+            "--confirm-cancel-after-submit",
+        ])
+        .expect("live testnet-order-preflight should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::TestnetOrderPreflight(preflight) = live.command else {
+            panic!("expected testnet-order-preflight command");
+        };
+
+        assert_eq!(
+            preflight.config,
+            PathBuf::from("configs/nodes/btc-ema-shadow.toml")
+        );
+        assert_eq!(
+            preflight.input,
+            PathBuf::from("runs/v100/preflight-input.json")
+        );
+        assert_eq!(
+            preflight.output,
+            Some(PathBuf::from("runs/v100/preflight-report.json"))
+        );
+        assert!(preflight.allow_testnet_order);
+        assert!(preflight.confirm_owner_approved_testnet_order);
+        assert!(preflight.confirm_tiny_notional);
+        assert!(preflight.confirm_cancel_after_submit);
+    }
+
+    #[test]
     fn live_help_describes_live_init_smoke_boundary() {
         let validate_help = render_subcommand_help(&["live", "validate"]);
         let run_help = render_subcommand_help(&["live", "run"]);
         let gate_help = render_subcommand_help(&["live", "testnet-order-gate"]);
+        let preflight_help = render_subcommand_help(&["live", "testnet-order-preflight"]);
 
         assert!(validate_help.contains("live-init smoke config"));
         assert!(run_help.contains("LiveNode start/stop smoke path"));
@@ -909,6 +982,9 @@ mod tests {
         assert!(gate_help.contains("without opening network or submitting orders"));
         assert!(gate_help.contains("--allow-testnet-order"));
         assert!(gate_help.contains("--confirm-owner-approved-testnet-order"));
+        assert!(preflight_help.contains("without network or orders"));
+        assert!(preflight_help.contains("--input"));
+        assert!(preflight_help.contains("--allow-testnet-order"));
     }
 
     #[test]
