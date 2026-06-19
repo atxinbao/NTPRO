@@ -99,13 +99,14 @@ Final release checks, benchmark summaries, and audit reports live here.
   the v0.9.0 Strategy Runtime Foundation milestone.
 - `v0_9_0_release_notes.md` - released notes for the formal
   `ntpro-rust-only-v0.9.0` GitHub Release.
-- `v0_9_1_readiness_report.md` - planning/readiness tracker for the v0.9.1
-  Strategy Runtime semantics and audit hardening patch. It does not create a
-  tag, does not publish a GitHub Release, and keeps Binance testnet order proof
-  deferred to v0.10.0.
-- `v0_9_1_release_notes.md` - release-note draft for a possible
+- `v0_9_1_readiness_report.md` - release-readiness closure report for the
+  v0.9.1 Strategy Runtime semantics and audit hardening patch. It records the
+  completed V091 queue and waits for owner release decision; it does not create
+  a tag or publish a GitHub Release.
+- `v0_9_1_release_notes.md` - release-note material for a possible
   owner-approved v0.9.1 Strategy Runtime hardening release. It keeps Binance
-  testnet order proof deferred to v0.10.0.
+  testnet order proof deferred to v0.10.0 and remains unpublished until owner
+  approval.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
