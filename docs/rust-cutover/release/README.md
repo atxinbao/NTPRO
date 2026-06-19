@@ -107,6 +107,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   owner-approved v0.9.1 Strategy Runtime hardening release. It keeps Binance
   testnet order proof deferred to v0.10.0 and remains unpublished until owner
   approval.
+- `v0_10_0_order_boundary.md` - V100-000 boundary document for the v0.10.0
+  Binance Testnet Order Proof milestone. It defines the testnet-only,
+  owner/manual-gated order-test, tiny submit, cancel, reconciliation, redaction,
+  and read-only Dashboard artifact boundary without claiming release readiness.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
