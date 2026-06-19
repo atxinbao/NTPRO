@@ -88,6 +88,8 @@ jobs:
             command: scripts/ai/verify_release.sh v09-strategy-runtime-smoke
           - stage: release-v09-shadow-mode-no-order-gate
             command: scripts/ai/verify_release.sh v09-shadow-mode-no-order-gate
+          - stage: release-v091-strategy-supervisor-dashboard-integration
+            command: scripts/ai/verify_release.sh v091-strategy-supervisor-dashboard-integration
     env:
       CARGO_BUILD_JOBS: "1"
       CARGO_INCREMENTAL: "0"

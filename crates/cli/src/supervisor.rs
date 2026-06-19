@@ -1293,6 +1293,7 @@ impl SupervisorRegistryStore {
                 state: SupervisorProcessState::Running,
                 updated_at: SnapshotValue::available(now_millis()),
             };
+            record.last_known_status.started_at = SnapshotValue::unknown();
             write_or_remove_pid_artifact(record)?;
             record.updated_at = SnapshotValue::available(now_millis());
             registry.updated_at = SnapshotValue::available(now_millis());
@@ -3398,6 +3399,34 @@ done
             .unwrap_err()
             .to_string();
         assert!(duplicate_stop.contains("not running"));
+
+        let restarted = store
+            .start_node_process(&start_request(
+                "sandbox-a",
+                root.join("fixture-ntpro-node.sh"),
+                Duration::from_secs(3),
+            ))
+            .unwrap();
+        let restarted_pid = restarted.process.pid.value.unwrap();
+        assert_eq!(restarted.process.state, SupervisorProcessState::Running);
+        assert!(process_is_alive(restarted_pid));
+        assert_eq!(
+            restarted.last_known_status.lifecycle_state,
+            LifecycleStatus::Running
+        );
+        let restarted_status = store.node_status("sandbox-a").unwrap();
+        assert_eq!(restarted_status.lifecycle_state, LifecycleStatus::Running);
+        let restarted_stop = store
+            .stop_node_process(&StopNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                stop_timeout: Duration::from_secs(3),
+            })
+            .unwrap();
+        assert_eq!(
+            restarted_stop.last_known_status.lifecycle_state,
+            LifecycleStatus::Stopped
+        );
+        assert!(!process_is_alive(restarted_pid));
     }
 
     #[cfg(unix)]

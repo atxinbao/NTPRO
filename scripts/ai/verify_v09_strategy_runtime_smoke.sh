@@ -85,6 +85,7 @@ expected_files = [
     "strategy/order_intent.jsonl",
     "strategy/risk_decision.jsonl",
     "strategy/summary.json",
+    "strategy/manifest.json",
 ]
 
 
@@ -115,6 +116,7 @@ metrics = read_json("metrics.json")
 session = read_json("strategy/session_status.json")
 market = read_json("strategy/market_status.json")
 summary = read_json("strategy/summary.json")
+manifest = read_json("strategy/manifest.json")
 events = read_jsonl("strategy/events.jsonl")
 market_events = read_jsonl("strategy/market_events.jsonl")
 signals = read_jsonl("strategy/signal.jsonl")
@@ -148,12 +150,47 @@ require(summary["intent_count"] == summary["signal_count"], summary)
 require(summary["risk_decision_count"] == summary["intent_count"], summary)
 require(summary["rejection_count"] == summary["risk_decision_count"], summary)
 require(summary["actual_submission_count"] == 0, summary)
+require(manifest["schema_version"] == "ntpro.v091_strategy_session_manifest.v1", manifest)
+require(manifest["session_id"] == run_id, manifest)
+require(manifest["strategy_id"] == "ema_cross_btcusdt_v1", manifest)
+require(manifest["state"] == "stopped", manifest)
 
 require(len(events) >= 5, f"expected lifecycle events, got {len(events)}")
 require(len(market_events) == market["event_count"], market_events)
 require(len(signals) == summary["signal_count"], signals)
 require(len(order_intents) == summary["intent_count"], order_intents)
 require(len(risk_decisions) == summary["risk_decision_count"], risk_decisions)
+
+manifest_artifacts = {artifact["name"]: artifact for artifact in manifest["artifacts"]}
+expected_manifest_counts = {
+    "session_status": 1,
+    "events": len(events),
+    "market_status": 1,
+    "market_events": len(market_events),
+    "signal": len(signals),
+    "order_intent": len(order_intents),
+    "risk_decision": len(risk_decisions),
+    "summary": 1,
+}
+expected_manifest_formats = {
+    "session_status": "json",
+    "events": "jsonl",
+    "market_status": "json",
+    "market_events": "jsonl",
+    "signal": "jsonl",
+    "order_intent": "jsonl",
+    "risk_decision": "jsonl",
+    "summary": "json",
+}
+require(set(manifest_artifacts) == set(expected_manifest_counts), manifest_artifacts)
+for name, expected_count in expected_manifest_counts.items():
+    artifact = manifest_artifacts[name]
+    require(artifact["format"] == expected_manifest_formats[name], artifact)
+    require(artifact["present"] is True, artifact)
+    require(artifact["record_count"] == expected_count, artifact)
+    require(artifact["byte_len"] > 0, artifact)
+    require(artifact["checksum"].startswith("blake3:"), artifact)
+    require(Path(artifact["path"]).is_file(), artifact)
 
 for signal in signals:
     require(signal["schema_version"] == "ntpro.v09_strategy_signal.v1", signal)
