@@ -44,6 +44,7 @@ use serde_json::{Value, json};
 
 use crate::{
     opt::{DashboardCommand, DashboardOpt, DashboardServeOpt},
+    strategy_session::{StrategySessionArtifactAuditHealth, audit_strategy_session_artifacts},
     supervisor::{
         NodeMetrics, RegistryArtifactState, StartNodeRequest, StopNodeRequest,
         SupervisorNodeRecord, SupervisorProcessState, SupervisorRegistry, SupervisorRegistryStore,
@@ -752,6 +753,7 @@ function renderStrategyRuntime(strategyRuntime) {
       <thead>
         <tr>
           <th>节点</th>
+          <th>健康</th>
           <th>会话</th>
           <th>市场流</th>
           <th>信号</th>
@@ -766,6 +768,7 @@ function renderStrategyRuntime(strategyRuntime) {
         ${strategyRuntime.map((runtime) => `
           <tr>
             <td data-label="节点"><strong>${text(runtime.node_id)}</strong><div class="muted">${displayText(snapshotValue(runtime.strategy_id))}</div></td>
+            <td data-label="健康"><span class="status-${safe(runtime.health)}">${displayText(runtime.health)}</span><div class="muted">${displayText(snapshotValue(runtime.diagnostic))}</div></td>
             <td data-label="会话"><span class="status-${safe(snapshotValue(runtime.session_state))}">${displayText(snapshotValue(runtime.session_state))}</span><div class="muted">${displayText(snapshotValue(runtime.session_id))}</div></td>
             <td data-label="市场流">${displayText(snapshotValue(runtime.market_stream_status))}<div class="muted">${displayText(snapshotValue(runtime.symbol))}</div></td>
             <td data-label="信号">${displayText(snapshotValue(runtime.signal_count))}<div class="muted">${displayText(snapshotValue(runtime.latest_signal))}</div></td>
@@ -779,6 +782,7 @@ function renderStrategyRuntime(strategyRuntime) {
               ${panelRow("intent", snapshotValue(runtime.order_intent_artifact_path))}
               ${panelRow("risk", snapshotValue(runtime.risk_decision_artifact_path))}
               ${panelRow("summary", snapshotValue(runtime.summary_artifact_path))}
+              ${panelRow("manifest", snapshotValue(runtime.manifest_path))}
             </td>
           </tr>
         `).join("")}
@@ -2304,6 +2308,8 @@ impl WorkflowArtifactStatus {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StrategyRuntimeStatus {
     pub node_id: String,
+    pub health: HealthStatus,
+    pub diagnostic: DashboardValue<String>,
     pub session_id: DashboardValue<String>,
     pub session_state: DashboardValue<String>,
     pub strategy_id: DashboardValue<String>,
@@ -2321,6 +2327,7 @@ pub struct StrategyRuntimeStatus {
     pub order_intent_artifact_path: DashboardValue<String>,
     pub risk_decision_artifact_path: DashboardValue<String>,
     pub summary_artifact_path: DashboardValue<String>,
+    pub manifest_path: DashboardValue<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -3126,8 +3133,10 @@ fn strategy_runtime_from_record(record: &SupervisorNodeRecord) -> Option<Strateg
     let order_intent_path = strategy_root.join("order_intent.jsonl");
     let risk_decision_path = strategy_root.join("risk_decision.jsonl");
     let summary_path = strategy_root.join("summary.json");
+    let manifest_path = strategy_root.join("manifest.json");
 
     let has_strategy_artifact = [
+        &manifest_path,
         &session_status_path,
         &market_status_path,
         &signal_path,
@@ -3149,9 +3158,17 @@ fn strategy_runtime_from_record(record: &SupervisorNodeRecord) -> Option<Strateg
     let summary = read_json_file_value(&summary_path);
 
     let symbol = first_dashboard_string_field([&signal, &order_intent, &risk_decision], "symbol");
+    let lifecycle_state = json_label(&record.last_known_status.lifecycle_state);
+    let audit = audit_strategy_session_artifacts(&strategy_root, Some(&lifecycle_state));
+    let health = match audit.health {
+        StrategySessionArtifactAuditHealth::Healthy => HealthStatus::Healthy,
+        StrategySessionArtifactAuditHealth::Degraded => HealthStatus::Degraded,
+    };
 
     Some(StrategyRuntimeStatus {
         node_id: record.node_id.clone(),
+        health,
+        diagnostic: DashboardValue::available(audit.diagnostic_label()),
         session_id: session
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -3207,6 +3224,7 @@ fn strategy_runtime_from_record(record: &SupervisorNodeRecord) -> Option<Strateg
         order_intent_artifact_path: dashboard_path_if_exists(&order_intent_path),
         risk_decision_artifact_path: dashboard_path_if_exists(&risk_decision_path),
         summary_artifact_path: dashboard_path_if_exists(&summary_path),
+        manifest_path: dashboard_path_if_exists(&audit.manifest_path),
     })
 }
 
@@ -5432,6 +5450,11 @@ mod tests {
         assert_eq!(snapshot.strategy_runtime.len(), 1);
         let runtime = &snapshot.strategy_runtime[0];
         assert_eq!(runtime.node_id, "strategy-a");
+        assert_eq!(runtime.health, HealthStatus::Healthy);
+        assert_eq!(
+            runtime.diagnostic.value.as_deref(),
+            Some("strategy_session_artifacts_ok")
+        );
         assert_eq!(
             runtime.session_id.value.as_deref(),
             Some("btc-ema-shadow-001")
@@ -5491,9 +5514,92 @@ mod tests {
                 .as_deref()
                 .is_some_and(|path| path.ends_with("strategy/order_intent.jsonl"))
         );
+        assert!(
+            runtime
+                .manifest_path
+                .value
+                .as_deref()
+                .is_some_and(|path| path.ends_with("strategy/manifest.json"))
+        );
 
         let snapshot_value = serde_json::to_value(&snapshot).unwrap();
         assert_forbidden_keys_absent(&snapshot_value);
+    }
+
+    #[test]
+    fn strategy_runtime_manifest_errors_degrade_dashboard_snapshot() {
+        let root = temp_root("strategy-runtime-degraded");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "strategy-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_strategy_runtime_artifacts(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+
+        let strategy_root = record.artifact_root.join("strategy");
+        fs::remove_file(strategy_root.join("manifest.json")).unwrap();
+        write_registry(&registry_path, [record.clone()]);
+
+        let missing_manifest =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-18T10:31:00Z").unwrap();
+        let runtime = &missing_manifest.strategy_runtime[0];
+        assert_eq!(runtime.health, HealthStatus::Degraded);
+        assert!(
+            runtime
+                .diagnostic
+                .value
+                .as_deref()
+                .is_some_and(|value| value.contains("strategy manifest missing"))
+        );
+
+        write_strategy_manifest(&strategy_root);
+        fs::write(strategy_root.join("manifest.json"), "{not-json").unwrap();
+        let corrupt_manifest =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-18T10:32:00Z").unwrap();
+        let runtime = &corrupt_manifest.strategy_runtime[0];
+        assert_eq!(runtime.health, HealthStatus::Degraded);
+        assert!(
+            runtime
+                .diagnostic
+                .value
+                .as_deref()
+                .is_some_and(|value| value.contains("strategy manifest JSON invalid"))
+        );
+
+        write_strategy_manifest(&strategy_root);
+        fs::write(strategy_root.join("signal.jsonl"), "corrupted\n").unwrap();
+        let corrupt_child =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-18T10:33:00Z").unwrap();
+        let runtime = &corrupt_child.strategy_runtime[0];
+        assert_eq!(runtime.health, HealthStatus::Degraded);
+        assert!(
+            runtime
+                .diagnostic
+                .value
+                .as_deref()
+                .is_some_and(|value| value.contains("strategy artifact signal checksum mismatch"))
+        );
+
+        write_strategy_runtime_artifacts(&record);
+        let manifest_path = strategy_root.join("manifest.json");
+        let mut manifest: Value =
+            serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
+        manifest["state"] = json!("running");
+        fs::write(
+            &manifest_path,
+            serde_json::to_string_pretty(&manifest).unwrap(),
+        )
+        .unwrap();
+        let conflicting_state =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-18T10:34:00Z").unwrap();
+        let runtime = &conflicting_state.strategy_runtime[0];
+        assert_eq!(runtime.health, HealthStatus::Degraded);
+        assert!(runtime.diagnostic.value.as_deref().is_some_and(|value| {
+            value.contains("node lifecycle stopped but strategy session state is running")
+        }));
     }
 
     #[tokio::test]
@@ -6406,7 +6512,8 @@ mod tests {
                     "signal": strategy_root.join("signal.jsonl").display().to_string(),
                     "order_intent": strategy_root.join("order_intent.jsonl").display().to_string(),
                     "risk_decision": strategy_root.join("risk_decision.jsonl").display().to_string(),
-                    "summary": strategy_root.join("summary.json").display().to_string()
+                    "summary": strategy_root.join("summary.json").display().to_string(),
+                    "manifest": strategy_root.join("manifest.json").display().to_string()
                 }
             }))
             .unwrap(),
@@ -6426,6 +6533,25 @@ mod tests {
                 "updated_at_unix_ms": 2001
             }))
             .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            strategy_root.join("events.jsonl"),
+            r#"{"schema_version":"ntpro.v09_strategy_session_event.v1","event_type":"strategy_session_state_changed","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","state":"stopped","reason":"demo strategy stopped","occurred_at_unix_ms":3}
+"#,
+        )
+        .unwrap();
+        fs::write(
+            strategy_root.join("market_events.jsonl"),
+            r#"{"schema_version":"ntpro.v09_market_stream_event.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","event_type":"fixture_bar","source":"fixture_bar_stream","seq":1,"symbol":"BTCUSDT.BINANCE","price":100.0,"event_at_unix_ms":1,"recorded_at_unix_ms":2}
+{"schema_version":"ntpro.v09_market_stream_event.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","event_type":"fixture_bar","source":"fixture_bar_stream","seq":2,"symbol":"BTCUSDT.BINANCE","price":101.0,"event_at_unix_ms":3,"recorded_at_unix_ms":4}
+{"schema_version":"ntpro.v09_market_stream_event.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","event_type":"fixture_bar","source":"fixture_bar_stream","seq":3,"symbol":"BTCUSDT.BINANCE","price":102.0,"event_at_unix_ms":5,"recorded_at_unix_ms":6}
+{"schema_version":"ntpro.v09_market_stream_event.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","event_type":"fixture_bar","source":"fixture_bar_stream","seq":4,"symbol":"BTCUSDT.BINANCE","price":103.0,"event_at_unix_ms":7,"recorded_at_unix_ms":8}
+{"schema_version":"ntpro.v09_market_stream_event.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","event_type":"fixture_bar","source":"fixture_bar_stream","seq":5,"symbol":"BTCUSDT.BINANCE","price":104.0,"event_at_unix_ms":9,"recorded_at_unix_ms":10}
+{"schema_version":"ntpro.v09_market_stream_event.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","event_type":"fixture_bar","source":"fixture_bar_stream","seq":6,"symbol":"BTCUSDT.BINANCE","price":105.0,"event_at_unix_ms":11,"recorded_at_unix_ms":12}
+{"schema_version":"ntpro.v09_market_stream_event.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","event_type":"fixture_bar","source":"fixture_bar_stream","seq":7,"symbol":"BTCUSDT.BINANCE","price":106.0,"event_at_unix_ms":13,"recorded_at_unix_ms":14}
+{"schema_version":"ntpro.v09_market_stream_event.v1","session_id":"btc-ema-shadow-001","strategy_id":"ema_cross_btcusdt_v1","event_type":"fixture_bar","source":"fixture_bar_stream","seq":8,"symbol":"BTCUSDT.BINANCE","price":107.0,"event_at_unix_ms":15,"recorded_at_unix_ms":16}
+"#,
         )
         .unwrap();
         fs::write(
@@ -6464,6 +6590,50 @@ mod tests {
                 "rejection_count": 2,
                 "actual_submission_count": 0,
                 "updated_at_unix_ms": 3000
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        write_strategy_manifest(&strategy_root);
+    }
+
+    fn write_strategy_manifest(strategy_root: &FsPath) {
+        let artifact_specs = [
+            ("session_status", "json", "session_status.json", Some(1)),
+            ("events", "jsonl", "events.jsonl", Some(1)),
+            ("market_status", "json", "market_status.json", Some(1)),
+            ("market_events", "jsonl", "market_events.jsonl", Some(8)),
+            ("signal", "jsonl", "signal.jsonl", Some(2)),
+            ("order_intent", "jsonl", "order_intent.jsonl", Some(2)),
+            ("risk_decision", "jsonl", "risk_decision.jsonl", Some(2)),
+            ("summary", "json", "summary.json", Some(1)),
+        ];
+        let artifacts = artifact_specs
+            .into_iter()
+            .map(|(name, format, file, record_count)| {
+                let path = strategy_root.join(file);
+                let bytes = fs::read(&path).unwrap();
+                json!({
+                    "name": name,
+                    "path": path.display().to_string(),
+                    "format": format,
+                    "present": true,
+                    "record_count": record_count,
+                    "byte_len": u64::try_from(bytes.len()).unwrap(),
+                    "checksum": format!("blake3:{}", blake3::hash(&bytes).to_hex())
+                })
+            })
+            .collect::<Vec<_>>();
+        fs::write(
+            strategy_root.join("manifest.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": "ntpro.v091_strategy_session_manifest.v1",
+                "session_id": "btc-ema-shadow-001",
+                "strategy_id": "ema_cross_btcusdt_v1",
+                "state": "stopped",
+                "created_at_unix_ms": 1,
+                "updated_at_unix_ms": 3000,
+                "artifacts": artifacts
             }))
             .unwrap(),
         )

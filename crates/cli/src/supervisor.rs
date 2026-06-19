@@ -40,6 +40,7 @@ use crate::{
     process::{
         SignalDelivery, process_is_alive, send_kill, send_termination, wait_for_process_exit,
     },
+    strategy_session::audit_strategy_session_artifacts,
 };
 
 pub const SUPERVISOR_REGISTRY_SCHEMA_VERSION: &str = "ntpro.supervisor_registry.v1";
@@ -418,7 +419,7 @@ fn run_supervisor_status(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
     let status = store.node_status(&opt.node_id)?;
     let strategy = strategy_session_status_from_node_status(&status);
     println!(
-        "supervisor.status status=ok registry_node_id={} runtime_node_id={} lifecycle_state={} previous_lifecycle_state={} process_mode={} generated_at={} strategy_session_state={} strategy_id={} market_state={} risk_state={} last_signal_at={} last_rejection_reason={} strategy_session_status={} strategy_events={} strategy_summary={} external_venue_connection={} real_orders_submitted={} last_error={}",
+        "supervisor.status status=ok registry_node_id={} runtime_node_id={} lifecycle_state={} previous_lifecycle_state={} process_mode={} generated_at={} strategy_session_state={} strategy_id={} market_state={} risk_state={} last_signal_at={} last_rejection_reason={} strategy_health={} strategy_manifest={} strategy_diagnostic={} strategy_session_status={} strategy_events={} strategy_summary={} external_venue_connection={} real_orders_submitted={} last_error={}",
         opt.node_id,
         status.node_id,
         json_label(&status.lifecycle_state),
@@ -431,6 +432,9 @@ fn run_supervisor_status(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
         strategy.risk_state,
         strategy.last_signal_at,
         strategy.last_rejection_reason,
+        strategy.artifact_health,
+        strategy.manifest_path,
+        strategy.artifact_diagnostic.replace(' ', "_"),
         strategy.session_status_path,
         strategy.events_path,
         strategy.summary_path,
@@ -538,6 +542,9 @@ struct StrategySessionSupervisorStatus {
     risk_state: String,
     last_signal_at: String,
     last_rejection_reason: String,
+    artifact_health: String,
+    artifact_diagnostic: String,
+    manifest_path: String,
     session_status_path: String,
     events_path: String,
     summary_path: String,
@@ -552,6 +559,9 @@ impl Default for StrategySessionSupervisorStatus {
             risk_state: "none".to_string(),
             last_signal_at: "none".to_string(),
             last_rejection_reason: "none".to_string(),
+            artifact_health: "none".to_string(),
+            artifact_diagnostic: "none".to_string(),
+            manifest_path: "none".to_string(),
             session_status_path: "none".to_string(),
             events_path: "none".to_string(),
             summary_path: "none".to_string(),
@@ -566,23 +576,49 @@ fn strategy_session_status_from_node_status(
         return StrategySessionSupervisorStatus::default();
     };
     let strategy_root = Path::new(artifact_root).join("strategy");
-    strategy_session_status_from_artifact_root(&strategy_root)
+    let lifecycle_state = json_label(&status.lifecycle_state);
+    strategy_session_status_from_artifact_root(&strategy_root, Some(&lifecycle_state))
 }
 
-fn strategy_session_status_from_artifact_root(root: &Path) -> StrategySessionSupervisorStatus {
+fn strategy_session_status_from_artifact_root(
+    root: &Path,
+    node_lifecycle_state: Option<&str>,
+) -> StrategySessionSupervisorStatus {
     let session_status_path = root.join("session_status.json");
     let events_path = root.join("events.jsonl");
     let market_status_path = root.join("market_status.json");
     let signal_path = root.join("signal.jsonl");
     let risk_decision_path = root.join("risk_decision.jsonl");
     let summary_path = root.join("summary.json");
+    let manifest_path = root.join("manifest.json");
 
     let mut status = StrategySessionSupervisorStatus {
+        manifest_path: path_display_if_exists(&manifest_path),
         session_status_path: path_display_if_exists(&session_status_path),
         events_path: path_display_if_exists(&events_path),
         summary_path: path_display_if_exists(&summary_path),
         ..StrategySessionSupervisorStatus::default()
     };
+
+    let has_strategy_artifact = [
+        &manifest_path,
+        &session_status_path,
+        &events_path,
+        &market_status_path,
+        &signal_path,
+        &risk_decision_path,
+        &summary_path,
+    ]
+    .iter()
+    .any(|path| path.exists());
+    if !has_strategy_artifact {
+        return status;
+    }
+
+    let audit = audit_strategy_session_artifacts(root, node_lifecycle_state);
+    status.artifact_health = audit.health.label().to_string();
+    status.artifact_diagnostic = audit.diagnostic_label();
+    status.manifest_path = path_display_if_exists(&audit.manifest_path);
 
     if let Some(session) = read_json_value(&session_status_path) {
         status.session_state =
@@ -2239,12 +2275,18 @@ mod tests {
         let root = temp_root("strategy-artifacts");
         let strategy_root = write_strategy_artifacts(&root);
 
-        let status = strategy_session_status_from_artifact_root(&strategy_root);
+        let status = strategy_session_status_from_artifact_root(&strategy_root, Some("stopped"));
 
         assert_eq!(status.session_state, "stopped");
         assert_eq!(status.strategy_id, "ema_cross_btcusdt_v1");
         assert_eq!(status.market_state, "exhausted");
         assert_eq!(status.risk_state, "rejected");
+        assert_eq!(status.artifact_health, "degraded");
+        assert!(
+            status
+                .artifact_diagnostic
+                .contains("strategy manifest missing")
+        );
         assert_eq!(status.last_signal_at, "unix:200");
         assert_eq!(
             status.last_rejection_reason,
