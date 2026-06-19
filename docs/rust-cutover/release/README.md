@@ -146,6 +146,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   It adds default offline fail-closed/schema/redaction gates and a separate
   manual order-proof artifact validator without completing V100-006 or running
   real Binance testnet submit/cancel in CI.
+- `v0_10_0_readiness_report.md` - V100-011 readiness report for owner release
+  decision. It records the completed offline V100 queue, keeps V100-006 manual
+  online proof pending, and does not create a tag or publish a GitHub Release.
+- `v0_10_0_release_notes.md` - release-note material for a possible
+  owner-approved `ntpro-rust-only-v0.10.0` release. It preserves the Binance
+  testnet-only/manual-gated boundary and does not claim production trading,
+  real funds, Dashboard order controls, or completed V100-006 proof.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
