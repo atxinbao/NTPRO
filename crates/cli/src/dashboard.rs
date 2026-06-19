@@ -461,6 +461,14 @@ const DISPLAY_TEXT = {
   shadow: "影子模式",
   disabled: "已禁用",
   order_submission_disabled: "订单提交已禁用",
+  pass: "通过",
+  fail: "失败",
+  ready: "就绪",
+  risk_halted: "风险停止",
+  schema_defined_redacted_preview_only: "只定义脱敏请求格式",
+  schema_defined_offline_acceptance_not_attempted: "离线定义，未请求 order-test",
+  manual_online_artifact_required_not_observed_offline: "需要人工在线证据，离线未观察",
+  schema_defined_manual_or_fixture_input_required: "已定义格式，等待人工或夹具输入",
   shadow_mode_actual_submission_disabled: "影子模式未实际提交",
   blocked_by_v09_strategy_runtime_boundary: "被 v0.9 策略运行边界阻止",
   warning: "警告",
@@ -726,6 +734,7 @@ function renderWorkflowArtifacts(workflows) {
           <th>Manifest</th>
           <th>Artifact</th>
           <th>边界</th>
+          <th>订单证明</th>
           <th>探测</th>
           <th>证据</th>
         </tr>
@@ -739,6 +748,7 @@ function renderWorkflowArtifacts(workflows) {
             <td data-label="Manifest" class="path">${text(workflow.manifest_path)}</td>
             <td data-label="Artifact">${displayText(workflow.artifact_count)} 个<div class="muted">${displayText(workflow.schema_version)}</div></td>
             <td data-label="边界">${panelRow("沙盒", workflow.sandbox_only)}${panelRow("Testnet 只读", workflow.testnet_public_network_connection ?? workflow.testnet_connection)}${panelRow("网络许可", workflow.network_permission_requested)}${panelRow("网络尝试", workflow.external_network_attempted ?? workflow.network_attempted)}${panelRow("生产连接", workflow.production_venue_connection ?? workflow.external_venue_connection)}${panelRow("账户变更", snapshotValue(workflow.authenticated_account_mutation))}${panelRow("真实资金", workflow.real_funds)}${panelRow("生产交易", workflow.production_trading)}${panelRow("真实订单", workflow.real_orders_submitted)}</td>
+            <td data-label="订单证明">${panelRow("风险预检", snapshotValue(workflow.order_proof_risk_preflight_status))}${panelRow("Order test", snapshotValue(workflow.order_proof_order_test_status))}${panelRow("Submit ack", snapshotValue(workflow.order_proof_submit_ack_status))}${panelRow("Cancel ack", snapshotValue(workflow.order_proof_cancel_ack_status))}${panelRow("Terminal", snapshotValue(workflow.order_proof_terminal_status))}${panelRow("Reconciliation", snapshotValue(workflow.order_proof_reconciliation_status))}${panelRow("人工生命周期", snapshotValue(workflow.order_proof_manual_submit_cancel_observed))}${panelRow("Testnet 提交", snapshotValue(workflow.order_proof_testnet_orders_submitted))}${panelRow("Testnet 撤单", snapshotValue(workflow.order_proof_testnet_orders_canceled))}${panelRow("生产提交", snapshotValue(workflow.order_proof_production_orders_submitted))}${panelRow("生产撤单", snapshotValue(workflow.order_proof_production_orders_canceled))}${panelRow("Dashboard 下单控件", snapshotValue(workflow.order_proof_dashboard_order_controls))}</td>
             <td data-label="探测">${text(snapshotValue(workflow.probe_status))}<div class="muted">${text(snapshotValue(workflow.probe_endpoint_class))}</div><div class="muted">latency=${text(snapshotValue(workflow.probe_latency_ms))} error=${text(snapshotValue(workflow.probe_error_code))}</div><div class="muted">auth=${text(snapshotValue(workflow.authenticated_probe_status))} ${text(snapshotValue(workflow.authenticated_request_method))} ${text(snapshotValue(workflow.authenticated_endpoint_kind))}</div><div class="muted">shape=${text(snapshotValue(workflow.authenticated_response_shape))} validated=${text(snapshotValue(workflow.authenticated_response_shape_validated))}</div><div class="muted">ws=${text(snapshotValue(workflow.websocket_probe_status))} / ${text(snapshotValue(workflow.websocket_error_code))}</div><div class="muted">${panelRow("WS尝试", workflow.websocket_attempted)}${panelRow("WS订阅", workflow.websocket_subscription_attempted)}${panelRow("Key存在", snapshotValue(workflow.authenticated_api_key_present))}${panelRow("Secret存在", snapshotValue(workflow.authenticated_api_secret_present))}${panelRow("密钥记录", snapshotValue(workflow.values_recorded))}${panelRow("密钥脱敏", snapshotValue(workflow.authenticated_secrets_redacted))}</div></td>
             <td data-label="证据">${text(snapshotValue(workflow.market_fixture_id))}<div class="muted">${text(snapshotValue(workflow.risk_smoke_id))}</div><div class="muted">${text(snapshotValue(workflow.credential_policy))}</div><div class="muted">${text(snapshotValue(workflow.connectivity_mode))} / ${text(snapshotValue(workflow.order_submission_mode))}</div></td>
           </tr>
@@ -2238,6 +2248,18 @@ pub struct WorkflowArtifactStatus {
     pub authenticated_account_mutation: DashboardValue<bool>,
     pub authenticated_real_orders_submitted: DashboardValue<bool>,
     pub authenticated_production_venue_connection: DashboardValue<bool>,
+    pub order_proof_risk_preflight_status: DashboardValue<String>,
+    pub order_proof_order_test_status: DashboardValue<String>,
+    pub order_proof_submit_ack_status: DashboardValue<String>,
+    pub order_proof_cancel_ack_status: DashboardValue<String>,
+    pub order_proof_terminal_status: DashboardValue<String>,
+    pub order_proof_reconciliation_status: DashboardValue<String>,
+    pub order_proof_manual_submit_cancel_observed: DashboardValue<bool>,
+    pub order_proof_testnet_orders_submitted: DashboardValue<u64>,
+    pub order_proof_testnet_orders_canceled: DashboardValue<u64>,
+    pub order_proof_production_orders_submitted: DashboardValue<u64>,
+    pub order_proof_production_orders_canceled: DashboardValue<u64>,
+    pub order_proof_dashboard_order_controls: DashboardValue<bool>,
     pub websocket_probe_status: DashboardValue<String>,
     pub websocket_error_code: DashboardValue<String>,
     pub websocket_attempted: bool,
@@ -2295,6 +2317,18 @@ impl WorkflowArtifactStatus {
             authenticated_account_mutation: DashboardValue::unknown(),
             authenticated_real_orders_submitted: DashboardValue::unknown(),
             authenticated_production_venue_connection: DashboardValue::unknown(),
+            order_proof_risk_preflight_status: DashboardValue::unknown(),
+            order_proof_order_test_status: DashboardValue::unknown(),
+            order_proof_submit_ack_status: DashboardValue::unknown(),
+            order_proof_cancel_ack_status: DashboardValue::unknown(),
+            order_proof_terminal_status: DashboardValue::unknown(),
+            order_proof_reconciliation_status: DashboardValue::unknown(),
+            order_proof_manual_submit_cancel_observed: DashboardValue::unknown(),
+            order_proof_testnet_orders_submitted: DashboardValue::unknown(),
+            order_proof_testnet_orders_canceled: DashboardValue::unknown(),
+            order_proof_production_orders_submitted: DashboardValue::unknown(),
+            order_proof_production_orders_canceled: DashboardValue::unknown(),
+            order_proof_dashboard_order_controls: DashboardValue::unknown(),
             websocket_probe_status: DashboardValue::unknown(),
             websocket_error_code: DashboardValue::unknown(),
             websocket_attempted: false,
@@ -3537,6 +3571,21 @@ fn workflow_status_from_manifest(
         authenticated_real_orders_submitted: probe_artifacts.authenticated_real_orders_submitted,
         authenticated_production_venue_connection: probe_artifacts
             .authenticated_production_venue_connection,
+        order_proof_risk_preflight_status: probe_artifacts.order_proof_risk_preflight_status,
+        order_proof_order_test_status: probe_artifacts.order_proof_order_test_status,
+        order_proof_submit_ack_status: probe_artifacts.order_proof_submit_ack_status,
+        order_proof_cancel_ack_status: probe_artifacts.order_proof_cancel_ack_status,
+        order_proof_terminal_status: probe_artifacts.order_proof_terminal_status,
+        order_proof_reconciliation_status: probe_artifacts.order_proof_reconciliation_status,
+        order_proof_manual_submit_cancel_observed: probe_artifacts
+            .order_proof_manual_submit_cancel_observed,
+        order_proof_testnet_orders_submitted: probe_artifacts.order_proof_testnet_orders_submitted,
+        order_proof_testnet_orders_canceled: probe_artifacts.order_proof_testnet_orders_canceled,
+        order_proof_production_orders_submitted: probe_artifacts
+            .order_proof_production_orders_submitted,
+        order_proof_production_orders_canceled: probe_artifacts
+            .order_proof_production_orders_canceled,
+        order_proof_dashboard_order_controls: probe_artifacts.order_proof_dashboard_order_controls,
         websocket_probe_status: probe_artifacts.websocket_probe_status,
         websocket_error_code: probe_artifacts.websocket_error_code,
         websocket_attempted: probe_artifacts.websocket_attempted,
@@ -3567,6 +3616,18 @@ struct WorkflowProbeArtifactStatus {
     authenticated_account_mutation: DashboardValue<bool>,
     authenticated_real_orders_submitted: DashboardValue<bool>,
     authenticated_production_venue_connection: DashboardValue<bool>,
+    order_proof_risk_preflight_status: DashboardValue<String>,
+    order_proof_order_test_status: DashboardValue<String>,
+    order_proof_submit_ack_status: DashboardValue<String>,
+    order_proof_cancel_ack_status: DashboardValue<String>,
+    order_proof_terminal_status: DashboardValue<String>,
+    order_proof_reconciliation_status: DashboardValue<String>,
+    order_proof_manual_submit_cancel_observed: DashboardValue<bool>,
+    order_proof_testnet_orders_submitted: DashboardValue<u64>,
+    order_proof_testnet_orders_canceled: DashboardValue<u64>,
+    order_proof_production_orders_submitted: DashboardValue<u64>,
+    order_proof_production_orders_canceled: DashboardValue<u64>,
+    order_proof_dashboard_order_controls: DashboardValue<bool>,
     websocket_probe_status: DashboardValue<String>,
     websocket_error_code: DashboardValue<String>,
     websocket_attempted: bool,
@@ -3597,6 +3658,18 @@ impl WorkflowProbeArtifactStatus {
             authenticated_account_mutation: DashboardValue::unknown(),
             authenticated_real_orders_submitted: DashboardValue::unknown(),
             authenticated_production_venue_connection: DashboardValue::unknown(),
+            order_proof_risk_preflight_status: DashboardValue::unknown(),
+            order_proof_order_test_status: DashboardValue::unknown(),
+            order_proof_submit_ack_status: DashboardValue::unknown(),
+            order_proof_cancel_ack_status: DashboardValue::unknown(),
+            order_proof_terminal_status: DashboardValue::unknown(),
+            order_proof_reconciliation_status: DashboardValue::unknown(),
+            order_proof_manual_submit_cancel_observed: DashboardValue::unknown(),
+            order_proof_testnet_orders_submitted: DashboardValue::unknown(),
+            order_proof_testnet_orders_canceled: DashboardValue::unknown(),
+            order_proof_production_orders_submitted: DashboardValue::unknown(),
+            order_proof_production_orders_canceled: DashboardValue::unknown(),
+            order_proof_dashboard_order_controls: DashboardValue::unknown(),
             websocket_probe_status: DashboardValue::unknown(),
             websocket_error_code: DashboardValue::unknown(),
             websocket_attempted: false,
@@ -3623,6 +3696,16 @@ fn read_workflow_probe_artifacts(
         let Ok(value) = serde_json::from_str::<Value>(&raw) else {
             continue;
         };
+        let schema_version = value
+            .get("schema_version")
+            .and_then(Value::as_str)
+            .unwrap_or(artifact.schema_version.as_str());
+        apply_order_proof_artifact_status(
+            &mut status,
+            artifact.path.as_str(),
+            schema_version,
+            &value,
+        );
         match artifact.path.as_str() {
             TESTNET_CONNECTIVITY_PROBE_ARTIFACT_PATH => {
                 status.network_permission_requested = value
@@ -3696,6 +3779,103 @@ fn read_workflow_probe_artifacts(
     }
 
     status
+}
+
+fn apply_order_proof_artifact_status(
+    status: &mut WorkflowProbeArtifactStatus,
+    path: &str,
+    schema_version: &str,
+    value: &Value,
+) {
+    match schema_version {
+        "ntpro.v100_order_preflight_report.v1" => {
+            status.order_proof_risk_preflight_status = json_string_field(value, "status");
+            status.order_proof_dashboard_order_controls =
+                json_bool_field(value, "dashboard_order_controls");
+        }
+        "ntpro.v100_order_test_preflight_report.v1" => {
+            status.order_proof_order_test_status = json_string_field(value, "status");
+            status.order_proof_dashboard_order_controls =
+                json_bool_field(value, "dashboard_order_controls");
+        }
+        "ntpro.v100_execution_artifact_contract.v1" => {
+            status.order_proof_order_test_status =
+                nested_json_string_field(value, "order_test_artifact", "status");
+            status.order_proof_submit_ack_status =
+                nested_json_string_field(value, "submit_ack_artifact", "status");
+            status.order_proof_cancel_ack_status =
+                nested_json_string_field(value, "cancel_ack_artifact", "status");
+            status.order_proof_terminal_status =
+                nested_json_string_field(value, "lifecycle_artifact", "status");
+            status.order_proof_reconciliation_status =
+                nested_json_string_field(value, "reconciliation_artifact", "status");
+            status.order_proof_manual_submit_cancel_observed =
+                json_bool_field(value, "manual_submit_cancel_proof_observed");
+            status.order_proof_testnet_orders_submitted =
+                nested_json_u64_field(value, "counters", "testnet_orders_submitted");
+            status.order_proof_testnet_orders_canceled =
+                nested_json_u64_field(value, "counters", "testnet_orders_canceled");
+            status.order_proof_production_orders_submitted =
+                nested_json_u64_field(value, "counters", "production_orders_submitted");
+            status.order_proof_production_orders_canceled =
+                nested_json_u64_field(value, "counters", "production_orders_canceled");
+            status.order_proof_dashboard_order_controls =
+                json_bool_field(value, "dashboard_order_controls");
+        }
+        "ntpro.v100_reconciliation_fixture_report.v1" | "ntpro.v100_reconciliation_artifact.v1" => {
+            status.order_proof_reconciliation_status = json_string_field(value, "status");
+            status.order_proof_testnet_orders_submitted = first_available_u64(
+                nested_json_u64_field(value, "counters", "testnet_orders_submitted"),
+                json_u64_field(value, "testnet_orders_submitted"),
+            );
+            status.order_proof_testnet_orders_canceled = first_available_u64(
+                nested_json_u64_field(value, "counters", "testnet_orders_canceled"),
+                json_u64_field(value, "testnet_orders_canceled"),
+            );
+            status.order_proof_production_orders_submitted = first_available_u64(
+                nested_json_u64_field(value, "counters", "production_orders_submitted"),
+                json_u64_field(value, "production_orders_submitted"),
+            );
+            status.order_proof_production_orders_canceled = first_available_u64(
+                nested_json_u64_field(value, "counters", "production_orders_canceled"),
+                json_u64_field(value, "production_orders_canceled"),
+            );
+            status.order_proof_manual_submit_cancel_observed =
+                json_bool_field(value, "manual_submit_cancel_proof_observed");
+            status.order_proof_dashboard_order_controls =
+                json_bool_field(value, "dashboard_order_controls");
+        }
+        "ntpro.v100_submit_ack_artifact.v1" => {
+            status.order_proof_submit_ack_status = json_string_field(value, "status");
+        }
+        "ntpro.v100_cancel_ack_artifact.v1" => {
+            status.order_proof_cancel_ack_status = json_string_field(value, "status");
+        }
+        "ntpro.v100_order_lifecycle_artifact.v1" => {
+            status.order_proof_terminal_status = json_string_field(value, "status");
+        }
+        _ => apply_order_proof_path_fallback(status, path, value),
+    }
+}
+
+fn apply_order_proof_path_fallback(
+    status: &mut WorkflowProbeArtifactStatus,
+    path: &str,
+    value: &Value,
+) {
+    if path.ends_with("risk_preflight.json") {
+        status.order_proof_risk_preflight_status = json_string_field(value, "status");
+    } else if path.ends_with("order_test.json") || path.ends_with("order-test-preflight.json") {
+        status.order_proof_order_test_status = json_string_field(value, "status");
+    } else if path.ends_with("submit_ack.json") {
+        status.order_proof_submit_ack_status = json_string_field(value, "status");
+    } else if path.ends_with("cancel_ack.json") {
+        status.order_proof_cancel_ack_status = json_string_field(value, "status");
+    } else if path.ends_with("lifecycle.json") {
+        status.order_proof_terminal_status = json_string_field(value, "status");
+    } else if path.ends_with("reconciliation.json") {
+        status.order_proof_reconciliation_status = json_string_field(value, "status");
+    }
 }
 
 struct WorkflowArtifactAudit {
@@ -4289,11 +4469,39 @@ fn json_u64_field(value: &Value, field: &str) -> DashboardValue<u64> {
         .map_or_else(DashboardValue::unknown, DashboardValue::available)
 }
 
+fn nested_json_string_field(value: &Value, object: &str, field: &str) -> DashboardValue<String> {
+    value
+        .get(object)
+        .and_then(|nested| nested.get(field))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn nested_json_u64_field(value: &Value, object: &str, field: &str) -> DashboardValue<u64> {
+    value
+        .get(object)
+        .and_then(|nested| nested.get(field))
+        .and_then(Value::as_u64)
+        .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
 fn json_bool_field(value: &Value, field: &str) -> DashboardValue<bool> {
     value
         .get(field)
         .and_then(Value::as_bool)
         .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn first_available_u64(
+    primary: DashboardValue<u64>,
+    fallback: DashboardValue<u64>,
+) -> DashboardValue<u64> {
+    if primary.availability == DashboardAvailability::Available {
+        primary
+    } else {
+        fallback
+    }
 }
 
 fn json_bool(value: &Value, field: &str) -> bool {
@@ -4516,6 +4724,7 @@ mod tests {
             "Testnet 只读",
             "外部网络尝试",
             "兼容外部交易场所",
+            "订单证明",
         ] {
             assert!(
                 DASHBOARD_JS.contains(js_symbol),
@@ -5209,6 +5418,199 @@ mod tests {
         assert!(!rendered.contains("signed_url_recorded"));
         assert!(!rendered.contains("balances_recorded"));
         assert!(!rendered.contains("uid_recorded"));
+    }
+
+    #[test]
+    fn testnet_order_proof_artifacts_populate_dashboard_read_only_fields() {
+        let root = temp_root("testnet-order-proof-dashboard");
+        let registry_path = root.join("runs/supervisor/registry.json");
+        write_registry(&registry_path, []);
+        let workflow_dir = root.join("runs/workflows/v100-order-proof");
+        let manifest_path = workflow_dir.join("manifest.json");
+        write_testnet_workflow_manifest_with_artifacts(
+            &manifest_path,
+            "v100-order-proof",
+            &json!([
+                {
+                    "path": "testnet_order_proof/risk_preflight.json",
+                    "schema_version": "ntpro.v100_order_preflight_report.v1"
+                },
+                {
+                    "path": "testnet_order_proof/order_test.json",
+                    "schema_version": "ntpro.v100_order_test_preflight_report.v1"
+                },
+                {
+                    "path": "testnet_order_proof/execution_artifact_contract.json",
+                    "schema_version": "ntpro.v100_execution_artifact_contract.v1"
+                },
+                {
+                    "path": "testnet_order_proof/reconciliation.json",
+                    "schema_version": "ntpro.v100_reconciliation_fixture_report.v1"
+                }
+            ]),
+        );
+        let proof_dir = workflow_dir.join("testnet_order_proof");
+        fs::create_dir_all(&proof_dir).unwrap();
+        fs::write(
+            proof_dir.join("risk_preflight.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": "ntpro.v100_order_preflight_report.v1",
+                "status": "pass",
+                "passed": true,
+                "order_submission_remains_disabled": true,
+                "network_attempted": false,
+                "real_orders_submitted": false,
+                "production_endpoint_allowed": false,
+                "dashboard_order_controls": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            proof_dir.join("order_test.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": "ntpro.v100_order_test_preflight_report.v1",
+                "status": "ready",
+                "binance_order_test_acceptance": "not_attempted_offline_manual_only",
+                "matching_engine_submission": false,
+                "order_submission_remains_disabled": true,
+                "network_attempted": false,
+                "real_orders_submitted": false,
+                "production_endpoint_allowed": false,
+                "dashboard_order_controls": false,
+                "secrets_redacted": true
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            proof_dir.join("execution_artifact_contract.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": "ntpro.v100_execution_artifact_contract.v1",
+                "status": "ready",
+                "artifact_family": "binance-testnet-order-lifecycle-proof",
+                "order_test_artifact": {
+                    "name": "order_test.json",
+                    "status": "schema_defined_offline_acceptance_not_attempted"
+                },
+                "submit_ack_artifact": {
+                    "name": "submit_ack.json",
+                    "status": "manual_online_artifact_required_not_observed_offline"
+                },
+                "cancel_ack_artifact": {
+                    "name": "cancel_ack.json",
+                    "status": "manual_online_artifact_required_not_observed_offline"
+                },
+                "lifecycle_artifact": {
+                    "name": "lifecycle.json",
+                    "status": "manual_online_artifact_required_not_observed_offline"
+                },
+                "reconciliation_artifact": {
+                    "name": "reconciliation.json",
+                    "status": "schema_defined_manual_or_fixture_input_required"
+                },
+                "counters": {
+                    "testnet_orders_submitted": 0,
+                    "testnet_orders_canceled": 0,
+                    "production_orders_submitted": 0,
+                    "production_orders_canceled": 0
+                },
+                "manual_submit_cancel_proof_observed": false,
+                "matching_engine_submission": false,
+                "order_submission_remains_disabled": true,
+                "network_attempted": false,
+                "real_orders_submitted": false,
+                "production_endpoint_allowed": false,
+                "dashboard_order_controls": false,
+                "secrets_redacted": true
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            proof_dir.join("reconciliation.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": "ntpro.v100_reconciliation_fixture_report.v1",
+                "status": "risk_halted",
+                "scenario": "all",
+                "scenario_count": 4,
+                "risk_halted": true,
+                "new_orders_blocked": true,
+                "manual_submit_cancel_proof_observed": false,
+                "matching_engine_submission": false,
+                "order_submission_remains_disabled": true,
+                "network_attempted": false,
+                "real_orders_submitted": false,
+                "production_endpoint_allowed": false,
+                "dashboard_order_controls": false,
+                "counters": {
+                    "testnet_orders_submitted": 0,
+                    "testnet_orders_canceled": 0,
+                    "production_orders_submitted": 0,
+                    "production_orders_canceled": 0
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-19T16:45:00Z").unwrap();
+
+        assert_eq!(snapshot.workflow_artifacts.len(), 1);
+        let workflow = &snapshot.workflow_artifacts[0];
+        assert_eq!(
+            workflow.order_proof_risk_preflight_status.value.as_deref(),
+            Some("pass")
+        );
+        assert_eq!(
+            workflow.order_proof_order_test_status.value.as_deref(),
+            Some("schema_defined_offline_acceptance_not_attempted")
+        );
+        assert_eq!(
+            workflow.order_proof_submit_ack_status.value.as_deref(),
+            Some("manual_online_artifact_required_not_observed_offline")
+        );
+        assert_eq!(
+            workflow.order_proof_cancel_ack_status.value.as_deref(),
+            Some("manual_online_artifact_required_not_observed_offline")
+        );
+        assert_eq!(
+            workflow.order_proof_terminal_status.value.as_deref(),
+            Some("manual_online_artifact_required_not_observed_offline")
+        );
+        assert_eq!(
+            workflow.order_proof_reconciliation_status.value.as_deref(),
+            Some("risk_halted")
+        );
+        assert_eq!(
+            workflow.order_proof_manual_submit_cancel_observed.value,
+            Some(false)
+        );
+        assert_eq!(workflow.order_proof_testnet_orders_submitted.value, Some(0));
+        assert_eq!(workflow.order_proof_testnet_orders_canceled.value, Some(0));
+        assert_eq!(
+            workflow.order_proof_production_orders_submitted.value,
+            Some(0)
+        );
+        assert_eq!(
+            workflow.order_proof_production_orders_canceled.value,
+            Some(0)
+        );
+        assert_eq!(
+            workflow.order_proof_dashboard_order_controls.value,
+            Some(false)
+        );
+        assert!(!workflow.real_orders_submitted);
+        assert!(!workflow.production_venue_connection);
+
+        let snapshot_value = serde_json::to_value(&snapshot).unwrap();
+        assert_forbidden_keys_absent(&snapshot_value);
+        let rendered = serde_json::to_string(&snapshot_value).unwrap();
+        assert!(rendered.contains("order_proof_risk_preflight_status"));
+        assert!(rendered.contains("order_proof_reconciliation_status"));
+        assert!(!DASHBOARD_JS.contains("submit_order"));
+        assert!(!DASHBOARD_JS.contains("cancel_order"));
     }
 
     #[test]

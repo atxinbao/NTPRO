@@ -138,6 +138,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   cancel-timeout, local-open/exchange-filled, and restart-unfinished-order
   states as risk-halted and blocks new orders without network or order
   submission.
+- `v0_10_0_dashboard_readonly_order_proof.md` - V100-009 read-only Dashboard
+  order proof display. It surfaces risk preflight, order-test, submit/cancel
+  ack, terminal lifecycle, reconciliation, and order counters without adding
+  Dashboard order or cancel controls.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
