@@ -5,35 +5,36 @@ Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is
-`ntpro-rust-only-v0.9.0`, the next patch track is `v0.9.1` Strategy Runtime
-Semantics & Audit Hardening, and the next capability track is `v0.10.0`.
+`ntpro-rust-only-v0.10.0`, the next patch track is `v0.10.1` release-surface
+hotfix cleanup, and the next capability track is `v0.11.0` Production
+Read-Only + Shadow Portfolio.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.9.0
+ntpro-rust-only-v0.10.0
 ```
 
 Current capability boundary:
 
 ```text
-local deterministic Strategy Runtime batch foundation
-local fixture/mock market stream
-signal and shadow order-intent artifacts
-shadow risk decision artifacts
-supervisor and Dashboard read-only status/artifact display
-no persistent Strategy Runtime claim yet
-no Binance testnet order submission
+Binance spot sandbox order proof
+owner-gated Spot Demo Mode submit/cancel evidence
+redacted execution artifact package
+terminal CANCELED reconciliation
+read-only Dashboard order-proof display
+production order counters fixed at zero
 no real funds
 no production trading
+no Dashboard order controls
 ```
 
-`v0.9.0` builds on the v0.8 authenticated Binance testnet read-only proof and
-adds the local deterministic Strategy Runtime batch foundation. The current
-public claim remains artifact-first, shadow-mode, read-only from
-supervisor/Dashboard surfaces, and explicitly non-production.
+`v0.10.0` builds on the v0.9 local deterministic Strategy Runtime batch
+foundation and adds an owner-gated Binance Spot Demo Mode submit/cancel proof.
+The current public claim remains artifact-first, sandbox-only, read-only from
+Dashboard surfaces, and explicitly non-production.
 
 ## Published Hardening Patch: v0.7.1
 
@@ -173,13 +174,12 @@ Completed release closure:
 - Dashboard order controls;
 - strategy-driven live execution through an exchange adapter.
 
-## Next Hardening Patch Track: v0.9.1
+## Historical Hardening Patch Track: v0.9.1
 
 `v0.9.1` is Strategy Runtime Semantics & Audit Hardening for the published
 v0.9.0 line. It must not add Binance testnet order submission or production
 trading capability. Its scope is to make node/session/market/risk/heartbeat and
-artifact audit semantics true before `v0.10.0` attempts any Binance testnet
-order proof.
+artifact audit semantics true before later Binance sandbox order proof work.
 
 The v0.9.1 patch scope is:
 
@@ -195,21 +195,57 @@ The v0.9.1 patch scope is:
 - surface artifact/status conflicts as degraded in Supervisor and Dashboard;
 - add integration, heartbeat, shutdown, and restart smoke coverage;
 - add v0.9.1 release notes and readiness material after the hardening tasks;
-- document that v0.10.0 is the earliest Binance testnet order proof track.
+- document that v0.10.0 is the Binance spot sandbox order proof release track.
+
+## Published Capability Track: v0.10.0
+
+`v0.10.0` is the published Binance spot sandbox order proof release. It proves
+one owner-gated Spot Demo Mode LIMIT GTC submit/cancel lifecycle with redacted
+artifacts, terminal reconciliation, production order counters fixed at zero,
+and read-only Dashboard evidence display.
+
+Completed release closure:
+
+- formal tag: `ntpro-rust-only-v0.10.0`;
+- GitHub Release:
+  `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.10.0`;
+- tag-triggered release gate passed;
+- release notes and readiness report recorded under
+  `docs/rust-cutover/release/v0_10_0_release_notes.md` and
+  `docs/rust-cutover/release/v0_10_0_readiness_report.md`.
+
+`v0.10.0` explicitly does not include:
+
+- production Binance connectivity;
+- production order submission, cancel, replace, amend, or live order
+  management;
+- automatic online order mutation;
+- real funds;
+- production trading;
+- Dashboard order controls;
+- production account reconciliation.
+
+## Next Capability Track: v0.11.0
+
+`v0.11.0` is the next capability track: Production Read-Only + Shadow
+Portfolio. It may define or prove production read-only public/account snapshots
+and shadow-only portfolio/order-intent evidence, but production order
+submission, cancel, replace, amend, and automatic correction orders remain out
+of scope.
 
 ## Corrected Capability Sequence: v0.9.0 through v0.12.0
 
 The previous idea of making `v0.9.0` a Binance testnet order lifecycle proof is
 superseded. `v0.9.0` is now published as Strategy Runtime Foundation, and
-`v0.10.0` is the first track where Binance testnet order proof may be planned.
+`v0.10.0` is now published as the Binance spot sandbox order proof release.
 
 Corrected sequence:
 
 ```text
 v0.9.0  = local deterministic Strategy Runtime batch foundation
 v0.9.1  = Strategy Runtime Semantics & Audit Hardening
-v0.10.0 = Binance Testnet Order Proof
-v0.11.0 = Production Read-Only + Shadow
+v0.10.0 = Binance Spot Sandbox Order Proof
+v0.11.0 = Production Read-Only + Shadow Portfolio
 v0.12.0 = Guarded Live Alpha
 ```
 
@@ -233,9 +269,12 @@ release gates verify the Supervisor/Dashboard path.
 - Dashboard order controls;
 - strategy-driven live execution through an exchange adapter.
 
-`v0.10.0` is the first track where Binance testnet order proof may be planned,
-behind a separate explicit gate and with its own risk, redaction, and lifecycle
-evidence.
+`v0.10.0` is the published track where Binance spot sandbox order proof was
+completed behind explicit owner gates and with its own risk, redaction, and
+lifecycle evidence.
+
+`v0.11.0` is the next capability track. It is read-only/shadow-only and must not
+submit, cancel, replace, amend, or automatically correct production orders.
 
 ## Product Surface Direction
 
