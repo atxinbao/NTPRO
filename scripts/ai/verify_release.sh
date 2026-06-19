@@ -206,6 +206,15 @@ run_v09_shadow_mode_no_order_gate() {
     scripts/ai/verify_v09_shadow_mode_no_order_gate.sh
 }
 
+run_v091_strategy_supervisor_dashboard_integration() {
+  echo "== verify_release: v0.9.1 strategy supervisor/dashboard integration =="
+  ensure_release_cli_binaries
+  NTPRO_V091_SKIP_BUILD=1 \
+    NTPRO_V091_NAUTILUS_BIN="$NAUTILUS_RELEASE_BIN" \
+    NTPRO_V091_NTPRO_NODE_BIN="$NTPRO_NODE_RELEASE_BIN" \
+    scripts/ai/verify_v091_strategy_supervisor_dashboard_integration.sh
+}
+
 run_stage() {
   local stage="$1"
   case "$stage" in
@@ -224,6 +233,7 @@ run_stage() {
       run_v08_authenticated_readonly_preflight
       run_v09_strategy_runtime_smoke
       run_v09_shadow_mode_no_order_gate
+      run_v091_strategy_supervisor_dashboard_integration
       ;;
     full)
       run_full_checks
@@ -267,9 +277,12 @@ run_stage() {
     v09-shadow-mode-no-order-gate)
       run_v09_shadow_mode_no_order_gate
       ;;
+    v091-strategy-supervisor-dashboard-integration)
+      run_v091_strategy_supervisor_dashboard_integration
+      ;;
     *)
       echo "unknown verify_release stage: $stage" >&2
-      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate, v08-authenticated-readonly-preflight, v09-strategy-runtime-smoke, v09-shadow-mode-no-order-gate" >&2
+      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate, v08-authenticated-readonly-preflight, v09-strategy-runtime-smoke, v09-shadow-mode-no-order-gate, v091-strategy-supervisor-dashboard-integration" >&2
       exit 2
       ;;
   esac
