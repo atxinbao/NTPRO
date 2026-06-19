@@ -25,6 +25,12 @@ capability into Binance testnet order submission, cancel/replace/amend,
 production Binance connectivity, real funds, production trading, or Dashboard
 order controls.
 
+The next capability track after the v0.9.x line is `v0.10.0` Binance Testnet
+Order Proof. Its boundary is defined in
+`docs/rust-cutover/release/v0_10_0_order_boundary.md`. That track is
+testnet-only, owner/manual-gated for any real order mutation, and not yet a
+published release claim.
+
 ## Current Status
 
 NTPRO is now treated as a Rust-only product surface.
@@ -218,6 +224,7 @@ The scope and readiness documents are:
 - `docs/rust-cutover/release/v0_9_0_release_notes.md`
 - `docs/rust-cutover/release/v0_9_1_readiness_report.md`
 - `docs/rust-cutover/release/v0_9_1_release_notes.md`
+- `docs/rust-cutover/release/v0_10_0_order_boundary.md`
 - `docs/versioning.md`
 
 ## Verification
