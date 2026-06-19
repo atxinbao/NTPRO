@@ -190,6 +190,25 @@ venue = "BINANCE_TESTNET"
 order_submission = "disabled"
 external_venue_connection = false
 
+[testnet_order]
+enabled = false
+mode = "disabled"
+manual_gate = "owner-approved-manual"
+http_base_url = "https://testnet.binance.vision"
+symbol = "BTCUSDT"
+instrument_id = "BTCUSDT.BINANCE"
+side = "BUY"
+order_type = "LIMIT"
+time_in_force = "GTC"
+price = "1.00"
+quantity = "0.00001000"
+notional = "0.00001000"
+cancel_after_submit_ms = 3000
+owner_approval_required = true
+manual_env_gate_required = true
+production_endpoint_allowed = false
+dashboard_order_controls = false
+
 [risk]
 kill_switch_enabled = true
 kill_switch_active = false
@@ -321,6 +340,32 @@ kill_switch_active = false
         .to_string();
 
         assert!(error.contains("execution.order_submission must be 'disabled'"));
+    }
+
+    #[test]
+    fn config_validate_strategy_session_rejects_production_testnet_order_endpoint() {
+        let dir = temp_dir("strategy-session-production-order-endpoint");
+        let config = write_config(
+            &dir,
+            &minimal_strategy_session_config().replace(
+                r#"http_base_url = "https://testnet.binance.vision""#,
+                r#"http_base_url = "https://api.binance.com""#,
+            ),
+        );
+
+        let error = run_config_command(ConfigOpt {
+            command: ConfigCommand::Validate(ConfigValidateOpt {
+                kind: ConfigKind::StrategySession,
+                config,
+                output: None,
+            }),
+        })
+        .unwrap_err()
+        .to_string();
+
+        assert!(
+            error.contains("testnet_order.http_base_url must be 'https://testnet.binance.vision'")
+        );
     }
 
     #[test]

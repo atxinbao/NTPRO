@@ -17,6 +17,25 @@ venue = "BINANCE_TESTNET"
 order_submission = "disabled"
 external_venue_connection = false
 
+[testnet_order]
+enabled = false
+mode = "disabled"
+manual_gate = "owner-approved-manual"
+http_base_url = "https://testnet.binance.vision"
+symbol = "BTCUSDT"
+instrument_id = "BTCUSDT.BINANCE"
+side = "BUY"
+order_type = "LIMIT"
+time_in_force = "GTC"
+price = "1.00"
+quantity = "0.00001000"
+notional = "0.00001000"
+cancel_after_submit_ms = 3000
+owner_approval_required = true
+manual_env_gate_required = true
+production_endpoint_allowed = false
+dashboard_order_controls = false
+
 [risk]
 kill_switch_enabled = true
 kill_switch_active = false
