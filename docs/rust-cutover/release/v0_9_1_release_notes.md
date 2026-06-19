@@ -1,8 +1,8 @@
 # NTPRO Rust-only v0.9.1 Release Notes
 
-Date: 2026-06-18
+Date: 2026-06-19
 Executor: Codex
-Status: PLANNING - NOT READY FOR RELEASE
+Status: READY FOR OWNER RELEASE DECISION - NOT RELEASED
 
 ## Summary
 
@@ -10,15 +10,15 @@ Status: PLANNING - NOT READY FOR RELEASE
 published v0.9 Strategy Runtime batch foundation line. It does not add Binance
 testnet order submission or production trading capability.
 
-Plain Chinese summary: v0.9.1 不接 Binance 下单，也不是实盘版本。它要先把
-v0.9.0 暴露出来的“策略运行时语义”补严：node 还在跑时，session/market/risk/heartbeat
-状态不能互相打架；计数不能回退；kill switch 字段要表达清楚；策略工件要有 manifest
-和一致性审计；Supervisor/Dashboard 要能看见损坏或缺失工件。v0.10.0 才是最早可以
-规划 Binance testnet order proof 的版本。
+Plain Chinese summary: v0.9.1 的开发队列已经完成，下一步需要 owner 明确决定是否
+创建 `ntpro-rust-only-v0.9.1` tag 并发布 GitHub Release。这个版本不接 Binance 下单，
+也不是实盘版本。它只把 v0.9.0 暴露出来的“策略运行时语义”补严：node、session、
+market、risk、heartbeat、计数、kill switch、manifest、Supervisor 和 Dashboard 的
+状态不能互相打架，工件损坏要能看见，同一个节点停止后也能重新启动。
 
 ## Changed
 
-Planned changes:
+Delivered changes:
 
 - release surface correction after the `ntpro-rust-only-v0.9.0` publication;
 - unified StrategyNode config validation shared by CLI and node runtime;
@@ -29,8 +29,9 @@ Planned changes:
 - split kill-switch enabled and active semantics;
 - Strategy Session manifest and child artifact integrity audit;
 - degraded Supervisor/Dashboard health when artifacts or state conflict;
+- Supervisor restart identity hardening for same-node restart cycles;
 - integration, heartbeat, shutdown, and restart smoke coverage;
-- final v0.9.1 readiness and release closure after all V091 tasks pass.
+- final v0.9.1 readiness and release-note material for owner decision.
 
 ## Boundary
 
@@ -45,6 +46,7 @@ runtime counter snapshot semantics
 kill-switch enabled/active split
 Strategy Session manifest and artifact audit
 Supervisor/Dashboard degraded status visibility
+Supervisor same-node restart hardening
 integration and restart smoke coverage
 final v0.9.1 readiness and release-note material
 ```
@@ -69,15 +71,32 @@ Readiness evidence for this patch is recorded in:
 
 ```text
 docs/rust-cutover/evidence/V091-001.md
+docs/rust-cutover/evidence/V091-002.md
+docs/rust-cutover/evidence/V091-003.md
+docs/rust-cutover/evidence/V091-004.md
+docs/rust-cutover/evidence/V091-005.md
+docs/rust-cutover/evidence/V091-006.md
+docs/rust-cutover/evidence/V091-007.md
+docs/rust-cutover/evidence/V091-008.md
+docs/rust-cutover/evidence/V091-009.md
+docs/rust-cutover/evidence/V091-010.md
 ```
 
 Default validation remains offline and credential-free. v0.9.1 does not require
 Binance credentials and does not run online exchange probes.
 
+Hosted validation for the final integration slice:
+
+```text
+PR #378 = merged
+Rust Cutover Smoke / smoke = PASS
+security-audit / changes = PASS
+```
+
 ## Release Status
 
-This document is a planning draft for a possible `ntpro-rust-only-v0.9.1`
-release decision after V091-002 through V091-010 complete.
+This document is ready for a possible `ntpro-rust-only-v0.9.1` release decision
+after V091-010 merges.
 
 This task does not create a tag and does not publish a GitHub Release.
 
