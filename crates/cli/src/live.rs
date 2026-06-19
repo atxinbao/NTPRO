@@ -14,13 +14,16 @@
 // -------------------------------------------------------------------------------------------------
 
 use std::{
+    fmt::Debug,
     fs,
     path::{Path, PathBuf},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::Context;
+use nautilus_binance::common::{consts::BINANCE_API_KEY_HEADER, credential::SigningCredential};
 use nautilus_common::enums::Environment;
+use nautilus_core::string::urlencoding;
 use nautilus_live::{
     node::{LiveNode, NodeState},
     status::{
@@ -39,7 +42,7 @@ use crate::{
     artifacts::{atomic_write_json, atomic_write_text},
     opt::{
         LiveCommand, LiveOpt, LiveRunOpt, LiveTestnetOrderGateOpt, LiveTestnetOrderPreflightOpt,
-        LiveValidateOpt,
+        LiveTestnetOrderRequestPreviewOpt, LiveValidateOpt,
     },
     process::process_is_alive,
     strategy_session::{
@@ -66,6 +69,11 @@ const TESTNET_ORDER_ENV_ALLOW: &str = "NTPRO_ALLOW_BINANCE_TESTNET_ORDER";
 const TESTNET_ORDER_ENV_OWNER_APPROVED: &str = "NTPRO_OWNER_APPROVED_BINANCE_TESTNET_ORDER";
 const TESTNET_ORDER_ENV_TINY_NOTIONAL: &str = "NTPRO_CONFIRM_TESTNET_TINY_NOTIONAL";
 const TESTNET_ORDER_ENV_CANCEL_AFTER_SUBMIT: &str = "NTPRO_CONFIRM_TESTNET_CANCEL_AFTER_SUBMIT";
+const TESTNET_ORDER_ENDPOINT_TEST: &str = "/api/v3/order/test";
+const TESTNET_ORDER_ENDPOINT_ORDER: &str = "/api/v3/order";
+const TESTNET_ORDER_METHOD_POST: &str = "POST";
+const TESTNET_ORDER_METHOD_DELETE: &str = "DELETE";
+const TESTNET_ORDER_PREVIEW_SCHEMA_VERSION: &str = "ntpro.v100_signed_order_request_preview.v1";
 const START_STOP_SHUTDOWN: &str = "start-stop";
 const DEFAULT_NTPRO_NODE_HEARTBEAT_INTERVAL_MS: u64 = 1_000;
 const DEFAULT_NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: u64 = 5_000;
@@ -272,6 +280,178 @@ struct TestnetOrderPreflightReport {
     dashboard_order_controls: bool,
 }
 
+struct EnvOnlyTestnetOrderCredentials {
+    api_key_env: String,
+    api_secret_env: String,
+    api_key_value: Option<String>,
+    api_secret_value: Option<String>,
+    sensitive_values: Vec<String>,
+}
+
+impl EnvOnlyTestnetOrderCredentials {
+    fn from_values(
+        api_key_env: String,
+        api_key_value: Option<String>,
+        api_secret_env: String,
+        api_secret_value: Option<String>,
+    ) -> Self {
+        let sensitive_values = [api_key_value.as_ref(), api_secret_value.as_ref()]
+            .into_iter()
+            .flatten()
+            .filter(|value| !value.is_empty())
+            .cloned()
+            .collect();
+
+        Self {
+            api_key_env,
+            api_secret_env,
+            api_key_value,
+            api_secret_value,
+            sensitive_values,
+        }
+    }
+
+    fn signing_credential(&self) -> anyhow::Result<SigningCredential> {
+        let api_key = self
+            .api_key_value
+            .as_deref()
+            .filter(|value| !value.is_empty())
+            .context("signed order request preview requires API key env value")?;
+        let api_secret = self
+            .api_secret_value
+            .as_deref()
+            .filter(|value| !value.is_empty())
+            .context("signed order request preview requires API secret env value")?;
+
+        Ok(SigningCredential::new(
+            api_key.to_string(),
+            api_secret.to_string(),
+        ))
+    }
+
+    fn ensure_no_secret_values_absent(&self, label: &str, body: &str) -> anyhow::Result<()> {
+        for secret_value in &self.sensitive_values {
+            if body.contains(secret_value) {
+                anyhow::bail!(
+                    "testnet signed order redaction guard blocked secret value leak in {label}"
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
+struct TestnetSignedOrderRequest {
+    method: String,
+    endpoint_path: String,
+    endpoint_url_redacted: String,
+    query_without_signature: String,
+    signature: String,
+    signed_query: String,
+    api_key_header_name: String,
+    api_key_header_value: String,
+    action: String,
+}
+
+impl Debug for TestnetSignedOrderRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("TestnetSignedOrderRequest")
+            .field("method", &self.method)
+            .field("endpoint_path", &self.endpoint_path)
+            .field("endpoint_url_redacted", &self.endpoint_url_redacted)
+            .field("query_without_signature", &self.query_without_signature)
+            .field("signature", &"<redacted>")
+            .field("signed_query", &"<redacted>")
+            .field("api_key_header_name", &self.api_key_header_name)
+            .field("api_key_header_value", &"<redacted>")
+            .field("action", &self.action)
+            .finish()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct TestnetSignedOrderRequestPreview {
+    schema_version: String,
+    endpoint_class: String,
+    endpoint_url_redacted: String,
+    request_method: String,
+    request_target: String,
+    query_shape: String,
+    order_action: String,
+    api_key_env: String,
+    api_secret_env: String,
+    api_key_header_name: String,
+    api_key_header_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    request_body_recorded: bool,
+    order_submission: String,
+    order_submission_remains_disabled: bool,
+    network_attempted: bool,
+    real_orders_submitted: bool,
+    production_endpoint_allowed: bool,
+    dashboard_order_controls: bool,
+    secrets_redacted: bool,
+    diagnostic: String,
+}
+
+impl TestnetSignedOrderRequest {
+    fn redacted_preview(
+        &self,
+        credentials: &EnvOnlyTestnetOrderCredentials,
+    ) -> TestnetSignedOrderRequestPreview {
+        TestnetSignedOrderRequestPreview {
+            schema_version: TESTNET_ORDER_PREVIEW_SCHEMA_VERSION.to_string(),
+            endpoint_class: "binance-testnet-signed-order-request-preview".to_string(),
+            endpoint_url_redacted: self.endpoint_url_redacted.clone(),
+            request_method: self.method.clone(),
+            request_target: self.endpoint_path.clone(),
+            query_shape: format!(
+                "{}&signature=<redacted>",
+                self.query_without_signature
+            ),
+            order_action: self.action.clone(),
+            api_key_env: credentials.api_key_env.clone(),
+            api_secret_env: credentials.api_secret_env.clone(),
+            api_key_header_name: self.api_key_header_name.clone(),
+            api_key_header_value_recorded: false,
+            signature_recorded: false,
+            signed_query_recorded: false,
+            signed_url_recorded: false,
+            request_body_recorded: false,
+            order_submission: "request_preview_only".to_string(),
+            order_submission_remains_disabled: true,
+            network_attempted: false,
+            real_orders_submitted: false,
+            production_endpoint_allowed: false,
+            dashboard_order_controls: false,
+            secrets_redacted: true,
+            diagnostic: "V100 signed Binance testnet order request layer built request metadata only; API key header value, signature, signed query, signed URL, and request body stay memory-only and redacted.".to_string(),
+        }
+    }
+
+    fn ensure_preview_redacted(
+        &self,
+        credentials: &EnvOnlyTestnetOrderCredentials,
+    ) -> anyhow::Result<()> {
+        let preview = self.redacted_preview(credentials);
+        let body = serde_json::to_string(&preview)?;
+        credentials.ensure_no_secret_values_absent("signed-order-request-preview", &body)?;
+        for (label, sensitive_value) in [
+            ("signature", self.signature.as_str()),
+            ("signed query", self.signed_query.as_str()),
+            ("API key header value", self.api_key_header_value.as_str()),
+        ] {
+            if !sensitive_value.is_empty() && body.contains(sensitive_value) {
+                anyhow::bail!("signed order request preview leaked {label}");
+            }
+        }
+        Ok(())
+    }
+}
+
 pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
     match opt.command {
         LiveCommand::Validate(validate) => run_live_validate(&validate),
@@ -279,6 +459,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::TestnetOrderGate(gate) => run_live_testnet_order_gate(&gate),
         LiveCommand::TestnetOrderPreflight(preflight) => {
             run_live_testnet_order_preflight(&preflight)
+        }
+        LiveCommand::TestnetOrderRequestPreview(preview) => {
+            run_live_testnet_order_request_preview(&preview)
         }
     }
 }
@@ -318,6 +501,12 @@ fn run_live_testnet_order_preflight(opt: &LiveTestnetOrderPreflightOpt) -> anyho
     run_live_testnet_order_preflight_with_env(opt, |name| std::env::var(name).ok())
 }
 
+fn run_live_testnet_order_request_preview(
+    opt: &LiveTestnetOrderRequestPreviewOpt,
+) -> anyhow::Result<()> {
+    run_live_testnet_order_request_preview_with_env(opt, |name| std::env::var(name).ok())
+}
+
 fn run_live_testnet_order_gate_with_env<F>(
     opt: &LiveTestnetOrderGateOpt,
     mut read_env: F,
@@ -346,6 +535,58 @@ where
         opt.config.display(),
         testnet_order.symbol,
         testnet_order.instrument_id,
+    );
+    Ok(())
+}
+
+fn run_live_testnet_order_request_preview_with_env<F>(
+    opt: &LiveTestnetOrderRequestPreviewOpt,
+    mut read_env: F,
+) -> anyhow::Result<()>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    let config = load_strategy_node_config(&opt.config)?;
+    let Some(testnet_order) = &config.testnet_order else {
+        anyhow::bail!("testnet_order section is required for v0.10 signed order request preview");
+    };
+
+    let missing_cli_flags = missing_testnet_order_request_preview_cli_flags(opt);
+    let missing_env_vars = missing_testnet_order_env_gates(&mut read_env);
+    if !missing_cli_flags.is_empty() || !missing_env_vars.is_empty() {
+        anyhow::bail!(
+            "testnet signed order request preview blocked: missing_cli_flags={} missing_env_vars={} request_built=false order_submission_remains_disabled=true network_attempted=false real_orders_submitted=false",
+            join_gate_labels(&missing_cli_flags),
+            join_gate_labels(&missing_env_vars),
+        );
+    }
+
+    let credentials = EnvOnlyTestnetOrderCredentials::from_values(
+        opt.api_key_env.clone(),
+        read_env(&opt.api_key_env),
+        opt.api_secret_env.clone(),
+        read_env(&opt.api_secret_env),
+    );
+    let request = build_testnet_signed_order_request(
+        testnet_order,
+        &credentials,
+        &opt.method,
+        &opt.endpoint_path,
+        opt.timestamp_ms,
+        opt.recv_window_ms,
+        opt.orig_client_order_id.as_deref(),
+    )?;
+    let preview = request.redacted_preview(&credentials);
+    if let Some(output) = &opt.output {
+        write_secret_redacted_json(output, &preview, &credentials)?;
+    }
+
+    println!(
+        "live.testnet_order_request_preview status=ready config={} method={} endpoint={} order_action={} order_submission_remains_disabled=true network_attempted=false real_orders_submitted=false production_endpoint_allowed=false dashboard_order_controls=false secrets_redacted=true",
+        opt.config.display(),
+        preview.request_method,
+        preview.request_target,
+        preview.order_action,
     );
     Ok(())
 }
@@ -1133,6 +1374,164 @@ fn evaluate_testnet_order_preflight(
     }
 }
 
+fn build_testnet_signed_order_request(
+    testnet_order: &StrategyNodeTestnetOrderSection,
+    credentials: &EnvOnlyTestnetOrderCredentials,
+    method: &str,
+    endpoint_path: &str,
+    timestamp_ms: u64,
+    recv_window_ms: u64,
+    orig_client_order_id: Option<&str>,
+) -> anyhow::Result<TestnetSignedOrderRequest> {
+    validate_exact(
+        "testnet_order.http_base_url",
+        &testnet_order.http_base_url,
+        BINANCE_TESTNET_HTTP_BASE_URL,
+    )?;
+    if recv_window_ms == 0 {
+        anyhow::bail!("signed order request preview recvWindow must be positive");
+    }
+    if timestamp_ms == 0 {
+        anyhow::bail!("signed order request preview timestamp_ms must be positive");
+    }
+
+    let method = normalize_testnet_order_method(method)?;
+    let endpoint_path = normalize_testnet_order_endpoint_path(endpoint_path)?;
+    let action = ensure_testnet_signed_order_request_allowed(&method, &endpoint_path)?;
+    let signing_credential = credentials.signing_credential()?;
+    let query_without_signature = build_testnet_signed_order_query(
+        testnet_order,
+        &method,
+        &endpoint_path,
+        timestamp_ms,
+        recv_window_ms,
+        orig_client_order_id,
+    )?;
+    let signature =
+        urlencoding::encode(&signing_credential.sign(&query_without_signature)).into_owned();
+    let signed_query = format!("{query_without_signature}&signature={signature}");
+    let request = TestnetSignedOrderRequest {
+        method,
+        endpoint_path: endpoint_path.clone(),
+        endpoint_url_redacted: format!(
+            "{}{}",
+            testnet_order.http_base_url.trim_end_matches('/'),
+            endpoint_path,
+        ),
+        query_without_signature,
+        signature,
+        signed_query,
+        api_key_header_name: BINANCE_API_KEY_HEADER.to_string(),
+        api_key_header_value: signing_credential.api_key().to_string(),
+        action: action.to_string(),
+    };
+    request.ensure_preview_redacted(credentials)?;
+    Ok(request)
+}
+
+fn normalize_testnet_order_method(method: &str) -> anyhow::Result<String> {
+    let method = method.trim().to_ascii_uppercase();
+    if method.is_empty() {
+        anyhow::bail!("signed order request preview method must not be empty");
+    }
+    Ok(method)
+}
+
+fn normalize_testnet_order_endpoint_path(endpoint_path: &str) -> anyhow::Result<String> {
+    let endpoint_path = endpoint_path.trim();
+    if endpoint_path.is_empty() {
+        anyhow::bail!("signed order request preview endpoint must not be empty");
+    }
+    if endpoint_path.contains('?') {
+        anyhow::bail!("signed order request preview endpoint must not include query parameters");
+    }
+    if !endpoint_path.starts_with('/') {
+        anyhow::bail!("signed order request preview endpoint must start with '/'");
+    }
+    Ok(endpoint_path.to_string())
+}
+
+fn ensure_testnet_signed_order_request_allowed(
+    method: &str,
+    endpoint_path: &str,
+) -> anyhow::Result<&'static str> {
+    match (method, endpoint_path) {
+        (TESTNET_ORDER_METHOD_POST, TESTNET_ORDER_ENDPOINT_TEST) => Ok("order_test"),
+        (TESTNET_ORDER_METHOD_POST, TESTNET_ORDER_ENDPOINT_ORDER) => Ok("submit"),
+        (TESTNET_ORDER_METHOD_DELETE, TESTNET_ORDER_ENDPOINT_ORDER) => Ok("cancel"),
+        _ => anyhow::bail!(
+            "signed order request allowlist only includes POST /api/v3/order/test, POST /api/v3/order, and DELETE /api/v3/order; got {method} {endpoint_path}"
+        ),
+    }
+}
+
+fn build_testnet_signed_order_query(
+    testnet_order: &StrategyNodeTestnetOrderSection,
+    method: &str,
+    endpoint_path: &str,
+    timestamp_ms: u64,
+    recv_window_ms: u64,
+    orig_client_order_id: Option<&str>,
+) -> anyhow::Result<String> {
+    if method == TESTNET_ORDER_METHOD_DELETE && endpoint_path == TESTNET_ORDER_ENDPOINT_ORDER {
+        let orig_client_order_id = orig_client_order_id
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .context("DELETE /api/v3/order preview requires --orig-client-order-id")?;
+        let recv_window = recv_window_ms.to_string();
+        let timestamp = timestamp_ms.to_string();
+        return Ok(join_query_pairs([
+            ("symbol", testnet_order.symbol.as_str()),
+            ("origClientOrderId", orig_client_order_id),
+            ("recvWindow", recv_window.as_str()),
+            ("timestamp", timestamp.as_str()),
+        ]));
+    }
+
+    let recv_window = recv_window_ms.to_string();
+    let timestamp = timestamp_ms.to_string();
+    Ok(join_query_pairs([
+        ("symbol", testnet_order.symbol.as_str()),
+        ("side", testnet_order.side.as_str()),
+        ("type", testnet_order.order_type.as_str()),
+        ("timeInForce", testnet_order.time_in_force.as_str()),
+        ("quantity", testnet_order.quantity.as_str()),
+        ("price", testnet_order.price.as_str()),
+        ("newOrderRespType", "ACK"),
+        ("recvWindow", recv_window.as_str()),
+        ("timestamp", timestamp.as_str()),
+    ]))
+}
+
+fn join_query_pairs<const N: usize>(pairs: [(&str, &str); N]) -> String {
+    pairs
+        .into_iter()
+        .map(|(name, value)| {
+            format!(
+                "{}={}",
+                urlencoding::encode(name),
+                urlencoding::encode(value)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("&")
+}
+
+fn write_secret_redacted_json<T>(
+    path: &Path,
+    value: &T,
+    credentials: &EnvOnlyTestnetOrderCredentials,
+) -> anyhow::Result<()>
+where
+    T: Serialize,
+{
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    credentials.ensure_no_secret_values_absent(&path.display().to_string(), &body)?;
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
 fn decimal_string_to_f64(field: &str, value: &str) -> Result<f64, String> {
     validate_positive_decimal_string(field, value).map_err(|error| error.to_string())?;
     value
@@ -1161,6 +1560,17 @@ fn missing_testnet_order_cli_flags(opt: &LiveTestnetOrderGateOpt) -> Vec<&'stati
 
 fn missing_testnet_order_preflight_cli_flags(
     opt: &LiveTestnetOrderPreflightOpt,
+) -> Vec<&'static str> {
+    missing_testnet_order_manual_cli_flags(
+        opt.allow_testnet_order,
+        opt.confirm_owner_approved_testnet_order,
+        opt.confirm_tiny_notional,
+        opt.confirm_cancel_after_submit,
+    )
+}
+
+fn missing_testnet_order_request_preview_cli_flags(
+    opt: &LiveTestnetOrderRequestPreviewOpt,
 ) -> Vec<&'static str> {
     missing_testnet_order_manual_cli_flags(
         opt.allow_testnet_order,
@@ -1953,6 +2363,37 @@ write_summary = true
         }
     }
 
+    fn testnet_order_request_preview_opt(
+        config: PathBuf,
+        output: Option<PathBuf>,
+        all_cli_gates: bool,
+    ) -> LiveTestnetOrderRequestPreviewOpt {
+        LiveTestnetOrderRequestPreviewOpt {
+            config,
+            method: TESTNET_ORDER_METHOD_POST.to_string(),
+            endpoint_path: TESTNET_ORDER_ENDPOINT_TEST.to_string(),
+            timestamp_ms: 1_718_400_000_000,
+            recv_window_ms: 5_000,
+            api_key_env: "NTPRO_V100004_API_KEY".to_string(),
+            api_secret_env: "NTPRO_V100004_API_SECRET".to_string(),
+            orig_client_order_id: None,
+            output,
+            allow_testnet_order: all_cli_gates,
+            confirm_owner_approved_testnet_order: all_cli_gates,
+            confirm_tiny_notional: all_cli_gates,
+            confirm_cancel_after_submit: all_cli_gates,
+        }
+    }
+
+    fn synthetic_order_credentials() -> EnvOnlyTestnetOrderCredentials {
+        EnvOnlyTestnetOrderCredentials::from_values(
+            "NTPRO_V100004_API_KEY".to_string(),
+            Some("ntpro_v100004_synthetic_api_key_value".to_string()),
+            "NTPRO_V100004_API_SECRET".to_string(),
+            Some("ntpro_v100004_synthetic_api_secret_value".to_string()),
+        )
+    }
+
     fn passing_preflight_input() -> StrategyOrderPreflightInput {
         StrategyOrderPreflightInput {
             schema_version: STRATEGY_ORDER_PREFLIGHT_SCHEMA_VERSION.to_string(),
@@ -2184,6 +2625,304 @@ write_summary = true
         assert!(error.contains("open_order_limit_exceeded"));
         assert!(error.contains("clock_skew_limit_exceeded"));
         assert!(error.contains("real_orders_submitted=false"));
+    }
+
+    #[test]
+    fn testnet_signed_order_request_builder_constructs_order_test_preview() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-004-request-preview-{}",
+            std::process::id()
+        ));
+        let path = write_config(
+            "testnet-order-request-preview",
+            &strategy_node_config(&output_dir),
+        );
+        let config = load_strategy_node_config(&path).unwrap();
+        let testnet_order = config.testnet_order.as_ref().unwrap();
+        let credentials = synthetic_order_credentials();
+
+        let request = build_testnet_signed_order_request(
+            testnet_order,
+            &credentials,
+            TESTNET_ORDER_METHOD_POST,
+            TESTNET_ORDER_ENDPOINT_TEST,
+            1_718_400_000_000,
+            5_000,
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(request.method, TESTNET_ORDER_METHOD_POST);
+        assert_eq!(request.endpoint_path, TESTNET_ORDER_ENDPOINT_TEST);
+        assert_eq!(request.action, "order_test");
+        assert_eq!(request.api_key_header_name, BINANCE_API_KEY_HEADER);
+        assert_eq!(
+            request.api_key_header_value,
+            "ntpro_v100004_synthetic_api_key_value"
+        );
+        assert!(request.query_without_signature.contains("symbol=BTCUSDT"));
+        assert!(request.query_without_signature.contains("side=BUY"));
+        assert!(request.query_without_signature.contains("type=LIMIT"));
+        assert!(request.query_without_signature.contains("timeInForce=GTC"));
+        assert!(
+            request
+                .signed_query
+                .starts_with("symbol=BTCUSDT&side=BUY&type=LIMIT")
+        );
+        assert_eq!(request.signature.len(), 64);
+        assert!(
+            request
+                .signature
+                .chars()
+                .all(|character| character.is_ascii_hexdigit())
+        );
+        assert_eq!(
+            request.endpoint_url_redacted,
+            "https://testnet.binance.vision/api/v3/order/test"
+        );
+        request.ensure_preview_redacted(&credentials).unwrap();
+    }
+
+    #[test]
+    fn testnet_signed_order_request_preview_redacts_all_sensitive_values() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-004-request-redaction-{}",
+            std::process::id()
+        ));
+        let path = write_config(
+            "testnet-order-request-redaction",
+            &strategy_node_config(&output_dir),
+        );
+        let config = load_strategy_node_config(&path).unwrap();
+        let testnet_order = config.testnet_order.as_ref().unwrap();
+        let credentials = synthetic_order_credentials();
+        let request = build_testnet_signed_order_request(
+            testnet_order,
+            &credentials,
+            TESTNET_ORDER_METHOD_POST,
+            TESTNET_ORDER_ENDPOINT_ORDER,
+            1_718_400_000_000,
+            5_000,
+            None,
+        )
+        .unwrap();
+        let preview_body = serde_json::to_string(&request.redacted_preview(&credentials)).unwrap();
+        let debug_body = format!("{request:?}");
+
+        for body in [&preview_body, &debug_body] {
+            assert!(!body.contains("ntpro_v100004_synthetic_api_key_value"));
+            assert!(!body.contains("ntpro_v100004_synthetic_api_secret_value"));
+            assert!(!body.contains(&request.signature));
+            assert!(!body.contains(&request.signed_query));
+        }
+        assert!(preview_body.contains("\"order_submission_remains_disabled\":true"));
+        assert!(preview_body.contains("\"network_attempted\":false"));
+        assert!(preview_body.contains("\"real_orders_submitted\":false"));
+        assert!(preview_body.contains("\"signature_recorded\":false"));
+        assert!(preview_body.contains("\"signed_query_recorded\":false"));
+        assert!(preview_body.contains("\"signed_url_recorded\":false"));
+        assert!(preview_body.contains("\"api_key_header_value_recorded\":false"));
+    }
+
+    #[test]
+    fn testnet_signed_order_request_builder_rejects_non_allowlisted_endpoint() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-004-request-bad-endpoint-{}",
+            std::process::id()
+        ));
+        let path = write_config(
+            "testnet-order-request-bad-endpoint",
+            &strategy_node_config(&output_dir),
+        );
+        let config = load_strategy_node_config(&path).unwrap();
+        let testnet_order = config.testnet_order.as_ref().unwrap();
+        let credentials = synthetic_order_credentials();
+
+        let error = build_testnet_signed_order_request(
+            testnet_order,
+            &credentials,
+            TESTNET_ORDER_METHOD_POST,
+            "/api/v3/account",
+            1_718_400_000_000,
+            5_000,
+            None,
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("signed order request allowlist only includes"));
+        assert!(error.contains("POST /api/v3/account"));
+    }
+
+    #[test]
+    fn testnet_signed_order_request_builder_rejects_production_base_url() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-004-request-production-base-{}",
+            std::process::id()
+        ));
+        let path = write_config(
+            "testnet-order-request-production-base",
+            &strategy_node_config(&output_dir),
+        );
+        let mut config = load_strategy_node_config(&path).unwrap();
+        let testnet_order = config.testnet_order.as_mut().unwrap();
+        testnet_order.http_base_url = "https://api.binance.com".to_string();
+        let credentials = synthetic_order_credentials();
+
+        let error = build_testnet_signed_order_request(
+            testnet_order,
+            &credentials,
+            TESTNET_ORDER_METHOD_POST,
+            TESTNET_ORDER_ENDPOINT_TEST,
+            1_718_400_000_000,
+            5_000,
+            None,
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("testnet_order.http_base_url"));
+        assert!(error.contains(BINANCE_TESTNET_HTTP_BASE_URL));
+    }
+
+    #[test]
+    fn testnet_signed_order_request_builder_fails_closed_without_secret() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-004-request-missing-secret-{}",
+            std::process::id()
+        ));
+        let path = write_config(
+            "testnet-order-request-missing-secret",
+            &strategy_node_config(&output_dir),
+        );
+        let config = load_strategy_node_config(&path).unwrap();
+        let testnet_order = config.testnet_order.as_ref().unwrap();
+        let credentials = EnvOnlyTestnetOrderCredentials::from_values(
+            "NTPRO_V100004_API_KEY".to_string(),
+            Some("ntpro_v100004_synthetic_api_key_value".to_string()),
+            "NTPRO_V100004_API_SECRET".to_string(),
+            None,
+        );
+
+        let error = build_testnet_signed_order_request(
+            testnet_order,
+            &credentials,
+            TESTNET_ORDER_METHOD_POST,
+            TESTNET_ORDER_ENDPOINT_TEST,
+            1_718_400_000_000,
+            5_000,
+            None,
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("requires API secret env value"));
+    }
+
+    #[test]
+    fn testnet_signed_order_request_builder_requires_cancel_client_order_id() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-004-request-cancel-missing-id-{}",
+            std::process::id()
+        ));
+        let path = write_config(
+            "testnet-order-request-cancel-missing-id",
+            &strategy_node_config(&output_dir),
+        );
+        let config = load_strategy_node_config(&path).unwrap();
+        let testnet_order = config.testnet_order.as_ref().unwrap();
+        let credentials = synthetic_order_credentials();
+
+        let error = build_testnet_signed_order_request(
+            testnet_order,
+            &credentials,
+            TESTNET_ORDER_METHOD_DELETE,
+            TESTNET_ORDER_ENDPOINT_ORDER,
+            1_718_400_000_000,
+            5_000,
+            None,
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("requires --orig-client-order-id"));
+    }
+
+    #[test]
+    fn testnet_signed_order_request_builder_constructs_cancel_preview() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-004-request-cancel-{}",
+            std::process::id()
+        ));
+        let path = write_config(
+            "testnet-order-request-cancel",
+            &strategy_node_config(&output_dir),
+        );
+        let config = load_strategy_node_config(&path).unwrap();
+        let testnet_order = config.testnet_order.as_ref().unwrap();
+        let credentials = synthetic_order_credentials();
+
+        let request = build_testnet_signed_order_request(
+            testnet_order,
+            &credentials,
+            TESTNET_ORDER_METHOD_DELETE,
+            TESTNET_ORDER_ENDPOINT_ORDER,
+            1_718_400_000_000,
+            5_000,
+            Some("ntpro-cancel-001"),
+        )
+        .unwrap();
+
+        assert_eq!(request.method, TESTNET_ORDER_METHOD_DELETE);
+        assert_eq!(request.endpoint_path, TESTNET_ORDER_ENDPOINT_ORDER);
+        assert_eq!(request.action, "cancel");
+        assert!(request.query_without_signature.contains("symbol=BTCUSDT"));
+        assert!(
+            request
+                .query_without_signature
+                .contains("origClientOrderId=ntpro-cancel-001")
+        );
+        assert!(
+            !request
+                .query_without_signature
+                .contains("newOrderRespType=ACK")
+        );
+        request.ensure_preview_redacted(&credentials).unwrap();
+    }
+
+    #[test]
+    fn testnet_signed_order_request_preview_command_writes_redacted_artifact() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-004-request-command-{}",
+            std::process::id()
+        ));
+        let config = write_config(
+            "testnet-order-request-command",
+            &strategy_node_config(&output_dir),
+        );
+        let output = output_dir.join("request-preview.json");
+        let opt = testnet_order_request_preview_opt(config, Some(output.clone()), true);
+
+        run_live_testnet_order_request_preview_with_env(&opt, |name| match name {
+            TESTNET_ORDER_ENV_ALLOW
+            | TESTNET_ORDER_ENV_OWNER_APPROVED
+            | TESTNET_ORDER_ENV_TINY_NOTIONAL
+            | TESTNET_ORDER_ENV_CANCEL_AFTER_SUBMIT => Some("1".to_string()),
+            "NTPRO_V100004_API_KEY" => Some("ntpro_v100004_synthetic_api_key_value".to_string()),
+            "NTPRO_V100004_API_SECRET" => {
+                Some("ntpro_v100004_synthetic_api_secret_value".to_string())
+            }
+            _ => None,
+        })
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(body.contains(TESTNET_ORDER_PREVIEW_SCHEMA_VERSION));
+        assert!(body.contains("\"order_action\": \"order_test\""));
+        assert!(body.contains("\"network_attempted\": false"));
+        assert!(body.contains("\"real_orders_submitted\": false"));
+        assert!(!body.contains("ntpro_v100004_synthetic_api_key_value"));
+        assert!(!body.contains("ntpro_v100004_synthetic_api_secret_value"));
     }
 
     #[tokio::test(flavor = "current_thread")]
