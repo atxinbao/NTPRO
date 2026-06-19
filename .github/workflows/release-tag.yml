@@ -90,6 +90,10 @@ jobs:
             command: scripts/ai/verify_release.sh v09-shadow-mode-no-order-gate
           - stage: release-v091-strategy-supervisor-dashboard-integration
             command: scripts/ai/verify_release.sh v091-strategy-supervisor-dashboard-integration
+          - stage: release-v10-offline-release-gates
+            command: scripts/ai/verify_release.sh v10-offline-release-gates
+          - stage: release-v10-manual-order-proof-preflight
+            command: scripts/ai/verify_release.sh v10-manual-order-proof-preflight
     env:
       CARGO_BUILD_JOBS: "1"
       CARGO_INCREMENTAL: "0"

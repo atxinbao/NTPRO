@@ -215,6 +215,22 @@ run_v091_strategy_supervisor_dashboard_integration() {
     scripts/ai/verify_v091_strategy_supervisor_dashboard_integration.sh
 }
 
+run_v10_offline_release_gates() {
+  echo "== verify_release: v0.10 offline release gates =="
+  ensure_release_cli_binaries
+  NTPRO_V10_SKIP_BUILD=1 \
+    NTPRO_V10_NAUTILUS_BIN="$NAUTILUS_RELEASE_BIN" \
+    scripts/ai/verify_v10_offline_release_gates.sh
+}
+
+run_v10_manual_order_proof_preflight() {
+  echo "== verify_release: v0.10 manual order proof preflight =="
+  ensure_release_cli_binaries
+  NTPRO_V10_SKIP_BUILD=1 \
+    NTPRO_V10_NAUTILUS_BIN="$NAUTILUS_RELEASE_BIN" \
+    scripts/ai/verify_v10_manual_order_proof_gate.sh
+}
+
 run_stage() {
   local stage="$1"
   case "$stage" in
@@ -234,6 +250,8 @@ run_stage() {
       run_v09_strategy_runtime_smoke
       run_v09_shadow_mode_no_order_gate
       run_v091_strategy_supervisor_dashboard_integration
+      run_v10_offline_release_gates
+      run_v10_manual_order_proof_preflight
       ;;
     full)
       run_full_checks
@@ -280,9 +298,15 @@ run_stage() {
     v091-strategy-supervisor-dashboard-integration)
       run_v091_strategy_supervisor_dashboard_integration
       ;;
+    v10-offline-release-gates)
+      run_v10_offline_release_gates
+      ;;
+    v10-manual-order-proof-preflight)
+      run_v10_manual_order_proof_preflight
+      ;;
     *)
       echo "unknown verify_release stage: $stage" >&2
-      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate, v08-authenticated-readonly-preflight, v09-strategy-runtime-smoke, v09-shadow-mode-no-order-gate, v091-strategy-supervisor-dashboard-integration" >&2
+      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate, v08-authenticated-readonly-preflight, v09-strategy-runtime-smoke, v09-shadow-mode-no-order-gate, v091-strategy-supervisor-dashboard-integration, v10-offline-release-gates, v10-manual-order-proof-preflight" >&2
       exit 2
       ;;
   esac

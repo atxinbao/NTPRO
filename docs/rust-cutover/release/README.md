@@ -142,6 +142,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   order proof display. It surfaces risk preflight, order-test, submit/cancel
   ack, terminal lifecycle, reconciliation, and order counters without adding
   Dashboard order or cancel controls.
+- `v0_10_0_release_gates.md` - V100-010 offline and manual release gate wiring.
+  It adds default offline fail-closed/schema/redaction gates and a separate
+  manual order-proof artifact validator without completing V100-006 or running
+  real Binance testnet submit/cancel in CI.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
