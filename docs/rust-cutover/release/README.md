@@ -115,6 +115,9 @@ Final release checks, benchmark summaries, and audit reports live here.
   for the disabled-by-default `[testnet_order]` section, including testnet-only
   URL, one-symbol alignment, string decimal price/quantity/notional fields,
   owner/manual gates, and forbidden production/Dashboard order controls.
+- `v0_10_0_order_gate.md` - V100-002 multi-layer order gate contract for
+  fail-closed CLI flags and env vars. It adds local gate readiness only and
+  keeps network attempts, real orders, and Dashboard order controls disabled.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
