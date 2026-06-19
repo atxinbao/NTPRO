@@ -154,6 +154,8 @@ pub enum LiveCommand {
     TestnetOrderRequestPreview(LiveTestnetOrderRequestPreviewOpt),
     /// Checks the redacted POST /api/v3/order/test preflight without network or orders.
     TestnetOrderTestPreflight(LiveTestnetOrderTestPreflightOpt),
+    /// Writes the redacted v0.10 execution artifact contract without network or orders.
+    TestnetExecutionArtifactContract(LiveTestnetExecutionArtifactContractOpt),
 }
 
 /// Live validation options.
@@ -286,6 +288,44 @@ pub struct LiveTestnetOrderTestPreflightOpt {
     /// Environment variable name containing the Binance testnet API secret.
     #[arg(long, default_value = "BINANCE_TESTNET_API_SECRET")]
     pub api_secret_env: String,
+    /// Optional JSON report output path.
+    #[arg(long)]
+    pub output: Option<PathBuf>,
+    /// Manual CLI gate for any Binance testnet order path.
+    #[arg(long)]
+    pub allow_testnet_order: bool,
+    /// Confirms owner approval for the manual Binance testnet order proof.
+    #[arg(long)]
+    pub confirm_owner_approved_testnet_order: bool,
+    /// Confirms the configured testnet order is tiny-notional only.
+    #[arg(long)]
+    pub confirm_tiny_notional: bool,
+    /// Confirms the proof must cancel immediately after submit ack.
+    #[arg(long)]
+    pub confirm_cancel_after_submit: bool,
+}
+
+/// Binance testnet execution artifact contract options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveTestnetExecutionArtifactContractOpt {
+    /// Path to the Rust strategy-session config file.
+    #[arg(long)]
+    pub config: PathBuf,
+    /// Timestamp in milliseconds for deterministic signing.
+    #[arg(long)]
+    pub timestamp_ms: u64,
+    /// Binance recvWindow in milliseconds.
+    #[arg(long, default_value_t = 5_000)]
+    pub recv_window_ms: u64,
+    /// Environment variable name containing the Binance testnet API key.
+    #[arg(long, default_value = "BINANCE_TESTNET_API_KEY")]
+    pub api_key_env: String,
+    /// Environment variable name containing the Binance testnet API secret.
+    #[arg(long, default_value = "BINANCE_TESTNET_API_SECRET")]
+    pub api_secret_env: String,
+    /// Synthetic cancel client order id used only for the redacted contract.
+    #[arg(long, default_value = "ntpro-v100-artifact-contract-only")]
+    pub orig_client_order_id: String,
     /// Optional JSON report output path.
     #[arg(long)]
     pub output: Option<PathBuf>,
@@ -1164,6 +1204,59 @@ mod tests {
     }
 
     #[test]
+    fn parses_live_testnet_execution_artifact_contract_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "testnet-execution-artifact-contract",
+            "--config",
+            "configs/nodes/btc-ema-shadow.toml",
+            "--timestamp-ms",
+            "1718400000000",
+            "--recv-window-ms",
+            "2500",
+            "--api-key-env",
+            "NTPRO_TEST_KEY",
+            "--api-secret-env",
+            "NTPRO_TEST_SECRET",
+            "--orig-client-order-id",
+            "ntpro-cancel-001",
+            "--output",
+            "runs/v100/execution-artifact-contract.json",
+            "--allow-testnet-order",
+            "--confirm-owner-approved-testnet-order",
+            "--confirm-tiny-notional",
+            "--confirm-cancel-after-submit",
+        ])
+        .expect("live testnet-execution-artifact-contract should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::TestnetExecutionArtifactContract(contract) = live.command else {
+            panic!("expected testnet-execution-artifact-contract command");
+        };
+
+        assert_eq!(
+            contract.config,
+            PathBuf::from("configs/nodes/btc-ema-shadow.toml")
+        );
+        assert_eq!(contract.timestamp_ms, 1_718_400_000_000);
+        assert_eq!(contract.recv_window_ms, 2_500);
+        assert_eq!(contract.api_key_env, "NTPRO_TEST_KEY");
+        assert_eq!(contract.api_secret_env, "NTPRO_TEST_SECRET");
+        assert_eq!(contract.orig_client_order_id, "ntpro-cancel-001");
+        assert_eq!(
+            contract.output,
+            Some(PathBuf::from("runs/v100/execution-artifact-contract.json"))
+        );
+        assert!(contract.allow_testnet_order);
+        assert!(contract.confirm_owner_approved_testnet_order);
+        assert!(contract.confirm_tiny_notional);
+        assert!(contract.confirm_cancel_after_submit);
+    }
+
+    #[test]
     fn live_help_describes_live_init_smoke_boundary() {
         let validate_help = render_subcommand_help(&["live", "validate"]);
         let run_help = render_subcommand_help(&["live", "run"]);
@@ -1173,6 +1266,8 @@ mod tests {
             render_subcommand_help(&["live", "testnet-order-request-preview"]);
         let order_test_preflight_help =
             render_subcommand_help(&["live", "testnet-order-test-preflight"]);
+        let artifact_contract_help =
+            render_subcommand_help(&["live", "testnet-execution-artifact-contract"]);
 
         assert!(validate_help.contains("live-init smoke config"));
         assert!(run_help.contains("LiveNode start/stop smoke path"));
@@ -1191,6 +1286,9 @@ mod tests {
         assert!(order_test_preflight_help.contains("without network or orders"));
         assert!(order_test_preflight_help.contains("--timestamp-ms"));
         assert!(order_test_preflight_help.contains("--api-secret-env"));
+        assert!(artifact_contract_help.contains("without network or orders"));
+        assert!(artifact_contract_help.contains("--orig-client-order-id"));
+        assert!(artifact_contract_help.contains("--api-secret-env"));
     }
 
     #[test]
