@@ -43,7 +43,8 @@ use crate::{
     opt::{
         LiveCommand, LiveOpt, LiveRunOpt, LiveTestnetExecutionArtifactContractOpt,
         LiveTestnetOrderGateOpt, LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
-        LiveTestnetOrderTestPreflightOpt, LiveValidateOpt,
+        LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
+        TestnetReconciliationScenario,
     },
     process::process_is_alive,
     strategy_session::{
@@ -76,6 +77,8 @@ const TESTNET_ORDER_METHOD_POST: &str = "POST";
 const TESTNET_ORDER_METHOD_DELETE: &str = "DELETE";
 const TESTNET_ORDER_PREVIEW_SCHEMA_VERSION: &str = "ntpro.v100_signed_order_request_preview.v1";
 const TESTNET_EXECUTION_ARTIFACT_SCHEMA_VERSION: &str = "ntpro.v100_execution_artifact_contract.v1";
+const TESTNET_RECONCILIATION_FIXTURE_SCHEMA_VERSION: &str =
+    "ntpro.v100_reconciliation_fixture_report.v1";
 const START_STOP_SHUTDOWN: &str = "start-stop";
 const DEFAULT_NTPRO_NODE_HEARTBEAT_INTERVAL_MS: u64 = 1_000;
 const DEFAULT_NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: u64 = 5_000;
@@ -466,6 +469,38 @@ struct TestnetExecutionArtifactCounters {
     production_orders_canceled: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct TestnetReconciliationFixtureReport {
+    schema_version: String,
+    status: String,
+    symbol: String,
+    scenario: String,
+    scenario_count: usize,
+    scenarios: Vec<TestnetReconciliationFixtureEntry>,
+    counters: TestnetExecutionArtifactCounters,
+    risk_halted: bool,
+    new_orders_blocked: bool,
+    manual_submit_cancel_proof_observed: bool,
+    matching_engine_submission: bool,
+    order_submission_remains_disabled: bool,
+    network_attempted: bool,
+    real_orders_submitted: bool,
+    production_endpoint_allowed: bool,
+    dashboard_order_controls: bool,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct TestnetReconciliationFixtureEntry {
+    name: String,
+    local_state: String,
+    exchange_state: String,
+    risk_halted: bool,
+    new_orders_blocked: bool,
+    action_required: String,
+    diagnostic: String,
+}
+
 impl TestnetSignedOrderRequest {
     fn redacted_preview(
         &self,
@@ -538,6 +573,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::TestnetExecutionArtifactContract(contract) => {
             run_live_testnet_execution_artifact_contract(&contract)
         }
+        LiveCommand::TestnetReconciliationFixture(fixture) => {
+            run_live_testnet_reconciliation_fixture(&fixture)
+        }
     }
 }
 
@@ -592,6 +630,29 @@ fn run_live_testnet_execution_artifact_contract(
     opt: &LiveTestnetExecutionArtifactContractOpt,
 ) -> anyhow::Result<()> {
     run_live_testnet_execution_artifact_contract_with_env(opt, |name| std::env::var(name).ok())
+}
+
+fn run_live_testnet_reconciliation_fixture(
+    opt: &LiveTestnetReconciliationFixtureOpt,
+) -> anyhow::Result<()> {
+    let config = load_strategy_node_config(&opt.config)?;
+    let Some(testnet_order) = &config.testnet_order else {
+        anyhow::bail!("testnet_order section is required for v0.10 reconciliation fixture");
+    };
+
+    let report = build_testnet_reconciliation_fixture_report(testnet_order, opt.scenario);
+    if let Some(output) = &opt.output {
+        atomic_write_json(output, &report)?;
+    }
+
+    println!(
+        "live.testnet_reconciliation_fixture status={} config={} scenario={} scenario_count={} risk_halted=true new_orders_blocked=true order_submission_remains_disabled=true network_attempted=false real_orders_submitted=false production_endpoint_allowed=false dashboard_order_controls=false",
+        report.status,
+        opt.config.display(),
+        report.scenario,
+        report.scenario_count,
+    );
+    Ok(())
 }
 
 fn run_live_testnet_order_gate_with_env<F>(
@@ -1758,6 +1819,109 @@ fn build_execution_artifact_contract_report(
         dashboard_order_controls: false,
         secrets_redacted: true,
         diagnostic: "V100 execution artifact contract defines redacted artifact schemas and counters only; real Binance testnet submit/cancel proof remains manual-gated and is not observed offline.".to_string(),
+    }
+}
+
+fn build_testnet_reconciliation_fixture_report(
+    testnet_order: &StrategyNodeTestnetOrderSection,
+    scenario: TestnetReconciliationScenario,
+) -> TestnetReconciliationFixtureReport {
+    let scenarios = reconciliation_fixture_entries(scenario);
+    TestnetReconciliationFixtureReport {
+        schema_version: TESTNET_RECONCILIATION_FIXTURE_SCHEMA_VERSION.to_string(),
+        status: "risk_halted".to_string(),
+        symbol: testnet_order.symbol.clone(),
+        scenario: reconciliation_scenario_label(scenario).to_string(),
+        scenario_count: scenarios.len(),
+        scenarios,
+        counters: TestnetExecutionArtifactCounters {
+            testnet_orders_submitted: 0,
+            testnet_orders_canceled: 0,
+            production_orders_submitted: 0,
+            production_orders_canceled: 0,
+        },
+        risk_halted: true,
+        new_orders_blocked: true,
+        manual_submit_cancel_proof_observed: false,
+        matching_engine_submission: false,
+        order_submission_remains_disabled: true,
+        network_attempted: false,
+        real_orders_submitted: false,
+        production_endpoint_allowed: false,
+        dashboard_order_controls: false,
+        diagnostic: "Offline V100 reconciliation fixtures classify inconsistent order state as risk_halted and block new order submission; no Binance network calls or real orders are attempted.".to_string(),
+    }
+}
+
+fn reconciliation_fixture_entries(
+    scenario: TestnetReconciliationScenario,
+) -> Vec<TestnetReconciliationFixtureEntry> {
+    match scenario {
+        TestnetReconciliationScenario::All => vec![
+            reconciliation_fixture_entry(TestnetReconciliationScenario::SubmitWithoutLocalAck),
+            reconciliation_fixture_entry(TestnetReconciliationScenario::CancelTimeout),
+            reconciliation_fixture_entry(TestnetReconciliationScenario::LocalOpenExchangeFilled),
+            reconciliation_fixture_entry(TestnetReconciliationScenario::RestartUnfinishedOrder),
+        ],
+        scenario => vec![reconciliation_fixture_entry(scenario)],
+    }
+}
+
+fn reconciliation_fixture_entry(
+    scenario: TestnetReconciliationScenario,
+) -> TestnetReconciliationFixtureEntry {
+    match scenario {
+        TestnetReconciliationScenario::All => {
+            unreachable!("all scenario expands before fixture entry construction")
+        }
+        TestnetReconciliationScenario::SubmitWithoutLocalAck => TestnetReconciliationFixtureEntry {
+            name: "submit_without_local_ack".to_string(),
+            local_state: "submit_request_recorded_ack_missing".to_string(),
+            exchange_state: "unknown_until_readback".to_string(),
+            risk_halted: true,
+            new_orders_blocked: true,
+            action_required: "read_exchange_order_status_then_cancel_or_mark_terminal_before_new_orders".to_string(),
+            diagnostic: "A submit request without local ack is ambiguous; the offline contract risk-halts until exchange readback resolves the order.".to_string(),
+        },
+        TestnetReconciliationScenario::CancelTimeout => TestnetReconciliationFixtureEntry {
+            name: "cancel_timeout".to_string(),
+            local_state: "cancel_request_recorded_terminal_state_missing".to_string(),
+            exchange_state: "open_or_canceled_unknown".to_string(),
+            risk_halted: true,
+            new_orders_blocked: true,
+            action_required: "read_exchange_order_status_until_terminal_or_keep_risk_halt".to_string(),
+            diagnostic: "A cancel timeout is not safe to treat as canceled; new orders stay blocked until terminal exchange state is known.".to_string(),
+        },
+        TestnetReconciliationScenario::LocalOpenExchangeFilled => {
+            TestnetReconciliationFixtureEntry {
+                name: "local_open_exchange_filled".to_string(),
+                local_state: "open".to_string(),
+                exchange_state: "filled".to_string(),
+                risk_halted: true,
+                new_orders_blocked: true,
+                action_required: "import_exchange_fill_then_reconcile_position_before_new_orders".to_string(),
+                diagnostic: "Exchange-filled while local-open creates position/account ambiguity; risk halt is mandatory before any new order.".to_string(),
+            }
+        }
+        TestnetReconciliationScenario::RestartUnfinishedOrder => TestnetReconciliationFixtureEntry {
+            name: "restart_unfinished_order".to_string(),
+            local_state: "unfinished_testnet_order_loaded_on_restart".to_string(),
+            exchange_state: "requires_readback".to_string(),
+            risk_halted: true,
+            new_orders_blocked: true,
+            action_required: "reconcile_unfinished_order_on_startup_before_enabling_order_path".to_string(),
+            diagnostic: "Restart with unfinished order state must remain risk-halted until readback and terminal handling complete.".to_string(),
+        },
+    }
+}
+
+fn reconciliation_scenario_label(scenario: TestnetReconciliationScenario) -> &'static str {
+    match scenario {
+        TestnetReconciliationScenario::All => "all",
+        TestnetReconciliationScenario::SubmitWithoutLocalAck => "submit_without_local_ack",
+        TestnetReconciliationScenario::CancelTimeout => "cancel_timeout",
+        TestnetReconciliationScenario::LocalOpenExchangeFilled => "local_open_exchange_filled",
+        TestnetReconciliationScenario::RestartUnfinishedOrder => "restart_unfinished_order",
     }
 }
 
@@ -3534,6 +3698,67 @@ write_summary = true
             .to_string();
 
         assert!(error.contains("requires API secret env value"));
+    }
+
+    #[test]
+    fn testnet_reconciliation_fixture_writes_all_risk_halt_scenarios() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-008-reconciliation-all-{}",
+            std::process::id()
+        ));
+        let config = write_config(
+            "testnet-reconciliation-all",
+            &strategy_node_config(&output_dir),
+        );
+        let output = output_dir.join("reconciliation-fixture.json");
+
+        run_live_testnet_reconciliation_fixture(&LiveTestnetReconciliationFixtureOpt {
+            config,
+            scenario: TestnetReconciliationScenario::All,
+            output: Some(output.clone()),
+        })
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(body.contains(TESTNET_RECONCILIATION_FIXTURE_SCHEMA_VERSION));
+        assert!(body.contains("\"status\": \"risk_halted\""));
+        assert!(body.contains("\"scenario_count\": 4"));
+        assert!(body.contains("\"name\": \"submit_without_local_ack\""));
+        assert!(body.contains("\"name\": \"cancel_timeout\""));
+        assert!(body.contains("\"name\": \"local_open_exchange_filled\""));
+        assert!(body.contains("\"name\": \"restart_unfinished_order\""));
+        assert!(body.contains("\"risk_halted\": true"));
+        assert!(body.contains("\"new_orders_blocked\": true"));
+        assert!(body.contains("\"testnet_orders_submitted\": 0"));
+        assert!(body.contains("\"production_orders_submitted\": 0"));
+        assert!(body.contains("\"network_attempted\": false"));
+        assert!(body.contains("\"real_orders_submitted\": false"));
+    }
+
+    #[test]
+    fn testnet_reconciliation_fixture_filters_single_scenario() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-008-reconciliation-one-{}",
+            std::process::id()
+        ));
+        let config = write_config(
+            "testnet-reconciliation-one",
+            &strategy_node_config(&output_dir),
+        );
+        let output = output_dir.join("reconciliation-fixture.json");
+
+        run_live_testnet_reconciliation_fixture(&LiveTestnetReconciliationFixtureOpt {
+            config,
+            scenario: TestnetReconciliationScenario::CancelTimeout,
+            output: Some(output.clone()),
+        })
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(body.contains("\"scenario\": \"cancel_timeout\""));
+        assert!(body.contains("\"scenario_count\": 1"));
+        assert!(body.contains("\"name\": \"cancel_timeout\""));
+        assert!(!body.contains("\"name\": \"submit_without_local_ack\""));
     }
 
     #[tokio::test(flavor = "current_thread")]
