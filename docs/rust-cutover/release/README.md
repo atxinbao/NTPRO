@@ -151,13 +151,14 @@ Final release checks, benchmark summaries, and audit reports live here.
   closed and does not open network connections or submit orders; real proof
   still requires owner gates, testnet credentials, and validated redacted
   artifacts.
-- `v0_10_0_readiness_report.md` - V100-011 readiness report for owner release
-  decision. It records the completed offline V100 queue, keeps V100-006 manual
-  online proof pending, and does not create a tag or publish a GitHub Release.
-- `v0_10_0_release_notes.md` - release-note material for a possible
-  owner-approved `ntpro-rust-only-v0.10.0` release. It preserves the Binance
-  testnet-only/manual-gated boundary and does not claim production trading,
-  real funds, Dashboard order controls, or completed V100-006 proof.
+- `v0_10_0_readiness_report.md` - released readiness report for the v0.10.0
+  Binance spot sandbox order proof milestone. It records the completed V100
+  queue and owner-confirmed Spot Demo Mode submit/cancel proof while preserving
+  the no-production, no-real-funds, no-Dashboard-order-controls boundary.
+- `v0_10_0_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.10.0` GitHub Release. It preserves the Binance spot
+  sandbox/manual-gated boundary and does not claim production trading, real
+  funds, or Dashboard order controls.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
