@@ -111,6 +111,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   Binance Testnet Order Proof milestone. It defines the testnet-only,
   owner/manual-gated order-test, tiny submit, cancel, reconciliation, redaction,
   and read-only Dashboard artifact boundary without claiming release readiness.
+- `v0_10_0_execution_config_contract.md` - V100-001 execution config contract
+  for the disabled-by-default `[testnet_order]` section, including testnet-only
+  URL, one-symbol alignment, string decimal price/quantity/notional fields,
+  owner/manual gates, and forbidden production/Dashboard order controls.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.

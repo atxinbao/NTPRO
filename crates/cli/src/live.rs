@@ -53,6 +53,11 @@ const FIXTURE_STREAM_DATA_MODE: &str = "fixture_stream";
 const SANDBOX_ENVIRONMENT: &str = "sandbox";
 const SANDBOX_SIMULATED_EXECUTION: &str = "sandbox-simulated-execution";
 const DISABLED_ORDER_SUBMISSION: &str = "disabled";
+const BINANCE_TESTNET_HTTP_BASE_URL: &str = "https://testnet.binance.vision";
+const TESTNET_ORDER_DISABLED_MODE: &str = "disabled";
+const TESTNET_ORDER_OWNER_MANUAL_GATE: &str = "owner-approved-manual";
+const TESTNET_ORDER_LIMIT_TYPE: &str = "LIMIT";
+const TESTNET_ORDER_GTC_TIF: &str = "GTC";
 const START_STOP_SHUTDOWN: &str = "start-stop";
 const DEFAULT_NTPRO_NODE_HEARTBEAT_INTERVAL_MS: u64 = 1_000;
 const DEFAULT_NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: u64 = 5_000;
@@ -170,6 +175,7 @@ struct StrategyNodeConfig {
     strategy: StrategyNodeStrategySection,
     market: StrategyNodeMarketSection,
     execution: StrategyNodeExecutionSection,
+    testnet_order: Option<StrategyNodeTestnetOrderSection>,
     risk: StrategyNodeRiskSection,
     shutdown: Option<LiveShutdownConfig>,
     output: Option<LiveOutputConfig>,
@@ -204,6 +210,28 @@ struct StrategyNodeExecutionSection {
     venue: Option<String>,
     order_submission: String,
     external_venue_connection: Option<bool>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+struct StrategyNodeTestnetOrderSection {
+    enabled: bool,
+    mode: String,
+    manual_gate: String,
+    http_base_url: String,
+    symbol: String,
+    instrument_id: String,
+    side: String,
+    order_type: String,
+    time_in_force: String,
+    price: String,
+    quantity: String,
+    notional: String,
+    cancel_after_submit_ms: u64,
+    owner_approval_required: bool,
+    manual_env_gate_required: bool,
+    production_endpoint_allowed: bool,
+    dashboard_order_controls: bool,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -744,6 +772,17 @@ fn validate_strategy_node_config(config: &StrategyNodeConfig) -> anyhow::Result<
     if config.execution.external_venue_connection.unwrap_or(false) {
         anyhow::bail!("execution.external_venue_connection must be false for strategy session");
     }
+    if let Some(testnet_order) = &config.testnet_order {
+        validate_strategy_node_testnet_order_config(
+            testnet_order,
+            config
+                .market
+                .symbols
+                .first()
+                .map(String::as_str)
+                .unwrap_or_default(),
+        )?;
+    }
     if !config.risk.kill_switch_enabled {
         anyhow::bail!("risk.kill_switch_enabled must be true for v0.9.1 shadow strategy sessions");
     }
@@ -763,6 +802,106 @@ fn validate_strategy_node_config(config: &StrategyNodeConfig) -> anyhow::Result<
         if matches!(output.write_summary, Some(false)) {
             anyhow::bail!("output.write_summary must be true for strategy session");
         }
+    }
+    Ok(())
+}
+
+fn validate_strategy_node_testnet_order_config(
+    config: &StrategyNodeTestnetOrderSection,
+    market_symbol: &str,
+) -> anyhow::Result<()> {
+    if config.enabled {
+        anyhow::bail!("testnet_order.enabled must be false until explicit v0.10 manual gates run");
+    }
+    validate_exact(
+        "testnet_order.mode",
+        &config.mode,
+        TESTNET_ORDER_DISABLED_MODE,
+    )?;
+    validate_exact(
+        "testnet_order.manual_gate",
+        &config.manual_gate,
+        TESTNET_ORDER_OWNER_MANUAL_GATE,
+    )?;
+    validate_exact(
+        "testnet_order.http_base_url",
+        &config.http_base_url,
+        BINANCE_TESTNET_HTTP_BASE_URL,
+    )?;
+    validate_non_empty("testnet_order.symbol", &config.symbol)?;
+    validate_non_empty("testnet_order.instrument_id", &config.instrument_id)?;
+    validate_exact(
+        "testnet_order.instrument_id",
+        &config.instrument_id,
+        market_symbol,
+    )?;
+    validate_exact(
+        "testnet_order.symbol",
+        &config.symbol,
+        market_symbol_base(market_symbol),
+    )?;
+    validate_non_empty("testnet_order.side", &config.side)?;
+    if config.side != "BUY" && config.side != "SELL" {
+        anyhow::bail!(
+            "testnet_order.side must be 'BUY' or 'SELL', got '{}'",
+            config.side
+        );
+    }
+    validate_exact(
+        "testnet_order.order_type",
+        &config.order_type,
+        TESTNET_ORDER_LIMIT_TYPE,
+    )?;
+    validate_exact(
+        "testnet_order.time_in_force",
+        &config.time_in_force,
+        TESTNET_ORDER_GTC_TIF,
+    )?;
+    validate_positive_decimal_string("testnet_order.price", &config.price)?;
+    validate_positive_decimal_string("testnet_order.quantity", &config.quantity)?;
+    validate_positive_decimal_string("testnet_order.notional", &config.notional)?;
+    if config.cancel_after_submit_ms == 0 {
+        anyhow::bail!("testnet_order.cancel_after_submit_ms must be greater than zero");
+    }
+    if !config.owner_approval_required {
+        anyhow::bail!("testnet_order.owner_approval_required must be true");
+    }
+    if !config.manual_env_gate_required {
+        anyhow::bail!("testnet_order.manual_env_gate_required must be true");
+    }
+    if config.production_endpoint_allowed {
+        anyhow::bail!("testnet_order.production_endpoint_allowed must be false");
+    }
+    if config.dashboard_order_controls {
+        anyhow::bail!("testnet_order.dashboard_order_controls must be false");
+    }
+    Ok(())
+}
+
+fn market_symbol_base(symbol: &str) -> &str {
+    symbol.split_once('.').map_or(symbol, |(base, _)| base)
+}
+
+fn validate_positive_decimal_string(field: &str, value: &str) -> anyhow::Result<()> {
+    let value = value.trim();
+    if value.is_empty() {
+        anyhow::bail!("{field} must not be empty");
+    }
+    let mut saw_digit = false;
+    let mut saw_non_zero_digit = false;
+    let mut saw_dot = false;
+    for character in value.chars() {
+        match character {
+            '0'..='9' => {
+                saw_digit = true;
+                saw_non_zero_digit |= character != '0';
+            }
+            '.' if !saw_dot => saw_dot = true,
+            _ => anyhow::bail!("{field} must be a positive decimal string, got '{value}'"),
+        }
+    }
+    if !saw_digit || !saw_non_zero_digit {
+        anyhow::bail!("{field} must be greater than zero");
     }
     Ok(())
 }
@@ -1373,6 +1512,25 @@ venue = "BINANCE_TESTNET"
 order_submission = "disabled"
 external_venue_connection = false
 
+[testnet_order]
+enabled = false
+mode = "disabled"
+manual_gate = "owner-approved-manual"
+http_base_url = "https://testnet.binance.vision"
+symbol = "BTCUSDT"
+instrument_id = "BTCUSDT.BINANCE"
+side = "BUY"
+order_type = "LIMIT"
+time_in_force = "GTC"
+price = "1.00"
+quantity = "0.00001000"
+notional = "0.00001000"
+cancel_after_submit_ms = 3000
+owner_approval_required = true
+manual_env_gate_required = true
+production_endpoint_allowed = false
+dashboard_order_controls = false
+
 [risk]
 kill_switch_enabled = true
 kill_switch_active = false
@@ -1400,6 +1558,50 @@ write_summary = true
         let path = write_config("validate", &minimal_config(&output_dir));
 
         validate_minimal_live_config_file(&path).unwrap();
+    }
+
+    #[test]
+    fn validates_strategy_node_testnet_order_contract() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-001-strategy-contract-{}",
+            std::process::id()
+        ));
+        let path = write_config("strategy-contract", &strategy_node_config(&output_dir));
+
+        validate_strategy_node_config_file(&path).unwrap();
+    }
+
+    #[test]
+    fn rejects_strategy_node_testnet_order_enabled_by_default() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-001-strategy-order-enabled-{}",
+            std::process::id()
+        ));
+        let config = strategy_node_config(&output_dir).replace("enabled = false", "enabled = true");
+        let path = write_config("strategy-order-enabled", &config);
+
+        let error = validate_strategy_node_config_file(&path)
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("testnet_order.enabled must be false"));
+    }
+
+    #[test]
+    fn rejects_strategy_node_testnet_order_non_decimal_quantity() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v100-001-strategy-order-bad-quantity-{}",
+            std::process::id()
+        ));
+        let config = strategy_node_config(&output_dir)
+            .replace(r#"quantity = "0.00001000""#, r#"quantity = "1e-5""#);
+        let path = write_config("strategy-order-bad-quantity", &config);
+
+        let error = validate_strategy_node_config_file(&path)
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("testnet_order.quantity must be a positive decimal string"));
     }
 
     #[tokio::test(flavor = "current_thread")]
