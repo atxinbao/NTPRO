@@ -1,4 +1,4 @@
-# NTPRO v0.11.0 Production Read-Only + Shadow Portfolio Readiness Report
+# NTPRO v0.11.0 Production Read-Only Contract + Offline Shadow Portfolio Readiness Report
 
 Date: 2026-06-20
 Executor: Codex
@@ -7,23 +7,24 @@ Status: PASS - RELEASED
 
 ## Summary
 
-`v0.11.0` is the Production Read-Only + Shadow Portfolio milestone. The queue
-defines the production read-only/shadow boundary, endpoint classification,
-public read-only probe contract, authenticated account snapshot contract,
+`v0.11.0` is the Production Read-Only Contract + Offline Shadow Portfolio
+milestone. The queue defines the production read-only/shadow boundary, endpoint
+classification, public read-only probe contract, authenticated account snapshot
+contract,
 shadow execution intent contract, shadow portfolio snapshot contract,
 shadow/read-only lifecycle state model, reconciliation event model, read-only
 Dashboard production shadow status, and offline release gate wiring.
 
 Plain Chinese summary: v0.11.0 的任务队列已经完成，并已进入正式发布口径。
-这次能力只允许“读生产环境”和“本地影子计算”：可以做 endpoint 分类、公开只读探针、
-认证账户快照契约、shadow intent、shadow portfolio、只读 reconciliation 事件和
-Dashboard 只读状态。它不是实盘交易，不碰真实资金，不提交/撤销/修改生产订单，
-Dashboard 也没有下单按钮。
+这次能力只允许“生产只读合约”和“本地影子计算”：可以做 endpoint 分类、公开只读
+探针合约、认证账户快照契约、shadow intent、shadow portfolio、只读 reconciliation
+事件和 Dashboard 只读状态。它不是生产在线读取成功证明，不是实盘交易，不碰真实资金，
+不提交/撤销/修改生产订单，Dashboard 也没有下单按钮。
 
 ## Product Claim
 
 ```text
-capability = Production Read-Only + Shadow Portfolio release package
+capability = Production Read-Only Contract + Offline Shadow Portfolio release package
 current published release before v0.11.0 = ntpro-rust-only-v0.10.0
 release tag = ntpro-rust-only-v0.11.0
 release name = NTPRO Rust-only v0.11.0
@@ -31,6 +32,7 @@ release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.
 default execution posture = offline fail-closed
 production public read-only contract = available, explicitly gated, offline by default
 production authenticated account snapshot contract = available, owner-gated, redacted, offline by default
+successful online production reads = not included
 shadow execution intent = local artifact only
 shadow portfolio = local artifact only
 reconciliation = local evidence/manual-remediation event model only
@@ -49,6 +51,7 @@ v0.11.0 read-only/shadow boundary
 endpoint classifier design
 production public read-only probe contract
 authenticated production read-only account snapshot contract
+offline fail-closed production read artifacts
 shadow execution intent artifact contract
 minimal shadow portfolio snapshot artifact contract
 shadow/read-only order lifecycle state model
@@ -63,6 +66,8 @@ release notes and readiness closure material
 ```text
 production order submission
 production cancel, replace, amend, retry, or correction orders
+successful online production public/account reads
+production network-read runtime as completed capability
 real funds
 production trading
 production order lifecycle parity
@@ -74,7 +79,7 @@ Dashboard order/cancel/replace/amend controls
 
 | Task | Status | Evidence | Notes |
 | --- | --- | --- | --- |
-| V110-000 | PASS | `docs/rust-cutover/evidence/V110-000.md` | Defines the v0.11 Production Read-Only + Shadow Portfolio boundary. |
+| V110-000 | PASS | `docs/rust-cutover/evidence/V110-000.md` | Defines the v0.11 Production Read-Only Contract + Offline Shadow Portfolio boundary. |
 | V110-001 | PASS | `docs/rust-cutover/evidence/V110-001.md` | Defines endpoint classifier classes and mutation-forbidden defaults. |
 | V110-002 | PASS | `docs/rust-cutover/evidence/V110-002.md` | Adds the production public read-only probe contract. |
 | V110-003 | PASS | `docs/rust-cutover/evidence/V110-003.md` | Adds the authenticated account snapshot contract with redaction and no network by default. |
@@ -138,6 +143,7 @@ formal GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rus
 The v0.11.0 release package is the formal publication package for
 `ntpro-rust-only-v0.11.0`.
 
-Do not describe this readiness PASS as production order submission readiness,
-real-funds readiness, production trading readiness, automatic production
-reconciliation readiness, or Dashboard order-control readiness.
+Do not describe this readiness PASS as successful online production read
+readiness, production order submission readiness, real-funds readiness,
+production trading readiness, automatic production reconciliation readiness, or
+Dashboard order-control readiness.

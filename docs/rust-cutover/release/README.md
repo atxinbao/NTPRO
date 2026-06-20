@@ -164,13 +164,14 @@ Final release checks, benchmark summaries, and audit reports live here.
   sandbox/manual-gated boundary and does not claim production trading, real
   funds, or Dashboard order controls.
 - `v0_11_0_readiness_report.md` - released readiness report for the v0.11.0
-  Production Read-Only + Shadow Portfolio milestone. It records the completed
-  V110 queue, formal tag `ntpro-rust-only-v0.11.0`, and production
-  read-only/shadow-only boundary.
+  Production Read-Only Contract + Offline Shadow Portfolio milestone. It
+  records the completed V110 queue, formal tag `ntpro-rust-only-v0.11.0`, and
+  production read-only contract / offline shadow boundary.
 - `v0_11_0_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.11.0` GitHub Release. It preserves the production
-  read-only/shadow-only boundary and does not claim production order mutation,
-  real funds, production trading, or Dashboard order controls.
+  read-only contract / offline shadow boundary and does not claim successful
+  online production reads, production order mutation, real funds, production
+  trading, or Dashboard order controls.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.

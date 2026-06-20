@@ -7,13 +7,15 @@ The current public milestone is:
 
 ```text
 Current source tag: ntpro-rust-only-v0.11.0
-Capability: Production Read-Only + Shadow Portfolio
-Boundary: production read-only contracts, local shadow execution/portfolio evidence, Dashboard read-only production shadow status, production orders submitted=0, production order mutations attempted=0, no real funds, no production trading, no Dashboard order controls
+Capability: Production Read-Only Contract + Offline Shadow Portfolio
+Boundary: production endpoint classification and read-only contracts, offline fail-closed public/account read artifacts, local shadow execution/portfolio evidence, Dashboard read-only production shadow status, successful online production reads=0, production orders submitted=0, production order mutations attempted=0, no real funds, no production trading, no Dashboard order controls
 ```
 
 This tag is the current v0.11.0 source release point for the scoped Production
-Read-Only + Shadow Portfolio line. It is published as a GitHub Release for
-the tagged source tree:
+Read-Only Contract + Offline Shadow Portfolio line. It defines production
+read-only classification/contracts and offline evidence. It is not evidence of
+successful online production reads. It is published as a GitHub Release for the
+tagged source tree:
 
 ```text
 https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.11.0
@@ -122,8 +124,9 @@ layers:
   submit/cancel evidence, redacted execution artifacts, terminal reconciliation,
   read-only Dashboard evidence display, and production order counters fixed at
   zero.
-- `v0.11.0`: Production Read-Only + Shadow Portfolio release package with
-  endpoint classification, production read-only contracts, local shadow
+- `v0.11.0`: Production Read-Only Contract + Offline Shadow Portfolio release
+  package with endpoint classification, production read-only contracts, offline
+  fail-closed public/account read artifacts, local shadow
   execution/portfolio artifacts, shadow/read-only lifecycle and reconciliation
   models, Dashboard read-only production shadow status, and production order
   counters fixed at zero.
@@ -168,8 +171,10 @@ The current release path supports:
 - terminal `CANCELED` order lifecycle reconciliation evidence;
 - read-only Dashboard order-proof display.
 - production endpoint classification for read-only/shadow-only boundaries;
-- production public read-only probe contract, offline fail-closed by default;
-- authenticated production account snapshot contract, owner-gated and redacted;
+- production public read-only probe contract, offline fail-closed by default
+  with `network_attempted=false`;
+- authenticated production account snapshot contract, owner-gated, redacted,
+  and offline fail-closed by default with `network_attempted=false`;
 - local shadow execution intent artifacts;
 - local shadow portfolio snapshot artifacts;
 - local shadow/read-only order lifecycle state model;
@@ -184,6 +189,8 @@ Not included in the v0.11.0 product claim:
 
 - Production order submission.
 - Production order submit, cancel, replace, amend, or live order management.
+- Successful online production public or account reads.
+- Production network-read runtime presented as completed capability.
 - Automatic online order mutation.
 - Production account mutation.
 - Automatic production reconciliation or remediation.
@@ -211,18 +218,19 @@ manual-online-only and still must not submit, cancel, replace, or amend orders.
 The v0.9.0 product boundary remains the historical local deterministic Strategy
 Runtime batch foundation plus release wording/evidence closure. The current
 v0.11.0 release builds on the v0.10.0 Binance spot sandbox order proof and adds
-Production Read-Only + Shadow Portfolio evidence only. Default local and CI
-runs remain offline, artifact-first, Rust-only, read-only/shadow-only, and
-explicitly non-production.
+Production Read-Only Contract + Offline Shadow Portfolio evidence only. Default
+local and CI runs remain offline, artifact-first, Rust-only,
+read-only/shadow-only, and explicitly non-production.
 
 The v0.9 runtime may load a local strategy session, consume a bounded
 fixture/mock input batch, write signal artifacts, write shadow order-intent and
 risk-decision artifacts, and expose read-only supervisor/Dashboard status. The
 v0.10.0 release proves one owner-gated Binance Spot Demo Mode submit/cancel
-artifact package. The v0.11.0 release adds production read-only/shadow-only
-contracts and local shadow evidence, but it does not prove production order
-submission, production order mutation, real funds, production trading readiness,
-automatic production remediation, or Dashboard order controls.
+artifact package. The v0.11.0 release adds production read-only contracts and
+local offline shadow evidence, but it does not prove successful online
+production reads, production order submission, production order mutation, real
+funds, production trading readiness, automatic production remediation, or
+Dashboard order controls.
 
 The scope and readiness documents are:
 
@@ -361,7 +369,7 @@ Start with:
 ## Release Notes
 
 `ntpro-rust-only-v0.11.0` is the current Rust-only source release for the
-Production Read-Only + Shadow Portfolio line. `v0.11.1` is the next
+Production Read-Only Contract + Offline Shadow Portfolio line. `v0.11.1` is the next
 release-surface hotfix track and does not add production order submission,
 production order mutation, real funds, production trading, automatic production
 remediation, or Dashboard order controls. `v0.10.0` remains the Binance spot

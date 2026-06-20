@@ -9,21 +9,24 @@ Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.
 
 ## Summary
 
-`v0.11.0` is the Production Read-Only + Shadow Portfolio release. It
-adds release-scoped contracts and verification for reading production context
-through explicit gates, recording local shadow execution/portfolio evidence,
-and displaying that evidence in Dashboard as read-only status.
+`v0.11.0` is the Production Read-Only Contract + Offline Shadow Portfolio
+release. It adds release-scoped contracts and verification for classifying
+production read-only context through explicit gates, recording offline
+fail-closed public/account read artifacts, recording local shadow
+execution/portfolio evidence, and displaying that evidence in Dashboard as
+read-only status.
 
-Plain Chinese summary: v0.11.0 是“生产只读 + 本地影子组合”的正式发布。它可以把生产
-endpoint 分类清楚，可以准备公开只读和认证账户快照契约，可以生成本地 shadow intent、
-shadow portfolio、生命周期和 reconciliation 证据，也可以在 Dashboard 只读展示。
-它不能下生产订单，不能撤单/改单，不能动真实资金，也不能把 Dashboard 变成交易面板。
+Plain Chinese summary: v0.11.0 是“生产只读合约 + 离线影子组合”的正式发布。它可以把
+生产 endpoint 分类清楚，可以准备公开只读和认证账户快照契约，可以生成本地 shadow
+intent、shadow portfolio、生命周期和 reconciliation 证据，也可以在 Dashboard 只读展示。
+它不能证明已经在线读取生产环境，不能下生产订单，不能撤单/改单，不能动真实资金，
+也不能把 Dashboard 变成交易面板。
 
 ## Changed
 
 Delivered changes:
 
-- v0.11.0 Production Read-Only + Shadow Portfolio boundary;
+- v0.11.0 Production Read-Only Contract + Offline Shadow Portfolio boundary;
 - central endpoint classifier design for sandbox, production read-only, and
   forbidden production mutation surfaces;
 - production public read-only probe CLI contract, offline by default;
@@ -43,8 +46,9 @@ Included:
 
 ```text
 production endpoint classification
-production public read-only contract
-owner-gated authenticated account snapshot contract
+production public read-only contract, offline fail-closed
+owner-gated authenticated account snapshot contract, offline fail-closed
+offline fail-closed production read artifacts
 local shadow execution intent artifacts
 local shadow portfolio snapshot artifacts
 local shadow/read-only lifecycle state evidence
@@ -58,6 +62,8 @@ Not included:
 ```text
 production order submission
 production cancel, replace, amend, retry, or correction orders
+successful online production public/account reads
+production network-read runtime as completed capability
 real funds
 production trading
 automatic production reconciliation or remediation
@@ -113,7 +119,8 @@ release name = NTPRO Rust-only v0.11.0
 release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.11.0
 ```
 
-The release boundary must continue to preserve: Production Read-Only + Shadow
-Portfolio only, no production order submission, no production order mutation,
-no real funds, no production trading, no automatic production remediation, and
-no Dashboard order controls.
+The release boundary must continue to preserve: Production Read-Only Contract
+and Offline Shadow Portfolio only, no successful online production read claim,
+no production order submission, no production order mutation, no real funds, no
+production trading, no automatic production remediation, and no Dashboard order
+controls.
