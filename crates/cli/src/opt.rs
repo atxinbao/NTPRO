@@ -160,6 +160,8 @@ pub enum LiveCommand {
     TestnetReconciliationFixture(LiveTestnetReconciliationFixtureOpt),
     /// Writes a v0.11 production public read-only probe contract without network or orders.
     ProductionPublicReadProbe(LiveProductionPublicReadProbeOpt),
+    /// Writes a v0.11 authenticated production account snapshot contract without network or orders.
+    ProductionAccountSnapshotContract(LiveProductionAccountSnapshotContractOpt),
 }
 
 /// Live validation options.
@@ -406,6 +408,38 @@ pub enum ProductionPublicReadEndpoint {
     ServerTime,
     /// `GET /api/v3/exchangeInfo`.
     ExchangeInfo,
+}
+
+/// Authenticated production account snapshot contract options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionAccountSnapshotContractOpt {
+    /// Optional JSON report output path.
+    #[arg(long)]
+    pub output: Option<PathBuf>,
+    /// Requests the future manual online account read path. V110-003 records this as blocked.
+    #[arg(long)]
+    pub manual_online: bool,
+    /// Environment variable name containing the production read-only API key.
+    #[arg(long, default_value = "BINANCE_PRODUCTION_READONLY_API_KEY")]
+    pub api_key_env: String,
+    /// Environment variable name containing the production read-only API secret.
+    #[arg(long, default_value = "BINANCE_PRODUCTION_READONLY_API_SECRET")]
+    pub api_secret_env: String,
+    /// Binance recvWindow in milliseconds for the future signed read shape.
+    #[arg(long, default_value_t = 5_000)]
+    pub recv_window_ms: u64,
+    /// Manual CLI gate for authenticated production read-only account snapshots.
+    #[arg(long)]
+    pub allow_production_authenticated_read: bool,
+    /// Confirms owner approval for authenticated production read-only evidence.
+    #[arg(long)]
+    pub confirm_owner_approved_read_only: bool,
+    /// Confirms production order submission or mutation remains forbidden.
+    #[arg(long)]
+    pub confirm_no_order_mutation: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL must not be persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
 }
 
 /// Local supervisor controls for sandbox-only node artifacts and processes.

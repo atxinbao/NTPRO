@@ -41,9 +41,9 @@ use tokio::time::{sleep, timeout};
 use crate::{
     artifacts::{atomic_write_json, atomic_write_text},
     opt::{
-        LiveCommand, LiveOpt, LiveProductionPublicReadProbeOpt, LiveRunOpt,
-        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
-        LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
+        LiveCommand, LiveOpt, LiveProductionAccountSnapshotContractOpt,
+        LiveProductionPublicReadProbeOpt, LiveRunOpt, LiveTestnetExecutionArtifactContractOpt,
+        LiveTestnetOrderGateOpt, LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
         ProductionPublicReadEndpoint, TestnetReconciliationScenario,
     },
@@ -87,6 +87,16 @@ const PRODUCTION_PUBLIC_READ_ENV_ALLOW: &str = "NTPRO_ALLOW_PRODUCTION_PUBLIC_RE
 const PRODUCTION_PUBLIC_READ_ENV_READ_ONLY: &str = "NTPRO_CONFIRM_PRODUCTION_PUBLIC_READ_ONLY";
 const PRODUCTION_PUBLIC_READ_ENV_NO_ORDER_MUTATION: &str =
     "NTPRO_CONFIRM_NO_PRODUCTION_ORDER_MUTATION";
+const PRODUCTION_ACCOUNT_SNAPSHOT_SCHEMA_VERSION: &str =
+    "ntpro.v110_authenticated_account_snapshot_contract.v1";
+const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW: &str = "NTPRO_ALLOW_PRODUCTION_AUTHENTICATED_READ";
+const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED: &str =
+    "NTPRO_OWNER_APPROVED_PRODUCTION_READ_ONLY";
+const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION: &str =
+    "NTPRO_CONFIRM_PRODUCTION_ACCOUNT_NO_ORDER_MUTATION";
+const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE: &str =
+    "NTPRO_CONFIRM_NO_SECRET_PERSISTENCE";
+const PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT: &str = "/api/v3/account";
 const START_STOP_SHUTDOWN: &str = "start-stop";
 const DEFAULT_NTPRO_NODE_HEARTBEAT_INTERVAL_MS: u64 = 1_000;
 const DEFAULT_NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: u64 = 5_000;
@@ -354,6 +364,61 @@ impl EnvOnlyTestnetOrderCredentials {
     }
 }
 
+struct EnvOnlyProductionReadCredentials {
+    api_key_env: String,
+    api_secret_env: String,
+    api_key_value: Option<String>,
+    api_secret_value: Option<String>,
+    sensitive_values: Vec<String>,
+}
+
+impl EnvOnlyProductionReadCredentials {
+    fn from_values(
+        api_key_env: String,
+        api_key_value: Option<String>,
+        api_secret_env: String,
+        api_secret_value: Option<String>,
+    ) -> Self {
+        let sensitive_values = [api_key_value.as_ref(), api_secret_value.as_ref()]
+            .into_iter()
+            .flatten()
+            .filter(|value| !value.is_empty())
+            .cloned()
+            .collect();
+
+        Self {
+            api_key_env,
+            api_secret_env,
+            api_key_value,
+            api_secret_value,
+            sensitive_values,
+        }
+    }
+
+    fn api_key_present(&self) -> bool {
+        self.api_key_value
+            .as_deref()
+            .is_some_and(|value| !value.is_empty())
+    }
+
+    fn api_secret_present(&self) -> bool {
+        self.api_secret_value
+            .as_deref()
+            .is_some_and(|value| !value.is_empty())
+    }
+
+    fn ensure_no_secret_values_absent(&self, label: &str, body: &str) -> anyhow::Result<()> {
+        for secret_value in &self.sensitive_values {
+            if body.contains(secret_value) {
+                anyhow::bail!(
+                    "production account snapshot redaction guard blocked secret value leak in {label}"
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
 struct TestnetSignedOrderRequest {
     method: String,
     endpoint_path: String,
@@ -537,6 +602,47 @@ struct ProductionPublicReadProbeReport {
     diagnostic: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionAccountSnapshotContractReport {
+    schema_version: String,
+    status: String,
+    endpoint_class: String,
+    http_base_url: String,
+    method: String,
+    path: String,
+    request_url_redacted: String,
+    query_shape: String,
+    requires_api_key: bool,
+    requires_signature: bool,
+    read_allowed: bool,
+    mutation_allowed: bool,
+    owner_gate_required: bool,
+    manual_gate_required: bool,
+    missing_cli_flags: Vec<String>,
+    missing_env_vars: Vec<String>,
+    manual_online_requested: bool,
+    online_execution_supported: bool,
+    network_attempted: bool,
+    env_credentials_only: bool,
+    api_key_env: String,
+    api_secret_env: String,
+    api_key_present: bool,
+    api_secret_present: bool,
+    api_key_value_recorded: bool,
+    api_secret_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    account_read_attempted: bool,
+    account_mutation_attempted: bool,
+    order_endpoint_access_attempted: bool,
+    production_order_submission_attempted: bool,
+    production_order_mutation_attempted: bool,
+    dashboard_order_controls_enabled: bool,
+    secrets_redacted: bool,
+    diagnostic: String,
+}
+
 impl TestnetSignedOrderRequest {
     fn redacted_preview(
         &self,
@@ -614,6 +720,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         }
         LiveCommand::ProductionPublicReadProbe(probe) => {
             run_live_production_public_read_probe(&probe)
+        }
+        LiveCommand::ProductionAccountSnapshotContract(contract) => {
+            run_live_production_account_snapshot_contract(&contract)
         }
     }
 }
@@ -698,6 +807,12 @@ fn run_live_production_public_read_probe(
     opt: &LiveProductionPublicReadProbeOpt,
 ) -> anyhow::Result<()> {
     run_live_production_public_read_probe_with_env(opt, |name| std::env::var(name).ok())
+}
+
+fn run_live_production_account_snapshot_contract(
+    opt: &LiveProductionAccountSnapshotContractOpt,
+) -> anyhow::Result<()> {
+    run_live_production_account_snapshot_contract_with_env(opt, |name| std::env::var(name).ok())
 }
 
 fn run_live_production_public_read_probe_with_env<F>(
@@ -796,6 +911,125 @@ fn production_public_read_endpoint_parts(
     match endpoint {
         ProductionPublicReadEndpoint::ServerTime => ("server_time", "/api/v3/time"),
         ProductionPublicReadEndpoint::ExchangeInfo => ("exchange_info", "/api/v3/exchangeInfo"),
+    }
+}
+
+fn run_live_production_account_snapshot_contract_with_env<F>(
+    opt: &LiveProductionAccountSnapshotContractOpt,
+    mut read_env: F,
+) -> anyhow::Result<()>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    let missing_cli_flags = missing_production_account_snapshot_cli_flags(opt);
+    let missing_env_vars = missing_production_account_snapshot_env_gates(&mut read_env);
+    let credentials = EnvOnlyProductionReadCredentials::from_values(
+        opt.api_key_env.clone(),
+        read_env(&opt.api_key_env),
+        opt.api_secret_env.clone(),
+        read_env(&opt.api_secret_env),
+    );
+    let report = build_production_account_snapshot_contract_report(
+        opt,
+        &credentials,
+        &missing_cli_flags,
+        &missing_env_vars,
+    );
+
+    if let Some(output) = &opt.output {
+        write_production_account_snapshot_report(output, &report, &credentials)?;
+    }
+
+    println!(
+        "live.production_account_snapshot_contract status={} endpoint_class={} method={} path={} manual_online_requested={} online_execution_supported=false read_allowed={} mutation_allowed=false env_credentials_only=true credentials_used={} network_attempted=false account_read_attempted=false account_mutation_attempted=false order_endpoint_access_attempted=false production_order_submission_attempted=false production_order_mutation_attempted=false dashboard_order_controls_enabled=false secrets_redacted=true",
+        report.status,
+        report.endpoint_class,
+        report.method,
+        report.path,
+        report.manual_online_requested,
+        report.read_allowed,
+        report.api_key_present && report.api_secret_present,
+    );
+    Ok(())
+}
+
+fn build_production_account_snapshot_contract_report(
+    opt: &LiveProductionAccountSnapshotContractOpt,
+    credentials: &EnvOnlyProductionReadCredentials,
+    missing_cli_flags: &[&'static str],
+    missing_env_vars: &[&'static str],
+) -> ProductionAccountSnapshotContractReport {
+    let gates_missing = !missing_cli_flags.is_empty() || !missing_env_vars.is_empty();
+    let credentials_missing = !credentials.api_key_present() || !credentials.api_secret_present();
+    let status = if gates_missing {
+        "blocked_missing_gate"
+    } else if credentials_missing {
+        "blocked_missing_credentials"
+    } else if opt.manual_online {
+        "blocked_online_execution_not_implemented"
+    } else {
+        "ready_offline_contract"
+    };
+    let diagnostic = if gates_missing {
+        "authenticated production account snapshot is closed because explicit CLI/env gates are missing"
+    } else if credentials_missing {
+        "authenticated production account snapshot contract requires env-only API key and secret presence"
+    } else if opt.manual_online {
+        "manual online authenticated production read is out of scope for V110-003; no network was opened"
+    } else {
+        "offline authenticated production account snapshot contract is ready; no network was opened"
+    };
+
+    ProductionAccountSnapshotContractReport {
+        schema_version: PRODUCTION_ACCOUNT_SNAPSHOT_SCHEMA_VERSION.to_string(),
+        status: status.to_string(),
+        endpoint_class: "production_authenticated_read_only".to_string(),
+        http_base_url: BINANCE_PRODUCTION_HTTP_BASE_URL.to_string(),
+        method: "GET".to_string(),
+        path: PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT.to_string(),
+        request_url_redacted: format!(
+            "{BINANCE_PRODUCTION_HTTP_BASE_URL}{PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT}?timestamp=<redacted>&recvWindow={}&signature=<redacted>",
+            opt.recv_window_ms,
+        ),
+        query_shape: format!(
+            "timestamp=<redacted>&recvWindow={}&signature=<redacted>",
+            opt.recv_window_ms,
+        ),
+        requires_api_key: true,
+        requires_signature: true,
+        read_allowed: !gates_missing && !credentials_missing && !opt.manual_online,
+        mutation_allowed: false,
+        owner_gate_required: true,
+        manual_gate_required: true,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        missing_env_vars: missing_env_vars
+            .iter()
+            .map(|name| (*name).to_string())
+            .collect(),
+        manual_online_requested: opt.manual_online,
+        online_execution_supported: false,
+        network_attempted: false,
+        env_credentials_only: true,
+        api_key_env: credentials.api_key_env.clone(),
+        api_secret_env: credentials.api_secret_env.clone(),
+        api_key_present: credentials.api_key_present(),
+        api_secret_present: credentials.api_secret_present(),
+        api_key_value_recorded: false,
+        api_secret_value_recorded: false,
+        signature_recorded: false,
+        signed_query_recorded: false,
+        signed_url_recorded: false,
+        account_read_attempted: false,
+        account_mutation_attempted: false,
+        order_endpoint_access_attempted: false,
+        production_order_submission_attempted: false,
+        production_order_mutation_attempted: false,
+        dashboard_order_controls_enabled: false,
+        secrets_redacted: true,
+        diagnostic: diagnostic.to_string(),
     }
 }
 
@@ -2172,6 +2406,18 @@ where
     Ok(())
 }
 
+fn write_production_account_snapshot_report(
+    path: &Path,
+    value: &ProductionAccountSnapshotContractReport,
+    credentials: &EnvOnlyProductionReadCredentials,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    credentials.ensure_no_secret_values_absent(&path.display().to_string(), &body)?;
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
 fn decimal_string_to_f64(field: &str, value: &str) -> Result<f64, String> {
     validate_positive_decimal_string(field, value).map_err(|error| error.to_string())?;
     value
@@ -2303,6 +2549,40 @@ where
         PRODUCTION_PUBLIC_READ_ENV_ALLOW,
         PRODUCTION_PUBLIC_READ_ENV_READ_ONLY,
         PRODUCTION_PUBLIC_READ_ENV_NO_ORDER_MUTATION,
+    ]
+    .into_iter()
+    .filter(|name| read_env(name).as_deref() != Some("1"))
+    .collect()
+}
+
+fn missing_production_account_snapshot_cli_flags(
+    opt: &LiveProductionAccountSnapshotContractOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_authenticated_read {
+        missing.push("--allow-production-authenticated-read");
+    }
+    if !opt.confirm_owner_approved_read_only {
+        missing.push("--confirm-owner-approved-read-only");
+    }
+    if !opt.confirm_no_order_mutation {
+        missing.push("--confirm-no-order-mutation");
+    }
+    if !opt.confirm_no_secret_persistence {
+        missing.push("--confirm-no-secret-persistence");
+    }
+    missing
+}
+
+fn missing_production_account_snapshot_env_gates<F>(read_env: &mut F) -> Vec<&'static str>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    [
+        PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW,
+        PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED,
+        PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION,
+        PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE,
     ]
     .into_iter()
     .filter(|name| read_env(name).as_deref() != Some("1"))
@@ -3129,6 +3409,24 @@ write_summary = true
             allow_production_public_read: all_cli_gates,
             confirm_read_only: all_cli_gates,
             confirm_no_order_mutation: all_cli_gates,
+        }
+    }
+
+    fn production_account_snapshot_contract_opt(
+        output: Option<PathBuf>,
+        all_cli_gates: bool,
+        manual_online: bool,
+    ) -> LiveProductionAccountSnapshotContractOpt {
+        LiveProductionAccountSnapshotContractOpt {
+            output,
+            manual_online,
+            api_key_env: "NTPRO_V110003_API_KEY".to_string(),
+            api_secret_env: "NTPRO_V110003_API_SECRET".to_string(),
+            recv_window_ms: 5_000,
+            allow_production_authenticated_read: all_cli_gates,
+            confirm_owner_approved_read_only: all_cli_gates,
+            confirm_no_order_mutation: all_cli_gates,
+            confirm_no_secret_persistence: all_cli_gates,
         }
     }
 
@@ -4043,6 +4341,155 @@ write_summary = true
         assert_eq!(report["read_allowed"], false);
         assert_eq!(report["online_execution_supported"], false);
         assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["production_order_mutation_attempted"], false);
+    }
+
+    #[test]
+    fn production_account_snapshot_contract_blocks_missing_gates_without_network() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v110-003-account-blocked-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("account-snapshot-contract.json");
+        let opt = production_account_snapshot_contract_opt(Some(output.clone()), false, false);
+
+        run_live_production_account_snapshot_contract_with_env(&opt, |_| None).unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(
+            report["schema_version"],
+            PRODUCTION_ACCOUNT_SNAPSHOT_SCHEMA_VERSION
+        );
+        assert_eq!(report["status"], "blocked_missing_gate");
+        assert_eq!(
+            report["endpoint_class"],
+            "production_authenticated_read_only"
+        );
+        assert_eq!(report["method"], "GET");
+        assert_eq!(report["path"], "/api/v3/account");
+        assert_eq!(report["requires_api_key"], true);
+        assert_eq!(report["requires_signature"], true);
+        assert_eq!(report["read_allowed"], false);
+        assert_eq!(report["mutation_allowed"], false);
+        assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["env_credentials_only"], true);
+        assert_eq!(report["api_key_value_recorded"], false);
+        assert_eq!(report["api_secret_value_recorded"], false);
+        assert_eq!(report["signature_recorded"], false);
+        assert_eq!(report["signed_query_recorded"], false);
+        assert_eq!(report["signed_url_recorded"], false);
+        assert_eq!(report["account_read_attempted"], false);
+        assert_eq!(report["account_mutation_attempted"], false);
+        assert_eq!(report["order_endpoint_access_attempted"], false);
+        assert_eq!(report["production_order_submission_attempted"], false);
+        assert_eq!(report["production_order_mutation_attempted"], false);
+        assert_eq!(report["dashboard_order_controls_enabled"], false);
+        assert_eq!(report["secrets_redacted"], true);
+    }
+
+    #[test]
+    fn production_account_snapshot_contract_blocks_missing_credentials() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v110-003-account-missing-credentials-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("account-snapshot-contract.json");
+        let opt = production_account_snapshot_contract_opt(Some(output.clone()), true, false);
+
+        run_live_production_account_snapshot_contract_with_env(&opt, |name| match name {
+            PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW
+            | PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED
+            | PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION
+            | PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE => Some("1".to_string()),
+            _ => None,
+        })
+        .unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(report["status"], "blocked_missing_credentials");
+        assert_eq!(report["api_key_present"], false);
+        assert_eq!(report["api_secret_present"], false);
+        assert_eq!(report["read_allowed"], false);
+        assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["production_order_mutation_attempted"], false);
+    }
+
+    #[test]
+    fn production_account_snapshot_contract_writes_ready_offline_redacted_contract() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v110-003-account-ready-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("account-snapshot-contract.json");
+        let opt = production_account_snapshot_contract_opt(Some(output.clone()), true, false);
+
+        run_live_production_account_snapshot_contract_with_env(&opt, |name| match name {
+            PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW
+            | PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED
+            | PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION
+            | PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE => Some("1".to_string()),
+            "NTPRO_V110003_API_KEY" => Some("ntpro_v110003_synthetic_api_key_value".to_string()),
+            "NTPRO_V110003_API_SECRET" => {
+                Some("ntpro_v110003_synthetic_api_secret_value".to_string())
+            }
+            _ => None,
+        })
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(!body.contains("ntpro_v110003_synthetic_api_key_value"));
+        assert!(!body.contains("ntpro_v110003_synthetic_api_secret_value"));
+        let report: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(report["status"], "ready_offline_contract");
+        assert_eq!(report["read_allowed"], true);
+        assert_eq!(report["api_key_present"], true);
+        assert_eq!(report["api_secret_present"], true);
+        assert_eq!(report["api_key_value_recorded"], false);
+        assert_eq!(report["api_secret_value_recorded"], false);
+        assert_eq!(report["signature_recorded"], false);
+        assert_eq!(report["signed_query_recorded"], false);
+        assert_eq!(report["signed_url_recorded"], false);
+        assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["account_read_attempted"], false);
+        assert_eq!(report["order_endpoint_access_attempted"], false);
+        assert_eq!(report["production_order_submission_attempted"], false);
+        assert_eq!(report["production_order_mutation_attempted"], false);
+        assert_eq!(report["dashboard_order_controls_enabled"], false);
+        assert_eq!(report["secrets_redacted"], true);
+    }
+
+    #[test]
+    fn production_account_snapshot_contract_blocks_manual_online_path_in_v110_003() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v110-003-account-online-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("account-snapshot-contract.json");
+        let opt = production_account_snapshot_contract_opt(Some(output.clone()), true, true);
+
+        run_live_production_account_snapshot_contract_with_env(&opt, |name| match name {
+            PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW
+            | PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED
+            | PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION
+            | PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE => Some("1".to_string()),
+            "NTPRO_V110003_API_KEY" => Some("ntpro_v110003_synthetic_api_key_value".to_string()),
+            "NTPRO_V110003_API_SECRET" => {
+                Some("ntpro_v110003_synthetic_api_secret_value".to_string())
+            }
+            _ => None,
+        })
+        .unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(report["status"], "blocked_online_execution_not_implemented");
+        assert_eq!(report["manual_online_requested"], true);
+        assert_eq!(report["read_allowed"], false);
+        assert_eq!(report["online_execution_supported"], false);
+        assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["account_read_attempted"], false);
         assert_eq!(report["production_order_mutation_attempted"], false);
     }
 
