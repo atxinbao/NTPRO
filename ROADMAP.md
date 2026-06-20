@@ -1,40 +1,45 @@
 # NTPRO Roadmap
 
-Date: 2026-06-18
+Date: 2026-06-20
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is
-`ntpro-rust-only-v0.10.0`, the next patch track is `v0.10.1` release-surface
-hotfix cleanup, and the next capability track is `v0.11.0` Production
-Read-Only + Shadow Portfolio.
+`ntpro-rust-only-v0.11.0`, the next patch track is `v0.11.1`
+release-surface hotfix cleanup, and the next capability track is `v0.12.0`
+Guarded Live Alpha.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.10.0
+ntpro-rust-only-v0.11.0
 ```
 
 Current capability boundary:
 
 ```text
-Binance spot sandbox order proof
-owner-gated Spot Demo Mode submit/cancel evidence
-redacted execution artifact package
-terminal CANCELED reconciliation
-read-only Dashboard order-proof display
+Production Read-Only + Shadow Portfolio
+production endpoint classification
+production public read-only contract
+owner-gated authenticated account snapshot contract
+local shadow execution intent artifacts
+local shadow portfolio snapshot artifacts
+local shadow/read-only lifecycle state evidence
+local reconciliation/manual-remediation event evidence
+read-only Dashboard production shadow status
 production order counters fixed at zero
+production order mutations attempted=0
 no real funds
 no production trading
 no Dashboard order controls
 ```
 
-`v0.10.0` builds on the v0.9 local deterministic Strategy Runtime batch
-foundation and adds an owner-gated Binance Spot Demo Mode submit/cancel proof.
-The current public claim remains artifact-first, sandbox-only, read-only from
-Dashboard surfaces, and explicitly non-production.
+`v0.11.0` builds on the v0.10 Binance spot sandbox order proof and adds the
+Production Read-Only + Shadow Portfolio release package. The current public
+claim remains artifact-first, read-only/shadow-only from production surfaces,
+read-only from Dashboard surfaces, and explicitly non-production.
 
 ## Published Hardening Patch: v0.7.1
 
@@ -225,13 +230,38 @@ Completed release closure:
 - Dashboard order controls;
 - production account reconciliation.
 
-## Next Capability Track: v0.11.0
+## Published Capability Track: v0.11.0
 
-`v0.11.0` is the next capability track: Production Read-Only + Shadow
-Portfolio. It may define or prove production read-only public/account snapshots
-and shadow-only portfolio/order-intent evidence, but production order
-submission, cancel, replace, amend, and automatic correction orders remain out
-of scope.
+`v0.11.0` is the published Production Read-Only + Shadow Portfolio release. It
+defines production endpoint classification, read-only public/account snapshot
+contracts, local shadow execution/portfolio evidence, local shadow/read-only
+lifecycle and reconciliation models, and read-only Dashboard production shadow
+status.
+
+Completed release closure:
+
+- formal tag: `ntpro-rust-only-v0.11.0`;
+- GitHub Release:
+  `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.11.0`;
+- release notes and readiness report recorded under
+  `docs/rust-cutover/release/v0_11_0_release_notes.md` and
+  `docs/rust-cutover/release/v0_11_0_readiness_report.md`.
+
+`v0.11.0` explicitly does not include:
+
+- production order submission;
+- production cancel, replace, amend, retry, or correction orders;
+- real funds;
+- production trading;
+- automatic production reconciliation or remediation;
+- production order lifecycle parity;
+- Dashboard order, cancel, replace, amend, or retry controls.
+
+## Next Capability Track: v0.12.0
+
+`v0.12.0` is the next capability track: Guarded Live Alpha. It requires a
+separate scope decision and must not be inferred from v0.11.0 read-only/shadow
+evidence.
 
 ## Corrected Capability Sequence: v0.9.0 through v0.12.0
 
@@ -273,8 +303,12 @@ release gates verify the Supervisor/Dashboard path.
 completed behind explicit owner gates and with its own risk, redaction, and
 lifecycle evidence.
 
-`v0.11.0` is the next capability track. It is read-only/shadow-only and must not
-submit, cancel, replace, amend, or automatically correct production orders.
+`v0.11.0` is the published Production Read-Only + Shadow Portfolio track. It is
+read-only/shadow-only and must not submit, cancel, replace, amend, or
+automatically correct production orders.
+
+`v0.12.0` is the next Guarded Live Alpha track and requires a separate scope
+decision before any live command or production trading capability is claimed.
 
 ## Product Surface Direction
 
