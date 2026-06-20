@@ -71,7 +71,9 @@ Required boundary fields:
 endpoint_class = production_public_read_only
 requires_api_key = false
 requires_signature = false
-read_allowed = false unless all gates are present and manual_online=false
+read_allowed = backward-compatible local contract readiness flag; not online proof
+contract_ready = true only when all gates are present and manual_online=false
+online_read_allowed = false
 mutation_allowed = false
 online_execution_supported = false
 network_attempted = false
@@ -88,6 +90,7 @@ V110-002 may be used as evidence that the production public read-only path is
 classified and fail-closed. It must not be used as evidence of:
 
 - successful online production reads;
+- online public read permission;
 - authenticated account reads;
 - production order lifecycle readiness;
 - real-funds trading readiness.

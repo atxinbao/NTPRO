@@ -84,6 +84,9 @@ api_secret_value_recorded = false
 signature_recorded = false
 signed_query_recorded = false
 signed_url_recorded = false
+read_allowed = backward-compatible local contract readiness flag; not online proof
+contract_ready = true only when gates and env-only credential presence are valid and manual_online=false
+online_read_allowed = false
 network_attempted = false
 account_read_attempted = false
 account_mutation_attempted = false
@@ -100,6 +103,7 @@ account snapshot path is classified, redacted, and fail-closed. It must not be
 used as evidence of:
 
 - successful online production account reads;
+- online account read permission;
 - open-order reads;
 - order-state reads such as `/api/v3/openOrders`;
 - production order lifecycle readiness;
