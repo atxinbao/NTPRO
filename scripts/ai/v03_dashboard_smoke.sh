@@ -203,6 +203,7 @@ def assert_snapshot_contract(snapshot):
             isinstance(snapshot.get(section), list) and len(snapshot[section]) > 0,
             f"dashboard snapshot missing section {section}",
         )
+    require(isinstance(snapshot.get("production_shadow"), list), "dashboard snapshot missing production_shadow section")
     require(snapshot.get("risk", {}).get("health") is not None, "dashboard snapshot missing risk summary")
 
 
@@ -377,6 +378,7 @@ run_pw eval "$(cat <<'JS'
     "日志",
     "指标",
     "运行模块",
+    "Production Shadow",
     "待补能力",
   ];
   const bodyText = document.body.innerText;
@@ -397,6 +399,9 @@ run_pw eval "$(cat <<'JS'
     if (!Array.isArray(snapshot[section]) || snapshot[section].length === 0) {
       throw new Error(`dashboard snapshot missing section ${section}`);
     }
+  }
+  if (!Array.isArray(snapshot.production_shadow)) {
+    throw new Error("dashboard snapshot missing production_shadow section");
   }
   if (!snapshot.risk || snapshot.risk.health === undefined) {
     throw new Error("dashboard snapshot missing risk summary");
@@ -515,7 +520,7 @@ run_pw eval "$(cat <<'JS'
   if (overflow > 2) {
     throw new Error(`mobile body horizontal overflow: ${overflow}`);
   }
-  const requiredIds = ["overview", "nodes", "controls", "data-sources", "execution-gateways", "risk", "runtime-modules", "logs-metrics", "gaps"];
+  const requiredIds = ["overview", "nodes", "controls", "data-sources", "execution-gateways", "risk", "runtime-modules", "production-shadow", "logs-metrics", "gaps"];
   for (const id of requiredIds) {
     const el = document.getElementById(id);
     const rect = el?.getBoundingClientRect();
