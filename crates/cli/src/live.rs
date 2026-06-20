@@ -94,6 +94,8 @@ const PRODUCTION_PUBLIC_READ_ENV_MANUAL_ONLINE: &str = "NTPRO_V12_MANUAL_ONLINE"
 const PRODUCTION_PUBLIC_READ_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 const PRODUCTION_ACCOUNT_SNAPSHOT_SCHEMA_VERSION: &str =
     "ntpro.v110_authenticated_account_snapshot_contract.v1";
+const PRODUCTION_ACCOUNT_SNAPSHOT_ONLINE_SCHEMA_VERSION: &str =
+    "ntpro.v120_authenticated_account_snapshot_online_read.v1";
 const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW: &str = "NTPRO_ALLOW_PRODUCTION_AUTHENTICATED_READ";
 const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED: &str =
     "NTPRO_OWNER_APPROVED_PRODUCTION_READ_ONLY";
@@ -101,7 +103,9 @@ const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION: &str =
     "NTPRO_CONFIRM_PRODUCTION_ACCOUNT_NO_ORDER_MUTATION";
 const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE: &str =
     "NTPRO_CONFIRM_NO_SECRET_PERSISTENCE";
+const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_MANUAL_ONLINE: &str = "NTPRO_V12_MANUAL_ONLINE";
 const PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT: &str = "/api/v3/account";
+const PRODUCTION_ACCOUNT_SNAPSHOT_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 const START_STOP_SHUTDOWN: &str = "start-stop";
 const DEFAULT_NTPRO_NODE_HEARTBEAT_INTERVAL_MS: u64 = 1_000;
 const DEFAULT_NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: u64 = 5_000;
@@ -412,12 +416,81 @@ impl EnvOnlyProductionReadCredentials {
             .is_some_and(|value| !value.is_empty())
     }
 
+    fn signing_credential(&self) -> anyhow::Result<SigningCredential> {
+        let api_key = self
+            .api_key_value
+            .as_deref()
+            .filter(|value| !value.is_empty())
+            .context("production account snapshot requires API key env value")?;
+        let api_secret = self
+            .api_secret_value
+            .as_deref()
+            .filter(|value| !value.is_empty())
+            .context("production account snapshot requires API secret env value")?;
+
+        Ok(SigningCredential::new(
+            api_key.to_string(),
+            api_secret.to_string(),
+        ))
+    }
+
     fn ensure_no_secret_values_absent(&self, label: &str, body: &str) -> anyhow::Result<()> {
         for secret_value in &self.sensitive_values {
             if body.contains(secret_value) {
                 anyhow::bail!(
                     "production account snapshot redaction guard blocked secret value leak in {label}"
                 );
+            }
+        }
+        Ok(())
+    }
+}
+
+struct ProductionAccountSnapshotSignedRequest {
+    method: String,
+    endpoint_path: String,
+    endpoint_url_redacted: String,
+    query_without_signature: String,
+    signature: String,
+    signed_query: String,
+    api_key_header_name: String,
+    api_key_header_value: String,
+}
+
+impl Debug for ProductionAccountSnapshotSignedRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProductionAccountSnapshotSignedRequest")
+            .field("method", &self.method)
+            .field("endpoint_path", &self.endpoint_path)
+            .field("endpoint_url_redacted", &self.endpoint_url_redacted)
+            .field("query_without_signature", &self.query_without_signature)
+            .field("signature", &"<redacted>")
+            .field("signed_query", &"<redacted>")
+            .field("api_key_header_name", &self.api_key_header_name)
+            .field("api_key_header_value", &"<redacted>")
+            .finish()
+    }
+}
+
+impl ProductionAccountSnapshotSignedRequest {
+    fn signed_url_for_execution(&self) -> String {
+        format!("{}?{}", self.endpoint_url_redacted, self.signed_query)
+    }
+
+    fn ensure_redacted(
+        &self,
+        credentials: &EnvOnlyProductionReadCredentials,
+    ) -> anyhow::Result<()> {
+        let body = format!("{self:?}");
+        credentials.ensure_no_secret_values_absent("production-account-snapshot-request", &body)?;
+        for (label, sensitive_value) in [
+            ("signature", self.signature.as_str()),
+            ("signed query", self.signed_query.as_str()),
+            ("API key header value", self.api_key_header_value.as_str()),
+        ] {
+            if !sensitive_value.is_empty() && body.contains(sensitive_value) {
+                anyhow::bail!("production account snapshot request leaked {label}");
             }
         }
         Ok(())
@@ -698,6 +771,11 @@ struct ProductionAccountSnapshotContractReport {
     manual_online_requested: bool,
     online_execution_supported: bool,
     network_attempted: bool,
+    response_status_code: Option<u16>,
+    response_shape: String,
+    response_shape_validated: bool,
+    latency_ms: Option<u64>,
+    error_code: String,
     env_credentials_only: bool,
     api_key_env: String,
     api_secret_env: String,
@@ -716,6 +794,53 @@ struct ProductionAccountSnapshotContractReport {
     dashboard_order_controls_enabled: bool,
     secrets_redacted: bool,
     diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ProductionAccountSnapshotHttpResult {
+    status: String,
+    latency_ms: Option<u64>,
+    http_status: Option<u16>,
+    response_shape: String,
+    response_shape_validated: bool,
+    error_code: String,
+    network_attempted: bool,
+    diagnostic: String,
+}
+
+impl ProductionAccountSnapshotHttpResult {
+    fn success(latency_ms: u64, http_status: u16) -> Self {
+        Self {
+            status: "online_account_snapshot_ok".to_string(),
+            latency_ms: Some(latency_ms),
+            http_status: Some(http_status),
+            response_shape: production_account_snapshot_response_shape().to_string(),
+            response_shape_validated: true,
+            error_code: "none".to_string(),
+            network_attempted: true,
+            diagnostic: format!(
+                "V120 authenticated production account snapshot read succeeded with GET {PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT} and HTTP {http_status}; raw account response, balances, uid, headers, signature, signed query, and signed URL were not recorded."
+            ),
+        }
+    }
+
+    fn failure(latency_ms: Option<u64>, http_status: Option<u16>, error_code: &str) -> Self {
+        let status_detail = http_status
+            .map(|status| format!(" HTTP {status}"))
+            .unwrap_or_default();
+        Self {
+            status: "online_account_snapshot_failed".to_string(),
+            latency_ms,
+            http_status,
+            response_shape: production_account_snapshot_response_shape().to_string(),
+            response_shape_validated: false,
+            error_code: error_code.to_string(),
+            network_attempted: true,
+            diagnostic: format!(
+                "V120 authenticated production account snapshot read attempted GET {PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT} and failed with {error_code}.{status_detail} Raw account response, balances, uid, headers, signature, signed query, and signed URL were not recorded."
+            ),
+        }
+    }
 }
 
 impl TestnetSignedOrderRequest {
@@ -1185,6 +1310,14 @@ fn classify_production_public_read_error(error: &reqwest::Error) -> &'static str
     }
 }
 
+fn current_unix_timestamp_ms() -> anyhow::Result<u64> {
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .context("system clock is before UNIX_EPOCH")?
+        .as_millis();
+    u64::try_from(millis).context("current UNIX timestamp milliseconds exceeds u64")
+}
+
 fn run_live_production_account_snapshot_contract_with_env<F>(
     opt: &LiveProductionAccountSnapshotContractOpt,
     mut read_env: F,
@@ -1192,19 +1325,44 @@ fn run_live_production_account_snapshot_contract_with_env<F>(
 where
     F: FnMut(&str) -> Option<String>,
 {
+    run_live_production_account_snapshot_contract_with_env_and_http(
+        opt,
+        &mut read_env,
+        execute_production_account_snapshot_read,
+    )
+}
+
+fn run_live_production_account_snapshot_contract_with_env_and_http<F, H>(
+    opt: &LiveProductionAccountSnapshotContractOpt,
+    read_env: &mut F,
+    mut http_probe: H,
+) -> anyhow::Result<()>
+where
+    F: FnMut(&str) -> Option<String>,
+    H: FnMut(&EnvOnlyProductionReadCredentials, u64) -> ProductionAccountSnapshotHttpResult,
+{
     let missing_cli_flags = missing_production_account_snapshot_cli_flags(opt);
-    let missing_env_vars = missing_production_account_snapshot_env_gates(&mut read_env);
+    let missing_env_vars =
+        missing_production_account_snapshot_env_gates(read_env, opt.manual_online);
     let credentials = EnvOnlyProductionReadCredentials::from_values(
         opt.api_key_env.clone(),
         read_env(&opt.api_key_env),
         opt.api_secret_env.clone(),
         read_env(&opt.api_secret_env),
     );
+    let should_attempt_online = should_attempt_production_account_snapshot_read(
+        opt,
+        &credentials,
+        &missing_cli_flags,
+        &missing_env_vars,
+    );
+    let http_result = should_attempt_online.then(|| http_probe(&credentials, opt.recv_window_ms));
     let report = build_production_account_snapshot_contract_report(
         opt,
         &credentials,
         &missing_cli_flags,
         &missing_env_vars,
+        http_result.as_ref(),
     );
 
     if let Some(output) = &opt.output {
@@ -1212,15 +1370,22 @@ where
     }
 
     println!(
-        "live.production_account_snapshot_contract status={} endpoint_class={} method={} path={} manual_online_requested={} contract_ready={} online_read_allowed=false online_execution_supported=false read_allowed={} mutation_allowed=false env_credentials_only=true credentials_used={} network_attempted=false account_read_attempted=false account_mutation_attempted=false order_endpoint_access_attempted=false production_order_submission_attempted=false production_order_mutation_attempted=false dashboard_order_controls_enabled=false secrets_redacted=true",
+        "live.production_account_snapshot_contract status={} endpoint_class={} method={} path={} manual_online_requested={} contract_ready={} online_read_allowed={} online_execution_supported={} read_allowed={} mutation_allowed=false env_credentials_only=true credentials_used={} network_attempted={} account_read_attempted={} account_mutation_attempted=false order_endpoint_access_attempted=false production_order_submission_attempted=false production_order_mutation_attempted=false dashboard_order_controls_enabled=false secrets_redacted=true response_shape={} response_shape_validated={} error_code={}",
         report.status,
         report.endpoint_class,
         report.method,
         report.path,
         report.manual_online_requested,
         report.contract_ready,
+        report.online_read_allowed,
+        report.online_execution_supported,
         report.read_allowed,
         report.api_key_present && report.api_secret_present,
+        report.network_attempted,
+        report.account_read_attempted,
+        report.response_shape,
+        report.response_shape_validated,
+        report.error_code,
     );
     Ok(())
 }
@@ -1230,6 +1395,7 @@ fn build_production_account_snapshot_contract_report(
     credentials: &EnvOnlyProductionReadCredentials,
     missing_cli_flags: &[&'static str],
     missing_env_vars: &[&'static str],
+    http_result: Option<&ProductionAccountSnapshotHttpResult>,
 ) -> ProductionAccountSnapshotContractReport {
     let classified_endpoint = EndpointClassifier::classify(
         "GET",
@@ -1238,21 +1404,25 @@ fn build_production_account_snapshot_contract_report(
     );
     let gates_missing = !missing_cli_flags.is_empty() || !missing_env_vars.is_empty();
     let credentials_missing = !credentials.api_key_present() || !credentials.api_secret_present();
-    let status = if gates_missing {
+    let status = if let Some(result) = http_result {
+        result.status.as_str()
+    } else if gates_missing && opt.manual_online {
+        "blocked_missing_manual_online_gate"
+    } else if gates_missing {
         "blocked_missing_gate"
     } else if credentials_missing {
         "blocked_missing_credentials"
-    } else if opt.manual_online {
-        "blocked_online_execution_not_implemented"
     } else {
         "ready_offline_contract"
     };
-    let diagnostic = if gates_missing {
+    let diagnostic = if let Some(result) = http_result {
+        result.diagnostic.as_str()
+    } else if gates_missing && opt.manual_online {
+        "manual online authenticated production account snapshot is closed because explicit v0.12 owner gates are missing"
+    } else if gates_missing {
         "authenticated production account snapshot is closed because explicit CLI/env gates are missing"
     } else if credentials_missing {
         "authenticated production account snapshot contract requires env-only API key and secret presence"
-    } else if opt.manual_online {
-        "manual online authenticated production read is out of scope for V110-003; no network was opened"
     } else {
         "offline authenticated production account snapshot contract is ready; no network was opened"
     };
@@ -1261,9 +1431,18 @@ fn build_production_account_snapshot_contract_report(
         && !credentials_missing
         && !opt.manual_online
         && classified_endpoint.read_allowed;
+    let online_read_allowed = !gates_missing
+        && !credentials_missing
+        && opt.manual_online
+        && classified_endpoint.read_allowed;
 
     ProductionAccountSnapshotContractReport {
-        schema_version: PRODUCTION_ACCOUNT_SNAPSHOT_SCHEMA_VERSION.to_string(),
+        schema_version: if opt.manual_online {
+            PRODUCTION_ACCOUNT_SNAPSHOT_ONLINE_SCHEMA_VERSION
+        } else {
+            PRODUCTION_ACCOUNT_SNAPSHOT_SCHEMA_VERSION
+        }
+        .to_string(),
         status: status.to_string(),
         endpoint_class: classified_endpoint.endpoint_class.as_str().to_string(),
         http_base_url: BINANCE_PRODUCTION_HTTP_BASE_URL.to_string(),
@@ -1281,7 +1460,7 @@ fn build_production_account_snapshot_contract_report(
         requires_signature: classified_endpoint.requires_signature,
         read_allowed: contract_ready,
         contract_ready,
-        online_read_allowed: false,
+        online_read_allowed,
         mutation_allowed: classified_endpoint.mutation_allowed,
         owner_gate_required: classified_endpoint.owner_gate_required,
         manual_gate_required: true,
@@ -1294,8 +1473,19 @@ fn build_production_account_snapshot_contract_report(
             .map(|name| (*name).to_string())
             .collect(),
         manual_online_requested: opt.manual_online,
-        online_execution_supported: false,
-        network_attempted: false,
+        online_execution_supported: opt.manual_online,
+        network_attempted: http_result.is_some_and(|result| result.network_attempted),
+        response_status_code: http_result.and_then(|result| result.http_status),
+        response_shape: http_result.map_or_else(
+            || production_account_snapshot_response_shape().to_string(),
+            |result| result.response_shape.clone(),
+        ),
+        response_shape_validated: http_result.is_some_and(|result| result.response_shape_validated),
+        latency_ms: http_result.and_then(|result| result.latency_ms),
+        error_code: http_result.map_or_else(
+            || "not_attempted".to_string(),
+            |result| result.error_code.clone(),
+        ),
         env_credentials_only: true,
         api_key_env: credentials.api_key_env.clone(),
         api_secret_env: credentials.api_secret_env.clone(),
@@ -1306,7 +1496,7 @@ fn build_production_account_snapshot_contract_report(
         signature_recorded: false,
         signed_query_recorded: false,
         signed_url_recorded: false,
-        account_read_attempted: false,
+        account_read_attempted: http_result.is_some_and(|result| result.network_attempted),
         account_mutation_attempted: false,
         order_endpoint_access_attempted: false,
         production_order_submission_attempted: false,
@@ -1315,6 +1505,170 @@ fn build_production_account_snapshot_contract_report(
         secrets_redacted: true,
         diagnostic: diagnostic.to_string(),
     }
+}
+
+fn should_attempt_production_account_snapshot_read(
+    opt: &LiveProductionAccountSnapshotContractOpt,
+    credentials: &EnvOnlyProductionReadCredentials,
+    missing_cli_flags: &[&'static str],
+    missing_env_vars: &[&'static str],
+) -> bool {
+    opt.manual_online
+        && missing_cli_flags.is_empty()
+        && missing_env_vars.is_empty()
+        && credentials.api_key_present()
+        && credentials.api_secret_present()
+}
+
+fn build_production_account_snapshot_signed_request(
+    credentials: &EnvOnlyProductionReadCredentials,
+    timestamp_ms: u64,
+    recv_window_ms: u64,
+) -> anyhow::Result<ProductionAccountSnapshotSignedRequest> {
+    if recv_window_ms == 0 {
+        anyhow::bail!("production account snapshot recvWindow must be positive");
+    }
+
+    let classified_endpoint = EndpointClassifier::classify(
+        "GET",
+        &format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT}"),
+        EndpointAuthKind::Signed,
+    );
+    if !classified_endpoint.read_allowed || classified_endpoint.mutation_allowed {
+        anyhow::bail!(
+            "production account snapshot allowlist rejected endpoint {}",
+            classified_endpoint.path
+        );
+    }
+
+    let signing_credential = credentials.signing_credential()?;
+    let query_without_signature = format!("timestamp={timestamp_ms}&recvWindow={recv_window_ms}");
+    let signature =
+        urlencoding::encode(&signing_credential.sign(&query_without_signature)).into_owned();
+    let signed_query = format!("{query_without_signature}&signature={signature}");
+    let request = ProductionAccountSnapshotSignedRequest {
+        method: "GET".to_string(),
+        endpoint_path: PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT.to_string(),
+        endpoint_url_redacted: format!(
+            "{BINANCE_PRODUCTION_HTTP_BASE_URL}{PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT}"
+        ),
+        query_without_signature,
+        signature,
+        signed_query,
+        api_key_header_name: BINANCE_API_KEY_HEADER.to_string(),
+        api_key_header_value: signing_credential.api_key().to_string(),
+    };
+    request.ensure_redacted(credentials)?;
+    Ok(request)
+}
+
+fn execute_production_account_snapshot_read(
+    credentials: &EnvOnlyProductionReadCredentials,
+    recv_window_ms: u64,
+) -> ProductionAccountSnapshotHttpResult {
+    match build_production_account_snapshot_signed_request(
+        credentials,
+        current_unix_timestamp_ms().unwrap_or(0),
+        recv_window_ms,
+    ) {
+        Ok(request) => {
+            let signed_url = request.signed_url_for_execution();
+            let api_key_header_name = request.api_key_header_name;
+            let api_key_header_value = request.api_key_header_value;
+            std::thread::spawn(move || {
+                execute_production_account_snapshot_read_on_thread(
+                    &signed_url,
+                    &api_key_header_name,
+                    &api_key_header_value,
+                )
+            })
+            .join()
+            .unwrap_or_else(|_| {
+                ProductionAccountSnapshotHttpResult::failure(
+                    None,
+                    None,
+                    "http_probe_thread_panicked",
+                )
+            })
+        }
+        Err(_) => ProductionAccountSnapshotHttpResult::failure(
+            None,
+            None,
+            "signed_request_builder_failed",
+        ),
+    }
+}
+
+fn execute_production_account_snapshot_read_on_thread(
+    signed_url: &str,
+    api_key_header_name: &str,
+    api_key_header_value: &str,
+) -> ProductionAccountSnapshotHttpResult {
+    let started = Instant::now();
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(PRODUCTION_ACCOUNT_SNAPSHOT_PROBE_TIMEOUT)
+        .user_agent("NTPRO-v120-production-account-snapshot-readonly-probe")
+        .build()
+    {
+        Ok(client) => client,
+        Err(_) => {
+            return ProductionAccountSnapshotHttpResult::failure(
+                None,
+                None,
+                "http_client_build_failed",
+            );
+        }
+    };
+
+    match client
+        .get(signed_url)
+        .header(api_key_header_name, api_key_header_value)
+        .send()
+    {
+        Ok(response) => {
+            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            let status = response.status().as_u16();
+            if response.status().is_success() {
+                match response.json::<serde_json::Value>() {
+                    Ok(body) if validates_production_account_snapshot_response_shape(&body) => {
+                        ProductionAccountSnapshotHttpResult::success(latency_ms, status)
+                    }
+                    Ok(_) | Err(_) => ProductionAccountSnapshotHttpResult::failure(
+                        Some(latency_ms),
+                        Some(status),
+                        "response_shape_invalid",
+                    ),
+                }
+            } else {
+                ProductionAccountSnapshotHttpResult::failure(
+                    Some(latency_ms),
+                    Some(status),
+                    "http_status_not_success",
+                )
+            }
+        }
+        Err(error) => {
+            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            ProductionAccountSnapshotHttpResult::failure(
+                Some(latency_ms),
+                error.status().map(|status| status.as_u16()),
+                classify_production_public_read_error(&error),
+            )
+        }
+    }
+}
+
+fn production_account_snapshot_response_shape() -> &'static str {
+    "binance_account_snapshot_v1"
+}
+
+fn validates_production_account_snapshot_response_shape(body: &serde_json::Value) -> bool {
+    body.as_object().is_some_and(|object| {
+        object
+            .get("balances")
+            .is_some_and(serde_json::Value::is_array)
+            && object.get("accountType").is_some()
+    })
 }
 
 fn run_live_testnet_order_gate_with_env<F>(
@@ -2867,11 +3221,14 @@ fn missing_production_account_snapshot_cli_flags(
     missing
 }
 
-fn missing_production_account_snapshot_env_gates<F>(read_env: &mut F) -> Vec<&'static str>
+fn missing_production_account_snapshot_env_gates<F>(
+    read_env: &mut F,
+    manual_online_requested: bool,
+) -> Vec<&'static str>
 where
     F: FnMut(&str) -> Option<String>,
 {
-    [
+    let mut missing: Vec<&'static str> = [
         PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW,
         PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED,
         PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION,
@@ -2879,7 +3236,13 @@ where
     ]
     .into_iter()
     .filter(|name| read_env(name).as_deref() != Some("1"))
-    .collect()
+    .collect();
+    if manual_online_requested
+        && read_env(PRODUCTION_ACCOUNT_SNAPSHOT_ENV_MANUAL_ONLINE).as_deref() != Some("1")
+    {
+        missing.push(PRODUCTION_ACCOUNT_SNAPSHOT_ENV_MANUAL_ONLINE);
+    }
+    missing
 }
 
 fn join_gate_labels(labels: &[&str]) -> String {
@@ -4907,38 +5270,207 @@ write_summary = true
     }
 
     #[test]
-    fn production_account_snapshot_contract_blocks_manual_online_path_in_v110_003() {
+    fn production_account_snapshot_contract_blocks_manual_online_without_v12_owner_gate() {
         let output_dir = std::env::temp_dir().join(format!(
-            "ntpro-v110-003-account-online-{}",
+            "ntpro-v120-002-account-online-blocked-{}",
             std::process::id()
         ));
         let output = output_dir.join("account-snapshot-contract.json");
         let opt = production_account_snapshot_contract_opt(Some(output.clone()), true, true);
+        let mut http_called = false;
 
-        run_live_production_account_snapshot_contract_with_env(&opt, |name| match name {
+        let mut read_env = |name: &str| match name {
+            PRODUCTION_ACCOUNT_SNAPSHOT_ENV_MANUAL_ONLINE => None,
             PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW
             | PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED
             | PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION
             | PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE => Some("1".to_string()),
-            "NTPRO_V110003_API_KEY" => Some("ntpro_v110003_synthetic_api_key_value".to_string()),
+            "NTPRO_V110003_API_KEY" => Some("ntpro_v120002_synthetic_api_key_value".to_string()),
             "NTPRO_V110003_API_SECRET" => {
-                Some("ntpro_v110003_synthetic_api_secret_value".to_string())
+                Some("ntpro_v120002_synthetic_api_secret_value".to_string())
             }
             _ => None,
-        })
+        };
+
+        run_live_production_account_snapshot_contract_with_env_and_http(
+            &opt,
+            &mut read_env,
+            |_credentials, _recv_window_ms| {
+                http_called = true;
+                ProductionAccountSnapshotHttpResult::success(1, 200)
+            },
+        )
         .unwrap();
 
         let report: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
-        assert_eq!(report["status"], "blocked_online_execution_not_implemented");
+        assert!(!http_called);
+        assert_eq!(
+            report["schema_version"],
+            PRODUCTION_ACCOUNT_SNAPSHOT_ONLINE_SCHEMA_VERSION
+        );
+        assert_eq!(report["status"], "blocked_missing_manual_online_gate");
         assert_eq!(report["manual_online_requested"], true);
         assert_eq!(report["read_allowed"], false);
         assert_eq!(report["contract_ready"], false);
         assert_eq!(report["online_read_allowed"], false);
-        assert_eq!(report["online_execution_supported"], false);
+        assert_eq!(report["online_execution_supported"], true);
         assert_eq!(report["network_attempted"], false);
         assert_eq!(report["account_read_attempted"], false);
+        assert_eq!(report["response_shape"], "binance_account_snapshot_v1");
+        assert_eq!(report["response_shape_validated"], false);
+        assert_eq!(report["error_code"], "not_attempted");
         assert_eq!(report["production_order_mutation_attempted"], false);
+    }
+
+    #[test]
+    fn production_account_snapshot_contract_records_owner_gated_online_success() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-002-account-online-success-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("account-snapshot-contract.json");
+        let opt = production_account_snapshot_contract_opt(Some(output.clone()), true, true);
+        let mut read_env = |name: &str| match name {
+            "NTPRO_V110003_API_KEY" => Some("ntpro_v120002_synthetic_api_key_value".to_string()),
+            "NTPRO_V110003_API_SECRET" => {
+                Some("ntpro_v120002_synthetic_api_secret_value".to_string())
+            }
+            _ => all_env_enabled(name),
+        };
+
+        run_live_production_account_snapshot_contract_with_env_and_http(
+            &opt,
+            &mut read_env,
+            |credentials, recv_window_ms| {
+                assert!(credentials.api_key_present());
+                assert!(credentials.api_secret_present());
+                assert_eq!(recv_window_ms, 5_000);
+                ProductionAccountSnapshotHttpResult::success(53, 200)
+            },
+        )
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(!body.contains("ntpro_v120002_synthetic_api_key_value"));
+        assert!(!body.contains("ntpro_v120002_synthetic_api_secret_value"));
+        let report: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(
+            report["schema_version"],
+            PRODUCTION_ACCOUNT_SNAPSHOT_ONLINE_SCHEMA_VERSION
+        );
+        assert_eq!(report["status"], "online_account_snapshot_ok");
+        assert_eq!(report["method"], "GET");
+        assert_eq!(report["path"], "/api/v3/account");
+        assert_eq!(report["read_allowed"], false);
+        assert_eq!(report["contract_ready"], false);
+        assert_eq!(report["online_read_allowed"], true);
+        assert_eq!(report["online_execution_supported"], true);
+        assert_eq!(report["network_attempted"], true);
+        assert_eq!(report["account_read_attempted"], true);
+        assert_eq!(report["response_status_code"], 200);
+        assert_eq!(report["response_shape"], "binance_account_snapshot_v1");
+        assert_eq!(report["response_shape_validated"], true);
+        assert_eq!(report["latency_ms"], 53);
+        assert_eq!(report["error_code"], "none");
+        assert_eq!(report["signature_recorded"], false);
+        assert_eq!(report["signed_query_recorded"], false);
+        assert_eq!(report["signed_url_recorded"], false);
+        assert_eq!(report["account_mutation_attempted"], false);
+        assert_eq!(report["order_endpoint_access_attempted"], false);
+        assert_eq!(report["production_order_submission_attempted"], false);
+        assert_eq!(report["production_order_mutation_attempted"], false);
+        assert_eq!(report["dashboard_order_controls_enabled"], false);
+    }
+
+    #[test]
+    fn production_account_snapshot_contract_records_owner_gated_online_failure_as_no_proof() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-002-account-online-failure-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("account-snapshot-contract.json");
+        let opt = production_account_snapshot_contract_opt(Some(output.clone()), true, true);
+        let mut read_env = |name: &str| match name {
+            "NTPRO_V110003_API_KEY" => Some("ntpro_v120002_synthetic_api_key_value".to_string()),
+            "NTPRO_V110003_API_SECRET" => {
+                Some("ntpro_v120002_synthetic_api_secret_value".to_string())
+            }
+            _ => all_env_enabled(name),
+        };
+
+        run_live_production_account_snapshot_contract_with_env_and_http(
+            &opt,
+            &mut read_env,
+            |_credentials, _recv_window_ms| {
+                ProductionAccountSnapshotHttpResult::failure(
+                    Some(9),
+                    Some(401),
+                    "http_status_not_success",
+                )
+            },
+        )
+        .unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(report["status"], "online_account_snapshot_failed");
+        assert_eq!(report["online_read_allowed"], true);
+        assert_eq!(report["network_attempted"], true);
+        assert_eq!(report["account_read_attempted"], true);
+        assert_eq!(report["response_status_code"], 401);
+        assert_eq!(report["response_shape"], "binance_account_snapshot_v1");
+        assert_eq!(report["response_shape_validated"], false);
+        assert_eq!(report["latency_ms"], 9);
+        assert_eq!(report["error_code"], "http_status_not_success");
+        assert_eq!(report["production_order_mutation_attempted"], false);
+        assert_eq!(report["dashboard_order_controls_enabled"], false);
+    }
+
+    #[test]
+    fn production_account_snapshot_signed_request_redacts_secret_values() {
+        let credentials = EnvOnlyProductionReadCredentials::from_values(
+            "NTPRO_V120002_API_KEY".to_string(),
+            Some("ntpro_v120002_synthetic_api_key_value".to_string()),
+            "NTPRO_V120002_API_SECRET".to_string(),
+            Some("ntpro_v120002_synthetic_api_secret_value".to_string()),
+        );
+        let request = build_production_account_snapshot_signed_request(
+            &credentials,
+            1_718_400_000_000,
+            5_000,
+        )
+        .unwrap();
+
+        assert_eq!(request.method, "GET");
+        assert_eq!(request.endpoint_path, "/api/v3/account");
+        assert_eq!(request.api_key_header_name, BINANCE_API_KEY_HEADER);
+        assert_eq!(
+            request.query_without_signature,
+            "timestamp=1718400000000&recvWindow=5000"
+        );
+        assert!(
+            request
+                .signed_query
+                .starts_with("timestamp=1718400000000&recvWindow=5000&signature=")
+        );
+        assert_eq!(request.signature.len(), 64);
+        assert!(
+            request
+                .signature
+                .chars()
+                .all(|character| character.is_ascii_hexdigit())
+        );
+        assert_eq!(
+            request.endpoint_url_redacted,
+            "https://api.binance.com/api/v3/account"
+        );
+
+        let debug_body = format!("{request:?}");
+        assert!(!debug_body.contains("ntpro_v120002_synthetic_api_key_value"));
+        assert!(!debug_body.contains("ntpro_v120002_synthetic_api_secret_value"));
+        assert!(!debug_body.contains(&request.signature));
+        assert!(!debug_body.contains(&request.signed_query));
     }
 
     #[tokio::test(flavor = "current_thread")]
