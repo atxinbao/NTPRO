@@ -172,6 +172,15 @@ Final release checks, benchmark summaries, and audit reports live here.
   read-only contract / offline shadow boundary and does not claim successful
   online production reads, production order mutation, real funds, production
   trading, or Dashboard order controls.
+- `v0_11_1_readiness_report.md` - readiness material for an owner-approved
+  v0.11.1 production read-only contract hardening patch. It records the V111
+  queue, keeps `ntpro-rust-only-v0.11.0` as the current published release until
+  owner publication, and does not create a tag or publish a GitHub Release.
+- `v0_11_1_release_notes.md` - release-note material for a possible
+  `ntpro-rust-only-v0.11.1` hardening patch. It does not expand the v0.11
+  capability claim and does not include successful online production reads,
+  production order mutation, real funds, production trading, or Dashboard order
+  controls.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.

@@ -25,6 +25,9 @@ The next patch track is `v0.11.1`, a release-surface hotfix line for the
 published v0.11.0 boundary. It must not expand v0.11.0 into production order
 submission, production order mutation, real funds, production trading,
 automatic online remediation, or Dashboard order controls.
+The v0.11.1 readiness and release-note material is prepared for owner release
+decision, but this source tree does not by itself create the
+`ntpro-rust-only-v0.11.1` tag or publish a GitHub Release.
 
 The next capability track after the v0.11.x line is `v0.12.0` Guarded Live
 Alpha. Its boundary requires a separate scope decision and must not be inferred
@@ -262,6 +265,8 @@ The scope and readiness documents are:
 - `docs/rust-cutover/release/v0_11_0_boundary.md`
 - `docs/rust-cutover/release/v0_11_0_readiness_report.md`
 - `docs/rust-cutover/release/v0_11_0_release_notes.md`
+- `docs/rust-cutover/release/v0_11_1_readiness_report.md`
+- `docs/rust-cutover/release/v0_11_1_release_notes.md`
 - `docs/versioning.md`
 
 ## Verification
@@ -341,6 +346,8 @@ Release documents:
 - `docs/rust-cutover/release/v0_11_0_boundary.md`
 - `docs/rust-cutover/release/v0_11_0_readiness_report.md`
 - `docs/rust-cutover/release/v0_11_0_release_notes.md`
+- `docs/rust-cutover/release/v0_11_1_readiness_report.md`
+- `docs/rust-cutover/release/v0_11_1_release_notes.md`
 - `docs/rust-cutover/release/rust_only_release_notes.md`
 - `docs/rust-cutover/release/final_release_verification.md`
 - `docs/rust-cutover/release/final_completion_report.md`

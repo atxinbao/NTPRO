@@ -51,6 +51,10 @@ v0.11.1
 v0.11.1 is a release-surface hotfix track. It must not be described as
 production order submission, production order mutation, real funds, production
 trading, automatic production remediation, or Dashboard order controls.
+Its readiness and release-note material lives in
+`docs/rust-cutover/release/v0_11_1_readiness_report.md` and
+`docs/rust-cutover/release/v0_11_1_release_notes.md`. Those documents do not
+create a tag or publish a GitHub Release.
 
 ## Cargo Workspace Version
 

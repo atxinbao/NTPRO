@@ -262,6 +262,35 @@ Completed release closure:
 - production order lifecycle parity;
 - Dashboard order, cancel, replace, amend, or retry controls.
 
+## Active Hardening Patch Track: v0.11.1
+
+`v0.11.1` is the active release-surface hardening patch for the published
+v0.11.0 line. It prepares readiness and release-note material for owner release
+decision, but it does not create a tag or publish a GitHub Release by itself.
+
+The v0.11.1 patch scope is:
+
+- align v0.11 wording to contract/offline reality;
+- add a central endpoint classifier API and deny tests;
+- add a production shadow manifest contract;
+- harden Dashboard production shadow artifact health;
+- wire the public read probe into v11 offline release gates;
+- clarify that `/api/v3/openOrders` and order-state reads are out of scope;
+- normalize `read_allowed` artifact semantics with explicit
+  `contract_ready` and `online_read_allowed` fields;
+- prepare v0.11.1 readiness and release-note material.
+
+`v0.11.1` explicitly does not include:
+
+- production online read runtime;
+- successful online production public/account reads;
+- production open-order or order-state reads;
+- production order submission or mutation;
+- real funds;
+- production trading;
+- automatic production remediation;
+- Dashboard order controls.
+
 ## Next Capability Track: v0.12.0
 
 `v0.12.0` is the next capability track: Guarded Live Alpha. It requires a
