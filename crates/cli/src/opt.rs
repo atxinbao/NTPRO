@@ -162,6 +162,8 @@ pub enum LiveCommand {
     ProductionPublicReadProbe(LiveProductionPublicReadProbeOpt),
     /// Writes a v0.11 authenticated production account snapshot contract without network or orders.
     ProductionAccountSnapshotContract(LiveProductionAccountSnapshotContractOpt),
+    /// Builds local v0.12 shadow portfolio runtime artifacts from redacted read-only inputs.
+    ProductionShadowPortfolioRuntime(LiveProductionShadowPortfolioRuntimeOpt),
 }
 
 /// Live validation options.
@@ -440,6 +442,29 @@ pub struct LiveProductionAccountSnapshotContractOpt {
     /// Confirms API key, secret, signature, signed query, and signed URL must not be persisted.
     #[arg(long)]
     pub confirm_no_secret_persistence: bool,
+}
+
+/// Local shadow portfolio runtime artifact options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionShadowPortfolioRuntimeOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// Optional deterministic snapshot identifier.
+    #[arg(long)]
+    pub snapshot_id: Option<String>,
+    /// Redacted production account snapshot contract/report JSON.
+    #[arg(long)]
+    pub account_snapshot: PathBuf,
+    /// Local shadow execution intent JSONL.
+    #[arg(long)]
+    pub shadow_intent: PathBuf,
+    /// v0.12 shadow portfolio runtime JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Optional v0.11-compatible shadow_portfolio_snapshot.json output path for existing Dashboard readers.
+    #[arg(long)]
+    pub compat_snapshot_output: Option<PathBuf>,
 }
 
 /// Local supervisor controls for sandbox-only node artifacts and processes.
