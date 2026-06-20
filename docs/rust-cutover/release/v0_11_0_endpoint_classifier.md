@@ -1,19 +1,40 @@
 # NTPRO v0.11.0 Endpoint Classifier Design
 
-Date: 2026-06-19
+Date: 2026-06-20
 Executor: Codex
-Status: PLANNED DESIGN
+Status: IMPLEMENTED API CONTRACT
 
 ## Summary
 
-v0.11.0 needs a central endpoint classifier so sandbox proof, production
-read-only probes, authenticated account snapshots, and forbidden mutation
-surfaces cannot be confused.
+v0.11.1 adds the central Rust endpoint classifier API that v0.11.0 had scoped
+as a design contract. The classifier keeps sandbox proof, production read-only
+probes, authenticated account snapshots, and forbidden mutation surfaces
+separate.
 
-Plain Chinese summary: v0.11 要先把 endpoint 分清楚。`demo-api.binance.com`
+Plain Chinese summary: v0.11.1 把 endpoint 分类器落到了 Rust 代码里。`demo-api.binance.com`
 和 `testnet.binance.vision` 是 sandbox/testnet；`api.binance.com` 在 v0.11
 只能进入生产只读分类和离线合约证据，不能被说成已经在线读取成功；任何生产下单、
 撤单、改单 endpoint 都必须判定为 forbidden。
+
+## Implementation
+
+The implementation lives in:
+
+```text
+crates/cli/src/endpoint_classifier.rs
+```
+
+It exposes the internal CLI API:
+
+```text
+EndpointClass
+EndpointDecision
+EndpointClassifier::classify(method, url, auth_kind)
+```
+
+The v0.11 production public read probe and authenticated account snapshot
+contract now route their endpoint class, method, path, read flag, mutation flag,
+and credential/signature requirements through this classifier.
 
 ## Endpoint Classes
 
@@ -112,7 +133,7 @@ dashboard_order_controls_allowed = false
 
 ## Gate Requirements
 
-Before any future v0.11 implementation is accepted:
+Before any v0.11 classifier change is accepted:
 
 - classifier tests must cover every endpoint class in this document;
 - production mutation endpoints must have explicit deny tests;
