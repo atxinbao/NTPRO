@@ -84,10 +84,14 @@ const TESTNET_RECONCILIATION_FIXTURE_SCHEMA_VERSION: &str =
     "ntpro.v100_reconciliation_fixture_report.v1";
 const PRODUCTION_PUBLIC_READ_PROBE_SCHEMA_VERSION: &str =
     "ntpro.v110_production_public_read_probe.v1";
+const PRODUCTION_PUBLIC_ONLINE_READ_PROBE_SCHEMA_VERSION: &str =
+    "ntpro.v120_production_public_online_read_probe.v1";
 const PRODUCTION_PUBLIC_READ_ENV_ALLOW: &str = "NTPRO_ALLOW_PRODUCTION_PUBLIC_READ";
 const PRODUCTION_PUBLIC_READ_ENV_READ_ONLY: &str = "NTPRO_CONFIRM_PRODUCTION_PUBLIC_READ_ONLY";
 const PRODUCTION_PUBLIC_READ_ENV_NO_ORDER_MUTATION: &str =
     "NTPRO_CONFIRM_NO_PRODUCTION_ORDER_MUTATION";
+const PRODUCTION_PUBLIC_READ_ENV_MANUAL_ONLINE: &str = "NTPRO_V12_MANUAL_ONLINE";
+const PRODUCTION_PUBLIC_READ_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 const PRODUCTION_ACCOUNT_SNAPSHOT_SCHEMA_VERSION: &str =
     "ntpro.v110_authenticated_account_snapshot_contract.v1";
 const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW: &str = "NTPRO_ALLOW_PRODUCTION_AUTHENTICATED_READ";
@@ -597,12 +601,78 @@ struct ProductionPublicReadProbeReport {
     manual_online_requested: bool,
     online_execution_supported: bool,
     network_attempted: bool,
+    production_public_online_read_attempted: bool,
+    response_status_code: Option<u16>,
+    response_shape: String,
+    response_shape_validated: bool,
+    latency_ms: Option<u64>,
+    error_code: String,
     credentials_used: bool,
     account_mutation_attempted: bool,
     production_order_submission_attempted: bool,
     production_order_mutation_attempted: bool,
     dashboard_order_controls_enabled: bool,
     diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ProductionPublicReadProbeHttpResult {
+    status: String,
+    latency_ms: Option<u64>,
+    http_status: Option<u16>,
+    response_shape: String,
+    response_shape_validated: bool,
+    error_code: String,
+    network_attempted: bool,
+    diagnostic: String,
+}
+
+impl ProductionPublicReadProbeHttpResult {
+    fn success(endpoint: ProductionPublicReadEndpoint, latency_ms: u64, http_status: u16) -> Self {
+        Self {
+            status: "online_read_probe_ok".to_string(),
+            latency_ms: Some(latency_ms),
+            http_status: Some(http_status),
+            response_shape: production_public_read_response_shape(endpoint).to_string(),
+            response_shape_validated: true,
+            error_code: "none".to_string(),
+            network_attempted: true,
+            diagnostic: format!(
+                "V120 production public read-only probe succeeded with GET {} and HTTP {http_status}; no credentials, account reads, order endpoints, or Dashboard controls were used.",
+                production_public_read_endpoint_parts(endpoint).1
+            ),
+        }
+    }
+
+    fn failure(
+        endpoint: ProductionPublicReadEndpoint,
+        latency_ms: Option<u64>,
+        http_status: Option<u16>,
+        error_code: &str,
+    ) -> Self {
+        let status_detail = http_status
+            .map(|status| format!(" HTTP {status}"))
+            .unwrap_or_default();
+        Self {
+            status: "online_read_probe_failed".to_string(),
+            latency_ms,
+            http_status,
+            response_shape: production_public_read_response_shape(endpoint).to_string(),
+            response_shape_validated: false,
+            error_code: error_code.to_string(),
+            network_attempted: true,
+            diagnostic: format!(
+                "V120 production public read-only probe attempted GET {} and failed with {error_code}.{status_detail} No credentials, account reads, order endpoints, or Dashboard controls were used.",
+                production_public_read_endpoint_parts(endpoint).1
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct BinanceServerTimeResponse {
+    #[serde(rename = "serverTime")]
+    server_time: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -827,13 +897,35 @@ fn run_live_production_public_read_probe_with_env<F>(
 where
     F: FnMut(&str) -> Option<String>,
 {
+    run_live_production_public_read_probe_with_env_and_http(
+        opt,
+        &mut read_env,
+        execute_production_public_read_probe,
+    )
+}
+
+fn run_live_production_public_read_probe_with_env_and_http<F, H>(
+    opt: &LiveProductionPublicReadProbeOpt,
+    read_env: &mut F,
+    mut http_probe: H,
+) -> anyhow::Result<()>
+where
+    F: FnMut(&str) -> Option<String>,
+    H: FnMut(ProductionPublicReadEndpoint, &str) -> ProductionPublicReadProbeHttpResult,
+{
     let missing_cli_flags = missing_production_public_read_cli_flags(opt);
-    let missing_env_vars = missing_production_public_read_env_gates(&mut read_env);
+    let missing_env_vars = missing_production_public_read_env_gates(read_env, opt.manual_online);
+    let should_attempt_online =
+        should_attempt_production_public_read_probe(opt, &missing_cli_flags, &missing_env_vars);
+    let (_, path) = production_public_read_endpoint_parts(opt.endpoint);
+    let request_url = format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{path}");
+    let http_result = should_attempt_online.then(|| http_probe(opt.endpoint, &request_url));
     let report = build_production_public_read_probe_report(
         opt.endpoint,
         opt.manual_online,
         &missing_cli_flags,
         &missing_env_vars,
+        http_result.as_ref(),
     );
 
     if let Some(output) = &opt.output {
@@ -841,7 +933,7 @@ where
     }
 
     println!(
-        "live.production_public_read_probe status={} endpoint={} endpoint_class={} method={} path={} manual_online_requested={} contract_ready={} online_read_allowed=false online_execution_supported=false read_allowed={} mutation_allowed=false credentials_used=false network_attempted=false production_order_submission_attempted=false production_order_mutation_attempted=false dashboard_order_controls_enabled=false",
+        "live.production_public_read_probe status={} endpoint={} endpoint_class={} method={} path={} manual_online_requested={} contract_ready={} online_read_allowed={} online_execution_supported={} read_allowed={} mutation_allowed=false credentials_used=false network_attempted={} response_shape={} response_shape_validated={} error_code={} production_order_submission_attempted=false production_order_mutation_attempted=false dashboard_order_controls_enabled=false",
         report.status,
         report.endpoint,
         report.endpoint_class,
@@ -849,7 +941,13 @@ where
         report.path,
         report.manual_online_requested,
         report.contract_ready,
+        report.online_read_allowed,
+        report.online_execution_supported,
         report.read_allowed,
+        report.network_attempted,
+        report.response_shape,
+        report.response_shape_validated,
+        report.error_code,
     );
     Ok(())
 }
@@ -859,6 +957,7 @@ fn build_production_public_read_probe_report(
     manual_online_requested: bool,
     missing_cli_flags: &[&'static str],
     missing_env_vars: &[&'static str],
+    http_result: Option<&ProductionPublicReadProbeHttpResult>,
 ) -> ProductionPublicReadProbeReport {
     let (endpoint_name, path) = production_public_read_endpoint_parts(endpoint);
     let classified_endpoint = EndpointClassifier::classify(
@@ -867,26 +966,45 @@ fn build_production_public_read_probe_report(
         EndpointAuthKind::None,
     );
     let gates_missing = !missing_cli_flags.is_empty() || !missing_env_vars.is_empty();
-    let status = if gates_missing {
+    let status = if let Some(result) = http_result {
+        result.status.as_str()
+    } else if gates_missing && manual_online_requested {
+        "blocked_missing_manual_online_gate"
+    } else if gates_missing {
         "blocked_missing_gate"
     } else if manual_online_requested {
-        "blocked_online_execution_not_implemented"
+        "blocked_online_execution_not_attempted"
     } else {
         "ready_offline_contract"
     };
-    let diagnostic = if gates_missing {
+    let diagnostic = if let Some(result) = http_result {
+        result.diagnostic.as_str()
+    } else if gates_missing && manual_online_requested {
+        "manual online production public read probe is closed because explicit v0.12 owner gates are missing"
+    } else if gates_missing {
         "production public read probe is closed because explicit CLI/env gates are missing"
     } else if manual_online_requested {
-        "manual online production read is out of scope for V110-002; no network was opened"
+        "manual online production read gates are present, but no HTTP probe result was produced"
     } else {
         "offline production public read-only probe contract is ready; no network was opened"
     };
 
     let contract_ready =
         !gates_missing && !manual_online_requested && classified_endpoint.read_allowed;
+    let online_read_allowed =
+        !gates_missing && manual_online_requested && classified_endpoint.read_allowed;
+    let response_shape = http_result.map_or_else(
+        || production_public_read_response_shape(endpoint).to_string(),
+        |result| result.response_shape.clone(),
+    );
 
     ProductionPublicReadProbeReport {
-        schema_version: PRODUCTION_PUBLIC_READ_PROBE_SCHEMA_VERSION.to_string(),
+        schema_version: if manual_online_requested {
+            PRODUCTION_PUBLIC_ONLINE_READ_PROBE_SCHEMA_VERSION
+        } else {
+            PRODUCTION_PUBLIC_READ_PROBE_SCHEMA_VERSION
+        }
+        .to_string(),
         status: status.to_string(),
         endpoint: endpoint_name.to_string(),
         endpoint_class: classified_endpoint.endpoint_class.as_str().to_string(),
@@ -898,7 +1016,7 @@ fn build_production_public_read_probe_report(
         requires_signature: classified_endpoint.requires_signature,
         read_allowed: contract_ready,
         contract_ready,
-        online_read_allowed: false,
+        online_read_allowed,
         mutation_allowed: classified_endpoint.mutation_allowed,
         manual_gate_required: true,
         missing_cli_flags: missing_cli_flags
@@ -910,8 +1028,18 @@ fn build_production_public_read_probe_report(
             .map(|name| (*name).to_string())
             .collect(),
         manual_online_requested,
-        online_execution_supported: false,
-        network_attempted: false,
+        online_execution_supported: manual_online_requested,
+        network_attempted: http_result.is_some_and(|result| result.network_attempted),
+        production_public_online_read_attempted: http_result
+            .is_some_and(|result| result.network_attempted),
+        response_status_code: http_result.and_then(|result| result.http_status),
+        response_shape,
+        response_shape_validated: http_result.is_some_and(|result| result.response_shape_validated),
+        latency_ms: http_result.and_then(|result| result.latency_ms),
+        error_code: http_result.map_or_else(
+            || "not_attempted".to_string(),
+            |result| result.error_code.clone(),
+        ),
         credentials_used: false,
         account_mutation_attempted: false,
         production_order_submission_attempted: false,
@@ -927,6 +1055,133 @@ fn production_public_read_endpoint_parts(
     match endpoint {
         ProductionPublicReadEndpoint::ServerTime => ("server_time", "/api/v3/time"),
         ProductionPublicReadEndpoint::ExchangeInfo => ("exchange_info", "/api/v3/exchangeInfo"),
+    }
+}
+
+fn production_public_read_response_shape(endpoint: ProductionPublicReadEndpoint) -> &'static str {
+    match endpoint {
+        ProductionPublicReadEndpoint::ServerTime => "binance_server_time_v1",
+        ProductionPublicReadEndpoint::ExchangeInfo => "binance_exchange_info_v1",
+    }
+}
+
+fn should_attempt_production_public_read_probe(
+    opt: &LiveProductionPublicReadProbeOpt,
+    missing_cli_flags: &[&'static str],
+    missing_env_vars: &[&'static str],
+) -> bool {
+    opt.manual_online && missing_cli_flags.is_empty() && missing_env_vars.is_empty()
+}
+
+fn execute_production_public_read_probe(
+    endpoint: ProductionPublicReadEndpoint,
+    request_url: &str,
+) -> ProductionPublicReadProbeHttpResult {
+    std::thread::spawn({
+        let request_url = request_url.to_string();
+        move || execute_production_public_read_probe_on_thread(endpoint, &request_url)
+    })
+    .join()
+    .unwrap_or_else(|_| {
+        ProductionPublicReadProbeHttpResult::failure(
+            endpoint,
+            None,
+            None,
+            "http_probe_thread_panicked",
+        )
+    })
+}
+
+fn execute_production_public_read_probe_on_thread(
+    endpoint: ProductionPublicReadEndpoint,
+    request_url: &str,
+) -> ProductionPublicReadProbeHttpResult {
+    let started = Instant::now();
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(PRODUCTION_PUBLIC_READ_PROBE_TIMEOUT)
+        .user_agent("NTPRO-v120-production-public-readonly-probe")
+        .build()
+    {
+        Ok(client) => client,
+        Err(_) => {
+            return ProductionPublicReadProbeHttpResult::failure(
+                endpoint,
+                None,
+                None,
+                "http_client_build_failed",
+            );
+        }
+    };
+
+    match client.get(request_url).send() {
+        Ok(response) => {
+            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            let status = response.status().as_u16();
+            if response.status().is_success() {
+                match response.json::<serde_json::Value>() {
+                    Ok(body)
+                        if validates_production_public_read_response_shape(endpoint, &body) =>
+                    {
+                        ProductionPublicReadProbeHttpResult::success(endpoint, latency_ms, status)
+                    }
+                    Ok(_) | Err(_) => ProductionPublicReadProbeHttpResult::failure(
+                        endpoint,
+                        Some(latency_ms),
+                        Some(status),
+                        "response_shape_invalid",
+                    ),
+                }
+            } else {
+                ProductionPublicReadProbeHttpResult::failure(
+                    endpoint,
+                    Some(latency_ms),
+                    Some(status),
+                    "http_status_not_success",
+                )
+            }
+        }
+        Err(error) => {
+            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            ProductionPublicReadProbeHttpResult::failure(
+                endpoint,
+                Some(latency_ms),
+                error.status().map(|status| status.as_u16()),
+                classify_production_public_read_error(&error),
+            )
+        }
+    }
+}
+
+fn validates_production_public_read_response_shape(
+    endpoint: ProductionPublicReadEndpoint,
+    body: &serde_json::Value,
+) -> bool {
+    match endpoint {
+        ProductionPublicReadEndpoint::ServerTime => {
+            serde_json::from_value::<BinanceServerTimeResponse>(body.clone())
+                .is_ok_and(|response| response.server_time > 0)
+        }
+        ProductionPublicReadEndpoint::ExchangeInfo => body.as_object().is_some_and(|object| {
+            object
+                .get("symbols")
+                .is_some_and(serde_json::Value::is_array)
+        }),
+    }
+}
+
+fn classify_production_public_read_error(error: &reqwest::Error) -> &'static str {
+    if error.is_timeout() {
+        "timeout"
+    } else if error.is_connect() {
+        "connect_error"
+    } else if error.is_decode() {
+        "decode_error"
+    } else if error.is_request() {
+        "request_error"
+    } else if error.is_body() {
+        "body_error"
+    } else {
+        "unknown_http_error"
     }
 }
 
@@ -2570,18 +2825,27 @@ fn missing_production_public_read_cli_flags(
     missing
 }
 
-fn missing_production_public_read_env_gates<F>(read_env: &mut F) -> Vec<&'static str>
+fn missing_production_public_read_env_gates<F>(
+    read_env: &mut F,
+    manual_online_requested: bool,
+) -> Vec<&'static str>
 where
     F: FnMut(&str) -> Option<String>,
 {
-    [
+    let mut missing: Vec<&'static str> = [
         PRODUCTION_PUBLIC_READ_ENV_ALLOW,
         PRODUCTION_PUBLIC_READ_ENV_READ_ONLY,
         PRODUCTION_PUBLIC_READ_ENV_NO_ORDER_MUTATION,
     ]
     .into_iter()
     .filter(|name| read_env(name).as_deref() != Some("1"))
-    .collect()
+    .collect();
+    if manual_online_requested
+        && read_env(PRODUCTION_PUBLIC_READ_ENV_MANUAL_ONLINE).as_deref() != Some("1")
+    {
+        missing.push(PRODUCTION_PUBLIC_READ_ENV_MANUAL_ONLINE);
+    }
+    missing
 }
 
 fn missing_production_account_snapshot_cli_flags(
@@ -3439,6 +3703,10 @@ write_summary = true
             confirm_read_only: all_cli_gates,
             confirm_no_order_mutation: all_cli_gates,
         }
+    }
+
+    fn all_env_enabled(name: &str) -> Option<String> {
+        (!name.is_empty()).then(|| "1".to_string())
     }
 
     fn production_account_snapshot_contract_opt(
@@ -4311,6 +4579,12 @@ write_summary = true
         assert_eq!(report["online_read_allowed"], false);
         assert_eq!(report["mutation_allowed"], false);
         assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["production_public_online_read_attempted"], false);
+        assert_eq!(report["response_status_code"], serde_json::Value::Null);
+        assert_eq!(report["response_shape"], "binance_server_time_v1");
+        assert_eq!(report["response_shape_validated"], false);
+        assert_eq!(report["latency_ms"], serde_json::Value::Null);
+        assert_eq!(report["error_code"], "not_attempted");
         assert_eq!(report["credentials_used"], false);
         assert_eq!(report["production_order_submission_attempted"], false);
         assert_eq!(report["production_order_mutation_attempted"], false);
@@ -4344,6 +4618,12 @@ write_summary = true
         assert_eq!(report["mutation_allowed"], false);
         assert_eq!(report["online_execution_supported"], false);
         assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["production_public_online_read_attempted"], false);
+        assert_eq!(report["response_status_code"], serde_json::Value::Null);
+        assert_eq!(report["response_shape"], "binance_exchange_info_v1");
+        assert_eq!(report["response_shape_validated"], false);
+        assert_eq!(report["latency_ms"], serde_json::Value::Null);
+        assert_eq!(report["error_code"], "not_attempted");
         assert_eq!(report["credentials_used"], false);
         assert_eq!(report["account_mutation_attempted"], false);
         assert_eq!(report["production_order_submission_attempted"], false);
@@ -4352,9 +4632,9 @@ write_summary = true
     }
 
     #[test]
-    fn production_public_read_probe_blocks_manual_online_path_in_v110_002() {
+    fn production_public_read_probe_blocks_manual_online_without_v12_owner_gate() {
         let output_dir = std::env::temp_dir().join(format!(
-            "ntpro-v110-002-public-read-online-{}",
+            "ntpro-v120-001-public-read-online-blocked-{}",
             std::process::id()
         ));
         let output = output_dir.join("public-read-probe.json");
@@ -4364,19 +4644,144 @@ write_summary = true
             true,
             true,
         );
+        let mut http_called = false;
+        let mut read_env = |name: &str| match name {
+            PRODUCTION_PUBLIC_READ_ENV_MANUAL_ONLINE => None,
+            _ => Some("1".to_string()),
+        };
 
-        run_live_production_public_read_probe_with_env(&opt, |_| Some("1".to_string())).unwrap();
+        run_live_production_public_read_probe_with_env_and_http(
+            &opt,
+            &mut read_env,
+            |endpoint, _url| {
+                http_called = true;
+                ProductionPublicReadProbeHttpResult::success(endpoint, 1, 200)
+            },
+        )
+        .unwrap();
 
         let report: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
-        assert_eq!(report["status"], "blocked_online_execution_not_implemented");
+        assert!(!http_called);
+        assert_eq!(
+            report["schema_version"],
+            PRODUCTION_PUBLIC_ONLINE_READ_PROBE_SCHEMA_VERSION
+        );
+        assert_eq!(report["status"], "blocked_missing_manual_online_gate");
         assert_eq!(report["manual_online_requested"], true);
         assert_eq!(report["read_allowed"], false);
         assert_eq!(report["contract_ready"], false);
         assert_eq!(report["online_read_allowed"], false);
-        assert_eq!(report["online_execution_supported"], false);
+        assert_eq!(report["online_execution_supported"], true);
         assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["production_public_online_read_attempted"], false);
+        assert_eq!(report["response_status_code"], serde_json::Value::Null);
+        assert_eq!(report["response_shape"], "binance_server_time_v1");
+        assert_eq!(report["response_shape_validated"], false);
+        assert_eq!(report["error_code"], "not_attempted");
         assert_eq!(report["production_order_mutation_attempted"], false);
+    }
+
+    #[test]
+    fn production_public_read_probe_records_owner_gated_online_success_without_credentials() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-001-public-read-online-success-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("public-read-probe.json");
+        let opt = production_public_read_probe_opt(
+            ProductionPublicReadEndpoint::ServerTime,
+            Some(output.clone()),
+            true,
+            true,
+        );
+        let mut read_env = all_env_enabled;
+
+        run_live_production_public_read_probe_with_env_and_http(
+            &opt,
+            &mut read_env,
+            |endpoint, url| {
+                assert_eq!(endpoint, ProductionPublicReadEndpoint::ServerTime);
+                assert_eq!(url, "https://api.binance.com/api/v3/time");
+                ProductionPublicReadProbeHttpResult::success(endpoint, 42, 200)
+            },
+        )
+        .unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(
+            report["schema_version"],
+            PRODUCTION_PUBLIC_ONLINE_READ_PROBE_SCHEMA_VERSION
+        );
+        assert_eq!(report["status"], "online_read_probe_ok");
+        assert_eq!(report["endpoint"], "server_time");
+        assert_eq!(report["method"], "GET");
+        assert_eq!(report["path"], "/api/v3/time");
+        assert_eq!(report["read_allowed"], false);
+        assert_eq!(report["contract_ready"], false);
+        assert_eq!(report["online_read_allowed"], true);
+        assert_eq!(report["online_execution_supported"], true);
+        assert_eq!(report["network_attempted"], true);
+        assert_eq!(report["production_public_online_read_attempted"], true);
+        assert_eq!(report["response_status_code"], 200);
+        assert_eq!(report["response_shape"], "binance_server_time_v1");
+        assert_eq!(report["response_shape_validated"], true);
+        assert_eq!(report["latency_ms"], 42);
+        assert_eq!(report["error_code"], "none");
+        assert_eq!(report["credentials_used"], false);
+        assert_eq!(report["account_mutation_attempted"], false);
+        assert_eq!(report["production_order_submission_attempted"], false);
+        assert_eq!(report["production_order_mutation_attempted"], false);
+        assert_eq!(report["dashboard_order_controls_enabled"], false);
+    }
+
+    #[test]
+    fn production_public_read_probe_records_owner_gated_online_failure_as_no_proof() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-001-public-read-online-failure-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("public-read-probe.json");
+        let opt = production_public_read_probe_opt(
+            ProductionPublicReadEndpoint::ExchangeInfo,
+            Some(output.clone()),
+            true,
+            true,
+        );
+        let mut read_env = all_env_enabled;
+
+        run_live_production_public_read_probe_with_env_and_http(
+            &opt,
+            &mut read_env,
+            |endpoint, url| {
+                assert_eq!(endpoint, ProductionPublicReadEndpoint::ExchangeInfo);
+                assert_eq!(url, "https://api.binance.com/api/v3/exchangeInfo");
+                ProductionPublicReadProbeHttpResult::failure(
+                    endpoint,
+                    Some(7),
+                    Some(503),
+                    "http_status_not_success",
+                )
+            },
+        )
+        .unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(report["status"], "online_read_probe_failed");
+        assert_eq!(report["endpoint"], "exchange_info");
+        assert_eq!(report["path"], "/api/v3/exchangeInfo");
+        assert_eq!(report["online_read_allowed"], true);
+        assert_eq!(report["network_attempted"], true);
+        assert_eq!(report["production_public_online_read_attempted"], true);
+        assert_eq!(report["response_status_code"], 503);
+        assert_eq!(report["response_shape"], "binance_exchange_info_v1");
+        assert_eq!(report["response_shape_validated"], false);
+        assert_eq!(report["latency_ms"], 7);
+        assert_eq!(report["error_code"], "http_status_not_success");
+        assert_eq!(report["production_order_mutation_attempted"], false);
+        assert_eq!(report["dashboard_order_controls_enabled"], false);
     }
 
     #[test]
