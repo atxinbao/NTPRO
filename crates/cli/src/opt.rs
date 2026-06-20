@@ -166,6 +166,8 @@ pub enum LiveCommand {
     ProductionShadowPortfolioRuntime(LiveProductionShadowPortfolioRuntimeOpt),
     /// Writes local v0.12 persistent shadow strategy session events from read-only shadow artifacts.
     ProductionShadowStrategySession(LiveProductionShadowStrategySessionOpt),
+    /// Writes local v0.12 production read-only reconciliation events from shadow artifacts.
+    ProductionReadonlyReconciliation(LiveProductionReadonlyReconciliationOpt),
 }
 
 /// Live validation options.
@@ -499,6 +501,29 @@ pub struct LiveProductionShadowStrategySessionOpt {
     /// Optional local owner stop-file. If present, the command records a stop marker.
     #[arg(long)]
     pub stop_file: Option<PathBuf>,
+}
+
+/// Local production read-only reconciliation artifact options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionReadonlyReconciliationOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// Optional redacted production account snapshot JSON input.
+    #[arg(long)]
+    pub account_snapshot: Option<PathBuf>,
+    /// Optional v0.12 shadow portfolio runtime JSON input.
+    #[arg(long)]
+    pub shadow_portfolio_runtime: Option<PathBuf>,
+    /// Optional v0.12 shadow strategy session JSONL input.
+    #[arg(long)]
+    pub shadow_strategy_session: Option<PathBuf>,
+    /// Optional local shadow execution intent JSONL input.
+    #[arg(long)]
+    pub shadow_intent: Option<PathBuf>,
+    /// v0.12 production read-only reconciliation JSONL output path.
+    #[arg(long)]
+    pub output: PathBuf,
 }
 
 /// Local supervisor controls for sandbox-only node artifacts and processes.
