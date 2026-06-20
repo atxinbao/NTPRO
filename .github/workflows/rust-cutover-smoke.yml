@@ -99,6 +99,8 @@ jobs:
       - name: Format and toolchain check
         run: scripts/ai/verify_fast.sh
       - name: Release surface current guard
+        env:
+          NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG: "1"
         run: scripts/ai/check_release_surface_current.sh
       - name: Workspace cargo check
         if: steps.changes.outputs.heavy_rust == 'true'

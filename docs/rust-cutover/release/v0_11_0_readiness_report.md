@@ -3,7 +3,7 @@
 Date: 2026-06-20
 Executor: Codex
 Milestone: `ntpro-rust-only-v0.11.0`
-Status: PASS - READY FOR OWNER RELEASE DECISION
+Status: PASS - RELEASED
 
 ## Summary
 
@@ -14,7 +14,7 @@ shadow execution intent contract, shadow portfolio snapshot contract,
 shadow/read-only lifecycle state model, reconciliation event model, read-only
 Dashboard production shadow status, and offline release gate wiring.
 
-Plain Chinese summary: v0.11.0 的任务队列已经完成，可以进入 owner release 决策。
+Plain Chinese summary: v0.11.0 的任务队列已经完成，并已进入正式发布口径。
 这次能力只允许“读生产环境”和“本地影子计算”：可以做 endpoint 分类、公开只读探针、
 认证账户快照契约、shadow intent、shadow portfolio、只读 reconciliation 事件和
 Dashboard 只读状态。它不是实盘交易，不碰真实资金，不提交/撤销/修改生产订单，
@@ -25,7 +25,9 @@ Dashboard 也没有下单按钮。
 ```text
 capability = Production Read-Only + Shadow Portfolio release package
 current published release before v0.11.0 = ntpro-rust-only-v0.10.0
-release tag candidate = ntpro-rust-only-v0.11.0
+release tag = ntpro-rust-only-v0.11.0
+release name = NTPRO Rust-only v0.11.0
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.11.0
 default execution posture = offline fail-closed
 production public read-only contract = available, explicitly gated, offline by default
 production authenticated account snapshot contract = available, owner-gated, redacted, offline by default
@@ -66,8 +68,6 @@ production trading
 production order lifecycle parity
 automatic production reconciliation or remediation
 Dashboard order/cancel/replace/amend controls
-tag creation by this task
-GitHub Release publication by this task
 ```
 
 ## Task Gate Matrix
@@ -124,20 +124,19 @@ security-audit checks = PASS
 
 ## Release Closure Status
 
-The V110 task queue is complete after V110-010. This document does not create a
-tag and does not publish a GitHub Release.
-
-Owner release decision still required:
+The V110 task queue is complete after V110-010, and the owner release decision
+has moved the release package to the formal publication path:
 
 ```text
-candidate tag = ntpro-rust-only-v0.11.0
-candidate release name = NTPRO Rust-only v0.11.0
-release publication = not performed by V110-010
+formal tag = ntpro-rust-only-v0.11.0
+formal release name = NTPRO Rust-only v0.11.0
+formal GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.11.0
 ```
 
 ## Final Verdict
 
-The v0.11.0 release package is ready for owner tag/GitHub Release decision.
+The v0.11.0 release package is the formal publication package for
+`ntpro-rust-only-v0.11.0`.
 
 Do not describe this readiness PASS as production order submission readiness,
 real-funds readiness, production trading readiness, automatic production

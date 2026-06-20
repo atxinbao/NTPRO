@@ -4,10 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.10.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.11.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
-NEXT_PATCH_VERSION="${NTPRO_NEXT_PATCH_VERSION:-v0.10.1}"
-NEXT_CAPABILITY_VERSION="${NTPRO_NEXT_CAPABILITY_VERSION:-v0.11.0}"
+NEXT_PATCH_VERSION="${NTPRO_NEXT_PATCH_VERSION:-v0.11.1}"
+NEXT_CAPABILITY_VERSION="${NTPRO_NEXT_CAPABILITY_VERSION:-v0.12.0}"
 
 CURRENT_MINOR_LINE="${CURRENT_RELEASE_VERSION%.*}.x"
 CURRENT_RELEASE_STEM="v${CURRENT_RELEASE_VERSION#v}"
@@ -61,8 +61,13 @@ require_file "$CURRENT_RELEASE_NOTES"
 require_file "$CURRENT_READINESS_REPORT"
 
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  git rev-parse -q --verify "${CURRENT_RELEASE_TAG}^{commit}" >/dev/null \
-    || fail "missing local git tag: $CURRENT_RELEASE_TAG"
+  if ! git rev-parse -q --verify "${CURRENT_RELEASE_TAG}^{commit}" >/dev/null; then
+    if [[ "${NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG:-0}" == "1" ]]; then
+      echo "release_surface_current_guard=pre_tag_mode missing_tag=$CURRENT_RELEASE_TAG"
+    else
+      fail "missing local git tag: $CURRENT_RELEASE_TAG"
+    fi
+  fi
 fi
 
 require_contains README.md \

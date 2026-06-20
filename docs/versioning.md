@@ -1,6 +1,6 @@
 # NTPRO Versioning
 
-Date: 2026-06-14
+Date: 2026-06-20
 Executor: Codex
 
 NTPRO uses several version-like identifiers. They do not mean the same thing.
@@ -10,9 +10,9 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.10.0` 是当前正式公开发布点；`v0.10.1` 是 release-surface hotfix 队列，
-不增加生产 Binance、真实资金、生产交易、自动在线下单或 Dashboard 下单按钮；
-`v0.11.0` 才是下一条 Production Read-Only + Shadow Portfolio 能力线。
+`v0.11.0` 是当前正式公开发布点；`v0.11.1` 是 release-surface hotfix 队列，
+不增加生产下单、生产订单变更、真实资金、生产交易、自动生产修复或 Dashboard 下单按钮；
+`v0.12.0` 才是下一条 Guarded Live Alpha 能力线。
 
 ## Release Tags
 
@@ -25,6 +25,7 @@ ntpro-rust-only-v0.6.0
 ntpro-rust-only-v0.6.1
 ntpro-rust-only-v0.7.0
 ntpro-rust-only-v0.10.0
+ntpro-rust-only-v0.11.0
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -37,18 +38,18 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.10.0
+ntpro-rust-only-v0.11.0
 ```
 
 The active patch track is:
 
 ```text
-v0.10.1
+v0.11.1
 ```
 
-v0.10.1 is a release-surface hotfix track. It must not be described as
-production Binance connectivity, real funds, production trading, automatic
-online order mutation, or Dashboard order controls.
+v0.11.1 is a release-surface hotfix track. It must not be described as
+production order submission, production order mutation, real funds, production
+trading, automatic production remediation, or Dashboard order controls.
 
 ## Cargo Workspace Version
 
@@ -106,13 +107,25 @@ Does not include:
 
 ### v0.11.0
 
-Planned boundary:
+Published boundary:
 
 ```text
 Production Read-Only + Shadow Portfolio
 ```
 
-v0.11.0 must remain read-only/shadow-only:
+Includes:
+
+- production endpoint classification;
+- production public read-only contract;
+- owner-gated authenticated account snapshot contract;
+- local shadow execution intent artifacts;
+- local shadow portfolio snapshot artifacts;
+- local shadow/read-only lifecycle state evidence;
+- local reconciliation/manual-remediation event evidence;
+- read-only Dashboard production shadow status;
+- offline release gates.
+
+Does not include:
 
 - no production order submission;
 - no production cancel, replace, amend, or automatic correction orders;
@@ -121,6 +134,17 @@ v0.11.0 must remain read-only/shadow-only:
 - default CI stays offline;
 - manual online production read-only proof is opt-in only;
 - secrets must never be written to artifacts, stdout, logs, docs, or PR bodies.
+
+### v0.12.0
+
+Planned boundary:
+
+```text
+Guarded Live Alpha
+```
+
+v0.12.0 requires a separate scope decision. It must not be inferred from the
+v0.11.0 read-only/shadow-only release.
 
 ### v0.6.0
 

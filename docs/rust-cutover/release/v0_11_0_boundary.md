@@ -2,13 +2,13 @@
 
 Date: 2026-06-19
 Executor: Codex
-Status: PLANNED BOUNDARY
+Status: RELEASED BOUNDARY
 
 ## Summary
 
-`v0.11.0` is the next capability track after the `v0.10.x` release-surface
-hotfix line. Its scope is Production Read-Only + Shadow Portfolio: read
-production market/account state through explicit gates, create local shadow
+`v0.11.0` is the published capability track after the `v0.10.0` Binance spot
+sandbox order proof line. Its scope is Production Read-Only + Shadow Portfolio:
+read production market/account state through explicit gates, create local shadow
 intents and portfolio snapshots, and write evidence artifacts that prove the
 system stayed read-only.
 
@@ -149,6 +149,6 @@ v0.11 work must pass this ladder in order:
 
 ## Release Rule
 
-The future `ntpro-rust-only-v0.11.0` tag may be prepared only after every
-v0.11 task records evidence that production order mutation stayed disabled and
-Dashboard order controls stayed absent.
+The `ntpro-rust-only-v0.11.0` tag may be published only after every v0.11 task
+records evidence that production order mutation stayed disabled and Dashboard
+order controls stayed absent.

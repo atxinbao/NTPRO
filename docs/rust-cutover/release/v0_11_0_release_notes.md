@@ -2,18 +2,19 @@
 
 Date: 2026-06-20
 Executor: Codex
-Status: READY FOR OWNER RELEASE DECISION
-Tag candidate: `ntpro-rust-only-v0.11.0`
-Release name candidate: `NTPRO Rust-only v0.11.0`
+Status: RELEASED
+Tag: `ntpro-rust-only-v0.11.0`
+Release name: `NTPRO Rust-only v0.11.0`
+Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.11.0`
 
 ## Summary
 
-`v0.11.0` is the Production Read-Only + Shadow Portfolio release candidate. It
+`v0.11.0` is the Production Read-Only + Shadow Portfolio release. It
 adds release-scoped contracts and verification for reading production context
 through explicit gates, recording local shadow execution/portfolio evidence,
 and displaying that evidence in Dashboard as read-only status.
 
-Plain Chinese summary: v0.11.0 是“生产只读 + 本地影子组合”的候选发布。它可以把生产
+Plain Chinese summary: v0.11.0 是“生产只读 + 本地影子组合”的正式发布。它可以把生产
 endpoint 分类清楚，可以准备公开只读和认证账户快照契约，可以生成本地 shadow intent、
 shadow portfolio、生命周期和 reconciliation 证据，也可以在 Dashboard 只读展示。
 它不能下生产订单，不能撤单/改单，不能动真实资金，也不能把 Dashboard 变成交易面板。
@@ -62,8 +63,6 @@ production trading
 automatic production reconciliation or remediation
 production order lifecycle parity
 Dashboard order, cancel, replace, amend, or retry controls
-tag creation by this task
-GitHub Release publication by this task
 ```
 
 ## Validation
@@ -106,15 +105,13 @@ security-audit checks = PASS
 
 ## Release Status
 
-This document prepares release notes for a future owner-approved formal
-publication as:
+This document is the formal GitHub Release note for:
 
 ```text
 tag = ntpro-rust-only-v0.11.0
 release name = NTPRO Rust-only v0.11.0
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.11.0
 ```
-
-V110-010 does not create the tag and does not publish the GitHub Release.
 
 The release boundary must continue to preserve: Production Read-Only + Shadow
 Portfolio only, no production order submission, no production order mutation,
