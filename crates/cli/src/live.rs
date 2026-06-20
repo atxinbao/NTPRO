@@ -43,9 +43,9 @@ use crate::{
     endpoint_classifier::{EndpointAuthKind, EndpointClassifier},
     opt::{
         LiveCommand, LiveOpt, LiveProductionAccountSnapshotContractOpt,
-        LiveProductionPublicReadProbeOpt, LiveProductionShadowPortfolioRuntimeOpt,
-        LiveProductionShadowStrategySessionOpt, LiveRunOpt,
-        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveProductionPublicReadProbeOpt, LiveProductionReadonlyReconciliationOpt,
+        LiveProductionShadowPortfolioRuntimeOpt, LiveProductionShadowStrategySessionOpt,
+        LiveRunOpt, LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
         LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
         ProductionPublicReadEndpoint, TestnetReconciliationScenario,
@@ -114,6 +114,8 @@ const PRODUCTION_SHADOW_PORTFOLIO_COMPAT_SCHEMA_VERSION: &str =
     "ntpro.v110_shadow_portfolio_snapshot.v1";
 const PRODUCTION_SHADOW_STRATEGY_SESSION_EVENT_SCHEMA_VERSION: &str =
     "ntpro.v120_shadow_strategy_session_event.v1";
+const PRODUCTION_READONLY_RECONCILIATION_EVENT_SCHEMA_VERSION: &str =
+    "ntpro.v120_readonly_reconciliation_event.v1";
 const START_STOP_SHUTDOWN: &str = "start-stop";
 const DEFAULT_NTPRO_NODE_HEARTBEAT_INTERVAL_MS: u64 = 1_000;
 const DEFAULT_NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: u64 = 5_000;
@@ -1156,6 +1158,64 @@ struct ShadowStrategyEventInput<'a> {
     diagnostic: &'a str,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionReadonlyReconciliationEvent {
+    schema_version: String,
+    run_id: String,
+    event_id: String,
+    event_type: String,
+    classification: String,
+    severity: String,
+    observed_at: String,
+    source_ref: ReadonlyReconciliationSourceRef,
+    account_snapshot_ref: ReadonlyReconciliationArtifactRef,
+    shadow_portfolio_ref: ReadonlyReconciliationArtifactRef,
+    shadow_strategy_session_ref: ReadonlyReconciliationArtifactRef,
+    shadow_intent_ref: ReadonlyReconciliationArtifactRef,
+    recommended_action: String,
+    risk_halted: bool,
+    new_orders_blocked: bool,
+    manual_review_required: bool,
+    automatic_correction_orders_submitted: u64,
+    production_order_submissions_attempted: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    production_order_state_reads_attempted: u64,
+    listen_key_lifecycle_attempted: u64,
+    cancel_replace_amend_attempted: bool,
+    dashboard_order_controls_enabled: bool,
+    real_orders_submitted: bool,
+    values_are_exchange_truth: bool,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ReadonlyReconciliationSourceRef {
+    engine: String,
+    mode: String,
+    network_attempted: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ReadonlyReconciliationArtifactRef {
+    path: Option<String>,
+    status: String,
+    schema_version: Option<String>,
+    record_count: Option<u64>,
+    classification: Option<String>,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReadonlyReconciliationClassification {
+    Ok,
+    MissingAccountSnapshot,
+    PortfolioUnavailable,
+    ShadowIntentWithoutPortfolio,
+    ProductionMutationForbidden,
+    ManualReviewRequired,
+}
+
 impl TestnetSignedOrderRequest {
     fn redacted_preview(
         &self,
@@ -1242,6 +1302,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         }
         LiveCommand::ProductionShadowStrategySession(session) => {
             run_live_production_shadow_strategy_session(&session)
+        }
+        LiveCommand::ProductionReadonlyReconciliation(reconciliation) => {
+            run_live_production_readonly_reconciliation(&reconciliation)
         }
     }
 }
@@ -1402,6 +1465,23 @@ fn run_live_production_shadow_strategy_session(
         heartbeat_count,
         gap_count,
         final_state,
+    );
+    Ok(())
+}
+
+fn run_live_production_readonly_reconciliation(
+    opt: &LiveProductionReadonlyReconciliationOpt,
+) -> anyhow::Result<()> {
+    let event = build_production_readonly_reconciliation_event(opt)?;
+    write_production_readonly_reconciliation_events(&opt.output, std::slice::from_ref(&event))?;
+
+    println!(
+        "live.production_readonly_reconciliation status=ok run_id={} output={} classification={} severity={} recommended_action={} production_order_submissions_attempted=0 production_order_mutations_attempted=0 production_order_state_reads_attempted=0 listen_key_lifecycle_attempted=0 dashboard_order_controls_enabled=false",
+        event.run_id,
+        opt.output.display(),
+        event.classification,
+        event.severity,
+        event.recommended_action,
     );
     Ok(())
 }
@@ -2760,6 +2840,371 @@ fn read_shadow_strategy_session_status_ref(
                 required: false,
                 reason: format!("strategy session status artifact unavailable: {error}"),
             }),
+        ),
+    }
+}
+
+fn build_production_readonly_reconciliation_event(
+    opt: &LiveProductionReadonlyReconciliationOpt,
+) -> anyhow::Result<ProductionReadonlyReconciliationEvent> {
+    validate_non_empty("run_id", &opt.run_id)?;
+
+    let account_snapshot =
+        read_optional_json_artifact(opt.account_snapshot.as_deref(), "account snapshot");
+    let shadow_portfolio = read_optional_json_artifact(
+        opt.shadow_portfolio_runtime.as_deref(),
+        "shadow portfolio runtime",
+    );
+    let shadow_strategy_session = read_optional_latest_jsonl_artifact(
+        opt.shadow_strategy_session.as_deref(),
+        "shadow strategy session",
+    );
+    let shadow_intent =
+        read_optional_latest_jsonl_artifact(opt.shadow_intent.as_deref(), "shadow intent");
+
+    let classification = classify_production_readonly_reconciliation(
+        &account_snapshot,
+        &shadow_portfolio,
+        &shadow_strategy_session,
+        &shadow_intent,
+    );
+    let (event_type, severity, recommended_action, risk_halted, manual_review_required) =
+        reconciliation_classification_policy(classification);
+    let diagnostic = reconciliation_diagnostic(
+        classification,
+        &account_snapshot,
+        &shadow_portfolio,
+        &shadow_strategy_session,
+        &shadow_intent,
+    );
+
+    Ok(ProductionReadonlyReconciliationEvent {
+        schema_version: PRODUCTION_READONLY_RECONCILIATION_EVENT_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        event_id: format!(
+            "{}:{}",
+            opt.run_id,
+            reconciliation_classification_label(classification)
+        ),
+        event_type: event_type.to_string(),
+        classification: reconciliation_classification_label(classification).to_string(),
+        severity: severity.to_string(),
+        observed_at: now_millis(),
+        source_ref: ReadonlyReconciliationSourceRef {
+            engine: "production_readonly_reconciliation".to_string(),
+            mode: "local_shadow_artifact_classification".to_string(),
+            network_attempted: false,
+        },
+        account_snapshot_ref: reconciliation_artifact_ref(
+            opt.account_snapshot.as_deref(),
+            &account_snapshot,
+        ),
+        shadow_portfolio_ref: reconciliation_artifact_ref(
+            opt.shadow_portfolio_runtime.as_deref(),
+            &shadow_portfolio,
+        ),
+        shadow_strategy_session_ref: reconciliation_artifact_ref(
+            opt.shadow_strategy_session.as_deref(),
+            &shadow_strategy_session,
+        ),
+        shadow_intent_ref: reconciliation_artifact_ref(
+            opt.shadow_intent.as_deref(),
+            &shadow_intent,
+        ),
+        recommended_action: recommended_action.to_string(),
+        risk_halted,
+        new_orders_blocked: true,
+        manual_review_required,
+        automatic_correction_orders_submitted: 0,
+        production_order_submissions_attempted: 0,
+        production_orders_submitted: 0,
+        production_order_mutations_attempted: 0,
+        production_order_state_reads_attempted: 0,
+        listen_key_lifecycle_attempted: 0,
+        cancel_replace_amend_attempted: false,
+        dashboard_order_controls_enabled: false,
+        real_orders_submitted: false,
+        values_are_exchange_truth: false,
+        diagnostic,
+    })
+}
+
+fn write_production_readonly_reconciliation_events(
+    path: &Path,
+    events: &[ProductionReadonlyReconciliationEvent],
+) -> anyhow::Result<()> {
+    if events.is_empty() {
+        anyhow::bail!("production read-only reconciliation must write at least one event");
+    }
+    let mut body = String::new();
+    for event in events {
+        body.push_str(&serde_json::to_string(event)?);
+        body.push('\n');
+    }
+    atomic_write_text(path, &body).with_context(|| {
+        format!(
+            "failed to write production read-only reconciliation events '{}'",
+            path.display()
+        )
+    })
+}
+
+fn classify_production_readonly_reconciliation(
+    account_snapshot: &OptionalJsonArtifact,
+    shadow_portfolio: &OptionalJsonArtifact,
+    shadow_strategy_session: &OptionalJsonArtifact,
+    shadow_intent: &OptionalJsonArtifact,
+) -> ReadonlyReconciliationClassification {
+    if [
+        account_snapshot,
+        shadow_portfolio,
+        shadow_strategy_session,
+        shadow_intent,
+    ]
+    .iter()
+    .any(|artifact| artifact_has_production_mutation(artifact.value.as_ref()))
+    {
+        return ReadonlyReconciliationClassification::ProductionMutationForbidden;
+    }
+
+    if shadow_intent.value.is_some() && shadow_portfolio.value.is_none() {
+        return ReadonlyReconciliationClassification::ShadowIntentWithoutPortfolio;
+    }
+
+    if account_snapshot.value.is_none() {
+        return ReadonlyReconciliationClassification::MissingAccountSnapshot;
+    }
+
+    if shadow_portfolio.value.is_none() {
+        return ReadonlyReconciliationClassification::PortfolioUnavailable;
+    }
+
+    if shadow_strategy_session
+        .value
+        .as_ref()
+        .is_some_and(artifact_requires_manual_review)
+        || shadow_portfolio
+            .value
+            .as_ref()
+            .is_some_and(artifact_requires_manual_review)
+    {
+        return ReadonlyReconciliationClassification::ManualReviewRequired;
+    }
+
+    ReadonlyReconciliationClassification::Ok
+}
+
+fn reconciliation_classification_policy(
+    classification: ReadonlyReconciliationClassification,
+) -> (&'static str, &'static str, &'static str, bool, bool) {
+    match classification {
+        ReadonlyReconciliationClassification::Ok => (
+            "observed_account_state",
+            "info",
+            "record_only",
+            false,
+            false,
+        ),
+        ReadonlyReconciliationClassification::MissingAccountSnapshot => {
+            ("degraded_status", "degraded", "mark_degraded", true, true)
+        }
+        ReadonlyReconciliationClassification::PortfolioUnavailable => {
+            ("degraded_status", "degraded", "mark_degraded", true, true)
+        }
+        ReadonlyReconciliationClassification::ShadowIntentWithoutPortfolio => (
+            "shadow_mismatch",
+            "halt",
+            "manual_review_required",
+            true,
+            true,
+        ),
+        ReadonlyReconciliationClassification::ProductionMutationForbidden => {
+            ("risk_halt", "halt", "halt_shadow_flow", true, true)
+        }
+        ReadonlyReconciliationClassification::ManualReviewRequired => (
+            "manual_remediation_required",
+            "warning",
+            "manual_review_required",
+            true,
+            true,
+        ),
+    }
+}
+
+fn reconciliation_classification_label(
+    classification: ReadonlyReconciliationClassification,
+) -> &'static str {
+    match classification {
+        ReadonlyReconciliationClassification::Ok => "ok",
+        ReadonlyReconciliationClassification::MissingAccountSnapshot => "missing_account_snapshot",
+        ReadonlyReconciliationClassification::PortfolioUnavailable => "portfolio_unavailable",
+        ReadonlyReconciliationClassification::ShadowIntentWithoutPortfolio => {
+            "shadow_intent_without_portfolio"
+        }
+        ReadonlyReconciliationClassification::ProductionMutationForbidden => {
+            "production_mutation_forbidden"
+        }
+        ReadonlyReconciliationClassification::ManualReviewRequired => "manual_review_required",
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct OptionalJsonArtifact {
+    status: String,
+    value: Option<serde_json::Value>,
+    diagnostic: String,
+}
+
+fn read_optional_json_artifact(path: Option<&Path>, label: &str) -> OptionalJsonArtifact {
+    let Some(path) = path else {
+        return OptionalJsonArtifact {
+            status: "not_provided".to_string(),
+            value: None,
+            diagnostic: format!("{label} artifact path was not provided"),
+        };
+    };
+
+    match read_json_artifact(path, label) {
+        Ok(value) => OptionalJsonArtifact {
+            status: "available".to_string(),
+            value: Some(value),
+            diagnostic: format!("{label} artifact available"),
+        },
+        Err(error) => OptionalJsonArtifact {
+            status: "missing_or_unreadable".to_string(),
+            value: None,
+            diagnostic: format!("{label} artifact unavailable: {error}"),
+        },
+    }
+}
+
+fn read_optional_latest_jsonl_artifact(path: Option<&Path>, label: &str) -> OptionalJsonArtifact {
+    let Some(path) = path else {
+        return OptionalJsonArtifact {
+            status: "not_provided".to_string(),
+            value: None,
+            diagnostic: format!("{label} artifact path was not provided"),
+        };
+    };
+
+    match read_latest_jsonl_artifact(path, label) {
+        Ok(value) => OptionalJsonArtifact {
+            status: "available".to_string(),
+            value: Some(value),
+            diagnostic: format!("{label} artifact available"),
+        },
+        Err(error) => OptionalJsonArtifact {
+            status: "missing_or_unreadable".to_string(),
+            value: None,
+            diagnostic: format!("{label} artifact unavailable: {error}"),
+        },
+    }
+}
+
+fn read_latest_jsonl_artifact(path: &Path, label: &str) -> anyhow::Result<serde_json::Value> {
+    let raw = fs::read_to_string(path)
+        .with_context(|| format!("failed to read {label} artifact '{}'", path.display()))?;
+    let latest = raw
+        .lines()
+        .rfind(|line| !line.trim().is_empty())
+        .with_context(|| format!("{label} artifact '{}' has no JSONL records", path.display()))?;
+    serde_json::from_str(latest)
+        .with_context(|| format!("failed to parse latest {label} JSONL '{}'", path.display()))
+}
+
+fn reconciliation_artifact_ref(
+    path: Option<&Path>,
+    artifact: &OptionalJsonArtifact,
+) -> ReadonlyReconciliationArtifactRef {
+    ReadonlyReconciliationArtifactRef {
+        path: path.map(|path| path.display().to_string()),
+        status: artifact.status.clone(),
+        schema_version: artifact
+            .value
+            .as_ref()
+            .and_then(|value| json_string_value(value, "schema_version")),
+        record_count: artifact
+            .value
+            .as_ref()
+            .and_then(|value| json_u64_value(value, "record_count")),
+        classification: artifact
+            .value
+            .as_ref()
+            .and_then(|value| json_string_value(value, "classification")),
+        diagnostic: artifact.diagnostic.clone(),
+    }
+}
+
+fn artifact_has_production_mutation(value: Option<&serde_json::Value>) -> bool {
+    let Some(value) = value else {
+        return false;
+    };
+    [
+        "actual_submission_count",
+        "production_order_submissions_attempted",
+        "production_orders_submitted",
+        "production_order_mutations_attempted",
+        "production_order_state_reads_attempted",
+        "listen_key_lifecycle_attempted",
+        "automatic_correction_orders_submitted",
+    ]
+    .into_iter()
+    .any(|field| json_u64_value(value, field).unwrap_or(0) > 0)
+        || [
+            "actual_submission",
+            "cancel_replace_amend_attempted",
+            "dashboard_order_controls_enabled",
+            "real_orders_submitted",
+        ]
+        .into_iter()
+        .any(|field| json_bool_value(value, field).unwrap_or(false))
+        || value
+            .pointer("/provenance/values_are_exchange_truth")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false)
+}
+
+fn artifact_requires_manual_review(value: &serde_json::Value) -> bool {
+    json_string_value(value, "classification").as_deref() == Some("manual_review_required")
+        || json_string_value(value, "severity")
+            .as_deref()
+            .is_some_and(|severity| matches!(severity, "warning" | "degraded" | "halt"))
+        || json_string_value(value, "state")
+            .as_deref()
+            .is_some_and(|state| state.contains("degraded") || state.contains("halt"))
+        || json_string_value(value, "status")
+            .as_deref()
+            .is_some_and(|status| status.contains("degraded") || status.contains("unavailable"))
+        || value.get("artifact_gap").is_some()
+}
+
+fn reconciliation_diagnostic(
+    classification: ReadonlyReconciliationClassification,
+    account_snapshot: &OptionalJsonArtifact,
+    shadow_portfolio: &OptionalJsonArtifact,
+    shadow_strategy_session: &OptionalJsonArtifact,
+    shadow_intent: &OptionalJsonArtifact,
+) -> String {
+    match classification {
+        ReadonlyReconciliationClassification::Ok => {
+            "read-only reconciliation classified local shadow evidence as ok; record only".to_string()
+        }
+        ReadonlyReconciliationClassification::MissingAccountSnapshot => {
+            format!("missing account snapshot: {}", account_snapshot.diagnostic)
+        }
+        ReadonlyReconciliationClassification::PortfolioUnavailable => {
+            format!("shadow portfolio unavailable: {}", shadow_portfolio.diagnostic)
+        }
+        ReadonlyReconciliationClassification::ShadowIntentWithoutPortfolio => format!(
+            "shadow intent present without portfolio runtime: {}; {}",
+            shadow_intent.diagnostic, shadow_portfolio.diagnostic
+        ),
+        ReadonlyReconciliationClassification::ProductionMutationForbidden => {
+            "input artifact records a forbidden production mutation or exchange-truth claim; local shadow flow must halt".to_string()
+        }
+        ReadonlyReconciliationClassification::ManualReviewRequired => format!(
+            "manual review required from shadow evidence: {}; {}",
+            shadow_strategy_session.diagnostic, shadow_portfolio.diagnostic
         ),
     }
 }
@@ -7107,6 +7552,254 @@ write_summary = true
         .to_string();
 
         assert!(error.contains("production_orders_submitted > 0"));
+    }
+
+    #[test]
+    fn production_readonly_reconciliation_classifies_ok() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-006-reconciliation-ok-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let account_snapshot = output_dir.join("production_account_snapshot_redacted.json");
+        let shadow_intent = output_dir.join("shadow_execution_intent.jsonl");
+        let portfolio_runtime = output_dir.join("shadow_portfolio_runtime.json");
+        let strategy_status = output_dir.join("strategy_session_status.json");
+        let shadow_strategy_session = output_dir.join("shadow_strategy_session.jsonl");
+        let reconciliation = output_dir.join("reconciliation_events.jsonl");
+        write_redacted_account_snapshot_report(&account_snapshot, true);
+        write_shadow_intent(&shadow_intent, false);
+        fs::write(
+            &strategy_status,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "schema_version": "ntpro.v09_strategy_session_status.v1",
+                "session_id": "session-1",
+                "strategy_id": "ema_cross_btcusdt_v1",
+                "state": "running",
+                "reason": "fixture strategy running"
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        run_live_production_shadow_portfolio_runtime(&LiveProductionShadowPortfolioRuntimeOpt {
+            run_id: "v120-shadow".to_string(),
+            snapshot_id: Some("portfolio-1".to_string()),
+            account_snapshot: account_snapshot.clone(),
+            shadow_intent: shadow_intent.clone(),
+            output: portfolio_runtime.clone(),
+            compat_snapshot_output: None,
+        })
+        .unwrap();
+        run_live_production_shadow_strategy_session(&LiveProductionShadowStrategySessionOpt {
+            run_id: "v120-shadow".to_string(),
+            session_id: Some("session-1".to_string()),
+            strategy_id: "ema_cross_btcusdt_v1".to_string(),
+            shadow_portfolio_runtime: portfolio_runtime.clone(),
+            strategy_session_status: Some(strategy_status),
+            output: shadow_strategy_session.clone(),
+            heartbeat_count: 1,
+            stop_after_heartbeats: false,
+            stop_file: None,
+        })
+        .unwrap();
+
+        run_live_production_readonly_reconciliation(&LiveProductionReadonlyReconciliationOpt {
+            run_id: "v120-shadow".to_string(),
+            account_snapshot: Some(account_snapshot),
+            shadow_portfolio_runtime: Some(portfolio_runtime),
+            shadow_strategy_session: Some(shadow_strategy_session),
+            shadow_intent: Some(shadow_intent),
+            output: reconciliation.clone(),
+        })
+        .unwrap();
+
+        let events = read_jsonl_values(&reconciliation);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0]["classification"], "ok");
+        assert_eq!(events[0]["event_type"], "observed_account_state");
+        assert_eq!(events[0]["severity"], "info");
+        assert_eq!(events[0]["recommended_action"], "record_only");
+        assert_eq!(events[0]["risk_halted"], false);
+        assert_eq!(events[0]["production_order_submissions_attempted"], 0);
+        assert_eq!(events[0]["production_order_mutations_attempted"], 0);
+        assert_eq!(events[0]["production_order_state_reads_attempted"], 0);
+        assert_eq!(events[0]["listen_key_lifecycle_attempted"], 0);
+        assert_eq!(events[0]["dashboard_order_controls_enabled"], false);
+    }
+
+    #[test]
+    fn production_readonly_reconciliation_classifies_missing_account_snapshot() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-006-reconciliation-missing-account-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let account_snapshot = output_dir.join("production_account_snapshot_redacted.json");
+        let shadow_intent = output_dir.join("shadow_execution_intent.jsonl");
+        let portfolio_runtime = output_dir.join("shadow_portfolio_runtime.json");
+        let reconciliation = output_dir.join("reconciliation_events.jsonl");
+        write_redacted_account_snapshot_report(&account_snapshot, true);
+        write_shadow_intent(&shadow_intent, false);
+        run_live_production_shadow_portfolio_runtime(&LiveProductionShadowPortfolioRuntimeOpt {
+            run_id: "v120-shadow".to_string(),
+            snapshot_id: Some("portfolio-1".to_string()),
+            account_snapshot,
+            shadow_intent,
+            output: portfolio_runtime.clone(),
+            compat_snapshot_output: None,
+        })
+        .unwrap();
+
+        run_live_production_readonly_reconciliation(&LiveProductionReadonlyReconciliationOpt {
+            run_id: "v120-shadow".to_string(),
+            account_snapshot: None,
+            shadow_portfolio_runtime: Some(portfolio_runtime),
+            shadow_strategy_session: None,
+            shadow_intent: None,
+            output: reconciliation.clone(),
+        })
+        .unwrap();
+
+        let events = read_jsonl_values(&reconciliation);
+        assert_eq!(events[0]["classification"], "missing_account_snapshot");
+        assert_eq!(events[0]["severity"], "degraded");
+        assert_eq!(events[0]["recommended_action"], "mark_degraded");
+        assert_eq!(events[0]["risk_halted"], true);
+    }
+
+    #[test]
+    fn production_readonly_reconciliation_classifies_shadow_intent_without_portfolio() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-006-reconciliation-intent-no-portfolio-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let account_snapshot = output_dir.join("production_account_snapshot_redacted.json");
+        let shadow_intent = output_dir.join("shadow_execution_intent.jsonl");
+        let reconciliation = output_dir.join("reconciliation_events.jsonl");
+        write_redacted_account_snapshot_report(&account_snapshot, true);
+        write_shadow_intent(&shadow_intent, false);
+
+        run_live_production_readonly_reconciliation(&LiveProductionReadonlyReconciliationOpt {
+            run_id: "v120-shadow".to_string(),
+            account_snapshot: Some(account_snapshot),
+            shadow_portfolio_runtime: None,
+            shadow_strategy_session: None,
+            shadow_intent: Some(shadow_intent),
+            output: reconciliation.clone(),
+        })
+        .unwrap();
+
+        let events = read_jsonl_values(&reconciliation);
+        assert_eq!(
+            events[0]["classification"],
+            "shadow_intent_without_portfolio"
+        );
+        assert_eq!(events[0]["event_type"], "shadow_mismatch");
+        assert_eq!(events[0]["severity"], "halt");
+        assert_eq!(events[0]["recommended_action"], "manual_review_required");
+        assert_eq!(events[0]["risk_halted"], true);
+    }
+
+    #[test]
+    fn production_readonly_reconciliation_classifies_production_mutation_forbidden() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-006-reconciliation-mutation-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let account_snapshot = output_dir.join("production_account_snapshot_redacted.json");
+        let portfolio_runtime = output_dir.join("shadow_portfolio_runtime.json");
+        let reconciliation = output_dir.join("reconciliation_events.jsonl");
+        write_redacted_account_snapshot_report(&account_snapshot, true);
+        fs::write(
+            &portfolio_runtime,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "schema_version": PRODUCTION_SHADOW_PORTFOLIO_RUNTIME_SCHEMA_VERSION,
+                "status": "ready_redacted_shadow_portfolio",
+                "production_orders_submitted": 1,
+                "production_order_mutations_attempted": 0,
+                "automatic_correction_orders_submitted": 0,
+                "actual_submission_count": 0,
+                "dashboard_order_controls_enabled": false,
+                "real_orders_submitted": false,
+                "provenance": {
+                    "values_are_exchange_truth": false
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        run_live_production_readonly_reconciliation(&LiveProductionReadonlyReconciliationOpt {
+            run_id: "v120-shadow".to_string(),
+            account_snapshot: Some(account_snapshot),
+            shadow_portfolio_runtime: Some(portfolio_runtime),
+            shadow_strategy_session: None,
+            shadow_intent: None,
+            output: reconciliation.clone(),
+        })
+        .unwrap();
+
+        let events = read_jsonl_values(&reconciliation);
+        assert_eq!(events[0]["classification"], "production_mutation_forbidden");
+        assert_eq!(events[0]["event_type"], "risk_halt");
+        assert_eq!(events[0]["severity"], "halt");
+        assert_eq!(events[0]["recommended_action"], "halt_shadow_flow");
+        assert_eq!(events[0]["production_orders_submitted"], 0);
+    }
+
+    #[test]
+    fn production_readonly_reconciliation_classifies_manual_review_required() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-006-reconciliation-manual-review-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let account_snapshot = output_dir.join("production_account_snapshot_redacted.json");
+        let shadow_intent = output_dir.join("shadow_execution_intent.jsonl");
+        let portfolio_runtime = output_dir.join("shadow_portfolio_runtime.json");
+        let shadow_strategy_session = output_dir.join("shadow_strategy_session.jsonl");
+        let reconciliation = output_dir.join("reconciliation_events.jsonl");
+        write_redacted_account_snapshot_report(&account_snapshot, true);
+        write_shadow_intent(&shadow_intent, false);
+        run_live_production_shadow_portfolio_runtime(&LiveProductionShadowPortfolioRuntimeOpt {
+            run_id: "v120-shadow".to_string(),
+            snapshot_id: Some("portfolio-1".to_string()),
+            account_snapshot: account_snapshot.clone(),
+            shadow_intent: shadow_intent.clone(),
+            output: portfolio_runtime.clone(),
+            compat_snapshot_output: None,
+        })
+        .unwrap();
+        run_live_production_shadow_strategy_session(&LiveProductionShadowStrategySessionOpt {
+            run_id: "v120-shadow".to_string(),
+            session_id: Some("session-1".to_string()),
+            strategy_id: "ema_cross_btcusdt_v1".to_string(),
+            shadow_portfolio_runtime: portfolio_runtime.clone(),
+            strategy_session_status: None,
+            output: shadow_strategy_session.clone(),
+            heartbeat_count: 1,
+            stop_after_heartbeats: false,
+            stop_file: None,
+        })
+        .unwrap();
+
+        run_live_production_readonly_reconciliation(&LiveProductionReadonlyReconciliationOpt {
+            run_id: "v120-shadow".to_string(),
+            account_snapshot: Some(account_snapshot),
+            shadow_portfolio_runtime: Some(portfolio_runtime),
+            shadow_strategy_session: Some(shadow_strategy_session),
+            shadow_intent: Some(shadow_intent),
+            output: reconciliation.clone(),
+        })
+        .unwrap();
+
+        let events = read_jsonl_values(&reconciliation);
+        assert_eq!(events[0]["classification"], "manual_review_required");
+        assert_eq!(events[0]["event_type"], "manual_remediation_required");
+        assert_eq!(events[0]["severity"], "warning");
+        assert_eq!(events[0]["manual_review_required"], true);
     }
 
     #[tokio::test(flavor = "current_thread")]
