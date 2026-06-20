@@ -18,7 +18,7 @@
 use std::{
     collections::BTreeMap,
     fs,
-    path::{Path as FsPath, PathBuf},
+    path::{Component, Path as FsPath, PathBuf},
     time::Duration,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -70,6 +70,7 @@ const V04_BINANCE_MOCK_ORDER_LIFECYCLE_PATH: &str =
 const V04_BINANCE_RISK_REJECTION_CLIENT_ORDER_ID: &str = "O-V04-003";
 const V04_BINANCE_RISK_REJECTION_FIXTURE_REASON: &str = "mock_reject_requested";
 const V04_BINANCE_RISK_REJECTION_REASON: &str = "TradingState::HALTED";
+const PRODUCTION_SHADOW_MANIFEST_SCHEMA_VERSION: &str = "ntpro.v111_production_shadow_manifest.v1";
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
 <html lang="zh-CN">
@@ -818,6 +819,7 @@ function renderProductionShadow(productionShadow) {
           <th>生命周期</th>
           <th>Reconciliation</th>
           <th>边界</th>
+          <th>Manifest</th>
           <th>工件</th>
         </tr>
       </thead>
@@ -832,7 +834,9 @@ function renderProductionShadow(productionShadow) {
             <td data-label="生命周期">${displayText(snapshotValue(shadow.lifecycle_status))}<div class="muted">${displayText(snapshotValue(shadow.lifecycle_events_created))} events</div></td>
             <td data-label="Reconciliation">${displayText(snapshotValue(shadow.reconciliation_status))}<div class="muted">${displayText(snapshotValue(shadow.reconciliation_events_created))} events</div></td>
             <td data-label="边界">${panelRow("实际提交", snapshotValue(shadow.actual_submission_count))}${panelRow("生产提交", snapshotValue(shadow.production_orders_submitted))}${panelRow("生产变更", snapshotValue(shadow.production_order_mutations_attempted))}${panelRow("Dashboard 下单控件", snapshotValue(shadow.dashboard_order_controls_enabled))}</td>
+            <td data-label="Manifest">${displayText(snapshotValue(shadow.manifest_status))}<div class="muted">${displayText(snapshotValue(shadow.manifest_artifact_count))} artifacts</div></td>
             <td data-label="工件" class="path">
+              ${panelRow("manifest", snapshotValue(shadow.manifest_path))}
               ${panelRow("account", snapshotValue(shadow.account_snapshot_path))}
               ${panelRow("intent", snapshotValue(shadow.shadow_intent_path))}
               ${panelRow("portfolio", snapshotValue(shadow.portfolio_snapshot_path))}
@@ -2416,6 +2420,8 @@ pub struct ProductionShadowStatus {
     pub node_id: String,
     pub health: HealthStatus,
     pub diagnostic: DashboardValue<String>,
+    pub manifest_status: DashboardValue<String>,
+    pub manifest_artifact_count: DashboardValue<u64>,
     pub account_snapshot_status: DashboardValue<String>,
     pub account_snapshot_endpoint_class: DashboardValue<String>,
     pub shadow_intent_status: DashboardValue<String>,
@@ -2431,6 +2437,7 @@ pub struct ProductionShadowStatus {
     pub production_orders_submitted: DashboardValue<u64>,
     pub production_order_mutations_attempted: DashboardValue<u64>,
     pub dashboard_order_controls_enabled: DashboardValue<bool>,
+    pub manifest_path: DashboardValue<String>,
     pub account_snapshot_path: DashboardValue<String>,
     pub shadow_intent_path: DashboardValue<String>,
     pub portfolio_snapshot_path: DashboardValue<String>,
@@ -3341,6 +3348,7 @@ fn strategy_runtime_from_record(record: &SupervisorNodeRecord) -> Option<Strateg
 
 fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<ProductionShadowStatus> {
     let shadow_root = record.artifact_root.join("v0_11");
+    let manifest_path = shadow_root.join("manifest.json");
     let account_snapshot_path = shadow_root.join("account_snapshot_redacted.json");
     let shadow_intent_path = shadow_root.join("shadow_execution_intent.jsonl");
     let portfolio_snapshot_path = shadow_root.join("shadow_portfolio_snapshot.json");
@@ -3353,6 +3361,7 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
         &portfolio_snapshot_path,
         &lifecycle_path,
         &reconciliation_path,
+        &manifest_path,
     ]
     .iter()
     .any(|path| path.exists());
@@ -3365,6 +3374,7 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
     let portfolio_snapshot = read_json_file_value(&portfolio_snapshot_path);
     let lifecycle = read_latest_jsonl_file_value(&lifecycle_path);
     let reconciliation = read_latest_jsonl_file_value(&reconciliation_path);
+    let manifest_audit = audit_production_shadow_manifest(&shadow_root);
 
     let actual_submission_count = first_available_u64_from_values([
         portfolio_snapshot
@@ -3442,7 +3452,8 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
         || production_order_mutations_attempted
             .value
             .is_some_and(|value| value > 0)
-        || dashboard_order_controls_enabled.value == Some(true);
+        || dashboard_order_controls_enabled.value == Some(true)
+        || manifest_audit.boundary_violation;
 
     Some(ProductionShadowStatus {
         node_id: record.node_id.clone(),
@@ -3452,10 +3463,14 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
             HealthStatus::Healthy
         },
         diagnostic: DashboardValue::available(if boundary_violation {
-            "production_shadow_readonly_boundary_violation".to_string()
+            manifest_audit
+                .diagnostic
+                .unwrap_or_else(|| "production_shadow_readonly_boundary_violation".to_string())
         } else {
             "production_shadow_readonly_artifacts_ok".to_string()
         }),
+        manifest_status: manifest_audit.status,
+        manifest_artifact_count: manifest_audit.artifact_count,
         account_snapshot_status: account_snapshot
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -3503,12 +3518,216 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
         production_orders_submitted,
         production_order_mutations_attempted,
         dashboard_order_controls_enabled,
+        manifest_path: dashboard_path_if_exists(&manifest_path),
         account_snapshot_path: dashboard_path_if_exists(&account_snapshot_path),
         shadow_intent_path: dashboard_path_if_exists(&shadow_intent_path),
         portfolio_snapshot_path: dashboard_path_if_exists(&portfolio_snapshot_path),
         lifecycle_path: dashboard_path_if_exists(&lifecycle_path),
         reconciliation_path: dashboard_path_if_exists(&reconciliation_path),
     })
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ProductionShadowManifestAudit {
+    status: DashboardValue<String>,
+    artifact_count: DashboardValue<u64>,
+    boundary_violation: bool,
+    diagnostic: Option<String>,
+}
+
+fn audit_production_shadow_manifest(shadow_root: &FsPath) -> ProductionShadowManifestAudit {
+    let manifest_path = shadow_root.join("manifest.json");
+    if !manifest_path.exists() {
+        return ProductionShadowManifestAudit {
+            status: DashboardValue::unknown(),
+            artifact_count: DashboardValue::unknown(),
+            boundary_violation: false,
+            diagnostic: None,
+        };
+    }
+
+    let Some(manifest) = read_json_file_value(&manifest_path) else {
+        return degraded_production_shadow_manifest("production_shadow_manifest_json_invalid");
+    };
+
+    let mut diagnostics = Vec::new();
+    if manifest.get("schema_version").and_then(Value::as_str)
+        != Some(PRODUCTION_SHADOW_MANIFEST_SCHEMA_VERSION)
+    {
+        diagnostics.push("schema_version_mismatch");
+    }
+    if manifest
+        .get("generated_at")
+        .and_then(Value::as_str)
+        .is_none_or(str::is_empty)
+    {
+        diagnostics.push("generated_at_missing");
+    }
+
+    let artifacts = manifest.get("artifacts").and_then(Value::as_array);
+    let artifact_count = artifacts.map_or_else(DashboardValue::unknown, |items| {
+        DashboardValue::available(items.len() as u64)
+    });
+    match (
+        manifest.get("artifact_count").and_then(Value::as_u64),
+        artifacts,
+    ) {
+        (Some(declared), Some(items)) if declared == items.len() as u64 => {}
+        (Some(_), Some(_)) => diagnostics.push("artifact_count_mismatch"),
+        _ => diagnostics.push("artifact_count_missing"),
+    }
+
+    if let Some(items) = artifacts {
+        for artifact in items {
+            audit_production_shadow_manifest_artifact(shadow_root, artifact, &mut diagnostics);
+        }
+    }
+
+    if production_shadow_manifest_summary_has_boundary_violation(&manifest) {
+        diagnostics.push("production_shadow_manifest_boundary_violation");
+    }
+
+    if diagnostics.is_empty() {
+        ProductionShadowManifestAudit {
+            status: DashboardValue::available("production_shadow_manifest_ok".to_string()),
+            artifact_count,
+            boundary_violation: false,
+            diagnostic: None,
+        }
+    } else {
+        ProductionShadowManifestAudit {
+            status: DashboardValue::available("production_shadow_manifest_degraded".to_string()),
+            artifact_count,
+            boundary_violation: true,
+            diagnostic: Some(format!(
+                "production_shadow_manifest_degraded:{}",
+                diagnostics.join(",")
+            )),
+        }
+    }
+}
+
+fn audit_production_shadow_manifest_artifact(
+    shadow_root: &FsPath,
+    artifact: &Value,
+    diagnostics: &mut Vec<&str>,
+) {
+    if json_bool(artifact, "raw_secret_recorded")
+        || json_bool(artifact, "raw_payload_recorded")
+        || json_bool(artifact, "signed_query_recorded")
+        || json_bool(artifact, "signed_url_recorded")
+    {
+        diagnostics.push("forbidden_payload_or_secret_recorded");
+    }
+
+    let Some(relative_path) = artifact.get("path").and_then(Value::as_str) else {
+        diagnostics.push("artifact_path_missing");
+        return;
+    };
+    let path = FsPath::new(relative_path);
+    if path.is_absolute()
+        || path
+            .components()
+            .any(|component| matches!(component, Component::ParentDir))
+    {
+        diagnostics.push("artifact_path_not_relative");
+        return;
+    }
+
+    let artifact_path = shadow_root.join(path);
+    let present = artifact_path.exists();
+    if artifact
+        .get("present")
+        .and_then(Value::as_bool)
+        .is_some_and(|declared| declared != present)
+    {
+        diagnostics.push("artifact_present_mismatch");
+    }
+    if json_bool(artifact, "required") && !present {
+        diagnostics.push("required_artifact_missing");
+        return;
+    }
+    if !present {
+        return;
+    }
+
+    let Ok(bytes) = fs::read(&artifact_path) else {
+        diagnostics.push("artifact_unreadable");
+        return;
+    };
+
+    match artifact.get("checksum").and_then(Value::as_str) {
+        Some(expected) if expected == checksum_bytes(&bytes) => {}
+        Some(_) => diagnostics.push("artifact_checksum_mismatch"),
+        None => diagnostics.push("artifact_checksum_missing"),
+    }
+
+    match artifact.get("byte_len").and_then(Value::as_u64) {
+        Some(expected) if expected == bytes.len() as u64 => {}
+        Some(_) => diagnostics.push("artifact_byte_len_mismatch"),
+        None => diagnostics.push("artifact_byte_len_missing"),
+    }
+
+    let Some(format) = artifact.get("format").and_then(Value::as_str) else {
+        diagnostics.push("artifact_format_missing");
+        return;
+    };
+    let Some(actual_record_count) = production_shadow_artifact_record_count(format, &bytes) else {
+        diagnostics.push("artifact_format_unknown");
+        return;
+    };
+    match artifact.get("record_count").and_then(Value::as_u64) {
+        Some(expected) if expected == actual_record_count => {}
+        Some(_) => diagnostics.push("artifact_record_count_mismatch"),
+        None => diagnostics.push("artifact_record_count_missing"),
+    }
+}
+
+fn production_shadow_artifact_record_count(format: &str, bytes: &[u8]) -> Option<u64> {
+    match format {
+        "json" => serde_json::from_slice::<Value>(bytes).ok().map(|_| 1),
+        "jsonl" => Some(
+            String::from_utf8_lossy(bytes)
+                .lines()
+                .filter(|line| !line.trim().is_empty())
+                .count() as u64,
+        ),
+        _ => None,
+    }
+}
+
+fn production_shadow_manifest_summary_has_boundary_violation(manifest: &Value) -> bool {
+    let summary = manifest.get("summary").unwrap_or(&Value::Null);
+    json_bool(summary, "raw_secret_recorded")
+        || json_bool(summary, "raw_payload_recorded")
+        || json_bool(summary, "dashboard_order_controls_enabled")
+        || summary
+            .get("production_orders_submitted")
+            .and_then(Value::as_u64)
+            .is_some_and(|value| value > 0)
+        || summary
+            .get("production_order_mutations_attempted")
+            .and_then(Value::as_u64)
+            .is_some_and(|value| value > 0)
+        || summary
+            .get("actual_submission_count")
+            .and_then(Value::as_u64)
+            .is_some_and(|value| value > 0)
+}
+
+fn degraded_production_shadow_manifest(
+    diagnostic: impl Into<String>,
+) -> ProductionShadowManifestAudit {
+    ProductionShadowManifestAudit {
+        status: DashboardValue::available("production_shadow_manifest_degraded".to_string()),
+        artifact_count: DashboardValue::unknown(),
+        boundary_violation: true,
+        diagnostic: Some(diagnostic.into()),
+    }
+}
+
+fn checksum_bytes(bytes: &[u8]) -> String {
+    format!("blake3:{}", blake3::hash(bytes).to_hex())
 }
 
 fn read_json_file_value(path: &FsPath) -> Option<Value> {
@@ -6263,6 +6482,11 @@ mod tests {
             Some("warning")
         );
         assert_eq!(shadow.reconciliation_events_created.value, Some(1));
+        assert_eq!(
+            shadow.manifest_status.value.as_deref(),
+            Some("production_shadow_manifest_ok")
+        );
+        assert_eq!(shadow.manifest_artifact_count.value, Some(5));
         assert_eq!(shadow.actual_submission_count.value, Some(0));
         assert_eq!(shadow.production_orders_submitted.value, Some(0));
         assert_eq!(shadow.production_order_mutations_attempted.value, Some(0));
@@ -6274,6 +6498,13 @@ mod tests {
                 .as_deref()
                 .is_some_and(|path| path.ends_with("v0_11/shadow_portfolio_snapshot.json"))
         );
+        assert!(
+            shadow
+                .manifest_path
+                .value
+                .as_deref()
+                .is_some_and(|path| path.ends_with("v0_11/manifest.json"))
+        );
 
         let snapshot_value = serde_json::to_value(&snapshot).unwrap();
         assert_forbidden_keys_absent(&snapshot_value);
@@ -6281,6 +6512,50 @@ mod tests {
         assert!(!DASHBOARD_JS.contains("cancel_order"));
         assert!(!DASHBOARD_JS.contains("replace_order"));
         assert!(!DASHBOARD_JS.contains("amend_order"));
+    }
+
+    #[test]
+    fn production_shadow_manifest_checksum_mismatch_degrades_dashboard_snapshot() {
+        let root = temp_root("production-shadow-manifest-degraded");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "prod-shadow-b");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_shadow_artifacts(&record);
+        fs::write(
+            record
+                .artifact_root
+                .join("v0_11")
+                .join("shadow_portfolio_snapshot.json"),
+            "{}",
+        )
+        .unwrap();
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-20T10:00:00Z").unwrap();
+
+        assert_eq!(snapshot.production_shadow.len(), 1);
+        let shadow = &snapshot.production_shadow[0];
+        assert_eq!(shadow.health, HealthStatus::Degraded);
+        assert_eq!(
+            shadow.manifest_status.value.as_deref(),
+            Some("production_shadow_manifest_degraded")
+        );
+        assert!(
+            shadow
+                .diagnostic
+                .value
+                .as_deref()
+                .is_some_and(|value| value.contains("artifact_checksum_mismatch"))
+        );
+        assert_eq!(shadow.production_orders_submitted.value, Some(0));
+        assert_eq!(shadow.production_order_mutations_attempted.value, Some(0));
+        assert_eq!(shadow.dashboard_order_controls_enabled.value, Some(false));
     }
 
     #[test]
@@ -7438,6 +7713,89 @@ mod tests {
             shadow_root.join("reconciliation_events.jsonl"),
             r#"{"schema_version":"ntpro.v110_reconciliation_event.v1","run_id":"v110-shadow","event_id":"recon-1","event_type":"shadow_mismatch","severity":"warning","recommended_action":"manual_review_required","automatic_correction_orders_submitted":0,"production_orders_submitted":0,"production_order_mutations_attempted":0,"cancel_replace_amend_attempted":false,"dashboard_order_controls_enabled":false}
 "#,
+        )
+        .unwrap();
+        write_production_shadow_manifest(&shadow_root);
+    }
+
+    fn write_production_shadow_manifest(shadow_root: &FsPath) {
+        let artifact_specs = [
+            (
+                "account_snapshot",
+                "json",
+                "account_snapshot_redacted.json",
+                Some(1_u64),
+            ),
+            (
+                "shadow_execution_intent",
+                "jsonl",
+                "shadow_execution_intent.jsonl",
+                Some(1_u64),
+            ),
+            (
+                "shadow_portfolio_snapshot",
+                "json",
+                "shadow_portfolio_snapshot.json",
+                Some(1_u64),
+            ),
+            (
+                "order_lifecycle_state",
+                "jsonl",
+                "order_lifecycle_state.jsonl",
+                Some(1_u64),
+            ),
+            (
+                "reconciliation_events",
+                "jsonl",
+                "reconciliation_events.jsonl",
+                Some(1_u64),
+            ),
+        ];
+        let artifacts = artifact_specs
+            .into_iter()
+            .map(|(name, format, file, record_count)| {
+                let path = shadow_root.join(file);
+                let bytes = fs::read(&path).unwrap();
+                json!({
+                    "name": name,
+                    "path": file,
+                    "format": format,
+                    "required": true,
+                    "present": true,
+                    "record_count": record_count,
+                    "byte_len": u64::try_from(bytes.len()).unwrap(),
+                    "checksum": checksum_bytes(&bytes),
+                    "raw_secret_recorded": false,
+                    "raw_payload_recorded": false,
+                    "signed_query_recorded": false,
+                    "signed_url_recorded": false
+                })
+            })
+            .collect::<Vec<_>>();
+        fs::write(
+            shadow_root.join("manifest.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_SHADOW_MANIFEST_SCHEMA_VERSION,
+                "run_id": "v110-shadow",
+                "generated_at": "2026-06-20T10:00:00Z",
+                "artifact_root": "v0_11",
+                "artifact_count": artifacts.len(),
+                "artifacts": artifacts,
+                "summary": {
+                    "account_snapshots": 1,
+                    "shadow_intents_created": 1,
+                    "shadow_portfolio_snapshots_created": 1,
+                    "lifecycle_events_created": 1,
+                    "reconciliation_events_created": 1,
+                    "actual_submission_count": 0,
+                    "production_orders_submitted": 0,
+                    "production_order_mutations_attempted": 0,
+                    "dashboard_order_controls_enabled": false,
+                    "raw_secret_recorded": false,
+                    "raw_payload_recorded": false
+                }
+            }))
+            .unwrap(),
         )
         .unwrap();
     }
