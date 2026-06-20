@@ -774,6 +774,7 @@ struct ProductionAccountSnapshotContractReport {
     response_status_code: Option<u16>,
     response_shape: String,
     response_shape_validated: bool,
+    response_shape_summary: ProductionAccountSnapshotShapeSummary,
     latency_ms: Option<u64>,
     error_code: String,
     env_credentials_only: bool,
@@ -803,19 +804,34 @@ struct ProductionAccountSnapshotHttpResult {
     http_status: Option<u16>,
     response_shape: String,
     response_shape_validated: bool,
+    response_shape_summary: ProductionAccountSnapshotShapeSummary,
     error_code: String,
     network_attempted: bool,
     diagnostic: String,
 }
 
 impl ProductionAccountSnapshotHttpResult {
+    #[cfg(test)]
     fn success(latency_ms: u64, http_status: u16) -> Self {
+        Self::success_with_shape(
+            latency_ms,
+            http_status,
+            ProductionAccountSnapshotShapeSummary::accepted_fixture(),
+        )
+    }
+
+    fn success_with_shape(
+        latency_ms: u64,
+        http_status: u16,
+        response_shape_summary: ProductionAccountSnapshotShapeSummary,
+    ) -> Self {
         Self {
             status: "online_account_snapshot_ok".to_string(),
             latency_ms: Some(latency_ms),
             http_status: Some(http_status),
             response_shape: production_account_snapshot_response_shape().to_string(),
-            response_shape_validated: true,
+            response_shape_validated: response_shape_summary.shape_validated,
+            response_shape_summary,
             error_code: "none".to_string(),
             network_attempted: true,
             diagnostic: format!(
@@ -825,6 +841,20 @@ impl ProductionAccountSnapshotHttpResult {
     }
 
     fn failure(latency_ms: Option<u64>, http_status: Option<u16>, error_code: &str) -> Self {
+        Self::failure_with_shape(
+            latency_ms,
+            http_status,
+            error_code,
+            ProductionAccountSnapshotShapeSummary::not_attempted(),
+        )
+    }
+
+    fn failure_with_shape(
+        latency_ms: Option<u64>,
+        http_status: Option<u16>,
+        error_code: &str,
+        response_shape_summary: ProductionAccountSnapshotShapeSummary,
+    ) -> Self {
         let status_detail = http_status
             .map(|status| format!(" HTTP {status}"))
             .unwrap_or_default();
@@ -833,12 +863,96 @@ impl ProductionAccountSnapshotHttpResult {
             latency_ms,
             http_status,
             response_shape: production_account_snapshot_response_shape().to_string(),
-            response_shape_validated: false,
+            response_shape_validated: response_shape_summary.shape_validated,
+            response_shape_summary,
             error_code: error_code.to_string(),
             network_attempted: true,
             diagnostic: format!(
                 "V120 authenticated production account snapshot read attempted GET {PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT} and failed with {error_code}.{status_detail} Raw account response, balances, uid, headers, signature, signed query, and signed URL were not recorded."
             ),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionAccountSnapshotShapeSummary {
+    status: String,
+    account_type_present: bool,
+    account_type_is_string: bool,
+    balances_present: bool,
+    balances_is_array: bool,
+    balance_entry_count: Option<usize>,
+    balance_entry_shape_validated: bool,
+    permissions_present: bool,
+    permissions_is_array: bool,
+    permission_entry_count: Option<usize>,
+    permission_entry_shape_validated: bool,
+    can_trade_present: bool,
+    can_trade_is_bool: bool,
+    can_withdraw_present: bool,
+    can_withdraw_is_bool: bool,
+    can_deposit_present: bool,
+    can_deposit_is_bool: bool,
+    raw_account_response_recorded: bool,
+    raw_balances_recorded: bool,
+    raw_permissions_recorded: bool,
+    shape_validated: bool,
+    rejection_reason: String,
+}
+
+impl ProductionAccountSnapshotShapeSummary {
+    fn not_attempted() -> Self {
+        Self {
+            status: "not_attempted".to_string(),
+            account_type_present: false,
+            account_type_is_string: false,
+            balances_present: false,
+            balances_is_array: false,
+            balance_entry_count: None,
+            balance_entry_shape_validated: false,
+            permissions_present: false,
+            permissions_is_array: false,
+            permission_entry_count: None,
+            permission_entry_shape_validated: false,
+            can_trade_present: false,
+            can_trade_is_bool: false,
+            can_withdraw_present: false,
+            can_withdraw_is_bool: false,
+            can_deposit_present: false,
+            can_deposit_is_bool: false,
+            raw_account_response_recorded: false,
+            raw_balances_recorded: false,
+            raw_permissions_recorded: false,
+            shape_validated: false,
+            rejection_reason: "not_attempted".to_string(),
+        }
+    }
+
+    #[cfg(test)]
+    fn accepted_fixture() -> Self {
+        Self {
+            status: "accepted".to_string(),
+            account_type_present: true,
+            account_type_is_string: true,
+            balances_present: true,
+            balances_is_array: true,
+            balance_entry_count: Some(1),
+            balance_entry_shape_validated: true,
+            permissions_present: true,
+            permissions_is_array: true,
+            permission_entry_count: Some(1),
+            permission_entry_shape_validated: true,
+            can_trade_present: true,
+            can_trade_is_bool: true,
+            can_withdraw_present: true,
+            can_withdraw_is_bool: true,
+            can_deposit_present: true,
+            can_deposit_is_bool: true,
+            raw_account_response_recorded: false,
+            raw_balances_recorded: false,
+            raw_permissions_recorded: false,
+            shape_validated: true,
+            rejection_reason: "none".to_string(),
         }
     }
 }
@@ -1481,6 +1595,10 @@ fn build_production_account_snapshot_contract_report(
             |result| result.response_shape.clone(),
         ),
         response_shape_validated: http_result.is_some_and(|result| result.response_shape_validated),
+        response_shape_summary: http_result.map_or_else(
+            ProductionAccountSnapshotShapeSummary::not_attempted,
+            |result| result.response_shape_summary.clone(),
+        ),
         latency_ms: http_result.and_then(|result| result.latency_ms),
         error_code: http_result.map_or_else(
             || "not_attempted".to_string(),
@@ -1630,10 +1748,24 @@ fn execute_production_account_snapshot_read_on_thread(
             let status = response.status().as_u16();
             if response.status().is_success() {
                 match response.json::<serde_json::Value>() {
-                    Ok(body) if validates_production_account_snapshot_response_shape(&body) => {
-                        ProductionAccountSnapshotHttpResult::success(latency_ms, status)
+                    Ok(body) => {
+                        let shape_summary = summarize_production_account_snapshot_shape(&body);
+                        if shape_summary.shape_validated {
+                            ProductionAccountSnapshotHttpResult::success_with_shape(
+                                latency_ms,
+                                status,
+                                shape_summary,
+                            )
+                        } else {
+                            ProductionAccountSnapshotHttpResult::failure_with_shape(
+                                Some(latency_ms),
+                                Some(status),
+                                "response_shape_invalid",
+                                shape_summary,
+                            )
+                        }
                     }
-                    Ok(_) | Err(_) => ProductionAccountSnapshotHttpResult::failure(
+                    Err(_) => ProductionAccountSnapshotHttpResult::failure(
                         Some(latency_ms),
                         Some(status),
                         "response_shape_invalid",
@@ -1662,13 +1794,99 @@ fn production_account_snapshot_response_shape() -> &'static str {
     "binance_account_snapshot_v1"
 }
 
-fn validates_production_account_snapshot_response_shape(body: &serde_json::Value) -> bool {
-    body.as_object().is_some_and(|object| {
-        object
-            .get("balances")
-            .is_some_and(serde_json::Value::is_array)
-            && object.get("accountType").is_some()
-    })
+fn summarize_production_account_snapshot_shape(
+    body: &serde_json::Value,
+) -> ProductionAccountSnapshotShapeSummary {
+    let Some(object) = body.as_object() else {
+        return ProductionAccountSnapshotShapeSummary {
+            status: "rejected".to_string(),
+            rejection_reason: "root_not_object".to_string(),
+            ..ProductionAccountSnapshotShapeSummary::not_attempted()
+        };
+    };
+
+    let account_type_present = object.contains_key("accountType");
+    let account_type_is_string = object
+        .get("accountType")
+        .is_some_and(serde_json::Value::is_string);
+    let balances_present = object.contains_key("balances");
+    let balances_array = object.get("balances").and_then(serde_json::Value::as_array);
+    let balances_is_array = balances_array.is_some();
+    let balance_entry_count = balances_array.map(Vec::len);
+    let balance_entry_shape_validated = balances_array.is_some_and(|balances| {
+        balances.iter().all(|entry| {
+            entry.as_object().is_some_and(|entry| {
+                entry.get("asset").is_some_and(serde_json::Value::is_string)
+                    && entry.get("free").is_some_and(serde_json::Value::is_string)
+                    && entry
+                        .get("locked")
+                        .is_some_and(serde_json::Value::is_string)
+            })
+        })
+    });
+    let permissions_present = object.contains_key("permissions");
+    let permissions_array = object
+        .get("permissions")
+        .and_then(serde_json::Value::as_array);
+    let permissions_is_array = permissions_array.is_some();
+    let permission_entry_count = permissions_array.map(Vec::len);
+    let permission_entry_shape_validated = permissions_array
+        .is_some_and(|permissions| permissions.iter().all(serde_json::Value::is_string));
+    let can_trade_present = object.contains_key("canTrade");
+    let can_trade_is_bool = object
+        .get("canTrade")
+        .is_some_and(serde_json::Value::is_boolean);
+    let can_withdraw_present = object.contains_key("canWithdraw");
+    let can_withdraw_is_bool = object
+        .get("canWithdraw")
+        .is_some_and(serde_json::Value::is_boolean);
+    let can_deposit_present = object.contains_key("canDeposit");
+    let can_deposit_is_bool = object
+        .get("canDeposit")
+        .is_some_and(serde_json::Value::is_boolean);
+    let shape_validated = account_type_is_string
+        && balances_is_array
+        && balance_entry_shape_validated
+        && permissions_is_array
+        && permission_entry_shape_validated
+        && can_trade_is_bool
+        && can_withdraw_is_bool
+        && can_deposit_is_bool;
+
+    ProductionAccountSnapshotShapeSummary {
+        status: if shape_validated {
+            "accepted"
+        } else {
+            "rejected"
+        }
+        .to_string(),
+        account_type_present,
+        account_type_is_string,
+        balances_present,
+        balances_is_array,
+        balance_entry_count,
+        balance_entry_shape_validated,
+        permissions_present,
+        permissions_is_array,
+        permission_entry_count,
+        permission_entry_shape_validated,
+        can_trade_present,
+        can_trade_is_bool,
+        can_withdraw_present,
+        can_withdraw_is_bool,
+        can_deposit_present,
+        can_deposit_is_bool,
+        raw_account_response_recorded: false,
+        raw_balances_recorded: false,
+        raw_permissions_recorded: false,
+        shape_validated,
+        rejection_reason: if shape_validated {
+            "none"
+        } else {
+            "missing_or_invalid_required_fields"
+        }
+        .to_string(),
+    }
 }
 
 fn run_live_testnet_order_gate_with_env<F>(
@@ -5471,6 +5689,141 @@ write_summary = true
         assert!(!debug_body.contains("ntpro_v120002_synthetic_api_secret_value"));
         assert!(!debug_body.contains(&request.signature));
         assert!(!debug_body.contains(&request.signed_query));
+    }
+
+    #[test]
+    fn production_account_snapshot_shape_summary_accepts_expected_shape() {
+        let body = serde_json::json!({
+            "accountType": "SPOT",
+            "canTrade": true,
+            "canWithdraw": false,
+            "canDeposit": true,
+            "permissions": ["SPOT"],
+            "balances": [
+                {"asset": "BTC", "free": "0.12345678", "locked": "0.00000000"},
+                {"asset": "USDT", "free": "100.00", "locked": "0.00"}
+            ]
+        });
+
+        let summary = summarize_production_account_snapshot_shape(&body);
+
+        assert!(summary.shape_validated);
+        assert_eq!(summary.status, "accepted");
+        assert_eq!(summary.balance_entry_count, Some(2));
+        assert_eq!(summary.permission_entry_count, Some(1));
+        assert!(summary.account_type_is_string);
+        assert!(summary.balance_entry_shape_validated);
+        assert!(summary.permission_entry_shape_validated);
+        assert!(summary.can_trade_is_bool);
+        assert!(summary.can_withdraw_is_bool);
+        assert!(summary.can_deposit_is_bool);
+        assert!(!summary.raw_account_response_recorded);
+        assert!(!summary.raw_balances_recorded);
+        assert!(!summary.raw_permissions_recorded);
+
+        let summary_body = serde_json::to_string(&summary).unwrap();
+        assert!(!summary_body.contains("BTC"));
+        assert!(!summary_body.contains("USDT"));
+        assert!(!summary_body.contains("0.12345678"));
+        assert!(!summary_body.contains("SPOT"));
+    }
+
+    #[test]
+    fn production_account_snapshot_shape_summary_rejects_missing_required_fields() {
+        let body = serde_json::json!({
+            "accountType": "SPOT",
+            "canTrade": true,
+            "balances": [
+                {"asset": "BTC", "free": "0.12345678"}
+            ]
+        });
+
+        let summary = summarize_production_account_snapshot_shape(&body);
+
+        assert!(!summary.shape_validated);
+        assert_eq!(summary.status, "rejected");
+        assert_eq!(
+            summary.rejection_reason,
+            "missing_or_invalid_required_fields"
+        );
+        assert!(summary.account_type_is_string);
+        assert!(summary.balances_is_array);
+        assert_eq!(summary.balance_entry_count, Some(1));
+        assert!(!summary.balance_entry_shape_validated);
+        assert!(!summary.permissions_present);
+        assert!(!summary.permissions_is_array);
+        assert!(summary.can_trade_is_bool);
+        assert!(!summary.can_withdraw_present);
+        assert!(!summary.can_deposit_present);
+    }
+
+    #[test]
+    fn production_account_snapshot_online_invalid_shape_records_redacted_summary() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-003-account-shape-invalid-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("account-snapshot-contract.json");
+        let opt = production_account_snapshot_contract_opt(Some(output.clone()), true, true);
+        let mut read_env = |name: &str| match name {
+            "NTPRO_V110003_API_KEY" => Some("ntpro_v120003_synthetic_api_key_value".to_string()),
+            "NTPRO_V110003_API_SECRET" => {
+                Some("ntpro_v120003_synthetic_api_secret_value".to_string())
+            }
+            _ => all_env_enabled(name),
+        };
+        let invalid_summary = summarize_production_account_snapshot_shape(&serde_json::json!({
+            "accountType": "SPOT",
+            "canTrade": true,
+            "canWithdraw": false,
+            "canDeposit": true,
+            "balances": [
+                {"asset": "ETH", "free": "1.50000000", "locked": "0.00000000"}
+            ]
+        }));
+
+        run_live_production_account_snapshot_contract_with_env_and_http(
+            &opt,
+            &mut read_env,
+            |_credentials, _recv_window_ms| {
+                ProductionAccountSnapshotHttpResult::failure_with_shape(
+                    Some(11),
+                    Some(200),
+                    "response_shape_invalid",
+                    invalid_summary.clone(),
+                )
+            },
+        )
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(!body.contains("ntpro_v120003_synthetic_api_key_value"));
+        assert!(!body.contains("ntpro_v120003_synthetic_api_secret_value"));
+        assert!(!body.contains("ETH"));
+        assert!(!body.contains("1.50000000"));
+        let report: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(report["status"], "online_account_snapshot_failed");
+        assert_eq!(report["error_code"], "response_shape_invalid");
+        assert_eq!(report["response_shape_validated"], false);
+        assert_eq!(report["response_shape_summary"]["status"], "rejected");
+        assert_eq!(
+            report["response_shape_summary"]["permissions_present"],
+            false
+        );
+        assert_eq!(
+            report["response_shape_summary"]["raw_account_response_recorded"],
+            false
+        );
+        assert_eq!(
+            report["response_shape_summary"]["raw_balances_recorded"],
+            false
+        );
+        assert_eq!(
+            report["response_shape_summary"]["raw_permissions_recorded"],
+            false
+        );
+        assert_eq!(report["production_order_mutation_attempted"], false);
+        assert_eq!(report["dashboard_order_controls_enabled"], false);
     }
 
     #[tokio::test(flavor = "current_thread")]
