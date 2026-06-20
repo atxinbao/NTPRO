@@ -40,6 +40,7 @@ use tokio::time::{sleep, timeout};
 
 use crate::{
     artifacts::{atomic_write_json, atomic_write_text},
+    endpoint_classifier::{EndpointAuthKind, EndpointClassifier},
     opt::{
         LiveCommand, LiveOpt, LiveProductionAccountSnapshotContractOpt,
         LiveProductionPublicReadProbeOpt, LiveRunOpt, LiveTestnetExecutionArtifactContractOpt,
@@ -855,6 +856,11 @@ fn build_production_public_read_probe_report(
     missing_env_vars: &[&'static str],
 ) -> ProductionPublicReadProbeReport {
     let (endpoint_name, path) = production_public_read_endpoint_parts(endpoint);
+    let classified_endpoint = EndpointClassifier::classify(
+        "GET",
+        &format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{path}"),
+        EndpointAuthKind::None,
+    );
     let gates_missing = !missing_cli_flags.is_empty() || !missing_env_vars.is_empty();
     let status = if gates_missing {
         "blocked_missing_gate"
@@ -875,15 +881,17 @@ fn build_production_public_read_probe_report(
         schema_version: PRODUCTION_PUBLIC_READ_PROBE_SCHEMA_VERSION.to_string(),
         status: status.to_string(),
         endpoint: endpoint_name.to_string(),
-        endpoint_class: "production_public_read_only".to_string(),
+        endpoint_class: classified_endpoint.endpoint_class.as_str().to_string(),
         http_base_url: BINANCE_PRODUCTION_HTTP_BASE_URL.to_string(),
-        method: "GET".to_string(),
-        path: path.to_string(),
-        request_url_redacted: format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{path}"),
-        requires_api_key: false,
-        requires_signature: false,
-        read_allowed: !gates_missing && !manual_online_requested,
-        mutation_allowed: false,
+        method: classified_endpoint.method,
+        path: classified_endpoint.path,
+        request_url_redacted: classified_endpoint.input_url_redacted,
+        requires_api_key: classified_endpoint.requires_api_key,
+        requires_signature: classified_endpoint.requires_signature,
+        read_allowed: !gates_missing
+            && !manual_online_requested
+            && classified_endpoint.read_allowed,
+        mutation_allowed: classified_endpoint.mutation_allowed,
         manual_gate_required: true,
         missing_cli_flags: missing_cli_flags
             .iter()
@@ -959,6 +967,11 @@ fn build_production_account_snapshot_contract_report(
     missing_cli_flags: &[&'static str],
     missing_env_vars: &[&'static str],
 ) -> ProductionAccountSnapshotContractReport {
+    let classified_endpoint = EndpointClassifier::classify(
+        "GET",
+        &format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT}"),
+        EndpointAuthKind::Signed,
+    );
     let gates_missing = !missing_cli_flags.is_empty() || !missing_env_vars.is_empty();
     let credentials_missing = !credentials.api_key_present() || !credentials.api_secret_present();
     let status = if gates_missing {
@@ -983,10 +996,10 @@ fn build_production_account_snapshot_contract_report(
     ProductionAccountSnapshotContractReport {
         schema_version: PRODUCTION_ACCOUNT_SNAPSHOT_SCHEMA_VERSION.to_string(),
         status: status.to_string(),
-        endpoint_class: "production_authenticated_read_only".to_string(),
+        endpoint_class: classified_endpoint.endpoint_class.as_str().to_string(),
         http_base_url: BINANCE_PRODUCTION_HTTP_BASE_URL.to_string(),
-        method: "GET".to_string(),
-        path: PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT.to_string(),
+        method: classified_endpoint.method,
+        path: classified_endpoint.path,
         request_url_redacted: format!(
             "{BINANCE_PRODUCTION_HTTP_BASE_URL}{PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT}?timestamp=<redacted>&recvWindow={}&signature=<redacted>",
             opt.recv_window_ms,
@@ -995,11 +1008,14 @@ fn build_production_account_snapshot_contract_report(
             "timestamp=<redacted>&recvWindow={}&signature=<redacted>",
             opt.recv_window_ms,
         ),
-        requires_api_key: true,
-        requires_signature: true,
-        read_allowed: !gates_missing && !credentials_missing && !opt.manual_online,
-        mutation_allowed: false,
-        owner_gate_required: true,
+        requires_api_key: classified_endpoint.requires_api_key,
+        requires_signature: classified_endpoint.requires_signature,
+        read_allowed: !gates_missing
+            && !credentials_missing
+            && !opt.manual_online
+            && classified_endpoint.read_allowed,
+        mutation_allowed: classified_endpoint.mutation_allowed,
+        owner_gate_required: classified_endpoint.owner_gate_required,
         manual_gate_required: true,
         missing_cli_flags: missing_cli_flags
             .iter()

@@ -59,6 +59,7 @@ mod config;
 pub mod dashboard;
 mod data;
 mod database;
+mod endpoint_classifier;
 mod live;
 pub mod opt;
 mod process;
