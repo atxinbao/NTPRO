@@ -33,7 +33,7 @@ else
 fi
 
 echo "== v11 offline release gates: Dashboard read-only production shadow status =="
-cargo test -p nautilus-cli production_shadow_artifacts_populate_readonly_dashboard_snapshot --lib
+cargo test -p nautilus-cli production_shadow --lib
 
 echo "== v11 offline release gates: release boundary markers =="
 grep -nE \
@@ -42,6 +42,7 @@ grep -nE \
   docs/rust-cutover/release/v0_11_0_authenticated_account_snapshot_contract.md \
   docs/rust-cutover/release/v0_11_0_shadow_execution_intent.md \
   docs/rust-cutover/release/v0_11_0_shadow_portfolio_snapshot.md \
+  docs/rust-cutover/release/v0_11_1_production_shadow_manifest.md \
   docs/rust-cutover/release/v0_11_0_order_lifecycle_state_model.md \
   docs/rust-cutover/release/v0_11_0_reconciliation_event_model.md >/dev/null
 
@@ -49,6 +50,7 @@ grep -nE \
   "actual_submission=false|production_orders_submitted=0|production_order_mutations_attempted=0|automatic_correction_orders_submitted=0|dashboard_order_controls_enabled=false|full_production_portfolio_parity_claimed=false" \
   docs/rust-cutover/release/v0_11_0_shadow_execution_intent.md \
   docs/rust-cutover/release/v0_11_0_shadow_portfolio_snapshot.md \
+  docs/rust-cutover/release/v0_11_1_production_shadow_manifest.md \
   docs/rust-cutover/release/v0_11_0_order_lifecycle_state_model.md \
   docs/rust-cutover/release/v0_11_0_reconciliation_event_model.md >/dev/null
 
@@ -57,6 +59,7 @@ if grep -nE "may claim.*(production trading|real-funds)|supports.*(production tr
   docs/rust-cutover/release/v0_11_0_authenticated_account_snapshot_contract.md \
   docs/rust-cutover/release/v0_11_0_shadow_execution_intent.md \
   docs/rust-cutover/release/v0_11_0_shadow_portfolio_snapshot.md \
+  docs/rust-cutover/release/v0_11_1_production_shadow_manifest.md \
   docs/rust-cutover/release/v0_11_0_order_lifecycle_state_model.md \
   docs/rust-cutover/release/v0_11_0_reconciliation_event_model.md >/dev/null; then
   echo "v11 release docs contain an enabled production trading claim" >&2
