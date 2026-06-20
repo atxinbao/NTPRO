@@ -96,6 +96,10 @@ jobs:
             command: scripts/ai/verify_release.sh v10-manual-order-proof-preflight
           - stage: release-v11-offline-release-gates
             command: scripts/ai/verify_release.sh v11-offline-release-gates
+          - stage: release-v12-offline-release-gates
+            command: scripts/ai/verify_release.sh v12-offline-release-gates
+          - stage: release-v12-manual-online-preflight
+            command: scripts/ai/verify_release.sh v12-manual-online-preflight
           - stage: release-surface-current-guard
             command: scripts/ai/verify_release.sh release-surface-current-guard
     env:
