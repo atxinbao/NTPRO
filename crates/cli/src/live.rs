@@ -43,7 +43,8 @@ use crate::{
     endpoint_classifier::{EndpointAuthKind, EndpointClassifier},
     opt::{
         LiveCommand, LiveOpt, LiveProductionAccountSnapshotContractOpt,
-        LiveProductionPublicReadProbeOpt, LiveProductionShadowPortfolioRuntimeOpt, LiveRunOpt,
+        LiveProductionPublicReadProbeOpt, LiveProductionShadowPortfolioRuntimeOpt,
+        LiveProductionShadowStrategySessionOpt, LiveRunOpt,
         LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
         LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
@@ -111,6 +112,8 @@ const PRODUCTION_SHADOW_PORTFOLIO_RUNTIME_SCHEMA_VERSION: &str =
     "ntpro.v120_shadow_portfolio_runtime.v1";
 const PRODUCTION_SHADOW_PORTFOLIO_COMPAT_SCHEMA_VERSION: &str =
     "ntpro.v110_shadow_portfolio_snapshot.v1";
+const PRODUCTION_SHADOW_STRATEGY_SESSION_EVENT_SCHEMA_VERSION: &str =
+    "ntpro.v120_shadow_strategy_session_event.v1";
 const START_STOP_SHUTDOWN: &str = "start-stop";
 const DEFAULT_NTPRO_NODE_HEARTBEAT_INTERVAL_MS: u64 = 1_000;
 const DEFAULT_NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: u64 = 5_000;
@@ -1080,6 +1083,79 @@ struct ShadowIntentInputs {
     quote_currency: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionShadowStrategySessionEvent {
+    schema_version: String,
+    run_id: String,
+    session_id: String,
+    strategy_id: String,
+    event_type: String,
+    state: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    heartbeat_seq: Option<u64>,
+    occurred_at: String,
+    shadow_portfolio_runtime_ref: ShadowStrategyPortfolioRuntimeRef,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    strategy_session_status_ref: Option<ShadowStrategySessionStatusRef>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    artifact_gap: Option<ShadowStrategyArtifactGap>,
+    production_order_submissions_attempted: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    production_order_state_reads_attempted: u64,
+    listen_key_lifecycle_attempted: u64,
+    actual_submission_count: u64,
+    automatic_correction_orders_submitted: u64,
+    dashboard_order_controls_enabled: bool,
+    real_orders_submitted: bool,
+    values_are_exchange_truth: bool,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ShadowStrategyPortfolioRuntimeRef {
+    path: String,
+    schema_version: String,
+    status: String,
+    snapshot_id: Option<String>,
+    exposure_status: String,
+    pnl_status: String,
+    risk_status: String,
+    shadow_intents_created: u64,
+    network_attempted: bool,
+    values_are_exchange_truth: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ShadowStrategySessionStatusRef {
+    path: String,
+    schema_version: Option<String>,
+    session_id: Option<String>,
+    strategy_id: Option<String>,
+    state: Option<String>,
+    reason: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ShadowStrategyArtifactGap {
+    path: Option<String>,
+    status: String,
+    required: bool,
+    reason: String,
+}
+
+struct ShadowStrategyEventInput<'a> {
+    opt: &'a LiveProductionShadowStrategySessionOpt,
+    session_id: &'a str,
+    event_type: &'a str,
+    state: &'a str,
+    heartbeat_seq: Option<u64>,
+    portfolio_ref: &'a ShadowStrategyPortfolioRuntimeRef,
+    session_status_ref: Option<ShadowStrategySessionStatusRef>,
+    artifact_gap: Option<ShadowStrategyArtifactGap>,
+    diagnostic: &'a str,
+}
+
 impl TestnetSignedOrderRequest {
     fn redacted_preview(
         &self,
@@ -1163,6 +1239,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         }
         LiveCommand::ProductionShadowPortfolioRuntime(runtime) => {
             run_live_production_shadow_portfolio_runtime(&runtime)
+        }
+        LiveCommand::ProductionShadowStrategySession(session) => {
+            run_live_production_shadow_strategy_session(&session)
         }
     }
 }
@@ -1294,6 +1373,35 @@ fn run_live_production_shadow_portfolio_runtime(
         report.shadow_intents_created,
         report.exposure.status,
         report.pnl.status,
+    );
+    Ok(())
+}
+
+fn run_live_production_shadow_strategy_session(
+    opt: &LiveProductionShadowStrategySessionOpt,
+) -> anyhow::Result<()> {
+    let events = build_production_shadow_strategy_session_events(opt)?;
+    write_production_shadow_strategy_session_events(&opt.output, &events)?;
+
+    let final_state = events
+        .last()
+        .map_or("unknown", |event| event.state.as_str());
+    let gap_count = events
+        .iter()
+        .filter(|event| event.artifact_gap.is_some())
+        .count();
+    let heartbeat_count = events
+        .iter()
+        .filter(|event| event.event_type == "shadow_strategy_session_heartbeat")
+        .count();
+    println!(
+        "live.production_shadow_strategy_session status=ok run_id={} output={} events={} heartbeats={} artifact_gaps={} final_state={} production_order_submissions_attempted=0 production_order_mutations_attempted=0 dashboard_order_controls_enabled=false values_are_exchange_truth=false",
+        opt.run_id,
+        opt.output.display(),
+        events.len(),
+        heartbeat_count,
+        gap_count,
+        final_state,
     );
     Ok(())
 }
@@ -2397,6 +2505,263 @@ fn build_production_shadow_portfolio_compat_snapshot(
         "dashboard_order_controls_enabled": report.dashboard_order_controls_enabled,
         "full_production_portfolio_parity_claimed": report.full_production_portfolio_parity_claimed
     })
+}
+
+fn build_production_shadow_strategy_session_events(
+    opt: &LiveProductionShadowStrategySessionOpt,
+) -> anyhow::Result<Vec<ProductionShadowStrategySessionEvent>> {
+    validate_non_empty("run_id", &opt.run_id)?;
+    validate_non_empty("strategy_id", &opt.strategy_id)?;
+    if opt.heartbeat_count == 0 {
+        anyhow::bail!("heartbeat_count must be greater than zero");
+    }
+
+    let session_id = opt
+        .session_id
+        .as_deref()
+        .unwrap_or(opt.run_id.as_str())
+        .to_string();
+    validate_non_empty("session_id", &session_id)?;
+
+    let portfolio_runtime =
+        read_json_artifact(&opt.shadow_portfolio_runtime, "shadow portfolio runtime")?;
+    ensure_shadow_portfolio_runtime_is_readonly(&portfolio_runtime)?;
+    let portfolio_ref = build_shadow_strategy_portfolio_runtime_ref(
+        &opt.shadow_portfolio_runtime,
+        &portfolio_runtime,
+    );
+    let (session_status_ref, artifact_gap) =
+        read_shadow_strategy_session_status_ref(opt.strategy_session_status.as_deref());
+    let base_state = if artifact_gap.is_some() {
+        "degraded_artifact_gap"
+    } else {
+        "running"
+    };
+    let mut events = Vec::new();
+    events.push(build_shadow_strategy_session_event(ShadowStrategyEventInput {
+        opt,
+        session_id: &session_id,
+        event_type: "shadow_strategy_session_started",
+        state: base_state,
+        heartbeat_seq: None,
+        portfolio_ref: &portfolio_ref,
+        session_status_ref: session_status_ref.clone(),
+        artifact_gap: artifact_gap.clone(),
+        diagnostic: "local persistent shadow strategy session started from read-only shadow artifacts",
+    }));
+
+    if let Some(gap) = artifact_gap.clone() {
+        events.push(build_shadow_strategy_session_event(ShadowStrategyEventInput {
+            opt,
+            session_id: &session_id,
+            event_type: "shadow_strategy_session_artifact_gap",
+            state: "degraded_artifact_gap",
+            heartbeat_seq: None,
+            portfolio_ref: &portfolio_ref,
+            session_status_ref: session_status_ref.clone(),
+            artifact_gap: Some(gap),
+            diagnostic: "optional strategy session status was unavailable; session remains local read-only evidence",
+        }));
+    }
+
+    for heartbeat_seq in 1..=opt.heartbeat_count {
+        events.push(build_shadow_strategy_session_event(ShadowStrategyEventInput {
+            opt,
+            session_id: &session_id,
+            event_type: "shadow_strategy_session_heartbeat",
+            state: base_state,
+            heartbeat_seq: Some(heartbeat_seq),
+            portfolio_ref: &portfolio_ref,
+            session_status_ref: session_status_ref.clone(),
+            artifact_gap: artifact_gap.clone(),
+            diagnostic: "local persistent shadow strategy session heartbeat; no production mutation attempted",
+        }));
+    }
+
+    let stop_file_requested = opt.stop_file.as_ref().is_some_and(|path| path.exists());
+    if opt.stop_after_heartbeats || stop_file_requested {
+        let diagnostic = if stop_file_requested {
+            "local owner stop-file observed; session stopped without production mutation"
+        } else {
+            "local stop-after-heartbeats requested; session stopped without production mutation"
+        };
+        events.push(build_shadow_strategy_session_event(
+            ShadowStrategyEventInput {
+                opt,
+                session_id: &session_id,
+                event_type: "shadow_strategy_session_stopped",
+                state: "stopped",
+                heartbeat_seq: None,
+                portfolio_ref: &portfolio_ref,
+                session_status_ref,
+                artifact_gap,
+                diagnostic,
+            },
+        ));
+    }
+
+    Ok(events)
+}
+
+fn build_shadow_strategy_session_event(
+    input: ShadowStrategyEventInput<'_>,
+) -> ProductionShadowStrategySessionEvent {
+    ProductionShadowStrategySessionEvent {
+        schema_version: PRODUCTION_SHADOW_STRATEGY_SESSION_EVENT_SCHEMA_VERSION.to_string(),
+        run_id: input.opt.run_id.clone(),
+        session_id: input.session_id.to_string(),
+        strategy_id: input.opt.strategy_id.clone(),
+        event_type: input.event_type.to_string(),
+        state: input.state.to_string(),
+        heartbeat_seq: input.heartbeat_seq,
+        occurred_at: now_millis(),
+        shadow_portfolio_runtime_ref: input.portfolio_ref.clone(),
+        strategy_session_status_ref: input.session_status_ref,
+        artifact_gap: input.artifact_gap,
+        production_order_submissions_attempted: 0,
+        production_orders_submitted: 0,
+        production_order_mutations_attempted: 0,
+        production_order_state_reads_attempted: 0,
+        listen_key_lifecycle_attempted: 0,
+        actual_submission_count: 0,
+        automatic_correction_orders_submitted: 0,
+        dashboard_order_controls_enabled: false,
+        real_orders_submitted: false,
+        values_are_exchange_truth: false,
+        diagnostic: input.diagnostic.to_string(),
+    }
+}
+
+fn write_production_shadow_strategy_session_events(
+    path: &Path,
+    events: &[ProductionShadowStrategySessionEvent],
+) -> anyhow::Result<()> {
+    if events.is_empty() {
+        anyhow::bail!("shadow strategy session must write at least one event");
+    }
+    let mut body = String::new();
+    for event in events {
+        body.push_str(&serde_json::to_string(event)?);
+        body.push('\n');
+    }
+    atomic_write_text(path, &body).with_context(|| {
+        format!(
+            "failed to write shadow strategy session events '{}'",
+            path.display()
+        )
+    })
+}
+
+fn ensure_shadow_portfolio_runtime_is_readonly(value: &serde_json::Value) -> anyhow::Result<()> {
+    if json_string_value(value, "schema_version").as_deref()
+        != Some(PRODUCTION_SHADOW_PORTFOLIO_RUNTIME_SCHEMA_VERSION)
+    {
+        anyhow::bail!("shadow strategy session requires v0.12 shadow portfolio runtime input");
+    }
+
+    for field in [
+        "actual_submission_count",
+        "production_orders_submitted",
+        "production_order_mutations_attempted",
+        "automatic_correction_orders_submitted",
+    ] {
+        if json_u64_value(value, field).unwrap_or(0) != 0 {
+            anyhow::bail!("shadow strategy session rejected portfolio runtime with {field} > 0");
+        }
+    }
+
+    for field in [
+        "dashboard_order_controls_enabled",
+        "full_production_portfolio_parity_claimed",
+        "real_orders_submitted",
+    ] {
+        if json_bool_value(value, field).unwrap_or(false) {
+            anyhow::bail!("shadow strategy session rejected portfolio runtime with {field}=true");
+        }
+    }
+
+    if value
+        .pointer("/provenance/values_are_exchange_truth")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false)
+    {
+        anyhow::bail!("shadow strategy session rejected portfolio runtime claiming exchange truth");
+    }
+
+    Ok(())
+}
+
+fn build_shadow_strategy_portfolio_runtime_ref(
+    path: &Path,
+    value: &serde_json::Value,
+) -> ShadowStrategyPortfolioRuntimeRef {
+    ShadowStrategyPortfolioRuntimeRef {
+        path: path.display().to_string(),
+        schema_version: json_string_value(value, "schema_version")
+            .unwrap_or_else(|| "unknown".to_string()),
+        status: json_string_value(value, "status").unwrap_or_else(|| "unknown".to_string()),
+        snapshot_id: json_string_value(value, "snapshot_id"),
+        exposure_status: value
+            .get("exposure")
+            .and_then(|exposure| json_string_value(exposure, "status"))
+            .unwrap_or_else(|| "unknown".to_string()),
+        pnl_status: value
+            .get("pnl")
+            .and_then(|pnl| json_string_value(pnl, "status"))
+            .unwrap_or_else(|| "unknown".to_string()),
+        risk_status: value
+            .get("risk_summary")
+            .and_then(|risk| json_string_value(risk, "status"))
+            .unwrap_or_else(|| "unknown".to_string()),
+        shadow_intents_created: json_u64_value(value, "shadow_intents_created").unwrap_or(0),
+        network_attempted: json_bool_value(value, "network_attempted").unwrap_or(false),
+        values_are_exchange_truth: value
+            .pointer("/provenance/values_are_exchange_truth")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false),
+    }
+}
+
+fn read_shadow_strategy_session_status_ref(
+    path: Option<&Path>,
+) -> (
+    Option<ShadowStrategySessionStatusRef>,
+    Option<ShadowStrategyArtifactGap>,
+) {
+    let Some(path) = path else {
+        return (
+            None,
+            Some(ShadowStrategyArtifactGap {
+                path: None,
+                status: "not_provided".to_string(),
+                required: false,
+                reason: "strategy session status artifact was not provided; using shadow portfolio runtime only".to_string(),
+            }),
+        );
+    };
+
+    match read_json_artifact(path, "strategy session status") {
+        Ok(value) => (
+            Some(ShadowStrategySessionStatusRef {
+                path: path.display().to_string(),
+                schema_version: json_string_value(&value, "schema_version"),
+                session_id: json_string_value(&value, "session_id"),
+                strategy_id: json_string_value(&value, "strategy_id"),
+                state: json_string_value(&value, "state"),
+                reason: json_string_value(&value, "reason"),
+            }),
+            None,
+        ),
+        Err(error) => (
+            None,
+            Some(ShadowStrategyArtifactGap {
+                path: Some(path.display().to_string()),
+                status: "missing_or_unreadable".to_string(),
+                required: false,
+                reason: format!("strategy session status artifact unavailable: {error}"),
+            }),
+        ),
+    }
 }
 
 fn json_string_value(value: &serde_json::Value, field: &str) -> Option<String> {
@@ -4919,6 +5284,15 @@ write_summary = true
         .unwrap();
     }
 
+    fn read_jsonl_values(path: &Path) -> Vec<serde_json::Value> {
+        fs::read_to_string(path)
+            .unwrap()
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect()
+    }
+
     fn synthetic_order_credentials() -> EnvOnlyTestnetOrderCredentials {
         EnvOnlyTestnetOrderCredentials::from_values(
             "NTPRO_V100004_API_KEY".to_string(),
@@ -6558,6 +6932,181 @@ write_summary = true
         .to_string();
 
         assert!(error.contains("actual_submission=true"));
+    }
+
+    #[test]
+    fn production_shadow_strategy_session_writes_heartbeat_gap_and_stop_events() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-005-shadow-strategy-session-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let account_snapshot = output_dir.join("production_account_snapshot_redacted.json");
+        let shadow_intent = output_dir.join("shadow_execution_intent.jsonl");
+        let portfolio_runtime = output_dir.join("shadow_portfolio_runtime.json");
+        let session_events = output_dir.join("shadow_strategy_session.jsonl");
+        write_redacted_account_snapshot_report(&account_snapshot, true);
+        write_shadow_intent(&shadow_intent, false);
+        run_live_production_shadow_portfolio_runtime(&LiveProductionShadowPortfolioRuntimeOpt {
+            run_id: "v120-shadow".to_string(),
+            snapshot_id: Some("portfolio-1".to_string()),
+            account_snapshot,
+            shadow_intent,
+            output: portfolio_runtime.clone(),
+            compat_snapshot_output: None,
+        })
+        .unwrap();
+
+        run_live_production_shadow_strategy_session(&LiveProductionShadowStrategySessionOpt {
+            run_id: "v120-shadow".to_string(),
+            session_id: Some("session-1".to_string()),
+            strategy_id: "ema_cross_btcusdt_v1".to_string(),
+            shadow_portfolio_runtime: portfolio_runtime,
+            strategy_session_status: None,
+            output: session_events.clone(),
+            heartbeat_count: 2,
+            stop_after_heartbeats: true,
+            stop_file: None,
+        })
+        .unwrap();
+
+        let events = read_jsonl_values(&session_events);
+        assert_eq!(events.len(), 5);
+        assert_eq!(
+            events[0]["schema_version"],
+            PRODUCTION_SHADOW_STRATEGY_SESSION_EVENT_SCHEMA_VERSION
+        );
+        assert_eq!(events[0]["event_type"], "shadow_strategy_session_started");
+        assert_eq!(events[0]["state"], "degraded_artifact_gap");
+        assert_eq!(events[0]["artifact_gap"]["status"], "not_provided");
+        assert_eq!(
+            events[1]["event_type"],
+            "shadow_strategy_session_artifact_gap"
+        );
+        assert_eq!(events[2]["event_type"], "shadow_strategy_session_heartbeat");
+        assert_eq!(events[2]["heartbeat_seq"], 1);
+        assert_eq!(events[3]["event_type"], "shadow_strategy_session_heartbeat");
+        assert_eq!(events[3]["heartbeat_seq"], 2);
+        assert_eq!(events[4]["event_type"], "shadow_strategy_session_stopped");
+        assert_eq!(events[4]["state"], "stopped");
+        for event in &events {
+            assert_eq!(event["production_order_submissions_attempted"], 0);
+            assert_eq!(event["production_orders_submitted"], 0);
+            assert_eq!(event["production_order_mutations_attempted"], 0);
+            assert_eq!(event["production_order_state_reads_attempted"], 0);
+            assert_eq!(event["listen_key_lifecycle_attempted"], 0);
+            assert_eq!(event["dashboard_order_controls_enabled"], false);
+            assert_eq!(event["values_are_exchange_truth"], false);
+        }
+    }
+
+    #[test]
+    fn production_shadow_strategy_session_consumes_existing_session_status() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-005-shadow-strategy-session-status-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let account_snapshot = output_dir.join("production_account_snapshot_redacted.json");
+        let shadow_intent = output_dir.join("shadow_execution_intent.jsonl");
+        let portfolio_runtime = output_dir.join("shadow_portfolio_runtime.json");
+        let status_path = output_dir.join("strategy_session_status.json");
+        let session_events = output_dir.join("shadow_strategy_session.jsonl");
+        write_redacted_account_snapshot_report(&account_snapshot, true);
+        write_shadow_intent(&shadow_intent, false);
+        run_live_production_shadow_portfolio_runtime(&LiveProductionShadowPortfolioRuntimeOpt {
+            run_id: "v120-shadow".to_string(),
+            snapshot_id: Some("portfolio-1".to_string()),
+            account_snapshot,
+            shadow_intent,
+            output: portfolio_runtime.clone(),
+            compat_snapshot_output: None,
+        })
+        .unwrap();
+        fs::write(
+            &status_path,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "schema_version": "ntpro.v09_strategy_session_status.v1",
+                "session_id": "session-1",
+                "strategy_id": "ema_cross_btcusdt_v1",
+                "state": "running",
+                "reason": "fixture strategy running"
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        run_live_production_shadow_strategy_session(&LiveProductionShadowStrategySessionOpt {
+            run_id: "v120-shadow".to_string(),
+            session_id: Some("session-1".to_string()),
+            strategy_id: "ema_cross_btcusdt_v1".to_string(),
+            shadow_portfolio_runtime: portfolio_runtime,
+            strategy_session_status: Some(status_path.clone()),
+            output: session_events.clone(),
+            heartbeat_count: 1,
+            stop_after_heartbeats: false,
+            stop_file: None,
+        })
+        .unwrap();
+
+        let events = read_jsonl_values(&session_events);
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0]["state"], "running");
+        assert!(events[0].get("artifact_gap").is_none());
+        assert_eq!(
+            events[0]["strategy_session_status_ref"]["path"],
+            status_path.display().to_string()
+        );
+        assert_eq!(events[0]["strategy_session_status_ref"]["state"], "running");
+        assert_eq!(events[1]["event_type"], "shadow_strategy_session_heartbeat");
+    }
+
+    #[test]
+    fn production_shadow_strategy_session_rejects_mutating_portfolio_runtime() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-005-shadow-strategy-session-mutating-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let portfolio_runtime = output_dir.join("shadow_portfolio_runtime.json");
+        let session_events = output_dir.join("shadow_strategy_session.jsonl");
+        fs::write(
+            &portfolio_runtime,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "schema_version": PRODUCTION_SHADOW_PORTFOLIO_RUNTIME_SCHEMA_VERSION,
+                "status": "ready_redacted_shadow_portfolio",
+                "production_orders_submitted": 1,
+                "production_order_mutations_attempted": 0,
+                "automatic_correction_orders_submitted": 0,
+                "actual_submission_count": 0,
+                "dashboard_order_controls_enabled": false,
+                "full_production_portfolio_parity_claimed": false,
+                "real_orders_submitted": false,
+                "provenance": {
+                    "values_are_exchange_truth": false
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let error = build_production_shadow_strategy_session_events(
+            &LiveProductionShadowStrategySessionOpt {
+                run_id: "v120-shadow".to_string(),
+                session_id: Some("session-1".to_string()),
+                strategy_id: "ema_cross_btcusdt_v1".to_string(),
+                shadow_portfolio_runtime: portfolio_runtime,
+                strategy_session_status: None,
+                output: session_events,
+                heartbeat_count: 1,
+                stop_after_heartbeats: false,
+                stop_file: None,
+            },
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("production_orders_submitted > 0"));
     }
 
     #[tokio::test(flavor = "current_thread")]

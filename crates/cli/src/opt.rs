@@ -164,6 +164,8 @@ pub enum LiveCommand {
     ProductionAccountSnapshotContract(LiveProductionAccountSnapshotContractOpt),
     /// Builds local v0.12 shadow portfolio runtime artifacts from redacted read-only inputs.
     ProductionShadowPortfolioRuntime(LiveProductionShadowPortfolioRuntimeOpt),
+    /// Writes local v0.12 persistent shadow strategy session events from read-only shadow artifacts.
+    ProductionShadowStrategySession(LiveProductionShadowStrategySessionOpt),
 }
 
 /// Live validation options.
@@ -465,6 +467,38 @@ pub struct LiveProductionShadowPortfolioRuntimeOpt {
     /// Optional v0.11-compatible shadow_portfolio_snapshot.json output path for existing Dashboard readers.
     #[arg(long)]
     pub compat_snapshot_output: Option<PathBuf>,
+}
+
+/// Local persistent shadow strategy session artifact options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionShadowStrategySessionOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// Optional owner-visible session identifier; defaults to run_id.
+    #[arg(long)]
+    pub session_id: Option<String>,
+    /// Owner-visible strategy identifier.
+    #[arg(long, default_value = "ema_cross_btcusdt_v1")]
+    pub strategy_id: String,
+    /// v0.12 shadow portfolio runtime JSON input.
+    #[arg(long)]
+    pub shadow_portfolio_runtime: PathBuf,
+    /// Optional existing strategy/session status JSON input.
+    #[arg(long)]
+    pub strategy_session_status: Option<PathBuf>,
+    /// v0.12 shadow strategy session JSONL output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Number of local heartbeat events to write.
+    #[arg(long, default_value_t = 2)]
+    pub heartbeat_count: u64,
+    /// Records a local owner stop marker after the configured heartbeat count.
+    #[arg(long)]
+    pub stop_after_heartbeats: bool,
+    /// Optional local owner stop-file. If present, the command records a stop marker.
+    #[arg(long)]
+    pub stop_file: Option<PathBuf>,
 }
 
 /// Local supervisor controls for sandbox-only node artifacts and processes.
