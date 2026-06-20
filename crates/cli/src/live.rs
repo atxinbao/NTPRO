@@ -43,8 +43,9 @@ use crate::{
     endpoint_classifier::{EndpointAuthKind, EndpointClassifier},
     opt::{
         LiveCommand, LiveOpt, LiveProductionAccountSnapshotContractOpt,
-        LiveProductionPublicReadProbeOpt, LiveRunOpt, LiveTestnetExecutionArtifactContractOpt,
-        LiveTestnetOrderGateOpt, LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
+        LiveProductionPublicReadProbeOpt, LiveProductionShadowPortfolioRuntimeOpt, LiveRunOpt,
+        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
         ProductionPublicReadEndpoint, TestnetReconciliationScenario,
     },
@@ -106,6 +107,10 @@ const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE: &str =
 const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_MANUAL_ONLINE: &str = "NTPRO_V12_MANUAL_ONLINE";
 const PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT: &str = "/api/v3/account";
 const PRODUCTION_ACCOUNT_SNAPSHOT_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
+const PRODUCTION_SHADOW_PORTFOLIO_RUNTIME_SCHEMA_VERSION: &str =
+    "ntpro.v120_shadow_portfolio_runtime.v1";
+const PRODUCTION_SHADOW_PORTFOLIO_COMPAT_SCHEMA_VERSION: &str =
+    "ntpro.v110_shadow_portfolio_snapshot.v1";
 const START_STOP_SHUTDOWN: &str = "start-stop";
 const DEFAULT_NTPRO_NODE_HEARTBEAT_INTERVAL_MS: u64 = 1_000;
 const DEFAULT_NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: u64 = 5_000;
@@ -957,6 +962,124 @@ impl ProductionAccountSnapshotShapeSummary {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionShadowPortfolioRuntimeReport {
+    schema_version: String,
+    status: String,
+    run_id: String,
+    snapshot_id: String,
+    snapshot_mode: String,
+    created_at: String,
+    source_account_snapshot_ref: ShadowSourceRef,
+    source_shadow_intent_refs: Vec<ShadowIntentRef>,
+    balances: ShadowBalancesSummary,
+    positions: Vec<ShadowPositionSummary>,
+    exposure: ShadowExposureSummary,
+    pnl: ShadowPnlSummary,
+    risk_summary: ShadowRiskSummary,
+    provenance: ShadowPortfolioProvenance,
+    shadow_intents_created: u64,
+    actual_submission_count: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    automatic_correction_orders_submitted: u64,
+    dashboard_order_controls_enabled: bool,
+    full_production_portfolio_parity_claimed: bool,
+    network_attempted: bool,
+    real_orders_submitted: bool,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ShadowSourceRef {
+    path: String,
+    schema_version: Option<String>,
+    status: String,
+    response_shape_validated: bool,
+    raw_payload_recorded: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ShadowIntentRef {
+    intent_id: String,
+    symbol: Option<String>,
+    venue: Option<String>,
+    side: Option<String>,
+    quantity: Option<String>,
+    notional: Option<String>,
+    submission_status: String,
+    actual_submission: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ShadowBalancesSummary {
+    status: String,
+    source: String,
+    confidence: String,
+    observed_balance_entry_count: Option<u64>,
+    asset_values_recorded: bool,
+    free_values_recorded: bool,
+    locked_values_recorded: bool,
+    reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ShadowPositionSummary {
+    instrument_id: String,
+    quantity: Option<String>,
+    average_price: Option<String>,
+    source: String,
+    status: String,
+    reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ShadowExposureSummary {
+    asset: Option<String>,
+    gross: Option<String>,
+    net: Option<String>,
+    notional: Option<String>,
+    quote_currency: Option<String>,
+    status: String,
+    reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ShadowPnlSummary {
+    realized: Option<String>,
+    unrealized: Option<String>,
+    quote_currency: Option<String>,
+    status: String,
+    reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ShadowRiskSummary {
+    status: String,
+    new_orders_blocked: bool,
+    risk_halted: bool,
+    reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ShadowPortfolioProvenance {
+    account_snapshot_source: String,
+    shadow_intent_source: String,
+    balances_source: String,
+    positions_source: String,
+    exposure_source: String,
+    pnl_source: String,
+    values_are_exchange_truth: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ShadowIntentInputs {
+    refs: Vec<ShadowIntentRef>,
+    record_count: u64,
+    notional_sum: Option<f64>,
+    quote_currency: Option<String>,
+}
+
 impl TestnetSignedOrderRequest {
     fn redacted_preview(
         &self,
@@ -1037,6 +1160,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         }
         LiveCommand::ProductionAccountSnapshotContract(contract) => {
             run_live_production_account_snapshot_contract(&contract)
+        }
+        LiveCommand::ProductionShadowPortfolioRuntime(runtime) => {
+            run_live_production_shadow_portfolio_runtime(&runtime)
         }
     }
 }
@@ -1127,6 +1253,49 @@ fn run_live_production_account_snapshot_contract(
     opt: &LiveProductionAccountSnapshotContractOpt,
 ) -> anyhow::Result<()> {
     run_live_production_account_snapshot_contract_with_env(opt, |name| std::env::var(name).ok())
+}
+
+fn run_live_production_shadow_portfolio_runtime(
+    opt: &LiveProductionShadowPortfolioRuntimeOpt,
+) -> anyhow::Result<()> {
+    let report = build_production_shadow_portfolio_runtime_report(
+        &opt.run_id,
+        opt.snapshot_id.as_deref(),
+        &opt.account_snapshot,
+        &opt.shadow_intent,
+    )?;
+    atomic_write_json(&opt.output, &report).with_context(|| {
+        format!(
+            "failed to write shadow portfolio runtime '{}'",
+            opt.output.display()
+        )
+    })?;
+
+    if let Some(compat_output) = &opt.compat_snapshot_output {
+        let compat_snapshot = build_production_shadow_portfolio_compat_snapshot(&report);
+        atomic_write_json(compat_output, &compat_snapshot).with_context(|| {
+            format!(
+                "failed to write v0.11-compatible shadow portfolio snapshot '{}'",
+                compat_output.display()
+            )
+        })?;
+    }
+
+    println!(
+        "live.production_shadow_portfolio_runtime status={} run_id={} snapshot_id={} output={} compat_snapshot_output={} shadow_intents_created={} exposure_status={} pnl_status={} production_orders_submitted=0 production_order_mutations_attempted=0 dashboard_order_controls_enabled=false full_production_portfolio_parity_claimed=false",
+        report.status,
+        report.run_id,
+        report.snapshot_id,
+        opt.output.display(),
+        opt.compat_snapshot_output.as_ref().map_or_else(
+            || "not_requested".to_string(),
+            |path| path.display().to_string()
+        ),
+        report.shadow_intents_created,
+        report.exposure.status,
+        report.pnl.status,
+    );
+    Ok(())
 }
 
 fn run_live_production_public_read_probe_with_env<F>(
@@ -1887,6 +2056,393 @@ fn summarize_production_account_snapshot_shape(
         }
         .to_string(),
     }
+}
+
+fn build_production_shadow_portfolio_runtime_report(
+    run_id: &str,
+    snapshot_id: Option<&str>,
+    account_snapshot_path: &Path,
+    shadow_intent_path: &Path,
+) -> anyhow::Result<ProductionShadowPortfolioRuntimeReport> {
+    validate_non_empty("run_id", run_id)?;
+    let account_snapshot = read_json_artifact(account_snapshot_path, "account snapshot")?;
+    ensure_account_snapshot_artifact_is_redacted(&account_snapshot)?;
+    let intent_inputs = read_shadow_intent_inputs(shadow_intent_path)?;
+    ensure_shadow_intents_are_readonly(&intent_inputs.refs)?;
+
+    let account_status =
+        json_string_value(&account_snapshot, "status").unwrap_or_else(|| "unknown".to_string());
+    let account_schema = json_string_value(&account_snapshot, "schema_version");
+    let account_shape_validated =
+        json_bool_value(&account_snapshot, "response_shape_validated").unwrap_or(false);
+    let shape_summary = account_snapshot.get("response_shape_summary");
+    let balance_entry_count = shape_summary
+        .and_then(|shape| json_u64_value(shape, "balance_entry_count"))
+        .or_else(|| json_u64_value(&account_snapshot, "balance_entry_count"));
+    let network_attempted =
+        json_bool_value(&account_snapshot, "network_attempted").unwrap_or(false);
+    let account_read_attempted =
+        json_bool_value(&account_snapshot, "account_read_attempted").unwrap_or(false);
+
+    let balances = if account_shape_validated {
+        ShadowBalancesSummary {
+            status: "observed_shape_only".to_string(),
+            source: "redacted_production_account_snapshot_shape".to_string(),
+            confidence: "observed_shape_only".to_string(),
+            observed_balance_entry_count: balance_entry_count,
+            asset_values_recorded: false,
+            free_values_recorded: false,
+            locked_values_recorded: false,
+            reason: "production account response shape was validated, but asset names and balance values remain redacted".to_string(),
+        }
+    } else {
+        ShadowBalancesSummary {
+            status: "unavailable".to_string(),
+            source: "redacted_production_account_snapshot_shape".to_string(),
+            confidence: "unavailable".to_string(),
+            observed_balance_entry_count: balance_entry_count,
+            asset_values_recorded: false,
+            free_values_recorded: false,
+            locked_values_recorded: false,
+            reason: format!(
+                "production account snapshot shape is not validated; account_status={account_status}"
+            ),
+        }
+    };
+
+    let positions = build_shadow_positions(&intent_inputs.refs);
+    let exposure = build_shadow_exposure(&intent_inputs);
+    let pnl = ShadowPnlSummary {
+        realized: None,
+        unrealized: None,
+        quote_currency: intent_inputs.quote_currency.clone(),
+        status: "unavailable".to_string(),
+        reason: "production fills, cost basis, and mark prices are not available in v0.12 read-only shadow runtime".to_string(),
+    };
+    let risk_summary = ShadowRiskSummary {
+        status: "risk_halted".to_string(),
+        new_orders_blocked: true,
+        risk_halted: true,
+        reason: "production shadow portfolio runtime is read-only evidence; it cannot unlock production orders".to_string(),
+    };
+    let snapshot_id =
+        snapshot_id.map_or_else(|| format!("{run_id}-shadow-portfolio"), ToString::to_string);
+    let status = if account_shape_validated {
+        "ready_redacted_shadow_portfolio"
+    } else {
+        "degraded_account_snapshot_unavailable"
+    };
+
+    Ok(ProductionShadowPortfolioRuntimeReport {
+        schema_version: PRODUCTION_SHADOW_PORTFOLIO_RUNTIME_SCHEMA_VERSION.to_string(),
+        status: status.to_string(),
+        run_id: run_id.to_string(),
+        snapshot_id,
+        snapshot_mode: "production_readonly_shadow".to_string(),
+        created_at: now_millis(),
+        source_account_snapshot_ref: ShadowSourceRef {
+            path: account_snapshot_path.display().to_string(),
+            schema_version: account_schema,
+            status: account_status,
+            response_shape_validated: account_shape_validated,
+            raw_payload_recorded: false,
+        },
+        source_shadow_intent_refs: intent_inputs.refs.clone(),
+        balances,
+        positions,
+        exposure,
+        pnl,
+        risk_summary,
+        provenance: ShadowPortfolioProvenance {
+            account_snapshot_source: "redacted_account_snapshot_summary".to_string(),
+            shadow_intent_source: "local_shadow_execution_intent_jsonl".to_string(),
+            balances_source: "redacted_shape_summary_only".to_string(),
+            positions_source: "unavailable_without_production_fills".to_string(),
+            exposure_source: "derived_from_local_shadow_intent_notional_only".to_string(),
+            pnl_source: "unavailable_without_fills_cost_basis_and_mark_prices".to_string(),
+            values_are_exchange_truth: false,
+        },
+        shadow_intents_created: intent_inputs.record_count,
+        actual_submission_count: 0,
+        production_orders_submitted: 0,
+        production_order_mutations_attempted: 0,
+        automatic_correction_orders_submitted: 0,
+        dashboard_order_controls_enabled: false,
+        full_production_portfolio_parity_claimed: false,
+        network_attempted,
+        real_orders_submitted: false,
+        diagnostic: format!(
+            "V120 shadow portfolio runtime built from redacted account summary and local shadow intents only; account_read_attempted={account_read_attempted}; production orders and mutations remain zero."
+        ),
+    })
+}
+
+fn build_shadow_positions(intents: &[ShadowIntentRef]) -> Vec<ShadowPositionSummary> {
+    if intents.is_empty() {
+        return vec![ShadowPositionSummary {
+            instrument_id: "unavailable".to_string(),
+            quantity: None,
+            average_price: None,
+            source: "unavailable".to_string(),
+            status: "unavailable".to_string(),
+            reason: "no shadow execution intents were provided".to_string(),
+        }];
+    }
+
+    intents
+        .iter()
+        .map(|intent| ShadowPositionSummary {
+            instrument_id: intent
+                .symbol
+                .clone()
+                .unwrap_or_else(|| "unavailable".to_string()),
+            quantity: None,
+            average_price: None,
+            source: "local_shadow_execution_intent".to_string(),
+            status: "unavailable".to_string(),
+            reason: "shadow intents are not production fills, so exchange position quantity and average price are unavailable".to_string(),
+        })
+        .collect()
+}
+
+fn build_shadow_exposure(intent_inputs: &ShadowIntentInputs) -> ShadowExposureSummary {
+    let Some(notional_sum) = intent_inputs.notional_sum else {
+        return ShadowExposureSummary {
+            asset: None,
+            gross: None,
+            net: None,
+            notional: None,
+            quote_currency: intent_inputs.quote_currency.clone(),
+            status: "unavailable".to_string(),
+            reason: "no parseable shadow intent notional was available".to_string(),
+        };
+    };
+    let notional = format_decimal(notional_sum);
+    ShadowExposureSummary {
+        asset: None,
+        gross: Some(notional.clone()),
+        net: Some(notional.clone()),
+        notional: Some(notional),
+        quote_currency: intent_inputs.quote_currency.clone(),
+        status: "derived_from_shadow_intents".to_string(),
+        reason: "derived from local shadow intent notional only; this is not exchange-confirmed portfolio exposure".to_string(),
+    }
+}
+
+fn read_json_artifact(path: &Path, label: &str) -> anyhow::Result<serde_json::Value> {
+    let raw = fs::read_to_string(path)
+        .with_context(|| format!("failed to read {label} artifact '{}'", path.display()))?;
+    serde_json::from_str(&raw)
+        .with_context(|| format!("failed to parse {label} artifact '{}'", path.display()))
+}
+
+fn ensure_account_snapshot_artifact_is_redacted(value: &serde_json::Value) -> anyhow::Result<()> {
+    if value.get("balances").is_some()
+        || value.get("permissions").is_some()
+        || value.get("raw_account_response").is_some()
+        || value.get("raw_balances").is_some()
+    {
+        anyhow::bail!(
+            "shadow portfolio runtime requires a redacted account summary, not raw account response fields"
+        );
+    }
+
+    let shape_summary = value.get("response_shape_summary");
+    for field in [
+        "raw_account_response_recorded",
+        "raw_balances_recorded",
+        "raw_permissions_recorded",
+    ] {
+        if json_bool_value(value, field).unwrap_or(false)
+            || shape_summary
+                .and_then(|summary| json_bool_value(summary, field))
+                .unwrap_or(false)
+        {
+            anyhow::bail!("shadow portfolio runtime rejected account artifact with {field}=true");
+        }
+    }
+
+    for field in [
+        "api_key_value_recorded",
+        "api_secret_value_recorded",
+        "signature_recorded",
+        "signed_query_recorded",
+        "signed_url_recorded",
+    ] {
+        if json_bool_value(value, field).unwrap_or(false) {
+            anyhow::bail!("shadow portfolio runtime rejected account artifact with {field}=true");
+        }
+    }
+
+    Ok(())
+}
+
+fn read_shadow_intent_inputs(path: &Path) -> anyhow::Result<ShadowIntentInputs> {
+    let raw = fs::read_to_string(path)
+        .with_context(|| format!("failed to read shadow intent '{}'", path.display()))?;
+    let mut refs = Vec::new();
+    let mut notional_sum = 0.0;
+    let mut parsed_notional_count = 0_u64;
+    let mut quote_currency = None;
+
+    for (index, line) in raw.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let value: serde_json::Value = serde_json::from_str(line).with_context(|| {
+            format!(
+                "failed to parse shadow intent JSONL line {} in '{}'",
+                index + 1,
+                path.display()
+            )
+        })?;
+        ensure_shadow_intent_value_is_readonly(&value)?;
+        let symbol = json_string_value(&value, "symbol");
+        if quote_currency.is_none() {
+            quote_currency = symbol.as_deref().and_then(quote_currency_from_symbol);
+        }
+        let notional = json_string_value(&value, "notional");
+        if let Some(parsed) = notional
+            .as_deref()
+            .and_then(|notional| parse_non_negative_decimal(notional).ok())
+        {
+            notional_sum += parsed;
+            parsed_notional_count += 1;
+        }
+        refs.push(ShadowIntentRef {
+            intent_id: json_string_value(&value, "intent_id")
+                .unwrap_or_else(|| format!("line-{}", index + 1)),
+            symbol,
+            venue: json_string_value(&value, "venue"),
+            side: json_string_value(&value, "side"),
+            quantity: json_string_value(&value, "quantity"),
+            notional,
+            submission_status: json_string_value(&value, "submission_status")
+                .unwrap_or_else(|| "unknown".to_string()),
+            actual_submission: json_bool_value(&value, "actual_submission").unwrap_or(false),
+        });
+    }
+
+    Ok(ShadowIntentInputs {
+        record_count: u64::try_from(refs.len()).unwrap_or(u64::MAX),
+        refs,
+        notional_sum: (parsed_notional_count > 0).then_some(notional_sum),
+        quote_currency,
+    })
+}
+
+fn ensure_shadow_intents_are_readonly(intents: &[ShadowIntentRef]) -> anyhow::Result<()> {
+    if intents.iter().any(|intent| intent.actual_submission) {
+        anyhow::bail!(
+            "shadow portfolio runtime rejected shadow intents with actual_submission=true"
+        );
+    }
+    Ok(())
+}
+
+fn ensure_shadow_intent_value_is_readonly(value: &serde_json::Value) -> anyhow::Result<()> {
+    for field in [
+        "actual_submission",
+        "execution_adapter_called",
+        "order_endpoint_access_attempted",
+        "production_order_mutation_attempted",
+        "dashboard_order_controls_enabled",
+    ] {
+        if json_bool_value(value, field).unwrap_or(false) {
+            anyhow::bail!("shadow portfolio runtime rejected shadow intent with {field}=true");
+        }
+    }
+    Ok(())
+}
+
+fn build_production_shadow_portfolio_compat_snapshot(
+    report: &ProductionShadowPortfolioRuntimeReport,
+) -> serde_json::Value {
+    serde_json::json!({
+        "schema_version": PRODUCTION_SHADOW_PORTFOLIO_COMPAT_SCHEMA_VERSION,
+        "run_id": &report.run_id,
+        "snapshot_id": &report.snapshot_id,
+        "snapshot_mode": &report.snapshot_mode,
+        "source_account_snapshot_ref": &report.source_account_snapshot_ref.path,
+        "source_shadow_intent_refs": report
+            .source_shadow_intent_refs
+            .iter()
+            .map(|intent| intent.intent_id.clone())
+            .collect::<Vec<_>>(),
+        "balances": [
+            {
+                "asset": "redacted",
+                "free": null,
+                "locked": null,
+                "source": &report.balances.source,
+                "confidence": &report.balances.confidence,
+                "status": &report.balances.status,
+                "observed_balance_entry_count": report.balances.observed_balance_entry_count,
+                "asset_values_recorded": false,
+                "free_values_recorded": false,
+                "locked_values_recorded": false,
+                "reason": &report.balances.reason
+            }
+        ],
+        "positions": &report.positions,
+        "exposure": &report.exposure,
+        "pnl": &report.pnl,
+        "risk_summary": &report.risk_summary,
+        "created_at": &report.created_at,
+        "actual_submission_count": report.actual_submission_count,
+        "production_orders_submitted": report.production_orders_submitted,
+        "production_order_mutations_attempted": report.production_order_mutations_attempted,
+        "automatic_correction_orders_submitted": report.automatic_correction_orders_submitted,
+        "dashboard_order_controls_enabled": report.dashboard_order_controls_enabled,
+        "full_production_portfolio_parity_claimed": report.full_production_portfolio_parity_claimed
+    })
+}
+
+fn json_string_value(value: &serde_json::Value, field: &str) -> Option<String> {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_str)
+        .map(ToString::to_string)
+}
+
+fn json_bool_value(value: &serde_json::Value, field: &str) -> Option<bool> {
+    value.get(field).and_then(serde_json::Value::as_bool)
+}
+
+fn json_u64_value(value: &serde_json::Value, field: &str) -> Option<u64> {
+    value.get(field).and_then(serde_json::Value::as_u64)
+}
+
+fn parse_non_negative_decimal(value: &str) -> anyhow::Result<f64> {
+    let value = value.trim();
+    if value.is_empty() {
+        anyhow::bail!("decimal value must not be empty");
+    }
+    if value.starts_with('-') {
+        anyhow::bail!("decimal value must not be negative");
+    }
+    value
+        .parse::<f64>()
+        .ok()
+        .filter(|parsed| parsed.is_finite())
+        .context("decimal value must parse as finite f64")
+}
+
+fn format_decimal(value: f64) -> String {
+    let formatted = format!("{value:.8}");
+    formatted
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .to_string()
+}
+
+fn quote_currency_from_symbol(symbol: &str) -> Option<String> {
+    let base = symbol.split_once('.').map_or(symbol, |(base, _)| base);
+    ["USDT", "USDC", "USD", "BTC", "ETH"]
+        .into_iter()
+        .find(|quote| base.ends_with(quote))
+        .map(ToString::to_string)
 }
 
 fn run_live_testnet_order_gate_with_env<F>(
@@ -4308,6 +4864,61 @@ write_summary = true
         }
     }
 
+    fn write_redacted_account_snapshot_report(path: &Path, response_shape_validated: bool) {
+        let shape_summary = if response_shape_validated {
+            serde_json::json!({
+                "status": "accepted",
+                "balance_entry_count": 2,
+                "shape_validated": true,
+                "raw_account_response_recorded": false,
+                "raw_balances_recorded": false,
+                "raw_permissions_recorded": false
+            })
+        } else {
+            serde_json::json!({
+                "status": "not_attempted",
+                "balance_entry_count": null,
+                "shape_validated": false,
+                "raw_account_response_recorded": false,
+                "raw_balances_recorded": false,
+                "raw_permissions_recorded": false
+            })
+        };
+        fs::write(
+            path,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "schema_version": PRODUCTION_ACCOUNT_SNAPSHOT_ONLINE_SCHEMA_VERSION,
+                "status": if response_shape_validated { "online_account_snapshot_ok" } else { "ready_offline_contract" },
+                "response_shape_validated": response_shape_validated,
+                "response_shape_summary": shape_summary,
+                "network_attempted": response_shape_validated,
+                "account_read_attempted": response_shape_validated,
+                "api_key_value_recorded": false,
+                "api_secret_value_recorded": false,
+                "signature_recorded": false,
+                "signed_query_recorded": false,
+                "signed_url_recorded": false,
+                "production_order_submission_attempted": false,
+                "production_order_mutation_attempted": false,
+                "dashboard_order_controls_enabled": false,
+                "secrets_redacted": true
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn write_shadow_intent(path: &Path, actual_submission: bool) {
+        fs::write(
+            path,
+            format!(
+                r#"{{"schema_version":"ntpro.v110_shadow_execution_intent.v1","run_id":"v120-shadow","intent_id":"intent-1","strategy_id":"ema_cross_btcusdt_v1","symbol":"BTCUSDT.BINANCE","venue":"BINANCE","side":"buy","order_type":"market","quantity":"0.001","notional":"10.00","mode":"production_shadow","submission_allowed":false,"actual_submission":{actual_submission},"submission_status":"blocked_by_v110_shadow_execution_boundary","execution_adapter_called":false,"order_endpoint_access_attempted":false,"production_order_mutation_attempted":false,"dashboard_order_controls_enabled":false}}
+"#
+            ),
+        )
+        .unwrap();
+    }
+
     fn synthetic_order_credentials() -> EnvOnlyTestnetOrderCredentials {
         EnvOnlyTestnetOrderCredentials::from_values(
             "NTPRO_V100004_API_KEY".to_string(),
@@ -5824,6 +6435,129 @@ write_summary = true
         );
         assert_eq!(report["production_order_mutation_attempted"], false);
         assert_eq!(report["dashboard_order_controls_enabled"], false);
+    }
+
+    #[test]
+    fn production_shadow_portfolio_runtime_writes_redacted_runtime_and_compat_snapshot() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-004-shadow-portfolio-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let account_snapshot = output_dir.join("production_account_snapshot_redacted.json");
+        let shadow_intent = output_dir.join("shadow_execution_intent.jsonl");
+        let runtime_output = output_dir.join("shadow_portfolio_runtime.json");
+        let compat_output = output_dir.join("shadow_portfolio_snapshot.json");
+        write_redacted_account_snapshot_report(&account_snapshot, true);
+        write_shadow_intent(&shadow_intent, false);
+
+        run_live_production_shadow_portfolio_runtime(&LiveProductionShadowPortfolioRuntimeOpt {
+            run_id: "v120-shadow".to_string(),
+            snapshot_id: Some("portfolio-1".to_string()),
+            account_snapshot,
+            shadow_intent,
+            output: runtime_output.clone(),
+            compat_snapshot_output: Some(compat_output.clone()),
+        })
+        .unwrap();
+
+        let runtime_body = fs::read_to_string(runtime_output).unwrap();
+        assert!(!runtime_body.contains("\"asset\": \"BTC\""));
+        assert!(!runtime_body.contains("\"free\":"));
+        assert!(!runtime_body.contains("\"locked\":"));
+        assert!(!runtime_body.contains("api_secret"));
+        let runtime: serde_json::Value = serde_json::from_str(&runtime_body).unwrap();
+        assert_eq!(
+            runtime["schema_version"],
+            PRODUCTION_SHADOW_PORTFOLIO_RUNTIME_SCHEMA_VERSION
+        );
+        assert_eq!(runtime["status"], "ready_redacted_shadow_portfolio");
+        assert_eq!(runtime["balances"]["status"], "observed_shape_only");
+        assert_eq!(runtime["balances"]["observed_balance_entry_count"], 2);
+        assert_eq!(runtime["balances"]["asset_values_recorded"], false);
+        assert_eq!(
+            runtime["source_shadow_intent_refs"][0]["intent_id"],
+            "intent-1"
+        );
+        assert_eq!(runtime["exposure"]["status"], "derived_from_shadow_intents");
+        assert_eq!(runtime["exposure"]["notional"], "10");
+        assert_eq!(runtime["pnl"]["status"], "unavailable");
+        assert_eq!(runtime["risk_summary"]["new_orders_blocked"], true);
+        assert_eq!(runtime["production_orders_submitted"], 0);
+        assert_eq!(runtime["production_order_mutations_attempted"], 0);
+        assert_eq!(runtime["dashboard_order_controls_enabled"], false);
+        assert_eq!(runtime["full_production_portfolio_parity_claimed"], false);
+
+        let compat: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(compat_output).unwrap()).unwrap();
+        assert_eq!(
+            compat["schema_version"],
+            PRODUCTION_SHADOW_PORTFOLIO_COMPAT_SCHEMA_VERSION
+        );
+        assert_eq!(compat["snapshot_mode"], "production_readonly_shadow");
+        assert_eq!(compat["balances"][0]["asset"], "redacted");
+        assert_eq!(compat["exposure"]["status"], "derived_from_shadow_intents");
+        assert_eq!(compat["pnl"]["status"], "unavailable");
+        assert_eq!(compat["production_orders_submitted"], 0);
+        assert_eq!(compat["dashboard_order_controls_enabled"], false);
+        assert_eq!(compat["full_production_portfolio_parity_claimed"], false);
+    }
+
+    #[test]
+    fn production_shadow_portfolio_runtime_rejects_raw_account_balances() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-004-shadow-portfolio-raw-account-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let account_snapshot = output_dir.join("raw-account.json");
+        let shadow_intent = output_dir.join("shadow_execution_intent.jsonl");
+        fs::write(
+            &account_snapshot,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "schema_version": PRODUCTION_ACCOUNT_SNAPSHOT_ONLINE_SCHEMA_VERSION,
+                "balances": [{"asset": "BTC", "free": "1", "locked": "0"}],
+                "response_shape_validated": true
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        write_shadow_intent(&shadow_intent, false);
+
+        let error = build_production_shadow_portfolio_runtime_report(
+            "v120-shadow",
+            None,
+            &account_snapshot,
+            &shadow_intent,
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("requires a redacted account summary"));
+    }
+
+    #[test]
+    fn production_shadow_portfolio_runtime_rejects_actual_submission_intents() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v120-004-shadow-portfolio-submission-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let account_snapshot = output_dir.join("production_account_snapshot_redacted.json");
+        let shadow_intent = output_dir.join("shadow_execution_intent.jsonl");
+        write_redacted_account_snapshot_report(&account_snapshot, true);
+        write_shadow_intent(&shadow_intent, true);
+
+        let error = build_production_shadow_portfolio_runtime_report(
+            "v120-shadow",
+            None,
+            &account_snapshot,
+            &shadow_intent,
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("actual_submission=true"));
     }
 
     #[tokio::test(flavor = "current_thread")]
