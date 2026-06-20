@@ -130,6 +130,7 @@ Does not include:
 
 - no production order submission;
 - no production cancel, replace, amend, or automatic correction orders;
+- no production open-order or order-state reads such as `/api/v3/openOrders`;
 - no successful online production public/account reads;
 - no production network-read runtime as completed capability;
 - no real-funds trading;
