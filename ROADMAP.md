@@ -20,15 +20,16 @@ ntpro-rust-only-v0.11.0
 Current capability boundary:
 
 ```text
-Production Read-Only + Shadow Portfolio
+Production Read-Only Contract + Offline Shadow Portfolio
 production endpoint classification
-production public read-only contract
-owner-gated authenticated account snapshot contract
+production public read-only contract, offline fail-closed
+owner-gated authenticated account snapshot contract, offline fail-closed
 local shadow execution intent artifacts
 local shadow portfolio snapshot artifacts
 local shadow/read-only lifecycle state evidence
 local reconciliation/manual-remediation event evidence
 read-only Dashboard production shadow status
+successful online production reads=0
 production order counters fixed at zero
 production order mutations attempted=0
 no real funds
@@ -37,9 +38,11 @@ no Dashboard order controls
 ```
 
 `v0.11.0` builds on the v0.10 Binance spot sandbox order proof and adds the
-Production Read-Only + Shadow Portfolio release package. The current public
-claim remains artifact-first, read-only/shadow-only from production surfaces,
-read-only from Dashboard surfaces, and explicitly non-production.
+Production Read-Only Contract + Offline Shadow Portfolio release package. The
+current public claim remains artifact-first, offline by default,
+read-only/shadow-only from production surfaces, read-only from Dashboard
+surfaces, and explicitly non-production. It does not prove successful online
+production public/account reads.
 
 ## Published Hardening Patch: v0.7.1
 
@@ -232,11 +235,11 @@ Completed release closure:
 
 ## Published Capability Track: v0.11.0
 
-`v0.11.0` is the published Production Read-Only + Shadow Portfolio release. It
-defines production endpoint classification, read-only public/account snapshot
-contracts, local shadow execution/portfolio evidence, local shadow/read-only
-lifecycle and reconciliation models, and read-only Dashboard production shadow
-status.
+`v0.11.0` is the published Production Read-Only Contract + Offline Shadow
+Portfolio release. It defines production endpoint classification, read-only
+public/account snapshot contracts, offline fail-closed read artifacts, local
+shadow execution/portfolio evidence, local shadow/read-only lifecycle and
+reconciliation models, and read-only Dashboard production shadow status.
 
 Completed release closure:
 
@@ -251,6 +254,8 @@ Completed release closure:
 
 - production order submission;
 - production cancel, replace, amend, retry, or correction orders;
+- successful online production public/account reads;
+- production network-read runtime as completed capability;
 - real funds;
 - production trading;
 - automatic production reconciliation or remediation;
@@ -275,7 +280,7 @@ Corrected sequence:
 v0.9.0  = local deterministic Strategy Runtime batch foundation
 v0.9.1  = Strategy Runtime Semantics & Audit Hardening
 v0.10.0 = Binance Spot Sandbox Order Proof
-v0.11.0 = Production Read-Only + Shadow Portfolio
+v0.11.0 = Production Read-Only Contract + Offline Shadow Portfolio
 v0.12.0 = Guarded Live Alpha
 ```
 
@@ -303,8 +308,9 @@ release gates verify the Supervisor/Dashboard path.
 completed behind explicit owner gates and with its own risk, redaction, and
 lifecycle evidence.
 
-`v0.11.0` is the published Production Read-Only + Shadow Portfolio track. It is
-read-only/shadow-only and must not submit, cancel, replace, amend, or
+`v0.11.0` is the published Production Read-Only Contract + Offline Shadow
+Portfolio track. It is contract/offline-shadow only and must not claim
+successful online production reads, submit, cancel, replace, amend, or
 automatically correct production orders.
 
 `v0.12.0` is the next Guarded Live Alpha track and requires a separate scope

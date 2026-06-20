@@ -11,8 +11,9 @@ read-only probes, authenticated account snapshots, and forbidden mutation
 surfaces cannot be confused.
 
 Plain Chinese summary: v0.11 要先把 endpoint 分清楚。`demo-api.binance.com`
-和 `testnet.binance.vision` 是 sandbox/testnet；`api.binance.com` 可以只读，但
-只有明确 gate 后才能读；任何生产下单、撤单、改单 endpoint 都必须判定为 forbidden。
+和 `testnet.binance.vision` 是 sandbox/testnet；`api.binance.com` 在 v0.11
+只能进入生产只读分类和离线合约证据，不能被说成已经在线读取成功；任何生产下单、
+撤单、改单 endpoint 都必须判定为 forbidden。
 
 ## Endpoint Classes
 
@@ -20,8 +21,8 @@ Plain Chinese summary: v0.11 要先把 endpoint 分清楚。`demo-api.binance.co
 | --- | --- | --- |
 | `sandbox_spot_demo` | `https://demo-api.binance.com` | Allowed only for sandbox proof family and explicit sandbox gates. |
 | `sandbox_spot_test_network` | `https://testnet.binance.vision` | Allowed only for sandbox/testnet proof family and explicit sandbox gates. |
-| `production_public_read_only` | `https://api.binance.com/api/v3/time`, `https://api.binance.com/api/v3/exchangeInfo` | Allowed only behind v0.11 public read-only gates. |
-| `production_authenticated_read_only` | `GET https://api.binance.com/api/v3/account`, `GET /api/v3/openOrders` | Allowed only behind owner-approved authenticated read-only gates and redaction. |
+| `production_public_read_only` | `https://api.binance.com/api/v3/time`, `https://api.binance.com/api/v3/exchangeInfo` | Classified for v0.11 public read-only contracts; online execution is not completed by v0.11.0. |
+| `production_authenticated_read_only` | `GET https://api.binance.com/api/v3/account` | Classified for owner-approved authenticated read-only account snapshot contracts; online execution is not completed by v0.11.0. |
 | `production_mutation_forbidden` | `POST /api/v3/order`, `DELETE /api/v3/order`, replace/amend style endpoints | Forbidden in v0.11. |
 | `websocket_public_read_only` | Binance public stream endpoints for market data | Allowed only as read-only stream inputs when a task explicitly scopes it. |
 | `websocket_user_read_only` | User data stream / account update stream | Deferred unless a task explicitly approves read-only authenticated stream evidence. |
@@ -99,9 +100,11 @@ That remains a sandbox proof. The classifier must never promote
 `sandbox_spot_demo` or `sandbox_spot_test_network` evidence into production
 trading readiness.
 
-v0.11.0 may add production reads only. It must keep:
+v0.11.0 may add production read-only classification and offline contracts only.
+It must not claim successful online production reads. It must keep:
 
 ```text
+successful_online_production_reads = false
 production_order_submission_allowed = false
 production_order_mutation_allowed = false
 dashboard_order_controls_allowed = false

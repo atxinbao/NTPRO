@@ -10,8 +10,9 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.11.0` 是当前正式公开发布点；`v0.11.1` 是 release-surface hotfix 队列，
-不增加生产下单、生产订单变更、真实资金、生产交易、自动生产修复或 Dashboard 下单按钮；
+`v0.11.0` 是当前正式公开发布点；它是生产只读合约 + 离线影子组合证据，不是
+生产在线读取成功证明。`v0.11.1` 是 release-surface hotfix 队列，
+不增加生产在线读取 runtime、生产下单、生产订单变更、真实资金、生产交易、自动生产修复或 Dashboard 下单按钮；
 `v0.12.0` 才是下一条 Guarded Live Alpha 能力线。
 
 ## Release Tags
@@ -110,14 +111,14 @@ Does not include:
 Published boundary:
 
 ```text
-Production Read-Only + Shadow Portfolio
+Production Read-Only Contract + Offline Shadow Portfolio
 ```
 
 Includes:
 
 - production endpoint classification;
-- production public read-only contract;
-- owner-gated authenticated account snapshot contract;
+- production public read-only contract, offline fail-closed;
+- owner-gated authenticated account snapshot contract, offline fail-closed;
 - local shadow execution intent artifacts;
 - local shadow portfolio snapshot artifacts;
 - local shadow/read-only lifecycle state evidence;
@@ -129,10 +130,13 @@ Does not include:
 
 - no production order submission;
 - no production cancel, replace, amend, or automatic correction orders;
+- no successful online production public/account reads;
+- no production network-read runtime as completed capability;
 - no real-funds trading;
 - no Dashboard order controls;
 - default CI stays offline;
-- manual online production read-only proof is opt-in only;
+- any future manual online production read-only proof requires a separate
+  owner-gated task and is not completed by v0.11.0;
 - secrets must never be written to artifacts, stdout, logs, docs, or PR bodies.
 
 ### v0.12.0
