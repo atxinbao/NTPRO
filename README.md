@@ -188,6 +188,7 @@ current public milestone.
 Not included in the v0.11.0 product claim:
 
 - Production order submission.
+- Production open-order or order-state reads such as `/api/v3/openOrders`.
 - Production order submit, cancel, replace, amend, or live order management.
 - Successful online production public or account reads.
 - Production network-read runtime presented as completed capability.

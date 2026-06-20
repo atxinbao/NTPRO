@@ -21,8 +21,10 @@ signed query 或 signed URL。它不能说明 NTPRO 已经可以做生产交易�
 | --- | --- | --- | --- | --- |
 | `https://api.binance.com/api/v3/account` | `GET` | `production_authenticated_read_only` | Env-only, redacted | No |
 
-Order endpoints such as `/api/v3/openOrders`, `/api/v3/order`, cancel, replace,
-amend, retry, correction, or unknown production paths remain out of scope for
+Authenticated order-state reads such as `/api/v3/openOrders`,
+`/api/v3/allOrders`, and `/api/v3/order` are not part of this account snapshot
+contract. Mutation endpoints such as order submit, cancel, replace, amend,
+retry, correction, or unknown production paths also remain out of scope for
 V110-003.
 
 ## CLI Contract
@@ -99,5 +101,6 @@ used as evidence of:
 
 - successful online production account reads;
 - open-order reads;
+- order-state reads such as `/api/v3/openOrders`;
 - production order lifecycle readiness;
 - real-funds trading readiness.

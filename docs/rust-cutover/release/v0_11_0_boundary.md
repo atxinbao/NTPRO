@@ -84,7 +84,7 @@ v0.11 may add release-scoped contracts for these read-only surfaces:
 | --- | --- | --- |
 | Endpoint classifier | Classify sandbox, production public read-only, production authenticated read-only, and forbidden mutation endpoints. | No |
 | Public read-only probe | Define public market/server-time style production read contracts and offline fail-closed artifacts. | No |
-| Authenticated account snapshot | Define account/balance snapshot contracts through explicit owner gates and redacted offline artifacts. | No |
+| Authenticated account snapshot | Define `/api/v3/account` account/balance snapshot contracts through explicit owner gates and redacted offline artifacts. This does not include open-order or order-state reads. | No |
 | Shadow execution intent | Build local intent records that explicitly carry `submission_allowed=false`. | No |
 | Shadow portfolio | Build local portfolio snapshots from read-only inputs and local shadow state. | No |
 | Reconciliation events | Record read-only reconciliation observations and risk-halt decisions. | No |
@@ -95,6 +95,8 @@ v0.11 may add release-scoped contracts for these read-only surfaces:
 The following are forbidden in v0.11:
 
 - `POST`, `DELETE`, or mutation-style production Binance endpoints;
+- authenticated production order-state reads such as `/api/v3/openOrders`,
+  `/api/v3/allOrders`, or `/api/v3/order`;
 - production order submit/cancel/replace/amend/retry/correction;
 - strategy-driven production execution;
 - automated remediation that creates, cancels, or amends an exchange order;
