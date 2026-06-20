@@ -7,7 +7,7 @@ NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is
 `ntpro-rust-only-v0.11.0`, the next patch track is `v0.11.1`
 release-surface hotfix cleanup, and the next capability track is `v0.12.0`
-Guarded Live Alpha.
+Production Online Read-Only + Persistent Shadow.
 
 ## Current Release Surface
 
@@ -43,6 +43,13 @@ current public claim remains artifact-first, offline by default,
 read-only/shadow-only from production surfaces, read-only from Dashboard
 surfaces, and explicitly non-production. It does not prove successful online
 production public/account reads.
+
+`v0.12.0` is the candidate Production Online Read-Only + Persistent Shadow
+track for owner release decision. It adds owner-gated production public/account
+`GET` read-only proof paths and local persistent shadow artifacts, while keeping
+production order submission, production order mutation, production order-state
+reads, listenKey lifecycle, real funds, production trading, automatic
+production remediation, and Dashboard order controls out of scope.
 
 ## Published Hardening Patch: v0.7.1
 
@@ -291,13 +298,40 @@ The v0.11.1 patch scope is:
 - automatic production remediation;
 - Dashboard order controls.
 
-## Next Capability Track: v0.12.0
+## Candidate Capability Track: v0.12.0
 
-`v0.12.0` is the next capability track: Guarded Live Alpha. It requires a
-separate scope decision and must not be inferred from v0.11.0 read-only/shadow
-evidence.
+`v0.12.0` is the next capability track: Production Online Read-Only +
+Persistent Shadow. It prepares owner-gated production `GET` read-only proof
+paths and persistent local shadow evidence for owner release decision.
 
-## Corrected Capability Sequence: v0.9.0 through v0.12.0
+The v0.12.0 candidate scope is:
+
+- owner-gated production public read-only online proof;
+- owner-gated authenticated production account snapshot read-only proof;
+- redacted production account response-shape evidence;
+- local shadow portfolio runtime artifact;
+- local persistent shadow strategy session event artifact;
+- local read-only reconciliation classifications;
+- Dashboard v0.12 production shadow read-only panel;
+- v0.12 offline release gates and manual-online fail-closed preflight.
+
+`v0.12.0` explicitly does not include:
+
+- production order submission;
+- production cancel, replace, amend, retry, or correction orders;
+- production open-order or order-state reads;
+- listenKey lifecycle access;
+- strategy-driven production execution;
+- automatic production remediation;
+- production portfolio parity;
+- real funds;
+- production trading;
+- Dashboard order controls.
+
+`v0.13.0` is the earliest possible Guarded Live Alpha candidate and requires a
+separate owner-approved scope decision.
+
+## Corrected Capability Sequence: v0.9.0 through v0.13.0
 
 The previous idea of making `v0.9.0` a Binance testnet order lifecycle proof is
 superseded. `v0.9.0` is now published as Strategy Runtime Foundation, and
@@ -310,7 +344,8 @@ v0.9.0  = local deterministic Strategy Runtime batch foundation
 v0.9.1  = Strategy Runtime Semantics & Audit Hardening
 v0.10.0 = Binance Spot Sandbox Order Proof
 v0.11.0 = Production Read-Only Contract + Offline Shadow Portfolio
-v0.12.0 = Guarded Live Alpha
+v0.12.0 = Production Online Read-Only + Persistent Shadow
+v0.13.0 = Earliest possible Guarded Live Alpha candidate
 ```
 
 `v0.9.0` is the published batch foundation track. It makes `ntpro-node` load a
@@ -342,8 +377,14 @@ Portfolio track. It is contract/offline-shadow only and must not claim
 successful online production reads, submit, cancel, replace, amend, or
 automatically correct production orders.
 
-`v0.12.0` is the next Guarded Live Alpha track and requires a separate scope
-decision before any live command or production trading capability is claimed.
+`v0.12.0` is the Production Online Read-Only + Persistent Shadow candidate. It
+must not be described as production trading readiness, production order
+submission readiness, real-funds readiness, production portfolio parity, or
+Dashboard order-control readiness.
+
+`v0.13.0` is the earliest possible Guarded Live Alpha candidate and requires a
+separate scope decision before any live command or production trading
+capability is claimed.
 
 ## Product Surface Direction
 

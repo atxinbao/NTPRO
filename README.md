@@ -29,9 +29,14 @@ The v0.11.1 readiness and release-note material is prepared for owner release
 decision, but this source tree does not by itself create the
 `ntpro-rust-only-v0.11.1` tag or publish a GitHub Release.
 
-The next capability track after the v0.11.x line is `v0.12.0` Guarded Live
-Alpha. Its boundary requires a separate scope decision and must not be inferred
-from the v0.11.0 read-only/shadow-only release.
+The next capability track after the v0.11.x line is `v0.12.0` Production
+Online Read-Only + Persistent Shadow. Its readiness and release-note material
+is prepared for owner release decision, but this source tree does not by itself
+create the `ntpro-rust-only-v0.12.0` tag or publish a GitHub Release.
+
+`v0.13.0` is the earliest possible Guarded Live Alpha candidate. It requires a
+separate scope decision and must not be inferred from v0.12.0 read-only/shadow
+evidence.
 
 ## Current Status
 
@@ -133,6 +138,12 @@ layers:
   execution/portfolio artifacts, shadow/read-only lifecycle and reconciliation
   models, Dashboard read-only production shadow status, and production order
   counters fixed at zero.
+- `v0.12.0`: candidate Production Online Read-Only + Persistent Shadow package
+  with owner-gated production public/account `GET` read-only proof paths,
+  redacted response-shape evidence, local shadow portfolio runtime, persistent
+  shadow strategy session, local read-only reconciliation, Dashboard v0.12
+  production shadow read-only panel, and v0.12 offline/manual-online preflight
+  release gates.
 
 `v0.5.0` was completed as a scoped readiness milestone and is absorbed into the
 `v0.6.0` release tree. It is not published as a separate public GitHub Release.
@@ -141,6 +152,12 @@ layers:
 offline-only probe semantics, and PR-stage smoke coverage. The `v0.11.1` patch
 track is reserved for release-surface hotfixes after the formal v0.11.0
 publication; it does not add a production trading capability.
+
+The `v0.12.0` candidate track advances beyond v0.11 contracts into owner-gated
+production `GET` read-only proof paths and persistent local shadow artifacts.
+It does not add production order submission, production order mutation,
+production order-state reads, listenKey lifecycle, real funds, production
+trading, automatic production remediation, or Dashboard order controls.
 
 The current release path supports:
 
@@ -183,6 +200,16 @@ The current release path supports:
 - local shadow/read-only order lifecycle state model;
 - local read-only/shadow reconciliation event model;
 - Dashboard read-only production shadow status.
+- owner-gated production public read-only online proof for allowlisted `GET`
+  endpoints;
+- owner-gated authenticated production account snapshot online proof for
+  `GET /api/v3/account`;
+- redacted production account response-shape evidence;
+- local shadow portfolio runtime artifact;
+- local persistent shadow strategy session event artifact;
+- local read-only reconciliation classifications;
+- Dashboard v0.12 production shadow read-only panel;
+- v0.12 offline release gates and manual-online fail-closed preflight.
 
 The v0.3.0 local Supervisor control console and the v0.4.x Binance sandbox
 foundation remain part of validated release history, but they are no longer the
@@ -205,6 +232,24 @@ Not included in the v0.11.0 product claim:
 - Dashboard order buttons, order controls, or credential input.
 - Prebuilt binary or Docker release artifact delivery.
 
+Not included in the v0.12.0 candidate product claim:
+
+- Production order submission.
+- Production open-order or order-state reads such as `/api/v3/openOrders`.
+- Production order submit, cancel, replace, amend, retry, correction, or live
+  order management.
+- Production listenKey lifecycle creation, keepalive, or close.
+- Strategy-driven production execution.
+- Automatic production remediation.
+- Production portfolio parity.
+- Exchange-confirmed shadow fills or positions.
+- Raw account response, raw balances, raw credentials, signatures, signed
+  query, or signed URL persistence.
+- Real funds.
+- Production trading.
+- Dashboard order buttons, order controls, credential input, or reconnect
+  controls.
+
 The v0.7.0 release introduced optional Binance testnet read-only network proof behind
 manual gates. The implemented probe is a public HTTP
 read-only `/api/v3/time` connectivity check; it requires
@@ -226,15 +271,21 @@ Production Read-Only Contract + Offline Shadow Portfolio evidence only. Default
 local and CI runs remain offline, artifact-first, Rust-only,
 read-only/shadow-only, and explicitly non-production.
 
+The v0.12.0 candidate source tree adds owner-gated production `GET` read-only
+proof paths and persistent local shadow runtime artifacts. Default local, PR,
+CI, and release-gate runs still remain offline unless the owner explicitly
+enables the manual-online proof gates.
+
 The v0.9 runtime may load a local strategy session, consume a bounded
 fixture/mock input batch, write signal artifacts, write shadow order-intent and
 risk-decision artifacts, and expose read-only supervisor/Dashboard status. The
 v0.10.0 release proves one owner-gated Binance Spot Demo Mode submit/cancel
 artifact package. The v0.11.0 release adds production read-only contracts and
-local offline shadow evidence, but it does not prove successful online
-production reads, production order submission, production order mutation, real
-funds, production trading readiness, automatic production remediation, or
-Dashboard order controls.
+local offline shadow evidence. The v0.12.0 candidate adds owner-gated
+production online read-only proof paths and persistent shadow artifacts, but it
+does not prove production order submission, production order mutation,
+production order-state reads, real funds, production trading readiness,
+automatic production remediation, or Dashboard order controls.
 
 The scope and readiness documents are:
 
@@ -267,6 +318,10 @@ The scope and readiness documents are:
 - `docs/rust-cutover/release/v0_11_0_release_notes.md`
 - `docs/rust-cutover/release/v0_11_1_readiness_report.md`
 - `docs/rust-cutover/release/v0_11_1_release_notes.md`
+- `docs/rust-cutover/release/v0_12_0_boundary.md`
+- `docs/rust-cutover/release/v0_12_0_release_gates.md`
+- `docs/rust-cutover/release/v0_12_0_readiness_report.md`
+- `docs/rust-cutover/release/v0_12_0_release_notes.md`
 - `docs/versioning.md`
 
 ## Verification
@@ -348,6 +403,15 @@ Release documents:
 - `docs/rust-cutover/release/v0_11_0_release_notes.md`
 - `docs/rust-cutover/release/v0_11_1_readiness_report.md`
 - `docs/rust-cutover/release/v0_11_1_release_notes.md`
+- `docs/rust-cutover/release/v0_12_0_boundary.md`
+- `docs/rust-cutover/release/v0_12_0_response_shape.md`
+- `docs/rust-cutover/release/v0_12_0_shadow_portfolio_runtime.md`
+- `docs/rust-cutover/release/v0_12_0_persistent_shadow_strategy_session.md`
+- `docs/rust-cutover/release/v0_12_0_production_readonly_reconciliation.md`
+- `docs/rust-cutover/release/v0_12_0_dashboard_production_shadow_readonly_panel.md`
+- `docs/rust-cutover/release/v0_12_0_release_gates.md`
+- `docs/rust-cutover/release/v0_12_0_readiness_report.md`
+- `docs/rust-cutover/release/v0_12_0_release_notes.md`
 - `docs/rust-cutover/release/rust_only_release_notes.md`
 - `docs/rust-cutover/release/final_release_verification.md`
 - `docs/rust-cutover/release/final_completion_report.md`
@@ -380,17 +444,20 @@ Start with:
 Production Read-Only Contract + Offline Shadow Portfolio line. `v0.11.1` is the next
 release-surface hotfix track and does not add production order submission,
 production order mutation, real funds, production trading, automatic production
-remediation, or Dashboard order controls. `v0.10.0` remains the Binance spot
-sandbox order-proof baseline, `v0.9.0` remains the local deterministic Strategy
-Runtime batch foundation baseline, `v0.8.0` remains the authenticated Binance
-testnet read-only proof baseline, `v0.7.2` remains the wording/evidence closure
-for the read-only connectivity proof line, `v0.6.1` remains the v0.6 offline
-hardening closure, `v0.6.0` remains the Binance testnet dry-run runtime
-foundation, `v0.5.0` remains a completed internal workflow-artifact milestone
-absorbed into `v0.6.0`, `v0.4.1` remains the Binance sandbox public patch
-baseline, `v0.3.0` remains the Local Supervisor Control Console baseline,
-`v0.2.0` remains the local multi-node runtime foundation baseline, and `v0.1.0`
-remains the first formal Rust-only cutover release and historical baseline.
+remediation, or Dashboard order controls. `v0.12.0` is the candidate Production
+Online Read-Only + Persistent Shadow track for owner release decision, and
+`v0.13.0` is the earliest possible Guarded Live Alpha candidate. `v0.10.0`
+remains the Binance spot sandbox order-proof baseline, `v0.9.0` remains the
+local deterministic Strategy Runtime batch foundation baseline, `v0.8.0`
+remains the authenticated Binance testnet read-only proof baseline, `v0.7.2`
+remains the wording/evidence closure for the read-only connectivity proof line,
+`v0.6.1` remains the v0.6 offline hardening closure, `v0.6.0` remains the
+Binance testnet dry-run runtime foundation, `v0.5.0` remains a completed
+internal workflow-artifact milestone absorbed into `v0.6.0`, `v0.4.1` remains
+the Binance sandbox public patch baseline, `v0.3.0` remains the Local
+Supervisor Control Console baseline, `v0.2.0` remains the local multi-node
+runtime foundation baseline, and `v0.1.0` remains the first formal Rust-only
+cutover release and historical baseline.
 
 Before cutting the next release, review:
 

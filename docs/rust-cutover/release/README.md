@@ -181,6 +181,29 @@ Final release checks, benchmark summaries, and audit reports live here.
   capability claim and does not include successful online production reads,
   production order mutation, real funds, production trading, or Dashboard order
   controls.
+- `v0_12_0_boundary.md` - design boundary for the v0.12.0 Production Online
+  Read-Only + Persistent Shadow candidate. It moves Guarded Live Alpha to the
+  earliest possible v0.13.0 track and keeps v0.12 production mutation out of
+  scope.
+- `v0_12_0_response_shape.md` - redacted account snapshot response-shape
+  evidence contract for v0.12 production account read-only proof.
+- `v0_12_0_shadow_portfolio_runtime.md` - local shadow portfolio runtime
+  contract for v0.12 redacted read-only inputs and shadow intents.
+- `v0_12_0_persistent_shadow_strategy_session.md` - local persistent shadow
+  strategy session event contract for v0.12 artifacts.
+- `v0_12_0_production_readonly_reconciliation.md` - local read-only
+  reconciliation classification contract for v0.12 shadow evidence.
+- `v0_12_0_dashboard_production_shadow_readonly_panel.md` - Dashboard
+  read-only production shadow panel contract for v0.12 artifacts.
+- `v0_12_0_release_gates.md` - v0.12 offline release gate and manual-online
+  fail-closed preflight documentation.
+- `v0_12_0_readiness_report.md` - readiness material for an owner-approved
+  v0.12.0 Production Online Read-Only + Persistent Shadow release. It does not
+  create a tag or publish a GitHub Release.
+- `v0_12_0_release_notes.md` - release-note material for a possible
+  `ntpro-rust-only-v0.12.0` release. It does not claim production order
+  submission, order mutation, order-state reads, real funds, production
+  trading, automatic remediation, or Dashboard order controls.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.

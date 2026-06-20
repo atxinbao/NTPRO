@@ -13,7 +13,8 @@ release notes，不要只看 Cargo workspace version 或 `version.json` 徽章�
 `v0.11.0` 是当前正式公开发布点；它是生产只读合约 + 离线影子组合证据，不是
 生产在线读取成功证明。`v0.11.1` 是 release-surface hotfix 队列，
 不增加生产在线读取 runtime、生产下单、生产订单变更、真实资金、生产交易、自动生产修复或 Dashboard 下单按钮；
-`v0.12.0` 才是下一条 Guarded Live Alpha 能力线。
+`v0.12.0` 是下一条 Production Online Read-Only + Persistent Shadow 候选能力线；
+`v0.13.0` 才是最早可能的 Guarded Live Alpha 候选线。
 
 ## Release Tags
 
@@ -146,14 +147,48 @@ Does not include:
 
 ### v0.12.0
 
+Candidate boundary:
+
+```text
+Production Online Read-Only + Persistent Shadow
+```
+
+Includes:
+
+- owner-gated production public read-only online proof;
+- owner-gated authenticated production account snapshot read-only proof;
+- redacted production account response-shape evidence;
+- local shadow portfolio runtime artifact;
+- local persistent shadow strategy session event artifact;
+- local read-only reconciliation classifications;
+- Dashboard v0.12 production shadow read-only panel;
+- v0.12 offline release gates and manual-online fail-closed preflight.
+
+Does not include:
+
+- no production order submission;
+- no production cancel, replace, amend, retry, or automatic correction orders;
+- no production open-order or order-state reads;
+- no listenKey lifecycle access;
+- no strategy-driven production execution;
+- no automatic production remediation;
+- no production portfolio parity;
+- no real-funds trading;
+- no Dashboard order controls;
+- default CI stays offline;
+- owner-gated online production read-only proof is optional and not required for
+  CI.
+
+### v0.13.0
+
 Planned boundary:
 
 ```text
-Guarded Live Alpha
+Earliest possible Guarded Live Alpha candidate
 ```
 
-v0.12.0 requires a separate scope decision. It must not be inferred from the
-v0.11.0 read-only/shadow-only release.
+v0.13.0 requires a separate owner-approved scope decision. It must not be
+inferred from v0.12.0 production read-only/shadow evidence.
 
 ### v0.6.0
 
