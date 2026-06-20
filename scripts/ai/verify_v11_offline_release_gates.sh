@@ -12,6 +12,9 @@ cd "$ROOT_DIR"
 source scripts/ai/toolchain_env.sh
 
 if [[ "${NTPRO_V11_LIGHTWEIGHT:-0}" == "1" ]]; then
+  echo "== v11 offline release gates: production public read-only probe contract unit tests =="
+  cargo test -p nautilus-cli production_public_read_probe --lib
+
   echo "== v11 offline release gates: authenticated account snapshot contract unit tests =="
   cargo test -p nautilus-cli production_account_snapshot_contract --lib
 else
@@ -27,6 +30,9 @@ else
 
   export NTPRO_V11_SKIP_BUILD=1
   export NTPRO_V11_NAUTILUS_BIN="$NAUTILUS_BIN"
+
+  echo "== v11 offline release gates: production public read-only probe contract =="
+  scripts/ai/verify_v11_public_read_probe.sh
 
   echo "== v11 offline release gates: authenticated account snapshot contract =="
   scripts/ai/verify_v11_authenticated_account_snapshot_contract.sh
