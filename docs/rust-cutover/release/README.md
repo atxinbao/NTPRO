@@ -260,6 +260,15 @@ Final release checks, benchmark summaries, and audit reports live here.
   default execution offline/fail-closed and excluding production order
   submission, mutation, listenKey lifecycle, real funds, production trading,
   automatic remediation, and Dashboard order controls.
+- `v0_14_0_readiness_report.md` - V140-008 readiness report for the v0.14.0
+  Production Order-State Read-Only + Live Alpha Dry-Run release candidate. It
+  accounts for V140-000 through V140-007 and keeps tag creation and GitHub
+  Release publication as an owner release decision.
+- `v0_14_0_release_notes.md` - release-note material for the potential
+  `ntpro-rust-only-v0.14.0` GitHub Release. It preserves owner-gated read-only
+  order-state proof and live-alpha dry-run scope and does not include
+  production order submission, production mutation, listenKey lifecycle, real
+  funds, production trading, or Dashboard order controls.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
