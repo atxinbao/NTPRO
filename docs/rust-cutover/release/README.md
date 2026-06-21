@@ -239,6 +239,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   scientific notation, preserves `rust_decimal` aggregation evidence, and keeps
   live-alpha money math, production mutation, real funds, and production
   trading out of v0.13.
+- `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
+  for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
+  evidence and preserves default offline, no-production-mutation, no-listenKey,
+  no-Dashboard-order-control, no-real-funds, and no-production-trading
+  execution.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
