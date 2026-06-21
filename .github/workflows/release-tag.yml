@@ -112,6 +112,7 @@ jobs:
       RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
       NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
       NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
