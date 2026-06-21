@@ -181,6 +181,10 @@ if owner_mode:
     public_ok = public_exit == 0 and public_report.get("error_code") == "none"
     account_ok = account_exit == 0 and account_report.get("error_code") == "none"
     status = "owner_run_online_ok" if public_ok and account_ok else "owner_run_classified_failure"
+    owner_run_success_included = status == "owner_run_online_ok"
+    owner_run_success_status = (
+        "included" if owner_run_success_included else "not_included_classified_failure"
+    )
 else:
     require(public_exit == 0, public_report)
     require(account_exit == 0, account_report)
@@ -191,14 +195,20 @@ else:
     require(public_report.get("production_public_online_read_attempted") is False, public_report)
     require(account_report.get("account_read_attempted") is False, account_report)
     status = "offline_preflight_ok"
+    owner_run_success_included = False
+    owner_run_success_status = "not_included_default_offline_preflight"
 
 manifest = {
     "schema_version": "ntpro.v130_online_readonly_proof_pack.v1",
     "generated_at_utc": datetime.now(timezone.utc).isoformat(),
     "status": status,
     "mode": "owner_run_online" if owner_mode else "offline_preflight",
+    "wrapper_implemented": True,
     "default_ci_network_required": False,
     "owner_run_online_proof_required_for_release": False,
+    "owner_run_online_success_evidence_required_for_release": False,
+    "owner_run_online_success_evidence_included": owner_run_success_included,
+    "owner_run_online_success_evidence_status": owner_run_success_status,
     "production_order_submission_allowed": False,
     "production_order_mutation_allowed": False,
     "production_order_state_reads_allowed": False,
