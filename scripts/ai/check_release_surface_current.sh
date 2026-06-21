@@ -9,7 +9,6 @@ CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELE
 NEXT_PATCH_VERSION="${NTPRO_NEXT_PATCH_VERSION:-v0.12.1}"
 NEXT_CAPABILITY_VERSION="${NTPRO_NEXT_CAPABILITY_VERSION:-v0.13.0}"
 
-CURRENT_MINOR_LINE="${CURRENT_RELEASE_VERSION%.*}.x"
 CURRENT_RELEASE_STEM="v${CURRENT_RELEASE_VERSION#v}"
 CURRENT_RELEASE_STEM="${CURRENT_RELEASE_STEM//./_}"
 CURRENT_RELEASE_NOTES="docs/rust-cutover/release/${CURRENT_RELEASE_STEM}_release_notes.md"
@@ -37,14 +36,54 @@ require_contains() {
   fi
 }
 
-reject_current_old_release_wording() {
-  local file="$1"
-  if grep -Ein \
-    'current (public |source |published |formal |release |milestone )*(release|source|tag|milestone).*ntpro-rust-only-v0\.[0-9]\.' \
-    "$file" >/tmp/ntpro-release-surface-old-current.txt; then
-    cat /tmp/ntpro-release-surface-old-current.txt >&2
-    fail "current-release wording points to a pre-v0.10 tag in $file"
-  fi
+reject_stale_current_release_wording() {
+  python3 - "$CURRENT_RELEASE_VERSION" "$CURRENT_RELEASE_TAG" "$@" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+current_version = sys.argv[1]
+current_tag = sys.argv[2]
+files = [Path(p) for p in sys.argv[3:]]
+
+def parse_version(value: str) -> tuple[int, int, int]:
+    match = re.search(r"v(\d+)\.(\d+)\.(\d+)", value)
+    if not match:
+        raise SystemExit(f"invalid release version: {value}")
+    return tuple(int(part) for part in match.groups())
+
+current_tuple = parse_version(current_version)
+release_value = re.compile(r"(?:ntpro-rust-only-)?v(\d+)\.(\d+)\.(\d+)")
+context_line = re.compile(
+    r"current|当前|当前正式公开发布点|current public|current source|current published",
+    re.IGNORECASE,
+)
+multiline_context = re.compile(
+    r"current public milestone is|current published release line is|current release line is",
+    re.IGNORECASE,
+)
+
+errors: list[str] = []
+for path in files:
+    pending_context = 0
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        line_has_context = bool(context_line.search(line))
+        if multiline_context.search(line):
+            pending_context = 4
+        should_scan = line_has_context or pending_context > 0
+        if should_scan:
+            for match in release_value.finditer(line):
+                value = tuple(int(part) for part in match.groups())
+                release_text = match.group(0)
+                if value < current_tuple and release_text != current_tag:
+                    errors.append(f"{path}:{number}: stale current release wording -> {line}")
+        if pending_context > 0:
+            pending_context -= 1
+
+if errors:
+    print("\n".join(errors), file=sys.stderr)
+    raise SystemExit(1)
+PY
 }
 
 echo "== release surface current guard =="
@@ -136,8 +175,6 @@ require_contains "$CURRENT_READINESS_REPORT" \
   "Status: PASS" \
   "readiness report PASS status"
 
-reject_current_old_release_wording README.md
-reject_current_old_release_wording ROADMAP.md
-reject_current_old_release_wording docs/versioning.md
+reject_stale_current_release_wording README.md ROADMAP.md docs/versioning.md
 
 echo "release_surface_current_guard=pass"

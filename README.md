@@ -120,7 +120,7 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.11.0 is the current formal release line. It builds on the earlier foundation
+v0.12.0 is the current formal release line. It builds on the earlier foundation
 layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
