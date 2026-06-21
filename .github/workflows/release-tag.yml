@@ -102,6 +102,8 @@ jobs:
             command: scripts/ai/verify_release.sh v12-manual-online-preflight
           - stage: release-v13-no-production-mutation-gate
             command: scripts/ai/verify_release.sh v13-no-production-mutation-gate
+          - stage: release-v14-release-gates
+            command: scripts/ai/verify_release.sh v14-release-gates
           - stage: release-surface-current-guard
             command: scripts/ai/verify_release.sh release-surface-current-guard
           - stage: release-publication-guard
