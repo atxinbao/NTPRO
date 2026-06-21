@@ -251,6 +251,9 @@ Final release checks, benchmark summaries, and audit reports live here.
   order submission, order mutation, order-state reads, listenKey lifecycle,
   real funds, production trading, risk/execution-grade live-alpha money math,
   or Dashboard order controls.
+- `../evidence/V131-001.md` - dedicated v0.13.0 release-closure evidence with
+  exact release commit, hosted Rust Cutover Release Gate run, formal tag,
+  GitHub Release URL, publication flags, and tag/main SHA alignment.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
