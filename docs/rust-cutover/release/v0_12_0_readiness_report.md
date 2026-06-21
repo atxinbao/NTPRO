@@ -33,6 +33,7 @@ default release-gate online proof = not required, fail-closed preflight only
 owner-run successful online proof = optional evidence artifact only
 production read-only response shape = redacted and bounded evidence only
 shadow portfolio runtime = local artifact only
+shadow notional preflight = Decimal/string evidence only, not risk/execution-grade money math
 shadow strategy session = bounded local JSONL event artifact only, not a long-running runtime
 production read-only reconciliation = local classification only
 Dashboard production shadow status = read-only display only
@@ -55,6 +56,7 @@ implemented owner-gated authenticated production account snapshot GET path
 optional owner-run successful online proof artifact contract
 redacted account response-shape validation
 local shadow portfolio runtime artifact
+Decimal/string notional preflight inside the local shadow portfolio runtime artifact
 bounded local shadow strategy session JSONL event artifact
 local production read-only reconciliation classifications
 Dashboard v0.12 production shadow read-only panel
@@ -73,6 +75,7 @@ listenKey creation, keepalive, or close lifecycle
 strategy-driven production execution
 automatic production remediation
 production portfolio parity
+live-alpha risk/execution-grade money math
 exchange-confirmed shadow fills or positions
 raw account response, raw balances, raw credentials, signatures, signed query, or signed URL persistence
 real funds
@@ -95,6 +98,7 @@ Dashboard credential input
 | V120-007 | PASS | `docs/rust-cutover/evidence/V120-007.md` | Adds Dashboard v0.12 production shadow read-only panel. |
 | V120-008 | PASS | `docs/rust-cutover/evidence/V120-008.md` | Wires v0.12 offline release gates and manual-online fail-closed preflight. |
 | V120-009 | PASS CANDIDATE | `docs/rust-cutover/evidence/V120-009.md` | Prepares v0.12 readiness and release notes for owner decision. |
+| V121-008 | PASS CANDIDATE | `docs/rust-cutover/evidence/V121-008.md` | Adds Decimal/string shadow notional preflight evidence and blocks f64 aggregation from live-alpha money-math claims. |
 
 ## Gate Evidence
 
@@ -113,6 +117,7 @@ production public read-only probe preflight
 authenticated account snapshot preflight
 redacted response-shape validation
 local shadow portfolio runtime
+shadow notional preflight with f64_aggregation_used=false
 bounded local shadow strategy session event artifact
 local read-only reconciliation
 Dashboard v0.12 production shadow read-only panel

@@ -5553,6 +5553,7 @@ dependencies = [
  "nautilus-sandbox",
  "nautilus-trading",
  "reqwest 0.13.3",
+ "rust_decimal",
  "serde",
  "serde_json",
  "sysinfo",
