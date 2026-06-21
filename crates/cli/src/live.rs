@@ -45,13 +45,15 @@ use crate::{
     endpoint_classifier::{EndpointAuthKind, EndpointClassifier},
     opt::{
         LiveCommand, LiveOpt, LiveProductionAccountSnapshotContractOpt,
-        LiveProductionKillSwitchApprovalArtifactOpt, LiveProductionPublicReadProbeOpt,
-        LiveProductionReadonlyReconciliationOpt, LiveProductionShadowPortfolioRuntimeOpt,
-        LiveProductionShadowPreflightSessionOpt, LiveProductionShadowStrategySessionOpt,
-        LiveRunOpt, LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveProductionKillSwitchApprovalArtifactOpt, LiveProductionOrderStateReadOnlyProofOpt,
+        LiveProductionPublicReadProbeOpt, LiveProductionReadonlyReconciliationOpt,
+        LiveProductionShadowPortfolioRuntimeOpt, LiveProductionShadowPreflightSessionOpt,
+        LiveProductionShadowStrategySessionOpt, LiveRunOpt,
+        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
         LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
-        ProductionPublicReadEndpoint, TestnetReconciliationScenario,
+        ProductionOrderStateReadEndpoint, ProductionPublicReadEndpoint,
+        TestnetReconciliationScenario,
     },
     process::process_is_alive,
     strategy_session::{
@@ -111,6 +113,20 @@ const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE: &str =
 const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_MANUAL_ONLINE: &str = "NTPRO_V12_MANUAL_ONLINE";
 const PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT: &str = "/api/v3/account";
 const PRODUCTION_ACCOUNT_SNAPSHOT_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
+const PRODUCTION_ORDER_STATE_READONLY_SCHEMA_VERSION: &str =
+    "ntpro.v140_production_order_state_readonly_proof.v1";
+const PRODUCTION_ORDER_STATE_ENV_ALLOW: &str = "NTPRO_ALLOW_PRODUCTION_ORDER_STATE_READ";
+const PRODUCTION_ORDER_STATE_ENV_OWNER_APPROVED: &str =
+    "NTPRO_OWNER_APPROVED_PRODUCTION_ORDER_STATE_READ_ONLY";
+const PRODUCTION_ORDER_STATE_ENV_NO_ORDER_MUTATION: &str =
+    "NTPRO_CONFIRM_PRODUCTION_ORDER_STATE_NO_ORDER_MUTATION";
+const PRODUCTION_ORDER_STATE_ENV_NO_SECRET_PERSISTENCE: &str =
+    "NTPRO_CONFIRM_NO_SECRET_PERSISTENCE";
+const PRODUCTION_ORDER_STATE_ENV_NO_LISTEN_KEY: &str = "NTPRO_CONFIRM_NO_LISTEN_KEY_LIFECYCLE";
+const PRODUCTION_ORDER_STATE_ENV_DASHBOARD_DISABLED: &str =
+    "NTPRO_CONFIRM_DASHBOARD_ORDER_CONTROLS_DISABLED";
+const PRODUCTION_ORDER_STATE_ENV_MANUAL_ONLINE: &str = "NTPRO_V14_MANUAL_ONLINE";
+const PRODUCTION_ORDER_STATE_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 const PRODUCTION_SHADOW_PORTFOLIO_RUNTIME_SCHEMA_VERSION: &str =
     "ntpro.v120_shadow_portfolio_runtime.v1";
 const PRODUCTION_SHADOW_PORTFOLIO_COMPAT_SCHEMA_VERSION: &str =
@@ -979,6 +995,286 @@ impl ProductionAccountSnapshotShapeSummary {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionOrderStateReadOnlyProofReport {
+    schema_version: String,
+    status: String,
+    endpoint: String,
+    endpoint_class: String,
+    http_base_url: String,
+    method: String,
+    path: String,
+    request_url_redacted: String,
+    query_shape: String,
+    symbol: String,
+    order_id_provided: bool,
+    orig_client_order_id_provided: bool,
+    requires_api_key: bool,
+    requires_signature: bool,
+    endpoint_read_allowed: bool,
+    offline_contract_ready: bool,
+    read_allowed: bool,
+    contract_ready: bool,
+    online_read_allowed: bool,
+    mutation_allowed: bool,
+    owner_gate_required: bool,
+    manual_gate_required: bool,
+    missing_cli_flags: Vec<String>,
+    missing_env_vars: Vec<String>,
+    manual_online_requested: bool,
+    online_execution_supported: bool,
+    network_attempted: bool,
+    response_status_code: Option<u16>,
+    response_shape: String,
+    response_shape_validated: bool,
+    response_shape_summary: ProductionOrderStateShapeSummary,
+    latency_ms: Option<u64>,
+    error_code: String,
+    env_credentials_only: bool,
+    api_key_env: String,
+    api_secret_env: String,
+    api_key_present: bool,
+    api_secret_present: bool,
+    api_key_value_recorded: bool,
+    api_secret_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    order_state_read_attempted: bool,
+    production_order_state_reads_attempted: u64,
+    production_order_submission_attempted: bool,
+    production_order_mutation_attempted: bool,
+    cancel_replace_amend_attempted: bool,
+    listen_key_lifecycle_attempted: bool,
+    dashboard_order_controls_enabled: bool,
+    automatic_remediation_attempted: bool,
+    real_orders_submitted: bool,
+    production_trading_enabled: bool,
+    values_are_exchange_truth: bool,
+    secrets_redacted: bool,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ProductionOrderStateHttpResult {
+    status: String,
+    latency_ms: Option<u64>,
+    http_status: Option<u16>,
+    response_shape: String,
+    response_shape_validated: bool,
+    response_shape_summary: ProductionOrderStateShapeSummary,
+    error_code: String,
+    network_attempted: bool,
+    diagnostic: String,
+}
+
+impl ProductionOrderStateHttpResult {
+    #[cfg(test)]
+    fn success(
+        endpoint: ProductionOrderStateReadEndpoint,
+        latency_ms: u64,
+        http_status: u16,
+    ) -> Self {
+        Self::success_with_shape(
+            endpoint,
+            latency_ms,
+            http_status,
+            ProductionOrderStateShapeSummary::accepted_fixture(endpoint),
+        )
+    }
+
+    fn success_with_shape(
+        endpoint: ProductionOrderStateReadEndpoint,
+        latency_ms: u64,
+        http_status: u16,
+        response_shape_summary: ProductionOrderStateShapeSummary,
+    ) -> Self {
+        Self {
+            status: "online_order_state_read_ok".to_string(),
+            latency_ms: Some(latency_ms),
+            http_status: Some(http_status),
+            response_shape: production_order_state_response_shape(endpoint).to_string(),
+            response_shape_validated: response_shape_summary.shape_validated,
+            response_shape_summary,
+            error_code: "none".to_string(),
+            network_attempted: true,
+            diagnostic: format!(
+                "V140 production order-state read-only proof succeeded with GET {} and HTTP {http_status}; raw order response, signatures, signed query, and signed URL were not recorded.",
+                production_order_state_endpoint_path(endpoint),
+            ),
+        }
+    }
+
+    fn failure(
+        endpoint: ProductionOrderStateReadEndpoint,
+        latency_ms: Option<u64>,
+        http_status: Option<u16>,
+        error_code: &str,
+    ) -> Self {
+        Self::failure_with_shape(
+            endpoint,
+            latency_ms,
+            http_status,
+            error_code,
+            ProductionOrderStateShapeSummary::not_attempted(endpoint),
+        )
+    }
+
+    fn failure_with_shape(
+        endpoint: ProductionOrderStateReadEndpoint,
+        latency_ms: Option<u64>,
+        http_status: Option<u16>,
+        error_code: &str,
+        response_shape_summary: ProductionOrderStateShapeSummary,
+    ) -> Self {
+        let status_detail = http_status
+            .map(|status| format!(" HTTP {status}"))
+            .unwrap_or_default();
+        Self {
+            status: "online_order_state_read_failed".to_string(),
+            latency_ms,
+            http_status,
+            response_shape: production_order_state_response_shape(endpoint).to_string(),
+            response_shape_validated: response_shape_summary.shape_validated,
+            response_shape_summary,
+            error_code: error_code.to_string(),
+            network_attempted: true,
+            diagnostic: format!(
+                "V140 production order-state read-only proof attempted GET {} and failed with {error_code}.{status_detail} Raw order response, signatures, signed query, and signed URL were not recorded.",
+                production_order_state_endpoint_path(endpoint),
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionOrderStateShapeSummary {
+    status: String,
+    endpoint: String,
+    root_is_array: bool,
+    root_is_object: bool,
+    order_entry_count: Option<usize>,
+    symbol_present: bool,
+    symbol_is_string: bool,
+    order_id_present: bool,
+    status_present: bool,
+    status_is_string: bool,
+    raw_order_response_recorded: bool,
+    raw_order_list_recorded: bool,
+    shape_validated: bool,
+    rejection_reason: String,
+}
+
+impl ProductionOrderStateShapeSummary {
+    fn not_attempted(endpoint: ProductionOrderStateReadEndpoint) -> Self {
+        Self {
+            status: "not_attempted".to_string(),
+            endpoint: production_order_state_endpoint_name(endpoint).to_string(),
+            root_is_array: false,
+            root_is_object: false,
+            order_entry_count: None,
+            symbol_present: false,
+            symbol_is_string: false,
+            order_id_present: false,
+            status_present: false,
+            status_is_string: false,
+            raw_order_response_recorded: false,
+            raw_order_list_recorded: false,
+            shape_validated: false,
+            rejection_reason: "not_attempted".to_string(),
+        }
+    }
+
+    #[cfg(test)]
+    fn accepted_fixture(endpoint: ProductionOrderStateReadEndpoint) -> Self {
+        match endpoint {
+            ProductionOrderStateReadEndpoint::OpenOrders => Self {
+                status: "accepted".to_string(),
+                endpoint: "open_orders".to_string(),
+                root_is_array: true,
+                root_is_object: false,
+                order_entry_count: Some(0),
+                symbol_present: true,
+                symbol_is_string: true,
+                order_id_present: true,
+                status_present: true,
+                status_is_string: true,
+                raw_order_response_recorded: false,
+                raw_order_list_recorded: false,
+                shape_validated: true,
+                rejection_reason: "none".to_string(),
+            },
+            ProductionOrderStateReadEndpoint::Order => Self {
+                status: "accepted".to_string(),
+                endpoint: "order".to_string(),
+                root_is_array: false,
+                root_is_object: true,
+                order_entry_count: Some(1),
+                symbol_present: true,
+                symbol_is_string: true,
+                order_id_present: true,
+                status_present: true,
+                status_is_string: true,
+                raw_order_response_recorded: false,
+                raw_order_list_recorded: false,
+                shape_validated: true,
+                rejection_reason: "none".to_string(),
+            },
+        }
+    }
+}
+
+struct ProductionOrderStateSignedRequest {
+    method: String,
+    endpoint_path: String,
+    endpoint_url_redacted: String,
+    query_without_signature: String,
+    signature: String,
+    signed_query: String,
+    api_key_header_name: String,
+    api_key_header_value: String,
+}
+
+impl Debug for ProductionOrderStateSignedRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProductionOrderStateSignedRequest")
+            .field("method", &self.method)
+            .field("endpoint_path", &self.endpoint_path)
+            .field("endpoint_url_redacted", &self.endpoint_url_redacted)
+            .field("query_without_signature", &self.query_without_signature)
+            .field("signature", &"<redacted>")
+            .field("signed_query", &"<redacted>")
+            .field("api_key_header_name", &self.api_key_header_name)
+            .field("api_key_header_value", &"<redacted>")
+            .finish()
+    }
+}
+
+impl ProductionOrderStateSignedRequest {
+    fn signed_url_for_execution(&self) -> String {
+        format!("{}?{}", self.endpoint_url_redacted, self.signed_query)
+    }
+
+    fn ensure_redacted(
+        &self,
+        credentials: &EnvOnlyProductionReadCredentials,
+    ) -> anyhow::Result<()> {
+        let body = format!("{self:?}");
+        credentials.ensure_no_secret_values_absent("production-order-state-request", &body)?;
+        for (label, sensitive_value) in [
+            ("signature", self.signature.as_str()),
+            ("signed query", self.signed_query.as_str()),
+            ("API key header value", self.api_key_header_value.as_str()),
+        ] {
+            if !sensitive_value.is_empty() && body.contains(sensitive_value) {
+                anyhow::bail!("production order-state request leaked {label}");
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct ProductionShadowPortfolioRuntimeReport {
     schema_version: String,
     status: String,
@@ -1423,6 +1719,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionAccountSnapshotContract(contract) => {
             run_live_production_account_snapshot_contract(&contract)
         }
+        LiveCommand::ProductionOrderStateReadOnlyProof(proof) => {
+            run_live_production_order_state_readonly_proof(&proof)
+        }
         LiveCommand::ProductionShadowPortfolioRuntime(runtime) => {
             run_live_production_shadow_portfolio_runtime(&runtime)
         }
@@ -1527,6 +1826,12 @@ fn run_live_production_account_snapshot_contract(
     opt: &LiveProductionAccountSnapshotContractOpt,
 ) -> anyhow::Result<()> {
     run_live_production_account_snapshot_contract_with_env(opt, |name| std::env::var(name).ok())
+}
+
+fn run_live_production_order_state_readonly_proof(
+    opt: &LiveProductionOrderStateReadOnlyProofOpt,
+) -> anyhow::Result<()> {
+    run_live_production_order_state_readonly_proof_with_env(opt, |name| std::env::var(name).ok())
 }
 
 fn run_live_production_shadow_portfolio_runtime(
@@ -2415,6 +2720,611 @@ fn summarize_production_account_snapshot_shape(
         }
         .to_string(),
     }
+}
+
+fn run_live_production_order_state_readonly_proof_with_env<F>(
+    opt: &LiveProductionOrderStateReadOnlyProofOpt,
+    mut read_env: F,
+) -> anyhow::Result<()>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    run_live_production_order_state_readonly_proof_with_env_and_http(
+        opt,
+        &mut read_env,
+        execute_production_order_state_read,
+    )
+}
+
+fn run_live_production_order_state_readonly_proof_with_env_and_http<F, H>(
+    opt: &LiveProductionOrderStateReadOnlyProofOpt,
+    read_env: &mut F,
+    mut http_probe: H,
+) -> anyhow::Result<()>
+where
+    F: FnMut(&str) -> Option<String>,
+    H: FnMut(
+        &LiveProductionOrderStateReadOnlyProofOpt,
+        &EnvOnlyProductionReadCredentials,
+        u64,
+    ) -> ProductionOrderStateHttpResult,
+{
+    let missing_cli_flags = missing_production_order_state_cli_flags(opt);
+    let missing_env_vars = missing_production_order_state_env_gates(read_env, opt.manual_online);
+    let credentials = EnvOnlyProductionReadCredentials::from_values(
+        opt.api_key_env.clone(),
+        read_env(&opt.api_key_env),
+        opt.api_secret_env.clone(),
+        read_env(&opt.api_secret_env),
+    );
+    let missing_order_identifier = production_order_state_missing_identifier(opt);
+    let should_attempt_online = should_attempt_production_order_state_read(
+        opt,
+        &credentials,
+        &missing_cli_flags,
+        &missing_env_vars,
+        missing_order_identifier,
+    );
+    let http_result =
+        should_attempt_online.then(|| http_probe(opt, &credentials, opt.recv_window_ms));
+    let report = build_production_order_state_readonly_proof_report(
+        opt,
+        &credentials,
+        &missing_cli_flags,
+        &missing_env_vars,
+        missing_order_identifier,
+        http_result.as_ref(),
+    );
+
+    if let Some(output) = &opt.output {
+        write_production_order_state_readonly_report(output, &report, &credentials)?;
+    }
+
+    println!(
+        "live.production_order_state_readonly_proof status={} endpoint={} endpoint_class={} method={} path={} symbol={} manual_online_requested={} endpoint_read_allowed={} offline_contract_ready={} contract_ready={} online_read_allowed={} online_execution_supported={} read_allowed={} mutation_allowed=false env_credentials_only=true credentials_used={} network_attempted={} order_state_read_attempted={} production_order_state_reads_attempted={} production_order_submission_attempted=false production_order_mutation_attempted=false listen_key_lifecycle_attempted=false dashboard_order_controls_enabled=false secrets_redacted=true response_shape={} response_shape_validated={} error_code={}",
+        report.status,
+        report.endpoint,
+        report.endpoint_class,
+        report.method,
+        report.path,
+        report.symbol,
+        report.manual_online_requested,
+        report.endpoint_read_allowed,
+        report.offline_contract_ready,
+        report.contract_ready,
+        report.online_read_allowed,
+        report.online_execution_supported,
+        report.read_allowed,
+        report.api_key_present && report.api_secret_present,
+        report.network_attempted,
+        report.order_state_read_attempted,
+        report.production_order_state_reads_attempted,
+        report.response_shape,
+        report.response_shape_validated,
+        report.error_code,
+    );
+    Ok(())
+}
+
+fn build_production_order_state_readonly_proof_report(
+    opt: &LiveProductionOrderStateReadOnlyProofOpt,
+    credentials: &EnvOnlyProductionReadCredentials,
+    missing_cli_flags: &[&'static str],
+    missing_env_vars: &[&'static str],
+    missing_order_identifier: bool,
+    http_result: Option<&ProductionOrderStateHttpResult>,
+) -> ProductionOrderStateReadOnlyProofReport {
+    let path = production_order_state_endpoint_path(opt.endpoint);
+    let classified_endpoint = EndpointClassifier::classify(
+        "GET",
+        &format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{path}"),
+        EndpointAuthKind::Signed,
+    );
+    let gates_missing = !missing_cli_flags.is_empty() || !missing_env_vars.is_empty();
+    let credentials_missing = !credentials.api_key_present() || !credentials.api_secret_present();
+    let status = if let Some(result) = http_result {
+        result.status.as_str()
+    } else if gates_missing && opt.manual_online {
+        "blocked_missing_manual_online_gate"
+    } else if gates_missing {
+        "blocked_missing_gate"
+    } else if credentials_missing {
+        "blocked_missing_credentials"
+    } else if missing_order_identifier {
+        "blocked_missing_order_identifier"
+    } else {
+        "ready_offline_contract"
+    };
+    let diagnostic = if let Some(result) = http_result {
+        result.diagnostic.as_str()
+    } else if gates_missing && opt.manual_online {
+        "manual online production order-state read is closed because explicit v0.14 owner gates are missing"
+    } else if gates_missing {
+        "production order-state read-only proof is closed because explicit CLI/env gates are missing"
+    } else if credentials_missing {
+        "production order-state read-only proof requires env-only API key and secret presence"
+    } else if missing_order_identifier {
+        "GET /api/v3/order requires orderId or origClientOrderId before any online proof"
+    } else {
+        "offline production order-state read-only contract is ready; no network was opened"
+    };
+
+    let endpoint_read_allowed = classified_endpoint.read_allowed;
+    let offline_contract_ready = !gates_missing
+        && !credentials_missing
+        && !missing_order_identifier
+        && !opt.manual_online
+        && endpoint_read_allowed;
+    let online_read_allowed = !gates_missing
+        && !credentials_missing
+        && !missing_order_identifier
+        && opt.manual_online
+        && endpoint_read_allowed;
+    let response_shape = http_result.map_or_else(
+        || production_order_state_response_shape(opt.endpoint).to_string(),
+        |result| result.response_shape.clone(),
+    );
+    let order_state_read_attempted = http_result.is_some_and(|result| result.network_attempted);
+
+    ProductionOrderStateReadOnlyProofReport {
+        schema_version: PRODUCTION_ORDER_STATE_READONLY_SCHEMA_VERSION.to_string(),
+        status: status.to_string(),
+        endpoint: production_order_state_endpoint_name(opt.endpoint).to_string(),
+        endpoint_class: classified_endpoint.endpoint_class.as_str().to_string(),
+        http_base_url: BINANCE_PRODUCTION_HTTP_BASE_URL.to_string(),
+        method: classified_endpoint.method,
+        path: classified_endpoint.path,
+        request_url_redacted: production_order_state_redacted_request_url(opt),
+        query_shape: production_order_state_query_shape(opt),
+        symbol: opt.symbol.clone(),
+        order_id_provided: opt.order_id.is_some(),
+        orig_client_order_id_provided: opt.orig_client_order_id.is_some(),
+        requires_api_key: classified_endpoint.requires_api_key,
+        requires_signature: classified_endpoint.requires_signature,
+        endpoint_read_allowed,
+        offline_contract_ready,
+        read_allowed: offline_contract_ready,
+        contract_ready: offline_contract_ready,
+        online_read_allowed,
+        mutation_allowed: classified_endpoint.mutation_allowed,
+        owner_gate_required: classified_endpoint.owner_gate_required,
+        manual_gate_required: true,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        missing_env_vars: missing_env_vars
+            .iter()
+            .map(|name| (*name).to_string())
+            .collect(),
+        manual_online_requested: opt.manual_online,
+        online_execution_supported: opt.manual_online,
+        network_attempted: order_state_read_attempted,
+        response_status_code: http_result.and_then(|result| result.http_status),
+        response_shape,
+        response_shape_validated: http_result.is_some_and(|result| result.response_shape_validated),
+        response_shape_summary: http_result.map_or_else(
+            || ProductionOrderStateShapeSummary::not_attempted(opt.endpoint),
+            |result| result.response_shape_summary.clone(),
+        ),
+        latency_ms: http_result.and_then(|result| result.latency_ms),
+        error_code: http_result.map_or_else(
+            || "not_attempted".to_string(),
+            |result| result.error_code.clone(),
+        ),
+        env_credentials_only: true,
+        api_key_env: credentials.api_key_env.clone(),
+        api_secret_env: credentials.api_secret_env.clone(),
+        api_key_present: credentials.api_key_present(),
+        api_secret_present: credentials.api_secret_present(),
+        api_key_value_recorded: false,
+        api_secret_value_recorded: false,
+        signature_recorded: false,
+        signed_query_recorded: false,
+        signed_url_recorded: false,
+        order_state_read_attempted,
+        production_order_state_reads_attempted: u64::from(order_state_read_attempted),
+        production_order_submission_attempted: false,
+        production_order_mutation_attempted: false,
+        cancel_replace_amend_attempted: false,
+        listen_key_lifecycle_attempted: false,
+        dashboard_order_controls_enabled: false,
+        automatic_remediation_attempted: false,
+        real_orders_submitted: false,
+        production_trading_enabled: false,
+        values_are_exchange_truth: http_result
+            .is_some_and(|result| result.response_shape_validated),
+        secrets_redacted: true,
+        diagnostic: diagnostic.to_string(),
+    }
+}
+
+fn should_attempt_production_order_state_read(
+    opt: &LiveProductionOrderStateReadOnlyProofOpt,
+    credentials: &EnvOnlyProductionReadCredentials,
+    missing_cli_flags: &[&'static str],
+    missing_env_vars: &[&'static str],
+    missing_order_identifier: bool,
+) -> bool {
+    opt.manual_online
+        && missing_cli_flags.is_empty()
+        && missing_env_vars.is_empty()
+        && credentials.api_key_present()
+        && credentials.api_secret_present()
+        && !missing_order_identifier
+}
+
+fn production_order_state_missing_identifier(
+    opt: &LiveProductionOrderStateReadOnlyProofOpt,
+) -> bool {
+    opt.endpoint == ProductionOrderStateReadEndpoint::Order
+        && opt.order_id.is_none()
+        && opt.orig_client_order_id.is_none()
+}
+
+fn build_production_order_state_signed_request(
+    opt: &LiveProductionOrderStateReadOnlyProofOpt,
+    credentials: &EnvOnlyProductionReadCredentials,
+    timestamp_ms: u64,
+    recv_window_ms: u64,
+) -> anyhow::Result<ProductionOrderStateSignedRequest> {
+    if recv_window_ms == 0 {
+        anyhow::bail!("production order-state recvWindow must be positive");
+    }
+    if production_order_state_missing_identifier(opt) {
+        anyhow::bail!("GET /api/v3/order requires orderId or origClientOrderId");
+    }
+
+    let path = production_order_state_endpoint_path(opt.endpoint);
+    let classified_endpoint = EndpointClassifier::classify(
+        "GET",
+        &format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{path}"),
+        EndpointAuthKind::Signed,
+    );
+    if !classified_endpoint.read_allowed || classified_endpoint.mutation_allowed {
+        anyhow::bail!(
+            "production order-state allowlist rejected endpoint {}",
+            classified_endpoint.path
+        );
+    }
+
+    let signing_credential = credentials.signing_credential()?;
+    let mut query_pairs = vec![
+        ("symbol".to_string(), opt.symbol.clone()),
+        ("timestamp".to_string(), timestamp_ms.to_string()),
+        ("recvWindow".to_string(), recv_window_ms.to_string()),
+    ];
+    if let Some(order_id) = opt.order_id {
+        query_pairs.push(("orderId".to_string(), order_id.to_string()));
+    }
+    if let Some(orig_client_order_id) = &opt.orig_client_order_id {
+        query_pairs.push((
+            "origClientOrderId".to_string(),
+            orig_client_order_id.clone(),
+        ));
+    }
+    let query_without_signature = join_query_pair_vec(&query_pairs);
+    let signature =
+        urlencoding::encode(&signing_credential.sign(&query_without_signature)).into_owned();
+    let signed_query = format!("{query_without_signature}&signature={signature}");
+    let request = ProductionOrderStateSignedRequest {
+        method: "GET".to_string(),
+        endpoint_path: path.to_string(),
+        endpoint_url_redacted: format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{path}"),
+        query_without_signature,
+        signature,
+        signed_query,
+        api_key_header_name: BINANCE_API_KEY_HEADER.to_string(),
+        api_key_header_value: signing_credential.api_key().to_string(),
+    };
+    request.ensure_redacted(credentials)?;
+    Ok(request)
+}
+
+fn execute_production_order_state_read(
+    opt: &LiveProductionOrderStateReadOnlyProofOpt,
+    credentials: &EnvOnlyProductionReadCredentials,
+    recv_window_ms: u64,
+) -> ProductionOrderStateHttpResult {
+    match build_production_order_state_signed_request(
+        opt,
+        credentials,
+        current_unix_timestamp_ms().unwrap_or(0),
+        recv_window_ms,
+    ) {
+        Ok(request) => {
+            let signed_url = request.signed_url_for_execution();
+            let api_key_header_name = request.api_key_header_name;
+            let api_key_header_value = request.api_key_header_value;
+            let endpoint = opt.endpoint;
+            std::thread::spawn(move || {
+                execute_production_order_state_read_on_thread(
+                    endpoint,
+                    &signed_url,
+                    &api_key_header_name,
+                    &api_key_header_value,
+                )
+            })
+            .join()
+            .unwrap_or_else(|_| {
+                ProductionOrderStateHttpResult::failure(
+                    opt.endpoint,
+                    None,
+                    None,
+                    "http_probe_thread_panicked",
+                )
+            })
+        }
+        Err(_) => ProductionOrderStateHttpResult::failure(
+            opt.endpoint,
+            None,
+            None,
+            "signed_request_builder_failed",
+        ),
+    }
+}
+
+fn execute_production_order_state_read_on_thread(
+    endpoint: ProductionOrderStateReadEndpoint,
+    signed_url: &str,
+    api_key_header_name: &str,
+    api_key_header_value: &str,
+) -> ProductionOrderStateHttpResult {
+    let started = Instant::now();
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(PRODUCTION_ORDER_STATE_PROBE_TIMEOUT)
+        .user_agent("NTPRO-v140-production-order-state-readonly-proof")
+        .build()
+    {
+        Ok(client) => client,
+        Err(_) => {
+            return ProductionOrderStateHttpResult::failure(
+                endpoint,
+                None,
+                None,
+                "http_client_build_failed",
+            );
+        }
+    };
+
+    match client
+        .get(signed_url)
+        .header(api_key_header_name, api_key_header_value)
+        .send()
+    {
+        Ok(response) => {
+            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            let status = response.status().as_u16();
+            if response.status().is_success() {
+                match response.json::<serde_json::Value>() {
+                    Ok(body) => {
+                        let shape_summary = summarize_production_order_state_shape(endpoint, &body);
+                        if shape_summary.shape_validated {
+                            ProductionOrderStateHttpResult::success_with_shape(
+                                endpoint,
+                                latency_ms,
+                                status,
+                                shape_summary,
+                            )
+                        } else {
+                            ProductionOrderStateHttpResult::failure_with_shape(
+                                endpoint,
+                                Some(latency_ms),
+                                Some(status),
+                                "response_shape_invalid",
+                                shape_summary,
+                            )
+                        }
+                    }
+                    Err(_) => ProductionOrderStateHttpResult::failure(
+                        endpoint,
+                        Some(latency_ms),
+                        Some(status),
+                        "response_shape_invalid",
+                    ),
+                }
+            } else {
+                ProductionOrderStateHttpResult::failure(
+                    endpoint,
+                    Some(latency_ms),
+                    Some(status),
+                    "http_status_not_success",
+                )
+            }
+        }
+        Err(error) => {
+            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            ProductionOrderStateHttpResult::failure(
+                endpoint,
+                Some(latency_ms),
+                error.status().map(|status| status.as_u16()),
+                classify_production_public_read_error(&error),
+            )
+        }
+    }
+}
+
+fn production_order_state_endpoint_name(
+    endpoint: ProductionOrderStateReadEndpoint,
+) -> &'static str {
+    match endpoint {
+        ProductionOrderStateReadEndpoint::OpenOrders => "open_orders",
+        ProductionOrderStateReadEndpoint::Order => "order",
+    }
+}
+
+fn production_order_state_endpoint_path(
+    endpoint: ProductionOrderStateReadEndpoint,
+) -> &'static str {
+    match endpoint {
+        ProductionOrderStateReadEndpoint::OpenOrders => "/api/v3/openOrders",
+        ProductionOrderStateReadEndpoint::Order => "/api/v3/order",
+    }
+}
+
+fn production_order_state_response_shape(
+    endpoint: ProductionOrderStateReadEndpoint,
+) -> &'static str {
+    match endpoint {
+        ProductionOrderStateReadEndpoint::OpenOrders => "binance_open_orders_v1",
+        ProductionOrderStateReadEndpoint::Order => "binance_order_state_v1",
+    }
+}
+
+fn production_order_state_redacted_request_url(
+    opt: &LiveProductionOrderStateReadOnlyProofOpt,
+) -> String {
+    format!(
+        "{}{}?{}&signature=<redacted>",
+        BINANCE_PRODUCTION_HTTP_BASE_URL,
+        production_order_state_endpoint_path(opt.endpoint),
+        production_order_state_query_shape(opt),
+    )
+}
+
+fn production_order_state_query_shape(opt: &LiveProductionOrderStateReadOnlyProofOpt) -> String {
+    let mut parts = vec![
+        "symbol=<redacted>".to_string(),
+        format!("recvWindow={}", opt.recv_window_ms),
+        "timestamp=<redacted>".to_string(),
+    ];
+    if opt.order_id.is_some() {
+        parts.push("orderId=<redacted>".to_string());
+    }
+    if opt.orig_client_order_id.is_some() {
+        parts.push("origClientOrderId=<redacted>".to_string());
+    }
+    parts.join("&")
+}
+
+fn summarize_production_order_state_shape(
+    endpoint: ProductionOrderStateReadEndpoint,
+    body: &serde_json::Value,
+) -> ProductionOrderStateShapeSummary {
+    match endpoint {
+        ProductionOrderStateReadEndpoint::OpenOrders => summarize_open_orders_shape(endpoint, body),
+        ProductionOrderStateReadEndpoint::Order => summarize_single_order_shape(endpoint, body),
+    }
+}
+
+fn summarize_open_orders_shape(
+    endpoint: ProductionOrderStateReadEndpoint,
+    body: &serde_json::Value,
+) -> ProductionOrderStateShapeSummary {
+    let Some(orders) = body.as_array() else {
+        return ProductionOrderStateShapeSummary {
+            status: "rejected".to_string(),
+            root_is_array: false,
+            root_is_object: false,
+            rejection_reason: "root_not_array".to_string(),
+            ..ProductionOrderStateShapeSummary::not_attempted(endpoint)
+        };
+    };
+    let entries_valid = orders.iter().all(order_state_object_has_minimum_shape);
+    ProductionOrderStateShapeSummary {
+        status: if entries_valid {
+            "accepted"
+        } else {
+            "rejected"
+        }
+        .to_string(),
+        endpoint: production_order_state_endpoint_name(endpoint).to_string(),
+        root_is_array: true,
+        root_is_object: false,
+        order_entry_count: Some(orders.len()),
+        symbol_present: orders.is_empty()
+            || orders.iter().all(|entry| {
+                entry
+                    .get("symbol")
+                    .is_some_and(serde_json::Value::is_string)
+            }),
+        symbol_is_string: orders.is_empty()
+            || orders.iter().all(|entry| {
+                entry
+                    .get("symbol")
+                    .is_some_and(serde_json::Value::is_string)
+            }),
+        order_id_present: orders.is_empty()
+            || orders.iter().all(|entry| entry.get("orderId").is_some()),
+        status_present: orders.is_empty()
+            || orders.iter().all(|entry| entry.get("status").is_some()),
+        status_is_string: orders.is_empty()
+            || orders.iter().all(|entry| {
+                entry
+                    .get("status")
+                    .is_some_and(serde_json::Value::is_string)
+            }),
+        raw_order_response_recorded: false,
+        raw_order_list_recorded: false,
+        shape_validated: entries_valid,
+        rejection_reason: if entries_valid {
+            "none"
+        } else {
+            "missing_or_invalid_required_fields"
+        }
+        .to_string(),
+    }
+}
+
+fn summarize_single_order_shape(
+    endpoint: ProductionOrderStateReadEndpoint,
+    body: &serde_json::Value,
+) -> ProductionOrderStateShapeSummary {
+    let Some(object) = body.as_object() else {
+        return ProductionOrderStateShapeSummary {
+            status: "rejected".to_string(),
+            root_is_array: false,
+            root_is_object: false,
+            rejection_reason: "root_not_object".to_string(),
+            ..ProductionOrderStateShapeSummary::not_attempted(endpoint)
+        };
+    };
+    let symbol_is_string = object
+        .get("symbol")
+        .is_some_and(serde_json::Value::is_string);
+    let order_id_present = object.contains_key("orderId");
+    let status_is_string = object
+        .get("status")
+        .is_some_and(serde_json::Value::is_string);
+    let shape_validated = symbol_is_string && order_id_present && status_is_string;
+    ProductionOrderStateShapeSummary {
+        status: if shape_validated {
+            "accepted"
+        } else {
+            "rejected"
+        }
+        .to_string(),
+        endpoint: production_order_state_endpoint_name(endpoint).to_string(),
+        root_is_array: false,
+        root_is_object: true,
+        order_entry_count: Some(1),
+        symbol_present: object.contains_key("symbol"),
+        symbol_is_string,
+        order_id_present,
+        status_present: object.contains_key("status"),
+        status_is_string,
+        raw_order_response_recorded: false,
+        raw_order_list_recorded: false,
+        shape_validated,
+        rejection_reason: if shape_validated {
+            "none"
+        } else {
+            "missing_or_invalid_required_fields"
+        }
+        .to_string(),
+    }
+}
+
+fn order_state_object_has_minimum_shape(value: &serde_json::Value) -> bool {
+    value.as_object().is_some_and(|object| {
+        object
+            .get("symbol")
+            .is_some_and(serde_json::Value::is_string)
+            && object.contains_key("orderId")
+            && object
+                .get("status")
+                .is_some_and(serde_json::Value::is_string)
+    })
 }
 
 fn build_production_shadow_portfolio_runtime_report(
@@ -5170,6 +6080,20 @@ fn join_query_pairs<const N: usize>(pairs: [(&str, &str); N]) -> String {
         .join("&")
 }
 
+fn join_query_pair_vec(pairs: &[(String, String)]) -> String {
+    pairs
+        .iter()
+        .map(|(name, value)| {
+            format!(
+                "{}={}",
+                urlencoding::encode(name),
+                urlencoding::encode(value)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("&")
+}
+
 fn write_secret_redacted_json<T>(
     path: &Path,
     value: &T,
@@ -5188,6 +6112,18 @@ where
 fn write_production_account_snapshot_report(
     path: &Path,
     value: &ProductionAccountSnapshotContractReport,
+    credentials: &EnvOnlyProductionReadCredentials,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    credentials.ensure_no_secret_values_absent(&path.display().to_string(), &body)?;
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
+fn write_production_order_state_readonly_report(
+    path: &Path,
+    value: &ProductionOrderStateReadOnlyProofReport,
     credentials: &EnvOnlyProductionReadCredentials,
 ) -> anyhow::Result<()> {
     let raw = serde_json::to_string_pretty(value)?;
@@ -5382,6 +6318,57 @@ where
         && read_env(PRODUCTION_ACCOUNT_SNAPSHOT_ENV_MANUAL_ONLINE).as_deref() != Some("1")
     {
         missing.push(PRODUCTION_ACCOUNT_SNAPSHOT_ENV_MANUAL_ONLINE);
+    }
+    missing
+}
+
+fn missing_production_order_state_cli_flags(
+    opt: &LiveProductionOrderStateReadOnlyProofOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_order_state_read {
+        missing.push("--allow-production-order-state-read");
+    }
+    if !opt.confirm_owner_approved_read_only {
+        missing.push("--confirm-owner-approved-read-only");
+    }
+    if !opt.confirm_no_order_mutation {
+        missing.push("--confirm-no-order-mutation");
+    }
+    if !opt.confirm_no_secret_persistence {
+        missing.push("--confirm-no-secret-persistence");
+    }
+    if !opt.confirm_no_listen_key_lifecycle {
+        missing.push("--confirm-no-listen-key-lifecycle");
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        missing.push("--confirm-dashboard-order-controls-disabled");
+    }
+    missing
+}
+
+fn missing_production_order_state_env_gates<F>(
+    read_env: &mut F,
+    manual_online_requested: bool,
+) -> Vec<&'static str>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    let mut missing: Vec<&'static str> = [
+        PRODUCTION_ORDER_STATE_ENV_ALLOW,
+        PRODUCTION_ORDER_STATE_ENV_OWNER_APPROVED,
+        PRODUCTION_ORDER_STATE_ENV_NO_ORDER_MUTATION,
+        PRODUCTION_ORDER_STATE_ENV_NO_SECRET_PERSISTENCE,
+        PRODUCTION_ORDER_STATE_ENV_NO_LISTEN_KEY,
+        PRODUCTION_ORDER_STATE_ENV_DASHBOARD_DISABLED,
+    ]
+    .into_iter()
+    .filter(|name| read_env(name).as_deref() != Some("1"))
+    .collect();
+    if manual_online_requested
+        && read_env(PRODUCTION_ORDER_STATE_ENV_MANUAL_ONLINE).as_deref() != Some("1")
+    {
+        missing.push(PRODUCTION_ORDER_STATE_ENV_MANUAL_ONLINE);
     }
     missing
 }
@@ -6248,6 +7235,31 @@ write_summary = true
             confirm_owner_approved_read_only: all_cli_gates,
             confirm_no_order_mutation: all_cli_gates,
             confirm_no_secret_persistence: all_cli_gates,
+        }
+    }
+
+    fn production_order_state_readonly_proof_opt(
+        endpoint: ProductionOrderStateReadEndpoint,
+        output: Option<PathBuf>,
+        all_cli_gates: bool,
+        manual_online: bool,
+    ) -> LiveProductionOrderStateReadOnlyProofOpt {
+        LiveProductionOrderStateReadOnlyProofOpt {
+            endpoint,
+            symbol: "BTCUSDT".to_string(),
+            order_id: (endpoint == ProductionOrderStateReadEndpoint::Order).then_some(12_345),
+            orig_client_order_id: None,
+            output,
+            manual_online,
+            api_key_env: "NTPRO_V140001_API_KEY".to_string(),
+            api_secret_env: "NTPRO_V140001_API_SECRET".to_string(),
+            recv_window_ms: 5_000,
+            allow_production_order_state_read: all_cli_gates,
+            confirm_owner_approved_read_only: all_cli_gates,
+            confirm_no_order_mutation: all_cli_gates,
+            confirm_no_secret_persistence: all_cli_gates,
+            confirm_no_listen_key_lifecycle: all_cli_gates,
+            confirm_dashboard_order_controls_disabled: all_cli_gates,
         }
     }
 
@@ -7861,6 +8873,312 @@ write_summary = true
         );
         assert_eq!(report["production_order_mutation_attempted"], false);
         assert_eq!(report["dashboard_order_controls_enabled"], false);
+    }
+
+    #[test]
+    fn production_order_state_readonly_proof_blocks_missing_gates_without_network() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v140-001-order-state-blocked-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("order-state-proof.json");
+        let opt = production_order_state_readonly_proof_opt(
+            ProductionOrderStateReadEndpoint::OpenOrders,
+            Some(output.clone()),
+            false,
+            false,
+        );
+
+        run_live_production_order_state_readonly_proof_with_env(&opt, |_| None).unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(
+            report["schema_version"],
+            PRODUCTION_ORDER_STATE_READONLY_SCHEMA_VERSION
+        );
+        assert_eq!(report["status"], "blocked_missing_gate");
+        assert_eq!(report["endpoint"], "open_orders");
+        assert_eq!(report["endpoint_class"], "production_order_state_read_only");
+        assert_eq!(report["method"], "GET");
+        assert_eq!(report["path"], "/api/v3/openOrders");
+        assert_eq!(report["requires_api_key"], true);
+        assert_eq!(report["requires_signature"], true);
+        assert_eq!(report["endpoint_read_allowed"], true);
+        assert_eq!(report["offline_contract_ready"], false);
+        assert_eq!(report["read_allowed"], false);
+        assert_eq!(report["contract_ready"], false);
+        assert_eq!(report["online_read_allowed"], false);
+        assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["order_state_read_attempted"], false);
+        assert_eq!(report["production_order_state_reads_attempted"], 0);
+        assert_eq!(report["production_order_submission_attempted"], false);
+        assert_eq!(report["production_order_mutation_attempted"], false);
+        assert_eq!(report["listen_key_lifecycle_attempted"], false);
+        assert_eq!(report["dashboard_order_controls_enabled"], false);
+        assert_eq!(report["secrets_redacted"], true);
+    }
+
+    #[test]
+    fn production_order_state_readonly_proof_writes_ready_offline_redacted_contract() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v140-001-order-state-ready-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("order-state-proof.json");
+        let opt = production_order_state_readonly_proof_opt(
+            ProductionOrderStateReadEndpoint::OpenOrders,
+            Some(output.clone()),
+            true,
+            false,
+        );
+
+        run_live_production_order_state_readonly_proof_with_env(&opt, |name| match name {
+            PRODUCTION_ORDER_STATE_ENV_ALLOW
+            | PRODUCTION_ORDER_STATE_ENV_OWNER_APPROVED
+            | PRODUCTION_ORDER_STATE_ENV_NO_ORDER_MUTATION
+            | PRODUCTION_ORDER_STATE_ENV_NO_SECRET_PERSISTENCE
+            | PRODUCTION_ORDER_STATE_ENV_NO_LISTEN_KEY
+            | PRODUCTION_ORDER_STATE_ENV_DASHBOARD_DISABLED => Some("1".to_string()),
+            "NTPRO_V140001_API_KEY" => Some("ntpro_v140001_synthetic_api_key_value".to_string()),
+            "NTPRO_V140001_API_SECRET" => {
+                Some("ntpro_v140001_synthetic_api_secret_value".to_string())
+            }
+            _ => None,
+        })
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(!body.contains("ntpro_v140001_synthetic_api_key_value"));
+        assert!(!body.contains("ntpro_v140001_synthetic_api_secret_value"));
+        let report: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(report["status"], "ready_offline_contract");
+        assert_eq!(report["endpoint_read_allowed"], true);
+        assert_eq!(report["offline_contract_ready"], true);
+        assert_eq!(report["read_allowed"], true);
+        assert_eq!(report["contract_ready"], true);
+        assert_eq!(report["online_read_allowed"], false);
+        assert_eq!(report["api_key_present"], true);
+        assert_eq!(report["api_secret_present"], true);
+        assert_eq!(report["api_key_value_recorded"], false);
+        assert_eq!(report["api_secret_value_recorded"], false);
+        assert_eq!(report["signature_recorded"], false);
+        assert_eq!(report["signed_query_recorded"], false);
+        assert_eq!(report["signed_url_recorded"], false);
+        assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["order_state_read_attempted"], false);
+        assert_eq!(report["production_order_state_reads_attempted"], 0);
+        assert_eq!(report["production_order_submission_attempted"], false);
+        assert_eq!(report["production_order_mutation_attempted"], false);
+        assert_eq!(report["dashboard_order_controls_enabled"], false);
+        assert_eq!(report["secrets_redacted"], true);
+    }
+
+    #[test]
+    fn production_order_state_readonly_proof_blocks_manual_online_without_v14_owner_gate() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v140-001-order-state-online-blocked-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("order-state-proof.json");
+        let opt = production_order_state_readonly_proof_opt(
+            ProductionOrderStateReadEndpoint::OpenOrders,
+            Some(output.clone()),
+            true,
+            true,
+        );
+        let mut http_called = false;
+        let mut read_env = |name: &str| match name {
+            PRODUCTION_ORDER_STATE_ENV_MANUAL_ONLINE => None,
+            PRODUCTION_ORDER_STATE_ENV_ALLOW
+            | PRODUCTION_ORDER_STATE_ENV_OWNER_APPROVED
+            | PRODUCTION_ORDER_STATE_ENV_NO_ORDER_MUTATION
+            | PRODUCTION_ORDER_STATE_ENV_NO_SECRET_PERSISTENCE
+            | PRODUCTION_ORDER_STATE_ENV_NO_LISTEN_KEY
+            | PRODUCTION_ORDER_STATE_ENV_DASHBOARD_DISABLED => Some("1".to_string()),
+            "NTPRO_V140001_API_KEY" => Some("ntpro_v140001_synthetic_api_key_value".to_string()),
+            "NTPRO_V140001_API_SECRET" => {
+                Some("ntpro_v140001_synthetic_api_secret_value".to_string())
+            }
+            _ => None,
+        };
+
+        run_live_production_order_state_readonly_proof_with_env_and_http(
+            &opt,
+            &mut read_env,
+            |_opt, _credentials, _recv_window_ms| {
+                http_called = true;
+                ProductionOrderStateHttpResult::success(
+                    ProductionOrderStateReadEndpoint::OpenOrders,
+                    1,
+                    200,
+                )
+            },
+        )
+        .unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert!(!http_called);
+        assert_eq!(report["status"], "blocked_missing_manual_online_gate");
+        assert_eq!(report["manual_online_requested"], true);
+        assert_eq!(report["endpoint_read_allowed"], true);
+        assert_eq!(report["offline_contract_ready"], false);
+        assert_eq!(report["read_allowed"], false);
+        assert_eq!(report["contract_ready"], false);
+        assert_eq!(report["online_read_allowed"], false);
+        assert_eq!(report["online_execution_supported"], true);
+        assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["order_state_read_attempted"], false);
+        assert_eq!(report["production_order_state_reads_attempted"], 0);
+        assert_eq!(report["error_code"], "not_attempted");
+        assert_eq!(report["production_order_mutation_attempted"], false);
+    }
+
+    #[test]
+    fn production_order_state_readonly_proof_records_owner_gated_online_success() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v140-001-order-state-online-success-{}",
+            std::process::id()
+        ));
+        let output = output_dir.join("order-state-proof.json");
+        let opt = production_order_state_readonly_proof_opt(
+            ProductionOrderStateReadEndpoint::Order,
+            Some(output.clone()),
+            true,
+            true,
+        );
+        let mut read_env = |name: &str| match name {
+            "NTPRO_V140001_API_KEY" => Some("ntpro_v140001_synthetic_api_key_value".to_string()),
+            "NTPRO_V140001_API_SECRET" => {
+                Some("ntpro_v140001_synthetic_api_secret_value".to_string())
+            }
+            _ => all_env_enabled(name),
+        };
+
+        run_live_production_order_state_readonly_proof_with_env_and_http(
+            &opt,
+            &mut read_env,
+            |proof_opt, credentials, recv_window_ms| {
+                assert_eq!(proof_opt.endpoint, ProductionOrderStateReadEndpoint::Order);
+                assert!(credentials.api_key_present());
+                assert!(credentials.api_secret_present());
+                assert_eq!(recv_window_ms, 5_000);
+                ProductionOrderStateHttpResult::success(
+                    ProductionOrderStateReadEndpoint::Order,
+                    17,
+                    200,
+                )
+            },
+        )
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(!body.contains("ntpro_v140001_synthetic_api_key_value"));
+        assert!(!body.contains("ntpro_v140001_synthetic_api_secret_value"));
+        let report: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(report["status"], "online_order_state_read_ok");
+        assert_eq!(report["endpoint"], "order");
+        assert_eq!(report["method"], "GET");
+        assert_eq!(report["path"], "/api/v3/order");
+        assert_eq!(report["endpoint_read_allowed"], true);
+        assert_eq!(report["offline_contract_ready"], false);
+        assert_eq!(report["read_allowed"], false);
+        assert_eq!(report["contract_ready"], false);
+        assert_eq!(report["online_read_allowed"], true);
+        assert_eq!(report["online_execution_supported"], true);
+        assert_eq!(report["network_attempted"], true);
+        assert_eq!(report["order_state_read_attempted"], true);
+        assert_eq!(report["production_order_state_reads_attempted"], 1);
+        assert_eq!(report["response_status_code"], 200);
+        assert_eq!(report["response_shape"], "binance_order_state_v1");
+        assert_eq!(report["response_shape_validated"], true);
+        assert_eq!(report["latency_ms"], 17);
+        assert_eq!(report["error_code"], "none");
+        assert_eq!(report["production_order_submission_attempted"], false);
+        assert_eq!(report["production_order_mutation_attempted"], false);
+        assert_eq!(report["listen_key_lifecycle_attempted"], false);
+        assert_eq!(report["dashboard_order_controls_enabled"], false);
+        assert_eq!(report["real_orders_submitted"], false);
+        assert_eq!(report["production_trading_enabled"], false);
+        assert_eq!(report["values_are_exchange_truth"], true);
+    }
+
+    #[test]
+    fn production_order_state_signed_request_redacts_secret_values() {
+        let credentials = EnvOnlyProductionReadCredentials::from_values(
+            "NTPRO_V140001_API_KEY".to_string(),
+            Some("ntpro_v140001_synthetic_api_key_value".to_string()),
+            "NTPRO_V140001_API_SECRET".to_string(),
+            Some("ntpro_v140001_synthetic_api_secret_value".to_string()),
+        );
+        let opt = production_order_state_readonly_proof_opt(
+            ProductionOrderStateReadEndpoint::Order,
+            None,
+            true,
+            true,
+        );
+
+        let request = build_production_order_state_signed_request(
+            &opt,
+            &credentials,
+            1_718_400_000_000,
+            5_000,
+        )
+        .unwrap();
+
+        assert_eq!(request.method, "GET");
+        assert_eq!(request.endpoint_path, "/api/v3/order");
+        assert_eq!(request.api_key_header_name, BINANCE_API_KEY_HEADER);
+        assert!(request.query_without_signature.contains("symbol=BTCUSDT"));
+        assert!(request.query_without_signature.contains("orderId=12345"));
+        assert!(request.signed_query.contains("timestamp=1718400000000"));
+        assert_eq!(request.signature.len(), 64);
+        assert!(
+            request
+                .signature
+                .chars()
+                .all(|character| character.is_ascii_hexdigit())
+        );
+
+        let debug_body = format!("{request:?}");
+        assert!(!debug_body.contains("ntpro_v140001_synthetic_api_key_value"));
+        assert!(!debug_body.contains("ntpro_v140001_synthetic_api_secret_value"));
+        assert!(!debug_body.contains(&request.signature));
+        assert!(!debug_body.contains(&request.signed_query));
+    }
+
+    #[test]
+    fn production_order_state_shape_summary_accepts_expected_shapes() {
+        let open_orders = serde_json::json!([
+            {"symbol": "BTCUSDT", "orderId": 12345, "status": "NEW"}
+        ]);
+        let single_order = serde_json::json!({
+            "symbol": "BTCUSDT",
+            "orderId": 12345,
+            "status": "FILLED"
+        });
+
+        let open_summary = summarize_production_order_state_shape(
+            ProductionOrderStateReadEndpoint::OpenOrders,
+            &open_orders,
+        );
+        let order_summary = summarize_production_order_state_shape(
+            ProductionOrderStateReadEndpoint::Order,
+            &single_order,
+        );
+
+        assert!(open_summary.shape_validated);
+        assert_eq!(open_summary.order_entry_count, Some(1));
+        assert!(!open_summary.raw_order_list_recorded);
+        assert!(order_summary.shape_validated);
+        assert_eq!(order_summary.order_entry_count, Some(1));
+        assert!(!order_summary.raw_order_response_recorded);
+
+        let summary_body = serde_json::to_string(&open_summary).unwrap();
+        assert!(!summary_body.contains("BTCUSDT"));
+        assert!(!summary_body.contains("12345"));
+        assert!(!summary_body.contains("NEW"));
     }
 
     #[test]

@@ -162,6 +162,8 @@ pub enum LiveCommand {
     ProductionPublicReadProbe(LiveProductionPublicReadProbeOpt),
     /// Writes a v0.11 authenticated production account snapshot contract without network or orders.
     ProductionAccountSnapshotContract(LiveProductionAccountSnapshotContractOpt),
+    /// Writes a v0.14 owner-gated production order-state read-only proof.
+    ProductionOrderStateReadOnlyProof(LiveProductionOrderStateReadOnlyProofOpt),
     /// Builds local v0.12 shadow portfolio runtime artifacts from redacted read-only inputs.
     ProductionShadowPortfolioRuntime(LiveProductionShadowPortfolioRuntimeOpt),
     /// Writes local v0.12 persistent shadow strategy session events from read-only shadow artifacts.
@@ -420,6 +422,15 @@ pub enum ProductionPublicReadEndpoint {
     ExchangeInfo,
 }
 
+/// v0.14 production order-state read-only proof endpoints.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum ProductionOrderStateReadEndpoint {
+    /// `GET /api/v3/openOrders`.
+    OpenOrders,
+    /// `GET /api/v3/order`.
+    Order,
+}
+
 /// Authenticated production account snapshot contract options.
 #[derive(Parser, Debug, Clone)]
 pub struct LiveProductionAccountSnapshotContractOpt {
@@ -450,6 +461,56 @@ pub struct LiveProductionAccountSnapshotContractOpt {
     /// Confirms API key, secret, signature, signed query, and signed URL must not be persisted.
     #[arg(long)]
     pub confirm_no_secret_persistence: bool,
+}
+
+/// Owner-gated production order-state read-only proof options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionOrderStateReadOnlyProofOpt {
+    /// Production order-state read endpoint to classify.
+    #[arg(long, value_enum, default_value_t = ProductionOrderStateReadEndpoint::OpenOrders)]
+    pub endpoint: ProductionOrderStateReadEndpoint,
+    /// Binance symbol used to bound the order-state read.
+    #[arg(long, default_value = "BTCUSDT")]
+    pub symbol: String,
+    /// Optional Binance order id for `GET /api/v3/order`.
+    #[arg(long)]
+    pub order_id: Option<u64>,
+    /// Optional original client order id for `GET /api/v3/order`.
+    #[arg(long)]
+    pub orig_client_order_id: Option<String>,
+    /// Optional JSON report output path.
+    #[arg(long)]
+    pub output: Option<PathBuf>,
+    /// Requests the manual online order-state read path.
+    #[arg(long)]
+    pub manual_online: bool,
+    /// Environment variable name containing the production read-only API key.
+    #[arg(long, default_value = "BINANCE_PRODUCTION_READONLY_API_KEY")]
+    pub api_key_env: String,
+    /// Environment variable name containing the production read-only API secret.
+    #[arg(long, default_value = "BINANCE_PRODUCTION_READONLY_API_SECRET")]
+    pub api_secret_env: String,
+    /// Binance recvWindow in milliseconds for the signed read.
+    #[arg(long, default_value_t = 5_000)]
+    pub recv_window_ms: u64,
+    /// Manual CLI gate for production order-state reads.
+    #[arg(long)]
+    pub allow_production_order_state_read: bool,
+    /// Confirms owner approval for production order-state read-only evidence.
+    #[arg(long)]
+    pub confirm_owner_approved_read_only: bool,
+    /// Confirms production order submission or mutation remains forbidden.
+    #[arg(long)]
+    pub confirm_no_order_mutation: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL must not be persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+    /// Confirms listenKey lifecycle remains forbidden.
+    #[arg(long)]
+    pub confirm_no_listen_key_lifecycle: bool,
+    /// Confirms Dashboard order controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
 }
 
 /// Local shadow portfolio runtime artifact options.
