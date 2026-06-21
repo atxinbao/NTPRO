@@ -45,11 +45,11 @@ use crate::{
     endpoint_classifier::{EndpointAuthKind, EndpointClassifier},
     opt::{
         LiveCommand, LiveOpt, LiveProductionAccountSnapshotContractOpt,
-        LiveProductionKillSwitchApprovalArtifactOpt, LiveProductionOrderStateReadOnlyProofOpt,
-        LiveProductionPublicReadProbeOpt, LiveProductionReadonlyReconciliationOpt,
-        LiveProductionShadowPortfolioRuntimeOpt, LiveProductionShadowPreflightSessionOpt,
-        LiveProductionShadowStrategySessionOpt, LiveRunOpt,
-        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveProductionKillSwitchApprovalArtifactOpt, LiveProductionLiveAlphaDryRunOrderGateOpt,
+        LiveProductionOrderStateReadOnlyProofOpt, LiveProductionPublicReadProbeOpt,
+        LiveProductionReadonlyReconciliationOpt, LiveProductionShadowPortfolioRuntimeOpt,
+        LiveProductionShadowPreflightSessionOpt, LiveProductionShadowStrategySessionOpt,
+        LiveRunOpt, LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
         LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
         ProductionOrderStateReadEndpoint, ProductionPublicReadEndpoint,
@@ -127,6 +127,8 @@ const PRODUCTION_ORDER_STATE_ENV_DASHBOARD_DISABLED: &str =
     "NTPRO_CONFIRM_DASHBOARD_ORDER_CONTROLS_DISABLED";
 const PRODUCTION_ORDER_STATE_ENV_MANUAL_ONLINE: &str = "NTPRO_V14_MANUAL_ONLINE";
 const PRODUCTION_ORDER_STATE_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
+const PRODUCTION_LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION: &str =
+    "ntpro.v140_live_alpha_dry_run_order_gate.v1";
 const PRODUCTION_SHADOW_PORTFOLIO_RUNTIME_SCHEMA_VERSION: &str =
     "ntpro.v120_shadow_portfolio_runtime.v1";
 const PRODUCTION_SHADOW_PORTFOLIO_COMPAT_SCHEMA_VERSION: &str =
@@ -1054,6 +1056,58 @@ struct ProductionOrderStateReadOnlyProofReport {
     diagnostic: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionLiveAlphaDryRunOrderGateArtifact {
+    schema_version: String,
+    run_id: String,
+    session_id: String,
+    strategy_id: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    symbol: String,
+    side: String,
+    order_type: String,
+    quantity: String,
+    notional: String,
+    owner_gate_required: bool,
+    manual_gate_required: bool,
+    missing_cli_flags: Vec<String>,
+    dry_run_order_intent_recorded: bool,
+    dry_run_order_gate_ready: bool,
+    order_submission_mode: String,
+    production_order_submission_allowed: bool,
+    production_order_mutation_allowed: bool,
+    production_order_state_reads_allowed: bool,
+    listen_key_lifecycle_allowed: bool,
+    production_order_submissions_attempted: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    production_order_state_reads_attempted: u64,
+    listen_key_lifecycle_attempted: u64,
+    cancel_replace_amend_attempted: bool,
+    order_endpoint_access_attempted: bool,
+    execution_adapter_called: bool,
+    matching_engine_submission: bool,
+    actual_submission_count: u64,
+    automatic_correction_orders_submitted: u64,
+    dashboard_order_controls_enabled: bool,
+    external_venue_connection: bool,
+    network_attempted: bool,
+    real_orders_submitted: bool,
+    real_funds: bool,
+    production_trading_enabled: bool,
+    values_are_exchange_truth: bool,
+    no_production_order_submission_confirmed: bool,
+    no_production_order_mutation_confirmed: bool,
+    no_execution_adapter_call_confirmed: bool,
+    no_listen_key_lifecycle_confirmed: bool,
+    dashboard_controls_disabled_confirmed: bool,
+    no_real_funds_confirmed: bool,
+    diagnostic: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProductionOrderStateHttpResult {
     status: String,
@@ -1722,6 +1776,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionOrderStateReadOnlyProof(proof) => {
             run_live_production_order_state_readonly_proof(&proof)
         }
+        LiveCommand::ProductionLiveAlphaDryRunOrderGate(gate) => {
+            run_live_production_live_alpha_dry_run_order_gate(&gate)
+        }
         LiveCommand::ProductionShadowPortfolioRuntime(runtime) => {
             run_live_production_shadow_portfolio_runtime(&runtime)
         }
@@ -1832,6 +1889,22 @@ fn run_live_production_order_state_readonly_proof(
     opt: &LiveProductionOrderStateReadOnlyProofOpt,
 ) -> anyhow::Result<()> {
     run_live_production_order_state_readonly_proof_with_env(opt, |name| std::env::var(name).ok())
+}
+
+fn run_live_production_live_alpha_dry_run_order_gate(
+    opt: &LiveProductionLiveAlphaDryRunOrderGateOpt,
+) -> anyhow::Result<()> {
+    let artifact = build_production_live_alpha_dry_run_order_gate_artifact(opt)?;
+    atomic_write_json(&opt.output, &artifact)?;
+
+    println!(
+        "live.production_live_alpha_dry_run_order_gate status={} run_id={} output={} dry_run_order_gate_ready={} production_order_submissions_attempted=0 production_orders_submitted=0 production_order_mutations_attempted=0 execution_adapter_called=false order_endpoint_access_attempted=false network_attempted=false dashboard_order_controls_enabled=false real_orders_submitted=false",
+        artifact.status,
+        artifact.run_id,
+        opt.output.display(),
+        artifact.dry_run_order_gate_ready,
+    );
+    Ok(())
 }
 
 fn run_live_production_shadow_portfolio_runtime(
@@ -4088,6 +4161,104 @@ fn build_shadow_preflight_session_event(
         values_are_exchange_truth: false,
         diagnostic: input.diagnostic.to_string(),
     }
+}
+
+fn build_production_live_alpha_dry_run_order_gate_artifact(
+    opt: &LiveProductionLiveAlphaDryRunOrderGateOpt,
+) -> anyhow::Result<ProductionLiveAlphaDryRunOrderGateArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+    validate_non_empty("strategy_id", &opt.strategy_id)?;
+    validate_non_empty("symbol", &opt.symbol)?;
+    validate_positive_decimal_string("quantity", &opt.quantity)?;
+    validate_positive_decimal_string("notional", &opt.notional)?;
+
+    let session_id = opt
+        .session_id
+        .as_deref()
+        .unwrap_or(opt.run_id.as_str())
+        .to_string();
+    validate_non_empty("session_id", &session_id)?;
+
+    let side = opt.side.trim().to_ascii_uppercase();
+    if !matches!(side.as_str(), "BUY" | "SELL") {
+        anyhow::bail!("side must be BUY or SELL");
+    }
+    let order_type = opt.order_type.trim().to_ascii_uppercase();
+    if !matches!(order_type.as_str(), "MARKET" | "LIMIT") {
+        anyhow::bail!("order_type must be MARKET or LIMIT");
+    }
+
+    let missing_cli_flags = missing_production_live_alpha_dry_run_order_gate_cli_flags(opt);
+    let dry_run_order_gate_ready = missing_cli_flags.is_empty();
+    let status = if dry_run_order_gate_ready {
+        "ready_dry_run_no_submission"
+    } else {
+        "blocked_missing_gate"
+    };
+
+    Ok(ProductionLiveAlphaDryRunOrderGateArtifact {
+        schema_version: PRODUCTION_LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        session_id,
+        strategy_id: opt.strategy_id.clone(),
+        artifact_type: "live_alpha_dry_run_order_gate".to_string(),
+        status: status.to_string(),
+        created_at: now_millis(),
+        mode: "production_live_alpha_dry_run".to_string(),
+        symbol: opt.symbol.trim().to_string(),
+        side,
+        order_type,
+        quantity: opt.quantity.trim().to_string(),
+        notional: opt.notional.trim().to_string(),
+        owner_gate_required: true,
+        manual_gate_required: true,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        dry_run_order_intent_recorded: dry_run_order_gate_ready,
+        dry_run_order_gate_ready,
+        order_submission_mode: if dry_run_order_gate_ready {
+            "dry_run_no_submission"
+        } else {
+            "blocked_missing_gate"
+        }
+        .to_string(),
+        production_order_submission_allowed: false,
+        production_order_mutation_allowed: false,
+        production_order_state_reads_allowed: false,
+        listen_key_lifecycle_allowed: false,
+        production_order_submissions_attempted: 0,
+        production_orders_submitted: 0,
+        production_order_mutations_attempted: 0,
+        production_order_state_reads_attempted: 0,
+        listen_key_lifecycle_attempted: 0,
+        cancel_replace_amend_attempted: false,
+        order_endpoint_access_attempted: false,
+        execution_adapter_called: false,
+        matching_engine_submission: false,
+        actual_submission_count: 0,
+        automatic_correction_orders_submitted: 0,
+        dashboard_order_controls_enabled: false,
+        external_venue_connection: false,
+        network_attempted: false,
+        real_orders_submitted: false,
+        real_funds: false,
+        production_trading_enabled: false,
+        values_are_exchange_truth: false,
+        no_production_order_submission_confirmed: opt.confirm_no_production_order_submission,
+        no_production_order_mutation_confirmed: opt.confirm_no_production_order_mutation,
+        no_execution_adapter_call_confirmed: opt.confirm_no_execution_adapter_call,
+        no_listen_key_lifecycle_confirmed: opt.confirm_no_listen_key_lifecycle,
+        dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
+        no_real_funds_confirmed: opt.confirm_no_real_funds,
+        diagnostic: if dry_run_order_gate_ready {
+            "local live-alpha dry-run order gate is ready; no production order was submitted or mutated"
+        } else {
+            "live-alpha dry-run order gate is blocked until all explicit owner dry-run confirmations are present"
+        }
+        .to_string(),
+    })
 }
 
 fn build_production_kill_switch_approval_artifact(
@@ -6347,6 +6518,37 @@ fn missing_production_order_state_cli_flags(
     missing
 }
 
+fn missing_production_live_alpha_dry_run_order_gate_cli_flags(
+    opt: &LiveProductionLiveAlphaDryRunOrderGateOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_live_alpha_dry_run {
+        missing.push("--allow-production-live-alpha-dry-run");
+    }
+    if !opt.confirm_owner_approved_dry_run {
+        missing.push("--confirm-owner-approved-dry-run");
+    }
+    if !opt.confirm_no_production_order_submission {
+        missing.push("--confirm-no-production-order-submission");
+    }
+    if !opt.confirm_no_production_order_mutation {
+        missing.push("--confirm-no-production-order-mutation");
+    }
+    if !opt.confirm_no_execution_adapter_call {
+        missing.push("--confirm-no-execution-adapter-call");
+    }
+    if !opt.confirm_no_listen_key_lifecycle {
+        missing.push("--confirm-no-listen-key-lifecycle");
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        missing.push("--confirm-dashboard-order-controls-disabled");
+    }
+    if !opt.confirm_no_real_funds {
+        missing.push("--confirm-no-real-funds");
+    }
+    missing
+}
+
 fn missing_production_order_state_env_gates<F>(
     read_env: &mut F,
     manual_online_requested: bool,
@@ -7260,6 +7462,31 @@ write_summary = true
             confirm_no_secret_persistence: all_cli_gates,
             confirm_no_listen_key_lifecycle: all_cli_gates,
             confirm_dashboard_order_controls_disabled: all_cli_gates,
+        }
+    }
+
+    fn production_live_alpha_dry_run_order_gate_opt(
+        output: PathBuf,
+        all_cli_gates: bool,
+    ) -> LiveProductionLiveAlphaDryRunOrderGateOpt {
+        LiveProductionLiveAlphaDryRunOrderGateOpt {
+            run_id: "v140-live-alpha-dry-run".to_string(),
+            session_id: Some("session-1".to_string()),
+            strategy_id: "ema_cross_btcusdt_v1".to_string(),
+            symbol: "BTCUSDT".to_string(),
+            side: "BUY".to_string(),
+            order_type: "MARKET".to_string(),
+            quantity: "0.001".to_string(),
+            notional: "10.00".to_string(),
+            output,
+            allow_production_live_alpha_dry_run: all_cli_gates,
+            confirm_owner_approved_dry_run: all_cli_gates,
+            confirm_no_production_order_submission: all_cli_gates,
+            confirm_no_production_order_mutation: all_cli_gates,
+            confirm_no_execution_adapter_call: all_cli_gates,
+            confirm_no_listen_key_lifecycle: all_cli_gates,
+            confirm_dashboard_order_controls_disabled: all_cli_gates,
+            confirm_no_real_funds: all_cli_gates,
         }
     }
 
@@ -9708,6 +9935,98 @@ write_summary = true
             "stale_shadow_portfolio_runtime"
         );
         assert_eq!(events[1]["production_orders_submitted"], 0);
+    }
+
+    #[test]
+    fn production_live_alpha_dry_run_order_gate_blocks_missing_owner_flags() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v140-003-live-alpha-dry-run-blocked-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let output = output_dir.join("live_alpha_dry_run_order_gate.json");
+
+        run_live_production_live_alpha_dry_run_order_gate(
+            &production_live_alpha_dry_run_order_gate_opt(output.clone(), false),
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(
+            artifact["schema_version"],
+            PRODUCTION_LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION
+        );
+        assert_eq!(artifact["status"], "blocked_missing_gate");
+        assert_eq!(artifact["dry_run_order_gate_ready"], false);
+        assert_eq!(artifact["dry_run_order_intent_recorded"], false);
+        assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 8);
+        assert_eq!(artifact["production_order_submission_allowed"], false);
+        assert_eq!(artifact["production_order_mutation_allowed"], false);
+        assert_eq!(artifact["production_order_submissions_attempted"], 0);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["order_endpoint_access_attempted"], false);
+        assert_eq!(artifact["execution_adapter_called"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["dashboard_order_controls_enabled"], false);
+        assert_eq!(artifact["real_orders_submitted"], false);
+        assert_eq!(artifact["real_funds"], false);
+    }
+
+    #[test]
+    fn production_live_alpha_dry_run_order_gate_records_ready_no_submission_contract() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v140-003-live-alpha-dry-run-ready-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let output = output_dir.join("live_alpha_dry_run_order_gate.json");
+
+        run_live_production_live_alpha_dry_run_order_gate(
+            &production_live_alpha_dry_run_order_gate_opt(output.clone(), true),
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(
+            artifact["schema_version"],
+            PRODUCTION_LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION
+        );
+        assert_eq!(artifact["status"], "ready_dry_run_no_submission");
+        assert_eq!(artifact["mode"], "production_live_alpha_dry_run");
+        assert_eq!(artifact["symbol"], "BTCUSDT");
+        assert_eq!(artifact["side"], "BUY");
+        assert_eq!(artifact["order_type"], "MARKET");
+        assert_eq!(artifact["quantity"], "0.001");
+        assert_eq!(artifact["notional"], "10.00");
+        assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+        assert_eq!(artifact["dry_run_order_gate_ready"], true);
+        assert_eq!(artifact["dry_run_order_intent_recorded"], true);
+        assert_eq!(artifact["order_submission_mode"], "dry_run_no_submission");
+        assert_eq!(artifact["production_order_submission_allowed"], false);
+        assert_eq!(artifact["production_order_mutation_allowed"], false);
+        assert_eq!(artifact["production_order_state_reads_allowed"], false);
+        assert_eq!(artifact["listen_key_lifecycle_allowed"], false);
+        assert_eq!(artifact["production_order_submissions_attempted"], 0);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["production_order_state_reads_attempted"], 0);
+        assert_eq!(artifact["listen_key_lifecycle_attempted"], 0);
+        assert_eq!(artifact["cancel_replace_amend_attempted"], false);
+        assert_eq!(artifact["order_endpoint_access_attempted"], false);
+        assert_eq!(artifact["execution_adapter_called"], false);
+        assert_eq!(artifact["matching_engine_submission"], false);
+        assert_eq!(artifact["actual_submission_count"], 0);
+        assert_eq!(artifact["automatic_correction_orders_submitted"], 0);
+        assert_eq!(artifact["dashboard_order_controls_enabled"], false);
+        assert_eq!(artifact["external_venue_connection"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["real_orders_submitted"], false);
+        assert_eq!(artifact["real_funds"], false);
+        assert_eq!(artifact["production_trading_enabled"], false);
+        assert_eq!(artifact["values_are_exchange_truth"], false);
     }
 
     #[test]
