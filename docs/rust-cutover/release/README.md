@@ -244,6 +244,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   evidence and preserves default offline, no-production-mutation, no-listenKey,
   no-Dashboard-order-control, no-real-funds, and no-production-trading
   execution.
+- `v0_13_0_readiness_report.md` - released readiness report for the formal
+  `ntpro-rust-only-v0.13.0` Guarded Live Alpha Preflight release.
+- `v0_13_0_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.13.0` GitHub Release. It does not include production
+  order submission, order mutation, order-state reads, listenKey lifecycle,
+  real funds, production trading, risk/execution-grade live-alpha money math,
+  or Dashboard order controls.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.

@@ -10,10 +10,11 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.12.1` 是当前正式公开发布点；它是 Production Online Read-Only +
-Persistent Shadow 的发布证据和公开面加固补丁。它不是生产下单、不是生产订单变更、
-不是真实资金交易，也没有 Dashboard 下单按钮。`v0.13.0` 才是最早可能的 Guarded
-Live Alpha 候选线，但 V130-001 已把它限定为 Guarded Live Alpha Preflight only。
+`v0.13.0` 是当前正式公开发布点；它是 Guarded Live Alpha Preflight，只证明
+live alpha 前的本地/离线/owner-gated 证据链。它不是生产下单、不是生产订单变更、
+不是生产订单状态读取、不是 listenKey 生命周期、不是生产交易，也没有 Dashboard
+下单按钮。`v0.14.0` 需要单独 scope decision，不能从 v0.13.0 的 preflight
+证据里推导出来。
 
 ## Release Tags
 
@@ -29,6 +30,7 @@ ntpro-rust-only-v0.10.0
 ntpro-rust-only-v0.11.0
 ntpro-rust-only-v0.12.0
 ntpro-rust-only-v0.12.1
+ntpro-rust-only-v0.13.0
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -41,16 +43,16 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.12.1
+ntpro-rust-only-v0.13.0
 ```
 
 The active patch track is:
 
 ```text
-v0.12.2
+v0.13.1
 ```
 
-v0.12.2 is the reserved patch track, if needed. It must not be described as
+v0.13.1 is the reserved patch track, if needed. It must not be described as
 production order submission, production order mutation, production order-state
 reads, listenKey lifecycle, real funds, production trading, automatic
 production remediation, or Dashboard order controls.
@@ -179,7 +181,7 @@ Does not include:
 
 ### v0.13.0
 
-Planned boundary:
+Current boundary:
 
 ```text
 Guarded Live Alpha Preflight only
@@ -187,9 +189,20 @@ Guarded Live Alpha Preflight only
 
 V130-001 is the owner-approved scope decision for the v0.13.0 line. It defines
 v0.13.0 as preflight evidence only, not production order submission, production
-order mutation, real-funds trading, production trading, or Dashboard order
-controls. It must not be inferred from v0.12.0 production read-only/shadow
-evidence.
+order mutation, production order-state reads, listenKey lifecycle, real-funds
+trading, production trading, or Dashboard order controls. It must not be
+described as risk/execution-grade live-alpha money math readiness.
+
+### v0.14.0
+
+Future scope:
+
+```text
+requires a separate scope decision
+```
+
+v0.14.0 must not inherit any production trading, production order mutation, or
+Dashboard order-control claim from v0.13.0 preflight evidence.
 
 ### v0.6.0
 

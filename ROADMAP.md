@@ -5,35 +5,27 @@ Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is
-`ntpro-rust-only-v0.12.1`, the Production Online Read-Only + Persistent Shadow
-hardening release for Production Read-Only Evidence & Release Surface
-Hardening. The next patch track is `v0.12.2`, if needed. `v0.13.0` is the
-earliest possible Guarded Live Alpha candidate, but V130 scopes it as Guarded
-Live Alpha Preflight only.
+`ntpro-rust-only-v0.13.0`, the Guarded Live Alpha Preflight release. The next patch track is `v0.13.1`, if needed. `v0.14.0` requires a separate scope decision before any capability may be claimed from v0.13.0 preflight evidence.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.12.1
+ntpro-rust-only-v0.13.0
 ```
 
 Current capability boundary:
 
 ```text
-Production Read-Only Evidence & Release Surface Hardening
-v0.12.0 production online read-only + persistent shadow hardening
-owner-gated production public GET read-only proof
-owner-gated authenticated production account snapshot GET proof
-optional owner-run online proof evidence
-redacted account response-shape evidence
-normalized read artifact semantics
-local shadow portfolio runtime artifact
-Decimal/string shadow notional preflight
-bounded local shadow strategy session event artifact
-local read-only reconciliation classifications
-Dashboard v0.12 production shadow read-only panel
+Guarded Live Alpha Preflight
+local shadow preflight session heartbeat/stop/stale-data evidence
+owner-gated production online read-only proof-pack wrapper
+kill-switch dry-run/manual approval artifact
+trader/ops Dashboard read-only/control boundary
+Decimal/string-only amount preflight
+no-production-mutation release gate
+default local/PR/release execution offline and fail-closed
 production order counters fixed at zero
 production order mutations attempted=0
 production order-state reads attempted=0
@@ -43,13 +35,15 @@ no production trading
 no Dashboard order controls
 ```
 
-`v0.12.0` builds on the v0.11 Production Read-Only Contract + Offline Shadow
-Portfolio line. It adds owner-gated production public/account `GET` read-only
-proof paths and local persistent shadow artifact evidence. The shadow strategy
-session output is a bounded event artifact, not a long-running runtime. It
-keeps production order submission, production order mutation, production
-order-state reads, listenKey lifecycle, real funds, production trading,
-automatic production remediation, and Dashboard order controls out of scope.
+`v0.13.0` builds on the v0.12 Production Online Read-Only + Persistent Shadow
+line. It adds preflight evidence only: shadow preflight session evidence,
+owner-gated read-only proof-pack wrapper, kill-switch dry-run/manual approval
+artifact, Dashboard control-boundary evidence, Decimal/string amount-boundary
+evidence, and release no-production-mutation gate. It keeps production order
+submission, production order mutation, production order-state reads, listenKey
+lifecycle, real funds, production trading, automatic production remediation,
+risk/execution-grade live-alpha money math, and Dashboard order controls out of
+scope.
 
 ## Published Hardening Patch: v0.7.1
 
@@ -329,28 +323,24 @@ The v0.12.0 release scope is:
 - production trading;
 - Dashboard order controls.
 
-## Published Capability Track: v0.12.1
+## Published Capability Track: v0.13.0
 
-`v0.12.1` is the published Production Read-Only Evidence & Release Surface
-Hardening patch for the v0.12 line. It keeps the v0.12.0 read-only/shadow-only
-capability boundary and closes release-publication, release-surface,
-owner-run proof wording, artifact-field semantics, signed WebSocket user stream
-scope, bounded shadow session wording, and Decimal/string notional preflight
-gaps.
+`v0.13.0` is the published Guarded Live Alpha Preflight line. It keeps the
+release default offline/fail-closed and adds preflight evidence only before any
+future live-alpha execution decision.
 
-`v0.12.1` includes:
+`v0.13.0` includes:
 
-- v0.12.0 release-publication surface closure;
-- release surface guard hardening;
-- GitHub Release publication guard;
-- owner-run online proof wording and artifact contract normalization;
-- read artifact field-semantics normalization;
-- signed WebSocket user stream denied/deferred classification;
-- bounded shadow strategy session wording;
-- Decimal/string shadow notional preflight evidence;
+- v0.13 Guarded Live Alpha Preflight scope decision;
+- local shadow preflight session heartbeat/stop/stale-data evidence;
+- owner-gated production online read-only proof-pack wrapper;
+- kill-switch dry-run/manual approval artifact;
+- trader/ops Dashboard read-only/control boundary evidence;
+- Decimal/string-only amount preflight evidence;
+- no-production-mutation PR and release gate;
 - readiness report and release notes.
 
-`v0.12.1` explicitly does not include:
+`v0.13.0` explicitly does not include:
 
 - production order submission;
 - production cancel, replace, amend, retry, or correction orders;
@@ -365,11 +355,9 @@ gaps.
 - production trading;
 - Dashboard order controls.
 
-`v0.13.0` is the earliest possible Guarded Live Alpha candidate. V130-001 is
-the owner-approved scope decision for this line, and it limits v0.13.0 to
-Guarded Live Alpha Preflight only: no production order submission, no
-production cancel/replace/amend/retry/correction, no real funds, no production
-trading, and no Dashboard order controls.
+`v0.12.1` remains the published hardening baseline for the v0.12 production
+read-only/shadow-only line. `v0.14.0` requires a separate scope decision before
+any capability may be claimed from v0.13.0 preflight evidence.
 
 ## Corrected Capability Sequence: v0.9.0 through v0.13.0
 
@@ -429,9 +417,10 @@ production order mutation, listenKey lifecycle, signed WebSocket user stream
 runtime, real-funds, production portfolio parity, or Dashboard order-control
 release.
 
-`v0.13.0` is the earliest possible Guarded Live Alpha candidate. The V130-001
-scope decision limits it to Guarded Live Alpha Preflight only before any live
-command or production trading capability is claimed.
+`v0.13.0` is the published Guarded Live Alpha Preflight line. The V130-001
+scope decision limits it to preflight evidence only before any live command or
+production trading capability is claimed. `v0.14.0` requires a separate scope
+decision before any capability may be claimed from v0.13.0 preflight evidence.
 
 ## Product Surface Direction
 
