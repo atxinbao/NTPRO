@@ -245,6 +245,15 @@ Final release checks, benchmark summaries, and audit reports live here.
   rounding-mode inputs while explicitly keeping v0.13.1 out of
   risk/execution-grade money math, production mutation, real funds, and
   production trading.
+- `v0_13_1_readiness_report.md` - V131-007 readiness report for the v0.13.1
+  Guarded Live Alpha Preflight hardening candidate. It accounts for V131-001
+  through V131-006 and keeps tag creation and GitHub Release publication as an
+  owner release decision.
+- `v0_13_1_release_notes.md` - release-note material for the potential
+  `ntpro-rust-only-v0.13.1` GitHub Release. It is hardening-only and does not
+  include production order submission, order mutation, order-state reads,
+  listenKey lifecycle, real funds, production trading, risk/execution-grade
+  live-alpha money math, or Dashboard order controls.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
