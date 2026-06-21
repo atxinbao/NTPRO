@@ -13,7 +13,7 @@ release notes，不要只看 Cargo workspace version 或 `version.json` 徽章�
 `v0.12.1` 是当前正式公开发布点；它是 Production Online Read-Only +
 Persistent Shadow 的发布证据和公开面加固补丁。它不是生产下单、不是生产订单变更、
 不是真实资金交易，也没有 Dashboard 下单按钮。`v0.13.0` 才是最早可能的 Guarded
-Live Alpha 候选线。
+Live Alpha 候选线，但 V130-001 已把它限定为 Guarded Live Alpha Preflight only。
 
 ## Release Tags
 
@@ -182,11 +182,14 @@ Does not include:
 Planned boundary:
 
 ```text
-Earliest possible Guarded Live Alpha candidate
+Guarded Live Alpha Preflight only
 ```
 
-v0.13.0 requires a separate owner-approved scope decision. It must not be
-inferred from v0.12.0 production read-only/shadow evidence.
+V130-001 is the owner-approved scope decision for the v0.13.0 line. It defines
+v0.13.0 as preflight evidence only, not production order submission, production
+order mutation, real-funds trading, production trading, or Dashboard order
+controls. It must not be inferred from v0.12.0 production read-only/shadow
+evidence.
 
 ### v0.6.0
 
