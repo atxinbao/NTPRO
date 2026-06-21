@@ -39,6 +39,26 @@ It verifies:
 - read-only reconciliation never submits or corrects production orders;
 - Dashboard production shadow panel remains read-only.
 
+## Artifact Field Semantics
+
+v0.12 production read artifacts use separate fields for endpoint
+classification, offline release-gate readiness, and owner-gated online reads:
+
+```text
+endpoint_read_allowed  = the classified HTTP endpoint is a supported read-only GET surface
+offline_contract_ready = all offline gates passed, no manual-online request, no network opened
+online_read_allowed    = all owner online gates passed and the read-only GET may be attempted
+```
+
+`read_allowed` and `contract_ready` remain compatibility fields for existing
+release guards. They must mirror `offline_contract_ready`, not
+`online_read_allowed`.
+
+Plain Chinese summary: `endpoint_read_allowed` 只说明“这个接口本身是只读接口”；
+`offline_contract_ready` 才说明“离线发版合同已就绪”；`online_read_allowed`
+才说明“owner 已打开真实在线只读探测”。旧字段 `read_allowed` 不能再被理解成
+“已经允许真实联网读取”。
+
 ## Manual Online Preflight
 
 The required dry-run preflight is:
@@ -85,6 +105,10 @@ method = GET
 path = /api/v3/time
 network_attempted = true
 production_public_online_read_attempted = true
+endpoint_read_allowed = true
+offline_contract_ready = false
+read_allowed = false
+contract_ready = false
 online_read_allowed = true
 response_shape = binance_server_time_v1
 response_shape_validated = true
@@ -104,6 +128,10 @@ method = GET
 path = /api/v3/account
 network_attempted = true
 account_read_attempted = true
+endpoint_read_allowed = true
+offline_contract_ready = false
+read_allowed = false
+contract_ready = false
 online_read_allowed = true
 response_shape = binance_account_snapshot_v1
 response_shape_validated = true
