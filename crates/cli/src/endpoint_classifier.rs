@@ -250,6 +250,11 @@ fn classify_websocket_endpoint(
     };
 
     let user_stream = auth_kind == EndpointAuthKind::Signed;
+    let decision = if user_stream {
+        EndpointDecision::Deny
+    } else {
+        EndpointDecision::AllowReadOnly
+    };
     classified_endpoint(ClassifiedEndpointInput {
         input_url_redacted,
         method,
@@ -262,12 +267,12 @@ fn classify_websocket_endpoint(
         requires_signature: false,
         requires_api_key: user_stream,
         mutation_allowed: false,
-        read_allowed: true,
+        read_allowed: !user_stream,
         owner_gate_required: user_stream,
         dashboard_order_controls_allowed: false,
-        decision: EndpointDecision::AllowReadOnly,
+        decision,
         reason: if user_stream {
-            "websocket user stream is classified as read-only evidence only"
+            "websocket user stream requires listenKey lifecycle and is deferred for v0.12"
         } else {
             "websocket public stream is classified as read-only evidence only"
         },
@@ -558,12 +563,24 @@ mod tests {
     }
 
     #[test]
-    fn endpoint_classifier_classifies_websocket_read_only_surfaces() {
+    fn endpoint_classifier_classifies_public_websocket_read_only_surface() {
         let public_stream = EndpointClassifier::classify(
             "GET",
             "wss://stream.binance.com/ws/btcusdt@trade",
             EndpointAuthKind::None,
         );
+
+        assert_eq!(
+            public_stream.endpoint_class,
+            EndpointClass::WebsocketPublicReadOnly
+        );
+        assert_eq!(public_stream.decision, EndpointDecision::AllowReadOnly);
+        assert!(public_stream.read_allowed);
+        assert!(!public_stream.mutation_allowed);
+    }
+
+    #[test]
+    fn endpoint_classifier_denies_websocket_user_stream_for_v12() {
         let user_stream = EndpointClassifier::classify(
             "GET",
             "wss://stream.binance.com/ws/<listen-key>",
@@ -571,16 +588,16 @@ mod tests {
         );
 
         assert_eq!(
-            public_stream.endpoint_class,
-            EndpointClass::WebsocketPublicReadOnly
-        );
-        assert_eq!(
             user_stream.endpoint_class,
             EndpointClass::WebsocketUserReadOnly
         );
-        assert!(public_stream.read_allowed);
-        assert!(user_stream.read_allowed);
+        assert_eq!(user_stream.decision, EndpointDecision::Deny);
+        assert!(!user_stream.read_allowed);
         assert!(user_stream.owner_gate_required);
         assert!(!user_stream.mutation_allowed);
+        assert_eq!(
+            user_stream.reason,
+            "websocket user stream requires listenKey lifecycle and is deferred for v0.12"
+        );
     }
 }
