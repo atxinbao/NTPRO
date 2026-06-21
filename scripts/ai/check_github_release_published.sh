@@ -56,6 +56,16 @@ require_file_contains() {
   fi
 }
 
+ensure_origin_main_ref() {
+  if git rev-parse -q --verify origin/main^{commit} >/dev/null; then
+    return 0
+  fi
+
+  if git remote get-url origin >/dev/null 2>&1; then
+    git fetch --no-tags --depth=1 origin +refs/heads/main:refs/remotes/origin/main >/dev/null 2>&1 || true
+  fi
+}
+
 extract_json_field() {
   python3 - "$1" "$2" <<'PY'
 import json
@@ -89,6 +99,8 @@ fi
 if ! git rev-parse -q --verify "${CURRENT_RELEASE_TAG}^{commit}" >/dev/null; then
   fail "missing local git tag: $CURRENT_RELEASE_TAG"
 fi
+
+ensure_origin_main_ref
 
 if ! git rev-parse -q --verify origin/main^{commit} >/dev/null; then
   fail "missing local origin/main ref"
