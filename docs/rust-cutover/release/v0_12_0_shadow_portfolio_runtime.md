@@ -72,6 +72,23 @@ status=derived_from_shadow_intents | unavailable
 reason=derived from local shadow intent notional only; this is not exchange truth
 ```
 
+Notional preflight:
+
+```text
+status=shadow_decimal_string_evidence_only | unavailable_shadow_notional
+aggregation=rust_decimal_string_sum
+f64_aggregation_used=false
+live_alpha_money_math_ready=false
+risk_or_execution_grade=false
+```
+
+The `notional_preflight` section is a v0.12.1 hardening field for the v0.12
+runtime artifact. It records local shadow intent notional sums as Decimal/string
+evidence only, so display and audit surfaces do not depend on `f64`
+aggregation. This is still not risk-grade or execution-grade money math. Any
+future live-alpha risk or execution path must revalidate notional values with a
+dedicated money-math contract before use.
+
 PnL:
 
 ```text

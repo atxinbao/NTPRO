@@ -35,6 +35,7 @@ use nautilus_model::{
     types::Money,
 };
 use nautilus_sandbox::{SandboxExecutionClientConfig, SandboxExecutionClientFactory};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, timeout};
 
@@ -984,6 +985,7 @@ struct ProductionShadowPortfolioRuntimeReport {
     balances: ShadowBalancesSummary,
     positions: Vec<ShadowPositionSummary>,
     exposure: ShadowExposureSummary,
+    notional_preflight: ShadowNotionalPreflight,
     pnl: ShadowPnlSummary,
     risk_summary: ShadowRiskSummary,
     provenance: ShadowPortfolioProvenance,
@@ -1054,6 +1056,18 @@ struct ShadowExposureSummary {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ShadowNotionalPreflight {
+    status: String,
+    aggregation: String,
+    decimal_string_sum: Option<String>,
+    parsed_notional_count: u64,
+    f64_aggregation_used: bool,
+    live_alpha_money_math_ready: bool,
+    risk_or_execution_grade: bool,
+    reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct ShadowPnlSummary {
     realized: Option<String>,
     unrealized: Option<String>,
@@ -1085,7 +1099,8 @@ struct ShadowPortfolioProvenance {
 struct ShadowIntentInputs {
     refs: Vec<ShadowIntentRef>,
     record_count: u64,
-    notional_sum: Option<f64>,
+    notional_sum: Option<Decimal>,
+    parsed_notional_count: u64,
     quote_currency: Option<String>,
 }
 
@@ -2309,6 +2324,7 @@ fn build_production_shadow_portfolio_runtime_report(
 
     let positions = build_shadow_positions(&intent_inputs.refs);
     let exposure = build_shadow_exposure(&intent_inputs);
+    let notional_preflight = build_shadow_notional_preflight(&intent_inputs);
     let pnl = ShadowPnlSummary {
         realized: None,
         unrealized: None,
@@ -2348,6 +2364,7 @@ fn build_production_shadow_portfolio_runtime_report(
         balances,
         positions,
         exposure,
+        notional_preflight,
         pnl,
         risk_summary,
         provenance: ShadowPortfolioProvenance {
@@ -2403,7 +2420,7 @@ fn build_shadow_positions(intents: &[ShadowIntentRef]) -> Vec<ShadowPositionSumm
 }
 
 fn build_shadow_exposure(intent_inputs: &ShadowIntentInputs) -> ShadowExposureSummary {
-    let Some(notional_sum) = intent_inputs.notional_sum else {
+    let Some(notional_sum) = intent_inputs.notional_sum.as_ref() else {
         return ShadowExposureSummary {
             asset: None,
             gross: None,
@@ -2423,6 +2440,28 @@ fn build_shadow_exposure(intent_inputs: &ShadowIntentInputs) -> ShadowExposureSu
         quote_currency: intent_inputs.quote_currency.clone(),
         status: "derived_from_shadow_intents".to_string(),
         reason: "derived from local shadow intent notional only; this is not exchange-confirmed portfolio exposure".to_string(),
+    }
+}
+
+fn build_shadow_notional_preflight(intent_inputs: &ShadowIntentInputs) -> ShadowNotionalPreflight {
+    let has_notional = intent_inputs.notional_sum.is_some();
+    ShadowNotionalPreflight {
+        status: if has_notional {
+            "shadow_decimal_string_evidence_only".to_string()
+        } else {
+            "unavailable_shadow_notional".to_string()
+        },
+        aggregation: "rust_decimal_string_sum".to_string(),
+        decimal_string_sum: intent_inputs.notional_sum.as_ref().map(format_decimal),
+        parsed_notional_count: intent_inputs.parsed_notional_count,
+        f64_aggregation_used: false,
+        live_alpha_money_math_ready: false,
+        risk_or_execution_grade: false,
+        reason: if has_notional {
+            "local shadow intent notionals are summed with Decimal/string evidence for display only; live-alpha risk/execution must revalidate with dedicated money math".to_string()
+        } else {
+            "no parseable shadow intent notional was available; live-alpha risk/execution must revalidate with dedicated money math".to_string()
+        },
     }
 }
 
@@ -2478,7 +2517,7 @@ fn read_shadow_intent_inputs(path: &Path) -> anyhow::Result<ShadowIntentInputs> 
     let raw = fs::read_to_string(path)
         .with_context(|| format!("failed to read shadow intent '{}'", path.display()))?;
     let mut refs = Vec::new();
-    let mut notional_sum = 0.0;
+    let mut notional_sum = Decimal::new(0, 0);
     let mut parsed_notional_count = 0_u64;
     let mut quote_currency = None;
 
@@ -2525,6 +2564,7 @@ fn read_shadow_intent_inputs(path: &Path) -> anyhow::Result<ShadowIntentInputs> 
         record_count: u64::try_from(refs.len()).unwrap_or(u64::MAX),
         refs,
         notional_sum: (parsed_notional_count > 0).then_some(notional_sum),
+        parsed_notional_count,
         quote_currency,
     })
 }
@@ -3233,7 +3273,7 @@ fn json_u64_value(value: &serde_json::Value, field: &str) -> Option<u64> {
     value.get(field).and_then(serde_json::Value::as_u64)
 }
 
-fn parse_non_negative_decimal(value: &str) -> anyhow::Result<f64> {
+fn parse_non_negative_decimal(value: &str) -> anyhow::Result<Decimal> {
     let value = value.trim();
     if value.is_empty() {
         anyhow::bail!("decimal value must not be empty");
@@ -3242,18 +3282,12 @@ fn parse_non_negative_decimal(value: &str) -> anyhow::Result<f64> {
         anyhow::bail!("decimal value must not be negative");
     }
     value
-        .parse::<f64>()
-        .ok()
-        .filter(|parsed| parsed.is_finite())
-        .context("decimal value must parse as finite f64")
+        .parse::<Decimal>()
+        .context("decimal value must parse as Decimal")
 }
 
-fn format_decimal(value: f64) -> String {
-    let formatted = format!("{value:.8}");
-    formatted
-        .trim_end_matches('0')
-        .trim_end_matches('.')
-        .to_string()
+fn format_decimal(value: &Decimal) -> String {
+    value.normalize().to_string()
 }
 
 fn quote_currency_from_symbol(symbol: &str) -> Option<String> {
@@ -5728,10 +5762,14 @@ write_summary = true
     }
 
     fn write_shadow_intent(path: &Path, actual_submission: bool) {
+        write_shadow_intent_with_notional(path, actual_submission, "10.00");
+    }
+
+    fn write_shadow_intent_with_notional(path: &Path, actual_submission: bool, notional: &str) {
         fs::write(
             path,
             format!(
-                r#"{{"schema_version":"ntpro.v110_shadow_execution_intent.v1","run_id":"v120-shadow","intent_id":"intent-1","strategy_id":"ema_cross_btcusdt_v1","symbol":"BTCUSDT.BINANCE","venue":"BINANCE","side":"buy","order_type":"market","quantity":"0.001","notional":"10.00","mode":"production_shadow","submission_allowed":false,"actual_submission":{actual_submission},"submission_status":"blocked_by_v110_shadow_execution_boundary","execution_adapter_called":false,"order_endpoint_access_attempted":false,"production_order_mutation_attempted":false,"dashboard_order_controls_enabled":false}}
+                r#"{{"schema_version":"ntpro.v110_shadow_execution_intent.v1","run_id":"v120-shadow","intent_id":"intent-1","strategy_id":"ema_cross_btcusdt_v1","symbol":"BTCUSDT.BINANCE","venue":"BINANCE","side":"buy","order_type":"market","quantity":"0.001","notional":"{notional}","mode":"production_shadow","submission_allowed":false,"actual_submission":{actual_submission},"submission_status":"blocked_by_v110_shadow_execution_boundary","execution_adapter_called":false,"order_endpoint_access_attempted":false,"production_order_mutation_attempted":false,"dashboard_order_controls_enabled":false}}
 "#
             ),
         )
@@ -7335,6 +7373,25 @@ write_summary = true
         );
         assert_eq!(runtime["exposure"]["status"], "derived_from_shadow_intents");
         assert_eq!(runtime["exposure"]["notional"], "10");
+        assert_eq!(
+            runtime["notional_preflight"]["status"],
+            "shadow_decimal_string_evidence_only"
+        );
+        assert_eq!(
+            runtime["notional_preflight"]["aggregation"],
+            "rust_decimal_string_sum"
+        );
+        assert_eq!(runtime["notional_preflight"]["decimal_string_sum"], "10");
+        assert_eq!(runtime["notional_preflight"]["parsed_notional_count"], 1);
+        assert_eq!(runtime["notional_preflight"]["f64_aggregation_used"], false);
+        assert_eq!(
+            runtime["notional_preflight"]["live_alpha_money_math_ready"],
+            false
+        );
+        assert_eq!(
+            runtime["notional_preflight"]["risk_or_execution_grade"],
+            false
+        );
         assert_eq!(runtime["pnl"]["status"], "unavailable");
         assert_eq!(runtime["risk_summary"]["new_orders_blocked"], true);
         assert_eq!(runtime["production_orders_submitted"], 0);
@@ -7355,6 +7412,58 @@ write_summary = true
         assert_eq!(compat["production_orders_submitted"], 0);
         assert_eq!(compat["dashboard_order_controls_enabled"], false);
         assert_eq!(compat["full_production_portfolio_parity_claimed"], false);
+    }
+
+    #[test]
+    fn production_shadow_portfolio_runtime_preserves_decimal_string_notional_preflight() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v121-008-shadow-portfolio-decimal-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let account_snapshot = output_dir.join("production_account_snapshot_redacted.json");
+        let shadow_intent = output_dir.join("shadow_execution_intent.jsonl");
+        write_redacted_account_snapshot_report(&account_snapshot, true);
+        write_shadow_intent_with_notional(&shadow_intent, false, "0.100000000000000001");
+        fs::write(
+            &shadow_intent,
+            format!(
+                "{}{}",
+                fs::read_to_string(&shadow_intent).unwrap(),
+                r#"{"schema_version":"ntpro.v110_shadow_execution_intent.v1","run_id":"v120-shadow","intent_id":"intent-2","strategy_id":"ema_cross_btcusdt_v1","symbol":"BTCUSDT.BINANCE","venue":"BINANCE","side":"buy","order_type":"market","quantity":"0.001","notional":"0.200000000000000002","mode":"production_shadow","submission_allowed":false,"actual_submission":false,"submission_status":"blocked_by_v110_shadow_execution_boundary","execution_adapter_called":false,"order_endpoint_access_attempted":false,"production_order_mutation_attempted":false,"dashboard_order_controls_enabled":false}
+"#
+            ),
+        )
+        .unwrap();
+
+        let report = build_production_shadow_portfolio_runtime_report(
+            "v120-shadow",
+            Some("portfolio-1"),
+            &account_snapshot,
+            &shadow_intent,
+        )
+        .unwrap();
+
+        assert_eq!(
+            report.notional_preflight.status,
+            "shadow_decimal_string_evidence_only"
+        );
+        assert_eq!(
+            report.notional_preflight.aggregation,
+            "rust_decimal_string_sum"
+        );
+        assert_eq!(
+            report.notional_preflight.decimal_string_sum.as_deref(),
+            Some("0.300000000000000003")
+        );
+        assert_eq!(report.notional_preflight.parsed_notional_count, 2);
+        assert!(!report.notional_preflight.f64_aggregation_used);
+        assert!(!report.notional_preflight.live_alpha_money_math_ready);
+        assert!(!report.notional_preflight.risk_or_execution_grade);
+        assert_eq!(
+            report.exposure.notional.as_deref(),
+            Some("0.300000000000000003")
+        );
     }
 
     #[test]
