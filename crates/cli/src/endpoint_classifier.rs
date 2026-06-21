@@ -27,6 +27,7 @@ pub(crate) enum EndpointClass {
     SandboxSpotTestNetwork,
     ProductionPublicReadOnly,
     ProductionAuthenticatedReadOnly,
+    ProductionOrderStateReadOnly,
     ProductionMutationForbidden,
     WebsocketPublicReadOnly,
     WebsocketUserReadOnly,
@@ -40,6 +41,7 @@ impl EndpointClass {
             Self::SandboxSpotTestNetwork => "sandbox_spot_test_network",
             Self::ProductionPublicReadOnly => "production_public_read_only",
             Self::ProductionAuthenticatedReadOnly => "production_authenticated_read_only",
+            Self::ProductionOrderStateReadOnly => "production_order_state_read_only",
             Self::ProductionMutationForbidden => "production_mutation_forbidden",
             Self::WebsocketPublicReadOnly => "websocket_public_read_only",
             Self::WebsocketUserReadOnly => "websocket_user_read_only",
@@ -159,6 +161,33 @@ fn classify_production_rest_endpoint(
     path: String,
     auth_kind: EndpointAuthKind,
 ) -> ClassifiedEndpoint {
+    if is_production_order_state_readonly_endpoint(&method, &path) {
+        let signed = auth_kind == EndpointAuthKind::Signed;
+        return classified_endpoint(ClassifiedEndpointInput {
+            input_url_redacted,
+            method,
+            host_class: "production",
+            endpoint_class: EndpointClass::ProductionOrderStateReadOnly,
+            requires_signature: true,
+            requires_api_key: true,
+            mutation_allowed: false,
+            read_allowed: signed,
+            owner_gate_required: true,
+            dashboard_order_controls_allowed: false,
+            decision: if signed {
+                EndpointDecision::AllowReadOnly
+            } else {
+                EndpointDecision::Deny
+            },
+            reason: if signed {
+                "owner-approved production order-state read-only endpoint"
+            } else {
+                "production order-state read-only endpoint requires signed credentials"
+            },
+            path,
+        });
+    }
+
     if is_production_order_or_mutation_endpoint(&method, &path) {
         return classified_endpoint(ClassifiedEndpointInput {
             input_url_redacted,
@@ -311,6 +340,10 @@ fn sandbox_endpoint(
         },
         path,
     })
+}
+
+fn is_production_order_state_readonly_endpoint(method: &str, path: &str) -> bool {
+    method == "GET" && matches!(path, "/api/v3/openOrders" | "/api/v3/order")
 }
 
 fn is_production_order_or_mutation_endpoint(method: &str, path: &str) -> bool {
@@ -506,7 +539,7 @@ mod tests {
     }
 
     #[test]
-    fn endpoint_classifier_denies_production_order_read_endpoint() {
+    fn endpoint_classifier_allows_signed_production_order_state_read_endpoint() {
         let endpoint = EndpointClassifier::classify(
             "GET",
             "https://api.binance.com/api/v3/openOrders",
@@ -515,11 +548,38 @@ mod tests {
 
         assert_eq!(
             endpoint.endpoint_class,
-            EndpointClass::ProductionMutationForbidden
+            EndpointClass::ProductionOrderStateReadOnly
+        );
+        assert_eq!(
+            endpoint.endpoint_class.as_str(),
+            "production_order_state_read_only"
+        );
+        assert_eq!(endpoint.decision, EndpointDecision::AllowReadOnly);
+        assert!(endpoint.read_allowed);
+        assert!(!endpoint.mutation_allowed);
+        assert!(endpoint.requires_api_key);
+        assert!(endpoint.requires_signature);
+        assert!(endpoint.owner_gate_required);
+        assert!(!endpoint.dashboard_order_controls_allowed);
+    }
+
+    #[test]
+    fn endpoint_classifier_denies_unsigned_production_order_state_read_endpoint() {
+        let endpoint = EndpointClassifier::classify(
+            "GET",
+            "https://api.binance.com/api/v3/order",
+            EndpointAuthKind::None,
+        );
+
+        assert_eq!(
+            endpoint.endpoint_class,
+            EndpointClass::ProductionOrderStateReadOnly
         );
         assert_eq!(endpoint.decision, EndpointDecision::Deny);
         assert!(!endpoint.read_allowed);
         assert!(!endpoint.mutation_allowed);
+        assert!(endpoint.requires_api_key);
+        assert!(endpoint.requires_signature);
     }
 
     #[test]
