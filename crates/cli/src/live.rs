@@ -15,7 +15,8 @@
 
 use std::{
     fmt::Debug,
-    fs,
+    fs::{self, OpenOptions},
+    io::Write,
     path::{Path, PathBuf},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -45,8 +46,9 @@ use crate::{
     opt::{
         LiveCommand, LiveOpt, LiveProductionAccountSnapshotContractOpt,
         LiveProductionPublicReadProbeOpt, LiveProductionReadonlyReconciliationOpt,
-        LiveProductionShadowPortfolioRuntimeOpt, LiveProductionShadowStrategySessionOpt,
-        LiveRunOpt, LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveProductionShadowPortfolioRuntimeOpt, LiveProductionShadowPreflightSessionOpt,
+        LiveProductionShadowStrategySessionOpt, LiveRunOpt,
+        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
         LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
         ProductionPublicReadEndpoint, TestnetReconciliationScenario,
@@ -115,6 +117,8 @@ const PRODUCTION_SHADOW_PORTFOLIO_COMPAT_SCHEMA_VERSION: &str =
     "ntpro.v110_shadow_portfolio_snapshot.v1";
 const PRODUCTION_SHADOW_STRATEGY_SESSION_EVENT_SCHEMA_VERSION: &str =
     "ntpro.v120_shadow_strategy_session_event.v1";
+const PRODUCTION_SHADOW_PREFLIGHT_SESSION_EVENT_SCHEMA_VERSION: &str =
+    "ntpro.v130_shadow_preflight_session_event.v1";
 const PRODUCTION_READONLY_RECONCILIATION_EVENT_SCHEMA_VERSION: &str =
     "ntpro.v120_readonly_reconciliation_event.v1";
 const START_STOP_SHUTDOWN: &str = "start-stop";
@@ -1178,6 +1182,62 @@ struct ShadowStrategyEventInput<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionShadowPreflightSessionEvent {
+    schema_version: String,
+    run_id: String,
+    session_id: String,
+    strategy_id: String,
+    event_type: String,
+    state: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    heartbeat_seq: Option<u64>,
+    occurred_at: String,
+    shadow_portfolio_runtime_ref: ShadowStrategyPortfolioRuntimeRef,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    strategy_session_status_ref: Option<ShadowStrategySessionStatusRef>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    artifact_gap: Option<ShadowStrategyArtifactGap>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_artifact_age_ms: Option<u64>,
+    stale_after_ms: u64,
+    stale_data_detected: bool,
+    stop_file_observed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stop_file_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shutdown_reason: Option<String>,
+    session_network_attempted: bool,
+    production_order_submissions_attempted: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    production_order_state_reads_attempted: u64,
+    listen_key_lifecycle_attempted: u64,
+    cancel_replace_amend_attempted: bool,
+    actual_submission_count: u64,
+    automatic_correction_orders_submitted: u64,
+    dashboard_order_controls_enabled: bool,
+    real_orders_submitted: bool,
+    values_are_exchange_truth: bool,
+    diagnostic: String,
+}
+
+struct ShadowPreflightEventInput<'a> {
+    opt: &'a LiveProductionShadowPreflightSessionOpt,
+    session_id: &'a str,
+    event_type: &'a str,
+    state: &'a str,
+    heartbeat_seq: Option<u64>,
+    portfolio_ref: &'a ShadowStrategyPortfolioRuntimeRef,
+    session_status_ref: Option<ShadowStrategySessionStatusRef>,
+    artifact_gap: Option<ShadowStrategyArtifactGap>,
+    source_artifact_age_ms: Option<u64>,
+    stale_data_detected: bool,
+    stop_file_observed: bool,
+    shutdown_reason: Option<&'a str>,
+    diagnostic: &'a str,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct ProductionReadonlyReconciliationEvent {
     schema_version: String,
     run_id: String,
@@ -1321,6 +1381,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         }
         LiveCommand::ProductionShadowStrategySession(session) => {
             run_live_production_shadow_strategy_session(&session)
+        }
+        LiveCommand::ProductionShadowPreflightSession(session) => {
+            run_live_production_shadow_preflight_session(&session).await
         }
         LiveCommand::ProductionReadonlyReconciliation(reconciliation) => {
             run_live_production_readonly_reconciliation(&reconciliation)
@@ -1484,6 +1547,23 @@ fn run_live_production_shadow_strategy_session(
         heartbeat_count,
         gap_count,
         final_state,
+    );
+    Ok(())
+}
+
+async fn run_live_production_shadow_preflight_session(
+    opt: &LiveProductionShadowPreflightSessionOpt,
+) -> anyhow::Result<()> {
+    let result = run_production_shadow_preflight_session_loop(opt).await?;
+    println!(
+        "live.production_shadow_preflight_session status=ok run_id={} output={} events={} heartbeats={} final_state={} stop_file_observed={} stale_data_detected={} production_order_submissions_attempted=0 production_order_mutations_attempted=0 session_network_attempted=false dashboard_order_controls_enabled=false values_are_exchange_truth=false",
+        opt.run_id,
+        opt.output.display(),
+        result.events_written,
+        result.heartbeats_written,
+        result.final_state,
+        result.stop_file_observed,
+        result.stale_data_detected,
     );
     Ok(())
 }
@@ -2779,6 +2859,274 @@ fn write_production_shadow_strategy_session_events(
             path.display()
         )
     })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ShadowPreflightLoopResult {
+    events_written: usize,
+    heartbeats_written: u64,
+    final_state: String,
+    stop_file_observed: bool,
+    stale_data_detected: bool,
+}
+
+async fn run_production_shadow_preflight_session_loop(
+    opt: &LiveProductionShadowPreflightSessionOpt,
+) -> anyhow::Result<ShadowPreflightLoopResult> {
+    validate_non_empty("run_id", &opt.run_id)?;
+    validate_non_empty("strategy_id", &opt.strategy_id)?;
+    if opt.max_heartbeats == 0 {
+        anyhow::bail!("max_heartbeats must be greater than zero");
+    }
+    let heartbeat_interval = non_zero_duration("heartbeat_interval_ms", opt.heartbeat_interval_ms)?;
+    let _stale_after = non_zero_duration("stale_after_ms", opt.stale_after_ms)?;
+    let session_id = opt
+        .session_id
+        .as_deref()
+        .unwrap_or(opt.run_id.as_str())
+        .to_string();
+    validate_non_empty("session_id", &session_id)?;
+
+    let portfolio_runtime =
+        read_json_artifact(&opt.shadow_portfolio_runtime, "shadow portfolio runtime")?;
+    ensure_shadow_portfolio_runtime_is_readonly(&portfolio_runtime)?;
+    let portfolio_ref = build_shadow_strategy_portfolio_runtime_ref(
+        &opt.shadow_portfolio_runtime,
+        &portfolio_runtime,
+    );
+    let (session_status_ref, artifact_gap) =
+        read_shadow_strategy_session_status_ref(opt.strategy_session_status.as_deref());
+    let base_state = if artifact_gap.is_some() {
+        "degraded_artifact_gap"
+    } else {
+        "running"
+    };
+
+    let mut writer = create_jsonl_writer(&opt.output)?;
+    let mut events_written = 0_usize;
+    let mut heartbeats_written = 0_u64;
+    let mut terminal_written = false;
+    let mut final_state = base_state.to_string();
+    let mut stop_file_observed = false;
+    let mut stale_data_detected = false;
+
+    append_shadow_preflight_session_event(
+        &mut writer,
+        &build_shadow_preflight_session_event(ShadowPreflightEventInput {
+            opt,
+            session_id: &session_id,
+            event_type: "shadow_preflight_session_started",
+            state: base_state,
+            heartbeat_seq: None,
+            portfolio_ref: &portfolio_ref,
+            session_status_ref: session_status_ref.clone(),
+            artifact_gap: artifact_gap.clone(),
+            source_artifact_age_ms: artifact_age_ms(&opt.shadow_portfolio_runtime)?,
+            stale_data_detected: false,
+            stop_file_observed: false,
+            shutdown_reason: None,
+            diagnostic: "local guarded-live-alpha preflight loop started from read-only shadow artifacts",
+        }),
+    )?;
+    events_written += 1;
+
+    for heartbeat_seq in 1..=opt.max_heartbeats {
+        if stop_file_exists(opt.stop_file.as_deref()) {
+            stop_file_observed = true;
+            final_state = "stopped".to_string();
+            append_shadow_preflight_session_event(
+                &mut writer,
+                &build_shadow_preflight_session_event(ShadowPreflightEventInput {
+                    opt,
+                    session_id: &session_id,
+                    event_type: "shadow_preflight_session_stopped",
+                    state: "stopped",
+                    heartbeat_seq: None,
+                    portfolio_ref: &portfolio_ref,
+                    session_status_ref: session_status_ref.clone(),
+                    artifact_gap: artifact_gap.clone(),
+                    source_artifact_age_ms: artifact_age_ms(&opt.shadow_portfolio_runtime)?,
+                    stale_data_detected: false,
+                    stop_file_observed,
+                    shutdown_reason: Some("owner_stop_file"),
+                    diagnostic: "local owner stop-file observed; preflight loop stopped without production mutation",
+                }),
+            )?;
+            events_written += 1;
+            terminal_written = true;
+            break;
+        }
+
+        let source_artifact_age_ms = artifact_age_ms(&opt.shadow_portfolio_runtime)?;
+        if source_artifact_age_ms.is_some_and(|age_ms| age_ms > opt.stale_after_ms) {
+            stale_data_detected = true;
+            final_state = "stale_data_halted".to_string();
+            append_shadow_preflight_session_event(
+                &mut writer,
+                &build_shadow_preflight_session_event(ShadowPreflightEventInput {
+                    opt,
+                    session_id: &session_id,
+                    event_type: "shadow_preflight_stale_data_detected",
+                    state: "stale_data_halted",
+                    heartbeat_seq: None,
+                    portfolio_ref: &portfolio_ref,
+                    session_status_ref: session_status_ref.clone(),
+                    artifact_gap: artifact_gap.clone(),
+                    source_artifact_age_ms,
+                    stale_data_detected,
+                    stop_file_observed: false,
+                    shutdown_reason: Some("stale_shadow_portfolio_runtime"),
+                    diagnostic: "shadow portfolio runtime artifact exceeded stale threshold; preflight loop halted without production mutation",
+                }),
+            )?;
+            events_written += 1;
+            terminal_written = true;
+            break;
+        }
+
+        append_shadow_preflight_session_event(
+            &mut writer,
+            &build_shadow_preflight_session_event(ShadowPreflightEventInput {
+                opt,
+                session_id: &session_id,
+                event_type: "shadow_preflight_session_heartbeat",
+                state: base_state,
+                heartbeat_seq: Some(heartbeat_seq),
+                portfolio_ref: &portfolio_ref,
+                session_status_ref: session_status_ref.clone(),
+                artifact_gap: artifact_gap.clone(),
+                source_artifact_age_ms,
+                stale_data_detected: false,
+                stop_file_observed: false,
+                shutdown_reason: None,
+                diagnostic: "local guarded-live-alpha preflight heartbeat; no production mutation attempted",
+            }),
+        )?;
+        events_written += 1;
+        heartbeats_written += 1;
+
+        if heartbeat_seq < opt.max_heartbeats {
+            sleep(heartbeat_interval).await;
+        }
+    }
+
+    if !terminal_written {
+        final_state = "stopped".to_string();
+        append_shadow_preflight_session_event(
+            &mut writer,
+            &build_shadow_preflight_session_event(ShadowPreflightEventInput {
+                opt,
+                session_id: &session_id,
+                event_type: "shadow_preflight_session_stopped",
+                state: "stopped",
+                heartbeat_seq: None,
+                portfolio_ref: &portfolio_ref,
+                session_status_ref,
+                artifact_gap,
+                source_artifact_age_ms: artifact_age_ms(&opt.shadow_portfolio_runtime)?,
+                stale_data_detected: false,
+                stop_file_observed: false,
+                shutdown_reason: Some("max_heartbeats_reached"),
+                diagnostic: "local max heartbeat bound reached; preflight loop stopped without production mutation",
+            }),
+        )?;
+        events_written += 1;
+    }
+
+    writer.flush().with_context(|| {
+        format!(
+            "failed to flush shadow preflight session '{}'",
+            opt.output.display()
+        )
+    })?;
+
+    Ok(ShadowPreflightLoopResult {
+        events_written,
+        heartbeats_written,
+        final_state,
+        stop_file_observed,
+        stale_data_detected,
+    })
+}
+
+fn create_jsonl_writer(path: &Path) -> anyhow::Result<fs::File> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create output directory '{}'", parent.display()))?;
+    }
+    OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(path)
+        .with_context(|| format!("failed to open JSONL output '{}'", path.display()))
+}
+
+fn append_shadow_preflight_session_event(
+    writer: &mut fs::File,
+    event: &ProductionShadowPreflightSessionEvent,
+) -> anyhow::Result<()> {
+    serde_json::to_writer(&mut *writer, event)?;
+    writer.write_all(b"\n")?;
+    writer.flush()?;
+    Ok(())
+}
+
+fn build_shadow_preflight_session_event(
+    input: ShadowPreflightEventInput<'_>,
+) -> ProductionShadowPreflightSessionEvent {
+    ProductionShadowPreflightSessionEvent {
+        schema_version: PRODUCTION_SHADOW_PREFLIGHT_SESSION_EVENT_SCHEMA_VERSION.to_string(),
+        run_id: input.opt.run_id.clone(),
+        session_id: input.session_id.to_string(),
+        strategy_id: input.opt.strategy_id.clone(),
+        event_type: input.event_type.to_string(),
+        state: input.state.to_string(),
+        heartbeat_seq: input.heartbeat_seq,
+        occurred_at: now_millis(),
+        shadow_portfolio_runtime_ref: input.portfolio_ref.clone(),
+        strategy_session_status_ref: input.session_status_ref,
+        artifact_gap: input.artifact_gap,
+        source_artifact_age_ms: input.source_artifact_age_ms,
+        stale_after_ms: input.opt.stale_after_ms,
+        stale_data_detected: input.stale_data_detected,
+        stop_file_observed: input.stop_file_observed,
+        stop_file_path: input
+            .opt
+            .stop_file
+            .as_ref()
+            .map(|path| path.display().to_string()),
+        shutdown_reason: input.shutdown_reason.map(ToString::to_string),
+        session_network_attempted: false,
+        production_order_submissions_attempted: 0,
+        production_orders_submitted: 0,
+        production_order_mutations_attempted: 0,
+        production_order_state_reads_attempted: 0,
+        listen_key_lifecycle_attempted: 0,
+        cancel_replace_amend_attempted: false,
+        actual_submission_count: 0,
+        automatic_correction_orders_submitted: 0,
+        dashboard_order_controls_enabled: false,
+        real_orders_submitted: false,
+        values_are_exchange_truth: false,
+        diagnostic: input.diagnostic.to_string(),
+    }
+}
+
+fn stop_file_exists(path: Option<&Path>) -> bool {
+    path.is_some_and(Path::exists)
+}
+
+fn artifact_age_ms(path: &Path) -> anyhow::Result<Option<u64>> {
+    let modified = fs::metadata(path)
+        .with_context(|| format!("failed to inspect artifact '{}'", path.display()))?
+        .modified()
+        .with_context(|| format!("failed to read artifact mtime '{}'", path.display()))?;
+    let age = match SystemTime::now().duration_since(modified) {
+        Ok(duration) => u64::try_from(duration.as_millis()).unwrap_or(u64::MAX),
+        Err(_) => 0,
+    };
+    Ok(Some(age))
 }
 
 fn ensure_shadow_portfolio_runtime_is_readonly(value: &serde_json::Value) -> anyhow::Result<()> {
@@ -7648,6 +7996,195 @@ write_summary = true
         );
         assert_eq!(events[0]["strategy_session_status_ref"]["state"], "running");
         assert_eq!(events[1]["event_type"], "shadow_strategy_session_heartbeat");
+    }
+
+    #[tokio::test]
+    async fn production_shadow_preflight_session_writes_heartbeats_and_stops() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v130-002-shadow-preflight-session-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let account_snapshot = output_dir.join("production_account_snapshot_redacted.json");
+        let shadow_intent = output_dir.join("shadow_execution_intent.jsonl");
+        let portfolio_runtime = output_dir.join("shadow_portfolio_runtime.json");
+        let preflight_events = output_dir.join("shadow_preflight_session.jsonl");
+        write_redacted_account_snapshot_report(&account_snapshot, true);
+        write_shadow_intent(&shadow_intent, false);
+        run_live_production_shadow_portfolio_runtime(&LiveProductionShadowPortfolioRuntimeOpt {
+            run_id: "v130-shadow".to_string(),
+            snapshot_id: Some("portfolio-1".to_string()),
+            account_snapshot,
+            shadow_intent,
+            output: portfolio_runtime.clone(),
+            compat_snapshot_output: None,
+        })
+        .unwrap();
+
+        let result = run_production_shadow_preflight_session_loop(
+            &LiveProductionShadowPreflightSessionOpt {
+                run_id: "v130-shadow".to_string(),
+                session_id: Some("session-1".to_string()),
+                strategy_id: "ema_cross_btcusdt_v1".to_string(),
+                shadow_portfolio_runtime: portfolio_runtime,
+                strategy_session_status: None,
+                output: preflight_events.clone(),
+                max_heartbeats: 2,
+                heartbeat_interval_ms: 1,
+                stale_after_ms: 60_000,
+                stop_file: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result.heartbeats_written, 2);
+        assert_eq!(result.final_state, "stopped");
+        assert!(!result.stop_file_observed);
+        assert!(!result.stale_data_detected);
+        let events = read_jsonl_values(&preflight_events);
+        assert_eq!(events.len(), 4);
+        assert_eq!(
+            events[0]["schema_version"],
+            PRODUCTION_SHADOW_PREFLIGHT_SESSION_EVENT_SCHEMA_VERSION
+        );
+        assert_eq!(events[0]["event_type"], "shadow_preflight_session_started");
+        assert_eq!(
+            events[1]["event_type"],
+            "shadow_preflight_session_heartbeat"
+        );
+        assert_eq!(events[1]["heartbeat_seq"], 1);
+        assert_eq!(
+            events[2]["event_type"],
+            "shadow_preflight_session_heartbeat"
+        );
+        assert_eq!(events[2]["heartbeat_seq"], 2);
+        assert_eq!(events[3]["event_type"], "shadow_preflight_session_stopped");
+        assert_eq!(events[3]["shutdown_reason"], "max_heartbeats_reached");
+        for event in &events {
+            assert_eq!(event["session_network_attempted"], false);
+            assert_eq!(event["production_order_submissions_attempted"], 0);
+            assert_eq!(event["production_orders_submitted"], 0);
+            assert_eq!(event["production_order_mutations_attempted"], 0);
+            assert_eq!(event["production_order_state_reads_attempted"], 0);
+            assert_eq!(event["listen_key_lifecycle_attempted"], 0);
+            assert_eq!(event["cancel_replace_amend_attempted"], false);
+            assert_eq!(event["dashboard_order_controls_enabled"], false);
+            assert_eq!(event["values_are_exchange_truth"], false);
+        }
+    }
+
+    #[tokio::test]
+    async fn production_shadow_preflight_session_stops_on_owner_stop_file() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v130-002-shadow-preflight-stop-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let account_snapshot = output_dir.join("production_account_snapshot_redacted.json");
+        let shadow_intent = output_dir.join("shadow_execution_intent.jsonl");
+        let portfolio_runtime = output_dir.join("shadow_portfolio_runtime.json");
+        let preflight_events = output_dir.join("shadow_preflight_session.jsonl");
+        let stop_file = output_dir.join("STOP");
+        write_redacted_account_snapshot_report(&account_snapshot, true);
+        write_shadow_intent(&shadow_intent, false);
+        fs::write(&stop_file, "stop").unwrap();
+        run_live_production_shadow_portfolio_runtime(&LiveProductionShadowPortfolioRuntimeOpt {
+            run_id: "v130-shadow-stop".to_string(),
+            snapshot_id: Some("portfolio-1".to_string()),
+            account_snapshot,
+            shadow_intent,
+            output: portfolio_runtime.clone(),
+            compat_snapshot_output: None,
+        })
+        .unwrap();
+
+        let result = run_production_shadow_preflight_session_loop(
+            &LiveProductionShadowPreflightSessionOpt {
+                run_id: "v130-shadow-stop".to_string(),
+                session_id: Some("session-1".to_string()),
+                strategy_id: "ema_cross_btcusdt_v1".to_string(),
+                shadow_portfolio_runtime: portfolio_runtime,
+                strategy_session_status: None,
+                output: preflight_events.clone(),
+                max_heartbeats: 5,
+                heartbeat_interval_ms: 1,
+                stale_after_ms: 60_000,
+                stop_file: Some(stop_file.clone()),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result.heartbeats_written, 0);
+        assert_eq!(result.final_state, "stopped");
+        assert!(result.stop_file_observed);
+        let events = read_jsonl_values(&preflight_events);
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[1]["event_type"], "shadow_preflight_session_stopped");
+        assert_eq!(events[1]["shutdown_reason"], "owner_stop_file");
+        assert_eq!(events[1]["stop_file_observed"], true);
+        assert_eq!(events[1]["stop_file_path"], stop_file.display().to_string());
+        assert_eq!(events[1]["production_order_mutations_attempted"], 0);
+    }
+
+    #[tokio::test]
+    async fn production_shadow_preflight_session_detects_stale_portfolio_runtime() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v130-002-shadow-preflight-stale-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let account_snapshot = output_dir.join("production_account_snapshot_redacted.json");
+        let shadow_intent = output_dir.join("shadow_execution_intent.jsonl");
+        let portfolio_runtime = output_dir.join("shadow_portfolio_runtime.json");
+        let preflight_events = output_dir.join("shadow_preflight_session.jsonl");
+        write_redacted_account_snapshot_report(&account_snapshot, true);
+        write_shadow_intent(&shadow_intent, false);
+        run_live_production_shadow_portfolio_runtime(&LiveProductionShadowPortfolioRuntimeOpt {
+            run_id: "v130-shadow-stale".to_string(),
+            snapshot_id: Some("portfolio-1".to_string()),
+            account_snapshot,
+            shadow_intent,
+            output: portfolio_runtime.clone(),
+            compat_snapshot_output: None,
+        })
+        .unwrap();
+        sleep(Duration::from_millis(5)).await;
+
+        let result = run_production_shadow_preflight_session_loop(
+            &LiveProductionShadowPreflightSessionOpt {
+                run_id: "v130-shadow-stale".to_string(),
+                session_id: Some("session-1".to_string()),
+                strategy_id: "ema_cross_btcusdt_v1".to_string(),
+                shadow_portfolio_runtime: portfolio_runtime,
+                strategy_session_status: None,
+                output: preflight_events.clone(),
+                max_heartbeats: 2,
+                heartbeat_interval_ms: 1,
+                stale_after_ms: 1,
+                stop_file: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result.heartbeats_written, 0);
+        assert_eq!(result.final_state, "stale_data_halted");
+        assert!(result.stale_data_detected);
+        let events = read_jsonl_values(&preflight_events);
+        assert_eq!(events.len(), 2);
+        assert_eq!(
+            events[1]["event_type"],
+            "shadow_preflight_stale_data_detected"
+        );
+        assert_eq!(events[1]["state"], "stale_data_halted");
+        assert_eq!(events[1]["stale_data_detected"], true);
+        assert_eq!(
+            events[1]["shutdown_reason"],
+            "stale_shadow_portfolio_runtime"
+        );
+        assert_eq!(events[1]["production_orders_submitted"], 0);
     }
 
     #[test]
