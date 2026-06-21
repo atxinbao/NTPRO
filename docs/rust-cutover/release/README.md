@@ -239,6 +239,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   scientific notation, preserves `rust_decimal` aggregation evidence, and keeps
   live-alpha money math, production mutation, real funds, and production
   trading out of v0.13.
+- `v0_13_1_money_price_quantity_contract.md` - V131-005 Money/Price/Quantity
+  contract draft for future live-alpha preflight. It documents required
+  precision, tick size, step size, min/max notional, fee, slippage, and
+  rounding-mode inputs while explicitly keeping v0.13.1 out of
+  risk/execution-grade money math, production mutation, real funds, and
+  production trading.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,

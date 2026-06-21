@@ -81,3 +81,11 @@ This boundary does not implement production live-alpha money math. It does not
 authorize any risk, execution, adapter, strategy, node, supervisor, CLI, or
 Dashboard path to submit, cancel, replace, amend, retry, correct, or otherwise
 mutate production exchange orders.
+
+## Follow-up Contract
+
+`v0_13_1_money_price_quantity_contract.md` extends this representation boundary
+into a future Money/Price/Quantity contract draft covering asset/quote
+precision, tick size, step size, min/max notional, fee, slippage, and rounding
+mode. That follow-up remains a contract draft only and does not change the
+v0.13/v0.13.1 non-claim boundary.
