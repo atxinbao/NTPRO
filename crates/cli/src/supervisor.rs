@@ -46,6 +46,10 @@ use crate::{
 pub const SUPERVISOR_REGISTRY_SCHEMA_VERSION: &str = "ntpro.supervisor_registry.v1";
 pub const SUPERVISOR_REGISTRY_LOCK_SCHEMA_VERSION: &str = "ntpro.supervisor_registry_lock.v1";
 pub const NODE_METRICS_SCHEMA_VERSION: &str = "ntpro.node_metrics.v1";
+pub const PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_SCHEMA_VERSION: &str =
+    "ntpro.v130_kill_switch_approval_artifact.v1";
+const KILL_SWITCH_APPROVAL_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_13/kill_switch_approval_artifact.json";
 const REGISTRY_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 const REGISTRY_LOCK_RETRY: Duration = Duration::from_millis(25);
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(100);
@@ -140,8 +144,57 @@ pub struct NodeMetrics {
     pub strategy_signal_count: SnapshotValue<u64>,
     #[serde(default)]
     pub strategy_rejection_count: SnapshotValue<u64>,
+    #[serde(default)]
+    pub kill_switch_dry_run: KillSwitchDryRunMetrics,
     pub external_venue_connection: bool,
     pub real_orders_submitted: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct KillSwitchDryRunMetrics {
+    pub artifact_path: SnapshotValue<String>,
+    pub artifact_status: SnapshotValue<String>,
+    pub kill_switch_active: SnapshotValue<bool>,
+    pub kill_switch_dry_run: SnapshotValue<bool>,
+    pub manual_approval_recorded: SnapshotValue<bool>,
+    pub approval_state: SnapshotValue<String>,
+    pub production_order_submission_allowed: SnapshotValue<bool>,
+    pub production_order_mutation_allowed: SnapshotValue<bool>,
+    pub production_order_state_reads_allowed: SnapshotValue<bool>,
+    pub listen_key_lifecycle_allowed: SnapshotValue<bool>,
+    pub production_order_submissions_attempted: SnapshotValue<u64>,
+    pub production_orders_submitted: SnapshotValue<u64>,
+    pub production_order_mutations_attempted: SnapshotValue<u64>,
+    pub production_order_state_reads_attempted: SnapshotValue<u64>,
+    pub dashboard_order_controls_enabled: SnapshotValue<bool>,
+    pub real_orders_submitted: SnapshotValue<bool>,
+    pub network_attempted: SnapshotValue<bool>,
+    pub values_are_exchange_truth: SnapshotValue<bool>,
+}
+
+impl Default for KillSwitchDryRunMetrics {
+    fn default() -> Self {
+        Self {
+            artifact_path: SnapshotValue::unknown(),
+            artifact_status: SnapshotValue::unknown(),
+            kill_switch_active: SnapshotValue::unknown(),
+            kill_switch_dry_run: SnapshotValue::unknown(),
+            manual_approval_recorded: SnapshotValue::unknown(),
+            approval_state: SnapshotValue::unknown(),
+            production_order_submission_allowed: SnapshotValue::unknown(),
+            production_order_mutation_allowed: SnapshotValue::unknown(),
+            production_order_state_reads_allowed: SnapshotValue::unknown(),
+            listen_key_lifecycle_allowed: SnapshotValue::unknown(),
+            production_order_submissions_attempted: SnapshotValue::unknown(),
+            production_orders_submitted: SnapshotValue::unknown(),
+            production_order_mutations_attempted: SnapshotValue::unknown(),
+            production_order_state_reads_attempted: SnapshotValue::unknown(),
+            dashboard_order_controls_enabled: SnapshotValue::unknown(),
+            real_orders_submitted: SnapshotValue::unknown(),
+            network_attempted: SnapshotValue::unknown(),
+            values_are_exchange_truth: SnapshotValue::unknown(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -160,6 +213,7 @@ pub struct NodeMetricArtifacts {
     pub stdout_log_path: PathBuf,
     pub stderr_log_path: PathBuf,
     pub events_log_path: PathBuf,
+    pub kill_switch_approval_artifact_path: PathBuf,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -212,6 +266,9 @@ impl NodeMetrics {
             ),
             strategy_signal_count: status.risk.command_count.clone(),
             strategy_rejection_count: status.risk.rejections_total.clone(),
+            kill_switch_dry_run: kill_switch_dry_run_metrics_from_artifact_path(
+                &artifacts.kill_switch_approval_artifact_path,
+            ),
             external_venue_connection: status.external_venue_connection,
             real_orders_submitted: status.real_orders_submitted,
         }
@@ -255,8 +312,90 @@ impl NodeMetricArtifacts {
             stdout_log_path: record.stdout_log_path.clone(),
             stderr_log_path: record.stderr_log_path.clone(),
             events_log_path: record.events_log_path.clone(),
+            kill_switch_approval_artifact_path: kill_switch_approval_artifact_path(record),
         }
     }
+}
+
+fn kill_switch_approval_artifact_path(record: &SupervisorNodeRecord) -> PathBuf {
+    record
+        .artifact_root
+        .join(KILL_SWITCH_APPROVAL_ARTIFACT_RELATIVE_PATH)
+}
+
+fn kill_switch_dry_run_metrics_from_artifact_path(path: &Path) -> KillSwitchDryRunMetrics {
+    let mut metrics = KillSwitchDryRunMetrics {
+        artifact_path: SnapshotValue::available(path.display().to_string()),
+        artifact_status: SnapshotValue::not_configured(),
+        ..KillSwitchDryRunMetrics::default()
+    };
+    if !path.exists() {
+        return metrics;
+    }
+
+    let Ok(raw) = fs::read_to_string(path) else {
+        metrics.artifact_status = SnapshotValue::available("read_error".to_string());
+        return metrics;
+    };
+    let Ok(value) = serde_json::from_str::<Value>(&raw) else {
+        metrics.artifact_status = SnapshotValue::available("invalid_json".to_string());
+        return metrics;
+    };
+    if value.get("schema_version").and_then(Value::as_str)
+        != Some(PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_SCHEMA_VERSION)
+    {
+        metrics.artifact_status = SnapshotValue::available("invalid_schema".to_string());
+        return metrics;
+    }
+
+    metrics.artifact_status = snapshot_string_field(&value, "status");
+    metrics.kill_switch_active = snapshot_bool_field(&value, "kill_switch_active");
+    metrics.kill_switch_dry_run = snapshot_bool_field(&value, "kill_switch_dry_run");
+    metrics.manual_approval_recorded = snapshot_bool_field(&value, "manual_approval_recorded");
+    metrics.approval_state = snapshot_string_field(&value, "approval_state");
+    metrics.production_order_submission_allowed =
+        snapshot_bool_field(&value, "production_order_submission_allowed");
+    metrics.production_order_mutation_allowed =
+        snapshot_bool_field(&value, "production_order_mutation_allowed");
+    metrics.production_order_state_reads_allowed =
+        snapshot_bool_field(&value, "production_order_state_reads_allowed");
+    metrics.listen_key_lifecycle_allowed =
+        snapshot_bool_field(&value, "listen_key_lifecycle_allowed");
+    metrics.production_order_submissions_attempted =
+        snapshot_u64_field(&value, "production_order_submissions_attempted");
+    metrics.production_orders_submitted = snapshot_u64_field(&value, "production_orders_submitted");
+    metrics.production_order_mutations_attempted =
+        snapshot_u64_field(&value, "production_order_mutations_attempted");
+    metrics.production_order_state_reads_attempted =
+        snapshot_u64_field(&value, "production_order_state_reads_attempted");
+    metrics.dashboard_order_controls_enabled =
+        snapshot_bool_field(&value, "dashboard_order_controls_enabled");
+    metrics.real_orders_submitted = snapshot_bool_field(&value, "real_orders_submitted");
+    metrics.network_attempted = snapshot_bool_field(&value, "network_attempted");
+    metrics.values_are_exchange_truth = snapshot_bool_field(&value, "values_are_exchange_truth");
+    metrics
+}
+
+fn snapshot_string_field(value: &Value, field: &str) -> SnapshotValue<String> {
+    value
+        .get(field)
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .map_or_else(SnapshotValue::unknown, SnapshotValue::available)
+}
+
+fn snapshot_bool_field(value: &Value, field: &str) -> SnapshotValue<bool> {
+    value
+        .get(field)
+        .and_then(Value::as_bool)
+        .map_or_else(SnapshotValue::unknown, SnapshotValue::available)
+}
+
+fn snapshot_u64_field(value: &Value, field: &str) -> SnapshotValue<u64> {
+    value
+        .get(field)
+        .and_then(Value::as_u64)
+        .map_or_else(SnapshotValue::unknown, SnapshotValue::available)
 }
 
 fn count_connection(actual: ConnectionStatus, expected: ConnectionStatus) -> u64 {
@@ -482,8 +621,12 @@ fn run_supervisor_execution(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
 fn run_supervisor_risk(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
     let store = SupervisorRegistryStore::new(opt.registry.registry);
     let status = store.node_status(&opt.node_id)?;
+    let record = load_node_record(&store, &opt.node_id)?;
+    let kill_switch = kill_switch_dry_run_metrics_from_artifact_path(
+        &kill_switch_approval_artifact_path(&record),
+    );
     println!(
-        "supervisor.risk status=ok registry_node_id={} runtime_node_id={} trading_state={} health={} command_count={} event_count={} rejections_total={} last_rejection={} last_error={}",
+        "supervisor.risk status=ok registry_node_id={} runtime_node_id={} trading_state={} health={} command_count={} event_count={} rejections_total={} kill_switch_artifact_status={} kill_switch_active={} kill_switch_dry_run={} manual_approval_recorded={} production_order_mutation_allowed={} dashboard_order_controls_enabled={} last_rejection={} last_error={}",
         opt.node_id,
         status.node_id,
         json_label(&status.risk.trading_state),
@@ -491,6 +634,12 @@ fn run_supervisor_risk(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
         snapshot_display(&status.risk.command_count),
         snapshot_display(&status.risk.event_count),
         snapshot_display(&status.risk.rejections_total),
+        snapshot_display(&kill_switch.artifact_status),
+        snapshot_display(&kill_switch.kill_switch_active),
+        snapshot_display(&kill_switch.kill_switch_dry_run),
+        snapshot_display(&kill_switch.manual_approval_recorded),
+        snapshot_display(&kill_switch.production_order_mutation_allowed),
+        snapshot_display(&kill_switch.dashboard_order_controls_enabled),
         status.risk.last_rejection.as_deref().unwrap_or("none"),
         status.risk.last_error.as_deref().unwrap_or("none"),
     );
@@ -517,7 +666,7 @@ fn run_supervisor_metrics(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
     let store = SupervisorRegistryStore::new(opt.registry.registry);
     let metrics = store.node_metrics(&opt.node_id)?;
     println!(
-        "supervisor.metrics status=ok registry_node_id={} runtime_node_id={} lifecycle_state={} starts_total={} stops_total={} state_transitions_total={} uptime_ms={} strategy_signal_count={} strategy_rejection_count={} external_venue_connection={} real_orders_submitted={} last_error={}",
+        "supervisor.metrics status=ok registry_node_id={} runtime_node_id={} lifecycle_state={} starts_total={} stops_total={} state_transitions_total={} uptime_ms={} strategy_signal_count={} strategy_rejection_count={} kill_switch_artifact_status={} kill_switch_active={} kill_switch_dry_run={} production_order_submissions_attempted={} production_order_mutations_attempted={} dashboard_order_controls_enabled={} external_venue_connection={} real_orders_submitted={} last_error={}",
         opt.node_id,
         metrics.node_id,
         json_label(&metrics.lifecycle_state),
@@ -527,6 +676,20 @@ fn run_supervisor_metrics(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
         snapshot_display(&metrics.uptime_ms),
         snapshot_display(&metrics.strategy_signal_count),
         snapshot_display(&metrics.strategy_rejection_count),
+        snapshot_display(&metrics.kill_switch_dry_run.artifact_status),
+        snapshot_display(&metrics.kill_switch_dry_run.kill_switch_active),
+        snapshot_display(&metrics.kill_switch_dry_run.kill_switch_dry_run),
+        snapshot_display(
+            &metrics
+                .kill_switch_dry_run
+                .production_order_submissions_attempted
+        ),
+        snapshot_display(
+            &metrics
+                .kill_switch_dry_run
+                .production_order_mutations_attempted
+        ),
+        snapshot_display(&metrics.kill_switch_dry_run.dashboard_order_controls_enabled),
         metrics.external_venue_connection,
         metrics.real_orders_submitted,
         metrics.last_error_summary.as_deref().unwrap_or("none"),
@@ -2308,6 +2471,9 @@ mod tests {
             stdout_log_path: PathBuf::from("stdout.log"),
             stderr_log_path: PathBuf::from("stderr.log"),
             events_log_path: PathBuf::from("events.log"),
+            kill_switch_approval_artifact_path: PathBuf::from(
+                "v0_13/kill_switch_approval_artifact.json",
+            ),
         };
 
         let metrics = NodeMetrics::from_status(
@@ -2323,8 +2489,96 @@ mod tests {
 
         assert_eq!(metrics.strategy_signal_count.value, Some(2));
         assert_eq!(metrics.strategy_rejection_count.value, Some(2));
+        assert_eq!(
+            metrics.kill_switch_dry_run.artifact_status.availability,
+            nautilus_live::status::SnapshotAvailability::NotConfigured
+        );
         assert!(!metrics.external_venue_connection);
         assert!(!metrics.real_orders_submitted);
+    }
+
+    #[test]
+    fn node_metrics_expose_kill_switch_dry_run_artifact_status() {
+        let root = temp_root("kill-switch-metrics");
+        let record = SupervisorNodeRecord::new(
+            "live-alpha-a".to_string(),
+            root.join("config.toml"),
+            root.join("node-artifacts"),
+        );
+        fs::create_dir_all(record.artifact_root.join("v0_13")).unwrap();
+        fs::write(
+            record
+                .artifact_root
+                .join("v0_13/kill_switch_approval_artifact.json"),
+            serde_json::to_string_pretty(&serde_json::json!({
+                "schema_version": PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_SCHEMA_VERSION,
+                "status": "manual_approval_recorded",
+                "kill_switch_active": true,
+                "kill_switch_dry_run": true,
+                "manual_approval_recorded": true,
+                "approval_state": "approved",
+                "production_order_submission_allowed": false,
+                "production_order_mutation_allowed": false,
+                "production_order_state_reads_allowed": false,
+                "listen_key_lifecycle_allowed": false,
+                "production_order_submissions_attempted": 0,
+                "production_orders_submitted": 0,
+                "production_order_mutations_attempted": 0,
+                "production_order_state_reads_attempted": 0,
+                "dashboard_order_controls_enabled": false,
+                "real_orders_submitted": false,
+                "network_attempted": false,
+                "values_are_exchange_truth": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let status = NodeStatus::unknown("live-alpha-a");
+
+        let metrics = NodeMetrics::from_status(
+            &status,
+            &NodeMetricArtifacts::from_record(&record),
+            NodeMetricCounts {
+                uptime_ms: Some(0),
+                starts_total: 0,
+                stops_total: 0,
+                state_transitions_total: 0,
+            },
+        );
+
+        assert_eq!(
+            metrics.kill_switch_dry_run.artifact_status.value.as_deref(),
+            Some("manual_approval_recorded")
+        );
+        assert_eq!(
+            metrics.kill_switch_dry_run.kill_switch_active.value,
+            Some(true)
+        );
+        assert_eq!(
+            metrics.kill_switch_dry_run.kill_switch_dry_run.value,
+            Some(true)
+        );
+        assert_eq!(
+            metrics
+                .kill_switch_dry_run
+                .production_order_mutation_allowed
+                .value,
+            Some(false)
+        );
+        assert_eq!(
+            metrics
+                .kill_switch_dry_run
+                .production_order_mutations_attempted
+                .value,
+            Some(0)
+        );
+        assert_eq!(
+            metrics
+                .kill_switch_dry_run
+                .dashboard_order_controls_enabled
+                .value,
+            Some(false)
+        );
     }
 
     fn start_request(

@@ -4326,6 +4326,7 @@ async fn run_strategy_session_node_with_command(
         &metrics_path,
         &status,
         &StrategyNodeMetricPaths {
+            output_dir: &output_dir,
             status_path: &status_path,
             stdout_log_path: &stdout_log_path,
             stderr_log_path: &stderr_log_path,
@@ -5441,6 +5442,7 @@ struct StrategyNodeStatusContext<'a> {
 }
 
 struct StrategyNodeMetricPaths<'a> {
+    output_dir: &'a Path,
     status_path: &'a Path,
     stdout_log_path: &'a Path,
     stderr_log_path: &'a Path,
@@ -5678,6 +5680,10 @@ fn write_metrics(
         stdout_log_path: context.stdout_log_path.to_path_buf(),
         stderr_log_path: context.stderr_log_path.to_path_buf(),
         events_log_path: context.events_log_path.to_path_buf(),
+        kill_switch_approval_artifact_path: context
+            .output_dir
+            .join("v0_13")
+            .join("kill_switch_approval_artifact.json"),
     };
     let metrics = NodeMetrics::from_status(status, &artifacts, counts);
     write_node_metrics_artifact(path, &metrics)
@@ -5694,6 +5700,10 @@ fn write_strategy_node_metrics(
         stdout_log_path: paths.stdout_log_path.to_path_buf(),
         stderr_log_path: paths.stderr_log_path.to_path_buf(),
         events_log_path: paths.events_log_path.to_path_buf(),
+        kill_switch_approval_artifact_path: paths
+            .output_dir
+            .join("v0_13")
+            .join("kill_switch_approval_artifact.json"),
     };
     let metrics = NodeMetrics::from_status(status, &artifacts, counts);
     write_node_metrics_artifact(path, &metrics)
@@ -5796,6 +5806,7 @@ async fn wait_for_strategy_shutdown_trigger(
                 metrics_path,
                 &status,
                 &StrategyNodeMetricPaths {
+                    output_dir,
                     status_path,
                     stdout_log_path,
                     stderr_log_path,
