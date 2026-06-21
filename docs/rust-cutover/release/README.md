@@ -212,6 +212,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   capability claim and does not include production order submission, order
   mutation, order-state reads, listenKey lifecycle, signed WebSocket user stream
   runtime, real funds, production trading, or Dashboard order controls.
+- `v0_13_0_scope_decision.md` - scope decision for the v0.13.0 Guarded Live
+  Alpha Preflight line. It limits v0.13.0 to preflight evidence only and does
+  not authorize production order submission, order mutation, real funds,
+  production trading, or Dashboard order controls.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.

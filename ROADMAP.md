@@ -8,7 +8,8 @@ NautilusTrader. The current public source release is
 `ntpro-rust-only-v0.12.1`, the Production Online Read-Only + Persistent Shadow
 hardening release for Production Read-Only Evidence & Release Surface
 Hardening. The next patch track is `v0.12.2`, if needed. `v0.13.0` is the
-earliest possible Guarded Live Alpha candidate.
+earliest possible Guarded Live Alpha candidate, but V130 scopes it as Guarded
+Live Alpha Preflight only.
 
 ## Current Release Surface
 
@@ -364,8 +365,11 @@ gaps.
 - production trading;
 - Dashboard order controls.
 
-`v0.13.0` is the earliest possible Guarded Live Alpha candidate and requires a
-separate owner-approved scope decision.
+`v0.13.0` is the earliest possible Guarded Live Alpha candidate. V130-001 is
+the owner-approved scope decision for this line, and it limits v0.13.0 to
+Guarded Live Alpha Preflight only: no production order submission, no
+production cancel/replace/amend/retry/correction, no real funds, no production
+trading, and no Dashboard order controls.
 
 ## Corrected Capability Sequence: v0.9.0 through v0.13.0
 
@@ -382,7 +386,7 @@ v0.10.0 = Binance Spot Sandbox Order Proof
 v0.11.0 = Production Read-Only Contract + Offline Shadow Portfolio
 v0.12.0 = Production Online Read-Only + Persistent Shadow
 v0.12.1 = Production Read-Only Evidence & Release Surface Hardening
-v0.13.0 = Earliest possible Guarded Live Alpha candidate
+v0.13.0 = Guarded Live Alpha Preflight only
 ```
 
 `v0.9.0` is the published batch foundation track. It makes `ntpro-node` load a
@@ -425,9 +429,9 @@ production order mutation, listenKey lifecycle, signed WebSocket user stream
 runtime, real-funds, production portfolio parity, or Dashboard order-control
 release.
 
-`v0.13.0` is the earliest possible Guarded Live Alpha candidate and requires a
-separate scope decision before any live command or production trading
-capability is claimed.
+`v0.13.0` is the earliest possible Guarded Live Alpha candidate. The V130-001
+scope decision limits it to Guarded Live Alpha Preflight only before any live
+command or production trading capability is claimed.
 
 ## Product Surface Direction
 
