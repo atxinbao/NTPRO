@@ -55,8 +55,12 @@ Required manifest markers:
 
 ```text
 schema_version = ntpro.v130_online_readonly_proof_pack.v1
+wrapper_implemented = true
 default_ci_network_required = false
 owner_run_online_proof_required_for_release = false
+owner_run_online_success_evidence_required_for_release = false
+owner_run_online_success_evidence_included = false by default
+owner_run_online_success_evidence_status = not_included_default_offline_preflight by default
 production_order_submission_allowed = false
 production_order_mutation_allowed = false
 production_order_state_reads_allowed = false
@@ -82,6 +86,16 @@ The default preflight status is:
 
 ```text
 offline_preflight_ok
+```
+
+Owner-run online success evidence is intentionally separate from wrapper
+implementation:
+
+```text
+wrapper implemented = true
+owner-run online success evidence included = false by default
+owner-run online success evidence included = true only when owner-run public GET and authenticated account GET both pass
+owner-run online classified failure = evidence package only, not included online success evidence
 ```
 
 ## Redaction Requirements
