@@ -710,6 +710,8 @@ pub enum SupervisorCommand {
     Logs(SupervisorNodeOpt),
     /// Reads minimal per-node metrics JSON.
     Metrics(SupervisorNodeOpt),
+    /// Reads supervisor-managed shadow runtime status without enabling order controls.
+    ShadowRuntime(SupervisorNodeOpt),
 }
 
 /// Common supervisor registry option.
@@ -1676,6 +1678,7 @@ mod tests {
             "risk",
             "logs",
             "metrics",
+            "shadow-runtime",
         ] {
             assert!(help.contains(command), "{command} should be listed");
         }
@@ -1781,6 +1784,7 @@ mod tests {
             "risk",
             "logs",
             "metrics",
+            "shadow-runtime",
         ] {
             let parsed = NautilusCli::try_parse_from([
                 "nautilus",
@@ -1806,7 +1810,8 @@ mod tests {
                 | SupervisorCommand::Execution(node)
                 | SupervisorCommand::Risk(node)
                 | SupervisorCommand::Logs(node)
-                | SupervisorCommand::Metrics(node) => {
+                | SupervisorCommand::Metrics(node)
+                | SupervisorCommand::ShadowRuntime(node) => {
                     assert_eq!(
                         node.registry.registry,
                         PathBuf::from("runs/supervisor/registry.json")
