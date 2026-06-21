@@ -220,6 +220,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   session contract. It adds heartbeat, stop-file, and stale-data evidence while
   preserving the no-production-mutation and no-Dashboard-order-controls
   boundary.
+- `v0_13_0_online_readonly_proof_pack.md` - V130-003 owner-run production
+  online read-only proof-pack contract. Default runs remain offline and
+  fail-closed; optional owner-run artifacts are redacted and do not expand
+  production trading, order mutation, order-state read, listenKey, or Dashboard
+  control capability.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
