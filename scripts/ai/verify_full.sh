@@ -319,6 +319,7 @@ run_golden_trace_validation() {
   run_golden_order_lifecycle_trace
   run_golden_risk_rejection_trace
   run_golden_adapter_payload_trace
+  run_golden_live_alpha_reconciliation_trace
 }
 
 run_golden_trace_file_validation() {
@@ -332,6 +333,7 @@ run_golden_trace_file_validation() {
     RUN_RUST_ORDER_LIFECYCLE_TRACE_REPLAY=0 \
     RUN_RUST_RISK_REJECTION_TRACE_REPLAY=0 \
     RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY=0 \
+    RUN_RUST_LIVE_ALPHA_RECONCILIATION_TRACE_REPLAY=0 \
     scripts/ai/run_golden_traces.sh
 }
 
@@ -378,6 +380,11 @@ run_golden_risk_rejection_trace() {
 run_golden_adapter_payload_trace() {
   echo "== verify_full: golden trace adapter payload =="
   cargo test -p nautilus-okx --test golden_trace_adapter_payload
+}
+
+run_golden_live_alpha_reconciliation_trace() {
+  echo "== verify_full: golden trace live-alpha reconciliation =="
+  cargo test -p nautilus-cli --test golden_trace_live_alpha_reconciliation
 }
 
 run_rust_docs() {
@@ -455,6 +462,9 @@ run_stage() {
     golden-traces-adapter-payload)
       run_golden_adapter_payload_trace
       ;;
+    golden-traces-live-alpha-reconciliation)
+      run_golden_live_alpha_reconciliation_trace
+      ;;
     rust-docs)
       run_rust_docs
       ;;
@@ -467,7 +477,7 @@ run_stage() {
       ;;
     *)
       echo "unknown verify_full stage: $stage" >&2
-      echo "valid stages: all, fast, clippy, rust-tests, rust-tests-workspace, rust-tests-workspace-core, rust-tests-workspace-runtime, rust-tests-workspace-adapters-a, rust-tests-workspace-adapters-b, rust-tests-common-log-global, rust-tests-live-log-global, rust-tests-live-node-serial, golden-traces, golden-traces-files, golden-traces-harness, golden-traces-market-data, golden-traces-cache-msgbus, golden-traces-backtest, golden-traces-backtest-live-parity, golden-traces-live-sandbox, golden-traces-order-lifecycle, golden-traces-risk-rejection, golden-traces-adapter-payload, rust-docs" >&2
+      echo "valid stages: all, fast, clippy, rust-tests, rust-tests-workspace, rust-tests-workspace-core, rust-tests-workspace-runtime, rust-tests-workspace-adapters-a, rust-tests-workspace-adapters-b, rust-tests-common-log-global, rust-tests-live-log-global, rust-tests-live-node-serial, golden-traces, golden-traces-files, golden-traces-harness, golden-traces-market-data, golden-traces-cache-msgbus, golden-traces-backtest, golden-traces-backtest-live-parity, golden-traces-live-sandbox, golden-traces-order-lifecycle, golden-traces-risk-rejection, golden-traces-adapter-payload, golden-traces-live-alpha-reconciliation, rust-docs" >&2
       exit 2
       ;;
   esac

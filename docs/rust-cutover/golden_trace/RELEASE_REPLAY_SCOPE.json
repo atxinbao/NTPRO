@@ -187,6 +187,76 @@
       "release_decision": "included_in_final_replay_scope"
     },
     {
+      "case_id": "execution.live_alpha_reconciliation.no_open_orders.001",
+      "trace": "tests/golden/live_alpha_reconciliation_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V140-005",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_reconciliation",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_reconciliation.rs::rust_cli_replays_live_alpha_reconciliation_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "execution.live_alpha_reconciliation.existing_open_order.001",
+      "trace": "tests/golden/live_alpha_reconciliation_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V140-005",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_reconciliation",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_reconciliation.rs::rust_cli_replays_live_alpha_reconciliation_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "execution.live_alpha_reconciliation.stale_order_state_read.001",
+      "trace": "tests/golden/live_alpha_reconciliation_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V140-005",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_reconciliation",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_reconciliation.rs::rust_cli_replays_live_alpha_reconciliation_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "execution.live_alpha_reconciliation.account_read_failed.001",
+      "trace": "tests/golden/live_alpha_reconciliation_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V140-005",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_reconciliation",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_reconciliation.rs::rust_cli_replays_live_alpha_reconciliation_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "execution.live_alpha_reconciliation.order_state_read_failed.001",
+      "trace": "tests/golden/live_alpha_reconciliation_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V140-005",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_reconciliation",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_reconciliation.rs::rust_cli_replays_live_alpha_reconciliation_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "execution.live_alpha_reconciliation.kill_switch_active.001",
+      "trace": "tests/golden/live_alpha_reconciliation_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V140-005",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_reconciliation",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_reconciliation.rs::rust_cli_replays_live_alpha_reconciliation_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "execution.live_alpha_reconciliation.risk_limit_exceeded.001",
+      "trace": "tests/golden/live_alpha_reconciliation_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V140-005",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_reconciliation",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_reconciliation.rs::rust_cli_replays_live_alpha_reconciliation_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",
