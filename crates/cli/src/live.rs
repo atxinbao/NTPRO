@@ -1148,6 +1148,12 @@ struct ProductionLiveAlphaRiskPreflightAccount {
 struct ProductionLiveAlphaRiskPreflightOrderState {
     readable: bool,
     open_order_count: u64,
+    #[serde(default)]
+    last_read_at_unix_ms: Option<u64>,
+    #[serde(default)]
+    now_unix_ms: Option<u64>,
+    #[serde(default)]
+    max_age_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1201,6 +1207,8 @@ struct ProductionLiveAlphaRiskPreflightReport {
     max_market_age_ms: u64,
     account_readable: bool,
     order_state_readable: bool,
+    order_state_age_ms: Option<u64>,
+    max_order_state_age_ms: Option<u64>,
     open_order_count: u64,
     max_open_orders: u64,
     observed_clock_skew_ms: u64,
@@ -4441,6 +4449,13 @@ fn build_production_live_alpha_risk_preflight_report(
     } else {
         None
     };
+    let order_state_age_ms = match (
+        input.order_state.now_unix_ms,
+        input.order_state.last_read_at_unix_ms,
+    ) {
+        (Some(now), Some(last_read_at)) => now.checked_sub(last_read_at),
+        _ => None,
+    };
     let current_position = parse_non_negative_decimal(&input.limits.current_position_notional)?;
     let order_notional = parse_non_negative_decimal(&input.order.notional)?;
     let projected_position_notional = format_decimal(&(current_position + order_notional));
@@ -4473,6 +4488,8 @@ fn build_production_live_alpha_risk_preflight_report(
         max_market_age_ms: input.market.max_age_ms,
         account_readable: input.account.readable,
         order_state_readable: input.order_state.readable,
+        order_state_age_ms,
+        max_order_state_age_ms: input.order_state.max_age_ms,
         open_order_count: input.order_state.open_order_count,
         max_open_orders: input.limits.max_open_orders,
         observed_clock_skew_ms: input.limits.observed_clock_skew_ms,
@@ -4568,6 +4585,19 @@ fn evaluate_production_live_alpha_risk_reasons(
     }
     if !input.order_state.readable {
         reasons.push("order_state_read_failed".to_string());
+    }
+    match (
+        input.order_state.now_unix_ms,
+        input.order_state.last_read_at_unix_ms,
+        input.order_state.max_age_ms,
+    ) {
+        (Some(now), Some(last_read_at), Some(max_age)) => match now.checked_sub(last_read_at) {
+            Some(age) if age > max_age => reasons.push("order_state_stale".to_string()),
+            Some(_) => {}
+            None => reasons.push("order_state_read_in_future".to_string()),
+        },
+        (None, None, None) => {}
+        _ => reasons.push("order_state_freshness_incomplete".to_string()),
     }
     if input.risk.kill_switch_active {
         reasons.push("kill_switch_active".to_string());
@@ -7904,6 +7934,9 @@ write_summary = true
             order_state: ProductionLiveAlphaRiskPreflightOrderState {
                 readable: true,
                 open_order_count: 0,
+                last_read_at_unix_ms: None,
+                now_unix_ms: None,
+                max_age_ms: None,
             },
             risk: ProductionLiveAlphaRiskPreflightRisk {
                 kill_switch_active: false,
