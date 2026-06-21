@@ -229,6 +229,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   dry-run/manual-approval artifact contract. It records preflight approval
   evidence while preserving the no-network, no-production-mutation, and
   no-Dashboard-order-controls boundary.
+- `v0_13_0_dashboard_control_boundary.md` - V130-005 trader/ops Dashboard
+  control boundary. It keeps trader-visible surfaces read-only, limits ops
+  controls to local supervisor lifecycle actions, and preserves disabled
+  production order controls, credential entry, listenKey lifecycle, production
+  reconnect, real funds, and production trading.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
