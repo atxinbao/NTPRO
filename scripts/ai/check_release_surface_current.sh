@@ -4,10 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.11.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.12.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
-NEXT_PATCH_VERSION="${NTPRO_NEXT_PATCH_VERSION:-v0.11.1}"
-NEXT_CAPABILITY_VERSION="${NTPRO_NEXT_CAPABILITY_VERSION:-v0.12.0}"
+NEXT_PATCH_VERSION="${NTPRO_NEXT_PATCH_VERSION:-v0.12.1}"
+NEXT_CAPABILITY_VERSION="${NTPRO_NEXT_CAPABILITY_VERSION:-v0.13.0}"
 
 CURRENT_MINOR_LINE="${CURRENT_RELEASE_VERSION%.*}.x"
 CURRENT_RELEASE_STEM="v${CURRENT_RELEASE_VERSION#v}"
@@ -80,17 +80,20 @@ require_contains README.md \
   "The next patch track is \`$NEXT_PATCH_VERSION\`" \
   "README next patch track"
 require_contains README.md \
-  "The next capability track after the ${CURRENT_MINOR_LINE} line is \`$NEXT_CAPABILITY_VERSION\`" \
+  "\`$NEXT_CAPABILITY_VERSION\` is the earliest possible Guarded Live Alpha candidate" \
   "README next capability track"
 
 require_contains ROADMAP.md \
-  "\`$CURRENT_RELEASE_TAG\`, the next patch track is \`$NEXT_PATCH_VERSION\`" \
+  "\`$CURRENT_RELEASE_TAG\`, the Production Online Read-Only + Persistent Shadow" \
   "ROADMAP current release and patch track"
+require_contains ROADMAP.md \
+  "The next patch track is \`$NEXT_PATCH_VERSION\`" \
+  "ROADMAP next patch track"
 require_contains ROADMAP.md \
   "## Published Capability Track: $CURRENT_RELEASE_VERSION" \
   "ROADMAP published capability track"
 require_contains ROADMAP.md \
-  "\`$NEXT_CAPABILITY_VERSION\` is the next capability track" \
+  "\`$NEXT_CAPABILITY_VERSION\` is the earliest possible Guarded Live Alpha candidate" \
   "ROADMAP next capability track"
 
 require_contains docs/versioning.md \
@@ -107,7 +110,7 @@ require_contains docs/versioning.md \
   "versioning next capability track"
 
 require_contains docs/rust-cutover/release/README.md \
-  "\`$(basename "$CURRENT_READINESS_REPORT")\` - released readiness report for the $CURRENT_RELEASE_VERSION" \
+  "\`$(basename "$CURRENT_READINESS_REPORT")\` - released readiness report for the formal" \
   "release index current readiness report"
 require_contains docs/rust-cutover/release/README.md \
   "\`$(basename "$CURRENT_RELEASE_NOTES")\` - release notes for the formal" \

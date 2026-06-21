@@ -1,6 +1,6 @@
 # NTPRO Versioning
 
-Date: 2026-06-20
+Date: 2026-06-21
 Executor: Codex
 
 NTPRO uses several version-like identifiers. They do not mean the same thing.
@@ -10,11 +10,10 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.11.0` 是当前正式公开发布点；它是生产只读合约 + 离线影子组合证据，不是
-生产在线读取成功证明。`v0.11.1` 是 release-surface hotfix 队列，
-不增加生产在线读取 runtime、生产下单、生产订单变更、真实资金、生产交易、自动生产修复或 Dashboard 下单按钮；
-`v0.12.0` 是下一条 Production Online Read-Only + Persistent Shadow 候选能力线；
-`v0.13.0` 才是最早可能的 Guarded Live Alpha 候选线。
+`v0.12.0` 是当前正式公开发布点；它是 Production Online Read-Only +
+Persistent Shadow，也就是生产在线只读证明 + 本地持久 shadow 证据。它不是生产下单、
+不是生产订单变更、不是真实资金交易，也没有 Dashboard 下单按钮。`v0.13.0` 才是最早
+可能的 Guarded Live Alpha 候选线。
 
 ## Release Tags
 
@@ -28,6 +27,7 @@ ntpro-rust-only-v0.6.1
 ntpro-rust-only-v0.7.0
 ntpro-rust-only-v0.10.0
 ntpro-rust-only-v0.11.0
+ntpro-rust-only-v0.12.0
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -40,22 +40,19 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.11.0
+ntpro-rust-only-v0.12.0
 ```
 
 The active patch track is:
 
 ```text
-v0.11.1
+v0.12.1
 ```
 
-v0.11.1 is a release-surface hotfix track. It must not be described as
-production order submission, production order mutation, real funds, production
-trading, automatic production remediation, or Dashboard order controls.
-Its readiness and release-note material lives in
-`docs/rust-cutover/release/v0_11_1_readiness_report.md` and
-`docs/rust-cutover/release/v0_11_1_release_notes.md`. Those documents do not
-create a tag or publish a GitHub Release.
+v0.12.1 is the reserved patch track, if needed. It must not be described as
+production order submission, production order mutation, production order-state
+reads, listenKey lifecycle, real funds, production trading, automatic
+production remediation, or Dashboard order controls.
 
 ## Cargo Workspace Version
 
@@ -147,7 +144,7 @@ Does not include:
 
 ### v0.12.0
 
-Candidate boundary:
+Published boundary:
 
 ```text
 Production Online Read-Only + Persistent Shadow

@@ -2,16 +2,16 @@
 
 Date: 2026-06-21
 Executor: Codex
-Milestone: `v0.12.0`
-Status: READY FOR OWNER RELEASE DECISION
+Milestone: `ntpro-rust-only-v0.12.0`
+Status: PASS - RELEASED
 
 ## Summary
 
-`v0.12.0` is the Production Online Read-Only + Persistent Shadow candidate
-release line after the published `v0.11.0` Production Read-Only Contract +
-Offline Shadow Portfolio milestone. It advances the source tree from offline
-contracts into owner-gated production `GET` read-only proof paths and local
-persistent shadow evidence.
+`v0.12.0` is the Production Online Read-Only + Persistent Shadow release line
+after the published `v0.11.0` Production Read-Only Contract + Offline Shadow
+Portfolio milestone. It advances the source tree from offline contracts into
+owner-gated production `GET` read-only proof paths and local persistent shadow
+evidence.
 
 Plain Chinese summary: v0.12.0 不是实盘交易版本。它只把生产环境的“只读 GET 证明”
 和本地 persistent shadow 证据打通：公开只读探测、认证账户快照只读、response shape
@@ -24,7 +24,9 @@ Dashboard 也没有下单按钮。
 ```text
 capability = Production Online Read-Only + Persistent Shadow
 current published release before v0.12.0 = ntpro-rust-only-v0.11.0
-candidate tag = ntpro-rust-only-v0.12.0
+release tag = ntpro-rust-only-v0.12.0
+release name = NTPRO Rust-only v0.12.0
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.12.0
 default execution posture = offline fail-closed
 production public online read = owner-gated GET-only proof path
 production authenticated account snapshot online read = owner-gated GET-only proof path
@@ -40,8 +42,6 @@ listenKey lifecycle = not included
 real funds = not included
 production trading = not included
 Dashboard order controls = not included
-tag creation = not performed by this readiness PR
-GitHub Release publication = not performed by this readiness PR
 ```
 
 ## Included
@@ -76,8 +76,6 @@ real funds
 production trading
 Dashboard order/cancel/replace/amend/retry/reconnect controls
 Dashboard credential input
-tag creation
-GitHub Release publication
 ```
 
 ## Task Accounting
@@ -132,19 +130,15 @@ network_attempted=false
 owner-gated online proof is not required for CI
 ```
 
-## Release Decision
+## Release Closure Status
 
-This report is readiness material only. It does not create the
-`ntpro-rust-only-v0.12.0` tag and does not publish a GitHub Release.
-
-Before publishing `ntpro-rust-only-v0.12.0`, the owner should verify:
+The V120 task queue is complete after V120-009, and the owner release decision
+has moved the release package to the formal publication path:
 
 ```text
-main includes all V120-000 through V120-009 PRs
-GitHub hosted Rust Cutover Smoke is PASS on the release candidate commit
-README / ROADMAP / versioning / release notes agree on v0.12 scope
-GitHub open PR count is acceptable for release closure
-worktree is clean
+formal tag = ntpro-rust-only-v0.12.0
+formal release name = NTPRO Rust-only v0.12.0
+formal GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.12.0
 ```
 
 ## Next Track
@@ -156,8 +150,8 @@ claimed.
 
 ## Final Verdict
 
-`v0.12.0` is ready for owner release decision as a Production Online Read-Only
-and Persistent Shadow candidate after V120-000 through V120-009 pass and merge.
+The v0.12.0 release package is the formal publication package for
+`ntpro-rust-only-v0.12.0`.
 
 Do not describe this readiness PASS as production order submission readiness,
 real-funds readiness, production trading readiness, automatic production

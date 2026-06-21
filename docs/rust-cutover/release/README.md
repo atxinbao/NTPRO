@@ -197,11 +197,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   read-only production shadow panel contract for v0.12 artifacts.
 - `v0_12_0_release_gates.md` - v0.12 offline release gate and manual-online
   fail-closed preflight documentation.
-- `v0_12_0_readiness_report.md` - readiness material for an owner-approved
-  v0.12.0 Production Online Read-Only + Persistent Shadow release. It does not
-  create a tag or publish a GitHub Release.
-- `v0_12_0_release_notes.md` - release-note material for a possible
-  `ntpro-rust-only-v0.12.0` release. It does not claim production order
+- `v0_12_0_readiness_report.md` - released readiness report for the formal
+  `ntpro-rust-only-v0.12.0` Production Online Read-Only + Persistent Shadow
+  release.
+- `v0_12_0_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.12.0` GitHub Release. It does not claim production order
   submission, order mutation, order-state reads, real funds, production
   trading, automatic remediation, or Dashboard order controls.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
