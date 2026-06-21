@@ -132,6 +132,22 @@ merge commit = 8b244ef178e47464843f54979e5f936205440287
 Final release evidence must include the hosted Rust Cutover Release Gate for the
 formal `ntpro-rust-only-v0.13.0` tag.
 
+Formal release closure evidence:
+
+```text
+formal tag = ntpro-rust-only-v0.13.0
+formal release name = NTPRO Rust-only v0.13.0
+formal GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.13.0
+GitHub Release draft = false
+GitHub Release prerelease = false
+tag commit = 31115c269e17ef7b42ac86807b408b642cfea867
+origin/main commit = 31115c269e17ef7b42ac86807b408b642cfea867
+hosted Rust Cutover Release Gate run = 27905068904
+hosted Rust Cutover Release Gate URL = https://github.com/atxinbao/NTPRO/actions/runs/27905068904
+hosted Rust Cutover Release Gate conclusion = success
+hosted Rust Cutover Release Gate jobs = 43/43 success
+```
+
 ## Release Closure Status
 
 The V130 task queue is complete after V130-007. The owner release decision has
