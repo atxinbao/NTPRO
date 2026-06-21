@@ -15,7 +15,7 @@
 
 use std::{net::SocketAddr, path::PathBuf};
 
-use clap::{Parser, ValueEnum};
+use clap::{ArgAction, Parser, ValueEnum};
 
 /// Command-line interface for NTPRO.
 #[derive(Debug, Parser)]
@@ -168,6 +168,8 @@ pub enum LiveCommand {
     ProductionShadowStrategySession(LiveProductionShadowStrategySessionOpt),
     /// Runs a local v0.13 guarded-live-alpha shadow preflight loop without network or orders.
     ProductionShadowPreflightSession(LiveProductionShadowPreflightSessionOpt),
+    /// Writes a local v0.13 kill-switch dry-run/manual-approval artifact without network or orders.
+    ProductionKillSwitchApprovalArtifact(LiveProductionKillSwitchApprovalArtifactOpt),
     /// Writes local v0.12 production read-only reconciliation events from shadow artifacts.
     ProductionReadonlyReconciliation(LiveProductionReadonlyReconciliationOpt),
 }
@@ -538,6 +540,44 @@ pub struct LiveProductionShadowPreflightSessionOpt {
     /// Optional local owner stop-file. If present, the loop stops without production mutation.
     #[arg(long)]
     pub stop_file: Option<PathBuf>,
+}
+
+/// Local guarded-live-alpha kill-switch dry-run/manual-approval artifact options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionKillSwitchApprovalArtifactOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// Optional owner-visible session identifier; defaults to run_id.
+    #[arg(long)]
+    pub session_id: Option<String>,
+    /// Owner-visible strategy identifier.
+    #[arg(long, default_value = "ema_cross_btcusdt_v1")]
+    pub strategy_id: String,
+    /// v0.13 kill-switch/manual-approval JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Dry-run kill-switch active state to record in the artifact.
+    #[arg(long, default_value_t = true, action = ArgAction::Set)]
+    pub kill_switch_active: bool,
+    /// Manual approval state to record: pending, approved, or rejected.
+    #[arg(long, default_value = "pending")]
+    pub approval_state: String,
+    /// Optional owner approval identifier when approval_state=approved.
+    #[arg(long)]
+    pub manual_approval_id: Option<String>,
+    /// Optional owner/operator name when approval_state=approved.
+    #[arg(long)]
+    pub approved_by: Option<String>,
+    /// Confirms this command is a local dry-run artifact only.
+    #[arg(long)]
+    pub confirm_dry_run_only: bool,
+    /// Confirms no production order submission or mutation is allowed.
+    #[arg(long)]
+    pub confirm_no_production_mutation: bool,
+    /// Confirms Dashboard order controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
 }
 
 /// Local production read-only reconciliation artifact options.
