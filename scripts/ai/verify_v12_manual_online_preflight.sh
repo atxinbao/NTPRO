@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # V120-008: v0.12 owner-gated production online read-only preflight.
-# This default gate is intentionally offline. It proves that manual-online
+# This default gate is intentionally offline. It verifies that manual-online
 # requests still fail closed unless the final owner-controlled online env is set.
 # It does not open production network connections and does not read real
 # credentials.
@@ -75,4 +75,4 @@ require(account_report["production_order_mutation_attempted"] is False, account_
 require(account_report["dashboard_order_controls_enabled"] is False, account_report)
 PY
 
-echo "v12_manual_online_preflight status=ok root=$PREFLIGHT_ROOT network_attempted=false owner_gated_online_not_required_for_ci=true"
+echo "v12_manual_online_preflight status=ok root=$PREFLIGHT_ROOT network_attempted=false owner_run_successful_online_proof_not_required_for_ci=true"
