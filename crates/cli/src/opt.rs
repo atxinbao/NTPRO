@@ -164,6 +164,8 @@ pub enum LiveCommand {
     ProductionAccountSnapshotContract(LiveProductionAccountSnapshotContractOpt),
     /// Writes a v0.14 owner-gated production order-state read-only proof.
     ProductionOrderStateReadOnlyProof(LiveProductionOrderStateReadOnlyProofOpt),
+    /// Writes a v0.14 live-alpha dry-run order gate artifact without network or orders.
+    ProductionLiveAlphaDryRunOrderGate(LiveProductionLiveAlphaDryRunOrderGateOpt),
     /// Builds local v0.12 shadow portfolio runtime artifacts from redacted read-only inputs.
     ProductionShadowPortfolioRuntime(LiveProductionShadowPortfolioRuntimeOpt),
     /// Writes local v0.12 persistent shadow strategy session events from read-only shadow artifacts.
@@ -511,6 +513,62 @@ pub struct LiveProductionOrderStateReadOnlyProofOpt {
     /// Confirms Dashboard order controls remain disabled.
     #[arg(long)]
     pub confirm_dashboard_order_controls_disabled: bool,
+}
+
+/// Owner-gated live-alpha dry-run order gate options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionLiveAlphaDryRunOrderGateOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// Optional owner-visible session identifier; defaults to run_id.
+    #[arg(long)]
+    pub session_id: Option<String>,
+    /// Owner-visible strategy identifier.
+    #[arg(long, default_value = "ema_cross_btcusdt_v1")]
+    pub strategy_id: String,
+    /// Binance symbol used to describe the dry-run order intent.
+    #[arg(long, default_value = "BTCUSDT")]
+    pub symbol: String,
+    /// Dry-run order side.
+    #[arg(long, default_value = "BUY")]
+    pub side: String,
+    /// Dry-run order type.
+    #[arg(long, default_value = "MARKET")]
+    pub order_type: String,
+    /// Dry-run quantity as a decimal string.
+    #[arg(long, default_value = "0.001")]
+    pub quantity: String,
+    /// Dry-run notional as a decimal string.
+    #[arg(long, default_value = "10.00")]
+    pub notional: String,
+    /// v0.14 dry-run order gate JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for live-alpha dry-run order evidence.
+    #[arg(long)]
+    pub allow_production_live_alpha_dry_run: bool,
+    /// Confirms owner approval for the dry-run evidence.
+    #[arg(long)]
+    pub confirm_owner_approved_dry_run: bool,
+    /// Confirms no production order submission is allowed.
+    #[arg(long)]
+    pub confirm_no_production_order_submission: bool,
+    /// Confirms no production order mutation is allowed.
+    #[arg(long)]
+    pub confirm_no_production_order_mutation: bool,
+    /// Confirms no execution adapter call is allowed.
+    #[arg(long)]
+    pub confirm_no_execution_adapter_call: bool,
+    /// Confirms listenKey lifecycle remains forbidden.
+    #[arg(long)]
+    pub confirm_no_listen_key_lifecycle: bool,
+    /// Confirms Dashboard order controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms no real funds or real orders are involved.
+    #[arg(long)]
+    pub confirm_no_real_funds: bool,
 }
 
 /// Local shadow portfolio runtime artifact options.
@@ -1336,6 +1394,70 @@ mod tests {
         assert_eq!(run.config, PathBuf::from("config/live.toml"));
         assert_eq!(run.run_id.as_deref(), Some("live-dry-run"));
         assert_eq!(run.output, Some(PathBuf::from("runs/live-dry-run")));
+    }
+
+    #[test]
+    fn parses_live_production_live_alpha_dry_run_order_gate_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-live-alpha-dry-run-order-gate",
+            "--run-id",
+            "v140-dry-run",
+            "--session-id",
+            "session-1",
+            "--strategy-id",
+            "ema_cross_btcusdt_v1",
+            "--symbol",
+            "BTCUSDT",
+            "--side",
+            "BUY",
+            "--order-type",
+            "MARKET",
+            "--quantity",
+            "0.001",
+            "--notional",
+            "10.00",
+            "--output",
+            "runs/v140/live-alpha-dry-run-order-gate.json",
+            "--allow-production-live-alpha-dry-run",
+            "--confirm-owner-approved-dry-run",
+            "--confirm-no-production-order-submission",
+            "--confirm-no-production-order-mutation",
+            "--confirm-no-execution-adapter-call",
+            "--confirm-no-listen-key-lifecycle",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-real-funds",
+        ])
+        .expect("live production-live-alpha-dry-run-order-gate should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionLiveAlphaDryRunOrderGate(gate) = live.command else {
+            panic!("expected production-live-alpha-dry-run-order-gate command");
+        };
+
+        assert_eq!(gate.run_id, "v140-dry-run");
+        assert_eq!(gate.session_id.as_deref(), Some("session-1"));
+        assert_eq!(gate.strategy_id, "ema_cross_btcusdt_v1");
+        assert_eq!(gate.symbol, "BTCUSDT");
+        assert_eq!(gate.side, "BUY");
+        assert_eq!(gate.order_type, "MARKET");
+        assert_eq!(gate.quantity, "0.001");
+        assert_eq!(gate.notional, "10.00");
+        assert_eq!(
+            gate.output,
+            PathBuf::from("runs/v140/live-alpha-dry-run-order-gate.json")
+        );
+        assert!(gate.allow_production_live_alpha_dry_run);
+        assert!(gate.confirm_owner_approved_dry_run);
+        assert!(gate.confirm_no_production_order_submission);
+        assert!(gate.confirm_no_production_order_mutation);
+        assert!(gate.confirm_no_execution_adapter_call);
+        assert!(gate.confirm_no_listen_key_lifecycle);
+        assert!(gate.confirm_dashboard_order_controls_disabled);
+        assert!(gate.confirm_no_real_funds);
     }
 
     #[test]
