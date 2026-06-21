@@ -6,45 +6,44 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.12.1
-Capability: Production Read-Only Evidence & Release Surface Hardening
-Boundary: v0.12.0 production online read-only + persistent shadow hardening, owner-gated production public/account GET read-only proof paths, optional owner-run online proof evidence, redacted response-shape evidence, normalized read artifact semantics, local shadow portfolio runtime, Decimal/string shadow notional preflight, bounded shadow strategy session event artifact, local read-only reconciliation, Dashboard read-only production shadow status, production orders submitted=0, production order mutations attempted=0, production order-state reads attempted=0, listenKey lifecycle attempted=0, signed WebSocket user stream deferred, no real funds, no production trading, no Dashboard order controls
+Current source tag: ntpro-rust-only-v0.13.0
+Capability: Guarded Live Alpha Preflight
+Boundary: v0.13.0 preflight evidence only, local shadow preflight session heartbeat/stop/stale-data evidence, optional owner-run production online read-only proof-pack wrapper, kill-switch dry-run/manual approval artifact, trader/ops Dashboard read-only/control boundary, Decimal/string-only amount preflight, release no-production-mutation gate, default local/PR/release execution offline and fail-closed, production orders submitted=0, production order mutations attempted=0, production order-state reads attempted=0, listenKey lifecycle attempted=0, no real funds, no production trading, no Dashboard order controls
 ```
 
-This tag is the current v0.12.1 source release point for the scoped Production
-Read-Only Evidence & Release Surface Hardening line. It hardens the v0.12.0
-production online read-only + persistent shadow release with publication
-guards, owner-run proof wording, artifact field semantics, signed WebSocket
-scope, bounded shadow session wording, and Decimal/string notional preflight
-evidence. It is not evidence of production order submission, production
-mutation, order-state reads, listenKey lifecycle access, signed WebSocket user
-stream runtime, real funds, production trading, automatic production
-remediation, production portfolio parity, live-alpha money-math readiness, or
-Dashboard order controls. It is published as a
-GitHub Release for the tagged source tree:
+This tag is the current v0.13.0 source release point for the scoped Guarded
+Live Alpha Preflight line. It moves beyond the v0.12 read-only/shadow evidence
+line by adding preflight evidence needed before any future live alpha decision:
+a local shadow preflight session, an owner-gated read-only proof-pack wrapper,
+kill-switch dry-run/manual approval evidence, Dashboard control-boundary
+evidence, Decimal/string amount-boundary evidence, and a release gate proving
+no production mutation. It is not evidence of production order submission,
+production mutation, production order-state reads, listenKey lifecycle access,
+signed WebSocket user stream runtime, real funds, production trading,
+automatic production remediation, production portfolio parity,
+risk/execution-grade live-alpha money math, or Dashboard order controls. It is
+published as a GitHub Release for the tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.12.1
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.13.0
 ```
 
-`v0.12.1` is now the current hardening patch for the Production Online Read-Only
-+ Persistent Shadow line. Its shadow strategy session output remains a bounded
-local event artifact, not a long-running strategy runtime. It does not expand
-the product into production order submission, production order mutation,
-production order-state reads, listenKey lifecycle, signed WebSocket user stream
-runtime, real funds, production trading, automatic production remediation,
-production portfolio parity, live-alpha money-math readiness, or Dashboard
-order controls.
-
-The next patch track is `v0.12.2`, if needed. It must preserve the v0.12.1
-read-only/shadow-only hardening boundary and must not add production order
+`v0.13.0` is now the current Guarded Live Alpha Preflight release. It is still
+preflight-only. It does not expand the product into production order
 submission, production order mutation, production order-state reads, listenKey
 lifecycle, signed WebSocket user stream runtime, real funds, production
-trading, automatic production remediation, or Dashboard order controls.
+trading, automatic production remediation, production portfolio parity,
+risk/execution-grade live-alpha money math, or Dashboard order controls.
 
-`v0.13.0` is the earliest possible Guarded Live Alpha candidate. It requires a
-separate scope decision and must not be inferred from v0.12.0 read-only/shadow
-evidence.
+The next patch track is `v0.13.1`, if needed. It must preserve the v0.13.0
+preflight-only and no-production-mutation boundary and must not add production
+order submission, production order mutation, production order-state reads,
+listenKey lifecycle, signed WebSocket user stream runtime, real funds,
+production trading, automatic production remediation, or Dashboard order
+controls.
+
+`v0.14.0` requires a separate scope decision before any capability may be
+claimed from v0.13.0 preflight evidence.
 
 ## Current Status
 
@@ -120,7 +119,7 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.12.1 is the current formal release line. It builds on the earlier foundation
+v0.13.0 is the current formal release line. It builds on the earlier foundation
 layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
@@ -152,6 +151,12 @@ layers:
   shadow strategy session event artifact, local read-only reconciliation,
   Dashboard v0.12 production shadow read-only panel, and v0.12
   offline/manual-online preflight release gates.
+- `v0.12.1`: Production Read-Only Evidence & Release Surface Hardening patch.
+- `v0.13.0`: Guarded Live Alpha Preflight only, with local shadow preflight
+  session evidence, owner-gated read-only proof-pack wrapper, kill-switch
+  dry-run/manual approval artifact, Dashboard control-boundary evidence,
+  Decimal/string amount-boundary evidence, and no-production-mutation release
+  gate.
 
 `v0.5.0` was completed as a scoped readiness milestone and is absorbed into the
 `v0.6.0` release tree. It is not published as a separate public GitHub Release.
@@ -162,14 +167,13 @@ offline-only probe semantics, and PR-stage smoke coverage. The historical
 line; it is not the current public source release line and does not add a
 production trading capability.
 
-The `v0.12.0` release advances beyond v0.11 contracts into owner-gated
-production `GET` read-only proof paths and persistent local shadow artifacts.
-The shadow strategy session piece is a bounded JSONL event artifact, not a
-long-running strategy runtime.
-It does not add production order submission, production order mutation,
+The `v0.13.0` release advances beyond v0.12 read-only/shadow evidence into
+Guarded Live Alpha preflight evidence only. The shadow preflight session is a
+local artifact workflow with heartbeat, stop-file, and stale-data evidence. It
+does not add production order submission, production order mutation,
 production order-state reads, listenKey lifecycle, signed WebSocket user
-streams, real funds, production trading, automatic production remediation, or
-Dashboard order controls.
+streams, real funds, production trading, automatic production remediation,
+risk/execution-grade live-alpha money math, or Dashboard order controls.
 
 The current release path supports:
 
@@ -222,6 +226,13 @@ The current release path supports:
 - local read-only reconciliation classifications;
 - Dashboard v0.12 production shadow read-only panel;
 - v0.12 offline release gates and manual-online fail-closed preflight.
+- local v0.13 shadow preflight session heartbeat/stop/stale-data evidence;
+- v0.13 owner-gated production online read-only proof-pack wrapper, default
+  offline and fail-closed;
+- v0.13 kill-switch dry-run/manual approval artifact;
+- v0.13 trader/ops Dashboard read-only/control boundary evidence;
+- v0.13 Decimal/string-only amount preflight evidence;
+- v0.13 no-production-mutation PR and release gate.
 
 The v0.3.0 local Supervisor control console and the v0.4.x Binance sandbox
 foundation remain part of validated release history, but they are no longer the
@@ -283,7 +294,8 @@ release built on the v0.10.0 Binance spot sandbox order proof and added
 Production Read-Only Contract + Offline Shadow Portfolio evidence only.
 
 The v0.12.0 release source tree adds owner-gated production `GET` read-only
-proof paths and persistent local shadow artifact evidence. Default local, PR,
+proof paths and persistent local shadow artifact evidence. The v0.13.0 release
+source tree adds Guarded Live Alpha preflight evidence only. Default local, PR,
 CI, and release-gate runs still remain offline unless the owner explicitly
 enables the manual-online proof gates.
 
@@ -293,10 +305,11 @@ risk-decision artifacts, and expose read-only supervisor/Dashboard status. The
 v0.10.0 release proves one owner-gated Binance Spot Demo Mode submit/cancel
 artifact package. The v0.11.0 release adds production read-only contracts and
 local offline shadow evidence. The v0.12.0 release adds owner-gated
-production online read-only proof paths and persistent shadow artifacts, but it
-does not prove production order submission, production order mutation,
-production order-state reads, real funds, production trading readiness,
-automatic production remediation, or Dashboard order controls.
+production online read-only proof paths and persistent shadow artifacts. The
+v0.13.0 release adds Guarded Live Alpha Preflight evidence, but it does not
+prove production order submission, production order mutation, production
+order-state reads, listenKey lifecycle, real funds, production trading
+readiness, automatic production remediation, or Dashboard order controls.
 
 The scope and readiness documents are:
 
@@ -335,6 +348,15 @@ The scope and readiness documents are:
 - `docs/rust-cutover/release/v0_12_0_release_notes.md`
 - `docs/rust-cutover/release/v0_12_1_readiness_report.md`
 - `docs/rust-cutover/release/v0_12_1_release_notes.md`
+- `docs/rust-cutover/release/v0_13_0_scope_decision.md`
+- `docs/rust-cutover/release/v0_13_0_shadow_session_preflight.md`
+- `docs/rust-cutover/release/v0_13_0_online_readonly_proof_pack.md`
+- `docs/rust-cutover/release/v0_13_0_kill_switch_approval_artifact.md`
+- `docs/rust-cutover/release/v0_13_0_dashboard_control_boundary.md`
+- `docs/rust-cutover/release/v0_13_0_decimal_amount_boundary.md`
+- `docs/rust-cutover/release/v0_13_0_no_production_mutation_gate.md`
+- `docs/rust-cutover/release/v0_13_0_readiness_report.md`
+- `docs/rust-cutover/release/v0_13_0_release_notes.md`
 - `docs/versioning.md`
 
 ## Verification
@@ -427,6 +449,15 @@ Release documents:
 - `docs/rust-cutover/release/v0_12_0_release_notes.md`
 - `docs/rust-cutover/release/v0_12_1_readiness_report.md`
 - `docs/rust-cutover/release/v0_12_1_release_notes.md`
+- `docs/rust-cutover/release/v0_13_0_scope_decision.md`
+- `docs/rust-cutover/release/v0_13_0_shadow_session_preflight.md`
+- `docs/rust-cutover/release/v0_13_0_online_readonly_proof_pack.md`
+- `docs/rust-cutover/release/v0_13_0_kill_switch_approval_artifact.md`
+- `docs/rust-cutover/release/v0_13_0_dashboard_control_boundary.md`
+- `docs/rust-cutover/release/v0_13_0_decimal_amount_boundary.md`
+- `docs/rust-cutover/release/v0_13_0_no_production_mutation_gate.md`
+- `docs/rust-cutover/release/v0_13_0_readiness_report.md`
+- `docs/rust-cutover/release/v0_13_0_release_notes.md`
 - `docs/rust-cutover/release/rust_only_release_notes.md`
 - `docs/rust-cutover/release/final_release_verification.md`
 - `docs/rust-cutover/release/final_completion_report.md`
@@ -455,25 +486,25 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.12.1` is the current Rust-only source release for the
-Production Read-Only Evidence & Release Surface Hardening line. It does not add
-production order submission, production order mutation, production order-state
-reads, listenKey lifecycle, signed WebSocket user stream runtime, real funds,
-production trading, automatic production remediation, production portfolio
-parity, live-alpha money-math readiness, or Dashboard order controls. `v0.12.1`
-preserves production read-only/shadow-only hardening boundaries, and
-`v0.13.0` is the earliest possible Guarded Live Alpha candidate. `v0.10.0`
-remains the Binance spot sandbox order-proof baseline, `v0.9.0` remains the
-local deterministic Strategy Runtime batch foundation baseline, `v0.8.0`
-remains the authenticated Binance testnet read-only proof baseline, `v0.7.2`
-remains the wording/evidence closure for the read-only connectivity proof line,
-`v0.6.1` remains the v0.6 offline hardening closure, `v0.6.0` remains the
-Binance testnet dry-run runtime foundation, `v0.5.0` remains a completed
-internal workflow-artifact milestone absorbed into `v0.6.0`, `v0.4.1` remains
-the Binance sandbox public patch baseline, `v0.3.0` remains the Local
-Supervisor Control Console baseline, `v0.2.0` remains the local multi-node
-runtime foundation baseline, and `v0.1.0` remains the first formal Rust-only
-cutover release and historical baseline.
+`ntpro-rust-only-v0.13.0` is the current Rust-only source release for the
+Guarded Live Alpha Preflight line. It does not add production order submission,
+production order mutation, production order-state reads, listenKey lifecycle,
+signed WebSocket user stream runtime, real funds, production trading,
+automatic production remediation, production portfolio parity,
+risk/execution-grade live-alpha money math, or Dashboard order controls.
+`v0.13.0` preserves a preflight-only/no-production-mutation boundary.
+`v0.12.1` remains the Production Read-Only Evidence & Release Surface Hardening
+baseline, `v0.10.0` remains the Binance spot sandbox order-proof baseline,
+`v0.9.0` remains the local deterministic Strategy Runtime batch foundation
+baseline, `v0.8.0` remains the authenticated Binance testnet read-only proof
+baseline, `v0.7.2` remains the wording/evidence closure for the read-only
+connectivity proof line, `v0.6.1` remains the v0.6 offline hardening closure,
+`v0.6.0` remains the Binance testnet dry-run runtime foundation, `v0.5.0`
+remains a completed internal workflow-artifact milestone absorbed into
+`v0.6.0`, `v0.4.1` remains the Binance sandbox public patch baseline, `v0.3.0`
+remains the Local Supervisor Control Console baseline, `v0.2.0` remains the
+local multi-node runtime foundation baseline, and `v0.1.0` remains the first
+formal Rust-only cutover release and historical baseline.
 
 Before cutting the next release, review:
 
