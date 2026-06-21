@@ -674,6 +674,8 @@ struct ProductionPublicReadProbeReport {
     request_url_redacted: String,
     requires_api_key: bool,
     requires_signature: bool,
+    endpoint_read_allowed: bool,
+    offline_contract_ready: bool,
     read_allowed: bool,
     contract_ready: bool,
     online_read_allowed: bool,
@@ -770,6 +772,8 @@ struct ProductionAccountSnapshotContractReport {
     query_shape: String,
     requires_api_key: bool,
     requires_signature: bool,
+    endpoint_read_allowed: bool,
+    offline_contract_ready: bool,
     read_allowed: bool,
     contract_ready: bool,
     online_read_allowed: bool,
@@ -1529,13 +1533,15 @@ where
     }
 
     println!(
-        "live.production_public_read_probe status={} endpoint={} endpoint_class={} method={} path={} manual_online_requested={} contract_ready={} online_read_allowed={} online_execution_supported={} read_allowed={} mutation_allowed=false credentials_used=false network_attempted={} response_shape={} response_shape_validated={} error_code={} production_order_submission_attempted=false production_order_mutation_attempted=false dashboard_order_controls_enabled=false",
+        "live.production_public_read_probe status={} endpoint={} endpoint_class={} method={} path={} manual_online_requested={} endpoint_read_allowed={} offline_contract_ready={} contract_ready={} online_read_allowed={} online_execution_supported={} read_allowed={} mutation_allowed=false credentials_used=false network_attempted={} response_shape={} response_shape_validated={} error_code={} production_order_submission_attempted=false production_order_mutation_attempted=false dashboard_order_controls_enabled=false",
         report.status,
         report.endpoint,
         report.endpoint_class,
         report.method,
         report.path,
         report.manual_online_requested,
+        report.endpoint_read_allowed,
+        report.offline_contract_ready,
         report.contract_ready,
         report.online_read_allowed,
         report.online_execution_supported,
@@ -1585,10 +1591,10 @@ fn build_production_public_read_probe_report(
         "offline production public read-only probe contract is ready; no network was opened"
     };
 
-    let contract_ready =
-        !gates_missing && !manual_online_requested && classified_endpoint.read_allowed;
-    let online_read_allowed =
-        !gates_missing && manual_online_requested && classified_endpoint.read_allowed;
+    let endpoint_read_allowed = classified_endpoint.read_allowed;
+    let offline_contract_ready =
+        !gates_missing && !manual_online_requested && endpoint_read_allowed;
+    let online_read_allowed = !gates_missing && manual_online_requested && endpoint_read_allowed;
     let response_shape = http_result.map_or_else(
         || production_public_read_response_shape(endpoint).to_string(),
         |result| result.response_shape.clone(),
@@ -1610,8 +1616,10 @@ fn build_production_public_read_probe_report(
         request_url_redacted: classified_endpoint.input_url_redacted,
         requires_api_key: classified_endpoint.requires_api_key,
         requires_signature: classified_endpoint.requires_signature,
-        read_allowed: contract_ready,
-        contract_ready,
+        endpoint_read_allowed,
+        offline_contract_ready,
+        read_allowed: offline_contract_ready,
+        contract_ready: offline_contract_ready,
         online_read_allowed,
         mutation_allowed: classified_endpoint.mutation_allowed,
         manual_gate_required: true,
@@ -1841,12 +1849,14 @@ where
     }
 
     println!(
-        "live.production_account_snapshot_contract status={} endpoint_class={} method={} path={} manual_online_requested={} contract_ready={} online_read_allowed={} online_execution_supported={} read_allowed={} mutation_allowed=false env_credentials_only=true credentials_used={} network_attempted={} account_read_attempted={} account_mutation_attempted=false order_endpoint_access_attempted=false production_order_submission_attempted=false production_order_mutation_attempted=false dashboard_order_controls_enabled=false secrets_redacted=true response_shape={} response_shape_validated={} error_code={}",
+        "live.production_account_snapshot_contract status={} endpoint_class={} method={} path={} manual_online_requested={} endpoint_read_allowed={} offline_contract_ready={} contract_ready={} online_read_allowed={} online_execution_supported={} read_allowed={} mutation_allowed=false env_credentials_only=true credentials_used={} network_attempted={} account_read_attempted={} account_mutation_attempted=false order_endpoint_access_attempted=false production_order_submission_attempted=false production_order_mutation_attempted=false dashboard_order_controls_enabled=false secrets_redacted=true response_shape={} response_shape_validated={} error_code={}",
         report.status,
         report.endpoint_class,
         report.method,
         report.path,
         report.manual_online_requested,
+        report.endpoint_read_allowed,
+        report.offline_contract_ready,
         report.contract_ready,
         report.online_read_allowed,
         report.online_execution_supported,
@@ -1898,14 +1908,11 @@ fn build_production_account_snapshot_contract_report(
         "offline authenticated production account snapshot contract is ready; no network was opened"
     };
 
-    let contract_ready = !gates_missing
-        && !credentials_missing
-        && !opt.manual_online
-        && classified_endpoint.read_allowed;
-    let online_read_allowed = !gates_missing
-        && !credentials_missing
-        && opt.manual_online
-        && classified_endpoint.read_allowed;
+    let endpoint_read_allowed = classified_endpoint.read_allowed;
+    let offline_contract_ready =
+        !gates_missing && !credentials_missing && !opt.manual_online && endpoint_read_allowed;
+    let online_read_allowed =
+        !gates_missing && !credentials_missing && opt.manual_online && endpoint_read_allowed;
 
     ProductionAccountSnapshotContractReport {
         schema_version: if opt.manual_online {
@@ -1929,8 +1936,10 @@ fn build_production_account_snapshot_contract_report(
         ),
         requires_api_key: classified_endpoint.requires_api_key,
         requires_signature: classified_endpoint.requires_signature,
-        read_allowed: contract_ready,
-        contract_ready,
+        endpoint_read_allowed,
+        offline_contract_ready,
+        read_allowed: offline_contract_ready,
+        contract_ready: offline_contract_ready,
         online_read_allowed,
         mutation_allowed: classified_endpoint.mutation_allowed,
         owner_gate_required: classified_endpoint.owner_gate_required,
@@ -6585,6 +6594,8 @@ write_summary = true
         assert_eq!(report["path"], "/api/v3/time");
         assert_eq!(report["requires_api_key"], false);
         assert_eq!(report["requires_signature"], false);
+        assert_eq!(report["endpoint_read_allowed"], true);
+        assert_eq!(report["offline_contract_ready"], false);
         assert_eq!(report["read_allowed"], false);
         assert_eq!(report["contract_ready"], false);
         assert_eq!(report["online_read_allowed"], false);
@@ -6623,6 +6634,8 @@ write_summary = true
         assert_eq!(report["status"], "ready_offline_contract");
         assert_eq!(report["endpoint"], "exchange_info");
         assert_eq!(report["path"], "/api/v3/exchangeInfo");
+        assert_eq!(report["endpoint_read_allowed"], true);
+        assert_eq!(report["offline_contract_ready"], true);
         assert_eq!(report["read_allowed"], true);
         assert_eq!(report["contract_ready"], true);
         assert_eq!(report["online_read_allowed"], false);
@@ -6680,6 +6693,8 @@ write_summary = true
         );
         assert_eq!(report["status"], "blocked_missing_manual_online_gate");
         assert_eq!(report["manual_online_requested"], true);
+        assert_eq!(report["endpoint_read_allowed"], true);
+        assert_eq!(report["offline_contract_ready"], false);
         assert_eq!(report["read_allowed"], false);
         assert_eq!(report["contract_ready"], false);
         assert_eq!(report["online_read_allowed"], false);
@@ -6729,6 +6744,8 @@ write_summary = true
         assert_eq!(report["endpoint"], "server_time");
         assert_eq!(report["method"], "GET");
         assert_eq!(report["path"], "/api/v3/time");
+        assert_eq!(report["endpoint_read_allowed"], true);
+        assert_eq!(report["offline_contract_ready"], false);
         assert_eq!(report["read_allowed"], false);
         assert_eq!(report["contract_ready"], false);
         assert_eq!(report["online_read_allowed"], true);
@@ -6783,6 +6800,10 @@ write_summary = true
         assert_eq!(report["status"], "online_read_probe_failed");
         assert_eq!(report["endpoint"], "exchange_info");
         assert_eq!(report["path"], "/api/v3/exchangeInfo");
+        assert_eq!(report["endpoint_read_allowed"], true);
+        assert_eq!(report["offline_contract_ready"], false);
+        assert_eq!(report["read_allowed"], false);
+        assert_eq!(report["contract_ready"], false);
         assert_eq!(report["online_read_allowed"], true);
         assert_eq!(report["network_attempted"], true);
         assert_eq!(report["production_public_online_read_attempted"], true);
@@ -6821,6 +6842,8 @@ write_summary = true
         assert_eq!(report["path"], "/api/v3/account");
         assert_eq!(report["requires_api_key"], true);
         assert_eq!(report["requires_signature"], true);
+        assert_eq!(report["endpoint_read_allowed"], true);
+        assert_eq!(report["offline_contract_ready"], false);
         assert_eq!(report["read_allowed"], false);
         assert_eq!(report["contract_ready"], false);
         assert_eq!(report["online_read_allowed"], false);
@@ -6864,6 +6887,8 @@ write_summary = true
         assert_eq!(report["status"], "blocked_missing_credentials");
         assert_eq!(report["api_key_present"], false);
         assert_eq!(report["api_secret_present"], false);
+        assert_eq!(report["endpoint_read_allowed"], true);
+        assert_eq!(report["offline_contract_ready"], false);
         assert_eq!(report["read_allowed"], false);
         assert_eq!(report["contract_ready"], false);
         assert_eq!(report["online_read_allowed"], false);
@@ -6898,6 +6923,8 @@ write_summary = true
         assert!(!body.contains("ntpro_v110003_synthetic_api_secret_value"));
         let report: serde_json::Value = serde_json::from_str(&body).unwrap();
         assert_eq!(report["status"], "ready_offline_contract");
+        assert_eq!(report["endpoint_read_allowed"], true);
+        assert_eq!(report["offline_contract_ready"], true);
         assert_eq!(report["read_allowed"], true);
         assert_eq!(report["contract_ready"], true);
         assert_eq!(report["online_read_allowed"], false);
@@ -6959,6 +6986,8 @@ write_summary = true
         );
         assert_eq!(report["status"], "blocked_missing_manual_online_gate");
         assert_eq!(report["manual_online_requested"], true);
+        assert_eq!(report["endpoint_read_allowed"], true);
+        assert_eq!(report["offline_contract_ready"], false);
         assert_eq!(report["read_allowed"], false);
         assert_eq!(report["contract_ready"], false);
         assert_eq!(report["online_read_allowed"], false);
@@ -7010,6 +7039,8 @@ write_summary = true
         assert_eq!(report["status"], "online_account_snapshot_ok");
         assert_eq!(report["method"], "GET");
         assert_eq!(report["path"], "/api/v3/account");
+        assert_eq!(report["endpoint_read_allowed"], true);
+        assert_eq!(report["offline_contract_ready"], false);
         assert_eq!(report["read_allowed"], false);
         assert_eq!(report["contract_ready"], false);
         assert_eq!(report["online_read_allowed"], true);
@@ -7063,6 +7094,10 @@ write_summary = true
         let report: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
         assert_eq!(report["status"], "online_account_snapshot_failed");
+        assert_eq!(report["endpoint_read_allowed"], true);
+        assert_eq!(report["offline_contract_ready"], false);
+        assert_eq!(report["read_allowed"], false);
+        assert_eq!(report["contract_ready"], false);
         assert_eq!(report["online_read_allowed"], true);
         assert_eq!(report["network_attempted"], true);
         assert_eq!(report["account_read_attempted"], true);
