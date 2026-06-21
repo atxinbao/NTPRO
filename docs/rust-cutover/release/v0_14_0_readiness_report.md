@@ -3,14 +3,14 @@
 Date: 2026-06-22
 Executor: Codex
 Milestone: `ntpro-rust-only-v0.14.0`
-Status: READY FOR OWNER RELEASE DECISION
+Status: PASS - RELEASED
 
 ## Summary
 
-`v0.14.0` is a release candidate for the Production Order-State Read-Only +
-Live Alpha Dry-Run line. It introduces a narrow owner-gated production
-order-state read-only proof boundary and local live-alpha dry-run evidence, but
-it does not authorize production order submission or production order mutation.
+`v0.14.0` is the Production Order-State Read-Only + Live Alpha Dry-Run release
+line. It introduces a narrow owner-gated production order-state read-only proof
+boundary and local live-alpha dry-run evidence, but it does not authorize
+production order submission or production order mutation.
 
 Plain Chinese summary: v0.14.0 可以开始把“生产订单状态只读查询”和“live-alpha
 干跑证据”串起来了。它默认仍然离线、fail-closed。它不是实盘下单版本，不允许下单、
@@ -20,7 +20,9 @@ Plain Chinese summary: v0.14.0 可以开始把“生产订单状态只读查询�
 
 ```text
 capability = Production Order-State Read-Only + Live Alpha Dry-Run
-candidate release = ntpro-rust-only-v0.14.0
+release tag = ntpro-rust-only-v0.14.0
+release name = NTPRO Rust-only v0.14.0
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.14.0
 default execution posture = offline fail-closed
 production order-state read proof = owner-gated GET only
 live-alpha order flow = dry-run only, no submission
@@ -33,8 +35,6 @@ listenKey lifecycle = not included
 real funds = not included
 production trading = not included
 Dashboard order controls = not included
-formal tag = not created by this readiness report
-formal GitHub Release = not created by this readiness report
 ```
 
 ## Included
@@ -88,6 +88,7 @@ raw production responses, raw credentials, signatures, signed queries, or signed
 | #465 | PASS | V140-005 reconciliation golden traces | `docs/rust-cutover/evidence/V140-005.md` | Replay evidence only |
 | #466 | PASS | V140-006 Dashboard live-alpha dry-run panel | `docs/rust-cutover/evidence/V140-006.md` | Read-only Dashboard status only |
 | #467 | PASS | V140-007 v0.14 release gates | `docs/rust-cutover/evidence/V140-007.md` | Gate wiring only |
+| #468 | PASS | V140-008 readiness and release notes | `docs/rust-cutover/evidence/V140-008.md` | Release accounting only |
 
 ## Gate Evidence
 
@@ -113,20 +114,24 @@ Hosted PR smoke evidence:
 PR #466 Rust Cutover Smoke = PASS, run 27918395268
 PR #467 Rust Cutover Smoke = PASS, run 27919248124
 PR #467 security-audit checks = PASS, run 27919248127
+PR #468 Rust Cutover Smoke = PASS, run 27919653653
 ```
 
-The release owner must still run the formal hosted Rust Cutover Release Gate on
-the final `ntpro-rust-only-v0.14.0` candidate tag before publication.
+## Release Closure Status
 
-## Release Decision Status
+The V140 task queue is complete after V140-008, and the owner release decision
+has moved the release package to the formal publication path:
 
-This source tree is ready for an owner release decision after V140-008 merges.
-This report does not create the tag and does not publish the GitHub Release.
+```text
+formal tag = ntpro-rust-only-v0.14.0
+formal release name = NTPRO Rust-only v0.14.0
+formal GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.14.0
+```
 
 ## Final Verdict
 
-The v0.14.0 package is ready to be considered as the Production Order-State
-Read-Only + Live Alpha Dry-Run release candidate.
+The v0.14.0 release package is the formal publication package for
+`ntpro-rust-only-v0.14.0`.
 
 Do not describe this readiness PASS as production order submission readiness,
 production order mutation readiness, production cancel/replace/amend/retry/
