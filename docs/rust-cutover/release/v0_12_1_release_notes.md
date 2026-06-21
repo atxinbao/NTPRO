@@ -9,8 +9,7 @@ Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.
 
 ## Summary
 
-`v0.12.1` is a hardening patch for the published `v0.12.0` Production Online
-Read-Only + Persistent Shadow release. It closes publication-surface, gate,
+`v0.12.1` is a hardening patch for the published `v0.12.0` Production Online Read-Only + Persistent Shadow release. It closes publication-surface, gate,
 owner-run evidence, artifact-semantics, WebSocket boundary, shadow-session
 wording, and Decimal/string notional preflight gaps without expanding the
 product capability.
@@ -83,7 +82,7 @@ live-alpha risk/execution-grade money math
 exchange-confirmed shadow fills or positions
 real funds
 production trading
-Dashboard order/cancel/replace/amend controls
+Dashboard order/cancel/replace/amend/retry/reconnect controls
 Dashboard credential input
 ```
 
@@ -128,4 +127,5 @@ Persistent Shadow hardening only, no production order submission, no production
 order mutation, no production order-state reads, no listenKey lifecycle, no
 signed WebSocket user stream runtime, no real funds, no production trading, no
 automatic production remediation, no production portfolio parity, no
-live-alpha money-math readiness, and no Dashboard order controls.
+live-alpha money-math readiness, and no
+Dashboard order/cancel/replace/amend/retry/reconnect controls.
