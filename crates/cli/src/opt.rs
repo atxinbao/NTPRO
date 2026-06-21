@@ -166,6 +166,8 @@ pub enum LiveCommand {
     ProductionShadowPortfolioRuntime(LiveProductionShadowPortfolioRuntimeOpt),
     /// Writes local v0.12 persistent shadow strategy session events from read-only shadow artifacts.
     ProductionShadowStrategySession(LiveProductionShadowStrategySessionOpt),
+    /// Runs a local v0.13 guarded-live-alpha shadow preflight loop without network or orders.
+    ProductionShadowPreflightSession(LiveProductionShadowPreflightSessionOpt),
     /// Writes local v0.12 production read-only reconciliation events from shadow artifacts.
     ProductionReadonlyReconciliation(LiveProductionReadonlyReconciliationOpt),
 }
@@ -499,6 +501,41 @@ pub struct LiveProductionShadowStrategySessionOpt {
     #[arg(long)]
     pub stop_after_heartbeats: bool,
     /// Optional local owner stop-file. If present, the command records a stop marker.
+    #[arg(long)]
+    pub stop_file: Option<PathBuf>,
+}
+
+/// Local guarded-live-alpha shadow preflight loop options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionShadowPreflightSessionOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// Optional owner-visible session identifier; defaults to run_id.
+    #[arg(long)]
+    pub session_id: Option<String>,
+    /// Owner-visible strategy identifier.
+    #[arg(long, default_value = "ema_cross_btcusdt_v1")]
+    pub strategy_id: String,
+    /// v0.12 shadow portfolio runtime JSON input.
+    #[arg(long)]
+    pub shadow_portfolio_runtime: PathBuf,
+    /// Optional existing strategy/session status JSON input.
+    #[arg(long)]
+    pub strategy_session_status: Option<PathBuf>,
+    /// v0.13 shadow preflight session JSONL output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Maximum local heartbeat events before the preflight loop stops.
+    #[arg(long, default_value_t = 3)]
+    pub max_heartbeats: u64,
+    /// Delay between heartbeat checks.
+    #[arg(long, default_value_t = 1_000)]
+    pub heartbeat_interval_ms: u64,
+    /// Marks source data stale when the shadow portfolio artifact is older than this threshold.
+    #[arg(long, default_value_t = 30_000)]
+    pub stale_after_ms: u64,
+    /// Optional local owner stop-file. If present, the loop stops without production mutation.
     #[arg(long)]
     pub stop_file: Option<PathBuf>,
 }

@@ -216,6 +216,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   Alpha Preflight line. It limits v0.13.0 to preflight evidence only and does
   not authorize production order submission, order mutation, real funds,
   production trading, or Dashboard order controls.
+- `v0_13_0_shadow_session_preflight.md` - V130-002 local shadow preflight
+  session contract. It adds heartbeat, stop-file, and stale-data evidence while
+  preserving the no-production-mutation and no-Dashboard-order-controls
+  boundary.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
