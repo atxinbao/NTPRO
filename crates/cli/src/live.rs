@@ -45,10 +45,10 @@ use crate::{
     endpoint_classifier::{EndpointAuthKind, EndpointClassifier},
     opt::{
         LiveCommand, LiveOpt, LiveProductionAccountSnapshotContractOpt,
-        LiveProductionPublicReadProbeOpt, LiveProductionReadonlyReconciliationOpt,
-        LiveProductionShadowPortfolioRuntimeOpt, LiveProductionShadowPreflightSessionOpt,
-        LiveProductionShadowStrategySessionOpt, LiveRunOpt,
-        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveProductionKillSwitchApprovalArtifactOpt, LiveProductionPublicReadProbeOpt,
+        LiveProductionReadonlyReconciliationOpt, LiveProductionShadowPortfolioRuntimeOpt,
+        LiveProductionShadowPreflightSessionOpt, LiveProductionShadowStrategySessionOpt,
+        LiveRunOpt, LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
         LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
         ProductionPublicReadEndpoint, TestnetReconciliationScenario,
@@ -119,6 +119,8 @@ const PRODUCTION_SHADOW_STRATEGY_SESSION_EVENT_SCHEMA_VERSION: &str =
     "ntpro.v120_shadow_strategy_session_event.v1";
 const PRODUCTION_SHADOW_PREFLIGHT_SESSION_EVENT_SCHEMA_VERSION: &str =
     "ntpro.v130_shadow_preflight_session_event.v1";
+const PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_SCHEMA_VERSION: &str =
+    "ntpro.v130_kill_switch_approval_artifact.v1";
 const PRODUCTION_READONLY_RECONCILIATION_EVENT_SCHEMA_VERSION: &str =
     "ntpro.v120_readonly_reconciliation_event.v1";
 const START_STOP_SHUTDOWN: &str = "start-stop";
@@ -1238,6 +1240,51 @@ struct ShadowPreflightEventInput<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionKillSwitchApprovalArtifact {
+    schema_version: String,
+    run_id: String,
+    session_id: String,
+    strategy_id: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    kill_switch_enabled: bool,
+    kill_switch_active: bool,
+    kill_switch_dry_run: bool,
+    kill_switch_state_source: String,
+    manual_approval_required: bool,
+    manual_approval_recorded: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    manual_approval_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    approved_by: Option<String>,
+    approval_state: String,
+    approval_artifact_only: bool,
+    owner_approval_required_before_any_mutation: bool,
+    production_order_submission_allowed: bool,
+    production_order_mutation_allowed: bool,
+    production_order_state_reads_allowed: bool,
+    listen_key_lifecycle_allowed: bool,
+    production_order_submissions_attempted: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    production_order_state_reads_attempted: u64,
+    listen_key_lifecycle_attempted: u64,
+    cancel_replace_amend_attempted: bool,
+    actual_submission_count: u64,
+    automatic_correction_orders_submitted: u64,
+    dashboard_order_controls_enabled: bool,
+    real_orders_submitted: bool,
+    production_trading_enabled: bool,
+    network_attempted: bool,
+    values_are_exchange_truth: bool,
+    dry_run_confirmed: bool,
+    no_production_mutation_confirmed: bool,
+    dashboard_controls_disabled_confirmed: bool,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct ProductionReadonlyReconciliationEvent {
     schema_version: String,
     run_id: String,
@@ -1384,6 +1431,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         }
         LiveCommand::ProductionShadowPreflightSession(session) => {
             run_live_production_shadow_preflight_session(&session).await
+        }
+        LiveCommand::ProductionKillSwitchApprovalArtifact(artifact) => {
+            run_live_production_kill_switch_approval_artifact(&artifact)
         }
         LiveCommand::ProductionReadonlyReconciliation(reconciliation) => {
             run_live_production_readonly_reconciliation(&reconciliation)
@@ -1564,6 +1614,23 @@ async fn run_live_production_shadow_preflight_session(
         result.final_state,
         result.stop_file_observed,
         result.stale_data_detected,
+    );
+    Ok(())
+}
+
+fn run_live_production_kill_switch_approval_artifact(
+    opt: &LiveProductionKillSwitchApprovalArtifactOpt,
+) -> anyhow::Result<()> {
+    let artifact = build_production_kill_switch_approval_artifact(opt)?;
+    atomic_write_json(&opt.output, &artifact)?;
+
+    println!(
+        "live.production_kill_switch_approval_artifact status={} run_id={} output={} kill_switch_dry_run=true kill_switch_active={} manual_approval_recorded={} production_order_submissions_attempted=0 production_order_mutations_attempted=0 network_attempted=false dashboard_order_controls_enabled=false",
+        artifact.status,
+        artifact.run_id,
+        opt.output.display(),
+        artifact.kill_switch_active,
+        artifact.manual_approval_recorded,
     );
     Ok(())
 }
@@ -3111,6 +3178,98 @@ fn build_shadow_preflight_session_event(
         values_are_exchange_truth: false,
         diagnostic: input.diagnostic.to_string(),
     }
+}
+
+fn build_production_kill_switch_approval_artifact(
+    opt: &LiveProductionKillSwitchApprovalArtifactOpt,
+) -> anyhow::Result<ProductionKillSwitchApprovalArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+    validate_non_empty("strategy_id", &opt.strategy_id)?;
+    if !opt.confirm_dry_run_only {
+        anyhow::bail!("--confirm-dry-run-only is required for v0.13 approval artifacts");
+    }
+    if !opt.confirm_no_production_mutation {
+        anyhow::bail!("--confirm-no-production-mutation is required for v0.13 approval artifacts");
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        anyhow::bail!(
+            "--confirm-dashboard-order-controls-disabled is required for v0.13 approval artifacts"
+        );
+    }
+
+    let session_id = opt
+        .session_id
+        .as_deref()
+        .unwrap_or(opt.run_id.as_str())
+        .to_string();
+    validate_non_empty("session_id", &session_id)?;
+
+    let approval_state = opt.approval_state.trim();
+    if !matches!(approval_state, "pending" | "approved" | "rejected") {
+        anyhow::bail!("approval_state must be pending, approved, or rejected");
+    }
+
+    let manual_approval_id = optional_non_empty("manual_approval_id", &opt.manual_approval_id)?;
+    let approved_by = optional_non_empty("approved_by", &opt.approved_by)?;
+    if approval_state == "approved" {
+        if manual_approval_id.is_none() {
+            anyhow::bail!("approval_state=approved requires --manual-approval-id");
+        }
+        if approved_by.is_none() {
+            anyhow::bail!("approval_state=approved requires --approved-by");
+        }
+    }
+
+    let manual_approval_recorded = manual_approval_id.is_some() && approved_by.is_some();
+    let status = match approval_state {
+        "approved" => "manual_approval_recorded",
+        "rejected" => "manual_approval_rejected",
+        _ => "manual_approval_pending",
+    };
+
+    Ok(ProductionKillSwitchApprovalArtifact {
+        schema_version: PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        session_id,
+        strategy_id: opt.strategy_id.clone(),
+        artifact_type: "kill_switch_dry_run_manual_approval".to_string(),
+        status: status.to_string(),
+        created_at: now_millis(),
+        kill_switch_enabled: true,
+        kill_switch_active: opt.kill_switch_active,
+        kill_switch_dry_run: true,
+        kill_switch_state_source: "local_cli_dry_run".to_string(),
+        manual_approval_required: true,
+        manual_approval_recorded,
+        manual_approval_id,
+        approved_by,
+        approval_state: approval_state.to_string(),
+        approval_artifact_only: true,
+        owner_approval_required_before_any_mutation: true,
+        production_order_submission_allowed: false,
+        production_order_mutation_allowed: false,
+        production_order_state_reads_allowed: false,
+        listen_key_lifecycle_allowed: false,
+        production_order_submissions_attempted: 0,
+        production_orders_submitted: 0,
+        production_order_mutations_attempted: 0,
+        production_order_state_reads_attempted: 0,
+        listen_key_lifecycle_attempted: 0,
+        cancel_replace_amend_attempted: false,
+        actual_submission_count: 0,
+        automatic_correction_orders_submitted: 0,
+        dashboard_order_controls_enabled: false,
+        real_orders_submitted: false,
+        production_trading_enabled: false,
+        network_attempted: false,
+        values_are_exchange_truth: false,
+        dry_run_confirmed: opt.confirm_dry_run_only,
+        no_production_mutation_confirmed: opt.confirm_no_production_mutation,
+        dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
+        diagnostic:
+            "local guarded-live-alpha kill-switch/manual-approval artifact; no production mutation attempted"
+                .to_string(),
+    })
 }
 
 fn stop_file_exists(path: Option<&Path>) -> bool {
@@ -5739,6 +5898,16 @@ fn validate_non_empty(field: &str, value: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn optional_non_empty(field: &str, value: &Option<String>) -> anyhow::Result<Option<String>> {
+    value
+        .as_ref()
+        .map(|raw| {
+            validate_non_empty(field, raw)?;
+            Ok(raw.trim().to_string())
+        })
+        .transpose()
+}
+
 fn validate_exact(field: &str, value: &str, expected: &str) -> anyhow::Result<()> {
     if value != expected {
         anyhow::bail!("{field} must be '{expected}', got '{value}'");
@@ -8185,6 +8354,119 @@ write_summary = true
             "stale_shadow_portfolio_runtime"
         );
         assert_eq!(events[1]["production_orders_submitted"], 0);
+    }
+
+    #[test]
+    fn production_kill_switch_approval_artifact_writes_no_mutation_contract() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v130-004-kill-switch-approval-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let output = output_dir.join("kill_switch_approval.json");
+
+        run_live_production_kill_switch_approval_artifact(
+            &LiveProductionKillSwitchApprovalArtifactOpt {
+                run_id: "v130-live-alpha-preflight".to_string(),
+                session_id: Some("session-1".to_string()),
+                strategy_id: "ema_cross_btcusdt_v1".to_string(),
+                output: output.clone(),
+                kill_switch_active: true,
+                approval_state: "approved".to_string(),
+                manual_approval_id: Some("owner-approval-001".to_string()),
+                approved_by: Some("owner".to_string()),
+                confirm_dry_run_only: true,
+                confirm_no_production_mutation: true,
+                confirm_dashboard_order_controls_disabled: true,
+            },
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(
+            artifact["schema_version"],
+            PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_SCHEMA_VERSION
+        );
+        assert_eq!(artifact["status"], "manual_approval_recorded");
+        assert_eq!(artifact["kill_switch_enabled"], true);
+        assert_eq!(artifact["kill_switch_active"], true);
+        assert_eq!(artifact["kill_switch_dry_run"], true);
+        assert_eq!(artifact["manual_approval_required"], true);
+        assert_eq!(artifact["manual_approval_recorded"], true);
+        assert_eq!(artifact["manual_approval_id"], "owner-approval-001");
+        assert_eq!(artifact["approved_by"], "owner");
+        assert_eq!(artifact["approval_state"], "approved");
+        assert_eq!(artifact["approval_artifact_only"], true);
+        assert_eq!(
+            artifact["owner_approval_required_before_any_mutation"],
+            true
+        );
+        assert_eq!(artifact["production_order_submission_allowed"], false);
+        assert_eq!(artifact["production_order_mutation_allowed"], false);
+        assert_eq!(artifact["production_order_state_reads_allowed"], false);
+        assert_eq!(artifact["listen_key_lifecycle_allowed"], false);
+        assert_eq!(artifact["production_order_submissions_attempted"], 0);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["production_order_state_reads_attempted"], 0);
+        assert_eq!(artifact["listen_key_lifecycle_attempted"], 0);
+        assert_eq!(artifact["cancel_replace_amend_attempted"], false);
+        assert_eq!(artifact["dashboard_order_controls_enabled"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["values_are_exchange_truth"], false);
+    }
+
+    #[test]
+    fn production_kill_switch_approval_artifact_requires_dry_run_confirmations() {
+        let output = std::env::temp_dir().join(format!(
+            "ntpro-v130-004-kill-switch-approval-missing-confirm-{}.json",
+            std::process::id()
+        ));
+        let err = build_production_kill_switch_approval_artifact(
+            &LiveProductionKillSwitchApprovalArtifactOpt {
+                run_id: "v130-live-alpha-preflight".to_string(),
+                session_id: None,
+                strategy_id: "ema_cross_btcusdt_v1".to_string(),
+                output,
+                kill_switch_active: true,
+                approval_state: "pending".to_string(),
+                manual_approval_id: None,
+                approved_by: None,
+                confirm_dry_run_only: false,
+                confirm_no_production_mutation: true,
+                confirm_dashboard_order_controls_disabled: true,
+            },
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("--confirm-dry-run-only"));
+    }
+
+    #[test]
+    fn production_kill_switch_approval_artifact_requires_approved_fields() {
+        let output = std::env::temp_dir().join(format!(
+            "ntpro-v130-004-kill-switch-approval-missing-fields-{}.json",
+            std::process::id()
+        ));
+        let err = build_production_kill_switch_approval_artifact(
+            &LiveProductionKillSwitchApprovalArtifactOpt {
+                run_id: "v130-live-alpha-preflight".to_string(),
+                session_id: None,
+                strategy_id: "ema_cross_btcusdt_v1".to_string(),
+                output,
+                kill_switch_active: true,
+                approval_state: "approved".to_string(),
+                manual_approval_id: None,
+                approved_by: Some("owner".to_string()),
+                confirm_dry_run_only: true,
+                confirm_no_production_mutation: true,
+                confirm_dashboard_order_controls_disabled: true,
+            },
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("--manual-approval-id"));
     }
 
     #[test]

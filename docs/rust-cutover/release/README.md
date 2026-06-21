@@ -225,6 +225,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   fail-closed; optional owner-run artifacts are redacted and do not expand
   production trading, order mutation, order-state read, listenKey, or Dashboard
   control capability.
+- `v0_13_0_kill_switch_approval_artifact.md` - V130-004 local kill-switch
+  dry-run/manual-approval artifact contract. It records preflight approval
+  evidence while preserving the no-network, no-production-mutation, and
+  no-Dashboard-order-controls boundary.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.
