@@ -14,7 +14,7 @@ listenKey lifecycle, real funds, production trading, or Dashboard order
 controls.
 
 Plain Chinese summary: v0.13.0 可以理解成“实盘 alpha 前置检查包”，不是实盘
-下单系统。它把 shadow session、只读 proof pack、kill switch、Dashboard 边界、
+下单系统。它把 bounded local shadow preflight loop、只读 proof pack、kill switch、Dashboard 边界、
 Decimal 金额边界和 no-production-mutation 门禁都补齐，但默认仍然离线、fail-closed，
 不碰生产订单和真实资金。
 
@@ -27,7 +27,7 @@ release tag = ntpro-rust-only-v0.13.0
 release name = NTPRO Rust-only v0.13.0
 release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.13.0
 default execution posture = offline fail-closed
-shadow preflight session = local artifact evidence only
+shadow preflight loop = bounded local artifact evidence only
 owner-run online proof pack = optional, read-only, owner-gated, fail-closed by default
 kill switch = dry-run/manual approval artifact only
 Dashboard controls = read-only/status and local ops boundary only
@@ -48,7 +48,7 @@ formal GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rus
 
 ```text
 Guarded Live Alpha Preflight scope decision
-local shadow preflight session heartbeat/stop/stale-data evidence
+bounded local shadow preflight loop heartbeat/stop/stale-data evidence
 owner-gated production online read-only proof-pack wrapper
 kill-switch dry-run/manual approval artifact
 trader/ops Dashboard read-only/control boundary evidence

@@ -14,14 +14,14 @@ needed before any future live-alpha execution decision, while keeping default
 local, PR, CI, and release-gate execution offline/fail-closed.
 
 Plain Chinese summary: v0.13.0 不是实盘交易版本。它只是把 live alpha 之前必须
-先证明的东西补齐：本地 shadow preflight session、owner-gated 只读 proof pack、
+先证明的东西补齐：bounded local shadow preflight loop、owner-gated 只读 proof pack、
 kill switch 审批证据、Dashboard 控制边界、Decimal 金额边界，以及发版门禁证明
 没有生产下单/撤改/订单状态读取/listenKey/Dashboard 下单按钮。
 
 ## Changed
 
 - Defined the v0.13 Guarded Live Alpha Preflight scope.
-- Added a local shadow preflight session with heartbeat, stop-file, and
+- Added a bounded local shadow preflight loop with heartbeat, stop-file, and
   stale-data evidence.
 - Added an owner-run production online read-only proof-pack wrapper. The default
   gate path remains offline/fail-closed.
@@ -40,7 +40,7 @@ Included:
 
 ```text
 Guarded Live Alpha Preflight scope decision
-local shadow preflight session evidence
+bounded local shadow preflight loop evidence
 owner-gated production online read-only proof-pack wrapper
 kill-switch dry-run/manual approval artifact
 trader/ops Dashboard read-only/control boundary evidence
@@ -75,7 +75,7 @@ Dashboard credential input
 | --- | --- | --- | --- |
 | #440 | Source-tree hardening delta | No | Fixes v0.12.1 release-publication guard after the v0.12.1 tag. Absorbed into the v0.13 source tree as release hygiene only. |
 | #441 | V130-001 | Yes | Defines Guarded Live Alpha Preflight scope. |
-| #442 | V130-002 | Yes | Adds local shadow preflight session loop and evidence. |
+| #442 | V130-002 | Yes | Adds bounded local shadow preflight loop evidence. |
 | #443 | V130-003 | Yes | Adds owner-run online read-only proof-pack wrapper. |
 | #444 | V130-004 | Yes | Adds kill-switch dry-run/manual approval artifact. |
 | #445 | V130-005 | Yes | Defines Dashboard trader/ops control boundary. |
