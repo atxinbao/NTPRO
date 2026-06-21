@@ -2,16 +2,16 @@
 
 Date: 2026-06-22
 Executor: Codex
-Status: READY FOR OWNER RELEASE DECISION
-Tag: `ntpro-rust-only-v0.14.0` not yet created
-Release name: `NTPRO Rust-only v0.14.0` not yet published
+Status: RELEASED
+Tag: `ntpro-rust-only-v0.14.0`
+Release name: `NTPRO Rust-only v0.14.0`
+Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.14.0`
 
 ## Summary
 
-`v0.14.0` is the Production Order-State Read-Only + Live Alpha Dry-Run release
-candidate. It adds owner-gated production order-state GET proof scope and local
-live-alpha dry-run evidence while preserving the no-production-mutation
-boundary.
+`v0.14.0` is the Production Order-State Read-Only + Live Alpha Dry-Run release.
+It adds owner-gated production order-state GET proof scope and local live-alpha
+dry-run evidence while preserving the no-production-mutation boundary.
 
 Plain Chinese summary: v0.14.0 是“只读订单状态 + live-alpha 干跑证据”版本。它可以
 让 owner 手动开 gate 做生产订单状态只读 GET 证明，也能在本地记录 live-alpha
@@ -78,6 +78,7 @@ raw production responses, raw credentials, signatures, signed queries, or signed
 | #465 | V140-005 | Yes, replay evidence only | Adds live-alpha reconciliation golden traces. |
 | #466 | V140-006 | Yes, read-only Dashboard only | Adds live-alpha dry-run Dashboard status panel. |
 | #467 | V140-007 | No | Adds v0.14 release gate wiring. |
+| #468 | V140-008 | No | Prepares v0.14 readiness and release notes. |
 
 ## Validation
 
@@ -95,24 +96,23 @@ docs/rust-cutover/evidence/V140-007.md
 docs/rust-cutover/evidence/V140-008.md
 ```
 
-Required owner-side release validation before publication:
+Required release validation for this package:
 
 ```text
 scripts/ai/verify_release.sh release-surface-current-guard
 scripts/ai/verify_release.sh v14-release-gates
 scripts/ai/verify_fast.sh
 git diff --check
-GitHub hosted Rust Cutover Release Gate for tag ntpro-rust-only-v0.14.0
 ```
 
 ## Release Status
 
-This document is release-note material for a possible formal GitHub Release:
+This document is the formal GitHub Release note for:
 
 ```text
 tag = ntpro-rust-only-v0.14.0
 release name = NTPRO Rust-only v0.14.0
-publication status = not published by this document
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.14.0
 ```
 
 The release boundary must continue to preserve: owner-gated read-only
