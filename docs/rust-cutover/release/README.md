@@ -234,6 +234,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   controls to local supervisor lifecycle actions, and preserves disabled
   production order controls, credential entry, listenKey lifecycle, production
   reconnect, real funds, and production trading.
+- `v0_13_0_decimal_amount_boundary.md` - V130-006 Decimal/string-only amount
+  boundary for future live-alpha risk/execution preflight fields. It rejects
+  scientific notation, preserves `rust_decimal` aggregation evidence, and keeps
+  live-alpha money math, production mutation, real funds, and production
+  trading out of v0.13.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.

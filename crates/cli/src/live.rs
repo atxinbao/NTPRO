@@ -3788,6 +3788,12 @@ fn parse_non_negative_decimal(value: &str) -> anyhow::Result<Decimal> {
     if value.starts_with('-') {
         anyhow::bail!("decimal value must not be negative");
     }
+    if value.matches('.').count() > 1
+        || !value.chars().all(|ch| ch.is_ascii_digit() || ch == '.')
+        || !value.chars().any(|ch| ch.is_ascii_digit())
+    {
+        anyhow::bail!("decimal value must be a plain decimal string");
+    }
     value
         .parse::<Decimal>()
         .context("decimal value must parse as Decimal")
@@ -7981,6 +7987,25 @@ write_summary = true
             report.exposure.notional.as_deref(),
             Some("0.300000000000000003")
         );
+    }
+
+    #[test]
+    fn v13_live_alpha_amount_boundary_uses_decimal_strings_without_f64() {
+        let first = parse_non_negative_decimal("0.100000000000000001").unwrap();
+        let second = parse_non_negative_decimal("0.200000000000000002").unwrap();
+        let sum = first + second;
+        let f64_sum = 0.1_f64 + 0.2_f64;
+
+        assert_eq!(format_decimal(&sum), "0.300000000000000003");
+        assert_eq!(format!("{sum}"), "0.300000000000000003");
+        assert_ne!(format!("{sum}"), format!("{f64_sum}"));
+
+        for invalid in ["", "-0.1", "1e-5", "NaN", "inf"] {
+            assert!(
+                parse_non_negative_decimal(invalid).is_err(),
+                "v0.13 amount boundary must reject non-plain decimal string {invalid}",
+            );
+        }
     }
 
     #[test]
