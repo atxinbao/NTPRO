@@ -108,6 +108,7 @@ The following are forbidden in v0.12.0:
 | any method | `/api/v3/openOrders`, `/api/v3/allOrders`, `/api/v3/order` | Production order-state reads remain out of scope. |
 | any method | `/api/v3/orderList`, `/api/v3/openOrderList`, `/api/v3/allOrderList` | Production order-list reads remain out of scope. |
 | `POST` / `PUT` / `DELETE` | `/api/v3/userDataStream` | listenKey lifecycle mutation. |
+| signed WebSocket user stream | listenKey-backed user data stream | Deferred for v0.12 because listenKey lifecycle access is out of scope. |
 | any method | margin, futures, transfer, withdrawal, deposit, account settings | Expanded account or funds surface. |
 | any Dashboard action | order/cancel/replace/amend/retry/reconnect/credential controls | Dashboard remains read-only for v0.12.0. |
 
@@ -276,4 +277,3 @@ evidence that:
 - raw secrets, raw signatures, signed URLs, raw account responses, and raw
   balance values were not persisted;
 - persistent shadow runtime did not present local shadow state as exchange truth.
-

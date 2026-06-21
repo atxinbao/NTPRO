@@ -8,15 +8,16 @@ The current public milestone is:
 ```text
 Current source tag: ntpro-rust-only-v0.12.0
 Capability: Production Online Read-Only + Persistent Shadow
-Boundary: owner-gated production public/account GET read-only proof paths, redacted response-shape evidence, local shadow portfolio runtime, persistent shadow strategy session, local read-only reconciliation, Dashboard read-only production shadow status, production orders submitted=0, production order mutations attempted=0, production order-state reads attempted=0, listenKey lifecycle attempted=0, no real funds, no production trading, no Dashboard order controls
+Boundary: owner-gated production public/account GET read-only proof paths, redacted response-shape evidence, local shadow portfolio runtime, persistent shadow strategy session, local read-only reconciliation, Dashboard read-only production shadow status, production orders submitted=0, production order mutations attempted=0, production order-state reads attempted=0, listenKey lifecycle attempted=0, signed WebSocket user stream deferred, no real funds, no production trading, no Dashboard order controls
 ```
 
 This tag is the current v0.12.0 source release point for the scoped Production
 Online Read-Only + Persistent Shadow line. It adds owner-gated production GET
 read-only proof paths and persistent local shadow evidence. It is not evidence
 of production order submission, production mutation, order-state reads,
-listenKey lifecycle access, real funds, production trading, automatic
-production remediation, or Dashboard order controls. It is published as a
+listenKey lifecycle access, signed WebSocket user streams, real funds,
+production trading, automatic production remediation, or Dashboard order
+controls. It is published as a
 GitHub Release for the tagged source tree:
 
 ```text
@@ -34,13 +35,14 @@ decision, but this source tree does not by itself create the
 `v0.12.0` is now the current Production Online Read-Only + Persistent Shadow
 release. It does not expand the product into production order submission,
 production order mutation, production order-state reads, listenKey lifecycle,
-real funds, production trading, automatic production remediation, or Dashboard
-order controls.
+signed WebSocket user streams, real funds, production trading, automatic
+production remediation, or Dashboard order controls.
 
 The next patch track is `v0.12.1`, if needed. It must preserve the v0.12.0
 read-only/shadow-only release boundary and must not add production order
 submission, production order mutation, production order-state reads, listenKey
-lifecycle, real funds, production trading, or Dashboard order controls.
+lifecycle, signed WebSocket user streams, real funds, production trading, or
+Dashboard order controls.
 
 `v0.13.0` is the earliest possible Guarded Live Alpha candidate. It requires a
 separate scope decision and must not be inferred from v0.12.0 read-only/shadow
@@ -164,8 +166,9 @@ publication; it does not add a production trading capability.
 The `v0.12.0` release advances beyond v0.11 contracts into owner-gated
 production `GET` read-only proof paths and persistent local shadow artifacts.
 It does not add production order submission, production order mutation,
-production order-state reads, listenKey lifecycle, real funds, production
-trading, automatic production remediation, or Dashboard order controls.
+production order-state reads, listenKey lifecycle, signed WebSocket user
+streams, real funds, production trading, automatic production remediation, or
+Dashboard order controls.
 
 The current release path supports:
 
@@ -247,6 +250,7 @@ Not included in the v0.12.0 product claim:
 - Production order submit, cancel, replace, amend, retry, correction, or live
   order management.
 - Production listenKey lifecycle creation, keepalive, or close.
+- Production signed WebSocket user stream execution.
 - Strategy-driven production execution.
 - Automatic production remediation.
 - Production portfolio parity.

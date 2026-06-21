@@ -40,6 +40,7 @@ production order submission = not included
 production order mutation = not included
 production order-state reads = not included
 listenKey lifecycle = not included
+signed WebSocket user stream = deferred because listenKey lifecycle is not included
 real funds = not included
 production trading = not included
 Dashboard order controls = not included
