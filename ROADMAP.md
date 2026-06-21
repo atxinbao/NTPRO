@@ -5,27 +5,31 @@ Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is
-`ntpro-rust-only-v0.12.0`, the Production Online Read-Only + Persistent Shadow
-release. The next patch track is `v0.12.1`, a Production Read-Only Evidence &
-Release Surface Hardening line. `v0.13.0` is the earliest possible Guarded
-Live Alpha candidate.
+`ntpro-rust-only-v0.12.1`, the Production Online Read-Only + Persistent Shadow
+hardening release for Production Read-Only Evidence & Release Surface
+Hardening. The next patch track is `v0.12.2`, if needed. `v0.13.0` is the
+earliest possible Guarded Live Alpha candidate.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.12.0
+ntpro-rust-only-v0.12.1
 ```
 
 Current capability boundary:
 
 ```text
-Production Online Read-Only + Persistent Shadow
+Production Read-Only Evidence & Release Surface Hardening
+v0.12.0 production online read-only + persistent shadow hardening
 owner-gated production public GET read-only proof
 owner-gated authenticated production account snapshot GET proof
+optional owner-run online proof evidence
 redacted account response-shape evidence
+normalized read artifact semantics
 local shadow portfolio runtime artifact
+Decimal/string shadow notional preflight
 bounded local shadow strategy session event artifact
 local read-only reconciliation classifications
 Dashboard v0.12 production shadow read-only panel
@@ -324,12 +328,14 @@ The v0.12.0 release scope is:
 - production trading;
 - Dashboard order controls.
 
-## Patch Track: v0.12.1
+## Published Capability Track: v0.12.1
 
-`v0.12.1` is a hardening-only patch track for the published v0.12.0 release.
-It closes release-publication, release-surface, owner-run proof wording,
-artifact-field semantics, signed WebSocket user stream scope, bounded shadow
-session wording, and Decimal/string notional preflight gaps.
+`v0.12.1` is the published Production Read-Only Evidence & Release Surface
+Hardening patch for the v0.12 line. It keeps the v0.12.0 read-only/shadow-only
+capability boundary and closes release-publication, release-surface,
+owner-run proof wording, artifact-field semantics, signed WebSocket user stream
+scope, bounded shadow session wording, and Decimal/string notional preflight
+gaps.
 
 `v0.12.1` includes:
 
