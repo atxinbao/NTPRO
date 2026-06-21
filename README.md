@@ -24,14 +24,6 @@ GitHub Release for the tagged source tree:
 https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.12.0
 ```
 
-The next patch track is `v0.11.1`, a release-surface hotfix line for the
-published v0.11.0 boundary. It must not expand v0.11.0 into production order
-submission, production order mutation, real funds, production trading,
-automatic online remediation, or Dashboard order controls.
-The v0.11.1 readiness and release-note material is prepared for owner release
-decision, but this source tree does not by itself create the
-`ntpro-rust-only-v0.11.1` tag or publish a GitHub Release.
-
 `v0.12.0` is now the current Production Online Read-Only + Persistent Shadow
 release. Its shadow strategy session output is a bounded local event artifact,
 not a long-running strategy runtime. It does not expand the product into
@@ -40,11 +32,13 @@ reads, listenKey lifecycle, signed WebSocket user streams, real funds,
 production trading, automatic production remediation, or Dashboard order
 controls.
 
-The next patch track is `v0.12.1`, if needed. It must preserve the v0.12.0
-read-only/shadow-only release boundary and must not add production order
-submission, production order mutation, production order-state reads, listenKey
-lifecycle, signed WebSocket user streams, real funds, production trading, or
-Dashboard order controls.
+The next patch track is `v0.12.1`, a Production Read-Only Evidence & Release
+Surface Hardening line. Its readiness and release-note material is prepared for
+owner release decision. It must preserve the v0.12.0 read-only/shadow-only
+release boundary and must not add production order submission, production order
+mutation, production order-state reads, listenKey lifecycle, signed WebSocket
+user stream runtime, real funds, production trading, automatic production
+remediation, or Dashboard order controls.
 
 `v0.13.0` is the earliest possible Guarded Live Alpha candidate. It requires a
 separate scope decision and must not be inferred from v0.12.0 read-only/shadow
@@ -161,9 +155,10 @@ layers:
 `v0.6.0` release tree. It is not published as a separate public GitHub Release.
 
 `v0.6.1` aligned version wording, Dashboard copy, workflow artifact contracts,
-offline-only probe semantics, and PR-stage smoke coverage. The `v0.11.1` patch
-track is reserved for release-surface hotfixes after the formal v0.11.0
-publication; it does not add a production trading capability.
+offline-only probe semantics, and PR-stage smoke coverage. The historical
+`v0.11.1` patch material remains release-surface hardening for the v0.11.0
+line; it is not the current public source release line and does not add a
+production trading capability.
 
 The `v0.12.0` release advances beyond v0.11 contracts into owner-gated
 production `GET` read-only proof paths and persistent local shadow artifacts.
@@ -336,6 +331,8 @@ The scope and readiness documents are:
 - `docs/rust-cutover/release/v0_12_0_release_gates.md`
 - `docs/rust-cutover/release/v0_12_0_readiness_report.md`
 - `docs/rust-cutover/release/v0_12_0_release_notes.md`
+- `docs/rust-cutover/release/v0_12_1_readiness_report.md`
+- `docs/rust-cutover/release/v0_12_1_release_notes.md`
 - `docs/versioning.md`
 
 ## Verification
@@ -426,6 +423,8 @@ Release documents:
 - `docs/rust-cutover/release/v0_12_0_release_gates.md`
 - `docs/rust-cutover/release/v0_12_0_readiness_report.md`
 - `docs/rust-cutover/release/v0_12_0_release_notes.md`
+- `docs/rust-cutover/release/v0_12_1_readiness_report.md`
+- `docs/rust-cutover/release/v0_12_1_release_notes.md`
 - `docs/rust-cutover/release/rust_only_release_notes.md`
 - `docs/rust-cutover/release/final_release_verification.md`
 - `docs/rust-cutover/release/final_completion_report.md`
@@ -455,11 +454,14 @@ Start with:
 ## Release Notes
 
 `ntpro-rust-only-v0.12.0` is the current Rust-only source release for the
-Production Online Read-Only + Persistent Shadow line. `v0.11.1` remains an unpublished
-release-surface hotfix track and does not add production order submission,
-production order mutation, real funds, production trading, automatic production
-remediation, or Dashboard order controls. `v0.12.0` preserves production
-read-only/shadow-only boundaries, and
+Production Online Read-Only + Persistent Shadow line. `v0.12.1` is the
+prepared hardening-only patch material for production read-only evidence and
+release surface. It does not add production order submission, production order
+mutation, production order-state reads, listenKey lifecycle, signed WebSocket
+user stream runtime, real funds, production trading, automatic production
+remediation, production portfolio parity, live-alpha money-math readiness, or
+Dashboard order controls. `v0.12.0` preserves production read-only/shadow-only
+boundaries, and
 `v0.13.0` is the earliest possible Guarded Live Alpha candidate. `v0.10.0`
 remains the Binance spot sandbox order-proof baseline, `v0.9.0` remains the
 local deterministic Strategy Runtime batch foundation baseline, `v0.8.0`

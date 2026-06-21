@@ -204,6 +204,16 @@ Final release checks, benchmark summaries, and audit reports live here.
   `ntpro-rust-only-v0.12.0` GitHub Release. It does not claim production order
   submission, order mutation, order-state reads, real funds, production
   trading, automatic remediation, or Dashboard order controls.
+- `v0_12_1_readiness_report.md` - readiness material for an owner-approved
+  v0.12.1 production read-only evidence and release-surface hardening patch. It
+  records the V121 queue, keeps `ntpro-rust-only-v0.12.0` as the current
+  published release until owner publication, and does not create a tag or
+  publish a GitHub Release.
+- `v0_12_1_release_notes.md` - release-note material for a possible
+  `ntpro-rust-only-v0.12.1` hardening patch. It does not expand the v0.12
+  capability claim and does not include production order submission, order
+  mutation, order-state reads, listenKey lifecycle, signed WebSocket user stream
+  runtime, real funds, production trading, or Dashboard order controls.
 - `../evidence/V090-014.md` - dedicated v0.9.0 release-closure evidence with
   exact release commit, hosted gates, formal tag, GitHub Release URL, and
   publication flags.

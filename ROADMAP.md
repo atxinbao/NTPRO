@@ -6,8 +6,9 @@ Executor: Codex
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is
 `ntpro-rust-only-v0.12.0`, the Production Online Read-Only + Persistent Shadow
-release. The next patch track is `v0.12.1`, if needed. `v0.13.0` is the
-earliest possible Guarded Live Alpha candidate.
+release. The next patch track is `v0.12.1`, a Production Read-Only Evidence &
+Release Surface Hardening line. `v0.13.0` is the earliest possible Guarded
+Live Alpha candidate.
 
 ## Current Release Surface
 
@@ -263,11 +264,12 @@ Completed release closure:
 - production order lifecycle parity;
 - Dashboard order, cancel, replace, amend, or retry controls.
 
-## Active Hardening Patch Track: v0.11.1
+## Historical Hardening Patch Track: v0.11.1
 
-`v0.11.1` is the active release-surface hardening patch for the published
-v0.11.0 line. It prepares readiness and release-note material for owner release
-decision, but it does not create a tag or publish a GitHub Release by itself.
+`v0.11.1` is the historical release-surface hardening patch material for the
+published v0.11.0 line. It prepared readiness and release-note material for
+owner release decision, but it did not become the current public source release
+line after v0.12.0 was published.
 
 The v0.11.1 patch scope is:
 
@@ -322,6 +324,40 @@ The v0.12.0 release scope is:
 - production trading;
 - Dashboard order controls.
 
+## Patch Track: v0.12.1
+
+`v0.12.1` is a hardening-only patch track for the published v0.12.0 release.
+It closes release-publication, release-surface, owner-run proof wording,
+artifact-field semantics, signed WebSocket user stream scope, bounded shadow
+session wording, and Decimal/string notional preflight gaps.
+
+`v0.12.1` includes:
+
+- v0.12.0 release-publication surface closure;
+- release surface guard hardening;
+- GitHub Release publication guard;
+- owner-run online proof wording and artifact contract normalization;
+- read artifact field-semantics normalization;
+- signed WebSocket user stream denied/deferred classification;
+- bounded shadow strategy session wording;
+- Decimal/string shadow notional preflight evidence;
+- readiness report and release notes.
+
+`v0.12.1` explicitly does not include:
+
+- production order submission;
+- production cancel, replace, amend, retry, or correction orders;
+- production open-order or order-state reads;
+- listenKey lifecycle access;
+- signed WebSocket user stream runtime;
+- strategy-driven production execution;
+- automatic production remediation;
+- production portfolio parity;
+- live-alpha risk/execution-grade money math;
+- real funds;
+- production trading;
+- Dashboard order controls.
+
 `v0.13.0` is the earliest possible Guarded Live Alpha candidate and requires a
 separate owner-approved scope decision.
 
@@ -339,6 +375,7 @@ v0.9.1  = Strategy Runtime Semantics & Audit Hardening
 v0.10.0 = Binance Spot Sandbox Order Proof
 v0.11.0 = Production Read-Only Contract + Offline Shadow Portfolio
 v0.12.0 = Production Online Read-Only + Persistent Shadow
+v0.12.1 = Production Read-Only Evidence & Release Surface Hardening
 v0.13.0 = Earliest possible Guarded Live Alpha candidate
 ```
 
@@ -375,6 +412,12 @@ automatically correct production orders.
 must not be described as production trading readiness, production order
 submission readiness, real-funds readiness, production portfolio parity, or
 Dashboard order-control readiness.
+
+`v0.12.1` is the hardening-only patch track for v0.12 release evidence and
+release surface. It must not be described as a live-alpha, production trading,
+production order mutation, listenKey lifecycle, signed WebSocket user stream
+runtime, real-funds, production portfolio parity, or Dashboard order-control
+release.
 
 `v0.13.0` is the earliest possible Guarded Live Alpha candidate and requires a
 separate scope decision before any live command or production trading
