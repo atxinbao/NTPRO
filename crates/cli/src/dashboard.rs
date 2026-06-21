@@ -131,6 +131,10 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
       <div id="production-shadow" class="table-wrap"></div>
     </section>
     <section class="band">
+      <h2>预检就绪</h2>
+      <div id="preflight-readiness" class="table-wrap"></div>
+    </section>
+    <section class="band">
       <h2>节点</h2>
       <div id="nodes" class="table-wrap"></div>
     </section>
@@ -456,6 +460,15 @@ const DISPLAY_TEXT = {
   connecting: "连接中",
   disconnecting: "断开中",
   not_configured: "未配置",
+  owner_proof_pack_artifacts_observed: "已观察到 owner proof pack 工件",
+  not_included_default_offline_preflight: "默认离线预检，未包含 owner 在线成功证据",
+  bounded_shadow_preflight_artifacts_observed: "已观察到 bounded shadow preflight 工件",
+  bounded_shadow_preflight_contract_only: "仅合同边界，未观察到运行工件",
+  decimal_boundary_contract_present: "Decimal 边界合同存在",
+  no_production_mutation_boundary_ok: "无生产变更边界正常",
+  no_production_mutation_boundary_violation: "检测到生产变更边界异常",
+  v13_preflight_readiness_ok: "v0.13 预检只读边界正常",
+  v13_preflight_readiness_degraded: "v0.13 预检边界降级",
   accepted: "已接收",
   succeeded: "成功",
   completed: "已完成",
@@ -640,6 +653,7 @@ function render(payload) {
   renderWorkflowArtifacts(snapshot.workflow_artifacts || []);
   renderStrategyRuntime(snapshot.strategy_runtime || []);
   renderProductionShadow(snapshot.production_shadow || []);
+  renderPreflightReadiness(snapshot.preflight_readiness || []);
   renderDataSources(snapshot.data_sources || []);
   renderExecutionGateways(snapshot.execution_gateways || []);
   renderRisk(snapshot.risk || {});
@@ -885,6 +899,32 @@ function renderProductionShadow(productionShadow) {
         `).join("")}
       </tbody>
     </table>` : emptyTable("没有 Production Shadow 工件");
+}
+
+function renderPreflightReadiness(readiness) {
+  document.getElementById("preflight-readiness").innerHTML = readiness.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>节点</th>
+          <th>健康</th>
+          <th>证据状态</th>
+          <th>边界</th>
+          <th>诊断</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${readiness.map((item) => `
+          <tr>
+            <td data-label="节点"><strong>${text(item.node_id)}</strong><div class="muted">${displayText(snapshotValue(item.evidence_source))}</div></td>
+            <td data-label="健康"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div></td>
+            <td data-label="证据状态">${panelRow("Proof pack", snapshotValue(item.owner_proof_pack_status))}${panelRow("Kill switch", snapshotValue(item.kill_switch_artifact_status))}${panelRow("Shadow preflight", snapshotValue(item.bounded_shadow_preflight_status))}${panelRow("Decimal", snapshotValue(item.decimal_boundary_status))}${panelRow("No mutation gate", snapshotValue(item.no_production_mutation_gate_status))}</td>
+            <td data-label="边界">${panelRow("提交允许", snapshotValue(item.production_order_submission_allowed))}${panelRow("变更允许", snapshotValue(item.production_order_mutation_allowed))}${panelRow("状态读取允许", snapshotValue(item.production_order_state_reads_allowed))}${panelRow("listenKey允许", snapshotValue(item.listen_key_lifecycle_allowed))}${panelRow("Dashboard 下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("真实订单", snapshotValue(item.real_orders_submitted))}${panelRow("交易所真值", snapshotValue(item.values_are_exchange_truth))}</td>
+            <td data-label="诊断">${displayText(snapshotValue(item.diagnostic))}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>` : emptyTable("没有 v0.13 预检就绪工件");
 }
 
 function renderDataSources(dataSources) {
@@ -1895,6 +1935,7 @@ pub struct DashboardSnapshot {
     pub workflow_artifacts: Vec<WorkflowArtifactStatus>,
     pub strategy_runtime: Vec<StrategyRuntimeStatus>,
     pub production_shadow: Vec<ProductionShadowStatus>,
+    pub preflight_readiness: Vec<PreflightReadinessStatus>,
     pub runtime_modules: Vec<RuntimeModuleStatus>,
     pub logs: Vec<LogStatus>,
     pub metrics: Vec<MetricStatus>,
@@ -1918,6 +1959,7 @@ impl DashboardSnapshot {
             workflow_artifacts: Vec::new(),
             strategy_runtime: Vec::new(),
             production_shadow: Vec::new(),
+            preflight_readiness: Vec::new(),
             runtime_modules: Vec::new(),
             logs: Vec::new(),
             metrics: Vec::new(),
@@ -2515,6 +2557,27 @@ pub struct ProductionShadowStatus {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PreflightReadinessStatus {
+    pub node_id: String,
+    pub health: HealthStatus,
+    pub readiness_status: DashboardValue<String>,
+    pub owner_proof_pack_status: DashboardValue<String>,
+    pub kill_switch_artifact_status: DashboardValue<String>,
+    pub bounded_shadow_preflight_status: DashboardValue<String>,
+    pub decimal_boundary_status: DashboardValue<String>,
+    pub no_production_mutation_gate_status: DashboardValue<String>,
+    pub production_order_submission_allowed: DashboardValue<bool>,
+    pub production_order_mutation_allowed: DashboardValue<bool>,
+    pub production_order_state_reads_allowed: DashboardValue<bool>,
+    pub listen_key_lifecycle_allowed: DashboardValue<bool>,
+    pub dashboard_order_controls_enabled: DashboardValue<bool>,
+    pub real_orders_submitted: DashboardValue<bool>,
+    pub values_are_exchange_truth: DashboardValue<bool>,
+    pub diagnostic: DashboardValue<String>,
+    pub evidence_source: DashboardValue<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeModuleStatus {
     pub module_name: String,
     pub status: DashboardValue<String>,
@@ -2780,6 +2843,11 @@ pub fn snapshot_from_supervisor_artifacts_with_workflow_root(
             snapshot.strategy_runtime.push(strategy_runtime);
         }
         if let Some(production_shadow) = production_shadow_from_record(record) {
+            if let Some(preflight_readiness) =
+                preflight_readiness_from_production_shadow(&production_shadow)
+            {
+                snapshot.preflight_readiness.push(preflight_readiness);
+            }
             snapshot.production_shadow.push(production_shadow);
         }
         snapshot
@@ -4099,6 +4167,87 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
         kill_switch_approval_artifact_path: dashboard_path_if_exists(
             &paths.kill_switch_approval_artifact_path,
         ),
+    })
+}
+
+fn preflight_readiness_from_production_shadow(
+    shadow: &ProductionShadowStatus,
+) -> Option<PreflightReadinessStatus> {
+    if shadow.artifact_version.value.as_deref() != Some("v0_13") {
+        return None;
+    }
+
+    let owner_proof_pack_status = if dashboard_string_available(&shadow.public_read_status)
+        || dashboard_string_available(&shadow.account_snapshot_status)
+        || dashboard_string_available(&shadow.response_shape_status)
+    {
+        DashboardValue::available("owner_proof_pack_artifacts_observed".to_string())
+    } else {
+        DashboardValue::available("not_included_default_offline_preflight".to_string())
+    };
+    let bounded_shadow_preflight_status =
+        if dashboard_string_available(&shadow.shadow_strategy_session_status)
+            || dashboard_string_available(&shadow.lifecycle_status)
+        {
+            DashboardValue::available("bounded_shadow_preflight_artifacts_observed".to_string())
+        } else {
+            DashboardValue::available("bounded_shadow_preflight_contract_only".to_string())
+        };
+    let no_production_mutation_gate_status =
+        if dashboard_bool_is_false(&shadow.kill_switch_production_order_submission_allowed)
+            && dashboard_bool_is_false(&shadow.kill_switch_production_order_mutation_allowed)
+            && dashboard_bool_is_false(&shadow.kill_switch_production_order_state_reads_allowed)
+            && dashboard_bool_is_false(&shadow.kill_switch_listen_key_lifecycle_allowed)
+            && dashboard_bool_is_false(&shadow.dashboard_order_controls_enabled)
+            && dashboard_bool_is_false(&shadow.real_orders_submitted)
+            && dashboard_bool_is_false(&shadow.values_are_exchange_truth)
+        {
+            DashboardValue::available("no_production_mutation_boundary_ok".to_string())
+        } else {
+            DashboardValue::available("no_production_mutation_boundary_violation".to_string())
+        };
+    let boundary_ok = no_production_mutation_gate_status.value.as_deref()
+        == Some("no_production_mutation_boundary_ok")
+        && shadow.health == HealthStatus::Healthy;
+
+    Some(PreflightReadinessStatus {
+        node_id: shadow.node_id.clone(),
+        health: if boundary_ok {
+            HealthStatus::Healthy
+        } else {
+            HealthStatus::Degraded
+        },
+        readiness_status: DashboardValue::available(if boundary_ok {
+            "v13_preflight_readiness_ok".to_string()
+        } else {
+            "v13_preflight_readiness_degraded".to_string()
+        }),
+        owner_proof_pack_status,
+        kill_switch_artifact_status: shadow.kill_switch_status.clone(),
+        bounded_shadow_preflight_status,
+        decimal_boundary_status: DashboardValue::available(
+            "decimal_boundary_contract_present".to_string(),
+        ),
+        no_production_mutation_gate_status,
+        production_order_submission_allowed: shadow
+            .kill_switch_production_order_submission_allowed
+            .clone(),
+        production_order_mutation_allowed: shadow
+            .kill_switch_production_order_mutation_allowed
+            .clone(),
+        production_order_state_reads_allowed: shadow
+            .kill_switch_production_order_state_reads_allowed
+            .clone(),
+        listen_key_lifecycle_allowed: shadow.kill_switch_listen_key_lifecycle_allowed.clone(),
+        dashboard_order_controls_enabled: shadow.dashboard_order_controls_enabled.clone(),
+        real_orders_submitted: shadow.real_orders_submitted.clone(),
+        values_are_exchange_truth: shadow.values_are_exchange_truth.clone(),
+        diagnostic: DashboardValue::available(if boundary_ok {
+            "v13_preflight_readiness_ok".to_string()
+        } else {
+            "v13_preflight_readiness_degraded".to_string()
+        }),
+        evidence_source: shadow.kill_switch_approval_artifact_path.clone(),
     })
 }
 
@@ -6126,6 +6275,14 @@ fn first_available_bool_from_values(
         .unwrap_or_else(DashboardValue::unknown)
 }
 
+fn dashboard_string_available(value: &DashboardValue<String>) -> bool {
+    value.availability == DashboardAvailability::Available && value.value.is_some()
+}
+
+fn dashboard_bool_is_false(value: &DashboardValue<bool>) -> bool {
+    value.availability == DashboardAvailability::Available && value.value == Some(false)
+}
+
 fn any_available_bool_from_values(
     values: impl IntoIterator<Item = DashboardValue<bool>>,
 ) -> DashboardValue<bool> {
@@ -6296,6 +6453,7 @@ mod tests {
             "sandbox_business",
             "workflow_artifacts",
             "strategy_runtime",
+            "preflight_readiness",
             "runtime_modules",
             "logs",
             "metrics",
@@ -6316,6 +6474,7 @@ mod tests {
         assert_eq!(value["risk"]["availability"], "unknown");
         assert_eq!(value["workflow_artifacts"], json!([]));
         assert_eq!(value["strategy_runtime"], json!([]));
+        assert_eq!(value["preflight_readiness"], json!([]));
         assert_eq!(value["sandbox_business"]["availability"], "available");
         assert_eq!(
             value["sandbox_business"]["exchange"]["venue"],
@@ -6331,6 +6490,7 @@ mod tests {
             "sandbox-business",
             "workflow-artifacts",
             "strategy-runtime",
+            "preflight-readiness",
             "risk",
             "runtime-modules",
             "logs-metrics",
@@ -6349,6 +6509,7 @@ mod tests {
             "renderSandboxBusiness",
             "renderWorkflowArtifacts",
             "renderStrategyRuntime",
+            "renderPreflightReadiness",
             "renderRisk",
             "renderRuntimeModules",
             "renderLogsMetrics",
@@ -6359,6 +6520,7 @@ mod tests {
             "没有执行网关上报",
             "没有 workflow manifest 工件",
             "没有 Strategy Runtime 工件",
+            "没有 v0.13 预检就绪工件",
             "没有运行模块上报",
             "没有日志或指标上报",
             "没有控制项",
@@ -6367,6 +6529,7 @@ mod tests {
             "外部网络尝试",
             "兼容外部交易场所",
             "订单证明",
+            "预检就绪",
         ] {
             assert!(
                 DASHBOARD_JS.contains(js_symbol),
@@ -7869,6 +8032,63 @@ mod tests {
         assert!(
             shadow
                 .kill_switch_approval_artifact_path
+                .value
+                .as_deref()
+                .is_some_and(|path| path.ends_with("v0_13/kill_switch_approval_artifact.json"))
+        );
+        assert_eq!(snapshot.preflight_readiness.len(), 1);
+        let readiness = &snapshot.preflight_readiness[0];
+        assert_eq!(readiness.node_id, "prod-shadow-v13");
+        assert_eq!(readiness.health, HealthStatus::Healthy);
+        assert_eq!(
+            readiness.readiness_status.value.as_deref(),
+            Some("v13_preflight_readiness_ok")
+        );
+        assert_eq!(
+            readiness.owner_proof_pack_status.value.as_deref(),
+            Some("not_included_default_offline_preflight")
+        );
+        assert_eq!(
+            readiness.kill_switch_artifact_status.value.as_deref(),
+            Some("manual_approval_recorded")
+        );
+        assert_eq!(
+            readiness.bounded_shadow_preflight_status.value.as_deref(),
+            Some("bounded_shadow_preflight_contract_only")
+        );
+        assert_eq!(
+            readiness.decimal_boundary_status.value.as_deref(),
+            Some("decimal_boundary_contract_present")
+        );
+        assert_eq!(
+            readiness
+                .no_production_mutation_gate_status
+                .value
+                .as_deref(),
+            Some("no_production_mutation_boundary_ok")
+        );
+        assert_eq!(
+            readiness.production_order_submission_allowed.value,
+            Some(false)
+        );
+        assert_eq!(
+            readiness.production_order_mutation_allowed.value,
+            Some(false)
+        );
+        assert_eq!(
+            readiness.production_order_state_reads_allowed.value,
+            Some(false)
+        );
+        assert_eq!(readiness.listen_key_lifecycle_allowed.value, Some(false));
+        assert_eq!(
+            readiness.dashboard_order_controls_enabled.value,
+            Some(false)
+        );
+        assert_eq!(readiness.real_orders_submitted.value, Some(false));
+        assert_eq!(readiness.values_are_exchange_truth.value, Some(false));
+        assert!(
+            readiness
+                .evidence_source
                 .value
                 .as_deref()
                 .is_some_and(|path| path.ends_with("v0_13/kill_switch_approval_artifact.json"))
