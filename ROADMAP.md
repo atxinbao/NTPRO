@@ -25,7 +25,7 @@ owner-gated production public GET read-only proof
 owner-gated authenticated production account snapshot GET proof
 redacted account response-shape evidence
 local shadow portfolio runtime artifact
-local persistent shadow strategy session event artifact
+bounded local shadow strategy session event artifact
 local read-only reconciliation classifications
 Dashboard v0.12 production shadow read-only panel
 production order counters fixed at zero
@@ -39,10 +39,11 @@ no Dashboard order controls
 
 `v0.12.0` builds on the v0.11 Production Read-Only Contract + Offline Shadow
 Portfolio line. It adds owner-gated production public/account `GET` read-only
-proof paths and local persistent shadow artifacts, while keeping
-production order submission, production order mutation, production order-state
-reads, listenKey lifecycle, real funds, production trading, automatic
-production remediation, and Dashboard order controls out of scope.
+proof paths and local persistent shadow artifact evidence. The shadow strategy
+session output is a bounded event artifact, not a long-running runtime. It
+keeps production order submission, production order mutation, production
+order-state reads, listenKey lifecycle, real funds, production trading,
+automatic production remediation, and Dashboard order controls out of scope.
 
 ## Published Hardening Patch: v0.7.1
 
@@ -295,7 +296,7 @@ The v0.11.1 patch scope is:
 
 `v0.12.0` is the published Production Online Read-Only + Persistent Shadow
 release. It includes owner-gated production `GET` read-only proof paths and
-persistent local shadow evidence.
+persistent local shadow artifact evidence.
 
 The v0.12.0 release scope is:
 
@@ -303,7 +304,7 @@ The v0.12.0 release scope is:
 - owner-gated authenticated production account snapshot read-only proof;
 - redacted production account response-shape evidence;
 - local shadow portfolio runtime artifact;
-- local persistent shadow strategy session event artifact;
+- bounded local shadow strategy session event artifact;
 - local read-only reconciliation classifications;
 - Dashboard v0.12 production shadow read-only panel;
 - v0.12 offline release gates and manual-online fail-closed preflight.

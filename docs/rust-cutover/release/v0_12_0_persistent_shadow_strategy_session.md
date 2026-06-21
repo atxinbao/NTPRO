@@ -1,4 +1,4 @@
-# v0.12.0 Persistent Shadow Strategy Session
+# v0.12.0 Bounded Shadow Strategy Session Event Artifact
 
 Date: 2026-06-21
 Executor: Codex
@@ -6,13 +6,17 @@ Task: V120-005
 
 ## Positioning
 
-V120-005 adds a local, read-only persistent shadow strategy session artifact for
-v0.12.0. It records a session event stream from already-generated shadow
-runtime evidence.
+V120-005 adds a local, read-only, bounded shadow strategy session event artifact
+for v0.12.0. It records JSONL start, heartbeat, artifact-gap, and stop events
+from already-generated shadow artifact evidence.
 
-Plain Chinese summary: 这个能力是给生产只读 shadow runtime 做“会话状态记录”。它告诉用户：
-shadow 策略会话启动了、心跳还在、输入 artifact 有没有缺口、本地是否停止。它不代表策略
-已经能真实下单，也不代表 shadow 状态就是交易所确认状态。
+This is not a long-running strategy runtime, daemon, heartbeat loop, or stale
+data monitor. Those runtime semantics are reserved for a later
+owner-approved v0.13 preflight scope.
+
+Plain Chinese summary: 这个能力只是生成一份本地 JSONL 事件文件。它告诉用户：
+shadow 策略会话记录里有 start、有限个 heartbeat、artifact 缺口和 stop。它不是后台常驻
+进程，不会持续跑策略，也不代表策略已经能真实下单，更不代表 shadow 状态就是交易所确认状态。
 
 ## CLI
 
@@ -32,6 +36,10 @@ nautilus live production-shadow-strategy-session \
 command records an owner-visible artifact-gap event and continues with degraded
 local read-only evidence.
 
+`--heartbeat-count` bounds the number of heartbeat events written. The command
+terminates after writing the requested finite event set; it does not keep a
+process alive for supervision.
+
 ## Artifact
 
 ```text
@@ -42,7 +50,7 @@ artifact=v0_12/shadow_strategy_session.jsonl
 Each event records:
 
 - run/session/strategy identity;
-- event type: start, heartbeat, artifact gap, or stop;
+- bounded event type: start, heartbeat, artifact gap, or stop;
 - shadow portfolio runtime reference;
 - optional strategy session status reference;
 - artifact-gap reason when present;
