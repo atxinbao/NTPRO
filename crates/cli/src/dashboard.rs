@@ -46,8 +46,9 @@ use crate::{
     opt::{DashboardCommand, DashboardOpt, DashboardServeOpt},
     strategy_session::{StrategySessionArtifactAuditHealth, audit_strategy_session_artifacts},
     supervisor::{
-        NodeMetrics, RegistryArtifactState, StartNodeRequest, StopNodeRequest,
-        SupervisorNodeRecord, SupervisorProcessState, SupervisorRegistry, SupervisorRegistryStore,
+        NodeMetrics, PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_SCHEMA_VERSION,
+        RegistryArtifactState, StartNodeRequest, StopNodeRequest, SupervisorNodeRecord,
+        SupervisorProcessState, SupervisorRegistry, SupervisorRegistryStore,
     },
     workflow_contract::{
         TESTNET_AUTHENTICATED_READONLY_PROBE_ARTIFACT_PATH,
@@ -89,6 +90,8 @@ const PRODUCTION_SHADOW_STRATEGY_SESSION_EVENT_SCHEMA_VERSION: &str =
     "ntpro.v120_shadow_strategy_session_event.v1";
 const PRODUCTION_READONLY_RECONCILIATION_EVENT_SCHEMA_VERSION: &str =
     "ntpro.v120_readonly_reconciliation_event.v1";
+const PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_13/kill_switch_approval_artifact.json";
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
 <html lang="zh-CN">
@@ -863,8 +866,8 @@ function renderProductionShadow(productionShadow) {
             <td data-label="组合快照">${displayText(snapshotValue(shadow.portfolio_snapshot_status))}<div class="muted">${displayText(snapshotValue(shadow.portfolio_exposure_status))} / ${displayText(snapshotValue(shadow.portfolio_pnl_status))}</div></td>
             <td data-label="策略会话">${displayText(snapshotValue(shadow.shadow_strategy_session_status))}<div class="muted">${displayText(snapshotValue(shadow.shadow_strategy_session_heartbeats))} heartbeats</div><div class="muted">${displayText(snapshotValue(shadow.lifecycle_status))} / ${displayText(snapshotValue(shadow.lifecycle_events_created))} legacy events</div></td>
             <td data-label="Reconciliation">${displayText(snapshotValue(shadow.reconciliation_status))}<div class="muted">${displayText(snapshotValue(shadow.reconciliation_classification))}</div><div class="muted">${displayText(snapshotValue(shadow.reconciliation_events_created))} events</div></td>
-            <td data-label="Risk halt">${panelRow("Risk halt", snapshotValue(shadow.risk_halted))}${panelRow("人工复核", snapshotValue(shadow.manual_review_required))}${panelRow("新单阻断", snapshotValue(shadow.new_orders_blocked))}${panelRow("动作", snapshotValue(shadow.reconciliation_recommended_action))}</td>
-            <td data-label="边界">${panelRow("实际提交", snapshotValue(shadow.actual_submission_count))}${panelRow("生产提交尝试", snapshotValue(shadow.production_order_submissions_attempted))}${panelRow("生产提交", snapshotValue(shadow.production_orders_submitted))}${panelRow("生产变更", snapshotValue(shadow.production_order_mutations_attempted))}${panelRow("订单状态读取", snapshotValue(shadow.production_order_state_reads_attempted))}${panelRow("listenKey", snapshotValue(shadow.listen_key_lifecycle_attempted))}${panelRow("自动纠错", snapshotValue(shadow.automatic_correction_orders_submitted))}${panelRow("Dashboard 下单控件", snapshotValue(shadow.dashboard_order_controls_enabled))}${panelRow("真实订单", snapshotValue(shadow.real_orders_submitted))}${panelRow("交易所真值", snapshotValue(shadow.values_are_exchange_truth))}</td>
+            <td data-label="Risk halt">${panelRow("Risk halt", snapshotValue(shadow.risk_halted))}${panelRow("人工复核", snapshotValue(shadow.manual_review_required))}${panelRow("新单阻断", snapshotValue(shadow.new_orders_blocked))}${panelRow("Kill switch", snapshotValue(shadow.kill_switch_status))}${panelRow("Kill active", snapshotValue(shadow.kill_switch_active))}${panelRow("Dry-run", snapshotValue(shadow.kill_switch_dry_run))}${panelRow("审批", snapshotValue(shadow.kill_switch_approval_state))}${panelRow("审批记录", snapshotValue(shadow.kill_switch_manual_approval_recorded))}${panelRow("动作", snapshotValue(shadow.reconciliation_recommended_action))}</td>
+            <td data-label="边界">${panelRow("实际提交", snapshotValue(shadow.actual_submission_count))}${panelRow("生产提交尝试", snapshotValue(shadow.production_order_submissions_attempted))}${panelRow("生产提交", snapshotValue(shadow.production_orders_submitted))}${panelRow("生产变更", snapshotValue(shadow.production_order_mutations_attempted))}${panelRow("订单状态读取", snapshotValue(shadow.production_order_state_reads_attempted))}${panelRow("listenKey", snapshotValue(shadow.listen_key_lifecycle_attempted))}${panelRow("自动纠错", snapshotValue(shadow.automatic_correction_orders_submitted))}${panelRow("提交允许", snapshotValue(shadow.kill_switch_production_order_submission_allowed))}${panelRow("变更允许", snapshotValue(shadow.kill_switch_production_order_mutation_allowed))}${panelRow("状态读取允许", snapshotValue(shadow.kill_switch_production_order_state_reads_allowed))}${panelRow("listenKey允许", snapshotValue(shadow.kill_switch_listen_key_lifecycle_allowed))}${panelRow("Dashboard 下单控件", snapshotValue(shadow.dashboard_order_controls_enabled))}${panelRow("真实订单", snapshotValue(shadow.real_orders_submitted))}${panelRow("交易所真值", snapshotValue(shadow.values_are_exchange_truth))}</td>
             <td data-label="Manifest">${displayText(snapshotValue(shadow.manifest_status))}<div class="muted">${displayText(snapshotValue(shadow.manifest_artifact_count))} artifacts</div></td>
             <td data-label="工件" class="path">
               ${panelRow("manifest", snapshotValue(shadow.manifest_path))}
@@ -876,6 +879,7 @@ function renderProductionShadow(productionShadow) {
               ${panelRow("session", snapshotValue(shadow.shadow_strategy_session_path))}
               ${panelRow("lifecycle", snapshotValue(shadow.lifecycle_path))}
               ${panelRow("reconciliation", snapshotValue(shadow.reconciliation_path))}
+              ${panelRow("kill-switch", snapshotValue(shadow.kill_switch_approval_artifact_path))}
             </td>
           </tr>
         `).join("")}
@@ -2476,6 +2480,15 @@ pub struct ProductionShadowStatus {
     pub reconciliation_classification: DashboardValue<String>,
     pub reconciliation_recommended_action: DashboardValue<String>,
     pub reconciliation_events_created: DashboardValue<u64>,
+    pub kill_switch_status: DashboardValue<String>,
+    pub kill_switch_active: DashboardValue<bool>,
+    pub kill_switch_dry_run: DashboardValue<bool>,
+    pub kill_switch_manual_approval_recorded: DashboardValue<bool>,
+    pub kill_switch_approval_state: DashboardValue<String>,
+    pub kill_switch_production_order_submission_allowed: DashboardValue<bool>,
+    pub kill_switch_production_order_mutation_allowed: DashboardValue<bool>,
+    pub kill_switch_production_order_state_reads_allowed: DashboardValue<bool>,
+    pub kill_switch_listen_key_lifecycle_allowed: DashboardValue<bool>,
     pub risk_halted: DashboardValue<bool>,
     pub manual_review_required: DashboardValue<bool>,
     pub new_orders_blocked: DashboardValue<bool>,
@@ -2498,6 +2511,7 @@ pub struct ProductionShadowStatus {
     pub shadow_strategy_session_path: DashboardValue<String>,
     pub lifecycle_path: DashboardValue<String>,
     pub reconciliation_path: DashboardValue<String>,
+    pub kill_switch_approval_artifact_path: DashboardValue<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -3414,9 +3428,30 @@ struct ProductionShadowArtifactPaths {
     shadow_strategy_session_path: PathBuf,
     lifecycle_path: PathBuf,
     reconciliation_path: PathBuf,
+    kill_switch_approval_artifact_path: PathBuf,
 }
 
 impl ProductionShadowArtifactPaths {
+    fn v13(record: &SupervisorNodeRecord) -> Self {
+        let root = record.artifact_root.join("v0_13");
+        Self {
+            version_label: "v0_13",
+            manifest_path: root.join("manifest.json"),
+            public_read_probe_path: root.join("production_public_online_read_probe.json"),
+            account_snapshot_path: root.join("production_account_snapshot_redacted.json"),
+            response_shape_path: root.join("production_readonly_response_shape.json"),
+            shadow_intent_path: root.join("shadow_execution_intent.jsonl"),
+            portfolio_snapshot_path: root.join("shadow_portfolio_runtime.json"),
+            shadow_strategy_session_path: root.join("shadow_strategy_session.jsonl"),
+            lifecycle_path: root.join("order_lifecycle_state.jsonl"),
+            reconciliation_path: root.join("reconciliation_events.jsonl"),
+            kill_switch_approval_artifact_path: record
+                .artifact_root
+                .join(PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_RELATIVE_PATH),
+            root,
+        }
+    }
+
     fn v12(record: &SupervisorNodeRecord) -> Self {
         let root = record.artifact_root.join("v0_12");
         Self {
@@ -3430,6 +3465,9 @@ impl ProductionShadowArtifactPaths {
             shadow_strategy_session_path: root.join("shadow_strategy_session.jsonl"),
             lifecycle_path: root.join("order_lifecycle_state.jsonl"),
             reconciliation_path: root.join("reconciliation_events.jsonl"),
+            kill_switch_approval_artifact_path: record
+                .artifact_root
+                .join(PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_RELATIVE_PATH),
             root,
         }
     }
@@ -3447,6 +3485,9 @@ impl ProductionShadowArtifactPaths {
             shadow_strategy_session_path: root.join("shadow_strategy_session.jsonl"),
             lifecycle_path: root.join("order_lifecycle_state.jsonl"),
             reconciliation_path: root.join("reconciliation_events.jsonl"),
+            kill_switch_approval_artifact_path: record
+                .artifact_root
+                .join(PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_RELATIVE_PATH),
             root,
         }
     }
@@ -3462,9 +3503,30 @@ impl ProductionShadowArtifactPaths {
             &self.lifecycle_path,
             &self.reconciliation_path,
             &self.manifest_path,
+            &self.kill_switch_approval_artifact_path,
         ]
         .iter()
         .any(|path| path.exists())
+    }
+
+    fn has_shadow_artifact(&self) -> bool {
+        [
+            &self.public_read_probe_path,
+            &self.account_snapshot_path,
+            &self.response_shape_path,
+            &self.shadow_intent_path,
+            &self.portfolio_snapshot_path,
+            &self.shadow_strategy_session_path,
+            &self.lifecycle_path,
+            &self.reconciliation_path,
+            &self.manifest_path,
+        ]
+        .iter()
+        .any(|path| path.exists())
+    }
+
+    fn is_v13_only(&self) -> bool {
+        self.version_label == "v0_13"
     }
 
     fn is_v12(&self) -> bool {
@@ -3474,12 +3536,17 @@ impl ProductionShadowArtifactPaths {
 
 fn production_shadow_paths(record: &SupervisorNodeRecord) -> Option<ProductionShadowArtifactPaths> {
     let v12_paths = ProductionShadowArtifactPaths::v12(record);
-    if v12_paths.has_any_artifact() {
+    if v12_paths.has_shadow_artifact() {
         return Some(v12_paths);
     }
 
     let v11_paths = ProductionShadowArtifactPaths::v11(record);
-    v11_paths.has_any_artifact().then_some(v11_paths)
+    if v11_paths.has_shadow_artifact() {
+        return Some(v11_paths);
+    }
+
+    let v13_paths = ProductionShadowArtifactPaths::v13(record);
+    v13_paths.has_any_artifact().then_some(v13_paths)
 }
 
 fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<ProductionShadowStatus> {
@@ -3493,7 +3560,13 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
     let shadow_strategy_session = read_latest_jsonl_file_value(&paths.shadow_strategy_session_path);
     let lifecycle = read_latest_jsonl_file_value(&paths.lifecycle_path);
     let reconciliation = read_latest_jsonl_file_value(&paths.reconciliation_path);
-    let artifact_audit = if paths.is_v12() {
+    let kill_switch_approval = read_json_file_value(&paths.kill_switch_approval_artifact_path);
+    let shadow_artifact_audit = if paths.is_v13_only() {
+        ProductionShadowArtifactHealthAudit {
+            boundary_violation: false,
+            diagnostic: None,
+        }
+    } else if paths.is_v12() {
         audit_production_shadow_v12_artifact_health(&paths)
     } else {
         audit_production_shadow_v11_artifact_health(
@@ -3504,9 +3577,20 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
             &paths.reconciliation_path,
         )
     };
+    let kill_switch_artifact_audit = audit_production_kill_switch_artifact_health(
+        &paths.kill_switch_approval_artifact_path,
+        paths.is_v13_only(),
+    );
+    let artifact_audit =
+        combine_production_shadow_audits(shadow_artifact_audit, kill_switch_artifact_audit);
     let manifest_audit = audit_production_shadow_manifest(&paths.root);
 
     let actual_submission_count = first_available_u64_from_values([
+        kill_switch_approval
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_u64_field(value, "actual_submission_count")
+            }),
         portfolio_snapshot
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -3529,6 +3613,11 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
             }),
     ]);
     let production_order_submissions_attempted = first_available_u64_from_values([
+        kill_switch_approval
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_u64_field(value, "production_order_submissions_attempted")
+            }),
         shadow_strategy_session
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -3551,6 +3640,11 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
             }),
     ]);
     let production_orders_submitted = first_available_u64_from_values([
+        kill_switch_approval
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_u64_field(value, "production_orders_submitted")
+            }),
         portfolio_snapshot
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -3573,6 +3667,11 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
             }),
     ]);
     let production_order_mutations_attempted = first_available_u64_from_values([
+        kill_switch_approval
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_u64_field(value, "production_order_mutations_attempted")
+            }),
         portfolio_snapshot
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -3605,6 +3704,11 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
             }),
     ]);
     let production_order_state_reads_attempted = first_available_u64_from_values([
+        kill_switch_approval
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_u64_field(value, "production_order_state_reads_attempted")
+            }),
         reconciliation
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -3617,6 +3721,11 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
             }),
     ]);
     let listen_key_lifecycle_attempted = first_available_u64_from_values([
+        kill_switch_approval
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_u64_field(value, "listen_key_lifecycle_attempted")
+            }),
         reconciliation
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -3629,6 +3738,11 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
             }),
     ]);
     let automatic_correction_orders_submitted = first_available_u64_from_values([
+        kill_switch_approval
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_u64_field(value, "automatic_correction_orders_submitted")
+            }),
         portfolio_snapshot
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -3646,6 +3760,11 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
             }),
     ]);
     let dashboard_order_controls_enabled = first_available_bool_from_values([
+        kill_switch_approval
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "dashboard_order_controls_enabled")
+            }),
         portfolio_snapshot
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -3678,6 +3797,11 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
             }),
     ]);
     let real_orders_submitted = first_available_bool_from_values([
+        kill_switch_approval
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "real_orders_submitted")
+            }),
         portfolio_snapshot
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -3695,6 +3819,11 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
             }),
     ]);
     let values_are_exchange_truth = first_available_bool_from_values([
+        kill_switch_approval
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "values_are_exchange_truth")
+            }),
         portfolio_snapshot
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -3711,6 +3840,51 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
                 json_bool_field(value, "values_are_exchange_truth")
             }),
     ]);
+    let kill_switch_status = kill_switch_approval
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let kill_switch_active = kill_switch_approval
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "kill_switch_active")
+        });
+    let kill_switch_dry_run = kill_switch_approval
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "kill_switch_dry_run")
+        });
+    let kill_switch_manual_approval_recorded = kill_switch_approval
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "manual_approval_recorded")
+        });
+    let kill_switch_approval_state = kill_switch_approval
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "approval_state")
+        });
+    let kill_switch_production_order_submission_allowed = kill_switch_approval
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "production_order_submission_allowed")
+        });
+    let kill_switch_production_order_mutation_allowed = kill_switch_approval
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "production_order_mutation_allowed")
+        });
+    let kill_switch_production_order_state_reads_allowed = kill_switch_approval
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "production_order_state_reads_allowed")
+        });
+    let kill_switch_listen_key_lifecycle_allowed = kill_switch_approval
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "listen_key_lifecycle_allowed")
+        });
 
     let boundary_violation = actual_submission_count.value.is_some_and(|value| value > 0)
         || production_order_submissions_attempted
@@ -3734,6 +3908,10 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
         || dashboard_order_controls_enabled.value == Some(true)
         || real_orders_submitted.value == Some(true)
         || values_are_exchange_truth.value == Some(true)
+        || kill_switch_production_order_submission_allowed.value == Some(true)
+        || kill_switch_production_order_mutation_allowed.value == Some(true)
+        || kill_switch_production_order_state_reads_allowed.value == Some(true)
+        || kill_switch_listen_key_lifecycle_allowed.value == Some(true)
         || artifact_audit.boundary_violation
         || manifest_audit.boundary_violation;
 
@@ -3848,7 +4026,17 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
                 json_string_field(value, "recommended_action")
             }),
         reconciliation_events_created: jsonl_record_count(&paths.reconciliation_path),
+        kill_switch_status,
+        kill_switch_active: kill_switch_active.clone(),
+        kill_switch_dry_run,
+        kill_switch_manual_approval_recorded,
+        kill_switch_approval_state,
+        kill_switch_production_order_submission_allowed,
+        kill_switch_production_order_mutation_allowed,
+        kill_switch_production_order_state_reads_allowed,
+        kill_switch_listen_key_lifecycle_allowed,
         risk_halted: any_available_bool_from_values([
+            kill_switch_active,
             reconciliation
                 .as_ref()
                 .map_or_else(DashboardValue::unknown, |value| {
@@ -3860,12 +4048,24 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
                     nested_json_bool_field(value, "risk_summary", "risk_halted")
                 }),
         ]),
-        manual_review_required: reconciliation
-            .as_ref()
-            .map_or_else(DashboardValue::unknown, |value| {
-                json_bool_field(value, "manual_review_required")
-            }),
+        manual_review_required: any_available_bool_from_values([
+            kill_switch_approval
+                .as_ref()
+                .map_or_else(DashboardValue::unknown, |value| {
+                    json_bool_field(value, "manual_approval_required")
+                }),
+            reconciliation
+                .as_ref()
+                .map_or_else(DashboardValue::unknown, |value| {
+                    json_bool_field(value, "manual_review_required")
+                }),
+        ]),
         new_orders_blocked: any_available_bool_from_values([
+            kill_switch_approval
+                .as_ref()
+                .map_or_else(DashboardValue::unknown, |value| {
+                    json_bool_field(value, "owner_approval_required_before_any_mutation")
+                }),
             reconciliation
                 .as_ref()
                 .map_or_else(DashboardValue::unknown, |value| {
@@ -3896,6 +4096,9 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
         shadow_strategy_session_path: dashboard_path_if_exists(&paths.shadow_strategy_session_path),
         lifecycle_path: dashboard_path_if_exists(&paths.lifecycle_path),
         reconciliation_path: dashboard_path_if_exists(&paths.reconciliation_path),
+        kill_switch_approval_artifact_path: dashboard_path_if_exists(
+            &paths.kill_switch_approval_artifact_path,
+        ),
     })
 }
 
@@ -3903,6 +4106,84 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
 struct ProductionShadowArtifactHealthAudit {
     boundary_violation: bool,
     diagnostic: Option<String>,
+}
+
+fn combine_production_shadow_audits(
+    left: ProductionShadowArtifactHealthAudit,
+    right: ProductionShadowArtifactHealthAudit,
+) -> ProductionShadowArtifactHealthAudit {
+    match (left.diagnostic, right.diagnostic) {
+        (Some(left_diagnostic), Some(right_diagnostic)) => ProductionShadowArtifactHealthAudit {
+            boundary_violation: left.boundary_violation || right.boundary_violation,
+            diagnostic: Some(format!("{left_diagnostic},{right_diagnostic}")),
+        },
+        (Some(diagnostic), None) | (None, Some(diagnostic)) => {
+            ProductionShadowArtifactHealthAudit {
+                boundary_violation: left.boundary_violation || right.boundary_violation,
+                diagnostic: Some(diagnostic),
+            }
+        }
+        (None, None) => ProductionShadowArtifactHealthAudit {
+            boundary_violation: left.boundary_violation || right.boundary_violation,
+            diagnostic: None,
+        },
+    }
+}
+
+fn audit_production_kill_switch_artifact_health(
+    path: &FsPath,
+    required: bool,
+) -> ProductionShadowArtifactHealthAudit {
+    if !path.exists() {
+        return ProductionShadowArtifactHealthAudit {
+            boundary_violation: required,
+            diagnostic: required.then(|| "kill_switch_approval_artifact_missing".to_string()),
+        };
+    }
+
+    let mut diagnostics = Vec::new();
+    audit_required_production_shadow_json_artifact(
+        path,
+        "kill_switch_approval",
+        PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_SCHEMA_VERSION,
+        &[
+            "production_order_submissions_attempted",
+            "production_orders_submitted",
+            "production_order_mutations_attempted",
+            "production_order_state_reads_attempted",
+            "listen_key_lifecycle_attempted",
+            "actual_submission_count",
+            "automatic_correction_orders_submitted",
+        ],
+        &[
+            "production_order_submission_allowed",
+            "production_order_mutation_allowed",
+            "production_order_state_reads_allowed",
+            "listen_key_lifecycle_allowed",
+            "cancel_replace_amend_attempted",
+            "dashboard_order_controls_enabled",
+            "real_orders_submitted",
+            "production_trading_enabled",
+            "network_attempted",
+            "values_are_exchange_truth",
+        ],
+        &mut diagnostics,
+    );
+
+    if diagnostics.is_empty() {
+        ProductionShadowArtifactHealthAudit {
+            boundary_violation: false,
+            diagnostic: None,
+        }
+    } else {
+        ProductionShadowArtifactHealthAudit {
+            boundary_violation: true,
+            diagnostic: Some(format!(
+                "production_kill_switch_artifact_degraded:{}",
+                diagnostics.join(",")
+            )),
+        }
+    }
 }
 
 fn audit_production_shadow_v11_artifact_health(
@@ -7519,6 +7800,91 @@ mod tests {
     }
 
     #[test]
+    fn production_shadow_v13_kill_switch_artifact_populates_dashboard_boundary_panel() {
+        let root = temp_root("production-shadow-v13-kill-switch");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "prod-shadow-v13");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_shadow_v13_kill_switch_artifact(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-22T00:30:00Z").unwrap();
+
+        assert_eq!(snapshot.production_shadow.len(), 1);
+        let shadow = &snapshot.production_shadow[0];
+        assert_eq!(shadow.node_id, "prod-shadow-v13");
+        assert_eq!(shadow.health, HealthStatus::Healthy);
+        assert_eq!(shadow.artifact_version.value.as_deref(), Some("v0_13"));
+        assert_eq!(
+            shadow.kill_switch_status.value.as_deref(),
+            Some("manual_approval_recorded")
+        );
+        assert_eq!(shadow.kill_switch_active.value, Some(true));
+        assert_eq!(shadow.kill_switch_dry_run.value, Some(true));
+        assert_eq!(
+            shadow.kill_switch_manual_approval_recorded.value,
+            Some(true)
+        );
+        assert_eq!(
+            shadow.kill_switch_approval_state.value.as_deref(),
+            Some("approved")
+        );
+        assert_eq!(
+            shadow.kill_switch_production_order_submission_allowed.value,
+            Some(false)
+        );
+        assert_eq!(
+            shadow.kill_switch_production_order_mutation_allowed.value,
+            Some(false)
+        );
+        assert_eq!(
+            shadow
+                .kill_switch_production_order_state_reads_allowed
+                .value,
+            Some(false)
+        );
+        assert_eq!(
+            shadow.kill_switch_listen_key_lifecycle_allowed.value,
+            Some(false)
+        );
+        assert_eq!(shadow.risk_halted.value, Some(true));
+        assert_eq!(shadow.manual_review_required.value, Some(true));
+        assert_eq!(shadow.new_orders_blocked.value, Some(true));
+        assert_eq!(shadow.actual_submission_count.value, Some(0));
+        assert_eq!(shadow.production_order_submissions_attempted.value, Some(0));
+        assert_eq!(shadow.production_orders_submitted.value, Some(0));
+        assert_eq!(shadow.production_order_mutations_attempted.value, Some(0));
+        assert_eq!(shadow.production_order_state_reads_attempted.value, Some(0));
+        assert_eq!(shadow.listen_key_lifecycle_attempted.value, Some(0));
+        assert_eq!(shadow.automatic_correction_orders_submitted.value, Some(0));
+        assert_eq!(shadow.dashboard_order_controls_enabled.value, Some(false));
+        assert_eq!(shadow.real_orders_submitted.value, Some(false));
+        assert_eq!(shadow.values_are_exchange_truth.value, Some(false));
+        assert!(
+            shadow
+                .kill_switch_approval_artifact_path
+                .value
+                .as_deref()
+                .is_some_and(|path| path.ends_with("v0_13/kill_switch_approval_artifact.json"))
+        );
+
+        let snapshot_value = serde_json::to_value(&snapshot).unwrap();
+        assert_forbidden_keys_absent(&snapshot_value);
+        assert!(!DASHBOARD_JS.contains("submit_order"));
+        assert!(!DASHBOARD_JS.contains("cancel_order"));
+        assert!(!DASHBOARD_JS.contains("replace_order"));
+        assert!(!DASHBOARD_JS.contains("amend_order"));
+        assert!(!DASHBOARD_JS.contains("retry_order"));
+        assert!(!DASHBOARD_HTML.contains("credential"));
+    }
+
+    #[test]
     fn production_shadow_manifest_checksum_mismatch_degrades_dashboard_snapshot() {
         let root = temp_root("production-shadow-manifest-degraded");
         let registry_path = root.join("registry.json");
@@ -9020,6 +9386,43 @@ mod tests {
             shadow_root.join("reconciliation_events.jsonl"),
             r#"{"schema_version":"ntpro.v120_readonly_reconciliation_event.v1","run_id":"v120-shadow","event_id":"v120-shadow:ok","event_type":"observed_account_state","classification":"ok","severity":"info","observed_at":"unix:5","source_ref":{"engine":"production_readonly_reconciliation","mode":"local_shadow_artifact_classification","network_attempted":false},"recommended_action":"record_only","risk_halted":false,"new_orders_blocked":true,"manual_review_required":false,"automatic_correction_orders_submitted":0,"production_order_submissions_attempted":0,"production_orders_submitted":0,"production_order_mutations_attempted":0,"production_order_state_reads_attempted":0,"listen_key_lifecycle_attempted":0,"cancel_replace_amend_attempted":false,"dashboard_order_controls_enabled":false,"real_orders_submitted":false,"values_are_exchange_truth":false,"diagnostic":"read-only reconciliation classified local shadow evidence as ok; record only"}
 "#,
+        )
+        .unwrap();
+    }
+
+    fn write_production_shadow_v13_kill_switch_artifact(record: &SupervisorNodeRecord) {
+        let shadow_root = record.artifact_root.join("v0_13");
+        fs::create_dir_all(&shadow_root).unwrap();
+        fs::write(
+            shadow_root.join("kill_switch_approval_artifact.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_SCHEMA_VERSION,
+                "status": "manual_approval_recorded",
+                "kill_switch_active": true,
+                "kill_switch_dry_run": true,
+                "manual_approval_recorded": true,
+                "manual_approval_required": true,
+                "approval_state": "approved",
+                "owner_approval_required_before_any_mutation": true,
+                "production_order_submission_allowed": false,
+                "production_order_mutation_allowed": false,
+                "production_order_state_reads_allowed": false,
+                "listen_key_lifecycle_allowed": false,
+                "production_order_submissions_attempted": 0,
+                "production_orders_submitted": 0,
+                "production_order_mutations_attempted": 0,
+                "production_order_state_reads_attempted": 0,
+                "listen_key_lifecycle_attempted": 0,
+                "actual_submission_count": 0,
+                "automatic_correction_orders_submitted": 0,
+                "cancel_replace_amend_attempted": false,
+                "dashboard_order_controls_enabled": false,
+                "real_orders_submitted": false,
+                "production_trading_enabled": false,
+                "network_attempted": false,
+                "values_are_exchange_truth": false
+            }))
+            .unwrap(),
         )
         .unwrap();
     }
