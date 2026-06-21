@@ -254,6 +254,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   include production order submission, order mutation, order-state reads,
   listenKey lifecycle, real funds, production trading, risk/execution-grade
   live-alpha money math, or Dashboard order controls.
+- `v0_14_0_order_state_readonly_boundary.md` - V140-000 production
+  order-state read-only boundary. It allows only future owner-gated production
+  `GET /api/v3/openOrders` and `GET /api/v3/order` proof scope while keeping
+  default execution offline/fail-closed and excluding production order
+  submission, mutation, listenKey lifecycle, real funds, production trading,
+  automatic remediation, and Dashboard order controls.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
