@@ -1,52 +1,45 @@
 # NTPRO Roadmap
 
-Date: 2026-06-20
+Date: 2026-06-21
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is
-`ntpro-rust-only-v0.11.0`, the next patch track is `v0.11.1`
-release-surface hotfix cleanup, and the next capability track is `v0.12.0`
-Production Online Read-Only + Persistent Shadow.
+`ntpro-rust-only-v0.12.0`, the Production Online Read-Only + Persistent Shadow
+release. The next patch track is `v0.12.1`, if needed. `v0.13.0` is the
+earliest possible Guarded Live Alpha candidate.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.11.0
+ntpro-rust-only-v0.12.0
 ```
 
 Current capability boundary:
 
 ```text
-Production Read-Only Contract + Offline Shadow Portfolio
-production endpoint classification
-production public read-only contract, offline fail-closed
-owner-gated authenticated account snapshot contract, offline fail-closed
-local shadow execution intent artifacts
-local shadow portfolio snapshot artifacts
-local shadow/read-only lifecycle state evidence
-local reconciliation/manual-remediation event evidence
-read-only Dashboard production shadow status
-successful online production reads=0
+Production Online Read-Only + Persistent Shadow
+owner-gated production public GET read-only proof
+owner-gated authenticated production account snapshot GET proof
+redacted account response-shape evidence
+local shadow portfolio runtime artifact
+local persistent shadow strategy session event artifact
+local read-only reconciliation classifications
+Dashboard v0.12 production shadow read-only panel
 production order counters fixed at zero
 production order mutations attempted=0
+production order-state reads attempted=0
+listenKey lifecycle attempted=0
 no real funds
 no production trading
 no Dashboard order controls
 ```
 
-`v0.11.0` builds on the v0.10 Binance spot sandbox order proof and adds the
-Production Read-Only Contract + Offline Shadow Portfolio release package. The
-current public claim remains artifact-first, offline by default,
-read-only/shadow-only from production surfaces, read-only from Dashboard
-surfaces, and explicitly non-production. It does not prove successful online
-production public/account reads.
-
-`v0.12.0` is the candidate Production Online Read-Only + Persistent Shadow
-track for owner release decision. It adds owner-gated production public/account
-`GET` read-only proof paths and local persistent shadow artifacts, while keeping
+`v0.12.0` builds on the v0.11 Production Read-Only Contract + Offline Shadow
+Portfolio line. It adds owner-gated production public/account `GET` read-only
+proof paths and local persistent shadow artifacts, while keeping
 production order submission, production order mutation, production order-state
 reads, listenKey lifecycle, real funds, production trading, automatic
 production remediation, and Dashboard order controls out of scope.
@@ -298,13 +291,13 @@ The v0.11.1 patch scope is:
 - automatic production remediation;
 - Dashboard order controls.
 
-## Candidate Capability Track: v0.12.0
+## Published Capability Track: v0.12.0
 
-`v0.12.0` is the next capability track: Production Online Read-Only +
-Persistent Shadow. It prepares owner-gated production `GET` read-only proof
-paths and persistent local shadow evidence for owner release decision.
+`v0.12.0` is the published Production Online Read-Only + Persistent Shadow
+release. It includes owner-gated production `GET` read-only proof paths and
+persistent local shadow evidence.
 
-The v0.12.0 candidate scope is:
+The v0.12.0 release scope is:
 
 - owner-gated production public read-only online proof;
 - owner-gated authenticated production account snapshot read-only proof;
@@ -377,7 +370,7 @@ Portfolio track. It is contract/offline-shadow only and must not claim
 successful online production reads, submit, cancel, replace, amend, or
 automatically correct production orders.
 
-`v0.12.0` is the Production Online Read-Only + Persistent Shadow candidate. It
+`v0.12.0` is the Production Online Read-Only + Persistent Shadow release. It
 must not be described as production trading readiness, production order
 submission readiness, real-funds readiness, production portfolio parity, or
 Dashboard order-control readiness.

@@ -6,19 +6,21 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.11.0
-Capability: Production Read-Only Contract + Offline Shadow Portfolio
-Boundary: production endpoint classification and read-only contracts, offline fail-closed public/account read artifacts, local shadow execution/portfolio evidence, Dashboard read-only production shadow status, successful online production reads=0, production orders submitted=0, production order mutations attempted=0, no real funds, no production trading, no Dashboard order controls
+Current source tag: ntpro-rust-only-v0.12.0
+Capability: Production Online Read-Only + Persistent Shadow
+Boundary: owner-gated production public/account GET read-only proof paths, redacted response-shape evidence, local shadow portfolio runtime, persistent shadow strategy session, local read-only reconciliation, Dashboard read-only production shadow status, production orders submitted=0, production order mutations attempted=0, production order-state reads attempted=0, listenKey lifecycle attempted=0, no real funds, no production trading, no Dashboard order controls
 ```
 
-This tag is the current v0.11.0 source release point for the scoped Production
-Read-Only Contract + Offline Shadow Portfolio line. It defines production
-read-only classification/contracts and offline evidence. It is not evidence of
-successful online production reads. It is published as a GitHub Release for the
-tagged source tree:
+This tag is the current v0.12.0 source release point for the scoped Production
+Online Read-Only + Persistent Shadow line. It adds owner-gated production GET
+read-only proof paths and persistent local shadow evidence. It is not evidence
+of production order submission, production mutation, order-state reads,
+listenKey lifecycle access, real funds, production trading, automatic
+production remediation, or Dashboard order controls. It is published as a
+GitHub Release for the tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.11.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.12.0
 ```
 
 The next patch track is `v0.11.1`, a release-surface hotfix line for the
@@ -29,10 +31,16 @@ The v0.11.1 readiness and release-note material is prepared for owner release
 decision, but this source tree does not by itself create the
 `ntpro-rust-only-v0.11.1` tag or publish a GitHub Release.
 
-The next capability track after the v0.11.x line is `v0.12.0` Production
-Online Read-Only + Persistent Shadow. Its readiness and release-note material
-is prepared for owner release decision, but this source tree does not by itself
-create the `ntpro-rust-only-v0.12.0` tag or publish a GitHub Release.
+`v0.12.0` is now the current Production Online Read-Only + Persistent Shadow
+release. It does not expand the product into production order submission,
+production order mutation, production order-state reads, listenKey lifecycle,
+real funds, production trading, automatic production remediation, or Dashboard
+order controls.
+
+The next patch track is `v0.12.1`, if needed. It must preserve the v0.12.0
+read-only/shadow-only release boundary and must not add production order
+submission, production order mutation, production order-state reads, listenKey
+lifecycle, real funds, production trading, or Dashboard order controls.
 
 `v0.13.0` is the earliest possible Guarded Live Alpha candidate. It requires a
 separate scope decision and must not be inferred from v0.12.0 read-only/shadow
@@ -138,7 +146,7 @@ layers:
   execution/portfolio artifacts, shadow/read-only lifecycle and reconciliation
   models, Dashboard read-only production shadow status, and production order
   counters fixed at zero.
-- `v0.12.0`: candidate Production Online Read-Only + Persistent Shadow package
+- `v0.12.0`: Production Online Read-Only + Persistent Shadow release package
   with owner-gated production public/account `GET` read-only proof paths,
   redacted response-shape evidence, local shadow portfolio runtime, persistent
   shadow strategy session, local read-only reconciliation, Dashboard v0.12
@@ -153,7 +161,7 @@ offline-only probe semantics, and PR-stage smoke coverage. The `v0.11.1` patch
 track is reserved for release-surface hotfixes after the formal v0.11.0
 publication; it does not add a production trading capability.
 
-The `v0.12.0` candidate track advances beyond v0.11 contracts into owner-gated
+The `v0.12.0` release advances beyond v0.11 contracts into owner-gated
 production `GET` read-only proof paths and persistent local shadow artifacts.
 It does not add production order submission, production order mutation,
 production order-state reads, listenKey lifecycle, real funds, production
@@ -232,7 +240,7 @@ Not included in the v0.11.0 product claim:
 - Dashboard order buttons, order controls, or credential input.
 - Prebuilt binary or Docker release artifact delivery.
 
-Not included in the v0.12.0 candidate product claim:
+Not included in the v0.12.0 product claim:
 
 - Production order submission.
 - Production open-order or order-state reads such as `/api/v3/openOrders`.
@@ -265,13 +273,11 @@ manual-online-only and still must not submit, cancel, replace, or amend orders.
 ## Strategy Runtime Boundary
 
 The v0.9.0 product boundary remains the historical local deterministic Strategy
-Runtime batch foundation plus release wording/evidence closure. The current
-v0.11.0 release builds on the v0.10.0 Binance spot sandbox order proof and adds
-Production Read-Only Contract + Offline Shadow Portfolio evidence only. Default
-local and CI runs remain offline, artifact-first, Rust-only,
-read-only/shadow-only, and explicitly non-production.
+Runtime batch foundation plus release wording/evidence closure. The v0.11.0
+release built on the v0.10.0 Binance spot sandbox order proof and added
+Production Read-Only Contract + Offline Shadow Portfolio evidence only.
 
-The v0.12.0 candidate source tree adds owner-gated production `GET` read-only
+The v0.12.0 release source tree adds owner-gated production `GET` read-only
 proof paths and persistent local shadow runtime artifacts. Default local, PR,
 CI, and release-gate runs still remain offline unless the owner explicitly
 enables the manual-online proof gates.
@@ -281,7 +287,7 @@ fixture/mock input batch, write signal artifacts, write shadow order-intent and
 risk-decision artifacts, and expose read-only supervisor/Dashboard status. The
 v0.10.0 release proves one owner-gated Binance Spot Demo Mode submit/cancel
 artifact package. The v0.11.0 release adds production read-only contracts and
-local offline shadow evidence. The v0.12.0 candidate adds owner-gated
+local offline shadow evidence. The v0.12.0 release adds owner-gated
 production online read-only proof paths and persistent shadow artifacts, but it
 does not prove production order submission, production order mutation,
 production order-state reads, real funds, production trading readiness,
@@ -440,12 +446,12 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.11.0` is the current Rust-only source release for the
-Production Read-Only Contract + Offline Shadow Portfolio line. `v0.11.1` is the next
+`ntpro-rust-only-v0.12.0` is the current Rust-only source release for the
+Production Online Read-Only + Persistent Shadow line. `v0.11.1` remains an unpublished
 release-surface hotfix track and does not add production order submission,
 production order mutation, real funds, production trading, automatic production
-remediation, or Dashboard order controls. `v0.12.0` is the candidate Production
-Online Read-Only + Persistent Shadow track for owner release decision, and
+remediation, or Dashboard order controls. `v0.12.0` preserves production
+read-only/shadow-only boundaries, and
 `v0.13.0` is the earliest possible Guarded Live Alpha candidate. `v0.10.0`
 remains the Binance spot sandbox order-proof baseline, `v0.9.0` remains the
 local deterministic Strategy Runtime batch foundation baseline, `v0.8.0`

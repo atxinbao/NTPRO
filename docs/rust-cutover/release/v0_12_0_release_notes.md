@@ -2,17 +2,19 @@
 
 Date: 2026-06-21
 Executor: Codex
-Status: READY FOR OWNER RELEASE DECISION
-Candidate tag: `ntpro-rust-only-v0.12.0`
+Status: RELEASED
+Tag: `ntpro-rust-only-v0.12.0`
+Release name: `NTPRO Rust-only v0.12.0`
+Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.12.0`
 
 ## Summary
 
-`v0.12.0` is the Production Online Read-Only + Persistent Shadow candidate
-release. It advances the v0.11 production read-only contract line by adding
-owner-gated production `GET` read-only proof paths and local persistent shadow
-runtime evidence.
+`v0.12.0` is the Production Online Read-Only + Persistent Shadow release. It
+advances the v0.11 production read-only contract line by adding owner-gated
+production `GET` read-only proof paths and local persistent shadow runtime
+evidence.
 
-Plain Chinese summary: v0.12.0 是“生产在线只读 + 持久 shadow”候选版本。它可以在
+Plain Chinese summary: v0.12.0 是“生产在线只读 + 持久 shadow”正式发布版本。它可以在
 用户明确打开 gate 后尝试生产 Binance 只读 GET，并把本地 shadow portfolio、shadow
 strategy session、reconciliation 和 Dashboard 只读状态串起来。它不是实盘交易版本，
 不下单、不撤单、不改单、不读生产订单状态、不碰真实资金。
@@ -92,9 +94,13 @@ git diff --check = required PASS
 
 ## Release Status
 
-This document is release-note material for a possible owner-approved
-`ntpro-rust-only-v0.12.0` GitHub Release. This PR does not create the tag and
-does not publish the GitHub Release.
+This document is the formal GitHub Release note for:
+
+```text
+tag = ntpro-rust-only-v0.12.0
+release name = NTPRO Rust-only v0.12.0
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.12.0
+```
 
 The release boundary must continue to preserve: Production Online Read-Only +
 Persistent Shadow only, no production order submission, no production order
