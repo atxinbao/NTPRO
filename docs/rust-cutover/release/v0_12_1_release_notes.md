@@ -2,8 +2,10 @@
 
 Date: 2026-06-21
 Executor: Codex
-Status: READY FOR OWNER RELEASE DECISION
-Candidate tag: `ntpro-rust-only-v0.12.1`
+Status: RELEASED
+Tag: `ntpro-rust-only-v0.12.1`
+Release name: `NTPRO Rust-only v0.12.1`
+Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.12.1`
 
 ## Summary
 
@@ -113,9 +115,13 @@ git diff --check = PASS
 
 ## Release Status
 
-This document is release-note material for a possible owner-approved
-`ntpro-rust-only-v0.12.1` GitHub Release. This PR does not create the tag and
-does not publish the GitHub Release.
+This document is the formal GitHub Release note for:
+
+```text
+tag = ntpro-rust-only-v0.12.1
+release name = NTPRO Rust-only v0.12.1
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.12.1
+```
 
 The release boundary must continue to preserve: Production Online Read-Only +
 Persistent Shadow hardening only, no production order submission, no production

@@ -2,8 +2,8 @@
 
 Date: 2026-06-21
 Executor: Codex
-Milestone: `v0.12.1`
-Status: READY FOR OWNER RELEASE DECISION
+Milestone: `ntpro-rust-only-v0.12.1`
+Status: PASS - RELEASED
 
 ## Summary
 
@@ -23,7 +23,9 @@ Plain Chinese summary: v0.12.1 不是新交易能力版本。它只是把 v0.12.
 ```text
 capability = v0.12.0 Production Online Read-Only + Persistent Shadow hardening
 current published release before v0.12.1 = ntpro-rust-only-v0.12.0
-candidate patch version = v0.12.1
+release tag = ntpro-rust-only-v0.12.1
+release name = NTPRO Rust-only v0.12.1
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.12.1
 default execution posture = offline fail-closed
 production public online read path = implemented owner-gated GET-only path, fail-closed by default
 production authenticated account snapshot path = implemented owner-gated GET-only path, fail-closed by default
@@ -40,8 +42,8 @@ listenKey lifecycle = not included
 real funds = not included
 production trading = not included
 Dashboard order controls = not included
-tag creation = not performed by this readiness PR
-GitHub Release publication = not performed by this readiness PR
+formal tag = ntpro-rust-only-v0.12.1
+formal GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.12.1
 ```
 
 ## Included
@@ -90,7 +92,7 @@ Dashboard credential input
 | V121-006 | PASS | `docs/rust-cutover/evidence/V121-006.md` | #435 | Denies/defers signed WebSocket user stream until listenKey lifecycle exists. |
 | V121-007 | PASS | `docs/rust-cutover/evidence/V121-007.md` | #436 | Clarifies shadow strategy session as bounded local event artifact, not a long-running runtime. |
 | V121-008 | PASS | `docs/rust-cutover/evidence/V121-008.md` | #437 | Adds Decimal/string shadow notional preflight and blocks f64 aggregation from live-alpha money-math claims. |
-| V121-009 | PASS CANDIDATE | `docs/rust-cutover/evidence/V121-009.md` | this PR | Prepares v0.12.1 readiness report and release notes. |
+| V121-009 | PASS | `docs/rust-cutover/evidence/V121-009.md` | #438 | Prepares v0.12.1 readiness report and release notes. |
 
 ## Gate Evidence
 
@@ -124,25 +126,21 @@ listen_key_lifecycle_attempted=0
 dashboard_order_controls_enabled=false
 ```
 
-## Release Decision
+## Release Closure Status
 
-This report is readiness material only. It does not create a tag and does not
-publish a GitHub Release.
-
-Before publishing `ntpro-rust-only-v0.12.1`, the owner should verify:
+The V121 task queue is complete after V121-009, and the owner release decision
+has moved the release package to the formal publication path:
 
 ```text
-main includes all V121-001 through V121-009 PRs
-GitHub hosted Rust Cutover Smoke is PASS on the release candidate commit
-README / ROADMAP / versioning / release notes agree on hardening-only scope
-GitHub open PR count is acceptable for release closure
-worktree is clean
+formal tag = ntpro-rust-only-v0.12.1
+formal release name = NTPRO Rust-only v0.12.1
+formal GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.12.1
 ```
 
 ## Final Verdict
 
-`v0.12.1` is ready for owner release decision as a hardening-only patch after
-V121-001 through V121-009 pass and merge.
+The v0.12.1 release package is the formal publication package for
+`ntpro-rust-only-v0.12.1`.
 
 Do not describe this readiness PASS as production order submission readiness,
 production order mutation readiness, production order-state read readiness,

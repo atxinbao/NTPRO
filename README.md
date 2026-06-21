@@ -6,39 +6,41 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.12.0
-Capability: Production Online Read-Only + Persistent Shadow
-Boundary: owner-gated production public/account GET read-only proof paths, redacted response-shape evidence, local shadow portfolio runtime, bounded shadow strategy session event artifact, local read-only reconciliation, Dashboard read-only production shadow status, production orders submitted=0, production order mutations attempted=0, production order-state reads attempted=0, listenKey lifecycle attempted=0, signed WebSocket user stream deferred, no real funds, no production trading, no Dashboard order controls
+Current source tag: ntpro-rust-only-v0.12.1
+Capability: Production Read-Only Evidence & Release Surface Hardening
+Boundary: v0.12.0 production online read-only + persistent shadow hardening, owner-gated production public/account GET read-only proof paths, optional owner-run online proof evidence, redacted response-shape evidence, normalized read artifact semantics, local shadow portfolio runtime, Decimal/string shadow notional preflight, bounded shadow strategy session event artifact, local read-only reconciliation, Dashboard read-only production shadow status, production orders submitted=0, production order mutations attempted=0, production order-state reads attempted=0, listenKey lifecycle attempted=0, signed WebSocket user stream deferred, no real funds, no production trading, no Dashboard order controls
 ```
 
-This tag is the current v0.12.0 source release point for the scoped Production
-Online Read-Only + Persistent Shadow line. It adds owner-gated production GET
-read-only proof paths and persistent local shadow evidence. It is not evidence
-of production order submission, production mutation, order-state reads,
-listenKey lifecycle access, signed WebSocket user streams, real funds,
-production trading, automatic production remediation, or Dashboard order
-controls. It is published as a
+This tag is the current v0.12.1 source release point for the scoped Production
+Read-Only Evidence & Release Surface Hardening line. It hardens the v0.12.0
+production online read-only + persistent shadow release with publication
+guards, owner-run proof wording, artifact field semantics, signed WebSocket
+scope, bounded shadow session wording, and Decimal/string notional preflight
+evidence. It is not evidence of production order submission, production
+mutation, order-state reads, listenKey lifecycle access, signed WebSocket user
+stream runtime, real funds, production trading, automatic production
+remediation, production portfolio parity, live-alpha money-math readiness, or
+Dashboard order controls. It is published as a
 GitHub Release for the tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.12.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.12.1
 ```
 
-`v0.12.0` is now the current Production Online Read-Only + Persistent Shadow
-release. Its shadow strategy session output is a bounded local event artifact,
-not a long-running strategy runtime. It does not expand the product into
-production order submission, production order mutation, production order-state
-reads, listenKey lifecycle, signed WebSocket user streams, real funds,
-production trading, automatic production remediation, or Dashboard order
-controls.
+`v0.12.1` is now the current hardening patch for the Production Online Read-Only
++ Persistent Shadow line. Its shadow strategy session output remains a bounded
+local event artifact, not a long-running strategy runtime. It does not expand
+the product into production order submission, production order mutation,
+production order-state reads, listenKey lifecycle, signed WebSocket user stream
+runtime, real funds, production trading, automatic production remediation,
+production portfolio parity, live-alpha money-math readiness, or Dashboard
+order controls.
 
-The next patch track is `v0.12.1`, a Production Read-Only Evidence & Release
-Surface Hardening line. Its readiness and release-note material is prepared for
-owner release decision. It must preserve the v0.12.0 read-only/shadow-only
-release boundary and must not add production order submission, production order
-mutation, production order-state reads, listenKey lifecycle, signed WebSocket
-user stream runtime, real funds, production trading, automatic production
-remediation, or Dashboard order controls.
+The next patch track is `v0.12.2`, if needed. It must preserve the v0.12.1
+read-only/shadow-only hardening boundary and must not add production order
+submission, production order mutation, production order-state reads, listenKey
+lifecycle, signed WebSocket user stream runtime, real funds, production
+trading, automatic production remediation, or Dashboard order controls.
 
 `v0.13.0` is the earliest possible Guarded Live Alpha candidate. It requires a
 separate scope decision and must not be inferred from v0.12.0 read-only/shadow
@@ -118,7 +120,7 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.12.0 is the current formal release line. It builds on the earlier foundation
+v0.12.1 is the current formal release line. It builds on the earlier foundation
 layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
@@ -453,15 +455,13 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.12.0` is the current Rust-only source release for the
-Production Online Read-Only + Persistent Shadow line. `v0.12.1` is the
-prepared hardening-only patch material for production read-only evidence and
-release surface. It does not add production order submission, production order
-mutation, production order-state reads, listenKey lifecycle, signed WebSocket
-user stream runtime, real funds, production trading, automatic production
-remediation, production portfolio parity, live-alpha money-math readiness, or
-Dashboard order controls. `v0.12.0` preserves production read-only/shadow-only
-boundaries, and
+`ntpro-rust-only-v0.12.1` is the current Rust-only source release for the
+Production Read-Only Evidence & Release Surface Hardening line. It does not add
+production order submission, production order mutation, production order-state
+reads, listenKey lifecycle, signed WebSocket user stream runtime, real funds,
+production trading, automatic production remediation, production portfolio
+parity, live-alpha money-math readiness, or Dashboard order controls. `v0.12.1`
+preserves production read-only/shadow-only hardening boundaries, and
 `v0.13.0` is the earliest possible Guarded Live Alpha candidate. `v0.10.0`
 remains the Binance spot sandbox order-proof baseline, `v0.9.0` remains the
 local deterministic Strategy Runtime batch foundation baseline, `v0.8.0`
