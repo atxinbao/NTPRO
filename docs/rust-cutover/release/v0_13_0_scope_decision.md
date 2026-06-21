@@ -13,7 +13,7 @@ order submission, production order mutation, real-funds, or production trading
 release.
 
 Plain Chinese summary: v0.13.0 不是“开始实盘下单”。它只是把未来进入 live alpha
-之前必须具备的证据链先搭起来：长时间 shadow session、owner 手动只读证明、kill
+之前必须具备的证据链先搭起来：bounded local shadow preflight loop、owner 手动只读证明、kill
 switch 干跑、手动批准记录、Decimal/string 金额边界、Dashboard 角色边界，以及默认不
 触发生产订单 mutation 的 release gate。
 
@@ -22,7 +22,7 @@ switch 干跑、手动批准记录、Decimal/string 金额边界、Dashboard 角
 `v0.13.0` may claim only:
 
 - Guarded Live Alpha Preflight scope control;
-- local long-running shadow session evidence;
+- bounded local shadow preflight loop evidence;
 - owner-run production read-only proof pack evidence;
 - kill-switch dry-run and manual approval artifacts;
 - trader/ops Dashboard control boundary documentation;
@@ -69,7 +69,7 @@ listen_key_lifecycle = forbidden unless separately owner-approved
 dashboard_order_controls = false
 manual_approval_artifact = preflight_only
 kill_switch = dry_run_only
-shadow_session = local_artifact_only
+shadow_preflight_loop = bounded_local_artifact_only
 ```
 
 ## V130 Task Ladder
@@ -77,7 +77,7 @@ shadow_session = local_artifact_only
 V130 work must proceed in this order:
 
 1. `V130-001` - Guarded Live Alpha Preflight scope decision.
-2. `V130-002` - Long-running shadow session process with heartbeat, stop, and
+2. `V130-002` - Bounded local shadow preflight loop with heartbeat, stop, and
    stale-data handling.
 3. `V130-003` - Owner-run production online read-only proof pack.
 4. `V130-004` - Kill switch dry-run and manual approval artifact contract.
@@ -94,7 +94,7 @@ owner-approved scope decision and must first prove:
   or quantity limit, and stop conditions;
 - no-mutation default gate for local, PR, CI, and release runs;
 - kill-switch dry-run artifact and manual approval artifact;
-- long-running shadow session heartbeat, stop, stale-data, and artifact-gap
+- bounded local shadow preflight loop heartbeat, stop, stale-data, and artifact-gap
   behavior;
 - owner-run production read-only proof pack with redaction;
 - Decimal/string-only amount handling for all risk and execution preflight

@@ -1,4 +1,4 @@
-# NTPRO v0.13.0 Shadow Preflight Session Contract
+# NTPRO v0.13.0 Bounded Local Shadow Preflight Loop Contract
 
 Date: 2026-06-21
 Executor: Codex
@@ -6,11 +6,11 @@ Executor: Codex
 ## Positioning
 
 `v0.13.0` remains Guarded Live Alpha Preflight only. The shadow preflight
-session is a local runtime-like evidence loop. It does not send production
+surface is a bounded local evidence loop. It does not send production
 orders and does not unlock Dashboard order controls.
 
-Plain Chinese summary: 这一步只是让 shadow session 像一个“本地可观察的预检进程”
-一样跑起来。它会写心跳、能被 stop-file 停掉、能发现输入数据过期，但仍然不碰
+Plain Chinese summary: 这一步只是让 shadow preflight 做成“本地有边界的预检循环”。
+它会写心跳、能被 stop-file 停掉、能发现输入数据过期，但仍然不碰
 生产下单、不撤单、不改订单。
 
 ## CLI

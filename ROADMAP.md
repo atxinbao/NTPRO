@@ -19,7 +19,7 @@ Current capability boundary:
 
 ```text
 Guarded Live Alpha Preflight
-local shadow preflight session heartbeat/stop/stale-data evidence
+bounded local shadow preflight loop heartbeat/stop/stale-data evidence
 owner-gated production online read-only proof-pack wrapper
 kill-switch dry-run/manual approval artifact
 trader/ops Dashboard read-only/control boundary
@@ -36,7 +36,7 @@ no Dashboard order controls
 ```
 
 `v0.13.0` builds on the v0.12 Production Online Read-Only + Persistent Shadow
-line. It adds preflight evidence only: shadow preflight session evidence,
+line. It adds preflight evidence only: bounded local shadow preflight loop evidence,
 owner-gated read-only proof-pack wrapper, kill-switch dry-run/manual approval
 artifact, Dashboard control-boundary evidence, Decimal/string amount-boundary
 evidence, and release no-production-mutation gate. It keeps production order
@@ -332,7 +332,7 @@ future live-alpha execution decision.
 `v0.13.0` includes:
 
 - v0.13 Guarded Live Alpha Preflight scope decision;
-- local shadow preflight session heartbeat/stop/stale-data evidence;
+- bounded local shadow preflight loop heartbeat/stop/stale-data evidence;
 - owner-gated production online read-only proof-pack wrapper;
 - kill-switch dry-run/manual approval artifact;
 - trader/ops Dashboard read-only/control boundary evidence;

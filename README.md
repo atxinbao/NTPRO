@@ -8,13 +8,13 @@ The current public milestone is:
 ```text
 Current source tag: ntpro-rust-only-v0.13.0
 Capability: Guarded Live Alpha Preflight
-Boundary: v0.13.0 preflight evidence only, local shadow preflight session heartbeat/stop/stale-data evidence, optional owner-run production online read-only proof-pack wrapper, kill-switch dry-run/manual approval artifact, trader/ops Dashboard read-only/control boundary, Decimal/string-only amount preflight, release no-production-mutation gate, default local/PR/release execution offline and fail-closed, production orders submitted=0, production order mutations attempted=0, production order-state reads attempted=0, listenKey lifecycle attempted=0, no real funds, no production trading, no Dashboard order controls
+Boundary: v0.13.0 preflight evidence only, bounded local shadow preflight loop heartbeat/stop/stale-data evidence, optional owner-run production online read-only proof-pack wrapper, kill-switch dry-run/manual approval artifact, trader/ops Dashboard read-only/control boundary, Decimal/string-only amount preflight, release no-production-mutation gate, default local/PR/release execution offline and fail-closed, production orders submitted=0, production order mutations attempted=0, production order-state reads attempted=0, listenKey lifecycle attempted=0, no real funds, no production trading, no Dashboard order controls
 ```
 
 This tag is the current v0.13.0 source release point for the scoped Guarded
 Live Alpha Preflight line. It moves beyond the v0.12 read-only/shadow evidence
 line by adding preflight evidence needed before any future live alpha decision:
-a local shadow preflight session, an owner-gated read-only proof-pack wrapper,
+a bounded local shadow preflight loop, an owner-gated read-only proof-pack wrapper,
 kill-switch dry-run/manual approval evidence, Dashboard control-boundary
 evidence, Decimal/string amount-boundary evidence, and a release gate proving
 no production mutation. It is not evidence of production order submission,
@@ -152,8 +152,8 @@ layers:
   Dashboard v0.12 production shadow read-only panel, and v0.12
   offline/manual-online preflight release gates.
 - `v0.12.1`: Production Read-Only Evidence & Release Surface Hardening patch.
-- `v0.13.0`: Guarded Live Alpha Preflight only, with local shadow preflight
-  session evidence, owner-gated read-only proof-pack wrapper, kill-switch
+- `v0.13.0`: Guarded Live Alpha Preflight only, with bounded local shadow
+  preflight loop evidence, owner-gated read-only proof-pack wrapper, kill-switch
   dry-run/manual approval artifact, Dashboard control-boundary evidence,
   Decimal/string amount-boundary evidence, and no-production-mutation release
   gate.
@@ -169,7 +169,7 @@ production trading capability.
 
 The `v0.13.0` release advances beyond v0.12 read-only/shadow evidence into
 Guarded Live Alpha preflight evidence only. The shadow preflight session is a
-local artifact workflow with heartbeat, stop-file, and stale-data evidence. It
+bounded local artifact loop with heartbeat, stop-file, and stale-data evidence. It
 does not add production order submission, production order mutation,
 production order-state reads, listenKey lifecycle, signed WebSocket user
 streams, real funds, production trading, automatic production remediation,
@@ -226,7 +226,7 @@ The current release path supports:
 - local read-only reconciliation classifications;
 - Dashboard v0.12 production shadow read-only panel;
 - v0.12 offline release gates and manual-online fail-closed preflight.
-- local v0.13 shadow preflight session heartbeat/stop/stale-data evidence;
+- bounded local v0.13 shadow preflight loop heartbeat/stop/stale-data evidence;
 - v0.13 owner-gated production online read-only proof-pack wrapper, default
   offline and fail-closed;
 - v0.13 kill-switch dry-run/manual approval artifact;
