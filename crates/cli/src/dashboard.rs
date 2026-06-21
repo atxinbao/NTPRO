@@ -6113,6 +6113,42 @@ mod tests {
     }
 
     #[test]
+    fn dashboard_trader_ops_boundary_keeps_order_controls_absent() {
+        let allowed_local_controls =
+            r#"["start", "stop", "pause", "resume", "reconnect_data", "reconnect_execution"]"#;
+        assert!(
+            DASHBOARD_JS.contains(allowed_local_controls),
+            "dashboard JS must keep the local supervisor control allowlist explicit",
+        );
+        assert!(
+            DASHBOARD_HTML.contains("不会连接外部交易场所，也不会提交真实订单"),
+            "dashboard shell must describe the local read-model/no-order boundary",
+        );
+
+        for forbidden_control in [
+            "submit_order",
+            "cancel_order",
+            "replace_order",
+            "amend_order",
+            "retry_order",
+            "correct_order",
+            "flatten_position",
+            "credential_entry",
+            "listen_key_control",
+            "production_order_control",
+        ] {
+            assert!(
+                !DASHBOARD_JS.contains(forbidden_control),
+                "dashboard JS must not expose v0.13 forbidden control {forbidden_control}",
+            );
+            assert!(
+                !DASHBOARD_HTML.contains(forbidden_control),
+                "dashboard shell must not expose v0.13 forbidden control {forbidden_control}",
+            );
+        }
+    }
+
+    #[test]
     fn one_node_snapshot_counts_running_node() {
         let status = NodeStatus {
             lifecycle_state: LifecycleStatus::Running,
@@ -7863,6 +7899,54 @@ mod tests {
             action_value["error_code"],
             json!({"availability": "available", "value": "invalid_lifecycle_state"})
         );
+
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn dashboard_http_server_rejects_v13_production_order_control_routes() {
+        let root = temp_root("v13-dashboard-boundary");
+        let registry_path = root.join("registry.json");
+        let record = node_record(&root, "sandbox-a");
+        write_registry(&registry_path, [record]);
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let ntpro_node_bin = root.join("ntpro-node-missing");
+        let server = tokio::spawn({
+            let registry_path = registry_path.clone();
+            async move {
+                axum::serve(listener, dashboard_router(registry_path, ntpro_node_bin))
+                    .await
+                    .unwrap();
+            }
+        });
+
+        for action in [
+            "submit",
+            "submit_order",
+            "cancel",
+            "cancel_order",
+            "replace",
+            "replace_order",
+            "amend",
+            "amend_order",
+            "retry",
+            "retry_order",
+            "correct",
+            "correct_order",
+            "flatten",
+            "flatten_position",
+            "credential_entry",
+            "listen_key",
+        ] {
+            let path = format!("/api/nodes/sandbox-a/actions/{action}");
+            let response = http_request(addr, "POST", &path).await;
+            assert!(
+                response.contains("HTTP/1.1 404 Not Found"),
+                "{action} must remain outside the v0.13 Dashboard control router, got:\n{response}",
+            );
+        }
 
         server.abort();
     }
