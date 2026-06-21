@@ -37,7 +37,7 @@ use nautilus_model::{
 };
 use nautilus_sandbox::{SandboxExecutionClientConfig, SandboxExecutionClientFactory};
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use tokio::time::{sleep, timeout};
 
 use crate::{
@@ -46,10 +46,11 @@ use crate::{
     opt::{
         LiveCommand, LiveOpt, LiveProductionAccountSnapshotContractOpt,
         LiveProductionKillSwitchApprovalArtifactOpt, LiveProductionLiveAlphaDryRunOrderGateOpt,
-        LiveProductionOrderStateReadOnlyProofOpt, LiveProductionPublicReadProbeOpt,
-        LiveProductionReadonlyReconciliationOpt, LiveProductionShadowPortfolioRuntimeOpt,
-        LiveProductionShadowPreflightSessionOpt, LiveProductionShadowStrategySessionOpt,
-        LiveRunOpt, LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveProductionLiveAlphaRiskPreflightOpt, LiveProductionOrderStateReadOnlyProofOpt,
+        LiveProductionPublicReadProbeOpt, LiveProductionReadonlyReconciliationOpt,
+        LiveProductionShadowPortfolioRuntimeOpt, LiveProductionShadowPreflightSessionOpt,
+        LiveProductionShadowStrategySessionOpt, LiveRunOpt,
+        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
         LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
         ProductionOrderStateReadEndpoint, ProductionPublicReadEndpoint,
@@ -129,6 +130,10 @@ const PRODUCTION_ORDER_STATE_ENV_MANUAL_ONLINE: &str = "NTPRO_V14_MANUAL_ONLINE"
 const PRODUCTION_ORDER_STATE_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 const PRODUCTION_LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION: &str =
     "ntpro.v140_live_alpha_dry_run_order_gate.v1";
+const PRODUCTION_LIVE_ALPHA_RISK_PREFLIGHT_INPUT_SCHEMA_VERSION: &str =
+    "ntpro.v140_live_alpha_risk_preflight_input.v1";
+const PRODUCTION_LIVE_ALPHA_RISK_PREFLIGHT_REPORT_SCHEMA_VERSION: &str =
+    "ntpro.v140_live_alpha_risk_preflight.v1";
 const PRODUCTION_SHADOW_PORTFOLIO_RUNTIME_SCHEMA_VERSION: &str =
     "ntpro.v120_shadow_portfolio_runtime.v1";
 const PRODUCTION_SHADOW_PORTFOLIO_COMPAT_SCHEMA_VERSION: &str =
@@ -1108,6 +1113,124 @@ struct ProductionLiveAlphaDryRunOrderGateArtifact {
     diagnostic: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct ProductionLiveAlphaRiskPreflightInput {
+    schema_version: String,
+    session: ProductionLiveAlphaRiskPreflightSession,
+    market: ProductionLiveAlphaRiskPreflightMarket,
+    account: ProductionLiveAlphaRiskPreflightAccount,
+    order_state: ProductionLiveAlphaRiskPreflightOrderState,
+    risk: ProductionLiveAlphaRiskPreflightRisk,
+    order: ProductionLiveAlphaRiskPreflightOrder,
+    limits: ProductionLiveAlphaRiskPreflightLimits,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct ProductionLiveAlphaRiskPreflightSession {
+    state: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct ProductionLiveAlphaRiskPreflightMarket {
+    symbol: String,
+    last_event_at_unix_ms: u64,
+    now_unix_ms: u64,
+    max_age_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct ProductionLiveAlphaRiskPreflightAccount {
+    readable: bool,
+    account_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct ProductionLiveAlphaRiskPreflightOrderState {
+    readable: bool,
+    open_order_count: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct ProductionLiveAlphaRiskPreflightRisk {
+    kill_switch_active: bool,
+    allowed_symbols: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct ProductionLiveAlphaRiskPreflightOrder {
+    symbol: String,
+    side: String,
+    order_type: String,
+    quantity: String,
+    notional: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct ProductionLiveAlphaRiskPreflightLimits {
+    max_order_notional: String,
+    current_position_notional: String,
+    max_position_notional: String,
+    max_open_orders: u64,
+    max_clock_skew_ms: u64,
+    observed_clock_skew_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionLiveAlphaRiskPreflightReport {
+    schema_version: String,
+    status: String,
+    run_id: String,
+    evaluated_at: String,
+    risk_decision: String,
+    reasons: Vec<String>,
+    missing_cli_flags: Vec<String>,
+    order_gate_status: String,
+    order_gate_ready: bool,
+    order_gate_path: String,
+    session_state: String,
+    symbol: String,
+    side: String,
+    order_type: String,
+    quantity: String,
+    notional: String,
+    max_order_notional: String,
+    current_position_notional: String,
+    projected_position_notional: String,
+    max_position_notional: String,
+    market_age_ms: Option<u64>,
+    max_market_age_ms: u64,
+    account_readable: bool,
+    order_state_readable: bool,
+    open_order_count: u64,
+    max_open_orders: u64,
+    observed_clock_skew_ms: u64,
+    max_clock_skew_ms: u64,
+    kill_switch_active: bool,
+    production_order_submission_allowed: bool,
+    production_order_mutation_allowed: bool,
+    production_order_state_reads_allowed: bool,
+    listen_key_lifecycle_allowed: bool,
+    production_order_submissions_attempted: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    production_order_state_reads_attempted: u64,
+    listen_key_lifecycle_attempted: u64,
+    cancel_replace_amend_attempted: bool,
+    order_endpoint_access_attempted: bool,
+    execution_adapter_called: bool,
+    matching_engine_submission: bool,
+    actual_submission_count: u64,
+    automatic_correction_orders_submitted: u64,
+    dashboard_order_controls_enabled: bool,
+    external_venue_connection: bool,
+    network_attempted: bool,
+    real_orders_submitted: bool,
+    real_funds: bool,
+    production_trading_enabled: bool,
+    values_are_exchange_truth: bool,
+    diagnostic: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProductionOrderStateHttpResult {
     status: String,
@@ -1779,6 +1902,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionLiveAlphaDryRunOrderGate(gate) => {
             run_live_production_live_alpha_dry_run_order_gate(&gate)
         }
+        LiveCommand::ProductionLiveAlphaRiskPreflight(preflight) => {
+            run_live_production_live_alpha_risk_preflight(&preflight)
+        }
         LiveCommand::ProductionShadowPortfolioRuntime(runtime) => {
             run_live_production_shadow_portfolio_runtime(&runtime)
         }
@@ -1903,6 +2029,23 @@ fn run_live_production_live_alpha_dry_run_order_gate(
         artifact.run_id,
         opt.output.display(),
         artifact.dry_run_order_gate_ready,
+    );
+    Ok(())
+}
+
+fn run_live_production_live_alpha_risk_preflight(
+    opt: &LiveProductionLiveAlphaRiskPreflightOpt,
+) -> anyhow::Result<()> {
+    let report = build_production_live_alpha_risk_preflight_report(opt)?;
+    atomic_write_json(&opt.output, &report)?;
+
+    println!(
+        "live.production_live_alpha_risk_preflight status={} run_id={} output={} risk_decision={} reasons={} production_orders_submitted=0 production_order_mutations_attempted=0 execution_adapter_called=false order_endpoint_access_attempted=false network_attempted=false dashboard_order_controls_enabled=false",
+        report.status,
+        report.run_id,
+        opt.output.display(),
+        report.risk_decision,
+        join_owned_gate_labels(&report.reasons),
     );
     Ok(())
 }
@@ -4261,6 +4404,203 @@ fn build_production_live_alpha_dry_run_order_gate_artifact(
     })
 }
 
+fn build_production_live_alpha_risk_preflight_report(
+    opt: &LiveProductionLiveAlphaRiskPreflightOpt,
+) -> anyhow::Result<ProductionLiveAlphaRiskPreflightReport> {
+    validate_non_empty("run_id", &opt.run_id)?;
+    let order_gate = load_json_value(&opt.order_gate, "live-alpha dry-run order gate")?;
+    let input: ProductionLiveAlphaRiskPreflightInput =
+        load_json_file(&opt.input, "live-alpha risk preflight input")?;
+
+    let missing_cli_flags = missing_production_live_alpha_risk_preflight_cli_flags(opt);
+    let mut reasons = Vec::new();
+    if !missing_cli_flags.is_empty() {
+        reasons.push("missing_owner_dry_run_confirmation".to_string());
+    }
+    reasons.extend(evaluate_production_live_alpha_risk_reasons(
+        &input,
+        &order_gate,
+    )?);
+
+    let risk_decision = if reasons.is_empty() {
+        "approved"
+    } else {
+        "rejected"
+    };
+    let status = if missing_cli_flags.is_empty() {
+        risk_decision
+    } else {
+        "blocked_missing_gate"
+    };
+    let order_gate_status =
+        json_string_value(&order_gate, "status").unwrap_or_else(|| "unknown".to_string());
+    let order_gate_ready =
+        json_bool_value(&order_gate, "dry_run_order_gate_ready").unwrap_or(false);
+    let market_age_ms = if input.market.now_unix_ms >= input.market.last_event_at_unix_ms {
+        Some(input.market.now_unix_ms - input.market.last_event_at_unix_ms)
+    } else {
+        None
+    };
+    let current_position = parse_non_negative_decimal(&input.limits.current_position_notional)?;
+    let order_notional = parse_non_negative_decimal(&input.order.notional)?;
+    let projected_position_notional = format_decimal(&(current_position + order_notional));
+
+    Ok(ProductionLiveAlphaRiskPreflightReport {
+        schema_version: PRODUCTION_LIVE_ALPHA_RISK_PREFLIGHT_REPORT_SCHEMA_VERSION.to_string(),
+        status: status.to_string(),
+        run_id: opt.run_id.clone(),
+        evaluated_at: now_millis(),
+        risk_decision: risk_decision.to_string(),
+        reasons,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        order_gate_status,
+        order_gate_ready,
+        order_gate_path: opt.order_gate.display().to_string(),
+        session_state: input.session.state,
+        symbol: input.order.symbol,
+        side: input.order.side,
+        order_type: input.order.order_type,
+        quantity: input.order.quantity,
+        notional: input.order.notional,
+        max_order_notional: input.limits.max_order_notional,
+        current_position_notional: input.limits.current_position_notional,
+        projected_position_notional,
+        max_position_notional: input.limits.max_position_notional,
+        market_age_ms,
+        max_market_age_ms: input.market.max_age_ms,
+        account_readable: input.account.readable,
+        order_state_readable: input.order_state.readable,
+        open_order_count: input.order_state.open_order_count,
+        max_open_orders: input.limits.max_open_orders,
+        observed_clock_skew_ms: input.limits.observed_clock_skew_ms,
+        max_clock_skew_ms: input.limits.max_clock_skew_ms,
+        kill_switch_active: input.risk.kill_switch_active,
+        production_order_submission_allowed: false,
+        production_order_mutation_allowed: false,
+        production_order_state_reads_allowed: false,
+        listen_key_lifecycle_allowed: false,
+        production_order_submissions_attempted: 0,
+        production_orders_submitted: 0,
+        production_order_mutations_attempted: 0,
+        production_order_state_reads_attempted: 0,
+        listen_key_lifecycle_attempted: 0,
+        cancel_replace_amend_attempted: false,
+        order_endpoint_access_attempted: false,
+        execution_adapter_called: false,
+        matching_engine_submission: false,
+        actual_submission_count: 0,
+        automatic_correction_orders_submitted: 0,
+        dashboard_order_controls_enabled: false,
+        external_venue_connection: false,
+        network_attempted: false,
+        real_orders_submitted: false,
+        real_funds: false,
+        production_trading_enabled: false,
+        values_are_exchange_truth: false,
+        diagnostic: if risk_decision == "approved" {
+            "hypothetical live-alpha order passed local risk preflight; execution remains disabled"
+        } else {
+            "hypothetical live-alpha order rejected by local risk preflight; execution remains disabled"
+        }
+        .to_string(),
+    })
+}
+
+fn evaluate_production_live_alpha_risk_reasons(
+    input: &ProductionLiveAlphaRiskPreflightInput,
+    order_gate: &serde_json::Value,
+) -> anyhow::Result<Vec<String>> {
+    let mut reasons = Vec::new();
+    if input.schema_version != PRODUCTION_LIVE_ALPHA_RISK_PREFLIGHT_INPUT_SCHEMA_VERSION {
+        reasons.push("schema_version_mismatch".to_string());
+    }
+    if json_string_value(order_gate, "schema_version").as_deref()
+        != Some(PRODUCTION_LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION)
+    {
+        reasons.push("order_gate_schema_mismatch".to_string());
+    }
+    if !json_bool_value(order_gate, "dry_run_order_gate_ready").unwrap_or(false) {
+        reasons.push("order_gate_not_ready".to_string());
+    }
+    for field in [
+        "production_orders_submitted",
+        "production_order_mutations_attempted",
+        "actual_submission_count",
+    ] {
+        if json_u64_value(order_gate, field).unwrap_or(0) != 0 {
+            reasons.push(format!("order_gate_{field}_nonzero"));
+        }
+    }
+    for field in [
+        "execution_adapter_called",
+        "order_endpoint_access_attempted",
+        "dashboard_order_controls_enabled",
+        "real_orders_submitted",
+        "network_attempted",
+    ] {
+        if json_bool_value(order_gate, field).unwrap_or(false) {
+            reasons.push(format!("order_gate_{field}_true"));
+        }
+    }
+    if input.session.state != "running" {
+        reasons.push("session_not_running".to_string());
+    }
+    if input.market.symbol != input.order.symbol {
+        reasons.push("market_symbol_mismatch".to_string());
+    }
+    match input
+        .market
+        .now_unix_ms
+        .checked_sub(input.market.last_event_at_unix_ms)
+    {
+        Some(age) if age > input.market.max_age_ms => reasons.push("market_stale".to_string()),
+        Some(_) => {}
+        None => reasons.push("market_event_in_future".to_string()),
+    }
+    if !input.account.readable {
+        reasons.push("account_read_failed".to_string());
+    }
+    if input.account.readable && input.account.account_id.trim().is_empty() {
+        reasons.push("account_id_missing".to_string());
+    }
+    if !input.order_state.readable {
+        reasons.push("order_state_read_failed".to_string());
+    }
+    if input.risk.kill_switch_active {
+        reasons.push("kill_switch_active".to_string());
+    }
+    if !input
+        .risk
+        .allowed_symbols
+        .iter()
+        .any(|symbol| symbol == &input.order.symbol)
+    {
+        reasons.push("symbol_not_allowlisted".to_string());
+    }
+    validate_positive_decimal_string("order.quantity", &input.order.quantity)
+        .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    let order_notional = parse_non_negative_decimal(&input.order.notional)?;
+    let max_order_notional = parse_non_negative_decimal(&input.limits.max_order_notional)?;
+    if order_notional > max_order_notional {
+        reasons.push("notional_limit_exceeded".to_string());
+    }
+    let current_position = parse_non_negative_decimal(&input.limits.current_position_notional)?;
+    let max_position = parse_non_negative_decimal(&input.limits.max_position_notional)?;
+    if current_position + order_notional > max_position {
+        reasons.push("position_limit_exceeded".to_string());
+    }
+    if input.order_state.open_order_count >= input.limits.max_open_orders {
+        reasons.push("open_order_limit_exceeded".to_string());
+    }
+    if input.limits.observed_clock_skew_ms > input.limits.max_clock_skew_ms {
+        reasons.push("clock_skew_limit_exceeded".to_string());
+    }
+    Ok(reasons)
+}
+
 fn build_production_kill_switch_approval_artifact(
     opt: &LiveProductionKillSwitchApprovalArtifactOpt,
 ) -> anyhow::Result<ProductionKillSwitchApprovalArtifact> {
@@ -5605,6 +5945,20 @@ fn load_strategy_order_preflight_input(path: &Path) -> anyhow::Result<StrategyOr
         .with_context(|| format!("failed to parse order preflight input '{}'", path.display()))
 }
 
+fn load_json_file<T>(path: &Path, label: &str) -> anyhow::Result<T>
+where
+    T: DeserializeOwned,
+{
+    let raw = fs::read_to_string(path)
+        .with_context(|| format!("failed to read {label} '{}'", path.display()))?;
+    serde_json::from_str(&raw)
+        .with_context(|| format!("failed to parse {label} '{}'", path.display()))
+}
+
+fn load_json_value(path: &Path, label: &str) -> anyhow::Result<serde_json::Value> {
+    load_json_file(path, label)
+}
+
 fn validate_strategy_node_config(config: &StrategyNodeConfig) -> anyhow::Result<()> {
     validate_non_empty("node.node_id", &config.node.node_id)?;
     validate_exact("node.mode", &config.node.mode, STRATEGY_SESSION_SHADOW_MODE)?;
@@ -6549,6 +6903,28 @@ fn missing_production_live_alpha_dry_run_order_gate_cli_flags(
     missing
 }
 
+fn missing_production_live_alpha_risk_preflight_cli_flags(
+    opt: &LiveProductionLiveAlphaRiskPreflightOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.confirm_hypothetical_dry_run_only {
+        missing.push("--confirm-hypothetical-dry-run-only");
+    }
+    if !opt.confirm_no_execution_adapter_call {
+        missing.push("--confirm-no-execution-adapter-call");
+    }
+    if !opt.confirm_no_production_order_submission {
+        missing.push("--confirm-no-production-order-submission");
+    }
+    if !opt.confirm_no_production_order_mutation {
+        missing.push("--confirm-no-production-order-mutation");
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        missing.push("--confirm-dashboard-order-controls-disabled");
+    }
+    missing
+}
+
 fn missing_production_order_state_env_gates<F>(
     read_env: &mut F,
     manual_online_requested: bool,
@@ -7488,6 +7864,71 @@ write_summary = true
             confirm_dashboard_order_controls_disabled: all_cli_gates,
             confirm_no_real_funds: all_cli_gates,
         }
+    }
+
+    fn production_live_alpha_risk_preflight_opt(
+        order_gate: PathBuf,
+        input: PathBuf,
+        output: PathBuf,
+        all_cli_gates: bool,
+    ) -> LiveProductionLiveAlphaRiskPreflightOpt {
+        LiveProductionLiveAlphaRiskPreflightOpt {
+            run_id: "v140-live-alpha-risk".to_string(),
+            order_gate,
+            input,
+            output,
+            confirm_hypothetical_dry_run_only: all_cli_gates,
+            confirm_no_execution_adapter_call: all_cli_gates,
+            confirm_no_production_order_submission: all_cli_gates,
+            confirm_no_production_order_mutation: all_cli_gates,
+            confirm_dashboard_order_controls_disabled: all_cli_gates,
+        }
+    }
+
+    fn passing_live_alpha_risk_input() -> ProductionLiveAlphaRiskPreflightInput {
+        ProductionLiveAlphaRiskPreflightInput {
+            schema_version: PRODUCTION_LIVE_ALPHA_RISK_PREFLIGHT_INPUT_SCHEMA_VERSION.to_string(),
+            session: ProductionLiveAlphaRiskPreflightSession {
+                state: "running".to_string(),
+            },
+            market: ProductionLiveAlphaRiskPreflightMarket {
+                symbol: "BTCUSDT".to_string(),
+                last_event_at_unix_ms: 1_000,
+                now_unix_ms: 1_500,
+                max_age_ms: 1_000,
+            },
+            account: ProductionLiveAlphaRiskPreflightAccount {
+                readable: true,
+                account_id: "BINANCE-001".to_string(),
+            },
+            order_state: ProductionLiveAlphaRiskPreflightOrderState {
+                readable: true,
+                open_order_count: 0,
+            },
+            risk: ProductionLiveAlphaRiskPreflightRisk {
+                kill_switch_active: false,
+                allowed_symbols: vec!["BTCUSDT".to_string()],
+            },
+            order: ProductionLiveAlphaRiskPreflightOrder {
+                symbol: "BTCUSDT".to_string(),
+                side: "BUY".to_string(),
+                order_type: "MARKET".to_string(),
+                quantity: "0.001".to_string(),
+                notional: "10.00".to_string(),
+            },
+            limits: ProductionLiveAlphaRiskPreflightLimits {
+                max_order_notional: "25.00".to_string(),
+                current_position_notional: "50.00".to_string(),
+                max_position_notional: "100.00".to_string(),
+                max_open_orders: 5,
+                max_clock_skew_ms: 100,
+                observed_clock_skew_ms: 25,
+            },
+        }
+    }
+
+    fn write_live_alpha_risk_input(path: &Path, input: &ProductionLiveAlphaRiskPreflightInput) {
+        fs::write(path, serde_json::to_string_pretty(input).unwrap()).unwrap();
     }
 
     fn write_redacted_account_snapshot_report(path: &Path, response_shape_validated: bool) {
@@ -10027,6 +10468,199 @@ write_summary = true
         assert_eq!(artifact["real_funds"], false);
         assert_eq!(artifact["production_trading_enabled"], false);
         assert_eq!(artifact["values_are_exchange_truth"], false);
+    }
+
+    #[test]
+    fn production_live_alpha_risk_preflight_approves_hypothetical_order_without_submission() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v140-004-risk-approved-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let order_gate = output_dir.join("order_gate.json");
+        let input = output_dir.join("risk_input.json");
+        let output = output_dir.join("risk_preflight.json");
+        run_live_production_live_alpha_dry_run_order_gate(
+            &production_live_alpha_dry_run_order_gate_opt(order_gate.clone(), true),
+        )
+        .unwrap();
+        write_live_alpha_risk_input(&input, &passing_live_alpha_risk_input());
+
+        run_live_production_live_alpha_risk_preflight(&production_live_alpha_risk_preflight_opt(
+            order_gate,
+            input,
+            output.clone(),
+            true,
+        ))
+        .unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(
+            report["schema_version"],
+            PRODUCTION_LIVE_ALPHA_RISK_PREFLIGHT_REPORT_SCHEMA_VERSION
+        );
+        assert_eq!(report["status"], "approved");
+        assert_eq!(report["risk_decision"], "approved");
+        assert_eq!(report["reasons"].as_array().unwrap().len(), 0);
+        assert_eq!(report["order_gate_ready"], true);
+        assert_eq!(report["projected_position_notional"], "60");
+        assert_eq!(report["production_order_submission_allowed"], false);
+        assert_eq!(report["production_order_mutation_allowed"], false);
+        assert_eq!(report["production_order_submissions_attempted"], 0);
+        assert_eq!(report["production_orders_submitted"], 0);
+        assert_eq!(report["production_order_mutations_attempted"], 0);
+        assert_eq!(report["execution_adapter_called"], false);
+        assert_eq!(report["order_endpoint_access_attempted"], false);
+        assert_eq!(report["network_attempted"], false);
+        assert_eq!(report["dashboard_order_controls_enabled"], false);
+        assert_eq!(report["real_orders_submitted"], false);
+    }
+
+    #[test]
+    fn production_live_alpha_risk_preflight_blocks_missing_confirmations() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v140-004-risk-missing-flags-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let order_gate = output_dir.join("order_gate.json");
+        let input = output_dir.join("risk_input.json");
+        let output = output_dir.join("risk_preflight.json");
+        run_live_production_live_alpha_dry_run_order_gate(
+            &production_live_alpha_dry_run_order_gate_opt(order_gate.clone(), true),
+        )
+        .unwrap();
+        write_live_alpha_risk_input(&input, &passing_live_alpha_risk_input());
+
+        run_live_production_live_alpha_risk_preflight(&production_live_alpha_risk_preflight_opt(
+            order_gate,
+            input,
+            output.clone(),
+            false,
+        ))
+        .unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(report["status"], "blocked_missing_gate");
+        assert_eq!(report["risk_decision"], "rejected");
+        assert_eq!(report["missing_cli_flags"].as_array().unwrap().len(), 5);
+        assert!(
+            report["reasons"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|reason| reason == "missing_owner_dry_run_confirmation")
+        );
+        assert_eq!(report["execution_adapter_called"], false);
+        assert_eq!(report["production_orders_submitted"], 0);
+    }
+
+    #[test]
+    fn production_live_alpha_risk_preflight_rejects_risk_and_state_failures() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v140-004-risk-rejected-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let order_gate = output_dir.join("order_gate.json");
+        let input = output_dir.join("risk_input.json");
+        let output = output_dir.join("risk_preflight.json");
+        run_live_production_live_alpha_dry_run_order_gate(
+            &production_live_alpha_dry_run_order_gate_opt(order_gate.clone(), true),
+        )
+        .unwrap();
+        let mut preflight = passing_live_alpha_risk_input();
+        preflight.market.now_unix_ms = 5_000;
+        preflight.market.max_age_ms = 100;
+        preflight.account.readable = false;
+        preflight.order_state.readable = false;
+        preflight.order_state.open_order_count = 5;
+        preflight.risk.kill_switch_active = true;
+        preflight.order.notional = "30.00".to_string();
+        preflight.limits.max_order_notional = "25.00".to_string();
+        preflight.limits.current_position_notional = "90.00".to_string();
+        preflight.limits.max_position_notional = "100.00".to_string();
+        write_live_alpha_risk_input(&input, &preflight);
+
+        run_live_production_live_alpha_risk_preflight(&production_live_alpha_risk_preflight_opt(
+            order_gate,
+            input,
+            output.clone(),
+            true,
+        ))
+        .unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(report["status"], "rejected");
+        assert_eq!(report["risk_decision"], "rejected");
+        let reasons = report["reasons"].as_array().unwrap();
+        for expected in [
+            "market_stale",
+            "account_read_failed",
+            "order_state_read_failed",
+            "kill_switch_active",
+            "notional_limit_exceeded",
+            "position_limit_exceeded",
+            "open_order_limit_exceeded",
+        ] {
+            assert!(
+                reasons.iter().any(|reason| reason == expected),
+                "missing reason {expected}: {reasons:?}"
+            );
+        }
+        assert_eq!(report["execution_adapter_called"], false);
+        assert_eq!(report["order_endpoint_access_attempted"], false);
+        assert_eq!(report["production_orders_submitted"], 0);
+        assert_eq!(report["network_attempted"], false);
+    }
+
+    #[test]
+    fn production_live_alpha_risk_preflight_rejects_mutating_order_gate() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v140-004-risk-mutating-gate-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let order_gate = output_dir.join("order_gate.json");
+        let input = output_dir.join("risk_input.json");
+        let output = output_dir.join("risk_preflight.json");
+        run_live_production_live_alpha_dry_run_order_gate(
+            &production_live_alpha_dry_run_order_gate_opt(order_gate.clone(), true),
+        )
+        .unwrap();
+        let mut gate_json: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&order_gate).unwrap()).unwrap();
+        gate_json["production_orders_submitted"] = serde_json::json!(1);
+        fs::write(
+            &order_gate,
+            serde_json::to_string_pretty(&gate_json).unwrap(),
+        )
+        .unwrap();
+        write_live_alpha_risk_input(&input, &passing_live_alpha_risk_input());
+
+        run_live_production_live_alpha_risk_preflight(&production_live_alpha_risk_preflight_opt(
+            order_gate,
+            input,
+            output.clone(),
+            true,
+        ))
+        .unwrap();
+
+        let report: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(report["status"], "rejected");
+        assert!(
+            report["reasons"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|reason| reason == "order_gate_production_orders_submitted_nonzero")
+        );
+        assert_eq!(report["execution_adapter_called"], false);
+        assert_eq!(report["production_order_mutations_attempted"], 0);
     }
 
     #[test]

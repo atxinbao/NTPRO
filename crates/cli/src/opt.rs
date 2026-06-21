@@ -166,6 +166,8 @@ pub enum LiveCommand {
     ProductionOrderStateReadOnlyProof(LiveProductionOrderStateReadOnlyProofOpt),
     /// Writes a v0.14 live-alpha dry-run order gate artifact without network or orders.
     ProductionLiveAlphaDryRunOrderGate(LiveProductionLiveAlphaDryRunOrderGateOpt),
+    /// Writes a v0.14 hypothetical live-alpha risk preflight artifact without execution.
+    ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio runtime artifacts from redacted read-only inputs.
     ProductionShadowPortfolioRuntime(LiveProductionShadowPortfolioRuntimeOpt),
     /// Writes local v0.12 persistent shadow strategy session events from read-only shadow artifacts.
@@ -569,6 +571,38 @@ pub struct LiveProductionLiveAlphaDryRunOrderGateOpt {
     /// Confirms no real funds or real orders are involved.
     #[arg(long)]
     pub confirm_no_real_funds: bool,
+}
+
+/// Hypothetical live-alpha risk preflight options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionLiveAlphaRiskPreflightOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.14 dry-run order gate JSON input.
+    #[arg(long)]
+    pub order_gate: PathBuf,
+    /// v0.14 hypothetical risk preflight input JSON.
+    #[arg(long)]
+    pub input: PathBuf,
+    /// v0.14 risk preflight JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Confirms this command only evaluates hypothetical dry-run risk.
+    #[arg(long)]
+    pub confirm_hypothetical_dry_run_only: bool,
+    /// Confirms no execution adapter call is allowed.
+    #[arg(long)]
+    pub confirm_no_execution_adapter_call: bool,
+    /// Confirms no production order submission is allowed.
+    #[arg(long)]
+    pub confirm_no_production_order_submission: bool,
+    /// Confirms no production order mutation is allowed.
+    #[arg(long)]
+    pub confirm_no_production_order_mutation: bool,
+    /// Confirms Dashboard order controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
 }
 
 /// Local shadow portfolio runtime artifact options.
@@ -1458,6 +1492,52 @@ mod tests {
         assert!(gate.confirm_no_listen_key_lifecycle);
         assert!(gate.confirm_dashboard_order_controls_disabled);
         assert!(gate.confirm_no_real_funds);
+    }
+
+    #[test]
+    fn parses_live_production_live_alpha_risk_preflight_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-live-alpha-risk-preflight",
+            "--run-id",
+            "v140-risk",
+            "--order-gate",
+            "runs/v140/order-gate.json",
+            "--input",
+            "runs/v140/risk-input.json",
+            "--output",
+            "runs/v140/risk-preflight.json",
+            "--confirm-hypothetical-dry-run-only",
+            "--confirm-no-execution-adapter-call",
+            "--confirm-no-production-order-submission",
+            "--confirm-no-production-order-mutation",
+            "--confirm-dashboard-order-controls-disabled",
+        ])
+        .expect("live production-live-alpha-risk-preflight should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionLiveAlphaRiskPreflight(preflight) = live.command else {
+            panic!("expected production-live-alpha-risk-preflight command");
+        };
+
+        assert_eq!(preflight.run_id, "v140-risk");
+        assert_eq!(
+            preflight.order_gate,
+            PathBuf::from("runs/v140/order-gate.json")
+        );
+        assert_eq!(preflight.input, PathBuf::from("runs/v140/risk-input.json"));
+        assert_eq!(
+            preflight.output,
+            PathBuf::from("runs/v140/risk-preflight.json")
+        );
+        assert!(preflight.confirm_hypothetical_dry_run_only);
+        assert!(preflight.confirm_no_execution_adapter_call);
+        assert!(preflight.confirm_no_production_order_submission);
+        assert!(preflight.confirm_no_production_order_mutation);
+        assert!(preflight.confirm_dashboard_order_controls_disabled);
     }
 
     #[test]
