@@ -10,14 +10,13 @@ Status: PASS - RELEASED
 `v0.12.0` is the Production Online Read-Only + Persistent Shadow release line
 after the published `v0.11.0` Production Read-Only Contract + Offline Shadow
 Portfolio milestone. It advances the source tree from offline contracts into
-owner-gated production `GET` read-only proof paths and local persistent shadow
-evidence.
+implemented owner-gated production `GET` read-only paths and local persistent
+shadow evidence.
 
-Plain Chinese summary: v0.12.0 不是实盘交易版本。它只把生产环境的“只读 GET 证明”
-和本地 persistent shadow 证据打通：公开只读探测、认证账户快照只读、response shape
-脱敏检查、shadow portfolio runtime、shadow strategy session、read-only
-reconciliation 和 Dashboard 只读展示。它不下生产订单，不撤单、不改单、不碰真实资金，
-Dashboard 也没有下单按钮。
+Plain Chinese summary: v0.12.0 不是实盘交易版本。它把生产环境只读 GET 的
+owner-gated 路径、本地 fail-closed 预检和 persistent shadow 证据打通。默认发版 gate
+不要求真实联网成功证明；真实生产只读成功证明只允许 owner 手动运行并留下可选证据。
+它不下生产订单，不撤单、不改单、不碰真实资金，Dashboard 也没有下单按钮。
 
 ## Product Claim
 
@@ -28,8 +27,10 @@ release tag = ntpro-rust-only-v0.12.0
 release name = NTPRO Rust-only v0.12.0
 release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.12.0
 default execution posture = offline fail-closed
-production public online read = owner-gated GET-only proof path
-production authenticated account snapshot online read = owner-gated GET-only proof path
+production public online read = implemented owner-gated GET-only path
+production authenticated account snapshot online read = implemented owner-gated GET-only path
+default release-gate online proof = not required, fail-closed preflight only
+owner-run successful online proof = optional evidence artifact only
 production read-only response shape = redacted and bounded evidence only
 shadow portfolio runtime = local artifact only
 shadow strategy session = local persistent event artifact only
@@ -48,8 +49,9 @@ Dashboard order controls = not included
 
 ```text
 v0.12 production online read-only boundary
-owner-gated production public GET read-only probe
-owner-gated authenticated production account snapshot GET proof
+implemented owner-gated production public GET read-only path
+implemented owner-gated authenticated production account snapshot GET path
+optional owner-run successful online proof artifact contract
 redacted account response-shape validation
 local shadow portfolio runtime artifact
 local persistent shadow strategy session event stream
@@ -83,8 +85,8 @@ Dashboard credential input
 | Task | Status | Evidence | Notes |
 | --- | --- | --- | --- |
 | V120-000 | PASS | `docs/rust-cutover/evidence/V120-000.md` | Defines the Production Online Read-Only + Persistent Shadow boundary. |
-| V120-001 | PASS | `docs/rust-cutover/evidence/V120-001.md` | Adds owner-gated production public read-only GET probe behavior. |
-| V120-002 | PASS | `docs/rust-cutover/evidence/V120-002.md` | Adds owner-gated authenticated production account snapshot GET proof. |
+| V120-001 | PASS | `docs/rust-cutover/evidence/V120-001.md` | Adds implemented owner-gated production public read-only GET path behavior. |
+| V120-002 | PASS | `docs/rust-cutover/evidence/V120-002.md` | Adds implemented owner-gated authenticated production account snapshot GET path behavior. |
 | V120-003 | PASS | `docs/rust-cutover/evidence/V120-003.md` | Adds redacted production account response-shape evidence. |
 | V120-004 | PASS | `docs/rust-cutover/evidence/V120-004.md` | Adds local shadow portfolio runtime artifacts. |
 | V120-005 | PASS | `docs/rust-cutover/evidence/V120-005.md` | Adds persistent shadow strategy session event artifacts. |
@@ -127,7 +129,7 @@ The v0.12 manual-online preflight verifies:
 ```text
 manual-online request path remains blocked without NTPRO_V12_MANUAL_ONLINE=1
 network_attempted=false
-owner-gated online proof is not required for CI
+owner-run successful online proof is not required for CI or default release gates
 ```
 
 ## Release Closure Status
