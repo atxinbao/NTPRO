@@ -58,6 +58,7 @@ const DATA_RECONNECT_UNSUPPORTED_MESSAGE: &str =
     "data source reconnect is not supported for local sandbox-only supervisor artifacts";
 const EXECUTION_RECONNECT_UNSUPPORTED_MESSAGE: &str =
     "execution gateway reconnect is not supported for local sandbox-only supervisor artifacts";
+const SHADOW_PREFLIGHT_SESSION_RELATIVE_PATH: &str = "v0_14/shadow_preflight_session.jsonl";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SupervisorRegistry {
@@ -425,6 +426,7 @@ pub(crate) fn run_supervisor_command(opt: SupervisorOpt) -> anyhow::Result<()> {
         SupervisorCommand::Risk(node) => run_supervisor_risk(node),
         SupervisorCommand::Logs(node) => run_supervisor_logs(node),
         SupervisorCommand::Metrics(node) => run_supervisor_metrics(node),
+        SupervisorCommand::ShadowRuntime(node) => run_supervisor_shadow_runtime(node),
     }
 }
 
@@ -697,6 +699,40 @@ fn run_supervisor_metrics(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn run_supervisor_shadow_runtime(opt: SupervisorNodeOpt) -> anyhow::Result<()> {
+    let store = SupervisorRegistryStore::new(opt.registry.registry);
+    let status = store.node_status(&opt.node_id)?;
+    let record = load_node_record(&store, &opt.node_id)?;
+    let strategy = strategy_session_status_from_node_status(&status);
+    let preflight = shadow_preflight_summary_from_record(&record);
+    println!(
+        "supervisor.shadow_runtime status=ok registry_node_id={} runtime_node_id={} process_state={} lifecycle_state={} strategy_session_state={} strategy_health={} strategy_events={} strategy_summary={} preflight_status={} preflight_events={} preflight_heartbeats={} preflight_final_state={} stale_data_halted={} stop_file_observed={} production_order_submissions_attempted={} production_order_mutations_attempted={} production_order_state_reads_attempted={} listen_key_lifecycle_attempted={} dashboard_order_controls_enabled={} external_venue_connection={} real_orders_submitted={} preflight_events_path={}",
+        opt.node_id,
+        status.node_id,
+        json_label(&record.process.state),
+        json_label(&status.lifecycle_state),
+        strategy.session_state,
+        strategy.artifact_health,
+        strategy.events_path,
+        strategy.summary_path,
+        preflight.status,
+        preflight.event_count,
+        preflight.heartbeat_count,
+        preflight.final_state,
+        preflight.stale_data_halted,
+        preflight.stop_file_observed,
+        preflight.production_order_submissions_attempted,
+        preflight.production_order_mutations_attempted,
+        preflight.production_order_state_reads_attempted,
+        preflight.listen_key_lifecycle_attempted,
+        preflight.dashboard_order_controls_enabled,
+        status.external_venue_connection,
+        status.real_orders_submitted,
+        preflight.path.display(),
+    );
+    Ok(())
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct StrategySessionSupervisorStatus {
     session_state: String,
@@ -711,6 +747,113 @@ struct StrategySessionSupervisorStatus {
     session_status_path: String,
     events_path: String,
     summary_path: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ShadowPreflightSummary {
+    path: PathBuf,
+    status: String,
+    event_count: u64,
+    heartbeat_count: u64,
+    final_state: String,
+    stale_data_halted: bool,
+    stop_file_observed: bool,
+    production_order_submissions_attempted: u64,
+    production_order_mutations_attempted: u64,
+    production_order_state_reads_attempted: u64,
+    listen_key_lifecycle_attempted: u64,
+    dashboard_order_controls_enabled: bool,
+}
+
+fn shadow_preflight_summary_from_record(record: &SupervisorNodeRecord) -> ShadowPreflightSummary {
+    let path = record
+        .artifact_root
+        .join(SHADOW_PREFLIGHT_SESSION_RELATIVE_PATH);
+    let mut summary = ShadowPreflightSummary {
+        path,
+        status: "missing".to_string(),
+        event_count: 0,
+        heartbeat_count: 0,
+        final_state: "none".to_string(),
+        stale_data_halted: false,
+        stop_file_observed: false,
+        production_order_submissions_attempted: 0,
+        production_order_mutations_attempted: 0,
+        production_order_state_reads_attempted: 0,
+        listen_key_lifecycle_attempted: 0,
+        dashboard_order_controls_enabled: false,
+    };
+
+    if !summary.path.exists() {
+        return summary;
+    }
+
+    let Ok(raw) = fs::read_to_string(&summary.path) else {
+        summary.status = "read_error".to_string();
+        return summary;
+    };
+
+    summary.status = "available".to_string();
+    for line in raw.lines().map(str::trim).filter(|line| !line.is_empty()) {
+        let Ok(value) = serde_json::from_str::<Value>(line) else {
+            summary.status = "invalid_jsonl".to_string();
+            continue;
+        };
+        summary.event_count = summary.event_count.saturating_add(1);
+        if value.get("event_type").and_then(Value::as_str)
+            == Some("shadow_preflight_session_heartbeat")
+        {
+            summary.heartbeat_count = summary.heartbeat_count.saturating_add(1);
+        }
+        if let Some(state) = value.get("state").and_then(Value::as_str) {
+            summary.final_state = state.to_string();
+            summary.stale_data_halted |= state == "stale_data_halted";
+        }
+        summary.stale_data_halted |= value
+            .get("stale_data_detected")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        summary.stop_file_observed |= value
+            .get("stop_file_observed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        summary.production_order_submissions_attempted = summary
+            .production_order_submissions_attempted
+            .saturating_add(json_u64_or_bool_count(
+                &value,
+                "production_order_submissions_attempted",
+            ));
+        summary.production_order_mutations_attempted = summary
+            .production_order_mutations_attempted
+            .saturating_add(json_u64_or_bool_count(
+                &value,
+                "production_order_mutations_attempted",
+            ));
+        summary.production_order_state_reads_attempted = summary
+            .production_order_state_reads_attempted
+            .saturating_add(json_u64_or_bool_count(
+                &value,
+                "production_order_state_reads_attempted",
+            ));
+        summary.listen_key_lifecycle_attempted = summary
+            .listen_key_lifecycle_attempted
+            .saturating_add(json_u64_or_bool_count(
+                &value,
+                "listen_key_lifecycle_attempted",
+            ));
+        summary.dashboard_order_controls_enabled |= value
+            .get("dashboard_order_controls_enabled")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+    }
+    summary
+}
+
+fn json_u64_or_bool_count(value: &Value, field: &str) -> u64 {
+    if let Some(count) = value.get(field).and_then(Value::as_u64) {
+        return count;
+    }
+    u64::from(value.get(field).and_then(Value::as_bool).unwrap_or(false))
 }
 
 impl Default for StrategySessionSupervisorStatus {
@@ -1254,9 +1397,22 @@ impl SupervisorRegistryStore {
 
         if record.process.state == SupervisorProcessState::Running && pid_artifact_is_stale(record)?
         {
-            record.process.state = SupervisorProcessState::Stale;
-            record.process.updated_at = SnapshotValue::available(now_millis());
-            record.updated_at = SnapshotValue::available(now_millis());
+            let transition_at = now_millis();
+            if let Some(stopped_status) = stopped_status_artifact(record) {
+                record.process = SupervisorProcessRecord {
+                    pid: SnapshotValue::not_configured(),
+                    state: SupervisorProcessState::Stopped,
+                    updated_at: SnapshotValue::available(transition_at.clone()),
+                };
+                record.last_known_status = stopped_status;
+                record.status_artifact = RegistryArtifactState::Available;
+                record.updated_at = SnapshotValue::available(transition_at);
+                write_or_remove_pid_artifact(record)?;
+            } else {
+                record.process.state = SupervisorProcessState::Stale;
+                record.process.updated_at = SnapshotValue::available(transition_at.clone());
+                record.updated_at = SnapshotValue::available(transition_at);
+            }
         }
 
         let updated = record.clone();
@@ -2279,6 +2435,13 @@ fn pid_artifact_is_stale(record: &SupervisorNodeRecord) -> anyhow::Result<bool> 
     }
 
     Ok(false)
+}
+
+fn stopped_status_artifact(record: &SupervisorNodeRecord) -> Option<NodeStatus> {
+    let raw = fs::read_to_string(&record.status_path).ok()?;
+    let status = serde_json::from_str::<NodeStatus>(&raw).ok()?;
+    (status.node_id == record.node_id && status.lifecycle_state == LifecycleStatus::Stopped)
+        .then_some(status)
 }
 
 impl SupervisorProcessIdentity {
@@ -3356,6 +3519,80 @@ done
         let refreshed = store.refresh_process_state("sandbox-a").unwrap();
         assert_eq!(refreshed.process.state, SupervisorProcessState::Stale);
         assert!(!store.registry_lock_path().exists());
+    }
+
+    #[test]
+    fn refresh_process_state_accepts_graceful_external_stopped_status() {
+        let root = temp_root("external-stopped-status");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let record = store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+        store
+            .update_process("sandbox-a", Some(123_456), SupervisorProcessState::Running)
+            .unwrap();
+
+        let mut stopped_status = NodeStatus::unknown("sandbox-a");
+        stopped_status.lifecycle_state = LifecycleStatus::Stopped;
+        stopped_status.process_mode = ProcessMode::SpawnedProcess;
+        stopped_status.artifact_root =
+            SnapshotValue::available(record.artifact_root.display().to_string());
+        fs::write(
+            &record.status_path,
+            serde_json::to_string_pretty(&stopped_status).unwrap(),
+        )
+        .unwrap();
+
+        let refreshed = store.refresh_process_state("sandbox-a").unwrap();
+        assert_eq!(refreshed.process.state, SupervisorProcessState::Stopped);
+        assert!(refreshed.process.pid.value.is_none());
+        assert!(!refreshed.pid_path.exists());
+        assert_eq!(
+            refreshed.last_known_status.lifecycle_state,
+            LifecycleStatus::Stopped
+        );
+        assert_eq!(refreshed.status_artifact, RegistryArtifactState::Available);
+    }
+
+    #[test]
+    fn supervisor_shadow_preflight_summary_reports_lifecycle_and_no_mutation_boundary() {
+        let root = temp_root("shadow-preflight-summary");
+        let record = SupervisorNodeRecord::new(
+            "shadow-a".to_string(),
+            root.join("config.toml"),
+            root.join("shadow-a-artifacts"),
+        );
+        let preflight_path = record
+            .artifact_root
+            .join(SHADOW_PREFLIGHT_SESSION_RELATIVE_PATH);
+        fs::create_dir_all(preflight_path.parent().unwrap()).unwrap();
+        fs::write(
+            &preflight_path,
+            r#"{"event_type":"shadow_preflight_session_started","state":"running","stale_data_detected":false,"stop_file_observed":false,"production_order_submissions_attempted":0,"production_order_mutations_attempted":0,"production_order_state_reads_attempted":0,"listen_key_lifecycle_attempted":0,"dashboard_order_controls_enabled":false}
+{"event_type":"shadow_preflight_session_heartbeat","state":"running","heartbeat_seq":1,"stale_data_detected":false,"stop_file_observed":false,"production_order_submissions_attempted":0,"production_order_mutations_attempted":0,"production_order_state_reads_attempted":0,"listen_key_lifecycle_attempted":0,"dashboard_order_controls_enabled":false}
+{"event_type":"shadow_preflight_stale_data_detected","state":"stale_data_halted","stale_data_detected":true,"stop_file_observed":false,"production_order_submissions_attempted":0,"production_order_mutations_attempted":0,"production_order_state_reads_attempted":0,"listen_key_lifecycle_attempted":0,"dashboard_order_controls_enabled":false}
+"#,
+        )
+        .unwrap();
+
+        let summary = shadow_preflight_summary_from_record(&record);
+
+        assert_eq!(summary.status, "available");
+        assert_eq!(summary.event_count, 3);
+        assert_eq!(summary.heartbeat_count, 1);
+        assert_eq!(summary.final_state, "stale_data_halted");
+        assert!(summary.stale_data_halted);
+        assert!(!summary.stop_file_observed);
+        assert_eq!(summary.production_order_submissions_attempted, 0);
+        assert_eq!(summary.production_order_mutations_attempted, 0);
+        assert_eq!(summary.production_order_state_reads_attempted, 0);
+        assert_eq!(summary.listen_key_lifecycle_attempted, 0);
+        assert!(!summary.dashboard_order_controls_enabled);
     }
 
     #[test]
