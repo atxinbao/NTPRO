@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.13.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.14.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
@@ -137,15 +137,15 @@ required_fields=(
   "Tag: \`$CURRENT_RELEASE_TAG\`"
   "Release name: \`$RELEASE_NAME\`"
   "Release URL: \`$RELEASE_URL\`"
-  "Guarded Live Alpha Preflight"
+  "Production Order-State Read-Only + Live Alpha Dry-Run"
   "no-production-mutation"
+  "owner-gated production order-state GET proof"
+  "live-alpha dry-run"
   "production order submission"
-  "production cancel, replace, amend, retry, or correction orders"
-  "production open-order or order-state reads"
+  "production cancel, replace, amend, retry, correction, or flatten"
   "listenKey lifecycle"
   "real funds"
   "production trading"
-  "risk/execution-grade live-alpha money math"
   "Dashboard order/cancel/replace/amend/retry/reconnect controls"
 )
 

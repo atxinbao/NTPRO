@@ -4,10 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.13.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.14.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
-NEXT_PATCH_VERSION="${NTPRO_NEXT_PATCH_VERSION:-v0.13.1}"
-NEXT_CAPABILITY_VERSION="${NTPRO_NEXT_CAPABILITY_VERSION:-v0.14.0}"
+NEXT_PATCH_VERSION="${NTPRO_NEXT_PATCH_VERSION:-v0.14.1}"
+NEXT_CAPABILITY_VERSION="${NTPRO_NEXT_CAPABILITY_VERSION:-v0.15.0}"
 
 CURRENT_RELEASE_STEM="v${CURRENT_RELEASE_VERSION#v}"
 CURRENT_RELEASE_STEM="${CURRENT_RELEASE_STEM//./_}"
@@ -123,7 +123,7 @@ require_contains README.md \
   "README next capability track"
 
 require_contains ROADMAP.md \
-  "\`$CURRENT_RELEASE_TAG\`, the Guarded Live Alpha Preflight release" \
+  "\`$CURRENT_RELEASE_TAG\`, the Production Order-State Read-Only + Live Alpha Dry-Run release" \
   "ROADMAP current release and patch track"
 require_contains ROADMAP.md \
   "The next patch track is \`$NEXT_PATCH_VERSION\`" \

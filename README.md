@@ -6,44 +6,40 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.13.0
-Capability: Guarded Live Alpha Preflight
-Boundary: v0.13.0 preflight evidence only, bounded local shadow preflight loop heartbeat/stop/stale-data evidence, optional owner-run production online read-only proof-pack wrapper, kill-switch dry-run/manual approval artifact, trader/ops Dashboard read-only/control boundary, Decimal/string-only amount preflight, release no-production-mutation gate, default local/PR/release execution offline and fail-closed, production orders submitted=0, production order mutations attempted=0, production order-state reads attempted=0, listenKey lifecycle attempted=0, no real funds, no production trading, no Dashboard order controls
+Current source tag: ntpro-rust-only-v0.14.0
+Capability: Production Order-State Read-Only + Live Alpha Dry-Run
+Boundary: v0.14.0 owner-gated production order-state read-only proof and live-alpha dry-run evidence only, local supervisor shadow runtime evidence, local risk preflight, reconciliation golden traces, Dashboard read-only dry-run panel, default local/PR/release execution offline and fail-closed, production orders submitted=0, production order mutations attempted=0, listenKey lifecycle attempted=0, no real funds, no production trading, no Dashboard order controls
 ```
 
-This tag is the current v0.13.0 source release point for the scoped Guarded
-Live Alpha Preflight line. It moves beyond the v0.12 read-only/shadow evidence
-line by adding preflight evidence needed before any future live alpha decision:
-a bounded local shadow preflight loop, an owner-gated read-only proof-pack wrapper,
-kill-switch dry-run/manual approval evidence, Dashboard control-boundary
-evidence, Decimal/string amount-boundary evidence, and a release gate proving
-no production mutation. It is not evidence of production order submission,
-production mutation, production order-state reads, listenKey lifecycle access,
-signed WebSocket user stream runtime, real funds, production trading,
-automatic production remediation, production portfolio parity,
-risk/execution-grade live-alpha money math, or Dashboard order controls. It is
-published as a GitHub Release for the tagged source tree:
+This tag is the current v0.14.0 source release point for the scoped Production
+Order-State Read-Only + Live Alpha Dry-Run line. It moves beyond the v0.13
+preflight evidence line by adding owner-gated production order-state read-only
+GET proof scope and local live-alpha dry-run evidence. It is not evidence of
+production order submission, production mutation, cancel/replace/amend/retry/
+correction, listenKey lifecycle access, signed WebSocket user stream runtime,
+real funds, production trading, automatic production remediation, production
+portfolio parity, or Dashboard order controls. It is published as a GitHub
+Release for the tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.13.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.14.0
 ```
 
-`v0.13.0` is now the current Guarded Live Alpha Preflight release. It is still
-preflight-only. It does not expand the product into production order
-submission, production order mutation, production order-state reads, listenKey
-lifecycle, signed WebSocket user stream runtime, real funds, production
-trading, automatic production remediation, production portfolio parity,
-risk/execution-grade live-alpha money math, or Dashboard order controls.
+`v0.14.0` is now the current Production Order-State Read-Only + Live Alpha
+Dry-Run release. It is still dry-run/read-only only. It does not expand the
+product into production order submission, production order mutation,
+cancel/replace/amend/retry/correction, listenKey lifecycle, signed WebSocket
+user stream runtime, real funds, production trading, automatic production
+remediation, production portfolio parity, or Dashboard order controls.
 
-The next patch track is `v0.13.1`, if needed. It must preserve the v0.13.0
-preflight-only and no-production-mutation boundary and must not add production
-order submission, production order mutation, production order-state reads,
-listenKey lifecycle, signed WebSocket user stream runtime, real funds,
-production trading, automatic production remediation, or Dashboard order
-controls.
+The next patch track is `v0.14.1`, if needed. It must preserve the v0.14.0
+read-only/dry-run and no-production-mutation boundary and must not add
+production order submission, production order mutation, listenKey lifecycle,
+signed WebSocket user stream runtime, real funds, production trading,
+automatic production remediation, or Dashboard order controls.
 
-`v0.14.0` requires a separate scope decision before any capability may be
-claimed from v0.13.0 preflight evidence.
+`v0.15.0` requires a separate scope decision before any capability may be
+claimed beyond v0.14.0 read-only/dry-run evidence.
 
 ## Current Status
 
@@ -119,7 +115,7 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.13.0 is the current formal release line. It builds on the earlier foundation
+v0.14.0 is the current formal release line. It builds on the earlier foundation
 layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
@@ -486,13 +482,13 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.13.0` is the current Rust-only source release for the
-Guarded Live Alpha Preflight line. It does not add production order submission,
-production order mutation, production order-state reads, listenKey lifecycle,
+`ntpro-rust-only-v0.14.0` is the current Rust-only source release for the
+Production Order-State Read-Only + Live Alpha Dry-Run line. It does not add
+production order submission, production order mutation, listenKey lifecycle,
 signed WebSocket user stream runtime, real funds, production trading,
-automatic production remediation, production portfolio parity,
-risk/execution-grade live-alpha money math, or Dashboard order controls.
-`v0.13.0` preserves a preflight-only/no-production-mutation boundary.
+automatic production remediation, production portfolio parity, or Dashboard
+order controls. `v0.14.0` preserves a read-only/dry-run and
+no-production-mutation boundary.
 `v0.12.1` remains the Production Read-Only Evidence & Release Surface Hardening
 baseline, `v0.10.0` remains the Binance spot sandbox order-proof baseline,
 `v0.9.0` remains the local deterministic Strategy Runtime batch foundation
