@@ -12,12 +12,12 @@ Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.
 `v0.12.0` is the Production Online Read-Only + Persistent Shadow release. It
 advances the v0.11 production read-only contract line by adding implemented
 owner-gated production `GET` read-only paths, default fail-closed preflights,
-and local persistent shadow runtime evidence.
+and local persistent shadow artifact evidence.
 
 Plain Chinese summary: v0.12.0 是“生产在线只读 + 持久 shadow”正式发布版本。它可以在
 用户明确打开 gate 后尝试生产 Binance 只读 GET；默认发版 gate 只证明这些路径
 fail-closed，不要求真实联网成功。真实在线成功证明属于 owner 可选运行证据。它还把本地
-shadow portfolio、shadow strategy session、reconciliation 和 Dashboard 只读状态串起来。
+shadow portfolio、bounded shadow strategy session event artifact、reconciliation 和 Dashboard 只读状态串起来。
 它不是实盘交易版本，不下单、不撤单、不改单、不读生产订单状态、不碰真实资金。
 
 ## Changed
@@ -30,7 +30,7 @@ shadow portfolio、shadow strategy session、reconciliation 和 Dashboard 只读
   default CI or release-gate requirement.
 - Added redacted response-shape validation for account snapshot evidence.
 - Added a local shadow portfolio runtime artifact.
-- Added a local persistent shadow strategy session event stream.
+- Added a bounded local shadow strategy session JSONL event artifact.
 - Added local production read-only reconciliation classifications.
 - Extended Dashboard with a v0.12 production shadow read-only panel.
 - Added v0.12 offline release gates and manual-online fail-closed preflight.
@@ -46,7 +46,7 @@ implemented owner-gated authenticated production account snapshot GET path
 optional owner-run successful online proof artifact contract
 redacted account response-shape evidence
 local shadow portfolio runtime artifacts
-local persistent shadow strategy session artifacts
+bounded local shadow strategy session JSONL event artifacts
 local read-only reconciliation classifications
 Dashboard read-only production shadow status
 offline v0.12 release gate bundle
@@ -107,10 +107,10 @@ release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.
 ```
 
 The release boundary must continue to preserve: Production Online Read-Only +
-Persistent Shadow only, no production order submission, no production order
-mutation, no production order-state reads, no listenKey lifecycle, no real
-funds, no production trading, no automatic production remediation, and no
-Dashboard order controls.
+Persistent Shadow only, no long-running shadow strategy runtime, no production
+order submission, no production order mutation, no production order-state
+reads, no listenKey lifecycle, no real funds, no production trading, no
+automatic production remediation, and no Dashboard order controls.
 
 `v0.13.0` is the earliest possible Guarded Live Alpha candidate and requires a
 separate owner-approved scope decision.

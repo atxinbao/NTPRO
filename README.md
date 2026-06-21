@@ -8,7 +8,7 @@ The current public milestone is:
 ```text
 Current source tag: ntpro-rust-only-v0.12.0
 Capability: Production Online Read-Only + Persistent Shadow
-Boundary: owner-gated production public/account GET read-only proof paths, redacted response-shape evidence, local shadow portfolio runtime, persistent shadow strategy session, local read-only reconciliation, Dashboard read-only production shadow status, production orders submitted=0, production order mutations attempted=0, production order-state reads attempted=0, listenKey lifecycle attempted=0, signed WebSocket user stream deferred, no real funds, no production trading, no Dashboard order controls
+Boundary: owner-gated production public/account GET read-only proof paths, redacted response-shape evidence, local shadow portfolio runtime, bounded shadow strategy session event artifact, local read-only reconciliation, Dashboard read-only production shadow status, production orders submitted=0, production order mutations attempted=0, production order-state reads attempted=0, listenKey lifecycle attempted=0, signed WebSocket user stream deferred, no real funds, no production trading, no Dashboard order controls
 ```
 
 This tag is the current v0.12.0 source release point for the scoped Production
@@ -33,10 +33,12 @@ decision, but this source tree does not by itself create the
 `ntpro-rust-only-v0.11.1` tag or publish a GitHub Release.
 
 `v0.12.0` is now the current Production Online Read-Only + Persistent Shadow
-release. It does not expand the product into production order submission,
-production order mutation, production order-state reads, listenKey lifecycle,
-signed WebSocket user streams, real funds, production trading, automatic
-production remediation, or Dashboard order controls.
+release. Its shadow strategy session output is a bounded local event artifact,
+not a long-running strategy runtime. It does not expand the product into
+production order submission, production order mutation, production order-state
+reads, listenKey lifecycle, signed WebSocket user streams, real funds,
+production trading, automatic production remediation, or Dashboard order
+controls.
 
 The next patch track is `v0.12.1`, if needed. It must preserve the v0.12.0
 read-only/shadow-only release boundary and must not add production order
@@ -150,10 +152,10 @@ layers:
   counters fixed at zero.
 - `v0.12.0`: Production Online Read-Only + Persistent Shadow release package
   with owner-gated production public/account `GET` read-only proof paths,
-  redacted response-shape evidence, local shadow portfolio runtime, persistent
-  shadow strategy session, local read-only reconciliation, Dashboard v0.12
-  production shadow read-only panel, and v0.12 offline/manual-online preflight
-  release gates.
+  redacted response-shape evidence, local shadow portfolio runtime, bounded
+  shadow strategy session event artifact, local read-only reconciliation,
+  Dashboard v0.12 production shadow read-only panel, and v0.12
+  offline/manual-online preflight release gates.
 
 `v0.5.0` was completed as a scoped readiness milestone and is absorbed into the
 `v0.6.0` release tree. It is not published as a separate public GitHub Release.
@@ -165,6 +167,8 @@ publication; it does not add a production trading capability.
 
 The `v0.12.0` release advances beyond v0.11 contracts into owner-gated
 production `GET` read-only proof paths and persistent local shadow artifacts.
+The shadow strategy session piece is a bounded JSONL event artifact, not a
+long-running strategy runtime.
 It does not add production order submission, production order mutation,
 production order-state reads, listenKey lifecycle, signed WebSocket user
 streams, real funds, production trading, automatic production remediation, or
@@ -217,7 +221,7 @@ The current release path supports:
   `GET /api/v3/account`;
 - redacted production account response-shape evidence;
 - local shadow portfolio runtime artifact;
-- local persistent shadow strategy session event artifact;
+- bounded local shadow strategy session event artifact;
 - local read-only reconciliation classifications;
 - Dashboard v0.12 production shadow read-only panel;
 - v0.12 offline release gates and manual-online fail-closed preflight.
@@ -282,7 +286,7 @@ release built on the v0.10.0 Binance spot sandbox order proof and added
 Production Read-Only Contract + Offline Shadow Portfolio evidence only.
 
 The v0.12.0 release source tree adds owner-gated production `GET` read-only
-proof paths and persistent local shadow runtime artifacts. Default local, PR,
+proof paths and persistent local shadow artifact evidence. Default local, PR,
 CI, and release-gate runs still remain offline unless the owner explicitly
 enables the manual-online proof gates.
 

@@ -10,7 +10,7 @@ Risk: high
 
 `v0.12.0` advances the v0.11 Production Read-Only Contract + Offline Shadow
 Portfolio line into a narrower production-online track: owner-gated production
-`GET` read-only probes and persistent shadow runtime evidence.
+`GET` read-only probes and persistent local shadow artifact evidence.
 
 Plain Chinese summary: v0.12.0 的目标不是“实盘交易”。它只允许在用户明确打开 gate
 后，对生产 Binance 做只读 `GET` 证明，并把本地 shadow 组合、shadow 策略会话和
@@ -25,7 +25,7 @@ reconciliation 证据持久化。生产下单、撤单、改单、纠错单、�
 - owner-gated authenticated production account snapshot online proof;
 - validated read-only response shape evidence;
 - persistent shadow portfolio runtime artifacts;
-- persistent shadow strategy session artifacts;
+- bounded shadow strategy session JSONL event artifacts;
 - read-only reconciliation classifications;
 - Dashboard read-only status for production shadow artifacts.
 
@@ -186,17 +186,17 @@ listen_key_lifecycle_attempted = 0
 dashboard_order_controls_enabled = false
 ```
 
-## Persistent Shadow Runtime Boundary
+## Persistent Shadow Artifact Boundary
 
-Persistent shadow runtime may record local state only:
+Persistent shadow artifacts may record local state only:
 
 - shadow portfolio snapshots;
-- shadow strategy session heartbeat and stop markers;
+- bounded shadow strategy session heartbeat and stop event markers;
 - read-only reconciliation classifications;
 - artifact provenance, schema version, and generated timestamp;
 - local risk-halt classifications.
 
-Persistent shadow runtime must not:
+Persistent shadow artifacts must not:
 
 - submit production orders;
 - cancel, replace, amend, retry, or correct production orders;
@@ -213,7 +213,7 @@ Dashboard may display read-only production shadow status only:
 - authenticated account snapshot status;
 - response-shape validation status;
 - shadow portfolio runtime status;
-- shadow strategy session heartbeat;
+- bounded shadow strategy session heartbeat event;
 - reconciliation classification;
 - artifact path and freshness.
 
@@ -253,7 +253,7 @@ v0.12 work must proceed in this order:
 3. `V120-002` - Add authenticated production account snapshot online proof.
 4. `V120-003` - Validate production read-only response shape.
 5. `V120-004` - Implement shadow portfolio runtime.
-6. `V120-005` - Add persistent shadow strategy session.
+6. `V120-005` - Add bounded shadow strategy session event artifact.
 7. `V120-006` - Add production read-only reconciliation engine.
 8. `V120-007` - Add Dashboard production shadow read-only panel.
 9. `V120-008` - Add dual release gates for offline and owner-gated online.
@@ -276,4 +276,4 @@ evidence that:
 - Dashboard order controls stayed absent;
 - raw secrets, raw signatures, signed URLs, raw account responses, and raw
   balance values were not persisted;
-- persistent shadow runtime did not present local shadow state as exchange truth.
+- persistent shadow artifacts did not present local shadow state as exchange truth.

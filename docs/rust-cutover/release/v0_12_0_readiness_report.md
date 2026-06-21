@@ -11,7 +11,7 @@ Status: PASS - RELEASED
 after the published `v0.11.0` Production Read-Only Contract + Offline Shadow
 Portfolio milestone. It advances the source tree from offline contracts into
 implemented owner-gated production `GET` read-only paths and local persistent
-shadow evidence.
+shadow artifact evidence.
 
 Plain Chinese summary: v0.12.0 不是实盘交易版本。它把生产环境只读 GET 的
 owner-gated 路径、本地 fail-closed 预检和 persistent shadow 证据打通。默认发版 gate
@@ -33,7 +33,7 @@ default release-gate online proof = not required, fail-closed preflight only
 owner-run successful online proof = optional evidence artifact only
 production read-only response shape = redacted and bounded evidence only
 shadow portfolio runtime = local artifact only
-shadow strategy session = local persistent event artifact only
+shadow strategy session = bounded local JSONL event artifact only, not a long-running runtime
 production read-only reconciliation = local classification only
 Dashboard production shadow status = read-only display only
 production order submission = not included
@@ -55,7 +55,7 @@ implemented owner-gated authenticated production account snapshot GET path
 optional owner-run successful online proof artifact contract
 redacted account response-shape validation
 local shadow portfolio runtime artifact
-local persistent shadow strategy session event stream
+bounded local shadow strategy session JSONL event artifact
 local production read-only reconciliation classifications
 Dashboard v0.12 production shadow read-only panel
 offline release gate bundle
@@ -90,7 +90,7 @@ Dashboard credential input
 | V120-002 | PASS | `docs/rust-cutover/evidence/V120-002.md` | Adds implemented owner-gated authenticated production account snapshot GET path behavior. |
 | V120-003 | PASS | `docs/rust-cutover/evidence/V120-003.md` | Adds redacted production account response-shape evidence. |
 | V120-004 | PASS | `docs/rust-cutover/evidence/V120-004.md` | Adds local shadow portfolio runtime artifacts. |
-| V120-005 | PASS | `docs/rust-cutover/evidence/V120-005.md` | Adds persistent shadow strategy session event artifacts. |
+| V120-005 | PASS | `docs/rust-cutover/evidence/V120-005.md` | Adds bounded shadow strategy session JSONL event artifacts. |
 | V120-006 | PASS | `docs/rust-cutover/evidence/V120-006.md` | Adds local production read-only reconciliation classifications. |
 | V120-007 | PASS | `docs/rust-cutover/evidence/V120-007.md` | Adds Dashboard v0.12 production shadow read-only panel. |
 | V120-008 | PASS | `docs/rust-cutover/evidence/V120-008.md` | Wires v0.12 offline release gates and manual-online fail-closed preflight. |
@@ -113,7 +113,7 @@ production public read-only probe preflight
 authenticated account snapshot preflight
 redacted response-shape validation
 local shadow portfolio runtime
-local persistent shadow strategy session
+bounded local shadow strategy session event artifact
 local read-only reconciliation
 Dashboard v0.12 production shadow read-only panel
 release boundary markers
