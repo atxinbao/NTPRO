@@ -60,6 +60,10 @@ jobs:
             command: scripts/ai/verify_full.sh golden-traces-risk-rejection
           - stage: full-golden-traces-adapter-payload
             command: scripts/ai/verify_full.sh golden-traces-adapter-payload
+          - stage: full-golden-traces-live-alpha-reconciliation
+            command: scripts/ai/verify_full.sh golden-traces-live-alpha-reconciliation
+          - stage: full-golden-traces-live-alpha-mutation-dry-run
+            command: scripts/ai/verify_full.sh golden-traces-live-alpha-mutation-dry-run
           - stage: full-rust-docs
             command: scripts/ai/verify_full.sh rust-docs
           - stage: release-build-product-surface

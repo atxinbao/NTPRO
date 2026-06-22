@@ -291,6 +291,14 @@ Final release checks, benchmark summaries, and audit reports live here.
   autonomous strategy execution, no request sending, no production mutation,
   no listenKey lifecycle, no real funds, no production trading, and no
   Dashboard order controls.
+- `v0_15_0_manual_approval_lifecycle.md` - V150-005 one-time manual approval
+  lifecycle for production live-alpha request preview. It binds approval to
+  run, strategy, symbol, notional, and expiry, but still allows only local
+  dry-run request preview artifacts and no production mutation.
+- `v0_15_0_mutation_dry_run_golden_traces.md` - V150-006 executable golden
+  traces for live-alpha mutation dry-run rejection and preflight states. It
+  proves every scoped trace keeps production order submission, production
+  mutation, network access, and production execution adapter calls disabled.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
