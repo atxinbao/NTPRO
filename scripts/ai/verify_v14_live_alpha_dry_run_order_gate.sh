@@ -169,7 +169,7 @@ require(report["dashboard_controls_disabled_confirmed"] is True, report)
 require(report["no_real_funds_confirmed"] is True, report)
 PY
 
-if rg -n \
+if grep -En \
   '"production_order_submission_allowed": true|"production_order_mutation_allowed": true|"execution_adapter_called": true|"order_endpoint_access_attempted": true|"dashboard_order_controls_enabled": true|"production_orders_submitted": [1-9]|"production_order_mutations_attempted": [1-9]' \
   "$READY_JSON" >/dev/null; then
   echo "v14 live-alpha dry-run ready artifact contains enabled production mutation fields" >&2

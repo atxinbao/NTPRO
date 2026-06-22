@@ -155,6 +155,7 @@ fn normalized_reconciliation_event(
     for key in [
         "status",
         "risk_decision",
+        "execution_decision",
         "reasons",
         "order_gate_ready",
         "order_state_age_ms",

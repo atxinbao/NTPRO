@@ -1194,6 +1194,7 @@ struct ProductionLiveAlphaRiskPreflightReport {
     run_id: String,
     evaluated_at: String,
     risk_decision: String,
+    execution_decision: String,
     reasons: Vec<String>,
     missing_cli_flags: Vec<String>,
     order_gate_status: String,
@@ -4474,12 +4475,16 @@ fn build_production_live_alpha_risk_preflight_report(
     )?);
 
     let risk_decision = if reasons.is_empty() {
-        "approved"
+        "dry_run_approved"
     } else {
-        "rejected"
+        "dry_run_rejected"
     };
     let status = if missing_cli_flags.is_empty() {
-        risk_decision
+        if reasons.is_empty() {
+            "approved"
+        } else {
+            "rejected"
+        }
     } else {
         "blocked_missing_gate"
     };
@@ -4509,6 +4514,7 @@ fn build_production_live_alpha_risk_preflight_report(
         run_id: opt.run_id.clone(),
         evaluated_at: now_millis(),
         risk_decision: risk_decision.to_string(),
+        execution_decision: "blocked_no_production_mutation".to_string(),
         reasons,
         missing_cli_flags: missing_cli_flags
             .iter()
@@ -4563,7 +4569,7 @@ fn build_production_live_alpha_risk_preflight_report(
         shadow_values_are_exchange_truth: false,
         portfolio_values_are_exchange_truth: false,
         values_are_exchange_truth: false,
-        diagnostic: if risk_decision == "approved" {
+        diagnostic: if risk_decision == "dry_run_approved" {
             "hypothetical live-alpha order passed local risk preflight; execution remains disabled"
         } else {
             "hypothetical live-alpha order rejected by local risk preflight; execution remains disabled"
@@ -10615,7 +10621,11 @@ write_summary = true
             PRODUCTION_LIVE_ALPHA_RISK_PREFLIGHT_REPORT_SCHEMA_VERSION
         );
         assert_eq!(report["status"], "approved");
-        assert_eq!(report["risk_decision"], "approved");
+        assert_eq!(report["risk_decision"], "dry_run_approved");
+        assert_eq!(
+            report["execution_decision"],
+            "blocked_no_production_mutation"
+        );
         assert_eq!(report["reasons"].as_array().unwrap().len(), 0);
         assert_eq!(report["order_gate_ready"], true);
         assert_eq!(report["projected_position_notional"], "60");
@@ -10658,7 +10668,11 @@ write_summary = true
         let report: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
         assert_eq!(report["status"], "blocked_missing_gate");
-        assert_eq!(report["risk_decision"], "rejected");
+        assert_eq!(report["risk_decision"], "dry_run_rejected");
+        assert_eq!(
+            report["execution_decision"],
+            "blocked_no_production_mutation"
+        );
         assert_eq!(report["missing_cli_flags"].as_array().unwrap().len(), 5);
         assert!(
             report["reasons"]
@@ -10709,7 +10723,11 @@ write_summary = true
         let report: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
         assert_eq!(report["status"], "rejected");
-        assert_eq!(report["risk_decision"], "rejected");
+        assert_eq!(report["risk_decision"], "dry_run_rejected");
+        assert_eq!(
+            report["execution_decision"],
+            "blocked_no_production_mutation"
+        );
         let reasons = report["reasons"].as_array().unwrap();
         for expected in [
             "market_stale",

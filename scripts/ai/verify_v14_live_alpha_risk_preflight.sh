@@ -116,7 +116,8 @@ def require(condition, message):
 
 require(report["schema_version"] == "ntpro.v140_live_alpha_risk_preflight.v1", report)
 require(report["status"] == "approved", report)
-require(report["risk_decision"] == "approved", report)
+require(report["risk_decision"] == "dry_run_approved", report)
+require(report["execution_decision"] == "blocked_no_production_mutation", report)
 require(report["reasons"] == [], report)
 require(report["order_gate_ready"] is True, report)
 require(report["projected_position_notional"] == "60", report)
@@ -208,7 +209,8 @@ if missing:
     raise SystemExit(f"missing rejection reasons: {sorted(missing)} report={report}")
 for key, expected in {
     "status": "rejected",
-    "risk_decision": "rejected",
+    "risk_decision": "dry_run_rejected",
+    "execution_decision": "blocked_no_production_mutation",
 }.items():
     if report[key] != expected:
         raise SystemExit(report)
@@ -230,7 +232,7 @@ for key in [
         raise SystemExit(report)
 PY
 
-if rg -n \
+if grep -En \
   '"execution_adapter_called": true|"order_endpoint_access_attempted": true|"dashboard_order_controls_enabled": true|"production_orders_submitted": [1-9]|"production_order_mutations_attempted": [1-9]' \
   "$APPROVED_JSON" "$REJECTED_JSON" >/dev/null; then
   echo "v14 risk preflight artifact contains execution or mutation fields" >&2
