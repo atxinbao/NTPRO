@@ -127,7 +127,7 @@ pub struct SandboxRunOpt {
 /// Local sandbox LiveNode validation and smoke commands.
 #[derive(Parser, Debug)]
 #[command(
-    about = "Local sandbox LiveNode smoke commands (no production venue access)",
+    about = "Local live, production read-only, and dry-run proof commands (no production order mutation)",
     long_about = None
 )]
 pub struct LiveOpt {
@@ -135,10 +135,10 @@ pub struct LiveOpt {
     pub command: LiveCommand,
 }
 
-/// Available local sandbox live commands.
+/// Available local live, production read-only, and dry-run proof commands.
 #[derive(Parser, Debug, Clone)]
 #[command(
-    about = "Local sandbox LiveNode smoke commands (no production venue access)",
+    about = "Local live, production read-only, and dry-run proof commands (no production order mutation)",
     long_about = None
 )]
 pub enum LiveCommand {
@@ -158,25 +158,25 @@ pub enum LiveCommand {
     TestnetExecutionArtifactContract(LiveTestnetExecutionArtifactContractOpt),
     /// Writes offline v0.10 reconciliation/orphan-order fixtures without network or orders.
     TestnetReconciliationFixture(LiveTestnetReconciliationFixtureOpt),
-    /// Writes a v0.11 production public read-only probe contract without network or orders.
+    /// Writes a v0.11 production public read-only probe contract; no production mutation.
     ProductionPublicReadProbe(LiveProductionPublicReadProbeOpt),
-    /// Writes a v0.11 authenticated production account snapshot contract without network or orders.
+    /// Writes a v0.11 authenticated production account read-only snapshot; no production mutation.
     ProductionAccountSnapshotContract(LiveProductionAccountSnapshotContractOpt),
-    /// Writes a v0.14 owner-gated production order-state read-only proof.
+    /// Writes a v0.14 owner-gated production order-state read-only proof; no production mutation.
     ProductionOrderStateReadOnlyProof(LiveProductionOrderStateReadOnlyProofOpt),
-    /// Writes a v0.14 live-alpha dry-run order gate artifact without network or orders.
+    /// Writes a v0.14 live-alpha dry-run order gate artifact; no production mutation.
     ProductionLiveAlphaDryRunOrderGate(LiveProductionLiveAlphaDryRunOrderGateOpt),
-    /// Writes a v0.14 hypothetical live-alpha risk preflight artifact without execution.
+    /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
-    /// Builds local v0.12 shadow portfolio runtime artifacts from redacted read-only inputs.
+    /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
     ProductionShadowPortfolioRuntime(LiveProductionShadowPortfolioRuntimeOpt),
-    /// Writes local v0.12 persistent shadow strategy session events from read-only shadow artifacts.
+    /// Writes local v0.12 shadow strategy session events from read-only artifacts; no production mutation.
     ProductionShadowStrategySession(LiveProductionShadowStrategySessionOpt),
-    /// Runs a local v0.13 guarded-live-alpha shadow preflight loop without network or orders.
+    /// Runs a local v0.13 guarded-live-alpha dry-run preflight loop; no production mutation.
     ProductionShadowPreflightSession(LiveProductionShadowPreflightSessionOpt),
-    /// Writes a local v0.13 kill-switch dry-run/manual-approval artifact without network or orders.
+    /// Writes a local v0.13 kill-switch dry-run/manual-approval artifact; no production mutation.
     ProductionKillSwitchApprovalArtifact(LiveProductionKillSwitchApprovalArtifactOpt),
-    /// Writes local v0.12 production read-only reconciliation events from shadow artifacts.
+    /// Writes local v0.12 production read-only reconciliation events; no production mutation.
     ProductionReadonlyReconciliation(LiveProductionReadonlyReconciliationOpt),
 }
 
@@ -1855,6 +1855,37 @@ mod tests {
         assert!(reconciliation_fixture_help.contains("without network or orders"));
         assert!(reconciliation_fixture_help.contains("--scenario"));
         assert!(reconciliation_fixture_help.contains("--output"));
+    }
+
+    #[test]
+    fn live_help_describes_production_readonly_and_dry_run_boundaries() {
+        let live_help = render_subcommand_help(&["live"]);
+
+        assert!(live_help.contains("Local live, production read-only, and dry-run proof commands"));
+        assert!(!live_help.contains("Local sandbox LiveNode smoke commands"));
+        assert!(live_help.contains("production-public-read-probe"));
+        assert!(live_help.contains("production-order-state-read-only-proof"));
+        assert!(live_help.contains("production-live-alpha-dry-run-order-gate"));
+        assert!(live_help.contains("no production mutation"));
+
+        for command in [
+            "production-public-read-probe",
+            "production-account-snapshot-contract",
+            "production-order-state-read-only-proof",
+            "production-live-alpha-dry-run-order-gate",
+            "production-live-alpha-risk-preflight",
+            "production-shadow-portfolio-runtime",
+            "production-shadow-strategy-session",
+            "production-shadow-preflight-session",
+            "production-kill-switch-approval-artifact",
+            "production-readonly-reconciliation",
+        ] {
+            let help = render_subcommand_help(&["live", command]);
+            assert!(
+                help.contains("no production mutation"),
+                "{command} help should state the no-production-mutation boundary"
+            );
+        }
     }
 
     #[test]
