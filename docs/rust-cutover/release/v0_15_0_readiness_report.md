@@ -138,6 +138,23 @@ PR #487 Rust Cutover Smoke = PASS, run 27952851654/job 82713776292
 PR #487 security-audit checks = PASS, run 27952851662
 ```
 
+Formal tag-triggered release gate evidence:
+
+```text
+tag = ntpro-rust-only-v0.15.0
+workflow = Rust Cutover Release Gate
+run = 27956715055
+url = https://github.com/atxinbao/NTPRO/actions/runs/27956715055
+event = push
+headBranch = ntpro-rust-only-v0.15.0
+headSha = 6bae005c6cf9f2ab4e2cd610abbb579f9cbe7a58
+status = completed
+conclusion = success
+jobs = 47/47 success
+createdAt = 2026-06-22T13:35:19Z
+updatedAt = 2026-06-22T14:38:00Z
+```
+
 ## Release Closure Status
 
 The V150 task queue is complete and the formal v0.15.0 publication package is:
@@ -146,6 +163,7 @@ The V150 task queue is complete and the formal v0.15.0 publication package is:
 formal tag = ntpro-rust-only-v0.15.0
 formal release name = NTPRO Rust-only v0.15.0
 formal GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.15.0
+formal tag-triggered release gate = PASS, run 27956715055, 47/47 jobs success
 ```
 
 ## Final Verdict

@@ -118,6 +118,18 @@ scripts/ai/verify_fast.sh
 git diff --check
 ```
 
+Formal hosted release gate evidence:
+
+```text
+workflow = Rust Cutover Release Gate
+run = 27956715055
+url = https://github.com/atxinbao/NTPRO/actions/runs/27956715055
+tag = ntpro-rust-only-v0.15.0
+headSha = 6bae005c6cf9f2ab4e2cd610abbb579f9cbe7a58
+conclusion = success
+jobs = 47/47 success
+```
+
 ## Release Status
 
 This document is the formal GitHub Release note for:
