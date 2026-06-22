@@ -1523,7 +1523,21 @@ struct ProductionLiveAlphaExecutionDryRunArtifact {
     created_at: String,
     mode: String,
     execution_decision: String,
+    execution_boundary_contract_version: String,
+    execution_boundary_flow: String,
+    execution_boundary_contract_ready: bool,
     isolation_route: String,
+    strategy_intent_boundary: String,
+    risk_decision_boundary: String,
+    execution_command_boundary: String,
+    execution_command_created: bool,
+    execution_command_route: String,
+    execution_command_destination: String,
+    dry_run_adapter_boundary: String,
+    dry_run_adapter_route_allowed: bool,
+    production_adapter_boundary: String,
+    production_adapter_route_allowed: bool,
+    production_adapter_instantiation_allowed: bool,
     dry_run_execution_adapter: String,
     dry_run_execution_adapter_called: bool,
     dry_run_execution_adapter_wrote_artifact: bool,
@@ -2677,10 +2691,11 @@ fn run_live_production_live_alpha_execution_dry_run(
     atomic_write_json(&opt.output, &artifact)?;
 
     println!(
-        "live.production_live_alpha_execution_dry_run status={} run_id={} output={} dry_run_execution_adapter_called={} production_adapter_called=false production_adapter_instantiated=false production_orders_submitted=0 production_order_mutations_attempted=0 network_attempted=false dashboard_order_controls_enabled=false",
+        "live.production_live_alpha_execution_dry_run status={} run_id={} output={} execution_command_route={} dry_run_execution_adapter_called={} production_adapter_called=false production_adapter_instantiated=false production_adapter_route_allowed=false production_orders_submitted=0 production_order_mutations_attempted=0 network_attempted=false dashboard_order_controls_enabled=false",
         artifact.status,
         artifact.run_id,
         opt.output.display(),
+        artifact.execution_command_route,
         artifact.dry_run_execution_adapter_called,
     );
     Ok(())
@@ -5873,8 +5888,35 @@ fn build_production_live_alpha_execution_dry_run_artifact(
         created_at: now_millis(),
         mode: "production_live_alpha_execution_dry_run".to_string(),
         execution_decision: execution_decision.to_string(),
+        execution_boundary_contract_version:
+            "ntpro.v151_execution_dry_run_adapter_boundary.v1".to_string(),
+        execution_boundary_flow:
+            "StrategyIntent -> RiskDecision -> ExecutionCommand -> DryRunExecutionAdapter"
+                .to_string(),
+        execution_boundary_contract_ready: ready,
         isolation_route: "strategy_intent_to_risk_preflight_to_local_dry_run_execution_adapter"
             .to_string(),
+        strategy_intent_boundary: "StrategyIntent".to_string(),
+        risk_decision_boundary: "RiskDecision".to_string(),
+        execution_command_boundary: "ExecutionCommand".to_string(),
+        execution_command_created: ready,
+        execution_command_route: if ready {
+            "dry_run_adapter_only"
+        } else {
+            "blocked_before_execution_command"
+        }
+        .to_string(),
+        execution_command_destination: if ready {
+            "ntpro_local_artifact_dry_run_execution_adapter"
+        } else {
+            "none"
+        }
+        .to_string(),
+        dry_run_adapter_boundary: "DryRunExecutionAdapter".to_string(),
+        dry_run_adapter_route_allowed: ready,
+        production_adapter_boundary: "ProductionExecutionAdapter".to_string(),
+        production_adapter_route_allowed: false,
+        production_adapter_instantiation_allowed: false,
         dry_run_execution_adapter: "ntpro_local_artifact_dry_run_execution_adapter".to_string(),
         dry_run_execution_adapter_called: ready,
         dry_run_execution_adapter_wrote_artifact: ready,
@@ -5938,9 +5980,9 @@ fn build_production_live_alpha_execution_dry_run_artifact(
         dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
         no_real_funds_confirmed: opt.confirm_no_real_funds,
         diagnostic: if ready {
-            "strategy intent reached only the local dry-run execution adapter artifact; production adapters, network, and order mutation remained disabled"
+            "strategy intent was converted into a dry-run execution command that reached only the local dry-run execution adapter artifact; production adapters, network, and order mutation remained disabled"
         } else {
-            "execution dry-run isolation is blocked until owner confirmations and source artifacts prove the local dry-run path"
+            "execution dry-run isolation is blocked before execution command creation until owner confirmations and source artifacts prove the local dry-run path"
         }
         .to_string(),
     })
@@ -13603,6 +13645,35 @@ write_summary = true
             artifact["execution_decision"],
             "dry_run_adapter_artifact_only"
         );
+        assert_eq!(
+            artifact["execution_boundary_contract_version"],
+            "ntpro.v151_execution_dry_run_adapter_boundary.v1"
+        );
+        assert_eq!(
+            artifact["execution_boundary_flow"],
+            "StrategyIntent -> RiskDecision -> ExecutionCommand -> DryRunExecutionAdapter"
+        );
+        assert_eq!(artifact["execution_boundary_contract_ready"], true);
+        assert_eq!(artifact["strategy_intent_boundary"], "StrategyIntent");
+        assert_eq!(artifact["risk_decision_boundary"], "RiskDecision");
+        assert_eq!(artifact["execution_command_boundary"], "ExecutionCommand");
+        assert_eq!(artifact["execution_command_created"], true);
+        assert_eq!(artifact["execution_command_route"], "dry_run_adapter_only");
+        assert_eq!(
+            artifact["execution_command_destination"],
+            "ntpro_local_artifact_dry_run_execution_adapter"
+        );
+        assert_eq!(
+            artifact["dry_run_adapter_boundary"],
+            "DryRunExecutionAdapter"
+        );
+        assert_eq!(artifact["dry_run_adapter_route_allowed"], true);
+        assert_eq!(
+            artifact["production_adapter_boundary"],
+            "ProductionExecutionAdapter"
+        );
+        assert_eq!(artifact["production_adapter_route_allowed"], false);
+        assert_eq!(artifact["production_adapter_instantiation_allowed"], false);
         assert_eq!(artifact["dry_run_execution_adapter_called"], true);
         assert_eq!(artifact["dry_run_execution_adapter_wrote_artifact"], true);
         assert_eq!(artifact["dry_run_adapter_artifact_only"], true);
@@ -13706,6 +13777,20 @@ write_summary = true
             serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
         assert_eq!(artifact["status"], "blocked_missing_gate");
         assert_eq!(artifact["execution_decision"], "blocked_no_adapter_route");
+        assert_eq!(
+            artifact["execution_boundary_contract_version"],
+            "ntpro.v151_execution_dry_run_adapter_boundary.v1"
+        );
+        assert_eq!(artifact["execution_boundary_contract_ready"], false);
+        assert_eq!(artifact["execution_command_created"], false);
+        assert_eq!(
+            artifact["execution_command_route"],
+            "blocked_before_execution_command"
+        );
+        assert_eq!(artifact["execution_command_destination"], "none");
+        assert_eq!(artifact["dry_run_adapter_route_allowed"], false);
+        assert_eq!(artifact["production_adapter_route_allowed"], false);
+        assert_eq!(artifact["production_adapter_instantiation_allowed"], false);
         assert_eq!(artifact["dry_run_execution_adapter_called"], false);
         assert_eq!(artifact["dry_run_execution_adapter_wrote_artifact"], false);
         assert_eq!(artifact["dry_run_adapter_artifact_only"], false);

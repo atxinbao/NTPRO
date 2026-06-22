@@ -236,6 +236,7 @@ grep -q "live.production_live_alpha_execution_dry_run status=ready_dry_run_execu
 grep -q "dry_run_execution_adapter_called=true" "$READY_STDOUT"
 grep -q "production_adapter_called=false" "$READY_STDOUT"
 grep -q "production_adapter_instantiated=false" "$READY_STDOUT"
+grep -q "execution_command_route=dry_run_adapter_only" "$READY_STDOUT"
 grep -q "production_orders_submitted=0" "$READY_STDOUT"
 grep -q "production_order_mutations_attempted=0" "$READY_STDOUT"
 grep -q "network_attempted=false" "$READY_STDOUT"
@@ -256,6 +257,20 @@ def require(condition, message):
 require(blocked["schema_version"] == "ntpro.v150_live_alpha_execution_dry_run.v1", blocked)
 require(blocked["status"] == "blocked_missing_gate", blocked)
 require(blocked["execution_decision"] == "blocked_no_adapter_route", blocked)
+require(blocked["execution_boundary_contract_version"] == "ntpro.v151_execution_dry_run_adapter_boundary.v1", blocked)
+require(blocked["execution_boundary_flow"] == "StrategyIntent -> RiskDecision -> ExecutionCommand -> DryRunExecutionAdapter", blocked)
+require(blocked["execution_boundary_contract_ready"] is False, blocked)
+require(blocked["strategy_intent_boundary"] == "StrategyIntent", blocked)
+require(blocked["risk_decision_boundary"] == "RiskDecision", blocked)
+require(blocked["execution_command_boundary"] == "ExecutionCommand", blocked)
+require(blocked["execution_command_created"] is False, blocked)
+require(blocked["execution_command_route"] == "blocked_before_execution_command", blocked)
+require(blocked["execution_command_destination"] == "none", blocked)
+require(blocked["dry_run_adapter_boundary"] == "DryRunExecutionAdapter", blocked)
+require(blocked["dry_run_adapter_route_allowed"] is False, blocked)
+require(blocked["production_adapter_boundary"] == "ProductionExecutionAdapter", blocked)
+require(blocked["production_adapter_route_allowed"] is False, blocked)
+require(blocked["production_adapter_instantiation_allowed"] is False, blocked)
 require(blocked["dry_run_execution_adapter_called"] is False, blocked)
 require(blocked["production_adapter_instantiated"] is False, blocked)
 require(blocked["production_adapter_called"] is False, blocked)
@@ -266,6 +281,20 @@ require(len(blocked["source_artifact_issues"]) == 0, blocked)
 require(ready["schema_version"] == "ntpro.v150_live_alpha_execution_dry_run.v1", ready)
 require(ready["status"] == "ready_dry_run_execution_adapter_only", ready)
 require(ready["execution_decision"] == "dry_run_adapter_artifact_only", ready)
+require(ready["execution_boundary_contract_version"] == "ntpro.v151_execution_dry_run_adapter_boundary.v1", ready)
+require(ready["execution_boundary_flow"] == "StrategyIntent -> RiskDecision -> ExecutionCommand -> DryRunExecutionAdapter", ready)
+require(ready["execution_boundary_contract_ready"] is True, ready)
+require(ready["strategy_intent_boundary"] == "StrategyIntent", ready)
+require(ready["risk_decision_boundary"] == "RiskDecision", ready)
+require(ready["execution_command_boundary"] == "ExecutionCommand", ready)
+require(ready["execution_command_created"] is True, ready)
+require(ready["execution_command_route"] == "dry_run_adapter_only", ready)
+require(ready["execution_command_destination"] == "ntpro_local_artifact_dry_run_execution_adapter", ready)
+require(ready["dry_run_adapter_boundary"] == "DryRunExecutionAdapter", ready)
+require(ready["dry_run_adapter_route_allowed"] is True, ready)
+require(ready["production_adapter_boundary"] == "ProductionExecutionAdapter", ready)
+require(ready["production_adapter_route_allowed"] is False, ready)
+require(ready["production_adapter_instantiation_allowed"] is False, ready)
 require(ready["dry_run_execution_adapter"] == "ntpro_local_artifact_dry_run_execution_adapter", ready)
 require(ready["dry_run_execution_adapter_called"] is True, ready)
 require(ready["dry_run_execution_adapter_wrote_artifact"] is True, ready)
@@ -298,6 +327,8 @@ for key in [
     "real_orders_submitted",
     "real_funds",
     "production_trading_enabled",
+    "production_adapter_route_allowed",
+    "production_adapter_instantiation_allowed",
     "order_state_values_are_exchange_truth",
     "shadow_values_are_exchange_truth",
     "portfolio_values_are_exchange_truth",
@@ -325,4 +356,4 @@ if grep -R -q "production_adapter_called=true\|production_adapter_instantiated=t
   exit 1
 fi
 
-echo "v15_execution_adapter_isolation status=ok root=$ISOLATION_ROOT dry_run_execution_adapter_called=true production_adapter_called=false production_adapter_instantiated=false network_attempted=false production_orders_submitted=0"
+echo "v15_execution_adapter_isolation status=ok root=$ISOLATION_ROOT execution_command_route=dry_run_adapter_only dry_run_execution_adapter_called=true production_adapter_called=false production_adapter_instantiated=false production_adapter_route_allowed=false network_attempted=false production_orders_submitted=0"
