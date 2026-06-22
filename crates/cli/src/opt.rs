@@ -170,6 +170,8 @@ pub enum LiveCommand {
     ProductionLiveAlphaOrderRequestPreview(LiveProductionLiveAlphaOrderRequestPreviewOpt),
     /// Routes live-alpha intent into a local dry-run execution adapter artifact only; no production mutation.
     ProductionLiveAlphaExecutionDryRun(LiveProductionLiveAlphaExecutionDryRunOpt),
+    /// Evaluates the v0.15 kill-switch runtime gate before any dry-run mutation progression; no production mutation.
+    ProductionLiveAlphaKillSwitchRuntimeGate(LiveProductionLiveAlphaKillSwitchRuntimeGateOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -657,6 +659,9 @@ pub struct LiveProductionLiveAlphaExecutionDryRunOpt {
     /// v0.15 request preview JSON input.
     #[arg(long)]
     pub request_preview: PathBuf,
+    /// v0.15 kill-switch runtime gate JSON input.
+    #[arg(long)]
+    pub kill_switch_runtime_gate: PathBuf,
     /// v0.15 execution dry-run isolation JSON output path.
     #[arg(long)]
     pub output: PathBuf,
@@ -672,6 +677,50 @@ pub struct LiveProductionLiveAlphaExecutionDryRunOpt {
     /// Confirms no production execution adapter is instantiated or called.
     #[arg(long)]
     pub confirm_no_production_adapter: bool,
+    /// Confirms no production order submission is allowed.
+    #[arg(long)]
+    pub confirm_no_production_order_submission: bool,
+    /// Confirms no production order mutation is allowed.
+    #[arg(long)]
+    pub confirm_no_production_order_mutation: bool,
+    /// Confirms no network request is allowed.
+    #[arg(long)]
+    pub confirm_no_network: bool,
+    /// Confirms listenKey lifecycle remains forbidden.
+    #[arg(long)]
+    pub confirm_no_listen_key_lifecycle: bool,
+    /// Confirms Dashboard order controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms no real funds or real orders are involved.
+    #[arg(long)]
+    pub confirm_no_real_funds: bool,
+}
+
+/// Owner-gated production live-alpha kill-switch runtime gate options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionLiveAlphaKillSwitchRuntimeGateOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.13 kill-switch/manual-approval JSON input.
+    #[arg(long)]
+    pub kill_switch_approval: PathBuf,
+    /// v0.14 risk preflight JSON input.
+    #[arg(long)]
+    pub risk_preflight: PathBuf,
+    /// v0.15 request preview JSON input.
+    #[arg(long)]
+    pub request_preview: PathBuf,
+    /// v0.15 kill-switch runtime gate JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for production live-alpha kill-switch runtime gate only.
+    #[arg(long)]
+    pub allow_production_live_alpha_kill_switch_runtime_gate: bool,
+    /// Confirms owner approval for the runtime gate only.
+    #[arg(long)]
+    pub confirm_owner_approved_runtime_gate: bool,
     /// Confirms no production order submission is allowed.
     #[arg(long)]
     pub confirm_no_production_order_submission: bool,
@@ -1701,6 +1750,8 @@ mod tests {
             "runs/v150/risk-preflight.json",
             "--request-preview",
             "runs/v150/request-preview.json",
+            "--kill-switch-runtime-gate",
+            "runs/v150/kill-switch-runtime-gate.json",
             "--output",
             "runs/v150/execution-dry-run.json",
             "--allow-production-live-alpha-execution-dry-run",
@@ -1737,6 +1788,10 @@ mod tests {
             PathBuf::from("runs/v150/request-preview.json")
         );
         assert_eq!(
+            dry_run.kill_switch_runtime_gate,
+            PathBuf::from("runs/v150/kill-switch-runtime-gate.json")
+        );
+        assert_eq!(
             dry_run.output,
             PathBuf::from("runs/v150/execution-dry-run.json")
         );
@@ -1750,6 +1805,67 @@ mod tests {
         assert!(dry_run.confirm_no_listen_key_lifecycle);
         assert!(dry_run.confirm_dashboard_order_controls_disabled);
         assert!(dry_run.confirm_no_real_funds);
+    }
+
+    #[test]
+    fn parses_live_production_live_alpha_kill_switch_runtime_gate_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-live-alpha-kill-switch-runtime-gate",
+            "--run-id",
+            "v150-kill-switch-runtime-gate",
+            "--kill-switch-approval",
+            "runs/v150/kill-switch-approval.json",
+            "--risk-preflight",
+            "runs/v150/risk-preflight.json",
+            "--request-preview",
+            "runs/v150/request-preview.json",
+            "--output",
+            "runs/v150/kill-switch-runtime-gate.json",
+            "--allow-production-live-alpha-kill-switch-runtime-gate",
+            "--confirm-owner-approved-runtime-gate",
+            "--confirm-no-production-order-submission",
+            "--confirm-no-production-order-mutation",
+            "--confirm-no-network",
+            "--confirm-no-listen-key-lifecycle",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-real-funds",
+        ])
+        .expect("live production-live-alpha-kill-switch-runtime-gate should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionLiveAlphaKillSwitchRuntimeGate(gate) = live.command else {
+            panic!("expected production-live-alpha-kill-switch-runtime-gate command");
+        };
+
+        assert_eq!(gate.run_id, "v150-kill-switch-runtime-gate");
+        assert_eq!(
+            gate.kill_switch_approval,
+            PathBuf::from("runs/v150/kill-switch-approval.json")
+        );
+        assert_eq!(
+            gate.risk_preflight,
+            PathBuf::from("runs/v150/risk-preflight.json")
+        );
+        assert_eq!(
+            gate.request_preview,
+            PathBuf::from("runs/v150/request-preview.json")
+        );
+        assert_eq!(
+            gate.output,
+            PathBuf::from("runs/v150/kill-switch-runtime-gate.json")
+        );
+        assert!(gate.allow_production_live_alpha_kill_switch_runtime_gate);
+        assert!(gate.confirm_owner_approved_runtime_gate);
+        assert!(gate.confirm_no_production_order_submission);
+        assert!(gate.confirm_no_production_order_mutation);
+        assert!(gate.confirm_no_network);
+        assert!(gate.confirm_no_listen_key_lifecycle);
+        assert!(gate.confirm_dashboard_order_controls_disabled);
+        assert!(gate.confirm_no_real_funds);
     }
 
     #[test]
@@ -2087,6 +2203,8 @@ mod tests {
             render_subcommand_help(&["live", "production-live-alpha-order-request-preview"]);
         let production_execution_dry_run_help =
             render_subcommand_help(&["live", "production-live-alpha-execution-dry-run"]);
+        let production_kill_switch_runtime_gate_help =
+            render_subcommand_help(&["live", "production-live-alpha-kill-switch-runtime-gate"]);
         let order_test_preflight_help =
             render_subcommand_help(&["live", "testnet-order-test-preflight"]);
         let artifact_contract_help =
@@ -2115,7 +2233,12 @@ mod tests {
         assert!(production_execution_dry_run_help.contains("dry-run execution adapter"));
         assert!(production_execution_dry_run_help.contains("--risk-preflight"));
         assert!(production_execution_dry_run_help.contains("--request-preview"));
+        assert!(production_execution_dry_run_help.contains("--kill-switch-runtime-gate"));
         assert!(production_execution_dry_run_help.contains("--confirm-no-production-adapter"));
+        assert!(production_kill_switch_runtime_gate_help.contains("kill-switch runtime gate"));
+        assert!(production_kill_switch_runtime_gate_help.contains("--kill-switch-approval"));
+        assert!(production_kill_switch_runtime_gate_help.contains("--request-preview"));
+        assert!(production_kill_switch_runtime_gate_help.contains("--confirm-no-network"));
         assert!(order_test_preflight_help.contains("without network or orders"));
         assert!(order_test_preflight_help.contains("--timestamp-ms"));
         assert!(order_test_preflight_help.contains("--api-secret-env"));
@@ -2147,6 +2270,7 @@ mod tests {
             "production-live-alpha-dry-run-order-gate",
             "production-live-alpha-order-request-preview",
             "production-live-alpha-execution-dry-run",
+            "production-live-alpha-kill-switch-runtime-gate",
             "production-live-alpha-risk-preflight",
             "production-shadow-portfolio-runtime",
             "production-shadow-strategy-session",

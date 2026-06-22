@@ -28,6 +28,8 @@ ORDER_GATE="$OUTPUT_DIR/live-alpha-order-gate.json"
 RISK_INPUT="$OUTPUT_DIR/live-alpha-risk-input.json"
 RISK_PREFLIGHT="$OUTPUT_DIR/live-alpha-risk-preflight.json"
 REQUEST_PREVIEW="$OUTPUT_DIR/live-alpha-request-preview.json"
+KILL_SWITCH_APPROVAL="$OUTPUT_DIR/kill-switch-approval.json"
+KILL_SWITCH_RUNTIME_GATE="$OUTPUT_DIR/kill-switch-runtime-gate.json"
 BLOCKED_REPORT="$OUTPUT_DIR/blocked-execution-dry-run.json"
 READY_REPORT="$OUTPUT_DIR/ready-execution-dry-run.json"
 BLOCKED_STDOUT="$OUTPUT_DIR/blocked.stdout.log"
@@ -139,11 +141,40 @@ NTPRO_V150003_API_SECRET="$SYNTHETIC_API_SECRET" \
     --confirm-dashboard-order-controls-disabled \
     --confirm-no-real-funds >/dev/null
 
+"$NAUTILUS_BIN" live production-kill-switch-approval-artifact \
+  --run-id v150-execution-kill-switch \
+  --session-id session-v150 \
+  --strategy-id ema_cross_btcusdt_v1 \
+  --output "$KILL_SWITCH_APPROVAL" \
+  --kill-switch-active false \
+  --approval-state approved \
+  --manual-approval-id owner-approval-v150-004 \
+  --approved-by owner \
+  --confirm-dry-run-only \
+  --confirm-no-production-mutation \
+  --confirm-dashboard-order-controls-disabled >/dev/null
+
+"$NAUTILUS_BIN" live production-live-alpha-kill-switch-runtime-gate \
+  --run-id v150-execution-kill-switch-runtime-gate \
+  --kill-switch-approval "$KILL_SWITCH_APPROVAL" \
+  --risk-preflight "$RISK_PREFLIGHT" \
+  --request-preview "$REQUEST_PREVIEW" \
+  --output "$KILL_SWITCH_RUNTIME_GATE" \
+  --allow-production-live-alpha-kill-switch-runtime-gate \
+  --confirm-owner-approved-runtime-gate \
+  --confirm-no-production-order-submission \
+  --confirm-no-production-order-mutation \
+  --confirm-no-network \
+  --confirm-no-listen-key-lifecycle \
+  --confirm-dashboard-order-controls-disabled \
+  --confirm-no-real-funds >/dev/null
+
 "$NAUTILUS_BIN" live production-live-alpha-execution-dry-run \
   --run-id v150-execution-dry-run-blocked \
   --order-gate "$ORDER_GATE" \
   --risk-preflight "$RISK_PREFLIGHT" \
   --request-preview "$REQUEST_PREVIEW" \
+  --kill-switch-runtime-gate "$KILL_SWITCH_RUNTIME_GATE" \
   --output "$BLOCKED_REPORT" \
   >"$BLOCKED_STDOUT" \
   2>"$BLOCKED_STDERR"
@@ -163,6 +194,7 @@ grep -q "network_attempted=false" "$BLOCKED_STDOUT"
   --order-gate "$ORDER_GATE" \
   --risk-preflight "$RISK_PREFLIGHT" \
   --request-preview "$REQUEST_PREVIEW" \
+  --kill-switch-runtime-gate "$KILL_SWITCH_RUNTIME_GATE" \
   --output "$READY_REPORT" \
   --allow-production-live-alpha-execution-dry-run \
   --confirm-owner-approved-execution-dry-run \
@@ -230,6 +262,8 @@ require(ready["order_gate_ready"] is True, ready)
 require(ready["risk_preflight_decision"] == "dry_run_approved", ready)
 require(ready["request_preview_built"] is True, ready)
 require(ready["request_sent"] is False, ready)
+require(ready["kill_switch_runtime_gate_status"] == "ready_runtime_gate_open_for_dry_run_only", ready)
+require(ready["kill_switch_runtime_gate_open"] is True, ready)
 require(len(ready["source_artifact_issues"]) == 0, ready)
 require(len(ready["missing_cli_flags"]) == 0, ready)
 for key in [
