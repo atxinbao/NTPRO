@@ -269,6 +269,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   order-state proof and live-alpha dry-run scope and does not include
   production order submission, production mutation, listenKey lifecycle, real
   funds, production trading, or Dashboard order controls.
+- `v0_14_1_order_state_owner_evidence.md` - V141-001 owner-run order-state
+  read-only evidence contract. It validates redacted `GET /api/v3/openOrders`
+  evidence, optionally validates `GET /api/v3/order` evidence, and keeps
+  production order submission, mutation, listenKey lifecycle, real funds,
+  production trading, automatic remediation, and Dashboard order controls out
+  of scope.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
