@@ -25,6 +25,7 @@ OUTPUT_DIR="$REQUEST_ROOT/command-output"
 mkdir -p "$OUTPUT_DIR"
 
 ORDER_GATE="$OUTPUT_DIR/live-alpha-order-gate.json"
+MARKET_ORDER_GATE="$OUTPUT_DIR/live-alpha-market-order-gate.json"
 BLOCKED_APPROVAL="$OUTPUT_DIR/blocked-manual-approval-lifecycle.json"
 READY_APPROVAL="$OUTPUT_DIR/ready-manual-approval-lifecycle.json"
 PRODUCTION_MATERIAL_BLOCKED_APPROVAL="$OUTPUT_DIR/production-material-blocked-manual-approval-lifecycle.json"
@@ -39,9 +40,39 @@ READY_STDERR="$OUTPUT_DIR/ready.stderr.log"
 PRODUCTION_MATERIAL_BLOCKED_STDOUT="$OUTPUT_DIR/production-material-blocked.stdout.log"
 PRODUCTION_MATERIAL_BLOCKED_STDERR="$OUTPUT_DIR/production-material-blocked.stderr.log"
 BAD_ENDPOINT_STDERR="$OUTPUT_DIR/bad-endpoint.stderr.log"
+MARKET_ORDER_GATE_STDERR="$OUTPUT_DIR/market-order-gate.stderr.log"
 
 SYNTHETIC_API_KEY="ntpro_v151003_synthetic_api_key_value"
 SYNTHETIC_API_SECRET="ntpro_v151003_synthetic_api_secret_value"
+
+set +e
+"$NAUTILUS_BIN" live production-live-alpha-dry-run-order-gate \
+  --run-id v151-market-order-gate \
+  --session-id session-v151-market \
+  --strategy-id ema_cross_btcusdt_v1 \
+  --symbol BTCUSDT \
+  --side BUY \
+  --order-type MARKET \
+  --quantity 0.001 \
+  --notional 10.00 \
+  --output "$MARKET_ORDER_GATE" \
+  --allow-production-live-alpha-dry-run \
+  --confirm-owner-approved-dry-run \
+  --confirm-no-production-order-submission \
+  --confirm-no-production-order-mutation \
+  --confirm-no-execution-adapter-call \
+  --confirm-no-listen-key-lifecycle \
+  --confirm-dashboard-order-controls-disabled \
+  --confirm-no-real-funds \
+  >/dev/null \
+  2>"$MARKET_ORDER_GATE_STDERR"
+market_order_gate_status=$?
+set -e
+if [[ "$market_order_gate_status" -eq 0 ]]; then
+  echo "v15 dry-run order gate unexpectedly accepted MARKET order_type" >&2
+  exit 1
+fi
+grep -q "only supports LIMIT order_type" "$MARKET_ORDER_GATE_STDERR"
 
 "$NAUTILUS_BIN" live production-live-alpha-dry-run-order-gate \
   --run-id v150-request-preview \
