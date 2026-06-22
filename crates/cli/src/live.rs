@@ -50,10 +50,11 @@ use crate::{
         LiveProductionLiveAlphaExecutionDryRunOpt, LiveProductionLiveAlphaKillSwitchRuntimeGateOpt,
         LiveProductionLiveAlphaManualApprovalLifecycleOpt,
         LiveProductionLiveAlphaOrderRequestPreviewOpt, LiveProductionLiveAlphaRiskPreflightOpt,
-        LiveProductionOrderStateReadOnlyProofOpt, LiveProductionPublicReadProbeOpt,
-        LiveProductionReadonlyReconciliationOpt, LiveProductionShadowPortfolioRuntimeOpt,
-        LiveProductionShadowPreflightSessionOpt, LiveProductionShadowStrategySessionOpt,
-        LiveRunOpt, LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveProductionMutationRuntimeGateOpt, LiveProductionOrderStateReadOnlyProofOpt,
+        LiveProductionPublicReadProbeOpt, LiveProductionReadonlyReconciliationOpt,
+        LiveProductionShadowPortfolioRuntimeOpt, LiveProductionShadowPreflightSessionOpt,
+        LiveProductionShadowStrategySessionOpt, LiveRunOpt,
+        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
         LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
         ProductionOrderStateReadEndpoint, ProductionPublicReadEndpoint,
@@ -152,6 +153,8 @@ const PRODUCTION_LIVE_ALPHA_RISK_PREFLIGHT_INPUT_SCHEMA_VERSION: &str =
     "ntpro.v140_live_alpha_risk_preflight_input.v1";
 const PRODUCTION_LIVE_ALPHA_RISK_PREFLIGHT_REPORT_SCHEMA_VERSION: &str =
     "ntpro.v140_live_alpha_risk_preflight.v1";
+const PRODUCTION_MUTATION_RUNTIME_GATE_SCHEMA_VERSION: &str =
+    "ntpro.v160_production_mutation_runtime_gate.v1";
 const PRODUCTION_SHADOW_PORTFOLIO_RUNTIME_SCHEMA_VERSION: &str =
     "ntpro.v120_shadow_portfolio_runtime.v1";
 const PRODUCTION_SHADOW_PORTFOLIO_COMPAT_SCHEMA_VERSION: &str =
@@ -1511,6 +1514,97 @@ struct ProductionLiveAlphaKillSwitchRuntimeGateArtifact {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionMutationRuntimeGateArtifact {
+    schema_version: String,
+    run_id: String,
+    source_order_gate_path: String,
+    source_risk_preflight_path: String,
+    source_request_preview_path: String,
+    source_kill_switch_runtime_gate_path: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    capability: String,
+    capability_expansion_from_v15: bool,
+    default_fail_closed: bool,
+    runtime_gate_decision: String,
+    runtime_gate_open: bool,
+    send_consideration_allowed: bool,
+    runtime_gate_reasons: Vec<String>,
+    source_artifact_issues: Vec<String>,
+    missing_cli_flags: Vec<String>,
+    owner_approval_required: bool,
+    owner_approval_consumed: bool,
+    manual_approval_consumed: bool,
+    manual_approval_consume_status: String,
+    kill_switch_checked_before_send: bool,
+    kill_switch_runtime_gate_open: bool,
+    kill_switch_active: bool,
+    risk_preflight_decision: String,
+    request_preview_built: bool,
+    request_sent: bool,
+    signing_approval_required: bool,
+    signing_approval_ready: bool,
+    signing_approval_status: String,
+    explicit_send_gate_required: bool,
+    explicit_send_gate_open: bool,
+    single_order_candidate: bool,
+    tiny_notional_gate_ready: bool,
+    max_order_notional: String,
+    symbol: String,
+    side: String,
+    order_type: String,
+    quantity: String,
+    price: String,
+    time_in_force: String,
+    notional: String,
+    production_order_submission_allowed_policy: String,
+    production_order_submission_allowed: bool,
+    production_order_mutation_allowed: bool,
+    production_order_state_reads_allowed: bool,
+    listen_key_lifecycle_allowed: bool,
+    production_order_submissions_attempted: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    production_order_state_reads_attempted: u64,
+    listen_key_lifecycle_attempted: u64,
+    retry_attempted: bool,
+    cancel_attempted: bool,
+    replace_attempted: bool,
+    amend_attempted: bool,
+    flatten_attempted: bool,
+    cancel_replace_amend_attempted: bool,
+    order_endpoint_access_attempted: bool,
+    execution_adapter_called: bool,
+    production_adapter_called: bool,
+    production_adapter_instantiated: bool,
+    matching_engine_submission: bool,
+    actual_submission_count: u64,
+    automatic_remediation_attempted: bool,
+    automatic_correction_orders_submitted: u64,
+    dashboard_order_controls_enabled: bool,
+    external_venue_connection: bool,
+    network_attempted: bool,
+    real_orders_submitted: bool,
+    real_funds: bool,
+    production_trading_enabled: bool,
+    request_redacted: bool,
+    response_redacted: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    api_key_value_recorded: bool,
+    api_secret_value_recorded: bool,
+    raw_exchange_response_recorded: bool,
+    no_network_before_send_confirmed: bool,
+    dashboard_controls_disabled_confirmed: bool,
+    no_listen_key_lifecycle_confirmed: bool,
+    no_retry_confirmed: bool,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct ProductionLiveAlphaExecutionDryRunArtifact {
     schema_version: String,
     run_id: String,
@@ -2499,6 +2593,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionLiveAlphaKillSwitchRuntimeGate(gate) => {
             run_live_production_live_alpha_kill_switch_runtime_gate(&gate)
         }
+        LiveCommand::ProductionMutationRuntimeGate(gate) => {
+            run_live_production_mutation_runtime_gate(&gate)
+        }
         LiveCommand::ProductionLiveAlphaRiskPreflight(preflight) => {
             run_live_production_live_alpha_risk_preflight(&preflight)
         }
@@ -2716,6 +2813,22 @@ fn run_live_production_live_alpha_kill_switch_runtime_gate(
         artifact.kill_switch_active,
         artifact.manual_approval_recorded,
         artifact.request_preview_built,
+    );
+    Ok(())
+}
+
+fn run_live_production_mutation_runtime_gate(
+    opt: &LiveProductionMutationRuntimeGateOpt,
+) -> anyhow::Result<()> {
+    let artifact = build_production_mutation_runtime_gate_artifact(opt)?;
+    atomic_write_json(&opt.output, &artifact)?;
+    println!(
+        "live.production_mutation_runtime_gate status={} run_id={} output={} runtime_gate_open={} send_consideration_allowed={} request_sent=false production_orders_submitted=0 production_order_mutations_attempted=0 network_attempted=false dashboard_order_controls_enabled=false",
+        artifact.status,
+        artifact.run_id,
+        opt.output.display(),
+        artifact.runtime_gate_open,
+        artifact.send_consideration_allowed,
     );
     Ok(())
 }
@@ -5806,6 +5919,250 @@ fn build_production_live_alpha_kill_switch_runtime_gate_artifact(
     })
 }
 
+fn build_production_mutation_runtime_gate_artifact(
+    opt: &LiveProductionMutationRuntimeGateOpt,
+) -> anyhow::Result<ProductionMutationRuntimeGateArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+    validate_positive_decimal_string("max_notional", &opt.max_notional)?;
+
+    let order_gate = load_json_value(&opt.order_gate, "live-alpha dry-run order gate")?;
+    let risk_preflight = load_json_value(&opt.risk_preflight, "live-alpha risk preflight")?;
+    let request_preview = load_json_value(&opt.request_preview, "live-alpha request preview")?;
+    let kill_switch_runtime_gate = load_json_value(
+        &opt.kill_switch_runtime_gate,
+        "live-alpha kill-switch runtime gate",
+    )?;
+
+    let missing_cli_flags = missing_production_mutation_runtime_gate_cli_flags(opt);
+    let source_artifact_issues = production_mutation_runtime_gate_source_issues(
+        &order_gate,
+        &risk_preflight,
+        &request_preview,
+        &kill_switch_runtime_gate,
+        &opt.max_notional,
+    );
+    let manual_approval_consumed =
+        json_bool_value(&request_preview, "manual_approval_consumed").unwrap_or(false);
+    let manual_approval_consume_status =
+        json_string_value(&request_preview, "manual_approval_consume_status")
+            .unwrap_or_else(|| "unknown".to_string());
+    let owner_approval_consumed = manual_approval_consumed
+        && manual_approval_consume_status == "approval_consumed_after_request_preview_created";
+    let kill_switch_runtime_gate_open =
+        json_bool_value(&kill_switch_runtime_gate, "runtime_gate_open").unwrap_or(false);
+    let kill_switch_active =
+        json_bool_value(&kill_switch_runtime_gate, "kill_switch_active").unwrap_or(true);
+    let risk_preflight_decision = json_string_value(&risk_preflight, "risk_decision")
+        .unwrap_or_else(|| "unknown".to_string());
+    let request_preview_built =
+        json_bool_value(&request_preview, "request_preview_built").unwrap_or(false);
+    let request_sent = json_bool_value(&request_preview, "request_sent").unwrap_or(true);
+    let order_type = json_string_value(&request_preview, "order_type")
+        .or_else(|| json_string_value(&order_gate, "order_type"))
+        .unwrap_or_else(|| "unknown".to_string())
+        .to_ascii_uppercase();
+    let time_in_force = json_string_value(&request_preview, "time_in_force")
+        .unwrap_or_else(|| "unknown".to_string())
+        .to_ascii_uppercase();
+    let notional = json_string_value(&request_preview, "notional")
+        .or_else(|| json_string_value(&order_gate, "notional"))
+        .unwrap_or_else(|| "unknown".to_string());
+    let max_order_notional = opt.max_notional.trim().to_string();
+    let tiny_notional_gate_ready = match (
+        parse_non_negative_decimal(&notional),
+        parse_non_negative_decimal(&max_order_notional),
+    ) {
+        (Ok(order_notional), Ok(max_notional)) => {
+            order_notional > Decimal::ZERO && order_notional <= max_notional
+        }
+        _ => false,
+    };
+    let signing_approval_ready = false;
+    let explicit_send_gate_open = false;
+    let single_order_candidate = request_preview_built
+        && !request_sent
+        && order_type == "LIMIT"
+        && time_in_force == "GTC"
+        && tiny_notional_gate_ready
+        && json_u64_value(&request_preview, "production_order_submissions_attempted").unwrap_or(0)
+            == 0
+        && json_u64_value(&request_preview, "production_orders_submitted").unwrap_or(0) == 0
+        && json_u64_value(&request_preview, "production_order_mutations_attempted").unwrap_or(0)
+            == 0;
+    let kill_switch_checked_before_send =
+        json_string_value(&kill_switch_runtime_gate, "schema_version").as_deref()
+            == Some(PRODUCTION_LIVE_ALPHA_KILL_SWITCH_RUNTIME_GATE_SCHEMA_VERSION);
+
+    let mut runtime_gate_reasons = Vec::new();
+    if !missing_cli_flags.is_empty() {
+        runtime_gate_reasons.push("missing_owner_runtime_gate_confirmation".to_string());
+    }
+    if !owner_approval_consumed {
+        runtime_gate_reasons.push("owner_approval_not_consumed".to_string());
+    }
+    if !kill_switch_checked_before_send {
+        runtime_gate_reasons.push("kill_switch_not_checked_before_send".to_string());
+    }
+    if !kill_switch_runtime_gate_open {
+        runtime_gate_reasons.push("kill_switch_runtime_gate_closed".to_string());
+    }
+    if kill_switch_active {
+        runtime_gate_reasons.push("kill_switch_active".to_string());
+    }
+    if risk_preflight_decision != "dry_run_approved" {
+        runtime_gate_reasons.push("risk_preflight_not_approved".to_string());
+    }
+    if !request_preview_built || request_sent {
+        runtime_gate_reasons.push("request_preview_blocked_or_sent".to_string());
+    }
+    if !single_order_candidate {
+        runtime_gate_reasons.push("single_limit_gtc_candidate_not_ready".to_string());
+    }
+    if !tiny_notional_gate_ready {
+        runtime_gate_reasons.push("tiny_notional_gate_not_ready".to_string());
+    }
+    if !source_artifact_issues.is_empty() {
+        runtime_gate_reasons.push("source_artifact_issue".to_string());
+    }
+    if !signing_approval_ready {
+        runtime_gate_reasons.push("signing_approval_missing".to_string());
+    }
+    if !explicit_send_gate_open {
+        runtime_gate_reasons.push("explicit_send_gate_closed".to_string());
+    }
+
+    let runtime_gate_open = false;
+    let send_consideration_allowed = false;
+    let status = if !missing_cli_flags.is_empty() {
+        "blocked_missing_gate"
+    } else if kill_switch_active {
+        "blocked_kill_switch_active"
+    } else if !request_preview_built || request_sent {
+        "blocked_request_preview"
+    } else if risk_preflight_decision != "dry_run_approved" {
+        "blocked_risk_preflight"
+    } else if !single_order_candidate || !tiny_notional_gate_ready {
+        "blocked_order_scope"
+    } else if !owner_approval_consumed {
+        "blocked_owner_approval_consumption"
+    } else if !source_artifact_issues.is_empty() {
+        "blocked_source_artifact"
+    } else {
+        "blocked_signing_approval"
+    };
+    let runtime_gate_decision = if send_consideration_allowed {
+        "ready_for_guarded_send_consideration"
+    } else {
+        "blocked_before_any_send_consideration"
+    };
+
+    Ok(ProductionMutationRuntimeGateArtifact {
+        schema_version: PRODUCTION_MUTATION_RUNTIME_GATE_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        source_order_gate_path: opt.order_gate.display().to_string(),
+        source_risk_preflight_path: opt.risk_preflight.display().to_string(),
+        source_request_preview_path: opt.request_preview.display().to_string(),
+        source_kill_switch_runtime_gate_path: opt.kill_switch_runtime_gate.display().to_string(),
+        artifact_type: "production_mutation_runtime_gate".to_string(),
+        status: status.to_string(),
+        created_at: now_millis(),
+        mode: "owner_approved_single_order_production_mutation_candidate".to_string(),
+        capability: "Minimum Owner-Approved Production Order Mutation Candidate".to_string(),
+        capability_expansion_from_v15: true,
+        default_fail_closed: true,
+        runtime_gate_decision: runtime_gate_decision.to_string(),
+        runtime_gate_open,
+        send_consideration_allowed,
+        runtime_gate_reasons,
+        source_artifact_issues,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        owner_approval_required: true,
+        owner_approval_consumed,
+        manual_approval_consumed,
+        manual_approval_consume_status,
+        kill_switch_checked_before_send,
+        kill_switch_runtime_gate_open,
+        kill_switch_active,
+        risk_preflight_decision,
+        request_preview_built,
+        request_sent,
+        signing_approval_required: true,
+        signing_approval_ready,
+        signing_approval_status: "missing_until_v160_003_signing_approval_artifact".to_string(),
+        explicit_send_gate_required: true,
+        explicit_send_gate_open,
+        single_order_candidate,
+        tiny_notional_gate_ready,
+        max_order_notional,
+        symbol: json_string_value(&request_preview, "symbol")
+            .or_else(|| json_string_value(&order_gate, "symbol"))
+            .unwrap_or_else(|| "unknown".to_string()),
+        side: json_string_value(&request_preview, "side")
+            .or_else(|| json_string_value(&order_gate, "side"))
+            .unwrap_or_else(|| "unknown".to_string()),
+        order_type,
+        quantity: json_string_value(&request_preview, "quantity")
+            .or_else(|| json_string_value(&order_gate, "quantity"))
+            .unwrap_or_else(|| "unknown".to_string()),
+        price: json_string_value(&request_preview, "price")
+            .unwrap_or_else(|| "unknown".to_string()),
+        time_in_force,
+        notional,
+        production_order_submission_allowed_policy: "owner_approved_single_limit_gtc_only"
+            .to_string(),
+        production_order_submission_allowed: false,
+        production_order_mutation_allowed: false,
+        production_order_state_reads_allowed: false,
+        listen_key_lifecycle_allowed: false,
+        production_order_submissions_attempted: 0,
+        production_orders_submitted: 0,
+        production_order_mutations_attempted: 0,
+        production_order_state_reads_attempted: 0,
+        listen_key_lifecycle_attempted: 0,
+        retry_attempted: false,
+        cancel_attempted: false,
+        replace_attempted: false,
+        amend_attempted: false,
+        flatten_attempted: false,
+        cancel_replace_amend_attempted: false,
+        order_endpoint_access_attempted: false,
+        execution_adapter_called: false,
+        production_adapter_called: false,
+        production_adapter_instantiated: false,
+        matching_engine_submission: false,
+        actual_submission_count: 0,
+        automatic_remediation_attempted: false,
+        automatic_correction_orders_submitted: 0,
+        dashboard_order_controls_enabled: false,
+        external_venue_connection: false,
+        network_attempted: false,
+        real_orders_submitted: false,
+        real_funds: false,
+        production_trading_enabled: false,
+        request_redacted: true,
+        response_redacted: true,
+        signature_recorded: false,
+        signed_query_recorded: false,
+        signed_url_recorded: false,
+        api_key_value_recorded: false,
+        api_secret_value_recorded: false,
+        raw_exchange_response_recorded: false,
+        no_network_before_send_confirmed: opt.confirm_no_network_before_send,
+        dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
+        no_listen_key_lifecycle_confirmed: opt.confirm_no_listen_key_lifecycle,
+        no_retry_confirmed: opt.confirm_no_retry,
+        diagnostic: if status == "blocked_signing_approval" {
+            "all v0.15 source artifacts passed the v0.16 runtime gate shape, but the separate signing approval artifact is not implemented yet; no send can be considered"
+        } else {
+            "production mutation runtime gate is blocked before any send consideration; no network, adapter call, or production mutation was attempted"
+        }
+        .to_string(),
+    })
+}
+
 fn build_production_live_alpha_execution_dry_run_artifact(
     opt: &LiveProductionLiveAlphaExecutionDryRunOpt,
 ) -> anyhow::Result<ProductionLiveAlphaExecutionDryRunArtifact> {
@@ -6094,6 +6451,154 @@ fn production_live_alpha_execution_dry_run_source_issues(
             "risk_preflight",
             risk_preflight,
         );
+    }
+    issues
+}
+
+fn production_mutation_runtime_gate_source_issues(
+    order_gate: &serde_json::Value,
+    risk_preflight: &serde_json::Value,
+    request_preview: &serde_json::Value,
+    kill_switch_runtime_gate: &serde_json::Value,
+    max_notional: &str,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(order_gate, "schema_version").as_deref()
+        != Some(PRODUCTION_LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION)
+    {
+        issues.push("order_gate_schema_mismatch".to_string());
+    }
+    if !json_bool_value(order_gate, "dry_run_order_gate_ready").unwrap_or(false) {
+        issues.push("order_gate_not_ready".to_string());
+    }
+    if json_string_value(order_gate, "order_type").as_deref() != Some("LIMIT") {
+        issues.push("order_gate_not_limit".to_string());
+    }
+    if json_string_value(risk_preflight, "schema_version").as_deref()
+        != Some(PRODUCTION_LIVE_ALPHA_RISK_PREFLIGHT_REPORT_SCHEMA_VERSION)
+    {
+        issues.push("risk_preflight_schema_mismatch".to_string());
+    }
+    if json_string_value(risk_preflight, "risk_decision").as_deref() != Some("dry_run_approved") {
+        issues.push("risk_preflight_not_dry_run_approved".to_string());
+    }
+    if json_bool_value(risk_preflight, "kill_switch_active").unwrap_or(true) {
+        issues.push("risk_preflight_kill_switch_active".to_string());
+    }
+    if json_bool_value(risk_preflight, "execution_adapter_called").unwrap_or(false) {
+        issues.push("risk_preflight_touched_execution_adapter".to_string());
+    }
+    if json_string_value(request_preview, "schema_version").as_deref()
+        != Some(PRODUCTION_LIVE_ALPHA_ORDER_REQUEST_PREVIEW_SCHEMA_VERSION)
+    {
+        issues.push("request_preview_schema_mismatch".to_string());
+    }
+    if json_string_value(request_preview, "status").as_deref() != Some("ready_request_preview_only")
+    {
+        issues.push("request_preview_not_ready".to_string());
+    }
+    if !json_bool_value(request_preview, "request_preview_built").unwrap_or(false) {
+        issues.push("request_preview_not_built".to_string());
+    }
+    if json_bool_value(request_preview, "request_sent").unwrap_or(true) {
+        issues.push("request_preview_sent_request".to_string());
+    }
+    if json_string_value(request_preview, "request_method").as_deref() != Some("POST") {
+        issues.push("request_preview_method_not_post".to_string());
+    }
+    if json_string_value(request_preview, "request_target").as_deref() != Some("/api/v3/order") {
+        issues.push("request_preview_target_not_order".to_string());
+    }
+    if json_string_value(request_preview, "order_type").as_deref() != Some("LIMIT") {
+        issues.push("request_preview_not_limit".to_string());
+    }
+    if json_string_value(request_preview, "time_in_force").as_deref() != Some("GTC") {
+        issues.push("request_preview_not_gtc".to_string());
+    }
+    if !json_bool_value(request_preview, "manual_approval_consumed").unwrap_or(false) {
+        issues.push("manual_approval_not_consumed".to_string());
+    }
+    if json_string_value(request_preview, "manual_approval_consume_status").as_deref()
+        != Some("approval_consumed_after_request_preview_created")
+    {
+        issues.push("manual_approval_consume_status_mismatch".to_string());
+    }
+    if json_bool_value(request_preview, "network_attempted").unwrap_or(false) {
+        issues.push("request_preview_attempted_network".to_string());
+    }
+    if json_bool_value(request_preview, "production_adapter_called").unwrap_or(false) {
+        issues.push("request_preview_touched_production_adapter".to_string());
+    }
+    if json_string_value(kill_switch_runtime_gate, "schema_version").as_deref()
+        != Some(PRODUCTION_LIVE_ALPHA_KILL_SWITCH_RUNTIME_GATE_SCHEMA_VERSION)
+    {
+        issues.push("kill_switch_runtime_gate_schema_mismatch".to_string());
+    }
+    if json_string_value(kill_switch_runtime_gate, "status").as_deref()
+        != Some("ready_runtime_gate_open_for_dry_run_only")
+    {
+        issues.push("kill_switch_runtime_gate_not_ready".to_string());
+    }
+    if !json_bool_value(kill_switch_runtime_gate, "runtime_gate_open").unwrap_or(false) {
+        issues.push("kill_switch_runtime_gate_closed".to_string());
+    }
+    if json_bool_value(kill_switch_runtime_gate, "kill_switch_active").unwrap_or(true) {
+        issues.push("kill_switch_runtime_gate_active".to_string());
+    }
+    if artifact_has_production_mutation(Some(order_gate)) {
+        issues.push("order_gate_records_forbidden_production_mutation".to_string());
+    }
+    if artifact_has_production_mutation(Some(risk_preflight)) {
+        issues.push("risk_preflight_records_forbidden_production_mutation".to_string());
+    }
+    if artifact_has_production_mutation(Some(request_preview)) {
+        issues.push("request_preview_records_forbidden_production_mutation".to_string());
+    }
+    if artifact_has_production_mutation(Some(kill_switch_runtime_gate)) {
+        issues.push("kill_switch_runtime_gate_records_forbidden_production_mutation".to_string());
+    }
+
+    for field in [
+        "session_id",
+        "strategy_id",
+        "symbol",
+        "side",
+        "order_type",
+        "quantity",
+        "notional",
+    ] {
+        push_json_string_alignment_issue(
+            &mut issues,
+            field,
+            "order_gate",
+            order_gate,
+            "request_preview",
+            request_preview,
+        );
+    }
+    for field in ["symbol", "side", "order_type", "quantity", "notional"] {
+        push_json_string_alignment_issue(
+            &mut issues,
+            field,
+            "order_gate",
+            order_gate,
+            "risk_preflight",
+            risk_preflight,
+        );
+    }
+
+    match (
+        json_string_value(request_preview, "notional"),
+        parse_non_negative_decimal(max_notional),
+    ) {
+        (Some(notional), Ok(max_allowed)) => match parse_non_negative_decimal(&notional) {
+            Ok(order_notional)
+                if order_notional > Decimal::ZERO && order_notional <= max_allowed => {}
+            Ok(_) => issues.push("notional_not_tiny_or_positive".to_string()),
+            Err(_) => issues.push("notional_parse_failed".to_string()),
+        },
+        (None, _) => issues.push("notional_missing".to_string()),
+        (_, Err(_)) => issues.push("max_notional_parse_failed".to_string()),
     }
     issues
 }
@@ -8982,6 +9487,40 @@ fn missing_production_live_alpha_kill_switch_runtime_gate_cli_flags(
     missing
 }
 
+fn missing_production_mutation_runtime_gate_cli_flags(
+    opt: &LiveProductionMutationRuntimeGateOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_mutation_runtime_gate {
+        missing.push("--allow-production-mutation-runtime-gate");
+    }
+    if !opt.confirm_owner_approved_production_mutation {
+        missing.push("--confirm-owner-approved-production-mutation");
+    }
+    if !opt.confirm_single_limit_gtc {
+        missing.push("--confirm-single-limit-gtc");
+    }
+    if !opt.confirm_tiny_notional {
+        missing.push("--confirm-tiny-notional");
+    }
+    if !opt.confirm_signing_approval_required {
+        missing.push("--confirm-signing-approval-required");
+    }
+    if !opt.confirm_no_network_before_send {
+        missing.push("--confirm-no-network-before-send");
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        missing.push("--confirm-dashboard-order-controls-disabled");
+    }
+    if !opt.confirm_no_listen_key_lifecycle {
+        missing.push("--confirm-no-listen-key-lifecycle");
+    }
+    if !opt.confirm_no_retry {
+        missing.push("--confirm-no-retry");
+    }
+    missing
+}
+
 fn missing_production_live_alpha_risk_preflight_cli_flags(
     opt: &LiveProductionLiveAlphaRiskPreflightOpt,
 ) -> Vec<&'static str> {
@@ -10095,6 +10634,34 @@ write_summary = true
             confirm_no_listen_key_lifecycle: all_cli_gates,
             confirm_dashboard_order_controls_disabled: all_cli_gates,
             confirm_no_real_funds: all_cli_gates,
+        }
+    }
+
+    fn production_mutation_runtime_gate_opt(
+        order_gate: PathBuf,
+        risk_preflight: PathBuf,
+        request_preview: PathBuf,
+        kill_switch_runtime_gate: PathBuf,
+        output: PathBuf,
+        all_cli_gates: bool,
+    ) -> LiveProductionMutationRuntimeGateOpt {
+        LiveProductionMutationRuntimeGateOpt {
+            run_id: "v160-production-mutation-runtime-gate".to_string(),
+            order_gate,
+            risk_preflight,
+            request_preview,
+            kill_switch_runtime_gate,
+            output,
+            max_notional: "10.00".to_string(),
+            allow_production_mutation_runtime_gate: all_cli_gates,
+            confirm_owner_approved_production_mutation: all_cli_gates,
+            confirm_single_limit_gtc: all_cli_gates,
+            confirm_tiny_notional: all_cli_gates,
+            confirm_signing_approval_required: all_cli_gates,
+            confirm_no_network_before_send: all_cli_gates,
+            confirm_dashboard_order_controls_disabled: all_cli_gates,
+            confirm_no_listen_key_lifecycle: all_cli_gates,
+            confirm_no_retry: all_cli_gates,
         }
     }
 
@@ -14003,6 +14570,219 @@ write_summary = true
                 .unwrap()
                 .iter()
                 .any(|reason| reason == "request_preview_blocked")
+        );
+    }
+
+    #[test]
+    fn production_mutation_runtime_gate_blocks_missing_signing_approval() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v160-002-runtime-gate-signing-missing-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (order_gate, risk_preflight, request_preview) =
+            write_ready_live_alpha_artifact_chain(&output_dir);
+        let kill_switch_approval = output_dir.join("kill_switch_approval.json");
+        let kill_switch_runtime_gate = output_dir.join("kill_switch_runtime_gate.json");
+        let output = output_dir.join("production_mutation_runtime_gate.json");
+        write_kill_switch_approval_artifact(kill_switch_approval.clone(), false, "approved");
+        run_live_production_live_alpha_kill_switch_runtime_gate(
+            &production_live_alpha_kill_switch_runtime_gate_opt(
+                kill_switch_approval,
+                risk_preflight.clone(),
+                request_preview.clone(),
+                kill_switch_runtime_gate.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        run_live_production_mutation_runtime_gate(&production_mutation_runtime_gate_opt(
+            order_gate,
+            risk_preflight,
+            request_preview,
+            kill_switch_runtime_gate,
+            output.clone(),
+            true,
+        ))
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(
+            artifact["schema_version"],
+            PRODUCTION_MUTATION_RUNTIME_GATE_SCHEMA_VERSION
+        );
+        assert_eq!(artifact["status"], "blocked_signing_approval");
+        assert_eq!(
+            artifact["capability"],
+            "Minimum Owner-Approved Production Order Mutation Candidate"
+        );
+        assert_eq!(artifact["capability_expansion_from_v15"], true);
+        assert_eq!(artifact["default_fail_closed"], true);
+        assert_eq!(
+            artifact["runtime_gate_decision"],
+            "blocked_before_any_send_consideration"
+        );
+        assert_eq!(artifact["runtime_gate_open"], false);
+        assert_eq!(artifact["send_consideration_allowed"], false);
+        assert_eq!(artifact["owner_approval_required"], true);
+        assert_eq!(artifact["owner_approval_consumed"], true);
+        assert_eq!(artifact["manual_approval_consumed"], true);
+        assert_eq!(
+            artifact["manual_approval_consume_status"],
+            "approval_consumed_after_request_preview_created"
+        );
+        assert_eq!(artifact["kill_switch_checked_before_send"], true);
+        assert_eq!(artifact["kill_switch_runtime_gate_open"], true);
+        assert_eq!(artifact["kill_switch_active"], false);
+        assert_eq!(artifact["risk_preflight_decision"], "dry_run_approved");
+        assert_eq!(artifact["request_preview_built"], true);
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["signing_approval_required"], true);
+        assert_eq!(artifact["signing_approval_ready"], false);
+        assert_eq!(artifact["explicit_send_gate_required"], true);
+        assert_eq!(artifact["explicit_send_gate_open"], false);
+        assert_eq!(artifact["single_order_candidate"], true);
+        assert_eq!(artifact["tiny_notional_gate_ready"], true);
+        assert_eq!(artifact["order_type"], "LIMIT");
+        assert_eq!(artifact["time_in_force"], "GTC");
+        assert_eq!(artifact["notional"], "10.00");
+        assert_eq!(
+            artifact["production_order_submission_allowed_policy"],
+            "owner_approved_single_limit_gtc_only"
+        );
+        assert_eq!(artifact["production_order_submission_allowed"], false);
+        assert_eq!(artifact["production_order_mutation_allowed"], false);
+        assert_eq!(artifact["production_order_submissions_attempted"], 0);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["dashboard_order_controls_enabled"], false);
+        assert_eq!(artifact["retry_attempted"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["replace_attempted"], false);
+        assert_eq!(artifact["amend_attempted"], false);
+        assert_eq!(artifact["flatten_attempted"], false);
+        assert_eq!(artifact["listen_key_lifecycle_attempted"], 0);
+        assert_eq!(artifact["signature_recorded"], false);
+        assert_eq!(artifact["signed_query_recorded"], false);
+        assert_eq!(artifact["signed_url_recorded"], false);
+        assert_eq!(artifact["api_key_value_recorded"], false);
+        assert_eq!(artifact["api_secret_value_recorded"], false);
+        assert!(
+            artifact["runtime_gate_reasons"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|reason| reason == "signing_approval_missing")
+        );
+        assert!(
+            artifact["runtime_gate_reasons"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|reason| reason == "explicit_send_gate_closed")
+        );
+    }
+
+    #[test]
+    fn production_mutation_runtime_gate_blocks_missing_owner_confirmations() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v160-002-runtime-gate-missing-flags-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (order_gate, risk_preflight, request_preview) =
+            write_ready_live_alpha_artifact_chain(&output_dir);
+        let kill_switch_approval = output_dir.join("kill_switch_approval.json");
+        let kill_switch_runtime_gate = output_dir.join("kill_switch_runtime_gate.json");
+        let output = output_dir.join("production_mutation_runtime_gate.json");
+        write_kill_switch_approval_artifact(kill_switch_approval.clone(), false, "approved");
+        run_live_production_live_alpha_kill_switch_runtime_gate(
+            &production_live_alpha_kill_switch_runtime_gate_opt(
+                kill_switch_approval,
+                risk_preflight.clone(),
+                request_preview.clone(),
+                kill_switch_runtime_gate.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        run_live_production_mutation_runtime_gate(&production_mutation_runtime_gate_opt(
+            order_gate,
+            risk_preflight,
+            request_preview,
+            kill_switch_runtime_gate,
+            output.clone(),
+            false,
+        ))
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_missing_gate");
+        assert_eq!(artifact["runtime_gate_open"], false);
+        assert_eq!(artifact["send_consideration_allowed"], false);
+        assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 9);
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["dashboard_order_controls_enabled"], false);
+    }
+
+    #[test]
+    fn production_mutation_runtime_gate_blocks_active_kill_switch() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v160-002-runtime-gate-active-kill-switch-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (order_gate, risk_preflight, request_preview) =
+            write_ready_live_alpha_artifact_chain(&output_dir);
+        let kill_switch_approval = output_dir.join("kill_switch_approval.json");
+        let kill_switch_runtime_gate = output_dir.join("kill_switch_runtime_gate.json");
+        let output = output_dir.join("production_mutation_runtime_gate.json");
+        write_kill_switch_approval_artifact(kill_switch_approval.clone(), true, "approved");
+        run_live_production_live_alpha_kill_switch_runtime_gate(
+            &production_live_alpha_kill_switch_runtime_gate_opt(
+                kill_switch_approval,
+                risk_preflight.clone(),
+                request_preview.clone(),
+                kill_switch_runtime_gate.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        run_live_production_mutation_runtime_gate(&production_mutation_runtime_gate_opt(
+            order_gate,
+            risk_preflight,
+            request_preview,
+            kill_switch_runtime_gate,
+            output.clone(),
+            true,
+        ))
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_kill_switch_active");
+        assert_eq!(artifact["kill_switch_checked_before_send"], true);
+        assert_eq!(artifact["kill_switch_active"], true);
+        assert_eq!(artifact["runtime_gate_open"], false);
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert!(
+            artifact["runtime_gate_reasons"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|reason| reason == "kill_switch_active")
         );
     }
 
