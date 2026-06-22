@@ -37,7 +37,7 @@ READY_STDERR="$OUTPUT_DIR/ready.stderr.log"
   --strategy-id ema_cross_btcusdt_v1 \
   --symbol BTCUSDT \
   --side BUY \
-  --order-type MARKET \
+  --order-type LIMIT \
   --quantity 0.001 \
   --notional 10.00 \
   --output "$BLOCKED_JSON" \
@@ -64,6 +64,7 @@ def require(condition, message):
 require(report["schema_version"] == "ntpro.v140_live_alpha_dry_run_order_gate.v1", report)
 require(report["status"] == "blocked_missing_gate", report)
 require(report["mode"] == "production_live_alpha_dry_run", report)
+require(report["order_type"] == "LIMIT", report)
 require(report["owner_gate_required"] is True, report)
 require(report["manual_gate_required"] is True, report)
 require(len(report["missing_cli_flags"]) == 8, report)
@@ -99,7 +100,7 @@ PY
   --strategy-id ema_cross_btcusdt_v1 \
   --symbol BTCUSDT \
   --side BUY \
-  --order-type MARKET \
+  --order-type LIMIT \
   --quantity 0.001 \
   --notional 10.00 \
   --output "$READY_JSON" \
@@ -137,6 +138,7 @@ require(report["missing_cli_flags"] == [], report)
 require(report["dry_run_order_gate_ready"] is True, report)
 require(report["dry_run_order_intent_recorded"] is True, report)
 require(report["order_submission_mode"] == "dry_run_no_submission", report)
+require(report["order_type"] == "LIMIT", report)
 require(report["quantity"] == "0.001", report)
 require(report["notional"] == "10.00", report)
 require(report["production_order_submission_allowed"] is False, report)

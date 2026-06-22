@@ -544,7 +544,7 @@ pub struct LiveProductionLiveAlphaDryRunOrderGateOpt {
     #[arg(long, default_value = "BUY")]
     pub side: String,
     /// Dry-run order type.
-    #[arg(long, default_value = "MARKET")]
+    #[arg(long, default_value = "LIMIT")]
     pub order_type: String,
     /// Dry-run quantity as a decimal string.
     #[arg(long, default_value = "0.001")]
@@ -1674,7 +1674,7 @@ mod tests {
             "--side",
             "BUY",
             "--order-type",
-            "MARKET",
+            "LIMIT",
             "--quantity",
             "0.001",
             "--notional",
@@ -1704,7 +1704,7 @@ mod tests {
         assert_eq!(gate.strategy_id, "ema_cross_btcusdt_v1");
         assert_eq!(gate.symbol, "BTCUSDT");
         assert_eq!(gate.side, "BUY");
-        assert_eq!(gate.order_type, "MARKET");
+        assert_eq!(gate.order_type, "LIMIT");
         assert_eq!(gate.quantity, "0.001");
         assert_eq!(gate.notional, "10.00");
         assert_eq!(

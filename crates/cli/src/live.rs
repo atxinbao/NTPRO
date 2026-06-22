@@ -5035,8 +5035,8 @@ fn build_production_live_alpha_dry_run_order_gate_artifact(
         anyhow::bail!("side must be BUY or SELL");
     }
     let order_type = opt.order_type.trim().to_ascii_uppercase();
-    if !matches!(order_type.as_str(), "MARKET" | "LIMIT") {
-        anyhow::bail!("order_type must be MARKET or LIMIT");
+    if order_type != "LIMIT" {
+        anyhow::bail!("production live-alpha dry-run order gate only supports LIMIT order_type");
     }
 
     let missing_cli_flags = missing_production_live_alpha_dry_run_order_gate_cli_flags(opt);
@@ -9888,7 +9888,7 @@ write_summary = true
             strategy_id: "ema_cross_btcusdt_v1".to_string(),
             symbol: "BTCUSDT".to_string(),
             side: "BUY".to_string(),
-            order_type: "MARKET".to_string(),
+            order_type: "LIMIT".to_string(),
             quantity: "0.001".to_string(),
             notional: "10.00".to_string(),
             output,
@@ -10187,7 +10187,7 @@ write_summary = true
             order: ProductionLiveAlphaRiskPreflightOrder {
                 symbol: "BTCUSDT".to_string(),
                 side: "BUY".to_string(),
-                order_type: "MARKET".to_string(),
+                order_type: "LIMIT".to_string(),
                 quantity: "0.001".to_string(),
                 notional: "10.00".to_string(),
             },
@@ -12745,6 +12745,24 @@ write_summary = true
     }
 
     #[test]
+    fn production_live_alpha_dry_run_order_gate_rejects_market_order_type() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v151-004-live-alpha-market-order-gate-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let output = output_dir.join("live_alpha_market_order_gate.json");
+        let mut opt = production_live_alpha_dry_run_order_gate_opt(output, true);
+        opt.order_type = "MARKET".to_string();
+
+        let err = run_live_production_live_alpha_dry_run_order_gate(&opt).unwrap_err();
+        assert!(
+            err.to_string().contains("only supports LIMIT order_type"),
+            "{err:?}"
+        );
+    }
+
+    #[test]
     fn production_live_alpha_dry_run_order_gate_records_ready_no_submission_contract() {
         let output_dir = std::env::temp_dir().join(format!(
             "ntpro-v140-003-live-alpha-dry-run-ready-{}",
@@ -12768,7 +12786,7 @@ write_summary = true
         assert_eq!(artifact["mode"], "production_live_alpha_dry_run");
         assert_eq!(artifact["symbol"], "BTCUSDT");
         assert_eq!(artifact["side"], "BUY");
-        assert_eq!(artifact["order_type"], "MARKET");
+        assert_eq!(artifact["order_type"], "LIMIT");
         assert_eq!(artifact["quantity"], "0.001");
         assert_eq!(artifact["notional"], "10.00");
         assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);

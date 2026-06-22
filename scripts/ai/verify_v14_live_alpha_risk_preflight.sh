@@ -35,7 +35,7 @@ REJECTED_JSON="$OUTPUT_DIR/risk-preflight-rejected.json"
   --strategy-id ema_cross_btcusdt_v1 \
   --symbol BTCUSDT \
   --side BUY \
-  --order-type MARKET \
+  --order-type LIMIT \
   --quantity 0.001 \
   --notional 10.00 \
   --output "$ORDER_GATE" \
@@ -76,7 +76,7 @@ cat > "$PASSING_INPUT" <<'JSON'
   "order": {
     "symbol": "BTCUSDT",
     "side": "BUY",
-    "order_type": "MARKET",
+    "order_type": "LIMIT",
     "quantity": "0.001",
     "notional": "10.00"
   },
@@ -161,7 +161,7 @@ cat > "$REJECTED_INPUT" <<'JSON'
   "order": {
     "symbol": "BTCUSDT",
     "side": "BUY",
-    "order_type": "MARKET",
+    "order_type": "LIMIT",
     "quantity": "0.001",
     "notional": "30.00"
   },
