@@ -126,13 +126,15 @@ RUN_MISMATCH_PREVIEW="$(run_request_preview run-mismatch "$RUN_MISMATCH_APPROVAL
 SYMBOL_MISMATCH_PREVIEW="$(run_request_preview symbol-mismatch "$SYMBOL_MISMATCH_APPROVAL")"
 NOTIONAL_MISMATCH_PREVIEW="$(run_request_preview notional-mismatch "$NOTIONAL_MISMATCH_APPROVAL")"
 VALID_PREVIEW="$(run_request_preview valid "$VALID_APPROVAL")"
+REUSED_PREVIEW="$(run_request_preview reused "$VALID_APPROVAL")"
 
-python3 - "$PENDING_PREVIEW" "$EXPIRED_PREVIEW" "$REVOKED_PREVIEW" "$USED_PREVIEW" "$RUN_MISMATCH_PREVIEW" "$SYMBOL_MISMATCH_PREVIEW" "$NOTIONAL_MISMATCH_PREVIEW" "$VALID_PREVIEW" <<'PY'
+python3 - "$PENDING_PREVIEW" "$EXPIRED_PREVIEW" "$REVOKED_PREVIEW" "$USED_PREVIEW" "$RUN_MISMATCH_PREVIEW" "$SYMBOL_MISMATCH_PREVIEW" "$NOTIONAL_MISMATCH_PREVIEW" "$VALID_PREVIEW" "$REUSED_PREVIEW" "$VALID_APPROVAL" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-paths = sys.argv[1:]
+paths = sys.argv[1:10]
+valid_approval_path = Path(sys.argv[10])
 names = [
     "pending",
     "expired",
@@ -142,6 +144,7 @@ names = [
     "symbol-mismatch",
     "notional-mismatch",
     "valid",
+    "reused",
 ]
 artifacts = dict(zip(names, [json.loads(Path(path).read_text()) for path in paths]))
 
@@ -157,6 +160,7 @@ expected_issues = {
     "run-mismatch": "manual_approval_run_id_mismatch",
     "symbol-mismatch": "manual_approval_symbol_mismatch",
     "notional-mismatch": "manual_approval_notional_mismatch",
+    "reused": "manual_approval_used",
 }
 for name, expected_issue in expected_issues.items():
     artifact = artifacts[name]
@@ -178,12 +182,23 @@ require(valid["manual_approval_lifecycle_state"] == "approved", valid)
 require(valid["manual_approval_lifecycle_valid"] is True, valid)
 require(len(valid["manual_approval_lifecycle_issues"]) == 0, valid)
 require(valid["manual_approval_one_time"] is True, valid)
-require(valid["manual_approval_used"] is False, valid)
+require(valid["manual_approval_used"] is True, valid)
+require(valid["manual_approval_consumed"] is True, valid)
+require(valid["manual_approval_consume_status"] == "approval_consumed_after_request_preview_created", valid)
+require(valid["manual_approval_consume_transition"] == "approved_to_request_preview_created_to_used", valid)
 require(valid["request_preview_built"] is True, valid)
 require(valid["request_sent"] is False, valid)
 require(valid["production_orders_submitted"] == 0, valid)
 require(valid["production_order_mutations_attempted"] == 0, valid)
 require(valid["network_attempted"] is False, valid)
+
+consumed = json.loads(valid_approval_path.read_text())
+require(consumed["approval_state"] == "used", consumed)
+require(consumed["approval_used"] is True, consumed)
+require(consumed["approval_consumed"] is True, consumed)
+require(consumed["request_preview_created"] is True, consumed)
+require(consumed["approval_lifecycle_valid"] is False, consumed)
+require(consumed["status"] == "approval_consumed_after_request_preview_created", consumed)
 PY
 
 if grep -R -q "$SYNTHETIC_API_KEY\|$SYNTHETIC_API_SECRET" "$OUTPUT_DIR"; then
