@@ -275,6 +275,15 @@ Final release checks, benchmark summaries, and audit reports live here.
   production order submission, mutation, listenKey lifecycle, real funds,
   production trading, automatic remediation, and Dashboard order controls out
   of scope.
+- `v0_14_1_readiness_report.md` - V141-007 readiness report for the
+  v0.14.1 Order-State Read-Only Evidence Hardening candidate. It accounts for
+  V141-001 through V141-006 and keeps tag creation and GitHub Release
+  publication as an owner release decision.
+- `v0_14_1_release_notes.md` - release-note material for the potential
+  `ntpro-rust-only-v0.14.1` GitHub Release. It is hardening-only and does not
+  include production order submission, production order mutation,
+  cancel/replace/amend/retry/correction, listenKey lifecycle, real funds,
+  production trading, or Dashboard order controls.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
