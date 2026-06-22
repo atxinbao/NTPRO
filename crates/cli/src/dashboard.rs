@@ -95,10 +95,14 @@ const PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_RELATIVE_PATH: &str =
 const LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION: &str =
     "ntpro.v140_live_alpha_dry_run_order_gate.v1";
 const LIVE_ALPHA_RISK_PREFLIGHT_SCHEMA_VERSION: &str = "ntpro.v140_live_alpha_risk_preflight.v1";
+const PRODUCTION_ORDER_STATE_READONLY_PROOF_SCHEMA_VERSION: &str =
+    "ntpro.v140_production_order_state_readonly_proof.v1";
 const LIVE_ALPHA_DRY_RUN_ORDER_GATE_ARTIFACT_RELATIVE_PATH: &str =
     "v0_14/live_alpha_dry_run_order_gate.json";
 const LIVE_ALPHA_RISK_PREFLIGHT_ARTIFACT_RELATIVE_PATH: &str =
     "v0_14/live_alpha_risk_preflight.json";
+const PRODUCTION_ORDER_STATE_READONLY_PROOF_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_14/production_order_state_readonly_proof.json";
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
 <html lang="zh-CN">
@@ -969,12 +973,13 @@ function renderLiveAlphaDryRun(items) {
             <td data-label="就绪"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div></td>
             <td data-label="Dry-run Gate">${panelRow("状态", snapshotValue(item.gate_status))}${panelRow("Gate ready", snapshotValue(item.gate_ready))}${panelRow("Intent", snapshotValue(item.dry_run_order_intent_recorded))}${panelRow("模式", snapshotValue(item.order_submission_mode))}${panelRow("缺失 gate", snapshotValue(item.missing_gate_flags))}</td>
             <td data-label="风控预检">${panelRow("状态", snapshotValue(item.risk_preflight_status))}${panelRow("风控干跑", snapshotValue(item.risk_decision))}${panelRow("执行决策", snapshotValue(item.execution_decision))}${panelRow("原因", snapshotValue(item.risk_reasons))}${panelRow("Kill switch", snapshotValue(item.kill_switch_active))}</td>
-            <td data-label="Order State">${panelRow("可读", snapshotValue(item.order_state_readable))}${panelRow("Age", snapshotValue(item.order_state_age_ms))}${panelRow("Max age", snapshotValue(item.max_order_state_age_ms))}${panelRow("Open orders", snapshotValue(item.open_order_count))}${panelRow("Max open", snapshotValue(item.max_open_orders))}</td>
+            <td data-label="Order State">${panelRow("可读", snapshotValue(item.order_state_readable))}${panelRow("读取状态", snapshotValue(item.order_state_read_status))}${panelRow("端点", snapshotValue(item.order_state_endpoint))}${panelRow("网络尝试", snapshotValue(item.order_state_network_attempted))}${panelRow("读取尝试", snapshotValue(item.order_state_read_attempted))}${panelRow("Shape", snapshotValue(item.order_state_shape_validated))}${panelRow("Open orders", snapshotValue(item.open_order_count))}${panelRow("非空订单", snapshotValue(item.non_empty_order_state_observed))}${panelRow("生命周期", snapshotValue(item.order_lifecycle_readiness))}${panelRow("真值来源", snapshotValue(item.order_state_truth_source))}${panelRow("Age", snapshotValue(item.order_state_age_ms))}${panelRow("Max age", snapshotValue(item.max_order_state_age_ms))}${panelRow("Max open", snapshotValue(item.max_open_orders))}</td>
             <td data-label="Reconciliation">${panelRow("状态", snapshotValue(item.reconciliation_status))}${panelRow("提交允许", snapshotValue(item.production_order_submission_allowed))}${panelRow("变更允许", snapshotValue(item.production_order_mutation_allowed))}${panelRow("状态读取允许", snapshotValue(item.production_order_state_reads_allowed))}${panelRow("listenKey允许", snapshotValue(item.listen_key_lifecycle_allowed))}</td>
             <td data-label="只读边界">${panelRow("提交尝试", snapshotValue(item.production_order_submissions_attempted))}${panelRow("生产提交", snapshotValue(item.production_orders_submitted))}${panelRow("生产变更", snapshotValue(item.production_order_mutations_attempted))}${panelRow("状态读取尝试", snapshotValue(item.production_order_state_reads_attempted))}${panelRow("listenKey尝试", snapshotValue(item.listen_key_lifecycle_attempted))}${panelRow("撤改尝试", snapshotValue(item.cancel_replace_amend_attempted))}${panelRow("Execution adapter", snapshotValue(item.execution_adapter_called))}${panelRow("订单端点", snapshotValue(item.order_endpoint_access_attempted))}${panelRow("撮合提交", snapshotValue(item.matching_engine_submission))}${panelRow("实际提交", snapshotValue(item.actual_submission_count))}${panelRow("自动纠错", snapshotValue(item.automatic_correction_orders_submitted))}${panelRow("Dashboard 下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("网络尝试", snapshotValue(item.network_attempted))}${panelRow("真实订单", snapshotValue(item.real_orders_submitted))}${panelRow("真实资金", snapshotValue(item.real_funds))}${panelRow("生产交易", snapshotValue(item.production_trading_enabled))}${panelRow("订单状态真值", snapshotValue(item.order_state_values_are_exchange_truth))}${panelRow("Shadow 真值", snapshotValue(item.shadow_values_are_exchange_truth))}${panelRow("Portfolio 真值", snapshotValue(item.portfolio_values_are_exchange_truth))}${panelRow("兼容真值", snapshotValue(item.values_are_exchange_truth))}</td>
             <td data-label="工件" class="path">
               ${panelRow("gate", snapshotValue(item.order_gate_path))}
               ${panelRow("risk", snapshotValue(item.risk_preflight_path))}
+              ${panelRow("order-state", snapshotValue(item.order_state_proof_path))}
             </td>
           </tr>
         `).join("")}
@@ -2657,10 +2662,18 @@ pub struct LiveAlphaDryRunStatus {
     pub risk_reasons: DashboardValue<String>,
     pub kill_switch_active: DashboardValue<bool>,
     pub order_state_readable: DashboardValue<bool>,
+    pub order_state_read_status: DashboardValue<String>,
+    pub order_state_endpoint: DashboardValue<String>,
+    pub order_state_network_attempted: DashboardValue<bool>,
+    pub order_state_read_attempted: DashboardValue<bool>,
+    pub order_state_shape_validated: DashboardValue<bool>,
     pub order_state_age_ms: DashboardValue<u64>,
     pub max_order_state_age_ms: DashboardValue<u64>,
     pub open_order_count: DashboardValue<u64>,
     pub max_open_orders: DashboardValue<u64>,
+    pub non_empty_order_state_observed: DashboardValue<bool>,
+    pub order_lifecycle_readiness: DashboardValue<bool>,
+    pub order_state_truth_source: DashboardValue<String>,
     pub reconciliation_status: DashboardValue<String>,
     pub production_order_submission_allowed: DashboardValue<bool>,
     pub production_order_mutation_allowed: DashboardValue<bool>,
@@ -2688,6 +2701,7 @@ pub struct LiveAlphaDryRunStatus {
     pub values_are_exchange_truth: DashboardValue<bool>,
     pub order_gate_path: DashboardValue<String>,
     pub risk_preflight_path: DashboardValue<String>,
+    pub order_state_proof_path: DashboardValue<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -4447,6 +4461,7 @@ fn preflight_readiness_from_production_shadow(
 struct LiveAlphaDryRunArtifactPaths {
     order_gate_path: PathBuf,
     risk_preflight_path: PathBuf,
+    order_state_proof_path: PathBuf,
 }
 
 impl LiveAlphaDryRunArtifactPaths {
@@ -4458,11 +4473,16 @@ impl LiveAlphaDryRunArtifactPaths {
             risk_preflight_path: record
                 .artifact_root
                 .join(LIVE_ALPHA_RISK_PREFLIGHT_ARTIFACT_RELATIVE_PATH),
+            order_state_proof_path: record
+                .artifact_root
+                .join(PRODUCTION_ORDER_STATE_READONLY_PROOF_ARTIFACT_RELATIVE_PATH),
         }
     }
 
     fn has_any_artifact(&self) -> bool {
-        self.order_gate_path.exists() || self.risk_preflight_path.exists()
+        self.order_gate_path.exists()
+            || self.risk_preflight_path.exists()
+            || self.order_state_proof_path.exists()
     }
 }
 
@@ -4474,10 +4494,17 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
 
     let order_gate = read_json_file_value(&paths.order_gate_path);
     let risk_preflight = read_json_file_value(&paths.risk_preflight_path);
+    let order_state_proof = read_json_file_value(&paths.order_state_proof_path);
     let gate_schema_ok =
         artifact_schema_matches(&order_gate, LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION);
     let risk_schema_ok =
         artifact_schema_matches(&risk_preflight, LIVE_ALPHA_RISK_PREFLIGHT_SCHEMA_VERSION);
+    let order_state_schema_ok = order_state_proof.as_ref().is_none_or(|_| {
+        artifact_schema_matches(
+            &order_state_proof,
+            PRODUCTION_ORDER_STATE_READONLY_PROOF_SCHEMA_VERSION,
+        )
+    });
     let gate_status = order_gate
         .as_ref()
         .map_or_else(DashboardValue::unknown, |value| {
@@ -4492,6 +4519,48 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
         .as_ref()
         .map_or_else(DashboardValue::unknown, |value| {
             json_string_field(value, "status")
+        });
+    let order_state_read_status = order_state_proof
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let order_state_endpoint = order_state_proof
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "endpoint")
+        });
+    let order_state_network_attempted = order_state_proof
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "network_attempted")
+        });
+    let order_state_read_attempted = order_state_proof
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "order_state_read_attempted")
+        });
+    let order_state_shape_validated = first_available_bool_from_values([
+        order_state_proof
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "endpoint_shape_validated")
+            }),
+        order_state_proof
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "response_shape_validated")
+            }),
+    ]);
+    let non_empty_order_state_observed = order_state_proof
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "non_empty_order_state_observed")
+        });
+    let order_lifecycle_readiness = order_state_proof
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "order_lifecycle_readiness")
         });
     let risk_decision = risk_preflight
         .as_ref()
@@ -4606,11 +4675,18 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
     let real_funds = live_alpha_first_available_bool(&risk_preflight, &order_gate, "real_funds");
     let production_trading_enabled =
         live_alpha_first_available_bool(&risk_preflight, &order_gate, "production_trading_enabled");
-    let order_state_values_are_exchange_truth = live_alpha_first_available_bool(
-        &risk_preflight,
-        &order_gate,
-        "order_state_values_are_exchange_truth",
-    );
+    let order_state_values_are_exchange_truth = first_available_bool_from_values([
+        order_state_proof
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "order_state_values_are_exchange_truth")
+            }),
+        live_alpha_first_available_bool(
+            &risk_preflight,
+            &order_gate,
+            "order_state_values_are_exchange_truth",
+        ),
+    ]);
     let shadow_values_are_exchange_truth = live_alpha_first_available_bool(
         &risk_preflight,
         &order_gate,
@@ -4629,9 +4705,13 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
         portfolio_values_are_exchange_truth.clone(),
         legacy_values_are_exchange_truth,
     ]);
+    let order_state_proof_boundary_violation =
+        order_state_readonly_proof_boundary_violation(&order_state_proof, order_state_schema_ok);
 
     let boundary_violation = !gate_schema_ok
         || !risk_schema_ok
+        || !order_state_schema_ok
+        || order_state_proof_boundary_violation
         || dashboard_u64_gt_zero(&production_order_submissions_attempted)
         || dashboard_u64_gt_zero(&production_orders_submitted)
         || dashboard_u64_gt_zero(&production_order_mutations_attempted)
@@ -4676,8 +4756,12 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
         diagnostic: live_alpha_diagnostic(
             &order_gate,
             &risk_preflight,
-            gate_schema_ok,
-            risk_schema_ok,
+            &order_state_proof,
+            LiveAlphaSchemaHealth {
+                gate_schema_ok,
+                risk_schema_ok,
+                order_state_schema_ok,
+            },
             boundary_violation,
             readiness_status,
         ),
@@ -4707,11 +4791,19 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
             .map_or_else(DashboardValue::unknown, |value| {
                 json_bool_field(value, "kill_switch_active")
             }),
-        order_state_readable: risk_preflight
-            .as_ref()
-            .map_or_else(DashboardValue::unknown, |value| {
-                json_bool_field(value, "order_state_readable")
-            }),
+        order_state_readable: first_available_bool_from_values([
+            order_state_shape_validated.clone(),
+            risk_preflight
+                .as_ref()
+                .map_or_else(DashboardValue::unknown, |value| {
+                    json_bool_field(value, "order_state_readable")
+                }),
+        ]),
+        order_state_read_status,
+        order_state_endpoint,
+        order_state_network_attempted,
+        order_state_read_attempted,
+        order_state_shape_validated,
         order_state_age_ms: risk_preflight
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -4722,16 +4814,29 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
             .map_or_else(DashboardValue::unknown, |value| {
                 json_u64_field(value, "max_order_state_age_ms")
             }),
-        open_order_count: risk_preflight
-            .as_ref()
-            .map_or_else(DashboardValue::unknown, |value| {
-                json_u64_field(value, "open_order_count")
-            }),
+        open_order_count: first_available_u64_from_values([
+            order_state_proof
+                .as_ref()
+                .map_or_else(DashboardValue::unknown, |value| {
+                    json_u64_field(value, "order_entries_observed")
+                }),
+            risk_preflight
+                .as_ref()
+                .map_or_else(DashboardValue::unknown, |value| {
+                    json_u64_field(value, "open_order_count")
+                }),
+        ]),
         max_open_orders: risk_preflight
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
                 json_u64_field(value, "max_open_orders")
             }),
+        non_empty_order_state_observed,
+        order_lifecycle_readiness,
+        order_state_truth_source: live_alpha_order_state_truth_source(
+            &order_state_proof,
+            &risk_preflight,
+        ),
         reconciliation_status: risk_preflight
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -4763,6 +4868,7 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
         values_are_exchange_truth,
         order_gate_path: dashboard_path_if_exists(&paths.order_gate_path),
         risk_preflight_path: dashboard_path_if_exists(&paths.risk_preflight_path),
+        order_state_proof_path: dashboard_path_if_exists(&paths.order_state_proof_path),
     })
 }
 
@@ -4773,6 +4879,49 @@ fn artifact_schema_matches(value: &Option<Value>, expected: &str) -> bool {
             .and_then(Value::as_str)
             .is_some_and(|schema| schema == expected)
     })
+}
+
+fn order_state_readonly_proof_boundary_violation(value: &Option<Value>, schema_ok: bool) -> bool {
+    let Some(value) = value.as_ref() else {
+        return false;
+    };
+    !schema_ok
+        || json_bool(value, "production_order_submission_attempted")
+        || json_bool(value, "production_order_mutation_attempted")
+        || json_bool(value, "cancel_replace_amend_attempted")
+        || json_bool(value, "listen_key_lifecycle_attempted")
+        || json_bool(value, "dashboard_order_controls_enabled")
+        || json_bool(value, "automatic_remediation_attempted")
+        || json_bool(value, "real_orders_submitted")
+        || json_bool(value, "real_funds")
+        || json_bool(value, "production_trading_enabled")
+        || json_bool(value, "shadow_values_are_exchange_truth")
+        || json_bool(value, "portfolio_values_are_exchange_truth")
+}
+
+fn live_alpha_order_state_truth_source(
+    order_state_proof: &Option<Value>,
+    risk_preflight: &Option<Value>,
+) -> DashboardValue<String> {
+    if order_state_proof
+        .as_ref()
+        .is_some_and(|value| json_bool(value, "order_state_values_are_exchange_truth"))
+    {
+        return DashboardValue::available("exchange_order_state_readonly_proof".to_string());
+    }
+    if order_state_proof.as_ref().is_some_and(|value| {
+        json_bool(value, "endpoint_shape_validated") || json_bool(value, "response_shape_validated")
+    }) {
+        return DashboardValue::available("endpoint_shape_only".to_string());
+    }
+    if risk_preflight
+        .as_ref()
+        .and_then(|value| value.get("order_state_readable"))
+        .is_some()
+    {
+        return DashboardValue::available("live_alpha_risk_preflight".to_string());
+    }
+    DashboardValue::unknown()
 }
 
 fn live_alpha_first_available_u64(
@@ -4835,31 +4984,51 @@ fn live_alpha_missing_gate_flags(
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct LiveAlphaSchemaHealth {
+    gate_schema_ok: bool,
+    risk_schema_ok: bool,
+    order_state_schema_ok: bool,
+}
+
 fn live_alpha_diagnostic(
     order_gate: &Option<Value>,
     risk_preflight: &Option<Value>,
-    gate_schema_ok: bool,
-    risk_schema_ok: bool,
+    order_state_proof: &Option<Value>,
+    schema_health: LiveAlphaSchemaHealth,
     boundary_violation: bool,
     fallback: &str,
 ) -> DashboardValue<String> {
-    if !gate_schema_ok {
+    if !schema_health.gate_schema_ok {
         return DashboardValue::available("live_alpha_order_gate_schema_invalid".to_string());
     }
-    if !risk_schema_ok {
+    if !schema_health.risk_schema_ok {
         return DashboardValue::available("live_alpha_risk_preflight_schema_invalid".to_string());
+    }
+    if !schema_health.order_state_schema_ok {
+        return DashboardValue::available(
+            "live_alpha_order_state_readonly_proof_schema_invalid".to_string(),
+        );
     }
     if boundary_violation {
         return DashboardValue::available(
             "live_alpha_dry_run_readonly_boundary_violation".to_string(),
         );
     }
-    risk_preflight
+    order_state_proof
         .as_ref()
         .map_or_else(DashboardValue::unknown, |value| {
             json_string_field(value, "diagnostic")
         })
         .value
+        .or_else(|| {
+            risk_preflight
+                .as_ref()
+                .map_or_else(DashboardValue::unknown, |value| {
+                    json_string_field(value, "diagnostic")
+                })
+                .value
+        })
         .or_else(|| {
             order_gate
                 .as_ref()
@@ -8866,6 +9035,7 @@ mod tests {
         write_metrics_artifact(&record, &status);
         write_log_artifacts(&record);
         write_live_alpha_dry_run_artifacts(&record);
+        write_live_alpha_order_state_readonly_proof_artifact(&record);
         record.status_artifact = RegistryArtifactState::Available;
         record.metrics_artifact = RegistryArtifactState::Available;
         write_registry(&registry_path, [record]);
@@ -8910,10 +9080,27 @@ mod tests {
         );
         assert_eq!(item.kill_switch_active.value, Some(false));
         assert_eq!(item.order_state_readable.value, Some(true));
+        assert_eq!(
+            item.order_state_read_status.value.as_deref(),
+            Some("online_order_state_read_ok")
+        );
+        assert_eq!(
+            item.order_state_endpoint.value.as_deref(),
+            Some("open_orders")
+        );
+        assert_eq!(item.order_state_network_attempted.value, Some(true));
+        assert_eq!(item.order_state_read_attempted.value, Some(true));
+        assert_eq!(item.order_state_shape_validated.value, Some(true));
         assert_eq!(item.order_state_age_ms.value, Some(100));
         assert_eq!(item.max_order_state_age_ms.value, Some(1_000));
         assert_eq!(item.open_order_count.value, Some(0));
         assert_eq!(item.max_open_orders.value, Some(5));
+        assert_eq!(item.non_empty_order_state_observed.value, Some(false));
+        assert_eq!(item.order_lifecycle_readiness.value, Some(false));
+        assert_eq!(
+            item.order_state_truth_source.value.as_deref(),
+            Some("exchange_order_state_readonly_proof")
+        );
         assert_eq!(
             item.reconciliation_status.value.as_deref(),
             Some("approved")
@@ -8938,10 +9125,7 @@ mod tests {
         assert_eq!(item.real_orders_submitted.value, Some(false));
         assert_eq!(item.real_funds.value, Some(false));
         assert_eq!(item.production_trading_enabled.value, Some(false));
-        assert_eq!(
-            item.order_state_values_are_exchange_truth.availability,
-            DashboardAvailability::Unknown
-        );
+        assert_eq!(item.order_state_values_are_exchange_truth.value, Some(true));
         assert_eq!(
             item.shadow_values_are_exchange_truth.availability,
             DashboardAvailability::Unknown
@@ -8950,7 +9134,7 @@ mod tests {
             item.portfolio_values_are_exchange_truth.availability,
             DashboardAvailability::Unknown
         );
-        assert_eq!(item.values_are_exchange_truth.value, Some(false));
+        assert_eq!(item.values_are_exchange_truth.value, Some(true));
         assert!(
             item.order_gate_path
                 .value
@@ -8963,9 +9147,17 @@ mod tests {
                 .as_deref()
                 .is_some_and(|path| path.ends_with("v0_14/live_alpha_risk_preflight.json"))
         );
+        assert!(
+            item.order_state_proof_path.value.as_deref().is_some_and(
+                |path| path.ends_with("v0_14/production_order_state_readonly_proof.json")
+            )
+        );
 
         let snapshot_value = serde_json::to_value(&snapshot).unwrap();
         assert_forbidden_keys_absent(&snapshot_value);
+        assert!(DASHBOARD_JS.contains("读取状态"));
+        assert!(DASHBOARD_JS.contains("生命周期"));
+        assert!(DASHBOARD_JS.contains("真值来源"));
         assert!(!DASHBOARD_JS.contains("submit_order"));
         assert!(!DASHBOARD_JS.contains("cancel_order"));
         assert!(!DASHBOARD_JS.contains("replace_order"));
@@ -10688,6 +10880,96 @@ mod tests {
         fs::write(
             root.join("live_alpha_risk_preflight.json"),
             risk_preflight_json,
+        )
+        .unwrap();
+    }
+
+    fn write_live_alpha_order_state_readonly_proof_artifact(record: &SupervisorNodeRecord) {
+        let root = record.artifact_root.join("v0_14");
+        fs::create_dir_all(&root).unwrap();
+        let proof_json = r#"{
+  "schema_version": "__ORDER_STATE_PROOF_SCHEMA__",
+  "status": "online_order_state_read_ok",
+  "endpoint": "open_orders",
+  "endpoint_class": "production_order_state_read_only",
+  "http_base_url": "https://api.binance.com",
+  "method": "GET",
+  "path": "/api/v3/openOrders",
+  "request_url_redacted": "https://api.binance.com/api/v3/openOrders?symbol=BTCUSDT&timestamp=<redacted>&signature=<redacted>",
+  "query_shape": "symbol,timestamp,signature",
+  "symbol": "BTCUSDT",
+  "order_id_provided": false,
+  "orig_client_order_id_provided": false,
+  "requires_api_key": true,
+  "requires_signature": true,
+  "endpoint_read_allowed": true,
+  "offline_contract_ready": true,
+  "read_allowed": true,
+  "contract_ready": true,
+  "online_read_allowed": true,
+  "mutation_allowed": false,
+  "owner_gate_required": true,
+  "manual_gate_required": true,
+  "missing_cli_flags": [],
+  "missing_env_vars": [],
+  "manual_online_requested": true,
+  "online_execution_supported": true,
+  "network_attempted": true,
+  "response_status_code": 200,
+  "response_shape": "open_orders_empty_array",
+  "response_shape_validated": true,
+  "response_shape_summary": {
+    "endpoint": "open_orders",
+    "response_shape": "open_orders_empty_array",
+    "shape_validated": true,
+    "endpoint_shape_validated": true,
+    "order_entries_observed": 0,
+    "non_empty_order_state_observed": false,
+    "order_lifecycle_readiness": false,
+    "diagnostic": "openOrders endpoint returned an empty but valid array"
+  },
+  "endpoint_shape_validated": true,
+  "order_entries_observed": 0,
+  "non_empty_order_state_observed": false,
+  "order_lifecycle_readiness": false,
+  "latency_ms": 42,
+  "error_code": "none",
+  "env_credentials_only": true,
+  "api_key_env": "BINANCE_API_KEY",
+  "api_secret_env": "BINANCE_API_SECRET",
+  "api_key_present": true,
+  "api_secret_present": true,
+  "api_key_value_recorded": false,
+  "api_secret_value_recorded": false,
+  "signature_recorded": false,
+  "signed_query_recorded": false,
+  "signed_url_recorded": false,
+  "order_state_read_attempted": true,
+  "production_order_state_reads_attempted": 1,
+  "production_order_submission_attempted": false,
+  "production_order_mutation_attempted": false,
+  "cancel_replace_amend_attempted": false,
+  "listen_key_lifecycle_attempted": false,
+  "dashboard_order_controls_enabled": false,
+  "automatic_remediation_attempted": false,
+  "real_orders_submitted": false,
+  "real_funds": false,
+  "production_trading_enabled": false,
+  "order_state_values_are_exchange_truth": true,
+  "shadow_values_are_exchange_truth": false,
+  "portfolio_values_are_exchange_truth": false,
+  "values_are_exchange_truth": true,
+  "secrets_redacted": true,
+  "diagnostic": "production order-state read-only proof returned empty openOrders; endpoint is readable but lifecycle readiness is false"
+}
+"#
+        .replace(
+            "__ORDER_STATE_PROOF_SCHEMA__",
+            PRODUCTION_ORDER_STATE_READONLY_PROOF_SCHEMA_VERSION,
+        );
+        fs::write(
+            root.join("production_order_state_readonly_proof.json"),
+            proof_json,
         )
         .unwrap();
     }
