@@ -176,6 +176,8 @@ pub enum LiveCommand {
     ProductionLiveAlphaKillSwitchRuntimeGate(LiveProductionLiveAlphaKillSwitchRuntimeGateOpt),
     /// Evaluates v0.16 owner-approved production mutation runtime gates; no request execution.
     ProductionMutationRuntimeGate(LiveProductionMutationRuntimeGateOpt),
+    /// Writes a v0.16 owner approval artifact for env-only production signing material; no request execution.
+    ProductionMutationSigningApproval(LiveProductionMutationSigningApprovalOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -820,6 +822,9 @@ pub struct LiveProductionMutationRuntimeGateOpt {
     /// v0.15 kill-switch runtime gate JSON input.
     #[arg(long)]
     pub kill_switch_runtime_gate: PathBuf,
+    /// Optional v0.16 production signing material approval JSON input.
+    #[arg(long)]
+    pub signing_approval: Option<PathBuf>,
     /// v0.16 production mutation runtime gate JSON output path.
     #[arg(long)]
     pub output: PathBuf,
@@ -853,6 +858,65 @@ pub struct LiveProductionMutationRuntimeGateOpt {
     /// Confirms retry, correction, cancel, replace, amend, and flatten remain forbidden.
     #[arg(long)]
     pub confirm_no_retry: bool,
+}
+
+/// Owner-approved v0.16 production signing material approval artifact options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationSigningApprovalOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.15 production live-alpha request preview JSON input.
+    #[arg(long)]
+    pub request_preview: PathBuf,
+    /// Approval state: pending, approved, expired, or revoked.
+    #[arg(long, default_value = "pending")]
+    pub approval_state: String,
+    /// Optional owner approval identifier for approved/expired/revoked states.
+    #[arg(long)]
+    pub manual_approval_id: Option<String>,
+    /// Optional owner/operator name for approved/expired/revoked states.
+    #[arg(long)]
+    pub approved_by: Option<String>,
+    /// Deterministic current time in milliseconds for lifecycle evaluation.
+    #[arg(long)]
+    pub now_unix_ms: u64,
+    /// Signing approval expiry in milliseconds.
+    #[arg(long)]
+    pub expires_at_unix_ms: u64,
+    /// v0.16 signing approval JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for production signing approval artifact creation.
+    #[arg(long)]
+    pub allow_production_mutation_signing_approval: bool,
+    /// Confirms owner approved production_live_alpha signing material for this candidate.
+    #[arg(long)]
+    pub confirm_owner_approved_signing_material: bool,
+    /// Confirms signing material remains env-only and is not stored.
+    #[arg(long)]
+    pub confirm_env_only_signing_material: bool,
+    /// Confirms signatures and signed queries remain memory-only.
+    #[arg(long)]
+    pub confirm_memory_only_signing: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+    /// Confirms no network request is allowed by this approval artifact.
+    #[arg(long)]
+    pub confirm_no_network: bool,
+    /// Confirms no production order submission is allowed by this approval artifact.
+    #[arg(long)]
+    pub confirm_no_production_order_submission: bool,
+    /// Confirms no production order mutation is allowed by this approval artifact.
+    #[arg(long)]
+    pub confirm_no_production_order_mutation: bool,
+    /// Confirms Dashboard order controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms listenKey lifecycle remains forbidden.
+    #[arg(long)]
+    pub confirm_no_listen_key_lifecycle: bool,
 }
 
 /// Hypothetical live-alpha risk preflight options.
@@ -2066,6 +2130,8 @@ mod tests {
             "runs/v160/request-preview.json",
             "--kill-switch-runtime-gate",
             "runs/v160/kill-switch-runtime-gate.json",
+            "--signing-approval",
+            "runs/v160/signing-approval.json",
             "--output",
             "runs/v160/production-mutation-runtime-gate.json",
             "--max-notional",
@@ -2104,6 +2170,10 @@ mod tests {
             PathBuf::from("runs/v160/kill-switch-runtime-gate.json")
         );
         assert_eq!(
+            gate.signing_approval,
+            Some(PathBuf::from("runs/v160/signing-approval.json"))
+        );
+        assert_eq!(
             gate.output,
             PathBuf::from("runs/v160/production-mutation-runtime-gate.json")
         );
@@ -2117,6 +2187,77 @@ mod tests {
         assert!(gate.confirm_dashboard_order_controls_disabled);
         assert!(gate.confirm_no_listen_key_lifecycle);
         assert!(gate.confirm_no_retry);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_signing_approval_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-signing-approval",
+            "--run-id",
+            "v160-signing-approval",
+            "--request-preview",
+            "runs/v160/request-preview.json",
+            "--approval-state",
+            "approved",
+            "--manual-approval-id",
+            "owner-approval-v160-003",
+            "--approved-by",
+            "owner",
+            "--now-unix-ms",
+            "1718400000000",
+            "--expires-at-unix-ms",
+            "1718400060000",
+            "--output",
+            "runs/v160/signing-approval.json",
+            "--allow-production-mutation-signing-approval",
+            "--confirm-owner-approved-signing-material",
+            "--confirm-env-only-signing-material",
+            "--confirm-memory-only-signing",
+            "--confirm-no-secret-persistence",
+            "--confirm-no-network",
+            "--confirm-no-production-order-submission",
+            "--confirm-no-production-order-mutation",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-listen-key-lifecycle",
+        ])
+        .expect("live production-mutation-signing-approval should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationSigningApproval(approval) = live.command else {
+            panic!("expected production-mutation-signing-approval command");
+        };
+
+        assert_eq!(approval.run_id, "v160-signing-approval");
+        assert_eq!(
+            approval.request_preview,
+            PathBuf::from("runs/v160/request-preview.json")
+        );
+        assert_eq!(approval.approval_state, "approved");
+        assert_eq!(
+            approval.manual_approval_id.as_deref(),
+            Some("owner-approval-v160-003")
+        );
+        assert_eq!(approval.approved_by.as_deref(), Some("owner"));
+        assert_eq!(approval.now_unix_ms, 1_718_400_000_000);
+        assert_eq!(approval.expires_at_unix_ms, 1_718_400_060_000);
+        assert_eq!(
+            approval.output,
+            PathBuf::from("runs/v160/signing-approval.json")
+        );
+        assert!(approval.allow_production_mutation_signing_approval);
+        assert!(approval.confirm_owner_approved_signing_material);
+        assert!(approval.confirm_env_only_signing_material);
+        assert!(approval.confirm_memory_only_signing);
+        assert!(approval.confirm_no_secret_persistence);
+        assert!(approval.confirm_no_network);
+        assert!(approval.confirm_no_production_order_submission);
+        assert!(approval.confirm_no_production_order_mutation);
+        assert!(approval.confirm_dashboard_order_controls_disabled);
+        assert!(approval.confirm_no_listen_key_lifecycle);
     }
 
     #[test]
