@@ -303,6 +303,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   rollback, and emergency-stop artifact contract. It defines evidence-only
   artifacts and rejects automatic remediation, production cancel/correction/
   retry, real exchange mutation, networking, and production adapter calls.
+- `v0_15_0_dashboard_mutation_preflight_panel.md` - V150-008 read-only
+  Dashboard panel for v0.15 live-alpha mutation preflight artifacts. It shows
+  owner approval, redacted request preview, dry-run execution, runtime gate,
+  order-state, and boundary counters without adding order/cancel/replace/
+  amend/retry/reconnect controls.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,

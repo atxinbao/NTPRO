@@ -97,12 +97,28 @@ const LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION: &str =
 const LIVE_ALPHA_RISK_PREFLIGHT_SCHEMA_VERSION: &str = "ntpro.v140_live_alpha_risk_preflight.v1";
 const PRODUCTION_ORDER_STATE_READONLY_PROOF_SCHEMA_VERSION: &str =
     "ntpro.v140_production_order_state_readonly_proof.v1";
+const LIVE_ALPHA_MANUAL_APPROVAL_LIFECYCLE_SCHEMA_VERSION: &str =
+    "ntpro.v150_live_alpha_manual_approval_lifecycle.v1";
+const LIVE_ALPHA_ORDER_REQUEST_PREVIEW_SCHEMA_VERSION: &str =
+    "ntpro.v150_live_alpha_order_request_preview.v1";
+const LIVE_ALPHA_EXECUTION_DRY_RUN_SCHEMA_VERSION: &str =
+    "ntpro.v150_live_alpha_execution_dry_run.v1";
+const LIVE_ALPHA_KILL_SWITCH_RUNTIME_GATE_SCHEMA_VERSION: &str =
+    "ntpro.v150_live_alpha_kill_switch_runtime_gate.v1";
 const LIVE_ALPHA_DRY_RUN_ORDER_GATE_ARTIFACT_RELATIVE_PATH: &str =
     "v0_14/live_alpha_dry_run_order_gate.json";
 const LIVE_ALPHA_RISK_PREFLIGHT_ARTIFACT_RELATIVE_PATH: &str =
     "v0_14/live_alpha_risk_preflight.json";
 const PRODUCTION_ORDER_STATE_READONLY_PROOF_ARTIFACT_RELATIVE_PATH: &str =
     "v0_14/production_order_state_readonly_proof.json";
+const LIVE_ALPHA_MANUAL_APPROVAL_LIFECYCLE_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_15/manual_approval_lifecycle.json";
+const LIVE_ALPHA_ORDER_REQUEST_PREVIEW_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_15/live_alpha_order_request_preview.json";
+const LIVE_ALPHA_EXECUTION_DRY_RUN_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_15/live_alpha_execution_dry_run.json";
+const LIVE_ALPHA_KILL_SWITCH_RUNTIME_GATE_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_15/kill_switch_runtime_gate.json";
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
 <html lang="zh-CN">
@@ -487,6 +503,23 @@ const DISPLAY_TEXT = {
   live_alpha_dry_run_ready: "Live Alpha dry-run 就绪",
   live_alpha_dry_run_blocked: "Live Alpha dry-run 阻断",
   live_alpha_dry_run_boundary_violation: "Live Alpha dry-run 边界异常",
+  live_alpha_mutation_preflight_ready_for_owner_review: "Live Alpha mutation preflight 可人工复核",
+  live_alpha_mutation_preflight_blocked: "Live Alpha mutation preflight 阻断",
+  live_alpha_mutation_preflight_boundary_violation: "Live Alpha mutation preflight 边界异常",
+  ready_request_preview_only: "仅请求预览就绪",
+  blocked_endpoint_or_owner_scope: "端点或 owner 范围阻断",
+  blocked_manual_approval_lifecycle: "人工审批生命周期阻断",
+  approval_valid_for_dry_run_request_preview: "审批可用于 dry-run 请求预览",
+  ready_dry_run_execution_adapter_only: "仅本地 dry-run adapter 就绪",
+  dry_run_adapter_artifact_only: "仅生成 dry-run adapter 工件",
+  ready_runtime_gate_open_for_dry_run_only: "runtime gate 仅对 dry-run 打开",
+  blocked_no_runtime_mutation: "阻断 runtime mutation",
+  blocked_kill_switch_active: "kill switch 已激活",
+  blocked_missing_manual_approval: "缺少人工审批",
+  blocked_request_preview: "请求预览未就绪",
+  allow_request_preview_only: "仅允许请求预览",
+  production_mutation_owner_approved_manual_only: "生产 mutation 候选，需 owner 人工审批",
+  created_in_memory_not_recorded: "仅内存创建，未记录",
   ready_dry_run_no_submission: "Dry-run 就绪，无真实提交",
   blocked_missing_gate: "缺少 owner gate",
   production_live_alpha_dry_run: "生产 Live Alpha dry-run",
@@ -960,6 +993,10 @@ function renderLiveAlphaDryRun(items) {
           <th>就绪</th>
           <th>Dry-run Gate</th>
           <th>风控预检</th>
+          <th>人工审批</th>
+          <th>请求预览</th>
+          <th>执行 Dry-run</th>
+          <th>Runtime Gate</th>
           <th>Order State</th>
           <th>Reconciliation</th>
           <th>只读边界</th>
@@ -973,6 +1010,10 @@ function renderLiveAlphaDryRun(items) {
             <td data-label="就绪"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div></td>
             <td data-label="Dry-run Gate">${panelRow("状态", snapshotValue(item.gate_status))}${panelRow("Gate ready", snapshotValue(item.gate_ready))}${panelRow("Intent", snapshotValue(item.dry_run_order_intent_recorded))}${panelRow("模式", snapshotValue(item.order_submission_mode))}${panelRow("缺失 gate", snapshotValue(item.missing_gate_flags))}</td>
             <td data-label="风控预检">${panelRow("状态", snapshotValue(item.risk_preflight_status))}${panelRow("风控干跑", snapshotValue(item.risk_decision))}${panelRow("执行决策", snapshotValue(item.execution_decision))}${panelRow("原因", snapshotValue(item.risk_reasons))}${panelRow("Kill switch", snapshotValue(item.kill_switch_active))}</td>
+            <td data-label="人工审批">${panelRow("状态", snapshotValue(item.manual_approval_status))}${panelRow("审批状态", snapshotValue(item.manual_approval_state))}${panelRow("已记录", snapshotValue(item.manual_approval_recorded))}${panelRow("有效", snapshotValue(item.manual_approval_valid))}${panelRow("问题", snapshotValue(item.manual_approval_issues))}${panelRow("一次性", snapshotValue(item.manual_approval_one_time))}${panelRow("已使用", snapshotValue(item.manual_approval_used))}${panelRow("过期时间", snapshotValue(item.manual_approval_expires_at_unix_ms))}</td>
+            <td data-label="请求预览">${panelRow("状态", snapshotValue(item.request_preview_status))}${panelRow("允许预览", snapshotValue(item.request_preview_allowed))}${panelRow("已构建", snapshotValue(item.request_preview_built))}${panelRow("已发送", snapshotValue(item.request_sent))}${panelRow("方法", snapshotValue(item.request_method))}${panelRow("目标", snapshotValue(item.request_target))}${panelRow("端点类型", snapshotValue(item.endpoint_class))}${panelRow("端点决策", snapshotValue(item.endpoint_decision))}${panelRow("Query shape", snapshotValue(item.query_shape_without_signature))}${panelRow("签名预检", snapshotValue(item.signature_preflight))}${panelRow("密钥脱敏", snapshotValue(item.secrets_redacted))}${panelRow("签名仅内存", snapshotValue(item.signed_request_memory_only))}</td>
+            <td data-label="执行 Dry-run">${panelRow("状态", snapshotValue(item.execution_dry_run_status))}${panelRow("Dry-run adapter", snapshotValue(item.dry_run_execution_adapter_called))}${panelRow("写入工件", snapshotValue(item.dry_run_execution_adapter_wrote_artifact))}${panelRow("仅工件", snapshotValue(item.dry_run_adapter_artifact_only))}${panelRow("生产 adapter", snapshotValue(item.production_adapter_called))}${panelRow("实例化生产 adapter", snapshotValue(item.production_adapter_instantiated))}${panelRow("Intent 已记录", snapshotValue(item.strategy_intent_recorded))}${panelRow("到达风控", snapshotValue(item.strategy_intent_reaches_risk_preflight))}${panelRow("到达 dry-run", snapshotValue(item.strategy_intent_reaches_dry_run_adapter))}${panelRow("到达生产 adapter", snapshotValue(item.strategy_intent_reaches_production_adapter))}</td>
+            <td data-label="Runtime Gate">${panelRow("状态", snapshotValue(item.kill_switch_runtime_gate_status))}${panelRow("决策", snapshotValue(item.runtime_gate_decision))}${panelRow("Gate open", snapshotValue(item.runtime_gate_open))}${panelRow("原因", snapshotValue(item.runtime_gate_reasons))}</td>
             <td data-label="Order State">${panelRow("可读", snapshotValue(item.order_state_readable))}${panelRow("读取状态", snapshotValue(item.order_state_read_status))}${panelRow("端点", snapshotValue(item.order_state_endpoint))}${panelRow("网络尝试", snapshotValue(item.order_state_network_attempted))}${panelRow("读取尝试", snapshotValue(item.order_state_read_attempted))}${panelRow("Shape", snapshotValue(item.order_state_shape_validated))}${panelRow("Open orders", snapshotValue(item.open_order_count))}${panelRow("非空订单", snapshotValue(item.non_empty_order_state_observed))}${panelRow("生命周期", snapshotValue(item.order_lifecycle_readiness))}${panelRow("真值来源", snapshotValue(item.order_state_truth_source))}${panelRow("Age", snapshotValue(item.order_state_age_ms))}${panelRow("Max age", snapshotValue(item.max_order_state_age_ms))}${panelRow("Max open", snapshotValue(item.max_open_orders))}</td>
             <td data-label="Reconciliation">${panelRow("状态", snapshotValue(item.reconciliation_status))}${panelRow("提交允许", snapshotValue(item.production_order_submission_allowed))}${panelRow("变更允许", snapshotValue(item.production_order_mutation_allowed))}${panelRow("状态读取允许", snapshotValue(item.production_order_state_reads_allowed))}${panelRow("listenKey允许", snapshotValue(item.listen_key_lifecycle_allowed))}</td>
             <td data-label="只读边界">${panelRow("提交尝试", snapshotValue(item.production_order_submissions_attempted))}${panelRow("生产提交", snapshotValue(item.production_orders_submitted))}${panelRow("生产变更", snapshotValue(item.production_order_mutations_attempted))}${panelRow("状态读取尝试", snapshotValue(item.production_order_state_reads_attempted))}${panelRow("listenKey尝试", snapshotValue(item.listen_key_lifecycle_attempted))}${panelRow("撤改尝试", snapshotValue(item.cancel_replace_amend_attempted))}${panelRow("Execution adapter", snapshotValue(item.execution_adapter_called))}${panelRow("订单端点", snapshotValue(item.order_endpoint_access_attempted))}${panelRow("撮合提交", snapshotValue(item.matching_engine_submission))}${panelRow("实际提交", snapshotValue(item.actual_submission_count))}${panelRow("自动纠错", snapshotValue(item.automatic_correction_orders_submitted))}${panelRow("Dashboard 下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("网络尝试", snapshotValue(item.network_attempted))}${panelRow("真实订单", snapshotValue(item.real_orders_submitted))}${panelRow("真实资金", snapshotValue(item.real_funds))}${panelRow("生产交易", snapshotValue(item.production_trading_enabled))}${panelRow("订单状态真值", snapshotValue(item.order_state_values_are_exchange_truth))}${panelRow("Shadow 真值", snapshotValue(item.shadow_values_are_exchange_truth))}${panelRow("Portfolio 真值", snapshotValue(item.portfolio_values_are_exchange_truth))}${panelRow("兼容真值", snapshotValue(item.values_are_exchange_truth))}</td>
@@ -980,6 +1021,10 @@ function renderLiveAlphaDryRun(items) {
               ${panelRow("gate", snapshotValue(item.order_gate_path))}
               ${panelRow("risk", snapshotValue(item.risk_preflight_path))}
               ${panelRow("order-state", snapshotValue(item.order_state_proof_path))}
+              ${panelRow("approval", snapshotValue(item.manual_approval_lifecycle_path))}
+              ${panelRow("request-preview", snapshotValue(item.request_preview_path))}
+              ${panelRow("execution-dry-run", snapshotValue(item.execution_dry_run_path))}
+              ${panelRow("runtime-gate", snapshotValue(item.kill_switch_runtime_gate_path))}
             </td>
           </tr>
         `).join("")}
@@ -2661,6 +2706,40 @@ pub struct LiveAlphaDryRunStatus {
     pub execution_decision: DashboardValue<String>,
     pub risk_reasons: DashboardValue<String>,
     pub kill_switch_active: DashboardValue<bool>,
+    pub manual_approval_status: DashboardValue<String>,
+    pub manual_approval_state: DashboardValue<String>,
+    pub manual_approval_valid: DashboardValue<bool>,
+    pub manual_approval_issues: DashboardValue<String>,
+    pub manual_approval_recorded: DashboardValue<bool>,
+    pub manual_approval_one_time: DashboardValue<bool>,
+    pub manual_approval_used: DashboardValue<bool>,
+    pub manual_approval_expires_at_unix_ms: DashboardValue<u64>,
+    pub request_preview_status: DashboardValue<String>,
+    pub request_preview_allowed: DashboardValue<bool>,
+    pub request_preview_built: DashboardValue<bool>,
+    pub request_sent: DashboardValue<bool>,
+    pub request_method: DashboardValue<String>,
+    pub request_target: DashboardValue<String>,
+    pub endpoint_class: DashboardValue<String>,
+    pub endpoint_decision: DashboardValue<String>,
+    pub query_shape_without_signature: DashboardValue<String>,
+    pub signature_preflight: DashboardValue<String>,
+    pub secrets_redacted: DashboardValue<bool>,
+    pub signed_request_memory_only: DashboardValue<bool>,
+    pub execution_dry_run_status: DashboardValue<String>,
+    pub dry_run_execution_adapter_called: DashboardValue<bool>,
+    pub dry_run_execution_adapter_wrote_artifact: DashboardValue<bool>,
+    pub dry_run_adapter_artifact_only: DashboardValue<bool>,
+    pub production_adapter_called: DashboardValue<bool>,
+    pub production_adapter_instantiated: DashboardValue<bool>,
+    pub strategy_intent_recorded: DashboardValue<bool>,
+    pub strategy_intent_reaches_risk_preflight: DashboardValue<bool>,
+    pub strategy_intent_reaches_dry_run_adapter: DashboardValue<bool>,
+    pub strategy_intent_reaches_production_adapter: DashboardValue<bool>,
+    pub kill_switch_runtime_gate_status: DashboardValue<String>,
+    pub runtime_gate_decision: DashboardValue<String>,
+    pub runtime_gate_open: DashboardValue<bool>,
+    pub runtime_gate_reasons: DashboardValue<String>,
     pub order_state_readable: DashboardValue<bool>,
     pub order_state_read_status: DashboardValue<String>,
     pub order_state_endpoint: DashboardValue<String>,
@@ -2702,6 +2781,10 @@ pub struct LiveAlphaDryRunStatus {
     pub order_gate_path: DashboardValue<String>,
     pub risk_preflight_path: DashboardValue<String>,
     pub order_state_proof_path: DashboardValue<String>,
+    pub manual_approval_lifecycle_path: DashboardValue<String>,
+    pub request_preview_path: DashboardValue<String>,
+    pub execution_dry_run_path: DashboardValue<String>,
+    pub kill_switch_runtime_gate_path: DashboardValue<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -4462,6 +4545,10 @@ struct LiveAlphaDryRunArtifactPaths {
     order_gate_path: PathBuf,
     risk_preflight_path: PathBuf,
     order_state_proof_path: PathBuf,
+    manual_approval_lifecycle_path: PathBuf,
+    request_preview_path: PathBuf,
+    execution_dry_run_path: PathBuf,
+    kill_switch_runtime_gate_path: PathBuf,
 }
 
 impl LiveAlphaDryRunArtifactPaths {
@@ -4476,6 +4563,18 @@ impl LiveAlphaDryRunArtifactPaths {
             order_state_proof_path: record
                 .artifact_root
                 .join(PRODUCTION_ORDER_STATE_READONLY_PROOF_ARTIFACT_RELATIVE_PATH),
+            manual_approval_lifecycle_path: record
+                .artifact_root
+                .join(LIVE_ALPHA_MANUAL_APPROVAL_LIFECYCLE_ARTIFACT_RELATIVE_PATH),
+            request_preview_path: record
+                .artifact_root
+                .join(LIVE_ALPHA_ORDER_REQUEST_PREVIEW_ARTIFACT_RELATIVE_PATH),
+            execution_dry_run_path: record
+                .artifact_root
+                .join(LIVE_ALPHA_EXECUTION_DRY_RUN_ARTIFACT_RELATIVE_PATH),
+            kill_switch_runtime_gate_path: record
+                .artifact_root
+                .join(LIVE_ALPHA_KILL_SWITCH_RUNTIME_GATE_ARTIFACT_RELATIVE_PATH),
         }
     }
 
@@ -4483,6 +4582,10 @@ impl LiveAlphaDryRunArtifactPaths {
         self.order_gate_path.exists()
             || self.risk_preflight_path.exists()
             || self.order_state_proof_path.exists()
+            || self.manual_approval_lifecycle_path.exists()
+            || self.request_preview_path.exists()
+            || self.execution_dry_run_path.exists()
+            || self.kill_switch_runtime_gate_path.exists()
     }
 }
 
@@ -4495,14 +4598,48 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
     let order_gate = read_json_file_value(&paths.order_gate_path);
     let risk_preflight = read_json_file_value(&paths.risk_preflight_path);
     let order_state_proof = read_json_file_value(&paths.order_state_proof_path);
-    let gate_schema_ok =
-        artifact_schema_matches(&order_gate, LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION);
-    let risk_schema_ok =
-        artifact_schema_matches(&risk_preflight, LIVE_ALPHA_RISK_PREFLIGHT_SCHEMA_VERSION);
+    let manual_approval_lifecycle = read_json_file_value(&paths.manual_approval_lifecycle_path);
+    let request_preview = read_json_file_value(&paths.request_preview_path);
+    let execution_dry_run = read_json_file_value(&paths.execution_dry_run_path);
+    let kill_switch_runtime_gate = read_json_file_value(&paths.kill_switch_runtime_gate_path);
+    let has_v15_artifact = manual_approval_lifecycle.is_some()
+        || request_preview.is_some()
+        || execution_dry_run.is_some()
+        || kill_switch_runtime_gate.is_some();
+    let gate_schema_ok = order_gate.as_ref().is_none_or(|_| {
+        artifact_schema_matches(&order_gate, LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION)
+    });
+    let risk_schema_ok = risk_preflight.as_ref().is_none_or(|_| {
+        artifact_schema_matches(&risk_preflight, LIVE_ALPHA_RISK_PREFLIGHT_SCHEMA_VERSION)
+    });
     let order_state_schema_ok = order_state_proof.as_ref().is_none_or(|_| {
         artifact_schema_matches(
             &order_state_proof,
             PRODUCTION_ORDER_STATE_READONLY_PROOF_SCHEMA_VERSION,
+        )
+    });
+    let manual_approval_schema_ok = manual_approval_lifecycle.as_ref().is_none_or(|_| {
+        artifact_schema_matches(
+            &manual_approval_lifecycle,
+            LIVE_ALPHA_MANUAL_APPROVAL_LIFECYCLE_SCHEMA_VERSION,
+        )
+    });
+    let request_preview_schema_ok = request_preview.as_ref().is_none_or(|_| {
+        artifact_schema_matches(
+            &request_preview,
+            LIVE_ALPHA_ORDER_REQUEST_PREVIEW_SCHEMA_VERSION,
+        )
+    });
+    let execution_dry_run_schema_ok = execution_dry_run.as_ref().is_none_or(|_| {
+        artifact_schema_matches(
+            &execution_dry_run,
+            LIVE_ALPHA_EXECUTION_DRY_RUN_SCHEMA_VERSION,
+        )
+    });
+    let kill_switch_runtime_gate_schema_ok = kill_switch_runtime_gate.as_ref().is_none_or(|_| {
+        artifact_schema_matches(
+            &kill_switch_runtime_gate,
+            LIVE_ALPHA_KILL_SWITCH_RUNTIME_GATE_SCHEMA_VERSION,
         )
     });
     let gate_status = order_gate
@@ -4567,12 +4704,275 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
         .map_or_else(DashboardValue::unknown, |value| {
             json_string_field(value, "risk_decision")
         });
-    let execution_decision = risk_preflight
+    let execution_decision = first_available_string_from_values([
+        execution_dry_run
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "execution_decision")
+            }),
+        risk_preflight
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "execution_decision")
+            }),
+    ]);
+    let manual_approval_status = manual_approval_lifecycle
         .as_ref()
         .map_or_else(DashboardValue::unknown, |value| {
-            json_string_field(value, "execution_decision")
+            json_string_field(value, "status")
+        });
+    let manual_approval_state = first_available_string_from_values([
+        request_preview
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "manual_approval_lifecycle_state")
+            }),
+        manual_approval_lifecycle
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "approval_state")
+            }),
+    ]);
+    let manual_approval_valid = first_available_bool_from_values([
+        request_preview
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "manual_approval_lifecycle_valid")
+            }),
+        manual_approval_lifecycle
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "approval_lifecycle_valid")
+            }),
+    ]);
+    let manual_approval_issues = first_available_string_from_values([
+        request_preview
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_array_field(value, "manual_approval_lifecycle_issues")
+            }),
+        manual_approval_lifecycle
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_array_field(value, "approval_lifecycle_issues")
+            }),
+    ]);
+    let manual_approval_recorded = manual_approval_lifecycle
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "manual_approval_recorded")
+        });
+    let manual_approval_one_time = first_available_bool_from_values([
+        request_preview
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "manual_approval_one_time")
+            }),
+        manual_approval_lifecycle
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "one_time_approval")
+            }),
+    ]);
+    let manual_approval_used = first_available_bool_from_values([
+        request_preview
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "manual_approval_used")
+            }),
+        manual_approval_lifecycle
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "approval_used")
+            }),
+    ]);
+    let manual_approval_expires_at_unix_ms = first_available_u64_from_values([
+        request_preview
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_u64_field(value, "manual_approval_expires_at_unix_ms")
+            }),
+        manual_approval_lifecycle
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_u64_field(value, "expires_at_unix_ms")
+            }),
+    ]);
+    let request_preview_status = request_preview
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let request_preview_allowed = request_preview
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "request_preview_allowed")
+        });
+    let request_preview_built = first_available_bool_from_values([
+        request_preview
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "request_preview_built")
+            }),
+        kill_switch_runtime_gate
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "request_preview_built")
+            }),
+        execution_dry_run
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "request_preview_built")
+            }),
+    ]);
+    let request_sent = first_available_bool_from_values([
+        request_preview
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "request_sent")
+            }),
+        kill_switch_runtime_gate
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "request_sent")
+            }),
+        execution_dry_run
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "request_sent")
+            }),
+    ]);
+    let request_method = request_preview
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "request_method")
+        });
+    let request_target = request_preview
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "request_target")
+        });
+    let endpoint_class = request_preview
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "endpoint_class")
+        });
+    let endpoint_decision = request_preview
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "endpoint_decision")
+        });
+    let query_shape_without_signature = request_preview
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "query_shape_without_signature")
+        });
+    let signature_preflight = request_preview
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "signature_preflight")
+        });
+    let secrets_redacted = request_preview
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "secrets_redacted")
+        });
+    let signed_request_memory_only = request_preview
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "signed_request_memory_only")
+        });
+    let execution_dry_run_status = execution_dry_run
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let dry_run_execution_adapter_called = execution_dry_run
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "dry_run_execution_adapter_called")
+        });
+    let dry_run_execution_adapter_wrote_artifact = execution_dry_run
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "dry_run_execution_adapter_wrote_artifact")
+        });
+    let dry_run_adapter_artifact_only = execution_dry_run
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "dry_run_adapter_artifact_only")
+        });
+    let production_adapter_called = execution_dry_run
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "production_adapter_called")
+        });
+    let production_adapter_instantiated = execution_dry_run
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "production_adapter_instantiated")
+        });
+    let strategy_intent_recorded = execution_dry_run
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "strategy_intent_recorded")
+        });
+    let strategy_intent_reaches_risk_preflight = execution_dry_run
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "strategy_intent_reaches_risk_preflight")
+        });
+    let strategy_intent_reaches_dry_run_adapter = execution_dry_run
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "strategy_intent_reaches_dry_run_adapter")
+        });
+    let strategy_intent_reaches_production_adapter = execution_dry_run
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "strategy_intent_reaches_production_adapter")
+        });
+    let kill_switch_runtime_gate_status = kill_switch_runtime_gate
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let runtime_gate_decision = kill_switch_runtime_gate
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "runtime_gate_decision")
+        });
+    let runtime_gate_open = kill_switch_runtime_gate
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "runtime_gate_open")
+        });
+    let runtime_gate_reasons = kill_switch_runtime_gate
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_array_field(value, "runtime_gate_reasons")
         });
     let production_order_submission_allowed = first_available_bool_from_values([
+        execution_dry_run
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "production_order_submission_allowed")
+            }),
+        request_preview
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "production_order_submission_allowed")
+            }),
+        kill_switch_runtime_gate
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "production_order_submission_allowed")
+            }),
+        manual_approval_lifecycle
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "production_order_submission_allowed")
+            }),
         risk_preflight
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -4585,6 +4985,26 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
             }),
     ]);
     let production_order_mutation_allowed = first_available_bool_from_values([
+        execution_dry_run
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "production_order_mutation_allowed")
+            }),
+        request_preview
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "production_order_mutation_allowed")
+            }),
+        kill_switch_runtime_gate
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "production_order_mutation_allowed")
+            }),
+        manual_approval_lifecycle
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "production_order_mutation_allowed")
+            }),
         risk_preflight
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -4597,6 +5017,26 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
             }),
     ]);
     let production_order_state_reads_allowed = first_available_bool_from_values([
+        execution_dry_run
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "production_order_state_reads_allowed")
+            }),
+        request_preview
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "production_order_state_reads_allowed")
+            }),
+        kill_switch_runtime_gate
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "production_order_state_reads_allowed")
+            }),
+        manual_approval_lifecycle
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "production_order_state_reads_allowed")
+            }),
         risk_preflight
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -4609,6 +5049,26 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
             }),
     ]);
     let listen_key_lifecycle_allowed = first_available_bool_from_values([
+        execution_dry_run
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "listen_key_lifecycle_allowed")
+            }),
+        request_preview
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "listen_key_lifecycle_allowed")
+            }),
+        kill_switch_runtime_gate
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "listen_key_lifecycle_allowed")
+            }),
+        manual_approval_lifecycle
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "listen_key_lifecycle_allowed")
+            }),
         risk_preflight
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -4620,85 +5080,87 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
                 json_bool_field(value, "listen_key_lifecycle_allowed")
             }),
     ]);
-    let production_order_submissions_attempted = live_alpha_first_available_u64(
+    let live_alpha_artifacts = [
+        &execution_dry_run,
+        &request_preview,
+        &kill_switch_runtime_gate,
+        &manual_approval_lifecycle,
         &risk_preflight,
         &order_gate,
+    ];
+    let production_order_submissions_attempted = live_alpha_first_available_u64_any(
+        &live_alpha_artifacts,
         "production_order_submissions_attempted",
     );
     let production_orders_submitted =
-        live_alpha_first_available_u64(&risk_preflight, &order_gate, "production_orders_submitted");
-    let production_order_mutations_attempted = live_alpha_first_available_u64(
-        &risk_preflight,
-        &order_gate,
+        live_alpha_first_available_u64_any(&live_alpha_artifacts, "production_orders_submitted");
+    let production_order_mutations_attempted = live_alpha_first_available_u64_any(
+        &live_alpha_artifacts,
         "production_order_mutations_attempted",
     );
-    let production_order_state_reads_attempted = live_alpha_first_available_u64(
-        &risk_preflight,
-        &order_gate,
+    let production_order_state_reads_attempted = live_alpha_first_available_u64_any(
+        &live_alpha_artifacts,
         "production_order_state_reads_attempted",
     );
-    let listen_key_lifecycle_attempted = live_alpha_first_available_u64(
-        &risk_preflight,
-        &order_gate,
-        "listen_key_lifecycle_attempted",
-    );
+    let listen_key_lifecycle_attempted =
+        live_alpha_first_available_u64_any(&live_alpha_artifacts, "listen_key_lifecycle_attempted");
     let actual_submission_count =
-        live_alpha_first_available_u64(&risk_preflight, &order_gate, "actual_submission_count");
-    let automatic_correction_orders_submitted = live_alpha_first_available_u64(
-        &risk_preflight,
-        &order_gate,
+        live_alpha_first_available_u64_any(&live_alpha_artifacts, "actual_submission_count");
+    let automatic_correction_orders_submitted = live_alpha_first_available_u64_any(
+        &live_alpha_artifacts,
         "automatic_correction_orders_submitted",
     );
-    let cancel_replace_amend_attempted = live_alpha_first_available_bool(
-        &risk_preflight,
-        &order_gate,
+    let cancel_replace_amend_attempted = live_alpha_first_available_bool_any(
+        &live_alpha_artifacts,
         "cancel_replace_amend_attempted",
     );
-    let order_endpoint_access_attempted = live_alpha_first_available_bool(
-        &risk_preflight,
-        &order_gate,
+    let order_endpoint_access_attempted = live_alpha_first_available_bool_any(
+        &live_alpha_artifacts,
         "order_endpoint_access_attempted",
     );
-    let execution_adapter_called =
-        live_alpha_first_available_bool(&risk_preflight, &order_gate, "execution_adapter_called");
+    let execution_adapter_called = live_alpha_first_available_bool_any(
+        &[
+            &risk_preflight,
+            &order_gate,
+            &request_preview,
+            &kill_switch_runtime_gate,
+        ],
+        "execution_adapter_called",
+    );
     let matching_engine_submission =
-        live_alpha_first_available_bool(&risk_preflight, &order_gate, "matching_engine_submission");
-    let dashboard_order_controls_enabled = live_alpha_first_available_bool(
-        &risk_preflight,
-        &order_gate,
+        live_alpha_first_available_bool_any(&live_alpha_artifacts, "matching_engine_submission");
+    let dashboard_order_controls_enabled = live_alpha_any_available_bool_any(
+        &live_alpha_artifacts,
         "dashboard_order_controls_enabled",
     );
     let network_attempted =
-        live_alpha_first_available_bool(&risk_preflight, &order_gate, "network_attempted");
+        live_alpha_first_available_bool_any(&live_alpha_artifacts, "network_attempted");
     let real_orders_submitted =
-        live_alpha_first_available_bool(&risk_preflight, &order_gate, "real_orders_submitted");
-    let real_funds = live_alpha_first_available_bool(&risk_preflight, &order_gate, "real_funds");
+        live_alpha_first_available_bool_any(&live_alpha_artifacts, "real_orders_submitted");
+    let real_funds = live_alpha_first_available_bool_any(&live_alpha_artifacts, "real_funds");
     let production_trading_enabled =
-        live_alpha_first_available_bool(&risk_preflight, &order_gate, "production_trading_enabled");
+        live_alpha_first_available_bool_any(&live_alpha_artifacts, "production_trading_enabled");
     let order_state_values_are_exchange_truth = first_available_bool_from_values([
         order_state_proof
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
                 json_bool_field(value, "order_state_values_are_exchange_truth")
             }),
-        live_alpha_first_available_bool(
-            &risk_preflight,
-            &order_gate,
+        live_alpha_first_available_bool_any(
+            &live_alpha_artifacts,
             "order_state_values_are_exchange_truth",
         ),
     ]);
-    let shadow_values_are_exchange_truth = live_alpha_first_available_bool(
-        &risk_preflight,
-        &order_gate,
+    let shadow_values_are_exchange_truth = live_alpha_first_available_bool_any(
+        &live_alpha_artifacts,
         "shadow_values_are_exchange_truth",
     );
-    let portfolio_values_are_exchange_truth = live_alpha_first_available_bool(
-        &risk_preflight,
-        &order_gate,
+    let portfolio_values_are_exchange_truth = live_alpha_first_available_bool_any(
+        &live_alpha_artifacts,
         "portfolio_values_are_exchange_truth",
     );
     let legacy_values_are_exchange_truth =
-        live_alpha_first_available_bool(&risk_preflight, &order_gate, "values_are_exchange_truth");
+        live_alpha_first_available_bool_any(&live_alpha_artifacts, "values_are_exchange_truth");
     let values_are_exchange_truth = any_available_bool_from_values([
         order_state_values_are_exchange_truth.clone(),
         shadow_values_are_exchange_truth.clone(),
@@ -4707,11 +5169,22 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
     ]);
     let order_state_proof_boundary_violation =
         order_state_readonly_proof_boundary_violation(&order_state_proof, order_state_schema_ok);
+    let live_alpha_v15_boundary_violation = live_alpha_v15_boundary_violation(
+        &manual_approval_lifecycle,
+        &request_preview,
+        &execution_dry_run,
+        &kill_switch_runtime_gate,
+    );
 
     let boundary_violation = !gate_schema_ok
         || !risk_schema_ok
         || !order_state_schema_ok
+        || !manual_approval_schema_ok
+        || !request_preview_schema_ok
+        || !execution_dry_run_schema_ok
+        || !kill_switch_runtime_gate_schema_ok
         || order_state_proof_boundary_violation
+        || live_alpha_v15_boundary_violation
         || dashboard_u64_gt_zero(&production_order_submissions_attempted)
         || dashboard_u64_gt_zero(&production_orders_submitted)
         || dashboard_u64_gt_zero(&production_order_mutations_attempted)
@@ -4734,15 +5207,40 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
         || production_trading_enabled.value == Some(true)
         || shadow_values_are_exchange_truth.value == Some(true)
         || portfolio_values_are_exchange_truth.value == Some(true);
-    let ready = gate_ready.value == Some(true)
+    let ready_v14 = gate_ready.value == Some(true)
         && risk_decision.value.as_deref() == Some("dry_run_approved")
         && execution_decision.value.as_deref() == Some("blocked_no_production_mutation");
-    let readiness_status = if boundary_violation {
-        "live_alpha_dry_run_boundary_violation"
-    } else if ready {
-        "live_alpha_dry_run_ready"
+    let ready_v15 = manual_approval_valid.value == Some(true)
+        && request_preview_built.value == Some(true)
+        && request_sent.value == Some(false)
+        && runtime_gate_open.value == Some(true)
+        && dry_run_execution_adapter_called.value == Some(true)
+        && production_adapter_called.value == Some(false)
+        && production_adapter_instantiated.value == Some(false)
+        && strategy_intent_reaches_production_adapter.value == Some(false);
+    let ready = if has_v15_artifact {
+        ready_v15
     } else {
-        "live_alpha_dry_run_blocked"
+        ready_v14
+    };
+    let readiness_status = if boundary_violation {
+        if has_v15_artifact {
+            "live_alpha_mutation_preflight_boundary_violation"
+        } else {
+            "live_alpha_dry_run_boundary_violation"
+        }
+    } else if ready {
+        if has_v15_artifact {
+            "live_alpha_mutation_preflight_ready_for_owner_review"
+        } else {
+            "live_alpha_dry_run_ready"
+        }
+    } else {
+        if has_v15_artifact {
+            "live_alpha_mutation_preflight_blocked"
+        } else {
+            "live_alpha_dry_run_blocked"
+        }
     };
 
     Some(LiveAlphaDryRunStatus {
@@ -4761,6 +5259,10 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
                 gate_schema_ok,
                 risk_schema_ok,
                 order_state_schema_ok,
+                manual_approval_schema_ok,
+                request_preview_schema_ok,
+                execution_dry_run_schema_ok,
+                kill_switch_runtime_gate_schema_ok,
             },
             boundary_violation,
             readiness_status,
@@ -4786,11 +5288,52 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
             .map_or_else(DashboardValue::unknown, |value| {
                 json_string_array_field(value, "reasons")
             }),
-        kill_switch_active: risk_preflight
-            .as_ref()
-            .map_or_else(DashboardValue::unknown, |value| {
-                json_bool_field(value, "kill_switch_active")
-            }),
+        kill_switch_active: first_available_bool_from_values([
+            kill_switch_runtime_gate
+                .as_ref()
+                .map_or_else(DashboardValue::unknown, |value| {
+                    json_bool_field(value, "kill_switch_active")
+                }),
+            risk_preflight
+                .as_ref()
+                .map_or_else(DashboardValue::unknown, |value| {
+                    json_bool_field(value, "kill_switch_active")
+                }),
+        ]),
+        manual_approval_status,
+        manual_approval_state,
+        manual_approval_valid,
+        manual_approval_issues,
+        manual_approval_recorded,
+        manual_approval_one_time,
+        manual_approval_used,
+        manual_approval_expires_at_unix_ms,
+        request_preview_status,
+        request_preview_allowed,
+        request_preview_built,
+        request_sent,
+        request_method,
+        request_target,
+        endpoint_class,
+        endpoint_decision,
+        query_shape_without_signature,
+        signature_preflight,
+        secrets_redacted,
+        signed_request_memory_only,
+        execution_dry_run_status,
+        dry_run_execution_adapter_called,
+        dry_run_execution_adapter_wrote_artifact,
+        dry_run_adapter_artifact_only,
+        production_adapter_called,
+        production_adapter_instantiated,
+        strategy_intent_recorded,
+        strategy_intent_reaches_risk_preflight,
+        strategy_intent_reaches_dry_run_adapter,
+        strategy_intent_reaches_production_adapter,
+        kill_switch_runtime_gate_status,
+        runtime_gate_decision,
+        runtime_gate_open,
+        runtime_gate_reasons,
         order_state_readable: first_available_bool_from_values([
             order_state_shape_validated.clone(),
             risk_preflight
@@ -4869,6 +5412,14 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
         order_gate_path: dashboard_path_if_exists(&paths.order_gate_path),
         risk_preflight_path: dashboard_path_if_exists(&paths.risk_preflight_path),
         order_state_proof_path: dashboard_path_if_exists(&paths.order_state_proof_path),
+        manual_approval_lifecycle_path: dashboard_path_if_exists(
+            &paths.manual_approval_lifecycle_path,
+        ),
+        request_preview_path: dashboard_path_if_exists(&paths.request_preview_path),
+        execution_dry_run_path: dashboard_path_if_exists(&paths.execution_dry_run_path),
+        kill_switch_runtime_gate_path: dashboard_path_if_exists(
+            &paths.kill_switch_runtime_gate_path,
+        ),
     })
 }
 
@@ -4924,42 +5475,100 @@ fn live_alpha_order_state_truth_source(
     DashboardValue::unknown()
 }
 
-fn live_alpha_first_available_u64(
-    risk_preflight: &Option<Value>,
-    order_gate: &Option<Value>,
+fn live_alpha_first_available_u64_any(
+    artifacts: &[&Option<Value>],
     field: &str,
 ) -> DashboardValue<u64> {
-    first_available_u64_from_values([
-        risk_preflight
+    first_available_u64_from_values(artifacts.iter().map(|artifact| {
+        artifact
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
                 json_u64_field(value, field)
-            }),
-        order_gate
-            .as_ref()
-            .map_or_else(DashboardValue::unknown, |value| {
-                json_u64_field(value, field)
-            }),
-    ])
+            })
+    }))
 }
 
-fn live_alpha_first_available_bool(
-    risk_preflight: &Option<Value>,
-    order_gate: &Option<Value>,
+fn live_alpha_first_available_bool_any(
+    artifacts: &[&Option<Value>],
     field: &str,
 ) -> DashboardValue<bool> {
-    first_available_bool_from_values([
-        risk_preflight
+    first_available_bool_from_values(artifacts.iter().map(|artifact| {
+        artifact
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
                 json_bool_field(value, field)
-            }),
-        order_gate
+            })
+    }))
+}
+
+fn live_alpha_any_available_bool_any(
+    artifacts: &[&Option<Value>],
+    field: &str,
+) -> DashboardValue<bool> {
+    any_available_bool_from_values(artifacts.iter().map(|artifact| {
+        artifact
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
                 json_bool_field(value, field)
-            }),
-    ])
+            })
+    }))
+}
+
+fn live_alpha_v15_boundary_violation(
+    manual_approval_lifecycle: &Option<Value>,
+    request_preview: &Option<Value>,
+    execution_dry_run: &Option<Value>,
+    kill_switch_runtime_gate: &Option<Value>,
+) -> bool {
+    let artifacts = [
+        manual_approval_lifecycle,
+        request_preview,
+        execution_dry_run,
+        kill_switch_runtime_gate,
+    ];
+    let required_zero_fields = [
+        "production_order_submissions_attempted",
+        "production_orders_submitted",
+        "production_order_mutations_attempted",
+        "production_order_state_reads_attempted",
+        "listen_key_lifecycle_attempted",
+        "actual_submission_count",
+        "automatic_correction_orders_submitted",
+    ];
+    let required_false_fields = [
+        "production_order_submission_allowed",
+        "production_order_mutation_allowed",
+        "production_order_state_reads_allowed",
+        "listen_key_lifecycle_allowed",
+        "request_sent",
+        "order_endpoint_access_attempted",
+        "execution_adapter_called",
+        "real_execution_adapter_called",
+        "production_adapter_instantiated",
+        "production_adapter_called",
+        "strategy_intent_reaches_production_adapter",
+        "cancel_replace_amend_attempted",
+        "matching_engine_submission",
+        "dashboard_order_controls_enabled",
+        "network_attempted",
+        "real_orders_submitted",
+        "real_funds",
+        "production_trading_enabled",
+        "shadow_values_are_exchange_truth",
+        "portfolio_values_are_exchange_truth",
+        "values_are_exchange_truth",
+    ];
+    artifacts
+        .into_iter()
+        .filter_map(Option::as_ref)
+        .any(|artifact| {
+            required_zero_fields
+                .iter()
+                .any(|field| artifact.get(field).and_then(Value::as_u64).unwrap_or(0) > 0)
+                || required_false_fields
+                    .iter()
+                    .any(|field| json_bool(artifact, field))
+        })
 }
 
 fn live_alpha_missing_gate_flags(
@@ -4989,6 +5598,10 @@ struct LiveAlphaSchemaHealth {
     gate_schema_ok: bool,
     risk_schema_ok: bool,
     order_state_schema_ok: bool,
+    manual_approval_schema_ok: bool,
+    request_preview_schema_ok: bool,
+    execution_dry_run_schema_ok: bool,
+    kill_switch_runtime_gate_schema_ok: bool,
 }
 
 fn live_alpha_diagnostic(
@@ -5008,6 +5621,26 @@ fn live_alpha_diagnostic(
     if !schema_health.order_state_schema_ok {
         return DashboardValue::available(
             "live_alpha_order_state_readonly_proof_schema_invalid".to_string(),
+        );
+    }
+    if !schema_health.manual_approval_schema_ok {
+        return DashboardValue::available(
+            "live_alpha_manual_approval_lifecycle_schema_invalid".to_string(),
+        );
+    }
+    if !schema_health.request_preview_schema_ok {
+        return DashboardValue::available(
+            "live_alpha_order_request_preview_schema_invalid".to_string(),
+        );
+    }
+    if !schema_health.execution_dry_run_schema_ok {
+        return DashboardValue::available(
+            "live_alpha_execution_dry_run_schema_invalid".to_string(),
+        );
+    }
+    if !schema_health.kill_switch_runtime_gate_schema_ok {
+        return DashboardValue::available(
+            "live_alpha_kill_switch_runtime_gate_schema_invalid".to_string(),
         );
     }
     if boundary_violation {
@@ -7091,6 +7724,15 @@ fn first_available_bool_from_values(
         .unwrap_or_else(DashboardValue::unknown)
 }
 
+fn first_available_string_from_values(
+    values: impl IntoIterator<Item = DashboardValue<String>>,
+) -> DashboardValue<String> {
+    values
+        .into_iter()
+        .find(|value| value.availability == DashboardAvailability::Available)
+        .unwrap_or_else(DashboardValue::unknown)
+}
+
 fn dashboard_string_available(value: &DashboardValue<String>) -> bool {
     value.availability == DashboardAvailability::Available && value.value.is_some()
 }
@@ -9166,6 +9808,214 @@ mod tests {
     }
 
     #[test]
+    fn live_alpha_v15_dashboard_mutation_preflight_panel_is_readonly() {
+        let root = temp_root("live-alpha-v15-mutation-preflight");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "live-alpha-v15-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_live_alpha_dry_run_artifacts(&record);
+        write_live_alpha_order_state_readonly_proof_artifact(&record);
+        write_live_alpha_v15_mutation_preflight_artifacts(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-22T02:10:00Z").unwrap();
+
+        assert_eq!(snapshot.live_alpha_dry_run.len(), 1);
+        let item = &snapshot.live_alpha_dry_run[0];
+        assert_eq!(item.node_id, "live-alpha-v15-a");
+        assert_eq!(item.health, HealthStatus::Healthy);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("live_alpha_mutation_preflight_ready_for_owner_review")
+        );
+        assert_eq!(
+            item.manual_approval_state.value.as_deref(),
+            Some("approved")
+        );
+        assert_eq!(item.manual_approval_valid.value, Some(true));
+        assert_eq!(item.manual_approval_recorded.value, Some(true));
+        assert_eq!(item.manual_approval_one_time.value, Some(true));
+        assert_eq!(item.manual_approval_used.value, Some(false));
+        assert_eq!(
+            item.manual_approval_issues.availability,
+            DashboardAvailability::Unknown
+        );
+        assert_eq!(
+            item.request_preview_status.value.as_deref(),
+            Some("ready_request_preview_only")
+        );
+        assert_eq!(item.request_preview_allowed.value, Some(true));
+        assert_eq!(item.request_preview_built.value, Some(true));
+        assert_eq!(item.request_sent.value, Some(false));
+        assert_eq!(item.request_method.value.as_deref(), Some("POST"));
+        assert_eq!(item.request_target.value.as_deref(), Some("/api/v3/order"));
+        assert_eq!(
+            item.endpoint_class.value.as_deref(),
+            Some("production_mutation_owner_approved_manual_only")
+        );
+        assert_eq!(
+            item.endpoint_decision.value.as_deref(),
+            Some("allow_request_preview_only")
+        );
+        assert_eq!(
+            item.query_shape_without_signature.value.as_deref(),
+            Some("symbol&side&type&timeInForce&quantity&price&recvWindow&timestamp")
+        );
+        assert_eq!(
+            item.signature_preflight.value.as_deref(),
+            Some("created_in_memory_not_recorded")
+        );
+        assert_eq!(item.secrets_redacted.value, Some(true));
+        assert_eq!(item.signed_request_memory_only.value, Some(true));
+        assert_eq!(
+            item.execution_dry_run_status.value.as_deref(),
+            Some("ready_dry_run_execution_adapter_only")
+        );
+        assert_eq!(item.dry_run_execution_adapter_called.value, Some(true));
+        assert_eq!(
+            item.dry_run_execution_adapter_wrote_artifact.value,
+            Some(true)
+        );
+        assert_eq!(item.dry_run_adapter_artifact_only.value, Some(true));
+        assert_eq!(item.production_adapter_called.value, Some(false));
+        assert_eq!(item.production_adapter_instantiated.value, Some(false));
+        assert_eq!(item.strategy_intent_recorded.value, Some(true));
+        assert_eq!(
+            item.strategy_intent_reaches_risk_preflight.value,
+            Some(true)
+        );
+        assert_eq!(
+            item.strategy_intent_reaches_dry_run_adapter.value,
+            Some(true)
+        );
+        assert_eq!(
+            item.strategy_intent_reaches_production_adapter.value,
+            Some(false)
+        );
+        assert_eq!(
+            item.kill_switch_runtime_gate_status.value.as_deref(),
+            Some("ready_runtime_gate_open_for_dry_run_only")
+        );
+        assert_eq!(
+            item.runtime_gate_decision.value.as_deref(),
+            Some("dry_run_runtime_gate_open")
+        );
+        assert_eq!(item.runtime_gate_open.value, Some(true));
+        assert_eq!(
+            item.runtime_gate_reasons.availability,
+            DashboardAvailability::Unknown
+        );
+        assert_eq!(item.kill_switch_active.value, Some(false));
+        assert_eq!(item.production_order_submission_allowed.value, Some(false));
+        assert_eq!(item.production_order_mutation_allowed.value, Some(false));
+        assert_eq!(item.production_order_submissions_attempted.value, Some(0));
+        assert_eq!(item.production_orders_submitted.value, Some(0));
+        assert_eq!(item.production_order_mutations_attempted.value, Some(0));
+        assert_eq!(item.dashboard_order_controls_enabled.value, Some(false));
+        assert_eq!(item.network_attempted.value, Some(false));
+        assert_eq!(item.real_orders_submitted.value, Some(false));
+        assert_eq!(item.real_funds.value, Some(false));
+        assert_eq!(item.production_trading_enabled.value, Some(false));
+        assert!(
+            item.manual_approval_lifecycle_path
+                .value
+                .as_deref()
+                .is_some_and(|path| path.ends_with("v0_15/manual_approval_lifecycle.json"))
+        );
+        assert!(
+            item.request_preview_path
+                .value
+                .as_deref()
+                .is_some_and(|path| path.ends_with("v0_15/live_alpha_order_request_preview.json"))
+        );
+        assert!(
+            item.execution_dry_run_path
+                .value
+                .as_deref()
+                .is_some_and(|path| path.ends_with("v0_15/live_alpha_execution_dry_run.json"))
+        );
+        assert!(
+            item.kill_switch_runtime_gate_path
+                .value
+                .as_deref()
+                .is_some_and(|path| path.ends_with("v0_15/kill_switch_runtime_gate.json"))
+        );
+
+        let live_alpha_renderer = dashboard_js_function_body("renderLiveAlphaDryRun");
+        for forbidden in [
+            "<button",
+            "data-dashboard-action",
+            "撤单",
+            "改单",
+            "重试",
+            "重连",
+        ] {
+            assert!(
+                !live_alpha_renderer.contains(forbidden),
+                "live-alpha renderer must stay read-only and not contain {forbidden}"
+            );
+        }
+        assert!(live_alpha_renderer.contains("请求预览"));
+        assert!(live_alpha_renderer.contains("人工审批"));
+        assert!(live_alpha_renderer.contains("Runtime Gate"));
+        assert!(live_alpha_renderer.contains("执行 Dry-run"));
+    }
+
+    #[test]
+    fn live_alpha_v15_dashboard_control_attempt_trace_is_blocked() {
+        let root = temp_root("live-alpha-v15-control-trace-blocked");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "live-alpha-v15-b");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_live_alpha_dry_run_artifacts(&record);
+        write_live_alpha_v15_mutation_preflight_artifacts(&record);
+        let request_preview_path = record
+            .artifact_root
+            .join(LIVE_ALPHA_ORDER_REQUEST_PREVIEW_ARTIFACT_RELATIVE_PATH);
+        let mut request_preview: Value =
+            serde_json::from_str(&fs::read_to_string(&request_preview_path).unwrap()).unwrap();
+        request_preview["request_sent"] = json!(true);
+        request_preview["dashboard_order_controls_enabled"] = json!(true);
+        fs::write(
+            &request_preview_path,
+            serde_json::to_string_pretty(&request_preview).unwrap(),
+        )
+        .unwrap();
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-22T02:15:00Z").unwrap();
+
+        assert_eq!(snapshot.live_alpha_dry_run.len(), 1);
+        let item = &snapshot.live_alpha_dry_run[0];
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("live_alpha_mutation_preflight_boundary_violation")
+        );
+        assert_eq!(
+            item.diagnostic.value.as_deref(),
+            Some("live_alpha_dry_run_readonly_boundary_violation")
+        );
+        assert_eq!(item.request_sent.value, Some(true));
+        assert_eq!(item.dashboard_order_controls_enabled.value, Some(true));
+        assert_eq!(item.production_orders_submitted.value, Some(0));
+        assert_eq!(item.production_order_mutations_attempted.value, Some(0));
+        assert_eq!(item.production_adapter_called.value, Some(false));
+    }
+
+    #[test]
     fn live_alpha_dry_run_boundary_violation_degrades_dashboard_panel() {
         let root = temp_root("live-alpha-dry-run-boundary");
         let registry_path = root.join("registry.json");
@@ -10882,6 +11732,203 @@ mod tests {
             risk_preflight_json,
         )
         .unwrap();
+    }
+
+    fn write_live_alpha_v15_mutation_preflight_artifacts(record: &SupervisorNodeRecord) {
+        let root = record.artifact_root.join("v0_15");
+        fs::create_dir_all(&root).unwrap();
+        let manual_approval_json = r#"{
+  "schema_version": "__MANUAL_APPROVAL_SCHEMA__",
+  "status": "approval_valid_for_dry_run_request_preview",
+  "run_id": "v150-live-alpha-request-preview",
+  "strategy_id": "ema_cross_btcusdt_v1",
+  "symbol": "BTCUSDT",
+  "notional": "10.00",
+  "approval_state": "approved",
+  "manual_approval_recorded": true,
+  "manual_approval_id": "owner-approval-v150-008",
+  "approved_by": "owner",
+  "approval_lifecycle_valid": true,
+  "approval_lifecycle_issues": [],
+  "one_time_approval": true,
+  "approval_used": false,
+  "now_unix_ms": 1718400000000,
+  "expires_at_unix_ms": 1718400060000,
+  "dry_run_request_preview_only": true,
+  "production_order_submission_allowed": false,
+  "production_order_mutation_allowed": false,
+  "production_order_submissions_attempted": 0,
+  "production_orders_submitted": 0,
+  "production_order_mutations_attempted": 0,
+  "listen_key_lifecycle_attempted": 0,
+  "dashboard_order_controls_enabled": false,
+  "network_attempted": false,
+  "real_orders_submitted": false,
+  "real_funds": false,
+  "production_trading_enabled": false,
+  "values_are_exchange_truth": false
+}
+"#
+        .replace(
+            "__MANUAL_APPROVAL_SCHEMA__",
+            LIVE_ALPHA_MANUAL_APPROVAL_LIFECYCLE_SCHEMA_VERSION,
+        );
+        fs::write(
+            root.join("manual_approval_lifecycle.json"),
+            manual_approval_json,
+        )
+        .unwrap();
+
+        let request_preview_json = r#"{
+  "schema_version": "__REQUEST_PREVIEW_SCHEMA__",
+  "status": "ready_request_preview_only",
+  "run_id": "v150-live-alpha-request-preview",
+  "artifact_type": "live_alpha_order_request_preview",
+  "endpoint_class": "production_mutation_owner_approved_manual_only",
+  "endpoint_decision": "allow_request_preview_only",
+  "request_method": "POST",
+  "request_target": "/api/v3/order",
+  "query_shape_without_signature": "symbol&side&type&timeInForce&quantity&price&recvWindow&timestamp",
+  "signature_preflight": "created_in_memory_not_recorded",
+  "api_key_header_value_recorded": false,
+  "api_secret_value_recorded": false,
+  "signature_recorded": false,
+  "signed_query_recorded": false,
+  "signed_url_recorded": false,
+  "request_body_recorded": false,
+  "raw_request_body_recorded": false,
+  "manual_approval_lifecycle_status": "approval_valid_for_dry_run_request_preview",
+  "manual_approval_lifecycle_state": "approved",
+  "manual_approval_lifecycle_valid": true,
+  "manual_approval_lifecycle_issues": [],
+  "manual_approval_one_time": true,
+  "manual_approval_used": false,
+  "manual_approval_expires_at_unix_ms": 1718400060000,
+  "order_gate_ready": true,
+  "request_preview_allowed": true,
+  "request_preview_built": true,
+  "request_sent": false,
+  "production_order_submission_allowed": false,
+  "production_order_mutation_allowed": false,
+  "production_order_submissions_attempted": 0,
+  "production_orders_submitted": 0,
+  "production_order_mutations_attempted": 0,
+  "order_endpoint_access_attempted": false,
+  "execution_adapter_called": false,
+  "production_adapter_called": false,
+  "network_attempted": false,
+  "dashboard_order_controls_enabled": false,
+  "real_orders_submitted": false,
+  "real_funds": false,
+  "production_trading_enabled": false,
+  "signed_request_memory_only": true,
+  "secrets_redacted": true,
+  "values_are_exchange_truth": false
+}
+"#
+        .replace(
+            "__REQUEST_PREVIEW_SCHEMA__",
+            LIVE_ALPHA_ORDER_REQUEST_PREVIEW_SCHEMA_VERSION,
+        );
+        fs::write(
+            root.join("live_alpha_order_request_preview.json"),
+            request_preview_json,
+        )
+        .unwrap();
+
+        let runtime_gate_json = r#"{
+  "schema_version": "__RUNTIME_GATE_SCHEMA__",
+  "status": "ready_runtime_gate_open_for_dry_run_only",
+  "runtime_gate_decision": "dry_run_runtime_gate_open",
+  "runtime_gate_open": true,
+  "runtime_gate_reasons": [],
+  "kill_switch_active": false,
+  "manual_approval_recorded": true,
+  "approval_state": "approved",
+  "manual_approval_id": "owner-approval-v150-008",
+  "request_preview_status": "ready_request_preview_only",
+  "request_preview_built": true,
+  "request_sent": false,
+  "production_order_submission_allowed": false,
+  "production_order_mutation_allowed": false,
+  "production_order_submissions_attempted": 0,
+  "production_orders_submitted": 0,
+  "production_order_mutations_attempted": 0,
+  "dashboard_order_controls_enabled": false,
+  "network_attempted": false,
+  "real_orders_submitted": false,
+  "real_funds": false,
+  "production_trading_enabled": false,
+  "values_are_exchange_truth": false
+}
+"#
+        .replace(
+            "__RUNTIME_GATE_SCHEMA__",
+            LIVE_ALPHA_KILL_SWITCH_RUNTIME_GATE_SCHEMA_VERSION,
+        );
+        fs::write(
+            root.join("kill_switch_runtime_gate.json"),
+            runtime_gate_json,
+        )
+        .unwrap();
+
+        let execution_dry_run_json = r#"{
+  "schema_version": "__EXECUTION_DRY_RUN_SCHEMA__",
+  "status": "ready_dry_run_execution_adapter_only",
+  "execution_decision": "dry_run_adapter_artifact_only",
+  "dry_run_execution_adapter_called": true,
+  "dry_run_execution_adapter_wrote_artifact": true,
+  "dry_run_adapter_artifact_only": true,
+  "real_execution_adapter_called": false,
+  "production_adapter_instantiated": false,
+  "production_adapter_called": false,
+  "strategy_intent_recorded": true,
+  "strategy_intent_reaches_risk_preflight": true,
+  "strategy_intent_reaches_dry_run_adapter": true,
+  "strategy_intent_reaches_production_adapter": false,
+  "source_artifact_issues": [],
+  "missing_cli_flags": [],
+  "order_gate_ready": true,
+  "risk_preflight_decision": "dry_run_approved",
+  "request_preview_built": true,
+  "request_sent": false,
+  "kill_switch_runtime_gate_status": "ready_runtime_gate_open_for_dry_run_only",
+  "kill_switch_runtime_gate_open": true,
+  "production_order_submission_allowed": false,
+  "production_order_mutation_allowed": false,
+  "production_order_submissions_attempted": 0,
+  "production_orders_submitted": 0,
+  "production_order_mutations_attempted": 0,
+  "order_endpoint_access_attempted": false,
+  "network_attempted": false,
+  "dashboard_order_controls_enabled": false,
+  "real_orders_submitted": false,
+  "real_funds": false,
+  "production_trading_enabled": false,
+  "values_are_exchange_truth": false
+}
+"#
+        .replace(
+            "__EXECUTION_DRY_RUN_SCHEMA__",
+            LIVE_ALPHA_EXECUTION_DRY_RUN_SCHEMA_VERSION,
+        );
+        fs::write(
+            root.join("live_alpha_execution_dry_run.json"),
+            execution_dry_run_json,
+        )
+        .unwrap();
+    }
+
+    fn dashboard_js_function_body(function_name: &str) -> &str {
+        let needle = format!("function {function_name}");
+        let start = DASHBOARD_JS
+            .find(&needle)
+            .expect("dashboard function must exist");
+        let after_start = start + needle.len();
+        let end = DASHBOARD_JS[after_start..]
+            .find("\nfunction ")
+            .map_or(DASHBOARD_JS.len(), |offset| after_start + offset);
+        &DASHBOARD_JS[start..end]
     }
 
     fn write_live_alpha_order_state_readonly_proof_artifact(record: &SupervisorNodeRecord) {
