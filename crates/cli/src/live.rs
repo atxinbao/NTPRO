@@ -42,15 +42,15 @@ use tokio::time::{sleep, timeout};
 
 use crate::{
     artifacts::{atomic_write_json, atomic_write_text},
-    endpoint_classifier::{EndpointAuthKind, EndpointClassifier},
+    endpoint_classifier::{EndpointAuthKind, EndpointClassifier, EndpointDecision},
     opt::{
         LiveCommand, LiveOpt, LiveProductionAccountSnapshotContractOpt,
         LiveProductionKillSwitchApprovalArtifactOpt, LiveProductionLiveAlphaDryRunOrderGateOpt,
-        LiveProductionLiveAlphaRiskPreflightOpt, LiveProductionOrderStateReadOnlyProofOpt,
-        LiveProductionPublicReadProbeOpt, LiveProductionReadonlyReconciliationOpt,
-        LiveProductionShadowPortfolioRuntimeOpt, LiveProductionShadowPreflightSessionOpt,
-        LiveProductionShadowStrategySessionOpt, LiveRunOpt,
-        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveProductionLiveAlphaOrderRequestPreviewOpt, LiveProductionLiveAlphaRiskPreflightOpt,
+        LiveProductionOrderStateReadOnlyProofOpt, LiveProductionPublicReadProbeOpt,
+        LiveProductionReadonlyReconciliationOpt, LiveProductionShadowPortfolioRuntimeOpt,
+        LiveProductionShadowPreflightSessionOpt, LiveProductionShadowStrategySessionOpt,
+        LiveRunOpt, LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
         LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
         ProductionOrderStateReadEndpoint, ProductionPublicReadEndpoint,
@@ -130,6 +130,8 @@ const PRODUCTION_ORDER_STATE_ENV_MANUAL_ONLINE: &str = "NTPRO_V14_MANUAL_ONLINE"
 const PRODUCTION_ORDER_STATE_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 const PRODUCTION_LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION: &str =
     "ntpro.v140_live_alpha_dry_run_order_gate.v1";
+const PRODUCTION_LIVE_ALPHA_ORDER_REQUEST_PREVIEW_SCHEMA_VERSION: &str =
+    "ntpro.v150_live_alpha_order_request_preview.v1";
 const PRODUCTION_LIVE_ALPHA_RISK_PREFLIGHT_INPUT_SCHEMA_VERSION: &str =
     "ntpro.v140_live_alpha_risk_preflight_input.v1";
 const PRODUCTION_LIVE_ALPHA_RISK_PREFLIGHT_REPORT_SCHEMA_VERSION: &str =
@@ -479,6 +481,67 @@ impl EnvOnlyProductionReadCredentials {
             if body.contains(secret_value) {
                 anyhow::bail!(
                     "production account snapshot redaction guard blocked secret value leak in {label}"
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
+struct EnvOnlyProductionMutationPreviewCredentials {
+    api_key_env: String,
+    api_secret_env: String,
+    api_key_value: Option<String>,
+    api_secret_value: Option<String>,
+    sensitive_values: Vec<String>,
+}
+
+impl EnvOnlyProductionMutationPreviewCredentials {
+    fn from_values(
+        api_key_env: String,
+        api_key_value: Option<String>,
+        api_secret_env: String,
+        api_secret_value: Option<String>,
+    ) -> Self {
+        let sensitive_values = [api_key_value.as_ref(), api_secret_value.as_ref()]
+            .into_iter()
+            .flatten()
+            .filter(|value| !value.is_empty())
+            .cloned()
+            .collect();
+
+        Self {
+            api_key_env,
+            api_secret_env,
+            api_key_value,
+            api_secret_value,
+            sensitive_values,
+        }
+    }
+
+    fn signing_credential(&self) -> anyhow::Result<SigningCredential> {
+        let api_key = self
+            .api_key_value
+            .as_deref()
+            .filter(|value| !value.is_empty())
+            .context("production live-alpha request preview requires API key env value")?;
+        let api_secret = self
+            .api_secret_value
+            .as_deref()
+            .filter(|value| !value.is_empty())
+            .context("production live-alpha request preview requires API secret env value")?;
+
+        Ok(SigningCredential::new(
+            api_key.to_string(),
+            api_secret.to_string(),
+        ))
+    }
+
+    fn ensure_no_secret_values_absent(&self, label: &str, body: &str) -> anyhow::Result<()> {
+        for secret_value in &self.sensitive_values {
+            if body.contains(secret_value) {
+                anyhow::bail!(
+                    "production live-alpha request preview redaction guard blocked secret value leak in {label}"
                 );
             }
         }
@@ -1117,6 +1180,88 @@ struct ProductionLiveAlphaDryRunOrderGateArtifact {
     no_production_order_submission_confirmed: bool,
     no_production_order_mutation_confirmed: bool,
     no_execution_adapter_call_confirmed: bool,
+    no_listen_key_lifecycle_confirmed: bool,
+    dashboard_controls_disabled_confirmed: bool,
+    no_real_funds_confirmed: bool,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionLiveAlphaOrderRequestPreviewArtifact {
+    schema_version: String,
+    run_id: String,
+    session_id: String,
+    strategy_id: String,
+    source_order_gate_path: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    endpoint_class: String,
+    endpoint_decision: String,
+    endpoint_reason: String,
+    endpoint_url_redacted: String,
+    request_method: String,
+    request_target: String,
+    query_shape_without_signature: String,
+    signature_preflight: String,
+    symbol: String,
+    side: String,
+    order_type: String,
+    quantity: String,
+    price: String,
+    time_in_force: String,
+    notional: String,
+    recv_window_ms: u64,
+    timestamp_recorded: bool,
+    timestamp_shape: String,
+    api_key_env: String,
+    api_secret_env: String,
+    api_key_header_name: String,
+    api_key_header_value_recorded: bool,
+    api_secret_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    request_body_recorded: bool,
+    raw_request_body_recorded: bool,
+    owner_gate_required: bool,
+    manual_gate_required: bool,
+    missing_cli_flags: Vec<String>,
+    missing_env_vars: Vec<String>,
+    order_gate_ready: bool,
+    request_preview_allowed: bool,
+    request_preview_built: bool,
+    request_sent: bool,
+    order_submission_mode: String,
+    production_order_submission_allowed: bool,
+    production_order_mutation_allowed: bool,
+    production_order_state_reads_allowed: bool,
+    listen_key_lifecycle_allowed: bool,
+    production_order_submissions_attempted: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    production_order_state_reads_attempted: u64,
+    listen_key_lifecycle_attempted: u64,
+    cancel_replace_amend_attempted: bool,
+    order_endpoint_access_attempted: bool,
+    execution_adapter_called: bool,
+    production_adapter_called: bool,
+    matching_engine_submission: bool,
+    actual_submission_count: u64,
+    automatic_correction_orders_submitted: u64,
+    dashboard_order_controls_enabled: bool,
+    external_venue_connection: bool,
+    network_attempted: bool,
+    real_orders_submitted: bool,
+    real_funds: bool,
+    production_trading_enabled: bool,
+    signed_request_memory_only: bool,
+    secrets_redacted: bool,
+    no_production_order_submission_confirmed: bool,
+    no_production_order_mutation_confirmed: bool,
+    no_execution_adapter_call_confirmed: bool,
+    no_network_confirmed: bool,
     no_listen_key_lifecycle_confirmed: bool,
     dashboard_controls_disabled_confirmed: bool,
     no_real_funds_confirmed: bool,
@@ -1926,6 +2071,58 @@ impl TestnetSignedOrderRequest {
     }
 }
 
+struct ProductionLiveAlphaSignedOrderRequestPreview {
+    method: String,
+    endpoint_path: String,
+    endpoint_url_redacted: String,
+    query_without_signature: String,
+    signature: String,
+    signed_query: String,
+    api_key_header_name: String,
+    api_key_header_value: String,
+}
+
+impl Debug for ProductionLiveAlphaSignedOrderRequestPreview {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProductionLiveAlphaSignedOrderRequestPreview")
+            .field("method", &self.method)
+            .field("endpoint_path", &self.endpoint_path)
+            .field("endpoint_url_redacted", &self.endpoint_url_redacted)
+            .field("query_without_signature", &"<memory-only-redacted>")
+            .field("signature", &"<memory-only-redacted>")
+            .field("signed_query", &"<memory-only-redacted>")
+            .field("api_key_header_name", &self.api_key_header_name)
+            .field("api_key_header_value", &"<redacted>")
+            .finish()
+    }
+}
+
+impl ProductionLiveAlphaSignedOrderRequestPreview {
+    fn ensure_memory_only_redacted(
+        &self,
+        credentials: &EnvOnlyProductionMutationPreviewCredentials,
+    ) -> anyhow::Result<()> {
+        let body = format!("{self:?}");
+        credentials
+            .ensure_no_secret_values_absent("production-live-alpha-request-preview", &body)?;
+        for (label, sensitive_value) in [
+            (
+                "query without signature",
+                self.query_without_signature.as_str(),
+            ),
+            ("signature", self.signature.as_str()),
+            ("signed query", self.signed_query.as_str()),
+            ("API key header value", self.api_key_header_value.as_str()),
+        ] {
+            if !sensitive_value.is_empty() && body.contains(sensitive_value) {
+                anyhow::bail!("production live-alpha request preview leaked {label}");
+            }
+        }
+        Ok(())
+    }
+}
+
 pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
     match opt.command {
         LiveCommand::Validate(validate) => run_live_validate(&validate),
@@ -1957,6 +2154,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         }
         LiveCommand::ProductionLiveAlphaDryRunOrderGate(gate) => {
             run_live_production_live_alpha_dry_run_order_gate(&gate)
+        }
+        LiveCommand::ProductionLiveAlphaOrderRequestPreview(preview) => {
+            run_live_production_live_alpha_order_request_preview(&preview)
         }
         LiveCommand::ProductionLiveAlphaRiskPreflight(preflight) => {
             run_live_production_live_alpha_risk_preflight(&preflight)
@@ -2085,6 +2285,40 @@ fn run_live_production_live_alpha_dry_run_order_gate(
         artifact.run_id,
         opt.output.display(),
         artifact.dry_run_order_gate_ready,
+    );
+    Ok(())
+}
+
+fn run_live_production_live_alpha_order_request_preview(
+    opt: &LiveProductionLiveAlphaOrderRequestPreviewOpt,
+) -> anyhow::Result<()> {
+    run_live_production_live_alpha_order_request_preview_with_env(opt, |name| {
+        std::env::var(name).ok()
+    })
+}
+
+fn run_live_production_live_alpha_order_request_preview_with_env<F>(
+    opt: &LiveProductionLiveAlphaOrderRequestPreviewOpt,
+    mut read_env: F,
+) -> anyhow::Result<()>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    let credentials = EnvOnlyProductionMutationPreviewCredentials::from_values(
+        opt.api_key_env.clone(),
+        read_env(&opt.api_key_env),
+        opt.api_secret_env.clone(),
+        read_env(&opt.api_secret_env),
+    );
+    let artifact = build_production_live_alpha_order_request_preview_artifact(opt, &credentials)?;
+    write_production_live_alpha_order_request_preview_report(&opt.output, &artifact, &credentials)?;
+
+    println!(
+        "live.production_live_alpha_order_request_preview status={} run_id={} output={} request_preview_built={} request_sent=false production_orders_submitted=0 production_order_mutations_attempted=0 execution_adapter_called=false network_attempted=false dashboard_order_controls_enabled=false",
+        artifact.status,
+        artifact.run_id,
+        opt.output.display(),
+        artifact.request_preview_built,
     );
     Ok(())
 }
@@ -4499,6 +4733,197 @@ fn build_production_live_alpha_dry_run_order_gate_artifact(
     })
 }
 
+fn build_production_live_alpha_order_request_preview_artifact(
+    opt: &LiveProductionLiveAlphaOrderRequestPreviewOpt,
+    credentials: &EnvOnlyProductionMutationPreviewCredentials,
+) -> anyhow::Result<ProductionLiveAlphaOrderRequestPreviewArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+    validate_positive_decimal_string("price", &opt.price)?;
+    if opt.recv_window_ms == 0 {
+        anyhow::bail!("production live-alpha request preview recvWindow must be positive");
+    }
+    if opt.timestamp_ms == 0 {
+        anyhow::bail!("production live-alpha request preview timestamp_ms must be positive");
+    }
+
+    let endpoint_path = normalize_production_live_alpha_order_endpoint_path(&opt.endpoint_path)?;
+    let time_in_force = opt.time_in_force.trim().to_ascii_uppercase();
+    if time_in_force != "GTC" {
+        anyhow::bail!("production live-alpha request preview only supports GTC time-in-force");
+    }
+
+    let order_gate = load_json_value(&opt.order_gate, "live-alpha dry-run order gate")?;
+    let order_gate_schema = required_json_string(&order_gate, "schema_version")?;
+    if order_gate_schema != PRODUCTION_LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION {
+        let required_schema = PRODUCTION_LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION;
+        anyhow::bail!(
+            "production live-alpha request preview requires {required_schema} order gate, got {order_gate_schema}"
+        );
+    }
+
+    let session_id = required_json_string(&order_gate, "session_id")?;
+    let strategy_id = required_json_string(&order_gate, "strategy_id")?;
+    let symbol = required_json_string(&order_gate, "symbol")?;
+    let side = required_json_string(&order_gate, "side")?.to_ascii_uppercase();
+    let order_type = required_json_string(&order_gate, "order_type")?.to_ascii_uppercase();
+    let quantity = required_json_string(&order_gate, "quantity")?;
+    let notional = required_json_string(&order_gate, "notional")?;
+    validate_non_empty("session_id", &session_id)?;
+    validate_non_empty("strategy_id", &strategy_id)?;
+    validate_non_empty("symbol", &symbol)?;
+    validate_positive_decimal_string("quantity", &quantity)?;
+    validate_positive_decimal_string("notional", &notional)?;
+    if !matches!(side.as_str(), "BUY" | "SELL") {
+        anyhow::bail!("production live-alpha request preview side must be BUY or SELL");
+    }
+    if order_type != "LIMIT" {
+        anyhow::bail!("production live-alpha request preview only supports LIMIT order gates");
+    }
+
+    let missing_cli_flags = missing_production_live_alpha_order_request_preview_cli_flags(opt);
+    let missing_env_vars =
+        missing_production_live_alpha_order_request_preview_env_vars(credentials);
+    let order_gate_ready =
+        json_bool_value(&order_gate, "dry_run_order_gate_ready").unwrap_or(false);
+    let owner_manual_scope =
+        order_gate_ready && missing_cli_flags.is_empty() && missing_env_vars.is_empty();
+    let endpoint_url = format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{endpoint_path}");
+    let classified = EndpointClassifier::classify_with_context(
+        "POST",
+        &endpoint_url,
+        EndpointAuthKind::Signed,
+        owner_manual_scope,
+    );
+    let request_preview_allowed = owner_manual_scope && classified.request_preview_allowed;
+    let mut request_preview_built = false;
+    let mut signature_preflight = "skipped_blocked".to_string();
+
+    if request_preview_allowed {
+        let request = build_production_live_alpha_signed_order_request_preview(
+            &ProductionLiveAlphaOrderRequestInput {
+                endpoint_path: &endpoint_path,
+                symbol: &symbol,
+                side: &side,
+                order_type: &order_type,
+                quantity: &quantity,
+                price: opt.price.trim(),
+                time_in_force: &time_in_force,
+                recv_window_ms: opt.recv_window_ms,
+                timestamp_ms: opt.timestamp_ms,
+            },
+            credentials,
+        )?;
+        request.ensure_memory_only_redacted(credentials)?;
+        request_preview_built = true;
+        signature_preflight = "created_in_memory_not_recorded".to_string();
+    }
+
+    let status = if request_preview_built {
+        "ready_request_preview_only"
+    } else if !classified.request_preview_allowed {
+        "blocked_endpoint_or_owner_scope"
+    } else {
+        "blocked_missing_gate"
+    };
+
+    Ok(ProductionLiveAlphaOrderRequestPreviewArtifact {
+        schema_version: PRODUCTION_LIVE_ALPHA_ORDER_REQUEST_PREVIEW_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        session_id,
+        strategy_id,
+        source_order_gate_path: opt.order_gate.display().to_string(),
+        artifact_type: "live_alpha_order_request_preview".to_string(),
+        status: status.to_string(),
+        created_at: now_millis(),
+        mode: "production_live_alpha_request_preview_only".to_string(),
+        endpoint_class: classified.endpoint_class.as_str().to_string(),
+        endpoint_decision: endpoint_decision_label(classified.decision).to_string(),
+        endpoint_reason: classified.reason,
+        endpoint_url_redacted: classified.input_url_redacted,
+        request_method: "POST".to_string(),
+        request_target: endpoint_path,
+        query_shape_without_signature: production_live_alpha_order_query_shape_without_signature(),
+        signature_preflight,
+        symbol: symbol.trim().to_string(),
+        side,
+        order_type,
+        quantity: quantity.trim().to_string(),
+        price: opt.price.trim().to_string(),
+        time_in_force,
+        notional: notional.trim().to_string(),
+        recv_window_ms: opt.recv_window_ms,
+        timestamp_recorded: false,
+        timestamp_shape: "epoch_millis_present_redacted".to_string(),
+        api_key_env: credentials.api_key_env.clone(),
+        api_secret_env: credentials.api_secret_env.clone(),
+        api_key_header_name: BINANCE_API_KEY_HEADER.to_string(),
+        api_key_header_value_recorded: false,
+        api_secret_value_recorded: false,
+        signature_recorded: false,
+        signed_query_recorded: false,
+        signed_url_recorded: false,
+        request_body_recorded: false,
+        raw_request_body_recorded: false,
+        owner_gate_required: true,
+        manual_gate_required: true,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        missing_env_vars: missing_env_vars
+            .iter()
+            .map(|env| (*env).to_string())
+            .collect(),
+        order_gate_ready,
+        request_preview_allowed,
+        request_preview_built,
+        request_sent: false,
+        order_submission_mode: if request_preview_built {
+            "dry_run_request_preview_only"
+        } else {
+            "blocked_no_request_preview"
+        }
+        .to_string(),
+        production_order_submission_allowed: false,
+        production_order_mutation_allowed: false,
+        production_order_state_reads_allowed: false,
+        listen_key_lifecycle_allowed: false,
+        production_order_submissions_attempted: 0,
+        production_orders_submitted: 0,
+        production_order_mutations_attempted: 0,
+        production_order_state_reads_attempted: 0,
+        listen_key_lifecycle_attempted: 0,
+        cancel_replace_amend_attempted: false,
+        order_endpoint_access_attempted: false,
+        execution_adapter_called: false,
+        production_adapter_called: false,
+        matching_engine_submission: false,
+        actual_submission_count: 0,
+        automatic_correction_orders_submitted: 0,
+        dashboard_order_controls_enabled: false,
+        external_venue_connection: false,
+        network_attempted: false,
+        real_orders_submitted: false,
+        real_funds: false,
+        production_trading_enabled: false,
+        signed_request_memory_only: request_preview_built,
+        secrets_redacted: true,
+        no_production_order_submission_confirmed: opt.confirm_no_production_order_submission,
+        no_production_order_mutation_confirmed: opt.confirm_no_production_order_mutation,
+        no_execution_adapter_call_confirmed: opt.confirm_no_execution_adapter_call,
+        no_network_confirmed: opt.confirm_no_network,
+        no_listen_key_lifecycle_confirmed: opt.confirm_no_listen_key_lifecycle,
+        dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
+        no_real_funds_confirmed: opt.confirm_no_real_funds,
+        diagnostic: if request_preview_built {
+            "production live-alpha order request preview built as redacted metadata only; signed query, signature, signed URL, network, and adapter execution remain disabled"
+        } else {
+            "production live-alpha order request preview is blocked until dry-run gate, owner confirmations, env-only credentials, and endpoint classifier scope all pass"
+        }
+        .to_string(),
+    })
+}
+
 fn build_production_live_alpha_risk_preflight_report(
     opt: &LiveProductionLiveAlphaRiskPreflightOpt,
 ) -> anyhow::Result<ProductionLiveAlphaRiskPreflightReport> {
@@ -6710,6 +7135,105 @@ fn ensure_testnet_signed_order_request_allowed(
     }
 }
 
+struct ProductionLiveAlphaOrderRequestInput<'a> {
+    endpoint_path: &'a str,
+    symbol: &'a str,
+    side: &'a str,
+    order_type: &'a str,
+    quantity: &'a str,
+    price: &'a str,
+    time_in_force: &'a str,
+    recv_window_ms: u64,
+    timestamp_ms: u64,
+}
+
+fn build_production_live_alpha_signed_order_request_preview(
+    input: &ProductionLiveAlphaOrderRequestInput<'_>,
+    credentials: &EnvOnlyProductionMutationPreviewCredentials,
+) -> anyhow::Result<ProductionLiveAlphaSignedOrderRequestPreview> {
+    let signing_credential = credentials.signing_credential()?;
+    let query_without_signature = build_production_live_alpha_order_query(input);
+    let signature =
+        urlencoding::encode(&signing_credential.sign(&query_without_signature)).into_owned();
+    let signed_query = format!("{query_without_signature}&signature={signature}");
+    let request = ProductionLiveAlphaSignedOrderRequestPreview {
+        method: "POST".to_string(),
+        endpoint_path: input.endpoint_path.to_string(),
+        endpoint_url_redacted: format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{}", input.endpoint_path),
+        query_without_signature,
+        signature,
+        signed_query,
+        api_key_header_name: BINANCE_API_KEY_HEADER.to_string(),
+        api_key_header_value: signing_credential.api_key().to_string(),
+    };
+    request.ensure_memory_only_redacted(credentials)?;
+    Ok(request)
+}
+
+fn build_production_live_alpha_order_query(
+    input: &ProductionLiveAlphaOrderRequestInput<'_>,
+) -> String {
+    join_query_pair_vec(&[
+        ("symbol".to_string(), input.symbol.to_string()),
+        ("side".to_string(), input.side.to_string()),
+        ("type".to_string(), input.order_type.to_string()),
+        ("timeInForce".to_string(), input.time_in_force.to_string()),
+        ("quantity".to_string(), input.quantity.to_string()),
+        ("price".to_string(), input.price.to_string()),
+        ("recvWindow".to_string(), input.recv_window_ms.to_string()),
+        ("timestamp".to_string(), input.timestamp_ms.to_string()),
+    ])
+}
+
+fn production_live_alpha_order_query_shape_without_signature() -> String {
+    [
+        "symbol",
+        "side",
+        "type",
+        "timeInForce",
+        "quantity",
+        "price",
+        "recvWindow",
+        "timestamp",
+    ]
+    .join("&")
+}
+
+fn normalize_production_live_alpha_order_endpoint_path(
+    endpoint_path: &str,
+) -> anyhow::Result<String> {
+    let endpoint_path = endpoint_path.trim();
+    if endpoint_path.is_empty() {
+        anyhow::bail!("production live-alpha request preview endpoint must not be empty");
+    }
+    if endpoint_path.contains('?') {
+        anyhow::bail!(
+            "production live-alpha request preview endpoint must not include query parameters"
+        );
+    }
+    if !endpoint_path.starts_with('/') {
+        anyhow::bail!("production live-alpha request preview endpoint must start with '/'");
+    }
+    match endpoint_path {
+        TESTNET_ORDER_ENDPOINT_ORDER | TESTNET_ORDER_ENDPOINT_TEST => Ok(endpoint_path.to_string()),
+        _ => anyhow::bail!(
+            "production live-alpha request preview allowlist only includes POST /api/v3/order and POST /api/v3/order/test; got POST {endpoint_path}"
+        ),
+    }
+}
+
+fn endpoint_decision_label(decision: EndpointDecision) -> &'static str {
+    match decision {
+        EndpointDecision::AllowReadOnly => "allow_read_only",
+        EndpointDecision::AllowRequestPreviewOnly => "allow_request_preview_only",
+        EndpointDecision::Deny => "deny",
+    }
+}
+
+fn required_json_string(value: &serde_json::Value, key: &str) -> anyhow::Result<String> {
+    json_string_value(value, key).with_context(|| format!("missing or non-string JSON field {key}"))
+}
+
 fn build_testnet_signed_order_query(
     testnet_order: &StrategyNodeTestnetOrderSection,
     method: &str,
@@ -6807,6 +7331,18 @@ fn write_production_order_state_readonly_report(
     path: &Path,
     value: &ProductionOrderStateReadOnlyProofReport,
     credentials: &EnvOnlyProductionReadCredentials,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    credentials.ensure_no_secret_values_absent(&path.display().to_string(), &body)?;
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
+fn write_production_live_alpha_order_request_preview_report(
+    path: &Path,
+    value: &ProductionLiveAlphaOrderRequestPreviewArtifact,
+    credentials: &EnvOnlyProductionMutationPreviewCredentials,
 ) -> anyhow::Result<()> {
     let raw = serde_json::to_string_pretty(value)?;
     let body = format!("{raw}\n");
@@ -7056,6 +7592,64 @@ fn missing_production_live_alpha_dry_run_order_gate_cli_flags(
     }
     if !opt.confirm_no_real_funds {
         missing.push("--confirm-no-real-funds");
+    }
+    missing
+}
+
+fn missing_production_live_alpha_order_request_preview_cli_flags(
+    opt: &LiveProductionLiveAlphaOrderRequestPreviewOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_live_alpha_request_preview {
+        missing.push("--allow-production-live-alpha-request-preview");
+    }
+    if !opt.confirm_owner_approved_request_preview {
+        missing.push("--confirm-owner-approved-request-preview");
+    }
+    if !opt.confirm_memory_only_signature {
+        missing.push("--confirm-memory-only-signature");
+    }
+    if !opt.confirm_no_production_order_submission {
+        missing.push("--confirm-no-production-order-submission");
+    }
+    if !opt.confirm_no_production_order_mutation {
+        missing.push("--confirm-no-production-order-mutation");
+    }
+    if !opt.confirm_no_execution_adapter_call {
+        missing.push("--confirm-no-execution-adapter-call");
+    }
+    if !opt.confirm_no_network {
+        missing.push("--confirm-no-network");
+    }
+    if !opt.confirm_no_listen_key_lifecycle {
+        missing.push("--confirm-no-listen-key-lifecycle");
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        missing.push("--confirm-dashboard-order-controls-disabled");
+    }
+    if !opt.confirm_no_real_funds {
+        missing.push("--confirm-no-real-funds");
+    }
+    missing
+}
+
+fn missing_production_live_alpha_order_request_preview_env_vars(
+    credentials: &EnvOnlyProductionMutationPreviewCredentials,
+) -> Vec<&str> {
+    let mut missing = Vec::new();
+    if credentials
+        .api_key_value
+        .as_deref()
+        .is_none_or(|value| value.is_empty())
+    {
+        missing.push(credentials.api_key_env.as_str());
+    }
+    if credentials
+        .api_secret_value
+        .as_deref()
+        .is_none_or(|value| value.is_empty())
+    {
+        missing.push(credentials.api_secret_env.as_str());
     }
     missing
 }
@@ -8017,6 +8611,60 @@ write_summary = true
             confirm_no_production_order_submission: all_cli_gates,
             confirm_no_production_order_mutation: all_cli_gates,
             confirm_no_execution_adapter_call: all_cli_gates,
+            confirm_no_listen_key_lifecycle: all_cli_gates,
+            confirm_dashboard_order_controls_disabled: all_cli_gates,
+            confirm_no_real_funds: all_cli_gates,
+        }
+    }
+
+    fn production_live_alpha_limit_dry_run_order_gate_opt(
+        output: PathBuf,
+        all_cli_gates: bool,
+    ) -> LiveProductionLiveAlphaDryRunOrderGateOpt {
+        LiveProductionLiveAlphaDryRunOrderGateOpt {
+            run_id: "v150-live-alpha-request-preview".to_string(),
+            session_id: Some("session-v150".to_string()),
+            strategy_id: "ema_cross_btcusdt_v1".to_string(),
+            symbol: "BTCUSDT".to_string(),
+            side: "BUY".to_string(),
+            order_type: "LIMIT".to_string(),
+            quantity: "0.001".to_string(),
+            notional: "10.00".to_string(),
+            output,
+            allow_production_live_alpha_dry_run: all_cli_gates,
+            confirm_owner_approved_dry_run: all_cli_gates,
+            confirm_no_production_order_submission: all_cli_gates,
+            confirm_no_production_order_mutation: all_cli_gates,
+            confirm_no_execution_adapter_call: all_cli_gates,
+            confirm_no_listen_key_lifecycle: all_cli_gates,
+            confirm_dashboard_order_controls_disabled: all_cli_gates,
+            confirm_no_real_funds: all_cli_gates,
+        }
+    }
+
+    fn production_live_alpha_order_request_preview_opt(
+        order_gate: PathBuf,
+        output: PathBuf,
+        all_cli_gates: bool,
+    ) -> LiveProductionLiveAlphaOrderRequestPreviewOpt {
+        LiveProductionLiveAlphaOrderRequestPreviewOpt {
+            run_id: "v150-live-alpha-request-preview".to_string(),
+            order_gate,
+            endpoint_path: TESTNET_ORDER_ENDPOINT_ORDER.to_string(),
+            price: "10000.00".to_string(),
+            time_in_force: TESTNET_ORDER_GTC_TIF.to_string(),
+            timestamp_ms: 1_718_400_000_000,
+            recv_window_ms: 5_000,
+            api_key_env: "NTPRO_V150002_API_KEY".to_string(),
+            api_secret_env: "NTPRO_V150002_API_SECRET".to_string(),
+            output,
+            allow_production_live_alpha_request_preview: all_cli_gates,
+            confirm_owner_approved_request_preview: all_cli_gates,
+            confirm_memory_only_signature: all_cli_gates,
+            confirm_no_production_order_submission: all_cli_gates,
+            confirm_no_production_order_mutation: all_cli_gates,
+            confirm_no_execution_adapter_call: all_cli_gates,
+            confirm_no_network: all_cli_gates,
             confirm_no_listen_key_lifecycle: all_cli_gates,
             confirm_dashboard_order_controls_disabled: all_cli_gates,
             confirm_no_real_funds: all_cli_gates,
@@ -10682,6 +11330,121 @@ write_summary = true
         assert_eq!(artifact["real_funds"], false);
         assert_eq!(artifact["production_trading_enabled"], false);
         assert_eq!(artifact["values_are_exchange_truth"], false);
+    }
+
+    #[test]
+    fn production_live_alpha_order_request_preview_builds_redacted_metadata_only() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v150-002-request-preview-ready-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let order_gate = output_dir.join("live_alpha_dry_run_order_gate.json");
+        let output = output_dir.join("live_alpha_order_request_preview.json");
+        run_live_production_live_alpha_dry_run_order_gate(
+            &production_live_alpha_limit_dry_run_order_gate_opt(order_gate.clone(), true),
+        )
+        .unwrap();
+
+        let opt = production_live_alpha_order_request_preview_opt(order_gate, output.clone(), true);
+        run_live_production_live_alpha_order_request_preview_with_env(&opt, |name| match name {
+            "NTPRO_V150002_API_KEY" => Some("ntpro_v150002_synthetic_api_key_value".to_string()),
+            "NTPRO_V150002_API_SECRET" => {
+                Some("ntpro_v150002_synthetic_api_secret_value".to_string())
+            }
+            _ => None,
+        })
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(!body.contains("ntpro_v150002_synthetic_api_key_value"));
+        assert!(!body.contains("ntpro_v150002_synthetic_api_secret_value"));
+        assert!(!body.contains("signature="));
+        assert!(!body.contains("symbol=BTCUSDT"));
+        let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(
+            artifact["schema_version"],
+            PRODUCTION_LIVE_ALPHA_ORDER_REQUEST_PREVIEW_SCHEMA_VERSION
+        );
+        assert_eq!(artifact["status"], "ready_request_preview_only");
+        assert_eq!(
+            artifact["endpoint_class"],
+            "production_mutation_owner_approved_manual_only"
+        );
+        assert_eq!(artifact["endpoint_decision"], "allow_request_preview_only");
+        assert_eq!(artifact["request_method"], "POST");
+        assert_eq!(artifact["request_target"], TESTNET_ORDER_ENDPOINT_ORDER);
+        assert_eq!(
+            artifact["query_shape_without_signature"],
+            "symbol&side&type&timeInForce&quantity&price&recvWindow&timestamp"
+        );
+        assert_eq!(
+            artifact["signature_preflight"],
+            "created_in_memory_not_recorded"
+        );
+        assert_eq!(artifact["api_key_header_value_recorded"], false);
+        assert_eq!(artifact["api_secret_value_recorded"], false);
+        assert_eq!(artifact["signature_recorded"], false);
+        assert_eq!(artifact["signed_query_recorded"], false);
+        assert_eq!(artifact["signed_url_recorded"], false);
+        assert_eq!(artifact["request_body_recorded"], false);
+        assert_eq!(artifact["raw_request_body_recorded"], false);
+        assert_eq!(artifact["order_gate_ready"], true);
+        assert_eq!(artifact["request_preview_allowed"], true);
+        assert_eq!(artifact["request_preview_built"], true);
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["production_order_submission_allowed"], false);
+        assert_eq!(artifact["production_order_mutation_allowed"], false);
+        assert_eq!(artifact["production_order_submissions_attempted"], 0);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["order_endpoint_access_attempted"], false);
+        assert_eq!(artifact["execution_adapter_called"], false);
+        assert_eq!(artifact["production_adapter_called"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["dashboard_order_controls_enabled"], false);
+        assert_eq!(artifact["real_orders_submitted"], false);
+        assert_eq!(artifact["real_funds"], false);
+        assert_eq!(artifact["production_trading_enabled"], false);
+        assert_eq!(artifact["signed_request_memory_only"], true);
+        assert_eq!(artifact["secrets_redacted"], true);
+    }
+
+    #[test]
+    fn production_live_alpha_order_request_preview_blocks_without_owner_scope() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v150-002-request-preview-blocked-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let order_gate = output_dir.join("live_alpha_dry_run_order_gate.json");
+        let output = output_dir.join("live_alpha_order_request_preview.json");
+        run_live_production_live_alpha_dry_run_order_gate(
+            &production_live_alpha_limit_dry_run_order_gate_opt(order_gate.clone(), true),
+        )
+        .unwrap();
+
+        let opt =
+            production_live_alpha_order_request_preview_opt(order_gate, output.clone(), false);
+        run_live_production_live_alpha_order_request_preview_with_env(&opt, |_| None).unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_endpoint_or_owner_scope");
+        assert_eq!(
+            artifact["endpoint_class"],
+            "production_mutation_scope_candidate"
+        );
+        assert_eq!(artifact["endpoint_decision"], "deny");
+        assert_eq!(artifact["request_preview_allowed"], false);
+        assert_eq!(artifact["request_preview_built"], false);
+        assert_eq!(artifact["signed_request_memory_only"], false);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["execution_adapter_called"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 10);
+        assert_eq!(artifact["missing_env_vars"].as_array().unwrap().len(), 2);
     }
 
     #[test]
