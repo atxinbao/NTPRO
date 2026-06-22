@@ -27,6 +27,8 @@ mkdir -p "$OUTPUT_DIR"
 ORDER_GATE="$OUTPUT_DIR/live-alpha-order-gate.json"
 RISK_INPUT="$OUTPUT_DIR/live-alpha-risk-input.json"
 RISK_PREFLIGHT="$OUTPUT_DIR/live-alpha-risk-preflight.json"
+READY_MANUAL_APPROVAL="$OUTPUT_DIR/ready-manual-approval-lifecycle.json"
+BLOCKED_MANUAL_APPROVAL="$OUTPUT_DIR/blocked-manual-approval-lifecycle.json"
 READY_REQUEST_PREVIEW="$OUTPUT_DIR/ready-request-preview.json"
 BLOCKED_REQUEST_PREVIEW="$OUTPUT_DIR/blocked-request-preview.json"
 ACTIVE_APPROVAL="$OUTPUT_DIR/active-kill-switch-approval.json"
@@ -120,11 +122,35 @@ PY
   --confirm-no-production-order-mutation \
   --confirm-dashboard-order-controls-disabled >/dev/null
 
+write_manual_approval() {
+  local run_id="$1"
+  local output="$2"
+  "$NAUTILUS_BIN" live production-live-alpha-manual-approval-lifecycle \
+    --run-id "$run_id" \
+    --strategy-id ema_cross_btcusdt_v1 \
+    --symbol BTCUSDT \
+    --notional 10.00 \
+    --approval-state approved \
+    --manual-approval-id owner-approval-v150-005 \
+    --approved-by owner \
+    --now-unix-ms 1718400000000 \
+    --expires-at-unix-ms 1718400060000 \
+    --output "$output" \
+    --confirm-dry-run-request-preview-only \
+    --confirm-one-time-approval \
+    --confirm-no-production-mutation \
+    --confirm-dashboard-order-controls-disabled >/dev/null
+}
+
+write_manual_approval v150-kill-switch-ready-request-preview "$READY_MANUAL_APPROVAL"
+write_manual_approval v150-kill-switch-blocked-request-preview "$BLOCKED_MANUAL_APPROVAL"
+
 NTPRO_V150004_API_KEY="$SYNTHETIC_API_KEY" \
 NTPRO_V150004_API_SECRET="$SYNTHETIC_API_SECRET" \
   "$NAUTILUS_BIN" live production-live-alpha-order-request-preview \
     --run-id v150-kill-switch-ready-request-preview \
     --order-gate "$ORDER_GATE" \
+    --manual-approval-lifecycle "$READY_MANUAL_APPROVAL" \
     --endpoint-path /api/v3/order \
     --price 10000.00 \
     --time-in-force GTC \
@@ -147,6 +173,7 @@ NTPRO_V150004_API_SECRET="$SYNTHETIC_API_SECRET" \
 "$NAUTILUS_BIN" live production-live-alpha-order-request-preview \
   --run-id v150-kill-switch-blocked-request-preview \
   --order-gate "$ORDER_GATE" \
+  --manual-approval-lifecycle "$BLOCKED_MANUAL_APPROVAL" \
   --endpoint-path /api/v3/order \
   --price 10000.00 \
   --time-in-force GTC \

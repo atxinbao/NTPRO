@@ -168,6 +168,8 @@ pub enum LiveCommand {
     ProductionLiveAlphaDryRunOrderGate(LiveProductionLiveAlphaDryRunOrderGateOpt),
     /// Builds a v0.15 redacted production live-alpha order request preview; no request execution and no production mutation.
     ProductionLiveAlphaOrderRequestPreview(LiveProductionLiveAlphaOrderRequestPreviewOpt),
+    /// Writes a v0.15 one-time manual approval lifecycle artifact for request preview only; no production mutation.
+    ProductionLiveAlphaManualApprovalLifecycle(LiveProductionLiveAlphaManualApprovalLifecycleOpt),
     /// Routes live-alpha intent into a local dry-run execution adapter artifact only; no production mutation.
     ProductionLiveAlphaExecutionDryRun(LiveProductionLiveAlphaExecutionDryRunOpt),
     /// Evaluates the v0.15 kill-switch runtime gate before any dry-run mutation progression; no production mutation.
@@ -588,6 +590,9 @@ pub struct LiveProductionLiveAlphaOrderRequestPreviewOpt {
     /// v0.14/v0.15 dry-run order gate JSON input.
     #[arg(long)]
     pub order_gate: PathBuf,
+    /// v0.15 one-time manual approval lifecycle JSON input.
+    #[arg(long)]
+    pub manual_approval_lifecycle: PathBuf,
     /// Production order endpoint path to preview.
     #[arg(long, default_value = "/api/v3/order")]
     pub endpoint_path: String,
@@ -642,6 +647,53 @@ pub struct LiveProductionLiveAlphaOrderRequestPreviewOpt {
     /// Confirms no real funds or real orders are involved.
     #[arg(long)]
     pub confirm_no_real_funds: bool,
+}
+
+/// One-time manual approval lifecycle artifact options for request preview only.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionLiveAlphaManualApprovalLifecycleOpt {
+    /// Owner-visible run identifier that the approval binds to.
+    #[arg(long)]
+    pub run_id: String,
+    /// Owner-visible strategy identifier that the approval binds to.
+    #[arg(long, default_value = "ema_cross_btcusdt_v1")]
+    pub strategy_id: String,
+    /// Symbol that the approval binds to.
+    #[arg(long, default_value = "BTCUSDT")]
+    pub symbol: String,
+    /// Dry-run notional that the approval binds to.
+    #[arg(long)]
+    pub notional: String,
+    /// Manual approval state: pending, approved, expired, revoked, or used.
+    #[arg(long, default_value = "pending")]
+    pub approval_state: String,
+    /// Optional owner approval identifier for non-pending states.
+    #[arg(long)]
+    pub manual_approval_id: Option<String>,
+    /// Optional owner/operator name for non-pending states.
+    #[arg(long)]
+    pub approved_by: Option<String>,
+    /// Deterministic current time in milliseconds for lifecycle evaluation.
+    #[arg(long)]
+    pub now_unix_ms: u64,
+    /// Approval expiry in milliseconds.
+    #[arg(long)]
+    pub expires_at_unix_ms: u64,
+    /// v0.15 manual approval lifecycle JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Confirms this approval is scoped to request preview only.
+    #[arg(long)]
+    pub confirm_dry_run_request_preview_only: bool,
+    /// Confirms the approval is one-time use only.
+    #[arg(long)]
+    pub confirm_one_time_approval: bool,
+    /// Confirms no production order submission or mutation is allowed.
+    #[arg(long)]
+    pub confirm_no_production_mutation: bool,
+    /// Confirms Dashboard order controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
 }
 
 /// Owner-gated production live-alpha execution dry-run isolation options.
@@ -1672,6 +1724,8 @@ mod tests {
             "v150-request-preview",
             "--order-gate",
             "runs/v150/order-gate.json",
+            "--manual-approval-lifecycle",
+            "runs/v150/manual-approval-lifecycle.json",
             "--endpoint-path",
             "/api/v3/order",
             "--price",
@@ -1713,6 +1767,10 @@ mod tests {
             preview.order_gate,
             PathBuf::from("runs/v150/order-gate.json")
         );
+        assert_eq!(
+            preview.manual_approval_lifecycle,
+            PathBuf::from("runs/v150/manual-approval-lifecycle.json")
+        );
         assert_eq!(preview.endpoint_path, "/api/v3/order");
         assert_eq!(preview.price, "10000.00");
         assert_eq!(preview.time_in_force, "GTC");
@@ -1734,6 +1792,68 @@ mod tests {
         assert!(preview.confirm_no_listen_key_lifecycle);
         assert!(preview.confirm_dashboard_order_controls_disabled);
         assert!(preview.confirm_no_real_funds);
+    }
+
+    #[test]
+    fn parses_live_production_live_alpha_manual_approval_lifecycle_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-live-alpha-manual-approval-lifecycle",
+            "--run-id",
+            "v150-request-preview",
+            "--strategy-id",
+            "ema_cross_btcusdt_v1",
+            "--symbol",
+            "BTCUSDT",
+            "--notional",
+            "10.00",
+            "--approval-state",
+            "approved",
+            "--manual-approval-id",
+            "owner-approval-v150-005",
+            "--approved-by",
+            "owner",
+            "--now-unix-ms",
+            "1718400000000",
+            "--expires-at-unix-ms",
+            "1718400060000",
+            "--output",
+            "runs/v150/manual-approval-lifecycle.json",
+            "--confirm-dry-run-request-preview-only",
+            "--confirm-one-time-approval",
+            "--confirm-no-production-mutation",
+            "--confirm-dashboard-order-controls-disabled",
+        ])
+        .expect("live production-live-alpha-manual-approval-lifecycle should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionLiveAlphaManualApprovalLifecycle(approval) = live.command else {
+            panic!("expected production-live-alpha-manual-approval-lifecycle command");
+        };
+
+        assert_eq!(approval.run_id, "v150-request-preview");
+        assert_eq!(approval.strategy_id, "ema_cross_btcusdt_v1");
+        assert_eq!(approval.symbol, "BTCUSDT");
+        assert_eq!(approval.notional, "10.00");
+        assert_eq!(approval.approval_state, "approved");
+        assert_eq!(
+            approval.manual_approval_id.as_deref(),
+            Some("owner-approval-v150-005")
+        );
+        assert_eq!(approval.approved_by.as_deref(), Some("owner"));
+        assert_eq!(approval.now_unix_ms, 1_718_400_000_000);
+        assert_eq!(approval.expires_at_unix_ms, 1_718_400_060_000);
+        assert_eq!(
+            approval.output,
+            PathBuf::from("runs/v150/manual-approval-lifecycle.json")
+        );
+        assert!(approval.confirm_dry_run_request_preview_only);
+        assert!(approval.confirm_one_time_approval);
+        assert!(approval.confirm_no_production_mutation);
+        assert!(approval.confirm_dashboard_order_controls_disabled);
     }
 
     #[test]
@@ -2201,6 +2321,8 @@ mod tests {
             render_subcommand_help(&["live", "testnet-order-request-preview"]);
         let production_request_preview_help =
             render_subcommand_help(&["live", "production-live-alpha-order-request-preview"]);
+        let production_manual_approval_lifecycle_help =
+            render_subcommand_help(&["live", "production-live-alpha-manual-approval-lifecycle"]);
         let production_execution_dry_run_help =
             render_subcommand_help(&["live", "production-live-alpha-execution-dry-run"]);
         let production_kill_switch_runtime_gate_help =
@@ -2228,8 +2350,12 @@ mod tests {
         assert!(request_preview_help.contains("--api-secret-env"));
         assert!(production_request_preview_help.contains("no request execution"));
         assert!(production_request_preview_help.contains("--order-gate"));
+        assert!(production_request_preview_help.contains("--manual-approval-lifecycle"));
         assert!(production_request_preview_help.contains("--confirm-memory-only-signature"));
         assert!(production_request_preview_help.contains("--confirm-no-network"));
+        assert!(production_manual_approval_lifecycle_help.contains("one-time manual approval"));
+        assert!(production_manual_approval_lifecycle_help.contains("--expires-at-unix-ms"));
+        assert!(production_manual_approval_lifecycle_help.contains("--confirm-one-time-approval"));
         assert!(production_execution_dry_run_help.contains("dry-run execution adapter"));
         assert!(production_execution_dry_run_help.contains("--risk-preflight"));
         assert!(production_execution_dry_run_help.contains("--request-preview"));
@@ -2269,6 +2395,7 @@ mod tests {
             "production-order-state-read-only-proof",
             "production-live-alpha-dry-run-order-gate",
             "production-live-alpha-order-request-preview",
+            "production-live-alpha-manual-approval-lifecycle",
             "production-live-alpha-execution-dry-run",
             "production-live-alpha-kill-switch-runtime-gate",
             "production-live-alpha-risk-preflight",

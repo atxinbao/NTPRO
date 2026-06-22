@@ -47,6 +47,7 @@ use crate::{
         LiveCommand, LiveOpt, LiveProductionAccountSnapshotContractOpt,
         LiveProductionKillSwitchApprovalArtifactOpt, LiveProductionLiveAlphaDryRunOrderGateOpt,
         LiveProductionLiveAlphaExecutionDryRunOpt, LiveProductionLiveAlphaKillSwitchRuntimeGateOpt,
+        LiveProductionLiveAlphaManualApprovalLifecycleOpt,
         LiveProductionLiveAlphaOrderRequestPreviewOpt, LiveProductionLiveAlphaRiskPreflightOpt,
         LiveProductionOrderStateReadOnlyProofOpt, LiveProductionPublicReadProbeOpt,
         LiveProductionReadonlyReconciliationOpt, LiveProductionShadowPortfolioRuntimeOpt,
@@ -133,6 +134,8 @@ const PRODUCTION_LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION: &str =
     "ntpro.v140_live_alpha_dry_run_order_gate.v1";
 const PRODUCTION_LIVE_ALPHA_ORDER_REQUEST_PREVIEW_SCHEMA_VERSION: &str =
     "ntpro.v150_live_alpha_order_request_preview.v1";
+const PRODUCTION_LIVE_ALPHA_MANUAL_APPROVAL_LIFECYCLE_SCHEMA_VERSION: &str =
+    "ntpro.v150_live_alpha_manual_approval_lifecycle.v1";
 const PRODUCTION_LIVE_ALPHA_EXECUTION_DRY_RUN_SCHEMA_VERSION: &str =
     "ntpro.v150_live_alpha_execution_dry_run.v1";
 const PRODUCTION_LIVE_ALPHA_KILL_SWITCH_RUNTIME_GATE_SCHEMA_VERSION: &str =
@@ -1192,12 +1195,67 @@ struct ProductionLiveAlphaDryRunOrderGateArtifact {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionLiveAlphaManualApprovalLifecycleArtifact {
+    schema_version: String,
+    run_id: String,
+    strategy_id: String,
+    symbol: String,
+    notional: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    approval_state: String,
+    manual_approval_recorded: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    manual_approval_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    approved_by: Option<String>,
+    now_unix_ms: u64,
+    expires_at_unix_ms: u64,
+    approval_expired: bool,
+    approval_revoked: bool,
+    approval_used: bool,
+    dry_run_request_preview_only: bool,
+    one_time_approval: bool,
+    approval_lifecycle_valid: bool,
+    lifecycle_issues: Vec<String>,
+    production_order_submission_allowed: bool,
+    production_order_mutation_allowed: bool,
+    production_order_state_reads_allowed: bool,
+    listen_key_lifecycle_allowed: bool,
+    production_order_submissions_attempted: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    production_order_state_reads_attempted: u64,
+    listen_key_lifecycle_attempted: u64,
+    cancel_replace_amend_attempted: bool,
+    order_endpoint_access_attempted: bool,
+    execution_adapter_called: bool,
+    production_adapter_called: bool,
+    matching_engine_submission: bool,
+    actual_submission_count: u64,
+    automatic_correction_orders_submitted: u64,
+    dashboard_order_controls_enabled: bool,
+    external_venue_connection: bool,
+    network_attempted: bool,
+    real_orders_submitted: bool,
+    real_funds: bool,
+    production_trading_enabled: bool,
+    dry_run_request_preview_only_confirmed: bool,
+    one_time_approval_confirmed: bool,
+    no_production_mutation_confirmed: bool,
+    dashboard_controls_disabled_confirmed: bool,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct ProductionLiveAlphaOrderRequestPreviewArtifact {
     schema_version: String,
     run_id: String,
     session_id: String,
     strategy_id: String,
     source_order_gate_path: String,
+    source_manual_approval_lifecycle_path: String,
     artifact_type: String,
     status: String,
     created_at: String,
@@ -1232,6 +1290,16 @@ struct ProductionLiveAlphaOrderRequestPreviewArtifact {
     raw_request_body_recorded: bool,
     owner_gate_required: bool,
     manual_gate_required: bool,
+    manual_approval_lifecycle_status: String,
+    manual_approval_lifecycle_state: String,
+    manual_approval_lifecycle_valid: bool,
+    manual_approval_lifecycle_issues: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    manual_approval_id: Option<String>,
+    manual_approval_expires_at_unix_ms: Option<u64>,
+    manual_approval_now_unix_ms: Option<u64>,
+    manual_approval_one_time: bool,
+    manual_approval_used: bool,
     missing_cli_flags: Vec<String>,
     missing_env_vars: Vec<String>,
     order_gate_ready: bool,
@@ -2300,6 +2368,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionLiveAlphaOrderRequestPreview(preview) => {
             run_live_production_live_alpha_order_request_preview(&preview)
         }
+        LiveCommand::ProductionLiveAlphaManualApprovalLifecycle(approval) => {
+            run_live_production_live_alpha_manual_approval_lifecycle(&approval)
+        }
         LiveCommand::ProductionLiveAlphaExecutionDryRun(dry_run) => {
             run_live_production_live_alpha_execution_dry_run(&dry_run)
         }
@@ -2467,6 +2538,23 @@ where
         artifact.run_id,
         opt.output.display(),
         artifact.request_preview_built,
+    );
+    Ok(())
+}
+
+fn run_live_production_live_alpha_manual_approval_lifecycle(
+    opt: &LiveProductionLiveAlphaManualApprovalLifecycleOpt,
+) -> anyhow::Result<()> {
+    let artifact = build_production_live_alpha_manual_approval_lifecycle_artifact(opt)?;
+    atomic_write_json(&opt.output, &artifact)?;
+
+    println!(
+        "live.production_live_alpha_manual_approval_lifecycle status={} run_id={} output={} approval_state={} approval_lifecycle_valid={} one_time_approval=true dry_run_request_preview_only=true production_orders_submitted=0 production_order_mutations_attempted=0 network_attempted=false dashboard_order_controls_enabled=false",
+        artifact.status,
+        artifact.run_id,
+        opt.output.display(),
+        artifact.approval_state,
+        artifact.approval_lifecycle_valid,
     );
     Ok(())
 }
@@ -4916,6 +5004,145 @@ fn build_production_live_alpha_dry_run_order_gate_artifact(
     })
 }
 
+fn build_production_live_alpha_manual_approval_lifecycle_artifact(
+    opt: &LiveProductionLiveAlphaManualApprovalLifecycleOpt,
+) -> anyhow::Result<ProductionLiveAlphaManualApprovalLifecycleArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+    validate_non_empty("strategy_id", &opt.strategy_id)?;
+    validate_non_empty("symbol", &opt.symbol)?;
+    validate_positive_decimal_string("notional", &opt.notional)?;
+    if opt.now_unix_ms == 0 {
+        anyhow::bail!("manual approval lifecycle now_unix_ms must be positive");
+    }
+    if opt.expires_at_unix_ms == 0 {
+        anyhow::bail!("manual approval lifecycle expires_at_unix_ms must be positive");
+    }
+
+    let approval_state = opt.approval_state.trim();
+    if !matches!(
+        approval_state,
+        "pending" | "approved" | "expired" | "revoked" | "used"
+    ) {
+        anyhow::bail!("approval_state must be pending, approved, expired, revoked, or used");
+    }
+    let manual_approval_id = optional_non_empty("manual_approval_id", &opt.manual_approval_id)?;
+    let approved_by = optional_non_empty("approved_by", &opt.approved_by)?;
+    if approval_state != "pending" {
+        if manual_approval_id.is_none() {
+            anyhow::bail!("non-pending approval_state requires --manual-approval-id");
+        }
+        if approved_by.is_none() {
+            anyhow::bail!("non-pending approval_state requires --approved-by");
+        }
+    }
+
+    let approval_expired = approval_state == "expired" || opt.now_unix_ms > opt.expires_at_unix_ms;
+    let approval_revoked = approval_state == "revoked";
+    let approval_used = approval_state == "used";
+    let manual_approval_recorded =
+        manual_approval_id.is_some() && approved_by.is_some() && approval_state != "pending";
+
+    let mut lifecycle_issues = Vec::new();
+    if !opt.confirm_dry_run_request_preview_only {
+        lifecycle_issues.push("missing_dry_run_request_preview_only_confirmation".to_string());
+    }
+    if !opt.confirm_one_time_approval {
+        lifecycle_issues.push("missing_one_time_approval_confirmation".to_string());
+    }
+    if !opt.confirm_no_production_mutation {
+        lifecycle_issues.push("missing_no_production_mutation_confirmation".to_string());
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        lifecycle_issues.push("missing_dashboard_controls_disabled_confirmation".to_string());
+    }
+    if approval_state != "approved" {
+        lifecycle_issues.push(format!("approval_state_{approval_state}"));
+    }
+    if approval_expired {
+        lifecycle_issues.push("approval_expired".to_string());
+    }
+    if approval_revoked {
+        lifecycle_issues.push("approval_revoked".to_string());
+    }
+    if approval_used {
+        lifecycle_issues.push("approval_used".to_string());
+    }
+    if !manual_approval_recorded {
+        lifecycle_issues.push("manual_approval_not_recorded".to_string());
+    }
+
+    let approval_lifecycle_valid = lifecycle_issues.is_empty();
+    let status = if approval_lifecycle_valid {
+        "approval_valid_for_dry_run_request_preview"
+    } else if approval_state == "pending" {
+        "approval_pending"
+    } else if approval_expired {
+        "approval_expired"
+    } else if approval_revoked {
+        "approval_revoked"
+    } else if approval_used {
+        "approval_used"
+    } else {
+        "approval_invalid"
+    };
+
+    Ok(ProductionLiveAlphaManualApprovalLifecycleArtifact {
+        schema_version: PRODUCTION_LIVE_ALPHA_MANUAL_APPROVAL_LIFECYCLE_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        strategy_id: opt.strategy_id.clone(),
+        symbol: opt.symbol.trim().to_string(),
+        notional: opt.notional.trim().to_string(),
+        artifact_type: "live_alpha_manual_approval_lifecycle".to_string(),
+        status: status.to_string(),
+        created_at: now_millis(),
+        approval_state: approval_state.to_string(),
+        manual_approval_recorded,
+        manual_approval_id,
+        approved_by,
+        now_unix_ms: opt.now_unix_ms,
+        expires_at_unix_ms: opt.expires_at_unix_ms,
+        approval_expired,
+        approval_revoked,
+        approval_used,
+        dry_run_request_preview_only: true,
+        one_time_approval: true,
+        approval_lifecycle_valid,
+        lifecycle_issues,
+        production_order_submission_allowed: false,
+        production_order_mutation_allowed: false,
+        production_order_state_reads_allowed: false,
+        listen_key_lifecycle_allowed: false,
+        production_order_submissions_attempted: 0,
+        production_orders_submitted: 0,
+        production_order_mutations_attempted: 0,
+        production_order_state_reads_attempted: 0,
+        listen_key_lifecycle_attempted: 0,
+        cancel_replace_amend_attempted: false,
+        order_endpoint_access_attempted: false,
+        execution_adapter_called: false,
+        production_adapter_called: false,
+        matching_engine_submission: false,
+        actual_submission_count: 0,
+        automatic_correction_orders_submitted: 0,
+        dashboard_order_controls_enabled: false,
+        external_venue_connection: false,
+        network_attempted: false,
+        real_orders_submitted: false,
+        real_funds: false,
+        production_trading_enabled: false,
+        dry_run_request_preview_only_confirmed: opt.confirm_dry_run_request_preview_only,
+        one_time_approval_confirmed: opt.confirm_one_time_approval,
+        no_production_mutation_confirmed: opt.confirm_no_production_mutation,
+        dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
+        diagnostic: if approval_lifecycle_valid {
+            "manual approval is valid for one dry-run request preview only; production mutation remains disabled"
+        } else {
+            "manual approval lifecycle is not valid for dry-run request preview progression"
+        }
+        .to_string(),
+    })
+}
+
 fn build_production_live_alpha_order_request_preview_artifact(
     opt: &LiveProductionLiveAlphaOrderRequestPreviewOpt,
     credentials: &EnvOnlyProductionMutationPreviewCredentials,
@@ -4936,6 +5163,10 @@ fn build_production_live_alpha_order_request_preview_artifact(
     }
 
     let order_gate = load_json_value(&opt.order_gate, "live-alpha dry-run order gate")?;
+    let manual_approval_lifecycle = load_json_value(
+        &opt.manual_approval_lifecycle,
+        "live-alpha manual approval lifecycle",
+    )?;
     let order_gate_schema = required_json_string(&order_gate, "schema_version")?;
     if order_gate_schema != PRODUCTION_LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION {
         let required_schema = PRODUCTION_LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION;
@@ -4966,10 +5197,21 @@ fn build_production_live_alpha_order_request_preview_artifact(
     let missing_cli_flags = missing_production_live_alpha_order_request_preview_cli_flags(opt);
     let missing_env_vars =
         missing_production_live_alpha_order_request_preview_env_vars(credentials);
+    let manual_approval_lifecycle_issues =
+        production_live_alpha_request_preview_manual_approval_issues(
+            &manual_approval_lifecycle,
+            opt,
+            &strategy_id,
+            &symbol,
+            &notional,
+        );
+    let manual_approval_lifecycle_valid = manual_approval_lifecycle_issues.is_empty();
     let order_gate_ready =
         json_bool_value(&order_gate, "dry_run_order_gate_ready").unwrap_or(false);
-    let owner_manual_scope =
-        order_gate_ready && missing_cli_flags.is_empty() && missing_env_vars.is_empty();
+    let owner_manual_scope = order_gate_ready
+        && missing_cli_flags.is_empty()
+        && missing_env_vars.is_empty()
+        && manual_approval_lifecycle_valid;
     let endpoint_url = format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{endpoint_path}");
     let classified = EndpointClassifier::classify_with_context(
         "POST",
@@ -5003,6 +5245,8 @@ fn build_production_live_alpha_order_request_preview_artifact(
 
     let status = if request_preview_built {
         "ready_request_preview_only"
+    } else if !manual_approval_lifecycle_valid {
+        "blocked_manual_approval_lifecycle"
     } else if !classified.request_preview_allowed {
         "blocked_endpoint_or_owner_scope"
     } else {
@@ -5015,6 +5259,10 @@ fn build_production_live_alpha_order_request_preview_artifact(
         session_id,
         strategy_id,
         source_order_gate_path: opt.order_gate.display().to_string(),
+        source_manual_approval_lifecycle_path: opt
+            .manual_approval_lifecycle
+            .display()
+            .to_string(),
         artifact_type: "live_alpha_order_request_preview".to_string(),
         status: status.to_string(),
         created_at: now_millis(),
@@ -5049,6 +5297,28 @@ fn build_production_live_alpha_order_request_preview_artifact(
         raw_request_body_recorded: false,
         owner_gate_required: true,
         manual_gate_required: true,
+        manual_approval_lifecycle_status: json_string_value(
+            &manual_approval_lifecycle,
+            "status",
+        )
+        .unwrap_or_else(|| "unknown".to_string()),
+        manual_approval_lifecycle_state: json_string_value(
+            &manual_approval_lifecycle,
+            "approval_state",
+        )
+        .unwrap_or_else(|| "unknown".to_string()),
+        manual_approval_lifecycle_valid,
+        manual_approval_lifecycle_issues,
+        manual_approval_id: json_string_value(&manual_approval_lifecycle, "manual_approval_id"),
+        manual_approval_expires_at_unix_ms: json_u64_value(
+            &manual_approval_lifecycle,
+            "expires_at_unix_ms",
+        ),
+        manual_approval_now_unix_ms: json_u64_value(&manual_approval_lifecycle, "now_unix_ms"),
+        manual_approval_one_time: json_bool_value(&manual_approval_lifecycle, "one_time_approval")
+            .unwrap_or(false),
+        manual_approval_used: json_bool_value(&manual_approval_lifecycle, "approval_used")
+            .unwrap_or(true),
         missing_cli_flags: missing_cli_flags
             .iter()
             .map(|flag| (*flag).to_string())
@@ -5100,11 +5370,81 @@ fn build_production_live_alpha_order_request_preview_artifact(
         no_real_funds_confirmed: opt.confirm_no_real_funds,
         diagnostic: if request_preview_built {
             "production live-alpha order request preview built as redacted metadata only; signed query, signature, signed URL, network, and adapter execution remain disabled"
+        } else if !manual_approval_lifecycle_valid {
+            "production live-alpha order request preview is blocked by manual approval lifecycle state or binding"
         } else {
             "production live-alpha order request preview is blocked until dry-run gate, owner confirmations, env-only credentials, and endpoint classifier scope all pass"
         }
         .to_string(),
     })
+}
+
+fn production_live_alpha_request_preview_manual_approval_issues(
+    approval: &serde_json::Value,
+    opt: &LiveProductionLiveAlphaOrderRequestPreviewOpt,
+    strategy_id: &str,
+    symbol: &str,
+    notional: &str,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(approval, "schema_version").as_deref()
+        != Some(PRODUCTION_LIVE_ALPHA_MANUAL_APPROVAL_LIFECYCLE_SCHEMA_VERSION)
+    {
+        issues.push("manual_approval_schema_mismatch".to_string());
+    }
+    if json_string_value(approval, "approval_state").as_deref() != Some("approved") {
+        issues.push("manual_approval_not_approved".to_string());
+    }
+    if json_string_value(approval, "status").as_deref()
+        != Some("approval_valid_for_dry_run_request_preview")
+    {
+        issues.push("manual_approval_lifecycle_not_valid".to_string());
+    }
+    if !json_bool_value(approval, "manual_approval_recorded").unwrap_or(false) {
+        issues.push("manual_approval_not_recorded".to_string());
+    }
+    if !json_bool_value(approval, "dry_run_request_preview_only").unwrap_or(false) {
+        issues.push("manual_approval_scope_not_request_preview_only".to_string());
+    }
+    if !json_bool_value(approval, "one_time_approval").unwrap_or(false) {
+        issues.push("manual_approval_not_one_time".to_string());
+    }
+    if json_bool_value(approval, "approval_expired").unwrap_or(true) {
+        issues.push("manual_approval_expired".to_string());
+    }
+    if json_bool_value(approval, "approval_revoked").unwrap_or(false) {
+        issues.push("manual_approval_revoked".to_string());
+    }
+    if json_bool_value(approval, "approval_used").unwrap_or(true) {
+        issues.push("manual_approval_used".to_string());
+    }
+    match (
+        json_u64_value(approval, "now_unix_ms"),
+        json_u64_value(approval, "expires_at_unix_ms"),
+    ) {
+        (Some(now), Some(expires_at)) if now <= expires_at => {}
+        (Some(_), Some(_)) => issues.push("manual_approval_expired_by_time".to_string()),
+        _ => issues.push("manual_approval_expiry_missing".to_string()),
+    }
+    push_json_string_expected_issue(&mut issues, "run_id", approval, &opt.run_id);
+    push_json_string_expected_issue(&mut issues, "strategy_id", approval, strategy_id);
+    push_json_string_expected_issue(&mut issues, "symbol", approval, symbol);
+    push_json_string_expected_issue(&mut issues, "notional", approval, notional);
+    if artifact_has_production_mutation(Some(approval)) {
+        issues.push("manual_approval_records_forbidden_production_mutation".to_string());
+    }
+    issues
+}
+
+fn push_json_string_expected_issue(
+    issues: &mut Vec<String>,
+    field: &str,
+    value: &serde_json::Value,
+    expected: &str,
+) {
+    if json_string_value(value, field).as_deref() != Some(expected) {
+        issues.push(format!("manual_approval_{field}_mismatch"));
+    }
 }
 
 fn build_production_live_alpha_kill_switch_runtime_gate_artifact(
@@ -9366,12 +9706,14 @@ write_summary = true
 
     fn production_live_alpha_order_request_preview_opt(
         order_gate: PathBuf,
+        manual_approval_lifecycle: PathBuf,
         output: PathBuf,
         all_cli_gates: bool,
     ) -> LiveProductionLiveAlphaOrderRequestPreviewOpt {
         LiveProductionLiveAlphaOrderRequestPreviewOpt {
             run_id: "v150-live-alpha-request-preview".to_string(),
             order_gate,
+            manual_approval_lifecycle,
             endpoint_path: TESTNET_ORDER_ENDPOINT_ORDER.to_string(),
             price: "10000.00".to_string(),
             time_in_force: TESTNET_ORDER_GTC_TIF.to_string(),
@@ -9390,6 +9732,50 @@ write_summary = true
             confirm_no_listen_key_lifecycle: all_cli_gates,
             confirm_dashboard_order_controls_disabled: all_cli_gates,
             confirm_no_real_funds: all_cli_gates,
+        }
+    }
+
+    struct ManualApprovalLifecycleFixture<'a> {
+        approval_state: &'a str,
+        run_id: &'a str,
+        strategy_id: &'a str,
+        symbol: &'a str,
+        notional: &'a str,
+        now_unix_ms: u64,
+        expires_at_unix_ms: u64,
+    }
+
+    struct ManualApprovalLifecycleCase<'a> {
+        name: &'a str,
+        approval_state: &'a str,
+        run_id: &'a str,
+        symbol: &'a str,
+        notional: &'a str,
+        now_unix_ms: u64,
+        expires_at_unix_ms: u64,
+        expected_issue: &'a str,
+    }
+
+    fn production_live_alpha_manual_approval_lifecycle_opt(
+        output: PathBuf,
+        fixture: &ManualApprovalLifecycleFixture<'_>,
+    ) -> LiveProductionLiveAlphaManualApprovalLifecycleOpt {
+        LiveProductionLiveAlphaManualApprovalLifecycleOpt {
+            run_id: fixture.run_id.to_string(),
+            strategy_id: fixture.strategy_id.to_string(),
+            symbol: fixture.symbol.to_string(),
+            notional: fixture.notional.to_string(),
+            approval_state: fixture.approval_state.to_string(),
+            manual_approval_id: (fixture.approval_state != "pending")
+                .then(|| "owner-approval-v150-005".to_string()),
+            approved_by: (fixture.approval_state != "pending").then(|| "owner".to_string()),
+            now_unix_ms: fixture.now_unix_ms,
+            expires_at_unix_ms: fixture.expires_at_unix_ms,
+            output,
+            confirm_dry_run_request_preview_only: true,
+            confirm_one_time_approval: true,
+            confirm_no_production_mutation: true,
+            confirm_dashboard_order_controls_disabled: true,
         }
     }
 
@@ -9492,6 +9878,7 @@ write_summary = true
         let order_gate = output_dir.join("live_alpha_dry_run_order_gate.json");
         let risk_input = output_dir.join("live_alpha_risk_input.json");
         let risk_preflight = output_dir.join("live_alpha_risk_preflight.json");
+        let manual_approval_lifecycle = output_dir.join("manual_approval_lifecycle.json");
         let request_preview = output_dir.join("live_alpha_order_request_preview.json");
 
         run_live_production_live_alpha_dry_run_order_gate(
@@ -9508,8 +9895,24 @@ write_summary = true
             true,
         ))
         .unwrap();
+        run_live_production_live_alpha_manual_approval_lifecycle(
+            &production_live_alpha_manual_approval_lifecycle_opt(
+                manual_approval_lifecycle.clone(),
+                &ManualApprovalLifecycleFixture {
+                    approval_state: "approved",
+                    run_id: "v150-live-alpha-request-preview",
+                    strategy_id: "ema_cross_btcusdt_v1",
+                    symbol: "BTCUSDT",
+                    notional: "10.00",
+                    now_unix_ms: 1_718_400_000_000,
+                    expires_at_unix_ms: 1_718_400_060_000,
+                },
+            ),
+        )
+        .unwrap();
         let request_opt = production_live_alpha_order_request_preview_opt(
             order_gate.clone(),
+            manual_approval_lifecycle,
             request_preview.clone(),
             true,
         );
@@ -12179,13 +12582,34 @@ write_summary = true
         ));
         fs::create_dir_all(&output_dir).unwrap();
         let order_gate = output_dir.join("live_alpha_dry_run_order_gate.json");
+        let manual_approval_lifecycle = output_dir.join("manual_approval_lifecycle.json");
         let output = output_dir.join("live_alpha_order_request_preview.json");
         run_live_production_live_alpha_dry_run_order_gate(
             &production_live_alpha_limit_dry_run_order_gate_opt(order_gate.clone(), true),
         )
         .unwrap();
+        run_live_production_live_alpha_manual_approval_lifecycle(
+            &production_live_alpha_manual_approval_lifecycle_opt(
+                manual_approval_lifecycle.clone(),
+                &ManualApprovalLifecycleFixture {
+                    approval_state: "approved",
+                    run_id: "v150-live-alpha-request-preview",
+                    strategy_id: "ema_cross_btcusdt_v1",
+                    symbol: "BTCUSDT",
+                    notional: "10.00",
+                    now_unix_ms: 1_718_400_000_000,
+                    expires_at_unix_ms: 1_718_400_060_000,
+                },
+            ),
+        )
+        .unwrap();
 
-        let opt = production_live_alpha_order_request_preview_opt(order_gate, output.clone(), true);
+        let opt = production_live_alpha_order_request_preview_opt(
+            order_gate,
+            manual_approval_lifecycle,
+            output.clone(),
+            true,
+        );
         run_live_production_live_alpha_order_request_preview_with_env(&opt, |name| match name {
             "NTPRO_V150002_API_KEY" => Some("ntpro_v150002_synthetic_api_key_value".to_string()),
             "NTPRO_V150002_API_SECRET" => {
@@ -12228,6 +12652,21 @@ write_summary = true
         assert_eq!(artifact["signed_url_recorded"], false);
         assert_eq!(artifact["request_body_recorded"], false);
         assert_eq!(artifact["raw_request_body_recorded"], false);
+        assert_eq!(
+            artifact["manual_approval_lifecycle_status"],
+            "approval_valid_for_dry_run_request_preview"
+        );
+        assert_eq!(artifact["manual_approval_lifecycle_state"], "approved");
+        assert_eq!(artifact["manual_approval_lifecycle_valid"], true);
+        assert_eq!(
+            artifact["manual_approval_lifecycle_issues"]
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
+        assert_eq!(artifact["manual_approval_one_time"], true);
+        assert_eq!(artifact["manual_approval_used"], false);
         assert_eq!(artifact["order_gate_ready"], true);
         assert_eq!(artifact["request_preview_allowed"], true);
         assert_eq!(artifact["request_preview_built"], true);
@@ -12257,14 +12696,34 @@ write_summary = true
         ));
         fs::create_dir_all(&output_dir).unwrap();
         let order_gate = output_dir.join("live_alpha_dry_run_order_gate.json");
+        let manual_approval_lifecycle = output_dir.join("manual_approval_lifecycle.json");
         let output = output_dir.join("live_alpha_order_request_preview.json");
         run_live_production_live_alpha_dry_run_order_gate(
             &production_live_alpha_limit_dry_run_order_gate_opt(order_gate.clone(), true),
         )
         .unwrap();
+        run_live_production_live_alpha_manual_approval_lifecycle(
+            &production_live_alpha_manual_approval_lifecycle_opt(
+                manual_approval_lifecycle.clone(),
+                &ManualApprovalLifecycleFixture {
+                    approval_state: "approved",
+                    run_id: "v150-live-alpha-request-preview",
+                    strategy_id: "ema_cross_btcusdt_v1",
+                    symbol: "BTCUSDT",
+                    notional: "10.00",
+                    now_unix_ms: 1_718_400_000_000,
+                    expires_at_unix_ms: 1_718_400_060_000,
+                },
+            ),
+        )
+        .unwrap();
 
-        let opt =
-            production_live_alpha_order_request_preview_opt(order_gate, output.clone(), false);
+        let opt = production_live_alpha_order_request_preview_opt(
+            order_gate,
+            manual_approval_lifecycle,
+            output.clone(),
+            false,
+        );
         run_live_production_live_alpha_order_request_preview_with_env(&opt, |_| None).unwrap();
 
         let artifact: serde_json::Value =
@@ -12277,6 +12736,7 @@ write_summary = true
         assert_eq!(artifact["endpoint_decision"], "deny");
         assert_eq!(artifact["request_preview_allowed"], false);
         assert_eq!(artifact["request_preview_built"], false);
+        assert_eq!(artifact["manual_approval_lifecycle_valid"], true);
         assert_eq!(artifact["signed_request_memory_only"], false);
         assert_eq!(artifact["production_orders_submitted"], 0);
         assert_eq!(artifact["production_order_mutations_attempted"], 0);
@@ -12284,6 +12744,151 @@ write_summary = true
         assert_eq!(artifact["network_attempted"], false);
         assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 10);
         assert_eq!(artifact["missing_env_vars"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn production_live_alpha_order_request_preview_blocks_invalid_manual_approval_lifecycle() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v150-005-approval-lifecycle-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let order_gate = output_dir.join("live_alpha_dry_run_order_gate.json");
+        run_live_production_live_alpha_dry_run_order_gate(
+            &production_live_alpha_limit_dry_run_order_gate_opt(order_gate.clone(), true),
+        )
+        .unwrap();
+
+        for case in [
+            ManualApprovalLifecycleCase {
+                name: "pending",
+                approval_state: "pending",
+                run_id: "v150-live-alpha-request-preview",
+                symbol: "BTCUSDT",
+                notional: "10.00",
+                now_unix_ms: 1_718_400_000_000,
+                expires_at_unix_ms: 1_718_400_060_000,
+                expected_issue: "manual_approval_not_approved",
+            },
+            ManualApprovalLifecycleCase {
+                name: "expired",
+                approval_state: "expired",
+                run_id: "v150-live-alpha-request-preview",
+                symbol: "BTCUSDT",
+                notional: "10.00",
+                now_unix_ms: 1_718_400_070_000,
+                expires_at_unix_ms: 1_718_400_060_000,
+                expected_issue: "manual_approval_expired",
+            },
+            ManualApprovalLifecycleCase {
+                name: "revoked",
+                approval_state: "revoked",
+                run_id: "v150-live-alpha-request-preview",
+                symbol: "BTCUSDT",
+                notional: "10.00",
+                now_unix_ms: 1_718_400_000_000,
+                expires_at_unix_ms: 1_718_400_060_000,
+                expected_issue: "manual_approval_revoked",
+            },
+            ManualApprovalLifecycleCase {
+                name: "used",
+                approval_state: "used",
+                run_id: "v150-live-alpha-request-preview",
+                symbol: "BTCUSDT",
+                notional: "10.00",
+                now_unix_ms: 1_718_400_000_000,
+                expires_at_unix_ms: 1_718_400_060_000,
+                expected_issue: "manual_approval_used",
+            },
+            ManualApprovalLifecycleCase {
+                name: "run-id-mismatch",
+                approval_state: "approved",
+                run_id: "wrong-run-id",
+                symbol: "BTCUSDT",
+                notional: "10.00",
+                now_unix_ms: 1_718_400_000_000,
+                expires_at_unix_ms: 1_718_400_060_000,
+                expected_issue: "manual_approval_run_id_mismatch",
+            },
+            ManualApprovalLifecycleCase {
+                name: "symbol-mismatch",
+                approval_state: "approved",
+                run_id: "v150-live-alpha-request-preview",
+                symbol: "ETHUSDT",
+                notional: "10.00",
+                now_unix_ms: 1_718_400_000_000,
+                expires_at_unix_ms: 1_718_400_060_000,
+                expected_issue: "manual_approval_symbol_mismatch",
+            },
+            ManualApprovalLifecycleCase {
+                name: "notional-mismatch",
+                approval_state: "approved",
+                run_id: "v150-live-alpha-request-preview",
+                symbol: "BTCUSDT",
+                notional: "11.00",
+                now_unix_ms: 1_718_400_000_000,
+                expires_at_unix_ms: 1_718_400_060_000,
+                expected_issue: "manual_approval_notional_mismatch",
+            },
+        ] {
+            let approval = output_dir.join(format!("manual_approval_{}.json", case.name));
+            let output = output_dir.join(format!("request_preview_{}.json", case.name));
+            run_live_production_live_alpha_manual_approval_lifecycle(
+                &production_live_alpha_manual_approval_lifecycle_opt(
+                    approval.clone(),
+                    &ManualApprovalLifecycleFixture {
+                        approval_state: case.approval_state,
+                        run_id: case.run_id,
+                        strategy_id: "ema_cross_btcusdt_v1",
+                        symbol: case.symbol,
+                        notional: case.notional,
+                        now_unix_ms: case.now_unix_ms,
+                        expires_at_unix_ms: case.expires_at_unix_ms,
+                    },
+                ),
+            )
+            .unwrap();
+            let opt = production_live_alpha_order_request_preview_opt(
+                order_gate.clone(),
+                approval,
+                output.clone(),
+                true,
+            );
+            run_live_production_live_alpha_order_request_preview_with_env(
+                &opt,
+                |name| match name {
+                    "NTPRO_V150002_API_KEY" => {
+                        Some("ntpro_v150005_synthetic_api_key_value".to_string())
+                    }
+                    "NTPRO_V150002_API_SECRET" => {
+                        Some("ntpro_v150005_synthetic_api_secret_value".to_string())
+                    }
+                    _ => None,
+                },
+            )
+            .unwrap();
+
+            let artifact: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+            assert_eq!(artifact["status"], "blocked_manual_approval_lifecycle");
+            assert_eq!(artifact["manual_approval_lifecycle_valid"], false);
+            assert_eq!(artifact["request_preview_allowed"], false);
+            assert_eq!(artifact["request_preview_built"], false);
+            assert_eq!(artifact["request_sent"], false);
+            assert_eq!(artifact["production_orders_submitted"], 0);
+            assert_eq!(artifact["production_order_mutations_attempted"], 0);
+            assert_eq!(artifact["network_attempted"], false);
+            assert!(
+                artifact["manual_approval_lifecycle_issues"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|issue| issue == case.expected_issue),
+                "missing {} in {:?}",
+                case.expected_issue,
+                artifact["manual_approval_lifecycle_issues"]
+            );
+        }
     }
 
     #[test]
@@ -12579,6 +13184,7 @@ write_summary = true
         let order_gate = output_dir.join("live_alpha_dry_run_order_gate.json");
         let risk_input = output_dir.join("live_alpha_risk_input.json");
         let risk_preflight = output_dir.join("live_alpha_risk_preflight.json");
+        let manual_approval_lifecycle = output_dir.join("manual_approval_lifecycle.json");
         let request_preview = output_dir.join("live_alpha_order_request_preview.json");
         let kill_switch_approval = output_dir.join("kill_switch_approval.json");
         let output = output_dir.join("kill_switch_runtime_gate.json");
@@ -12597,8 +13203,24 @@ write_summary = true
             true,
         ))
         .unwrap();
+        run_live_production_live_alpha_manual_approval_lifecycle(
+            &production_live_alpha_manual_approval_lifecycle_opt(
+                manual_approval_lifecycle.clone(),
+                &ManualApprovalLifecycleFixture {
+                    approval_state: "approved",
+                    run_id: "v150-live-alpha-request-preview",
+                    strategy_id: "ema_cross_btcusdt_v1",
+                    symbol: "BTCUSDT",
+                    notional: "10.00",
+                    now_unix_ms: 1_718_400_000_000,
+                    expires_at_unix_ms: 1_718_400_060_000,
+                },
+            ),
+        )
+        .unwrap();
         let request_opt = production_live_alpha_order_request_preview_opt(
             order_gate,
+            manual_approval_lifecycle,
             request_preview.clone(),
             true,
         );
