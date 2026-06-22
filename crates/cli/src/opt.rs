@@ -166,6 +166,8 @@ pub enum LiveCommand {
     ProductionOrderStateReadOnlyProof(LiveProductionOrderStateReadOnlyProofOpt),
     /// Writes a v0.14 live-alpha dry-run order gate artifact; no production mutation.
     ProductionLiveAlphaDryRunOrderGate(LiveProductionLiveAlphaDryRunOrderGateOpt),
+    /// Builds a v0.15 redacted production live-alpha order request preview; no request execution and no production mutation.
+    ProductionLiveAlphaOrderRequestPreview(LiveProductionLiveAlphaOrderRequestPreviewOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -562,6 +564,71 @@ pub struct LiveProductionLiveAlphaDryRunOrderGateOpt {
     /// Confirms no execution adapter call is allowed.
     #[arg(long)]
     pub confirm_no_execution_adapter_call: bool,
+    /// Confirms listenKey lifecycle remains forbidden.
+    #[arg(long)]
+    pub confirm_no_listen_key_lifecycle: bool,
+    /// Confirms Dashboard order controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms no real funds or real orders are involved.
+    #[arg(long)]
+    pub confirm_no_real_funds: bool,
+}
+
+/// Owner-gated production live-alpha order request preview options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionLiveAlphaOrderRequestPreviewOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.14/v0.15 dry-run order gate JSON input.
+    #[arg(long)]
+    pub order_gate: PathBuf,
+    /// Production order endpoint path to preview.
+    #[arg(long, default_value = "/api/v3/order")]
+    pub endpoint_path: String,
+    /// Limit order price as a decimal string.
+    #[arg(long)]
+    pub price: String,
+    /// Limit order time-in-force.
+    #[arg(long, default_value = "GTC")]
+    pub time_in_force: String,
+    /// Timestamp in milliseconds for deterministic memory-only signing.
+    #[arg(long)]
+    pub timestamp_ms: u64,
+    /// Binance recvWindow in milliseconds.
+    #[arg(long, default_value_t = 5_000)]
+    pub recv_window_ms: u64,
+    /// Environment variable name containing the Binance production API key.
+    #[arg(long, default_value = "BINANCE_PRODUCTION_LIVE_ALPHA_API_KEY")]
+    pub api_key_env: String,
+    /// Environment variable name containing the Binance production API secret.
+    #[arg(long, default_value = "BINANCE_PRODUCTION_LIVE_ALPHA_API_SECRET")]
+    pub api_secret_env: String,
+    /// v0.15 redacted request preview JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for production live-alpha request preview only.
+    #[arg(long)]
+    pub allow_production_live_alpha_request_preview: bool,
+    /// Confirms owner approval for request preview only.
+    #[arg(long)]
+    pub confirm_owner_approved_request_preview: bool,
+    /// Confirms signatures and signed queries remain memory-only.
+    #[arg(long)]
+    pub confirm_memory_only_signature: bool,
+    /// Confirms no production order submission is allowed.
+    #[arg(long)]
+    pub confirm_no_production_order_submission: bool,
+    /// Confirms no production order mutation is allowed.
+    #[arg(long)]
+    pub confirm_no_production_order_mutation: bool,
+    /// Confirms no execution adapter call is allowed.
+    #[arg(long)]
+    pub confirm_no_execution_adapter_call: bool,
+    /// Confirms no network request is allowed.
+    #[arg(long)]
+    pub confirm_no_network: bool,
     /// Confirms listenKey lifecycle remains forbidden.
     #[arg(long)]
     pub confirm_no_listen_key_lifecycle: bool,
@@ -1495,6 +1562,80 @@ mod tests {
     }
 
     #[test]
+    fn parses_live_production_live_alpha_order_request_preview_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-live-alpha-order-request-preview",
+            "--run-id",
+            "v150-request-preview",
+            "--order-gate",
+            "runs/v150/order-gate.json",
+            "--endpoint-path",
+            "/api/v3/order",
+            "--price",
+            "10000.00",
+            "--time-in-force",
+            "GTC",
+            "--timestamp-ms",
+            "1718400000000",
+            "--recv-window-ms",
+            "5000",
+            "--api-key-env",
+            "NTPRO_V150002_API_KEY",
+            "--api-secret-env",
+            "NTPRO_V150002_API_SECRET",
+            "--output",
+            "runs/v150/order-request-preview.json",
+            "--allow-production-live-alpha-request-preview",
+            "--confirm-owner-approved-request-preview",
+            "--confirm-memory-only-signature",
+            "--confirm-no-production-order-submission",
+            "--confirm-no-production-order-mutation",
+            "--confirm-no-execution-adapter-call",
+            "--confirm-no-network",
+            "--confirm-no-listen-key-lifecycle",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-real-funds",
+        ])
+        .expect("live production-live-alpha-order-request-preview should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionLiveAlphaOrderRequestPreview(preview) = live.command else {
+            panic!("expected production-live-alpha-order-request-preview command");
+        };
+
+        assert_eq!(preview.run_id, "v150-request-preview");
+        assert_eq!(
+            preview.order_gate,
+            PathBuf::from("runs/v150/order-gate.json")
+        );
+        assert_eq!(preview.endpoint_path, "/api/v3/order");
+        assert_eq!(preview.price, "10000.00");
+        assert_eq!(preview.time_in_force, "GTC");
+        assert_eq!(preview.timestamp_ms, 1_718_400_000_000);
+        assert_eq!(preview.recv_window_ms, 5_000);
+        assert_eq!(preview.api_key_env, "NTPRO_V150002_API_KEY");
+        assert_eq!(preview.api_secret_env, "NTPRO_V150002_API_SECRET");
+        assert_eq!(
+            preview.output,
+            PathBuf::from("runs/v150/order-request-preview.json")
+        );
+        assert!(preview.allow_production_live_alpha_request_preview);
+        assert!(preview.confirm_owner_approved_request_preview);
+        assert!(preview.confirm_memory_only_signature);
+        assert!(preview.confirm_no_production_order_submission);
+        assert!(preview.confirm_no_production_order_mutation);
+        assert!(preview.confirm_no_execution_adapter_call);
+        assert!(preview.confirm_no_network);
+        assert!(preview.confirm_no_listen_key_lifecycle);
+        assert!(preview.confirm_dashboard_order_controls_disabled);
+        assert!(preview.confirm_no_real_funds);
+    }
+
+    #[test]
     fn parses_live_production_live_alpha_risk_preflight_options() {
         let parsed = NautilusCli::try_parse_from([
             "nautilus",
@@ -1825,6 +1966,8 @@ mod tests {
         let preflight_help = render_subcommand_help(&["live", "testnet-order-preflight"]);
         let request_preview_help =
             render_subcommand_help(&["live", "testnet-order-request-preview"]);
+        let production_request_preview_help =
+            render_subcommand_help(&["live", "production-live-alpha-order-request-preview"]);
         let order_test_preflight_help =
             render_subcommand_help(&["live", "testnet-order-test-preflight"]);
         let artifact_contract_help =
@@ -1846,6 +1989,10 @@ mod tests {
         assert!(request_preview_help.contains("--endpoint-path"));
         assert!(request_preview_help.contains("--timestamp-ms"));
         assert!(request_preview_help.contains("--api-secret-env"));
+        assert!(production_request_preview_help.contains("no request execution"));
+        assert!(production_request_preview_help.contains("--order-gate"));
+        assert!(production_request_preview_help.contains("--confirm-memory-only-signature"));
+        assert!(production_request_preview_help.contains("--confirm-no-network"));
         assert!(order_test_preflight_help.contains("without network or orders"));
         assert!(order_test_preflight_help.contains("--timestamp-ms"));
         assert!(order_test_preflight_help.contains("--api-secret-env"));
@@ -1866,6 +2013,7 @@ mod tests {
         assert!(live_help.contains("production-public-read-probe"));
         assert!(live_help.contains("production-order-state-read-only-proof"));
         assert!(live_help.contains("production-live-alpha-dry-run-order-gate"));
+        assert!(live_help.contains("production-live-alpha-order-request-preview"));
         assert!(live_help.contains("no production mutation"));
 
         for command in [
@@ -1873,6 +2021,7 @@ mod tests {
             "production-account-snapshot-contract",
             "production-order-state-read-only-proof",
             "production-live-alpha-dry-run-order-gate",
+            "production-live-alpha-order-request-preview",
             "production-live-alpha-risk-preflight",
             "production-shadow-portfolio-runtime",
             "production-shadow-strategy-session",
