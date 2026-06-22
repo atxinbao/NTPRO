@@ -168,6 +168,8 @@ pub enum LiveCommand {
     ProductionLiveAlphaDryRunOrderGate(LiveProductionLiveAlphaDryRunOrderGateOpt),
     /// Builds a v0.15 redacted production live-alpha order request preview; no request execution and no production mutation.
     ProductionLiveAlphaOrderRequestPreview(LiveProductionLiveAlphaOrderRequestPreviewOpt),
+    /// Routes live-alpha intent into a local dry-run execution adapter artifact only; no production mutation.
+    ProductionLiveAlphaExecutionDryRun(LiveProductionLiveAlphaExecutionDryRunOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -626,6 +628,56 @@ pub struct LiveProductionLiveAlphaOrderRequestPreviewOpt {
     /// Confirms no execution adapter call is allowed.
     #[arg(long)]
     pub confirm_no_execution_adapter_call: bool,
+    /// Confirms no network request is allowed.
+    #[arg(long)]
+    pub confirm_no_network: bool,
+    /// Confirms listenKey lifecycle remains forbidden.
+    #[arg(long)]
+    pub confirm_no_listen_key_lifecycle: bool,
+    /// Confirms Dashboard order controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms no real funds or real orders are involved.
+    #[arg(long)]
+    pub confirm_no_real_funds: bool,
+}
+
+/// Owner-gated production live-alpha execution dry-run isolation options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionLiveAlphaExecutionDryRunOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.14 dry-run order gate JSON input.
+    #[arg(long)]
+    pub order_gate: PathBuf,
+    /// v0.14 risk preflight JSON input.
+    #[arg(long)]
+    pub risk_preflight: PathBuf,
+    /// v0.15 request preview JSON input.
+    #[arg(long)]
+    pub request_preview: PathBuf,
+    /// v0.15 execution dry-run isolation JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for production live-alpha execution dry-run only.
+    #[arg(long)]
+    pub allow_production_live_alpha_execution_dry_run: bool,
+    /// Confirms owner approval for execution dry-run only.
+    #[arg(long)]
+    pub confirm_owner_approved_execution_dry_run: bool,
+    /// Confirms the local dry-run execution adapter is the only reachable adapter.
+    #[arg(long)]
+    pub confirm_dry_run_adapter_only: bool,
+    /// Confirms no production execution adapter is instantiated or called.
+    #[arg(long)]
+    pub confirm_no_production_adapter: bool,
+    /// Confirms no production order submission is allowed.
+    #[arg(long)]
+    pub confirm_no_production_order_submission: bool,
+    /// Confirms no production order mutation is allowed.
+    #[arg(long)]
+    pub confirm_no_production_order_mutation: bool,
     /// Confirms no network request is allowed.
     #[arg(long)]
     pub confirm_no_network: bool,
@@ -1636,6 +1688,71 @@ mod tests {
     }
 
     #[test]
+    fn parses_live_production_live_alpha_execution_dry_run_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-live-alpha-execution-dry-run",
+            "--run-id",
+            "v150-execution-dry-run",
+            "--order-gate",
+            "runs/v150/order-gate.json",
+            "--risk-preflight",
+            "runs/v150/risk-preflight.json",
+            "--request-preview",
+            "runs/v150/request-preview.json",
+            "--output",
+            "runs/v150/execution-dry-run.json",
+            "--allow-production-live-alpha-execution-dry-run",
+            "--confirm-owner-approved-execution-dry-run",
+            "--confirm-dry-run-adapter-only",
+            "--confirm-no-production-adapter",
+            "--confirm-no-production-order-submission",
+            "--confirm-no-production-order-mutation",
+            "--confirm-no-network",
+            "--confirm-no-listen-key-lifecycle",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-real-funds",
+        ])
+        .expect("live production-live-alpha-execution-dry-run should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionLiveAlphaExecutionDryRun(dry_run) = live.command else {
+            panic!("expected production-live-alpha-execution-dry-run command");
+        };
+
+        assert_eq!(dry_run.run_id, "v150-execution-dry-run");
+        assert_eq!(
+            dry_run.order_gate,
+            PathBuf::from("runs/v150/order-gate.json")
+        );
+        assert_eq!(
+            dry_run.risk_preflight,
+            PathBuf::from("runs/v150/risk-preflight.json")
+        );
+        assert_eq!(
+            dry_run.request_preview,
+            PathBuf::from("runs/v150/request-preview.json")
+        );
+        assert_eq!(
+            dry_run.output,
+            PathBuf::from("runs/v150/execution-dry-run.json")
+        );
+        assert!(dry_run.allow_production_live_alpha_execution_dry_run);
+        assert!(dry_run.confirm_owner_approved_execution_dry_run);
+        assert!(dry_run.confirm_dry_run_adapter_only);
+        assert!(dry_run.confirm_no_production_adapter);
+        assert!(dry_run.confirm_no_production_order_submission);
+        assert!(dry_run.confirm_no_production_order_mutation);
+        assert!(dry_run.confirm_no_network);
+        assert!(dry_run.confirm_no_listen_key_lifecycle);
+        assert!(dry_run.confirm_dashboard_order_controls_disabled);
+        assert!(dry_run.confirm_no_real_funds);
+    }
+
+    #[test]
     fn parses_live_production_live_alpha_risk_preflight_options() {
         let parsed = NautilusCli::try_parse_from([
             "nautilus",
@@ -1968,6 +2085,8 @@ mod tests {
             render_subcommand_help(&["live", "testnet-order-request-preview"]);
         let production_request_preview_help =
             render_subcommand_help(&["live", "production-live-alpha-order-request-preview"]);
+        let production_execution_dry_run_help =
+            render_subcommand_help(&["live", "production-live-alpha-execution-dry-run"]);
         let order_test_preflight_help =
             render_subcommand_help(&["live", "testnet-order-test-preflight"]);
         let artifact_contract_help =
@@ -1993,6 +2112,10 @@ mod tests {
         assert!(production_request_preview_help.contains("--order-gate"));
         assert!(production_request_preview_help.contains("--confirm-memory-only-signature"));
         assert!(production_request_preview_help.contains("--confirm-no-network"));
+        assert!(production_execution_dry_run_help.contains("dry-run execution adapter"));
+        assert!(production_execution_dry_run_help.contains("--risk-preflight"));
+        assert!(production_execution_dry_run_help.contains("--request-preview"));
+        assert!(production_execution_dry_run_help.contains("--confirm-no-production-adapter"));
         assert!(order_test_preflight_help.contains("without network or orders"));
         assert!(order_test_preflight_help.contains("--timestamp-ms"));
         assert!(order_test_preflight_help.contains("--api-secret-env"));
@@ -2014,6 +2137,7 @@ mod tests {
         assert!(live_help.contains("production-order-state-read-only-proof"));
         assert!(live_help.contains("production-live-alpha-dry-run-order-gate"));
         assert!(live_help.contains("production-live-alpha-order-request-preview"));
+        assert!(live_help.contains("production-live-alpha-execution-dry-run"));
         assert!(live_help.contains("no production mutation"));
 
         for command in [
@@ -2022,6 +2146,7 @@ mod tests {
             "production-order-state-read-only-proof",
             "production-live-alpha-dry-run-order-gate",
             "production-live-alpha-order-request-preview",
+            "production-live-alpha-execution-dry-run",
             "production-live-alpha-risk-preflight",
             "production-shadow-portfolio-runtime",
             "production-shadow-strategy-session",
