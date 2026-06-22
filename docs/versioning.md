@@ -230,14 +230,21 @@ remediation, or Dashboard order controls.
 
 ### v0.16.0
 
-Future scope:
+Scope contract:
 
 ```text
-requires a separate scope decision
+Minimum Owner-Approved Production Order Mutation Candidate
 ```
 
-v0.16.0 must not inherit any production trading, production order mutation, or
-Dashboard order-control claim from v0.15.0 request-preview/dry-run evidence.
+V160-001 defines the v0.16.0 scope. v0.16 may implement only one
+owner-approved tiny `LIMIT` `GTC` production order submission candidate with
+default fail-closed gates, redacted artifacts, kill-switch enforcement,
+post-submit readback, no retry, and no Dashboard order controls. It must not
+inherit strategy-driven production execution, multiple orders, `MARKET`
+orders, cancel/replace/amend/retry/correction/flatten, listenKey lifecycle,
+multi-venue/multi-account execution, real-funds trading claims beyond the one
+explicit owner-approved candidate, automatic remediation, or production trading
+platform claims from v0.15.0 request-preview/dry-run evidence.
 
 ### v0.6.0
 

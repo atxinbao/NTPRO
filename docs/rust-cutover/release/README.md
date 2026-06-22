@@ -318,6 +318,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   request sending, production order submission, production order mutation,
   cancel/replace/amend/retry/correction, listenKey lifecycle, real funds,
   production trading, automatic remediation, and Dashboard order controls.
+- `v0_16_0_production_mutation_scope.md` - V160-001 scope contract for the
+  `Minimum Owner-Approved Production Order Mutation Candidate`. It permits only
+  a future one-owner-approved tiny `LIMIT` `GTC` production order candidate and
+  explicitly excludes strategy-driven production execution, multiple orders,
+  `MARKET` orders, cancel/replace/amend/retry/correction/flatten, automatic
+  remediation, listenKey lifecycle, multi-venue/multi-account execution, and
+  Dashboard order controls.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
