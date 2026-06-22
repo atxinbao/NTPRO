@@ -62,6 +62,24 @@ values_are_exchange_truth = true
 status = online_order_state_read_ok
 ```
 
+For `GET /api/v3/openOrders`, an empty array is valid endpoint-shape evidence
+only. It must not be promoted into order lifecycle readiness:
+
+```text
+endpoint_shape_validated = true
+order_entries_observed = 0
+non_empty_order_state_observed = false
+order_lifecycle_readiness = false
+```
+
+Only non-empty validated order-state evidence may mark:
+
+```text
+order_entries_observed >= 1
+non_empty_order_state_observed = true
+order_lifecycle_readiness = true
+```
+
 Classified failures must not mark exchange truth:
 
 ```text

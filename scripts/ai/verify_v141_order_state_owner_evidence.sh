@@ -60,6 +60,10 @@ artifact = {
     "response_status_code": 200,
     "response_shape": "binance_open_orders_v1",
     "response_shape_validated": True,
+    "endpoint_shape_validated": True,
+    "order_entries_observed": 0,
+    "non_empty_order_state_observed": False,
+    "order_lifecycle_readiness": False,
     "response_shape_summary": {
         "status": "accepted",
         "endpoint": "open_orders",
@@ -74,6 +78,10 @@ artifact = {
         "raw_order_response_recorded": False,
         "raw_order_list_recorded": False,
         "shape_validated": True,
+        "endpoint_shape_validated": True,
+        "order_entries_observed": 0,
+        "non_empty_order_state_observed": False,
+        "order_lifecycle_readiness": False,
         "rejection_reason": "none",
     },
     "latency_ms": 1,
@@ -200,7 +208,52 @@ def validate_shape_summary(report, path):
     )
     if report.get("status") == "online_order_state_read_ok":
         require(summary.get("shape_validated") is True, "success needs validated shape", str(path))
+        require(summary.get("endpoint_shape_validated") is True, "success needs validated endpoint shape", str(path))
+        require(
+            report.get("endpoint_shape_validated") is True,
+            "success needs top-level endpoint_shape_validated=true",
+            str(path),
+        )
         require(summary.get("status") == "accepted", "success needs accepted summary", str(path))
+        entries = summary.get("order_entries_observed")
+        require(isinstance(entries, int), "summary order_entries_observed must be an integer", str(path))
+        require(
+            report.get("order_entries_observed") == entries,
+            "top-level order_entries_observed must match summary",
+            str(path),
+        )
+        if entries == 0:
+            require(
+                summary.get("non_empty_order_state_observed") is False,
+                "empty order-state response must not claim non-empty observation",
+                str(path),
+            )
+            require(
+                summary.get("order_lifecycle_readiness") is False,
+                "empty order-state response must not claim lifecycle readiness",
+                str(path),
+            )
+        else:
+            require(
+                summary.get("non_empty_order_state_observed") is True,
+                "non-empty order-state response must mark non-empty observation",
+                str(path),
+            )
+            require(
+                summary.get("order_lifecycle_readiness") is True,
+                "non-empty order-state response should mark lifecycle readiness",
+                str(path),
+            )
+        require(
+            report.get("non_empty_order_state_observed") == summary.get("non_empty_order_state_observed"),
+            "top-level non_empty_order_state_observed must match summary",
+            str(path),
+        )
+        require(
+            report.get("order_lifecycle_readiness") == summary.get("order_lifecycle_readiness"),
+            "top-level order_lifecycle_readiness must match summary",
+            str(path),
+        )
     return summary
 
 
@@ -267,6 +320,10 @@ def validate_owner_artifact(path, report):
     elif status == "online_order_state_read_failed":
         require(report.get("error_code") in stable_errors, "failure must use a stable error code", str(path))
         require(report.get("response_shape_validated") is False, "failure must not validate response shape", str(path))
+        require(report.get("endpoint_shape_validated") is False, "failure must not validate endpoint shape", str(path))
+        require(report.get("order_entries_observed") == 0, "failure must not observe order entries", str(path))
+        require(report.get("non_empty_order_state_observed") is False, "failure must not mark non-empty order state", str(path))
+        require(report.get("order_lifecycle_readiness") is False, "failure must not mark order lifecycle readiness", str(path))
         require(
             report.get("order_state_values_are_exchange_truth") is False,
             "failure must not mark order-state exchange truth",

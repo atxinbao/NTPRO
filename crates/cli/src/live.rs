@@ -1034,6 +1034,10 @@ struct ProductionOrderStateReadOnlyProofReport {
     response_shape: String,
     response_shape_validated: bool,
     response_shape_summary: ProductionOrderStateShapeSummary,
+    endpoint_shape_validated: bool,
+    order_entries_observed: usize,
+    non_empty_order_state_observed: bool,
+    order_lifecycle_readiness: bool,
     latency_ms: Option<u64>,
     error_code: String,
     env_credentials_only: bool,
@@ -1356,6 +1360,10 @@ struct ProductionOrderStateShapeSummary {
     raw_order_response_recorded: bool,
     raw_order_list_recorded: bool,
     shape_validated: bool,
+    endpoint_shape_validated: bool,
+    order_entries_observed: usize,
+    non_empty_order_state_observed: bool,
+    order_lifecycle_readiness: bool,
     rejection_reason: String,
 }
 
@@ -1375,6 +1383,10 @@ impl ProductionOrderStateShapeSummary {
             raw_order_response_recorded: false,
             raw_order_list_recorded: false,
             shape_validated: false,
+            endpoint_shape_validated: false,
+            order_entries_observed: 0,
+            non_empty_order_state_observed: false,
+            order_lifecycle_readiness: false,
             rejection_reason: "not_attempted".to_string(),
         }
     }
@@ -1396,6 +1408,10 @@ impl ProductionOrderStateShapeSummary {
                 raw_order_response_recorded: false,
                 raw_order_list_recorded: false,
                 shape_validated: true,
+                endpoint_shape_validated: true,
+                order_entries_observed: 0,
+                non_empty_order_state_observed: false,
+                order_lifecycle_readiness: false,
                 rejection_reason: "none".to_string(),
             },
             ProductionOrderStateReadEndpoint::Order => Self {
@@ -1412,6 +1428,10 @@ impl ProductionOrderStateShapeSummary {
                 raw_order_response_recorded: false,
                 raw_order_list_recorded: false,
                 shape_validated: true,
+                endpoint_shape_validated: true,
+                order_entries_observed: 1,
+                non_empty_order_state_observed: true,
+                order_lifecycle_readiness: true,
                 rejection_reason: "none".to_string(),
             },
         }
@@ -3033,7 +3053,7 @@ where
     }
 
     println!(
-        "live.production_order_state_readonly_proof status={} endpoint={} endpoint_class={} method={} path={} symbol={} manual_online_requested={} endpoint_read_allowed={} offline_contract_ready={} contract_ready={} online_read_allowed={} online_execution_supported={} read_allowed={} mutation_allowed=false env_credentials_only=true credentials_used={} network_attempted={} order_state_read_attempted={} production_order_state_reads_attempted={} production_order_submission_attempted=false production_order_mutation_attempted=false listen_key_lifecycle_attempted=false dashboard_order_controls_enabled=false secrets_redacted=true response_shape={} response_shape_validated={} error_code={}",
+        "live.production_order_state_readonly_proof status={} endpoint={} endpoint_class={} method={} path={} symbol={} manual_online_requested={} endpoint_read_allowed={} offline_contract_ready={} contract_ready={} online_read_allowed={} online_execution_supported={} read_allowed={} mutation_allowed=false env_credentials_only=true credentials_used={} network_attempted={} order_state_read_attempted={} production_order_state_reads_attempted={} production_order_submission_attempted=false production_order_mutation_attempted=false listen_key_lifecycle_attempted=false dashboard_order_controls_enabled=false secrets_redacted=true response_shape={} response_shape_validated={} endpoint_shape_validated={} order_entries_observed={} non_empty_order_state_observed={} order_lifecycle_readiness={} error_code={}",
         report.status,
         report.endpoint,
         report.endpoint_class,
@@ -3053,6 +3073,10 @@ where
         report.production_order_state_reads_attempted,
         report.response_shape,
         report.response_shape_validated,
+        report.endpoint_shape_validated,
+        report.order_entries_observed,
+        report.non_empty_order_state_observed,
+        report.order_lifecycle_readiness,
         report.error_code,
     );
     Ok(())
@@ -3117,6 +3141,12 @@ fn build_production_order_state_readonly_proof_report(
         |result| result.response_shape.clone(),
     );
     let order_state_read_attempted = http_result.is_some_and(|result| result.network_attempted);
+    let response_shape_summary = http_result.map_or_else(
+        || ProductionOrderStateShapeSummary::not_attempted(opt.endpoint),
+        |result| result.response_shape_summary.clone(),
+    );
+    let response_shape_validated =
+        http_result.is_some_and(|result| result.response_shape_validated);
 
     ProductionOrderStateReadOnlyProofReport {
         schema_version: PRODUCTION_ORDER_STATE_READONLY_SCHEMA_VERSION.to_string(),
@@ -3154,11 +3184,12 @@ fn build_production_order_state_readonly_proof_report(
         network_attempted: order_state_read_attempted,
         response_status_code: http_result.and_then(|result| result.http_status),
         response_shape,
-        response_shape_validated: http_result.is_some_and(|result| result.response_shape_validated),
-        response_shape_summary: http_result.map_or_else(
-            || ProductionOrderStateShapeSummary::not_attempted(opt.endpoint),
-            |result| result.response_shape_summary.clone(),
-        ),
+        response_shape_validated,
+        endpoint_shape_validated: response_shape_summary.endpoint_shape_validated,
+        order_entries_observed: response_shape_summary.order_entries_observed,
+        non_empty_order_state_observed: response_shape_summary.non_empty_order_state_observed,
+        order_lifecycle_readiness: response_shape_summary.order_lifecycle_readiness,
+        response_shape_summary,
         latency_ms: http_result.and_then(|result| result.latency_ms),
         error_code: http_result.map_or_else(
             || "not_attempted".to_string(),
@@ -3477,6 +3508,9 @@ fn summarize_open_orders_shape(
         };
     };
     let entries_valid = orders.iter().all(order_state_object_has_minimum_shape);
+    let order_entries_observed = orders.len();
+    let non_empty_order_state_observed = order_entries_observed > 0;
+    let order_lifecycle_readiness = entries_valid && non_empty_order_state_observed;
     ProductionOrderStateShapeSummary {
         status: if entries_valid {
             "accepted"
@@ -3513,6 +3547,10 @@ fn summarize_open_orders_shape(
         raw_order_response_recorded: false,
         raw_order_list_recorded: false,
         shape_validated: entries_valid,
+        endpoint_shape_validated: entries_valid,
+        order_entries_observed,
+        non_empty_order_state_observed,
+        order_lifecycle_readiness,
         rejection_reason: if entries_valid {
             "none"
         } else {
@@ -3543,6 +3581,7 @@ fn summarize_single_order_shape(
         .get("status")
         .is_some_and(serde_json::Value::is_string);
     let shape_validated = symbol_is_string && order_id_present && status_is_string;
+    let order_lifecycle_readiness = shape_validated;
     ProductionOrderStateShapeSummary {
         status: if shape_validated {
             "accepted"
@@ -3562,6 +3601,10 @@ fn summarize_single_order_shape(
         raw_order_response_recorded: false,
         raw_order_list_recorded: false,
         shape_validated,
+        endpoint_shape_validated: shape_validated,
+        order_entries_observed: usize::from(shape_validated),
+        non_empty_order_state_observed: shape_validated,
+        order_lifecycle_readiness,
         rejection_reason: if shape_validated {
             "none"
         } else {
@@ -9878,6 +9921,10 @@ write_summary = true
         assert_eq!(report["response_status_code"], 200);
         assert_eq!(report["response_shape"], "binance_order_state_v1");
         assert_eq!(report["response_shape_validated"], true);
+        assert_eq!(report["endpoint_shape_validated"], true);
+        assert_eq!(report["order_entries_observed"], 1);
+        assert_eq!(report["non_empty_order_state_observed"], true);
+        assert_eq!(report["order_lifecycle_readiness"], true);
         assert_eq!(report["latency_ms"], 17);
         assert_eq!(report["error_code"], "none");
         assert_eq!(report["production_order_submission_attempted"], false);
@@ -9957,16 +10004,63 @@ write_summary = true
         );
 
         assert!(open_summary.shape_validated);
+        assert!(open_summary.endpoint_shape_validated);
         assert_eq!(open_summary.order_entry_count, Some(1));
+        assert_eq!(open_summary.order_entries_observed, 1);
+        assert!(open_summary.non_empty_order_state_observed);
+        assert!(open_summary.order_lifecycle_readiness);
         assert!(!open_summary.raw_order_list_recorded);
         assert!(order_summary.shape_validated);
+        assert!(order_summary.endpoint_shape_validated);
         assert_eq!(order_summary.order_entry_count, Some(1));
+        assert_eq!(order_summary.order_entries_observed, 1);
+        assert!(order_summary.non_empty_order_state_observed);
+        assert!(order_summary.order_lifecycle_readiness);
         assert!(!order_summary.raw_order_response_recorded);
 
         let summary_body = serde_json::to_string(&open_summary).unwrap();
         assert!(!summary_body.contains("BTCUSDT"));
         assert!(!summary_body.contains("12345"));
         assert!(!summary_body.contains("NEW"));
+    }
+
+    #[test]
+    fn production_order_state_shape_summary_classifies_empty_open_orders_as_shape_only() {
+        let empty_open_orders = serde_json::json!([]);
+
+        let summary = summarize_production_order_state_shape(
+            ProductionOrderStateReadEndpoint::OpenOrders,
+            &empty_open_orders,
+        );
+
+        assert!(summary.shape_validated);
+        assert!(summary.endpoint_shape_validated);
+        assert_eq!(summary.status, "accepted");
+        assert_eq!(summary.order_entry_count, Some(0));
+        assert_eq!(summary.order_entries_observed, 0);
+        assert!(!summary.non_empty_order_state_observed);
+        assert!(!summary.order_lifecycle_readiness);
+        assert_eq!(summary.rejection_reason, "none");
+        assert!(!summary.raw_order_list_recorded);
+    }
+
+    #[test]
+    fn production_order_state_shape_summary_rejects_invalid_open_orders_shape() {
+        let invalid_open_orders = serde_json::json!({"symbol": "BTCUSDT"});
+
+        let summary = summarize_production_order_state_shape(
+            ProductionOrderStateReadEndpoint::OpenOrders,
+            &invalid_open_orders,
+        );
+
+        assert!(!summary.shape_validated);
+        assert!(!summary.endpoint_shape_validated);
+        assert_eq!(summary.status, "rejected");
+        assert_eq!(summary.order_entry_count, None);
+        assert_eq!(summary.order_entries_observed, 0);
+        assert!(!summary.non_empty_order_state_observed);
+        assert!(!summary.order_lifecycle_readiness);
+        assert_eq!(summary.rejection_reason, "root_not_array");
     }
 
     #[test]
