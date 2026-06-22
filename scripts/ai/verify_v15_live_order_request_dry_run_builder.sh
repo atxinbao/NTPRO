@@ -176,7 +176,10 @@ require(ready["manual_approval_lifecycle_state"] == "approved", ready)
 require(ready["manual_approval_lifecycle_valid"] is True, ready)
 require(len(ready["manual_approval_lifecycle_issues"]) == 0, ready)
 require(ready["manual_approval_one_time"] is True, ready)
-require(ready["manual_approval_used"] is False, ready)
+require(ready["manual_approval_used"] is True, ready)
+require(ready["manual_approval_consumed"] is True, ready)
+require(ready["manual_approval_consume_status"] == "approval_consumed_after_request_preview_created", ready)
+require(ready["manual_approval_consume_transition"] == "approved_to_request_preview_created_to_used", ready)
 for key in [
     "api_key_header_value_recorded",
     "api_secret_value_recorded",

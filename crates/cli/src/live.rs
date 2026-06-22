@@ -38,6 +38,7 @@ use nautilus_model::{
 use nautilus_sandbox::{SandboxExecutionClientConfig, SandboxExecutionClientFactory};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde_json::json;
 use tokio::time::{sleep, timeout};
 
 use crate::{
@@ -1300,6 +1301,10 @@ struct ProductionLiveAlphaOrderRequestPreviewArtifact {
     manual_approval_now_unix_ms: Option<u64>,
     manual_approval_one_time: bool,
     manual_approval_used: bool,
+    manual_approval_consumed: bool,
+    manual_approval_consume_status: String,
+    manual_approval_consume_transition: String,
+    manual_approval_consume_artifact_path: String,
     missing_cli_flags: Vec<String>,
     missing_env_vars: Vec<String>,
     order_gate_ready: bool,
@@ -2531,6 +2536,13 @@ where
     );
     let artifact = build_production_live_alpha_order_request_preview_artifact(opt, &credentials)?;
     write_production_live_alpha_order_request_preview_report(&opt.output, &artifact, &credentials)?;
+    if artifact.request_preview_built {
+        consume_production_live_alpha_manual_approval_lifecycle(
+            &opt.manual_approval_lifecycle,
+            &opt.output,
+            &artifact,
+        )?;
+    }
 
     println!(
         "live.production_live_alpha_order_request_preview status={} run_id={} output={} request_preview_built={} request_sent=false production_orders_submitted=0 production_order_mutations_attempted=0 execution_adapter_called=false network_attempted=false dashboard_order_controls_enabled=false",
@@ -5222,6 +5234,8 @@ fn build_production_live_alpha_order_request_preview_artifact(
     let request_preview_allowed = owner_manual_scope && classified.request_preview_allowed;
     let mut request_preview_built = false;
     let mut signature_preflight = "skipped_blocked".to_string();
+    let manual_approval_already_used =
+        json_bool_value(&manual_approval_lifecycle, "approval_used").unwrap_or(true);
 
     if request_preview_allowed {
         let request = build_production_live_alpha_signed_order_request_preview(
@@ -5242,6 +5256,20 @@ fn build_production_live_alpha_order_request_preview_artifact(
         request_preview_built = true;
         signature_preflight = "created_in_memory_not_recorded".to_string();
     }
+    let manual_approval_consumed = request_preview_built;
+    let manual_approval_used = manual_approval_already_used || manual_approval_consumed;
+    let manual_approval_consume_status = if manual_approval_consumed {
+        "approval_consumed_after_request_preview_created"
+    } else if manual_approval_already_used {
+        "approval_already_used"
+    } else {
+        "not_consumed"
+    };
+    let manual_approval_consume_transition = if manual_approval_consumed {
+        "approved_to_request_preview_created_to_used"
+    } else {
+        "not_consumed"
+    };
 
     let status = if request_preview_built {
         "ready_request_preview_only"
@@ -5317,8 +5345,15 @@ fn build_production_live_alpha_order_request_preview_artifact(
         manual_approval_now_unix_ms: json_u64_value(&manual_approval_lifecycle, "now_unix_ms"),
         manual_approval_one_time: json_bool_value(&manual_approval_lifecycle, "one_time_approval")
             .unwrap_or(false),
-        manual_approval_used: json_bool_value(&manual_approval_lifecycle, "approval_used")
-            .unwrap_or(true),
+        manual_approval_used,
+        manual_approval_consumed,
+        manual_approval_consume_status: manual_approval_consume_status.to_string(),
+        manual_approval_consume_transition: manual_approval_consume_transition.to_string(),
+        manual_approval_consume_artifact_path: if manual_approval_consumed {
+            opt.manual_approval_lifecycle.display().to_string()
+        } else {
+            String::new()
+        },
         missing_cli_flags: missing_cli_flags
             .iter()
             .map(|flag| (*flag).to_string())
@@ -5377,6 +5412,70 @@ fn build_production_live_alpha_order_request_preview_artifact(
         }
         .to_string(),
     })
+}
+
+fn consume_production_live_alpha_manual_approval_lifecycle(
+    approval_path: &Path,
+    request_preview_path: &Path,
+    request_preview: &ProductionLiveAlphaOrderRequestPreviewArtifact,
+) -> anyhow::Result<()> {
+    let mut approval = load_json_value(
+        approval_path,
+        "live-alpha manual approval lifecycle consume artifact",
+    )?;
+    if json_string_value(&approval, "schema_version").as_deref()
+        != Some(PRODUCTION_LIVE_ALPHA_MANUAL_APPROVAL_LIFECYCLE_SCHEMA_VERSION)
+    {
+        anyhow::bail!("manual approval consume requires v0.15 manual approval lifecycle schema");
+    }
+    if json_string_value(&approval, "approval_state").as_deref() != Some("approved") {
+        anyhow::bail!("manual approval consume requires approval_state=approved");
+    }
+    if json_bool_value(&approval, "approval_used").unwrap_or(true) {
+        anyhow::bail!("manual approval consume requires unused one-time approval");
+    }
+
+    let mut lifecycle_issues = json_string_array(&approval, "lifecycle_issues");
+    if !lifecycle_issues
+        .iter()
+        .any(|issue| issue == "manual_approval_used")
+    {
+        lifecycle_issues.push("manual_approval_used".to_string());
+    }
+
+    let Some(object) = approval.as_object_mut() else {
+        anyhow::bail!("manual approval lifecycle consume artifact must be a JSON object");
+    };
+    object.insert("approval_state".to_string(), json!("used"));
+    object.insert(
+        "status".to_string(),
+        json!("approval_consumed_after_request_preview_created"),
+    );
+    object.insert("approval_used".to_string(), json!(true));
+    object.insert("approval_lifecycle_valid".to_string(), json!(false));
+    object.insert("request_preview_created".to_string(), json!(true));
+    object.insert("approval_consumed".to_string(), json!(true));
+    object.insert(
+        "approval_consume_transition".to_string(),
+        json!("approved_to_request_preview_created_to_used"),
+    );
+    object.insert(
+        "consumed_by_request_preview_run_id".to_string(),
+        json!(request_preview.run_id.clone()),
+    );
+    object.insert(
+        "consumed_request_preview_path".to_string(),
+        json!(request_preview_path.display().to_string()),
+    );
+    object.insert("approval_consumed_at".to_string(), json!(now_millis()));
+    object.insert(
+        "diagnostic".to_string(),
+        json!("manual approval was consumed after request preview creation and cannot be reused"),
+    );
+    object.insert("lifecycle_issues".to_string(), json!(lifecycle_issues));
+
+    atomic_write_json(approval_path, &approval)?;
+    Ok(())
 }
 
 fn production_live_alpha_request_preview_manual_approval_issues(
@@ -6767,6 +6866,20 @@ fn json_string_value(value: &serde_json::Value, field: &str) -> Option<String> {
         .get(field)
         .and_then(serde_json::Value::as_str)
         .map(ToString::to_string)
+}
+
+fn json_string_array(value: &serde_json::Value, field: &str) -> Vec<String> {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(serde_json::Value::as_str)
+                .map(ToString::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn json_bool_value(value: &serde_json::Value, field: &str) -> Option<bool> {
@@ -12606,7 +12719,7 @@ write_summary = true
 
         let opt = production_live_alpha_order_request_preview_opt(
             order_gate,
-            manual_approval_lifecycle,
+            manual_approval_lifecycle.clone(),
             output.clone(),
             true,
         );
@@ -12666,7 +12779,16 @@ write_summary = true
             0
         );
         assert_eq!(artifact["manual_approval_one_time"], true);
-        assert_eq!(artifact["manual_approval_used"], false);
+        assert_eq!(artifact["manual_approval_used"], true);
+        assert_eq!(artifact["manual_approval_consumed"], true);
+        assert_eq!(
+            artifact["manual_approval_consume_status"],
+            "approval_consumed_after_request_preview_created"
+        );
+        assert_eq!(
+            artifact["manual_approval_consume_transition"],
+            "approved_to_request_preview_created_to_used"
+        );
         assert_eq!(artifact["order_gate_ready"], true);
         assert_eq!(artifact["request_preview_allowed"], true);
         assert_eq!(artifact["request_preview_built"], true);
@@ -12686,6 +12808,188 @@ write_summary = true
         assert_eq!(artifact["production_trading_enabled"], false);
         assert_eq!(artifact["signed_request_memory_only"], true);
         assert_eq!(artifact["secrets_redacted"], true);
+
+        let consumed_approval: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(manual_approval_lifecycle).unwrap()).unwrap();
+        assert_eq!(
+            consumed_approval["status"],
+            "approval_consumed_after_request_preview_created"
+        );
+        assert_eq!(consumed_approval["approval_state"], "used");
+        assert_eq!(consumed_approval["approval_used"], true);
+        assert_eq!(consumed_approval["approval_consumed"], true);
+        assert_eq!(consumed_approval["request_preview_created"], true);
+        assert_eq!(
+            consumed_approval["consumed_by_request_preview_run_id"],
+            "v150-live-alpha-request-preview"
+        );
+        assert_eq!(consumed_approval["approval_lifecycle_valid"], false);
+    }
+
+    #[test]
+    fn production_live_alpha_order_request_preview_consumes_one_time_manual_approval() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v151-002-approval-consume-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let order_gate = output_dir.join("live_alpha_dry_run_order_gate.json");
+        let manual_approval_lifecycle = output_dir.join("manual_approval_lifecycle.json");
+        let first_preview = output_dir.join("live_alpha_order_request_preview_first.json");
+        let second_preview = output_dir.join("live_alpha_order_request_preview_second.json");
+        let risk_input = output_dir.join("live_alpha_risk_input.json");
+        let risk_preflight = output_dir.join("live_alpha_risk_preflight.json");
+        let kill_switch_approval = output_dir.join("kill_switch_approval.json");
+        let runtime_gate = output_dir.join("live_alpha_kill_switch_runtime_gate.json");
+        let execution_output = output_dir.join("live_alpha_execution_dry_run.json");
+
+        run_live_production_live_alpha_dry_run_order_gate(
+            &production_live_alpha_limit_dry_run_order_gate_opt(order_gate.clone(), true),
+        )
+        .unwrap();
+        run_live_production_live_alpha_manual_approval_lifecycle(
+            &production_live_alpha_manual_approval_lifecycle_opt(
+                manual_approval_lifecycle.clone(),
+                &ManualApprovalLifecycleFixture {
+                    approval_state: "approved",
+                    run_id: "v150-live-alpha-request-preview",
+                    strategy_id: "ema_cross_btcusdt_v1",
+                    symbol: "BTCUSDT",
+                    notional: "10.00",
+                    now_unix_ms: 1_718_400_000_000,
+                    expires_at_unix_ms: 1_718_400_060_000,
+                },
+            ),
+        )
+        .unwrap();
+
+        let first_opt = production_live_alpha_order_request_preview_opt(
+            order_gate.clone(),
+            manual_approval_lifecycle.clone(),
+            first_preview.clone(),
+            true,
+        );
+        run_live_production_live_alpha_order_request_preview_with_env(
+            &first_opt,
+            |name| match name {
+                "NTPRO_V150002_API_KEY" => {
+                    Some("ntpro_v151002_synthetic_api_key_value".to_string())
+                }
+                "NTPRO_V150002_API_SECRET" => {
+                    Some("ntpro_v151002_synthetic_api_secret_value".to_string())
+                }
+                _ => None,
+            },
+        )
+        .unwrap();
+
+        let first_artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&first_preview).unwrap()).unwrap();
+        assert_eq!(first_artifact["status"], "ready_request_preview_only");
+        assert_eq!(first_artifact["request_preview_built"], true);
+        assert_eq!(first_artifact["manual_approval_consumed"], true);
+        assert_eq!(first_artifact["manual_approval_used"], true);
+
+        let consumed_approval: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&manual_approval_lifecycle).unwrap()).unwrap();
+        assert_eq!(consumed_approval["approval_state"], "used");
+        assert_eq!(consumed_approval["approval_used"], true);
+        assert_eq!(consumed_approval["request_preview_created"], true);
+        assert_eq!(consumed_approval["approval_lifecycle_valid"], false);
+
+        let second_opt = production_live_alpha_order_request_preview_opt(
+            order_gate.clone(),
+            manual_approval_lifecycle,
+            second_preview.clone(),
+            true,
+        );
+        run_live_production_live_alpha_order_request_preview_with_env(
+            &second_opt,
+            |name| match name {
+                "NTPRO_V150002_API_KEY" => {
+                    Some("ntpro_v151002_synthetic_api_key_value".to_string())
+                }
+                "NTPRO_V150002_API_SECRET" => {
+                    Some("ntpro_v151002_synthetic_api_secret_value".to_string())
+                }
+                _ => None,
+            },
+        )
+        .unwrap();
+
+        let second_artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&second_preview).unwrap()).unwrap();
+        assert_eq!(
+            second_artifact["status"],
+            "blocked_manual_approval_lifecycle"
+        );
+        assert_eq!(second_artifact["request_preview_allowed"], false);
+        assert_eq!(second_artifact["request_preview_built"], false);
+        assert_eq!(second_artifact["manual_approval_lifecycle_valid"], false);
+        assert_eq!(second_artifact["manual_approval_used"], true);
+        assert_eq!(
+            second_artifact["manual_approval_consume_status"],
+            "approval_already_used"
+        );
+        assert!(
+            second_artifact["manual_approval_lifecycle_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "manual_approval_used")
+        );
+        assert_eq!(second_artifact["request_sent"], false);
+        assert_eq!(second_artifact["production_orders_submitted"], 0);
+        assert_eq!(second_artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(second_artifact["network_attempted"], false);
+
+        let mut risk = passing_live_alpha_risk_input();
+        risk.order.order_type = "LIMIT".to_string();
+        write_live_alpha_risk_input(&risk_input, &risk);
+        run_live_production_live_alpha_risk_preflight(&production_live_alpha_risk_preflight_opt(
+            order_gate.clone(),
+            risk_input,
+            risk_preflight.clone(),
+            true,
+        ))
+        .unwrap();
+        write_kill_switch_approval_artifact(kill_switch_approval.clone(), false, "approved");
+        run_live_production_live_alpha_kill_switch_runtime_gate(
+            &production_live_alpha_kill_switch_runtime_gate_opt(
+                kill_switch_approval,
+                risk_preflight.clone(),
+                second_preview.clone(),
+                runtime_gate.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+        run_live_production_live_alpha_execution_dry_run(
+            &production_live_alpha_execution_dry_run_opt(
+                order_gate,
+                risk_preflight,
+                second_preview,
+                runtime_gate,
+                execution_output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+        let execution: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(execution_output).unwrap()).unwrap();
+        assert_eq!(execution["status"], "blocked_source_artifact");
+        assert_eq!(execution["dry_run_execution_adapter_called"], false);
+        assert_eq!(execution["production_adapter_called"], false);
+        assert_eq!(execution["production_orders_submitted"], 0);
+        assert_eq!(execution["production_order_mutations_attempted"], 0);
+        assert_eq!(execution["network_attempted"], false);
+        assert!(
+            execution["source_artifact_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "request_preview_not_built")
+        );
     }
 
     #[test]
