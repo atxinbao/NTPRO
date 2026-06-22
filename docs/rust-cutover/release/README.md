@@ -284,6 +284,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   include production order submission, production order mutation,
   cancel/replace/amend/retry/correction, listenKey lifecycle, real funds,
   production trading, or Dashboard order controls.
+- `v0_15_0_mutation_scope_decision.md` - V150-000 production mutation scope
+  decision. It defines v0.15.0 as Guarded Live Alpha Mutation Scope +
+  Execution Dry-Run Harness only: one venue/account label/symbol/order type,
+  tiny notional, manual owner approval, kill switch active by default, no
+  autonomous strategy execution, no request sending, no production mutation,
+  no listenKey lifecycle, no real funds, no production trading, and no
+  Dashboard order controls.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
