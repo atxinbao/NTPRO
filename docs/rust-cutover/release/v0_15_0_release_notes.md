@@ -2,10 +2,10 @@
 
 Date: 2026-06-22
 Executor: Codex
-Status: READY FOR OWNER RELEASE DECISION
-Tag candidate: `ntpro-rust-only-v0.15.0`
-Release name candidate: `NTPRO Rust-only v0.15.0`
-Release URL: pending owner publication
+Status: RELEASED
+Tag: `ntpro-rust-only-v0.15.0`
+Release name: `NTPRO Rust-only v0.15.0`
+Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.15.0`
 
 ## Summary
 
@@ -120,13 +120,12 @@ git diff --check
 
 ## Release Status
 
-This document is release-note material for a potential owner-published GitHub
-Release:
+This document is the formal GitHub Release note for:
 
 ```text
-tag candidate = ntpro-rust-only-v0.15.0
-release name candidate = NTPRO Rust-only v0.15.0
-release URL = pending owner publication
+tag = ntpro-rust-only-v0.15.0
+release name = NTPRO Rust-only v0.15.0
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.15.0
 ```
 
 The release boundary must continue to preserve: dry-run request preview only,

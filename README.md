@@ -6,40 +6,44 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.14.0
-Capability: Production Order-State Read-Only + Live Alpha Dry-Run
-Boundary: v0.14.0 owner-gated production order-state read-only proof and live-alpha dry-run evidence only, local supervisor shadow runtime evidence, local risk preflight, reconciliation golden traces, Dashboard read-only dry-run panel, default local/PR/release execution offline and fail-closed, production orders submitted=0, production order mutations attempted=0, listenKey lifecycle attempted=0, no real funds, no production trading, no Dashboard order controls
+Current source tag: ntpro-rust-only-v0.15.0
+Capability: Guarded Live Alpha Mutation Scope + Execution Dry-Run Harness
+Boundary: v0.15.0 production mutation scope classification, redacted local order request preview, manual approval lifecycle, kill switch runtime gate, local dry-run execution adapter artifact, dry-run mutation golden traces, manual incident/rollback/emergency-stop artifacts, Dashboard read-only mutation preflight panel, default local/PR/release execution offline and fail-closed, production request sent=false, production orders submitted=0, production order mutations attempted=0, listenKey lifecycle attempted=0, no real funds, no production trading, no Dashboard order controls
 ```
 
-This tag is the current v0.14.0 source release point for the scoped Production
-Order-State Read-Only + Live Alpha Dry-Run line. It moves beyond the v0.13
-preflight evidence line by adding owner-gated production order-state read-only
-GET proof scope and local live-alpha dry-run evidence. It is not evidence of
-production order submission, production mutation, cancel/replace/amend/retry/
-correction, listenKey lifecycle access, signed WebSocket user stream runtime,
-real funds, production trading, automatic production remediation, production
-portfolio parity, or Dashboard order controls. It is published as a GitHub
-Release for the tagged source tree:
+This tag is the current v0.15.0 source release point for the scoped Guarded
+Live Alpha Mutation Scope + Execution Dry-Run Harness line. It moves beyond
+the v0.14 read-only/dry-run line by adding production mutation endpoint
+classification, redacted local request-preview artifacts, manual approval,
+kill-switch runtime gating, local dry-run execution-adapter evidence,
+incident/rollback evidence, and a Dashboard read-only mutation preflight panel.
+It is not evidence of production request sending, production order submission,
+production mutation, cancel/replace/amend/retry/correction, listenKey lifecycle
+access, signed WebSocket user stream runtime, real funds, production trading,
+automatic production remediation, production portfolio parity, or Dashboard
+order controls. It is published as a GitHub Release for the tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.14.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.15.0
 ```
 
-`v0.14.0` is now the current Production Order-State Read-Only + Live Alpha
-Dry-Run release. It is still dry-run/read-only only. It does not expand the
-product into production order submission, production order mutation,
-cancel/replace/amend/retry/correction, listenKey lifecycle, signed WebSocket
-user stream runtime, real funds, production trading, automatic production
-remediation, production portfolio parity, or Dashboard order controls.
+`v0.15.0` is now the current Guarded Live Alpha Mutation Scope + Execution
+Dry-Run Harness release. It is still dry-run/request-preview only. It does not
+expand the product into production request sending, production order
+submission, production order mutation, cancel/replace/amend/retry/correction,
+listenKey lifecycle, signed WebSocket user stream runtime, real funds,
+production trading, automatic production remediation, production portfolio
+parity, or Dashboard order controls.
 
-The next patch track is `v0.14.1`, if needed. It must preserve the v0.14.0
-read-only/dry-run and no-production-mutation boundary and must not add
-production order submission, production order mutation, listenKey lifecycle,
-signed WebSocket user stream runtime, real funds, production trading,
-automatic production remediation, or Dashboard order controls.
+The next patch track is `v0.15.1`, if needed. It must preserve the v0.15.0
+request-preview/dry-run and no-production-mutation boundary and must not add
+production request sending, production order submission, production order
+mutation, listenKey lifecycle, signed WebSocket user stream runtime, real
+funds, production trading, automatic production remediation, or Dashboard
+order controls.
 
-`v0.15.0` requires a separate scope decision before any capability may be
-claimed beyond v0.14.0 read-only/dry-run evidence.
+`v0.16.0` requires a separate scope decision before any capability may be
+claimed beyond v0.15.0 request-preview/dry-run evidence.
 
 ## Current Status
 
@@ -115,7 +119,7 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.14.0 is the current formal release line. It builds on the earlier foundation
+v0.15.0 is the current formal release line. It builds on the earlier foundation
 layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
@@ -153,6 +157,15 @@ layers:
   dry-run/manual approval artifact, Dashboard control-boundary evidence,
   Decimal/string amount-boundary evidence, and no-production-mutation release
   gate.
+- `v0.14.0`: Production Order-State Read-Only + Live Alpha Dry-Run, with
+  owner-gated production order-state read-only proof scope, local live-alpha
+  dry-run evidence, local risk preflight, reconciliation golden traces,
+  Dashboard read-only dry-run panel, and no-production-mutation release gate.
+- `v0.15.0`: Guarded Live Alpha Mutation Scope + Execution Dry-Run Harness,
+  with mutation endpoint classification, redacted local request preview,
+  manual approval lifecycle, kill-switch runtime gate, local dry-run execution
+  adapter evidence, incident/rollback artifacts, Dashboard read-only mutation
+  preflight panel, and no-production-mutation release gate.
 
 `v0.5.0` was completed as a scoped readiness milestone and is absorbed into the
 `v0.6.0` release tree. It is not published as a separate public GitHub Release.
@@ -482,13 +495,13 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.14.0` is the current Rust-only source release for the
-Production Order-State Read-Only + Live Alpha Dry-Run line. It does not add
-production order submission, production order mutation, listenKey lifecycle,
-signed WebSocket user stream runtime, real funds, production trading,
-automatic production remediation, production portfolio parity, or Dashboard
-order controls. `v0.14.0` preserves a read-only/dry-run and
-no-production-mutation boundary.
+`ntpro-rust-only-v0.15.0` is the current Rust-only source release for the
+Guarded Live Alpha Mutation Scope + Execution Dry-Run Harness line. It does
+not add production request sending, production order submission, production
+order mutation, listenKey lifecycle, signed WebSocket user stream runtime, real
+funds, production trading, automatic production remediation, production
+portfolio parity, or Dashboard order controls. `v0.15.0` preserves a
+request-preview/dry-run and no-production-mutation boundary.
 `v0.12.1` remains the Production Read-Only Evidence & Release Surface Hardening
 baseline, `v0.10.0` remains the Binance spot sandbox order-proof baseline,
 `v0.9.0` remains the local deterministic Strategy Runtime batch foundation

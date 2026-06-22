@@ -10,11 +10,12 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.14.0` 是当前正式公开发布点；它是 Production Order-State Read-Only +
-Live Alpha Dry-Run，只证明 owner-gated 生产订单状态只读查询范围和本地
-live-alpha 干跑证据链。它不是生产下单、不是生产订单变更、不是 listenKey
-生命周期、不是生产交易，也没有 Dashboard 下单按钮。`v0.15.0` 需要单独
-scope decision，不能从 v0.14.0 的 read-only/dry-run 证据里推导出来。
+`v0.15.0` 是当前正式公开发布点；它是 Guarded Live Alpha Mutation Scope +
+Execution Dry-Run Harness，只证明生产 mutation 范围分类、脱敏请求预览、人工审批、
+kill switch、dry-run 执行隔离、事故证据和 Dashboard 只读预检面板。它不是生产
+请求发送、不是生产下单、不是生产订单变更、不是 listenKey 生命周期、不是生产交易，
+也没有 Dashboard 下单按钮。`v0.16.0` 需要单独 scope decision，不能从 v0.15.0
+的 request-preview/dry-run 证据里推导出来。
 
 ## Release Tags
 
@@ -32,6 +33,7 @@ ntpro-rust-only-v0.12.0
 ntpro-rust-only-v0.12.1
 ntpro-rust-only-v0.13.0
 ntpro-rust-only-v0.14.0
+ntpro-rust-only-v0.15.0
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -44,18 +46,18 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.14.0
+ntpro-rust-only-v0.15.0
 ```
 
 The active patch track is:
 
 ```text
-v0.14.1
+v0.15.1
 ```
 
-v0.14.1 is the reserved patch track, if needed. It must not be described as
-production order submission, production order mutation, production order-state
-reads, listenKey lifecycle, real funds, production trading, automatic
+v0.15.1 is the reserved patch track, if needed. It must not be described as
+production request sending, production order submission, production order
+mutation, listenKey lifecycle, real funds, production trading, automatic
 production remediation, or Dashboard order controls.
 
 ## Cargo Workspace Version
@@ -211,14 +213,31 @@ order controls.
 
 ### v0.15.0
 
+Current boundary:
+
+```text
+Guarded Live Alpha Mutation Scope + Execution Dry-Run Harness only
+```
+
+V150-000 defines the owner-approved v0.15.0 boundary. It allows production
+mutation endpoint classification, redacted local request-preview artifacts,
+manual approval lifecycle, kill-switch runtime gating, local dry-run execution
+adapter evidence, incident/rollback evidence, and Dashboard read-only mutation
+preflight only. It is not production request sending, production order
+submission, production order mutation, cancel/replace/amend/retry/correction,
+listenKey lifecycle, real-funds trading, production trading, automatic
+remediation, or Dashboard order controls.
+
+### v0.16.0
+
 Future scope:
 
 ```text
 requires a separate scope decision
 ```
 
-v0.15.0 must not inherit any production trading, production order mutation, or
-Dashboard order-control claim from v0.14.0 read-only/dry-run evidence.
+v0.16.0 must not inherit any production trading, production order mutation, or
+Dashboard order-control claim from v0.15.0 request-preview/dry-run evidence.
 
 ### v0.6.0
 
