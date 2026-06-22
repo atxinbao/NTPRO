@@ -174,6 +174,8 @@ pub enum LiveCommand {
     ProductionLiveAlphaExecutionDryRun(LiveProductionLiveAlphaExecutionDryRunOpt),
     /// Evaluates the v0.15 kill-switch runtime gate before any dry-run mutation progression; no production mutation.
     ProductionLiveAlphaKillSwitchRuntimeGate(LiveProductionLiveAlphaKillSwitchRuntimeGateOpt),
+    /// Evaluates v0.16 owner-approved production mutation runtime gates; no request execution.
+    ProductionMutationRuntimeGate(LiveProductionMutationRuntimeGateOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -798,6 +800,59 @@ pub struct LiveProductionLiveAlphaKillSwitchRuntimeGateOpt {
     /// Confirms no real funds or real orders are involved.
     #[arg(long)]
     pub confirm_no_real_funds: bool,
+}
+
+/// Owner-approved v0.16 production mutation runtime gate options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationRuntimeGateOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.14/v0.15 dry-run order gate JSON input.
+    #[arg(long)]
+    pub order_gate: PathBuf,
+    /// v0.14 risk preflight JSON input.
+    #[arg(long)]
+    pub risk_preflight: PathBuf,
+    /// v0.15 request preview JSON input.
+    #[arg(long)]
+    pub request_preview: PathBuf,
+    /// v0.15 kill-switch runtime gate JSON input.
+    #[arg(long)]
+    pub kill_switch_runtime_gate: PathBuf,
+    /// v0.16 production mutation runtime gate JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Maximum allowed tiny order notional for this runtime gate.
+    #[arg(long, default_value = "10.00")]
+    pub max_notional: String,
+    /// Manual CLI gate for v0.16 production mutation runtime-gate evaluation.
+    #[arg(long)]
+    pub allow_production_mutation_runtime_gate: bool,
+    /// Confirms owner approval is required immediately before any send.
+    #[arg(long)]
+    pub confirm_owner_approved_production_mutation: bool,
+    /// Confirms the candidate is a single LIMIT GTC order only.
+    #[arg(long)]
+    pub confirm_single_limit_gtc: bool,
+    /// Confirms the candidate notional is tiny and owner-capped.
+    #[arg(long)]
+    pub confirm_tiny_notional: bool,
+    /// Confirms a separate signing approval artifact is required before send.
+    #[arg(long)]
+    pub confirm_signing_approval_required: bool,
+    /// Confirms no network request can occur before the explicit send gate.
+    #[arg(long)]
+    pub confirm_no_network_before_send: bool,
+    /// Confirms Dashboard order controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms listenKey lifecycle remains forbidden.
+    #[arg(long)]
+    pub confirm_no_listen_key_lifecycle: bool,
+    /// Confirms retry, correction, cancel, replace, amend, and flatten remain forbidden.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
 }
 
 /// Hypothetical live-alpha risk preflight options.
@@ -1993,6 +2048,75 @@ mod tests {
         assert!(gate.confirm_no_listen_key_lifecycle);
         assert!(gate.confirm_dashboard_order_controls_disabled);
         assert!(gate.confirm_no_real_funds);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_runtime_gate_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-runtime-gate",
+            "--run-id",
+            "v160-runtime-gate",
+            "--order-gate",
+            "runs/v160/order-gate.json",
+            "--risk-preflight",
+            "runs/v160/risk-preflight.json",
+            "--request-preview",
+            "runs/v160/request-preview.json",
+            "--kill-switch-runtime-gate",
+            "runs/v160/kill-switch-runtime-gate.json",
+            "--output",
+            "runs/v160/production-mutation-runtime-gate.json",
+            "--max-notional",
+            "10.00",
+            "--allow-production-mutation-runtime-gate",
+            "--confirm-owner-approved-production-mutation",
+            "--confirm-single-limit-gtc",
+            "--confirm-tiny-notional",
+            "--confirm-signing-approval-required",
+            "--confirm-no-network-before-send",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-listen-key-lifecycle",
+            "--confirm-no-retry",
+        ])
+        .expect("live production-mutation-runtime-gate should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationRuntimeGate(gate) = live.command else {
+            panic!("expected production-mutation-runtime-gate command");
+        };
+
+        assert_eq!(gate.run_id, "v160-runtime-gate");
+        assert_eq!(gate.order_gate, PathBuf::from("runs/v160/order-gate.json"));
+        assert_eq!(
+            gate.risk_preflight,
+            PathBuf::from("runs/v160/risk-preflight.json")
+        );
+        assert_eq!(
+            gate.request_preview,
+            PathBuf::from("runs/v160/request-preview.json")
+        );
+        assert_eq!(
+            gate.kill_switch_runtime_gate,
+            PathBuf::from("runs/v160/kill-switch-runtime-gate.json")
+        );
+        assert_eq!(
+            gate.output,
+            PathBuf::from("runs/v160/production-mutation-runtime-gate.json")
+        );
+        assert_eq!(gate.max_notional, "10.00");
+        assert!(gate.allow_production_mutation_runtime_gate);
+        assert!(gate.confirm_owner_approved_production_mutation);
+        assert!(gate.confirm_single_limit_gtc);
+        assert!(gate.confirm_tiny_notional);
+        assert!(gate.confirm_signing_approval_required);
+        assert!(gate.confirm_no_network_before_send);
+        assert!(gate.confirm_dashboard_order_controls_disabled);
+        assert!(gate.confirm_no_listen_key_lifecycle);
+        assert!(gate.confirm_no_retry);
     }
 
     #[test]
