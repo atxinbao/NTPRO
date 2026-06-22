@@ -42,8 +42,8 @@ ACTIVE_EXECUTION_REPORT="$OUTPUT_DIR/active-kill-switch-execution-dry-run.json"
 ACTIVE_EXECUTION_STDOUT="$OUTPUT_DIR/active-execution.stdout.log"
 ACTIVE_EXECUTION_STDERR="$OUTPUT_DIR/active-execution.stderr.log"
 
-SYNTHETIC_API_KEY="ntpro_v150004_synthetic_api_key_value"
-SYNTHETIC_API_SECRET="ntpro_v150004_synthetic_api_secret_value"
+SYNTHETIC_API_KEY="ntpro_v151003_synthetic_api_key_value"
+SYNTHETIC_API_SECRET="ntpro_v151003_synthetic_api_secret_value"
 
 "$NAUTILUS_BIN" live production-live-alpha-dry-run-order-gate \
   --run-id v150-kill-switch-runtime \
@@ -181,6 +181,7 @@ NTPRO_V150004_API_SECRET="$SYNTHETIC_API_SECRET" \
   --recv-window-ms 5000 \
   --api-key-env NTPRO_V150004_MISSING_API_KEY \
   --api-secret-env NTPRO_V150004_MISSING_API_SECRET \
+  --credential-material production_live_alpha \
   --output "$BLOCKED_REQUEST_PREVIEW" \
   --allow-production-live-alpha-request-preview \
   --confirm-owner-approved-request-preview \

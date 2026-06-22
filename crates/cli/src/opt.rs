@@ -614,6 +614,13 @@ pub struct LiveProductionLiveAlphaOrderRequestPreviewOpt {
     /// Environment variable name containing the Binance production API secret.
     #[arg(long, default_value = "BINANCE_PRODUCTION_LIVE_ALPHA_API_SECRET")]
     pub api_secret_env: String,
+    /// Signing material used for dry-run request preview.
+    #[arg(
+        long,
+        default_value = "synthetic",
+        value_parser = ["synthetic", "production_live_alpha"]
+    )]
+    pub credential_material: String,
     /// v0.15 redacted request preview JSON output path.
     #[arg(long)]
     pub output: PathBuf,
