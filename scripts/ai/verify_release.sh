@@ -274,6 +274,14 @@ run_v14_release_gates() {
     scripts/ai/verify_v14_release_gates.sh
 }
 
+run_v15_release_gates() {
+  echo "== verify_release: v0.15 release gates =="
+  ensure_release_cli_binaries
+  NTPRO_V15_SKIP_BUILD=1 \
+    NTPRO_V15_NAUTILUS_BIN="$NAUTILUS_RELEASE_BIN" \
+    scripts/ai/verify_v15_release_gates.sh
+}
+
 run_release_surface_current_guard() {
   echo "== verify_release: release surface current guard =="
   scripts/ai/check_release_surface_current.sh
@@ -310,6 +318,7 @@ run_stage() {
       run_v12_manual_online_preflight
       run_v13_no_production_mutation_gate
       run_v14_release_gates
+      run_v15_release_gates
       run_release_surface_current_guard
       run_release_publication_guard
       ;;
@@ -379,6 +388,9 @@ run_stage() {
     v14-release-gates)
       run_v14_release_gates
       ;;
+    v15-release-gates)
+      run_v15_release_gates
+      ;;
     release-surface-current-guard)
       run_release_surface_current_guard
       ;;
@@ -387,7 +399,7 @@ run_stage() {
       ;;
     *)
       echo "unknown verify_release stage: $stage" >&2
-      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate, v08-authenticated-readonly-preflight, v09-strategy-runtime-smoke, v09-shadow-mode-no-order-gate, v091-strategy-supervisor-dashboard-integration, v10-offline-release-gates, v10-manual-order-proof-preflight, v11-offline-release-gates, v12-offline-release-gates, v12-manual-online-preflight, v13-no-production-mutation-gate, v14-release-gates, release-surface-current-guard, release-publication-guard" >&2
+      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate, v08-authenticated-readonly-preflight, v09-strategy-runtime-smoke, v09-shadow-mode-no-order-gate, v091-strategy-supervisor-dashboard-integration, v10-offline-release-gates, v10-manual-order-proof-preflight, v11-offline-release-gates, v12-offline-release-gates, v12-manual-online-preflight, v13-no-production-mutation-gate, v14-release-gates, v15-release-gates, release-surface-current-guard, release-publication-guard" >&2
       exit 2
       ;;
   esac
