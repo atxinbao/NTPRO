@@ -901,7 +901,7 @@ function renderProductionShadow(productionShadow) {
             <td data-label="策略会话">${displayText(snapshotValue(shadow.shadow_strategy_session_status))}<div class="muted">${displayText(snapshotValue(shadow.shadow_strategy_session_heartbeats))} heartbeats</div><div class="muted">${displayText(snapshotValue(shadow.lifecycle_status))} / ${displayText(snapshotValue(shadow.lifecycle_events_created))} legacy events</div></td>
             <td data-label="Reconciliation">${displayText(snapshotValue(shadow.reconciliation_status))}<div class="muted">${displayText(snapshotValue(shadow.reconciliation_classification))}</div><div class="muted">${displayText(snapshotValue(shadow.reconciliation_events_created))} events</div></td>
             <td data-label="Risk halt">${panelRow("Risk halt", snapshotValue(shadow.risk_halted))}${panelRow("人工复核", snapshotValue(shadow.manual_review_required))}${panelRow("新单阻断", snapshotValue(shadow.new_orders_blocked))}${panelRow("Kill switch", snapshotValue(shadow.kill_switch_status))}${panelRow("Kill active", snapshotValue(shadow.kill_switch_active))}${panelRow("Dry-run", snapshotValue(shadow.kill_switch_dry_run))}${panelRow("审批", snapshotValue(shadow.kill_switch_approval_state))}${panelRow("审批记录", snapshotValue(shadow.kill_switch_manual_approval_recorded))}${panelRow("动作", snapshotValue(shadow.reconciliation_recommended_action))}</td>
-            <td data-label="边界">${panelRow("实际提交", snapshotValue(shadow.actual_submission_count))}${panelRow("生产提交尝试", snapshotValue(shadow.production_order_submissions_attempted))}${panelRow("生产提交", snapshotValue(shadow.production_orders_submitted))}${panelRow("生产变更", snapshotValue(shadow.production_order_mutations_attempted))}${panelRow("订单状态读取", snapshotValue(shadow.production_order_state_reads_attempted))}${panelRow("listenKey", snapshotValue(shadow.listen_key_lifecycle_attempted))}${panelRow("自动纠错", snapshotValue(shadow.automatic_correction_orders_submitted))}${panelRow("提交允许", snapshotValue(shadow.kill_switch_production_order_submission_allowed))}${panelRow("变更允许", snapshotValue(shadow.kill_switch_production_order_mutation_allowed))}${panelRow("状态读取允许", snapshotValue(shadow.kill_switch_production_order_state_reads_allowed))}${panelRow("listenKey允许", snapshotValue(shadow.kill_switch_listen_key_lifecycle_allowed))}${panelRow("Dashboard 下单控件", snapshotValue(shadow.dashboard_order_controls_enabled))}${panelRow("真实订单", snapshotValue(shadow.real_orders_submitted))}${panelRow("交易所真值", snapshotValue(shadow.values_are_exchange_truth))}</td>
+            <td data-label="边界">${panelRow("实际提交", snapshotValue(shadow.actual_submission_count))}${panelRow("生产提交尝试", snapshotValue(shadow.production_order_submissions_attempted))}${panelRow("生产提交", snapshotValue(shadow.production_orders_submitted))}${panelRow("生产变更", snapshotValue(shadow.production_order_mutations_attempted))}${panelRow("订单状态读取", snapshotValue(shadow.production_order_state_reads_attempted))}${panelRow("listenKey", snapshotValue(shadow.listen_key_lifecycle_attempted))}${panelRow("自动纠错", snapshotValue(shadow.automatic_correction_orders_submitted))}${panelRow("提交允许", snapshotValue(shadow.kill_switch_production_order_submission_allowed))}${panelRow("变更允许", snapshotValue(shadow.kill_switch_production_order_mutation_allowed))}${panelRow("状态读取允许", snapshotValue(shadow.kill_switch_production_order_state_reads_allowed))}${panelRow("listenKey允许", snapshotValue(shadow.kill_switch_listen_key_lifecycle_allowed))}${panelRow("Dashboard 下单控件", snapshotValue(shadow.dashboard_order_controls_enabled))}${panelRow("真实订单", snapshotValue(shadow.real_orders_submitted))}${panelRow("订单状态真值", snapshotValue(shadow.order_state_values_are_exchange_truth))}${panelRow("Shadow 真值", snapshotValue(shadow.shadow_values_are_exchange_truth))}${panelRow("Portfolio 真值", snapshotValue(shadow.portfolio_values_are_exchange_truth))}${panelRow("兼容真值", snapshotValue(shadow.values_are_exchange_truth))}</td>
             <td data-label="Manifest">${displayText(snapshotValue(shadow.manifest_status))}<div class="muted">${displayText(snapshotValue(shadow.manifest_artifact_count))} artifacts</div></td>
             <td data-label="工件" class="path">
               ${panelRow("manifest", snapshotValue(shadow.manifest_path))}
@@ -939,7 +939,7 @@ function renderPreflightReadiness(readiness) {
             <td data-label="节点"><strong>${text(item.node_id)}</strong><div class="muted">${displayText(snapshotValue(item.evidence_source))}</div></td>
             <td data-label="健康"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div></td>
             <td data-label="证据状态">${panelRow("Proof pack", snapshotValue(item.owner_proof_pack_status))}${panelRow("Kill switch", snapshotValue(item.kill_switch_artifact_status))}${panelRow("Shadow preflight", snapshotValue(item.bounded_shadow_preflight_status))}${panelRow("Decimal", snapshotValue(item.decimal_boundary_status))}${panelRow("No mutation gate", snapshotValue(item.no_production_mutation_gate_status))}</td>
-            <td data-label="边界">${panelRow("提交允许", snapshotValue(item.production_order_submission_allowed))}${panelRow("变更允许", snapshotValue(item.production_order_mutation_allowed))}${panelRow("状态读取允许", snapshotValue(item.production_order_state_reads_allowed))}${panelRow("listenKey允许", snapshotValue(item.listen_key_lifecycle_allowed))}${panelRow("Dashboard 下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("真实订单", snapshotValue(item.real_orders_submitted))}${panelRow("交易所真值", snapshotValue(item.values_are_exchange_truth))}</td>
+            <td data-label="边界">${panelRow("提交允许", snapshotValue(item.production_order_submission_allowed))}${panelRow("变更允许", snapshotValue(item.production_order_mutation_allowed))}${panelRow("状态读取允许", snapshotValue(item.production_order_state_reads_allowed))}${panelRow("listenKey允许", snapshotValue(item.listen_key_lifecycle_allowed))}${panelRow("Dashboard 下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("真实订单", snapshotValue(item.real_orders_submitted))}${panelRow("订单状态真值", snapshotValue(item.order_state_values_are_exchange_truth))}${panelRow("Shadow 真值", snapshotValue(item.shadow_values_are_exchange_truth))}${panelRow("Portfolio 真值", snapshotValue(item.portfolio_values_are_exchange_truth))}${panelRow("兼容真值", snapshotValue(item.values_are_exchange_truth))}</td>
             <td data-label="诊断">${displayText(snapshotValue(item.diagnostic))}</td>
           </tr>
         `).join("")}
@@ -971,7 +971,7 @@ function renderLiveAlphaDryRun(items) {
             <td data-label="风控预检">${panelRow("状态", snapshotValue(item.risk_preflight_status))}${panelRow("决策", snapshotValue(item.risk_decision))}${panelRow("原因", snapshotValue(item.risk_reasons))}${panelRow("Kill switch", snapshotValue(item.kill_switch_active))}</td>
             <td data-label="Order State">${panelRow("可读", snapshotValue(item.order_state_readable))}${panelRow("Age", snapshotValue(item.order_state_age_ms))}${panelRow("Max age", snapshotValue(item.max_order_state_age_ms))}${panelRow("Open orders", snapshotValue(item.open_order_count))}${panelRow("Max open", snapshotValue(item.max_open_orders))}</td>
             <td data-label="Reconciliation">${panelRow("状态", snapshotValue(item.reconciliation_status))}${panelRow("提交允许", snapshotValue(item.production_order_submission_allowed))}${panelRow("变更允许", snapshotValue(item.production_order_mutation_allowed))}${panelRow("状态读取允许", snapshotValue(item.production_order_state_reads_allowed))}${panelRow("listenKey允许", snapshotValue(item.listen_key_lifecycle_allowed))}</td>
-            <td data-label="只读边界">${panelRow("提交尝试", snapshotValue(item.production_order_submissions_attempted))}${panelRow("生产提交", snapshotValue(item.production_orders_submitted))}${panelRow("生产变更", snapshotValue(item.production_order_mutations_attempted))}${panelRow("状态读取尝试", snapshotValue(item.production_order_state_reads_attempted))}${panelRow("listenKey尝试", snapshotValue(item.listen_key_lifecycle_attempted))}${panelRow("撤改尝试", snapshotValue(item.cancel_replace_amend_attempted))}${panelRow("Execution adapter", snapshotValue(item.execution_adapter_called))}${panelRow("订单端点", snapshotValue(item.order_endpoint_access_attempted))}${panelRow("撮合提交", snapshotValue(item.matching_engine_submission))}${panelRow("实际提交", snapshotValue(item.actual_submission_count))}${panelRow("自动纠错", snapshotValue(item.automatic_correction_orders_submitted))}${panelRow("Dashboard 下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("网络尝试", snapshotValue(item.network_attempted))}${panelRow("真实订单", snapshotValue(item.real_orders_submitted))}${panelRow("真实资金", snapshotValue(item.real_funds))}${panelRow("生产交易", snapshotValue(item.production_trading_enabled))}${panelRow("交易所真值", snapshotValue(item.values_are_exchange_truth))}</td>
+            <td data-label="只读边界">${panelRow("提交尝试", snapshotValue(item.production_order_submissions_attempted))}${panelRow("生产提交", snapshotValue(item.production_orders_submitted))}${panelRow("生产变更", snapshotValue(item.production_order_mutations_attempted))}${panelRow("状态读取尝试", snapshotValue(item.production_order_state_reads_attempted))}${panelRow("listenKey尝试", snapshotValue(item.listen_key_lifecycle_attempted))}${panelRow("撤改尝试", snapshotValue(item.cancel_replace_amend_attempted))}${panelRow("Execution adapter", snapshotValue(item.execution_adapter_called))}${panelRow("订单端点", snapshotValue(item.order_endpoint_access_attempted))}${panelRow("撮合提交", snapshotValue(item.matching_engine_submission))}${panelRow("实际提交", snapshotValue(item.actual_submission_count))}${panelRow("自动纠错", snapshotValue(item.automatic_correction_orders_submitted))}${panelRow("Dashboard 下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("网络尝试", snapshotValue(item.network_attempted))}${panelRow("真实订单", snapshotValue(item.real_orders_submitted))}${panelRow("真实资金", snapshotValue(item.real_funds))}${panelRow("生产交易", snapshotValue(item.production_trading_enabled))}${panelRow("订单状态真值", snapshotValue(item.order_state_values_are_exchange_truth))}${panelRow("Shadow 真值", snapshotValue(item.shadow_values_are_exchange_truth))}${panelRow("Portfolio 真值", snapshotValue(item.portfolio_values_are_exchange_truth))}${panelRow("兼容真值", snapshotValue(item.values_are_exchange_truth))}</td>
             <td data-label="工件" class="path">
               ${panelRow("gate", snapshotValue(item.order_gate_path))}
               ${panelRow("risk", snapshotValue(item.risk_preflight_path))}
@@ -2600,6 +2600,9 @@ pub struct ProductionShadowStatus {
     pub automatic_correction_orders_submitted: DashboardValue<u64>,
     pub dashboard_order_controls_enabled: DashboardValue<bool>,
     pub real_orders_submitted: DashboardValue<bool>,
+    pub order_state_values_are_exchange_truth: DashboardValue<bool>,
+    pub shadow_values_are_exchange_truth: DashboardValue<bool>,
+    pub portfolio_values_are_exchange_truth: DashboardValue<bool>,
     pub values_are_exchange_truth: DashboardValue<bool>,
     pub manifest_path: DashboardValue<String>,
     pub public_read_probe_path: DashboardValue<String>,
@@ -2629,6 +2632,9 @@ pub struct PreflightReadinessStatus {
     pub listen_key_lifecycle_allowed: DashboardValue<bool>,
     pub dashboard_order_controls_enabled: DashboardValue<bool>,
     pub real_orders_submitted: DashboardValue<bool>,
+    pub order_state_values_are_exchange_truth: DashboardValue<bool>,
+    pub shadow_values_are_exchange_truth: DashboardValue<bool>,
+    pub portfolio_values_are_exchange_truth: DashboardValue<bool>,
     pub values_are_exchange_truth: DashboardValue<bool>,
     pub diagnostic: DashboardValue<String>,
     pub evidence_source: DashboardValue<String>,
@@ -2675,6 +2681,9 @@ pub struct LiveAlphaDryRunStatus {
     pub real_orders_submitted: DashboardValue<bool>,
     pub real_funds: DashboardValue<bool>,
     pub production_trading_enabled: DashboardValue<bool>,
+    pub order_state_values_are_exchange_truth: DashboardValue<bool>,
+    pub shadow_values_are_exchange_truth: DashboardValue<bool>,
+    pub portfolio_values_are_exchange_truth: DashboardValue<bool>,
     pub values_are_exchange_truth: DashboardValue<bool>,
     pub order_gate_path: DashboardValue<String>,
     pub risk_preflight_path: DashboardValue<String>,
@@ -3992,27 +4001,95 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
                 json_bool_field(value, "real_orders_submitted")
             }),
     ]);
-    let values_are_exchange_truth = first_available_bool_from_values([
+    let order_state_values_are_exchange_truth = first_available_bool_from_values([
         kill_switch_approval
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
-                json_bool_field(value, "values_are_exchange_truth")
-            }),
-        portfolio_snapshot
-            .as_ref()
-            .map_or_else(DashboardValue::unknown, |value| {
-                nested_json_bool_field(value, "provenance", "values_are_exchange_truth")
+                json_bool_field(value, "order_state_values_are_exchange_truth")
             }),
         reconciliation
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
-                json_bool_field(value, "values_are_exchange_truth")
+                json_bool_field(value, "order_state_values_are_exchange_truth")
             }),
         shadow_strategy_session
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
-                json_bool_field(value, "values_are_exchange_truth")
+                json_bool_field(value, "order_state_values_are_exchange_truth")
             }),
+    ]);
+    let shadow_values_are_exchange_truth = any_available_bool_from_values([
+        kill_switch_approval
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field_with_fallback(
+                    value,
+                    "shadow_values_are_exchange_truth",
+                    "values_are_exchange_truth",
+                )
+            }),
+        reconciliation
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field_with_fallback(
+                    value,
+                    "shadow_values_are_exchange_truth",
+                    "values_are_exchange_truth",
+                )
+            }),
+        shadow_strategy_session
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field_with_fallback(
+                    value,
+                    "shadow_values_are_exchange_truth",
+                    "values_are_exchange_truth",
+                )
+            }),
+    ]);
+    let portfolio_values_are_exchange_truth = first_available_bool_from_values([
+        portfolio_snapshot
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                nested_json_bool_field_with_fallback(
+                    value,
+                    "provenance",
+                    "portfolio_values_are_exchange_truth",
+                    "values_are_exchange_truth",
+                )
+            }),
+        kill_switch_approval
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field_with_fallback(
+                    value,
+                    "portfolio_values_are_exchange_truth",
+                    "values_are_exchange_truth",
+                )
+            }),
+        reconciliation
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field_with_fallback(
+                    value,
+                    "portfolio_values_are_exchange_truth",
+                    "values_are_exchange_truth",
+                )
+            }),
+        shadow_strategy_session
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field_with_fallback(
+                    value,
+                    "portfolio_values_are_exchange_truth",
+                    "values_are_exchange_truth",
+                )
+            }),
+    ]);
+    let values_are_exchange_truth = any_available_bool_from_values([
+        order_state_values_are_exchange_truth.clone(),
+        shadow_values_are_exchange_truth.clone(),
+        portfolio_values_are_exchange_truth.clone(),
     ]);
     let kill_switch_status = kill_switch_approval
         .as_ref()
@@ -4081,7 +4158,8 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
             .is_some_and(|value| value > 0)
         || dashboard_order_controls_enabled.value == Some(true)
         || real_orders_submitted.value == Some(true)
-        || values_are_exchange_truth.value == Some(true)
+        || shadow_values_are_exchange_truth.value == Some(true)
+        || portfolio_values_are_exchange_truth.value == Some(true)
         || kill_switch_production_order_submission_allowed.value == Some(true)
         || kill_switch_production_order_mutation_allowed.value == Some(true)
         || kill_switch_production_order_state_reads_allowed.value == Some(true)
@@ -4260,6 +4338,9 @@ fn production_shadow_from_record(record: &SupervisorNodeRecord) -> Option<Produc
         automatic_correction_orders_submitted,
         dashboard_order_controls_enabled,
         real_orders_submitted,
+        order_state_values_are_exchange_truth,
+        shadow_values_are_exchange_truth,
+        portfolio_values_are_exchange_truth,
         values_are_exchange_truth,
         manifest_path: dashboard_path_if_exists(&paths.manifest_path),
         public_read_probe_path: dashboard_path_if_exists(&paths.public_read_probe_path),
@@ -4306,7 +4387,8 @@ fn preflight_readiness_from_production_shadow(
             && dashboard_bool_is_false(&shadow.kill_switch_listen_key_lifecycle_allowed)
             && dashboard_bool_is_false(&shadow.dashboard_order_controls_enabled)
             && dashboard_bool_is_false(&shadow.real_orders_submitted)
-            && dashboard_bool_is_false(&shadow.values_are_exchange_truth)
+            && dashboard_bool_is_false(&shadow.shadow_values_are_exchange_truth)
+            && dashboard_bool_is_false(&shadow.portfolio_values_are_exchange_truth)
         {
             DashboardValue::available("no_production_mutation_boundary_ok".to_string())
         } else {
@@ -4347,6 +4429,9 @@ fn preflight_readiness_from_production_shadow(
         listen_key_lifecycle_allowed: shadow.kill_switch_listen_key_lifecycle_allowed.clone(),
         dashboard_order_controls_enabled: shadow.dashboard_order_controls_enabled.clone(),
         real_orders_submitted: shadow.real_orders_submitted.clone(),
+        order_state_values_are_exchange_truth: shadow.order_state_values_are_exchange_truth.clone(),
+        shadow_values_are_exchange_truth: shadow.shadow_values_are_exchange_truth.clone(),
+        portfolio_values_are_exchange_truth: shadow.portfolio_values_are_exchange_truth.clone(),
         values_are_exchange_truth: shadow.values_are_exchange_truth.clone(),
         diagnostic: DashboardValue::available(if boundary_ok {
             "v13_preflight_readiness_ok".to_string()
@@ -4515,8 +4600,29 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
     let real_funds = live_alpha_first_available_bool(&risk_preflight, &order_gate, "real_funds");
     let production_trading_enabled =
         live_alpha_first_available_bool(&risk_preflight, &order_gate, "production_trading_enabled");
-    let values_are_exchange_truth =
+    let order_state_values_are_exchange_truth = live_alpha_first_available_bool(
+        &risk_preflight,
+        &order_gate,
+        "order_state_values_are_exchange_truth",
+    );
+    let shadow_values_are_exchange_truth = live_alpha_first_available_bool(
+        &risk_preflight,
+        &order_gate,
+        "shadow_values_are_exchange_truth",
+    );
+    let portfolio_values_are_exchange_truth = live_alpha_first_available_bool(
+        &risk_preflight,
+        &order_gate,
+        "portfolio_values_are_exchange_truth",
+    );
+    let legacy_values_are_exchange_truth =
         live_alpha_first_available_bool(&risk_preflight, &order_gate, "values_are_exchange_truth");
+    let values_are_exchange_truth = any_available_bool_from_values([
+        order_state_values_are_exchange_truth.clone(),
+        shadow_values_are_exchange_truth.clone(),
+        portfolio_values_are_exchange_truth.clone(),
+        legacy_values_are_exchange_truth,
+    ]);
 
     let boundary_violation = !gate_schema_ok
         || !risk_schema_ok
@@ -4540,7 +4646,8 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
         || real_orders_submitted.value == Some(true)
         || real_funds.value == Some(true)
         || production_trading_enabled.value == Some(true)
-        || values_are_exchange_truth.value == Some(true);
+        || shadow_values_are_exchange_truth.value == Some(true)
+        || portfolio_values_are_exchange_truth.value == Some(true);
     let ready =
         gate_ready.value == Some(true) && risk_decision.value.as_deref() == Some("approved");
     let readiness_status = if boundary_violation {
@@ -4642,6 +4749,9 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
         real_orders_submitted,
         real_funds,
         production_trading_enabled,
+        order_state_values_are_exchange_truth,
+        shadow_values_are_exchange_truth,
+        portfolio_values_are_exchange_truth,
         values_are_exchange_truth,
         order_gate_path: dashboard_path_if_exists(&paths.order_gate_path),
         risk_preflight_path: dashboard_path_if_exists(&paths.risk_preflight_path),
@@ -6737,11 +6847,34 @@ fn nested_json_bool_field(value: &Value, object: &str, field: &str) -> Dashboard
         .map_or_else(DashboardValue::unknown, DashboardValue::available)
 }
 
+fn nested_json_bool_field_with_fallback(
+    value: &Value,
+    object: &str,
+    field: &str,
+    fallback: &str,
+) -> DashboardValue<bool> {
+    first_available_bool_from_values([
+        nested_json_bool_field(value, object, field),
+        nested_json_bool_field(value, object, fallback),
+    ])
+}
+
 fn json_bool_field(value: &Value, field: &str) -> DashboardValue<bool> {
     value
         .get(field)
         .and_then(Value::as_bool)
         .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn json_bool_field_with_fallback(
+    value: &Value,
+    field: &str,
+    fallback: &str,
+) -> DashboardValue<bool> {
+    first_available_bool_from_values([
+        json_bool_field(value, field),
+        json_bool_field(value, fallback),
+    ])
 }
 
 fn json_bool_as_u64_field(value: &Value, field: &str) -> DashboardValue<u64> {
@@ -8441,6 +8574,15 @@ mod tests {
         assert_eq!(shadow.automatic_correction_orders_submitted.value, Some(0));
         assert_eq!(shadow.dashboard_order_controls_enabled.value, Some(false));
         assert_eq!(shadow.real_orders_submitted.value, Some(false));
+        assert_eq!(
+            shadow.order_state_values_are_exchange_truth.availability,
+            DashboardAvailability::Unknown
+        );
+        assert_eq!(shadow.shadow_values_are_exchange_truth.value, Some(false));
+        assert_eq!(
+            shadow.portfolio_values_are_exchange_truth.value,
+            Some(false)
+        );
         assert_eq!(shadow.values_are_exchange_truth.value, Some(false));
         assert!(
             shadow
@@ -8540,6 +8682,15 @@ mod tests {
         assert_eq!(shadow.automatic_correction_orders_submitted.value, Some(0));
         assert_eq!(shadow.dashboard_order_controls_enabled.value, Some(false));
         assert_eq!(shadow.real_orders_submitted.value, Some(false));
+        assert_eq!(
+            shadow.order_state_values_are_exchange_truth.availability,
+            DashboardAvailability::Unknown
+        );
+        assert_eq!(shadow.shadow_values_are_exchange_truth.value, Some(false));
+        assert_eq!(
+            shadow.portfolio_values_are_exchange_truth.value,
+            Some(false)
+        );
         assert_eq!(shadow.values_are_exchange_truth.value, Some(false));
         assert!(
             shadow
@@ -8597,6 +8748,18 @@ mod tests {
             Some(false)
         );
         assert_eq!(readiness.real_orders_submitted.value, Some(false));
+        assert_eq!(
+            readiness.order_state_values_are_exchange_truth.availability,
+            DashboardAvailability::Unknown
+        );
+        assert_eq!(
+            readiness.shadow_values_are_exchange_truth.value,
+            Some(false)
+        );
+        assert_eq!(
+            readiness.portfolio_values_are_exchange_truth.value,
+            Some(false)
+        );
         assert_eq!(readiness.values_are_exchange_truth.value, Some(false));
         assert!(
             readiness
@@ -8614,6 +8777,75 @@ mod tests {
         assert!(!DASHBOARD_JS.contains("amend_order"));
         assert!(!DASHBOARD_JS.contains("retry_order"));
         assert!(!DASHBOARD_HTML.contains("credential"));
+    }
+
+    #[test]
+    fn dashboard_keeps_order_state_truth_separate_from_shadow_truth() {
+        let root = temp_root("production-shadow-v13-order-state-truth");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "prod-shadow-v13-order-state-truth");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_shadow_v13_kill_switch_artifact(&record);
+
+        let artifact_path = record
+            .artifact_root
+            .join(PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_RELATIVE_PATH);
+        let mut artifact: Value =
+            serde_json::from_str(&fs::read_to_string(&artifact_path).unwrap()).unwrap();
+        artifact["order_state_values_are_exchange_truth"] = json!(true);
+        artifact["shadow_values_are_exchange_truth"] = json!(false);
+        artifact["portfolio_values_are_exchange_truth"] = json!(false);
+        fs::write(
+            &artifact_path,
+            serde_json::to_string_pretty(&artifact).unwrap(),
+        )
+        .unwrap();
+
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-22T01:40:00Z").unwrap();
+
+        let shadow = &snapshot.production_shadow[0];
+        assert_eq!(shadow.health, HealthStatus::Healthy);
+        assert_eq!(
+            shadow.order_state_values_are_exchange_truth.value,
+            Some(true)
+        );
+        assert_eq!(shadow.shadow_values_are_exchange_truth.value, Some(false));
+        assert_eq!(
+            shadow.portfolio_values_are_exchange_truth.value,
+            Some(false)
+        );
+        assert_eq!(shadow.values_are_exchange_truth.value, Some(true));
+
+        let readiness = &snapshot.preflight_readiness[0];
+        assert_eq!(readiness.health, HealthStatus::Healthy);
+        assert_eq!(
+            readiness
+                .no_production_mutation_gate_status
+                .value
+                .as_deref(),
+            Some("no_production_mutation_boundary_ok")
+        );
+        assert_eq!(
+            readiness.order_state_values_are_exchange_truth.value,
+            Some(true)
+        );
+        assert_eq!(
+            readiness.shadow_values_are_exchange_truth.value,
+            Some(false)
+        );
+        assert_eq!(
+            readiness.portfolio_values_are_exchange_truth.value,
+            Some(false)
+        );
+        assert_eq!(readiness.values_are_exchange_truth.value, Some(true));
     }
 
     #[test]
@@ -8691,6 +8923,18 @@ mod tests {
         assert_eq!(item.real_orders_submitted.value, Some(false));
         assert_eq!(item.real_funds.value, Some(false));
         assert_eq!(item.production_trading_enabled.value, Some(false));
+        assert_eq!(
+            item.order_state_values_are_exchange_truth.availability,
+            DashboardAvailability::Unknown
+        );
+        assert_eq!(
+            item.shadow_values_are_exchange_truth.availability,
+            DashboardAvailability::Unknown
+        );
+        assert_eq!(
+            item.portfolio_values_are_exchange_truth.availability,
+            DashboardAvailability::Unknown
+        );
         assert_eq!(item.values_are_exchange_truth.value, Some(false));
         assert!(
             item.order_gate_path

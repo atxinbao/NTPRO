@@ -98,6 +98,9 @@ artifact = {
     "automatic_remediation_attempted": False,
     "real_orders_submitted": False,
     "production_trading_enabled": False,
+    "order_state_values_are_exchange_truth": True,
+    "shadow_values_are_exchange_truth": False,
+    "portfolio_values_are_exchange_truth": False,
     "values_are_exchange_truth": True,
     "secrets_redacted": True,
     "diagnostic": "synthetic_v141_validator_fixture_not_owner_run",
@@ -244,11 +247,41 @@ def validate_owner_artifact(path, report):
     if status == "online_order_state_read_ok":
         require(report.get("error_code") == "none", "success must use error_code=none", str(path))
         require(report.get("response_shape_validated") is True, "success must validate response shape", str(path))
+        require(
+            report.get("order_state_values_are_exchange_truth") is True,
+            "success must mark only order-state exchange truth",
+            str(path),
+        )
+        require(
+            report.get("shadow_values_are_exchange_truth") is False,
+            "success must not mark shadow exchange truth",
+            str(path),
+        )
+        require(
+            report.get("portfolio_values_are_exchange_truth") is False,
+            "success must not mark portfolio exchange truth",
+            str(path),
+        )
         require(report.get("values_are_exchange_truth") is True, "success must mark exchange truth", str(path))
         exchange_truth = True
     elif status == "online_order_state_read_failed":
         require(report.get("error_code") in stable_errors, "failure must use a stable error code", str(path))
         require(report.get("response_shape_validated") is False, "failure must not validate response shape", str(path))
+        require(
+            report.get("order_state_values_are_exchange_truth") is False,
+            "failure must not mark order-state exchange truth",
+            str(path),
+        )
+        require(
+            report.get("shadow_values_are_exchange_truth") is False,
+            "failure must not mark shadow exchange truth",
+            str(path),
+        )
+        require(
+            report.get("portfolio_values_are_exchange_truth") is False,
+            "failure must not mark portfolio exchange truth",
+            str(path),
+        )
         require(report.get("values_are_exchange_truth") is False, "failure must not mark exchange truth", str(path))
         exchange_truth = False
     else:

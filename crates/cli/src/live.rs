@@ -1056,6 +1056,9 @@ struct ProductionOrderStateReadOnlyProofReport {
     automatic_remediation_attempted: bool,
     real_orders_submitted: bool,
     production_trading_enabled: bool,
+    order_state_values_are_exchange_truth: bool,
+    shadow_values_are_exchange_truth: bool,
+    portfolio_values_are_exchange_truth: bool,
     values_are_exchange_truth: bool,
     secrets_redacted: bool,
     diagnostic: String,
@@ -1103,6 +1106,9 @@ struct ProductionLiveAlphaDryRunOrderGateArtifact {
     real_orders_submitted: bool,
     real_funds: bool,
     production_trading_enabled: bool,
+    order_state_values_are_exchange_truth: bool,
+    shadow_values_are_exchange_truth: bool,
+    portfolio_values_are_exchange_truth: bool,
     values_are_exchange_truth: bool,
     no_production_order_submission_confirmed: bool,
     no_production_order_mutation_confirmed: bool,
@@ -1235,6 +1241,9 @@ struct ProductionLiveAlphaRiskPreflightReport {
     real_orders_submitted: bool,
     real_funds: bool,
     production_trading_enabled: bool,
+    order_state_values_are_exchange_truth: bool,
+    shadow_values_are_exchange_truth: bool,
+    portfolio_values_are_exchange_truth: bool,
     values_are_exchange_truth: bool,
     diagnostic: String,
 }
@@ -1579,6 +1588,9 @@ struct ShadowPortfolioProvenance {
     positions_source: String,
     exposure_source: String,
     pnl_source: String,
+    order_state_values_are_exchange_truth: bool,
+    shadow_values_are_exchange_truth: bool,
+    portfolio_values_are_exchange_truth: bool,
     values_are_exchange_truth: bool,
 }
 
@@ -1616,6 +1628,9 @@ struct ProductionShadowStrategySessionEvent {
     automatic_correction_orders_submitted: u64,
     dashboard_order_controls_enabled: bool,
     real_orders_submitted: bool,
+    order_state_values_are_exchange_truth: bool,
+    shadow_values_are_exchange_truth: bool,
+    portfolio_values_are_exchange_truth: bool,
     values_are_exchange_truth: bool,
     diagnostic: String,
 }
@@ -1631,6 +1646,9 @@ struct ShadowStrategyPortfolioRuntimeRef {
     risk_status: String,
     shadow_intents_created: u64,
     network_attempted: bool,
+    order_state_values_are_exchange_truth: bool,
+    shadow_values_are_exchange_truth: bool,
+    portfolio_values_are_exchange_truth: bool,
     values_are_exchange_truth: bool,
 }
 
@@ -1700,6 +1718,9 @@ struct ProductionShadowPreflightSessionEvent {
     automatic_correction_orders_submitted: u64,
     dashboard_order_controls_enabled: bool,
     real_orders_submitted: bool,
+    order_state_values_are_exchange_truth: bool,
+    shadow_values_are_exchange_truth: bool,
+    portfolio_values_are_exchange_truth: bool,
     values_are_exchange_truth: bool,
     diagnostic: String,
 }
@@ -1758,6 +1779,9 @@ struct ProductionKillSwitchApprovalArtifact {
     real_orders_submitted: bool,
     production_trading_enabled: bool,
     network_attempted: bool,
+    order_state_values_are_exchange_truth: bool,
+    shadow_values_are_exchange_truth: bool,
+    portfolio_values_are_exchange_truth: bool,
     values_are_exchange_truth: bool,
     dry_run_confirmed: bool,
     no_production_mutation_confirmed: bool,
@@ -1792,6 +1816,9 @@ struct ProductionReadonlyReconciliationEvent {
     cancel_replace_amend_attempted: bool,
     dashboard_order_controls_enabled: bool,
     real_orders_submitted: bool,
+    order_state_values_are_exchange_truth: bool,
+    shadow_values_are_exchange_truth: bool,
+    portfolio_values_are_exchange_truth: bool,
     values_are_exchange_truth: bool,
     diagnostic: String,
 }
@@ -3156,6 +3183,10 @@ fn build_production_order_state_readonly_proof_report(
         automatic_remediation_attempted: false,
         real_orders_submitted: false,
         production_trading_enabled: false,
+        order_state_values_are_exchange_truth: http_result
+            .is_some_and(|result| result.response_shape_validated),
+        shadow_values_are_exchange_truth: false,
+        portfolio_values_are_exchange_truth: false,
         values_are_exchange_truth: http_result
             .is_some_and(|result| result.response_shape_validated),
         secrets_redacted: true,
@@ -3655,6 +3686,9 @@ fn build_production_shadow_portfolio_runtime_report(
             positions_source: "unavailable_without_production_fills".to_string(),
             exposure_source: "derived_from_local_shadow_intent_notional_only".to_string(),
             pnl_source: "unavailable_without_fills_cost_basis_and_mark_prices".to_string(),
+            order_state_values_are_exchange_truth: false,
+            shadow_values_are_exchange_truth: false,
+            portfolio_values_are_exchange_truth: false,
             values_are_exchange_truth: false,
         },
         shadow_intents_created: intent_inputs.record_count,
@@ -4037,6 +4071,9 @@ fn build_shadow_strategy_session_event(
         automatic_correction_orders_submitted: 0,
         dashboard_order_controls_enabled: false,
         real_orders_submitted: false,
+        order_state_values_are_exchange_truth: false,
+        shadow_values_are_exchange_truth: false,
+        portfolio_values_are_exchange_truth: false,
         values_are_exchange_truth: false,
         diagnostic: input.diagnostic.to_string(),
     }
@@ -4309,6 +4346,9 @@ fn build_shadow_preflight_session_event(
         automatic_correction_orders_submitted: 0,
         dashboard_order_controls_enabled: false,
         real_orders_submitted: false,
+        order_state_values_are_exchange_truth: false,
+        shadow_values_are_exchange_truth: false,
+        portfolio_values_are_exchange_truth: false,
         values_are_exchange_truth: false,
         diagnostic: input.diagnostic.to_string(),
     }
@@ -4396,6 +4436,9 @@ fn build_production_live_alpha_dry_run_order_gate_artifact(
         real_orders_submitted: false,
         real_funds: false,
         production_trading_enabled: false,
+        order_state_values_are_exchange_truth: false,
+        shadow_values_are_exchange_truth: false,
+        portfolio_values_are_exchange_truth: false,
         values_are_exchange_truth: false,
         no_production_order_submission_confirmed: opt.confirm_no_production_order_submission,
         no_production_order_mutation_confirmed: opt.confirm_no_production_order_mutation,
@@ -4516,6 +4559,9 @@ fn build_production_live_alpha_risk_preflight_report(
         real_orders_submitted: false,
         real_funds: false,
         production_trading_enabled: false,
+        order_state_values_are_exchange_truth: false,
+        shadow_values_are_exchange_truth: false,
+        portfolio_values_are_exchange_truth: false,
         values_are_exchange_truth: false,
         diagnostic: if risk_decision == "approved" {
             "hypothetical live-alpha order passed local risk preflight; execution remains disabled"
@@ -4713,6 +4759,9 @@ fn build_production_kill_switch_approval_artifact(
         real_orders_submitted: false,
         production_trading_enabled: false,
         network_attempted: false,
+        order_state_values_are_exchange_truth: false,
+        shadow_values_are_exchange_truth: false,
+        portfolio_values_are_exchange_truth: false,
         values_are_exchange_truth: false,
         dry_run_confirmed: opt.confirm_dry_run_only,
         no_production_mutation_confirmed: opt.confirm_no_production_mutation,
@@ -4767,12 +4816,21 @@ fn ensure_shadow_portfolio_runtime_is_readonly(value: &serde_json::Value) -> any
         }
     }
 
-    if value
-        .pointer("/provenance/values_are_exchange_truth")
-        .and_then(serde_json::Value::as_bool)
-        .unwrap_or(false)
-    {
-        anyhow::bail!("shadow strategy session rejected portfolio runtime claiming exchange truth");
+    for pointer in [
+        "/provenance/order_state_values_are_exchange_truth",
+        "/provenance/shadow_values_are_exchange_truth",
+        "/provenance/portfolio_values_are_exchange_truth",
+        "/provenance/values_are_exchange_truth",
+    ] {
+        if value
+            .pointer(pointer)
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false)
+        {
+            anyhow::bail!(
+                "shadow strategy session rejected portfolio runtime claiming exchange truth at {pointer}"
+            );
+        }
     }
 
     Ok(())
@@ -4802,6 +4860,23 @@ fn build_shadow_strategy_portfolio_runtime_ref(
             .unwrap_or_else(|| "unknown".to_string()),
         shadow_intents_created: json_u64_value(value, "shadow_intents_created").unwrap_or(0),
         network_attempted: json_bool_value(value, "network_attempted").unwrap_or(false),
+        order_state_values_are_exchange_truth: value
+            .pointer("/provenance/order_state_values_are_exchange_truth")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false),
+        shadow_values_are_exchange_truth: value
+            .pointer("/provenance/shadow_values_are_exchange_truth")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false),
+        portfolio_values_are_exchange_truth: value
+            .pointer("/provenance/portfolio_values_are_exchange_truth")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or_else(|| {
+                value
+                    .pointer("/provenance/values_are_exchange_truth")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false)
+            }),
         values_are_exchange_truth: value
             .pointer("/provenance/values_are_exchange_truth")
             .and_then(serde_json::Value::as_bool)
@@ -4931,6 +5006,9 @@ fn build_production_readonly_reconciliation_event(
         cancel_replace_amend_attempted: false,
         dashboard_order_controls_enabled: false,
         real_orders_submitted: false,
+        order_state_values_are_exchange_truth: false,
+        shadow_values_are_exchange_truth: false,
+        portfolio_values_are_exchange_truth: false,
         values_are_exchange_truth: false,
         diagnostic,
     })
@@ -9802,6 +9880,9 @@ write_summary = true
         assert_eq!(report["dashboard_order_controls_enabled"], false);
         assert_eq!(report["real_orders_submitted"], false);
         assert_eq!(report["production_trading_enabled"], false);
+        assert_eq!(report["order_state_values_are_exchange_truth"], true);
+        assert_eq!(report["shadow_values_are_exchange_truth"], false);
+        assert_eq!(report["portfolio_values_are_exchange_truth"], false);
         assert_eq!(report["values_are_exchange_truth"], true);
     }
 
