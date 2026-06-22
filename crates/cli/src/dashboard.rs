@@ -968,7 +968,7 @@ function renderLiveAlphaDryRun(items) {
             <td data-label="节点"><strong>${text(item.node_id)}</strong></td>
             <td data-label="就绪"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div></td>
             <td data-label="Dry-run Gate">${panelRow("状态", snapshotValue(item.gate_status))}${panelRow("Gate ready", snapshotValue(item.gate_ready))}${panelRow("Intent", snapshotValue(item.dry_run_order_intent_recorded))}${panelRow("模式", snapshotValue(item.order_submission_mode))}${panelRow("缺失 gate", snapshotValue(item.missing_gate_flags))}</td>
-            <td data-label="风控预检">${panelRow("状态", snapshotValue(item.risk_preflight_status))}${panelRow("决策", snapshotValue(item.risk_decision))}${panelRow("原因", snapshotValue(item.risk_reasons))}${panelRow("Kill switch", snapshotValue(item.kill_switch_active))}</td>
+            <td data-label="风控预检">${panelRow("状态", snapshotValue(item.risk_preflight_status))}${panelRow("风控干跑", snapshotValue(item.risk_decision))}${panelRow("执行决策", snapshotValue(item.execution_decision))}${panelRow("原因", snapshotValue(item.risk_reasons))}${panelRow("Kill switch", snapshotValue(item.kill_switch_active))}</td>
             <td data-label="Order State">${panelRow("可读", snapshotValue(item.order_state_readable))}${panelRow("Age", snapshotValue(item.order_state_age_ms))}${panelRow("Max age", snapshotValue(item.max_order_state_age_ms))}${panelRow("Open orders", snapshotValue(item.open_order_count))}${panelRow("Max open", snapshotValue(item.max_open_orders))}</td>
             <td data-label="Reconciliation">${panelRow("状态", snapshotValue(item.reconciliation_status))}${panelRow("提交允许", snapshotValue(item.production_order_submission_allowed))}${panelRow("变更允许", snapshotValue(item.production_order_mutation_allowed))}${panelRow("状态读取允许", snapshotValue(item.production_order_state_reads_allowed))}${panelRow("listenKey允许", snapshotValue(item.listen_key_lifecycle_allowed))}</td>
             <td data-label="只读边界">${panelRow("提交尝试", snapshotValue(item.production_order_submissions_attempted))}${panelRow("生产提交", snapshotValue(item.production_orders_submitted))}${panelRow("生产变更", snapshotValue(item.production_order_mutations_attempted))}${panelRow("状态读取尝试", snapshotValue(item.production_order_state_reads_attempted))}${panelRow("listenKey尝试", snapshotValue(item.listen_key_lifecycle_attempted))}${panelRow("撤改尝试", snapshotValue(item.cancel_replace_amend_attempted))}${panelRow("Execution adapter", snapshotValue(item.execution_adapter_called))}${panelRow("订单端点", snapshotValue(item.order_endpoint_access_attempted))}${panelRow("撮合提交", snapshotValue(item.matching_engine_submission))}${panelRow("实际提交", snapshotValue(item.actual_submission_count))}${panelRow("自动纠错", snapshotValue(item.automatic_correction_orders_submitted))}${panelRow("Dashboard 下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("网络尝试", snapshotValue(item.network_attempted))}${panelRow("真实订单", snapshotValue(item.real_orders_submitted))}${panelRow("真实资金", snapshotValue(item.real_funds))}${panelRow("生产交易", snapshotValue(item.production_trading_enabled))}${panelRow("订单状态真值", snapshotValue(item.order_state_values_are_exchange_truth))}${panelRow("Shadow 真值", snapshotValue(item.shadow_values_are_exchange_truth))}${panelRow("Portfolio 真值", snapshotValue(item.portfolio_values_are_exchange_truth))}${panelRow("兼容真值", snapshotValue(item.values_are_exchange_truth))}</td>
@@ -2653,6 +2653,7 @@ pub struct LiveAlphaDryRunStatus {
     pub order_submission_mode: DashboardValue<String>,
     pub risk_preflight_status: DashboardValue<String>,
     pub risk_decision: DashboardValue<String>,
+    pub execution_decision: DashboardValue<String>,
     pub risk_reasons: DashboardValue<String>,
     pub kill_switch_active: DashboardValue<bool>,
     pub order_state_readable: DashboardValue<bool>,
@@ -4497,6 +4498,11 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
         .map_or_else(DashboardValue::unknown, |value| {
             json_string_field(value, "risk_decision")
         });
+    let execution_decision = risk_preflight
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "execution_decision")
+        });
     let production_order_submission_allowed = first_available_bool_from_values([
         risk_preflight
             .as_ref()
@@ -4648,8 +4654,9 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
         || production_trading_enabled.value == Some(true)
         || shadow_values_are_exchange_truth.value == Some(true)
         || portfolio_values_are_exchange_truth.value == Some(true);
-    let ready =
-        gate_ready.value == Some(true) && risk_decision.value.as_deref() == Some("approved");
+    let ready = gate_ready.value == Some(true)
+        && risk_decision.value.as_deref() == Some("dry_run_approved")
+        && execution_decision.value.as_deref() == Some("blocked_no_production_mutation");
     let readiness_status = if boundary_violation {
         "live_alpha_dry_run_boundary_violation"
     } else if ready {
@@ -4689,6 +4696,7 @@ fn live_alpha_dry_run_from_record(record: &SupervisorNodeRecord) -> Option<LiveA
             }),
         risk_preflight_status,
         risk_decision,
+        execution_decision,
         risk_reasons: risk_preflight
             .as_ref()
             .map_or_else(DashboardValue::unknown, |value| {
@@ -8888,7 +8896,14 @@ mod tests {
             item.risk_preflight_status.value.as_deref(),
             Some("approved")
         );
-        assert_eq!(item.risk_decision.value.as_deref(), Some("approved"));
+        assert_eq!(
+            item.risk_decision.value.as_deref(),
+            Some("dry_run_approved")
+        );
+        assert_eq!(
+            item.execution_decision.value.as_deref(),
+            Some("blocked_no_production_mutation")
+        );
         assert_eq!(
             item.risk_reasons.availability,
             DashboardAvailability::Unknown
@@ -10612,7 +10627,8 @@ mod tests {
   "status": "approved",
   "run_id": "v140-live-alpha-dry-run",
   "evaluated_at": "unix_ms:1100",
-  "risk_decision": "approved",
+  "risk_decision": "dry_run_approved",
+  "execution_decision": "blocked_no_production_mutation",
   "reasons": [],
   "missing_cli_flags": [],
   "order_gate_status": "ready_dry_run_no_submission",
