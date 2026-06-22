@@ -103,7 +103,7 @@ jobs:
           else
             echo "v14_smoke=false" >> "$GITHUB_OUTPUT"
           fi
-          if grep -E '^(\.github/workflows/(release-tag|rust-cutover-smoke)\.yml|scripts/ai/(run_golden_traces|verify_full|verify_v15_incident_rollback_artifact)\.sh|tests/golden/live_alpha_mutation_dry_run_schema\.jsonl|crates/cli/tests/golden_trace_live_alpha_mutation_dry_run\.rs|docs/rust-cutover/(release/v0_15_0_.*\.md|evidence/V150-.*\.md|tasks/V150-.*\.md|golden_trace/(RELEASE_REPLAY_SCOPE\.json|SCHEMA\.md)))$' /tmp/changed-files.txt >/dev/null; then
+          if grep -E '^(\.github/workflows/(release-tag|rust-cutover-smoke)\.yml|crates/cli/src/dashboard\.rs|scripts/ai/(run_golden_traces|verify_full|verify_v15_incident_rollback_artifact)\.sh|tests/golden/live_alpha_mutation_dry_run_schema\.jsonl|crates/cli/tests/golden_trace_live_alpha_mutation_dry_run\.rs|docs/rust-cutover/(release/v0_15_0_.*\.md|evidence/V150-.*\.md|tasks/V150-.*\.md|golden_trace/(RELEASE_REPLAY_SCOPE\.json|SCHEMA\.md)))$' /tmp/changed-files.txt >/dev/null; then
             echo "v15_smoke=true" >> "$GITHUB_OUTPUT"
             echo "v0.15 mutation dry-run golden trace smoke required by changed files"
           else
@@ -203,6 +203,9 @@ jobs:
       - name: v15-incident-rollback-artifact
         if: steps.changes.outputs.v15_smoke == 'true'
         run: scripts/ai/verify_v15_incident_rollback_artifact.sh
+      - name: v15-dashboard-mutation-preflight-panel
+        if: steps.changes.outputs.v15_smoke == 'true'
+        run: cargo test -p nautilus-cli live_alpha_v15_dashboard --lib
       - name: Golden trace schema smoke
         run: python scripts/ai/golden_trace_runner.py tests/golden/schema_smoke.jsonl --mode validate-only
       - name: Rust-only runtime gate
