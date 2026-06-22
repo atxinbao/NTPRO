@@ -43,7 +43,13 @@ funds, production trading, automatic production remediation, or Dashboard
 order controls.
 
 `v0.16.0` requires a separate scope decision before any capability may be
-claimed beyond v0.15.0 request-preview/dry-run evidence.
+claimed beyond v0.15.0 request-preview/dry-run evidence. That scope decision is
+now documented as a future `Minimum Owner-Approved Production Order Mutation
+Candidate`. The scope allows only a possible one-owner-approved tiny `LIMIT`
+`GTC` production order candidate after its own gates land. It is not yet a
+released capability and must not be described as strategy-driven production
+trading, multiple orders, cancel/replace/amend/retry/correction, listenKey
+lifecycle, automatic remediation, or Dashboard order controls.
 
 ## Current Status
 
