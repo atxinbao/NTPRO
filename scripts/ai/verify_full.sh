@@ -320,6 +320,7 @@ run_golden_trace_validation() {
   run_golden_risk_rejection_trace
   run_golden_adapter_payload_trace
   run_golden_live_alpha_reconciliation_trace
+  run_golden_live_alpha_mutation_dry_run_trace
 }
 
 run_golden_trace_file_validation() {
@@ -334,6 +335,7 @@ run_golden_trace_file_validation() {
     RUN_RUST_RISK_REJECTION_TRACE_REPLAY=0 \
     RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY=0 \
     RUN_RUST_LIVE_ALPHA_RECONCILIATION_TRACE_REPLAY=0 \
+    RUN_RUST_LIVE_ALPHA_MUTATION_DRY_RUN_TRACE_REPLAY=0 \
     scripts/ai/run_golden_traces.sh
 }
 
@@ -385,6 +387,11 @@ run_golden_adapter_payload_trace() {
 run_golden_live_alpha_reconciliation_trace() {
   echo "== verify_full: golden trace live-alpha reconciliation =="
   cargo test -p nautilus-cli --test golden_trace_live_alpha_reconciliation
+}
+
+run_golden_live_alpha_mutation_dry_run_trace() {
+  echo "== verify_full: golden trace live-alpha mutation dry-run =="
+  cargo test -p nautilus-cli --test golden_trace_live_alpha_mutation_dry_run
 }
 
 run_rust_docs() {
@@ -464,6 +471,9 @@ run_stage() {
       ;;
     golden-traces-live-alpha-reconciliation)
       run_golden_live_alpha_reconciliation_trace
+      ;;
+    golden-traces-live-alpha-mutation-dry-run)
+      run_golden_live_alpha_mutation_dry_run_trace
       ;;
     rust-docs)
       run_rust_docs

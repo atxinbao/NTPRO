@@ -257,6 +257,96 @@
       "release_decision": "included_in_final_replay_scope"
     },
     {
+      "case_id": "execution.live_alpha_mutation_dry_run.kill_switch_active.001",
+      "trace": "tests/golden/live_alpha_mutation_dry_run_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V150-006",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_mutation_dry_run",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_mutation_dry_run.rs::rust_cli_replays_live_alpha_mutation_dry_run_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "execution.live_alpha_mutation_dry_run.missing_approval.001",
+      "trace": "tests/golden/live_alpha_mutation_dry_run_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V150-006",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_mutation_dry_run",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_mutation_dry_run.rs::rust_cli_replays_live_alpha_mutation_dry_run_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "execution.live_alpha_mutation_dry_run.approval_expired.001",
+      "trace": "tests/golden/live_alpha_mutation_dry_run_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V150-006",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_mutation_dry_run",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_mutation_dry_run.rs::rust_cli_replays_live_alpha_mutation_dry_run_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "execution.live_alpha_mutation_dry_run.symbol_not_allowlisted.001",
+      "trace": "tests/golden/live_alpha_mutation_dry_run_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V150-006",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_mutation_dry_run",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_mutation_dry_run.rs::rust_cli_replays_live_alpha_mutation_dry_run_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "execution.live_alpha_mutation_dry_run.notional_too_large.001",
+      "trace": "tests/golden/live_alpha_mutation_dry_run_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V150-006",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_mutation_dry_run",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_mutation_dry_run.rs::rust_cli_replays_live_alpha_mutation_dry_run_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "execution.live_alpha_mutation_dry_run.order_state_stale.001",
+      "trace": "tests/golden/live_alpha_mutation_dry_run_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V150-006",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_mutation_dry_run",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_mutation_dry_run.rs::rust_cli_replays_live_alpha_mutation_dry_run_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "execution.live_alpha_mutation_dry_run.account_unreadable.001",
+      "trace": "tests/golden/live_alpha_mutation_dry_run_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V150-006",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_mutation_dry_run",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_mutation_dry_run.rs::rust_cli_replays_live_alpha_mutation_dry_run_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "execution.live_alpha_mutation_dry_run.network_disabled.001",
+      "trace": "tests/golden/live_alpha_mutation_dry_run_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V150-006",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_mutation_dry_run",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_mutation_dry_run.rs::rust_cli_replays_live_alpha_mutation_dry_run_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "execution.live_alpha_mutation_dry_run.dashboard_control_attempted.001",
+      "trace": "tests/golden/live_alpha_mutation_dry_run_schema.jsonl",
+      "category": "execution",
+      "status": "executable_replay",
+      "evidence_id": "V150-006",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_live_alpha_mutation_dry_run",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_live_alpha_mutation_dry_run.rs::rust_cli_replays_live_alpha_mutation_dry_run_golden_traces",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",
