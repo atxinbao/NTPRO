@@ -8426,9 +8426,9 @@ fn normalize_production_live_alpha_order_endpoint_path(
         anyhow::bail!("production live-alpha request preview endpoint must start with '/'");
     }
     match endpoint_path {
-        TESTNET_ORDER_ENDPOINT_ORDER | TESTNET_ORDER_ENDPOINT_TEST => Ok(endpoint_path.to_string()),
+        TESTNET_ORDER_ENDPOINT_ORDER => Ok(endpoint_path.to_string()),
         _ => anyhow::bail!(
-            "production live-alpha request preview allowlist only includes POST /api/v3/order and POST /api/v3/order/test; got POST {endpoint_path}"
+            "production live-alpha request preview allowlist only includes POST /api/v3/order; got POST {endpoint_path}"
         ),
     }
 }
@@ -12962,6 +12962,55 @@ write_summary = true
             "v150-live-alpha-request-preview"
         );
         assert_eq!(consumed_approval["approval_lifecycle_valid"], false);
+    }
+
+    #[test]
+    fn production_live_alpha_order_request_preview_rejects_order_test_endpoint() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v151-005-order-test-preview-denied-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let order_gate = output_dir.join("live_alpha_dry_run_order_gate.json");
+        let manual_approval_lifecycle = output_dir.join("manual_approval_lifecycle.json");
+        let output = output_dir.join("live_alpha_order_request_preview.json");
+        run_live_production_live_alpha_dry_run_order_gate(
+            &production_live_alpha_limit_dry_run_order_gate_opt(order_gate.clone(), true),
+        )
+        .unwrap();
+        run_live_production_live_alpha_manual_approval_lifecycle(
+            &production_live_alpha_manual_approval_lifecycle_opt(
+                manual_approval_lifecycle.clone(),
+                &ManualApprovalLifecycleFixture {
+                    approval_state: "approved",
+                    run_id: "v150-live-alpha-request-preview",
+                    strategy_id: "ema_cross_btcusdt_v1",
+                    symbol: "BTCUSDT",
+                    notional: "10.00",
+                    now_unix_ms: 1_718_400_000_000,
+                    expires_at_unix_ms: 1_718_400_060_000,
+                },
+            ),
+        )
+        .unwrap();
+
+        let mut opt = production_live_alpha_order_request_preview_opt(
+            order_gate,
+            manual_approval_lifecycle,
+            output,
+            true,
+        );
+        opt.endpoint_path = TESTNET_ORDER_ENDPOINT_TEST.to_string();
+
+        let err = run_live_production_live_alpha_order_request_preview_with_env(&opt, |name| {
+            panic!("denied /api/v3/order/test preview must not read env var {name}")
+        })
+        .unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("allowlist only includes POST /api/v3/order"),
+            "{err:?}"
+        );
     }
 
     #[test]

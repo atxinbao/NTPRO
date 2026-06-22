@@ -30,6 +30,7 @@ BLOCKED_APPROVAL="$OUTPUT_DIR/blocked-manual-approval-lifecycle.json"
 READY_APPROVAL="$OUTPUT_DIR/ready-manual-approval-lifecycle.json"
 PRODUCTION_MATERIAL_BLOCKED_APPROVAL="$OUTPUT_DIR/production-material-blocked-manual-approval-lifecycle.json"
 BAD_ENDPOINT_APPROVAL="$OUTPUT_DIR/bad-endpoint-manual-approval-lifecycle.json"
+ORDER_TEST_DENIED_REPORT="$OUTPUT_DIR/order-test-denied-request-preview.json"
 BLOCKED_REPORT="$OUTPUT_DIR/blocked-request-preview.json"
 READY_REPORT="$OUTPUT_DIR/ready-request-preview.json"
 PRODUCTION_MATERIAL_BLOCKED_REPORT="$OUTPUT_DIR/production-material-blocked-request-preview.json"
@@ -41,6 +42,7 @@ PRODUCTION_MATERIAL_BLOCKED_STDOUT="$OUTPUT_DIR/production-material-blocked.stdo
 PRODUCTION_MATERIAL_BLOCKED_STDERR="$OUTPUT_DIR/production-material-blocked.stderr.log"
 BAD_ENDPOINT_STDERR="$OUTPUT_DIR/bad-endpoint.stderr.log"
 MARKET_ORDER_GATE_STDERR="$OUTPUT_DIR/market-order-gate.stderr.log"
+ORDER_TEST_DENIED_STDERR="$OUTPUT_DIR/order-test-denied.stderr.log"
 
 SYNTHETIC_API_KEY="ntpro_v151003_synthetic_api_key_value"
 SYNTHETIC_API_SECRET="ntpro_v151003_synthetic_api_secret_value"
@@ -371,5 +373,36 @@ if [[ "$bad_endpoint_status" -eq 0 ]]; then
   exit 1
 fi
 grep -q "allowlist only includes POST /api/v3/order" "$BAD_ENDPOINT_STDERR"
+
+set +e
+"$NAUTILUS_BIN" live production-live-alpha-order-request-preview \
+  --run-id v150-request-preview-order-test-denied \
+  --order-gate "$ORDER_GATE" \
+  --manual-approval-lifecycle "$READY_APPROVAL" \
+  --endpoint-path /api/v3/order/test \
+  --price 10000.00 \
+  --timestamp-ms 1718400000000 \
+  --api-key-env NTPRO_V150002_API_KEY \
+  --api-secret-env NTPRO_V150002_API_SECRET \
+  --output "$ORDER_TEST_DENIED_REPORT" \
+  --allow-production-live-alpha-request-preview \
+  --confirm-owner-approved-request-preview \
+  --confirm-memory-only-signature \
+  --confirm-no-production-order-submission \
+  --confirm-no-production-order-mutation \
+  --confirm-no-execution-adapter-call \
+  --confirm-no-network \
+  --confirm-no-listen-key-lifecycle \
+  --confirm-dashboard-order-controls-disabled \
+  --confirm-no-real-funds \
+  >/dev/null \
+  2>"$ORDER_TEST_DENIED_STDERR"
+order_test_denied_status=$?
+set -e
+if [[ "$order_test_denied_status" -eq 0 ]]; then
+  echo "v15 request preview unexpectedly accepted production /api/v3/order/test" >&2
+  exit 1
+fi
+grep -q "allowlist only includes POST /api/v3/order" "$ORDER_TEST_DENIED_STDERR"
 
 echo "v15_live_order_request_dry_run_builder status=ok root=$REQUEST_ROOT request_sent=false network_attempted=false production_orders_submitted=0 execution_adapter_called=false"

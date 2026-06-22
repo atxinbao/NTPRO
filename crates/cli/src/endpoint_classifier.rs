@@ -441,7 +441,7 @@ fn is_production_order_state_readonly_endpoint(method: &str, path: &str) -> bool
 }
 
 fn is_production_mutation_request_preview_candidate(method: &str, path: &str) -> bool {
-    method == "POST" && matches!(path, "/api/v3/order" | "/api/v3/order/test")
+    method == "POST" && path == "/api/v3/order"
 }
 
 fn is_production_order_or_mutation_endpoint(method: &str, path: &str) -> bool {
@@ -641,10 +641,10 @@ mod tests {
     }
 
     #[test]
-    fn endpoint_classifier_allows_owner_manual_request_preview_only() {
+    fn endpoint_classifier_allows_owner_manual_order_request_preview_only() {
         let endpoint = EndpointClassifier::classify_with_context(
             "POST",
-            "https://api.binance.com/api/v3/order/test?timestamp=123&signature=secret",
+            "https://api.binance.com/api/v3/order?timestamp=123&signature=secret",
             EndpointAuthKind::Signed,
             true,
         );
@@ -658,10 +658,38 @@ mod tests {
             "production_mutation_owner_approved_manual_only"
         );
         assert_eq!(endpoint.decision, EndpointDecision::AllowRequestPreviewOnly);
-        assert_eq!(endpoint.path, "/api/v3/order/test");
+        assert_eq!(endpoint.path, "/api/v3/order");
         assert!(!endpoint.read_allowed);
         assert!(!endpoint.mutation_allowed);
         assert!(endpoint.request_preview_allowed);
+        assert!(endpoint.requires_api_key);
+        assert!(endpoint.requires_signature);
+        assert!(endpoint.owner_gate_required);
+        assert!(!endpoint.dashboard_order_controls_allowed);
+        assert_eq!(
+            endpoint.input_url_redacted,
+            "https://api.binance.com/api/v3/order?<redacted>"
+        );
+    }
+
+    #[test]
+    fn endpoint_classifier_denies_production_order_test_preview_under_owner_scope() {
+        let endpoint = EndpointClassifier::classify_with_context(
+            "POST",
+            "https://api.binance.com/api/v3/order/test?timestamp=123&signature=secret",
+            EndpointAuthKind::Signed,
+            true,
+        );
+
+        assert_eq!(
+            endpoint.endpoint_class,
+            EndpointClass::ProductionMutationForbidden
+        );
+        assert_eq!(endpoint.decision, EndpointDecision::Deny);
+        assert_eq!(endpoint.path, "/api/v3/order/test");
+        assert!(!endpoint.read_allowed);
+        assert!(!endpoint.mutation_allowed);
+        assert!(!endpoint.request_preview_allowed);
         assert!(endpoint.requires_api_key);
         assert!(endpoint.requires_signature);
         assert!(endpoint.owner_gate_required);

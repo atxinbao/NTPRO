@@ -119,12 +119,12 @@ Allowed as dry-run preview candidates only:
 | Method | Endpoint | v0.15 status |
 | --- | --- | --- |
 | `POST` | `/api/v3/order` | Scope candidate for redacted request preview only; request must not be sent. |
-| `POST` | `/api/v3/order/test` | Scope candidate for redacted request preview only; request must not be sent. |
 
 Still forbidden:
 
 | Method or action | Surface | Status |
 | --- | --- | --- |
+| `POST` | `/api/v3/order/test` | Forbidden for production request preview in v0.15.1; keep testnet/sandbox order-test behavior separate. |
 | `DELETE` | `/api/v3/order` | Forbidden. |
 | `DELETE` | `/api/v3/openOrders` | Forbidden. |
 | `PUT` / `PATCH` | Any order endpoint | Forbidden. |
