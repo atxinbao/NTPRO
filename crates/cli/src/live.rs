@@ -135,6 +135,13 @@ const PRODUCTION_LIVE_ALPHA_DRY_RUN_ORDER_GATE_SCHEMA_VERSION: &str =
     "ntpro.v140_live_alpha_dry_run_order_gate.v1";
 const PRODUCTION_LIVE_ALPHA_ORDER_REQUEST_PREVIEW_SCHEMA_VERSION: &str =
     "ntpro.v150_live_alpha_order_request_preview.v1";
+const PRODUCTION_MUTATION_PREVIEW_SYNTHETIC_API_KEY: &str = "ntpro_v151003_synthetic_api_key_value";
+const PRODUCTION_MUTATION_PREVIEW_SYNTHETIC_API_SECRET: &str =
+    "ntpro_v151003_synthetic_api_secret_value";
+const PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW: &str =
+    "NTPRO_ALLOW_PRODUCTION_MUTATION_SIGNING_MATERIAL";
+const PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED: &str =
+    "NTPRO_OWNER_APPROVED_MUTATION_SIGNING_DRY_RUN";
 const PRODUCTION_LIVE_ALPHA_MANUAL_APPROVAL_LIFECYCLE_SCHEMA_VERSION: &str =
     "ntpro.v150_live_alpha_manual_approval_lifecycle.v1";
 const PRODUCTION_LIVE_ALPHA_EXECUTION_DRY_RUN_SCHEMA_VERSION: &str =
@@ -500,30 +507,121 @@ impl EnvOnlyProductionReadCredentials {
 struct EnvOnlyProductionMutationPreviewCredentials {
     api_key_env: String,
     api_secret_env: String,
+    credential_material: String,
     api_key_value: Option<String>,
     api_secret_value: Option<String>,
+    production_signing_material_gate_required: bool,
+    production_signing_material_gate_open: bool,
+    production_signing_material_env_read: bool,
+    production_signing_material_missing_gate_env_vars: Vec<String>,
     sensitive_values: Vec<String>,
 }
 
+struct ProductionMutationPreviewCredentialInput {
+    api_key_env: String,
+    api_key_value: Option<String>,
+    api_secret_env: String,
+    api_secret_value: Option<String>,
+    credential_material: &'static str,
+    production_signing_material_gate_required: bool,
+    production_signing_material_gate_open: bool,
+    production_signing_material_env_read: bool,
+    production_signing_material_missing_gate_env_vars: Vec<String>,
+}
+
 impl EnvOnlyProductionMutationPreviewCredentials {
-    fn from_values(
-        api_key_env: String,
-        api_key_value: Option<String>,
-        api_secret_env: String,
-        api_secret_value: Option<String>,
-    ) -> Self {
-        let sensitive_values = [api_key_value.as_ref(), api_secret_value.as_ref()]
-            .into_iter()
-            .flatten()
-            .filter(|value| !value.is_empty())
-            .cloned()
-            .collect();
+    fn from_order_request_preview_opt<F>(
+        opt: &LiveProductionLiveAlphaOrderRequestPreviewOpt,
+        mut read_env: F,
+    ) -> anyhow::Result<Self>
+    where
+        F: FnMut(&str) -> Option<String>,
+    {
+        match opt.credential_material.trim() {
+            "synthetic" => Ok(Self::from_values(
+                ProductionMutationPreviewCredentialInput {
+                    api_key_env: opt.api_key_env.clone(),
+                    api_key_value: Some(PRODUCTION_MUTATION_PREVIEW_SYNTHETIC_API_KEY.to_string()),
+                    api_secret_env: opt.api_secret_env.clone(),
+                    api_secret_value: Some(
+                        PRODUCTION_MUTATION_PREVIEW_SYNTHETIC_API_SECRET.to_string(),
+                    ),
+                    credential_material: "synthetic",
+                    production_signing_material_gate_required: false,
+                    production_signing_material_gate_open: false,
+                    production_signing_material_env_read: false,
+                    production_signing_material_missing_gate_env_vars: Vec::new(),
+                },
+            )),
+            "production_live_alpha" => {
+                let mut missing_gate_env_vars = Vec::new();
+                if read_env(PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW).as_deref() != Some("1")
+                {
+                    missing_gate_env_vars
+                        .push(PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW.to_string());
+                }
+                if read_env(PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED).as_deref()
+                    != Some("1")
+                {
+                    missing_gate_env_vars
+                        .push(PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED.to_string());
+                }
+
+                let production_signing_material_gate_open = missing_gate_env_vars.is_empty();
+                let (api_key_value, api_secret_value, production_signing_material_env_read) =
+                    if production_signing_material_gate_open {
+                        (
+                            read_env(&opt.api_key_env),
+                            read_env(&opt.api_secret_env),
+                            true,
+                        )
+                    } else {
+                        (None, None, false)
+                    };
+
+                Ok(Self::from_values(
+                    ProductionMutationPreviewCredentialInput {
+                        api_key_env: opt.api_key_env.clone(),
+                        api_key_value,
+                        api_secret_env: opt.api_secret_env.clone(),
+                        api_secret_value,
+                        credential_material: "production_live_alpha",
+                        production_signing_material_gate_required: true,
+                        production_signing_material_gate_open,
+                        production_signing_material_env_read,
+                        production_signing_material_missing_gate_env_vars: missing_gate_env_vars,
+                    },
+                ))
+            }
+            other => anyhow::bail!(
+                "production live-alpha request preview credential_material must be synthetic or production_live_alpha, got {other}"
+            ),
+        }
+    }
+
+    fn from_values(input: ProductionMutationPreviewCredentialInput) -> Self {
+        let sensitive_values = [
+            input.api_key_value.as_ref(),
+            input.api_secret_value.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        .filter(|value| !value.is_empty())
+        .cloned()
+        .collect();
 
         Self {
-            api_key_env,
-            api_secret_env,
-            api_key_value,
-            api_secret_value,
+            api_key_env: input.api_key_env,
+            api_secret_env: input.api_secret_env,
+            credential_material: input.credential_material.to_string(),
+            api_key_value: input.api_key_value,
+            api_secret_value: input.api_secret_value,
+            production_signing_material_gate_required: input
+                .production_signing_material_gate_required,
+            production_signing_material_gate_open: input.production_signing_material_gate_open,
+            production_signing_material_env_read: input.production_signing_material_env_read,
+            production_signing_material_missing_gate_env_vars: input
+                .production_signing_material_missing_gate_env_vars,
             sensitive_values,
         }
     }
@@ -1279,6 +1377,11 @@ struct ProductionLiveAlphaOrderRequestPreviewArtifact {
     recv_window_ms: u64,
     timestamp_recorded: bool,
     timestamp_shape: String,
+    credential_material: String,
+    production_signing_material_gate_required: bool,
+    production_signing_material_gate_open: bool,
+    production_signing_material_env_read: bool,
+    production_signing_material_missing_gate_env_vars: Vec<String>,
     api_key_env: String,
     api_secret_env: String,
     api_key_header_name: String,
@@ -2523,17 +2626,13 @@ fn run_live_production_live_alpha_order_request_preview(
 
 fn run_live_production_live_alpha_order_request_preview_with_env<F>(
     opt: &LiveProductionLiveAlphaOrderRequestPreviewOpt,
-    mut read_env: F,
+    read_env: F,
 ) -> anyhow::Result<()>
 where
     F: FnMut(&str) -> Option<String>,
 {
-    let credentials = EnvOnlyProductionMutationPreviewCredentials::from_values(
-        opt.api_key_env.clone(),
-        read_env(&opt.api_key_env),
-        opt.api_secret_env.clone(),
-        read_env(&opt.api_secret_env),
-    );
+    let credentials =
+        EnvOnlyProductionMutationPreviewCredentials::from_order_request_preview_opt(opt, read_env)?;
     let artifact = build_production_live_alpha_order_request_preview_artifact(opt, &credentials)?;
     write_production_live_alpha_order_request_preview_report(&opt.output, &artifact, &credentials)?;
     if artifact.request_preview_built {
@@ -5313,6 +5412,14 @@ fn build_production_live_alpha_order_request_preview_artifact(
         recv_window_ms: opt.recv_window_ms,
         timestamp_recorded: false,
         timestamp_shape: "epoch_millis_present_redacted".to_string(),
+        credential_material: credentials.credential_material.clone(),
+        production_signing_material_gate_required: credentials
+            .production_signing_material_gate_required,
+        production_signing_material_gate_open: credentials.production_signing_material_gate_open,
+        production_signing_material_env_read: credentials.production_signing_material_env_read,
+        production_signing_material_missing_gate_env_vars: credentials
+            .production_signing_material_missing_gate_env_vars
+            .clone(),
         api_key_env: credentials.api_key_env.clone(),
         api_secret_env: credentials.api_secret_env.clone(),
         api_key_header_name: BINANCE_API_KEY_HEADER.to_string(),
@@ -5358,10 +5465,7 @@ fn build_production_live_alpha_order_request_preview_artifact(
             .iter()
             .map(|flag| (*flag).to_string())
             .collect(),
-        missing_env_vars: missing_env_vars
-            .iter()
-            .map(|env| (*env).to_string())
-            .collect(),
+        missing_env_vars,
         order_gate_ready,
         request_preview_allowed,
         request_preview_built,
@@ -8742,21 +8846,28 @@ fn missing_production_live_alpha_order_request_preview_cli_flags(
 
 fn missing_production_live_alpha_order_request_preview_env_vars(
     credentials: &EnvOnlyProductionMutationPreviewCredentials,
-) -> Vec<&str> {
-    let mut missing = Vec::new();
+) -> Vec<String> {
+    let mut missing = credentials
+        .production_signing_material_missing_gate_env_vars
+        .clone();
+    if !credentials.production_signing_material_gate_open
+        && credentials.production_signing_material_gate_required
+    {
+        return missing;
+    }
     if credentials
         .api_key_value
         .as_deref()
         .is_none_or(|value| value.is_empty())
     {
-        missing.push(credentials.api_key_env.as_str());
+        missing.push(credentials.api_key_env.clone());
     }
     if credentials
         .api_secret_value
         .as_deref()
         .is_none_or(|value| value.is_empty())
     {
-        missing.push(credentials.api_secret_env.as_str());
+        missing.push(credentials.api_secret_env.clone());
     }
     missing
 }
@@ -9834,6 +9945,7 @@ write_summary = true
             recv_window_ms: 5_000,
             api_key_env: "NTPRO_V150002_API_KEY".to_string(),
             api_secret_env: "NTPRO_V150002_API_SECRET".to_string(),
+            credential_material: "synthetic".to_string(),
             output,
             allow_production_live_alpha_request_preview: all_cli_gates,
             confirm_owner_approved_request_preview: all_cli_gates,
@@ -12723,18 +12835,14 @@ write_summary = true
             output.clone(),
             true,
         );
-        run_live_production_live_alpha_order_request_preview_with_env(&opt, |name| match name {
-            "NTPRO_V150002_API_KEY" => Some("ntpro_v150002_synthetic_api_key_value".to_string()),
-            "NTPRO_V150002_API_SECRET" => {
-                Some("ntpro_v150002_synthetic_api_secret_value".to_string())
-            }
-            _ => None,
+        run_live_production_live_alpha_order_request_preview_with_env(&opt, |name| {
+            panic!("default synthetic signing material must not read env var {name}")
         })
         .unwrap();
 
         let body = fs::read_to_string(output).unwrap();
-        assert!(!body.contains("ntpro_v150002_synthetic_api_key_value"));
-        assert!(!body.contains("ntpro_v150002_synthetic_api_secret_value"));
+        assert!(!body.contains(PRODUCTION_MUTATION_PREVIEW_SYNTHETIC_API_KEY));
+        assert!(!body.contains(PRODUCTION_MUTATION_PREVIEW_SYNTHETIC_API_SECRET));
         assert!(!body.contains("signature="));
         assert!(!body.contains("symbol=BTCUSDT"));
         let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
@@ -12758,6 +12866,18 @@ write_summary = true
             artifact["signature_preflight"],
             "created_in_memory_not_recorded"
         );
+        assert_eq!(artifact["credential_material"], "synthetic");
+        assert_eq!(artifact["production_signing_material_gate_required"], false);
+        assert_eq!(artifact["production_signing_material_gate_open"], false);
+        assert_eq!(artifact["production_signing_material_env_read"], false);
+        assert_eq!(
+            artifact["production_signing_material_missing_gate_env_vars"]
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
+        assert_eq!(artifact["missing_env_vars"].as_array().unwrap().len(), 0);
         assert_eq!(artifact["api_key_header_value_recorded"], false);
         assert_eq!(artifact["api_secret_value_recorded"], false);
         assert_eq!(artifact["signature_recorded"], false);
@@ -12824,6 +12944,162 @@ write_summary = true
             "v150-live-alpha-request-preview"
         );
         assert_eq!(consumed_approval["approval_lifecycle_valid"], false);
+    }
+
+    #[test]
+    fn production_live_alpha_order_request_preview_blocks_production_material_without_gates() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v151-003-production-material-blocked-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let order_gate = output_dir.join("live_alpha_dry_run_order_gate.json");
+        let manual_approval_lifecycle = output_dir.join("manual_approval_lifecycle.json");
+        let output = output_dir.join("live_alpha_order_request_preview.json");
+        run_live_production_live_alpha_dry_run_order_gate(
+            &production_live_alpha_limit_dry_run_order_gate_opt(order_gate.clone(), true),
+        )
+        .unwrap();
+        run_live_production_live_alpha_manual_approval_lifecycle(
+            &production_live_alpha_manual_approval_lifecycle_opt(
+                manual_approval_lifecycle.clone(),
+                &ManualApprovalLifecycleFixture {
+                    approval_state: "approved",
+                    run_id: "v150-live-alpha-request-preview",
+                    strategy_id: "ema_cross_btcusdt_v1",
+                    symbol: "BTCUSDT",
+                    notional: "10.00",
+                    now_unix_ms: 1_718_400_000_000,
+                    expires_at_unix_ms: 1_718_400_060_000,
+                },
+            ),
+        )
+        .unwrap();
+
+        let mut opt = production_live_alpha_order_request_preview_opt(
+            order_gate,
+            manual_approval_lifecycle,
+            output.clone(),
+            true,
+        );
+        opt.credential_material = "production_live_alpha".to_string();
+
+        run_live_production_live_alpha_order_request_preview_with_env(&opt, |name| match name {
+            PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW
+            | PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED => None,
+            "NTPRO_V150002_API_KEY" | "NTPRO_V150002_API_SECRET" => {
+                panic!("blocked production signing material must not read {name}")
+            }
+            _ => None,
+        })
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_endpoint_or_owner_scope");
+        assert_eq!(artifact["credential_material"], "production_live_alpha");
+        assert_eq!(artifact["production_signing_material_gate_required"], true);
+        assert_eq!(artifact["production_signing_material_gate_open"], false);
+        assert_eq!(artifact["production_signing_material_env_read"], false);
+        assert_eq!(
+            artifact["production_signing_material_missing_gate_env_vars"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+        assert!(
+            artifact["missing_env_vars"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|env| env.as_str() == Some(PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW))
+        );
+        assert!(artifact["missing_env_vars"].as_array().unwrap().iter().any(
+            |env| env.as_str() == Some(PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED)
+        ));
+        assert_eq!(artifact["request_preview_allowed"], false);
+        assert_eq!(artifact["request_preview_built"], false);
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["network_attempted"], false);
+    }
+
+    #[test]
+    fn production_live_alpha_order_request_preview_uses_production_material_only_with_gates() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v151-003-production-material-ready-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let order_gate = output_dir.join("live_alpha_dry_run_order_gate.json");
+        let manual_approval_lifecycle = output_dir.join("manual_approval_lifecycle.json");
+        let output = output_dir.join("live_alpha_order_request_preview.json");
+        run_live_production_live_alpha_dry_run_order_gate(
+            &production_live_alpha_limit_dry_run_order_gate_opt(order_gate.clone(), true),
+        )
+        .unwrap();
+        run_live_production_live_alpha_manual_approval_lifecycle(
+            &production_live_alpha_manual_approval_lifecycle_opt(
+                manual_approval_lifecycle.clone(),
+                &ManualApprovalLifecycleFixture {
+                    approval_state: "approved",
+                    run_id: "v150-live-alpha-request-preview",
+                    strategy_id: "ema_cross_btcusdt_v1",
+                    symbol: "BTCUSDT",
+                    notional: "10.00",
+                    now_unix_ms: 1_718_400_000_000,
+                    expires_at_unix_ms: 1_718_400_060_000,
+                },
+            ),
+        )
+        .unwrap();
+
+        let mut opt = production_live_alpha_order_request_preview_opt(
+            order_gate,
+            manual_approval_lifecycle,
+            output.clone(),
+            true,
+        );
+        opt.credential_material = "production_live_alpha".to_string();
+
+        let production_api_key = "ntpro_v151003_production_like_api_key_value";
+        let production_api_secret = "ntpro_v151003_production_like_api_secret_value";
+        run_live_production_live_alpha_order_request_preview_with_env(&opt, |name| match name {
+            PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW
+            | PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED => Some("1".to_string()),
+            "NTPRO_V150002_API_KEY" => Some(production_api_key.to_string()),
+            "NTPRO_V150002_API_SECRET" => Some(production_api_secret.to_string()),
+            _ => None,
+        })
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(!body.contains(production_api_key));
+        assert!(!body.contains(production_api_secret));
+        assert!(!body.contains("signature="));
+        let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(artifact["status"], "ready_request_preview_only");
+        assert_eq!(artifact["credential_material"], "production_live_alpha");
+        assert_eq!(artifact["production_signing_material_gate_required"], true);
+        assert_eq!(artifact["production_signing_material_gate_open"], true);
+        assert_eq!(artifact["production_signing_material_env_read"], true);
+        assert_eq!(
+            artifact["production_signing_material_missing_gate_env_vars"]
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
+        assert_eq!(artifact["missing_env_vars"].as_array().unwrap().len(), 0);
+        assert_eq!(artifact["request_preview_built"], true);
+        assert_eq!(artifact["signed_request_memory_only"], true);
+        assert_eq!(artifact["secrets_redacted"], true);
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["network_attempted"], false);
     }
 
     #[test]
@@ -13047,7 +13323,9 @@ write_summary = true
         assert_eq!(artifact["execution_adapter_called"], false);
         assert_eq!(artifact["network_attempted"], false);
         assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 10);
-        assert_eq!(artifact["missing_env_vars"].as_array().unwrap().len(), 2);
+        assert_eq!(artifact["missing_env_vars"].as_array().unwrap().len(), 0);
+        assert_eq!(artifact["credential_material"], "synthetic");
+        assert_eq!(artifact["production_signing_material_env_read"], false);
     }
 
     #[test]
@@ -13522,14 +13800,24 @@ write_summary = true
             ),
         )
         .unwrap();
-        let request_opt = production_live_alpha_order_request_preview_opt(
+        let mut request_opt = production_live_alpha_order_request_preview_opt(
             order_gate,
             manual_approval_lifecycle,
             request_preview.clone(),
             true,
         );
-        run_live_production_live_alpha_order_request_preview_with_env(&request_opt, |_| None)
-            .unwrap();
+        request_opt.credential_material = "production_live_alpha".to_string();
+        run_live_production_live_alpha_order_request_preview_with_env(&request_opt, |name| {
+            match name {
+                PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW
+                | PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED => None,
+                "NTPRO_V150002_API_KEY" | "NTPRO_V150002_API_SECRET" => {
+                    panic!("blocked production signing material must not read {name}")
+                }
+                _ => None,
+            }
+        })
+        .unwrap();
         write_kill_switch_approval_artifact(kill_switch_approval.clone(), false, "approved");
 
         run_live_production_live_alpha_kill_switch_runtime_gate(

@@ -25,8 +25,8 @@ OUTPUT_DIR="$APPROVAL_ROOT/command-output"
 mkdir -p "$OUTPUT_DIR"
 
 ORDER_GATE="$OUTPUT_DIR/live-alpha-order-gate.json"
-SYNTHETIC_API_KEY="ntpro_v150005_synthetic_api_key_value"
-SYNTHETIC_API_SECRET="ntpro_v150005_synthetic_api_secret_value"
+SYNTHETIC_API_KEY="ntpro_v151003_synthetic_api_key_value"
+SYNTHETIC_API_SECRET="ntpro_v151003_synthetic_api_secret_value"
 
 "$NAUTILUS_BIN" live production-live-alpha-dry-run-order-gate \
   --run-id v150-approval-lifecycle \

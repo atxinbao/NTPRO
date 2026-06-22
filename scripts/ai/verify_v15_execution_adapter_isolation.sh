@@ -38,8 +38,8 @@ BLOCKED_STDERR="$OUTPUT_DIR/blocked.stderr.log"
 READY_STDOUT="$OUTPUT_DIR/ready.stdout.log"
 READY_STDERR="$OUTPUT_DIR/ready.stderr.log"
 
-SYNTHETIC_API_KEY="ntpro_v150003_synthetic_api_key_value"
-SYNTHETIC_API_SECRET="ntpro_v150003_synthetic_api_secret_value"
+SYNTHETIC_API_KEY="ntpro_v151003_synthetic_api_key_value"
+SYNTHETIC_API_SECRET="ntpro_v151003_synthetic_api_secret_value"
 
 "$NAUTILUS_BIN" live production-live-alpha-dry-run-order-gate \
   --run-id v150-execution-dry-run \
