@@ -308,13 +308,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   owner approval, redacted request preview, dry-run execution, runtime gate,
   order-state, and boundary counters without adding order/cancel/replace/
   amend/retry/reconnect controls.
-- `v0_15_0_readiness_report.md` - V150-010 readiness report for the
-  `ntpro-rust-only-v0.15.0` candidate. It accounts for V150-000 through
-  V150-010 and keeps the product claim limited to Guarded Live Alpha Mutation
-  Scope + Execution Dry-Run Harness. It is ready for owner release decision
-  after hosted checks pass; it does not create a tag or publish a GitHub
-  Release.
-- `v0_15_0_release_notes.md` - V150-010 release-note material for a potential
+- `v0_15_0_readiness_report.md` - released readiness report for the formal
+  v0.15.0 Guarded Live Alpha Mutation Scope + Execution Dry-Run Harness
+  release. It records the formal tag `ntpro-rust-only-v0.15.0`, accounts for
+  V150-000 through V150-010, and preserves the no-production-mutation
+  boundary.
+- `v0_15_0_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.15.0` GitHub Release. It explicitly excludes production
   request sending, production order submission, production order mutation,
   cancel/replace/amend/retry/correction, listenKey lifecycle, real funds,

@@ -3,7 +3,7 @@
 Date: 2026-06-22
 Executor: Codex
 Milestone: `ntpro-rust-only-v0.15.0`
-Status: READY FOR OWNER RELEASE DECISION
+Status: PASS - RELEASED
 
 ## Summary
 
@@ -21,8 +21,9 @@ Plain Chinese summary: v0.15.0 可以开始把“未来生产下单请求怎么�
 
 ```text
 capability = Guarded Live Alpha Mutation Scope + Execution Dry-Run Harness
-release tag candidate = ntpro-rust-only-v0.15.0
-release name candidate = NTPRO Rust-only v0.15.0
+release tag = ntpro-rust-only-v0.15.0
+release name = NTPRO Rust-only v0.15.0
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.15.0
 default execution posture = offline fail-closed
 production mutation scope = classified and owner-gated for preview only
 production order request preview = redacted local artifact only
@@ -139,21 +140,18 @@ PR #487 security-audit checks = PASS, run 27952851662
 
 ## Release Closure Status
 
-The V150 task queue is ready for owner publication decision after V150-010 is
-merged and its hosted checks pass:
+The V150 task queue is complete and the formal v0.15.0 publication package is:
 
 ```text
-formal tag candidate = ntpro-rust-only-v0.15.0
-formal release name candidate = NTPRO Rust-only v0.15.0
-formal GitHub Release = pending owner publication
-tag created by V150-010 = false
-GitHub Release published by V150-010 = false
+formal tag = ntpro-rust-only-v0.15.0
+formal release name = NTPRO Rust-only v0.15.0
+formal GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.15.0
 ```
 
 ## Final Verdict
 
-The v0.15.0 release package is ready for owner release decision after the
-V150-010 PR lands with hosted checks passing.
+The v0.15.0 release package is the formal publication package for
+`ntpro-rust-only-v0.15.0`.
 
 Do not describe this readiness PASS as production order submission readiness,
 production order mutation readiness, production cancel/replace/amend/retry/

@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.14.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.15.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
@@ -132,22 +132,53 @@ body="$(extract_json_field "$release_json" body)"
 [[ "$url" == "$RELEASE_URL" ]] || fail "release URL mismatch: $url"
 [[ -n "$published_at" ]] || fail "release publishedAt is empty"
 
-required_fields=(
-  "Status: RELEASED"
-  "Tag: \`$CURRENT_RELEASE_TAG\`"
-  "Release name: \`$RELEASE_NAME\`"
-  "Release URL: \`$RELEASE_URL\`"
-  "Production Order-State Read-Only + Live Alpha Dry-Run"
-  "no-production-mutation"
-  "owner-gated production order-state GET proof"
-  "live-alpha dry-run"
-  "production order submission"
-  "production cancel, replace, amend, retry, correction, or flatten"
-  "listenKey lifecycle"
-  "real funds"
-  "production trading"
-  "Dashboard order/cancel/replace/amend/retry/reconnect controls"
-)
+case "$CURRENT_RELEASE_VERSION" in
+  v0.14.0)
+    required_fields=(
+      "Status: RELEASED"
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Production Order-State Read-Only + Live Alpha Dry-Run"
+      "no-production-mutation"
+      "owner-gated production order-state GET proof"
+      "live-alpha dry-run"
+      "production order submission"
+      "production cancel, replace, amend, retry, correction, or flatten"
+      "listenKey lifecycle"
+      "real funds"
+      "production trading"
+      "Dashboard order/cancel/replace/amend/retry/reconnect controls"
+    )
+    ;;
+  v0.15.0)
+    required_fields=(
+      "Status: RELEASED"
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Guarded Live Alpha Mutation Scope + Execution Dry-Run Harness"
+      "production mutation endpoint classification"
+      "redacted local order request preview"
+      "manual approval lifecycle for preview artifact creation"
+      "kill switch runtime gate"
+      "local dry-run execution adapter artifact"
+      "dry-run mutation golden trace replay"
+      "read-only Dashboard mutation preflight panel"
+      "production request sending"
+      "production order submission"
+      "production order mutation"
+      "production cancel, replace, amend, retry, correction, or flatten"
+      "listenKey lifecycle"
+      "real funds"
+      "production trading"
+      "Dashboard order/cancel/replace/amend/retry/reconnect controls"
+    )
+    ;;
+  *)
+    fail "unsupported release publication guard version: $CURRENT_RELEASE_VERSION"
+    ;;
+esac
 
 for field in "${required_fields[@]}"; do
   require_file_contains "$CURRENT_RELEASE_NOTES" "$field" "release notes key field"
