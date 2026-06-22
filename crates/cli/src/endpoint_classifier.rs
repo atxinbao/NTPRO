@@ -28,6 +28,8 @@ pub(crate) enum EndpointClass {
     ProductionPublicReadOnly,
     ProductionAuthenticatedReadOnly,
     ProductionOrderStateReadOnly,
+    ProductionMutationScopeCandidate,
+    ProductionMutationOwnerApprovedManualOnly,
     ProductionMutationForbidden,
     WebsocketPublicReadOnly,
     WebsocketUserReadOnly,
@@ -42,6 +44,10 @@ impl EndpointClass {
             Self::ProductionPublicReadOnly => "production_public_read_only",
             Self::ProductionAuthenticatedReadOnly => "production_authenticated_read_only",
             Self::ProductionOrderStateReadOnly => "production_order_state_read_only",
+            Self::ProductionMutationScopeCandidate => "production_mutation_scope_candidate",
+            Self::ProductionMutationOwnerApprovedManualOnly => {
+                "production_mutation_owner_approved_manual_only"
+            }
             Self::ProductionMutationForbidden => "production_mutation_forbidden",
             Self::WebsocketPublicReadOnly => "websocket_public_read_only",
             Self::WebsocketUserReadOnly => "websocket_user_read_only",
@@ -53,6 +59,7 @@ impl EndpointClass {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum EndpointDecision {
     AllowReadOnly,
+    AllowRequestPreviewOnly,
     Deny,
 }
 
@@ -66,6 +73,7 @@ pub(crate) struct ClassifiedEndpoint {
     pub(crate) requires_api_key: bool,
     pub(crate) mutation_allowed: bool,
     pub(crate) read_allowed: bool,
+    pub(crate) request_preview_allowed: bool,
     pub(crate) owner_gate_required: bool,
     pub(crate) dashboard_order_controls_allowed: bool,
     pub(crate) decision: EndpointDecision,
@@ -82,52 +90,76 @@ impl EndpointClassifier {
         url: &str,
         auth_kind: EndpointAuthKind,
     ) -> ClassifiedEndpoint {
-        let normalized_method = method.trim().to_ascii_uppercase();
-        let Ok(parsed_url) = Url::parse(url) else {
-            return unknown_forbidden(
-                url,
-                normalized_method,
-                "endpoint URL cannot be parsed by the classifier",
-            );
-        };
+        Self::classify_with_context(method, url, auth_kind, false)
+    }
 
-        let input_url_redacted = redact_url(&parsed_url);
-        let scheme = parsed_url.scheme();
-        let Some(host) = parsed_url.host_str() else {
-            return unknown_forbidden(
-                &input_url_redacted,
-                normalized_method,
-                "endpoint URL has no host",
-            );
-        };
-
-        let path = parsed_url.path().to_string();
-        match scheme {
-            "https" => {
-                classify_rest_endpoint(input_url_redacted, normalized_method, host, path, auth_kind)
-            }
-            "wss" => classify_websocket_endpoint(
-                input_url_redacted,
-                normalized_method,
-                host,
-                path,
-                auth_kind,
-            ),
-            _ => unknown_forbidden(
-                &input_url_redacted,
-                normalized_method,
-                "endpoint scheme is outside the v0.11 HTTPS/WSS contract",
-            ),
-        }
+    pub(crate) fn classify_with_context(
+        method: &str,
+        url: &str,
+        auth_kind: EndpointAuthKind,
+        owner_manual_scope: bool,
+    ) -> ClassifiedEndpoint {
+        classify_endpoint_with_context(method, url, auth_kind, owner_manual_scope)
     }
 }
 
-fn classify_rest_endpoint(
+fn classify_endpoint_with_context(
+    method: &str,
+    url: &str,
+    auth_kind: EndpointAuthKind,
+    owner_manual_scope: bool,
+) -> ClassifiedEndpoint {
+    let normalized_method = method.trim().to_ascii_uppercase();
+    let Ok(parsed_url) = Url::parse(url) else {
+        return unknown_forbidden(
+            url,
+            normalized_method,
+            "endpoint URL cannot be parsed by the classifier",
+        );
+    };
+
+    let input_url_redacted = redact_url(&parsed_url);
+    let scheme = parsed_url.scheme();
+    let Some(host) = parsed_url.host_str() else {
+        return unknown_forbidden(
+            &input_url_redacted,
+            normalized_method,
+            "endpoint URL has no host",
+        );
+    };
+
+    let path = parsed_url.path().to_string();
+    match scheme {
+        "https" => classify_rest_endpoint_with_context(
+            input_url_redacted,
+            normalized_method,
+            host,
+            path,
+            auth_kind,
+            owner_manual_scope,
+        ),
+        "wss" => classify_websocket_endpoint(
+            input_url_redacted,
+            normalized_method,
+            host,
+            path,
+            auth_kind,
+        ),
+        _ => unknown_forbidden(
+            &input_url_redacted,
+            normalized_method,
+            "endpoint scheme is outside the v0.11 HTTPS/WSS contract",
+        ),
+    }
+}
+
+fn classify_rest_endpoint_with_context(
     input_url_redacted: String,
     method: String,
     host: &str,
     path: String,
     auth_kind: EndpointAuthKind,
+    owner_manual_scope: bool,
 ) -> ClassifiedEndpoint {
     match host {
         "demo-api.binance.com" => sandbox_endpoint(
@@ -144,9 +176,13 @@ fn classify_rest_endpoint(
             EndpointClass::SandboxSpotTestNetwork,
             path,
         ),
-        "api.binance.com" => {
-            classify_production_rest_endpoint(input_url_redacted, method, path, auth_kind)
-        }
+        "api.binance.com" => classify_production_rest_endpoint(
+            input_url_redacted,
+            method,
+            path,
+            auth_kind,
+            owner_manual_scope,
+        ),
         _ => unknown_forbidden(
             &input_url_redacted,
             method,
@@ -160,6 +196,7 @@ fn classify_production_rest_endpoint(
     method: String,
     path: String,
     auth_kind: EndpointAuthKind,
+    owner_manual_scope: bool,
 ) -> ClassifiedEndpoint {
     if is_production_order_state_readonly_endpoint(&method, &path) {
         let signed = auth_kind == EndpointAuthKind::Signed;
@@ -172,6 +209,7 @@ fn classify_production_rest_endpoint(
             requires_api_key: true,
             mutation_allowed: false,
             read_allowed: signed,
+            request_preview_allowed: false,
             owner_gate_required: true,
             dashboard_order_controls_allowed: false,
             decision: if signed {
@@ -188,6 +226,16 @@ fn classify_production_rest_endpoint(
         });
     }
 
+    if is_production_mutation_request_preview_candidate(&method, &path) {
+        return classify_production_mutation_scope_candidate(
+            input_url_redacted,
+            method,
+            path,
+            auth_kind,
+            owner_manual_scope,
+        );
+    }
+
     if is_production_order_or_mutation_endpoint(&method, &path) {
         return classified_endpoint(ClassifiedEndpointInput {
             input_url_redacted,
@@ -198,10 +246,11 @@ fn classify_production_rest_endpoint(
             requires_api_key: auth_kind != EndpointAuthKind::None,
             mutation_allowed: false,
             read_allowed: false,
+            request_preview_allowed: false,
             owner_gate_required: true,
             dashboard_order_controls_allowed: false,
             decision: EndpointDecision::Deny,
-            reason: "production order mutation is out of scope for v0.11",
+            reason: "production order mutation is out of scope except explicit v0.15 dry-run request-preview candidates",
             path,
         });
     }
@@ -216,6 +265,7 @@ fn classify_production_rest_endpoint(
             requires_api_key: false,
             mutation_allowed: false,
             read_allowed: true,
+            request_preview_allowed: false,
             owner_gate_required: false,
             dashboard_order_controls_allowed: false,
             decision: EndpointDecision::AllowReadOnly,
@@ -235,6 +285,7 @@ fn classify_production_rest_endpoint(
             requires_api_key: true,
             mutation_allowed: false,
             read_allowed: signed,
+            request_preview_allowed: false,
             owner_gate_required: true,
             dashboard_order_controls_allowed: false,
             decision: if signed {
@@ -256,6 +307,47 @@ fn classify_production_rest_endpoint(
         method,
         "production endpoint path is not in the v0.11 read-only contract",
     )
+}
+
+fn classify_production_mutation_scope_candidate(
+    input_url_redacted: String,
+    method: String,
+    path: String,
+    auth_kind: EndpointAuthKind,
+    owner_manual_scope: bool,
+) -> ClassifiedEndpoint {
+    let signed = auth_kind == EndpointAuthKind::Signed;
+    let preview_allowed = owner_manual_scope && signed;
+    classified_endpoint(ClassifiedEndpointInput {
+        input_url_redacted,
+        method,
+        host_class: "production",
+        endpoint_class: if preview_allowed {
+            EndpointClass::ProductionMutationOwnerApprovedManualOnly
+        } else {
+            EndpointClass::ProductionMutationScopeCandidate
+        },
+        requires_signature: true,
+        requires_api_key: true,
+        mutation_allowed: false,
+        read_allowed: false,
+        request_preview_allowed: preview_allowed,
+        owner_gate_required: true,
+        dashboard_order_controls_allowed: false,
+        decision: if preview_allowed {
+            EndpointDecision::AllowRequestPreviewOnly
+        } else {
+            EndpointDecision::Deny
+        },
+        reason: if preview_allowed {
+            "owner-approved manual dry-run request preview only; production request execution remains forbidden"
+        } else if signed {
+            "production mutation endpoint is a v0.15 dry-run request-preview scope candidate; owner/manual scope is required"
+        } else {
+            "production mutation request preview requires signed owner/manual scope"
+        },
+        path,
+    })
 }
 
 fn classify_websocket_endpoint(
@@ -297,6 +389,7 @@ fn classify_websocket_endpoint(
         requires_api_key: user_stream,
         mutation_allowed: false,
         read_allowed: !user_stream,
+        request_preview_allowed: false,
         owner_gate_required: user_stream,
         dashboard_order_controls_allowed: false,
         decision,
@@ -326,6 +419,7 @@ fn sandbox_endpoint(
         requires_api_key: false,
         mutation_allowed: false,
         read_allowed: read_only,
+        request_preview_allowed: false,
         owner_gate_required: false,
         dashboard_order_controls_allowed: false,
         decision: if read_only {
@@ -344,6 +438,10 @@ fn sandbox_endpoint(
 
 fn is_production_order_state_readonly_endpoint(method: &str, path: &str) -> bool {
     method == "GET" && matches!(path, "/api/v3/openOrders" | "/api/v3/order")
+}
+
+fn is_production_mutation_request_preview_candidate(method: &str, path: &str) -> bool {
+    method == "POST" && matches!(path, "/api/v3/order" | "/api/v3/order/test")
 }
 
 fn is_production_order_or_mutation_endpoint(method: &str, path: &str) -> bool {
@@ -373,6 +471,7 @@ fn unknown_forbidden(input_url: &str, method: String, reason: &'static str) -> C
         requires_api_key: false,
         mutation_allowed: false,
         read_allowed: false,
+        request_preview_allowed: false,
         owner_gate_required: false,
         dashboard_order_controls_allowed: false,
         decision: EndpointDecision::Deny,
@@ -412,6 +511,7 @@ struct ClassifiedEndpointInput<'a> {
     requires_api_key: bool,
     mutation_allowed: bool,
     read_allowed: bool,
+    request_preview_allowed: bool,
     owner_gate_required: bool,
     dashboard_order_controls_allowed: bool,
     decision: EndpointDecision,
@@ -429,6 +529,7 @@ fn classified_endpoint(input: ClassifiedEndpointInput<'_>) -> ClassifiedEndpoint
         requires_api_key: input.requires_api_key,
         mutation_allowed: input.mutation_allowed,
         read_allowed: input.read_allowed,
+        request_preview_allowed: input.request_preview_allowed,
         owner_gate_required: input.owner_gate_required,
         dashboard_order_controls_allowed: input.dashboard_order_controls_allowed,
         decision: input.decision,
@@ -516,7 +617,7 @@ mod tests {
     }
 
     #[test]
-    fn endpoint_classifier_denies_production_order_mutation_endpoint() {
+    fn endpoint_classifier_marks_production_order_post_as_preview_candidate_by_default() {
         let endpoint = EndpointClassifier::classify(
             "POST",
             "https://api.binance.com/api/v3/order",
@@ -525,17 +626,101 @@ mod tests {
 
         assert_eq!(
             endpoint.endpoint_class,
-            EndpointClass::ProductionMutationForbidden
+            EndpointClass::ProductionMutationScopeCandidate
         );
         assert_eq!(
             endpoint.endpoint_class.as_str(),
-            "production_mutation_forbidden"
+            "production_mutation_scope_candidate"
         );
         assert_eq!(endpoint.decision, EndpointDecision::Deny);
         assert!(!endpoint.read_allowed);
         assert!(!endpoint.mutation_allowed);
+        assert!(!endpoint.request_preview_allowed);
         assert!(endpoint.owner_gate_required);
         assert!(!endpoint.dashboard_order_controls_allowed);
+    }
+
+    #[test]
+    fn endpoint_classifier_allows_owner_manual_request_preview_only() {
+        let endpoint = EndpointClassifier::classify_with_context(
+            "POST",
+            "https://api.binance.com/api/v3/order/test?timestamp=123&signature=secret",
+            EndpointAuthKind::Signed,
+            true,
+        );
+
+        assert_eq!(
+            endpoint.endpoint_class,
+            EndpointClass::ProductionMutationOwnerApprovedManualOnly
+        );
+        assert_eq!(
+            endpoint.endpoint_class.as_str(),
+            "production_mutation_owner_approved_manual_only"
+        );
+        assert_eq!(endpoint.decision, EndpointDecision::AllowRequestPreviewOnly);
+        assert_eq!(endpoint.path, "/api/v3/order/test");
+        assert!(!endpoint.read_allowed);
+        assert!(!endpoint.mutation_allowed);
+        assert!(endpoint.request_preview_allowed);
+        assert!(endpoint.requires_api_key);
+        assert!(endpoint.requires_signature);
+        assert!(endpoint.owner_gate_required);
+        assert!(!endpoint.dashboard_order_controls_allowed);
+        assert_eq!(
+            endpoint.input_url_redacted,
+            "https://api.binance.com/api/v3/order/test?<redacted>"
+        );
+    }
+
+    #[test]
+    fn endpoint_classifier_denies_owner_manual_preview_without_signed_scope() {
+        let endpoint = EndpointClassifier::classify_with_context(
+            "POST",
+            "https://api.binance.com/api/v3/order",
+            EndpointAuthKind::None,
+            true,
+        );
+
+        assert_eq!(
+            endpoint.endpoint_class,
+            EndpointClass::ProductionMutationScopeCandidate
+        );
+        assert_eq!(endpoint.decision, EndpointDecision::Deny);
+        assert!(!endpoint.read_allowed);
+        assert!(!endpoint.mutation_allowed);
+        assert!(!endpoint.request_preview_allowed);
+        assert!(endpoint.requires_api_key);
+        assert!(endpoint.requires_signature);
+        assert!(endpoint.owner_gate_required);
+    }
+
+    #[test]
+    fn endpoint_classifier_keeps_cancel_and_listen_key_forbidden_under_owner_scope() {
+        let cancel = EndpointClassifier::classify_with_context(
+            "DELETE",
+            "https://api.binance.com/api/v3/order",
+            EndpointAuthKind::Signed,
+            true,
+        );
+        let listen_key = EndpointClassifier::classify_with_context(
+            "POST",
+            "https://api.binance.com/api/v3/userDataStream",
+            EndpointAuthKind::Signed,
+            true,
+        );
+
+        for endpoint in [cancel, listen_key] {
+            assert_eq!(
+                endpoint.endpoint_class,
+                EndpointClass::ProductionMutationForbidden
+            );
+            assert_eq!(endpoint.decision, EndpointDecision::Deny);
+            assert!(!endpoint.read_allowed);
+            assert!(!endpoint.mutation_allowed);
+            assert!(!endpoint.request_preview_allowed);
+            assert!(endpoint.owner_gate_required);
+            assert!(!endpoint.dashboard_order_controls_allowed);
+        }
     }
 
     #[test]
