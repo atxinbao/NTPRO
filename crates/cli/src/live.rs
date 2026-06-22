@@ -46,12 +46,12 @@ use crate::{
     opt::{
         LiveCommand, LiveOpt, LiveProductionAccountSnapshotContractOpt,
         LiveProductionKillSwitchApprovalArtifactOpt, LiveProductionLiveAlphaDryRunOrderGateOpt,
-        LiveProductionLiveAlphaExecutionDryRunOpt, LiveProductionLiveAlphaOrderRequestPreviewOpt,
-        LiveProductionLiveAlphaRiskPreflightOpt, LiveProductionOrderStateReadOnlyProofOpt,
-        LiveProductionPublicReadProbeOpt, LiveProductionReadonlyReconciliationOpt,
-        LiveProductionShadowPortfolioRuntimeOpt, LiveProductionShadowPreflightSessionOpt,
-        LiveProductionShadowStrategySessionOpt, LiveRunOpt,
-        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveProductionLiveAlphaExecutionDryRunOpt, LiveProductionLiveAlphaKillSwitchRuntimeGateOpt,
+        LiveProductionLiveAlphaOrderRequestPreviewOpt, LiveProductionLiveAlphaRiskPreflightOpt,
+        LiveProductionOrderStateReadOnlyProofOpt, LiveProductionPublicReadProbeOpt,
+        LiveProductionReadonlyReconciliationOpt, LiveProductionShadowPortfolioRuntimeOpt,
+        LiveProductionShadowPreflightSessionOpt, LiveProductionShadowStrategySessionOpt,
+        LiveRunOpt, LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
         LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
         ProductionOrderStateReadEndpoint, ProductionPublicReadEndpoint,
@@ -135,6 +135,8 @@ const PRODUCTION_LIVE_ALPHA_ORDER_REQUEST_PREVIEW_SCHEMA_VERSION: &str =
     "ntpro.v150_live_alpha_order_request_preview.v1";
 const PRODUCTION_LIVE_ALPHA_EXECUTION_DRY_RUN_SCHEMA_VERSION: &str =
     "ntpro.v150_live_alpha_execution_dry_run.v1";
+const PRODUCTION_LIVE_ALPHA_KILL_SWITCH_RUNTIME_GATE_SCHEMA_VERSION: &str =
+    "ntpro.v150_live_alpha_kill_switch_runtime_gate.v1";
 const PRODUCTION_LIVE_ALPHA_RISK_PREFLIGHT_INPUT_SCHEMA_VERSION: &str =
     "ntpro.v140_live_alpha_risk_preflight_input.v1";
 const PRODUCTION_LIVE_ALPHA_RISK_PREFLIGHT_REPORT_SCHEMA_VERSION: &str =
@@ -1272,12 +1274,74 @@ struct ProductionLiveAlphaOrderRequestPreviewArtifact {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionLiveAlphaKillSwitchRuntimeGateArtifact {
+    schema_version: String,
+    run_id: String,
+    source_kill_switch_approval_path: String,
+    source_risk_preflight_path: String,
+    source_request_preview_path: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    runtime_gate_decision: String,
+    runtime_gate_open: bool,
+    runtime_gate_reasons: Vec<String>,
+    source_artifact_issues: Vec<String>,
+    missing_cli_flags: Vec<String>,
+    kill_switch_enabled: bool,
+    kill_switch_active: bool,
+    approval_state: String,
+    manual_approval_required: bool,
+    manual_approval_recorded: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    manual_approval_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    approved_by: Option<String>,
+    risk_preflight_decision: String,
+    risk_preflight_kill_switch_active: bool,
+    request_preview_status: String,
+    request_preview_built: bool,
+    request_sent: bool,
+    production_order_submission_allowed: bool,
+    production_order_mutation_allowed: bool,
+    production_order_state_reads_allowed: bool,
+    listen_key_lifecycle_allowed: bool,
+    production_order_submissions_attempted: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    production_order_state_reads_attempted: u64,
+    listen_key_lifecycle_attempted: u64,
+    cancel_replace_amend_attempted: bool,
+    order_endpoint_access_attempted: bool,
+    execution_adapter_called: bool,
+    production_adapter_called: bool,
+    matching_engine_submission: bool,
+    actual_submission_count: u64,
+    automatic_correction_orders_submitted: u64,
+    dashboard_order_controls_enabled: bool,
+    external_venue_connection: bool,
+    network_attempted: bool,
+    real_orders_submitted: bool,
+    real_funds: bool,
+    production_trading_enabled: bool,
+    no_production_order_submission_confirmed: bool,
+    no_production_order_mutation_confirmed: bool,
+    no_network_confirmed: bool,
+    no_listen_key_lifecycle_confirmed: bool,
+    dashboard_controls_disabled_confirmed: bool,
+    no_real_funds_confirmed: bool,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct ProductionLiveAlphaExecutionDryRunArtifact {
     schema_version: String,
     run_id: String,
     source_order_gate_path: String,
     source_risk_preflight_path: String,
     source_request_preview_path: String,
+    source_kill_switch_runtime_gate_path: String,
     artifact_type: String,
     status: String,
     created_at: String,
@@ -1301,6 +1365,8 @@ struct ProductionLiveAlphaExecutionDryRunArtifact {
     risk_preflight_decision: String,
     request_preview_built: bool,
     request_sent: bool,
+    kill_switch_runtime_gate_status: String,
+    kill_switch_runtime_gate_open: bool,
     session_id: String,
     strategy_id: String,
     symbol: String,
@@ -2237,6 +2303,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionLiveAlphaExecutionDryRun(dry_run) => {
             run_live_production_live_alpha_execution_dry_run(&dry_run)
         }
+        LiveCommand::ProductionLiveAlphaKillSwitchRuntimeGate(gate) => {
+            run_live_production_live_alpha_kill_switch_runtime_gate(&gate)
+        }
         LiveCommand::ProductionLiveAlphaRiskPreflight(preflight) => {
             run_live_production_live_alpha_risk_preflight(&preflight)
         }
@@ -2414,6 +2483,25 @@ fn run_live_production_live_alpha_execution_dry_run(
         artifact.run_id,
         opt.output.display(),
         artifact.dry_run_execution_adapter_called,
+    );
+    Ok(())
+}
+
+fn run_live_production_live_alpha_kill_switch_runtime_gate(
+    opt: &LiveProductionLiveAlphaKillSwitchRuntimeGateOpt,
+) -> anyhow::Result<()> {
+    let artifact = build_production_live_alpha_kill_switch_runtime_gate_artifact(opt)?;
+    atomic_write_json(&opt.output, &artifact)?;
+
+    println!(
+        "live.production_live_alpha_kill_switch_runtime_gate status={} run_id={} output={} runtime_gate_open={} kill_switch_active={} manual_approval_recorded={} request_preview_built={} production_orders_submitted=0 production_order_mutations_attempted=0 network_attempted=false dashboard_order_controls_enabled=false",
+        artifact.status,
+        artifact.run_id,
+        opt.output.display(),
+        artifact.runtime_gate_open,
+        artifact.kill_switch_active,
+        artifact.manual_approval_recorded,
+        artifact.request_preview_built,
     );
     Ok(())
 }
@@ -5019,6 +5107,147 @@ fn build_production_live_alpha_order_request_preview_artifact(
     })
 }
 
+fn build_production_live_alpha_kill_switch_runtime_gate_artifact(
+    opt: &LiveProductionLiveAlphaKillSwitchRuntimeGateOpt,
+) -> anyhow::Result<ProductionLiveAlphaKillSwitchRuntimeGateArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+    let kill_switch_approval =
+        load_json_value(&opt.kill_switch_approval, "kill-switch approval artifact")?;
+    let risk_preflight = load_json_value(&opt.risk_preflight, "live-alpha risk preflight")?;
+    let request_preview = load_json_value(&opt.request_preview, "live-alpha request preview")?;
+
+    let missing_cli_flags = missing_production_live_alpha_kill_switch_runtime_gate_cli_flags(opt);
+    let source_artifact_issues = production_live_alpha_kill_switch_runtime_gate_source_issues(
+        &kill_switch_approval,
+        &risk_preflight,
+        &request_preview,
+    );
+    let kill_switch_enabled =
+        json_bool_value(&kill_switch_approval, "kill_switch_enabled").unwrap_or(false);
+    let approval_kill_switch_active =
+        json_bool_value(&kill_switch_approval, "kill_switch_active").unwrap_or(true);
+    let risk_preflight_kill_switch_active =
+        json_bool_value(&risk_preflight, "kill_switch_active").unwrap_or(true);
+    let kill_switch_active = approval_kill_switch_active || risk_preflight_kill_switch_active;
+    let approval_state = json_string_value(&kill_switch_approval, "approval_state")
+        .unwrap_or_else(|| "unknown".to_string());
+    let manual_approval_recorded =
+        json_bool_value(&kill_switch_approval, "manual_approval_recorded").unwrap_or(false);
+    let manual_approval_approved = manual_approval_recorded && approval_state == "approved";
+    let request_preview_status =
+        json_string_value(&request_preview, "status").unwrap_or_else(|| "unknown".to_string());
+    let request_preview_built =
+        json_bool_value(&request_preview, "request_preview_built").unwrap_or(false);
+    let request_sent = json_bool_value(&request_preview, "request_sent").unwrap_or(false);
+    let request_preview_ready = request_preview_status == "ready_request_preview_only"
+        && request_preview_built
+        && !request_sent;
+
+    let mut runtime_gate_reasons = Vec::new();
+    if !missing_cli_flags.is_empty() {
+        runtime_gate_reasons.push("missing_owner_runtime_gate_confirmation".to_string());
+    }
+    if kill_switch_active {
+        runtime_gate_reasons.push("kill_switch_active".to_string());
+    }
+    if !manual_approval_approved {
+        runtime_gate_reasons.push("manual_approval_missing_or_not_approved".to_string());
+    }
+    if !request_preview_ready {
+        runtime_gate_reasons.push("request_preview_blocked".to_string());
+    }
+    if !source_artifact_issues.is_empty() {
+        runtime_gate_reasons.push("source_artifact_issue".to_string());
+    }
+
+    let runtime_gate_open = runtime_gate_reasons.is_empty();
+    let status = if runtime_gate_open {
+        "ready_runtime_gate_open_for_dry_run_only"
+    } else if !missing_cli_flags.is_empty() {
+        "blocked_missing_gate"
+    } else if kill_switch_active {
+        "blocked_kill_switch_active"
+    } else if !manual_approval_approved {
+        "blocked_missing_manual_approval"
+    } else if !request_preview_ready {
+        "blocked_request_preview"
+    } else {
+        "blocked_source_artifact"
+    };
+    let runtime_gate_decision = if runtime_gate_open {
+        "dry_run_runtime_gate_open"
+    } else {
+        "blocked_no_runtime_mutation"
+    };
+
+    Ok(ProductionLiveAlphaKillSwitchRuntimeGateArtifact {
+        schema_version: PRODUCTION_LIVE_ALPHA_KILL_SWITCH_RUNTIME_GATE_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        source_kill_switch_approval_path: opt.kill_switch_approval.display().to_string(),
+        source_risk_preflight_path: opt.risk_preflight.display().to_string(),
+        source_request_preview_path: opt.request_preview.display().to_string(),
+        artifact_type: "live_alpha_kill_switch_runtime_gate".to_string(),
+        status: status.to_string(),
+        created_at: now_millis(),
+        mode: "production_live_alpha_kill_switch_runtime_gate".to_string(),
+        runtime_gate_decision: runtime_gate_decision.to_string(),
+        runtime_gate_open,
+        runtime_gate_reasons,
+        source_artifact_issues,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        kill_switch_enabled,
+        kill_switch_active,
+        approval_state,
+        manual_approval_required: true,
+        manual_approval_recorded,
+        manual_approval_id: json_string_value(&kill_switch_approval, "manual_approval_id"),
+        approved_by: json_string_value(&kill_switch_approval, "approved_by"),
+        risk_preflight_decision: json_string_value(&risk_preflight, "risk_decision")
+            .unwrap_or_else(|| "unknown".to_string()),
+        risk_preflight_kill_switch_active,
+        request_preview_status,
+        request_preview_built,
+        request_sent,
+        production_order_submission_allowed: false,
+        production_order_mutation_allowed: false,
+        production_order_state_reads_allowed: false,
+        listen_key_lifecycle_allowed: false,
+        production_order_submissions_attempted: 0,
+        production_orders_submitted: 0,
+        production_order_mutations_attempted: 0,
+        production_order_state_reads_attempted: 0,
+        listen_key_lifecycle_attempted: 0,
+        cancel_replace_amend_attempted: false,
+        order_endpoint_access_attempted: false,
+        execution_adapter_called: false,
+        production_adapter_called: false,
+        matching_engine_submission: false,
+        actual_submission_count: 0,
+        automatic_correction_orders_submitted: 0,
+        dashboard_order_controls_enabled: false,
+        external_venue_connection: false,
+        network_attempted: false,
+        real_orders_submitted: false,
+        real_funds: false,
+        production_trading_enabled: false,
+        no_production_order_submission_confirmed: opt.confirm_no_production_order_submission,
+        no_production_order_mutation_confirmed: opt.confirm_no_production_order_mutation,
+        no_network_confirmed: opt.confirm_no_network,
+        no_listen_key_lifecycle_confirmed: opt.confirm_no_listen_key_lifecycle,
+        dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
+        no_real_funds_confirmed: opt.confirm_no_real_funds,
+        diagnostic: if runtime_gate_open {
+            "kill-switch runtime gate is open only for local dry-run progression; production mutation remains disabled"
+        } else {
+            "kill-switch runtime gate blocked local dry-run progression before any production mutation path"
+        }
+        .to_string(),
+    })
+}
+
 fn build_production_live_alpha_execution_dry_run_artifact(
     opt: &LiveProductionLiveAlphaExecutionDryRunOpt,
 ) -> anyhow::Result<ProductionLiveAlphaExecutionDryRunArtifact> {
@@ -5026,12 +5255,17 @@ fn build_production_live_alpha_execution_dry_run_artifact(
     let order_gate = load_json_value(&opt.order_gate, "live-alpha dry-run order gate")?;
     let risk_preflight = load_json_value(&opt.risk_preflight, "live-alpha risk preflight")?;
     let request_preview = load_json_value(&opt.request_preview, "live-alpha request preview")?;
+    let kill_switch_runtime_gate = load_json_value(
+        &opt.kill_switch_runtime_gate,
+        "live-alpha kill-switch runtime gate",
+    )?;
 
     let missing_cli_flags = missing_production_live_alpha_execution_dry_run_cli_flags(opt);
     let source_artifact_issues = production_live_alpha_execution_dry_run_source_issues(
         &order_gate,
         &risk_preflight,
         &request_preview,
+        &kill_switch_runtime_gate,
     );
     let order_gate_ready =
         json_bool_value(&order_gate, "dry_run_order_gate_ready").unwrap_or(false);
@@ -5040,6 +5274,10 @@ fn build_production_live_alpha_execution_dry_run_artifact(
     let request_preview_built =
         json_bool_value(&request_preview, "request_preview_built").unwrap_or(false);
     let request_sent = json_bool_value(&request_preview, "request_sent").unwrap_or(false);
+    let kill_switch_runtime_gate_status = json_string_value(&kill_switch_runtime_gate, "status")
+        .unwrap_or_else(|| "unknown".to_string());
+    let kill_switch_runtime_gate_open =
+        json_bool_value(&kill_switch_runtime_gate, "runtime_gate_open").unwrap_or(false);
     let ready = missing_cli_flags.is_empty() && source_artifact_issues.is_empty();
     let status = if ready {
         "ready_dry_run_execution_adapter_only"
@@ -5086,6 +5324,7 @@ fn build_production_live_alpha_execution_dry_run_artifact(
         source_order_gate_path: opt.order_gate.display().to_string(),
         source_risk_preflight_path: opt.risk_preflight.display().to_string(),
         source_request_preview_path: opt.request_preview.display().to_string(),
+        source_kill_switch_runtime_gate_path: opt.kill_switch_runtime_gate.display().to_string(),
         artifact_type: "live_alpha_execution_dry_run_isolation".to_string(),
         status: status.to_string(),
         created_at: now_millis(),
@@ -5113,6 +5352,8 @@ fn build_production_live_alpha_execution_dry_run_artifact(
         risk_preflight_decision,
         request_preview_built,
         request_sent,
+        kill_switch_runtime_gate_status,
+        kill_switch_runtime_gate_open,
         session_id,
         strategy_id,
         symbol,
@@ -5166,6 +5407,7 @@ fn production_live_alpha_execution_dry_run_source_issues(
     order_gate: &serde_json::Value,
     risk_preflight: &serde_json::Value,
     request_preview: &serde_json::Value,
+    kill_switch_runtime_gate: &serde_json::Value,
 ) -> Vec<String> {
     let mut issues = Vec::new();
     if json_string_value(order_gate, "schema_version").as_deref()
@@ -5212,6 +5454,22 @@ fn production_live_alpha_execution_dry_run_source_issues(
     if json_bool_value(request_preview, "network_attempted").unwrap_or(false) {
         issues.push("request_preview_attempted_network".to_string());
     }
+    if json_string_value(kill_switch_runtime_gate, "schema_version").as_deref()
+        != Some(PRODUCTION_LIVE_ALPHA_KILL_SWITCH_RUNTIME_GATE_SCHEMA_VERSION)
+    {
+        issues.push("kill_switch_runtime_gate_schema_mismatch".to_string());
+    }
+    if json_string_value(kill_switch_runtime_gate, "status").as_deref()
+        != Some("ready_runtime_gate_open_for_dry_run_only")
+    {
+        issues.push("kill_switch_runtime_gate_not_ready".to_string());
+    }
+    if !json_bool_value(kill_switch_runtime_gate, "runtime_gate_open").unwrap_or(false) {
+        issues.push("kill_switch_runtime_gate_closed".to_string());
+    }
+    if json_bool_value(kill_switch_runtime_gate, "kill_switch_active").unwrap_or(true) {
+        issues.push("kill_switch_runtime_gate_active".to_string());
+    }
     if artifact_has_production_mutation(Some(order_gate)) {
         issues.push("order_gate_records_forbidden_production_mutation".to_string());
     }
@@ -5220,6 +5478,9 @@ fn production_live_alpha_execution_dry_run_source_issues(
     }
     if artifact_has_production_mutation(Some(request_preview)) {
         issues.push("request_preview_records_forbidden_production_mutation".to_string());
+    }
+    if artifact_has_production_mutation(Some(kill_switch_runtime_gate)) {
+        issues.push("kill_switch_runtime_gate_records_forbidden_production_mutation".to_string());
     }
 
     for field in [
@@ -5248,6 +5509,54 @@ fn production_live_alpha_execution_dry_run_source_issues(
             "risk_preflight",
             risk_preflight,
         );
+    }
+    issues
+}
+
+fn production_live_alpha_kill_switch_runtime_gate_source_issues(
+    kill_switch_approval: &serde_json::Value,
+    risk_preflight: &serde_json::Value,
+    request_preview: &serde_json::Value,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(kill_switch_approval, "schema_version").as_deref()
+        != Some(PRODUCTION_KILL_SWITCH_APPROVAL_ARTIFACT_SCHEMA_VERSION)
+    {
+        issues.push("kill_switch_approval_schema_mismatch".to_string());
+    }
+    if !json_bool_value(kill_switch_approval, "kill_switch_enabled").unwrap_or(false) {
+        issues.push("kill_switch_not_enabled".to_string());
+    }
+    if json_string_value(risk_preflight, "schema_version").as_deref()
+        != Some(PRODUCTION_LIVE_ALPHA_RISK_PREFLIGHT_REPORT_SCHEMA_VERSION)
+    {
+        issues.push("risk_preflight_schema_mismatch".to_string());
+    }
+    if json_string_value(risk_preflight, "risk_decision").as_deref() != Some("dry_run_approved") {
+        issues.push("risk_preflight_not_dry_run_approved".to_string());
+    }
+    if json_bool_value(risk_preflight, "execution_adapter_called").unwrap_or(false) {
+        issues.push("risk_preflight_touched_execution_adapter".to_string());
+    }
+    if json_string_value(request_preview, "schema_version").as_deref()
+        != Some(PRODUCTION_LIVE_ALPHA_ORDER_REQUEST_PREVIEW_SCHEMA_VERSION)
+    {
+        issues.push("request_preview_schema_mismatch".to_string());
+    }
+    if json_bool_value(request_preview, "network_attempted").unwrap_or(false) {
+        issues.push("request_preview_attempted_network".to_string());
+    }
+    if json_bool_value(request_preview, "production_adapter_called").unwrap_or(false) {
+        issues.push("request_preview_touched_production_adapter".to_string());
+    }
+    if artifact_has_production_mutation(Some(kill_switch_approval)) {
+        issues.push("kill_switch_approval_records_forbidden_production_mutation".to_string());
+    }
+    if artifact_has_production_mutation(Some(risk_preflight)) {
+        issues.push("risk_preflight_records_forbidden_production_mutation".to_string());
+    }
+    if artifact_has_production_mutation(Some(request_preview)) {
+        issues.push("request_preview_records_forbidden_production_mutation".to_string());
     }
     issues
 }
@@ -8036,6 +8345,37 @@ fn missing_production_live_alpha_execution_dry_run_cli_flags(
     missing
 }
 
+fn missing_production_live_alpha_kill_switch_runtime_gate_cli_flags(
+    opt: &LiveProductionLiveAlphaKillSwitchRuntimeGateOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_live_alpha_kill_switch_runtime_gate {
+        missing.push("--allow-production-live-alpha-kill-switch-runtime-gate");
+    }
+    if !opt.confirm_owner_approved_runtime_gate {
+        missing.push("--confirm-owner-approved-runtime-gate");
+    }
+    if !opt.confirm_no_production_order_submission {
+        missing.push("--confirm-no-production-order-submission");
+    }
+    if !opt.confirm_no_production_order_mutation {
+        missing.push("--confirm-no-production-order-mutation");
+    }
+    if !opt.confirm_no_network {
+        missing.push("--confirm-no-network");
+    }
+    if !opt.confirm_no_listen_key_lifecycle {
+        missing.push("--confirm-no-listen-key-lifecycle");
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        missing.push("--confirm-dashboard-order-controls-disabled");
+    }
+    if !opt.confirm_no_real_funds {
+        missing.push("--confirm-no-real-funds");
+    }
+    missing
+}
+
 fn missing_production_live_alpha_risk_preflight_cli_flags(
     opt: &LiveProductionLiveAlphaRiskPreflightOpt,
 ) -> Vec<&'static str> {
@@ -9057,6 +9397,7 @@ write_summary = true
         order_gate: PathBuf,
         risk_preflight: PathBuf,
         request_preview: PathBuf,
+        kill_switch_runtime_gate: PathBuf,
         output: PathBuf,
         all_cli_gates: bool,
     ) -> LiveProductionLiveAlphaExecutionDryRunOpt {
@@ -9065,6 +9406,7 @@ write_summary = true
             order_gate,
             risk_preflight,
             request_preview,
+            kill_switch_runtime_gate,
             output,
             allow_production_live_alpha_execution_dry_run: all_cli_gates,
             confirm_owner_approved_execution_dry_run: all_cli_gates,
@@ -9077,6 +9419,54 @@ write_summary = true
             confirm_dashboard_order_controls_disabled: all_cli_gates,
             confirm_no_real_funds: all_cli_gates,
         }
+    }
+
+    fn production_live_alpha_kill_switch_runtime_gate_opt(
+        kill_switch_approval: PathBuf,
+        risk_preflight: PathBuf,
+        request_preview: PathBuf,
+        output: PathBuf,
+        all_cli_gates: bool,
+    ) -> LiveProductionLiveAlphaKillSwitchRuntimeGateOpt {
+        LiveProductionLiveAlphaKillSwitchRuntimeGateOpt {
+            run_id: "v150-live-alpha-kill-switch-runtime-gate".to_string(),
+            kill_switch_approval,
+            risk_preflight,
+            request_preview,
+            output,
+            allow_production_live_alpha_kill_switch_runtime_gate: all_cli_gates,
+            confirm_owner_approved_runtime_gate: all_cli_gates,
+            confirm_no_production_order_submission: all_cli_gates,
+            confirm_no_production_order_mutation: all_cli_gates,
+            confirm_no_network: all_cli_gates,
+            confirm_no_listen_key_lifecycle: all_cli_gates,
+            confirm_dashboard_order_controls_disabled: all_cli_gates,
+            confirm_no_real_funds: all_cli_gates,
+        }
+    }
+
+    fn write_kill_switch_approval_artifact(
+        output: PathBuf,
+        kill_switch_active: bool,
+        approval_state: &str,
+    ) {
+        run_live_production_kill_switch_approval_artifact(
+            &LiveProductionKillSwitchApprovalArtifactOpt {
+                run_id: "v150-live-alpha-kill-switch-runtime-gate".to_string(),
+                session_id: Some("session-v150".to_string()),
+                strategy_id: "ema_cross_btcusdt_v1".to_string(),
+                output,
+                kill_switch_active,
+                approval_state: approval_state.to_string(),
+                manual_approval_id: (approval_state == "approved")
+                    .then(|| "owner-approval-v150-004".to_string()),
+                approved_by: (approval_state == "approved").then(|| "owner".to_string()),
+                confirm_dry_run_only: true,
+                confirm_no_production_mutation: true,
+                confirm_dashboard_order_controls_disabled: true,
+            },
+        )
+        .unwrap();
     }
 
     fn production_live_alpha_risk_preflight_opt(
@@ -9096,6 +9486,47 @@ write_summary = true
             confirm_no_production_order_mutation: all_cli_gates,
             confirm_dashboard_order_controls_disabled: all_cli_gates,
         }
+    }
+
+    fn write_ready_live_alpha_artifact_chain(output_dir: &Path) -> (PathBuf, PathBuf, PathBuf) {
+        let order_gate = output_dir.join("live_alpha_dry_run_order_gate.json");
+        let risk_input = output_dir.join("live_alpha_risk_input.json");
+        let risk_preflight = output_dir.join("live_alpha_risk_preflight.json");
+        let request_preview = output_dir.join("live_alpha_order_request_preview.json");
+
+        run_live_production_live_alpha_dry_run_order_gate(
+            &production_live_alpha_limit_dry_run_order_gate_opt(order_gate.clone(), true),
+        )
+        .unwrap();
+        let mut input = passing_live_alpha_risk_input();
+        input.order.order_type = "LIMIT".to_string();
+        write_live_alpha_risk_input(&risk_input, &input);
+        run_live_production_live_alpha_risk_preflight(&production_live_alpha_risk_preflight_opt(
+            order_gate.clone(),
+            risk_input,
+            risk_preflight.clone(),
+            true,
+        ))
+        .unwrap();
+        let request_opt = production_live_alpha_order_request_preview_opt(
+            order_gate.clone(),
+            request_preview.clone(),
+            true,
+        );
+        run_live_production_live_alpha_order_request_preview_with_env(&request_opt, |name| {
+            match name {
+                "NTPRO_V150002_API_KEY" => {
+                    Some("ntpro_v150003_synthetic_api_key_value".to_string())
+                }
+                "NTPRO_V150002_API_SECRET" => {
+                    Some("ntpro_v150003_synthetic_api_secret_value".to_string())
+                }
+                _ => None,
+            }
+        })
+        .unwrap();
+
+        (order_gate, risk_preflight, request_preview)
     }
 
     fn passing_live_alpha_risk_input() -> ProductionLiveAlphaRiskPreflightInput {
@@ -11862,42 +12293,37 @@ write_summary = true
             std::process::id()
         ));
         fs::create_dir_all(&output_dir).unwrap();
-        let order_gate = output_dir.join("live_alpha_dry_run_order_gate.json");
-        let risk_input = output_dir.join("live_alpha_risk_input.json");
-        let risk_preflight = output_dir.join("live_alpha_risk_preflight.json");
-        let request_preview = output_dir.join("live_alpha_order_request_preview.json");
+        let (order_gate, risk_preflight, request_preview) =
+            write_ready_live_alpha_artifact_chain(&output_dir);
+        let kill_switch_approval = output_dir.join("kill_switch_approval.json");
+        let kill_switch_runtime_gate = output_dir.join("kill_switch_runtime_gate.json");
         let output = output_dir.join("live_alpha_execution_dry_run.json");
 
-        run_live_production_live_alpha_dry_run_order_gate(
-            &production_live_alpha_limit_dry_run_order_gate_opt(order_gate.clone(), true),
+        run_live_production_kill_switch_approval_artifact(
+            &LiveProductionKillSwitchApprovalArtifactOpt {
+                run_id: "v150-live-alpha-kill-switch-runtime-gate".to_string(),
+                session_id: Some("session-v150".to_string()),
+                strategy_id: "ema_cross_btcusdt_v1".to_string(),
+                output: kill_switch_approval.clone(),
+                kill_switch_active: false,
+                approval_state: "approved".to_string(),
+                manual_approval_id: Some("owner-approval-v150-004".to_string()),
+                approved_by: Some("owner".to_string()),
+                confirm_dry_run_only: true,
+                confirm_no_production_mutation: true,
+                confirm_dashboard_order_controls_disabled: true,
+            },
         )
         .unwrap();
-        let mut input = passing_live_alpha_risk_input();
-        input.order.order_type = "LIMIT".to_string();
-        write_live_alpha_risk_input(&risk_input, &input);
-        run_live_production_live_alpha_risk_preflight(&production_live_alpha_risk_preflight_opt(
-            order_gate.clone(),
-            risk_input,
-            risk_preflight.clone(),
-            true,
-        ))
-        .unwrap();
-        let request_opt = production_live_alpha_order_request_preview_opt(
-            order_gate.clone(),
-            request_preview.clone(),
-            true,
-        );
-        run_live_production_live_alpha_order_request_preview_with_env(&request_opt, |name| {
-            match name {
-                "NTPRO_V150002_API_KEY" => {
-                    Some("ntpro_v150003_synthetic_api_key_value".to_string())
-                }
-                "NTPRO_V150002_API_SECRET" => {
-                    Some("ntpro_v150003_synthetic_api_secret_value".to_string())
-                }
-                _ => None,
-            }
-        })
+        run_live_production_live_alpha_kill_switch_runtime_gate(
+            &production_live_alpha_kill_switch_runtime_gate_opt(
+                kill_switch_approval,
+                risk_preflight.clone(),
+                request_preview.clone(),
+                kill_switch_runtime_gate.clone(),
+                true,
+            ),
+        )
         .unwrap();
 
         run_live_production_live_alpha_execution_dry_run(
@@ -11905,6 +12331,7 @@ write_summary = true
                 order_gate,
                 risk_preflight,
                 request_preview,
+                kill_switch_runtime_gate,
                 output.clone(),
                 true,
             ),
@@ -11944,6 +12371,11 @@ write_summary = true
         assert_eq!(artifact["risk_preflight_decision"], "dry_run_approved");
         assert_eq!(artifact["request_preview_built"], true);
         assert_eq!(artifact["request_sent"], false);
+        assert_eq!(
+            artifact["kill_switch_runtime_gate_status"],
+            "ready_runtime_gate_open_for_dry_run_only"
+        );
+        assert_eq!(artifact["kill_switch_runtime_gate_open"], true);
         assert_eq!(artifact["symbol"], "BTCUSDT");
         assert_eq!(artifact["side"], "BUY");
         assert_eq!(artifact["order_type"], "LIMIT");
@@ -11971,42 +12403,37 @@ write_summary = true
             std::process::id()
         ));
         fs::create_dir_all(&output_dir).unwrap();
-        let order_gate = output_dir.join("live_alpha_dry_run_order_gate.json");
-        let risk_input = output_dir.join("live_alpha_risk_input.json");
-        let risk_preflight = output_dir.join("live_alpha_risk_preflight.json");
-        let request_preview = output_dir.join("live_alpha_order_request_preview.json");
+        let (order_gate, risk_preflight, request_preview) =
+            write_ready_live_alpha_artifact_chain(&output_dir);
+        let kill_switch_approval = output_dir.join("kill_switch_approval.json");
+        let kill_switch_runtime_gate = output_dir.join("kill_switch_runtime_gate.json");
         let output = output_dir.join("live_alpha_execution_dry_run.json");
 
-        run_live_production_live_alpha_dry_run_order_gate(
-            &production_live_alpha_limit_dry_run_order_gate_opt(order_gate.clone(), true),
+        run_live_production_kill_switch_approval_artifact(
+            &LiveProductionKillSwitchApprovalArtifactOpt {
+                run_id: "v150-live-alpha-kill-switch-runtime-gate".to_string(),
+                session_id: Some("session-v150".to_string()),
+                strategy_id: "ema_cross_btcusdt_v1".to_string(),
+                output: kill_switch_approval.clone(),
+                kill_switch_active: false,
+                approval_state: "approved".to_string(),
+                manual_approval_id: Some("owner-approval-v150-004".to_string()),
+                approved_by: Some("owner".to_string()),
+                confirm_dry_run_only: true,
+                confirm_no_production_mutation: true,
+                confirm_dashboard_order_controls_disabled: true,
+            },
         )
         .unwrap();
-        let mut input = passing_live_alpha_risk_input();
-        input.order.order_type = "LIMIT".to_string();
-        write_live_alpha_risk_input(&risk_input, &input);
-        run_live_production_live_alpha_risk_preflight(&production_live_alpha_risk_preflight_opt(
-            order_gate.clone(),
-            risk_input,
-            risk_preflight.clone(),
-            true,
-        ))
-        .unwrap();
-        let request_opt = production_live_alpha_order_request_preview_opt(
-            order_gate.clone(),
-            request_preview.clone(),
-            true,
-        );
-        run_live_production_live_alpha_order_request_preview_with_env(&request_opt, |name| {
-            match name {
-                "NTPRO_V150002_API_KEY" => {
-                    Some("ntpro_v150003_synthetic_api_key_value".to_string())
-                }
-                "NTPRO_V150002_API_SECRET" => {
-                    Some("ntpro_v150003_synthetic_api_secret_value".to_string())
-                }
-                _ => None,
-            }
-        })
+        run_live_production_live_alpha_kill_switch_runtime_gate(
+            &production_live_alpha_kill_switch_runtime_gate_opt(
+                kill_switch_approval,
+                risk_preflight.clone(),
+                request_preview.clone(),
+                kill_switch_runtime_gate.clone(),
+                true,
+            ),
+        )
         .unwrap();
 
         run_live_production_live_alpha_execution_dry_run(
@@ -12014,6 +12441,7 @@ write_summary = true
                 order_gate,
                 risk_preflight,
                 request_preview,
+                kill_switch_runtime_gate,
                 output.clone(),
                 false,
             ),
@@ -12043,6 +12471,173 @@ write_summary = true
         assert_eq!(artifact["network_attempted"], false);
         assert_eq!(artifact["dashboard_order_controls_enabled"], false);
         assert_eq!(artifact["real_orders_submitted"], false);
+    }
+
+    #[test]
+    fn production_live_alpha_kill_switch_runtime_gate_blocks_active_switch() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v150-004-kill-switch-active-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (_, risk_preflight, request_preview) =
+            write_ready_live_alpha_artifact_chain(&output_dir);
+        let kill_switch_approval = output_dir.join("kill_switch_approval.json");
+        let output = output_dir.join("kill_switch_runtime_gate.json");
+        write_kill_switch_approval_artifact(kill_switch_approval.clone(), true, "approved");
+
+        run_live_production_live_alpha_kill_switch_runtime_gate(
+            &production_live_alpha_kill_switch_runtime_gate_opt(
+                kill_switch_approval,
+                risk_preflight,
+                request_preview,
+                output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(
+            artifact["schema_version"],
+            PRODUCTION_LIVE_ALPHA_KILL_SWITCH_RUNTIME_GATE_SCHEMA_VERSION
+        );
+        assert_eq!(artifact["status"], "blocked_kill_switch_active");
+        assert_eq!(
+            artifact["runtime_gate_decision"],
+            "blocked_no_runtime_mutation"
+        );
+        assert_eq!(artifact["runtime_gate_open"], false);
+        assert_eq!(artifact["kill_switch_active"], true);
+        assert_eq!(artifact["manual_approval_recorded"], true);
+        assert_eq!(artifact["request_preview_built"], true);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["dashboard_order_controls_enabled"], false);
+        assert!(
+            artifact["runtime_gate_reasons"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|reason| reason == "kill_switch_active")
+        );
+    }
+
+    #[test]
+    fn production_live_alpha_kill_switch_runtime_gate_blocks_missing_approval() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v150-004-kill-switch-missing-approval-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (_, risk_preflight, request_preview) =
+            write_ready_live_alpha_artifact_chain(&output_dir);
+        let kill_switch_approval = output_dir.join("kill_switch_approval.json");
+        let output = output_dir.join("kill_switch_runtime_gate.json");
+        write_kill_switch_approval_artifact(kill_switch_approval.clone(), false, "pending");
+
+        run_live_production_live_alpha_kill_switch_runtime_gate(
+            &production_live_alpha_kill_switch_runtime_gate_opt(
+                kill_switch_approval,
+                risk_preflight,
+                request_preview,
+                output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_missing_manual_approval");
+        assert_eq!(artifact["runtime_gate_open"], false);
+        assert_eq!(artifact["kill_switch_active"], false);
+        assert_eq!(artifact["approval_state"], "pending");
+        assert_eq!(artifact["manual_approval_recorded"], false);
+        assert_eq!(artifact["request_preview_built"], true);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["network_attempted"], false);
+        assert!(
+            artifact["runtime_gate_reasons"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|reason| reason == "manual_approval_missing_or_not_approved")
+        );
+    }
+
+    #[test]
+    fn production_live_alpha_kill_switch_runtime_gate_blocks_request_preview() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v150-004-kill-switch-blocked-preview-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let order_gate = output_dir.join("live_alpha_dry_run_order_gate.json");
+        let risk_input = output_dir.join("live_alpha_risk_input.json");
+        let risk_preflight = output_dir.join("live_alpha_risk_preflight.json");
+        let request_preview = output_dir.join("live_alpha_order_request_preview.json");
+        let kill_switch_approval = output_dir.join("kill_switch_approval.json");
+        let output = output_dir.join("kill_switch_runtime_gate.json");
+
+        run_live_production_live_alpha_dry_run_order_gate(
+            &production_live_alpha_limit_dry_run_order_gate_opt(order_gate.clone(), true),
+        )
+        .unwrap();
+        let mut input = passing_live_alpha_risk_input();
+        input.order.order_type = "LIMIT".to_string();
+        write_live_alpha_risk_input(&risk_input, &input);
+        run_live_production_live_alpha_risk_preflight(&production_live_alpha_risk_preflight_opt(
+            order_gate.clone(),
+            risk_input,
+            risk_preflight.clone(),
+            true,
+        ))
+        .unwrap();
+        let request_opt = production_live_alpha_order_request_preview_opt(
+            order_gate,
+            request_preview.clone(),
+            true,
+        );
+        run_live_production_live_alpha_order_request_preview_with_env(&request_opt, |_| None)
+            .unwrap();
+        write_kill_switch_approval_artifact(kill_switch_approval.clone(), false, "approved");
+
+        run_live_production_live_alpha_kill_switch_runtime_gate(
+            &production_live_alpha_kill_switch_runtime_gate_opt(
+                kill_switch_approval,
+                risk_preflight,
+                request_preview,
+                output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_request_preview");
+        assert_eq!(artifact["runtime_gate_open"], false);
+        assert_eq!(artifact["kill_switch_active"], false);
+        assert_eq!(artifact["manual_approval_recorded"], true);
+        assert_eq!(
+            artifact["request_preview_status"],
+            "blocked_endpoint_or_owner_scope"
+        );
+        assert_eq!(artifact["request_preview_built"], false);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["network_attempted"], false);
+        assert!(
+            artifact["runtime_gate_reasons"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|reason| reason == "request_preview_blocked")
+        );
     }
 
     #[test]
