@@ -108,6 +108,8 @@ jobs:
             command: scripts/ai/verify_release.sh v13-no-production-mutation-gate
           - stage: release-v14-release-gates
             command: scripts/ai/verify_release.sh v14-release-gates
+          - stage: release-v15-incident-rollback-artifact
+            command: scripts/ai/verify_v15_incident_rollback_artifact.sh
           - stage: release-surface-current-guard
             command: scripts/ai/verify_release.sh release-surface-current-guard
           - stage: release-publication-guard

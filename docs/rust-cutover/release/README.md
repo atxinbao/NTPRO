@@ -299,6 +299,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   traces for live-alpha mutation dry-run rejection and preflight states. It
   proves every scoped trace keeps production order submission, production
   mutation, network access, and production execution adapter calls disabled.
+- `v0_15_0_incident_rollback_artifact.md` - V150-007 manual incident,
+  rollback, and emergency-stop artifact contract. It defines evidence-only
+  artifacts and rejects automatic remediation, production cancel/correction/
+  retry, real exchange mutation, networking, and production adapter calls.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
