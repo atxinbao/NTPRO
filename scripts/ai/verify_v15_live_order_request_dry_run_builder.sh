@@ -25,6 +25,9 @@ OUTPUT_DIR="$REQUEST_ROOT/command-output"
 mkdir -p "$OUTPUT_DIR"
 
 ORDER_GATE="$OUTPUT_DIR/live-alpha-order-gate.json"
+BLOCKED_APPROVAL="$OUTPUT_DIR/blocked-manual-approval-lifecycle.json"
+READY_APPROVAL="$OUTPUT_DIR/ready-manual-approval-lifecycle.json"
+BAD_ENDPOINT_APPROVAL="$OUTPUT_DIR/bad-endpoint-manual-approval-lifecycle.json"
 BLOCKED_REPORT="$OUTPUT_DIR/blocked-request-preview.json"
 READY_REPORT="$OUTPUT_DIR/ready-request-preview.json"
 BLOCKED_STDOUT="$OUTPUT_DIR/blocked.stdout.log"
@@ -55,9 +58,34 @@ SYNTHETIC_API_SECRET="ntpro_v150002_synthetic_api_secret_value"
   --confirm-dashboard-order-controls-disabled \
   --confirm-no-real-funds >/dev/null
 
+write_approval() {
+  local run_id="$1"
+  local output="$2"
+  "$NAUTILUS_BIN" live production-live-alpha-manual-approval-lifecycle \
+    --run-id "$run_id" \
+    --strategy-id ema_cross_btcusdt_v1 \
+    --symbol BTCUSDT \
+    --notional 10.00 \
+    --approval-state approved \
+    --manual-approval-id owner-approval-v150-005 \
+    --approved-by owner \
+    --now-unix-ms 1718400000000 \
+    --expires-at-unix-ms 1718400060000 \
+    --output "$output" \
+    --confirm-dry-run-request-preview-only \
+    --confirm-one-time-approval \
+    --confirm-no-production-mutation \
+    --confirm-dashboard-order-controls-disabled >/dev/null
+}
+
+write_approval v150-request-preview-blocked "$BLOCKED_APPROVAL"
+write_approval v150-request-preview "$READY_APPROVAL"
+write_approval v150-request-preview-bad-endpoint "$BAD_ENDPOINT_APPROVAL"
+
 "$NAUTILUS_BIN" live production-live-alpha-order-request-preview \
   --run-id v150-request-preview-blocked \
   --order-gate "$ORDER_GATE" \
+  --manual-approval-lifecycle "$BLOCKED_APPROVAL" \
   --price 10000.00 \
   --timestamp-ms 1718400000000 \
   --api-key-env NTPRO_V150002_API_KEY \
@@ -78,6 +106,7 @@ NTPRO_V150002_API_SECRET="$SYNTHETIC_API_SECRET" \
   "$NAUTILUS_BIN" live production-live-alpha-order-request-preview \
     --run-id v150-request-preview \
     --order-gate "$ORDER_GATE" \
+    --manual-approval-lifecycle "$READY_APPROVAL" \
     --endpoint-path /api/v3/order \
     --price 10000.00 \
     --time-in-force GTC \
@@ -130,6 +159,7 @@ require(blocked["request_preview_built"] is False, blocked)
 require(blocked["request_sent"] is False, blocked)
 require(blocked["network_attempted"] is False, blocked)
 require(blocked["production_orders_submitted"] == 0, blocked)
+require(blocked["manual_approval_lifecycle_valid"] is True, blocked)
 require(len(blocked["missing_cli_flags"]) == 10, blocked)
 require(len(blocked["missing_env_vars"]) == 2, blocked)
 
@@ -141,6 +171,12 @@ require(ready["request_method"] == "POST", ready)
 require(ready["request_target"] == "/api/v3/order", ready)
 require(ready["query_shape_without_signature"] == "symbol&side&type&timeInForce&quantity&price&recvWindow&timestamp", ready)
 require(ready["signature_preflight"] == "created_in_memory_not_recorded", ready)
+require(ready["manual_approval_lifecycle_status"] == "approval_valid_for_dry_run_request_preview", ready)
+require(ready["manual_approval_lifecycle_state"] == "approved", ready)
+require(ready["manual_approval_lifecycle_valid"] is True, ready)
+require(len(ready["manual_approval_lifecycle_issues"]) == 0, ready)
+require(ready["manual_approval_one_time"] is True, ready)
+require(ready["manual_approval_used"] is False, ready)
 for key in [
     "api_key_header_value_recorded",
     "api_secret_value_recorded",
@@ -202,6 +238,7 @@ NTPRO_V150002_API_SECRET="$SYNTHETIC_API_SECRET" \
   "$NAUTILUS_BIN" live production-live-alpha-order-request-preview \
     --run-id v150-request-preview-bad-endpoint \
     --order-gate "$ORDER_GATE" \
+    --manual-approval-lifecycle "$BAD_ENDPOINT_APPROVAL" \
     --endpoint-path /api/v3/account \
     --price 10000.00 \
     --timestamp-ms 1718400000000 \

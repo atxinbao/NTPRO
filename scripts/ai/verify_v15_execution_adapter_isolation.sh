@@ -27,6 +27,7 @@ mkdir -p "$OUTPUT_DIR"
 ORDER_GATE="$OUTPUT_DIR/live-alpha-order-gate.json"
 RISK_INPUT="$OUTPUT_DIR/live-alpha-risk-input.json"
 RISK_PREFLIGHT="$OUTPUT_DIR/live-alpha-risk-preflight.json"
+MANUAL_APPROVAL="$OUTPUT_DIR/manual-approval-lifecycle.json"
 REQUEST_PREVIEW="$OUTPUT_DIR/live-alpha-request-preview.json"
 KILL_SWITCH_APPROVAL="$OUTPUT_DIR/kill-switch-approval.json"
 KILL_SWITCH_RUNTIME_GATE="$OUTPUT_DIR/kill-switch-runtime-gate.json"
@@ -117,11 +118,28 @@ PY
   --confirm-no-production-order-mutation \
   --confirm-dashboard-order-controls-disabled >/dev/null
 
+"$NAUTILUS_BIN" live production-live-alpha-manual-approval-lifecycle \
+  --run-id v150-execution-request-preview \
+  --strategy-id ema_cross_btcusdt_v1 \
+  --symbol BTCUSDT \
+  --notional 10.00 \
+  --approval-state approved \
+  --manual-approval-id owner-approval-v150-005 \
+  --approved-by owner \
+  --now-unix-ms 1718400000000 \
+  --expires-at-unix-ms 1718400060000 \
+  --output "$MANUAL_APPROVAL" \
+  --confirm-dry-run-request-preview-only \
+  --confirm-one-time-approval \
+  --confirm-no-production-mutation \
+  --confirm-dashboard-order-controls-disabled >/dev/null
+
 NTPRO_V150003_API_KEY="$SYNTHETIC_API_KEY" \
 NTPRO_V150003_API_SECRET="$SYNTHETIC_API_SECRET" \
   "$NAUTILUS_BIN" live production-live-alpha-order-request-preview \
     --run-id v150-execution-request-preview \
     --order-gate "$ORDER_GATE" \
+    --manual-approval-lifecycle "$MANUAL_APPROVAL" \
     --endpoint-path /api/v3/order \
     --price 10000.00 \
     --time-in-force GTC \
