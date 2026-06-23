@@ -184,6 +184,8 @@ pub enum LiveCommand {
     ProductionMutationGuardedSend(LiveProductionMutationGuardedSendOpt),
     /// Redacts a v0.16 production mutation response artifact; no raw response persistence.
     ProductionMutationResponseRedaction(LiveProductionMutationResponseRedactionOpt),
+    /// Proves a v0.16 post-submit order-state readback path from known order identifiers.
+    ProductionMutationOrderStateReadback(LiveProductionMutationOrderStateReadbackOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -1106,6 +1108,62 @@ pub struct LiveProductionMutationResponseRedactionOpt {
     /// Confirms retry, correction, cancel, replace, amend, and flatten remain forbidden.
     #[arg(long)]
     pub confirm_no_retry: bool,
+}
+
+/// Owner-approved v0.16 post-submit order-state readback options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationOrderStateReadbackOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.16 response redaction JSON input.
+    #[arg(long)]
+    pub response_redaction: PathBuf,
+    /// v0.16 order-state readback JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Requests the manual online readback path.
+    #[arg(long)]
+    pub manual_online: bool,
+    /// Environment variable name containing the production read-only API key.
+    #[arg(long, default_value = "BINANCE_PRODUCTION_READONLY_API_KEY")]
+    pub api_key_env: String,
+    /// Environment variable name containing the production read-only API secret.
+    #[arg(long, default_value = "BINANCE_PRODUCTION_READONLY_API_SECRET")]
+    pub api_secret_env: String,
+    /// Binance recvWindow in milliseconds for the signed readback.
+    #[arg(long, default_value_t = 5_000)]
+    pub recv_window_ms: u64,
+    /// Manual CLI gate for production mutation order-state readback.
+    #[arg(long)]
+    pub allow_production_mutation_order_state_readback: bool,
+    /// Confirms owner approved the order-state readback proof.
+    #[arg(long)]
+    pub confirm_owner_approved_order_state_readback: bool,
+    /// Confirms readback uses only known order identifiers from the mutation artifact.
+    #[arg(long)]
+    pub confirm_known_order_identifier_only: bool,
+    /// Confirms only GET /api/v3/order is allowed.
+    #[arg(long)]
+    pub confirm_read_only_get_order: bool,
+    /// Confirms readback response metadata remains redacted.
+    #[arg(long)]
+    pub confirm_response_redacted: bool,
+    /// Confirms production order submission or mutation remains forbidden.
+    #[arg(long)]
+    pub confirm_no_production_order_mutation: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+    /// Confirms retry, correction, cancel, replace, amend, and flatten remain forbidden.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms Dashboard order controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms listenKey lifecycle remains forbidden.
+    #[arg(long)]
+    pub confirm_no_listen_key_lifecycle: bool,
 }
 
 /// Hypothetical live-alpha risk preflight options.
@@ -2663,6 +2721,70 @@ mod tests {
         assert!(redaction.confirm_no_account_balances);
         assert!(redaction.confirm_no_unrestricted_payload);
         assert!(redaction.confirm_no_retry);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_order_state_readback_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-order-state-readback",
+            "--run-id",
+            "v160-order-state-readback",
+            "--response-redaction",
+            "runs/v160/response-redaction.json",
+            "--output",
+            "runs/v160/order-state-readback.json",
+            "--manual-online",
+            "--api-key-env",
+            "NTPRO_V160007_API_KEY",
+            "--api-secret-env",
+            "NTPRO_V160007_API_SECRET",
+            "--recv-window-ms",
+            "5000",
+            "--allow-production-mutation-order-state-readback",
+            "--confirm-owner-approved-order-state-readback",
+            "--confirm-known-order-identifier-only",
+            "--confirm-read-only-get-order",
+            "--confirm-response-redacted",
+            "--confirm-no-production-order-mutation",
+            "--confirm-no-secret-persistence",
+            "--confirm-no-retry",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-listen-key-lifecycle",
+        ])
+        .expect("live production-mutation-order-state-readback should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationOrderStateReadback(readback) = live.command else {
+            panic!("expected production-mutation-order-state-readback command");
+        };
+
+        assert_eq!(readback.run_id, "v160-order-state-readback");
+        assert_eq!(
+            readback.response_redaction,
+            PathBuf::from("runs/v160/response-redaction.json")
+        );
+        assert_eq!(
+            readback.output,
+            PathBuf::from("runs/v160/order-state-readback.json")
+        );
+        assert!(readback.manual_online);
+        assert_eq!(readback.api_key_env, "NTPRO_V160007_API_KEY");
+        assert_eq!(readback.api_secret_env, "NTPRO_V160007_API_SECRET");
+        assert_eq!(readback.recv_window_ms, 5_000);
+        assert!(readback.allow_production_mutation_order_state_readback);
+        assert!(readback.confirm_owner_approved_order_state_readback);
+        assert!(readback.confirm_known_order_identifier_only);
+        assert!(readback.confirm_read_only_get_order);
+        assert!(readback.confirm_response_redacted);
+        assert!(readback.confirm_no_production_order_mutation);
+        assert!(readback.confirm_no_secret_persistence);
+        assert!(readback.confirm_no_retry);
+        assert!(readback.confirm_dashboard_order_controls_disabled);
+        assert!(readback.confirm_no_listen_key_lifecycle);
     }
 
     #[test]
