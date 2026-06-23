@@ -178,6 +178,8 @@ pub enum LiveCommand {
     ProductionMutationRuntimeGate(LiveProductionMutationRuntimeGateOpt),
     /// Writes a v0.16 owner approval artifact for env-only production signing material; no request execution.
     ProductionMutationSigningApproval(LiveProductionMutationSigningApprovalOpt),
+    /// Builds a v0.16 single LIMIT GTC production order request object locally; no request execution.
+    ProductionMutationRequestBuilder(LiveProductionMutationRequestBuilderOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -917,6 +919,80 @@ pub struct LiveProductionMutationSigningApprovalOpt {
     /// Confirms listenKey lifecycle remains forbidden.
     #[arg(long)]
     pub confirm_no_listen_key_lifecycle: bool,
+}
+
+/// Owner-approved v0.16 single LIMIT GTC request builder options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationRequestBuilderOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.16 production mutation runtime gate JSON input.
+    #[arg(long)]
+    pub runtime_gate: PathBuf,
+    /// v0.16 production signing material approval JSON input.
+    #[arg(long)]
+    pub signing_approval: PathBuf,
+    /// v0.15 production live-alpha request preview JSON input.
+    #[arg(long)]
+    pub request_preview: PathBuf,
+    /// Environment variable name containing the Binance production API key.
+    #[arg(long, default_value = "BINANCE_PRODUCTION_LIVE_ALPHA_API_KEY")]
+    pub api_key_env: String,
+    /// Environment variable name containing the Binance production API secret.
+    #[arg(long, default_value = "BINANCE_PRODUCTION_LIVE_ALPHA_API_SECRET")]
+    pub api_secret_env: String,
+    /// Timestamp in milliseconds for deterministic memory-only signing.
+    #[arg(long)]
+    pub timestamp_ms: u64,
+    /// Binance recvWindow in milliseconds.
+    #[arg(long, default_value_t = 5_000)]
+    pub recv_window_ms: u64,
+    /// Maximum allowed tiny order notional for this request builder.
+    #[arg(long, default_value = "10.00")]
+    pub max_notional: String,
+    /// v0.16 request builder JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for production mutation request object building.
+    #[arg(long)]
+    pub allow_production_mutation_request_builder: bool,
+    /// Confirms owner approved building the redacted request object.
+    #[arg(long)]
+    pub confirm_owner_approved_request_builder: bool,
+    /// Confirms the candidate is a single LIMIT GTC order only.
+    #[arg(long)]
+    pub confirm_single_limit_gtc: bool,
+    /// Confirms the candidate notional is tiny and owner-capped.
+    #[arg(long)]
+    pub confirm_tiny_notional: bool,
+    /// Confirms the signing approval artifact is required and ready.
+    #[arg(long)]
+    pub confirm_signing_approval_ready: bool,
+    /// Confirms signatures and signed queries remain memory-only.
+    #[arg(long)]
+    pub confirm_memory_only_signing: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+    /// Confirms no network request is allowed by this builder.
+    #[arg(long)]
+    pub confirm_no_network: bool,
+    /// Confirms no production order submission is allowed by this builder.
+    #[arg(long)]
+    pub confirm_no_production_order_submission: bool,
+    /// Confirms no production order mutation is allowed by this builder.
+    #[arg(long)]
+    pub confirm_no_production_order_mutation: bool,
+    /// Confirms Dashboard order controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms listenKey lifecycle remains forbidden.
+    #[arg(long)]
+    pub confirm_no_listen_key_lifecycle: bool,
+    /// Confirms retry, correction, cancel, replace, amend, and flatten remain forbidden.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
 }
 
 /// Hypothetical live-alpha risk preflight options.
@@ -2258,6 +2334,92 @@ mod tests {
         assert!(approval.confirm_no_production_order_mutation);
         assert!(approval.confirm_dashboard_order_controls_disabled);
         assert!(approval.confirm_no_listen_key_lifecycle);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_request_builder_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-request-builder",
+            "--run-id",
+            "v160-request-builder",
+            "--runtime-gate",
+            "runs/v160/runtime-gate.json",
+            "--signing-approval",
+            "runs/v160/signing-approval.json",
+            "--request-preview",
+            "runs/v160/request-preview.json",
+            "--api-key-env",
+            "NTPRO_V160004_API_KEY",
+            "--api-secret-env",
+            "NTPRO_V160004_API_SECRET",
+            "--timestamp-ms",
+            "1718400000000",
+            "--recv-window-ms",
+            "5000",
+            "--max-notional",
+            "10.00",
+            "--output",
+            "runs/v160/request-builder.json",
+            "--allow-production-mutation-request-builder",
+            "--confirm-owner-approved-request-builder",
+            "--confirm-single-limit-gtc",
+            "--confirm-tiny-notional",
+            "--confirm-signing-approval-ready",
+            "--confirm-memory-only-signing",
+            "--confirm-no-secret-persistence",
+            "--confirm-no-network",
+            "--confirm-no-production-order-submission",
+            "--confirm-no-production-order-mutation",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-listen-key-lifecycle",
+            "--confirm-no-retry",
+        ])
+        .expect("live production-mutation-request-builder should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationRequestBuilder(builder) = live.command else {
+            panic!("expected production-mutation-request-builder command");
+        };
+
+        assert_eq!(builder.run_id, "v160-request-builder");
+        assert_eq!(
+            builder.runtime_gate,
+            PathBuf::from("runs/v160/runtime-gate.json")
+        );
+        assert_eq!(
+            builder.signing_approval,
+            PathBuf::from("runs/v160/signing-approval.json")
+        );
+        assert_eq!(
+            builder.request_preview,
+            PathBuf::from("runs/v160/request-preview.json")
+        );
+        assert_eq!(builder.api_key_env, "NTPRO_V160004_API_KEY");
+        assert_eq!(builder.api_secret_env, "NTPRO_V160004_API_SECRET");
+        assert_eq!(builder.timestamp_ms, 1_718_400_000_000);
+        assert_eq!(builder.recv_window_ms, 5_000);
+        assert_eq!(builder.max_notional, "10.00");
+        assert_eq!(
+            builder.output,
+            PathBuf::from("runs/v160/request-builder.json")
+        );
+        assert!(builder.allow_production_mutation_request_builder);
+        assert!(builder.confirm_owner_approved_request_builder);
+        assert!(builder.confirm_single_limit_gtc);
+        assert!(builder.confirm_tiny_notional);
+        assert!(builder.confirm_signing_approval_ready);
+        assert!(builder.confirm_memory_only_signing);
+        assert!(builder.confirm_no_secret_persistence);
+        assert!(builder.confirm_no_network);
+        assert!(builder.confirm_no_production_order_submission);
+        assert!(builder.confirm_no_production_order_mutation);
+        assert!(builder.confirm_dashboard_order_controls_disabled);
+        assert!(builder.confirm_no_listen_key_lifecycle);
+        assert!(builder.confirm_no_retry);
     }
 
     #[test]
