@@ -1010,6 +1010,9 @@ pub struct LiveProductionMutationGuardedSendOpt {
     /// v0.16 request builder JSON input.
     #[arg(long)]
     pub request_builder: PathBuf,
+    /// v0.15 kill-switch runtime gate JSON input checked around send.
+    #[arg(long)]
+    pub kill_switch_runtime_gate: PathBuf,
     /// v0.15 production live-alpha request preview JSON input.
     #[arg(long)]
     pub request_preview: PathBuf,
@@ -2603,6 +2606,8 @@ mod tests {
             "v160-guarded-send",
             "--request-builder",
             "runs/v160/request-builder.json",
+            "--kill-switch-runtime-gate",
+            "runs/v160/kill-switch-runtime-gate.json",
             "--request-preview",
             "runs/v160/request-preview.json",
             "--api-key-env",
@@ -2642,6 +2647,10 @@ mod tests {
         assert_eq!(
             send.request_builder,
             PathBuf::from("runs/v160/request-builder.json")
+        );
+        assert_eq!(
+            send.kill_switch_runtime_gate,
+            PathBuf::from("runs/v160/kill-switch-runtime-gate.json")
         );
         assert_eq!(
             send.request_preview,
