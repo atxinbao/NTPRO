@@ -1755,6 +1755,16 @@ struct ProductionMutationRequestBuilderArtifact {
     max_order_notional: String,
     single_order_candidate: bool,
     tiny_notional_gate_ready: bool,
+    market_reference_source: String,
+    market_reference_price: String,
+    max_reference_price_distance_bps: String,
+    price_distance_from_reference_bps: String,
+    would_cross_spread: bool,
+    non_marketable_price_preflight_ready: bool,
+    owner_acknowledged_no_cancel_path: bool,
+    price_safety_send_consideration_allowed: bool,
+    manual_review_required: bool,
+    new_orders_blocked: bool,
     source_artifact_issues: Vec<String>,
     missing_cli_flags: Vec<String>,
     missing_env_vars: Vec<String>,
@@ -2252,6 +2262,16 @@ struct ProductionMutationGuardedSendCounters {
     real_orders_submitted: bool,
     platform_production_trading_enabled: bool,
     production_trading_enabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ProductionMutationPriceSafetyPreflight {
+    market_reference_source: String,
+    market_reference_price: String,
+    max_reference_price_distance_bps: String,
+    price_distance_from_reference_bps: String,
+    preflight_ready: bool,
+    source_artifact_issues: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -7147,7 +7167,7 @@ fn build_production_mutation_request_builder_artifact(
 
     let missing_cli_flags = missing_production_mutation_request_builder_cli_flags(opt);
     let missing_env_vars = production_mutation_request_builder_missing_env_vars(credentials);
-    let source_artifact_issues = production_mutation_request_builder_source_issues(
+    let mut source_artifact_issues = production_mutation_request_builder_source_issues(
         &runtime_gate,
         &signing_approval,
         &request_preview,
@@ -7173,6 +7193,15 @@ fn build_production_mutation_request_builder_artifact(
         .to_ascii_uppercase();
     let notional =
         json_string_value(&request_preview, "notional").unwrap_or_else(|| "unknown".to_string());
+    let price_safety = production_mutation_request_builder_price_safety_preflight(&price, opt);
+    source_artifact_issues.extend(price_safety.source_artifact_issues.clone());
+    source_artifact_issues.sort();
+    source_artifact_issues.dedup();
+    let price_safety_send_consideration_allowed = price_safety.preflight_ready
+        && opt.confirm_non_marketable_price
+        && opt.confirm_owner_acknowledged_no_cancel_path;
+    let price_safety_manual_review_required = !price_safety_send_consideration_allowed;
+    let price_safety_new_orders_blocked = !price_safety_send_consideration_allowed;
     let tiny_notional_gate_ready = match (
         parse_non_negative_decimal(&notional),
         parse_non_negative_decimal(&opt.max_notional),
@@ -7191,6 +7220,7 @@ fn build_production_mutation_request_builder_artifact(
     let request_builder_ready = missing_cli_flags.is_empty()
         && missing_env_vars.is_empty()
         && source_artifact_issues.is_empty()
+        && price_safety_send_consideration_allowed
         && single_order_candidate;
     let mut request_object_built = false;
     if request_builder_ready {
@@ -7288,6 +7318,16 @@ fn build_production_mutation_request_builder_artifact(
         max_order_notional: opt.max_notional.trim().to_string(),
         single_order_candidate,
         tiny_notional_gate_ready,
+        market_reference_source: price_safety.market_reference_source,
+        market_reference_price: price_safety.market_reference_price,
+        max_reference_price_distance_bps: price_safety.max_reference_price_distance_bps,
+        price_distance_from_reference_bps: price_safety.price_distance_from_reference_bps,
+        would_cross_spread: opt.would_cross_spread,
+        non_marketable_price_preflight_ready: price_safety.preflight_ready,
+        owner_acknowledged_no_cancel_path: opt.confirm_owner_acknowledged_no_cancel_path,
+        price_safety_send_consideration_allowed,
+        manual_review_required: price_safety_manual_review_required,
+        new_orders_blocked: price_safety_new_orders_blocked,
         source_artifact_issues,
         missing_cli_flags: missing_cli_flags
             .iter()
@@ -9292,6 +9332,85 @@ fn production_mutation_request_builder_source_issues(
         issues.push("request_preview_records_forbidden_production_mutation".to_string());
     }
     issues
+}
+
+fn production_mutation_request_builder_price_safety_preflight(
+    price: &str,
+    opt: &LiveProductionMutationRequestBuilderOpt,
+) -> ProductionMutationPriceSafetyPreflight {
+    let market_reference_source = opt.market_reference_source.trim().to_string();
+    let market_reference_price = opt.market_reference_price.trim().to_string();
+    let max_reference_price_distance_bps = opt.max_reference_price_distance_bps.trim().to_string();
+    let mut source_artifact_issues = Vec::new();
+
+    if market_reference_source.is_empty() {
+        source_artifact_issues.push("market_reference_source_missing".to_string());
+    }
+
+    let price_distance_from_reference_bps = match (
+        parse_non_negative_decimal(price),
+        parse_non_negative_decimal(&market_reference_price),
+        parse_non_negative_decimal(&max_reference_price_distance_bps),
+    ) {
+        (Ok(limit_price), Ok(reference_price), Ok(max_distance_bps))
+            if limit_price > Decimal::ZERO
+                && reference_price > Decimal::ZERO
+                && max_distance_bps >= Decimal::ZERO =>
+        {
+            let distance = if limit_price >= reference_price {
+                limit_price - reference_price
+            } else {
+                reference_price - limit_price
+            };
+            let distance_bps = distance * Decimal::new(10_000, 0) / reference_price;
+            if distance_bps > max_distance_bps {
+                source_artifact_issues.push("price_distance_exceeds_reference_limit".to_string());
+            }
+            format_decimal(&distance_bps)
+        }
+        (Err(_), _, _) => {
+            source_artifact_issues.push("limit_price_parse_failed".to_string());
+            "unavailable".to_string()
+        }
+        (_, Err(_), _) => {
+            source_artifact_issues.push("market_reference_price_missing_or_invalid".to_string());
+            "unavailable".to_string()
+        }
+        (_, _, Err(_)) => {
+            source_artifact_issues.push("max_reference_price_distance_bps_invalid".to_string());
+            "unavailable".to_string()
+        }
+        (Ok(limit_price), Ok(reference_price), Ok(max_distance_bps)) => {
+            if limit_price <= Decimal::ZERO {
+                source_artifact_issues.push("limit_price_not_positive".to_string());
+            }
+            if reference_price <= Decimal::ZERO {
+                source_artifact_issues.push("market_reference_price_not_positive".to_string());
+            }
+            if max_distance_bps < Decimal::ZERO {
+                source_artifact_issues
+                    .push("max_reference_price_distance_bps_negative".to_string());
+            }
+            "unavailable".to_string()
+        }
+    };
+
+    if opt.would_cross_spread {
+        source_artifact_issues.push("limit_price_would_cross_spread".to_string());
+    }
+
+    source_artifact_issues.sort();
+    source_artifact_issues.dedup();
+    let preflight_ready = source_artifact_issues.is_empty();
+
+    ProductionMutationPriceSafetyPreflight {
+        market_reference_source,
+        market_reference_price,
+        max_reference_price_distance_bps,
+        price_distance_from_reference_bps,
+        preflight_ready,
+        source_artifact_issues,
+    }
 }
 
 fn production_mutation_guarded_send_source_issues(
@@ -13035,6 +13154,12 @@ fn missing_production_mutation_request_builder_cli_flags(
     if !opt.confirm_tiny_notional {
         missing.push("--confirm-tiny-notional");
     }
+    if !opt.confirm_non_marketable_price {
+        missing.push("--confirm-non-marketable-price");
+    }
+    if !opt.confirm_owner_acknowledged_no_cancel_path {
+        missing.push("--confirm-owner-acknowledged-no-cancel-path");
+    }
     if !opt.confirm_signing_approval_ready {
         missing.push("--confirm-signing-approval-ready");
     }
@@ -14513,11 +14638,17 @@ write_summary = true
             timestamp_ms: 1_718_400_000_000,
             recv_window_ms: 5_000,
             max_notional: "10.00".to_string(),
+            market_reference_source: "fixture_mid_price".to_string(),
+            market_reference_price: "10001.00".to_string(),
+            max_reference_price_distance_bps: "50".to_string(),
+            would_cross_spread: false,
             output,
             allow_production_mutation_request_builder: all_cli_gates,
             confirm_owner_approved_request_builder: all_cli_gates,
             confirm_single_limit_gtc: all_cli_gates,
             confirm_tiny_notional: all_cli_gates,
+            confirm_non_marketable_price: all_cli_gates,
+            confirm_owner_acknowledged_no_cancel_path: all_cli_gates,
             confirm_signing_approval_ready: all_cli_gates,
             confirm_memory_only_signing: all_cli_gates,
             confirm_no_secret_persistence: all_cli_gates,
@@ -19314,6 +19445,16 @@ write_summary = true
         assert_eq!(artifact["time_in_force"], "GTC");
         assert_eq!(artifact["single_order_candidate"], true);
         assert_eq!(artifact["tiny_notional_gate_ready"], true);
+        assert_eq!(artifact["market_reference_source"], "fixture_mid_price");
+        assert_eq!(artifact["market_reference_price"], "10001.00");
+        assert_eq!(artifact["max_reference_price_distance_bps"], "50");
+        assert_ne!(artifact["price_distance_from_reference_bps"], "unavailable");
+        assert_eq!(artifact["would_cross_spread"], false);
+        assert_eq!(artifact["non_marketable_price_preflight_ready"], true);
+        assert_eq!(artifact["owner_acknowledged_no_cancel_path"], true);
+        assert_eq!(artifact["price_safety_send_consideration_allowed"], true);
+        assert_eq!(artifact["manual_review_required"], false);
+        assert_eq!(artifact["new_orders_blocked"], false);
         assert_eq!(artifact["request_sent"], false);
         assert_eq!(artifact["network_attempted"], false);
         assert_eq!(artifact["production_orders_submitted"], 0);
@@ -19373,6 +19514,13 @@ write_summary = true
                 .iter()
                 .any(|env| env == PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW)
         );
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--confirm-owner-acknowledged-no-cancel-path")
+        );
     }
 
     #[test]
@@ -19427,6 +19575,102 @@ write_summary = true
                 .iter()
                 .any(|issue| issue == "request_preview_not_limit")
         );
+    }
+
+    #[test]
+    fn production_mutation_request_builder_blocks_missing_market_reference() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v161-004-request-builder-missing-reference-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (runtime_gate, signing_approval, request_preview) =
+            write_ready_v160_request_builder_sources(&output_dir);
+        let output = output_dir.join("production_mutation_request_builder.json");
+        let mut opt = production_mutation_request_builder_opt(
+            runtime_gate,
+            signing_approval,
+            request_preview,
+            output.clone(),
+            true,
+        );
+        opt.market_reference_source = String::new();
+
+        run_live_production_mutation_request_builder_with_env(&opt, |name| match name {
+            PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW
+            | PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED => Some("1".to_string()),
+            "NTPRO_V150002_API_KEY" => Some("ntpro_v161004_api_key".to_string()),
+            "NTPRO_V150002_API_SECRET" => Some("ntpro_v161004_api_secret".to_string()),
+            _ => None,
+        })
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_source_artifact");
+        assert_eq!(artifact["request_builder_ready"], false);
+        assert_eq!(artifact["request_object_built"], false);
+        assert_eq!(artifact["non_marketable_price_preflight_ready"], false);
+        assert_eq!(artifact["price_safety_send_consideration_allowed"], false);
+        assert_eq!(artifact["manual_review_required"], true);
+        assert_eq!(artifact["new_orders_blocked"], true);
+        assert!(
+            artifact["source_artifact_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "market_reference_source_missing")
+        );
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["network_attempted"], false);
+    }
+
+    #[test]
+    fn production_mutation_request_builder_blocks_crossing_limit_price() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v161-004-request-builder-crossing-price-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (runtime_gate, signing_approval, request_preview) =
+            write_ready_v160_request_builder_sources(&output_dir);
+        let output = output_dir.join("production_mutation_request_builder.json");
+        let mut opt = production_mutation_request_builder_opt(
+            runtime_gate,
+            signing_approval,
+            request_preview,
+            output.clone(),
+            true,
+        );
+        opt.would_cross_spread = true;
+
+        run_live_production_mutation_request_builder_with_env(&opt, |name| match name {
+            PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW
+            | PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED => Some("1".to_string()),
+            "NTPRO_V150002_API_KEY" => Some("ntpro_v161004_api_key".to_string()),
+            "NTPRO_V150002_API_SECRET" => Some("ntpro_v161004_api_secret".to_string()),
+            _ => None,
+        })
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_source_artifact");
+        assert_eq!(artifact["request_builder_ready"], false);
+        assert_eq!(artifact["request_object_built"], false);
+        assert_eq!(artifact["would_cross_spread"], true);
+        assert_eq!(artifact["non_marketable_price_preflight_ready"], false);
+        assert_eq!(artifact["manual_review_required"], true);
+        assert_eq!(artifact["new_orders_blocked"], true);
+        assert!(
+            artifact["source_artifact_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "limit_price_would_cross_spread")
+        );
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["network_attempted"], false);
     }
 
     #[test]

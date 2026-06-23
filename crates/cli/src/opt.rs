@@ -961,6 +961,18 @@ pub struct LiveProductionMutationRequestBuilderOpt {
     /// Maximum allowed tiny order notional for this request builder.
     #[arg(long, default_value = "10.00")]
     pub max_notional: String,
+    /// Market reference source used to prove the LIMIT price is not marketable.
+    #[arg(long, default_value = "")]
+    pub market_reference_source: String,
+    /// Market reference price used for non-marketable LIMIT price safety checks.
+    #[arg(long, default_value = "")]
+    pub market_reference_price: String,
+    /// Maximum allowed LIMIT price distance from the reference in basis points.
+    #[arg(long, default_value = "50")]
+    pub max_reference_price_distance_bps: String,
+    /// Marks that the LIMIT price would cross the spread if the spread check is available.
+    #[arg(long, default_value_t = false)]
+    pub would_cross_spread: bool,
     /// v0.16 request builder JSON output path.
     #[arg(long)]
     pub output: PathBuf,
@@ -976,6 +988,12 @@ pub struct LiveProductionMutationRequestBuilderOpt {
     /// Confirms the candidate notional is tiny and owner-capped.
     #[arg(long)]
     pub confirm_tiny_notional: bool,
+    /// Confirms the LIMIT price passed the non-marketable price preflight.
+    #[arg(long)]
+    pub confirm_non_marketable_price: bool,
+    /// Confirms the owner acknowledges v0.16 has no automatic cancel path.
+    #[arg(long)]
+    pub confirm_owner_acknowledged_no_cancel_path: bool,
     /// Confirms the signing approval artifact is required and ready.
     #[arg(long)]
     pub confirm_signing_approval_ready: bool,
@@ -2640,12 +2658,20 @@ mod tests {
             "5000",
             "--max-notional",
             "10.00",
+            "--market-reference-source",
+            "fixture_mid_price",
+            "--market-reference-price",
+            "10001.00",
+            "--max-reference-price-distance-bps",
+            "50",
             "--output",
             "runs/v160/request-builder.json",
             "--allow-production-mutation-request-builder",
             "--confirm-owner-approved-request-builder",
             "--confirm-single-limit-gtc",
             "--confirm-tiny-notional",
+            "--confirm-non-marketable-price",
+            "--confirm-owner-acknowledged-no-cancel-path",
             "--confirm-signing-approval-ready",
             "--confirm-memory-only-signing",
             "--confirm-no-secret-persistence",
@@ -2683,6 +2709,10 @@ mod tests {
         assert_eq!(builder.timestamp_ms, 1_718_400_000_000);
         assert_eq!(builder.recv_window_ms, 5_000);
         assert_eq!(builder.max_notional, "10.00");
+        assert_eq!(builder.market_reference_source, "fixture_mid_price");
+        assert_eq!(builder.market_reference_price, "10001.00");
+        assert_eq!(builder.max_reference_price_distance_bps, "50");
+        assert!(!builder.would_cross_spread);
         assert_eq!(
             builder.output,
             PathBuf::from("runs/v160/request-builder.json")
@@ -2691,6 +2721,8 @@ mod tests {
         assert!(builder.confirm_owner_approved_request_builder);
         assert!(builder.confirm_single_limit_gtc);
         assert!(builder.confirm_tiny_notional);
+        assert!(builder.confirm_non_marketable_price);
+        assert!(builder.confirm_owner_acknowledged_no_cancel_path);
         assert!(builder.confirm_signing_approval_ready);
         assert!(builder.confirm_memory_only_signing);
         assert!(builder.confirm_no_secret_persistence);
