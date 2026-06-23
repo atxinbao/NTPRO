@@ -250,7 +250,7 @@ fn classify_production_rest_endpoint(
             owner_gate_required: true,
             dashboard_order_controls_allowed: false,
             decision: EndpointDecision::Deny,
-            reason: "production order mutation is out of scope except explicit v0.15 dry-run request-preview candidates",
+            reason: "production order mutation is out of scope except explicit owner-gated mutation-candidate flows",
             path,
         });
     }
@@ -342,7 +342,7 @@ fn classify_production_mutation_scope_candidate(
         reason: if preview_allowed {
             "owner-approved manual dry-run request preview only; production request execution remains forbidden"
         } else if signed {
-            "production mutation endpoint is a v0.15 dry-run request-preview scope candidate; owner/manual scope is required"
+            "production mutation endpoint is an owner-gated mutation-candidate scope; owner/manual scope is required"
         } else {
             "production mutation request preview requires signed owner/manual scope"
         },
@@ -638,6 +638,8 @@ mod tests {
         assert!(!endpoint.request_preview_allowed);
         assert!(endpoint.owner_gate_required);
         assert!(!endpoint.dashboard_order_controls_allowed);
+        assert!(endpoint.reason.contains("owner-gated mutation-candidate"));
+        assert!(!endpoint.reason.contains("v0.15"));
     }
 
     #[test]
@@ -694,6 +696,8 @@ mod tests {
         assert!(endpoint.requires_signature);
         assert!(endpoint.owner_gate_required);
         assert!(!endpoint.dashboard_order_controls_allowed);
+        assert!(endpoint.reason.contains("owner-gated mutation-candidate"));
+        assert!(!endpoint.reason.contains("v0.15"));
         assert_eq!(
             endpoint.input_url_redacted,
             "https://api.binance.com/api/v3/order/test?<redacted>"

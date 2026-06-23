@@ -127,7 +127,7 @@ pub struct SandboxRunOpt {
 /// Local sandbox LiveNode validation and smoke commands.
 #[derive(Parser, Debug)]
 #[command(
-    about = "Local live, production read-only, and dry-run proof commands (no production order mutation)",
+    about = "Local live, production read-only, dry-run proof, and owner-gated mutation-candidate commands",
     long_about = None
 )]
 pub struct LiveOpt {
@@ -138,7 +138,7 @@ pub struct LiveOpt {
 /// Available local live, production read-only, and dry-run proof commands.
 #[derive(Parser, Debug, Clone)]
 #[command(
-    about = "Local live, production read-only, and dry-run proof commands (no production order mutation)",
+    about = "Local live, production read-only, dry-run proof, and owner-gated mutation-candidate commands",
     long_about = None
 )]
 pub enum LiveCommand {
@@ -2103,6 +2103,14 @@ mod tests {
     }
 
     #[test]
+    fn live_help_describes_owner_gated_mutation_candidate_boundary() {
+        let help = render_subcommand_help(&["live"]);
+
+        assert!(help.contains("owner-gated mutation-candidate commands"));
+        assert!(!help.contains("(no production order mutation)"));
+    }
+
+    #[test]
     fn parses_live_validate_config_path() {
         let parsed = NautilusCli::try_parse_from([
             "nautilus",
@@ -3443,7 +3451,11 @@ mod tests {
     fn live_help_describes_production_readonly_and_dry_run_boundaries() {
         let live_help = render_subcommand_help(&["live"]);
 
-        assert!(live_help.contains("Local live, production read-only, and dry-run proof commands"));
+        assert!(
+            live_help.contains(
+                "Local live, production read-only, dry-run proof, and owner-gated mutation-candidate commands"
+            )
+        );
         assert!(!live_help.contains("Local sandbox LiveNode smoke commands"));
         assert!(live_help.contains("production-public-read-probe"));
         assert!(live_help.contains("production-order-state-read-only-proof"));
