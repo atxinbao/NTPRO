@@ -186,6 +186,8 @@ pub enum LiveCommand {
     ProductionMutationResponseRedaction(LiveProductionMutationResponseRedactionOpt),
     /// Proves a v0.16 post-submit order-state readback path from known order identifiers.
     ProductionMutationOrderStateReadback(LiveProductionMutationOrderStateReadbackOpt),
+    /// Writes a v0.16 redacted production mutation audit trail artifact.
+    ProductionMutationAuditTrail(LiveProductionMutationAuditTrailOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -1161,6 +1163,50 @@ pub struct LiveProductionMutationOrderStateReadbackOpt {
     /// Confirms retry, correction, cancel, replace, amend, and flatten remain forbidden.
     #[arg(long)]
     pub confirm_no_retry: bool,
+    /// Confirms Dashboard order controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms listenKey lifecycle remains forbidden.
+    #[arg(long)]
+    pub confirm_no_listen_key_lifecycle: bool,
+}
+
+/// Owner-approved v0.16 production mutation audit trail options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationAuditTrailOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.16 request builder JSON input.
+    #[arg(long)]
+    pub request_builder: PathBuf,
+    /// v0.16 guarded-send JSON input.
+    #[arg(long)]
+    pub guarded_send: PathBuf,
+    /// v0.16 response-redaction JSON input.
+    #[arg(long)]
+    pub response_redaction: PathBuf,
+    /// v0.16 order-state readback JSON input.
+    #[arg(long)]
+    pub order_state_readback: PathBuf,
+    /// v0.16 audit trail JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for production mutation audit trail evaluation.
+    #[arg(long)]
+    pub allow_production_mutation_audit_trail: bool,
+    /// Confirms owner approved audit trail creation for this candidate.
+    #[arg(long)]
+    pub confirm_owner_approved_audit_trail: bool,
+    /// Confirms request, response, and readback artifacts are redacted.
+    #[arg(long)]
+    pub confirm_redacted_artifacts_only: bool,
+    /// Confirms no raw secrets, signatures, signed URLs, or raw payloads are persisted.
+    #[arg(long)]
+    pub confirm_no_secret_or_raw_payload_persistence: bool,
+    /// Confirms retry, cancel, replace, amend, correction, and flatten remain forbidden.
+    #[arg(long)]
+    pub confirm_no_retry_or_followup_mutation: bool,
     /// Confirms Dashboard order controls remain disabled.
     #[arg(long)]
     pub confirm_dashboard_order_controls_disabled: bool,
@@ -2794,6 +2840,68 @@ mod tests {
         assert!(readback.confirm_no_retry);
         assert!(readback.confirm_dashboard_order_controls_disabled);
         assert!(readback.confirm_no_listen_key_lifecycle);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_audit_trail_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-audit-trail",
+            "--run-id",
+            "v160-audit-trail",
+            "--request-builder",
+            "runs/v160/request-builder.json",
+            "--guarded-send",
+            "runs/v160/guarded-send.json",
+            "--response-redaction",
+            "runs/v160/response-redaction.json",
+            "--order-state-readback",
+            "runs/v160/order-state-readback.json",
+            "--output",
+            "runs/v160/audit-trail.json",
+            "--allow-production-mutation-audit-trail",
+            "--confirm-owner-approved-audit-trail",
+            "--confirm-redacted-artifacts-only",
+            "--confirm-no-secret-or-raw-payload-persistence",
+            "--confirm-no-retry-or-followup-mutation",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-listen-key-lifecycle",
+        ])
+        .expect("live production-mutation-audit-trail should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationAuditTrail(audit) = live.command else {
+            panic!("expected production-mutation-audit-trail command");
+        };
+
+        assert_eq!(audit.run_id, "v160-audit-trail");
+        assert_eq!(
+            audit.request_builder,
+            PathBuf::from("runs/v160/request-builder.json")
+        );
+        assert_eq!(
+            audit.guarded_send,
+            PathBuf::from("runs/v160/guarded-send.json")
+        );
+        assert_eq!(
+            audit.response_redaction,
+            PathBuf::from("runs/v160/response-redaction.json")
+        );
+        assert_eq!(
+            audit.order_state_readback,
+            PathBuf::from("runs/v160/order-state-readback.json")
+        );
+        assert_eq!(audit.output, PathBuf::from("runs/v160/audit-trail.json"));
+        assert!(audit.allow_production_mutation_audit_trail);
+        assert!(audit.confirm_owner_approved_audit_trail);
+        assert!(audit.confirm_redacted_artifacts_only);
+        assert!(audit.confirm_no_secret_or_raw_payload_persistence);
+        assert!(audit.confirm_no_retry_or_followup_mutation);
+        assert!(audit.confirm_dashboard_order_controls_disabled);
+        assert!(audit.confirm_no_listen_key_lifecycle);
     }
 
     #[test]
