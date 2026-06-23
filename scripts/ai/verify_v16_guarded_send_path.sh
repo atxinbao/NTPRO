@@ -137,8 +137,16 @@ assert missing_flags["status"] == "blocked_missing_gate"
 assert missing_flags["guarded_send_ready"] is False
 assert missing_flags["request_sent"] is False
 assert missing_flags["network_attempted"] is False
+assert missing_flags["production_order_request_attempted"] is False
+assert missing_flags["http_send_attempted"] is False
+assert missing_flags["exchange_ack_observed"] is False
+assert missing_flags["exchange_order_id_observed"] is False
+assert missing_flags["exchange_order_status_observed"] is False
+assert missing_flags["confirmed_production_order_submission"] is False
 assert missing_flags["production_orders_submitted"] == 0
 assert missing_flags["production_order_mutations_attempted"] == 0
+assert missing_flags["platform_production_trading_enabled"] is False
+assert missing_flags["production_trading_enabled"] is False
 assert "--allow-production-mutation-guarded-send" in missing_flags["missing_cli_flags"]
 assert "--confirm-owner-approved-guarded-send" in missing_flags["missing_cli_flags"]
 
@@ -177,6 +185,12 @@ assert ready_offline["response_redacted"] is True
 assert ready_offline["error_code"] == "not_attempted_offline"
 assert ready_offline["request_sent"] is False
 assert ready_offline["network_attempted"] is False
+assert ready_offline["production_order_request_attempted"] is False
+assert ready_offline["http_send_attempted"] is False
+assert ready_offline["exchange_ack_observed"] is False
+assert ready_offline["exchange_order_id_observed"] is False
+assert ready_offline["exchange_order_status_observed"] is False
+assert ready_offline["confirmed_production_order_submission"] is False
 assert ready_offline["production_order_submission_allowed"] is False
 assert ready_offline["production_order_mutation_allowed"] is False
 assert ready_offline["production_order_state_reads_allowed"] is False
@@ -194,6 +208,7 @@ assert ready_offline["flatten_attempted"] is False
 assert ready_offline["dashboard_order_controls_enabled"] is False
 assert ready_offline["real_orders_submitted"] is False
 assert ready_offline["real_funds"] is False
+assert ready_offline["platform_production_trading_enabled"] is False
 assert ready_offline["production_trading_enabled"] is False
 assert ready_offline["source_artifact_issues"] == []
 assert ready_offline["missing_cli_flags"] == []
@@ -207,9 +222,17 @@ assert manual_missing_env["kill_switch_blocked_send"] is False
 assert manual_missing_env["single_shot_send_allowed"] is False
 assert manual_missing_env["request_sent"] is False
 assert manual_missing_env["network_attempted"] is False
+assert manual_missing_env["production_order_request_attempted"] is False
+assert manual_missing_env["http_send_attempted"] is False
+assert manual_missing_env["exchange_ack_observed"] is False
+assert manual_missing_env["exchange_order_id_observed"] is False
+assert manual_missing_env["exchange_order_status_observed"] is False
+assert manual_missing_env["confirmed_production_order_submission"] is False
 assert manual_missing_env["production_order_submission_allowed"] is False
 assert manual_missing_env["production_orders_submitted"] == 0
 assert manual_missing_env["production_order_mutations_attempted"] == 0
+assert manual_missing_env["platform_production_trading_enabled"] is False
+assert manual_missing_env["production_trading_enabled"] is False
 assert "NTPRO_ALLOW_PRODUCTION_MUTATION_HTTP_SEND" in manual_missing_env["missing_env_vars"]
 assert "NTPRO_OWNER_APPROVED_PRODUCTION_MUTATION_HTTP_SEND" in manual_missing_env["missing_env_vars"]
 assert "NTPRO_CONFIRM_PRODUCTION_MUTATION_SINGLE_SHOT" in manual_missing_env["missing_env_vars"]
@@ -228,7 +251,17 @@ assert kill_switch_active["kill_switch_blocked_send"] is True
 assert kill_switch_active["single_shot_send_allowed"] is False
 assert kill_switch_active["request_sent"] is False
 assert kill_switch_active["network_attempted"] is False
+assert kill_switch_active["production_order_request_attempted"] is False
+assert kill_switch_active["http_send_attempted"] is False
+assert kill_switch_active["exchange_ack_observed"] is False
+assert kill_switch_active["exchange_order_id_observed"] is False
+assert kill_switch_active["exchange_order_status_observed"] is False
+assert kill_switch_active["confirmed_production_order_submission"] is False
 assert kill_switch_active["production_order_submission_allowed"] is False
+assert kill_switch_active["production_orders_submitted"] == 0
+assert kill_switch_active["production_order_mutations_attempted"] == 0
+assert kill_switch_active["platform_production_trading_enabled"] is False
+assert kill_switch_active["production_trading_enabled"] is False
 assert "kill_switch_runtime_gate_not_open" in kill_switch_active["source_artifact_issues"]
 assert "kill_switch_active_before_send" in kill_switch_active["source_artifact_issues"]
 PY
@@ -238,4 +271,4 @@ if grep -R "ntpro_v160004_production_like_api_key_value\\|ntpro_v160004_producti
   exit 1
 fi
 
-echo "v16_guarded_send_path status=ok root=$GATE_ROOT request_sent=false network_attempted=false production_orders_submitted=0 production_order_mutations_attempted=0 dashboard_order_controls_enabled=false"
+echo "v16_guarded_send_path status=ok root=$GATE_ROOT request_sent=false production_order_request_attempted=false http_send_attempted=false exchange_ack_observed=false confirmed_production_order_submission=false network_attempted=false production_orders_submitted=0 production_order_mutations_attempted=0 dashboard_order_controls_enabled=false production_trading_enabled=false"
