@@ -325,6 +325,27 @@ Final release checks, benchmark summaries, and audit reports live here.
   `MARKET` orders, cancel/replace/amend/retry/correction/flatten, automatic
   remediation, listenKey lifecycle, multi-venue/multi-account execution, and
   Dashboard order controls.
+- `v0_16_0_response_redaction.md` - V160-006 production mutation response
+  redaction contract. It requires redacted response artifacts and keeps raw
+  exchange payloads, headers, signatures, signed URLs, credentials, and account
+  balances out of persisted evidence.
+- `v0_16_0_audit_trail.md` - V160-009 production mutation audit-trail contract.
+  It records owner approval, request, guarded-send, readback, terminal outcome,
+  and boundary counters while preserving no retry/remediation and no Dashboard
+  order controls.
+- `v0_16_0_failure_semantics.md` - V160-010 failure-mode and no-retry
+  semantics for the production mutation candidate. It treats timeout, HTTP
+  failure, malformed response, readback mismatch, and kill-switch transition as
+  terminal and blocks automatic retry or remediation.
+- `v0_16_0_readiness_report.md` - V160-013 readiness report for the
+  `Minimum Owner-Approved Production Order Mutation Candidate`. It accounts for
+  V160-001 through V160-012 and keeps tag creation and GitHub Release
+  publication as an owner release decision.
+- `v0_16_0_release_notes.md` - release-note material for the potential
+  `ntpro-rust-only-v0.16.0` GitHub Release. It limits the claim to one tiny
+  owner-approved `LIMIT` `GTC` production order candidate and does not include
+  strategy live trading, multi-order execution, cancel/replace/amend/retry,
+  listenKey lifecycle, real-funds proof in CI, or Dashboard order controls.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
