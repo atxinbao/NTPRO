@@ -28,21 +28,37 @@ active = json.loads(Path(sys.argv[2]).read_text())
 assert ready["kill_switch_enforcement_ready"] is True
 assert ready["kill_switch_checked_before_send"] is True
 assert ready["kill_switch_checked_after_send"] is True
+assert ready["pre_send_kill_switch_snapshot_source"] == ready["post_send_kill_switch_snapshot_source"]
+assert ready["pre_send_kill_switch_snapshot_hash"] == ready["post_send_kill_switch_snapshot_hash"]
+assert ready["pre_send_kill_switch_checked_at"]
+assert ready["post_send_kill_switch_checked_at"]
 assert ready["pre_send_kill_switch_runtime_gate_open"] is True
 assert ready["pre_send_kill_switch_active"] is False
 assert ready["post_send_kill_switch_runtime_gate_open"] is True
 assert ready["post_send_kill_switch_active"] is False
+assert ready["post_send_kill_switch_clean"] is True
 assert ready["kill_switch_blocked_send"] is False
+assert ready["post_send_progression_blocked"] is False
+assert ready["manual_review_required"] is False
+assert ready["new_orders_blocked"] is False
 assert ready["request_sent"] is False
 assert ready["network_attempted"] is False
 
 assert active["status"] == "blocked_kill_switch_enforcement"
 assert active["kill_switch_enforcement_ready"] is False
+assert active["pre_send_kill_switch_snapshot_source"] == active["post_send_kill_switch_snapshot_source"]
+assert active["pre_send_kill_switch_snapshot_hash"] == active["post_send_kill_switch_snapshot_hash"]
+assert active["pre_send_kill_switch_checked_at"]
+assert active["post_send_kill_switch_checked_at"]
 assert active["pre_send_kill_switch_active"] is True
 assert active["post_send_kill_switch_active"] is True
+assert active["post_send_kill_switch_clean"] is False
 assert active["kill_switch_blocked_send"] is True
+assert active["post_send_progression_blocked"] is True
+assert active["manual_review_required"] is True
+assert active["new_orders_blocked"] is True
 assert active["request_sent"] is False
 assert active["network_attempted"] is False
 PY
 
-echo "v16_kill_switch_around_send status=ok root=$GATE_ROOT kill_switch_checked_before_send=true kill_switch_checked_after_send=true active_kill_switch_blocks_send=true request_sent=false network_attempted=false"
+echo "v16_kill_switch_around_send status=ok root=$GATE_ROOT kill_switch_checked_before_send=true kill_switch_checked_after_send=true post_send_second_read_evidence=true active_kill_switch_blocks_send=true post_send_progression_blocked=true request_sent=false network_attempted=false"
