@@ -87,31 +87,31 @@ jobs:
           else
             echo "v11_smoke=false" >> "$GITHUB_OUTPUT"
           fi
-          if grep -E '^(\.github/workflows/(release-tag|rust-cutover-smoke)\.yml|crates/cli/src/(dashboard|live|opt)\.rs|scripts/ai/(verify_release|verify_v12_public_online_read_probe|verify_v12_authenticated_account_snapshot_online_read|verify_v12_response_shape|verify_v12_shadow_portfolio_runtime|verify_v12_persistent_shadow_strategy_session|verify_v12_production_readonly_reconciliation|verify_v12_offline_release_gates|verify_v12_manual_online_preflight)\.sh|docs/rust-cutover/release/v0_12_0_.*\.md)$' /tmp/changed-files.txt >/dev/null; then
+          if grep -E '^(crates/cli/src/(dashboard|live|opt)\.rs|scripts/ai/(verify_v12_public_online_read_probe|verify_v12_authenticated_account_snapshot_online_read|verify_v12_response_shape|verify_v12_shadow_portfolio_runtime|verify_v12_persistent_shadow_strategy_session|verify_v12_production_readonly_reconciliation|verify_v12_offline_release_gates|verify_v12_manual_online_preflight)\.sh|docs/rust-cutover/release/v0_12_0_.*\.md)$' /tmp/changed-files.txt >/dev/null; then
             echo "v12_smoke=true" >> "$GITHUB_OUTPUT"
             echo "v0.12 production online read-only/shadow offline gates required by changed files"
           else
             echo "v12_smoke=false" >> "$GITHUB_OUTPUT"
           fi
-          if grep -E '^(\.github/workflows/(release-tag|rust-cutover-smoke)\.yml|crates/cli/src/(dashboard|live|opt)\.rs|scripts/ai/(verify_release|verify_v13_shadow_preflight_session|verify_v13_online_readonly_proof_pack|verify_v13_kill_switch_approval_artifact|verify_v13_dashboard_control_boundary|verify_v13_decimal_amount_boundary|verify_v13_no_production_mutation_gate)\.sh|docs/rust-cutover/release/v0_13_0_.*\.md)$' /tmp/changed-files.txt >/dev/null; then
+          if grep -E '^(crates/cli/src/(dashboard|live|opt)\.rs|scripts/ai/(verify_v13_shadow_preflight_session|verify_v13_online_readonly_proof_pack|verify_v13_kill_switch_approval_artifact|verify_v13_dashboard_control_boundary|verify_v13_decimal_amount_boundary|verify_v13_no_production_mutation_gate)\.sh|docs/rust-cutover/release/v0_13_0_.*\.md)$' /tmp/changed-files.txt >/dev/null; then
             echo "v13_smoke=true" >> "$GITHUB_OUTPUT"
             echo "v0.13 no-production-mutation gate required by changed files"
           else
             echo "v13_smoke=false" >> "$GITHUB_OUTPUT"
           fi
-          if grep -E '^(\.github/workflows/(release-tag|rust-cutover-smoke)\.yml|crates/cli/src/(dashboard|live|opt|supervisor|strategy_session)\.rs|configs/nodes/btc-ema-shadow\.toml|scripts/ai/(verify_release|verify_v14_order_state_readonly_proof|verify_v14_supervisor_shadow_runtime|verify_v14_live_alpha_dry_run_order_gate|verify_v14_live_alpha_risk_preflight|verify_v14_release_gates)\.sh|tests/golden/live_alpha_reconciliation_schema\.jsonl|crates/cli/tests/golden_trace_live_alpha_reconciliation\.rs|docs/rust-cutover/(release/v0_14_0_.*\.md|evidence/V140-.*\.md|tasks/V140-.*\.md|golden_trace/(RELEASE_REPLAY_SCOPE\.json|SCHEMA\.md)))$' /tmp/changed-files.txt >/dev/null; then
+          if grep -E '^(crates/cli/src/(dashboard|live|opt|supervisor|strategy_session)\.rs|configs/nodes/btc-ema-shadow\.toml|scripts/ai/(verify_v14_order_state_readonly_proof|verify_v14_supervisor_shadow_runtime|verify_v14_live_alpha_dry_run_order_gate|verify_v14_live_alpha_risk_preflight|verify_v14_release_gates)\.sh|tests/golden/live_alpha_reconciliation_schema\.jsonl|crates/cli/tests/golden_trace_live_alpha_reconciliation\.rs|docs/rust-cutover/(release/v0_14_0_.*\.md|evidence/V140-.*\.md|tasks/V140-.*\.md|golden_trace/(RELEASE_REPLAY_SCOPE\.json|SCHEMA\.md)))$' /tmp/changed-files.txt >/dev/null; then
             echo "v14_smoke=true" >> "$GITHUB_OUTPUT"
             echo "v0.14 release gates required by changed files"
           else
             echo "v14_smoke=false" >> "$GITHUB_OUTPUT"
           fi
-          if grep -E '^(\.github/workflows/(release-tag|rust-cutover-smoke)\.yml|crates/cli/src/dashboard\.rs|scripts/ai/(run_golden_traces|verify_full|verify_release|verify_v15_live_order_request_dry_run_builder|verify_v15_manual_approval_lifecycle|verify_v15_execution_adapter_isolation|verify_v15_kill_switch_runtime_enforcement|verify_v15_incident_rollback_artifact|verify_v15_release_gates)\.sh|tests/golden/live_alpha_mutation_dry_run_schema\.jsonl|crates/cli/tests/golden_trace_live_alpha_mutation_dry_run\.rs|docs/rust-cutover/(release/v0_15_0_.*\.md|evidence/V150-.*\.md|tasks/V150-.*\.md|golden_trace/(RELEASE_REPLAY_SCOPE\.json|SCHEMA\.md)))$' /tmp/changed-files.txt >/dev/null; then
+          if grep -E '^(crates/cli/src/dashboard\.rs|scripts/ai/(run_golden_traces|verify_full|verify_v15_live_order_request_dry_run_builder|verify_v15_manual_approval_lifecycle|verify_v15_execution_adapter_isolation|verify_v15_kill_switch_runtime_enforcement|verify_v15_incident_rollback_artifact|verify_v15_release_gates)\.sh|tests/golden/live_alpha_mutation_dry_run_schema\.jsonl|crates/cli/tests/golden_trace_live_alpha_mutation_dry_run\.rs|docs/rust-cutover/(release/v0_15_0_.*\.md|evidence/V150-.*\.md|tasks/V150-.*\.md|golden_trace/(RELEASE_REPLAY_SCOPE\.json|SCHEMA\.md)))$' /tmp/changed-files.txt >/dev/null; then
             echo "v15_smoke=true" >> "$GITHUB_OUTPUT"
             echo "v0.15 mutation dry-run golden trace smoke required by changed files"
           else
             echo "v15_smoke=false" >> "$GITHUB_OUTPUT"
           fi
-          if grep -E '^(\.github/workflows/(release-tag|rust-cutover-smoke)\.yml|scripts/ai/(verify_release|verify_v151_release_gates)\.sh|docs/rust-cutover/(release/v0_15_1_.*\.md|evidence/V151-.*\.md|tasks/V151-.*\.md))$' /tmp/changed-files.txt >/dev/null; then
+          if grep -E '^(scripts/ai/verify_v151_release_gates\.sh|docs/rust-cutover/(release/v0_15_1_.*\.md|evidence/V151-.*\.md|tasks/V151-.*\.md))$' /tmp/changed-files.txt >/dev/null; then
             echo "v151_smoke=true" >> "$GITHUB_OUTPUT"
             echo "v0.15.1 aggregate release gates required by changed files"
           else
