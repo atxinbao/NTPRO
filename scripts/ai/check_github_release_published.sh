@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.15.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.16.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
@@ -173,6 +173,33 @@ case "$CURRENT_RELEASE_VERSION" in
       "real funds"
       "production trading"
       "Dashboard order/cancel/replace/amend/retry/reconnect controls"
+    )
+    ;;
+  v0.16.0)
+    required_fields=(
+      "Status: RELEASED"
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Minimum Owner-Approved Production Order Mutation Candidate"
+      "owner-approved runtime gates"
+      "production signing-material approval evidence"
+      "single \`LIMIT\` \`GTC\` request builder"
+      "guarded production HTTP send path"
+      "production mutation response redaction"
+      "post-submit order-state readback proof contract"
+      "kill-switch checks around the send boundary"
+      "production mutation audit trail"
+      "failure-mode and no-retry semantics"
+      "read-only Dashboard production mutation evidence panel"
+      "strategy-driven production execution"
+      "multiple orders"
+      "MARKET orders"
+      "cancel, replace, amend, retry, correction, flatten, or remediation"
+      "Dashboard order controls"
+      "listenKey lifecycle"
+      "real-funds proof in CI"
+      "production trading platform claim"
     )
     ;;
   *)

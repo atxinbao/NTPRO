@@ -3,7 +3,7 @@
 Date: 2026-06-23
 Executor: Codex
 Milestone: `ntpro-rust-only-v0.16.0`
-Status: READY FOR OWNER RELEASE DECISION
+Status: PASS - RELEASED
 
 ## Summary
 
@@ -25,7 +25,9 @@ Plain Chinese summary: v0.16.0 可以理解成“最小真实生产下单候选�
 ```text
 capability = Minimum Owner-Approved Production Order Mutation Candidate
 capability expansion from v0.15 = yes, but only inside the scoped candidate
-planned release tag = ntpro-rust-only-v0.16.0
+release tag = ntpro-rust-only-v0.16.0
+release name = NTPRO Rust-only v0.16.0
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.16.0
 default execution posture = offline fail-closed
 production mutation default = disabled
 production order submission default = disabled
@@ -100,6 +102,7 @@ production trading platform claim
 | #506 | PASS | V160-010 failure/no-retry | `docs/rust-cutover/evidence/V160-010.md` | Makes failure terminal; no retry/remediation |
 | #507 | PASS | V160-011 Dashboard read-only evidence | `docs/rust-cutover/evidence/V160-011.md` | Exposes evidence only; no Dashboard controls |
 | #508 | PASS | V160-012 aggregate release gates | `docs/rust-cutover/evidence/V160-012.md` | Release verification wiring only |
+| #509 | PASS | V160-013 readiness and release notes | `docs/rust-cutover/evidence/V160-013.md` | Release accounting only |
 
 ## Gate Evidence
 
@@ -138,9 +141,17 @@ completed = 2026-06-23T09:54:01Z
 security-audit = PASS
 ```
 
-V160-013 must still land through a PR with hosted smoke and security-audit PASS
-before the source tree can be considered fully closed for owner release
-decision.
+Hosted PR evidence recorded for V160-013:
+
+```text
+Rust Cutover Smoke = PASS
+run = 28018311192
+job = 82928058286
+completed = 2026-06-23T10:15:55Z
+v16-release-gates step = PASS at 2026-06-23T10:15:35Z
+security-audit = not triggered for docs-only release accounting paths
+merge commit = 05ca332cf4bf30a461afdd9ae255f99f4c522708
+```
 
 ## Default Fail-Closed Proof
 
@@ -168,17 +179,16 @@ dashboard_order_controls_enabled = false
 ## Release Closure Status
 
 ```text
-latest formal release before this line = ntpro-rust-only-v0.15.1
-v0.16.0 readiness = ready for owner release decision after V160-013 lands
-v0.16.0 tag = not created by this readiness document
-v0.16.0 GitHub Release = not created by this readiness document
+latest formal release before this line = ntpro-rust-only-v0.15.0
+v0.16.0 readiness = PASS
+v0.16.0 tag = ntpro-rust-only-v0.16.0
+v0.16.0 GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.16.0
 ```
 
 ## Final Verdict
 
-The v0.16 source-tree package is ready to be evaluated as the
-`Minimum Owner-Approved Production Order Mutation Candidate` once V160-013
-validation and hosted smoke pass.
+The v0.16 source-tree package is released as the
+`Minimum Owner-Approved Production Order Mutation Candidate`.
 
 Do not describe this readiness as strategy live trading readiness, general
 production trading readiness, multi-order execution readiness, order-management

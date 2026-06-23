@@ -337,11 +337,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   semantics for the production mutation candidate. It treats timeout, HTTP
   failure, malformed response, readback mismatch, and kill-switch transition as
   terminal and blocks automatic retry or remediation.
-- `v0_16_0_readiness_report.md` - V160-013 readiness report for the
-  `Minimum Owner-Approved Production Order Mutation Candidate`. It accounts for
-  V160-001 through V160-012 and keeps tag creation and GitHub Release
-  publication as an owner release decision.
-- `v0_16_0_release_notes.md` - release-note material for the potential
+- `v0_16_0_readiness_report.md` - released readiness report for the formal
+  v0.16.0 Minimum Owner-Approved Production Order Mutation Candidate release.
+  It records the formal tag `ntpro-rust-only-v0.16.0`, accounts for V160-001
+  through V160-013, and preserves the single-owner-approved `LIMIT` `GTC`
+  candidate boundary.
+- `v0_16_0_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.16.0` GitHub Release. It limits the claim to one tiny
   owner-approved `LIMIT` `GTC` production order candidate and does not include
   strategy live trading, multi-order execution, cancel/replace/amend/retry,
