@@ -51,11 +51,12 @@ use crate::{
         LiveProductionLiveAlphaManualApprovalLifecycleOpt,
         LiveProductionLiveAlphaOrderRequestPreviewOpt, LiveProductionLiveAlphaRiskPreflightOpt,
         LiveProductionMutationGuardedSendOpt, LiveProductionMutationRequestBuilderOpt,
-        LiveProductionMutationRuntimeGateOpt, LiveProductionMutationSigningApprovalOpt,
-        LiveProductionOrderStateReadOnlyProofOpt, LiveProductionPublicReadProbeOpt,
-        LiveProductionReadonlyReconciliationOpt, LiveProductionShadowPortfolioRuntimeOpt,
-        LiveProductionShadowPreflightSessionOpt, LiveProductionShadowStrategySessionOpt,
-        LiveRunOpt, LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveProductionMutationResponseRedactionOpt, LiveProductionMutationRuntimeGateOpt,
+        LiveProductionMutationSigningApprovalOpt, LiveProductionOrderStateReadOnlyProofOpt,
+        LiveProductionPublicReadProbeOpt, LiveProductionReadonlyReconciliationOpt,
+        LiveProductionShadowPortfolioRuntimeOpt, LiveProductionShadowPreflightSessionOpt,
+        LiveProductionShadowStrategySessionOpt, LiveRunOpt,
+        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
         LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
         ProductionOrderStateReadEndpoint, ProductionPublicReadEndpoint,
@@ -162,6 +163,8 @@ const PRODUCTION_MUTATION_REQUEST_BUILDER_SCHEMA_VERSION: &str =
     "ntpro.v160_production_mutation_request_builder.v1";
 const PRODUCTION_MUTATION_GUARDED_SEND_SCHEMA_VERSION: &str =
     "ntpro.v160_production_mutation_guarded_send.v1";
+const PRODUCTION_MUTATION_RESPONSE_REDACTION_SCHEMA_VERSION: &str =
+    "ntpro.v160_production_mutation_response_redaction.v1";
 const PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW: &str = "NTPRO_ALLOW_PRODUCTION_MUTATION_HTTP_SEND";
 const PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED: &str =
     "NTPRO_OWNER_APPROVED_PRODUCTION_MUTATION_HTTP_SEND";
@@ -1869,6 +1872,81 @@ struct ProductionMutationGuardedSendArtifact {
     diagnostic: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionMutationResponseRedactionArtifact {
+    schema_version: String,
+    run_id: String,
+    source_guarded_send_path: String,
+    source_response_path: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    capability: String,
+    response_redaction_ready: bool,
+    source_guarded_send_status: String,
+    source_request_sent: bool,
+    source_network_attempted: bool,
+    response_shape_validated: bool,
+    response_type: String,
+    symbol: String,
+    side: String,
+    order_type: String,
+    time_in_force: String,
+    order_id: String,
+    client_order_id: String,
+    exchange_status: String,
+    transact_time_shape: String,
+    working_time_shape: String,
+    allowed_response_fields: Vec<String>,
+    forbidden_response_markers: Vec<String>,
+    source_artifact_issues: Vec<String>,
+    missing_cli_flags: Vec<String>,
+    api_key_value_recorded: bool,
+    api_secret_value_recorded: bool,
+    api_key_header_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    request_body_recorded: bool,
+    raw_request_body_recorded: bool,
+    raw_exchange_response_recorded: bool,
+    response_body_recorded: bool,
+    response_headers_recorded: bool,
+    unrestricted_payload_recorded: bool,
+    account_balances_recorded: bool,
+    fills_recorded: bool,
+    response_redacted: bool,
+    request_sent: bool,
+    network_attempted: bool,
+    production_order_submission_allowed: bool,
+    production_order_mutation_allowed: bool,
+    production_order_state_reads_allowed: bool,
+    listen_key_lifecycle_allowed: bool,
+    production_order_submissions_attempted: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    production_order_state_reads_attempted: u64,
+    listen_key_lifecycle_attempted: u64,
+    retry_attempted: bool,
+    cancel_attempted: bool,
+    replace_attempted: bool,
+    amend_attempted: bool,
+    flatten_attempted: bool,
+    dashboard_order_controls_enabled: bool,
+    real_orders_submitted: bool,
+    real_funds: bool,
+    production_trading_enabled: bool,
+    no_raw_response_persistence_confirmed: bool,
+    no_headers_persistence_confirmed: bool,
+    no_secret_persistence_confirmed: bool,
+    order_metadata_only_confirmed: bool,
+    no_account_balances_confirmed: bool,
+    no_unrestricted_payload_confirmed: bool,
+    no_retry_confirmed: bool,
+    diagnostic: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProductionMutationGuardedSendHttpResult {
     request_sent: bool,
@@ -2994,6 +3072,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionMutationGuardedSend(send) => {
             run_live_production_mutation_guarded_send(&send)
         }
+        LiveCommand::ProductionMutationResponseRedaction(redaction) => {
+            run_live_production_mutation_response_redaction(&redaction)
+        }
         LiveCommand::ProductionLiveAlphaRiskPreflight(preflight) => {
             run_live_production_live_alpha_risk_preflight(&preflight)
         }
@@ -3300,6 +3381,21 @@ where
         artifact.request_sent,
         artifact.production_orders_submitted,
         artifact.network_attempted,
+    );
+    Ok(())
+}
+
+fn run_live_production_mutation_response_redaction(
+    opt: &LiveProductionMutationResponseRedactionOpt,
+) -> anyhow::Result<()> {
+    let artifact = build_production_mutation_response_redaction_artifact(opt)?;
+    write_production_mutation_response_redaction_artifact(&opt.output, &artifact)?;
+    println!(
+        "live.production_mutation_response_redaction status={} run_id={} output={} response_redaction_ready={} raw_exchange_response_recorded=false response_headers_recorded=false unrestricted_payload_recorded=false account_balances_recorded=false signature_recorded=false signed_query_recorded=false signed_url_recorded=false api_key_value_recorded=false api_secret_value_recorded=false",
+        artifact.status,
+        artifact.run_id,
+        opt.output.display(),
+        artifact.response_redaction_ready,
     );
     Ok(())
 }
@@ -6969,6 +7065,132 @@ fn build_production_mutation_guarded_send_artifact(
     })
 }
 
+fn build_production_mutation_response_redaction_artifact(
+    opt: &LiveProductionMutationResponseRedactionOpt,
+) -> anyhow::Result<ProductionMutationResponseRedactionArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+
+    let guarded_send = load_json_value(&opt.guarded_send, "production mutation guarded send")?;
+    let response = load_json_value(&opt.response, "production mutation response")?;
+    let missing_cli_flags = missing_production_mutation_response_redaction_cli_flags(opt);
+    let source_artifact_issues =
+        production_mutation_response_redaction_source_issues(&guarded_send);
+    let forbidden_response_markers = production_mutation_response_forbidden_markers(&response);
+    let response_redaction_ready = missing_cli_flags.is_empty()
+        && source_artifact_issues.is_empty()
+        && forbidden_response_markers.is_empty();
+    let status = if !missing_cli_flags.is_empty() {
+        "blocked_missing_gate"
+    } else if !source_artifact_issues.is_empty() {
+        "blocked_source_artifact"
+    } else if !forbidden_response_markers.is_empty() {
+        "blocked_forbidden_response_marker"
+    } else {
+        "ready_response_redacted"
+    };
+
+    let source_request_sent = json_bool_value(&guarded_send, "request_sent").unwrap_or(false);
+    let source_network_attempted =
+        json_bool_value(&guarded_send, "network_attempted").unwrap_or(false);
+    let production_order_submissions_attempted =
+        json_u64_value(&guarded_send, "production_order_submissions_attempted").unwrap_or(0);
+    let production_orders_submitted =
+        json_u64_value(&guarded_send, "production_orders_submitted").unwrap_or(0);
+    let production_order_mutations_attempted =
+        json_u64_value(&guarded_send, "production_order_mutations_attempted").unwrap_or(0);
+    let production_order_state_reads_attempted =
+        json_u64_value(&guarded_send, "production_order_state_reads_attempted").unwrap_or(0);
+    let listen_key_lifecycle_attempted =
+        json_u64_value(&guarded_send, "listen_key_lifecycle_attempted").unwrap_or(0);
+
+    Ok(ProductionMutationResponseRedactionArtifact {
+        schema_version: PRODUCTION_MUTATION_RESPONSE_REDACTION_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        source_guarded_send_path: opt.guarded_send.display().to_string(),
+        source_response_path: opt.response.display().to_string(),
+        artifact_type: "production_mutation_response_redaction".to_string(),
+        status: status.to_string(),
+        created_at: now_millis(),
+        mode: "production_mutation_response_redaction_contract".to_string(),
+        capability: "Minimum Owner-Approved Production Order Mutation Candidate".to_string(),
+        response_redaction_ready,
+        source_guarded_send_status: json_string_value(&guarded_send, "status")
+            .unwrap_or_else(|| "unknown".to_string()),
+        source_request_sent,
+        source_network_attempted,
+        response_shape_validated: response_redaction_ready,
+        response_type: "binance_order_response_redacted_metadata_v1".to_string(),
+        symbol: json_scalar_string_value(&response, "symbol").unwrap_or_else(|| "unknown".to_string()),
+        side: json_scalar_string_value(&response, "side").unwrap_or_else(|| "unknown".to_string()),
+        order_type: json_scalar_string_value(&response, "type").unwrap_or_else(|| "unknown".to_string()),
+        time_in_force: json_scalar_string_value(&response, "timeInForce")
+            .unwrap_or_else(|| "unknown".to_string()),
+        order_id: json_scalar_string_value(&response, "orderId")
+            .unwrap_or_else(|| "missing".to_string()),
+        client_order_id: json_scalar_string_value(&response, "clientOrderId")
+            .unwrap_or_else(|| "missing".to_string()),
+        exchange_status: json_scalar_string_value(&response, "status")
+            .unwrap_or_else(|| "unknown".to_string()),
+        transact_time_shape: production_mutation_response_time_shape(&response, "transactTime"),
+        working_time_shape: production_mutation_response_time_shape(&response, "workingTime"),
+        allowed_response_fields: production_mutation_response_allowed_fields(),
+        forbidden_response_markers,
+        source_artifact_issues,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        api_key_value_recorded: false,
+        api_secret_value_recorded: false,
+        api_key_header_value_recorded: false,
+        signature_recorded: false,
+        signed_query_recorded: false,
+        signed_url_recorded: false,
+        request_body_recorded: false,
+        raw_request_body_recorded: false,
+        raw_exchange_response_recorded: false,
+        response_body_recorded: false,
+        response_headers_recorded: false,
+        unrestricted_payload_recorded: false,
+        account_balances_recorded: false,
+        fills_recorded: false,
+        response_redacted: true,
+        request_sent: source_request_sent,
+        network_attempted: source_network_attempted,
+        production_order_submission_allowed: false,
+        production_order_mutation_allowed: false,
+        production_order_state_reads_allowed: false,
+        listen_key_lifecycle_allowed: false,
+        production_order_submissions_attempted,
+        production_orders_submitted,
+        production_order_mutations_attempted,
+        production_order_state_reads_attempted,
+        listen_key_lifecycle_attempted,
+        retry_attempted: false,
+        cancel_attempted: false,
+        replace_attempted: false,
+        amend_attempted: false,
+        flatten_attempted: false,
+        dashboard_order_controls_enabled: false,
+        real_orders_submitted: false,
+        real_funds: false,
+        production_trading_enabled: source_request_sent,
+        no_raw_response_persistence_confirmed: opt.confirm_no_raw_response_persistence,
+        no_headers_persistence_confirmed: opt.confirm_no_headers_persistence,
+        no_secret_persistence_confirmed: opt.confirm_no_secret_persistence,
+        order_metadata_only_confirmed: opt.confirm_order_metadata_only,
+        no_account_balances_confirmed: opt.confirm_no_account_balances,
+        no_unrestricted_payload_confirmed: opt.confirm_no_unrestricted_payload,
+        no_retry_confirmed: opt.confirm_no_retry,
+        diagnostic: if response_redaction_ready {
+            "production mutation response was reduced to allowed order metadata only; raw body, headers, secrets, balances, fills, and unrestricted payload were not persisted"
+        } else {
+            "production mutation response redaction contract blocked before persisting unrestricted response material"
+        }
+        .to_string(),
+    })
+}
+
 fn build_production_mutation_runtime_gate_artifact(
     opt: &LiveProductionMutationRuntimeGateOpt,
 ) -> anyhow::Result<ProductionMutationRuntimeGateArtifact> {
@@ -8025,6 +8247,184 @@ fn production_mutation_guarded_send_source_issues(
     issues
 }
 
+fn production_mutation_response_redaction_source_issues(
+    guarded_send: &serde_json::Value,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(guarded_send, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_GUARDED_SEND_SCHEMA_VERSION)
+    {
+        issues.push("guarded_send_schema_mismatch".to_string());
+    }
+    if json_bool_value(guarded_send, "api_key_value_recorded").unwrap_or(false) {
+        issues.push("guarded_send_records_api_key".to_string());
+    }
+    if json_bool_value(guarded_send, "api_secret_value_recorded").unwrap_or(false) {
+        issues.push("guarded_send_records_api_secret".to_string());
+    }
+    if json_bool_value(guarded_send, "api_key_header_value_recorded").unwrap_or(false) {
+        issues.push("guarded_send_records_api_key_header".to_string());
+    }
+    if json_bool_value(guarded_send, "signature_recorded").unwrap_or(false) {
+        issues.push("guarded_send_records_signature".to_string());
+    }
+    if json_bool_value(guarded_send, "signed_query_recorded").unwrap_or(false) {
+        issues.push("guarded_send_records_signed_query".to_string());
+    }
+    if json_bool_value(guarded_send, "signed_url_recorded").unwrap_or(false) {
+        issues.push("guarded_send_records_signed_url".to_string());
+    }
+    if json_bool_value(guarded_send, "raw_exchange_response_recorded").unwrap_or(false) {
+        issues.push("guarded_send_records_raw_exchange_response".to_string());
+    }
+    if json_bool_value(guarded_send, "response_body_recorded").unwrap_or(false) {
+        issues.push("guarded_send_records_response_body".to_string());
+    }
+    if json_bool_value(guarded_send, "dashboard_order_controls_enabled").unwrap_or(false) {
+        issues.push("guarded_send_enables_dashboard_order_controls".to_string());
+    }
+    if json_bool_value(guarded_send, "retry_attempted").unwrap_or(false) {
+        issues.push("guarded_send_records_retry".to_string());
+    }
+    if json_bool_value(guarded_send, "cancel_attempted").unwrap_or(false)
+        || json_bool_value(guarded_send, "replace_attempted").unwrap_or(false)
+        || json_bool_value(guarded_send, "amend_attempted").unwrap_or(false)
+        || json_bool_value(guarded_send, "flatten_attempted").unwrap_or(false)
+    {
+        issues.push("guarded_send_records_disallowed_followup_mutation".to_string());
+    }
+    issues
+}
+
+fn production_mutation_response_forbidden_markers(value: &serde_json::Value) -> Vec<String> {
+    let mut markers = Vec::new();
+    collect_production_mutation_response_forbidden_markers(value, "$", &mut markers);
+    markers.sort();
+    markers.dedup();
+    markers
+}
+
+fn collect_production_mutation_response_forbidden_markers(
+    value: &serde_json::Value,
+    path: &str,
+    markers: &mut Vec<String>,
+) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, child) in map {
+                let child_path = format!("{path}.{key}");
+                if let Some(reason) = production_mutation_response_forbidden_key_reason(key) {
+                    markers.push(format!("{child_path}:{reason}"));
+                }
+                collect_production_mutation_response_forbidden_markers(child, &child_path, markers);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for (index, child) in items.iter().enumerate() {
+                collect_production_mutation_response_forbidden_markers(
+                    child,
+                    &format!("{path}[{index}]"),
+                    markers,
+                );
+            }
+        }
+        serde_json::Value::String(text) => {
+            if let Some(reason) = production_mutation_response_forbidden_text_reason(text) {
+                markers.push(format!("{path}:{reason}"));
+            }
+        }
+        _ => {}
+    }
+}
+
+fn production_mutation_response_forbidden_key_reason(key: &str) -> Option<&'static str> {
+    let normalized = key
+        .chars()
+        .filter(|ch| *ch != '_' && *ch != '-')
+        .flat_map(char::to_lowercase)
+        .collect::<String>();
+    if matches!(
+        normalized.as_str(),
+        "headers"
+            | "header"
+            | "apikey"
+            | "apisecret"
+            | "apikeyheader"
+            | "signature"
+            | "signedquery"
+            | "signedurl"
+            | "rawresponse"
+            | "rawresponsebody"
+            | "rawbody"
+            | "responsebody"
+            | "body"
+            | "payload"
+            | "balances"
+            | "balance"
+            | "account"
+            | "fills"
+            | "commission"
+            | "commissionasset"
+    ) {
+        return Some("forbidden_response_key");
+    }
+    if normalized.contains("secret")
+        || normalized.contains("signature")
+        || normalized.contains("signedurl")
+        || normalized.contains("signedquery")
+        || normalized.contains("rawresponse")
+        || normalized.contains("payload")
+        || normalized.contains("balance")
+    {
+        return Some("forbidden_response_key");
+    }
+    None
+}
+
+fn production_mutation_response_forbidden_text_reason(text: &str) -> Option<&'static str> {
+    let normalized = text.to_ascii_lowercase();
+    if normalized.contains("signature=")
+        || normalized.contains("x-mbx-apikey")
+        || normalized.contains("api_secret")
+        || normalized.contains("api-secret")
+        || normalized.contains("signed_url")
+        || normalized.contains("signed-query")
+        || normalized.contains("raw response")
+    {
+        return Some("forbidden_response_text");
+    }
+    None
+}
+
+fn production_mutation_response_allowed_fields() -> Vec<String> {
+    [
+        "symbol",
+        "side",
+        "type",
+        "timeInForce",
+        "orderId",
+        "clientOrderId",
+        "status",
+        "transactTime",
+        "workingTime",
+    ]
+    .into_iter()
+    .map(ToString::to_string)
+    .collect()
+}
+
+fn production_mutation_response_time_shape(value: &serde_json::Value, field: &str) -> String {
+    match value.get(field) {
+        Some(serde_json::Value::Number(number)) if number.as_u64().is_some() => {
+            "epoch_millis_present_redacted".to_string()
+        }
+        Some(serde_json::Value::String(text)) if !text.trim().is_empty() => {
+            "epoch_millis_present_redacted".to_string()
+        }
+        _ => "missing".to_string(),
+    }
+}
+
 fn production_live_alpha_kill_switch_runtime_gate_source_issues(
     kill_switch_approval: &serde_json::Value,
     risk_preflight: &serde_json::Value,
@@ -8939,6 +9339,15 @@ fn json_string_value(value: &serde_json::Value, field: &str) -> Option<String> {
         .get(field)
         .and_then(serde_json::Value::as_str)
         .map(ToString::to_string)
+}
+
+fn json_scalar_string_value(value: &serde_json::Value, field: &str) -> Option<String> {
+    match value.get(field) {
+        Some(serde_json::Value::String(text)) => Some(text.clone()),
+        Some(serde_json::Value::Number(number)) => Some(number.to_string()),
+        Some(serde_json::Value::Bool(flag)) => Some(flag.to_string()),
+        _ => None,
+    }
 }
 
 fn json_string_array(value: &serde_json::Value, field: &str) -> Vec<String> {
@@ -10630,6 +11039,16 @@ fn write_production_mutation_guarded_send_artifact(
     Ok(())
 }
 
+fn write_production_mutation_response_redaction_artifact(
+    path: &Path,
+    value: &ProductionMutationResponseRedactionArtifact,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
 fn decimal_string_to_f64(field: &str, value: &str) -> Result<f64, String> {
     validate_positive_decimal_string(field, value).map_err(|error| error.to_string())?;
     value
@@ -11212,6 +11631,40 @@ fn production_mutation_guarded_send_missing_env_vars(
         {
             missing.push(credentials.api_secret_env.clone());
         }
+    }
+    missing
+}
+
+fn missing_production_mutation_response_redaction_cli_flags(
+    opt: &LiveProductionMutationResponseRedactionOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_mutation_response_redaction {
+        missing.push("--allow-production-mutation-response-redaction");
+    }
+    if !opt.confirm_owner_approved_response_redaction {
+        missing.push("--confirm-owner-approved-response-redaction");
+    }
+    if !opt.confirm_no_raw_response_persistence {
+        missing.push("--confirm-no-raw-response-persistence");
+    }
+    if !opt.confirm_no_headers_persistence {
+        missing.push("--confirm-no-headers-persistence");
+    }
+    if !opt.confirm_no_secret_persistence {
+        missing.push("--confirm-no-secret-persistence");
+    }
+    if !opt.confirm_order_metadata_only {
+        missing.push("--confirm-order-metadata-only");
+    }
+    if !opt.confirm_no_account_balances {
+        missing.push("--confirm-no-account-balances");
+    }
+    if !opt.confirm_no_unrestricted_payload {
+        missing.push("--confirm-no-unrestricted-payload");
+    }
+    if !opt.confirm_no_retry {
+        missing.push("--confirm-no-retry");
     }
     missing
 }
@@ -12454,6 +12907,29 @@ write_summary = true
         }
     }
 
+    fn production_mutation_response_redaction_opt(
+        guarded_send: PathBuf,
+        response: PathBuf,
+        output: PathBuf,
+        all_cli_gates: bool,
+    ) -> LiveProductionMutationResponseRedactionOpt {
+        LiveProductionMutationResponseRedactionOpt {
+            run_id: "v160-production-mutation-response-redaction".to_string(),
+            guarded_send,
+            response,
+            output,
+            allow_production_mutation_response_redaction: all_cli_gates,
+            confirm_owner_approved_response_redaction: all_cli_gates,
+            confirm_no_raw_response_persistence: all_cli_gates,
+            confirm_no_headers_persistence: all_cli_gates,
+            confirm_no_secret_persistence: all_cli_gates,
+            confirm_order_metadata_only: all_cli_gates,
+            confirm_no_account_balances: all_cli_gates,
+            confirm_no_unrestricted_payload: all_cli_gates,
+            confirm_no_retry: all_cli_gates,
+        }
+    }
+
     fn write_kill_switch_approval_artifact(
         output: PathBuf,
         kill_switch_active: bool,
@@ -12691,6 +13167,62 @@ write_summary = true
         assert!(!body.contains("symbol=BTCUSDT"));
 
         (request_builder, request_preview)
+    }
+
+    fn write_ready_v160_guarded_send_artifact(output_dir: &Path) -> PathBuf {
+        let (request_builder, request_preview) = write_ready_v160_guarded_send_sources(output_dir);
+        let guarded_send = output_dir.join("production_mutation_guarded_send.json");
+        run_live_production_mutation_guarded_send_with_env(
+            &production_mutation_guarded_send_opt(
+                request_builder,
+                request_preview,
+                guarded_send.clone(),
+                false,
+                true,
+            ),
+            |_| None,
+        )
+        .unwrap();
+        guarded_send
+    }
+
+    fn write_synthetic_production_mutation_response(path: &Path) {
+        fs::write(
+            path,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "symbol": "BTCUSDT",
+                "orderId": 123456789,
+                "clientOrderId": "owner-approved-v160-single-shot",
+                "transactTime": 1718400000000_u64,
+                "workingTime": 1718400000001_u64,
+                "status": "NEW",
+                "type": "LIMIT",
+                "side": "BUY",
+                "timeInForce": "GTC"
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn write_forbidden_production_mutation_response(path: &Path) {
+        fs::write(
+            path,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "symbol": "BTCUSDT",
+                "orderId": 123456789,
+                "clientOrderId": "owner-approved-v160-single-shot",
+                "status": "NEW",
+                "type": "LIMIT",
+                "side": "BUY",
+                "headers": {"X-MBX-APIKEY": "must_not_persist"},
+                "signature": "signature=must_not_persist",
+                "balances": [{"asset": "USDT", "free": "100.0"}],
+                "payload": {"raw": "unrestricted"}
+            }))
+            .unwrap(),
+        )
+        .unwrap();
     }
 
     fn passing_live_alpha_risk_input() -> ProductionLiveAlphaRiskPreflightInput {
@@ -17181,6 +17713,200 @@ write_summary = true
                 .unwrap()
                 .iter()
                 .any(|flag| flag == "--confirm-owner-approved-guarded-send")
+        );
+    }
+
+    #[test]
+    fn production_mutation_response_redaction_persists_allowed_order_metadata_only() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v160-006-response-redaction-ready-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let guarded_send = write_ready_v160_guarded_send_artifact(&output_dir);
+        let response = output_dir.join("synthetic_order_response.json");
+        let output = output_dir.join("production_mutation_response_redaction.json");
+        write_synthetic_production_mutation_response(&response);
+
+        run_live_production_mutation_response_redaction(
+            &production_mutation_response_redaction_opt(
+                guarded_send,
+                response,
+                output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(!body.contains("X-MBX-APIKEY"));
+        assert!(!body.contains("signature=must_not_persist"));
+        assert!(!body.contains("\"headers\""));
+        assert!(!body.contains("\"payload\""));
+        assert!(!body.contains("\"balances\""));
+        let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(
+            artifact["schema_version"],
+            PRODUCTION_MUTATION_RESPONSE_REDACTION_SCHEMA_VERSION
+        );
+        assert_eq!(artifact["status"], "ready_response_redacted");
+        assert_eq!(artifact["response_redaction_ready"], true);
+        assert_eq!(
+            artifact["source_guarded_send_status"],
+            "ready_guarded_send_path_offline_no_network"
+        );
+        assert_eq!(artifact["response_shape_validated"], true);
+        assert_eq!(
+            artifact["response_type"],
+            "binance_order_response_redacted_metadata_v1"
+        );
+        assert_eq!(artifact["symbol"], "BTCUSDT");
+        assert_eq!(artifact["side"], "BUY");
+        assert_eq!(artifact["order_type"], "LIMIT");
+        assert_eq!(artifact["time_in_force"], "GTC");
+        assert_eq!(artifact["order_id"], "123456789");
+        assert_eq!(
+            artifact["client_order_id"],
+            "owner-approved-v160-single-shot"
+        );
+        assert_eq!(artifact["exchange_status"], "NEW");
+        assert_eq!(
+            artifact["transact_time_shape"],
+            "epoch_millis_present_redacted"
+        );
+        assert_eq!(
+            artifact["working_time_shape"],
+            "epoch_millis_present_redacted"
+        );
+        assert_eq!(artifact["api_key_value_recorded"], false);
+        assert_eq!(artifact["api_secret_value_recorded"], false);
+        assert_eq!(artifact["api_key_header_value_recorded"], false);
+        assert_eq!(artifact["signature_recorded"], false);
+        assert_eq!(artifact["signed_query_recorded"], false);
+        assert_eq!(artifact["signed_url_recorded"], false);
+        assert_eq!(artifact["request_body_recorded"], false);
+        assert_eq!(artifact["raw_request_body_recorded"], false);
+        assert_eq!(artifact["raw_exchange_response_recorded"], false);
+        assert_eq!(artifact["response_body_recorded"], false);
+        assert_eq!(artifact["response_headers_recorded"], false);
+        assert_eq!(artifact["unrestricted_payload_recorded"], false);
+        assert_eq!(artifact["account_balances_recorded"], false);
+        assert_eq!(artifact["fills_recorded"], false);
+        assert_eq!(artifact["response_redacted"], true);
+        assert_eq!(
+            artifact["forbidden_response_markers"]
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
+        assert_eq!(
+            artifact["source_artifact_issues"].as_array().unwrap().len(),
+            0
+        );
+        assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["retry_attempted"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["replace_attempted"], false);
+        assert_eq!(artifact["amend_attempted"], false);
+        assert_eq!(artifact["flatten_attempted"], false);
+        assert_eq!(artifact["dashboard_order_controls_enabled"], false);
+        assert_eq!(artifact["real_orders_submitted"], false);
+        assert_eq!(artifact["real_funds"], false);
+    }
+
+    #[test]
+    fn production_mutation_response_redaction_blocks_forbidden_response_markers() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v160-006-response-redaction-forbidden-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let guarded_send = write_ready_v160_guarded_send_artifact(&output_dir);
+        let response = output_dir.join("forbidden_order_response.json");
+        let output = output_dir.join("production_mutation_response_redaction.json");
+        write_forbidden_production_mutation_response(&response);
+
+        run_live_production_mutation_response_redaction(
+            &production_mutation_response_redaction_opt(
+                guarded_send,
+                response,
+                output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_forbidden_response_marker");
+        assert_eq!(artifact["response_redaction_ready"], false);
+        assert_eq!(artifact["response_shape_validated"], false);
+        assert!(
+            artifact["forbidden_response_markers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|marker| marker.as_str().unwrap().contains("$.headers"))
+        );
+        assert!(
+            artifact["forbidden_response_markers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|marker| marker.as_str().unwrap().contains("$.signature"))
+        );
+        assert_eq!(artifact["raw_exchange_response_recorded"], false);
+        assert_eq!(artifact["response_headers_recorded"], false);
+        assert_eq!(artifact["unrestricted_payload_recorded"], false);
+        assert_eq!(artifact["account_balances_recorded"], false);
+    }
+
+    #[test]
+    fn production_mutation_response_redaction_blocks_missing_confirmations() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v160-006-response-redaction-missing-flags-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let guarded_send = write_ready_v160_guarded_send_artifact(&output_dir);
+        let response = output_dir.join("synthetic_order_response.json");
+        let output = output_dir.join("production_mutation_response_redaction.json");
+        write_synthetic_production_mutation_response(&response);
+
+        run_live_production_mutation_response_redaction(
+            &production_mutation_response_redaction_opt(
+                guarded_send,
+                response,
+                output.clone(),
+                false,
+            ),
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_missing_gate");
+        assert_eq!(artifact["response_redaction_ready"], false);
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--allow-production-mutation-response-redaction")
+        );
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--confirm-no-raw-response-persistence")
         );
     }
 

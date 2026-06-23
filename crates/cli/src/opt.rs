@@ -182,6 +182,8 @@ pub enum LiveCommand {
     ProductionMutationRequestBuilder(LiveProductionMutationRequestBuilderOpt),
     /// Evaluates the v0.16 guarded single-shot production HTTP send path.
     ProductionMutationGuardedSend(LiveProductionMutationGuardedSendOpt),
+    /// Redacts a v0.16 production mutation response artifact; no raw response persistence.
+    ProductionMutationResponseRedaction(LiveProductionMutationResponseRedactionOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -1060,6 +1062,50 @@ pub struct LiveProductionMutationGuardedSendOpt {
     /// Confirms listenKey lifecycle remains forbidden.
     #[arg(long)]
     pub confirm_no_listen_key_lifecycle: bool,
+}
+
+/// Owner-approved v0.16 production mutation response redaction options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationResponseRedactionOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.16 guarded-send JSON input.
+    #[arg(long)]
+    pub guarded_send: PathBuf,
+    /// Synthetic or manually supplied production mutation response JSON input.
+    #[arg(long)]
+    pub response: PathBuf,
+    /// v0.16 response redaction JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for response redaction contract evaluation.
+    #[arg(long)]
+    pub allow_production_mutation_response_redaction: bool,
+    /// Confirms owner approved response redaction contract evaluation.
+    #[arg(long)]
+    pub confirm_owner_approved_response_redaction: bool,
+    /// Confirms raw response bodies must not be persisted.
+    #[arg(long)]
+    pub confirm_no_raw_response_persistence: bool,
+    /// Confirms HTTP headers must not be persisted.
+    #[arg(long)]
+    pub confirm_no_headers_persistence: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+    /// Confirms only order metadata fields are allowed.
+    #[arg(long)]
+    pub confirm_order_metadata_only: bool,
+    /// Confirms account balances are not persisted in the response artifact.
+    #[arg(long)]
+    pub confirm_no_account_balances: bool,
+    /// Confirms unrestricted payload capture is forbidden.
+    #[arg(long)]
+    pub confirm_no_unrestricted_payload: bool,
+    /// Confirms retry, correction, cancel, replace, amend, and flatten remain forbidden.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
 }
 
 /// Hypothetical live-alpha risk preflight options.
@@ -2560,6 +2606,63 @@ mod tests {
         assert!(send.confirm_response_redacted);
         assert!(send.confirm_dashboard_order_controls_disabled);
         assert!(send.confirm_no_listen_key_lifecycle);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_response_redaction_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-response-redaction",
+            "--run-id",
+            "v160-response-redaction",
+            "--guarded-send",
+            "runs/v160/guarded-send.json",
+            "--response",
+            "runs/v160/synthetic-response.json",
+            "--output",
+            "runs/v160/response-redaction.json",
+            "--allow-production-mutation-response-redaction",
+            "--confirm-owner-approved-response-redaction",
+            "--confirm-no-raw-response-persistence",
+            "--confirm-no-headers-persistence",
+            "--confirm-no-secret-persistence",
+            "--confirm-order-metadata-only",
+            "--confirm-no-account-balances",
+            "--confirm-no-unrestricted-payload",
+            "--confirm-no-retry",
+        ])
+        .expect("live production-mutation-response-redaction should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationResponseRedaction(redaction) = live.command else {
+            panic!("expected production-mutation-response-redaction command");
+        };
+
+        assert_eq!(redaction.run_id, "v160-response-redaction");
+        assert_eq!(
+            redaction.guarded_send,
+            PathBuf::from("runs/v160/guarded-send.json")
+        );
+        assert_eq!(
+            redaction.response,
+            PathBuf::from("runs/v160/synthetic-response.json")
+        );
+        assert_eq!(
+            redaction.output,
+            PathBuf::from("runs/v160/response-redaction.json")
+        );
+        assert!(redaction.allow_production_mutation_response_redaction);
+        assert!(redaction.confirm_owner_approved_response_redaction);
+        assert!(redaction.confirm_no_raw_response_persistence);
+        assert!(redaction.confirm_no_headers_persistence);
+        assert!(redaction.confirm_no_secret_persistence);
+        assert!(redaction.confirm_order_metadata_only);
+        assert!(redaction.confirm_no_account_balances);
+        assert!(redaction.confirm_no_unrestricted_payload);
+        assert!(redaction.confirm_no_retry);
     }
 
     #[test]
