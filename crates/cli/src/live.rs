@@ -1911,6 +1911,12 @@ struct ProductionMutationResponseRedactionArtifact {
     run_id: String,
     source_guarded_send_path: String,
     source_response_path: String,
+    response_redaction_source: String,
+    source_guarded_send_run_id: String,
+    source_guarded_send_hash: String,
+    redacted_response_derived_from_actual_http_result: bool,
+    synthetic_fixture_redaction_only: bool,
+    owner_run_mutation_closure_evidence: bool,
     artifact_type: String,
     status: String,
     created_at: String,
@@ -7639,12 +7645,29 @@ fn build_production_mutation_response_redaction_artifact(
         json_u64_value(&guarded_send, "production_order_state_reads_attempted").unwrap_or(0);
     let listen_key_lifecycle_attempted =
         json_u64_value(&guarded_send, "listen_key_lifecycle_attempted").unwrap_or(0);
+    let redacted_response_derived_from_actual_http_result =
+        production_mutation_response_redaction_has_actual_http_result(&guarded_send);
+    let synthetic_fixture_redaction_only = !redacted_response_derived_from_actual_http_result;
+    let owner_run_mutation_closure_evidence =
+        response_redaction_ready && redacted_response_derived_from_actual_http_result;
 
     Ok(ProductionMutationResponseRedactionArtifact {
         schema_version: PRODUCTION_MUTATION_RESPONSE_REDACTION_SCHEMA_VERSION.to_string(),
         run_id: opt.run_id.clone(),
         source_guarded_send_path: opt.guarded_send.display().to_string(),
         source_response_path: opt.response.display().to_string(),
+        response_redaction_source: if redacted_response_derived_from_actual_http_result {
+            "actual_guarded_send_http_result"
+        } else {
+            "synthetic_fixture"
+        }
+        .to_string(),
+        source_guarded_send_run_id: json_string_value(&guarded_send, "run_id")
+            .unwrap_or_else(|| "unknown".to_string()),
+        source_guarded_send_hash: file_fnv1a64_hash(&opt.guarded_send.display().to_string()),
+        redacted_response_derived_from_actual_http_result,
+        synthetic_fixture_redaction_only,
+        owner_run_mutation_closure_evidence,
         artifact_type: "production_mutation_response_redaction".to_string(),
         status: status.to_string(),
         created_at: now_millis(),
@@ -9437,6 +9460,18 @@ fn production_mutation_response_redaction_source_issues(
         issues.push("guarded_send_records_disallowed_followup_mutation".to_string());
     }
     issues
+}
+
+fn production_mutation_response_redaction_has_actual_http_result(
+    guarded_send: &serde_json::Value,
+) -> bool {
+    json_bool_value(guarded_send, "request_sent").unwrap_or(false)
+        && json_bool_value(guarded_send, "http_send_attempted").unwrap_or(false)
+        && json_bool_value(guarded_send, "exchange_ack_observed").unwrap_or(false)
+        && json_bool_value(guarded_send, "confirmed_production_order_submission").unwrap_or(false)
+        && json_u64_value(guarded_send, "production_order_submissions_attempted").unwrap_or(0) > 0
+        && json_u64_value(guarded_send, "production_orders_submitted").unwrap_or(0) > 0
+        && json_u64_value(guarded_send, "production_order_mutations_attempted").unwrap_or(0) > 0
 }
 
 fn production_mutation_order_state_readback_source_issues(
@@ -14939,6 +14974,32 @@ write_summary = true
         guarded_send
     }
 
+    fn write_actual_v161_guarded_send_http_result_artifact(output_dir: &Path) -> PathBuf {
+        let guarded_send = write_ready_v160_guarded_send_artifact(output_dir);
+        let mut artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&guarded_send).unwrap()).unwrap();
+        artifact["status"] =
+            serde_json::Value::String("manual_online_send_attempt_recorded".to_string());
+        artifact["manual_online_requested"] = serde_json::Value::Bool(true);
+        artifact["request_sent"] = serde_json::Value::Bool(true);
+        artifact["network_attempted"] = serde_json::Value::Bool(true);
+        artifact["production_order_request_attempted"] = serde_json::Value::Bool(true);
+        artifact["http_send_attempted"] = serde_json::Value::Bool(true);
+        artifact["exchange_ack_observed"] = serde_json::Value::Bool(true);
+        artifact["confirmed_production_order_submission"] = serde_json::Value::Bool(true);
+        artifact["production_order_submissions_attempted"] = serde_json::Value::Number(1.into());
+        artifact["production_orders_submitted"] = serde_json::Value::Number(1.into());
+        artifact["production_order_mutations_attempted"] = serde_json::Value::Number(1.into());
+        artifact["real_orders_submitted"] = serde_json::Value::Bool(true);
+        artifact["production_trading_enabled"] = serde_json::Value::Bool(false);
+        fs::write(
+            &guarded_send,
+            serde_json::to_string_pretty(&artifact).unwrap(),
+        )
+        .unwrap();
+        guarded_send
+    }
+
     fn write_synthetic_production_mutation_response(path: &Path) {
         fs::write(
             path,
@@ -19788,7 +19849,7 @@ write_summary = true
 
         run_live_production_mutation_response_redaction(
             &production_mutation_response_redaction_opt(
-                guarded_send,
+                guarded_send.clone(),
                 response,
                 output.clone(),
                 true,
@@ -19809,6 +19870,21 @@ write_summary = true
         );
         assert_eq!(artifact["status"], "ready_response_redacted");
         assert_eq!(artifact["response_redaction_ready"], true);
+        assert_eq!(artifact["response_redaction_source"], "synthetic_fixture");
+        assert_eq!(
+            artifact["source_guarded_send_run_id"],
+            "v160-production-mutation-guarded-send"
+        );
+        assert_eq!(
+            artifact["source_guarded_send_hash"],
+            file_fnv1a64_hash(&guarded_send.display().to_string())
+        );
+        assert_eq!(
+            artifact["redacted_response_derived_from_actual_http_result"],
+            false
+        );
+        assert_eq!(artifact["synthetic_fixture_redaction_only"], true);
+        assert_eq!(artifact["owner_run_mutation_closure_evidence"], false);
         assert_eq!(
             artifact["source_guarded_send_status"],
             "ready_guarded_send_path_offline_no_network"
@@ -19875,6 +19951,56 @@ write_summary = true
         assert_eq!(artifact["dashboard_order_controls_enabled"], false);
         assert_eq!(artifact["real_orders_submitted"], false);
         assert_eq!(artifact["real_funds"], false);
+    }
+
+    #[test]
+    fn production_mutation_response_redaction_marks_actual_http_result_source() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v161-003-response-redaction-actual-source-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let guarded_send = write_actual_v161_guarded_send_http_result_artifact(&output_dir);
+        let response = output_dir.join("synthetic_order_response.json");
+        let output = output_dir.join("production_mutation_response_redaction.json");
+        write_synthetic_production_mutation_response(&response);
+
+        run_live_production_mutation_response_redaction(
+            &production_mutation_response_redaction_opt(
+                guarded_send.clone(),
+                response,
+                output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "ready_response_redacted");
+        assert_eq!(
+            artifact["response_redaction_source"],
+            "actual_guarded_send_http_result"
+        );
+        assert_eq!(
+            artifact["source_guarded_send_hash"],
+            file_fnv1a64_hash(&guarded_send.display().to_string())
+        );
+        assert_eq!(
+            artifact["redacted_response_derived_from_actual_http_result"],
+            true
+        );
+        assert_eq!(artifact["synthetic_fixture_redaction_only"], false);
+        assert_eq!(artifact["owner_run_mutation_closure_evidence"], true);
+        assert_eq!(artifact["request_sent"], true);
+        assert_eq!(artifact["network_attempted"], true);
+        assert_eq!(artifact["production_orders_submitted"], 1);
+        assert_eq!(artifact["production_order_mutations_attempted"], 1);
+        assert_eq!(artifact["raw_exchange_response_recorded"], false);
+        assert_eq!(artifact["response_headers_recorded"], false);
+        assert_eq!(artifact["unrestricted_payload_recorded"], false);
+        assert_eq!(artifact["account_balances_recorded"], false);
+        assert_eq!(artifact["dashboard_order_controls_enabled"], false);
     }
 
     #[test]
