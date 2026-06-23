@@ -53,12 +53,13 @@ use crate::{
         LiveProductionMutationAuditTrailOpt, LiveProductionMutationExchangeReadbackMapperOpt,
         LiveProductionMutationFailureSemanticsOpt, LiveProductionMutationGuardedSendOpt,
         LiveProductionMutationLocalOrderLedgerOpt, LiveProductionMutationOrderStateReadbackOpt,
-        LiveProductionMutationRequestBuilderOpt, LiveProductionMutationResponseRedactionOpt,
-        LiveProductionMutationRuntimeGateOpt, LiveProductionMutationSigningApprovalOpt,
-        LiveProductionOrderStateReadOnlyProofOpt, LiveProductionPublicReadProbeOpt,
-        LiveProductionReadonlyReconciliationOpt, LiveProductionShadowPortfolioRuntimeOpt,
-        LiveProductionShadowPreflightSessionOpt, LiveProductionShadowStrategySessionOpt,
-        LiveRunOpt, LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveProductionMutationReconciliationClassifierOpt, LiveProductionMutationRequestBuilderOpt,
+        LiveProductionMutationResponseRedactionOpt, LiveProductionMutationRuntimeGateOpt,
+        LiveProductionMutationSigningApprovalOpt, LiveProductionOrderStateReadOnlyProofOpt,
+        LiveProductionPublicReadProbeOpt, LiveProductionReadonlyReconciliationOpt,
+        LiveProductionShadowPortfolioRuntimeOpt, LiveProductionShadowPreflightSessionOpt,
+        LiveProductionShadowStrategySessionOpt, LiveRunOpt,
+        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
         LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
         ProductionMutationFailureMode, ProductionOrderStateReadEndpoint,
@@ -177,6 +178,8 @@ const PRODUCTION_MUTATION_LOCAL_ORDER_LEDGER_SCHEMA_VERSION: &str =
     "ntpro.v170_production_mutation_local_order_ledger.v1";
 const PRODUCTION_MUTATION_EXCHANGE_READBACK_MAPPER_SCHEMA_VERSION: &str =
     "ntpro.v170_production_mutation_exchange_readback_mapper.v1";
+const PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_SCHEMA_VERSION: &str =
+    "ntpro.v170_production_mutation_reconciliation_classifier.v1";
 const PRODUCTION_MUTATION_EXCHANGE_ORDER_READBACK_SCHEMA_VERSION: &str =
     "ntpro.v170_redacted_binance_order_readback.v1";
 const PRODUCTION_MUTATION_EXCHANGE_OPEN_ORDERS_READBACK_SCHEMA_VERSION: &str =
@@ -2403,6 +2406,70 @@ struct ProductionMutationExchangeReadbackMapperArtifact {
     diagnostic: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionMutationReconciliationClassifierArtifact {
+    schema_version: String,
+    run_id: String,
+    order_lineage_id: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    capability: String,
+    capability_expansion_from_v16: String,
+    lineage_scope: String,
+    default_fail_closed: bool,
+    owner_gated_readback_required: bool,
+    exchange_readback_mapper_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    exchange_readback_mapped: bool,
+    reconciliation_classified: bool,
+    orphan_risk_detected: bool,
+    local_request_sent: bool,
+    exchange_order_status: String,
+    exchange_order_state: String,
+    open_order_observed: bool,
+    terminal_state_observed: bool,
+    order_found: bool,
+    reconciliation_outcome: String,
+    source_artifact_issues: Vec<String>,
+    missing_cli_flags: Vec<String>,
+    manual_review_required: bool,
+    new_orders_blocked: bool,
+    network_attempted: bool,
+    production_order_submission_allowed: bool,
+    production_order_mutation_allowed: bool,
+    production_order_state_reads_allowed: bool,
+    listen_key_lifecycle_allowed: bool,
+    duplicate_submit_attempted: bool,
+    retry_attempted: bool,
+    cancel_attempted: bool,
+    replace_attempted: bool,
+    amend_attempted: bool,
+    flatten_attempted: bool,
+    remediation_attempted: bool,
+    automatic_cancel_allowed: bool,
+    automatic_remediation_allowed: bool,
+    dashboard_order_controls_enabled: bool,
+    dashboard_cancel_controls_enabled: bool,
+    api_key_value_recorded: bool,
+    api_secret_value_recorded: bool,
+    api_key_header_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    raw_exchange_response_recorded: bool,
+    response_body_recorded: bool,
+    response_headers_recorded: bool,
+    single_v16_mutation_candidate_lineage_confirmed: bool,
+    read_only_reconciliation_scope_confirmed: bool,
+    no_retry_confirmed: bool,
+    no_cancel_confirmed: bool,
+    no_remediation_confirmed: bool,
+    dashboard_controls_disabled_confirmed: bool,
+    no_secret_persistence_confirmed: bool,
+    diagnostic: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProductionMutationGuardedSendHttpResult {
     request_sent: bool,
@@ -3646,6 +3713,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionMutationExchangeReadbackMapper(mapper) => {
             run_live_production_mutation_exchange_readback_mapper(&mapper)
         }
+        LiveCommand::ProductionMutationReconciliationClassifier(classifier) => {
+            run_live_production_mutation_reconciliation_classifier(&classifier)
+        }
         LiveCommand::ProductionLiveAlphaRiskPreflight(preflight) => {
             run_live_production_live_alpha_risk_preflight(&preflight)
         }
@@ -4092,6 +4162,25 @@ fn run_live_production_mutation_exchange_readback_mapper(
         artifact.exchange_order_status,
         artifact.open_order_observed,
         artifact.terminal_state_observed,
+    );
+    Ok(())
+}
+
+fn run_live_production_mutation_reconciliation_classifier(
+    opt: &LiveProductionMutationReconciliationClassifierOpt,
+) -> anyhow::Result<()> {
+    let artifact = build_production_mutation_reconciliation_classifier_artifact(opt)?;
+    write_production_mutation_reconciliation_classifier_artifact(&opt.output, &artifact)?;
+    println!(
+        "live.production_mutation_reconciliation_classifier status={} run_id={} order_lineage_id={} output={} reconciliation_classified={} reconciliation_outcome={} manual_review_required={} new_orders_blocked={} retry_attempted=false cancel_attempted=false remediation_attempted=false dashboard_order_controls_enabled=false signature_recorded=false signed_query_recorded=false signed_url_recorded=false api_key_value_recorded=false api_secret_value_recorded=false",
+        artifact.status,
+        artifact.run_id,
+        artifact.order_lineage_id,
+        opt.output.display(),
+        artifact.reconciliation_classified,
+        artifact.reconciliation_outcome,
+        artifact.manual_review_required,
+        artifact.new_orders_blocked,
     );
     Ok(())
 }
@@ -8931,6 +9020,123 @@ fn build_production_mutation_exchange_readback_mapper_artifact(
     })
 }
 
+fn build_production_mutation_reconciliation_classifier_artifact(
+    opt: &LiveProductionMutationReconciliationClassifierOpt,
+) -> anyhow::Result<ProductionMutationReconciliationClassifierArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+
+    let exchange_readback_mapper =
+        load_json_value(&opt.exchange_readback_mapper, "exchange readback mapper")?;
+    let missing_cli_flags = missing_production_mutation_reconciliation_classifier_cli_flags(opt);
+    let source_artifact_issues =
+        production_mutation_reconciliation_classifier_source_issues(&exchange_readback_mapper);
+    let classification_ready = missing_cli_flags.is_empty() && source_artifact_issues.is_empty();
+    let (reconciliation_outcome, outcome_manual_review_required, outcome_new_orders_blocked) =
+        classify_production_mutation_reconciliation_outcome(&exchange_readback_mapper);
+    let status = if classification_ready {
+        "ready_reconciliation_classified"
+    } else if !missing_cli_flags.is_empty() {
+        "blocked_missing_gate"
+    } else {
+        "blocked_source_artifact"
+    };
+    let exchange_order_status =
+        json_scalar_string_value(&exchange_readback_mapper, "exchange_order_status")
+            .unwrap_or_else(|| "UNKNOWN".to_string());
+    let exchange_order_state = json_string_value(&exchange_readback_mapper, "exchange_order_state")
+        .unwrap_or_else(|| "unknown".to_string());
+    let local_request_sent =
+        json_bool_value(&exchange_readback_mapper, "request_sent").unwrap_or(false);
+    let manual_review_required = !classification_ready || outcome_manual_review_required;
+    let new_orders_blocked = !classification_ready || outcome_new_orders_blocked;
+
+    Ok(ProductionMutationReconciliationClassifierArtifact {
+        schema_version: PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        order_lineage_id: json_string_value(&exchange_readback_mapper, "order_lineage_id")
+            .unwrap_or_else(|| "missing".to_string()),
+        artifact_type: "production_mutation_reconciliation_classifier".to_string(),
+        status: status.to_string(),
+        created_at: now_millis(),
+        mode: "single_mutation_candidate_reconciliation_classifier".to_string(),
+        capability: "Production Reconciliation And Orphan Recovery Evidence".to_string(),
+        capability_expansion_from_v16: "reconciliation_evidence_only".to_string(),
+        lineage_scope: "single_v16_mutation_candidate".to_string(),
+        default_fail_closed: true,
+        owner_gated_readback_required: true,
+        exchange_readback_mapper_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.exchange_readback_mapper,
+            &exchange_readback_mapper,
+            "exchange_readback_mapped",
+        ),
+        exchange_readback_mapped: json_bool_value(
+            &exchange_readback_mapper,
+            "exchange_readback_mapped",
+        )
+        .unwrap_or(false),
+        reconciliation_classified: classification_ready,
+        orphan_risk_detected: false,
+        local_request_sent,
+        exchange_order_status,
+        exchange_order_state,
+        open_order_observed: json_bool_value(&exchange_readback_mapper, "open_order_observed")
+            .unwrap_or(false),
+        terminal_state_observed: json_bool_value(
+            &exchange_readback_mapper,
+            "terminal_state_observed",
+        )
+        .unwrap_or(false),
+        order_found: json_bool_value(&exchange_readback_mapper, "order_found").unwrap_or(false),
+        reconciliation_outcome: reconciliation_outcome.to_string(),
+        source_artifact_issues,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        manual_review_required,
+        new_orders_blocked,
+        network_attempted: false,
+        production_order_submission_allowed: false,
+        production_order_mutation_allowed: false,
+        production_order_state_reads_allowed: false,
+        listen_key_lifecycle_allowed: false,
+        duplicate_submit_attempted: false,
+        retry_attempted: false,
+        cancel_attempted: false,
+        replace_attempted: false,
+        amend_attempted: false,
+        flatten_attempted: false,
+        remediation_attempted: false,
+        automatic_cancel_allowed: false,
+        automatic_remediation_allowed: false,
+        dashboard_order_controls_enabled: false,
+        dashboard_cancel_controls_enabled: false,
+        api_key_value_recorded: false,
+        api_secret_value_recorded: false,
+        api_key_header_value_recorded: false,
+        signature_recorded: false,
+        signed_query_recorded: false,
+        signed_url_recorded: false,
+        raw_exchange_response_recorded: false,
+        response_body_recorded: false,
+        response_headers_recorded: false,
+        single_v16_mutation_candidate_lineage_confirmed: opt
+            .confirm_single_v16_mutation_candidate_lineage,
+        read_only_reconciliation_scope_confirmed: opt.confirm_read_only_reconciliation_scope,
+        no_retry_confirmed: opt.confirm_no_retry,
+        no_cancel_confirmed: opt.confirm_no_cancel,
+        no_remediation_confirmed: opt.confirm_no_remediation,
+        dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
+        no_secret_persistence_confirmed: opt.confirm_no_secret_persistence,
+        diagnostic: if classification_ready {
+            "local ledger evidence and exchange readback mapper evidence were classified for one mutation candidate lineage; orphan detection and remediation remain later v0.17 steps"
+        } else {
+            "reconciliation classification is blocked because required confirmations or source mapper evidence are incomplete"
+        }
+        .to_string(),
+    })
+}
+
 fn build_production_mutation_runtime_gate_artifact(
     opt: &LiveProductionMutationRuntimeGateOpt,
 ) -> anyhow::Result<ProductionMutationRuntimeGateArtifact> {
@@ -10660,6 +10866,61 @@ fn production_mutation_exchange_readback_mapper_source_issues(
     issues
 }
 
+fn production_mutation_reconciliation_classifier_source_issues(
+    exchange_readback_mapper: &serde_json::Value,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(exchange_readback_mapper, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_EXCHANGE_READBACK_MAPPER_SCHEMA_VERSION)
+    {
+        issues.push("exchange_readback_mapper_schema_mismatch".to_string());
+    }
+    let source_status = json_string_value(exchange_readback_mapper, "status")
+        .unwrap_or_else(|| "unknown".to_string());
+    if !matches!(
+        source_status.as_str(),
+        "ready_exchange_readback_mapped" | "blocked_malformed_exchange_readback"
+    ) {
+        issues.push(format!("exchange_readback_mapper_status_{source_status}"));
+    }
+    let exchange_readback_mapped =
+        json_bool_value(exchange_readback_mapper, "exchange_readback_mapped").unwrap_or(false);
+    if !exchange_readback_mapped && source_status != "blocked_malformed_exchange_readback" {
+        issues.push("exchange_readback_mapper_not_mapped".to_string());
+    }
+    if json_bool_value(exchange_readback_mapper, "reconciliation_classified").unwrap_or(false) {
+        issues.push("exchange_readback_mapper_already_classified".to_string());
+    }
+    if json_bool_value(exchange_readback_mapper, "orphan_risk_detected").unwrap_or(false) {
+        issues.push("exchange_readback_mapper_orphan_risk_already_detected".to_string());
+    }
+    for field in [
+        "api_key_value_recorded",
+        "api_secret_value_recorded",
+        "api_key_header_value_recorded",
+        "signature_recorded",
+        "signed_query_recorded",
+        "signed_url_recorded",
+        "raw_exchange_response_recorded",
+        "response_body_recorded",
+        "response_headers_recorded",
+        "network_attempted",
+        "retry_attempted",
+        "cancel_attempted",
+        "replace_attempted",
+        "amend_attempted",
+        "flatten_attempted",
+        "remediation_attempted",
+        "dashboard_order_controls_enabled",
+        "dashboard_cancel_controls_enabled",
+    ] {
+        if json_bool_value(exchange_readback_mapper, field).unwrap_or(false) {
+            issues.push(format!("exchange_readback_mapper_{field}_true"));
+        }
+    }
+    issues
+}
+
 fn production_mutation_exchange_readback_mapper_malformed_issues(
     order_readback: &serde_json::Value,
 ) -> Vec<String> {
@@ -10673,6 +10934,49 @@ fn production_mutation_exchange_readback_mapper_malformed_issues(
         }
     }
     issues
+}
+
+fn classify_production_mutation_reconciliation_outcome(
+    exchange_readback_mapper: &serde_json::Value,
+) -> (&'static str, bool, bool) {
+    let source_status = json_string_value(exchange_readback_mapper, "status")
+        .unwrap_or_else(|| "unknown".to_string());
+    let exchange_readback_mapped =
+        json_bool_value(exchange_readback_mapper, "exchange_readback_mapped").unwrap_or(false);
+    if source_status == "blocked_malformed_exchange_readback" || !exchange_readback_mapped {
+        return ("readback_failed", true, true);
+    }
+
+    let local_request_sent =
+        json_bool_value(exchange_readback_mapper, "request_sent").unwrap_or(false);
+    let exchange_order_state = json_string_value(exchange_readback_mapper, "exchange_order_state")
+        .unwrap_or_else(|| "unknown".to_string());
+    let order_found = json_bool_value(exchange_readback_mapper, "order_found").unwrap_or(false);
+    let open_order_observed =
+        json_bool_value(exchange_readback_mapper, "open_order_observed").unwrap_or(false);
+    let exchange_order_seen = order_found
+        || open_order_observed
+        || !matches!(
+            exchange_order_state.as_str(),
+            "missing" | "unknown" | "malformed"
+        );
+
+    if !local_request_sent && exchange_order_seen {
+        return ("local_no_send_exchange_order_seen", true, true);
+    }
+
+    if !local_request_sent {
+        return ("readback_failed", true, true);
+    }
+
+    match exchange_order_state.as_str() {
+        "open" => ("local_sent_exchange_new", true, true),
+        "filled" => ("local_sent_exchange_filled", false, false),
+        "canceled" | "expired" => ("local_sent_exchange_canceled", false, false),
+        "rejected" => ("local_sent_exchange_rejected", false, false),
+        "missing" => ("local_sent_exchange_missing", true, true),
+        _ => ("local_sent_exchange_unknown", true, true),
+    }
 }
 
 fn exchange_order_status_supported(status: &str) -> bool {
@@ -13555,6 +13859,16 @@ fn write_production_mutation_exchange_readback_mapper_artifact(
     Ok(())
 }
 
+fn write_production_mutation_reconciliation_classifier_artifact(
+    path: &Path,
+    value: &ProductionMutationReconciliationClassifierArtifact,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
 fn decimal_string_to_f64(field: &str, value: &str) -> Result<f64, String> {
     validate_positive_decimal_string(field, value).map_err(|error| error.to_string())?;
     value
@@ -14347,6 +14661,37 @@ fn missing_production_mutation_exchange_readback_mapper_cli_flags(
     }
     if !opt.confirm_dashboard_order_controls_disabled {
         missing.push("--confirm-dashboard-order-controls-disabled");
+    }
+    missing
+}
+
+fn missing_production_mutation_reconciliation_classifier_cli_flags(
+    opt: &LiveProductionMutationReconciliationClassifierOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_mutation_reconciliation_classifier {
+        missing.push("--allow-production-mutation-reconciliation-classifier");
+    }
+    if !opt.confirm_single_v16_mutation_candidate_lineage {
+        missing.push("--confirm-single-v16-mutation-candidate-lineage");
+    }
+    if !opt.confirm_read_only_reconciliation_scope {
+        missing.push("--confirm-read-only-reconciliation-scope");
+    }
+    if !opt.confirm_no_retry {
+        missing.push("--confirm-no-retry");
+    }
+    if !opt.confirm_no_cancel {
+        missing.push("--confirm-no-cancel");
+    }
+    if !opt.confirm_no_remediation {
+        missing.push("--confirm-no-remediation");
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        missing.push("--confirm-dashboard-order-controls-disabled");
+    }
+    if !opt.confirm_no_secret_persistence {
+        missing.push("--confirm-no-secret-persistence");
     }
     missing
 }
@@ -15848,6 +16193,26 @@ write_summary = true
         }
     }
 
+    fn production_mutation_reconciliation_classifier_opt(
+        exchange_readback_mapper: PathBuf,
+        output: PathBuf,
+        all_cli_gates: bool,
+    ) -> LiveProductionMutationReconciliationClassifierOpt {
+        LiveProductionMutationReconciliationClassifierOpt {
+            run_id: "v170-production-mutation-reconciliation-classifier".to_string(),
+            exchange_readback_mapper,
+            output,
+            allow_production_mutation_reconciliation_classifier: all_cli_gates,
+            confirm_single_v16_mutation_candidate_lineage: all_cli_gates,
+            confirm_read_only_reconciliation_scope: all_cli_gates,
+            confirm_no_retry: all_cli_gates,
+            confirm_no_cancel: all_cli_gates,
+            confirm_no_remediation: all_cli_gates,
+            confirm_dashboard_order_controls_disabled: all_cli_gates,
+            confirm_no_secret_persistence: all_cli_gates,
+        }
+    }
+
     fn write_kill_switch_approval_artifact(
         output: PathBuf,
         kill_switch_active: bool,
@@ -16401,6 +16766,86 @@ write_summary = true
             "remediation_attempted": false,
             "dashboard_order_controls_enabled": false
         });
+        atomic_write_json(output, &body).unwrap();
+    }
+
+    struct V170ExchangeReadbackMapperFixture<'a> {
+        source_status: &'a str,
+        exchange_readback_mapped: bool,
+        request_sent: bool,
+        exchange_order_status: &'a str,
+        exchange_order_state: &'a str,
+        order_found: bool,
+        open_order_observed: bool,
+        terminal_state_observed: bool,
+    }
+
+    fn write_v170_exchange_readback_mapper_fixture(
+        output: &Path,
+        fixture: &V170ExchangeReadbackMapperFixture<'_>,
+    ) {
+        let mut body = json!({
+            "schema_version": PRODUCTION_MUTATION_EXCHANGE_READBACK_MAPPER_SCHEMA_VERSION,
+            "run_id": "v170-production-mutation-exchange-readback-mapper",
+            "order_lineage_id": "lineage-v160-single-shot",
+            "artifact_type": "production_mutation_exchange_readback_mapper",
+            "status": fixture.source_status,
+            "mode": "single_mutation_candidate_exchange_readback_mapper",
+            "capability": "Production Reconciliation And Orphan Recovery Evidence",
+            "capability_expansion_from_v16": "reconciliation_evidence_only",
+            "lineage_scope": "single_v16_mutation_candidate",
+            "default_fail_closed": true,
+            "owner_gated_readback_required": true,
+            "local_ledger_ready": true,
+            "exchange_readback_mapped": fixture.exchange_readback_mapped,
+            "reconciliation_classified": false,
+            "orphan_risk_detected": false,
+            "known_order_id": "123456789",
+            "known_client_order_id": "owner-approved-v160-single-shot",
+            "symbol": "BTCUSDT",
+            "exchange_order_status": fixture.exchange_order_status,
+            "exchange_order_state": fixture.exchange_order_state,
+            "open_order_observed": fixture.open_order_observed,
+            "terminal_state_observed": fixture.terminal_state_observed,
+            "order_found": fixture.order_found,
+            "open_orders_count": i32::from(fixture.open_order_observed),
+            "source_artifact_issues": [],
+            "malformed_readback_issues": [],
+            "missing_cli_flags": [],
+            "manual_review_required": false,
+            "new_orders_blocked": false,
+            "request_sent": fixture.request_sent
+        });
+        let object = body.as_object_mut().unwrap();
+        for field in [
+            "network_attempted",
+            "production_order_submission_allowed",
+            "production_order_mutation_allowed",
+            "production_order_state_reads_allowed",
+            "listen_key_lifecycle_allowed",
+            "duplicate_submit_attempted",
+            "retry_attempted",
+            "cancel_attempted",
+            "replace_attempted",
+            "amend_attempted",
+            "flatten_attempted",
+            "remediation_attempted",
+            "automatic_cancel_allowed",
+            "automatic_remediation_allowed",
+            "dashboard_order_controls_enabled",
+            "dashboard_cancel_controls_enabled",
+            "api_key_value_recorded",
+            "api_secret_value_recorded",
+            "api_key_header_value_recorded",
+            "signature_recorded",
+            "signed_query_recorded",
+            "signed_url_recorded",
+            "raw_exchange_response_recorded",
+            "response_body_recorded",
+            "response_headers_recorded",
+        ] {
+            object.insert(field.to_string(), json!(false));
+        }
         atomic_write_json(output, &body).unwrap();
     }
 
@@ -22575,6 +23020,271 @@ write_summary = true
         );
         assert_eq!(artifact["retry_attempted"], false);
         assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["dashboard_order_controls_enabled"], false);
+    }
+
+    #[test]
+    fn production_mutation_reconciliation_classifier_classifies_required_outcomes() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v170-003-reconciliation-classifier-outcomes-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+
+        for (
+            name,
+            source_status,
+            exchange_readback_mapped,
+            request_sent,
+            exchange_order_status,
+            exchange_order_state,
+            order_found,
+            open_order_observed,
+            terminal_state_observed,
+            expected_outcome,
+            expected_manual_review,
+            expected_new_orders_blocked,
+        ) in [
+            (
+                "local-sent-exchange-unknown",
+                "ready_exchange_readback_mapped",
+                true,
+                true,
+                "UNKNOWN",
+                "unknown",
+                true,
+                false,
+                false,
+                "local_sent_exchange_unknown",
+                true,
+                true,
+            ),
+            (
+                "local-sent-exchange-new",
+                "ready_exchange_readback_mapped",
+                true,
+                true,
+                "NEW",
+                "open",
+                true,
+                true,
+                false,
+                "local_sent_exchange_new",
+                true,
+                true,
+            ),
+            (
+                "local-sent-exchange-filled",
+                "ready_exchange_readback_mapped",
+                true,
+                true,
+                "FILLED",
+                "filled",
+                true,
+                false,
+                true,
+                "local_sent_exchange_filled",
+                false,
+                false,
+            ),
+            (
+                "local-sent-exchange-canceled",
+                "ready_exchange_readback_mapped",
+                true,
+                true,
+                "CANCELED",
+                "canceled",
+                true,
+                false,
+                true,
+                "local_sent_exchange_canceled",
+                false,
+                false,
+            ),
+            (
+                "local-sent-exchange-rejected",
+                "ready_exchange_readback_mapped",
+                true,
+                true,
+                "REJECTED",
+                "rejected",
+                true,
+                false,
+                true,
+                "local_sent_exchange_rejected",
+                false,
+                false,
+            ),
+            (
+                "local-sent-exchange-missing",
+                "ready_exchange_readback_mapped",
+                true,
+                true,
+                "MISSING",
+                "missing",
+                false,
+                false,
+                false,
+                "local_sent_exchange_missing",
+                true,
+                true,
+            ),
+            (
+                "local-no-send-exchange-order-seen",
+                "ready_exchange_readback_mapped",
+                true,
+                false,
+                "NEW",
+                "open",
+                true,
+                true,
+                false,
+                "local_no_send_exchange_order_seen",
+                true,
+                true,
+            ),
+            (
+                "readback-failed",
+                "blocked_malformed_exchange_readback",
+                false,
+                true,
+                "MALFORMED",
+                "malformed",
+                true,
+                false,
+                false,
+                "readback_failed",
+                true,
+                true,
+            ),
+        ] {
+            let mapper = output_dir.join(format!("mapper-{name}.json"));
+            let output = output_dir.join(format!("classifier-{name}.json"));
+            write_v170_exchange_readback_mapper_fixture(
+                &mapper,
+                &V170ExchangeReadbackMapperFixture {
+                    source_status,
+                    exchange_readback_mapped,
+                    request_sent,
+                    exchange_order_status,
+                    exchange_order_state,
+                    order_found,
+                    open_order_observed,
+                    terminal_state_observed,
+                },
+            );
+
+            run_live_production_mutation_reconciliation_classifier(
+                &production_mutation_reconciliation_classifier_opt(mapper, output.clone(), true),
+            )
+            .unwrap();
+
+            let body = fs::read_to_string(output).unwrap();
+            assert!(!body.contains("X-MBX-APIKEY"));
+            assert!(!body.contains("signature="));
+            let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert_eq!(
+                artifact["schema_version"],
+                PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_SCHEMA_VERSION
+            );
+            assert_eq!(artifact["status"], "ready_reconciliation_classified");
+            assert_eq!(artifact["reconciliation_classified"], true);
+            assert_eq!(artifact["orphan_risk_detected"], false);
+            assert_eq!(artifact["order_lineage_id"], "lineage-v160-single-shot");
+            assert_eq!(artifact["local_request_sent"], request_sent);
+            assert_eq!(artifact["exchange_order_status"], exchange_order_status);
+            assert_eq!(artifact["exchange_order_state"], exchange_order_state);
+            assert_eq!(artifact["open_order_observed"], open_order_observed);
+            assert_eq!(artifact["terminal_state_observed"], terminal_state_observed);
+            assert_eq!(artifact["order_found"], order_found);
+            assert_eq!(artifact["reconciliation_outcome"], expected_outcome);
+            assert_eq!(artifact["manual_review_required"], expected_manual_review);
+            assert_eq!(artifact["new_orders_blocked"], expected_new_orders_blocked);
+            assert_eq!(
+                artifact["source_artifact_issues"].as_array().unwrap().len(),
+                0
+            );
+            assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+            assert_eq!(artifact["network_attempted"], false);
+            assert_eq!(artifact["production_order_submission_allowed"], false);
+            assert_eq!(artifact["production_order_mutation_allowed"], false);
+            assert_eq!(artifact["duplicate_submit_attempted"], false);
+            assert_eq!(artifact["retry_attempted"], false);
+            assert_eq!(artifact["cancel_attempted"], false);
+            assert_eq!(artifact["replace_attempted"], false);
+            assert_eq!(artifact["amend_attempted"], false);
+            assert_eq!(artifact["flatten_attempted"], false);
+            assert_eq!(artifact["remediation_attempted"], false);
+            assert_eq!(artifact["automatic_cancel_allowed"], false);
+            assert_eq!(artifact["automatic_remediation_allowed"], false);
+            assert_eq!(artifact["dashboard_order_controls_enabled"], false);
+            assert_eq!(artifact["dashboard_cancel_controls_enabled"], false);
+            assert_eq!(artifact["api_key_value_recorded"], false);
+            assert_eq!(artifact["api_secret_value_recorded"], false);
+            assert_eq!(artifact["signature_recorded"], false);
+            assert_eq!(artifact["signed_query_recorded"], false);
+            assert_eq!(artifact["signed_url_recorded"], false);
+            assert_eq!(artifact["raw_exchange_response_recorded"], false);
+            assert_eq!(artifact["response_body_recorded"], false);
+            assert_eq!(artifact["response_headers_recorded"], false);
+        }
+    }
+
+    #[test]
+    fn production_mutation_reconciliation_classifier_blocks_missing_confirmations() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v170-003-reconciliation-classifier-missing-flags-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let mapper = output_dir.join("mapper-ready-new.json");
+        let output = output_dir.join("classifier-missing-flags.json");
+        write_v170_exchange_readback_mapper_fixture(
+            &mapper,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+
+        run_live_production_mutation_reconciliation_classifier(
+            &production_mutation_reconciliation_classifier_opt(mapper, output.clone(), false),
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_missing_gate");
+        assert_eq!(artifact["reconciliation_classified"], false);
+        assert_eq!(
+            artifact["reconciliation_outcome"],
+            "local_sent_exchange_new"
+        );
+        assert_eq!(artifact["manual_review_required"], true);
+        assert_eq!(artifact["new_orders_blocked"], true);
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--allow-production-mutation-reconciliation-classifier")
+        );
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--confirm-no-remediation")
+        );
+        assert_eq!(artifact["retry_attempted"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["remediation_attempted"], false);
         assert_eq!(artifact["dashboard_order_controls_enabled"], false);
     }
 
