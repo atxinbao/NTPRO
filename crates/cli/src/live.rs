@@ -50,18 +50,18 @@ use crate::{
         LiveProductionLiveAlphaExecutionDryRunOpt, LiveProductionLiveAlphaKillSwitchRuntimeGateOpt,
         LiveProductionLiveAlphaManualApprovalLifecycleOpt,
         LiveProductionLiveAlphaOrderRequestPreviewOpt, LiveProductionLiveAlphaRiskPreflightOpt,
-        LiveProductionMutationAuditTrailOpt, LiveProductionMutationGuardedSendOpt,
-        LiveProductionMutationOrderStateReadbackOpt, LiveProductionMutationRequestBuilderOpt,
-        LiveProductionMutationResponseRedactionOpt, LiveProductionMutationRuntimeGateOpt,
-        LiveProductionMutationSigningApprovalOpt, LiveProductionOrderStateReadOnlyProofOpt,
-        LiveProductionPublicReadProbeOpt, LiveProductionReadonlyReconciliationOpt,
-        LiveProductionShadowPortfolioRuntimeOpt, LiveProductionShadowPreflightSessionOpt,
-        LiveProductionShadowStrategySessionOpt, LiveRunOpt,
-        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveProductionMutationAuditTrailOpt, LiveProductionMutationFailureSemanticsOpt,
+        LiveProductionMutationGuardedSendOpt, LiveProductionMutationOrderStateReadbackOpt,
+        LiveProductionMutationRequestBuilderOpt, LiveProductionMutationResponseRedactionOpt,
+        LiveProductionMutationRuntimeGateOpt, LiveProductionMutationSigningApprovalOpt,
+        LiveProductionOrderStateReadOnlyProofOpt, LiveProductionPublicReadProbeOpt,
+        LiveProductionReadonlyReconciliationOpt, LiveProductionShadowPortfolioRuntimeOpt,
+        LiveProductionShadowPreflightSessionOpt, LiveProductionShadowStrategySessionOpt,
+        LiveRunOpt, LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
         LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
-        ProductionOrderStateReadEndpoint, ProductionPublicReadEndpoint,
-        TestnetReconciliationScenario,
+        ProductionMutationFailureMode, ProductionOrderStateReadEndpoint,
+        ProductionPublicReadEndpoint, TestnetReconciliationScenario,
     },
     process::process_is_alive,
     strategy_session::{
@@ -170,6 +170,8 @@ const PRODUCTION_MUTATION_ORDER_STATE_READBACK_SCHEMA_VERSION: &str =
     "ntpro.v160_production_mutation_order_state_readback.v1";
 const PRODUCTION_MUTATION_AUDIT_TRAIL_SCHEMA_VERSION: &str =
     "ntpro.v160_production_mutation_audit_trail.v1";
+const PRODUCTION_MUTATION_FAILURE_SEMANTICS_SCHEMA_VERSION: &str =
+    "ntpro.v160_production_mutation_failure_semantics.v1";
 const PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW: &str = "NTPRO_ALLOW_PRODUCTION_MUTATION_HTTP_SEND";
 const PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED: &str =
     "NTPRO_OWNER_APPROVED_PRODUCTION_MUTATION_HTTP_SEND";
@@ -2139,6 +2141,65 @@ struct ProductionMutationAuditTrailArtifact {
     diagnostic: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionMutationFailureSemanticsArtifact {
+    schema_version: String,
+    run_id: String,
+    source_audit_trail_path: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    capability: String,
+    failure_semantics_ready: bool,
+    failure_mode: String,
+    failure_category: String,
+    failure_state: String,
+    source_audit_trail_status: String,
+    source_audit_trail_ready: bool,
+    source_failure_state: String,
+    terminal_action: String,
+    evidence_written: bool,
+    stop_after_evidence: bool,
+    strategy_continuation_allowed: bool,
+    request_sent: bool,
+    network_attempted: bool,
+    order_state_read_attempted: bool,
+    kill_switch_checked_before_send: bool,
+    kill_switch_checked_after_send: bool,
+    kill_switch_blocked_send: bool,
+    retry_allowed: bool,
+    retry_attempted: bool,
+    retry_attempts: u64,
+    max_retry_attempts: u64,
+    cancel_attempted: bool,
+    replace_attempted: bool,
+    amend_attempted: bool,
+    correction_attempted: bool,
+    flatten_attempted: bool,
+    remediation_attempted: bool,
+    automatic_remediation_allowed: bool,
+    dashboard_order_controls_enabled: bool,
+    production_order_mutation_allowed: bool,
+    production_order_state_reads_allowed: bool,
+    listen_key_lifecycle_allowed: bool,
+    production_order_submissions_attempted: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    production_order_state_reads_attempted: u64,
+    listen_key_lifecycle_attempted: u64,
+    source_artifact_issues: Vec<String>,
+    missing_cli_flags: Vec<String>,
+    evidence_only_failure_handling_confirmed: bool,
+    no_retry_confirmed: bool,
+    no_automatic_cancel_replace_amend_confirmed: bool,
+    no_correction_or_flatten_confirmed: bool,
+    dashboard_controls_disabled_confirmed: bool,
+    no_strategy_continuation_confirmed: bool,
+    no_listen_key_lifecycle_confirmed: bool,
+    diagnostic: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProductionMutationGuardedSendHttpResult {
     request_sent: bool,
@@ -3280,6 +3341,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionMutationAuditTrail(audit) => {
             run_live_production_mutation_audit_trail(&audit)
         }
+        LiveCommand::ProductionMutationFailureSemantics(failure) => {
+            run_live_production_mutation_failure_semantics(&failure)
+        }
         LiveCommand::ProductionLiveAlphaRiskPreflight(preflight) => {
             run_live_production_live_alpha_risk_preflight(&preflight)
         }
@@ -3662,6 +3726,23 @@ fn run_live_production_mutation_audit_trail(
         artifact.network_attempted,
         artifact.kill_switch_checked_before_send,
         artifact.kill_switch_checked_after_send,
+    );
+    Ok(())
+}
+
+fn run_live_production_mutation_failure_semantics(
+    opt: &LiveProductionMutationFailureSemanticsOpt,
+) -> anyhow::Result<()> {
+    let artifact = build_production_mutation_failure_semantics_artifact(opt)?;
+    write_production_mutation_failure_semantics_artifact(&opt.output, &artifact)?;
+    println!(
+        "live.production_mutation_failure_semantics status={} run_id={} output={} failure_semantics_ready={} failure_mode={} terminal_action={} retry_attempted=false cancel_attempted=false replace_attempted=false amend_attempted=false correction_attempted=false flatten_attempted=false remediation_attempted=false strategy_continuation_allowed=false dashboard_order_controls_enabled=false listen_key_lifecycle_attempted=0",
+        artifact.status,
+        artifact.run_id,
+        opt.output.display(),
+        artifact.failure_semantics_ready,
+        artifact.failure_mode,
+        artifact.terminal_action,
     );
     Ok(())
 }
@@ -7933,6 +8014,134 @@ fn build_production_mutation_audit_trail_artifact(
     })
 }
 
+fn build_production_mutation_failure_semantics_artifact(
+    opt: &LiveProductionMutationFailureSemanticsOpt,
+) -> anyhow::Result<ProductionMutationFailureSemanticsArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+
+    let audit_trail = load_json_value(&opt.audit_trail, "production mutation audit trail")?;
+    let missing_cli_flags = missing_production_mutation_failure_semantics_cli_flags(opt);
+    let source_artifact_issues = production_mutation_failure_semantics_source_issues(&audit_trail);
+    let failure_semantics_ready = missing_cli_flags.is_empty() && source_artifact_issues.is_empty();
+    let failure_mode = opt.failure_mode.as_str();
+    let failure_category = opt.failure_mode.category();
+    let failure_state = if failure_semantics_ready {
+        opt.failure_mode.failure_state()
+    } else if !missing_cli_flags.is_empty() {
+        "blocked_missing_gate"
+    } else {
+        "blocked_source_artifact"
+    };
+
+    Ok(ProductionMutationFailureSemanticsArtifact {
+        schema_version: PRODUCTION_MUTATION_FAILURE_SEMANTICS_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        source_audit_trail_path: opt.audit_trail.display().to_string(),
+        artifact_type: "production_mutation_failure_semantics".to_string(),
+        status: if failure_semantics_ready {
+            "ready_failure_semantics_evidence"
+        } else if !missing_cli_flags.is_empty() {
+            "blocked_missing_gate"
+        } else {
+            "blocked_source_artifact"
+        }
+        .to_string(),
+        created_at: now_millis(),
+        mode: "evidence_only_failure_no_retry_semantics".to_string(),
+        capability: "Minimum Owner-Approved Production Order Mutation Candidate".to_string(),
+        failure_semantics_ready,
+        failure_mode: failure_mode.to_string(),
+        failure_category: failure_category.to_string(),
+        failure_state: failure_state.to_string(),
+        source_audit_trail_status: json_string_value(&audit_trail, "status")
+            .unwrap_or_else(|| "unknown".to_string()),
+        source_audit_trail_ready: json_bool_value(&audit_trail, "audit_trail_ready")
+            .unwrap_or(false),
+        source_failure_state: json_string_value(&audit_trail, "failure_state")
+            .unwrap_or_else(|| "unknown".to_string()),
+        terminal_action: "write_evidence_and_stop".to_string(),
+        evidence_written: true,
+        stop_after_evidence: true,
+        strategy_continuation_allowed: false,
+        request_sent: json_bool_value(&audit_trail, "request_sent").unwrap_or(false),
+        network_attempted: json_bool_value(&audit_trail, "network_attempted").unwrap_or(false),
+        order_state_read_attempted: json_bool_value(&audit_trail, "order_state_read_attempted")
+            .unwrap_or(false),
+        kill_switch_checked_before_send: json_bool_value(
+            &audit_trail,
+            "kill_switch_checked_before_send",
+        )
+        .unwrap_or(false),
+        kill_switch_checked_after_send: json_bool_value(
+            &audit_trail,
+            "kill_switch_checked_after_send",
+        )
+        .unwrap_or(false),
+        kill_switch_blocked_send: json_bool_value(&audit_trail, "kill_switch_blocked_send")
+            .unwrap_or(false),
+        retry_allowed: false,
+        retry_attempted: false,
+        retry_attempts: 0,
+        max_retry_attempts: 0,
+        cancel_attempted: false,
+        replace_attempted: false,
+        amend_attempted: false,
+        correction_attempted: false,
+        flatten_attempted: false,
+        remediation_attempted: false,
+        automatic_remediation_allowed: false,
+        dashboard_order_controls_enabled: false,
+        production_order_mutation_allowed: false,
+        production_order_state_reads_allowed: json_bool_value(
+            &audit_trail,
+            "production_order_state_reads_allowed",
+        )
+        .unwrap_or(false),
+        listen_key_lifecycle_allowed: false,
+        production_order_submissions_attempted: json_u64_value(
+            &audit_trail,
+            "production_order_submissions_attempted",
+        )
+        .unwrap_or(0),
+        production_orders_submitted: json_u64_value(&audit_trail, "production_orders_submitted")
+            .unwrap_or(0),
+        production_order_mutations_attempted: json_u64_value(
+            &audit_trail,
+            "production_order_mutations_attempted",
+        )
+        .unwrap_or(0),
+        production_order_state_reads_attempted: json_u64_value(
+            &audit_trail,
+            "production_order_state_reads_attempted",
+        )
+        .unwrap_or(0),
+        listen_key_lifecycle_attempted: json_u64_value(
+            &audit_trail,
+            "listen_key_lifecycle_attempted",
+        )
+        .unwrap_or(0),
+        source_artifact_issues,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        evidence_only_failure_handling_confirmed: opt.confirm_evidence_only_failure_handling,
+        no_retry_confirmed: opt.confirm_no_retry,
+        no_automatic_cancel_replace_amend_confirmed: opt
+            .confirm_no_automatic_cancel_replace_amend,
+        no_correction_or_flatten_confirmed: opt.confirm_no_correction_or_flatten,
+        dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
+        no_strategy_continuation_confirmed: opt.confirm_no_strategy_continuation,
+        no_listen_key_lifecycle_confirmed: opt.confirm_no_listen_key_lifecycle,
+        diagnostic: if failure_semantics_ready {
+            "failure mode writes redacted evidence and stops without retry, cancel, replace, amend, correction, flatten, Dashboard controls, listenKey lifecycle, or strategy continuation"
+        } else {
+            "production mutation failure semantics are blocked because required confirmations or source audit evidence are incomplete"
+        }
+        .to_string(),
+    })
+}
+
 fn build_production_mutation_runtime_gate_artifact(
     opt: &LiveProductionMutationRuntimeGateOpt,
 ) -> anyhow::Result<ProductionMutationRuntimeGateArtifact> {
@@ -9270,6 +9479,102 @@ fn production_mutation_audit_failure_state(
     } else {
         "none_recorded".to_string()
     }
+}
+
+impl ProductionMutationFailureMode {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Timeout => "timeout",
+            Self::Http4xx => "http-4xx",
+            Self::Http5xx => "http-5xx",
+            Self::MalformedResponse => "malformed-response",
+            Self::ReadbackMismatch => "readback-mismatch",
+            Self::KillSwitchTransition => "kill-switch-transition",
+        }
+    }
+
+    fn category(self) -> &'static str {
+        match self {
+            Self::Timeout => "transport_timeout",
+            Self::Http4xx => "exchange_rejected_or_client_error",
+            Self::Http5xx => "exchange_or_gateway_error",
+            Self::MalformedResponse => "response_shape_error",
+            Self::ReadbackMismatch => "post_submit_observability_mismatch",
+            Self::KillSwitchTransition => "kill_switch_transition",
+        }
+    }
+
+    fn failure_state(self) -> &'static str {
+        match self {
+            Self::Timeout => "timeout_write_evidence_and_stop",
+            Self::Http4xx => "http_4xx_write_evidence_and_stop",
+            Self::Http5xx => "http_5xx_write_evidence_and_stop",
+            Self::MalformedResponse => "malformed_response_write_evidence_and_stop",
+            Self::ReadbackMismatch => "readback_mismatch_write_evidence_and_stop",
+            Self::KillSwitchTransition => "kill_switch_transition_write_evidence_and_stop",
+        }
+    }
+}
+
+fn production_mutation_failure_semantics_source_issues(
+    audit_trail: &serde_json::Value,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(audit_trail, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_AUDIT_TRAIL_SCHEMA_VERSION)
+    {
+        issues.push("audit_trail_schema_mismatch".to_string());
+    }
+    if json_string_value(audit_trail, "status").as_deref() != Some("ready_redacted_audit_trail") {
+        issues.push("audit_trail_not_ready".to_string());
+    }
+    if !json_bool_value(audit_trail, "audit_trail_ready").unwrap_or(false) {
+        issues.push("audit_trail_ready_false".to_string());
+    }
+    if !json_bool_value(audit_trail, "no_retry_or_followup_mutation_confirmed").unwrap_or(false) {
+        issues.push("audit_trail_no_retry_not_confirmed".to_string());
+    }
+    if !json_bool_value(audit_trail, "dashboard_controls_disabled_confirmed").unwrap_or(false) {
+        issues.push("audit_trail_dashboard_controls_not_confirmed".to_string());
+    }
+    if !json_bool_value(audit_trail, "no_listen_key_lifecycle_confirmed").unwrap_or(false) {
+        issues.push("audit_trail_listen_key_not_confirmed".to_string());
+    }
+    for field in [
+        "retry_attempted",
+        "cancel_attempted",
+        "replace_attempted",
+        "amend_attempted",
+        "flatten_attempted",
+        "dashboard_order_controls_enabled",
+        "production_order_mutation_allowed",
+        "listen_key_lifecycle_allowed",
+        "api_key_value_recorded",
+        "api_secret_value_recorded",
+        "api_key_header_value_recorded",
+        "signature_recorded",
+        "signed_query_recorded",
+        "signed_url_recorded",
+        "raw_exchange_response_recorded",
+        "response_body_recorded",
+        "response_headers_recorded",
+        "unrestricted_payload_recorded",
+        "account_balances_recorded",
+        "production_trading_enabled",
+    ] {
+        if json_bool_value(audit_trail, field).unwrap_or(false) {
+            issues.push(format!("audit_trail_{field}_true"));
+        }
+    }
+    for field in [
+        "production_order_mutations_attempted",
+        "listen_key_lifecycle_attempted",
+    ] {
+        if json_u64_value(audit_trail, field).unwrap_or(0) > 0 {
+            issues.push(format!("audit_trail_{field}_nonzero"));
+        }
+    }
+    issues
 }
 
 fn production_mutation_response_forbidden_markers(value: &serde_json::Value) -> Vec<String> {
@@ -12061,6 +12366,16 @@ fn write_production_mutation_audit_trail_artifact(
     Ok(())
 }
 
+fn write_production_mutation_failure_semantics_artifact(
+    path: &Path,
+    value: &ProductionMutationFailureSemanticsArtifact,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
 fn decimal_string_to_f64(field: &str, value: &str) -> Result<f64, String> {
     validate_positive_decimal_string(field, value).map_err(|error| error.to_string())?;
     value
@@ -12739,6 +13054,37 @@ fn missing_production_mutation_audit_trail_cli_flags(
     }
     if !opt.confirm_dashboard_order_controls_disabled {
         missing.push("--confirm-dashboard-order-controls-disabled");
+    }
+    if !opt.confirm_no_listen_key_lifecycle {
+        missing.push("--confirm-no-listen-key-lifecycle");
+    }
+    missing
+}
+
+fn missing_production_mutation_failure_semantics_cli_flags(
+    opt: &LiveProductionMutationFailureSemanticsOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_mutation_failure_semantics {
+        missing.push("--allow-production-mutation-failure-semantics");
+    }
+    if !opt.confirm_evidence_only_failure_handling {
+        missing.push("--confirm-evidence-only-failure-handling");
+    }
+    if !opt.confirm_no_retry {
+        missing.push("--confirm-no-retry");
+    }
+    if !opt.confirm_no_automatic_cancel_replace_amend {
+        missing.push("--confirm-no-automatic-cancel-replace-amend");
+    }
+    if !opt.confirm_no_correction_or_flatten {
+        missing.push("--confirm-no-correction-or-flatten");
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        missing.push("--confirm-dashboard-order-controls-disabled");
+    }
+    if !opt.confirm_no_strategy_continuation {
+        missing.push("--confirm-no-strategy-continuation");
     }
     if !opt.confirm_no_listen_key_lifecycle {
         missing.push("--confirm-no-listen-key-lifecycle");
@@ -14098,6 +14444,28 @@ write_summary = true
         }
     }
 
+    fn production_mutation_failure_semantics_opt(
+        audit_trail: PathBuf,
+        output: PathBuf,
+        failure_mode: ProductionMutationFailureMode,
+        all_cli_gates: bool,
+    ) -> LiveProductionMutationFailureSemanticsOpt {
+        LiveProductionMutationFailureSemanticsOpt {
+            run_id: "v160-production-mutation-failure-semantics".to_string(),
+            audit_trail,
+            failure_mode,
+            output,
+            allow_production_mutation_failure_semantics: all_cli_gates,
+            confirm_evidence_only_failure_handling: all_cli_gates,
+            confirm_no_retry: all_cli_gates,
+            confirm_no_automatic_cancel_replace_amend: all_cli_gates,
+            confirm_no_correction_or_flatten: all_cli_gates,
+            confirm_dashboard_order_controls_disabled: all_cli_gates,
+            confirm_no_strategy_continuation: all_cli_gates,
+            confirm_no_listen_key_lifecycle: all_cli_gates,
+        }
+    }
+
     fn write_kill_switch_approval_artifact(
         output: PathBuf,
         kill_switch_active: bool,
@@ -14462,6 +14830,22 @@ write_summary = true
             response_redaction,
             order_state_readback,
         )
+    }
+
+    fn write_ready_v160_audit_trail_artifact(output_dir: &Path) -> PathBuf {
+        let (request_builder, guarded_send, response_redaction, order_state_readback) =
+            write_ready_v160_audit_trail_sources(output_dir);
+        let audit_trail = output_dir.join("production_mutation_audit_trail.json");
+        run_live_production_mutation_audit_trail(&production_mutation_audit_trail_opt(
+            request_builder,
+            guarded_send,
+            response_redaction,
+            order_state_readback,
+            audit_trail.clone(),
+            true,
+        ))
+        .unwrap();
+        audit_trail
     }
 
     fn passing_live_alpha_risk_input() -> ProductionLiveAlphaRiskPreflightInput {
@@ -19678,6 +20062,151 @@ write_summary = true
                 .unwrap()
                 .iter()
                 .any(|flag| flag == "--confirm-redacted-artifacts-only")
+        );
+    }
+
+    #[test]
+    fn production_mutation_failure_semantics_records_no_retry_for_failure_modes() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v160-010-failure-semantics-ready-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let audit_trail = write_ready_v160_audit_trail_artifact(&output_dir);
+
+        for (mode, expected_state) in [
+            (
+                ProductionMutationFailureMode::Timeout,
+                "timeout_write_evidence_and_stop",
+            ),
+            (
+                ProductionMutationFailureMode::Http4xx,
+                "http_4xx_write_evidence_and_stop",
+            ),
+            (
+                ProductionMutationFailureMode::Http5xx,
+                "http_5xx_write_evidence_and_stop",
+            ),
+            (
+                ProductionMutationFailureMode::MalformedResponse,
+                "malformed_response_write_evidence_and_stop",
+            ),
+            (
+                ProductionMutationFailureMode::ReadbackMismatch,
+                "readback_mismatch_write_evidence_and_stop",
+            ),
+            (
+                ProductionMutationFailureMode::KillSwitchTransition,
+                "kill_switch_transition_write_evidence_and_stop",
+            ),
+        ] {
+            let output = output_dir.join(format!("failure_semantics_{}.json", mode.as_str()));
+            run_live_production_mutation_failure_semantics(
+                &production_mutation_failure_semantics_opt(
+                    audit_trail.clone(),
+                    output.clone(),
+                    mode,
+                    true,
+                ),
+            )
+            .unwrap();
+
+            let body = fs::read_to_string(output).unwrap();
+            assert!(!body.contains("ntpro_v160005_production_like_api_key_value"));
+            assert!(!body.contains("ntpro_v160005_production_like_api_secret_value"));
+            assert!(!body.contains("signature="));
+            assert!(!body.contains("X-MBX-APIKEY"));
+            let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert_eq!(
+                artifact["schema_version"],
+                PRODUCTION_MUTATION_FAILURE_SEMANTICS_SCHEMA_VERSION
+            );
+            assert_eq!(artifact["status"], "ready_failure_semantics_evidence");
+            assert_eq!(artifact["failure_semantics_ready"], true);
+            assert_eq!(artifact["failure_mode"], mode.as_str());
+            assert_eq!(artifact["failure_state"], expected_state);
+            assert_eq!(artifact["terminal_action"], "write_evidence_and_stop");
+            assert_eq!(artifact["evidence_written"], true);
+            assert_eq!(artifact["stop_after_evidence"], true);
+            assert_eq!(artifact["strategy_continuation_allowed"], false);
+            assert_eq!(
+                artifact["source_audit_trail_status"],
+                "ready_redacted_audit_trail"
+            );
+            assert_eq!(artifact["source_audit_trail_ready"], true);
+            assert_eq!(artifact["source_failure_state"], "none_recorded");
+            assert_eq!(artifact["retry_allowed"], false);
+            assert_eq!(artifact["retry_attempted"], false);
+            assert_eq!(artifact["retry_attempts"], 0);
+            assert_eq!(artifact["max_retry_attempts"], 0);
+            assert_eq!(artifact["cancel_attempted"], false);
+            assert_eq!(artifact["replace_attempted"], false);
+            assert_eq!(artifact["amend_attempted"], false);
+            assert_eq!(artifact["correction_attempted"], false);
+            assert_eq!(artifact["flatten_attempted"], false);
+            assert_eq!(artifact["remediation_attempted"], false);
+            assert_eq!(artifact["automatic_remediation_allowed"], false);
+            assert_eq!(artifact["dashboard_order_controls_enabled"], false);
+            assert_eq!(artifact["listen_key_lifecycle_allowed"], false);
+            assert_eq!(artifact["production_order_mutations_attempted"], 0);
+            assert_eq!(artifact["listen_key_lifecycle_attempted"], 0);
+            assert_eq!(
+                artifact["source_artifact_issues"].as_array().unwrap().len(),
+                0
+            );
+            assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+            assert_eq!(artifact["evidence_only_failure_handling_confirmed"], true);
+            assert_eq!(artifact["no_retry_confirmed"], true);
+            assert_eq!(
+                artifact["no_automatic_cancel_replace_amend_confirmed"],
+                true
+            );
+            assert_eq!(artifact["no_correction_or_flatten_confirmed"], true);
+            assert_eq!(artifact["dashboard_controls_disabled_confirmed"], true);
+            assert_eq!(artifact["no_strategy_continuation_confirmed"], true);
+            assert_eq!(artifact["no_listen_key_lifecycle_confirmed"], true);
+        }
+    }
+
+    #[test]
+    fn production_mutation_failure_semantics_blocks_missing_confirmations() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v160-010-failure-semantics-missing-flags-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let audit_trail = write_ready_v160_audit_trail_artifact(&output_dir);
+        let output = output_dir.join("failure_semantics_missing_flags.json");
+
+        run_live_production_mutation_failure_semantics(&production_mutation_failure_semantics_opt(
+            audit_trail,
+            output.clone(),
+            ProductionMutationFailureMode::Timeout,
+            false,
+        ))
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_missing_gate");
+        assert_eq!(artifact["failure_semantics_ready"], false);
+        assert_eq!(artifact["failure_state"], "blocked_missing_gate");
+        assert_eq!(artifact["retry_attempted"], false);
+        assert_eq!(artifact["remediation_attempted"], false);
+        assert_eq!(artifact["strategy_continuation_allowed"], false);
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--allow-production-mutation-failure-semantics")
+        );
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--confirm-no-retry")
         );
     }
 
