@@ -194,6 +194,8 @@ pub enum LiveCommand {
     ProductionMutationLocalOrderLedger(LiveProductionMutationLocalOrderLedgerOpt),
     /// Maps v0.17 redacted exchange readback metadata for one mutation candidate lineage.
     ProductionMutationExchangeReadbackMapper(LiveProductionMutationExchangeReadbackMapperOpt),
+    /// Classifies v0.17 local-vs-exchange reconciliation for one mutation candidate lineage.
+    ProductionMutationReconciliationClassifier(LiveProductionMutationReconciliationClassifierOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -1407,6 +1409,44 @@ pub struct LiveProductionMutationExchangeReadbackMapperOpt {
     /// Confirms Dashboard order and cancel controls remain disabled.
     #[arg(long)]
     pub confirm_dashboard_order_controls_disabled: bool,
+}
+
+/// v0.17 reconciliation classifier options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationReconciliationClassifierOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.17 exchange readback mapper JSON input.
+    #[arg(long)]
+    pub exchange_readback_mapper: PathBuf,
+    /// v0.17 reconciliation classifier JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for reconciliation classification.
+    #[arg(long)]
+    pub allow_production_mutation_reconciliation_classifier: bool,
+    /// Confirms classification is limited to one v0.16 mutation candidate lineage.
+    #[arg(long)]
+    pub confirm_single_v16_mutation_candidate_lineage: bool,
+    /// Confirms v0.17 reconciliation is read-only evidence only.
+    #[arg(long)]
+    pub confirm_read_only_reconciliation_scope: bool,
+    /// Confirms no retry is attempted or scheduled.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms no cancel is attempted or scheduled.
+    #[arg(long)]
+    pub confirm_no_cancel: bool,
+    /// Confirms no replace, amend, correction, flatten, or remediation is attempted.
+    #[arg(long)]
+    pub confirm_no_remediation: bool,
+    /// Confirms Dashboard order and cancel controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
 }
 
 /// Hypothetical live-alpha risk preflight options.
@@ -3324,6 +3364,56 @@ mod tests {
         assert!(mapper.confirm_no_retry);
         assert!(mapper.confirm_no_cancel);
         assert!(mapper.confirm_dashboard_order_controls_disabled);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_reconciliation_classifier_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-reconciliation-classifier",
+            "--run-id",
+            "v170-reconciliation-classifier",
+            "--exchange-readback-mapper",
+            "runs/v170/exchange-readback-mapper.json",
+            "--output",
+            "runs/v170/reconciliation-classifier.json",
+            "--allow-production-mutation-reconciliation-classifier",
+            "--confirm-single-v16-mutation-candidate-lineage",
+            "--confirm-read-only-reconciliation-scope",
+            "--confirm-no-retry",
+            "--confirm-no-cancel",
+            "--confirm-no-remediation",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-secret-persistence",
+        ])
+        .expect("live production-mutation-reconciliation-classifier should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationReconciliationClassifier(classifier) = live.command
+        else {
+            panic!("expected production-mutation-reconciliation-classifier command");
+        };
+
+        assert_eq!(classifier.run_id, "v170-reconciliation-classifier");
+        assert_eq!(
+            classifier.exchange_readback_mapper,
+            PathBuf::from("runs/v170/exchange-readback-mapper.json")
+        );
+        assert_eq!(
+            classifier.output,
+            PathBuf::from("runs/v170/reconciliation-classifier.json")
+        );
+        assert!(classifier.allow_production_mutation_reconciliation_classifier);
+        assert!(classifier.confirm_single_v16_mutation_candidate_lineage);
+        assert!(classifier.confirm_read_only_reconciliation_scope);
+        assert!(classifier.confirm_no_retry);
+        assert!(classifier.confirm_no_cancel);
+        assert!(classifier.confirm_no_remediation);
+        assert!(classifier.confirm_dashboard_order_controls_disabled);
+        assert!(classifier.confirm_no_secret_persistence);
     }
 
     #[test]
