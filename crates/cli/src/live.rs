@@ -1861,6 +1861,12 @@ struct ProductionMutationGuardedSendArtifact {
     missing_env_vars: Vec<String>,
     request_sent: bool,
     network_attempted: bool,
+    production_order_request_attempted: bool,
+    http_send_attempted: bool,
+    exchange_ack_observed: bool,
+    exchange_order_id_observed: bool,
+    exchange_order_status_observed: bool,
+    confirmed_production_order_submission: bool,
     production_order_submission_allowed: bool,
     production_order_mutation_allowed: bool,
     production_order_state_reads_allowed: bool,
@@ -1878,6 +1884,7 @@ struct ProductionMutationGuardedSendArtifact {
     dashboard_order_controls_enabled: bool,
     real_orders_submitted: bool,
     real_funds: bool,
+    platform_production_trading_enabled: bool,
     production_trading_enabled: bool,
     single_shot_confirmed: bool,
     no_retry_confirmed: bool,
@@ -2204,9 +2211,31 @@ struct ProductionMutationFailureSemanticsArtifact {
 struct ProductionMutationGuardedSendHttpResult {
     request_sent: bool,
     network_attempted: bool,
+    http_send_attempted: bool,
+    exchange_ack_observed: bool,
+    exchange_order_id_observed: bool,
+    exchange_order_status_observed: bool,
     latency_ms: Option<u64>,
     status_code: Option<u16>,
     error_code: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ProductionMutationGuardedSendCounters {
+    request_sent: bool,
+    network_attempted: bool,
+    production_order_request_attempted: bool,
+    http_send_attempted: bool,
+    exchange_ack_observed: bool,
+    exchange_order_id_observed: bool,
+    exchange_order_status_observed: bool,
+    confirmed_production_order_submission: bool,
+    production_order_submissions_attempted: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    real_orders_submitted: bool,
+    platform_production_trading_enabled: bool,
+    production_trading_enabled: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2221,6 +2250,10 @@ impl ProductionMutationGuardedSendHttpResult {
         Self {
             request_sent: true,
             network_attempted: true,
+            http_send_attempted: true,
+            exchange_ack_observed: (200..300).contains(&status_code),
+            exchange_order_id_observed: false,
+            exchange_order_status_observed: false,
             latency_ms: Some(latency_ms),
             status_code: Some(status_code),
             error_code: "none".to_string(),
@@ -2231,10 +2264,64 @@ impl ProductionMutationGuardedSendHttpResult {
         Self {
             request_sent: true,
             network_attempted: true,
+            http_send_attempted: true,
+            exchange_ack_observed: false,
+            exchange_order_id_observed: false,
+            exchange_order_status_observed: false,
             latency_ms,
             status_code,
             error_code: error_code.to_string(),
         }
+    }
+
+    fn pre_http_failure(error_code: &str) -> Self {
+        Self {
+            request_sent: true,
+            network_attempted: false,
+            http_send_attempted: false,
+            exchange_ack_observed: false,
+            exchange_order_id_observed: false,
+            exchange_order_status_observed: false,
+            latency_ms: None,
+            status_code: None,
+            error_code: error_code.to_string(),
+        }
+    }
+}
+
+fn production_mutation_guarded_send_counters(
+    http_result: Option<&ProductionMutationGuardedSendHttpResult>,
+) -> ProductionMutationGuardedSendCounters {
+    let request_sent = http_result.is_some_and(|result| result.request_sent);
+    let network_attempted = http_result.is_some_and(|result| result.network_attempted);
+    let production_order_request_attempted = http_result.is_some();
+    let http_send_attempted = http_result.is_some_and(|result| result.http_send_attempted);
+    let exchange_ack_observed = http_result.is_some_and(|result| result.exchange_ack_observed);
+    let exchange_order_id_observed =
+        http_result.is_some_and(|result| result.exchange_order_id_observed);
+    let exchange_order_status_observed =
+        http_result.is_some_and(|result| result.exchange_order_status_observed);
+    let confirmed_production_order_submission = exchange_ack_observed;
+    let production_order_submissions_attempted = u64::from(production_order_request_attempted);
+    let production_orders_submitted = u64::from(confirmed_production_order_submission);
+    let production_order_mutations_attempted = u64::from(request_sent);
+    let real_orders_submitted = confirmed_production_order_submission;
+
+    ProductionMutationGuardedSendCounters {
+        request_sent,
+        network_attempted,
+        production_order_request_attempted,
+        http_send_attempted,
+        exchange_ack_observed,
+        exchange_order_id_observed,
+        exchange_order_status_observed,
+        confirmed_production_order_submission,
+        production_order_submissions_attempted,
+        production_orders_submitted,
+        production_order_mutations_attempted,
+        real_orders_submitted,
+        platform_production_trading_enabled: false,
+        production_trading_enabled: false,
     }
 }
 
@@ -3642,7 +3729,7 @@ where
     let artifact = build_production_mutation_guarded_send_artifact(opt, &credentials)?;
     write_production_mutation_guarded_send_artifact(&opt.output, &artifact, &credentials)?;
     println!(
-        "live.production_mutation_guarded_send status={} run_id={} output={} manual_online_requested={} kill_switch_checked_before_send={} kill_switch_checked_after_send={} kill_switch_blocked_send={} request_sent={} production_orders_submitted={} production_order_mutations_attempted=0 network_attempted={} dashboard_order_controls_enabled=false signature_recorded=false signed_query_recorded=false signed_url_recorded=false api_key_value_recorded=false api_secret_value_recorded=false",
+        "live.production_mutation_guarded_send status={} run_id={} output={} manual_online_requested={} kill_switch_checked_before_send={} kill_switch_checked_after_send={} kill_switch_blocked_send={} request_sent={} production_order_request_attempted={} http_send_attempted={} exchange_ack_observed={} confirmed_production_order_submission={} production_order_submissions_attempted={} production_orders_submitted={} production_order_mutations_attempted={} network_attempted={} dashboard_order_controls_enabled=false platform_production_trading_enabled=false production_trading_enabled=false signature_recorded=false signed_query_recorded=false signed_url_recorded=false api_key_value_recorded=false api_secret_value_recorded=false",
         artifact.status,
         artifact.run_id,
         opt.output.display(),
@@ -3651,7 +3738,13 @@ where
         artifact.kill_switch_checked_after_send,
         artifact.kill_switch_blocked_send,
         artifact.request_sent,
+        artifact.production_order_request_attempted,
+        artifact.http_send_attempted,
+        artifact.exchange_ack_observed,
+        artifact.confirmed_production_order_submission,
+        artifact.production_order_submissions_attempted,
         artifact.production_orders_submitted,
+        artifact.production_order_mutations_attempted,
         artifact.network_attempted,
     );
     Ok(())
@@ -7315,15 +7408,8 @@ fn build_production_mutation_guarded_send_artifact(
     } else {
         None
     };
-    let request_sent = http_result
-        .as_ref()
-        .is_some_and(|result| result.request_sent);
-    let network_attempted = http_result
-        .as_ref()
-        .is_some_and(|result| result.network_attempted);
-    let production_order_submissions_attempted = u64::from(request_sent);
-    let production_orders_submitted = 0;
-    let status = if request_sent {
+    let counters = production_mutation_guarded_send_counters(http_result.as_ref());
+    let status = if counters.request_sent {
         "manual_online_send_attempt_recorded"
     } else if !missing_cli_flags.is_empty() {
         "blocked_missing_gate"
@@ -7411,15 +7497,21 @@ fn build_production_mutation_guarded_send_artifact(
             .map(|flag| (*flag).to_string())
             .collect(),
         missing_env_vars,
-        request_sent,
-        network_attempted,
+        request_sent: counters.request_sent,
+        network_attempted: counters.network_attempted,
+        production_order_request_attempted: counters.production_order_request_attempted,
+        http_send_attempted: counters.http_send_attempted,
+        exchange_ack_observed: counters.exchange_ack_observed,
+        exchange_order_id_observed: counters.exchange_order_id_observed,
+        exchange_order_status_observed: counters.exchange_order_status_observed,
+        confirmed_production_order_submission: counters.confirmed_production_order_submission,
         production_order_submission_allowed: single_shot_send_allowed,
         production_order_mutation_allowed: false,
         production_order_state_reads_allowed: false,
         listen_key_lifecycle_allowed: false,
-        production_order_submissions_attempted,
-        production_orders_submitted,
-        production_order_mutations_attempted: 0,
+        production_order_submissions_attempted: counters.production_order_submissions_attempted,
+        production_orders_submitted: counters.production_orders_submitted,
+        production_order_mutations_attempted: counters.production_order_mutations_attempted,
         production_order_state_reads_attempted: 0,
         listen_key_lifecycle_attempted: 0,
         retry_attempted: false,
@@ -7428,17 +7520,20 @@ fn build_production_mutation_guarded_send_artifact(
         amend_attempted: false,
         flatten_attempted: false,
         dashboard_order_controls_enabled: false,
-        real_orders_submitted: false,
+        real_orders_submitted: counters.real_orders_submitted,
         real_funds: false,
-        production_trading_enabled: request_sent,
+        platform_production_trading_enabled: counters.platform_production_trading_enabled,
+        production_trading_enabled: counters.production_trading_enabled,
         single_shot_confirmed: opt.confirm_single_shot,
         no_retry_confirmed: opt.confirm_no_retry,
         no_secret_persistence_confirmed: opt.confirm_no_secret_persistence,
         response_redaction_confirmed: opt.confirm_response_redacted,
         dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
         no_listen_key_lifecycle_confirmed: opt.confirm_no_listen_key_lifecycle,
-        diagnostic: if request_sent {
-            "manual owner online guarded send path attempted one production HTTP request; raw response, signed URL, signed query, signature, and secrets were not persisted"
+        diagnostic: if counters.confirmed_production_order_submission {
+            "manual owner online guarded send path observed exchange acknowledgement for one production HTTP request; raw response, signed URL, signed query, signature, and secrets were not persisted"
+        } else if counters.request_sent {
+            "manual owner online guarded send path attempted one production HTTP request without exchange acknowledgement; raw response, signed URL, signed query, signature, and secrets were not persisted"
         } else {
             "guarded production HTTP send path stayed offline; no request, network, retry, cancel, replace, amend, flatten, or Dashboard order control was attempted"
         }
@@ -7555,7 +7650,8 @@ fn build_production_mutation_response_redaction_artifact(
         dashboard_order_controls_enabled: false,
         real_orders_submitted: false,
         real_funds: false,
-        production_trading_enabled: source_request_sent,
+        production_trading_enabled: json_bool_value(&guarded_send, "production_trading_enabled")
+            .unwrap_or(false),
         no_raw_response_persistence_confirmed: opt.confirm_no_raw_response_persistence,
         no_headers_persistence_confirmed: opt.confirm_no_headers_persistence,
         no_secret_persistence_confirmed: opt.confirm_no_secret_persistence,
@@ -12104,7 +12200,7 @@ fn execute_production_mutation_guarded_send(
     })
     .join()
     .unwrap_or_else(|_| {
-        ProductionMutationGuardedSendHttpResult::failure(None, None, "http_send_thread_panicked")
+        ProductionMutationGuardedSendHttpResult::pre_http_failure("http_send_thread_panicked")
     })
 }
 
@@ -12122,9 +12218,7 @@ fn execute_production_mutation_guarded_send_on_thread(
     {
         Ok(client) => client,
         Err(_) => {
-            return ProductionMutationGuardedSendHttpResult::failure(
-                None,
-                None,
+            return ProductionMutationGuardedSendHttpResult::pre_http_failure(
                 "http_client_build_failed",
             );
         }
@@ -14367,6 +14461,61 @@ write_summary = true
             confirm_dashboard_order_controls_disabled: all_cli_gates,
             confirm_no_listen_key_lifecycle: all_cli_gates,
         }
+    }
+
+    #[test]
+    fn production_mutation_guarded_send_counters_separate_attempt_ack_and_platform_state() {
+        let offline = production_mutation_guarded_send_counters(None);
+        assert!(!offline.request_sent);
+        assert!(!offline.network_attempted);
+        assert!(!offline.production_order_request_attempted);
+        assert!(!offline.http_send_attempted);
+        assert!(!offline.exchange_ack_observed);
+        assert!(!offline.confirmed_production_order_submission);
+        assert_eq!(offline.production_order_submissions_attempted, 0);
+        assert_eq!(offline.production_orders_submitted, 0);
+        assert_eq!(offline.production_order_mutations_attempted, 0);
+        assert!(!offline.production_trading_enabled);
+
+        let rejected = ProductionMutationGuardedSendHttpResult::failure(
+            Some(12),
+            Some(400),
+            "http_status_not_success",
+        );
+        let rejected_counters = production_mutation_guarded_send_counters(Some(&rejected));
+        assert!(rejected_counters.request_sent);
+        assert!(rejected_counters.network_attempted);
+        assert!(rejected_counters.production_order_request_attempted);
+        assert!(rejected_counters.http_send_attempted);
+        assert!(!rejected_counters.exchange_ack_observed);
+        assert!(!rejected_counters.confirmed_production_order_submission);
+        assert_eq!(rejected_counters.production_order_submissions_attempted, 1);
+        assert_eq!(rejected_counters.production_orders_submitted, 0);
+        assert_eq!(rejected_counters.production_order_mutations_attempted, 1);
+        assert!(!rejected_counters.production_trading_enabled);
+
+        let acknowledged = ProductionMutationGuardedSendHttpResult::success(9, 200);
+        let acknowledged_counters = production_mutation_guarded_send_counters(Some(&acknowledged));
+        assert!(acknowledged_counters.request_sent);
+        assert!(acknowledged_counters.network_attempted);
+        assert!(acknowledged_counters.production_order_request_attempted);
+        assert!(acknowledged_counters.http_send_attempted);
+        assert!(acknowledged_counters.exchange_ack_observed);
+        assert!(!acknowledged_counters.exchange_order_id_observed);
+        assert!(!acknowledged_counters.exchange_order_status_observed);
+        assert!(acknowledged_counters.confirmed_production_order_submission);
+        assert_eq!(
+            acknowledged_counters.production_order_submissions_attempted,
+            1
+        );
+        assert_eq!(acknowledged_counters.production_orders_submitted, 1);
+        assert_eq!(
+            acknowledged_counters.production_order_mutations_attempted,
+            1
+        );
+        assert!(acknowledged_counters.real_orders_submitted);
+        assert!(!acknowledged_counters.platform_production_trading_enabled);
+        assert!(!acknowledged_counters.production_trading_enabled);
     }
 
     fn production_mutation_response_redaction_opt(
@@ -19228,6 +19377,12 @@ write_summary = true
         assert_eq!(artifact["error_code"], "not_attempted_offline");
         assert_eq!(artifact["request_sent"], false);
         assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["production_order_request_attempted"], false);
+        assert_eq!(artifact["http_send_attempted"], false);
+        assert_eq!(artifact["exchange_ack_observed"], false);
+        assert_eq!(artifact["exchange_order_id_observed"], false);
+        assert_eq!(artifact["exchange_order_status_observed"], false);
+        assert_eq!(artifact["confirmed_production_order_submission"], false);
         assert_eq!(artifact["production_order_submission_allowed"], false);
         assert_eq!(artifact["production_order_mutation_allowed"], false);
         assert_eq!(artifact["production_order_state_reads_allowed"], false);
@@ -19245,6 +19400,7 @@ write_summary = true
         assert_eq!(artifact["dashboard_order_controls_enabled"], false);
         assert_eq!(artifact["real_orders_submitted"], false);
         assert_eq!(artifact["real_funds"], false);
+        assert_eq!(artifact["platform_production_trading_enabled"], false);
         assert_eq!(artifact["production_trading_enabled"], false);
         assert_eq!(
             artifact["source_artifact_issues"].as_array().unwrap().len(),
@@ -19288,9 +19444,14 @@ write_summary = true
         assert_eq!(artifact["single_shot_send_allowed"], false);
         assert_eq!(artifact["request_sent"], false);
         assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["production_order_request_attempted"], false);
+        assert_eq!(artifact["http_send_attempted"], false);
+        assert_eq!(artifact["exchange_ack_observed"], false);
+        assert_eq!(artifact["confirmed_production_order_submission"], false);
         assert_eq!(artifact["production_order_submission_allowed"], false);
         assert_eq!(artifact["production_orders_submitted"], 0);
         assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["production_trading_enabled"], false);
         assert!(
             artifact["missing_env_vars"]
                 .as_array()
@@ -19339,8 +19500,13 @@ write_summary = true
         assert_eq!(artifact["kill_switch_blocked_send"], false);
         assert_eq!(artifact["request_sent"], false);
         assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["production_order_request_attempted"], false);
+        assert_eq!(artifact["http_send_attempted"], false);
+        assert_eq!(artifact["exchange_ack_observed"], false);
+        assert_eq!(artifact["confirmed_production_order_submission"], false);
         assert_eq!(artifact["production_orders_submitted"], 0);
         assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["production_trading_enabled"], false);
         assert!(
             artifact["missing_cli_flags"]
                 .as_array()
@@ -19406,7 +19572,14 @@ write_summary = true
         assert_eq!(artifact["single_shot_send_allowed"], false);
         assert_eq!(artifact["request_sent"], false);
         assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["production_order_request_attempted"], false);
+        assert_eq!(artifact["http_send_attempted"], false);
+        assert_eq!(artifact["exchange_ack_observed"], false);
+        assert_eq!(artifact["confirmed_production_order_submission"], false);
         assert_eq!(artifact["production_order_submission_allowed"], false);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["production_trading_enabled"], false);
         assert!(
             artifact["source_artifact_issues"]
                 .as_array()
