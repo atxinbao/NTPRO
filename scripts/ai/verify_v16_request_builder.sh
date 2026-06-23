@@ -37,6 +37,8 @@ RUNTIME_GATE="$OUTPUT_DIR/runtime-gate.json"
 MISSING_FLAGS_BUILDER="$OUTPUT_DIR/missing-flags-request-builder.json"
 READY_BUILDER="$OUTPUT_DIR/ready-request-builder.json"
 MARKET_BUILDER="$OUTPUT_DIR/market-request-builder.json"
+MISSING_REFERENCE_BUILDER="$OUTPUT_DIR/missing-reference-request-builder.json"
+CROSSING_BUILDER="$OUTPUT_DIR/crossing-request-builder.json"
 
 PRODUCTION_API_KEY="ntpro_v160004_production_like_api_key_value"
 PRODUCTION_API_SECRET="ntpro_v160004_production_like_api_secret_value"
@@ -230,18 +232,30 @@ run_request_builder() {
   local request_preview="$1"
   local output="$2"
   shift 2
-  "$NAUTILUS_BIN" live production-mutation-request-builder \
-    --run-id v160-production-mutation-request-builder \
-    --runtime-gate "$RUNTIME_GATE" \
-    --signing-approval "$SIGNING_APPROVAL" \
-    --request-preview "$request_preview" \
-    --api-key-env NTPRO_V160004_API_KEY \
-    --api-secret-env NTPRO_V160004_API_SECRET \
-    --timestamp-ms 1718400000000 \
-    --recv-window-ms 5000 \
-    --max-notional 10.00 \
-    --output "$output" \
-    "$@"
+  local market_reference_source="${NTPRO_V161_MARKET_REFERENCE_SOURCE-fixture_mid_price}"
+  local market_reference_price="${NTPRO_V161_MARKET_REFERENCE_PRICE-10001.00}"
+  local max_reference_price_distance_bps="${NTPRO_V161_MAX_REFERENCE_PRICE_DISTANCE_BPS-50}"
+  local -a command=(
+    "$NAUTILUS_BIN" live production-mutation-request-builder
+    --run-id v160-production-mutation-request-builder
+    --runtime-gate "$RUNTIME_GATE"
+    --signing-approval "$SIGNING_APPROVAL"
+    --request-preview "$request_preview"
+    --api-key-env NTPRO_V160004_API_KEY
+    --api-secret-env NTPRO_V160004_API_SECRET
+    --timestamp-ms 1718400000000
+    --recv-window-ms 5000
+    --max-notional 10.00
+    --market-reference-source "$market_reference_source"
+    --market-reference-price "$market_reference_price"
+    --max-reference-price-distance-bps "$max_reference_price_distance_bps"
+    --output "$output"
+  )
+  if [[ "${NTPRO_V161_WOULD_CROSS_SPREAD:-0}" == "1" ]]; then
+    command+=(--would-cross-spread)
+  fi
+  command+=("$@")
+  "${command[@]}"
 }
 
 run_request_builder "$REQUEST_PREVIEW" "$MISSING_FLAGS_BUILDER" >/dev/null
@@ -255,6 +269,8 @@ NTPRO_V160004_API_SECRET="$PRODUCTION_API_SECRET" \
     --confirm-owner-approved-request-builder \
     --confirm-single-limit-gtc \
     --confirm-tiny-notional \
+    --confirm-non-marketable-price \
+    --confirm-owner-acknowledged-no-cancel-path \
     --confirm-signing-approval-ready \
     --confirm-memory-only-signing \
     --confirm-no-secret-persistence \
@@ -286,6 +302,8 @@ NTPRO_V160004_API_SECRET="$PRODUCTION_API_SECRET" \
     --confirm-owner-approved-request-builder \
     --confirm-single-limit-gtc \
     --confirm-tiny-notional \
+    --confirm-non-marketable-price \
+    --confirm-owner-acknowledged-no-cancel-path \
     --confirm-signing-approval-ready \
     --confirm-memory-only-signing \
     --confirm-no-secret-persistence \
@@ -296,7 +314,51 @@ NTPRO_V160004_API_SECRET="$PRODUCTION_API_SECRET" \
     --confirm-no-listen-key-lifecycle \
     --confirm-no-retry >/dev/null
 
-python3 - "$MISSING_FLAGS_BUILDER" "$READY_BUILDER" "$MARKET_BUILDER" <<'PY'
+NTPRO_ALLOW_PRODUCTION_MUTATION_SIGNING_MATERIAL=1 \
+NTPRO_OWNER_APPROVED_MUTATION_SIGNING_DRY_RUN=1 \
+NTPRO_V160004_API_KEY="$PRODUCTION_API_KEY" \
+NTPRO_V160004_API_SECRET="$PRODUCTION_API_SECRET" \
+NTPRO_V161_MARKET_REFERENCE_SOURCE="" \
+  run_request_builder "$REQUEST_PREVIEW" "$MISSING_REFERENCE_BUILDER" \
+    --allow-production-mutation-request-builder \
+    --confirm-owner-approved-request-builder \
+    --confirm-single-limit-gtc \
+    --confirm-tiny-notional \
+    --confirm-non-marketable-price \
+    --confirm-owner-acknowledged-no-cancel-path \
+    --confirm-signing-approval-ready \
+    --confirm-memory-only-signing \
+    --confirm-no-secret-persistence \
+    --confirm-no-network \
+    --confirm-no-production-order-submission \
+    --confirm-no-production-order-mutation \
+    --confirm-dashboard-order-controls-disabled \
+    --confirm-no-listen-key-lifecycle \
+    --confirm-no-retry >/dev/null
+
+NTPRO_ALLOW_PRODUCTION_MUTATION_SIGNING_MATERIAL=1 \
+NTPRO_OWNER_APPROVED_MUTATION_SIGNING_DRY_RUN=1 \
+NTPRO_V160004_API_KEY="$PRODUCTION_API_KEY" \
+NTPRO_V160004_API_SECRET="$PRODUCTION_API_SECRET" \
+NTPRO_V161_WOULD_CROSS_SPREAD=1 \
+  run_request_builder "$REQUEST_PREVIEW" "$CROSSING_BUILDER" \
+    --allow-production-mutation-request-builder \
+    --confirm-owner-approved-request-builder \
+    --confirm-single-limit-gtc \
+    --confirm-tiny-notional \
+    --confirm-non-marketable-price \
+    --confirm-owner-acknowledged-no-cancel-path \
+    --confirm-signing-approval-ready \
+    --confirm-memory-only-signing \
+    --confirm-no-secret-persistence \
+    --confirm-no-network \
+    --confirm-no-production-order-submission \
+    --confirm-no-production-order-mutation \
+    --confirm-dashboard-order-controls-disabled \
+    --confirm-no-listen-key-lifecycle \
+    --confirm-no-retry >/dev/null
+
+python3 - "$MISSING_FLAGS_BUILDER" "$READY_BUILDER" "$MARKET_BUILDER" "$MISSING_REFERENCE_BUILDER" "$CROSSING_BUILDER" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -304,6 +366,8 @@ from pathlib import Path
 missing = json.loads(Path(sys.argv[1]).read_text())
 ready = json.loads(Path(sys.argv[2]).read_text())
 market = json.loads(Path(sys.argv[3]).read_text())
+missing_reference = json.loads(Path(sys.argv[4]).read_text())
+crossing = json.loads(Path(sys.argv[5]).read_text())
 
 def assert_no_send(name, artifact):
     for field in [
@@ -340,6 +404,8 @@ assert missing["status"] == "blocked_missing_gate", missing
 assert missing["request_builder_ready"] is False, missing
 assert missing["request_object_built"] is False, missing
 assert "--allow-production-mutation-request-builder" in missing["missing_cli_flags"], missing
+assert "--confirm-non-marketable-price" in missing["missing_cli_flags"], missing
+assert "--confirm-owner-acknowledged-no-cancel-path" in missing["missing_cli_flags"], missing
 assert "NTPRO_ALLOW_PRODUCTION_MUTATION_SIGNING_MATERIAL" in missing["missing_env_vars"], missing
 assert_no_send("missing", missing)
 
@@ -358,6 +424,16 @@ assert ready["order_type"] == "LIMIT", ready
 assert ready["time_in_force"] == "GTC", ready
 assert ready["single_order_candidate"] is True, ready
 assert ready["tiny_notional_gate_ready"] is True, ready
+assert ready["market_reference_source"] == "fixture_mid_price", ready
+assert ready["market_reference_price"] == "10001.00", ready
+assert ready["max_reference_price_distance_bps"] == "50", ready
+assert ready["price_distance_from_reference_bps"] != "unavailable", ready
+assert ready["would_cross_spread"] is False, ready
+assert ready["non_marketable_price_preflight_ready"] is True, ready
+assert ready["owner_acknowledged_no_cancel_path"] is True, ready
+assert ready["price_safety_send_consideration_allowed"] is True, ready
+assert ready["manual_review_required"] is False, ready
+assert ready["new_orders_blocked"] is False, ready
 assert ready["source_artifact_issues"] == [], ready
 assert ready["missing_cli_flags"] == [], ready
 assert ready["missing_env_vars"] == [], ready
@@ -368,6 +444,26 @@ assert market["request_object_built"] is False, market
 assert market["order_type"] == "MARKET", market
 assert "request_preview_not_limit" in market["source_artifact_issues"], market
 assert_no_send("market", market)
+
+assert missing_reference["status"] == "blocked_source_artifact", missing_reference
+assert missing_reference["request_builder_ready"] is False, missing_reference
+assert missing_reference["request_object_built"] is False, missing_reference
+assert missing_reference["non_marketable_price_preflight_ready"] is False, missing_reference
+assert missing_reference["price_safety_send_consideration_allowed"] is False, missing_reference
+assert missing_reference["manual_review_required"] is True, missing_reference
+assert missing_reference["new_orders_blocked"] is True, missing_reference
+assert "market_reference_source_missing" in missing_reference["source_artifact_issues"], missing_reference
+assert_no_send("missing_reference", missing_reference)
+
+assert crossing["status"] == "blocked_source_artifact", crossing
+assert crossing["request_builder_ready"] is False, crossing
+assert crossing["request_object_built"] is False, crossing
+assert crossing["would_cross_spread"] is True, crossing
+assert crossing["non_marketable_price_preflight_ready"] is False, crossing
+assert crossing["manual_review_required"] is True, crossing
+assert crossing["new_orders_blocked"] is True, crossing
+assert "limit_price_would_cross_spread" in crossing["source_artifact_issues"], crossing
+assert_no_send("crossing", crossing)
 PY
 
 if grep -R \
@@ -387,4 +483,4 @@ if grep -RE \
   exit 1
 fi
 
-echo "v16_request_builder status=ok root=$GATE_ROOT request_builder_ready=true request_object_built=true request_sent=false network_attempted=false production_orders_submitted=0 production_order_mutations_attempted=0 dashboard_order_controls_enabled=false"
+echo "v16_request_builder status=ok root=$GATE_ROOT request_builder_ready=true request_object_built=true non_marketable_price_preflight_ready=true missing_reference_blocked=true crossing_price_blocked=true owner_no_cancel_ack_required=true request_sent=false network_attempted=false production_orders_submitted=0 production_order_mutations_attempted=0 dashboard_order_controls_enabled=false"
