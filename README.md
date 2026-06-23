@@ -3,36 +3,48 @@
 NTPRO is a Rust-only release workspace for a trading engine cutover from
 NautilusTrader.
 
-The current public milestone is:
+The current source-tree milestone is:
 
 ```text
 Current source tag: ntpro-rust-only-v0.16.0
-Capability: Minimum Owner-Approved Production Order Mutation Candidate
-Boundary: v0.16.0 permits only one owner-approved tiny LIMIT GTC production order candidate behind explicit runtime gates, manual signing-material approval, guarded HTTP send, redacted request/response evidence, post-submit readback evidence, kill-switch checks, audit trail, and terminal no-retry failure semantics. Default local/PR/release execution remains offline and fail-closed; production mutation remains disabled by default; Dashboard remains read-only evidence only; no strategy-driven production execution, no multiple orders, no MARKET orders, no cancel/replace/amend/retry/correction/flatten, no automatic remediation, no listenKey lifecycle, no real-funds proof in CI, and no Dashboard order controls
+Latest formal release: ntpro-rust-only-v0.16.0
+Current source-tree readiness: ntpro-rust-only-v0.16.1 ready for owner release decision
+Capability: Minimum Owner-Approved Production Order Mutation Candidate hardening
+Boundary: v0.16.1 preserves the v0.16.0 one owner-approved tiny LIMIT GTC production order candidate boundary and only hardens evidence around guarded-send counters, post-send kill-switch reads, response-redaction source binding, non-marketable price safety, owner-run accounting, and CLI/classifier wording. Default local/PR/release execution remains offline and fail-closed; production mutation remains disabled by default; Dashboard remains read-only evidence only; owner-run outcome is owner-run-not-executed unless explicitly reclassified by owner evidence; no strategy-driven production execution, no multiple orders, no MARKET orders, no cancel/replace/amend/retry/correction/flatten, no automatic remediation, no listenKey lifecycle, no real-funds proof in CI, and no Dashboard order controls
 ```
 
-This tag is the current v0.16.0 source release point for the scoped Minimum
-Owner-Approved Production Order Mutation Candidate line. It moves beyond the
-v0.15 request-preview/dry-run line by adding the smallest guarded production
-mutation candidate boundary: one tiny owner-approved `LIMIT` `GTC` production
-order candidate, explicit runtime gates, owner-gated signing material, guarded
-HTTP send, response redaction, readback evidence, audit evidence, kill-switch
-enforcement, and no-retry failure semantics. It is not evidence of strategy
-live trading, multiple orders, `MARKET` orders, cancel/replace/amend/retry/
-correction/flatten, automatic remediation, listenKey lifecycle, real-funds
-proof in CI, multi-account or multi-venue execution, or Dashboard order
-controls. It is published as a GitHub Release for the tagged source tree:
+`ntpro-rust-only-v0.16.0` remains the latest formal GitHub Release. The current
+source tree has v0.16.1 patch/hardening readiness material prepared for owner
+release decision, but this source tree does not by itself mean the v0.16.1 tag
+or GitHub Release has been created.
+
+The v0.16 line is the scoped Minimum Owner-Approved Production Order Mutation
+Candidate line. It moves beyond the v0.15 request-preview/dry-run line by
+adding the smallest guarded production mutation candidate boundary: one tiny
+owner-approved `LIMIT` `GTC` production order candidate, explicit runtime
+gates, owner-gated signing material, guarded HTTP send, response redaction,
+readback evidence, audit evidence, kill-switch enforcement, and no-retry
+failure semantics. v0.16.1 only hardens evidence and wording around that same
+boundary. It is not evidence of strategy live trading, multiple orders,
+`MARKET` orders, cancel/replace/amend/retry/correction/flatten, automatic
+remediation, listenKey lifecycle, real-funds proof in CI, multi-account or
+multi-venue execution, or Dashboard order controls.
+
+The latest formal release is published as a GitHub Release for the v0.16.0
+tagged source tree:
 
 ```text
 https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.16.0
 ```
 
-`v0.16.0` is now the current Minimum Owner-Approved Production Order Mutation
-Candidate release. It is still a tightly gated candidate, not a general
-production trading platform. It allows only the scoped one-order candidate and
-keeps all unapproved production mutation paths fail-closed.
+`v0.16.0` is the current formal Minimum Owner-Approved Production Order
+Mutation Candidate release. `v0.16.1` is the current source-tree patch
+readiness line. Both remain tightly gated candidate lines, not general
+production trading platform claims. They allow only the scoped one-order
+candidate and keep all unapproved production mutation paths fail-closed.
 
-The next patch track is `v0.16.1`, if needed. It must preserve the v0.16.0
+The next patch track is `v0.16.1`. This source tree now contains the v0.16.1
+patch-readiness material for owner release decision. It preserves the v0.16.0
 one-owner-approved tiny `LIMIT` `GTC` candidate boundary and must not add
 strategy-driven production execution, multiple orders, `MARKET` orders,
 cancel/replace/amend/retry/correction/flatten, automatic remediation,
@@ -169,6 +181,11 @@ layers:
   redaction, order-state readback, audit trail, kill-switch checks, no-retry
   failure semantics, Dashboard read-only evidence, and no general production
   trading claim.
+- `v0.16.1`: Production Mutation Candidate Hardening patch readiness, with
+  guarded-send counter clarification, post-send kill-switch second-read
+  evidence, response-redaction source binding, non-marketable price safety,
+  owner-run evidence accounting, CLI/classifier wording alignment, and no
+  capability expansion from v0.16.0.
 
 `v0.5.0` was completed as a scoped readiness milestone and is absorbed into the
 `v0.6.0` release tree. It is not published as a separate public GitHub Release.
@@ -498,15 +515,16 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.16.0` is the current Rust-only source release for the
-Minimum Owner-Approved Production Order Mutation Candidate line. It allows only
-one owner-approved tiny `LIMIT` `GTC` production order candidate behind
-explicit gates, redacted evidence, readback, audit, kill-switch, and no-retry
-semantics. It does not add strategy-driven production execution, multiple
-orders, `MARKET` orders, cancel/replace/amend/retry/correction/flatten,
-listenKey lifecycle, signed WebSocket user stream runtime, real-funds proof in
-CI, multi-account or multi-venue execution, automatic production remediation,
-production trading platform claims, or Dashboard order controls.
+`ntpro-rust-only-v0.16.0` is the latest formal GitHub Release for the Minimum
+Owner-Approved Production Order Mutation Candidate line. The current source
+tree has `ntpro-rust-only-v0.16.1` patch readiness prepared for owner release
+decision; v0.16.1 hardens the same one owner-approved tiny `LIMIT` `GTC`
+candidate boundary and does not expand capability beyond v0.16.0. It does not
+add strategy-driven production execution, multiple orders, `MARKET` orders,
+cancel/replace/amend/retry/correction/flatten, listenKey lifecycle, signed
+WebSocket user stream runtime, real-funds proof in CI, multi-account or
+multi-venue execution, automatic production remediation, production trading
+platform claims, or Dashboard order controls.
 `v0.12.1` remains the Production Read-Only Evidence & Release Surface Hardening
 baseline, `v0.10.0` remains the Binance spot sandbox order-proof baseline,
 `v0.9.0` remains the local deterministic Strategy Runtime batch foundation
