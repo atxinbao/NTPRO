@@ -188,6 +188,8 @@ pub enum LiveCommand {
     ProductionMutationOrderStateReadback(LiveProductionMutationOrderStateReadbackOpt),
     /// Writes a v0.16 redacted production mutation audit trail artifact.
     ProductionMutationAuditTrail(LiveProductionMutationAuditTrailOpt),
+    /// Writes v0.16 production mutation failure/no-retry semantics evidence.
+    ProductionMutationFailureSemantics(LiveProductionMutationFailureSemanticsOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -1210,6 +1212,64 @@ pub struct LiveProductionMutationAuditTrailOpt {
     /// Confirms Dashboard order controls remain disabled.
     #[arg(long)]
     pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms listenKey lifecycle remains forbidden.
+    #[arg(long)]
+    pub confirm_no_listen_key_lifecycle: bool,
+}
+
+/// v0.16 production mutation failure mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum ProductionMutationFailureMode {
+    #[value(name = "timeout")]
+    Timeout,
+    #[value(name = "http-4xx")]
+    Http4xx,
+    #[value(name = "http-5xx")]
+    Http5xx,
+    #[value(name = "malformed-response")]
+    MalformedResponse,
+    #[value(name = "readback-mismatch")]
+    ReadbackMismatch,
+    #[value(name = "kill-switch-transition")]
+    KillSwitchTransition,
+}
+
+/// Owner-approved v0.16 production mutation failure/no-retry semantics options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationFailureSemanticsOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.16 audit trail JSON input.
+    #[arg(long)]
+    pub audit_trail: PathBuf,
+    /// Simulated or observed failure mode to classify.
+    #[arg(long, value_enum)]
+    pub failure_mode: ProductionMutationFailureMode,
+    /// v0.16 failure semantics JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for production mutation failure semantics evaluation.
+    #[arg(long)]
+    pub allow_production_mutation_failure_semantics: bool,
+    /// Confirms failure handling writes evidence only and stops.
+    #[arg(long)]
+    pub confirm_evidence_only_failure_handling: bool,
+    /// Confirms no retry is attempted or scheduled.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms no automatic cancel, replace, or amend is attempted.
+    #[arg(long)]
+    pub confirm_no_automatic_cancel_replace_amend: bool,
+    /// Confirms no correction or flatten remediation is attempted.
+    #[arg(long)]
+    pub confirm_no_correction_or_flatten: bool,
+    /// Confirms Dashboard order controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms strategy execution does not continue after failure evidence.
+    #[arg(long)]
+    pub confirm_no_strategy_continuation: bool,
     /// Confirms listenKey lifecycle remains forbidden.
     #[arg(long)]
     pub confirm_no_listen_key_lifecycle: bool,
@@ -2902,6 +2962,61 @@ mod tests {
         assert!(audit.confirm_no_retry_or_followup_mutation);
         assert!(audit.confirm_dashboard_order_controls_disabled);
         assert!(audit.confirm_no_listen_key_lifecycle);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_failure_semantics_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-failure-semantics",
+            "--run-id",
+            "v160-failure-semantics",
+            "--audit-trail",
+            "runs/v160/audit-trail.json",
+            "--failure-mode",
+            "readback-mismatch",
+            "--output",
+            "runs/v160/failure-semantics.json",
+            "--allow-production-mutation-failure-semantics",
+            "--confirm-evidence-only-failure-handling",
+            "--confirm-no-retry",
+            "--confirm-no-automatic-cancel-replace-amend",
+            "--confirm-no-correction-or-flatten",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-strategy-continuation",
+            "--confirm-no-listen-key-lifecycle",
+        ])
+        .expect("live production-mutation-failure-semantics should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationFailureSemantics(failure) = live.command else {
+            panic!("expected production-mutation-failure-semantics command");
+        };
+
+        assert_eq!(failure.run_id, "v160-failure-semantics");
+        assert_eq!(
+            failure.audit_trail,
+            PathBuf::from("runs/v160/audit-trail.json")
+        );
+        assert_eq!(
+            failure.failure_mode,
+            ProductionMutationFailureMode::ReadbackMismatch
+        );
+        assert_eq!(
+            failure.output,
+            PathBuf::from("runs/v160/failure-semantics.json")
+        );
+        assert!(failure.allow_production_mutation_failure_semantics);
+        assert!(failure.confirm_evidence_only_failure_handling);
+        assert!(failure.confirm_no_retry);
+        assert!(failure.confirm_no_automatic_cancel_replace_amend);
+        assert!(failure.confirm_no_correction_or_flatten);
+        assert!(failure.confirm_dashboard_order_controls_disabled);
+        assert!(failure.confirm_no_strategy_continuation);
+        assert!(failure.confirm_no_listen_key_lifecycle);
     }
 
     #[test]
