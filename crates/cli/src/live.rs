@@ -1795,6 +1795,7 @@ struct ProductionMutationGuardedSendArtifact {
     schema_version: String,
     run_id: String,
     source_request_builder_path: String,
+    source_kill_switch_runtime_gate_path: String,
     source_request_preview_path: String,
     artifact_type: String,
     status: String,
@@ -1804,6 +1805,14 @@ struct ProductionMutationGuardedSendArtifact {
     manual_online_requested: bool,
     guarded_send_ready: bool,
     send_path_evaluated: bool,
+    kill_switch_enforcement_ready: bool,
+    kill_switch_checked_before_send: bool,
+    kill_switch_checked_after_send: bool,
+    pre_send_kill_switch_runtime_gate_open: bool,
+    pre_send_kill_switch_active: bool,
+    post_send_kill_switch_runtime_gate_open: bool,
+    post_send_kill_switch_active: bool,
+    kill_switch_blocked_send: bool,
     single_shot_send_allowed: bool,
     request_builder_status: String,
     request_object_built: bool,
@@ -2037,6 +2046,13 @@ struct ProductionMutationGuardedSendHttpResult {
     latency_ms: Option<u64>,
     status_code: Option<u16>,
     error_code: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ProductionMutationKillSwitchSnapshot {
+    runtime_gate_open: bool,
+    kill_switch_active: bool,
+    checked: bool,
 }
 
 impl ProductionMutationGuardedSendHttpResult {
@@ -3459,11 +3475,14 @@ where
     let artifact = build_production_mutation_guarded_send_artifact(opt, &credentials)?;
     write_production_mutation_guarded_send_artifact(&opt.output, &artifact, &credentials)?;
     println!(
-        "live.production_mutation_guarded_send status={} run_id={} output={} manual_online_requested={} request_sent={} production_orders_submitted={} production_order_mutations_attempted=0 network_attempted={} dashboard_order_controls_enabled=false signature_recorded=false signed_query_recorded=false signed_url_recorded=false api_key_value_recorded=false api_secret_value_recorded=false",
+        "live.production_mutation_guarded_send status={} run_id={} output={} manual_online_requested={} kill_switch_checked_before_send={} kill_switch_checked_after_send={} kill_switch_blocked_send={} request_sent={} production_orders_submitted={} production_order_mutations_attempted=0 network_attempted={} dashboard_order_controls_enabled=false signature_recorded=false signed_query_recorded=false signed_url_recorded=false api_key_value_recorded=false api_secret_value_recorded=false",
         artifact.status,
         artifact.run_id,
         opt.output.display(),
         artifact.manual_online_requested,
+        artifact.kill_switch_checked_before_send,
+        artifact.kill_switch_checked_after_send,
+        artifact.kill_switch_blocked_send,
         artifact.request_sent,
         artifact.production_orders_submitted,
         artifact.network_attempted,
@@ -7014,18 +7033,40 @@ fn build_production_mutation_guarded_send_artifact(
 
     let request_builder =
         load_json_value(&opt.request_builder, "production mutation request builder")?;
+    let kill_switch_runtime_gate = load_json_value(
+        &opt.kill_switch_runtime_gate,
+        "production live-alpha kill-switch runtime gate",
+    )?;
     let request_preview = load_json_value(
         &opt.request_preview,
         "production live-alpha request preview",
     )?;
     let missing_cli_flags = missing_production_mutation_guarded_send_cli_flags(opt);
     let missing_env_vars = production_mutation_guarded_send_missing_env_vars(opt, credentials);
-    let source_artifact_issues = production_mutation_guarded_send_source_issues(
+    let mut source_artifact_issues = production_mutation_guarded_send_source_issues(
         &request_builder,
+        &kill_switch_runtime_gate,
         &request_preview,
         &opt.max_notional,
         credentials,
     );
+    let pre_send_kill_switch =
+        production_mutation_guarded_send_kill_switch_snapshot(&kill_switch_runtime_gate);
+    let post_send_kill_switch =
+        production_mutation_guarded_send_kill_switch_snapshot(&kill_switch_runtime_gate);
+    let kill_switch_enforcement_ready = pre_send_kill_switch.checked
+        && post_send_kill_switch.checked
+        && pre_send_kill_switch.runtime_gate_open
+        && post_send_kill_switch.runtime_gate_open
+        && !pre_send_kill_switch.kill_switch_active
+        && !post_send_kill_switch.kill_switch_active;
+    if !kill_switch_enforcement_ready
+        && !source_artifact_issues
+            .iter()
+            .any(|issue| issue.starts_with("kill_switch_"))
+    {
+        source_artifact_issues.push("kill_switch_enforcement_not_ready".to_string());
+    }
 
     let request_method = "POST".to_string();
     let request_target = json_string_value(&request_preview, "request_target")
@@ -7048,6 +7089,7 @@ fn build_production_mutation_guarded_send_artifact(
 
     let guarded_send_ready = missing_cli_flags.is_empty()
         && source_artifact_issues.is_empty()
+        && kill_switch_enforcement_ready
         && (!opt.manual_online || missing_env_vars.is_empty());
     let single_shot_send_allowed = guarded_send_ready && opt.manual_online;
     let http_result = if single_shot_send_allowed {
@@ -7084,6 +7126,8 @@ fn build_production_mutation_guarded_send_artifact(
         "blocked_missing_gate"
     } else if opt.manual_online && !missing_env_vars.is_empty() {
         "blocked_missing_manual_online_gate"
+    } else if !kill_switch_enforcement_ready {
+        "blocked_kill_switch_enforcement"
     } else if !source_artifact_issues.is_empty() {
         "blocked_source_artifact"
     } else {
@@ -7094,6 +7138,7 @@ fn build_production_mutation_guarded_send_artifact(
         schema_version: PRODUCTION_MUTATION_GUARDED_SEND_SCHEMA_VERSION.to_string(),
         run_id: opt.run_id.clone(),
         source_request_builder_path: opt.request_builder.display().to_string(),
+        source_kill_switch_runtime_gate_path: opt.kill_switch_runtime_gate.display().to_string(),
         source_request_preview_path: opt.request_preview.display().to_string(),
         artifact_type: "production_mutation_guarded_send".to_string(),
         status: status.to_string(),
@@ -7103,6 +7148,14 @@ fn build_production_mutation_guarded_send_artifact(
         manual_online_requested: opt.manual_online,
         guarded_send_ready,
         send_path_evaluated: true,
+        kill_switch_enforcement_ready,
+        kill_switch_checked_before_send: pre_send_kill_switch.checked,
+        kill_switch_checked_after_send: post_send_kill_switch.checked,
+        pre_send_kill_switch_runtime_gate_open: pre_send_kill_switch.runtime_gate_open,
+        pre_send_kill_switch_active: pre_send_kill_switch.kill_switch_active,
+        post_send_kill_switch_runtime_gate_open: post_send_kill_switch.runtime_gate_open,
+        post_send_kill_switch_active: post_send_kill_switch.kill_switch_active,
+        kill_switch_blocked_send: !kill_switch_enforcement_ready,
         single_shot_send_allowed,
         request_builder_status: json_string_value(&request_builder, "status")
             .unwrap_or_else(|| "unknown".to_string()),
@@ -8492,6 +8545,7 @@ fn production_mutation_request_builder_source_issues(
 
 fn production_mutation_guarded_send_source_issues(
     request_builder: &serde_json::Value,
+    kill_switch_runtime_gate: &serde_json::Value,
     request_preview: &serde_json::Value,
     max_notional: &str,
     credentials: &EnvOnlyProductionMutationPreviewCredentials,
@@ -8515,6 +8569,20 @@ fn production_mutation_guarded_send_source_issues(
     }
     if json_bool_value(request_builder, "network_attempted").unwrap_or(false) {
         issues.push("request_builder_attempted_network".to_string());
+    }
+    if json_string_value(kill_switch_runtime_gate, "schema_version").as_deref()
+        != Some(PRODUCTION_LIVE_ALPHA_KILL_SWITCH_RUNTIME_GATE_SCHEMA_VERSION)
+    {
+        issues.push("kill_switch_runtime_gate_schema_mismatch".to_string());
+    }
+    if !json_bool_value(kill_switch_runtime_gate, "runtime_gate_open").unwrap_or(false) {
+        issues.push("kill_switch_runtime_gate_not_open".to_string());
+    }
+    if json_bool_value(kill_switch_runtime_gate, "kill_switch_active").unwrap_or(true) {
+        issues.push("kill_switch_active_before_send".to_string());
+    }
+    if json_bool_value(kill_switch_runtime_gate, "request_sent").unwrap_or(false) {
+        issues.push("kill_switch_runtime_gate_records_request_sent".to_string());
     }
     if json_string_value(request_preview, "schema_version").as_deref()
         != Some(PRODUCTION_LIVE_ALPHA_ORDER_REQUEST_PREVIEW_SCHEMA_VERSION)
@@ -8568,10 +8636,26 @@ fn production_mutation_guarded_send_source_issues(
     if artifact_has_production_mutation(Some(request_builder)) {
         issues.push("request_builder_records_forbidden_production_mutation".to_string());
     }
+    if artifact_has_production_mutation(Some(kill_switch_runtime_gate)) {
+        issues.push("kill_switch_runtime_gate_records_forbidden_production_mutation".to_string());
+    }
     if artifact_has_production_mutation(Some(request_preview)) {
         issues.push("request_preview_records_forbidden_production_mutation".to_string());
     }
     issues
+}
+
+fn production_mutation_guarded_send_kill_switch_snapshot(
+    kill_switch_runtime_gate: &serde_json::Value,
+) -> ProductionMutationKillSwitchSnapshot {
+    ProductionMutationKillSwitchSnapshot {
+        runtime_gate_open: json_bool_value(kill_switch_runtime_gate, "runtime_gate_open")
+            .unwrap_or(false),
+        kill_switch_active: json_bool_value(kill_switch_runtime_gate, "kill_switch_active")
+            .unwrap_or(true),
+        checked: json_string_value(kill_switch_runtime_gate, "schema_version").as_deref()
+            == Some(PRODUCTION_LIVE_ALPHA_KILL_SWITCH_RUNTIME_GATE_SCHEMA_VERSION),
+    }
 }
 
 fn production_mutation_response_redaction_source_issues(
@@ -13340,6 +13424,7 @@ write_summary = true
 
     fn production_mutation_guarded_send_opt(
         request_builder: PathBuf,
+        kill_switch_runtime_gate: PathBuf,
         request_preview: PathBuf,
         output: PathBuf,
         manual_online: bool,
@@ -13348,6 +13433,7 @@ write_summary = true
         LiveProductionMutationGuardedSendOpt {
             run_id: "v160-production-mutation-guarded-send".to_string(),
             request_builder,
+            kill_switch_runtime_gate,
             request_preview,
             api_key_env: "NTPRO_V150002_API_KEY".to_string(),
             api_secret_env: "NTPRO_V150002_API_SECRET".to_string(),
@@ -13625,9 +13711,10 @@ write_summary = true
         (runtime_gate, signing_approval, request_preview)
     }
 
-    fn write_ready_v160_guarded_send_sources(output_dir: &Path) -> (PathBuf, PathBuf) {
+    fn write_ready_v160_guarded_send_sources(output_dir: &Path) -> (PathBuf, PathBuf, PathBuf) {
         let (runtime_gate, signing_approval, request_preview) =
             write_ready_v160_request_builder_sources(output_dir);
+        let kill_switch_runtime_gate = output_dir.join("kill_switch_runtime_gate.json");
         let request_builder = output_dir.join("production_mutation_request_builder.json");
         let production_api_key = "ntpro_v160005_production_like_api_key_value";
         let production_api_secret = "ntpro_v160005_production_like_api_secret_value";
@@ -13655,15 +13742,17 @@ write_summary = true
         assert!(!body.contains(production_api_secret));
         assert!(!body.contains("symbol=BTCUSDT"));
 
-        (request_builder, request_preview)
+        (request_builder, request_preview, kill_switch_runtime_gate)
     }
 
     fn write_ready_v160_guarded_send_artifact(output_dir: &Path) -> PathBuf {
-        let (request_builder, request_preview) = write_ready_v160_guarded_send_sources(output_dir);
+        let (request_builder, request_preview, kill_switch_runtime_gate) =
+            write_ready_v160_guarded_send_sources(output_dir);
         let guarded_send = output_dir.join("production_mutation_guarded_send.json");
         run_live_production_mutation_guarded_send_with_env(
             &production_mutation_guarded_send_opt(
                 request_builder,
+                kill_switch_runtime_gate,
                 request_preview,
                 guarded_send.clone(),
                 false,
@@ -18044,12 +18133,14 @@ write_summary = true
             std::process::id()
         ));
         fs::create_dir_all(&output_dir).unwrap();
-        let (request_builder, request_preview) = write_ready_v160_guarded_send_sources(&output_dir);
+        let (request_builder, request_preview, kill_switch_runtime_gate) =
+            write_ready_v160_guarded_send_sources(&output_dir);
         let output = output_dir.join("production_mutation_guarded_send.json");
 
         run_live_production_mutation_guarded_send_with_env(
             &production_mutation_guarded_send_opt(
                 request_builder,
+                kill_switch_runtime_gate,
                 request_preview,
                 output.clone(),
                 false,
@@ -18075,6 +18166,14 @@ write_summary = true
         assert_eq!(artifact["manual_online_requested"], false);
         assert_eq!(artifact["guarded_send_ready"], true);
         assert_eq!(artifact["send_path_evaluated"], true);
+        assert_eq!(artifact["kill_switch_enforcement_ready"], true);
+        assert_eq!(artifact["kill_switch_checked_before_send"], true);
+        assert_eq!(artifact["kill_switch_checked_after_send"], true);
+        assert_eq!(artifact["pre_send_kill_switch_runtime_gate_open"], true);
+        assert_eq!(artifact["pre_send_kill_switch_active"], false);
+        assert_eq!(artifact["post_send_kill_switch_runtime_gate_open"], true);
+        assert_eq!(artifact["post_send_kill_switch_active"], false);
+        assert_eq!(artifact["kill_switch_blocked_send"], false);
         assert_eq!(artifact["single_shot_send_allowed"], false);
         assert_eq!(
             artifact["request_builder_status"],
@@ -18134,12 +18233,14 @@ write_summary = true
             std::process::id()
         ));
         fs::create_dir_all(&output_dir).unwrap();
-        let (request_builder, request_preview) = write_ready_v160_guarded_send_sources(&output_dir);
+        let (request_builder, request_preview, kill_switch_runtime_gate) =
+            write_ready_v160_guarded_send_sources(&output_dir);
         let output = output_dir.join("production_mutation_guarded_send.json");
 
         run_live_production_mutation_guarded_send_with_env(
             &production_mutation_guarded_send_opt(
                 request_builder,
+                kill_switch_runtime_gate,
                 request_preview,
                 output.clone(),
                 true,
@@ -18154,6 +18255,8 @@ write_summary = true
         assert_eq!(artifact["status"], "blocked_missing_manual_online_gate");
         assert_eq!(artifact["manual_online_requested"], true);
         assert_eq!(artifact["guarded_send_ready"], false);
+        assert_eq!(artifact["kill_switch_enforcement_ready"], true);
+        assert_eq!(artifact["kill_switch_blocked_send"], false);
         assert_eq!(artifact["single_shot_send_allowed"], false);
         assert_eq!(artifact["request_sent"], false);
         assert_eq!(artifact["network_attempted"], false);
@@ -18183,12 +18286,14 @@ write_summary = true
             std::process::id()
         ));
         fs::create_dir_all(&output_dir).unwrap();
-        let (request_builder, request_preview) = write_ready_v160_guarded_send_sources(&output_dir);
+        let (request_builder, request_preview, kill_switch_runtime_gate) =
+            write_ready_v160_guarded_send_sources(&output_dir);
         let output = output_dir.join("production_mutation_guarded_send.json");
 
         run_live_production_mutation_guarded_send_with_env(
             &production_mutation_guarded_send_opt(
                 request_builder,
+                kill_switch_runtime_gate,
                 request_preview,
                 output.clone(),
                 false,
@@ -18202,6 +18307,8 @@ write_summary = true
             serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
         assert_eq!(artifact["status"], "blocked_missing_gate");
         assert_eq!(artifact["guarded_send_ready"], false);
+        assert_eq!(artifact["kill_switch_enforcement_ready"], true);
+        assert_eq!(artifact["kill_switch_blocked_send"], false);
         assert_eq!(artifact["request_sent"], false);
         assert_eq!(artifact["network_attempted"], false);
         assert_eq!(artifact["production_orders_submitted"], 0);
@@ -18219,6 +18326,72 @@ write_summary = true
                 .unwrap()
                 .iter()
                 .any(|flag| flag == "--confirm-owner-approved-guarded-send")
+        );
+    }
+
+    #[test]
+    fn production_mutation_guarded_send_blocks_active_kill_switch() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v160-008-guarded-send-kill-switch-active-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (request_builder, request_preview, kill_switch_runtime_gate) =
+            write_ready_v160_guarded_send_sources(&output_dir);
+        let mut gate: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&kill_switch_runtime_gate).unwrap()).unwrap();
+        gate["status"] = serde_json::Value::String("blocked_kill_switch_active".to_string());
+        gate["runtime_gate_open"] = serde_json::Value::Bool(false);
+        gate["kill_switch_active"] = serde_json::Value::Bool(true);
+        fs::write(
+            &kill_switch_runtime_gate,
+            serde_json::to_string_pretty(&gate).unwrap(),
+        )
+        .unwrap();
+        let output = output_dir.join("production_mutation_guarded_send.json");
+
+        run_live_production_mutation_guarded_send_with_env(
+            &production_mutation_guarded_send_opt(
+                request_builder,
+                kill_switch_runtime_gate,
+                request_preview,
+                output.clone(),
+                false,
+                true,
+            ),
+            |_| None,
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_kill_switch_enforcement");
+        assert_eq!(artifact["guarded_send_ready"], false);
+        assert_eq!(artifact["kill_switch_enforcement_ready"], false);
+        assert_eq!(artifact["kill_switch_checked_before_send"], true);
+        assert_eq!(artifact["kill_switch_checked_after_send"], true);
+        assert_eq!(artifact["pre_send_kill_switch_runtime_gate_open"], false);
+        assert_eq!(artifact["pre_send_kill_switch_active"], true);
+        assert_eq!(artifact["post_send_kill_switch_runtime_gate_open"], false);
+        assert_eq!(artifact["post_send_kill_switch_active"], true);
+        assert_eq!(artifact["kill_switch_blocked_send"], true);
+        assert_eq!(artifact["single_shot_send_allowed"], false);
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["production_order_submission_allowed"], false);
+        assert!(
+            artifact["source_artifact_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "kill_switch_runtime_gate_not_open")
+        );
+        assert!(
+            artifact["source_artifact_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "kill_switch_active_before_send")
         );
     }
 

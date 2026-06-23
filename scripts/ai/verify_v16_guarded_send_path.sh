@@ -32,11 +32,14 @@ NTPRO_V16_REQUEST_BUILDER_ROOT="$REQUEST_BUILDER_ROOT" \
 
 REQUEST_BUILDER="$REQUEST_BUILDER_ROOT/command-output/ready-request-builder.json"
 REQUEST_PREVIEW="$REQUEST_BUILDER_ROOT/command-output/production-request-preview.json"
+KILL_SWITCH_RUNTIME_GATE="$REQUEST_BUILDER_ROOT/command-output/kill-switch-runtime-gate.json"
 MISSING_FLAGS_GUARDED_SEND="$OUTPUT_DIR/missing-flags-guarded-send.json"
 READY_OFFLINE_GUARDED_SEND="$OUTPUT_DIR/ready-offline-guarded-send.json"
 MANUAL_MISSING_ENV_GUARDED_SEND="$OUTPUT_DIR/manual-missing-env-guarded-send.json"
+KILL_SWITCH_ACTIVE_GATE="$OUTPUT_DIR/kill-switch-active-runtime-gate.json"
+KILL_SWITCH_ACTIVE_GUARDED_SEND="$OUTPUT_DIR/kill-switch-active-guarded-send.json"
 
-if [[ ! -f "$REQUEST_BUILDER" || ! -f "$REQUEST_PREVIEW" ]]; then
+if [[ ! -f "$REQUEST_BUILDER" || ! -f "$REQUEST_PREVIEW" || ! -f "$KILL_SWITCH_RUNTIME_GATE" ]]; then
   echo "request-builder setup did not produce expected inputs" >&2
   exit 1
 fi
@@ -47,6 +50,7 @@ run_guarded_send() {
   "$NAUTILUS_BIN" live production-mutation-guarded-send \
     --run-id v160-production-mutation-guarded-send \
     --request-builder "$REQUEST_BUILDER" \
+    --kill-switch-runtime-gate "$KILL_SWITCH_RUNTIME_GATE" \
     --request-preview "$REQUEST_PREVIEW" \
     --api-key-env NTPRO_V160004_API_KEY \
     --api-secret-env NTPRO_V160004_API_SECRET \
@@ -84,7 +88,41 @@ run_guarded_send "$MANUAL_MISSING_ENV_GUARDED_SEND" \
   --confirm-dashboard-order-controls-disabled \
   --confirm-no-listen-key-lifecycle >/dev/null
 
-python3 - "$MISSING_FLAGS_GUARDED_SEND" "$READY_OFFLINE_GUARDED_SEND" "$MANUAL_MISSING_ENV_GUARDED_SEND" <<'PY'
+python3 - "$KILL_SWITCH_RUNTIME_GATE" "$KILL_SWITCH_ACTIVE_GATE" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+gate = json.loads(Path(sys.argv[1]).read_text())
+gate["status"] = "blocked_kill_switch_active"
+gate["runtime_gate_open"] = False
+gate["kill_switch_active"] = True
+Path(sys.argv[2]).write_text(json.dumps(gate, indent=2) + "\n")
+PY
+
+"$NAUTILUS_BIN" live production-mutation-guarded-send \
+  --run-id v160-production-mutation-guarded-send-kill-switch-active \
+  --request-builder "$REQUEST_BUILDER" \
+  --kill-switch-runtime-gate "$KILL_SWITCH_ACTIVE_GATE" \
+  --request-preview "$REQUEST_PREVIEW" \
+  --api-key-env NTPRO_V160004_API_KEY \
+  --api-secret-env NTPRO_V160004_API_SECRET \
+  --timestamp-ms 1718400000000 \
+  --recv-window-ms 5000 \
+  --max-notional 10.00 \
+  --output "$KILL_SWITCH_ACTIVE_GUARDED_SEND" \
+  --allow-production-mutation-guarded-send \
+  --confirm-owner-approved-guarded-send \
+  --confirm-single-limit-gtc \
+  --confirm-tiny-notional \
+  --confirm-single-shot \
+  --confirm-no-retry \
+  --confirm-no-secret-persistence \
+  --confirm-response-redacted \
+  --confirm-dashboard-order-controls-disabled \
+  --confirm-no-listen-key-lifecycle >/dev/null
+
+python3 - "$MISSING_FLAGS_GUARDED_SEND" "$READY_OFFLINE_GUARDED_SEND" "$MANUAL_MISSING_ENV_GUARDED_SEND" "$KILL_SWITCH_ACTIVE_GUARDED_SEND" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -92,6 +130,7 @@ from pathlib import Path
 missing_flags = json.loads(Path(sys.argv[1]).read_text())
 ready_offline = json.loads(Path(sys.argv[2]).read_text())
 manual_missing_env = json.loads(Path(sys.argv[3]).read_text())
+kill_switch_active = json.loads(Path(sys.argv[4]).read_text())
 
 assert missing_flags["schema_version"] == "ntpro.v160_production_mutation_guarded_send.v1"
 assert missing_flags["status"] == "blocked_missing_gate"
@@ -108,6 +147,14 @@ assert ready_offline["status"] == "ready_guarded_send_path_offline_no_network"
 assert ready_offline["manual_online_requested"] is False
 assert ready_offline["guarded_send_ready"] is True
 assert ready_offline["send_path_evaluated"] is True
+assert ready_offline["kill_switch_enforcement_ready"] is True
+assert ready_offline["kill_switch_checked_before_send"] is True
+assert ready_offline["kill_switch_checked_after_send"] is True
+assert ready_offline["pre_send_kill_switch_runtime_gate_open"] is True
+assert ready_offline["pre_send_kill_switch_active"] is False
+assert ready_offline["post_send_kill_switch_runtime_gate_open"] is True
+assert ready_offline["post_send_kill_switch_active"] is False
+assert ready_offline["kill_switch_blocked_send"] is False
 assert ready_offline["single_shot_send_allowed"] is False
 assert ready_offline["request_builder_status"] == "ready_request_object_built_no_send"
 assert ready_offline["request_object_built"] is True
@@ -155,6 +202,8 @@ assert ready_offline["missing_env_vars"] == []
 assert manual_missing_env["status"] == "blocked_missing_manual_online_gate"
 assert manual_missing_env["manual_online_requested"] is True
 assert manual_missing_env["guarded_send_ready"] is False
+assert manual_missing_env["kill_switch_enforcement_ready"] is True
+assert manual_missing_env["kill_switch_blocked_send"] is False
 assert manual_missing_env["single_shot_send_allowed"] is False
 assert manual_missing_env["request_sent"] is False
 assert manual_missing_env["network_attempted"] is False
@@ -165,6 +214,23 @@ assert "NTPRO_ALLOW_PRODUCTION_MUTATION_HTTP_SEND" in manual_missing_env["missin
 assert "NTPRO_OWNER_APPROVED_PRODUCTION_MUTATION_HTTP_SEND" in manual_missing_env["missing_env_vars"]
 assert "NTPRO_CONFIRM_PRODUCTION_MUTATION_SINGLE_SHOT" in manual_missing_env["missing_env_vars"]
 assert "NTPRO_ALLOW_PRODUCTION_MUTATION_SIGNING_MATERIAL" in manual_missing_env["missing_env_vars"]
+
+assert kill_switch_active["status"] == "blocked_kill_switch_enforcement"
+assert kill_switch_active["guarded_send_ready"] is False
+assert kill_switch_active["kill_switch_enforcement_ready"] is False
+assert kill_switch_active["kill_switch_checked_before_send"] is True
+assert kill_switch_active["kill_switch_checked_after_send"] is True
+assert kill_switch_active["pre_send_kill_switch_runtime_gate_open"] is False
+assert kill_switch_active["pre_send_kill_switch_active"] is True
+assert kill_switch_active["post_send_kill_switch_runtime_gate_open"] is False
+assert kill_switch_active["post_send_kill_switch_active"] is True
+assert kill_switch_active["kill_switch_blocked_send"] is True
+assert kill_switch_active["single_shot_send_allowed"] is False
+assert kill_switch_active["request_sent"] is False
+assert kill_switch_active["network_attempted"] is False
+assert kill_switch_active["production_order_submission_allowed"] is False
+assert "kill_switch_runtime_gate_not_open" in kill_switch_active["source_artifact_issues"]
+assert "kill_switch_active_before_send" in kill_switch_active["source_artifact_issues"]
 PY
 
 if grep -R "ntpro_v160004_production_like_api_key_value\\|ntpro_v160004_production_like_api_secret_value" "$OUTPUT_DIR" "$REQUEST_BUILDER_ROOT/command-output" >/dev/null; then
