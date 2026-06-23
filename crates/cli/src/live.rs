@@ -50,12 +50,12 @@ use crate::{
         LiveProductionLiveAlphaExecutionDryRunOpt, LiveProductionLiveAlphaKillSwitchRuntimeGateOpt,
         LiveProductionLiveAlphaManualApprovalLifecycleOpt,
         LiveProductionLiveAlphaOrderRequestPreviewOpt, LiveProductionLiveAlphaRiskPreflightOpt,
-        LiveProductionMutationRequestBuilderOpt, LiveProductionMutationRuntimeGateOpt,
-        LiveProductionMutationSigningApprovalOpt, LiveProductionOrderStateReadOnlyProofOpt,
-        LiveProductionPublicReadProbeOpt, LiveProductionReadonlyReconciliationOpt,
-        LiveProductionShadowPortfolioRuntimeOpt, LiveProductionShadowPreflightSessionOpt,
-        LiveProductionShadowStrategySessionOpt, LiveRunOpt,
-        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveProductionMutationGuardedSendOpt, LiveProductionMutationRequestBuilderOpt,
+        LiveProductionMutationRuntimeGateOpt, LiveProductionMutationSigningApprovalOpt,
+        LiveProductionOrderStateReadOnlyProofOpt, LiveProductionPublicReadProbeOpt,
+        LiveProductionReadonlyReconciliationOpt, LiveProductionShadowPortfolioRuntimeOpt,
+        LiveProductionShadowPreflightSessionOpt, LiveProductionShadowStrategySessionOpt,
+        LiveRunOpt, LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
         LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
         ProductionOrderStateReadEndpoint, ProductionPublicReadEndpoint,
@@ -160,6 +160,13 @@ const PRODUCTION_MUTATION_SIGNING_APPROVAL_SCHEMA_VERSION: &str =
     "ntpro.v160_production_mutation_signing_approval.v1";
 const PRODUCTION_MUTATION_REQUEST_BUILDER_SCHEMA_VERSION: &str =
     "ntpro.v160_production_mutation_request_builder.v1";
+const PRODUCTION_MUTATION_GUARDED_SEND_SCHEMA_VERSION: &str =
+    "ntpro.v160_production_mutation_guarded_send.v1";
+const PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW: &str = "NTPRO_ALLOW_PRODUCTION_MUTATION_HTTP_SEND";
+const PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED: &str =
+    "NTPRO_OWNER_APPROVED_PRODUCTION_MUTATION_HTTP_SEND";
+const PRODUCTION_MUTATION_HTTP_SEND_ENV_SINGLE_SHOT: &str =
+    "NTPRO_CONFIRM_PRODUCTION_MUTATION_SINGLE_SHOT";
 const PRODUCTION_SHADOW_PORTFOLIO_RUNTIME_SCHEMA_VERSION: &str =
     "ntpro.v120_shadow_portfolio_runtime.v1";
 const PRODUCTION_SHADOW_PORTFOLIO_COMPAT_SCHEMA_VERSION: &str =
@@ -622,6 +629,48 @@ impl EnvOnlyProductionMutationPreviewCredentials {
         {
             missing_gate_env_vars
                 .push(PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED.to_string());
+        }
+
+        let production_signing_material_gate_open = missing_gate_env_vars.is_empty();
+        let (api_key_value, api_secret_value, production_signing_material_env_read) =
+            if production_signing_material_gate_open {
+                (
+                    read_env(&opt.api_key_env),
+                    read_env(&opt.api_secret_env),
+                    true,
+                )
+            } else {
+                (None, None, false)
+            };
+
+        Self::from_values(ProductionMutationPreviewCredentialInput {
+            api_key_env: opt.api_key_env.clone(),
+            api_key_value,
+            api_secret_env: opt.api_secret_env.clone(),
+            api_secret_value,
+            credential_material: "production_live_alpha",
+            production_signing_material_gate_required: true,
+            production_signing_material_gate_open,
+            production_signing_material_env_read,
+            production_signing_material_missing_gate_env_vars: missing_gate_env_vars,
+        })
+    }
+
+    fn from_guarded_send_opt<F>(opt: &LiveProductionMutationGuardedSendOpt, mut read_env: F) -> Self
+    where
+        F: FnMut(&str) -> Option<String>,
+    {
+        let mut missing_gate_env_vars = Vec::new();
+        for env_name in [
+            PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW,
+            PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED,
+            PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW,
+            PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED,
+            PRODUCTION_MUTATION_HTTP_SEND_ENV_SINGLE_SHOT,
+        ] {
+            if read_env(env_name).as_deref() != Some("1") {
+                missing_gate_env_vars.push(env_name.to_string());
+            }
         }
 
         let production_signing_material_gate_open = missing_gate_env_vars.is_empty();
@@ -1737,6 +1786,121 @@ struct ProductionMutationRequestBuilderArtifact {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionMutationGuardedSendArtifact {
+    schema_version: String,
+    run_id: String,
+    source_request_builder_path: String,
+    source_request_preview_path: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    capability: String,
+    manual_online_requested: bool,
+    guarded_send_ready: bool,
+    send_path_evaluated: bool,
+    single_shot_send_allowed: bool,
+    request_builder_status: String,
+    request_object_built: bool,
+    request_method: String,
+    request_target: String,
+    endpoint_url_redacted: String,
+    credential_material: String,
+    production_signing_material_gate_required: bool,
+    production_signing_material_gate_open: bool,
+    production_signing_material_env_read: bool,
+    production_signing_material_missing_gate_env_vars: Vec<String>,
+    api_key_env: String,
+    api_secret_env: String,
+    api_key_value_recorded: bool,
+    api_secret_value_recorded: bool,
+    api_key_header_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    request_body_recorded: bool,
+    raw_request_body_recorded: bool,
+    raw_exchange_response_recorded: bool,
+    response_body_recorded: bool,
+    response_redacted: bool,
+    http_status_code: Option<u16>,
+    latency_ms: Option<u64>,
+    error_code: String,
+    symbol: String,
+    side: String,
+    order_type: String,
+    quantity: String,
+    price: String,
+    time_in_force: String,
+    notional: String,
+    max_order_notional: String,
+    recv_window_ms: u64,
+    timestamp_recorded: bool,
+    timestamp_shape: String,
+    source_artifact_issues: Vec<String>,
+    missing_cli_flags: Vec<String>,
+    missing_env_vars: Vec<String>,
+    request_sent: bool,
+    network_attempted: bool,
+    production_order_submission_allowed: bool,
+    production_order_mutation_allowed: bool,
+    production_order_state_reads_allowed: bool,
+    listen_key_lifecycle_allowed: bool,
+    production_order_submissions_attempted: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    production_order_state_reads_attempted: u64,
+    listen_key_lifecycle_attempted: u64,
+    retry_attempted: bool,
+    cancel_attempted: bool,
+    replace_attempted: bool,
+    amend_attempted: bool,
+    flatten_attempted: bool,
+    dashboard_order_controls_enabled: bool,
+    real_orders_submitted: bool,
+    real_funds: bool,
+    production_trading_enabled: bool,
+    single_shot_confirmed: bool,
+    no_retry_confirmed: bool,
+    no_secret_persistence_confirmed: bool,
+    response_redaction_confirmed: bool,
+    dashboard_controls_disabled_confirmed: bool,
+    no_listen_key_lifecycle_confirmed: bool,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ProductionMutationGuardedSendHttpResult {
+    request_sent: bool,
+    network_attempted: bool,
+    latency_ms: Option<u64>,
+    status_code: Option<u16>,
+    error_code: String,
+}
+
+impl ProductionMutationGuardedSendHttpResult {
+    fn success(latency_ms: u64, status_code: u16) -> Self {
+        Self {
+            request_sent: true,
+            network_attempted: true,
+            latency_ms: Some(latency_ms),
+            status_code: Some(status_code),
+            error_code: "none".to_string(),
+        }
+    }
+
+    fn failure(latency_ms: Option<u64>, status_code: Option<u16>, error_code: &str) -> Self {
+        Self {
+            request_sent: true,
+            network_attempted: true,
+            latency_ms,
+            status_code,
+            error_code: error_code.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct ProductionMutationRuntimeGateArtifact {
     schema_version: String,
     run_id: String,
@@ -2827,6 +2991,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionMutationRequestBuilder(builder) => {
             run_live_production_mutation_request_builder(&builder)
         }
+        LiveCommand::ProductionMutationGuardedSend(send) => {
+            run_live_production_mutation_guarded_send(&send)
+        }
         LiveCommand::ProductionLiveAlphaRiskPreflight(preflight) => {
             run_live_production_live_alpha_risk_preflight(&preflight)
         }
@@ -3103,6 +3270,36 @@ where
         opt.output.display(),
         artifact.request_builder_ready,
         artifact.request_object_built,
+    );
+    Ok(())
+}
+
+fn run_live_production_mutation_guarded_send(
+    opt: &LiveProductionMutationGuardedSendOpt,
+) -> anyhow::Result<()> {
+    run_live_production_mutation_guarded_send_with_env(opt, |name| std::env::var(name).ok())
+}
+
+fn run_live_production_mutation_guarded_send_with_env<F>(
+    opt: &LiveProductionMutationGuardedSendOpt,
+    read_env: F,
+) -> anyhow::Result<()>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    let credentials =
+        EnvOnlyProductionMutationPreviewCredentials::from_guarded_send_opt(opt, read_env);
+    let artifact = build_production_mutation_guarded_send_artifact(opt, &credentials)?;
+    write_production_mutation_guarded_send_artifact(&opt.output, &artifact, &credentials)?;
+    println!(
+        "live.production_mutation_guarded_send status={} run_id={} output={} manual_online_requested={} request_sent={} production_orders_submitted={} production_order_mutations_attempted=0 network_attempted={} dashboard_order_controls_enabled=false signature_recorded=false signed_query_recorded=false signed_url_recorded=false api_key_value_recorded=false api_secret_value_recorded=false",
+        artifact.status,
+        artifact.run_id,
+        opt.output.display(),
+        artifact.manual_online_requested,
+        artifact.request_sent,
+        artifact.production_orders_submitted,
+        artifact.network_attempted,
     );
     Ok(())
 }
@@ -6581,6 +6778,197 @@ fn build_production_mutation_request_builder_artifact(
     })
 }
 
+fn build_production_mutation_guarded_send_artifact(
+    opt: &LiveProductionMutationGuardedSendOpt,
+    credentials: &EnvOnlyProductionMutationPreviewCredentials,
+) -> anyhow::Result<ProductionMutationGuardedSendArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+    validate_positive_decimal_string("max_notional", &opt.max_notional)?;
+    if opt.timestamp_ms == 0 {
+        anyhow::bail!("production mutation guarded send timestamp_ms must be positive");
+    }
+    if opt.recv_window_ms == 0 {
+        anyhow::bail!("production mutation guarded send recvWindow must be positive");
+    }
+
+    let request_builder =
+        load_json_value(&opt.request_builder, "production mutation request builder")?;
+    let request_preview = load_json_value(
+        &opt.request_preview,
+        "production live-alpha request preview",
+    )?;
+    let missing_cli_flags = missing_production_mutation_guarded_send_cli_flags(opt);
+    let missing_env_vars = production_mutation_guarded_send_missing_env_vars(opt, credentials);
+    let source_artifact_issues = production_mutation_guarded_send_source_issues(
+        &request_builder,
+        &request_preview,
+        &opt.max_notional,
+        credentials,
+    );
+
+    let request_method = "POST".to_string();
+    let request_target = json_string_value(&request_preview, "request_target")
+        .unwrap_or_else(|| TESTNET_ORDER_ENDPOINT_ORDER.to_string());
+    let symbol =
+        json_string_value(&request_preview, "symbol").unwrap_or_else(|| "unknown".to_string());
+    let side = json_string_value(&request_preview, "side").unwrap_or_else(|| "unknown".to_string());
+    let order_type = json_string_value(&request_preview, "order_type")
+        .unwrap_or_else(|| "unknown".to_string())
+        .to_ascii_uppercase();
+    let quantity =
+        json_string_value(&request_preview, "quantity").unwrap_or_else(|| "unknown".to_string());
+    let price =
+        json_string_value(&request_preview, "price").unwrap_or_else(|| "unknown".to_string());
+    let time_in_force = json_string_value(&request_preview, "time_in_force")
+        .unwrap_or_else(|| "unknown".to_string())
+        .to_ascii_uppercase();
+    let notional =
+        json_string_value(&request_preview, "notional").unwrap_or_else(|| "unknown".to_string());
+
+    let guarded_send_ready = missing_cli_flags.is_empty()
+        && source_artifact_issues.is_empty()
+        && (!opt.manual_online || missing_env_vars.is_empty());
+    let single_shot_send_allowed = guarded_send_ready && opt.manual_online;
+    let http_result = if single_shot_send_allowed {
+        let request = build_production_live_alpha_signed_order_request_preview(
+            &ProductionLiveAlphaOrderRequestInput {
+                endpoint_path: &request_target,
+                symbol: &symbol,
+                side: &side,
+                order_type: &order_type,
+                quantity: &quantity,
+                price: &price,
+                time_in_force: &time_in_force,
+                recv_window_ms: opt.recv_window_ms,
+                timestamp_ms: opt.timestamp_ms,
+            },
+            credentials,
+        )?;
+        request.ensure_memory_only_redacted(credentials)?;
+        Some(execute_production_mutation_guarded_send(&request))
+    } else {
+        None
+    };
+    let request_sent = http_result
+        .as_ref()
+        .is_some_and(|result| result.request_sent);
+    let network_attempted = http_result
+        .as_ref()
+        .is_some_and(|result| result.network_attempted);
+    let production_order_submissions_attempted = u64::from(request_sent);
+    let production_orders_submitted = 0;
+    let status = if request_sent {
+        "manual_online_send_attempt_recorded"
+    } else if !missing_cli_flags.is_empty() {
+        "blocked_missing_gate"
+    } else if opt.manual_online && !missing_env_vars.is_empty() {
+        "blocked_missing_manual_online_gate"
+    } else if !source_artifact_issues.is_empty() {
+        "blocked_source_artifact"
+    } else {
+        "ready_guarded_send_path_offline_no_network"
+    };
+
+    Ok(ProductionMutationGuardedSendArtifact {
+        schema_version: PRODUCTION_MUTATION_GUARDED_SEND_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        source_request_builder_path: opt.request_builder.display().to_string(),
+        source_request_preview_path: opt.request_preview.display().to_string(),
+        artifact_type: "production_mutation_guarded_send".to_string(),
+        status: status.to_string(),
+        created_at: now_millis(),
+        mode: "single_shot_guarded_http_send".to_string(),
+        capability: "Minimum Owner-Approved Production Order Mutation Candidate".to_string(),
+        manual_online_requested: opt.manual_online,
+        guarded_send_ready,
+        send_path_evaluated: true,
+        single_shot_send_allowed,
+        request_builder_status: json_string_value(&request_builder, "status")
+            .unwrap_or_else(|| "unknown".to_string()),
+        request_object_built: json_bool_value(&request_builder, "request_object_built")
+            .unwrap_or(false),
+        request_method,
+        request_target: request_target.clone(),
+        endpoint_url_redacted: format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{request_target}"),
+        credential_material: "production_live_alpha".to_string(),
+        production_signing_material_gate_required: credentials
+            .production_signing_material_gate_required,
+        production_signing_material_gate_open: credentials.production_signing_material_gate_open,
+        production_signing_material_env_read: credentials.production_signing_material_env_read,
+        production_signing_material_missing_gate_env_vars: credentials
+            .production_signing_material_missing_gate_env_vars
+            .clone(),
+        api_key_env: credentials.api_key_env.clone(),
+        api_secret_env: credentials.api_secret_env.clone(),
+        api_key_value_recorded: false,
+        api_secret_value_recorded: false,
+        api_key_header_value_recorded: false,
+        signature_recorded: false,
+        signed_query_recorded: false,
+        signed_url_recorded: false,
+        request_body_recorded: false,
+        raw_request_body_recorded: false,
+        raw_exchange_response_recorded: false,
+        response_body_recorded: false,
+        response_redacted: true,
+        http_status_code: http_result.as_ref().and_then(|result| result.status_code),
+        latency_ms: http_result.as_ref().and_then(|result| result.latency_ms),
+        error_code: http_result.as_ref().map_or_else(
+            || "not_attempted_offline".to_string(),
+            |result| result.error_code.clone(),
+        ),
+        symbol,
+        side,
+        order_type,
+        quantity,
+        price,
+        time_in_force,
+        notional,
+        max_order_notional: opt.max_notional.trim().to_string(),
+        recv_window_ms: opt.recv_window_ms,
+        timestamp_recorded: false,
+        timestamp_shape: "epoch_millis_present_redacted".to_string(),
+        source_artifact_issues,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        missing_env_vars,
+        request_sent,
+        network_attempted,
+        production_order_submission_allowed: single_shot_send_allowed,
+        production_order_mutation_allowed: false,
+        production_order_state_reads_allowed: false,
+        listen_key_lifecycle_allowed: false,
+        production_order_submissions_attempted,
+        production_orders_submitted,
+        production_order_mutations_attempted: 0,
+        production_order_state_reads_attempted: 0,
+        listen_key_lifecycle_attempted: 0,
+        retry_attempted: false,
+        cancel_attempted: false,
+        replace_attempted: false,
+        amend_attempted: false,
+        flatten_attempted: false,
+        dashboard_order_controls_enabled: false,
+        real_orders_submitted: false,
+        real_funds: false,
+        production_trading_enabled: request_sent,
+        single_shot_confirmed: opt.confirm_single_shot,
+        no_retry_confirmed: opt.confirm_no_retry,
+        no_secret_persistence_confirmed: opt.confirm_no_secret_persistence,
+        response_redaction_confirmed: opt.confirm_response_redacted,
+        dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
+        no_listen_key_lifecycle_confirmed: opt.confirm_no_listen_key_lifecycle,
+        diagnostic: if request_sent {
+            "manual owner online guarded send path attempted one production HTTP request; raw response, signed URL, signed query, signature, and secrets were not persisted"
+        } else {
+            "guarded production HTTP send path stayed offline; no request, network, retry, cancel, replace, amend, flatten, or Dashboard order control was attempted"
+        }
+        .to_string(),
+    })
+}
+
 fn build_production_mutation_runtime_gate_artifact(
     opt: &LiveProductionMutationRuntimeGateOpt,
 ) -> anyhow::Result<ProductionMutationRuntimeGateArtifact> {
@@ -7546,6 +7934,90 @@ fn production_mutation_request_builder_source_issues(
     }
     if artifact_has_production_mutation(Some(signing_approval)) {
         issues.push("signing_approval_records_forbidden_production_mutation".to_string());
+    }
+    if artifact_has_production_mutation(Some(request_preview)) {
+        issues.push("request_preview_records_forbidden_production_mutation".to_string());
+    }
+    issues
+}
+
+fn production_mutation_guarded_send_source_issues(
+    request_builder: &serde_json::Value,
+    request_preview: &serde_json::Value,
+    max_notional: &str,
+    credentials: &EnvOnlyProductionMutationPreviewCredentials,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(request_builder, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_REQUEST_BUILDER_SCHEMA_VERSION)
+    {
+        issues.push("request_builder_schema_mismatch".to_string());
+    }
+    if json_string_value(request_builder, "status").as_deref()
+        != Some("ready_request_object_built_no_send")
+    {
+        issues.push("request_builder_not_ready".to_string());
+    }
+    if !json_bool_value(request_builder, "request_object_built").unwrap_or(false) {
+        issues.push("request_object_not_built".to_string());
+    }
+    if json_bool_value(request_builder, "request_sent").unwrap_or(false) {
+        issues.push("request_builder_already_sent".to_string());
+    }
+    if json_bool_value(request_builder, "network_attempted").unwrap_or(false) {
+        issues.push("request_builder_attempted_network".to_string());
+    }
+    if json_string_value(request_preview, "schema_version").as_deref()
+        != Some(PRODUCTION_LIVE_ALPHA_ORDER_REQUEST_PREVIEW_SCHEMA_VERSION)
+    {
+        issues.push("request_preview_schema_mismatch".to_string());
+    }
+    if json_string_value(request_preview, "status").as_deref() != Some("ready_request_preview_only")
+    {
+        issues.push("request_preview_not_ready".to_string());
+    }
+    if json_string_value(request_preview, "credential_material").as_deref()
+        != Some("production_live_alpha")
+    {
+        issues.push("request_preview_not_production_live_alpha_material".to_string());
+    }
+    if json_string_value(request_preview, "request_method").as_deref() != Some("POST") {
+        issues.push("request_preview_method_not_post".to_string());
+    }
+    if json_string_value(request_preview, "request_target").as_deref() != Some("/api/v3/order") {
+        issues.push("request_preview_target_not_order".to_string());
+    }
+    if json_string_value(request_preview, "order_type").as_deref() != Some("LIMIT") {
+        issues.push("request_preview_not_limit".to_string());
+    }
+    if json_string_value(request_preview, "time_in_force").as_deref() != Some("GTC") {
+        issues.push("request_preview_not_gtc".to_string());
+    }
+    if json_string_value(request_preview, "api_key_env").as_deref()
+        != Some(credentials.api_key_env.as_str())
+    {
+        issues.push("request_preview_api_key_env_mismatch".to_string());
+    }
+    if json_string_value(request_preview, "api_secret_env").as_deref()
+        != Some(credentials.api_secret_env.as_str())
+    {
+        issues.push("request_preview_api_secret_env_mismatch".to_string());
+    }
+    match (
+        json_string_value(request_preview, "notional"),
+        parse_non_negative_decimal(max_notional),
+    ) {
+        (Some(notional), Ok(max_allowed)) => match parse_non_negative_decimal(&notional) {
+            Ok(order_notional)
+                if order_notional > Decimal::ZERO && order_notional <= max_allowed => {}
+            Ok(_) => issues.push("notional_not_tiny_or_positive".to_string()),
+            Err(_) => issues.push("notional_parse_failed".to_string()),
+        },
+        (None, _) => issues.push("notional_missing".to_string()),
+        (_, Err(_)) => issues.push("max_notional_parse_failed".to_string()),
+    }
+    if artifact_has_production_mutation(Some(request_builder)) {
+        issues.push("request_builder_records_forbidden_production_mutation".to_string());
     }
     if artifact_has_production_mutation(Some(request_preview)) {
         issues.push("request_preview_records_forbidden_production_mutation".to_string());
@@ -9907,6 +10379,81 @@ fn production_live_alpha_order_query_shape_without_signature() -> String {
     .join("&")
 }
 
+fn execute_production_mutation_guarded_send(
+    request: &ProductionLiveAlphaSignedOrderRequestPreview,
+) -> ProductionMutationGuardedSendHttpResult {
+    std::thread::spawn({
+        let endpoint_url = request.endpoint_url_redacted.clone();
+        let signed_query = request.signed_query.clone();
+        let api_key_header_name = request.api_key_header_name.clone();
+        let api_key_header_value = request.api_key_header_value.clone();
+        move || {
+            execute_production_mutation_guarded_send_on_thread(
+                &endpoint_url,
+                &signed_query,
+                &api_key_header_name,
+                &api_key_header_value,
+            )
+        }
+    })
+    .join()
+    .unwrap_or_else(|_| {
+        ProductionMutationGuardedSendHttpResult::failure(None, None, "http_send_thread_panicked")
+    })
+}
+
+fn execute_production_mutation_guarded_send_on_thread(
+    endpoint_url: &str,
+    signed_query: &str,
+    api_key_header_name: &str,
+    api_key_header_value: &str,
+) -> ProductionMutationGuardedSendHttpResult {
+    let started = Instant::now();
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(PRODUCTION_ORDER_STATE_PROBE_TIMEOUT)
+        .user_agent("NTPRO-v160-production-mutation-guarded-send")
+        .build()
+    {
+        Ok(client) => client,
+        Err(_) => {
+            return ProductionMutationGuardedSendHttpResult::failure(
+                None,
+                None,
+                "http_client_build_failed",
+            );
+        }
+    };
+
+    let signed_url = format!("{endpoint_url}?{signed_query}");
+    match client
+        .post(signed_url)
+        .header(api_key_header_name, api_key_header_value)
+        .send()
+    {
+        Ok(response) => {
+            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            let status = response.status().as_u16();
+            if response.status().is_success() {
+                ProductionMutationGuardedSendHttpResult::success(latency_ms, status)
+            } else {
+                ProductionMutationGuardedSendHttpResult::failure(
+                    Some(latency_ms),
+                    Some(status),
+                    "http_status_not_success",
+                )
+            }
+        }
+        Err(error) => {
+            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            ProductionMutationGuardedSendHttpResult::failure(
+                Some(latency_ms),
+                error.status().map(|status| status.as_u16()),
+                classify_production_public_read_error(&error),
+            )
+        }
+    }
+}
+
 fn normalize_production_live_alpha_order_endpoint_path(
     endpoint_path: &str,
 ) -> anyhow::Result<String> {
@@ -10062,6 +10609,18 @@ fn write_production_live_alpha_order_request_preview_report(
 fn write_production_mutation_request_builder_artifact(
     path: &Path,
     value: &ProductionMutationRequestBuilderArtifact,
+    credentials: &EnvOnlyProductionMutationPreviewCredentials,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    credentials.ensure_no_secret_values_absent(&path.display().to_string(), &body)?;
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
+fn write_production_mutation_guarded_send_artifact(
+    path: &Path,
+    value: &ProductionMutationGuardedSendArtifact,
     credentials: &EnvOnlyProductionMutationPreviewCredentials,
 ) -> anyhow::Result<()> {
     let raw = serde_json::to_string_pretty(value)?;
@@ -10569,6 +11128,72 @@ fn missing_production_mutation_request_builder_cli_flags(
 fn production_mutation_request_builder_missing_env_vars(
     credentials: &EnvOnlyProductionMutationPreviewCredentials,
 ) -> Vec<String> {
+    let mut missing = credentials
+        .production_signing_material_missing_gate_env_vars
+        .clone();
+    if credentials.production_signing_material_gate_open {
+        if credentials
+            .api_key_value
+            .as_deref()
+            .is_none_or(str::is_empty)
+        {
+            missing.push(credentials.api_key_env.clone());
+        }
+        if credentials
+            .api_secret_value
+            .as_deref()
+            .is_none_or(str::is_empty)
+        {
+            missing.push(credentials.api_secret_env.clone());
+        }
+    }
+    missing
+}
+
+fn missing_production_mutation_guarded_send_cli_flags(
+    opt: &LiveProductionMutationGuardedSendOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_mutation_guarded_send {
+        missing.push("--allow-production-mutation-guarded-send");
+    }
+    if !opt.confirm_owner_approved_guarded_send {
+        missing.push("--confirm-owner-approved-guarded-send");
+    }
+    if !opt.confirm_single_limit_gtc {
+        missing.push("--confirm-single-limit-gtc");
+    }
+    if !opt.confirm_tiny_notional {
+        missing.push("--confirm-tiny-notional");
+    }
+    if !opt.confirm_single_shot {
+        missing.push("--confirm-single-shot");
+    }
+    if !opt.confirm_no_retry {
+        missing.push("--confirm-no-retry");
+    }
+    if !opt.confirm_no_secret_persistence {
+        missing.push("--confirm-no-secret-persistence");
+    }
+    if !opt.confirm_response_redacted {
+        missing.push("--confirm-response-redacted");
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        missing.push("--confirm-dashboard-order-controls-disabled");
+    }
+    if !opt.confirm_no_listen_key_lifecycle {
+        missing.push("--confirm-no-listen-key-lifecycle");
+    }
+    missing
+}
+
+fn production_mutation_guarded_send_missing_env_vars(
+    opt: &LiveProductionMutationGuardedSendOpt,
+    credentials: &EnvOnlyProductionMutationPreviewCredentials,
+) -> Vec<String> {
+    if !opt.manual_online {
+        return Vec::new();
+    }
     let mut missing = credentials
         .production_signing_material_missing_gate_env_vars
         .clone();
@@ -11798,6 +12423,37 @@ write_summary = true
         }
     }
 
+    fn production_mutation_guarded_send_opt(
+        request_builder: PathBuf,
+        request_preview: PathBuf,
+        output: PathBuf,
+        manual_online: bool,
+        all_cli_gates: bool,
+    ) -> LiveProductionMutationGuardedSendOpt {
+        LiveProductionMutationGuardedSendOpt {
+            run_id: "v160-production-mutation-guarded-send".to_string(),
+            request_builder,
+            request_preview,
+            api_key_env: "NTPRO_V150002_API_KEY".to_string(),
+            api_secret_env: "NTPRO_V150002_API_SECRET".to_string(),
+            timestamp_ms: 1_718_400_000_000,
+            recv_window_ms: 5_000,
+            max_notional: "10.00".to_string(),
+            output,
+            manual_online,
+            allow_production_mutation_guarded_send: all_cli_gates,
+            confirm_owner_approved_guarded_send: all_cli_gates,
+            confirm_single_limit_gtc: all_cli_gates,
+            confirm_tiny_notional: all_cli_gates,
+            confirm_single_shot: all_cli_gates,
+            confirm_no_retry: all_cli_gates,
+            confirm_no_secret_persistence: all_cli_gates,
+            confirm_response_redacted: all_cli_gates,
+            confirm_dashboard_order_controls_disabled: all_cli_gates,
+            confirm_no_listen_key_lifecycle: all_cli_gates,
+        }
+    }
+
     fn write_kill_switch_approval_artifact(
         output: PathBuf,
         kill_switch_active: bool,
@@ -12002,6 +12658,39 @@ write_summary = true
         .unwrap();
 
         (runtime_gate, signing_approval, request_preview)
+    }
+
+    fn write_ready_v160_guarded_send_sources(output_dir: &Path) -> (PathBuf, PathBuf) {
+        let (runtime_gate, signing_approval, request_preview) =
+            write_ready_v160_request_builder_sources(output_dir);
+        let request_builder = output_dir.join("production_mutation_request_builder.json");
+        let production_api_key = "ntpro_v160005_production_like_api_key_value";
+        let production_api_secret = "ntpro_v160005_production_like_api_secret_value";
+
+        run_live_production_mutation_request_builder_with_env(
+            &production_mutation_request_builder_opt(
+                runtime_gate,
+                signing_approval,
+                request_preview.clone(),
+                request_builder.clone(),
+                true,
+            ),
+            |name| match name {
+                PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW
+                | PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED => Some("1".to_string()),
+                "NTPRO_V150002_API_KEY" => Some(production_api_key.to_string()),
+                "NTPRO_V150002_API_SECRET" => Some(production_api_secret.to_string()),
+                _ => None,
+            },
+        )
+        .unwrap();
+
+        let body = fs::read_to_string(&request_builder).unwrap();
+        assert!(!body.contains(production_api_key));
+        assert!(!body.contains(production_api_secret));
+        assert!(!body.contains("symbol=BTCUSDT"));
+
+        (request_builder, request_preview)
     }
 
     fn passing_live_alpha_risk_input() -> ProductionLiveAlphaRiskPreflightInput {
@@ -16307,6 +16996,191 @@ write_summary = true
                 .unwrap()
                 .iter()
                 .any(|issue| issue == "request_preview_not_limit")
+        );
+    }
+
+    #[test]
+    fn production_mutation_guarded_send_offline_ready_without_network() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v160-005-guarded-send-ready-offline-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (request_builder, request_preview) = write_ready_v160_guarded_send_sources(&output_dir);
+        let output = output_dir.join("production_mutation_guarded_send.json");
+
+        run_live_production_mutation_guarded_send_with_env(
+            &production_mutation_guarded_send_opt(
+                request_builder,
+                request_preview,
+                output.clone(),
+                false,
+                true,
+            ),
+            |_| None,
+        )
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(!body.contains("ntpro_v160005_production_like_api_key_value"));
+        assert!(!body.contains("ntpro_v160005_production_like_api_secret_value"));
+        assert!(!body.contains("symbol=BTCUSDT"));
+        let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(
+            artifact["schema_version"],
+            PRODUCTION_MUTATION_GUARDED_SEND_SCHEMA_VERSION
+        );
+        assert_eq!(
+            artifact["status"],
+            "ready_guarded_send_path_offline_no_network"
+        );
+        assert_eq!(artifact["manual_online_requested"], false);
+        assert_eq!(artifact["guarded_send_ready"], true);
+        assert_eq!(artifact["send_path_evaluated"], true);
+        assert_eq!(artifact["single_shot_send_allowed"], false);
+        assert_eq!(
+            artifact["request_builder_status"],
+            "ready_request_object_built_no_send"
+        );
+        assert_eq!(artifact["request_object_built"], true);
+        assert_eq!(artifact["request_method"], "POST");
+        assert_eq!(artifact["request_target"], TESTNET_ORDER_ENDPOINT_ORDER);
+        assert_eq!(artifact["order_type"], "LIMIT");
+        assert_eq!(artifact["time_in_force"], "GTC");
+        assert_eq!(artifact["credential_material"], "production_live_alpha");
+        assert_eq!(artifact["production_signing_material_env_read"], false);
+        assert_eq!(artifact["api_key_value_recorded"], false);
+        assert_eq!(artifact["api_secret_value_recorded"], false);
+        assert_eq!(artifact["api_key_header_value_recorded"], false);
+        assert_eq!(artifact["signature_recorded"], false);
+        assert_eq!(artifact["signed_query_recorded"], false);
+        assert_eq!(artifact["signed_url_recorded"], false);
+        assert_eq!(artifact["request_body_recorded"], false);
+        assert_eq!(artifact["raw_request_body_recorded"], false);
+        assert_eq!(artifact["raw_exchange_response_recorded"], false);
+        assert_eq!(artifact["response_body_recorded"], false);
+        assert_eq!(artifact["response_redacted"], true);
+        assert_eq!(artifact["error_code"], "not_attempted_offline");
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["production_order_submission_allowed"], false);
+        assert_eq!(artifact["production_order_mutation_allowed"], false);
+        assert_eq!(artifact["production_order_state_reads_allowed"], false);
+        assert_eq!(artifact["listen_key_lifecycle_allowed"], false);
+        assert_eq!(artifact["production_order_submissions_attempted"], 0);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["production_order_state_reads_attempted"], 0);
+        assert_eq!(artifact["listen_key_lifecycle_attempted"], 0);
+        assert_eq!(artifact["retry_attempted"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["replace_attempted"], false);
+        assert_eq!(artifact["amend_attempted"], false);
+        assert_eq!(artifact["flatten_attempted"], false);
+        assert_eq!(artifact["dashboard_order_controls_enabled"], false);
+        assert_eq!(artifact["real_orders_submitted"], false);
+        assert_eq!(artifact["real_funds"], false);
+        assert_eq!(artifact["production_trading_enabled"], false);
+        assert_eq!(
+            artifact["source_artifact_issues"].as_array().unwrap().len(),
+            0
+        );
+        assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+        assert_eq!(artifact["missing_env_vars"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn production_mutation_guarded_send_blocks_manual_online_without_env_gates() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v160-005-guarded-send-manual-missing-env-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (request_builder, request_preview) = write_ready_v160_guarded_send_sources(&output_dir);
+        let output = output_dir.join("production_mutation_guarded_send.json");
+
+        run_live_production_mutation_guarded_send_with_env(
+            &production_mutation_guarded_send_opt(
+                request_builder,
+                request_preview,
+                output.clone(),
+                true,
+                true,
+            ),
+            |_| None,
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_missing_manual_online_gate");
+        assert_eq!(artifact["manual_online_requested"], true);
+        assert_eq!(artifact["guarded_send_ready"], false);
+        assert_eq!(artifact["single_shot_send_allowed"], false);
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["production_order_submission_allowed"], false);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert!(
+            artifact["missing_env_vars"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|env| env == PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW)
+        );
+        assert!(
+            artifact["missing_env_vars"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|env| env == PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW)
+        );
+    }
+
+    #[test]
+    fn production_mutation_guarded_send_blocks_missing_confirmations() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v160-005-guarded-send-missing-flags-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (request_builder, request_preview) = write_ready_v160_guarded_send_sources(&output_dir);
+        let output = output_dir.join("production_mutation_guarded_send.json");
+
+        run_live_production_mutation_guarded_send_with_env(
+            &production_mutation_guarded_send_opt(
+                request_builder,
+                request_preview,
+                output.clone(),
+                false,
+                false,
+            ),
+            |_| None,
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_missing_gate");
+        assert_eq!(artifact["guarded_send_ready"], false);
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--allow-production-mutation-guarded-send")
+        );
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--confirm-owner-approved-guarded-send")
         );
     }
 

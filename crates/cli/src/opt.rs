@@ -180,6 +180,8 @@ pub enum LiveCommand {
     ProductionMutationSigningApproval(LiveProductionMutationSigningApprovalOpt),
     /// Builds a v0.16 single LIMIT GTC production order request object locally; no request execution.
     ProductionMutationRequestBuilder(LiveProductionMutationRequestBuilderOpt),
+    /// Evaluates the v0.16 guarded single-shot production HTTP send path.
+    ProductionMutationGuardedSend(LiveProductionMutationGuardedSendOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -993,6 +995,71 @@ pub struct LiveProductionMutationRequestBuilderOpt {
     /// Confirms retry, correction, cancel, replace, amend, and flatten remain forbidden.
     #[arg(long)]
     pub confirm_no_retry: bool,
+}
+
+/// Owner-approved v0.16 guarded production HTTP send options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationGuardedSendOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.16 request builder JSON input.
+    #[arg(long)]
+    pub request_builder: PathBuf,
+    /// v0.15 production live-alpha request preview JSON input.
+    #[arg(long)]
+    pub request_preview: PathBuf,
+    /// Environment variable name containing the Binance production API key.
+    #[arg(long, default_value = "BINANCE_PRODUCTION_LIVE_ALPHA_API_KEY")]
+    pub api_key_env: String,
+    /// Environment variable name containing the Binance production API secret.
+    #[arg(long, default_value = "BINANCE_PRODUCTION_LIVE_ALPHA_API_SECRET")]
+    pub api_secret_env: String,
+    /// Timestamp in milliseconds for deterministic memory-only signing.
+    #[arg(long)]
+    pub timestamp_ms: u64,
+    /// Binance recvWindow in milliseconds.
+    #[arg(long, default_value_t = 5_000)]
+    pub recv_window_ms: u64,
+    /// Maximum allowed tiny order notional for this guarded send path.
+    #[arg(long, default_value = "10.00")]
+    pub max_notional: String,
+    /// v0.16 guarded send JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Requests the manual online single-shot send path.
+    #[arg(long)]
+    pub manual_online: bool,
+    /// Manual CLI gate for guarded production send evaluation.
+    #[arg(long)]
+    pub allow_production_mutation_guarded_send: bool,
+    /// Confirms owner approved this guarded send evaluation.
+    #[arg(long)]
+    pub confirm_owner_approved_guarded_send: bool,
+    /// Confirms the candidate is a single LIMIT GTC order only.
+    #[arg(long)]
+    pub confirm_single_limit_gtc: bool,
+    /// Confirms the candidate notional is tiny and owner-capped.
+    #[arg(long)]
+    pub confirm_tiny_notional: bool,
+    /// Confirms this path is single-shot only.
+    #[arg(long)]
+    pub confirm_single_shot: bool,
+    /// Confirms no retry, correction, cancel, replace, amend, or flatten is allowed.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms API key, secret, signature, signed query, signed URL, raw response, and raw body are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+    /// Confirms raw exchange response must not be persisted.
+    #[arg(long)]
+    pub confirm_response_redacted: bool,
+    /// Confirms Dashboard order controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms listenKey lifecycle remains forbidden.
+    #[arg(long)]
+    pub confirm_no_listen_key_lifecycle: bool,
 }
 
 /// Hypothetical live-alpha risk preflight options.
@@ -2420,6 +2487,79 @@ mod tests {
         assert!(builder.confirm_dashboard_order_controls_disabled);
         assert!(builder.confirm_no_listen_key_lifecycle);
         assert!(builder.confirm_no_retry);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_guarded_send_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-guarded-send",
+            "--run-id",
+            "v160-guarded-send",
+            "--request-builder",
+            "runs/v160/request-builder.json",
+            "--request-preview",
+            "runs/v160/request-preview.json",
+            "--api-key-env",
+            "NTPRO_V160005_API_KEY",
+            "--api-secret-env",
+            "NTPRO_V160005_API_SECRET",
+            "--timestamp-ms",
+            "1718400000000",
+            "--recv-window-ms",
+            "5000",
+            "--max-notional",
+            "10.00",
+            "--output",
+            "runs/v160/guarded-send.json",
+            "--manual-online",
+            "--allow-production-mutation-guarded-send",
+            "--confirm-owner-approved-guarded-send",
+            "--confirm-single-limit-gtc",
+            "--confirm-tiny-notional",
+            "--confirm-single-shot",
+            "--confirm-no-retry",
+            "--confirm-no-secret-persistence",
+            "--confirm-response-redacted",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-listen-key-lifecycle",
+        ])
+        .expect("live production-mutation-guarded-send should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationGuardedSend(send) = live.command else {
+            panic!("expected production-mutation-guarded-send command");
+        };
+
+        assert_eq!(send.run_id, "v160-guarded-send");
+        assert_eq!(
+            send.request_builder,
+            PathBuf::from("runs/v160/request-builder.json")
+        );
+        assert_eq!(
+            send.request_preview,
+            PathBuf::from("runs/v160/request-preview.json")
+        );
+        assert_eq!(send.api_key_env, "NTPRO_V160005_API_KEY");
+        assert_eq!(send.api_secret_env, "NTPRO_V160005_API_SECRET");
+        assert_eq!(send.timestamp_ms, 1_718_400_000_000);
+        assert_eq!(send.recv_window_ms, 5_000);
+        assert_eq!(send.max_notional, "10.00");
+        assert_eq!(send.output, PathBuf::from("runs/v160/guarded-send.json"));
+        assert!(send.manual_online);
+        assert!(send.allow_production_mutation_guarded_send);
+        assert!(send.confirm_owner_approved_guarded_send);
+        assert!(send.confirm_single_limit_gtc);
+        assert!(send.confirm_tiny_notional);
+        assert!(send.confirm_single_shot);
+        assert!(send.confirm_no_retry);
+        assert!(send.confirm_no_secret_persistence);
+        assert!(send.confirm_response_redacted);
+        assert!(send.confirm_dashboard_order_controls_disabled);
+        assert!(send.confirm_no_listen_key_lifecycle);
     }
 
     #[test]
