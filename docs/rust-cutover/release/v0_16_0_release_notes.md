@@ -2,14 +2,17 @@
 
 Date: 2026-06-23
 Executor: Codex
-Status: READY FOR OWNER RELEASE DECISION
-Planned tag: `ntpro-rust-only-v0.16.0`
+Status: RELEASED
+Tag: `ntpro-rust-only-v0.16.0`
+Release name: `NTPRO Rust-only v0.16.0`
+Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.16.0`
 
 ## Summary
 
-`v0.16.0` prepares NTPRO for a minimum owner-approved production order mutation
-candidate. This is not a general production trading release. The release scope
-is a single tiny owner-approved `LIMIT` `GTC` production order candidate, with
+`v0.16.0` is the NTPRO minimum owner-approved production order mutation
+candidate release. This is not a general production trading release. The
+release scope is a single tiny owner-approved `LIMIT` `GTC` production order
+candidate, with
 explicit gates, redacted artifacts, readback evidence, audit evidence,
 kill-switch enforcement, and no retry/remediation.
 
@@ -88,6 +91,7 @@ production trading platform claim
 | #506 | V160-010 | Yes, gated candidate | Defines terminal failure and no-retry semantics. |
 | #507 | V160-011 | No Dashboard control expansion | Adds read-only Dashboard evidence panel. |
 | #508 | V160-012 | No product-surface expansion | Adds aggregate release gates and hosted PR smoke wiring. |
+| #509 | V160-013 | No product-surface expansion | Adds v0.16 readiness, release notes, and final release accounting. |
 
 ## Validation
 
@@ -117,17 +121,17 @@ scripts/ai/verify_release.sh release-surface-current-guard
 scripts/ai/verify_fast.sh
 git diff --check
 hosted Rust Cutover Smoke
-hosted security-audit
+hosted security-audit when audit-relevant paths change
 ```
 
 ## Release Status
 
-This document is prepared for a future formal release:
+This document is the formal GitHub Release note for:
 
 ```text
-planned tag = ntpro-rust-only-v0.16.0
-release status = not yet tagged by this document
-GitHub Release = not yet created by this document
+tag = ntpro-rust-only-v0.16.0
+release name = NTPRO Rust-only v0.16.0
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.16.0
 ```
 
 The release boundary must continue to preserve: one owner-approved tiny

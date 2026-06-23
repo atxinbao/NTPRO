@@ -10,12 +10,13 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.15.0` 是当前正式公开发布点；它是 Guarded Live Alpha Mutation Scope +
-Execution Dry-Run Harness，只证明生产 mutation 范围分类、脱敏请求预览、人工审批、
-kill switch、dry-run 执行隔离、事故证据和 Dashboard 只读预检面板。它不是生产
-请求发送、不是生产下单、不是生产订单变更、不是 listenKey 生命周期、不是生产交易，
-也没有 Dashboard 下单按钮。`v0.16.0` 需要单独 scope decision，不能从 v0.15.0
-的 request-preview/dry-run 证据里推导出来。
+`v0.16.0` 是当前正式公开发布点；它是 Minimum Owner-Approved Production Order
+Mutation Candidate，只允许一笔 owner 明确批准的极小 `LIMIT` `GTC` 生产订单候选，
+并且必须经过显式 runtime gates、签名材料审批、guarded HTTP send、脱敏响应证据、
+readback 证据、kill switch、audit trail 和 no-retry 失败语义。它不是策略实盘、
+不是多单执行、不是 `MARKET` 下单、不是撤单/改单/重试/纠错/flatten、不是 listenKey
+生命周期、不是多账户多交易所执行，也没有 Dashboard 下单按钮。`v0.17.0` 需要单独
+scope decision，不能从 v0.16.0 的单笔候选证据里推导出来。
 
 ## Release Tags
 
@@ -34,6 +35,7 @@ ntpro-rust-only-v0.12.1
 ntpro-rust-only-v0.13.0
 ntpro-rust-only-v0.14.0
 ntpro-rust-only-v0.15.0
+ntpro-rust-only-v0.16.0
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -46,19 +48,22 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.15.0
+ntpro-rust-only-v0.16.0
 ```
 
 The active patch track is:
 
 ```text
-v0.15.1
+v0.16.1
 ```
 
-v0.15.1 is the reserved patch track, if needed. It must not be described as
-production request sending, production order submission, production order
-mutation, listenKey lifecycle, real funds, production trading, automatic
-production remediation, or Dashboard order controls.
+v0.16.1 is the reserved patch track, if needed. It must not expand beyond the
+v0.16.0 one-owner-approved tiny `LIMIT` `GTC` candidate boundary and must not
+be described as strategy-driven production execution, multiple orders,
+`MARKET` orders, cancel/replace/amend/retry/correction/flatten, listenKey
+lifecycle, real funds, production trading platform readiness, automatic
+production remediation, multi-account/multi-venue execution, or Dashboard order
+controls.
 
 ## Cargo Workspace Version
 
@@ -230,21 +235,22 @@ remediation, or Dashboard order controls.
 
 ### v0.16.0
 
-Scope contract:
+Current boundary:
 
 ```text
 Minimum Owner-Approved Production Order Mutation Candidate
 ```
 
-V160-001 defines the v0.16.0 scope. v0.16 may implement only one
-owner-approved tiny `LIMIT` `GTC` production order submission candidate with
-default fail-closed gates, redacted artifacts, kill-switch enforcement,
-post-submit readback, no retry, and no Dashboard order controls. It must not
-inherit strategy-driven production execution, multiple orders, `MARKET`
-orders, cancel/replace/amend/retry/correction/flatten, listenKey lifecycle,
-multi-venue/multi-account execution, real-funds trading claims beyond the one
-explicit owner-approved candidate, automatic remediation, or production trading
-platform claims from v0.15.0 request-preview/dry-run evidence.
+V160-001 defines the v0.16.0 scope, and the formal release keeps that boundary.
+v0.16.0 includes only one owner-approved tiny `LIMIT` `GTC` production order
+candidate with default fail-closed gates, owner-gated signing material,
+redacted request/response artifacts, guarded send, kill-switch enforcement,
+post-submit readback, audit trail, terminal no-retry failure semantics, and no
+Dashboard order controls. It must not inherit strategy-driven production
+execution, multiple orders, `MARKET` orders, cancel/replace/amend/retry/
+correction/flatten, listenKey lifecycle, multi-venue/multi-account execution,
+real-funds trading platform claims, automatic remediation, or Dashboard order
+controls from earlier request-preview/dry-run evidence.
 
 ### v0.6.0
 

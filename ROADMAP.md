@@ -5,47 +5,52 @@ Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is
-`ntpro-rust-only-v0.15.0`, the Guarded Live Alpha Mutation Scope + Execution Dry-Run Harness release. The next patch track is `v0.15.1`, if needed. `v0.16.0` requires a separate scope decision before any capability may be claimed beyond v0.15.0 request-preview/dry-run evidence.
+`ntpro-rust-only-v0.16.0`, the Minimum Owner-Approved Production Order Mutation Candidate release. The next patch track is `v0.16.1`, if needed. `v0.17.0` requires a separate scope decision before any capability may be claimed beyond v0.16.0 single-order candidate evidence.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.15.0
+ntpro-rust-only-v0.16.0
 ```
 
 Current capability boundary:
 
 ```text
-Guarded Live Alpha Mutation Scope + Execution Dry-Run Harness
-production mutation endpoint classification
-redacted local order request preview
-manual approval lifecycle for preview artifact creation
-kill switch runtime gate
-local dry-run execution adapter artifact
-dry-run mutation golden trace replay
-manual incident, rollback, and emergency-stop artifacts
-read-only Dashboard mutation preflight panel
+Minimum Owner-Approved Production Order Mutation Candidate
+one owner-approved tiny LIMIT GTC production order candidate
+explicit owner approval immediately before send
+owner-gated signing material
+guarded production HTTP send path
+redacted request/response evidence
+post-submit order-state readback proof contract
+kill switch checks before and after the send boundary
+production mutation audit trail
+terminal failure and no-retry semantics
+read-only Dashboard production mutation evidence panel
 default local/PR/release execution offline and fail-closed
-production request sent=false
-production order counters fixed at zero
-production order mutations attempted=0
-listenKey lifecycle attempted=0
-no real funds
-no production trading
+production mutation disabled by default
+no strategy-driven production execution
+no multiple orders
+no MARKET orders
+no cancel/replace/amend/retry/correction/flatten
+no automatic remediation
+no listenKey lifecycle
+no real-funds proof in CI
+no multi-account or multi-venue execution
 no Dashboard order controls
 ```
 
-`v0.15.0` builds on the v0.14 Production Order-State Read-Only + Live Alpha
-Dry-Run line. It adds production mutation endpoint classification, redacted
-local request-preview artifacts, manual approval lifecycle, kill-switch runtime
-gating, local dry-run execution-adapter evidence, incident/rollback evidence,
-and a Dashboard read-only mutation preflight panel. It keeps production request
-sending, production order submission, production order mutation,
-cancel/replace/amend/retry/correction, listenKey lifecycle, real funds,
-production trading, automatic production remediation, and Dashboard order
-controls out of scope.
+`v0.16.0` builds on the v0.15 Guarded Live Alpha Mutation Scope + Execution
+Dry-Run Harness line. It advances the boundary from request-preview/dry-run
+evidence to the smallest owner-approved production mutation candidate: one tiny
+`LIMIT` `GTC` production order candidate with explicit gates, redacted
+evidence, readback, audit, kill-switch, and no-retry semantics. It keeps
+strategy-driven production execution, multiple orders, `MARKET` orders,
+cancel/replace/amend/retry/correction/flatten, automatic remediation,
+listenKey lifecycle, real-funds proof in CI, multi-account/multi-venue
+execution, and Dashboard order controls out of scope.
 
 ## Published Hardening Patch: v0.7.1
 
@@ -359,9 +364,11 @@ future live-alpha execution decision.
 
 `v0.12.1` remains the published hardening baseline for the v0.12 production
 read-only/shadow-only line. `v0.13.0` remains the Guarded Live Alpha Preflight
-line and `v0.14.0` remains the Production Order-State Read-Only + Live Alpha
-Dry-Run line. Both are superseded by the v0.15.0 request-preview/dry-run
-release line for current public release-surface wording.
+line, `v0.14.0` remains the Production Order-State Read-Only + Live Alpha
+Dry-Run line, and `v0.15.0` remains the Guarded Live Alpha Mutation Scope +
+Execution Dry-Run Harness line. These are superseded by the v0.16.0
+owner-approved single-order candidate line for current public release-surface
+wording.
 
 ## Published Capability Track: v0.15.0
 
@@ -402,10 +409,51 @@ preflight only.
 - production trading;
 - Dashboard order controls.
 
-`v0.16.0` requires a separate scope decision before any capability may be
-claimed beyond v0.15.0 request-preview/dry-run evidence.
+## Published Capability Track: v0.16.0
 
-## Corrected Capability Sequence: v0.9.0 through v0.15.0
+`v0.16.0` is the published Minimum Owner-Approved Production Order Mutation
+Candidate line. It keeps release defaults offline/fail-closed and adds the
+smallest production mutation candidate boundary: one owner-approved tiny
+`LIMIT` `GTC` production order candidate with explicit gates, redacted
+evidence, readback, audit, kill-switch enforcement, and terminal no-retry
+failure semantics.
+
+`v0.16.0` includes:
+
+- v0.16 production mutation scope contract;
+- owner-approved runtime gates;
+- production signing-material approval evidence;
+- single `LIMIT` `GTC` request builder;
+- guarded production HTTP send path behind explicit gates;
+- production mutation response redaction;
+- post-submit order-state readback proof contract;
+- kill-switch checks around the send boundary;
+- production mutation audit trail;
+- failure-mode and no-retry semantics;
+- Dashboard production mutation evidence read-only panel;
+- v0.16 release gates;
+- readiness report and release notes.
+
+`v0.16.0` explicitly does not include:
+
+- strategy-driven production execution;
+- multiple production orders;
+- batch production orders;
+- `MARKET` orders;
+- production cancel, replace, amend, retry, correction, or flatten;
+- automatic production remediation;
+- listenKey lifecycle access;
+- signed WebSocket user stream runtime;
+- multi-account or multi-venue execution;
+- VWAP/POV/Iceberg execution algorithms;
+- real-funds proof in CI;
+- production trading platform claim;
+- Dashboard order controls.
+
+`v0.17.0` requires a separate scope decision before any capability may be
+claimed beyond v0.16.0 owner-approved single-order candidate evidence.
+
+## Corrected Capability Sequence: v0.9.0 through v0.16.0
 
 The previous idea of making `v0.9.0` a Binance testnet order lifecycle proof is
 superseded. `v0.9.0` is now published as Strategy Runtime Foundation, and
@@ -423,6 +471,7 @@ v0.12.1 = Production Read-Only Evidence & Release Surface Hardening
 v0.13.0 = Guarded Live Alpha Preflight only
 v0.14.0 = Production Order-State Read-Only + Live Alpha Dry-Run
 v0.15.0 = Guarded Live Alpha Mutation Scope + Execution Dry-Run Harness
+v0.16.0 = Minimum Owner-Approved Production Order Mutation Candidate
 ```
 
 `v0.9.0` is the published batch foundation track. It makes `ntpro-node` load a
@@ -469,8 +518,9 @@ release.
 scope decision limits it to preflight evidence only before any live command or
 production trading capability is claimed. `v0.14.0` is the published follow-up
 read-only/dry-run line. `v0.15.0` is the published mutation-scope/request-preview
-dry-run line. `v0.16.0` requires a separate scope decision before any capability
-may be claimed beyond v0.15.0 request-preview/dry-run evidence.
+dry-run line. `v0.16.0` is the published owner-approved single-order candidate
+line. `v0.17.0` requires a separate scope decision before any capability may be
+claimed beyond v0.16.0 single-order candidate evidence.
 
 ## Product Surface Direction
 

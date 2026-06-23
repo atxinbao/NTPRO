@@ -6,50 +6,41 @@ NautilusTrader.
 The current public milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.15.0
-Capability: Guarded Live Alpha Mutation Scope + Execution Dry-Run Harness
-Boundary: v0.15.0 production mutation scope classification, redacted local order request preview, manual approval lifecycle, kill switch runtime gate, local dry-run execution adapter artifact, dry-run mutation golden traces, manual incident/rollback/emergency-stop artifacts, Dashboard read-only mutation preflight panel, default local/PR/release execution offline and fail-closed, production request sent=false, production orders submitted=0, production order mutations attempted=0, listenKey lifecycle attempted=0, no real funds, no production trading, no Dashboard order controls
+Current source tag: ntpro-rust-only-v0.16.0
+Capability: Minimum Owner-Approved Production Order Mutation Candidate
+Boundary: v0.16.0 permits only one owner-approved tiny LIMIT GTC production order candidate behind explicit runtime gates, manual signing-material approval, guarded HTTP send, redacted request/response evidence, post-submit readback evidence, kill-switch checks, audit trail, and terminal no-retry failure semantics. Default local/PR/release execution remains offline and fail-closed; production mutation remains disabled by default; Dashboard remains read-only evidence only; no strategy-driven production execution, no multiple orders, no MARKET orders, no cancel/replace/amend/retry/correction/flatten, no automatic remediation, no listenKey lifecycle, no real-funds proof in CI, and no Dashboard order controls
 ```
 
-This tag is the current v0.15.0 source release point for the scoped Guarded
-Live Alpha Mutation Scope + Execution Dry-Run Harness line. It moves beyond
-the v0.14 read-only/dry-run line by adding production mutation endpoint
-classification, redacted local request-preview artifacts, manual approval,
-kill-switch runtime gating, local dry-run execution-adapter evidence,
-incident/rollback evidence, and a Dashboard read-only mutation preflight panel.
-It is not evidence of production request sending, production order submission,
-production mutation, cancel/replace/amend/retry/correction, listenKey lifecycle
-access, signed WebSocket user stream runtime, real funds, production trading,
-automatic production remediation, production portfolio parity, or Dashboard
-order controls. It is published as a GitHub Release for the tagged source tree:
+This tag is the current v0.16.0 source release point for the scoped Minimum
+Owner-Approved Production Order Mutation Candidate line. It moves beyond the
+v0.15 request-preview/dry-run line by adding the smallest guarded production
+mutation candidate boundary: one tiny owner-approved `LIMIT` `GTC` production
+order candidate, explicit runtime gates, owner-gated signing material, guarded
+HTTP send, response redaction, readback evidence, audit evidence, kill-switch
+enforcement, and no-retry failure semantics. It is not evidence of strategy
+live trading, multiple orders, `MARKET` orders, cancel/replace/amend/retry/
+correction/flatten, automatic remediation, listenKey lifecycle, real-funds
+proof in CI, multi-account or multi-venue execution, or Dashboard order
+controls. It is published as a GitHub Release for the tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.15.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.16.0
 ```
 
-`v0.15.0` is now the current Guarded Live Alpha Mutation Scope + Execution
-Dry-Run Harness release. It is still dry-run/request-preview only. It does not
-expand the product into production request sending, production order
-submission, production order mutation, cancel/replace/amend/retry/correction,
-listenKey lifecycle, signed WebSocket user stream runtime, real funds,
-production trading, automatic production remediation, production portfolio
-parity, or Dashboard order controls.
+`v0.16.0` is now the current Minimum Owner-Approved Production Order Mutation
+Candidate release. It is still a tightly gated candidate, not a general
+production trading platform. It allows only the scoped one-order candidate and
+keeps all unapproved production mutation paths fail-closed.
 
-The next patch track is `v0.15.1`, if needed. It must preserve the v0.15.0
-request-preview/dry-run and no-production-mutation boundary and must not add
-production request sending, production order submission, production order
-mutation, listenKey lifecycle, signed WebSocket user stream runtime, real
-funds, production trading, automatic production remediation, or Dashboard
-order controls.
+The next patch track is `v0.16.1`, if needed. It must preserve the v0.16.0
+one-owner-approved tiny `LIMIT` `GTC` candidate boundary and must not add
+strategy-driven production execution, multiple orders, `MARKET` orders,
+cancel/replace/amend/retry/correction/flatten, automatic remediation,
+listenKey lifecycle, real-funds proof in CI, multi-account or multi-venue
+execution, or Dashboard order controls.
 
-`v0.16.0` requires a separate scope decision before any capability may be
-claimed beyond v0.15.0 request-preview/dry-run evidence. That scope decision is
-now documented as a future `Minimum Owner-Approved Production Order Mutation
-Candidate`. The scope allows only a possible one-owner-approved tiny `LIMIT`
-`GTC` production order candidate after its own gates land. It is not yet a
-released capability and must not be described as strategy-driven production
-trading, multiple orders, cancel/replace/amend/retry/correction, listenKey
-lifecycle, automatic remediation, or Dashboard order controls.
+`v0.17.0` requires a separate scope decision before any capability may be
+claimed beyond v0.16.0 owner-approved single-order candidate evidence.
 
 ## Current Status
 
@@ -125,7 +116,7 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.15.0 is the current formal release line. It builds on the earlier foundation
+v0.16.0 is the current formal release line. It builds on the earlier foundation
 layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
@@ -172,6 +163,12 @@ layers:
   manual approval lifecycle, kill-switch runtime gate, local dry-run execution
   adapter evidence, incident/rollback artifacts, Dashboard read-only mutation
   preflight panel, and no-production-mutation release gate.
+- `v0.16.0`: Minimum Owner-Approved Production Order Mutation Candidate, with
+  one owner-approved tiny `LIMIT` `GTC` production order candidate, explicit
+  runtime gates, owner-gated signing material, guarded HTTP send, response
+  redaction, order-state readback, audit trail, kill-switch checks, no-retry
+  failure semantics, Dashboard read-only evidence, and no general production
+  trading claim.
 
 `v0.5.0` was completed as a scoped readiness milestone and is absorbed into the
 `v0.6.0` release tree. It is not published as a separate public GitHub Release.
@@ -501,13 +498,15 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.15.0` is the current Rust-only source release for the
-Guarded Live Alpha Mutation Scope + Execution Dry-Run Harness line. It does
-not add production request sending, production order submission, production
-order mutation, listenKey lifecycle, signed WebSocket user stream runtime, real
-funds, production trading, automatic production remediation, production
-portfolio parity, or Dashboard order controls. `v0.15.0` preserves a
-request-preview/dry-run and no-production-mutation boundary.
+`ntpro-rust-only-v0.16.0` is the current Rust-only source release for the
+Minimum Owner-Approved Production Order Mutation Candidate line. It allows only
+one owner-approved tiny `LIMIT` `GTC` production order candidate behind
+explicit gates, redacted evidence, readback, audit, kill-switch, and no-retry
+semantics. It does not add strategy-driven production execution, multiple
+orders, `MARKET` orders, cancel/replace/amend/retry/correction/flatten,
+listenKey lifecycle, signed WebSocket user stream runtime, real-funds proof in
+CI, multi-account or multi-venue execution, automatic production remediation,
+production trading platform claims, or Dashboard order controls.
 `v0.12.1` remains the Production Read-Only Evidence & Release Surface Hardening
 baseline, `v0.10.0` remains the Binance spot sandbox order-proof baseline,
 `v0.9.0` remains the local deterministic Strategy Runtime batch foundation
