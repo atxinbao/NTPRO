@@ -192,6 +192,8 @@ pub enum LiveCommand {
     ProductionMutationFailureSemantics(LiveProductionMutationFailureSemanticsOpt),
     /// Writes a v0.17 local production order ledger for one mutation candidate lineage.
     ProductionMutationLocalOrderLedger(LiveProductionMutationLocalOrderLedgerOpt),
+    /// Maps v0.17 redacted exchange readback metadata for one mutation candidate lineage.
+    ProductionMutationExchangeReadbackMapper(LiveProductionMutationExchangeReadbackMapperOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -1355,6 +1357,56 @@ pub struct LiveProductionMutationLocalOrderLedgerOpt {
     /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
     #[arg(long)]
     pub confirm_no_secret_persistence: bool,
+}
+
+/// v0.17 exchange readback mapper options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationExchangeReadbackMapperOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.17 local order ledger JSON input.
+    #[arg(long)]
+    pub local_order_ledger: PathBuf,
+    /// Redacted GET /api/v3/order readback metadata JSON input.
+    #[arg(long)]
+    pub order_readback: PathBuf,
+    /// Redacted GET /api/v3/openOrders readback metadata JSON input.
+    #[arg(long)]
+    pub open_orders_readback: PathBuf,
+    /// v0.17 exchange readback mapper JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for exchange readback mapping.
+    #[arg(long)]
+    pub allow_production_mutation_exchange_readback_mapper: bool,
+    /// Confirms readback metadata is already redacted.
+    #[arg(long)]
+    pub confirm_redacted_readback_metadata_only: bool,
+    /// Confirms mapping uses only known order identifiers from the local lineage.
+    #[arg(long)]
+    pub confirm_known_order_identifier_only: bool,
+    /// Confirms v0.17 reconciliation is read-only evidence only.
+    #[arg(long)]
+    pub confirm_read_only_reconciliation_scope: bool,
+    /// Confirms mapper is local/offline and performs no network calls.
+    #[arg(long)]
+    pub confirm_no_network: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+    /// Confirms production order submission and mutation remain forbidden.
+    #[arg(long)]
+    pub confirm_no_production_order_mutation: bool,
+    /// Confirms no retry is attempted or scheduled.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms no cancel is attempted or scheduled.
+    #[arg(long)]
+    pub confirm_no_cancel: bool,
+    /// Confirms Dashboard order and cancel controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
 }
 
 /// Hypothetical live-alpha risk preflight options.
@@ -3207,6 +3259,71 @@ mod tests {
         assert!(ledger.confirm_no_remediation);
         assert!(ledger.confirm_dashboard_order_controls_disabled);
         assert!(ledger.confirm_no_secret_persistence);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_exchange_readback_mapper_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-exchange-readback-mapper",
+            "--run-id",
+            "v170-exchange-readback-mapper",
+            "--local-order-ledger",
+            "runs/v170/local-order-ledger.json",
+            "--order-readback",
+            "runs/v170/order-readback-new.json",
+            "--open-orders-readback",
+            "runs/v170/open-orders-new.json",
+            "--output",
+            "runs/v170/exchange-readback-mapper.json",
+            "--allow-production-mutation-exchange-readback-mapper",
+            "--confirm-redacted-readback-metadata-only",
+            "--confirm-known-order-identifier-only",
+            "--confirm-read-only-reconciliation-scope",
+            "--confirm-no-network",
+            "--confirm-no-secret-persistence",
+            "--confirm-no-production-order-mutation",
+            "--confirm-no-retry",
+            "--confirm-no-cancel",
+            "--confirm-dashboard-order-controls-disabled",
+        ])
+        .expect("live production-mutation-exchange-readback-mapper should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationExchangeReadbackMapper(mapper) = live.command else {
+            panic!("expected production-mutation-exchange-readback-mapper command");
+        };
+
+        assert_eq!(mapper.run_id, "v170-exchange-readback-mapper");
+        assert_eq!(
+            mapper.local_order_ledger,
+            PathBuf::from("runs/v170/local-order-ledger.json")
+        );
+        assert_eq!(
+            mapper.order_readback,
+            PathBuf::from("runs/v170/order-readback-new.json")
+        );
+        assert_eq!(
+            mapper.open_orders_readback,
+            PathBuf::from("runs/v170/open-orders-new.json")
+        );
+        assert_eq!(
+            mapper.output,
+            PathBuf::from("runs/v170/exchange-readback-mapper.json")
+        );
+        assert!(mapper.allow_production_mutation_exchange_readback_mapper);
+        assert!(mapper.confirm_redacted_readback_metadata_only);
+        assert!(mapper.confirm_known_order_identifier_only);
+        assert!(mapper.confirm_read_only_reconciliation_scope);
+        assert!(mapper.confirm_no_network);
+        assert!(mapper.confirm_no_secret_persistence);
+        assert!(mapper.confirm_no_production_order_mutation);
+        assert!(mapper.confirm_no_retry);
+        assert!(mapper.confirm_no_cancel);
+        assert!(mapper.confirm_dashboard_order_controls_disabled);
     }
 
     #[test]
