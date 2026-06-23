@@ -12,11 +12,22 @@ source scripts/ai/toolchain_env.sh
 
 cargo test -p nautilus-cli production_mutation_v16_evidence --lib
 
-rg -n \
+grep -nE \
   "production_mutation_evidence|renderProductionMutationEvidence|v0\\.16 Production Mutation Evidence" \
   crates/cli/src/dashboard.rs >/dev/null
 
-if rg -n "function renderProductionMutationEvidence[\\s\\S]*(<button|data-dashboard-action|fetch\\(|credential)" crates/cli/src/dashboard.rs >/dev/null; then
+renderer_body="$(awk '
+  /^function renderProductionMutationEvidence\(items\) \{/ { in_renderer = 1 }
+  in_renderer { print }
+  in_renderer && /^}$/ { exit }
+' crates/cli/src/dashboard.rs)"
+
+if [[ -z "$renderer_body" ]]; then
+  echo "missing v0.16 production mutation evidence renderer" >&2
+  exit 1
+fi
+
+if printf '%s\n' "$renderer_body" | grep -E "(<button|data-dashboard-action|fetch\\(|credential)" >/dev/null; then
   echo "v0.16 production mutation evidence renderer contains control or credential surface" >&2
   exit 1
 fi
