@@ -190,6 +190,8 @@ pub enum LiveCommand {
     ProductionMutationAuditTrail(LiveProductionMutationAuditTrailOpt),
     /// Writes v0.16 production mutation failure/no-retry semantics evidence.
     ProductionMutationFailureSemantics(LiveProductionMutationFailureSemanticsOpt),
+    /// Writes a v0.17 local production order ledger for one mutation candidate lineage.
+    ProductionMutationLocalOrderLedger(LiveProductionMutationLocalOrderLedgerOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -1291,6 +1293,68 @@ pub struct LiveProductionMutationFailureSemanticsOpt {
     /// Confirms listenKey lifecycle remains forbidden.
     #[arg(long)]
     pub confirm_no_listen_key_lifecycle: bool,
+}
+
+/// v0.17 local production order ledger options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationLocalOrderLedgerOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// Stable local lineage identifier for one v0.16 mutation candidate.
+    #[arg(long)]
+    pub order_lineage_id: String,
+    /// v0.16 request builder JSON input.
+    #[arg(long)]
+    pub request_builder: PathBuf,
+    /// v0.16 guarded-send JSON input.
+    #[arg(long)]
+    pub guarded_send: PathBuf,
+    /// v0.16 response-redaction JSON input.
+    #[arg(long)]
+    pub response_redaction: PathBuf,
+    /// v0.16 order-state readback JSON input.
+    #[arg(long)]
+    pub order_state_readback: PathBuf,
+    /// v0.16 audit trail JSON input.
+    #[arg(long)]
+    pub audit_trail: PathBuf,
+    /// v0.16 failure semantics JSON input.
+    #[arg(long)]
+    pub failure_semantics: PathBuf,
+    /// v0.17 local order ledger JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for local production order ledger creation.
+    #[arg(long)]
+    pub allow_production_mutation_local_order_ledger: bool,
+    /// Confirms the ledger covers one v0.16 mutation candidate lineage only.
+    #[arg(long)]
+    pub confirm_single_v16_mutation_candidate_lineage: bool,
+    /// Confirms v0.17 reconciliation is read-only evidence only.
+    #[arg(long)]
+    pub confirm_read_only_reconciliation_scope: bool,
+    /// Confirms the ledger is local/offline and performs no network calls.
+    #[arg(long)]
+    pub confirm_no_network: bool,
+    /// Confirms no duplicate submit is attempted or scheduled.
+    #[arg(long)]
+    pub confirm_no_duplicate_submit: bool,
+    /// Confirms no retry is attempted or scheduled.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms no cancel is attempted or scheduled.
+    #[arg(long)]
+    pub confirm_no_cancel: bool,
+    /// Confirms no replace, amend, correction, flatten, or remediation is attempted.
+    #[arg(long)]
+    pub confirm_no_remediation: bool,
+    /// Confirms Dashboard order and cancel controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
 }
 
 /// Hypothetical live-alpha risk preflight options.
@@ -3057,6 +3121,92 @@ mod tests {
         assert!(failure.confirm_dashboard_order_controls_disabled);
         assert!(failure.confirm_no_strategy_continuation);
         assert!(failure.confirm_no_listen_key_lifecycle);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_local_order_ledger_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-local-order-ledger",
+            "--run-id",
+            "v170-local-order-ledger",
+            "--order-lineage-id",
+            "lineage-v160-single-shot",
+            "--request-builder",
+            "runs/v160/request-builder.json",
+            "--guarded-send",
+            "runs/v160/guarded-send.json",
+            "--response-redaction",
+            "runs/v160/response-redaction.json",
+            "--order-state-readback",
+            "runs/v160/order-state-readback.json",
+            "--audit-trail",
+            "runs/v160/audit-trail.json",
+            "--failure-semantics",
+            "runs/v160/failure-semantics.json",
+            "--output",
+            "runs/v170/local-order-ledger.json",
+            "--allow-production-mutation-local-order-ledger",
+            "--confirm-single-v16-mutation-candidate-lineage",
+            "--confirm-read-only-reconciliation-scope",
+            "--confirm-no-network",
+            "--confirm-no-duplicate-submit",
+            "--confirm-no-retry",
+            "--confirm-no-cancel",
+            "--confirm-no-remediation",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-secret-persistence",
+        ])
+        .expect("live production-mutation-local-order-ledger should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationLocalOrderLedger(ledger) = live.command else {
+            panic!("expected production-mutation-local-order-ledger command");
+        };
+
+        assert_eq!(ledger.run_id, "v170-local-order-ledger");
+        assert_eq!(ledger.order_lineage_id, "lineage-v160-single-shot");
+        assert_eq!(
+            ledger.request_builder,
+            PathBuf::from("runs/v160/request-builder.json")
+        );
+        assert_eq!(
+            ledger.guarded_send,
+            PathBuf::from("runs/v160/guarded-send.json")
+        );
+        assert_eq!(
+            ledger.response_redaction,
+            PathBuf::from("runs/v160/response-redaction.json")
+        );
+        assert_eq!(
+            ledger.order_state_readback,
+            PathBuf::from("runs/v160/order-state-readback.json")
+        );
+        assert_eq!(
+            ledger.audit_trail,
+            PathBuf::from("runs/v160/audit-trail.json")
+        );
+        assert_eq!(
+            ledger.failure_semantics,
+            PathBuf::from("runs/v160/failure-semantics.json")
+        );
+        assert_eq!(
+            ledger.output,
+            PathBuf::from("runs/v170/local-order-ledger.json")
+        );
+        assert!(ledger.allow_production_mutation_local_order_ledger);
+        assert!(ledger.confirm_single_v16_mutation_candidate_lineage);
+        assert!(ledger.confirm_read_only_reconciliation_scope);
+        assert!(ledger.confirm_no_network);
+        assert!(ledger.confirm_no_duplicate_submit);
+        assert!(ledger.confirm_no_retry);
+        assert!(ledger.confirm_no_cancel);
+        assert!(ledger.confirm_no_remediation);
+        assert!(ledger.confirm_dashboard_order_controls_disabled);
+        assert!(ledger.confirm_no_secret_persistence);
     }
 
     #[test]

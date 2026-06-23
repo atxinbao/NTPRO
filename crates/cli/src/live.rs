@@ -51,13 +51,14 @@ use crate::{
         LiveProductionLiveAlphaManualApprovalLifecycleOpt,
         LiveProductionLiveAlphaOrderRequestPreviewOpt, LiveProductionLiveAlphaRiskPreflightOpt,
         LiveProductionMutationAuditTrailOpt, LiveProductionMutationFailureSemanticsOpt,
-        LiveProductionMutationGuardedSendOpt, LiveProductionMutationOrderStateReadbackOpt,
-        LiveProductionMutationRequestBuilderOpt, LiveProductionMutationResponseRedactionOpt,
-        LiveProductionMutationRuntimeGateOpt, LiveProductionMutationSigningApprovalOpt,
-        LiveProductionOrderStateReadOnlyProofOpt, LiveProductionPublicReadProbeOpt,
-        LiveProductionReadonlyReconciliationOpt, LiveProductionShadowPortfolioRuntimeOpt,
-        LiveProductionShadowPreflightSessionOpt, LiveProductionShadowStrategySessionOpt,
-        LiveRunOpt, LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
+        LiveProductionMutationGuardedSendOpt, LiveProductionMutationLocalOrderLedgerOpt,
+        LiveProductionMutationOrderStateReadbackOpt, LiveProductionMutationRequestBuilderOpt,
+        LiveProductionMutationResponseRedactionOpt, LiveProductionMutationRuntimeGateOpt,
+        LiveProductionMutationSigningApprovalOpt, LiveProductionOrderStateReadOnlyProofOpt,
+        LiveProductionPublicReadProbeOpt, LiveProductionReadonlyReconciliationOpt,
+        LiveProductionShadowPortfolioRuntimeOpt, LiveProductionShadowPreflightSessionOpt,
+        LiveProductionShadowStrategySessionOpt, LiveRunOpt,
+        LiveTestnetExecutionArtifactContractOpt, LiveTestnetOrderGateOpt,
         LiveTestnetOrderPreflightOpt, LiveTestnetOrderRequestPreviewOpt,
         LiveTestnetOrderTestPreflightOpt, LiveTestnetReconciliationFixtureOpt, LiveValidateOpt,
         ProductionMutationFailureMode, ProductionOrderStateReadEndpoint,
@@ -172,6 +173,8 @@ const PRODUCTION_MUTATION_AUDIT_TRAIL_SCHEMA_VERSION: &str =
     "ntpro.v160_production_mutation_audit_trail.v1";
 const PRODUCTION_MUTATION_FAILURE_SEMANTICS_SCHEMA_VERSION: &str =
     "ntpro.v160_production_mutation_failure_semantics.v1";
+const PRODUCTION_MUTATION_LOCAL_ORDER_LEDGER_SCHEMA_VERSION: &str =
+    "ntpro.v170_production_mutation_local_order_ledger.v1";
 const PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW: &str = "NTPRO_ALLOW_PRODUCTION_MUTATION_HTTP_SEND";
 const PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED: &str =
     "NTPRO_OWNER_APPROVED_PRODUCTION_MUTATION_HTTP_SEND";
@@ -2233,6 +2236,94 @@ struct ProductionMutationFailureSemanticsArtifact {
     diagnostic: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionMutationLocalOrderLedgerSourceRef {
+    path: String,
+    hash: String,
+    schema_version: String,
+    artifact_type: String,
+    status: String,
+    ready: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionMutationLocalOrderLedgerArtifact {
+    schema_version: String,
+    run_id: String,
+    order_lineage_id: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    capability: String,
+    capability_expansion_from_v16: String,
+    lineage_scope: String,
+    current_local_state: String,
+    default_fail_closed: bool,
+    owner_gated_readback_required: bool,
+    local_ledger_ready: bool,
+    restart_readable: bool,
+    request_builder_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    guarded_send_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    response_redaction_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    readback_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    audit_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    failure_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    symbol: String,
+    side: String,
+    order_type: String,
+    time_in_force: String,
+    order_id: String,
+    client_order_id: String,
+    exchange_status: String,
+    source_artifact_issues: Vec<String>,
+    missing_cli_flags: Vec<String>,
+    exchange_readback_mapped: bool,
+    reconciliation_classified: bool,
+    orphan_risk_detected: bool,
+    manual_review_required: bool,
+    new_orders_blocked: bool,
+    network_attempted: bool,
+    request_sent: bool,
+    production_order_submission_allowed: bool,
+    production_order_mutation_allowed: bool,
+    production_order_state_reads_allowed: bool,
+    listen_key_lifecycle_allowed: bool,
+    production_order_submissions_attempted: u64,
+    production_orders_submitted: u64,
+    production_order_mutations_attempted: u64,
+    production_order_state_reads_attempted: u64,
+    listen_key_lifecycle_attempted: u64,
+    duplicate_submit_attempted: bool,
+    retry_attempted: bool,
+    cancel_attempted: bool,
+    replace_attempted: bool,
+    amend_attempted: bool,
+    flatten_attempted: bool,
+    remediation_attempted: bool,
+    automatic_cancel_allowed: bool,
+    automatic_remediation_allowed: bool,
+    dashboard_order_controls_enabled: bool,
+    dashboard_cancel_controls_enabled: bool,
+    api_key_value_recorded: bool,
+    api_secret_value_recorded: bool,
+    api_key_header_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    raw_exchange_response_recorded: bool,
+    response_body_recorded: bool,
+    response_headers_recorded: bool,
+    no_network_confirmed: bool,
+    no_duplicate_submit_confirmed: bool,
+    no_retry_confirmed: bool,
+    no_cancel_confirmed: bool,
+    no_remediation_confirmed: bool,
+    dashboard_controls_disabled_confirmed: bool,
+    no_secret_persistence_confirmed: bool,
+    diagnostic: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProductionMutationGuardedSendHttpResult {
     request_sent: bool,
@@ -3470,6 +3561,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionMutationFailureSemantics(failure) => {
             run_live_production_mutation_failure_semantics(&failure)
         }
+        LiveCommand::ProductionMutationLocalOrderLedger(ledger) => {
+            run_live_production_mutation_local_order_ledger(&ledger)
+        }
         LiveCommand::ProductionLiveAlphaRiskPreflight(preflight) => {
             run_live_production_live_alpha_risk_preflight(&preflight)
         }
@@ -3879,6 +3973,23 @@ fn run_live_production_mutation_failure_semantics(
         artifact.failure_semantics_ready,
         artifact.failure_mode,
         artifact.terminal_action,
+    );
+    Ok(())
+}
+
+fn run_live_production_mutation_local_order_ledger(
+    opt: &LiveProductionMutationLocalOrderLedgerOpt,
+) -> anyhow::Result<()> {
+    let artifact = build_production_mutation_local_order_ledger_artifact(opt)?;
+    write_production_mutation_local_order_ledger_artifact(&opt.output, &artifact)?;
+    println!(
+        "live.production_mutation_local_order_ledger status={} run_id={} order_lineage_id={} output={} local_ledger_ready={} current_local_state={} duplicate_submit_attempted=false retry_attempted=false cancel_attempted=false remediation_attempted=false dashboard_order_controls_enabled=false signature_recorded=false signed_query_recorded=false signed_url_recorded=false api_key_value_recorded=false api_secret_value_recorded=false",
+        artifact.status,
+        artifact.run_id,
+        artifact.order_lineage_id,
+        opt.output.display(),
+        artifact.local_ledger_ready,
+        artifact.current_local_state,
     );
     Ok(())
 }
@@ -8362,6 +8473,209 @@ fn build_production_mutation_failure_semantics_artifact(
     })
 }
 
+fn build_production_mutation_local_order_ledger_artifact(
+    opt: &LiveProductionMutationLocalOrderLedgerOpt,
+) -> anyhow::Result<ProductionMutationLocalOrderLedgerArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+    validate_non_empty("order_lineage_id", &opt.order_lineage_id)?;
+
+    let request_builder =
+        load_json_value(&opt.request_builder, "production mutation request builder")?;
+    let guarded_send = load_json_value(&opt.guarded_send, "production mutation guarded send")?;
+    let response_redaction = load_json_value(
+        &opt.response_redaction,
+        "production mutation response redaction",
+    )?;
+    let order_state_readback = load_json_value(
+        &opt.order_state_readback,
+        "production mutation order-state readback",
+    )?;
+    let audit_trail = load_json_value(&opt.audit_trail, "production mutation audit trail")?;
+    let failure_semantics = load_json_value(
+        &opt.failure_semantics,
+        "production mutation failure semantics",
+    )?;
+
+    let missing_cli_flags = missing_production_mutation_local_order_ledger_cli_flags(opt);
+    let source_artifact_issues = production_mutation_local_order_ledger_source_issues(
+        &request_builder,
+        &guarded_send,
+        &response_redaction,
+        &order_state_readback,
+        &audit_trail,
+        &failure_semantics,
+    );
+    let local_ledger_ready = missing_cli_flags.is_empty() && source_artifact_issues.is_empty();
+    let status = if local_ledger_ready {
+        "ready_local_order_ledger"
+    } else if !missing_cli_flags.is_empty() {
+        "blocked_missing_gate"
+    } else {
+        "blocked_source_artifact"
+    };
+    let current_local_state = if local_ledger_ready {
+        "local_ledger_pending_exchange_reconciliation"
+    } else if !missing_cli_flags.is_empty() {
+        "blocked_missing_gate"
+    } else {
+        "blocked_source_artifact"
+    };
+    let request_sent = json_bool_value(&audit_trail, "request_sent")
+        .or_else(|| json_bool_value(&guarded_send, "request_sent"))
+        .unwrap_or(false);
+    let network_attempted = json_bool_value(&audit_trail, "network_attempted")
+        .or_else(|| json_bool_value(&guarded_send, "network_attempted"))
+        .unwrap_or(false);
+    let production_order_state_reads_allowed = json_bool_value(
+        &order_state_readback,
+        "production_order_state_reads_allowed",
+    )
+    .unwrap_or(false);
+    let production_order_state_reads_attempted = json_u64_value(
+        &order_state_readback,
+        "production_order_state_reads_attempted",
+    )
+    .unwrap_or(0);
+
+    Ok(ProductionMutationLocalOrderLedgerArtifact {
+        schema_version: PRODUCTION_MUTATION_LOCAL_ORDER_LEDGER_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        order_lineage_id: opt.order_lineage_id.clone(),
+        artifact_type: "production_mutation_local_order_ledger".to_string(),
+        status: status.to_string(),
+        created_at: now_millis(),
+        mode: "single_mutation_candidate_local_reconciliation_ledger".to_string(),
+        capability: "Production Reconciliation And Orphan Recovery Evidence".to_string(),
+        capability_expansion_from_v16: "reconciliation_evidence_only".to_string(),
+        lineage_scope: "single_v16_mutation_candidate".to_string(),
+        current_local_state: current_local_state.to_string(),
+        default_fail_closed: true,
+        owner_gated_readback_required: true,
+        local_ledger_ready,
+        restart_readable: local_ledger_ready,
+        request_builder_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.request_builder,
+            &request_builder,
+            "request_builder_ready",
+        ),
+        guarded_send_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.guarded_send,
+            &guarded_send,
+            "guarded_send_ready",
+        ),
+        response_redaction_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.response_redaction,
+            &response_redaction,
+            "response_redaction_ready",
+        ),
+        readback_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.order_state_readback,
+            &order_state_readback,
+            "readback_contract_ready",
+        ),
+        audit_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.audit_trail,
+            &audit_trail,
+            "audit_trail_ready",
+        ),
+        failure_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.failure_semantics,
+            &failure_semantics,
+            "failure_semantics_ready",
+        ),
+        symbol: json_scalar_string_value(&audit_trail, "symbol")
+            .or_else(|| json_scalar_string_value(&response_redaction, "symbol"))
+            .unwrap_or_else(|| "unknown".to_string()),
+        side: json_scalar_string_value(&audit_trail, "side")
+            .or_else(|| json_scalar_string_value(&response_redaction, "side"))
+            .unwrap_or_else(|| "unknown".to_string()),
+        order_type: json_scalar_string_value(&audit_trail, "order_type")
+            .or_else(|| json_scalar_string_value(&response_redaction, "order_type"))
+            .unwrap_or_else(|| "unknown".to_string()),
+        time_in_force: json_scalar_string_value(&audit_trail, "time_in_force")
+            .or_else(|| json_scalar_string_value(&response_redaction, "time_in_force"))
+            .unwrap_or_else(|| "unknown".to_string()),
+        order_id: json_scalar_string_value(&audit_trail, "order_id")
+            .or_else(|| json_scalar_string_value(&response_redaction, "order_id"))
+            .unwrap_or_else(|| "missing".to_string()),
+        client_order_id: json_scalar_string_value(&audit_trail, "client_order_id")
+            .or_else(|| json_scalar_string_value(&response_redaction, "client_order_id"))
+            .unwrap_or_else(|| "missing".to_string()),
+        exchange_status: json_scalar_string_value(&audit_trail, "exchange_status")
+            .or_else(|| json_scalar_string_value(&response_redaction, "exchange_status"))
+            .unwrap_or_else(|| "unknown".to_string()),
+        source_artifact_issues,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        exchange_readback_mapped: false,
+        reconciliation_classified: false,
+        orphan_risk_detected: false,
+        manual_review_required: !local_ledger_ready,
+        new_orders_blocked: !local_ledger_ready,
+        network_attempted,
+        request_sent,
+        production_order_submission_allowed: false,
+        production_order_mutation_allowed: false,
+        production_order_state_reads_allowed,
+        listen_key_lifecycle_allowed: false,
+        production_order_submissions_attempted: json_u64_value(
+            &audit_trail,
+            "production_order_submissions_attempted",
+        )
+        .unwrap_or_else(|| {
+            json_u64_value(&guarded_send, "production_order_submissions_attempted").unwrap_or(0)
+        }),
+        production_orders_submitted: json_u64_value(&audit_trail, "production_orders_submitted")
+            .unwrap_or_else(|| {
+                json_u64_value(&guarded_send, "production_orders_submitted").unwrap_or(0)
+            }),
+        production_order_mutations_attempted: json_u64_value(
+            &audit_trail,
+            "production_order_mutations_attempted",
+        )
+        .unwrap_or_else(|| {
+            json_u64_value(&guarded_send, "production_order_mutations_attempted").unwrap_or(0)
+        }),
+        production_order_state_reads_attempted,
+        listen_key_lifecycle_attempted: 0,
+        duplicate_submit_attempted: false,
+        retry_attempted: false,
+        cancel_attempted: false,
+        replace_attempted: false,
+        amend_attempted: false,
+        flatten_attempted: false,
+        remediation_attempted: false,
+        automatic_cancel_allowed: false,
+        automatic_remediation_allowed: false,
+        dashboard_order_controls_enabled: false,
+        dashboard_cancel_controls_enabled: false,
+        api_key_value_recorded: false,
+        api_secret_value_recorded: false,
+        api_key_header_value_recorded: false,
+        signature_recorded: false,
+        signed_query_recorded: false,
+        signed_url_recorded: false,
+        raw_exchange_response_recorded: false,
+        response_body_recorded: false,
+        response_headers_recorded: false,
+        no_network_confirmed: opt.confirm_no_network,
+        no_duplicate_submit_confirmed: opt.confirm_no_duplicate_submit,
+        no_retry_confirmed: opt.confirm_no_retry,
+        no_cancel_confirmed: opt.confirm_no_cancel,
+        no_remediation_confirmed: opt.confirm_no_remediation,
+        dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
+        no_secret_persistence_confirmed: opt.confirm_no_secret_persistence,
+        diagnostic: if local_ledger_ready {
+            "local ledger links the single v0.16 mutation candidate evidence chain for later read-only reconciliation; no duplicate submit, retry, cancel, remediation, or Dashboard order control is enabled"
+        } else {
+            "local order ledger is blocked because required confirmations or source artifact evidence are incomplete"
+        }
+        .to_string(),
+    })
+}
+
 fn build_production_mutation_runtime_gate_artifact(
     opt: &LiveProductionMutationRuntimeGateOpt,
 ) -> anyhow::Result<ProductionMutationRuntimeGateArtifact> {
@@ -9888,6 +10202,137 @@ fn production_mutation_failure_semantics_source_issues(
         if json_u64_value(audit_trail, field).unwrap_or(0) > 0 {
             issues.push(format!("audit_trail_{field}_nonzero"));
         }
+    }
+    issues
+}
+
+fn production_mutation_local_order_ledger_source_ref(
+    path: &Path,
+    artifact: &serde_json::Value,
+    ready_field: &str,
+) -> ProductionMutationLocalOrderLedgerSourceRef {
+    ProductionMutationLocalOrderLedgerSourceRef {
+        path: path.display().to_string(),
+        hash: file_fnv1a64_hash(&path.display().to_string()),
+        schema_version: json_string_value(artifact, "schema_version")
+            .unwrap_or_else(|| "missing".to_string()),
+        artifact_type: json_string_value(artifact, "artifact_type")
+            .unwrap_or_else(|| "missing".to_string()),
+        status: json_string_value(artifact, "status").unwrap_or_else(|| "unknown".to_string()),
+        ready: json_bool_value(artifact, ready_field).unwrap_or(false),
+    }
+}
+
+fn production_mutation_local_order_ledger_source_issues(
+    request_builder: &serde_json::Value,
+    guarded_send: &serde_json::Value,
+    response_redaction: &serde_json::Value,
+    order_state_readback: &serde_json::Value,
+    audit_trail: &serde_json::Value,
+    failure_semantics: &serde_json::Value,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(request_builder, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_REQUEST_BUILDER_SCHEMA_VERSION)
+    {
+        issues.push("request_builder_schema_mismatch".to_string());
+    }
+    if json_string_value(guarded_send, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_GUARDED_SEND_SCHEMA_VERSION)
+    {
+        issues.push("guarded_send_schema_mismatch".to_string());
+    }
+    if json_string_value(response_redaction, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_RESPONSE_REDACTION_SCHEMA_VERSION)
+    {
+        issues.push("response_redaction_schema_mismatch".to_string());
+    }
+    if json_string_value(order_state_readback, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_ORDER_STATE_READBACK_SCHEMA_VERSION)
+    {
+        issues.push("order_state_readback_schema_mismatch".to_string());
+    }
+    if json_string_value(audit_trail, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_AUDIT_TRAIL_SCHEMA_VERSION)
+    {
+        issues.push("audit_trail_schema_mismatch".to_string());
+    }
+    if json_string_value(failure_semantics, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_FAILURE_SEMANTICS_SCHEMA_VERSION)
+    {
+        issues.push("failure_semantics_schema_mismatch".to_string());
+    }
+    if json_string_value(request_builder, "status").as_deref()
+        != Some("ready_request_object_built_no_send")
+    {
+        issues.push("request_builder_not_ready".to_string());
+    }
+    if !matches!(
+        json_string_value(guarded_send, "status").as_deref(),
+        Some("ready_guarded_send_path_offline_no_network" | "manual_online_send_attempt_recorded")
+    ) {
+        issues.push("guarded_send_not_auditable".to_string());
+    }
+    if json_string_value(response_redaction, "status").as_deref() != Some("ready_response_redacted")
+    {
+        issues.push("response_redaction_not_ready".to_string());
+    }
+    if !matches!(
+        json_string_value(order_state_readback, "status").as_deref(),
+        Some("ready_offline_order_state_readback_contract" | "online_order_state_read_ok")
+    ) {
+        issues.push("order_state_readback_not_ready".to_string());
+    }
+    if json_string_value(audit_trail, "status").as_deref() != Some("ready_redacted_audit_trail") {
+        issues.push("audit_trail_not_ready".to_string());
+    }
+    if json_string_value(failure_semantics, "status").as_deref()
+        != Some("ready_failure_semantics_evidence")
+    {
+        issues.push("failure_semantics_not_ready".to_string());
+    }
+    for (label, artifact) in [
+        ("request_builder", request_builder),
+        ("guarded_send", guarded_send),
+        ("response_redaction", response_redaction),
+        ("order_state_readback", order_state_readback),
+        ("audit_trail", audit_trail),
+        ("failure_semantics", failure_semantics),
+    ] {
+        for field in [
+            "api_key_value_recorded",
+            "api_secret_value_recorded",
+            "api_key_header_value_recorded",
+            "signature_recorded",
+            "signed_query_recorded",
+            "signed_url_recorded",
+            "raw_exchange_response_recorded",
+            "response_body_recorded",
+            "response_headers_recorded",
+            "retry_attempted",
+            "cancel_attempted",
+            "replace_attempted",
+            "amend_attempted",
+            "flatten_attempted",
+            "remediation_attempted",
+            "dashboard_order_controls_enabled",
+        ] {
+            if json_bool_value(artifact, field).unwrap_or(false) {
+                issues.push(format!("{label}_{field}_true"));
+            }
+        }
+    }
+    if json_u64_value(audit_trail, "production_order_mutations_attempted").unwrap_or(0) > 1 {
+        issues.push("audit_trail_multiple_mutation_attempts".to_string());
+    }
+    if json_u64_value(guarded_send, "production_order_mutations_attempted").unwrap_or(0) > 1 {
+        issues.push("guarded_send_multiple_mutation_attempts".to_string());
+    }
+    if !json_bool_value(failure_semantics, "stop_after_evidence").unwrap_or(false) {
+        issues.push("failure_semantics_does_not_stop_after_evidence".to_string());
+    }
+    if json_bool_value(failure_semantics, "strategy_continuation_allowed").unwrap_or(false) {
+        issues.push("failure_semantics_allows_strategy_continuation".to_string());
     }
     issues
 }
@@ -12689,6 +13134,16 @@ fn write_production_mutation_failure_semantics_artifact(
     Ok(())
 }
 
+fn write_production_mutation_local_order_ledger_artifact(
+    path: &Path,
+    value: &ProductionMutationLocalOrderLedgerArtifact,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
 fn decimal_string_to_f64(field: &str, value: &str) -> Result<f64, String> {
     validate_positive_decimal_string(field, value).map_err(|error| error.to_string())?;
     value
@@ -13407,6 +13862,43 @@ fn missing_production_mutation_failure_semantics_cli_flags(
     }
     if !opt.confirm_no_listen_key_lifecycle {
         missing.push("--confirm-no-listen-key-lifecycle");
+    }
+    missing
+}
+
+fn missing_production_mutation_local_order_ledger_cli_flags(
+    opt: &LiveProductionMutationLocalOrderLedgerOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_mutation_local_order_ledger {
+        missing.push("--allow-production-mutation-local-order-ledger");
+    }
+    if !opt.confirm_single_v16_mutation_candidate_lineage {
+        missing.push("--confirm-single-v16-mutation-candidate-lineage");
+    }
+    if !opt.confirm_read_only_reconciliation_scope {
+        missing.push("--confirm-read-only-reconciliation-scope");
+    }
+    if !opt.confirm_no_network {
+        missing.push("--confirm-no-network");
+    }
+    if !opt.confirm_no_duplicate_submit {
+        missing.push("--confirm-no-duplicate-submit");
+    }
+    if !opt.confirm_no_retry {
+        missing.push("--confirm-no-retry");
+    }
+    if !opt.confirm_no_cancel {
+        missing.push("--confirm-no-cancel");
+    }
+    if !opt.confirm_no_remediation {
+        missing.push("--confirm-no-remediation");
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        missing.push("--confirm-dashboard-order-controls-disabled");
+    }
+    if !opt.confirm_no_secret_persistence {
+        missing.push("--confirm-no-secret-persistence");
     }
     missing
 }
@@ -14846,6 +15338,42 @@ write_summary = true
         }
     }
 
+    fn production_mutation_local_order_ledger_opt(
+        sources: (PathBuf, PathBuf, PathBuf, PathBuf, PathBuf, PathBuf),
+        output: PathBuf,
+        all_cli_gates: bool,
+    ) -> LiveProductionMutationLocalOrderLedgerOpt {
+        let (
+            request_builder,
+            guarded_send,
+            response_redaction,
+            order_state_readback,
+            audit_trail,
+            failure_semantics,
+        ) = sources;
+        LiveProductionMutationLocalOrderLedgerOpt {
+            run_id: "v170-production-mutation-local-order-ledger".to_string(),
+            order_lineage_id: "lineage-v160-single-shot".to_string(),
+            request_builder,
+            guarded_send,
+            response_redaction,
+            order_state_readback,
+            audit_trail,
+            failure_semantics,
+            output,
+            allow_production_mutation_local_order_ledger: all_cli_gates,
+            confirm_single_v16_mutation_candidate_lineage: all_cli_gates,
+            confirm_read_only_reconciliation_scope: all_cli_gates,
+            confirm_no_network: all_cli_gates,
+            confirm_no_duplicate_submit: all_cli_gates,
+            confirm_no_retry: all_cli_gates,
+            confirm_no_cancel: all_cli_gates,
+            confirm_no_remediation: all_cli_gates,
+            confirm_dashboard_order_controls_disabled: all_cli_gates,
+            confirm_no_secret_persistence: all_cli_gates,
+        }
+    }
+
     fn write_kill_switch_approval_artifact(
         output: PathBuf,
         kill_switch_active: bool,
@@ -15252,6 +15780,41 @@ write_summary = true
         ))
         .unwrap();
         audit_trail
+    }
+
+    fn write_ready_v170_local_order_ledger_sources(
+        output_dir: &Path,
+    ) -> (PathBuf, PathBuf, PathBuf, PathBuf, PathBuf, PathBuf) {
+        let (request_builder, guarded_send, response_redaction, order_state_readback) =
+            write_ready_v160_audit_trail_sources(output_dir);
+        let audit_trail = output_dir.join("production_mutation_audit_trail.json");
+        run_live_production_mutation_audit_trail(&production_mutation_audit_trail_opt(
+            request_builder.clone(),
+            guarded_send.clone(),
+            response_redaction.clone(),
+            order_state_readback.clone(),
+            audit_trail.clone(),
+            true,
+        ))
+        .unwrap();
+
+        let failure_semantics = output_dir.join("production_mutation_failure_semantics.json");
+        run_live_production_mutation_failure_semantics(&production_mutation_failure_semantics_opt(
+            audit_trail.clone(),
+            failure_semantics.clone(),
+            ProductionMutationFailureMode::ReadbackMismatch,
+            true,
+        ))
+        .unwrap();
+
+        (
+            request_builder,
+            guarded_send,
+            response_redaction,
+            order_state_readback,
+            audit_trail,
+            failure_semantics,
+        )
     }
 
     fn passing_live_alpha_risk_input() -> ProductionLiveAlphaRiskPreflightInput {
@@ -20929,6 +21492,281 @@ write_summary = true
                 .iter()
                 .any(|flag| flag == "--confirm-no-retry")
         );
+    }
+
+    #[test]
+    fn production_mutation_local_order_ledger_links_single_candidate_chain() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v170-001-local-ledger-ready-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (
+            request_builder,
+            guarded_send,
+            response_redaction,
+            order_state_readback,
+            audit_trail,
+            failure_semantics,
+        ) = write_ready_v170_local_order_ledger_sources(&output_dir);
+        let output = output_dir.join("production_mutation_local_order_ledger.json");
+
+        run_live_production_mutation_local_order_ledger(
+            &production_mutation_local_order_ledger_opt(
+                (
+                    request_builder,
+                    guarded_send,
+                    response_redaction,
+                    order_state_readback,
+                    audit_trail,
+                    failure_semantics,
+                ),
+                output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(!body.contains("ntpro_v160005_production_like_api_key_value"));
+        assert!(!body.contains("ntpro_v160005_production_like_api_secret_value"));
+        assert!(!body.contains("signature="));
+        assert!(!body.contains("X-MBX-APIKEY"));
+        let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(
+            artifact["schema_version"],
+            PRODUCTION_MUTATION_LOCAL_ORDER_LEDGER_SCHEMA_VERSION
+        );
+        assert_eq!(artifact["status"], "ready_local_order_ledger");
+        assert_eq!(artifact["order_lineage_id"], "lineage-v160-single-shot");
+        assert_eq!(artifact["local_ledger_ready"], true);
+        assert_eq!(artifact["restart_readable"], true);
+        assert_eq!(
+            artifact["capability"],
+            "Production Reconciliation And Orphan Recovery Evidence"
+        );
+        assert_eq!(
+            artifact["capability_expansion_from_v16"],
+            "reconciliation_evidence_only"
+        );
+        assert_eq!(artifact["lineage_scope"], "single_v16_mutation_candidate");
+        assert_eq!(
+            artifact["current_local_state"],
+            "local_ledger_pending_exchange_reconciliation"
+        );
+        assert_eq!(artifact["default_fail_closed"], true);
+        assert_eq!(artifact["owner_gated_readback_required"], true);
+        assert_eq!(
+            artifact["request_builder_ref"]["schema_version"],
+            PRODUCTION_MUTATION_REQUEST_BUILDER_SCHEMA_VERSION
+        );
+        assert_eq!(
+            artifact["guarded_send_ref"]["schema_version"],
+            PRODUCTION_MUTATION_GUARDED_SEND_SCHEMA_VERSION
+        );
+        assert_eq!(
+            artifact["response_redaction_ref"]["schema_version"],
+            PRODUCTION_MUTATION_RESPONSE_REDACTION_SCHEMA_VERSION
+        );
+        assert_eq!(
+            artifact["readback_ref"]["schema_version"],
+            PRODUCTION_MUTATION_ORDER_STATE_READBACK_SCHEMA_VERSION
+        );
+        assert_eq!(
+            artifact["audit_ref"]["schema_version"],
+            PRODUCTION_MUTATION_AUDIT_TRAIL_SCHEMA_VERSION
+        );
+        assert_eq!(
+            artifact["failure_ref"]["schema_version"],
+            PRODUCTION_MUTATION_FAILURE_SEMANTICS_SCHEMA_VERSION
+        );
+        for field in [
+            "request_builder_ref",
+            "guarded_send_ref",
+            "response_redaction_ref",
+            "readback_ref",
+            "audit_ref",
+            "failure_ref",
+        ] {
+            assert!(
+                artifact[field]["hash"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("fnv1a64:"),
+                "{field}"
+            );
+        }
+        assert_eq!(artifact["symbol"], "BTCUSDT");
+        assert_eq!(artifact["side"], "BUY");
+        assert_eq!(artifact["order_type"], "LIMIT");
+        assert_eq!(artifact["time_in_force"], "GTC");
+        assert_eq!(artifact["order_id"], "123456789");
+        assert_eq!(
+            artifact["client_order_id"],
+            "owner-approved-v160-single-shot"
+        );
+        assert_eq!(artifact["exchange_status"], "NEW");
+        assert_eq!(
+            artifact["source_artifact_issues"].as_array().unwrap().len(),
+            0
+        );
+        assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+        assert_eq!(artifact["exchange_readback_mapped"], false);
+        assert_eq!(artifact["reconciliation_classified"], false);
+        assert_eq!(artifact["orphan_risk_detected"], false);
+        assert_eq!(artifact["manual_review_required"], false);
+        assert_eq!(artifact["new_orders_blocked"], false);
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["production_order_submission_allowed"], false);
+        assert_eq!(artifact["production_order_mutation_allowed"], false);
+        assert_eq!(artifact["production_order_state_reads_allowed"], false);
+        assert_eq!(artifact["listen_key_lifecycle_allowed"], false);
+        assert_eq!(artifact["production_order_submissions_attempted"], 0);
+        assert_eq!(artifact["production_orders_submitted"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["production_order_state_reads_attempted"], 0);
+        assert_eq!(artifact["listen_key_lifecycle_attempted"], 0);
+        assert_eq!(artifact["duplicate_submit_attempted"], false);
+        assert_eq!(artifact["retry_attempted"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["replace_attempted"], false);
+        assert_eq!(artifact["amend_attempted"], false);
+        assert_eq!(artifact["flatten_attempted"], false);
+        assert_eq!(artifact["remediation_attempted"], false);
+        assert_eq!(artifact["automatic_cancel_allowed"], false);
+        assert_eq!(artifact["automatic_remediation_allowed"], false);
+        assert_eq!(artifact["dashboard_order_controls_enabled"], false);
+        assert_eq!(artifact["dashboard_cancel_controls_enabled"], false);
+        assert_eq!(artifact["api_key_value_recorded"], false);
+        assert_eq!(artifact["api_secret_value_recorded"], false);
+        assert_eq!(artifact["signature_recorded"], false);
+        assert_eq!(artifact["signed_query_recorded"], false);
+        assert_eq!(artifact["signed_url_recorded"], false);
+        assert_eq!(artifact["raw_exchange_response_recorded"], false);
+        assert_eq!(artifact["response_body_recorded"], false);
+        assert_eq!(artifact["response_headers_recorded"], false);
+        assert_eq!(artifact["no_network_confirmed"], true);
+        assert_eq!(artifact["no_duplicate_submit_confirmed"], true);
+        assert_eq!(artifact["no_retry_confirmed"], true);
+        assert_eq!(artifact["no_cancel_confirmed"], true);
+        assert_eq!(artifact["no_remediation_confirmed"], true);
+        assert_eq!(artifact["dashboard_controls_disabled_confirmed"], true);
+        assert_eq!(artifact["no_secret_persistence_confirmed"], true);
+    }
+
+    #[test]
+    fn production_mutation_local_order_ledger_blocks_missing_confirmations() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v170-001-local-ledger-missing-flags-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (
+            request_builder,
+            guarded_send,
+            response_redaction,
+            order_state_readback,
+            audit_trail,
+            failure_semantics,
+        ) = write_ready_v170_local_order_ledger_sources(&output_dir);
+        let output = output_dir.join("production_mutation_local_order_ledger.json");
+
+        run_live_production_mutation_local_order_ledger(
+            &production_mutation_local_order_ledger_opt(
+                (
+                    request_builder,
+                    guarded_send,
+                    response_redaction,
+                    order_state_readback,
+                    audit_trail,
+                    failure_semantics,
+                ),
+                output.clone(),
+                false,
+            ),
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_missing_gate");
+        assert_eq!(artifact["local_ledger_ready"], false);
+        assert_eq!(artifact["restart_readable"], false);
+        assert_eq!(artifact["manual_review_required"], true);
+        assert_eq!(artifact["new_orders_blocked"], true);
+        assert_eq!(artifact["duplicate_submit_attempted"], false);
+        assert_eq!(artifact["retry_attempted"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["remediation_attempted"], false);
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--allow-production-mutation-local-order-ledger")
+        );
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--confirm-no-duplicate-submit")
+        );
+    }
+
+    #[test]
+    fn production_mutation_local_order_ledger_is_restart_readable() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v170-001-local-ledger-restart-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (
+            request_builder,
+            guarded_send,
+            response_redaction,
+            order_state_readback,
+            audit_trail,
+            failure_semantics,
+        ) = write_ready_v170_local_order_ledger_sources(&output_dir);
+        let output = output_dir.join("production_mutation_local_order_ledger.json");
+
+        run_live_production_mutation_local_order_ledger(
+            &production_mutation_local_order_ledger_opt(
+                (
+                    request_builder.clone(),
+                    guarded_send,
+                    response_redaction,
+                    order_state_readback,
+                    audit_trail,
+                    failure_semantics,
+                ),
+                output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let first: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&output).unwrap()).unwrap();
+        let reloaded: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&output).unwrap()).unwrap();
+        assert_eq!(reloaded["local_ledger_ready"], true);
+        assert_eq!(reloaded["restart_readable"], true);
+        assert_eq!(reloaded["order_lineage_id"], first["order_lineage_id"]);
+        assert_eq!(
+            reloaded["request_builder_ref"]["path"],
+            request_builder.display().to_string()
+        );
+        assert_eq!(
+            reloaded["request_builder_ref"]["hash"],
+            first["request_builder_ref"]["hash"]
+        );
+        assert_eq!(reloaded["duplicate_submit_attempted"], false);
+        assert_eq!(reloaded["retry_attempted"], false);
+        assert_eq!(reloaded["cancel_attempted"], false);
+        assert_eq!(reloaded["remediation_attempted"], false);
     }
 
     #[test]
