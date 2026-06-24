@@ -2434,6 +2434,17 @@ struct ProductionMutationReconciliationClassifierArtifact {
     terminal_state_observed: bool,
     order_found: bool,
     reconciliation_outcome: String,
+    failure_mode: String,
+    failure_state: String,
+    terminal_action: String,
+    failure_incident_outcome: String,
+    failure_incident_severity: String,
+    readback_required: bool,
+    terminal_evidence_required: bool,
+    incident_risk_halted: bool,
+    incident_manual_review_required: bool,
+    incident_new_orders_blocked: bool,
+    failure_semantics_path: String,
     source_artifact_issues: Vec<String>,
     missing_cli_flags: Vec<String>,
     manual_review_required: bool,
@@ -2500,6 +2511,10 @@ struct ProductionMutationOrphanOrderDetectorArtifact {
     open_order_observed: bool,
     terminal_state_observed: bool,
     order_found: bool,
+    failure_mode: String,
+    failure_incident_outcome: String,
+    readback_required: bool,
+    incident_risk_halted: bool,
     risk_halted: bool,
     new_orders_blocked: bool,
     manual_review_required: bool,
@@ -9128,6 +9143,10 @@ fn build_production_mutation_reconciliation_classifier_artifact(
     let classification_ready = missing_cli_flags.is_empty() && source_artifact_issues.is_empty();
     let (reconciliation_outcome, outcome_manual_review_required, outcome_new_orders_blocked) =
         classify_production_mutation_reconciliation_outcome(&exchange_readback_mapper);
+    let failure_semantics =
+        production_mutation_failure_semantics_from_exchange_mapper(&exchange_readback_mapper);
+    let failure_incident =
+        classify_production_mutation_failure_incident(failure_semantics.as_ref());
     let status = if classification_ready {
         "ready_reconciliation_classified"
     } else if !missing_cli_flags.is_empty() {
@@ -9142,8 +9161,11 @@ fn build_production_mutation_reconciliation_classifier_artifact(
         .unwrap_or_else(|| "unknown".to_string());
     let local_request_sent =
         json_bool_value(&exchange_readback_mapper, "request_sent").unwrap_or(false);
-    let manual_review_required = !classification_ready || outcome_manual_review_required;
-    let new_orders_blocked = !classification_ready || outcome_new_orders_blocked;
+    let manual_review_required = !classification_ready
+        || outcome_manual_review_required
+        || failure_incident.manual_review_required;
+    let new_orders_blocked =
+        !classification_ready || outcome_new_orders_blocked || failure_incident.new_orders_blocked;
 
     Ok(ProductionMutationReconciliationClassifierArtifact {
         schema_version: PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_SCHEMA_VERSION.to_string(),
@@ -9183,6 +9205,17 @@ fn build_production_mutation_reconciliation_classifier_artifact(
         .unwrap_or(false),
         order_found: json_bool_value(&exchange_readback_mapper, "order_found").unwrap_or(false),
         reconciliation_outcome: reconciliation_outcome.to_string(),
+        failure_mode: failure_incident.failure_mode.clone(),
+        failure_state: failure_incident.failure_state.clone(),
+        terminal_action: failure_incident.terminal_action.clone(),
+        failure_incident_outcome: failure_incident.outcome.to_string(),
+        failure_incident_severity: failure_incident.severity.to_string(),
+        readback_required: failure_incident.readback_required,
+        terminal_evidence_required: failure_incident.terminal_evidence_required,
+        incident_risk_halted: failure_incident.risk_halted,
+        incident_manual_review_required: failure_incident.manual_review_required,
+        incident_new_orders_blocked: failure_incident.new_orders_blocked,
+        failure_semantics_path: failure_incident.source_path,
         source_artifact_issues,
         missing_cli_flags: missing_cli_flags
             .iter()
@@ -9251,9 +9284,17 @@ fn build_production_mutation_orphan_order_detector_artifact(
     } else {
         "blocked_source_artifact"
     };
-    let risk_halted = !detection_ready || detection.risk_halted;
-    let manual_review_required = !detection_ready || detection.manual_review_required;
-    let new_orders_blocked = !detection_ready || detection.new_orders_blocked;
+    let incident_risk_halted =
+        json_bool_value(&reconciliation_classifier, "incident_risk_halted").unwrap_or(false);
+    let classifier_manual_review_required =
+        json_bool_value(&reconciliation_classifier, "manual_review_required").unwrap_or(false);
+    let classifier_new_orders_blocked =
+        json_bool_value(&reconciliation_classifier, "new_orders_blocked").unwrap_or(false);
+    let risk_halted = !detection_ready || detection.risk_halted || incident_risk_halted;
+    let manual_review_required =
+        !detection_ready || detection.manual_review_required || classifier_manual_review_required;
+    let new_orders_blocked =
+        !detection_ready || detection.new_orders_blocked || classifier_new_orders_blocked;
 
     Ok(ProductionMutationOrphanOrderDetectorArtifact {
         schema_version: PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_SCHEMA_VERSION.to_string(),
@@ -9308,6 +9349,17 @@ fn build_production_mutation_orphan_order_detector_artifact(
         )
         .unwrap_or(false),
         order_found: json_bool_value(&reconciliation_classifier, "order_found").unwrap_or(false),
+        failure_mode: json_string_value(&reconciliation_classifier, "failure_mode")
+            .unwrap_or_else(|| "none".to_string()),
+        failure_incident_outcome: json_string_value(
+            &reconciliation_classifier,
+            "failure_incident_outcome",
+        )
+        .unwrap_or_else(|| "not_linked".to_string()),
+        readback_required: json_bool_value(&reconciliation_classifier, "readback_required")
+            .unwrap_or(false),
+        incident_risk_halted: json_bool_value(&reconciliation_classifier, "incident_risk_halted")
+            .unwrap_or(false),
         risk_halted,
         new_orders_blocked,
         manual_review_required,
@@ -11230,6 +11282,8 @@ fn detect_production_mutation_orphan_order_risk(
         !json_bool_value(reconciliation_classifier, "restart_readable").unwrap_or(true)
             || json_bool_value(reconciliation_classifier, "stale_ledger_restart_required")
                 .unwrap_or(false);
+    let incident_risk_halted =
+        json_bool_value(reconciliation_classifier, "incident_risk_halted").unwrap_or(false);
     let local_terminal_state = matches!(
         reconciliation_outcome.as_str(),
         "local_sent_exchange_filled"
@@ -11245,6 +11299,17 @@ fn detect_production_mutation_orphan_order_risk(
             new_orders_blocked: true,
             manual_review_required: true,
             stale_ledger_restart_required: true,
+            local_terminal_state,
+        };
+    }
+    if incident_risk_halted {
+        return ProductionMutationOrphanDetection {
+            outcome: "failure_incident_risk_halt",
+            orphan_risk_detected: true,
+            risk_halted: true,
+            new_orders_blocked: true,
+            manual_review_required: true,
+            stale_ledger_restart_required: false,
             local_terminal_state,
         };
     }
@@ -11293,6 +11358,195 @@ fn detect_production_mutation_orphan_order_risk(
         manual_review_required: false,
         stale_ledger_restart_required: false,
         local_terminal_state,
+    }
+}
+
+#[derive(Debug, Clone)]
+struct LoadedProductionMutationFailureSemantics {
+    path: PathBuf,
+    artifact: serde_json::Value,
+}
+
+#[derive(Debug, Clone)]
+struct ProductionMutationFailureIncident {
+    failure_mode: String,
+    failure_state: String,
+    terminal_action: String,
+    outcome: &'static str,
+    severity: &'static str,
+    readback_required: bool,
+    terminal_evidence_required: bool,
+    risk_halted: bool,
+    manual_review_required: bool,
+    new_orders_blocked: bool,
+    source_path: String,
+}
+
+fn production_mutation_failure_semantics_from_exchange_mapper(
+    exchange_readback_mapper: &serde_json::Value,
+) -> Option<LoadedProductionMutationFailureSemantics> {
+    let local_ledger_path = exchange_readback_mapper
+        .get("local_ledger_ref")
+        .and_then(|value| value.get("path"))
+        .and_then(serde_json::Value::as_str)?;
+    let local_ledger =
+        load_json_file_if_present(Path::new(local_ledger_path), "local order ledger")?;
+    let failure_semantics_path = local_ledger
+        .get("failure_ref")
+        .and_then(|value| value.get("path"))
+        .and_then(serde_json::Value::as_str)?;
+    let path = PathBuf::from(failure_semantics_path);
+    let artifact = load_json_file_if_present(&path, "failure semantics")?;
+    Some(LoadedProductionMutationFailureSemantics { path, artifact })
+}
+
+fn load_json_file_if_present(path: &Path, label: &str) -> Option<serde_json::Value> {
+    let raw = fs::read_to_string(path).ok()?;
+    serde_json::from_str(&raw)
+        .with_context(|| format!("parse {label} JSON at {}", path.display()))
+        .ok()
+}
+
+fn classify_production_mutation_failure_incident(
+    failure_semantics: Option<&LoadedProductionMutationFailureSemantics>,
+) -> ProductionMutationFailureIncident {
+    let Some(loaded) = failure_semantics else {
+        return ProductionMutationFailureIncident {
+            failure_mode: "none".to_string(),
+            failure_state: "none".to_string(),
+            terminal_action: "none".to_string(),
+            outcome: "not_linked",
+            severity: "info",
+            readback_required: false,
+            terminal_evidence_required: false,
+            risk_halted: false,
+            manual_review_required: false,
+            new_orders_blocked: false,
+            source_path: String::new(),
+        };
+    };
+    let artifact = &loaded.artifact;
+    let failure_mode =
+        json_string_value(artifact, "failure_mode").unwrap_or_else(|| "unknown".to_string());
+    let failure_state =
+        json_string_value(artifact, "failure_state").unwrap_or_else(|| "unknown".to_string());
+    let terminal_action =
+        json_string_value(artifact, "terminal_action").unwrap_or_else(|| "unknown".to_string());
+    let source_path = loaded.path.display().to_string();
+    let schema_ok = json_string_value(artifact, "schema_version").as_deref()
+        == Some(PRODUCTION_MUTATION_FAILURE_SEMANTICS_SCHEMA_VERSION);
+    let ready = schema_ok
+        && json_string_value(artifact, "status").as_deref()
+            == Some("ready_failure_semantics_evidence")
+        && json_bool_value(artifact, "failure_semantics_ready").unwrap_or(false);
+    if !ready {
+        return ProductionMutationFailureIncident {
+            failure_mode,
+            failure_state,
+            terminal_action,
+            outcome: "failure_semantics_unavailable",
+            severity: "warning",
+            readback_required: true,
+            terminal_evidence_required: false,
+            risk_halted: false,
+            manual_review_required: true,
+            new_orders_blocked: true,
+            source_path,
+        };
+    }
+
+    match failure_mode.as_str() {
+        "timeout" => ProductionMutationFailureIncident {
+            failure_mode,
+            failure_state,
+            terminal_action,
+            outcome: "timeout_readback_required",
+            severity: "warning",
+            readback_required: true,
+            terminal_evidence_required: false,
+            risk_halted: false,
+            manual_review_required: true,
+            new_orders_blocked: true,
+            source_path,
+        },
+        "http-4xx" => ProductionMutationFailureIncident {
+            failure_mode,
+            failure_state,
+            terminal_action,
+            outcome: "http_4xx_terminal_evidence",
+            severity: "info",
+            readback_required: false,
+            terminal_evidence_required: true,
+            risk_halted: false,
+            manual_review_required: false,
+            new_orders_blocked: false,
+            source_path,
+        },
+        "http-5xx" => ProductionMutationFailureIncident {
+            failure_mode,
+            failure_state,
+            terminal_action,
+            outcome: "http_5xx_readback_required",
+            severity: "warning",
+            readback_required: true,
+            terminal_evidence_required: false,
+            risk_halted: false,
+            manual_review_required: true,
+            new_orders_blocked: true,
+            source_path,
+        },
+        "malformed-response" => ProductionMutationFailureIncident {
+            failure_mode,
+            failure_state,
+            terminal_action,
+            outcome: "malformed_response_manual_review",
+            severity: "warning",
+            readback_required: false,
+            terminal_evidence_required: false,
+            risk_halted: false,
+            manual_review_required: true,
+            new_orders_blocked: true,
+            source_path,
+        },
+        "readback-mismatch" => ProductionMutationFailureIncident {
+            failure_mode,
+            failure_state,
+            terminal_action,
+            outcome: "readback_mismatch_risk_halt",
+            severity: "critical",
+            readback_required: false,
+            terminal_evidence_required: false,
+            risk_halted: true,
+            manual_review_required: true,
+            new_orders_blocked: true,
+            source_path,
+        },
+        "kill-switch-transition" => ProductionMutationFailureIncident {
+            failure_mode,
+            failure_state,
+            terminal_action,
+            outcome: "kill_switch_transition_halt",
+            severity: "critical",
+            readback_required: false,
+            terminal_evidence_required: false,
+            risk_halted: true,
+            manual_review_required: true,
+            new_orders_blocked: true,
+            source_path,
+        },
+        _ => ProductionMutationFailureIncident {
+            failure_mode,
+            failure_state,
+            terminal_action,
+            outcome: "unknown_failure_manual_review",
+            severity: "warning",
+            readback_required: true,
+            terminal_evidence_required: false,
+            risk_halted: false,
+            manual_review_required: true,
+            new_orders_blocked: true,
+            source_path,
+        },
     }
 }
 
@@ -23726,6 +23980,255 @@ write_summary = true
             assert_eq!(artifact["raw_exchange_response_recorded"], false);
             assert_eq!(artifact["response_body_recorded"], false);
             assert_eq!(artifact["response_headers_recorded"], false);
+        }
+    }
+
+    #[test]
+    fn production_mutation_reconciliation_classifier_integrates_failure_incident_semantics() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v170-008-failure-incident-semantics-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+
+        for (
+            mode,
+            expected_outcome,
+            expected_severity,
+            expected_readback_required,
+            expected_terminal_evidence_required,
+            expected_incident_risk_halted,
+            expected_manual_review,
+            expected_new_orders_blocked,
+            expected_orphan_outcome,
+        ) in [
+            (
+                ProductionMutationFailureMode::Timeout,
+                "timeout_readback_required",
+                "warning",
+                true,
+                false,
+                false,
+                true,
+                true,
+                "clean_terminal",
+            ),
+            (
+                ProductionMutationFailureMode::Http4xx,
+                "http_4xx_terminal_evidence",
+                "info",
+                false,
+                true,
+                false,
+                false,
+                false,
+                "clean_terminal",
+            ),
+            (
+                ProductionMutationFailureMode::Http5xx,
+                "http_5xx_readback_required",
+                "warning",
+                true,
+                false,
+                false,
+                true,
+                true,
+                "clean_terminal",
+            ),
+            (
+                ProductionMutationFailureMode::MalformedResponse,
+                "malformed_response_manual_review",
+                "warning",
+                false,
+                false,
+                false,
+                true,
+                true,
+                "clean_terminal",
+            ),
+            (
+                ProductionMutationFailureMode::ReadbackMismatch,
+                "readback_mismatch_risk_halt",
+                "critical",
+                false,
+                false,
+                true,
+                true,
+                true,
+                "failure_incident_risk_halt",
+            ),
+            (
+                ProductionMutationFailureMode::KillSwitchTransition,
+                "kill_switch_transition_halt",
+                "critical",
+                false,
+                false,
+                true,
+                true,
+                true,
+                "failure_incident_risk_halt",
+            ),
+        ] {
+            let case_dir = output_dir.join(mode.as_str());
+            fs::create_dir_all(&case_dir).unwrap();
+            let audit_trail = write_ready_v160_audit_trail_artifact(&case_dir);
+            let failure_semantics = case_dir.join("production_mutation_failure_semantics.json");
+            run_live_production_mutation_failure_semantics(
+                &production_mutation_failure_semantics_opt(
+                    audit_trail,
+                    failure_semantics.clone(),
+                    mode,
+                    true,
+                ),
+            )
+            .unwrap();
+
+            let failure_artifact: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(&failure_semantics).unwrap()).unwrap();
+            let local_ledger = case_dir.join("production_mutation_local_order_ledger.json");
+            let local_ledger_value = json!({
+                "schema_version": PRODUCTION_MUTATION_LOCAL_ORDER_LEDGER_SCHEMA_VERSION,
+                "run_id": "v170-failure-incident-local-ledger",
+                "order_lineage_id": "lineage-v160-single-shot",
+                "artifact_type": "production_mutation_local_order_ledger",
+                "status": "ready_local_order_ledger",
+                "local_ledger_ready": true,
+                "restart_readable": true,
+                "failure_ref": production_mutation_local_order_ledger_source_ref(
+                    &failure_semantics,
+                    &failure_artifact,
+                    "failure_semantics_ready",
+                ),
+            });
+            atomic_write_json(&local_ledger, &local_ledger_value).unwrap();
+
+            let mapper = case_dir.join("exchange_readback_mapper.json");
+            write_v170_exchange_readback_mapper_fixture(
+                &mapper,
+                &V170ExchangeReadbackMapperFixture {
+                    source_status: "ready_exchange_readback_mapped",
+                    exchange_readback_mapped: true,
+                    request_sent: true,
+                    exchange_order_status: "FILLED",
+                    exchange_order_state: "filled",
+                    order_found: true,
+                    open_order_observed: false,
+                    terminal_state_observed: true,
+                },
+            );
+            let mut mapper_value: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(&mapper).unwrap()).unwrap();
+            mapper_value["local_ledger_ref"] =
+                json!(production_mutation_local_order_ledger_source_ref(
+                    &local_ledger,
+                    &local_ledger_value,
+                    "local_ledger_ready",
+                ));
+            atomic_write_json(&mapper, &mapper_value).unwrap();
+
+            let classifier = case_dir.join("reconciliation_classifier.json");
+            run_live_production_mutation_reconciliation_classifier(
+                &production_mutation_reconciliation_classifier_opt(
+                    mapper,
+                    classifier.clone(),
+                    true,
+                ),
+            )
+            .unwrap();
+            let classifier_artifact: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(&classifier).unwrap()).unwrap();
+            assert_eq!(
+                classifier_artifact["schema_version"],
+                PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_SCHEMA_VERSION
+            );
+            assert_eq!(
+                classifier_artifact["status"],
+                "ready_reconciliation_classified"
+            );
+            assert_eq!(
+                classifier_artifact["reconciliation_outcome"],
+                "local_sent_exchange_filled"
+            );
+            assert_eq!(classifier_artifact["failure_mode"], mode.as_str());
+            assert_eq!(
+                classifier_artifact["failure_incident_outcome"],
+                expected_outcome
+            );
+            assert_eq!(
+                classifier_artifact["failure_incident_severity"],
+                expected_severity
+            );
+            assert_eq!(
+                classifier_artifact["readback_required"],
+                expected_readback_required
+            );
+            assert_eq!(
+                classifier_artifact["terminal_evidence_required"],
+                expected_terminal_evidence_required
+            );
+            assert_eq!(
+                classifier_artifact["incident_risk_halted"],
+                expected_incident_risk_halted
+            );
+            assert_eq!(
+                classifier_artifact["incident_manual_review_required"],
+                expected_manual_review
+            );
+            assert_eq!(
+                classifier_artifact["incident_new_orders_blocked"],
+                expected_new_orders_blocked
+            );
+            assert_eq!(
+                classifier_artifact["manual_review_required"],
+                expected_manual_review
+            );
+            assert_eq!(
+                classifier_artifact["new_orders_blocked"],
+                expected_new_orders_blocked
+            );
+            assert_eq!(classifier_artifact["retry_attempted"], false);
+            assert_eq!(classifier_artifact["cancel_attempted"], false);
+            assert_eq!(classifier_artifact["remediation_attempted"], false);
+            assert_eq!(
+                classifier_artifact["dashboard_order_controls_enabled"],
+                false
+            );
+
+            let detector = case_dir.join("orphan_detector.json");
+            run_live_production_mutation_orphan_order_detector(
+                &production_mutation_orphan_order_detector_opt(classifier, detector.clone(), true),
+            )
+            .unwrap();
+            let detector_artifact: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(detector).unwrap()).unwrap();
+            assert_eq!(
+                detector_artifact["schema_version"],
+                PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_SCHEMA_VERSION
+            );
+            assert_eq!(
+                detector_artifact["orphan_detection_outcome"],
+                expected_orphan_outcome
+            );
+            assert_eq!(
+                detector_artifact["incident_risk_halted"],
+                expected_incident_risk_halted
+            );
+            assert_eq!(
+                detector_artifact["risk_halted"],
+                expected_incident_risk_halted
+            );
+            assert_eq!(
+                detector_artifact["manual_review_required"],
+                expected_manual_review
+            );
+            assert_eq!(
+                detector_artifact["new_orders_blocked"],
+                expected_new_orders_blocked
+            );
+            assert_eq!(detector_artifact["retry_attempted"], false);
+            assert_eq!(detector_artifact["cancel_attempted"], false);
+            assert_eq!(detector_artifact["remediation_attempted"], false);
+            assert_eq!(detector_artifact["dashboard_order_controls_enabled"], false);
         }
     }
 
