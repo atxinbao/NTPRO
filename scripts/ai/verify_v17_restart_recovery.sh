@@ -195,12 +195,15 @@ assert classifier["new_orders_blocked"] is True
 assert detector["schema_version"] == "ntpro.v170_production_mutation_orphan_order_detector.v1"
 assert detector["status"] == "ready_orphan_order_detection_completed"
 assert detector["orphan_detection_completed"] is True
-assert detector["orphan_detection_outcome"] == "open_orphan_risk"
+assert detector["orphan_detection_outcome"] == "failure_incident_risk_halt"
 assert detector["orphan_risk_detected"] is True
 assert detector["risk_halted"] is True
 assert detector["manual_review_required"] is True
 assert detector["new_orders_blocked"] is True
 assert detector["stale_ledger_restart_required"] is False
+assert detector["failure_mode"] == "readback-mismatch"
+assert detector["failure_incident_outcome"] == "readback_mismatch_risk_halt"
+assert detector["incident_risk_halted"] is True
 
 for artifact in [recovered_ledger, mapper, classifier, detector]:
     for field in [
