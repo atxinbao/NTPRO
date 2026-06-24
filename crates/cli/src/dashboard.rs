@@ -121,6 +121,14 @@ const PRODUCTION_MUTATION_AUDIT_TRAIL_SCHEMA_VERSION: &str =
     "ntpro.v160_production_mutation_audit_trail.v1";
 const PRODUCTION_MUTATION_FAILURE_SEMANTICS_SCHEMA_VERSION: &str =
     "ntpro.v160_production_mutation_failure_semantics.v1";
+const PRODUCTION_MUTATION_LOCAL_ORDER_LEDGER_SCHEMA_VERSION: &str =
+    "ntpro.v170_production_mutation_local_order_ledger.v1";
+const PRODUCTION_MUTATION_EXCHANGE_READBACK_MAPPER_SCHEMA_VERSION: &str =
+    "ntpro.v170_production_mutation_exchange_readback_mapper.v1";
+const PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_SCHEMA_VERSION: &str =
+    "ntpro.v170_production_mutation_reconciliation_classifier.v1";
+const PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_SCHEMA_VERSION: &str =
+    "ntpro.v170_production_mutation_orphan_order_detector.v1";
 const LIVE_ALPHA_DRY_RUN_ORDER_GATE_ARTIFACT_RELATIVE_PATH: &str =
     "v0_14/live_alpha_dry_run_order_gate.json";
 const LIVE_ALPHA_RISK_PREFLIGHT_ARTIFACT_RELATIVE_PATH: &str =
@@ -151,6 +159,14 @@ const PRODUCTION_MUTATION_AUDIT_TRAIL_ARTIFACT_RELATIVE_PATH: &str =
     "v0_16/production_mutation_audit_trail.json";
 const PRODUCTION_MUTATION_FAILURE_SEMANTICS_ARTIFACT_RELATIVE_PATH: &str =
     "v0_16/production_mutation_failure_semantics.json";
+const PRODUCTION_MUTATION_LOCAL_ORDER_LEDGER_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_17/production_mutation_local_order_ledger.json";
+const PRODUCTION_MUTATION_EXCHANGE_READBACK_MAPPER_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_17/production_mutation_exchange_readback_mapper.json";
+const PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_17/production_mutation_reconciliation_classifier.json";
+const PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_17/production_mutation_orphan_order_detector.json";
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
 <html lang="zh-CN">
@@ -200,6 +216,10 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
     <section class="band">
       <h2>v0.16 Production Mutation Evidence</h2>
       <div id="production-mutation-evidence" class="table-wrap"></div>
+    </section>
+    <section class="band">
+      <h2>v0.17 对账与孤儿单风险</h2>
+      <div id="production-reconciliation-orphan" class="table-wrap"></div>
     </section>
     <section class="band">
       <h2>节点</h2>
@@ -761,6 +781,7 @@ function render(payload) {
   renderPreflightReadiness(snapshot.preflight_readiness || []);
   renderLiveAlphaDryRun(snapshot.live_alpha_dry_run || []);
   renderProductionMutationEvidence(snapshot.production_mutation_evidence || []);
+  renderProductionReconciliationOrphan(snapshot.production_reconciliation_orphan || []);
   renderDataSources(snapshot.data_sources || []);
   renderExecutionGateways(snapshot.execution_gateways || []);
   renderRisk(snapshot.risk || {});
@@ -1123,6 +1144,43 @@ function renderProductionMutationEvidence(items) {
         `).join("")}
       </tbody>
     </table>` : emptyTable("没有 v0.16 production mutation evidence 工件");
+}
+
+function renderProductionReconciliationOrphan(items) {
+  document.getElementById("production-reconciliation-orphan").innerHTML = items.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>节点</th>
+          <th>当前结论</th>
+          <th>Lineage / 本地</th>
+          <th>交易所 Readback</th>
+          <th>对账</th>
+          <th>孤儿单风险</th>
+          <th>安全边界</th>
+          <th>工件</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map((item) => `
+          <tr>
+            <td data-label="节点"><strong>${text(item.node_id)}</strong></td>
+            <td data-label="当前结论"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div></td>
+            <td data-label="Lineage / 本地">${panelRow("Lineage", snapshotValue(item.order_lineage_id))}${panelRow("Ledger", snapshotValue(item.local_ledger_status))}${panelRow("本地状态", snapshotValue(item.local_order_state))}${panelRow("Ledger ready", snapshotValue(item.local_ledger_ready))}${panelRow("可重启读取", snapshotValue(item.restart_readable))}</td>
+            <td data-label="交易所 Readback">${panelRow("Mapper", snapshotValue(item.exchange_readback_status))}${panelRow("已映射", snapshotValue(item.exchange_readback_mapped))}${panelRow("状态", snapshotValue(item.exchange_order_state))}${panelRow("原始状态", snapshotValue(item.exchange_order_status))}${panelRow("Open order", snapshotValue(item.open_order_observed))}${panelRow("终态", snapshotValue(item.terminal_state_observed))}</td>
+            <td data-label="对账">${panelRow("Classifier", snapshotValue(item.reconciliation_status))}${panelRow("已分类", snapshotValue(item.reconciliation_classified))}${panelRow("结果", snapshotValue(item.reconciliation_outcome))}${panelRow("人工复核", snapshotValue(item.manual_review_required))}${panelRow("新单阻断", snapshotValue(item.new_orders_blocked))}</td>
+            <td data-label="孤儿单风险">${panelRow("Detector", snapshotValue(item.orphan_status))}${panelRow("检测完成", snapshotValue(item.orphan_detection_completed))}${panelRow("结果", snapshotValue(item.orphan_detection_outcome))}${panelRow("孤儿单风险", snapshotValue(item.orphan_risk_detected))}${panelRow("风控暂停", snapshotValue(item.risk_halted))}${panelRow("需重启恢复", snapshotValue(item.stale_ledger_restart_required))}</td>
+            <td data-label="安全边界">${panelRow("重复提交", snapshotValue(item.duplicate_submit_attempted))}${panelRow("重试", snapshotValue(item.retry_attempted))}${panelRow("撤单", snapshotValue(item.cancel_attempted))}${panelRow("自动补救", snapshotValue(item.remediation_attempted))}${panelRow("自动撤单", snapshotValue(item.automatic_cancel_allowed))}${panelRow("Dashboard 下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("Dashboard 撤单控件", snapshotValue(item.dashboard_cancel_controls_enabled))}${panelRow("网络尝试", snapshotValue(item.network_attempted))}${panelRow("提交允许", snapshotValue(item.production_order_submission_allowed))}${panelRow("变更允许", snapshotValue(item.production_order_mutation_allowed))}</td>
+            <td data-label="工件" class="path">
+              ${panelRow("ledger", snapshotValue(item.local_order_ledger_path))}
+              ${panelRow("readback", snapshotValue(item.exchange_readback_mapper_path))}
+              ${panelRow("classifier", snapshotValue(item.reconciliation_classifier_path))}
+              ${panelRow("orphan", snapshotValue(item.orphan_order_detector_path))}
+            </td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>` : emptyTable("没有 v0.17 对账与孤儿单风险工件");
 }
 
 function renderDataSources(dataSources) {
@@ -2136,6 +2194,7 @@ pub struct DashboardSnapshot {
     pub preflight_readiness: Vec<PreflightReadinessStatus>,
     pub live_alpha_dry_run: Vec<LiveAlphaDryRunStatus>,
     pub production_mutation_evidence: Vec<ProductionMutationEvidenceStatus>,
+    pub production_reconciliation_orphan: Vec<ProductionReconciliationOrphanStatus>,
     pub runtime_modules: Vec<RuntimeModuleStatus>,
     pub logs: Vec<LogStatus>,
     pub metrics: Vec<MetricStatus>,
@@ -2162,6 +2221,7 @@ impl DashboardSnapshot {
             preflight_readiness: Vec::new(),
             live_alpha_dry_run: Vec::new(),
             production_mutation_evidence: Vec::new(),
+            production_reconciliation_orphan: Vec::new(),
             runtime_modules: Vec::new(),
             logs: Vec::new(),
             metrics: Vec::new(),
@@ -2948,6 +3008,51 @@ pub struct ProductionMutationEvidenceStatus {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProductionReconciliationOrphanStatus {
+    pub node_id: String,
+    pub health: HealthStatus,
+    pub readiness_status: DashboardValue<String>,
+    pub diagnostic: DashboardValue<String>,
+    pub order_lineage_id: DashboardValue<String>,
+    pub local_ledger_status: DashboardValue<String>,
+    pub local_order_state: DashboardValue<String>,
+    pub local_ledger_ready: DashboardValue<bool>,
+    pub restart_readable: DashboardValue<bool>,
+    pub exchange_readback_status: DashboardValue<String>,
+    pub exchange_readback_mapped: DashboardValue<bool>,
+    pub exchange_order_state: DashboardValue<String>,
+    pub exchange_order_status: DashboardValue<String>,
+    pub open_order_observed: DashboardValue<bool>,
+    pub terminal_state_observed: DashboardValue<bool>,
+    pub reconciliation_status: DashboardValue<String>,
+    pub reconciliation_classified: DashboardValue<bool>,
+    pub reconciliation_outcome: DashboardValue<String>,
+    pub orphan_status: DashboardValue<String>,
+    pub orphan_detection_completed: DashboardValue<bool>,
+    pub orphan_detection_outcome: DashboardValue<String>,
+    pub orphan_risk_detected: DashboardValue<bool>,
+    pub risk_halted: DashboardValue<bool>,
+    pub manual_review_required: DashboardValue<bool>,
+    pub new_orders_blocked: DashboardValue<bool>,
+    pub stale_ledger_restart_required: DashboardValue<bool>,
+    pub duplicate_submit_attempted: DashboardValue<bool>,
+    pub retry_attempted: DashboardValue<bool>,
+    pub cancel_attempted: DashboardValue<bool>,
+    pub remediation_attempted: DashboardValue<bool>,
+    pub automatic_cancel_allowed: DashboardValue<bool>,
+    pub automatic_remediation_allowed: DashboardValue<bool>,
+    pub dashboard_order_controls_enabled: DashboardValue<bool>,
+    pub dashboard_cancel_controls_enabled: DashboardValue<bool>,
+    pub network_attempted: DashboardValue<bool>,
+    pub production_order_submission_allowed: DashboardValue<bool>,
+    pub production_order_mutation_allowed: DashboardValue<bool>,
+    pub local_order_ledger_path: DashboardValue<String>,
+    pub exchange_readback_mapper_path: DashboardValue<String>,
+    pub reconciliation_classifier_path: DashboardValue<String>,
+    pub orphan_order_detector_path: DashboardValue<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeModuleStatus {
     pub module_name: String,
     pub status: DashboardValue<String>,
@@ -3228,6 +3333,11 @@ pub fn snapshot_from_supervisor_artifacts_with_workflow_root(
             snapshot
                 .production_mutation_evidence
                 .push(production_mutation_evidence);
+        }
+        if let Some(reconciliation_orphan) = production_reconciliation_orphan_from_record(record) {
+            snapshot
+                .production_reconciliation_orphan
+                .push(reconciliation_orphan);
         }
         snapshot
             .logs
@@ -6033,6 +6143,255 @@ fn production_mutation_evidence_from_record(
     })
 }
 
+#[derive(Clone, Debug)]
+struct ProductionReconciliationOrphanArtifactPaths {
+    local_order_ledger_path: PathBuf,
+    exchange_readback_mapper_path: PathBuf,
+    reconciliation_classifier_path: PathBuf,
+    orphan_order_detector_path: PathBuf,
+}
+
+impl ProductionReconciliationOrphanArtifactPaths {
+    fn v17(record: &SupervisorNodeRecord) -> Self {
+        Self {
+            local_order_ledger_path: record
+                .artifact_root
+                .join(PRODUCTION_MUTATION_LOCAL_ORDER_LEDGER_ARTIFACT_RELATIVE_PATH),
+            exchange_readback_mapper_path: record
+                .artifact_root
+                .join(PRODUCTION_MUTATION_EXCHANGE_READBACK_MAPPER_ARTIFACT_RELATIVE_PATH),
+            reconciliation_classifier_path: record
+                .artifact_root
+                .join(PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_ARTIFACT_RELATIVE_PATH),
+            orphan_order_detector_path: record
+                .artifact_root
+                .join(PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_ARTIFACT_RELATIVE_PATH),
+        }
+    }
+
+    fn has_any_artifact(&self) -> bool {
+        self.local_order_ledger_path.exists()
+            || self.exchange_readback_mapper_path.exists()
+            || self.reconciliation_classifier_path.exists()
+            || self.orphan_order_detector_path.exists()
+    }
+}
+
+fn production_reconciliation_orphan_from_record(
+    record: &SupervisorNodeRecord,
+) -> Option<ProductionReconciliationOrphanStatus> {
+    let paths = ProductionReconciliationOrphanArtifactPaths::v17(record);
+    if !paths.has_any_artifact() {
+        return None;
+    }
+
+    let local_order_ledger = read_json_file_value(&paths.local_order_ledger_path);
+    let exchange_readback_mapper = read_json_file_value(&paths.exchange_readback_mapper_path);
+    let reconciliation_classifier = read_json_file_value(&paths.reconciliation_classifier_path);
+    let orphan_order_detector = read_json_file_value(&paths.orphan_order_detector_path);
+    let artifacts = [
+        &local_order_ledger,
+        &exchange_readback_mapper,
+        &reconciliation_classifier,
+        &orphan_order_detector,
+    ];
+
+    let schema_ok = local_order_ledger.as_ref().is_none_or(|_| {
+        artifact_schema_matches(
+            &local_order_ledger,
+            PRODUCTION_MUTATION_LOCAL_ORDER_LEDGER_SCHEMA_VERSION,
+        )
+    }) && exchange_readback_mapper.as_ref().is_none_or(|_| {
+        artifact_schema_matches(
+            &exchange_readback_mapper,
+            PRODUCTION_MUTATION_EXCHANGE_READBACK_MAPPER_SCHEMA_VERSION,
+        )
+    }) && reconciliation_classifier.as_ref().is_none_or(|_| {
+        artifact_schema_matches(
+            &reconciliation_classifier,
+            PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_SCHEMA_VERSION,
+        )
+    }) && orphan_order_detector.as_ref().is_none_or(|_| {
+        artifact_schema_matches(
+            &orphan_order_detector,
+            PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_SCHEMA_VERSION,
+        )
+    });
+
+    let order_lineage_id = v17_first_available_string_any(&artifacts, "order_lineage_id");
+    let local_ledger_status = local_order_ledger
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let local_order_state = local_order_ledger
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "current_local_state")
+        });
+    let local_ledger_ready = local_order_ledger
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_bool_field(value, "local_ledger_ready")
+        });
+    let restart_readable = v17_any_available_bool_any(&artifacts, "restart_readable");
+    let exchange_readback_status = exchange_readback_mapper
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let exchange_readback_mapped =
+        v17_any_available_bool_any(&artifacts, "exchange_readback_mapped");
+    let exchange_order_state = exchange_readback_mapper
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "exchange_order_state")
+        });
+    let exchange_order_status = exchange_readback_mapper
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "exchange_order_status")
+        });
+    let open_order_observed = v17_any_available_bool_any(&artifacts, "open_order_observed");
+    let terminal_state_observed = v17_any_available_bool_any(&artifacts, "terminal_state_observed");
+    let reconciliation_status = reconciliation_classifier
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let reconciliation_classified =
+        v17_any_available_bool_any(&artifacts, "reconciliation_classified");
+    let reconciliation_outcome = reconciliation_classifier
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "reconciliation_outcome")
+        });
+    let orphan_status = orphan_order_detector
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let orphan_detection_completed =
+        v17_any_available_bool_any(&artifacts, "orphan_detection_completed");
+    let orphan_detection_outcome = orphan_order_detector
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "orphan_detection_outcome")
+        });
+    let orphan_risk_detected = v17_any_available_bool_any(&artifacts, "orphan_risk_detected");
+    let risk_halted = v17_any_available_bool_any(&artifacts, "risk_halted");
+    let manual_review_required = v17_any_available_bool_any(&artifacts, "manual_review_required");
+    let new_orders_blocked = v17_any_available_bool_any(&artifacts, "new_orders_blocked");
+    let stale_ledger_restart_required =
+        v17_any_available_bool_any(&artifacts, "stale_ledger_restart_required");
+    let duplicate_submit_attempted =
+        v17_any_available_bool_any(&artifacts, "duplicate_submit_attempted");
+    let retry_attempted = v17_any_available_bool_any(&artifacts, "retry_attempted");
+    let cancel_attempted = v17_any_available_bool_any(&artifacts, "cancel_attempted");
+    let remediation_attempted = v17_any_available_bool_any(&artifacts, "remediation_attempted");
+    let automatic_cancel_allowed =
+        v17_any_available_bool_any(&artifacts, "automatic_cancel_allowed");
+    let automatic_remediation_allowed =
+        v17_any_available_bool_any(&artifacts, "automatic_remediation_allowed");
+    let dashboard_order_controls_enabled =
+        v17_any_available_bool_any(&artifacts, "dashboard_order_controls_enabled");
+    let dashboard_cancel_controls_enabled =
+        v17_any_available_bool_any(&artifacts, "dashboard_cancel_controls_enabled");
+    let network_attempted = v17_any_available_bool_any(&artifacts, "network_attempted");
+    let production_order_submission_allowed =
+        v17_any_available_bool_any(&artifacts, "production_order_submission_allowed");
+    let production_order_mutation_allowed =
+        v17_any_available_bool_any(&artifacts, "production_order_mutation_allowed");
+
+    let boundary_violation = !schema_ok
+        || duplicate_submit_attempted.value == Some(true)
+        || retry_attempted.value == Some(true)
+        || cancel_attempted.value == Some(true)
+        || remediation_attempted.value == Some(true)
+        || automatic_cancel_allowed.value == Some(true)
+        || automatic_remediation_allowed.value == Some(true)
+        || dashboard_order_controls_enabled.value == Some(true)
+        || dashboard_cancel_controls_enabled.value == Some(true)
+        || network_attempted.value == Some(true)
+        || production_order_submission_allowed.value == Some(true)
+        || production_order_mutation_allowed.value == Some(true);
+    let review_required = orphan_risk_detected.value == Some(true)
+        || risk_halted.value == Some(true)
+        || manual_review_required.value == Some(true)
+        || new_orders_blocked.value == Some(true)
+        || stale_ledger_restart_required.value == Some(true);
+    let ready = local_ledger_ready.value == Some(true)
+        && exchange_readback_mapped.value == Some(true)
+        && reconciliation_classified.value == Some(true)
+        && orphan_detection_completed.value == Some(true)
+        && !boundary_violation;
+    let readiness_status = if boundary_violation {
+        "production_reconciliation_orphan_boundary_violation"
+    } else if review_required {
+        "production_reconciliation_orphan_manual_review_required"
+    } else if ready {
+        "production_reconciliation_orphan_ready"
+    } else {
+        "production_reconciliation_orphan_incomplete"
+    };
+
+    Some(ProductionReconciliationOrphanStatus {
+        node_id: record.node_id.clone(),
+        health: if boundary_violation || review_required || !ready {
+            HealthStatus::Degraded
+        } else {
+            HealthStatus::Healthy
+        },
+        readiness_status: DashboardValue::available(readiness_status.to_string()),
+        diagnostic: DashboardValue::available(if schema_ok {
+            readiness_status.to_string()
+        } else {
+            "production_reconciliation_orphan_schema_invalid".to_string()
+        }),
+        order_lineage_id,
+        local_ledger_status,
+        local_order_state,
+        local_ledger_ready,
+        restart_readable,
+        exchange_readback_status,
+        exchange_readback_mapped,
+        exchange_order_state,
+        exchange_order_status,
+        open_order_observed,
+        terminal_state_observed,
+        reconciliation_status,
+        reconciliation_classified,
+        reconciliation_outcome,
+        orphan_status,
+        orphan_detection_completed,
+        orphan_detection_outcome,
+        orphan_risk_detected,
+        risk_halted,
+        manual_review_required,
+        new_orders_blocked,
+        stale_ledger_restart_required,
+        duplicate_submit_attempted,
+        retry_attempted,
+        cancel_attempted,
+        remediation_attempted,
+        automatic_cancel_allowed,
+        automatic_remediation_allowed,
+        dashboard_order_controls_enabled,
+        dashboard_cancel_controls_enabled,
+        network_attempted,
+        production_order_submission_allowed,
+        production_order_mutation_allowed,
+        local_order_ledger_path: dashboard_path_if_exists(&paths.local_order_ledger_path),
+        exchange_readback_mapper_path: dashboard_path_if_exists(
+            &paths.exchange_readback_mapper_path,
+        ),
+        reconciliation_classifier_path: dashboard_path_if_exists(
+            &paths.reconciliation_classifier_path,
+        ),
+        orphan_order_detector_path: dashboard_path_if_exists(&paths.orphan_order_detector_path),
+    })
+}
+
 fn artifact_schema_matches(value: &Option<Value>, expected: &str) -> bool {
     value.as_ref().is_some_and(|value| {
         value
@@ -6148,6 +6507,29 @@ fn v16_max_available_u64_any(artifacts: &[&Option<Value>], field: &str) -> Dashb
 }
 
 fn v16_any_available_bool_any(artifacts: &[&Option<Value>], field: &str) -> DashboardValue<bool> {
+    any_available_bool_from_values(artifacts.iter().map(|artifact| {
+        artifact
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, field)
+            })
+    }))
+}
+
+fn v17_first_available_string_any(
+    artifacts: &[&Option<Value>],
+    field: &str,
+) -> DashboardValue<String> {
+    first_available_string_from_values(artifacts.iter().map(|artifact| {
+        artifact
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, field)
+            })
+    }))
+}
+
+fn v17_any_available_bool_any(artifacts: &[&Option<Value>], field: &str) -> DashboardValue<bool> {
     any_available_bool_from_values(artifacts.iter().map(|artifact| {
         artifact
             .as_ref()
@@ -10807,6 +11189,123 @@ mod tests {
     }
 
     #[test]
+    fn production_reconciliation_orphan_artifacts_populate_readonly_dashboard_panel() {
+        let root = temp_root("production-reconciliation-orphan");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "production-reconciliation-orphan-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_mutation_v17_reconciliation_orphan_artifacts(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-24T06:10:00Z").unwrap();
+
+        assert_eq!(snapshot.production_reconciliation_orphan.len(), 1);
+        let item = &snapshot.production_reconciliation_orphan[0];
+        assert_eq!(item.node_id, "production-reconciliation-orphan-a");
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_reconciliation_orphan_manual_review_required")
+        );
+        assert_eq!(
+            item.order_lineage_id.value.as_deref(),
+            Some("lineage-v160-single-shot")
+        );
+        assert_eq!(
+            item.local_ledger_status.value.as_deref(),
+            Some("ready_local_order_ledger")
+        );
+        assert_eq!(
+            item.local_order_state.value.as_deref(),
+            Some("local_ledger_pending_exchange_reconciliation")
+        );
+        assert_eq!(item.local_ledger_ready.value, Some(true));
+        assert_eq!(item.restart_readable.value, Some(true));
+        assert_eq!(
+            item.exchange_readback_status.value.as_deref(),
+            Some("ready_exchange_readback_mapped")
+        );
+        assert_eq!(item.exchange_readback_mapped.value, Some(true));
+        assert_eq!(item.exchange_order_state.value.as_deref(), Some("open"));
+        assert_eq!(item.exchange_order_status.value.as_deref(), Some("NEW"));
+        assert_eq!(item.open_order_observed.value, Some(true));
+        assert_eq!(item.terminal_state_observed.value, Some(false));
+        assert_eq!(
+            item.reconciliation_status.value.as_deref(),
+            Some("ready_reconciliation_classified")
+        );
+        assert_eq!(item.reconciliation_classified.value, Some(true));
+        assert_eq!(
+            item.reconciliation_outcome.value.as_deref(),
+            Some("local_sent_exchange_new")
+        );
+        assert_eq!(
+            item.orphan_status.value.as_deref(),
+            Some("ready_orphan_order_detection_completed")
+        );
+        assert_eq!(item.orphan_detection_completed.value, Some(true));
+        assert_eq!(
+            item.orphan_detection_outcome.value.as_deref(),
+            Some("open_orphan_risk")
+        );
+        assert_eq!(item.orphan_risk_detected.value, Some(true));
+        assert_eq!(item.risk_halted.value, Some(true));
+        assert_eq!(item.manual_review_required.value, Some(true));
+        assert_eq!(item.new_orders_blocked.value, Some(true));
+        assert_eq!(item.stale_ledger_restart_required.value, Some(false));
+        assert_eq!(item.duplicate_submit_attempted.value, Some(false));
+        assert_eq!(item.retry_attempted.value, Some(false));
+        assert_eq!(item.cancel_attempted.value, Some(false));
+        assert_eq!(item.remediation_attempted.value, Some(false));
+        assert_eq!(item.automatic_cancel_allowed.value, Some(false));
+        assert_eq!(item.automatic_remediation_allowed.value, Some(false));
+        assert_eq!(item.dashboard_order_controls_enabled.value, Some(false));
+        assert_eq!(item.dashboard_cancel_controls_enabled.value, Some(false));
+        assert_eq!(item.network_attempted.value, Some(false));
+        assert_eq!(item.production_order_submission_allowed.value, Some(false));
+        assert_eq!(item.production_order_mutation_allowed.value, Some(false));
+        assert!(
+            item.local_order_ledger_path.value.as_deref().is_some_and(
+                |path| path.ends_with("v0_17/production_mutation_local_order_ledger.json")
+            )
+        );
+        assert!(
+            item.orphan_order_detector_path
+                .value
+                .as_deref()
+                .is_some_and(
+                    |path| path.ends_with("v0_17/production_mutation_orphan_order_detector.json")
+                )
+        );
+
+        let renderer = dashboard_js_function_body("renderProductionReconciliationOrphan");
+        for forbidden in [
+            "<button",
+            "data-dashboard-action",
+            "fetch(",
+            "credential",
+            "api_key",
+            "api_secret",
+        ] {
+            assert!(
+                !renderer.contains(forbidden),
+                "reconciliation/orphan renderer must stay read-only and not contain {forbidden}"
+            );
+        }
+        assert!(renderer.contains("Lineage / 本地"));
+        assert!(renderer.contains("交易所 Readback"));
+        assert!(renderer.contains("孤儿单风险"));
+        let snapshot_value = serde_json::to_value(&snapshot).unwrap();
+        assert_forbidden_keys_absent(&snapshot_value);
+    }
+
+    #[test]
     fn production_mutation_v16_evidence_boundary_violation_degrades_panel() {
         let root = temp_root("production-mutation-v16-boundary");
         let registry_path = root.join("registry.json");
@@ -13002,6 +13501,133 @@ mod tests {
                 "dashboard_order_controls_enabled": false,
                 "real_orders_submitted": false,
                 "production_trading_enabled": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn write_production_mutation_v17_reconciliation_orphan_artifacts(
+        record: &SupervisorNodeRecord,
+    ) {
+        let root = record.artifact_root.join("v0_17");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("production_mutation_local_order_ledger.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_MUTATION_LOCAL_ORDER_LEDGER_SCHEMA_VERSION,
+                "run_id": "v170-production-reconciliation-dashboard",
+                "order_lineage_id": "lineage-v160-single-shot",
+                "artifact_type": "production_mutation_local_order_ledger",
+                "status": "ready_local_order_ledger",
+                "local_ledger_ready": true,
+                "restart_readable": true,
+                "current_local_state": "local_ledger_pending_exchange_reconciliation",
+                "request_sent": true,
+                "network_attempted": false,
+                "production_order_submission_allowed": false,
+                "production_order_mutation_allowed": false,
+                "duplicate_submit_attempted": false,
+                "retry_attempted": false,
+                "cancel_attempted": false,
+                "remediation_attempted": false,
+                "automatic_cancel_allowed": false,
+                "automatic_remediation_allowed": false,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            root.join("production_mutation_exchange_readback_mapper.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_MUTATION_EXCHANGE_READBACK_MAPPER_SCHEMA_VERSION,
+                "run_id": "v170-production-reconciliation-dashboard",
+                "order_lineage_id": "lineage-v160-single-shot",
+                "artifact_type": "production_mutation_exchange_readback_mapper",
+                "status": "ready_exchange_readback_mapped",
+                "local_ledger_ready": true,
+                "exchange_readback_mapped": true,
+                "exchange_order_status": "NEW",
+                "exchange_order_state": "open",
+                "open_order_observed": true,
+                "terminal_state_observed": false,
+                "order_found": true,
+                "request_sent": true,
+                "network_attempted": false,
+                "production_order_submission_allowed": false,
+                "production_order_mutation_allowed": false,
+                "duplicate_submit_attempted": false,
+                "retry_attempted": false,
+                "cancel_attempted": false,
+                "remediation_attempted": false,
+                "automatic_cancel_allowed": false,
+                "automatic_remediation_allowed": false,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            root.join("production_mutation_reconciliation_classifier.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_SCHEMA_VERSION,
+                "run_id": "v170-production-reconciliation-dashboard",
+                "order_lineage_id": "lineage-v160-single-shot",
+                "artifact_type": "production_mutation_reconciliation_classifier",
+                "status": "ready_reconciliation_classified",
+                "exchange_readback_mapped": true,
+                "reconciliation_classified": true,
+                "reconciliation_outcome": "local_sent_exchange_new",
+                "orphan_risk_detected": false,
+                "manual_review_required": true,
+                "new_orders_blocked": true,
+                "request_sent": true,
+                "network_attempted": false,
+                "production_order_submission_allowed": false,
+                "production_order_mutation_allowed": false,
+                "duplicate_submit_attempted": false,
+                "retry_attempted": false,
+                "cancel_attempted": false,
+                "remediation_attempted": false,
+                "automatic_cancel_allowed": false,
+                "automatic_remediation_allowed": false,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            root.join("production_mutation_orphan_order_detector.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_SCHEMA_VERSION,
+                "run_id": "v170-production-reconciliation-dashboard",
+                "order_lineage_id": "lineage-v160-single-shot",
+                "artifact_type": "production_mutation_orphan_order_detector",
+                "status": "ready_orphan_order_detection_completed",
+                "orphan_detection_completed": true,
+                "orphan_detection_outcome": "open_orphan_risk",
+                "orphan_risk_detected": true,
+                "risk_halted": true,
+                "manual_review_required": true,
+                "new_orders_blocked": true,
+                "stale_ledger_restart_required": false,
+                "local_terminal_state": false,
+                "request_sent": true,
+                "network_attempted": false,
+                "production_order_submission_allowed": false,
+                "production_order_mutation_allowed": false,
+                "duplicate_submit_attempted": false,
+                "retry_attempted": false,
+                "cancel_attempted": false,
+                "remediation_attempted": false,
+                "automatic_cancel_allowed": false,
+                "automatic_remediation_allowed": false,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false
             }))
             .unwrap(),
         )
