@@ -14,7 +14,7 @@ cargo test -p nautilus-cli \
   production_mutation_reconciliation_classifier_integrates_failure_incident_semantics \
   --lib
 
-rg -n "timeout_readback_required|http_4xx_terminal_evidence|malformed_response_manual_review|readback_mismatch_risk_halt|kill_switch_transition_halt|failure_incident_risk_halt" \
+grep -R -n -E "timeout_readback_required|http_4xx_terminal_evidence|malformed_response_manual_review|readback_mismatch_risk_halt|kill_switch_transition_halt|failure_incident_risk_halt" \
   crates/cli/src/live.rs >/dev/null
 
 echo "verify_v17_failure_incident_integration PASS"

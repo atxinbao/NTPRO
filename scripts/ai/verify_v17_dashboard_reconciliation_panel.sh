@@ -13,7 +13,7 @@ cargo test -p nautilus-cli \
   production_reconciliation_orphan_artifacts_populate_readonly_dashboard_panel \
   --lib
 
-rg -n "v0.17 对账与孤儿单风险|production-reconciliation-orphan|renderProductionReconciliationOrphan" \
+grep -R -n -E "v0\.17 对账与孤儿单风险|production-reconciliation-orphan|renderProductionReconciliationOrphan" \
   crates/cli/src/dashboard.rs >/dev/null
 
 echo "verify_v17_dashboard_reconciliation_panel PASS"
