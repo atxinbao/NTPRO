@@ -121,7 +121,6 @@ jobs:
     env:
       CARGO_BUILD_JOBS: "1"
       CARGO_INCREMENTAL: "0"
-      RUSTFLAGS: "-C link-arg=-fuse-ld=lld -C link-arg=-Wl,--threads=1"
       NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
       NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
       GH_TOKEN: ${{ github.token }}
@@ -132,19 +131,23 @@ jobs:
           fetch-tags: true
           persist-credentials: false
 
+      - name: Reclaim runner disk
+        run: |
+          df -h
+          sudo rm -rf \
+            /opt/ghc \
+            /opt/hostedtoolcache/CodeQL \
+            /usr/local/lib/android \
+            /usr/local/share/boost \
+            /usr/share/dotnet || true
+          df -h
+
       - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
         with:
           toolchain: 1.95.0
           components: rustfmt, clippy
           cache: true
           override: true
-
-      - name: Install lld linker
-        run: |
-          if ! command -v ld.lld >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y lld
-          fi
 
       - name: Verify release gate stage
         env:
