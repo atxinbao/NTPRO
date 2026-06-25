@@ -121,7 +121,7 @@ jobs:
     env:
       CARGO_BUILD_JOBS: "1"
       CARGO_INCREMENTAL: "0"
-      RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
+      RUSTFLAGS: "-C link-arg=-fuse-ld=lld -C link-arg=-Wl,--threads=1"
       NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
       NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
       GH_TOKEN: ${{ github.token }}
