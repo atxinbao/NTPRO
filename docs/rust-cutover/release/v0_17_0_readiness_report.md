@@ -3,7 +3,7 @@
 Date: 2026-06-24
 Executor: Codex
 Milestone: `ntpro-rust-only-v0.17.0`
-Status: READY FOR OWNER RELEASE DECISION
+Status: PASS - RELEASED
 
 ## Summary
 
@@ -26,7 +26,7 @@ capability = Production Reconciliation And Orphan Recovery Evidence
 capability_expansion_from_v16 = reconciliation_evidence_only
 release tag = ntpro-rust-only-v0.17.0
 release name = NTPRO Rust-only v0.17.0
-release URL = pending owner publication
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.17.0
 default execution posture = offline fail-closed
 lineage_scope = single_v16_mutation_candidate
 local order ledger = included
@@ -169,15 +169,15 @@ actual_cancel_send_allowed = false
 
 ```text
 latest formal release before this line = ntpro-rust-only-v0.16.0
-v0.17.0 readiness = READY FOR OWNER RELEASE DECISION
-v0.17.0 tag = pending owner publication
-v0.17.0 GitHub Release = pending owner publication
+v0.17.0 readiness = PASS - RELEASED
+v0.17.0 tag = ntpro-rust-only-v0.17.0
+v0.17.0 GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.17.0
 ```
 
 ## Final Verdict
 
-The v0.17 source-tree package is ready for owner release decision as
-`Production Reconciliation And Orphan Recovery Evidence`.
+The v0.17 source-tree package is formally released as `Production
+Reconciliation And Orphan Recovery Evidence`.
 
 Do not describe this readiness as strategy live trading readiness, new
 production order submission readiness, cancel execution readiness, automatic

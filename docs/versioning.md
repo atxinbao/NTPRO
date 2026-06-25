@@ -10,13 +10,12 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.16.0` 是当前正式公开发布点；它是 Minimum Owner-Approved Production Order
-Mutation Candidate，只允许一笔 owner 明确批准的极小 `LIMIT` `GTC` 生产订单候选，
-并且必须经过显式 runtime gates、签名材料审批、guarded HTTP send、脱敏响应证据、
-readback 证据、kill switch、audit trail 和 no-retry 失败语义。它不是策略实盘、
-不是多单执行、不是 `MARKET` 下单、不是撤单/改单/重试/纠错/flatten、不是 listenKey
-生命周期、不是多账户多交易所执行，也没有 Dashboard 下单按钮。`v0.17.0` 需要单独
-scope decision，不能从 v0.16.0 的单笔候选证据里推导出来。
+`v0.17.0` 是当前正式公开发布点；它是 Production Reconciliation And Orphan
+Recovery Evidence，只在 v0.16 那一笔 owner 明确批准的极小 `LIMIT` `GTC`
+生产订单候选之后，提供本地账本、脱敏只读回查映射、对账分类、孤儿单风险检测、重启恢复、
+只读 Dashboard 证据和失败事件归类。它不是新下单、不是联网回查执行、不是撤单执行、
+不是自动补救、不是策略实盘、不是多账户多交易所执行，也没有 Dashboard 下单或撤单按钮。
+`v0.18.0` 需要单独 scope decision，不能从 v0.17.0 的证据线里推导出来。
 
 ## Release Tags
 
@@ -36,6 +35,7 @@ ntpro-rust-only-v0.13.0
 ntpro-rust-only-v0.14.0
 ntpro-rust-only-v0.15.0
 ntpro-rust-only-v0.16.0
+ntpro-rust-only-v0.17.0
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -48,22 +48,22 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.16.0
+ntpro-rust-only-v0.17.0
 ```
 
 The active patch track is:
 
 ```text
-v0.16.1
+v0.17.1
 ```
 
-v0.16.1 is the reserved patch track, if needed. It must not expand beyond the
-v0.16.0 one-owner-approved tiny `LIMIT` `GTC` candidate boundary and must not
-be described as strategy-driven production execution, multiple orders,
-`MARKET` orders, cancel/replace/amend/retry/correction/flatten, listenKey
-lifecycle, real funds, production trading platform readiness, automatic
-production remediation, multi-account/multi-venue execution, or Dashboard order
-controls.
+v0.17.1 is the reserved patch track, if needed. It must not expand beyond the
+v0.17.0 reconciliation and orphan-risk evidence boundary and must not be
+described as network readback execution, new production order submission,
+production order mutation, actual cancel send, automatic cancel, retry/replace/
+amend/correction/flatten/remediation, strategy-driven production execution,
+multi-account/multi-venue execution, real funds, production trading platform
+readiness, or Dashboard order/cancel controls.
 
 ## Cargo Workspace Version
 
@@ -232,6 +232,24 @@ preflight only. It is not production request sending, production order
 submission, production order mutation, cancel/replace/amend/retry/correction,
 listenKey lifecycle, real-funds trading, production trading, automatic
 remediation, or Dashboard order controls.
+
+### v0.17.0
+
+Current boundary:
+
+```text
+Production Reconciliation And Orphan Recovery Evidence
+```
+
+V170-000 defines the v0.17.0 scope, and the formal release keeps that boundary.
+v0.17.0 includes local/offline evidence for the v0.16 single candidate lineage:
+local ledger persistence, redacted exchange readback mapping, reconciliation
+classification, orphan order risk detection, restart recovery, read-only
+Dashboard evidence, and failure incident semantics. It must not be treated as
+network readback execution, new production order submission, production order
+mutation, actual cancel send, automatic orphan cleanup, strategy-driven
+production execution, multi-account/multi-venue execution, real-funds trading
+platform readiness, or Dashboard order/cancel controls.
 
 ### v0.16.0
 

@@ -5,32 +5,33 @@ Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is
-`ntpro-rust-only-v0.16.0`, the Minimum Owner-Approved Production Order Mutation Candidate release. The next patch track is `v0.16.1`, if needed. `v0.17.0` requires a separate scope decision before any capability may be claimed beyond v0.16.0 single-order candidate evidence.
+`ntpro-rust-only-v0.17.0`, the Production Reconciliation And Orphan Recovery Evidence release. The next patch track is `v0.17.1`, if needed. `v0.18.0` requires a separate scope decision before any capability may be claimed beyond v0.17.0 reconciliation and orphan-risk evidence.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.16.0
+ntpro-rust-only-v0.17.0
 ```
 
 Current capability boundary:
 
 ```text
-Minimum Owner-Approved Production Order Mutation Candidate
-one owner-approved tiny LIMIT GTC production order candidate
-explicit owner approval immediately before send
-owner-gated signing material
-guarded production HTTP send path
-redacted request/response evidence
-post-submit order-state readback proof contract
-kill switch checks before and after the send boundary
-production mutation audit trail
-terminal failure and no-retry semantics
-read-only Dashboard production mutation evidence panel
+Production Reconciliation And Orphan Recovery Evidence
+single v0.16 production mutation candidate lineage
+local production order ledger
+redacted exchange readback mapper
+local-vs-exchange reconciliation classifier
+orphan order risk detector
+restart recovery evidence
+failure incident semantics
+read-only Dashboard reconciliation and orphan-risk evidence
 default local/PR/release execution offline and fail-closed
 production mutation disabled by default
+network readback execution not included
+actual cancel send deferred
+automatic cancel disabled
 no strategy-driven production execution
 no multiple orders
 no MARKET orders
@@ -42,15 +43,11 @@ no multi-account or multi-venue execution
 no Dashboard order controls
 ```
 
-`v0.16.0` builds on the v0.15 Guarded Live Alpha Mutation Scope + Execution
-Dry-Run Harness line. It advances the boundary from request-preview/dry-run
-evidence to the smallest owner-approved production mutation candidate: one tiny
-`LIMIT` `GTC` production order candidate with explicit gates, redacted
-evidence, readback, audit, kill-switch, and no-retry semantics. It keeps
-strategy-driven production execution, multiple orders, `MARKET` orders,
-cancel/replace/amend/retry/correction/flatten, automatic remediation,
-listenKey lifecycle, real-funds proof in CI, multi-account/multi-venue
-execution, and Dashboard order controls out of scope.
+`v0.17.0` builds on the v0.16 Minimum Owner-Approved Production Order Mutation
+Candidate line. It does not submit another order and does not enable cancel
+execution. It adds local/offline evidence for ledger persistence, redacted
+readback mapping, reconciliation classification, orphan order risk, restart
+recovery, read-only Dashboard visibility, and failure incident semantics.
 
 ## Published Hardening Patch: v0.7.1
 
@@ -450,8 +447,49 @@ failure semantics.
 - production trading platform claim;
 - Dashboard order controls.
 
-`v0.17.0` requires a separate scope decision before any capability may be
-claimed beyond v0.16.0 owner-approved single-order candidate evidence.
+## Published Capability Track: v0.17.0
+
+`v0.17.0` is the published Production Reconciliation And Orphan Recovery
+Evidence line. It preserves the v0.16 single owner-approved production mutation
+candidate boundary and adds local/offline evidence for reconciliation,
+orphan-risk detection, restart recovery, read-only Dashboard visibility, and
+incident classification.
+
+`v0.17.0` includes:
+
+- local production order ledger;
+- redacted exchange readback mapper;
+- local-vs-exchange reconciliation classifier;
+- orphan order risk detector;
+- restart recovery evidence;
+- owner-approved cancel recovery boundary documentation without cancel
+  execution;
+- read-only Dashboard reconciliation and orphan-risk evidence panel;
+- failure and incident semantics;
+- v0.17 aggregate release gates;
+- readiness report and release notes.
+
+`v0.17.0` explicitly does not include:
+
+- network readback execution;
+- new production order submission;
+- additional production order mutation;
+- actual cancel send;
+- automatic cancel;
+- automatic orphan cleanup;
+- retry, replace, amend, correction, flatten, or remediation;
+- Dashboard order controls;
+- Dashboard cancel controls;
+- Dashboard credential input;
+- multi-account production execution;
+- multi-venue production execution;
+- VWAP/POV/Iceberg execution algorithms;
+- listenKey creation, keepalive, or close lifecycle;
+- real-funds proof in CI;
+- general production trading platform claim.
+
+`v0.18.0` requires a separate scope decision before any capability may be
+claimed beyond v0.17.0 reconciliation and orphan-risk evidence.
 
 ## Corrected Capability Sequence: v0.9.0 through v0.16.0
 
@@ -519,8 +557,9 @@ scope decision limits it to preflight evidence only before any live command or
 production trading capability is claimed. `v0.14.0` is the published follow-up
 read-only/dry-run line. `v0.15.0` is the published mutation-scope/request-preview
 dry-run line. `v0.16.0` is the published owner-approved single-order candidate
-line. `v0.17.0` requires a separate scope decision before any capability may be
-claimed beyond v0.16.0 single-order candidate evidence.
+line. `v0.17.0` is the published reconciliation and orphan-risk evidence line.
+`v0.18.0` requires a separate scope decision before any capability may be
+claimed beyond v0.17.0 evidence.
 
 ## Product Surface Direction
 
