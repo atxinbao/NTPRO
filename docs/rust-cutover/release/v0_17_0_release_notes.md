@@ -2,10 +2,10 @@
 
 Date: 2026-06-24
 Executor: Codex
-Status: READY FOR OWNER RELEASE DECISION
+Status: RELEASED
 Tag: `ntpro-rust-only-v0.17.0`
 Release name: `NTPRO Rust-only v0.17.0`
-Release URL: pending owner publication
+Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.17.0`
 
 ## Summary
 
@@ -122,7 +122,7 @@ This document is prepared as the GitHub Release note body for:
 ```text
 tag = ntpro-rust-only-v0.17.0
 release name = NTPRO Rust-only v0.17.0
-release URL = pending owner publication
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.17.0
 ```
 
 The release boundary must continue to preserve: one v0.16 single lineage only,

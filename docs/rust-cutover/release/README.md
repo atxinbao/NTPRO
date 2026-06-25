@@ -347,6 +347,18 @@ Final release checks, benchmark summaries, and audit reports live here.
   owner-approved `LIMIT` `GTC` production order candidate and does not include
   strategy live trading, multi-order execution, cancel/replace/amend/retry,
   listenKey lifecycle, real-funds proof in CI, or Dashboard order controls.
+- `v0_17_0_readiness_report.md` - released readiness report for the formal
+  v0.17.0 Production Reconciliation And Orphan Recovery Evidence release. It
+  records the formal tag `ntpro-rust-only-v0.17.0`, accounts for V170-000
+  through V170-009, and preserves the local/offline reconciliation and
+  orphan-risk evidence boundary.
+- `v0_17_0_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.17.0` GitHub Release. It limits the claim to local
+  ledger, redacted readback mapping, reconciliation classification, orphan risk,
+  restart recovery, read-only Dashboard evidence, and incident semantics; it
+  does not include network readback execution, new production order submission,
+  production order mutation, actual cancel send, automatic remediation,
+  real-funds proof in CI, or Dashboard order/cancel controls.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,

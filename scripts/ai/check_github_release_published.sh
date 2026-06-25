@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.16.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.17.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
@@ -200,6 +200,39 @@ case "$CURRENT_RELEASE_VERSION" in
       "listenKey lifecycle"
       "real-funds proof in CI"
       "production trading platform claim"
+    )
+    ;;
+  v0.17.0)
+    required_fields=(
+      "Status: RELEASED"
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Production Reconciliation And Orphan Recovery Evidence"
+      "capability_expansion_from_v16 = reconciliation_evidence_only"
+      "lineage_scope = single_v16_mutation_candidate"
+      "local ledger"
+      "redacted readback mapper"
+      "reconciliation classifier"
+      "orphan order detector"
+      "restart recovery evidence"
+      "failure incident semantics"
+      "read-only Dashboard evidence"
+      "network readback execution = not included"
+      "production order submission = not included"
+      "production order mutation = not included"
+      "actual cancel send = deferred"
+      "automatic cancel = disabled"
+      "Dashboard order controls = disabled"
+      "Dashboard cancel controls = disabled"
+      "retry_attempted = false"
+      "cancel_attempted = false"
+      "remediation_attempted = false"
+      "strategy-driven production execution"
+      "multi-account production execution"
+      "multi-venue production execution"
+      "real-funds proof in CI"
+      "general production trading platform claim"
     )
     ;;
   *)
