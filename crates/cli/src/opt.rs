@@ -210,6 +210,10 @@ pub enum LiveCommand {
     ProductionMutationCancelResponseRedaction(LiveProductionMutationCancelResponseRedactionOpt),
     /// Classifies a future v0.18 post-cancel readback artifact; no network read or cancel send.
     ProductionMutationPostCancelReadback(LiveProductionMutationPostCancelReadbackOpt),
+    /// Writes a v0.18 cancel recovery incident/audit closeout artifact; no cancel send.
+    ProductionMutationCancelRecoveryIncidentAuditCloseout(
+        LiveProductionMutationCancelRecoveryIncidentAuditCloseoutOpt,
+    ),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -1788,6 +1792,80 @@ pub struct LiveProductionMutationPostCancelReadbackOpt {
     /// Confirms Dashboard order and cancel controls remain disabled.
     #[arg(long)]
     pub confirm_dashboard_order_controls_disabled: bool,
+}
+
+/// v0.18 cancel recovery incident/audit closeout contract options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationCancelRecoveryIncidentAuditCloseoutOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.18 cancel risk gate JSON input.
+    #[arg(long)]
+    pub cancel_risk_gate: PathBuf,
+    /// v0.18 manual owner approval lifecycle JSON input.
+    #[arg(long)]
+    pub manual_owner_approval_lifecycle: PathBuf,
+    /// v0.18 cancel response redaction JSON input.
+    #[arg(long)]
+    pub cancel_response_redaction: PathBuf,
+    /// v0.18 post-cancel readback JSON input.
+    #[arg(long)]
+    pub post_cancel_readback: PathBuf,
+    /// v0.18 incident/audit closeout JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for incident/audit closeout contract evaluation.
+    #[arg(long)]
+    pub allow_production_mutation_cancel_recovery_incident_audit_closeout: bool,
+    /// Confirms all source artifacts must share one cancel recovery lineage.
+    #[arg(long)]
+    pub confirm_cancel_recovery_lineage: bool,
+    /// Confirms the recovery-needed reason is recorded.
+    #[arg(long)]
+    pub confirm_risk_reason_recorded: bool,
+    /// Confirms the cancel risk gate result is recorded.
+    #[arg(long)]
+    pub confirm_risk_gate_result_recorded: bool,
+    /// Confirms the owner approval state is recorded.
+    #[arg(long)]
+    pub confirm_owner_approval_state_recorded: bool,
+    /// Confirms the cancel response redaction contract state is recorded.
+    #[arg(long)]
+    pub confirm_redaction_contract_state_recorded: bool,
+    /// Confirms the post-cancel readback state is recorded.
+    #[arg(long)]
+    pub confirm_readback_state_recorded: bool,
+    /// Confirms a terminal action recommendation is recorded.
+    #[arg(long)]
+    pub confirm_terminal_action_recommendation: bool,
+    /// Confirms remaining risk is recorded.
+    #[arg(long)]
+    pub confirm_remaining_risk_recorded: bool,
+    /// Confirms no production mutation is attempted or allowed.
+    #[arg(long)]
+    pub confirm_no_mutation: bool,
+    /// Confirms no cancel send is attempted or allowed.
+    #[arg(long)]
+    pub confirm_no_cancel: bool,
+    /// Confirms no network endpoint is attempted.
+    #[arg(long)]
+    pub confirm_no_network: bool,
+    /// Confirms retry remains forbidden.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms manual remediation is not executed by this artifact.
+    #[arg(long)]
+    pub confirm_no_remediation: bool,
+    /// Confirms automatic remediation remains forbidden.
+    #[arg(long)]
+    pub confirm_no_automatic_remediation: bool,
+    /// Confirms Dashboard order and cancel controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
 }
 
 /// Hypothetical live-alpha risk preflight options.
@@ -4135,6 +4213,93 @@ mod tests {
         assert!(readback.confirm_no_cancel);
         assert!(readback.confirm_no_network);
         assert!(readback.confirm_dashboard_order_controls_disabled);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_cancel_recovery_incident_audit_closeout_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-cancel-recovery-incident-audit-closeout",
+            "--run-id",
+            "v180-incident-audit-closeout",
+            "--cancel-risk-gate",
+            "runs/v180/cancel-risk-gate.json",
+            "--manual-owner-approval-lifecycle",
+            "runs/v180/manual-owner-approval-lifecycle.json",
+            "--cancel-response-redaction",
+            "runs/v180/cancel-response-redaction.json",
+            "--post-cancel-readback",
+            "runs/v180/post-cancel-readback.json",
+            "--output",
+            "runs/v180/incident-audit-closeout.json",
+            "--allow-production-mutation-cancel-recovery-incident-audit-closeout",
+            "--confirm-cancel-recovery-lineage",
+            "--confirm-risk-reason-recorded",
+            "--confirm-risk-gate-result-recorded",
+            "--confirm-owner-approval-state-recorded",
+            "--confirm-redaction-contract-state-recorded",
+            "--confirm-readback-state-recorded",
+            "--confirm-terminal-action-recommendation",
+            "--confirm-remaining-risk-recorded",
+            "--confirm-no-mutation",
+            "--confirm-no-cancel",
+            "--confirm-no-network",
+            "--confirm-no-retry",
+            "--confirm-no-remediation",
+            "--confirm-no-automatic-remediation",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-secret-persistence",
+        ])
+        .expect("live production-mutation-cancel-recovery-incident-audit-closeout should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationCancelRecoveryIncidentAuditCloseout(closeout) =
+            live.command
+        else {
+            panic!("expected production-mutation-cancel-recovery-incident-audit-closeout command");
+        };
+
+        assert_eq!(closeout.run_id, "v180-incident-audit-closeout");
+        assert_eq!(
+            closeout.cancel_risk_gate,
+            PathBuf::from("runs/v180/cancel-risk-gate.json")
+        );
+        assert_eq!(
+            closeout.manual_owner_approval_lifecycle,
+            PathBuf::from("runs/v180/manual-owner-approval-lifecycle.json")
+        );
+        assert_eq!(
+            closeout.cancel_response_redaction,
+            PathBuf::from("runs/v180/cancel-response-redaction.json")
+        );
+        assert_eq!(
+            closeout.post_cancel_readback,
+            PathBuf::from("runs/v180/post-cancel-readback.json")
+        );
+        assert_eq!(
+            closeout.output,
+            PathBuf::from("runs/v180/incident-audit-closeout.json")
+        );
+        assert!(closeout.allow_production_mutation_cancel_recovery_incident_audit_closeout);
+        assert!(closeout.confirm_cancel_recovery_lineage);
+        assert!(closeout.confirm_risk_reason_recorded);
+        assert!(closeout.confirm_risk_gate_result_recorded);
+        assert!(closeout.confirm_owner_approval_state_recorded);
+        assert!(closeout.confirm_redaction_contract_state_recorded);
+        assert!(closeout.confirm_readback_state_recorded);
+        assert!(closeout.confirm_terminal_action_recommendation);
+        assert!(closeout.confirm_remaining_risk_recorded);
+        assert!(closeout.confirm_no_mutation);
+        assert!(closeout.confirm_no_cancel);
+        assert!(closeout.confirm_no_network);
+        assert!(closeout.confirm_no_retry);
+        assert!(closeout.confirm_no_remediation);
+        assert!(closeout.confirm_no_automatic_remediation);
+        assert!(closeout.confirm_dashboard_order_controls_disabled);
+        assert!(closeout.confirm_no_secret_persistence);
     }
 
     #[test]
