@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# V171-004: v0.17.1 release provenance manifest gate.
-# This gate writes machine-readable release and binary provenance. It does not
-# publish a tag, open network access, submit orders, mutate orders, cancel
-# orders, or enable Dashboard controls.
+# V171-006：v0.17.1 发布 provenance manifest gate。
+# 该 gate 写入机器可读的 release、binary 与 artifact provenance。
+# 它不会发布 tag、打开网络访问、提交订单、变更订单、取消订单或启用 Dashboard 控件。
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
@@ -58,6 +57,48 @@ sha256_file() {
   fi
 }
 
+artifact_json="$(
+  python3 - "$ROOT_DIR" "$git_commit" "$release_tag" <<'PY'
+import hashlib
+import json
+import pathlib
+import sys
+
+root = pathlib.Path(sys.argv[1])
+commit = sys.argv[2]
+release_tag = sys.argv[3]
+paths = [
+    "docs/rust-cutover/evidence/V170-009.md",
+    "docs/rust-cutover/evidence/V171-001.md",
+    "docs/rust-cutover/evidence/V171-002.md",
+    "docs/rust-cutover/evidence/V171-003.md",
+    "docs/rust-cutover/evidence/V171-004.md",
+    "docs/rust-cutover/evidence/V171-005.md",
+    "docs/rust-cutover/evidence/V171-006.md",
+    "docs/rust-cutover/release/v0_17_1_readiness_report.md",
+    "docs/rust-cutover/release/v0_17_1_release_notes.md",
+    "scripts/ai/verify_v171_release_hardening.sh",
+]
+items = []
+for rel in paths:
+    path = root / rel
+    if not path.exists():
+        raise SystemExit(f"missing artifact provenance source: {rel}")
+    raw = path.read_bytes()
+    items.append(
+        {
+            "path": rel,
+            "bytes": len(raw),
+            "sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
+            "source_command": "git tracked release evidence",
+            "source_commit": commit,
+            "source_release_tag": release_tag,
+        }
+    )
+print(json.dumps(items, sort_keys=True))
+PY
+)"
+
 MANIFEST_PATH="$manifest_path" \
 GIT_COMMIT="$git_commit" \
 GIT_TREE="$git_tree" \
@@ -73,6 +114,7 @@ NAUTILUS_BYTES="$(wc -c < "$NAUTILUS_BIN" | tr -d ' ')" \
 NTPRO_NODE_BYTES="$(wc -c < "$NTPRO_NODE_BIN" | tr -d ' ')" \
 NAUTILUS_VERSION="$nautilus_version" \
 NTPRO_NODE_VERSION="$ntpro_node_version" \
+ARTIFACT_JSON="$artifact_json" \
 python3 <<'PY'
 import json
 import os
@@ -123,6 +165,7 @@ manifest = {
             "source_dirty": os.environ["GIT_DIRTY"] == "true",
         },
     ],
+    "artifact_provenance": json.loads(os.environ["ARTIFACT_JSON"]),
 }
 manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 PY
@@ -185,6 +228,23 @@ for binary in release_binaries:
         raise SystemExit(f"binary source commit mismatch: {binary!r}")
     if binary["source_tree"] != manifest["git"]["tree"]:
         raise SystemExit(f"binary source tree mismatch: {binary!r}")
+artifact_provenance = manifest.get("artifact_provenance")
+if not isinstance(artifact_provenance, list) or len(artifact_provenance) < 8:
+    raise SystemExit(f"manifest artifact_provenance mismatch: {artifact_provenance!r}")
+for artifact in artifact_provenance:
+    for field in ("path", "bytes", "sha256", "source_command", "source_commit", "source_release_tag"):
+        if field not in artifact:
+            raise SystemExit(f"artifact provenance missing {field}: {artifact!r}")
+    if artifact["bytes"] <= 0:
+        raise SystemExit(f"artifact bytes invalid: {artifact!r}")
+    if not artifact["sha256"].startswith("sha256:"):
+        raise SystemExit(f"artifact sha256 invalid: {artifact!r}")
+    if artifact["source_command"] != "git tracked release evidence":
+        raise SystemExit(f"artifact source command invalid: {artifact!r}")
+    if artifact["source_commit"] != manifest["git"]["commit"]:
+        raise SystemExit(f"artifact source commit mismatch: {artifact!r}")
+    if not artifact["source_release_tag"]:
+        raise SystemExit(f"artifact source release tag missing: {artifact!r}")
 PY
 
 if ! grep -RFi "target/ntpro-v171/v0_17_1_release_manifest.json" \
@@ -194,4 +254,4 @@ if ! grep -RFi "target/ntpro-v171/v0_17_1_release_manifest.json" \
   exit 1
 fi
 
-echo "v171_release_hardening status=ok manifest=$manifest_path product_version=v0.17.1 release_tag=ntpro-rust-only-v0.17.1 capability_expansion=none_patch_hardening_only stage=v171-release-hardening release_binaries=2 release_binary_sha256=present request_sent=false network_attempted=false production_order_mutations_attempted=0 cancel_attempted=false dashboard_cancel_controls_enabled=false"
+echo "v171_release_hardening status=ok manifest=$manifest_path product_version=v0.17.1 release_tag=ntpro-rust-only-v0.17.1 capability_expansion=none_patch_hardening_only stage=v171-release-hardening release_binaries=2 release_binary_sha256=present artifact_provenance_sha256=present request_sent=false network_attempted=false production_order_mutations_attempted=0 cancel_attempted=false dashboard_cancel_controls_enabled=false"

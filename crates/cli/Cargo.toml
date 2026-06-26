@@ -41,6 +41,7 @@ nautilus-blockchain = { workspace = true, features = [
 ], optional = true }
 
 anyhow = { workspace = true }
+aws-lc-rs = { workspace = true }
 axum = { workspace = true }
 blake3 = { workspace = true }
 clap = { workspace = true }

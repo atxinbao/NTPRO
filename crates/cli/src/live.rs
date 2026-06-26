@@ -22,6 +22,7 @@ use std::{
 };
 
 use anyhow::Context;
+use aws_lc_rs::digest;
 use nautilus_binance::common::{consts::BINANCE_API_KEY_HEADER, credential::SigningCredential};
 use nautilus_common::enums::Environment;
 use nautilus_core::string::urlencoding;
@@ -2252,6 +2253,11 @@ struct ProductionMutationFailureSemanticsArtifact {
 struct ProductionMutationLocalOrderLedgerSourceRef {
     path: String,
     hash: String,
+    sha256: String,
+    bytes: u64,
+    source_command: String,
+    source_commit: String,
+    source_release_tag: String,
     schema_version: String,
     artifact_type: String,
     status: String,
@@ -10946,15 +10952,58 @@ fn production_mutation_local_order_ledger_source_ref(
     artifact: &serde_json::Value,
     ready_field: &str,
 ) -> ProductionMutationLocalOrderLedgerSourceRef {
+    let artifact_type =
+        json_string_value(artifact, "artifact_type").unwrap_or_else(|| "missing".to_string());
     ProductionMutationLocalOrderLedgerSourceRef {
         path: path.display().to_string(),
         hash: file_fnv1a64_hash(&path.display().to_string()),
+        sha256: file_sha256_hash(path),
+        bytes: file_byte_len(path),
+        source_command: production_mutation_source_command(&artifact_type).to_string(),
+        source_commit: std::env::var("NTPRO_SOURCE_COMMIT")
+            .unwrap_or_else(|_| "unknown".to_string()),
+        source_release_tag: std::env::var("NTPRO_SOURCE_RELEASE_TAG")
+            .unwrap_or_else(|_| "unreleased".to_string()),
         schema_version: json_string_value(artifact, "schema_version")
             .unwrap_or_else(|| "missing".to_string()),
-        artifact_type: json_string_value(artifact, "artifact_type")
-            .unwrap_or_else(|| "missing".to_string()),
+        artifact_type,
         status: json_string_value(artifact, "status").unwrap_or_else(|| "unknown".to_string()),
         ready: json_bool_value(artifact, ready_field).unwrap_or(false),
+    }
+}
+
+fn production_mutation_source_command(artifact_type: &str) -> &'static str {
+    match artifact_type {
+        "production_mutation_request_builder" => {
+            "nautilus live production-mutation-request-builder"
+        }
+        "production_mutation_guarded_send" => "nautilus live production-mutation-guarded-send",
+        "production_mutation_response_redaction" => {
+            "nautilus live production-mutation-response-redaction"
+        }
+        "production_mutation_order_state_readback" => {
+            "nautilus live production-mutation-order-state-readback"
+        }
+        "production_mutation_audit_trail" => "nautilus live production-mutation-audit-trail",
+        "production_mutation_failure_semantics" => {
+            "nautilus live production-mutation-failure-semantics"
+        }
+        "production_mutation_local_order_ledger" => {
+            "nautilus live production-mutation-local-order-ledger"
+        }
+        "production_mutation_exchange_readback_mapper" => {
+            "nautilus live production-mutation-exchange-readback-mapper"
+        }
+        "production_mutation_reconciliation_classifier" => {
+            "nautilus live production-mutation-reconciliation-classifier"
+        }
+        "redacted_binance_order_readback" => {
+            "nautilus live production-mutation-exchange-readback-mapper --order-readback"
+        }
+        "redacted_binance_open_orders_readback" => {
+            "nautilus live production-mutation-exchange-readback-mapper --open-orders-readback"
+        }
+        _ => "unknown",
     }
 }
 
@@ -12737,6 +12786,30 @@ fn file_fnv1a64_hash(path: &str) -> String {
         Ok(bytes) => format!("fnv1a64:{:016x}", fnv1a64(&bytes)),
         Err(_) => "unavailable".to_string(),
     }
+}
+
+fn file_sha256_hash(path: &Path) -> String {
+    match fs::read(path) {
+        Ok(bytes) => {
+            let digest = digest::digest(&digest::SHA256, &bytes);
+            format!("sha256:{}", lowercase_hex(digest.as_ref()))
+        }
+        Err(_) => "unavailable".to_string(),
+    }
+}
+
+fn file_byte_len(path: &Path) -> u64 {
+    fs::metadata(path).map_or(0, |metadata| metadata.len())
+}
+
+fn lowercase_hex(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        out.push(HEX[(byte >> 4) as usize] as char);
+        out.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    out
 }
 
 fn fnv1a64(bytes: &[u8]) -> u64 {
@@ -23378,6 +23451,20 @@ write_summary = true
                     .as_str()
                     .unwrap()
                     .starts_with("fnv1a64:"),
+                "{field}"
+            );
+            assert!(
+                artifact[field]["sha256"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("sha256:"),
+                "{field}"
+            );
+            assert!(artifact[field]["bytes"].as_u64().unwrap() > 0, "{field}");
+            assert_ne!(artifact[field]["source_command"], "unknown", "{field}");
+            assert_eq!(artifact[field]["source_commit"], "unknown", "{field}");
+            assert_eq!(
+                artifact[field]["source_release_tag"], "unreleased",
                 "{field}"
             );
         }
