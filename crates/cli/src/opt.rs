@@ -202,6 +202,10 @@ pub enum LiveCommand {
     ProductionMutationCancelRequestPreview(LiveProductionMutationCancelRequestPreviewOpt),
     /// Evaluates a v0.18 cancel risk gate from one cancel preview artifact; no cancel send.
     ProductionMutationCancelRiskGate(LiveProductionMutationCancelRiskGateOpt),
+    /// Writes a v0.18 one-time manual owner approval lifecycle artifact for one cancel candidate; no cancel send.
+    ProductionMutationManualOwnerApprovalLifecycle(
+        LiveProductionMutationManualOwnerApprovalLifecycleOpt,
+    ),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -1597,6 +1601,74 @@ pub struct LiveProductionMutationCancelRiskGateOpt {
     /// Confirms no replace, amend, correction, flatten, or remediation is attempted.
     #[arg(long)]
     pub confirm_no_remediation: bool,
+    /// Confirms Dashboard order and cancel controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+}
+
+/// v0.18 manual owner approval lifecycle options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationManualOwnerApprovalLifecycleOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.18 cancel risk gate JSON input.
+    #[arg(long)]
+    pub cancel_risk_gate: PathBuf,
+    /// Approval state: pending, approved, expired, revoked, or used.
+    #[arg(long, default_value = "pending")]
+    pub approval_state: String,
+    /// Optional owner approval identifier for non-pending states.
+    #[arg(long)]
+    pub manual_approval_id: Option<String>,
+    /// Optional owner/operator name for non-pending states.
+    #[arg(long)]
+    pub approved_by: Option<String>,
+    /// Deterministic current time in milliseconds for lifecycle evaluation.
+    #[arg(long)]
+    pub now_unix_ms: u64,
+    /// Approval expiry in milliseconds.
+    #[arg(long)]
+    pub expires_at_unix_ms: u64,
+    /// v0.18 manual owner approval lifecycle JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for manual owner approval lifecycle evidence.
+    #[arg(long)]
+    pub allow_production_mutation_manual_owner_approval_lifecycle: bool,
+    /// Confirms approval is scoped to exactly one cancel candidate.
+    #[arg(long)]
+    pub confirm_one_order_cancel_candidate: bool,
+    /// Confirms approval is one-time only.
+    #[arg(long)]
+    pub confirm_one_time_approval: bool,
+    /// Confirms approval is non-reusable after this candidate scope.
+    #[arg(long)]
+    pub confirm_non_reusable_approval: bool,
+    /// Confirms approval expiry is required and enforced.
+    #[arg(long)]
+    pub confirm_approval_expiry: bool,
+    /// Confirms strategy code cannot auto-approve.
+    #[arg(long)]
+    pub confirm_no_strategy_auto_approval: bool,
+    /// Confirms background processes cannot auto-approve.
+    #[arg(long)]
+    pub confirm_no_background_auto_approval: bool,
+    /// Confirms Dashboard buttons cannot auto-approve or cancel.
+    #[arg(long)]
+    pub confirm_no_dashboard_cancel_approval: bool,
+    /// Confirms incident handlers cannot auto-approve.
+    #[arg(long)]
+    pub confirm_no_incident_handler_auto_approval: bool,
+    /// Confirms no cancel send is attempted or allowed.
+    #[arg(long)]
+    pub confirm_no_cancel: bool,
+    /// Confirms no network endpoint is attempted.
+    #[arg(long)]
+    pub confirm_no_network: bool,
     /// Confirms Dashboard order and cancel controls remain disabled.
     #[arg(long)]
     pub confirm_dashboard_order_controls_disabled: bool,
@@ -3744,6 +3816,84 @@ mod tests {
         assert!(gate.confirm_no_remediation);
         assert!(gate.confirm_dashboard_order_controls_disabled);
         assert!(gate.confirm_no_secret_persistence);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_manual_owner_approval_lifecycle_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-manual-owner-approval-lifecycle",
+            "--run-id",
+            "v180-manual-owner-approval-lifecycle",
+            "--cancel-risk-gate",
+            "runs/v180/cancel-risk-gate.json",
+            "--approval-state",
+            "approved",
+            "--manual-approval-id",
+            "owner-approval-v180-005",
+            "--approved-by",
+            "owner",
+            "--now-unix-ms",
+            "1718400000000",
+            "--expires-at-unix-ms",
+            "1718400060000",
+            "--output",
+            "runs/v180/manual-owner-approval-lifecycle.json",
+            "--allow-production-mutation-manual-owner-approval-lifecycle",
+            "--confirm-one-order-cancel-candidate",
+            "--confirm-one-time-approval",
+            "--confirm-non-reusable-approval",
+            "--confirm-approval-expiry",
+            "--confirm-no-strategy-auto-approval",
+            "--confirm-no-background-auto-approval",
+            "--confirm-no-dashboard-cancel-approval",
+            "--confirm-no-incident-handler-auto-approval",
+            "--confirm-no-cancel",
+            "--confirm-no-network",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-secret-persistence",
+        ])
+        .expect("live production-mutation-manual-owner-approval-lifecycle should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationManualOwnerApprovalLifecycle(approval) = live.command
+        else {
+            panic!("expected production-mutation-manual-owner-approval-lifecycle command");
+        };
+
+        assert_eq!(approval.run_id, "v180-manual-owner-approval-lifecycle");
+        assert_eq!(
+            approval.cancel_risk_gate,
+            PathBuf::from("runs/v180/cancel-risk-gate.json")
+        );
+        assert_eq!(approval.approval_state, "approved");
+        assert_eq!(
+            approval.manual_approval_id.as_deref(),
+            Some("owner-approval-v180-005")
+        );
+        assert_eq!(approval.approved_by.as_deref(), Some("owner"));
+        assert_eq!(approval.now_unix_ms, 1_718_400_000_000);
+        assert_eq!(approval.expires_at_unix_ms, 1_718_400_060_000);
+        assert_eq!(
+            approval.output,
+            PathBuf::from("runs/v180/manual-owner-approval-lifecycle.json")
+        );
+        assert!(approval.allow_production_mutation_manual_owner_approval_lifecycle);
+        assert!(approval.confirm_one_order_cancel_candidate);
+        assert!(approval.confirm_one_time_approval);
+        assert!(approval.confirm_non_reusable_approval);
+        assert!(approval.confirm_approval_expiry);
+        assert!(approval.confirm_no_strategy_auto_approval);
+        assert!(approval.confirm_no_background_auto_approval);
+        assert!(approval.confirm_no_dashboard_cancel_approval);
+        assert!(approval.confirm_no_incident_handler_auto_approval);
+        assert!(approval.confirm_no_cancel);
+        assert!(approval.confirm_no_network);
+        assert!(approval.confirm_dashboard_order_controls_disabled);
+        assert!(approval.confirm_no_secret_persistence);
     }
 
     #[test]
