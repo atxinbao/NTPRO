@@ -200,6 +200,8 @@ pub enum LiveCommand {
     ProductionMutationOrphanOrderDetector(LiveProductionMutationOrphanOrderDetectorOpt),
     /// Builds a v0.18 cancel request preview from one v0.17 orphan-risk artifact; no cancel send.
     ProductionMutationCancelRequestPreview(LiveProductionMutationCancelRequestPreviewOpt),
+    /// Evaluates a v0.18 cancel risk gate from one cancel preview artifact; no cancel send.
+    ProductionMutationCancelRiskGate(LiveProductionMutationCancelRiskGateOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -1522,6 +1524,68 @@ pub struct LiveProductionMutationCancelRequestPreviewOpt {
     #[arg(long)]
     pub confirm_known_order_identifier_only: bool,
     /// Confirms no retry is attempted or scheduled.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms no cancel is attempted or scheduled.
+    #[arg(long)]
+    pub confirm_no_cancel: bool,
+    /// Confirms no network endpoint is attempted.
+    #[arg(long)]
+    pub confirm_no_network: bool,
+    /// Confirms no replace, amend, correction, flatten, or remediation is attempted.
+    #[arg(long)]
+    pub confirm_no_remediation: bool,
+    /// Confirms Dashboard order and cancel controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+}
+
+/// v0.18 cancel risk gate options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationCancelRiskGateOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.18 cancel request preview JSON input.
+    #[arg(long)]
+    pub cancel_request_preview: PathBuf,
+    /// Expected owner-selected symbol for the single cancel candidate scope.
+    #[arg(long)]
+    pub expected_symbol: String,
+    /// Expected owner-selected account label for the single cancel candidate scope.
+    #[arg(long)]
+    pub expected_account_label: String,
+    /// v0.18 cancel risk gate JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for cancel risk gate evaluation.
+    #[arg(long)]
+    pub allow_production_mutation_cancel_risk_gate: bool,
+    /// Confirms the gate is limited to one v0.16 mutation candidate lineage.
+    #[arg(long)]
+    pub confirm_single_v16_mutation_candidate_lineage: bool,
+    /// Confirms the cancel request preview must already be ready.
+    #[arg(long)]
+    pub confirm_cancel_request_preview_ready: bool,
+    /// Confirms the source orphan risk is halted and new orders are blocked.
+    #[arg(long)]
+    pub confirm_orphan_risk_halted: bool,
+    /// Confirms known order identifiers are required for the scoped candidate.
+    #[arg(long)]
+    pub confirm_known_order_identifier_only: bool,
+    /// Confirms symbol and account label must match the selected lineage scope.
+    #[arg(long)]
+    pub confirm_symbol_account_scope: bool,
+    /// Confirms owner approval remains required before any future send.
+    #[arg(long)]
+    pub confirm_owner_approval_required: bool,
+    /// Confirms cancel-all, bulk, and multi-order cancel requests are forbidden.
+    #[arg(long)]
+    pub confirm_no_cancel_all_or_bulk: bool,
+    /// Confirms no retry is requested, attempted, or scheduled.
     #[arg(long)]
     pub confirm_no_retry: bool,
     /// Confirms no cancel is attempted or scheduled.
@@ -3613,6 +3677,73 @@ mod tests {
         assert!(preview.confirm_no_remediation);
         assert!(preview.confirm_dashboard_order_controls_disabled);
         assert!(preview.confirm_no_secret_persistence);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_cancel_risk_gate_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-cancel-risk-gate",
+            "--run-id",
+            "v180-cancel-risk-gate",
+            "--cancel-request-preview",
+            "runs/v180/cancel-request-preview.json",
+            "--expected-symbol",
+            "BTCUSDT",
+            "--expected-account-label",
+            "prod-account-redacted",
+            "--output",
+            "runs/v180/cancel-risk-gate.json",
+            "--allow-production-mutation-cancel-risk-gate",
+            "--confirm-single-v16-mutation-candidate-lineage",
+            "--confirm-cancel-request-preview-ready",
+            "--confirm-orphan-risk-halted",
+            "--confirm-known-order-identifier-only",
+            "--confirm-symbol-account-scope",
+            "--confirm-owner-approval-required",
+            "--confirm-no-cancel-all-or-bulk",
+            "--confirm-no-retry",
+            "--confirm-no-cancel",
+            "--confirm-no-network",
+            "--confirm-no-remediation",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-secret-persistence",
+        ])
+        .expect("live production-mutation-cancel-risk-gate should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationCancelRiskGate(gate) = live.command else {
+            panic!("expected production-mutation-cancel-risk-gate command");
+        };
+
+        assert_eq!(gate.run_id, "v180-cancel-risk-gate");
+        assert_eq!(
+            gate.cancel_request_preview,
+            PathBuf::from("runs/v180/cancel-request-preview.json")
+        );
+        assert_eq!(gate.expected_symbol, "BTCUSDT");
+        assert_eq!(gate.expected_account_label, "prod-account-redacted");
+        assert_eq!(
+            gate.output,
+            PathBuf::from("runs/v180/cancel-risk-gate.json")
+        );
+        assert!(gate.allow_production_mutation_cancel_risk_gate);
+        assert!(gate.confirm_single_v16_mutation_candidate_lineage);
+        assert!(gate.confirm_cancel_request_preview_ready);
+        assert!(gate.confirm_orphan_risk_halted);
+        assert!(gate.confirm_known_order_identifier_only);
+        assert!(gate.confirm_symbol_account_scope);
+        assert!(gate.confirm_owner_approval_required);
+        assert!(gate.confirm_no_cancel_all_or_bulk);
+        assert!(gate.confirm_no_retry);
+        assert!(gate.confirm_no_cancel);
+        assert!(gate.confirm_no_network);
+        assert!(gate.confirm_no_remediation);
+        assert!(gate.confirm_dashboard_order_controls_disabled);
+        assert!(gate.confirm_no_secret_persistence);
     }
 
     #[test]

@@ -52,9 +52,10 @@ use crate::{
         LiveProductionLiveAlphaManualApprovalLifecycleOpt,
         LiveProductionLiveAlphaOrderRequestPreviewOpt, LiveProductionLiveAlphaRiskPreflightOpt,
         LiveProductionMutationAuditTrailOpt, LiveProductionMutationCancelRequestPreviewOpt,
-        LiveProductionMutationExchangeReadbackMapperOpt, LiveProductionMutationFailureSemanticsOpt,
-        LiveProductionMutationGuardedSendOpt, LiveProductionMutationLocalOrderLedgerOpt,
-        LiveProductionMutationOrderStateReadbackOpt, LiveProductionMutationOrphanOrderDetectorOpt,
+        LiveProductionMutationCancelRiskGateOpt, LiveProductionMutationExchangeReadbackMapperOpt,
+        LiveProductionMutationFailureSemanticsOpt, LiveProductionMutationGuardedSendOpt,
+        LiveProductionMutationLocalOrderLedgerOpt, LiveProductionMutationOrderStateReadbackOpt,
+        LiveProductionMutationOrphanOrderDetectorOpt,
         LiveProductionMutationReconciliationClassifierOpt, LiveProductionMutationRequestBuilderOpt,
         LiveProductionMutationResponseRedactionOpt, LiveProductionMutationRuntimeGateOpt,
         LiveProductionMutationSigningApprovalOpt, LiveProductionOrderStateReadOnlyProofOpt,
@@ -186,6 +187,7 @@ const PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_SCHEMA_VERSION: &str =
     "ntpro.v170_production_mutation_orphan_order_detector.v1";
 const PRODUCTION_MUTATION_CANCEL_REQUEST_PREVIEW_SCHEMA_VERSION: &str =
     "ntpro.v180_cancel_request_preview.v1";
+const PRODUCTION_MUTATION_CANCEL_RISK_GATE_SCHEMA_VERSION: &str = "ntpro.v180_cancel_risk_gate.v1";
 const PRODUCTION_MUTATION_EXCHANGE_ORDER_READBACK_SCHEMA_VERSION: &str =
     "ntpro.v170_redacted_binance_order_readback.v1";
 const PRODUCTION_MUTATION_EXCHANGE_OPEN_ORDERS_READBACK_SCHEMA_VERSION: &str =
@@ -2645,6 +2647,90 @@ struct ProductionMutationCancelRequestPreviewArtifact {
     diagnostic: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionMutationCancelRiskGateArtifact {
+    schema_version: String,
+    run_id: String,
+    order_lineage_id: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    capability: String,
+    capability_expansion: String,
+    lineage_scope: String,
+    default_fail_closed: bool,
+    cancel_request_preview_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    cancel_request_preview_ready: bool,
+    cancel_risk_gate_ready: bool,
+    orphan_risk_detected: bool,
+    risk_halted: bool,
+    new_orders_blocked: bool,
+    manual_review_required: bool,
+    order_identifier_known: bool,
+    known_order_id: String,
+    known_client_order_id: String,
+    symbol: String,
+    expected_symbol: String,
+    symbol_matches_lineage: bool,
+    account_label: String,
+    expected_account_label: String,
+    account_matches_lineage: bool,
+    owner_approval_required: bool,
+    owner_approval_lifecycle_recorded: bool,
+    candidate_count: u64,
+    multi_order_cancel_requested: bool,
+    cancel_all_requested: bool,
+    bulk_cancel_requested: bool,
+    strategy_driven_cancel_requested: bool,
+    multi_account_cancel_requested: bool,
+    multi_venue_cancel_requested: bool,
+    retry_requested: bool,
+    replace_or_amend_requested: bool,
+    flatten_requested: bool,
+    dashboard_cancel_requested: bool,
+    actual_cancel_send_allowed: bool,
+    cancel_attempted: bool,
+    cancel_requests_sent: u64,
+    network_attempted: bool,
+    network_cancel_endpoint_attempted: bool,
+    retry_attempted: bool,
+    replace_attempted: bool,
+    amend_attempted: bool,
+    flatten_attempted: bool,
+    remediation_attempted: bool,
+    automatic_cancel_allowed: bool,
+    automatic_remediation_allowed: bool,
+    production_order_mutation_allowed: bool,
+    dashboard_order_controls_enabled: bool,
+    dashboard_cancel_controls_enabled: bool,
+    api_key_value_recorded: bool,
+    api_secret_value_recorded: bool,
+    api_key_header_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    raw_exchange_response_recorded: bool,
+    response_body_recorded: bool,
+    response_headers_recorded: bool,
+    source_artifact_issues: Vec<String>,
+    missing_cli_flags: Vec<String>,
+    single_v16_mutation_candidate_lineage_confirmed: bool,
+    cancel_request_preview_ready_confirmed: bool,
+    orphan_risk_halted_confirmed: bool,
+    known_order_identifier_only_confirmed: bool,
+    symbol_account_scope_confirmed: bool,
+    owner_approval_required_confirmed: bool,
+    no_cancel_all_or_bulk_confirmed: bool,
+    no_retry_confirmed: bool,
+    no_cancel_confirmed: bool,
+    no_network_confirmed: bool,
+    no_remediation_confirmed: bool,
+    dashboard_controls_disabled_confirmed: bool,
+    no_secret_persistence_confirmed: bool,
+    diagnostic: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProductionMutationGuardedSendHttpResult {
     request_sent: bool,
@@ -3897,6 +3983,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionMutationCancelRequestPreview(preview) => {
             run_live_production_mutation_cancel_request_preview(&preview)
         }
+        LiveCommand::ProductionMutationCancelRiskGate(gate) => {
+            run_live_production_mutation_cancel_risk_gate(&gate)
+        }
         LiveCommand::ProductionLiveAlphaRiskPreflight(preflight) => {
             run_live_production_live_alpha_risk_preflight(&preflight)
         }
@@ -4405,6 +4494,31 @@ fn run_live_production_mutation_cancel_request_preview(
         artifact.new_orders_blocked,
         artifact.order_identifier_known,
         artifact.candidate_count,
+    );
+    Ok(())
+}
+
+fn run_live_production_mutation_cancel_risk_gate(
+    opt: &LiveProductionMutationCancelRiskGateOpt,
+) -> anyhow::Result<()> {
+    let artifact = build_production_mutation_cancel_risk_gate_artifact(opt)?;
+    write_production_mutation_cancel_risk_gate_artifact(&opt.output, &artifact)?;
+    println!(
+        "live.production_mutation_cancel_risk_gate status={} run_id={} order_lineage_id={} output={} cancel_risk_gate_ready={} cancel_request_preview_ready={} orphan_risk_detected={} risk_halted={} manual_review_required={} new_orders_blocked={} order_identifier_known={} symbol_matches_lineage={} account_matches_lineage={} owner_approval_required={} actual_cancel_send_allowed=false cancel_attempted=false cancel_requests_sent=0 network_attempted=false network_cancel_endpoint_attempted=false retry_attempted=false remediation_attempted=false dashboard_cancel_controls_enabled=false",
+        artifact.status,
+        artifact.run_id,
+        artifact.order_lineage_id,
+        opt.output.display(),
+        artifact.cancel_risk_gate_ready,
+        artifact.cancel_request_preview_ready,
+        artifact.orphan_risk_detected,
+        artifact.risk_halted,
+        artifact.manual_review_required,
+        artifact.new_orders_blocked,
+        artifact.order_identifier_known,
+        artifact.symbol_matches_lineage,
+        artifact.account_matches_lineage,
+        artifact.owner_approval_required,
     );
     Ok(())
 }
@@ -9689,6 +9803,186 @@ fn build_production_mutation_cancel_request_preview_artifact(
     })
 }
 
+fn build_production_mutation_cancel_risk_gate_artifact(
+    opt: &LiveProductionMutationCancelRiskGateOpt,
+) -> anyhow::Result<ProductionMutationCancelRiskGateArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+    validate_non_empty("expected_symbol", &opt.expected_symbol)?;
+    validate_non_empty("expected_account_label", &opt.expected_account_label)?;
+
+    let cancel_request_preview =
+        load_json_value(&opt.cancel_request_preview, "cancel request preview")?;
+    let missing_cli_flags = missing_production_mutation_cancel_risk_gate_cli_flags(opt);
+    let source_artifact_issues = production_mutation_cancel_risk_gate_source_issues(
+        &cancel_request_preview,
+        &opt.expected_symbol,
+        &opt.expected_account_label,
+    );
+    let gate_ready = missing_cli_flags.is_empty() && source_artifact_issues.is_empty();
+    let status = if gate_ready {
+        "ready_cancel_risk_gate"
+    } else if !missing_cli_flags.is_empty() {
+        "blocked_missing_gate"
+    } else {
+        "blocked_source_artifact"
+    };
+    let order_lineage_id = json_string_value(&cancel_request_preview, "order_lineage_id")
+        .unwrap_or_else(|| "missing".to_string());
+    let symbol = json_scalar_string_value(&cancel_request_preview, "symbol")
+        .unwrap_or_else(|| "unknown".to_string());
+    let account_label = json_scalar_string_value(&cancel_request_preview, "account_label")
+        .unwrap_or_else(|| "unknown".to_string());
+
+    Ok(ProductionMutationCancelRiskGateArtifact {
+        schema_version: PRODUCTION_MUTATION_CANCEL_RISK_GATE_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        order_lineage_id,
+        artifact_type: "cancel_risk_gate".to_string(),
+        status: status.to_string(),
+        created_at: now_millis(),
+        mode: "single_mutation_candidate_cancel_risk_gate".to_string(),
+        capability: "Owner-Approved Cancel Recovery Preview".to_string(),
+        capability_expansion: "preview_gate_approval_only".to_string(),
+        lineage_scope: json_string_value(&cancel_request_preview, "lineage_scope")
+            .unwrap_or_else(|| "unknown".to_string()),
+        default_fail_closed: true,
+        cancel_request_preview_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.cancel_request_preview,
+            &cancel_request_preview,
+            "ready_cancel_request_preview",
+        ),
+        cancel_request_preview_ready: json_bool_value(
+            &cancel_request_preview,
+            "cancel_request_preview_ready",
+        )
+        .unwrap_or(false),
+        cancel_risk_gate_ready: gate_ready,
+        orphan_risk_detected: json_bool_value(&cancel_request_preview, "orphan_risk_detected")
+            .unwrap_or(false),
+        risk_halted: json_bool_value(&cancel_request_preview, "risk_halted").unwrap_or(false),
+        new_orders_blocked: json_bool_value(&cancel_request_preview, "new_orders_blocked")
+            .unwrap_or(false),
+        manual_review_required: json_bool_value(&cancel_request_preview, "manual_review_required")
+            .unwrap_or(false),
+        order_identifier_known: json_bool_value(&cancel_request_preview, "order_identifier_known")
+            .unwrap_or(false),
+        known_order_id: json_scalar_string_value(&cancel_request_preview, "known_order_id")
+            .unwrap_or_else(|| "missing".to_string()),
+        known_client_order_id: json_scalar_string_value(
+            &cancel_request_preview,
+            "known_client_order_id",
+        )
+        .unwrap_or_else(|| "missing".to_string()),
+        symbol: symbol.clone(),
+        expected_symbol: opt.expected_symbol.clone(),
+        symbol_matches_lineage: cancel_risk_gate_field_matches(&symbol, &opt.expected_symbol),
+        account_label: account_label.clone(),
+        expected_account_label: opt.expected_account_label.clone(),
+        account_matches_lineage: cancel_risk_gate_field_matches(
+            &account_label,
+            &opt.expected_account_label,
+        ),
+        owner_approval_required: json_bool_value(
+            &cancel_request_preview,
+            "owner_approval_required",
+        )
+        .unwrap_or(false),
+        owner_approval_lifecycle_recorded: json_bool_value(
+            &cancel_request_preview,
+            "owner_approval_lifecycle_recorded",
+        )
+        .unwrap_or(false),
+        candidate_count: json_u64_value(&cancel_request_preview, "candidate_count").unwrap_or(0),
+        multi_order_cancel_requested: json_bool_value(
+            &cancel_request_preview,
+            "multi_order_cancel_requested",
+        )
+        .unwrap_or(false),
+        cancel_all_requested: json_bool_value(&cancel_request_preview, "cancel_all_requested")
+            .unwrap_or(false),
+        bulk_cancel_requested: json_bool_value(&cancel_request_preview, "bulk_cancel_requested")
+            .unwrap_or(false),
+        strategy_driven_cancel_requested: json_bool_value(
+            &cancel_request_preview,
+            "strategy_driven_cancel_requested",
+        )
+        .unwrap_or(false),
+        multi_account_cancel_requested: json_bool_value(
+            &cancel_request_preview,
+            "multi_account_cancel_requested",
+        )
+        .unwrap_or(false),
+        multi_venue_cancel_requested: json_bool_value(
+            &cancel_request_preview,
+            "multi_venue_cancel_requested",
+        )
+        .unwrap_or(false),
+        retry_requested: json_bool_value(&cancel_request_preview, "retry_requested")
+            .unwrap_or(false),
+        replace_or_amend_requested: json_bool_value(
+            &cancel_request_preview,
+            "replace_or_amend_requested",
+        )
+        .unwrap_or(false),
+        flatten_requested: json_bool_value(&cancel_request_preview, "flatten_requested")
+            .unwrap_or(false),
+        dashboard_cancel_requested: json_bool_value(
+            &cancel_request_preview,
+            "dashboard_cancel_requested",
+        )
+        .unwrap_or(false),
+        actual_cancel_send_allowed: false,
+        cancel_attempted: false,
+        cancel_requests_sent: 0,
+        network_attempted: false,
+        network_cancel_endpoint_attempted: false,
+        retry_attempted: false,
+        replace_attempted: false,
+        amend_attempted: false,
+        flatten_attempted: false,
+        remediation_attempted: false,
+        automatic_cancel_allowed: false,
+        automatic_remediation_allowed: false,
+        production_order_mutation_allowed: false,
+        dashboard_order_controls_enabled: false,
+        dashboard_cancel_controls_enabled: false,
+        api_key_value_recorded: false,
+        api_secret_value_recorded: false,
+        api_key_header_value_recorded: false,
+        signature_recorded: false,
+        signed_query_recorded: false,
+        signed_url_recorded: false,
+        raw_exchange_response_recorded: false,
+        response_body_recorded: false,
+        response_headers_recorded: false,
+        source_artifact_issues,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        single_v16_mutation_candidate_lineage_confirmed: opt
+            .confirm_single_v16_mutation_candidate_lineage,
+        cancel_request_preview_ready_confirmed: opt.confirm_cancel_request_preview_ready,
+        orphan_risk_halted_confirmed: opt.confirm_orphan_risk_halted,
+        known_order_identifier_only_confirmed: opt.confirm_known_order_identifier_only,
+        symbol_account_scope_confirmed: opt.confirm_symbol_account_scope,
+        owner_approval_required_confirmed: opt.confirm_owner_approval_required,
+        no_cancel_all_or_bulk_confirmed: opt.confirm_no_cancel_all_or_bulk,
+        no_retry_confirmed: opt.confirm_no_retry,
+        no_cancel_confirmed: opt.confirm_no_cancel,
+        no_network_confirmed: opt.confirm_no_network,
+        no_remediation_confirmed: opt.confirm_no_remediation,
+        dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
+        no_secret_persistence_confirmed: opt.confirm_no_secret_persistence,
+        diagnostic: if gate_ready {
+            "cancel risk gate is ready for one previewed known-order candidate; symbol/account scope matches and no cancel send, network endpoint, retry, remediation, bulk cancel, or Dashboard cancel control is enabled"
+        } else {
+            "cancel risk gate is blocked because required confirmations, preview readiness, lineage scope, symbol/account match, or forbidden-control checks are incomplete"
+        }
+        .to_string(),
+    })
+}
+
 fn build_production_mutation_runtime_gate_artifact(
     opt: &LiveProductionMutationRuntimeGateOpt,
 ) -> anyhow::Result<ProductionMutationRuntimeGateArtifact> {
@@ -11273,6 +11567,7 @@ fn production_mutation_source_command(artifact_type: &str) -> &'static str {
             "nautilus live production-mutation-orphan-order-detector"
         }
         "cancel_request_preview" => "nautilus live production-mutation-cancel-request-preview",
+        "cancel_risk_gate" => "nautilus live production-mutation-cancel-risk-gate",
         "redacted_binance_order_readback" => {
             "nautilus live production-mutation-exchange-readback-mapper --order-readback"
         }
@@ -11711,6 +12006,136 @@ fn production_mutation_cancel_request_preview_source_issues(
     issues
 }
 
+fn production_mutation_cancel_risk_gate_source_issues(
+    cancel_request_preview: &serde_json::Value,
+    expected_symbol: &str,
+    expected_account_label: &str,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(cancel_request_preview, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_CANCEL_REQUEST_PREVIEW_SCHEMA_VERSION)
+    {
+        issues.push("cancel_request_preview_schema_mismatch".to_string());
+    }
+    if json_string_value(cancel_request_preview, "artifact_type").as_deref()
+        != Some("cancel_request_preview")
+    {
+        issues.push("cancel_request_preview_artifact_type_mismatch".to_string());
+    }
+    if json_string_value(cancel_request_preview, "status").as_deref()
+        != Some("ready_cancel_request_preview")
+    {
+        let status = json_string_value(cancel_request_preview, "status")
+            .unwrap_or_else(|| "unknown".to_string());
+        issues.push(format!("cancel_request_preview_status_{status}"));
+    }
+    if !json_bool_value(cancel_request_preview, "cancel_request_preview_ready").unwrap_or(false) {
+        issues.push("cancel_request_preview_not_ready".to_string());
+    }
+    for field in [
+        "orphan_risk_detected",
+        "risk_halted",
+        "new_orders_blocked",
+        "manual_review_required",
+        "order_identifier_known",
+        "owner_approval_required",
+    ] {
+        if !json_bool_value(cancel_request_preview, field).unwrap_or(false) {
+            issues.push(format!("cancel_request_preview_{field}_not_true"));
+        }
+    }
+    if json_string_value(cancel_request_preview, "lineage_scope").as_deref()
+        != Some("single_v16_mutation_candidate")
+    {
+        issues.push("cancel_request_preview_lineage_scope_mismatch".to_string());
+    }
+    let order_lineage_id = json_string_value(cancel_request_preview, "order_lineage_id")
+        .unwrap_or_else(|| "missing".to_string());
+    if !cancel_preview_identifier_known(&order_lineage_id) {
+        issues.push("order_lineage_id_missing".to_string());
+    }
+    if json_u64_value(cancel_request_preview, "candidate_count").unwrap_or(0) != 1 {
+        issues.push("cancel_request_preview_candidate_count_not_one".to_string());
+    }
+    let known_order_id = json_scalar_string_value(cancel_request_preview, "known_order_id")
+        .unwrap_or_else(|| "missing".to_string());
+    let known_client_order_id =
+        json_scalar_string_value(cancel_request_preview, "known_client_order_id")
+            .unwrap_or_else(|| "missing".to_string());
+    if !cancel_preview_identifier_known(&known_order_id)
+        && !cancel_preview_identifier_known(&known_client_order_id)
+    {
+        issues.push("known_order_identifier_missing".to_string());
+    }
+    let symbol = json_scalar_string_value(cancel_request_preview, "symbol")
+        .unwrap_or_else(|| "unknown".to_string());
+    if !cancel_risk_gate_field_matches(&symbol, expected_symbol) {
+        issues.push("symbol_mismatch".to_string());
+    }
+    let account_label = json_scalar_string_value(cancel_request_preview, "account_label")
+        .unwrap_or_else(|| "unknown".to_string());
+    if !cancel_risk_gate_field_matches(&account_label, expected_account_label) {
+        issues.push("account_label_mismatch".to_string());
+    }
+    for field in ["source_artifact_issues", "missing_cli_flags"] {
+        if json_array_has_items(cancel_request_preview, field) {
+            issues.push(format!("cancel_request_preview_{field}_not_empty"));
+        }
+    }
+
+    append_true_marker_issues(
+        &mut issues,
+        "cancel_request_preview",
+        cancel_request_preview,
+        &[
+            "multi_order_cancel_requested",
+            "cancel_all_requested",
+            "bulk_cancel_requested",
+            "strategy_driven_cancel_requested",
+            "multi_account_cancel_requested",
+            "multi_venue_cancel_requested",
+            "retry_requested",
+            "replace_or_amend_requested",
+            "flatten_requested",
+            "dashboard_cancel_requested",
+            "api_key_value_recorded",
+            "api_secret_value_recorded",
+            "api_key_header_value_recorded",
+            "signature_recorded",
+            "signed_query_recorded",
+            "signed_url_recorded",
+            "raw_exchange_response_recorded",
+            "response_body_recorded",
+            "response_headers_recorded",
+            "network_attempted",
+            "network_cancel_endpoint_attempted",
+            "actual_cancel_send_allowed",
+            "cancel_attempted",
+            "retry_attempted",
+            "replace_attempted",
+            "amend_attempted",
+            "flatten_attempted",
+            "remediation_attempted",
+            "automatic_cancel_allowed",
+            "automatic_remediation_allowed",
+            "production_order_mutation_allowed",
+            "dashboard_order_controls_enabled",
+            "dashboard_cancel_controls_enabled",
+        ],
+    );
+    append_nonzero_marker_issues(
+        &mut issues,
+        "cancel_request_preview",
+        cancel_request_preview,
+        &[
+            "cancel_requests_sent",
+            "production_order_mutations_attempted",
+        ],
+    );
+
+    issues
+}
+
 fn source_ref_path(
     source_path: &Path,
     artifact: &serde_json::Value,
@@ -11769,6 +12194,17 @@ fn cancel_preview_identifier_known(value: &str) -> bool {
             normalized.to_ascii_lowercase().as_str(),
             "missing" | "unknown" | "none" | "null"
         )
+}
+
+fn cancel_risk_gate_field_matches(actual: &str, expected: &str) -> bool {
+    !actual.trim().is_empty() && actual.trim() == expected.trim()
+}
+
+fn json_array_has_items(value: &serde_json::Value, field: &str) -> bool {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|items| !items.is_empty())
 }
 
 fn redact_cancel_preview_identifier(kind: &str, value: &str) -> String {
@@ -15073,6 +15509,16 @@ fn write_production_mutation_cancel_request_preview_artifact(
     Ok(())
 }
 
+fn write_production_mutation_cancel_risk_gate_artifact(
+    path: &Path,
+    value: &ProductionMutationCancelRiskGateArtifact,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
 fn decimal_string_to_f64(field: &str, value: &str) -> Result<f64, String> {
     validate_positive_decimal_string(field, value).map_err(|error| error.to_string())?;
     value
@@ -15949,6 +16395,55 @@ fn missing_production_mutation_cancel_request_preview_cli_flags(
     }
     if !opt.confirm_known_order_identifier_only {
         missing.push("--confirm-known-order-identifier-only");
+    }
+    if !opt.confirm_no_retry {
+        missing.push("--confirm-no-retry");
+    }
+    if !opt.confirm_no_cancel {
+        missing.push("--confirm-no-cancel");
+    }
+    if !opt.confirm_no_network {
+        missing.push("--confirm-no-network");
+    }
+    if !opt.confirm_no_remediation {
+        missing.push("--confirm-no-remediation");
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        missing.push("--confirm-dashboard-order-controls-disabled");
+    }
+    if !opt.confirm_no_secret_persistence {
+        missing.push("--confirm-no-secret-persistence");
+    }
+    missing
+}
+
+fn missing_production_mutation_cancel_risk_gate_cli_flags(
+    opt: &LiveProductionMutationCancelRiskGateOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_mutation_cancel_risk_gate {
+        missing.push("--allow-production-mutation-cancel-risk-gate");
+    }
+    if !opt.confirm_single_v16_mutation_candidate_lineage {
+        missing.push("--confirm-single-v16-mutation-candidate-lineage");
+    }
+    if !opt.confirm_cancel_request_preview_ready {
+        missing.push("--confirm-cancel-request-preview-ready");
+    }
+    if !opt.confirm_orphan_risk_halted {
+        missing.push("--confirm-orphan-risk-halted");
+    }
+    if !opt.confirm_known_order_identifier_only {
+        missing.push("--confirm-known-order-identifier-only");
+    }
+    if !opt.confirm_symbol_account_scope {
+        missing.push("--confirm-symbol-account-scope");
+    }
+    if !opt.confirm_owner_approval_required {
+        missing.push("--confirm-owner-approval-required");
+    }
+    if !opt.confirm_no_cancel_all_or_bulk {
+        missing.push("--confirm-no-cancel-all-or-bulk");
     }
     if !opt.confirm_no_retry {
         missing.push("--confirm-no-retry");
@@ -17523,6 +18018,36 @@ write_summary = true
             confirm_orphan_risk_halted: all_cli_gates,
             confirm_manual_review_required: all_cli_gates,
             confirm_known_order_identifier_only: all_cli_gates,
+            confirm_no_retry: all_cli_gates,
+            confirm_no_cancel: all_cli_gates,
+            confirm_no_network: all_cli_gates,
+            confirm_no_remediation: all_cli_gates,
+            confirm_dashboard_order_controls_disabled: all_cli_gates,
+            confirm_no_secret_persistence: all_cli_gates,
+        }
+    }
+
+    fn production_mutation_cancel_risk_gate_opt(
+        cancel_request_preview: PathBuf,
+        output: PathBuf,
+        expected_symbol: &str,
+        expected_account_label: &str,
+        all_cli_gates: bool,
+    ) -> LiveProductionMutationCancelRiskGateOpt {
+        LiveProductionMutationCancelRiskGateOpt {
+            run_id: "v180-production-mutation-cancel-risk-gate".to_string(),
+            cancel_request_preview,
+            expected_symbol: expected_symbol.to_string(),
+            expected_account_label: expected_account_label.to_string(),
+            output,
+            allow_production_mutation_cancel_risk_gate: all_cli_gates,
+            confirm_single_v16_mutation_candidate_lineage: all_cli_gates,
+            confirm_cancel_request_preview_ready: all_cli_gates,
+            confirm_orphan_risk_halted: all_cli_gates,
+            confirm_known_order_identifier_only: all_cli_gates,
+            confirm_symbol_account_scope: all_cli_gates,
+            confirm_owner_approval_required: all_cli_gates,
+            confirm_no_cancel_all_or_bulk: all_cli_gates,
             confirm_no_retry: all_cli_gates,
             confirm_no_cancel: all_cli_gates,
             confirm_no_network: all_cli_gates,
@@ -25441,6 +25966,253 @@ write_summary = true
                 .any(|issue| issue == "orphan_order_detector_risk_halted_not_true")
         );
         assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn production_mutation_cancel_risk_gate_builds_scoped_ready_gate() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v180-004-cancel-risk-gate-ready-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let orphan = write_v180_cancel_request_preview_source_chain(
+            &output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+        let preview = output_dir.join("cancel-request-preview.json");
+        let gate = output_dir.join("cancel-risk-gate.json");
+
+        run_live_production_mutation_cancel_request_preview(
+            &production_mutation_cancel_request_preview_opt(orphan, preview.clone(), true),
+        )
+        .unwrap();
+        run_live_production_mutation_cancel_risk_gate(&production_mutation_cancel_risk_gate_opt(
+            preview,
+            gate.clone(),
+            "BTCUSDT",
+            "prod-account-redacted",
+            true,
+        ))
+        .unwrap();
+
+        let body = fs::read_to_string(gate).unwrap();
+        assert!(!body.contains("123456789"));
+        assert!(!body.contains("owner-approved-v160-single-shot"));
+        assert!(!body.contains("X-MBX-APIKEY"));
+        assert!(!body.contains("signature="));
+        let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(
+            artifact["schema_version"],
+            PRODUCTION_MUTATION_CANCEL_RISK_GATE_SCHEMA_VERSION
+        );
+        assert_eq!(artifact["artifact_type"], "cancel_risk_gate");
+        assert_eq!(artifact["status"], "ready_cancel_risk_gate");
+        assert_eq!(artifact["cancel_request_preview_ready"], true);
+        assert_eq!(artifact["cancel_risk_gate_ready"], true);
+        assert_eq!(artifact["orphan_risk_detected"], true);
+        assert_eq!(artifact["risk_halted"], true);
+        assert_eq!(artifact["manual_review_required"], true);
+        assert_eq!(artifact["new_orders_blocked"], true);
+        assert_eq!(artifact["lineage_scope"], "single_v16_mutation_candidate");
+        assert_eq!(artifact["order_identifier_known"], true);
+        assert_eq!(artifact["symbol"], "BTCUSDT");
+        assert_eq!(artifact["expected_symbol"], "BTCUSDT");
+        assert_eq!(artifact["symbol_matches_lineage"], true);
+        assert_eq!(artifact["account_label"], "prod-account-redacted");
+        assert_eq!(artifact["expected_account_label"], "prod-account-redacted");
+        assert_eq!(artifact["account_matches_lineage"], true);
+        assert_eq!(artifact["owner_approval_required"], true);
+        assert_eq!(artifact["owner_approval_lifecycle_recorded"], false);
+        assert_eq!(artifact["candidate_count"], 1);
+        assert_eq!(artifact["multi_order_cancel_requested"], false);
+        assert_eq!(artifact["cancel_all_requested"], false);
+        assert_eq!(artifact["bulk_cancel_requested"], false);
+        assert_eq!(artifact["strategy_driven_cancel_requested"], false);
+        assert_eq!(artifact["retry_requested"], false);
+        assert_eq!(artifact["replace_or_amend_requested"], false);
+        assert_eq!(artifact["flatten_requested"], false);
+        assert_eq!(artifact["dashboard_cancel_requested"], false);
+        assert_eq!(artifact["actual_cancel_send_allowed"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["cancel_requests_sent"], 0);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["network_cancel_endpoint_attempted"], false);
+        assert_eq!(artifact["retry_attempted"], false);
+        assert_eq!(artifact["remediation_attempted"], false);
+        assert_eq!(artifact["automatic_cancel_allowed"], false);
+        assert_eq!(artifact["production_order_mutation_allowed"], false);
+        assert_eq!(artifact["dashboard_cancel_controls_enabled"], false);
+        assert_eq!(
+            artifact["source_artifact_issues"].as_array().unwrap().len(),
+            0
+        );
+        assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+        assert_eq!(
+            artifact["cancel_request_preview_ref"]["schema_version"],
+            PRODUCTION_MUTATION_CANCEL_REQUEST_PREVIEW_SCHEMA_VERSION
+        );
+    }
+
+    #[test]
+    fn production_mutation_cancel_risk_gate_blocks_missing_confirmations() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v180-004-cancel-risk-gate-missing-gates-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let orphan = write_v180_cancel_request_preview_source_chain(
+            &output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+        let preview = output_dir.join("cancel-request-preview.json");
+        let gate = output_dir.join("cancel-risk-gate-missing-gates.json");
+
+        run_live_production_mutation_cancel_request_preview(
+            &production_mutation_cancel_request_preview_opt(orphan, preview.clone(), true),
+        )
+        .unwrap();
+        run_live_production_mutation_cancel_risk_gate(&production_mutation_cancel_risk_gate_opt(
+            preview,
+            gate.clone(),
+            "BTCUSDT",
+            "prod-account-redacted",
+            false,
+        ))
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(gate).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_missing_gate");
+        assert_eq!(artifact["cancel_request_preview_ready"], true);
+        assert_eq!(artifact["cancel_risk_gate_ready"], false);
+        assert_eq!(
+            artifact["source_artifact_issues"].as_array().unwrap().len(),
+            0
+        );
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--allow-production-mutation-cancel-risk-gate")
+        );
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--confirm-symbol-account-scope")
+        );
+        assert_eq!(artifact["actual_cancel_send_allowed"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["network_cancel_endpoint_attempted"], false);
+        assert_eq!(artifact["dashboard_cancel_controls_enabled"], false);
+    }
+
+    #[test]
+    fn production_mutation_cancel_risk_gate_blocks_scope_and_forbidden_controls() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v180-004-cancel-risk-gate-blocked-source-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let orphan = write_v180_cancel_request_preview_source_chain(
+            &output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+        let preview = output_dir.join("cancel-request-preview.json");
+        let gate = output_dir.join("cancel-risk-gate-blocked-source.json");
+
+        run_live_production_mutation_cancel_request_preview(
+            &production_mutation_cancel_request_preview_opt(orphan, preview.clone(), true),
+        )
+        .unwrap();
+        let mut preview_artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&preview).unwrap()).unwrap();
+        preview_artifact["cancel_all_requested"] = json!(true);
+        preview_artifact["retry_requested"] = json!(true);
+        preview_artifact["replace_or_amend_requested"] = json!(true);
+        preview_artifact["flatten_requested"] = json!(true);
+        preview_artifact["dashboard_cancel_requested"] = json!(true);
+        fs::write(
+            &preview,
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&preview_artifact).unwrap()
+            ),
+        )
+        .unwrap();
+
+        run_live_production_mutation_cancel_risk_gate(&production_mutation_cancel_risk_gate_opt(
+            preview,
+            gate.clone(),
+            "ETHUSDT",
+            "other-account",
+            true,
+        ))
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(gate).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_source_artifact");
+        assert_eq!(artifact["cancel_risk_gate_ready"], false);
+        assert_eq!(artifact["symbol_matches_lineage"], false);
+        assert_eq!(artifact["account_matches_lineage"], false);
+        assert_eq!(artifact["cancel_all_requested"], true);
+        assert_eq!(artifact["retry_requested"], true);
+        assert_eq!(artifact["replace_or_amend_requested"], true);
+        assert_eq!(artifact["flatten_requested"], true);
+        assert_eq!(artifact["dashboard_cancel_requested"], true);
+        for expected in [
+            "symbol_mismatch",
+            "account_label_mismatch",
+            "cancel_request_preview_cancel_all_requested_true",
+            "cancel_request_preview_retry_requested_true",
+            "cancel_request_preview_replace_or_amend_requested_true",
+            "cancel_request_preview_flatten_requested_true",
+            "cancel_request_preview_dashboard_cancel_requested_true",
+        ] {
+            assert!(
+                artifact["source_artifact_issues"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|issue| issue == expected),
+                "missing issue {expected}"
+            );
+        }
+        assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+        assert_eq!(artifact["actual_cancel_send_allowed"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["network_cancel_endpoint_attempted"], false);
+        assert_eq!(artifact["dashboard_cancel_controls_enabled"], false);
     }
 
     #[test]
