@@ -130,6 +130,17 @@ const PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_SCHEMA_VERSION: &str =
     "ntpro.v170_production_mutation_reconciliation_classifier.v1";
 const PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_SCHEMA_VERSION: &str =
     "ntpro.v170_production_mutation_orphan_order_detector.v1";
+const PRODUCTION_MUTATION_CANCEL_REQUEST_PREVIEW_SCHEMA_VERSION: &str =
+    "ntpro.v180_cancel_request_preview.v1";
+const PRODUCTION_MUTATION_CANCEL_RISK_GATE_SCHEMA_VERSION: &str = "ntpro.v180_cancel_risk_gate.v1";
+const PRODUCTION_MUTATION_MANUAL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION: &str =
+    "ntpro.v180_manual_owner_approval_lifecycle.v1";
+const PRODUCTION_MUTATION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION: &str =
+    "ntpro.v180_cancel_response_redaction.v1";
+const PRODUCTION_MUTATION_POST_CANCEL_READBACK_SCHEMA_VERSION: &str =
+    "ntpro.v180_post_cancel_readback.v1";
+const PRODUCTION_MUTATION_CANCEL_RECOVERY_INCIDENT_AUDIT_CLOSEOUT_SCHEMA_VERSION: &str =
+    "ntpro.v180_cancel_recovery_incident_audit_closeout.v1";
 const LIVE_ALPHA_DRY_RUN_ORDER_GATE_ARTIFACT_RELATIVE_PATH: &str =
     "v0_14/live_alpha_dry_run_order_gate.json";
 const LIVE_ALPHA_RISK_PREFLIGHT_ARTIFACT_RELATIVE_PATH: &str =
@@ -168,6 +179,18 @@ const PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_ARTIFACT_RELATIVE_PATH: &str
     "v0_17/production_mutation_reconciliation_classifier.json";
 const PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_ARTIFACT_RELATIVE_PATH: &str =
     "v0_17/production_mutation_orphan_order_detector.json";
+const PRODUCTION_MUTATION_CANCEL_REQUEST_PREVIEW_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_18/cancel_request_preview.json";
+const PRODUCTION_MUTATION_CANCEL_RISK_GATE_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_18/cancel_risk_gate.json";
+const PRODUCTION_MUTATION_MANUAL_OWNER_APPROVAL_LIFECYCLE_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_18/manual_owner_approval_lifecycle.json";
+const PRODUCTION_MUTATION_CANCEL_RESPONSE_REDACTION_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_18/cancel_response_redaction.json";
+const PRODUCTION_MUTATION_POST_CANCEL_READBACK_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_18/post_cancel_readback.json";
+const PRODUCTION_MUTATION_CANCEL_RECOVERY_INCIDENT_AUDIT_CLOSEOUT_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_18/cancel_recovery_incident_audit_closeout.json";
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
 <html lang="zh-CN">
@@ -221,6 +244,10 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
     <section class="band">
       <h2>v0.17 对账与孤儿单风险</h2>
       <div id="production-reconciliation-orphan" class="table-wrap"></div>
+    </section>
+    <section class="band">
+      <h2>v0.18 撤单恢复只读面板</h2>
+      <div id="production-cancel-recovery" class="table-wrap"></div>
     </section>
     <section class="band">
       <h2>节点</h2>
@@ -783,6 +810,7 @@ function render(payload) {
   renderLiveAlphaDryRun(snapshot.live_alpha_dry_run || []);
   renderProductionMutationEvidence(snapshot.production_mutation_evidence || []);
   renderProductionReconciliationOrphan(snapshot.production_reconciliation_orphan || []);
+  renderProductionCancelRecovery(snapshot.production_cancel_recovery || []);
   renderDataSources(snapshot.data_sources || []);
   renderExecutionGateways(snapshot.execution_gateways || []);
   renderRisk(snapshot.risk || {});
@@ -1182,6 +1210,47 @@ function renderProductionReconciliationOrphan(items) {
         `).join("")}
       </tbody>
     </table>` : emptyTable("没有 v0.17 对账与孤儿单风险工件");
+}
+
+function renderProductionCancelRecovery(items) {
+  document.getElementById("production-cancel-recovery").innerHTML = items.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>节点</th>
+          <th>当前结论</th>
+          <th>撤单预览</th>
+          <th>风险门禁</th>
+          <th>Owner 审批</th>
+          <th>Readback</th>
+          <th>Incident / Audit</th>
+          <th>只读边界</th>
+          <th>工件</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map((item) => `
+          <tr>
+            <td data-label="节点"><strong>${text(item.node_id)}</strong></td>
+            <td data-label="当前结论"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div>${panelRow("缺失证据", snapshotValue(item.missing_artifacts))}${panelRow("Schema 诊断", snapshotValue(item.schema_diagnostics))}${panelRow("Provenance 诊断", snapshotValue(item.provenance_diagnostics))}${panelRow("Stale 证据", snapshotValue(item.stale_artifacts))}</td>
+            <td data-label="撤单预览">${panelRow("Lineage", snapshotValue(item.order_lineage_id))}${panelRow("状态", snapshotValue(item.cancel_preview_status))}${panelRow("Preview ready", snapshotValue(item.cancel_request_preview_ready))}${panelRow("原因", snapshotValue(item.cancel_reason))}${panelRow("候选数", snapshotValue(item.candidate_count))}${panelRow("订单", snapshotValue(item.known_order_id))}${panelRow("Client", snapshotValue(item.known_client_order_id))}${panelRow("Symbol", snapshotValue(item.symbol))}${panelRow("Account", snapshotValue(item.account_label))}</td>
+            <td data-label="风险门禁">${panelRow("状态", snapshotValue(item.risk_gate_status))}${panelRow("结果", snapshotValue(item.risk_gate_result))}${panelRow("Gate ready", snapshotValue(item.risk_gate_ready))}${panelRow("孤儿单风险", snapshotValue(item.orphan_risk_detected))}${panelRow("风控暂停", snapshotValue(item.risk_halted))}${panelRow("人工复核", snapshotValue(item.manual_review_required))}${panelRow("新单阻断", snapshotValue(item.new_orders_blocked))}</td>
+            <td data-label="Owner 审批">${panelRow("状态", snapshotValue(item.approval_lifecycle_status))}${panelRow("审批状态", snapshotValue(item.owner_approval_state))}${panelRow("已记录", snapshotValue(item.manual_approval_recorded))}${panelRow("生命周期有效", snapshotValue(item.approval_lifecycle_valid))}${panelRow("已消耗", snapshotValue(item.approval_consumed))}</td>
+            <td data-label="Readback">${panelRow("脱敏合同", snapshotValue(item.redaction_contract_state))}${panelRow("脱敏 ready", snapshotValue(item.cancel_response_redaction_ready))}${panelRow("响应已脱敏", snapshotValue(item.cancel_response_redacted))}${panelRow("Readback 状态", snapshotValue(item.post_cancel_readback_status))}${panelRow("Readback ready", snapshotValue(item.post_cancel_readback_ready))}${panelRow("交易所状态", snapshotValue(item.readback_state))}${panelRow("状态分类", snapshotValue(item.readback_state_class))}${panelRow("结果", snapshotValue(item.readback_outcome))}${panelRow("终态", snapshotValue(item.terminal_state_observed))}${panelRow("歧义状态", snapshotValue(item.ambiguous_state_observed))}</td>
+            <td data-label="Incident / Audit">${panelRow("Closeout 状态", snapshotValue(item.incident_closeout_status))}${panelRow("Incident ready", snapshotValue(item.incident_closeout_ready))}${panelRow("Audit ready", snapshotValue(item.audit_trail_ready))}${panelRow("Traceability", snapshotValue(item.audit_traceability_ready))}${panelRow("Lineage ready", snapshotValue(item.cancel_recovery_lineage_ready))}${panelRow("推荐动作", snapshotValue(item.terminal_action_recommendation))}${panelRow("剩余风险", snapshotValue(item.remaining_risk))}${panelRow("需人工复核", snapshotValue(item.remaining_risk_requires_manual_review))}${panelRow("Source issues", snapshotValue(item.source_artifact_issues))}${panelRow("Lineage issues", snapshotValue(item.lineage_issues))}${panelRow("Missing flags", snapshotValue(item.missing_cli_flags))}</td>
+            <td data-label="只读边界">${panelRow("允许真实撤单", snapshotValue(item.actual_cancel_send_allowed))}${panelRow("撤单尝试", snapshotValue(item.cancel_attempted))}${panelRow("撤单请求", snapshotValue(item.cancel_requests_sent))}${panelRow("生产变更", snapshotValue(item.production_order_mutations_attempted))}${panelRow("Readback 执行", snapshotValue(item.readback_execution_attempted))}${panelRow("状态读取尝试", snapshotValue(item.production_order_state_reads_attempted))}${panelRow("网络尝试", snapshotValue(item.network_attempted))}${panelRow("Readback 端点", snapshotValue(item.network_readback_endpoint_attempted))}${panelRow("Cancel 端点", snapshotValue(item.network_cancel_endpoint_attempted))}${panelRow("重试", snapshotValue(item.retry_attempted))}${panelRow("补救", snapshotValue(item.remediation_attempted))}${panelRow("自动撤单", snapshotValue(item.automatic_cancel_allowed))}${panelRow("自动补救", snapshotValue(item.automatic_remediation_allowed))}${panelRow("Dashboard 下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("Dashboard 撤单控件", snapshotValue(item.dashboard_cancel_controls_enabled))}</td>
+            <td data-label="工件" class="path">
+              ${panelRow("preview", snapshotValue(item.cancel_request_preview_path))}
+              ${panelRow("risk-gate", snapshotValue(item.cancel_risk_gate_path))}
+              ${panelRow("approval", snapshotValue(item.manual_owner_approval_lifecycle_path))}
+              ${panelRow("redaction", snapshotValue(item.cancel_response_redaction_path))}
+              ${panelRow("readback", snapshotValue(item.post_cancel_readback_path))}
+              ${panelRow("closeout", snapshotValue(item.incident_audit_closeout_path))}
+            </td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>` : emptyTable("没有 v0.18 撤单恢复只读工件");
 }
 
 function renderDataSources(dataSources) {
@@ -2196,6 +2265,7 @@ pub struct DashboardSnapshot {
     pub live_alpha_dry_run: Vec<LiveAlphaDryRunStatus>,
     pub production_mutation_evidence: Vec<ProductionMutationEvidenceStatus>,
     pub production_reconciliation_orphan: Vec<ProductionReconciliationOrphanStatus>,
+    pub production_cancel_recovery: Vec<ProductionCancelRecoveryStatus>,
     pub runtime_modules: Vec<RuntimeModuleStatus>,
     pub logs: Vec<LogStatus>,
     pub metrics: Vec<MetricStatus>,
@@ -2223,6 +2293,7 @@ impl DashboardSnapshot {
             live_alpha_dry_run: Vec::new(),
             production_mutation_evidence: Vec::new(),
             production_reconciliation_orphan: Vec::new(),
+            production_cancel_recovery: Vec::new(),
             runtime_modules: Vec::new(),
             logs: Vec::new(),
             metrics: Vec::new(),
@@ -3058,6 +3129,81 @@ pub struct ProductionReconciliationOrphanStatus {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProductionCancelRecoveryStatus {
+    pub node_id: String,
+    pub health: HealthStatus,
+    pub readiness_status: DashboardValue<String>,
+    pub diagnostic: DashboardValue<String>,
+    pub missing_artifacts: DashboardValue<String>,
+    pub schema_diagnostics: DashboardValue<String>,
+    pub provenance_diagnostics: DashboardValue<String>,
+    pub stale_artifacts: DashboardValue<String>,
+    pub order_lineage_id: DashboardValue<String>,
+    pub cancel_preview_status: DashboardValue<String>,
+    pub cancel_request_preview_ready: DashboardValue<bool>,
+    pub cancel_reason: DashboardValue<String>,
+    pub candidate_count: DashboardValue<u64>,
+    pub known_order_id: DashboardValue<String>,
+    pub known_client_order_id: DashboardValue<String>,
+    pub symbol: DashboardValue<String>,
+    pub account_label: DashboardValue<String>,
+    pub risk_gate_status: DashboardValue<String>,
+    pub risk_gate_result: DashboardValue<String>,
+    pub risk_gate_ready: DashboardValue<bool>,
+    pub orphan_risk_detected: DashboardValue<bool>,
+    pub risk_halted: DashboardValue<bool>,
+    pub manual_review_required: DashboardValue<bool>,
+    pub new_orders_blocked: DashboardValue<bool>,
+    pub approval_lifecycle_status: DashboardValue<String>,
+    pub owner_approval_state: DashboardValue<String>,
+    pub manual_approval_recorded: DashboardValue<bool>,
+    pub approval_lifecycle_valid: DashboardValue<bool>,
+    pub approval_consumed: DashboardValue<bool>,
+    pub redaction_contract_state: DashboardValue<String>,
+    pub cancel_response_redaction_ready: DashboardValue<bool>,
+    pub cancel_response_redacted: DashboardValue<bool>,
+    pub post_cancel_readback_status: DashboardValue<String>,
+    pub post_cancel_readback_ready: DashboardValue<bool>,
+    pub readback_state: DashboardValue<String>,
+    pub readback_state_class: DashboardValue<String>,
+    pub readback_outcome: DashboardValue<String>,
+    pub terminal_state_observed: DashboardValue<bool>,
+    pub ambiguous_state_observed: DashboardValue<bool>,
+    pub incident_closeout_status: DashboardValue<String>,
+    pub incident_closeout_ready: DashboardValue<bool>,
+    pub audit_trail_ready: DashboardValue<bool>,
+    pub audit_traceability_ready: DashboardValue<bool>,
+    pub cancel_recovery_lineage_ready: DashboardValue<bool>,
+    pub terminal_action_recommendation: DashboardValue<String>,
+    pub remaining_risk: DashboardValue<String>,
+    pub remaining_risk_requires_manual_review: DashboardValue<bool>,
+    pub source_artifact_issues: DashboardValue<String>,
+    pub lineage_issues: DashboardValue<String>,
+    pub missing_cli_flags: DashboardValue<String>,
+    pub actual_cancel_send_allowed: DashboardValue<bool>,
+    pub cancel_attempted: DashboardValue<bool>,
+    pub cancel_requests_sent: DashboardValue<u64>,
+    pub production_order_mutations_attempted: DashboardValue<u64>,
+    pub readback_execution_attempted: DashboardValue<bool>,
+    pub production_order_state_reads_attempted: DashboardValue<u64>,
+    pub network_attempted: DashboardValue<bool>,
+    pub network_readback_endpoint_attempted: DashboardValue<bool>,
+    pub network_cancel_endpoint_attempted: DashboardValue<bool>,
+    pub retry_attempted: DashboardValue<bool>,
+    pub remediation_attempted: DashboardValue<bool>,
+    pub automatic_cancel_allowed: DashboardValue<bool>,
+    pub automatic_remediation_allowed: DashboardValue<bool>,
+    pub dashboard_order_controls_enabled: DashboardValue<bool>,
+    pub dashboard_cancel_controls_enabled: DashboardValue<bool>,
+    pub cancel_request_preview_path: DashboardValue<String>,
+    pub cancel_risk_gate_path: DashboardValue<String>,
+    pub manual_owner_approval_lifecycle_path: DashboardValue<String>,
+    pub cancel_response_redaction_path: DashboardValue<String>,
+    pub post_cancel_readback_path: DashboardValue<String>,
+    pub incident_audit_closeout_path: DashboardValue<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeModuleStatus {
     pub module_name: String,
     pub status: DashboardValue<String>,
@@ -3343,6 +3489,9 @@ pub fn snapshot_from_supervisor_artifacts_with_workflow_root(
             snapshot
                 .production_reconciliation_orphan
                 .push(reconciliation_orphan);
+        }
+        if let Some(cancel_recovery) = production_cancel_recovery_from_record(record) {
+            snapshot.production_cancel_recovery.push(cancel_recovery);
         }
         snapshot
             .logs
@@ -6416,6 +6565,394 @@ fn production_reconciliation_orphan_from_record(
     })
 }
 
+#[derive(Clone, Debug)]
+struct ProductionCancelRecoveryArtifactPaths {
+    cancel_request_preview_path: PathBuf,
+    cancel_risk_gate_path: PathBuf,
+    manual_owner_approval_lifecycle_path: PathBuf,
+    cancel_response_redaction_path: PathBuf,
+    post_cancel_readback_path: PathBuf,
+    incident_audit_closeout_path: PathBuf,
+}
+
+impl ProductionCancelRecoveryArtifactPaths {
+    fn v18(record: &SupervisorNodeRecord) -> Self {
+        Self {
+            cancel_request_preview_path: record
+                .artifact_root
+                .join(PRODUCTION_MUTATION_CANCEL_REQUEST_PREVIEW_ARTIFACT_RELATIVE_PATH),
+            cancel_risk_gate_path: record
+                .artifact_root
+                .join(PRODUCTION_MUTATION_CANCEL_RISK_GATE_ARTIFACT_RELATIVE_PATH),
+            manual_owner_approval_lifecycle_path: record
+                .artifact_root
+                .join(PRODUCTION_MUTATION_MANUAL_OWNER_APPROVAL_LIFECYCLE_ARTIFACT_RELATIVE_PATH),
+            cancel_response_redaction_path: record
+                .artifact_root
+                .join(PRODUCTION_MUTATION_CANCEL_RESPONSE_REDACTION_ARTIFACT_RELATIVE_PATH),
+            post_cancel_readback_path: record
+                .artifact_root
+                .join(PRODUCTION_MUTATION_POST_CANCEL_READBACK_ARTIFACT_RELATIVE_PATH),
+            incident_audit_closeout_path: record.artifact_root.join(
+                PRODUCTION_MUTATION_CANCEL_RECOVERY_INCIDENT_AUDIT_CLOSEOUT_ARTIFACT_RELATIVE_PATH,
+            ),
+        }
+    }
+
+    fn has_any_artifact(&self) -> bool {
+        self.cancel_request_preview_path.exists()
+            || self.cancel_risk_gate_path.exists()
+            || self.manual_owner_approval_lifecycle_path.exists()
+            || self.cancel_response_redaction_path.exists()
+            || self.post_cancel_readback_path.exists()
+            || self.incident_audit_closeout_path.exists()
+    }
+}
+
+fn production_cancel_recovery_from_record(
+    record: &SupervisorNodeRecord,
+) -> Option<ProductionCancelRecoveryStatus> {
+    let paths = ProductionCancelRecoveryArtifactPaths::v18(record);
+    if !paths.has_any_artifact() {
+        return None;
+    }
+
+    let cancel_request_preview = read_json_file_value(&paths.cancel_request_preview_path);
+    let cancel_risk_gate = read_json_file_value(&paths.cancel_risk_gate_path);
+    let manual_owner_approval_lifecycle =
+        read_json_file_value(&paths.manual_owner_approval_lifecycle_path);
+    let cancel_response_redaction = read_json_file_value(&paths.cancel_response_redaction_path);
+    let post_cancel_readback = read_json_file_value(&paths.post_cancel_readback_path);
+    let incident_audit_closeout = read_json_file_value(&paths.incident_audit_closeout_path);
+    let artifacts = [
+        &cancel_request_preview,
+        &cancel_risk_gate,
+        &manual_owner_approval_lifecycle,
+        &cancel_response_redaction,
+        &post_cancel_readback,
+        &incident_audit_closeout,
+    ];
+    let artifact_specs = [
+        (
+            "cancel_request_preview",
+            paths.cancel_request_preview_path.as_path(),
+            &cancel_request_preview,
+            PRODUCTION_MUTATION_CANCEL_REQUEST_PREVIEW_SCHEMA_VERSION,
+        ),
+        (
+            "cancel_risk_gate",
+            paths.cancel_risk_gate_path.as_path(),
+            &cancel_risk_gate,
+            PRODUCTION_MUTATION_CANCEL_RISK_GATE_SCHEMA_VERSION,
+        ),
+        (
+            "manual_owner_approval_lifecycle",
+            paths.manual_owner_approval_lifecycle_path.as_path(),
+            &manual_owner_approval_lifecycle,
+            PRODUCTION_MUTATION_MANUAL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION,
+        ),
+        (
+            "cancel_response_redaction",
+            paths.cancel_response_redaction_path.as_path(),
+            &cancel_response_redaction,
+            PRODUCTION_MUTATION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION,
+        ),
+        (
+            "post_cancel_readback",
+            paths.post_cancel_readback_path.as_path(),
+            &post_cancel_readback,
+            PRODUCTION_MUTATION_POST_CANCEL_READBACK_SCHEMA_VERSION,
+        ),
+        (
+            "incident_audit_closeout",
+            paths.incident_audit_closeout_path.as_path(),
+            &incident_audit_closeout,
+            PRODUCTION_MUTATION_CANCEL_RECOVERY_INCIDENT_AUDIT_CLOSEOUT_SCHEMA_VERSION,
+        ),
+    ];
+    let missing_artifacts = v17_missing_artifact_diagnostics(&artifact_specs);
+    let schema_diagnostics = v17_schema_diagnostics(&artifact_specs);
+    let provenance_diagnostics = v17_provenance_diagnostics(&artifact_specs);
+    let stale_artifacts = v17_stale_artifact_diagnostics(&artifact_specs);
+    let schema_ok = schema_diagnostics.is_empty();
+    let provenance_ok = provenance_diagnostics.is_empty();
+
+    let order_lineage_id = v18_first_available_string_any(&artifacts, "order_lineage_id");
+    let cancel_preview_status = cancel_request_preview
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let cancel_request_preview_ready =
+        v18_any_available_bool_any(&artifacts, "cancel_request_preview_ready");
+    let cancel_reason = v18_first_available_string_any(&artifacts, "cancel_reason");
+    let candidate_count = v18_max_available_u64_any(&artifacts, "candidate_count");
+    let known_order_id = v18_first_available_string_any(&artifacts, "known_order_id");
+    let known_client_order_id = v18_first_available_string_any(&artifacts, "known_client_order_id");
+    let symbol = v18_first_available_string_any(&artifacts, "symbol");
+    let account_label = v18_first_available_string_any(&artifacts, "account_label");
+    let risk_gate_status = cancel_risk_gate
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let risk_gate_result = incident_audit_closeout
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "risk_gate_result")
+        });
+    let risk_gate_ready = v18_any_available_bool_any(&artifacts, "risk_gate_ready");
+    let orphan_risk_detected = v18_any_available_bool_any(&artifacts, "orphan_risk_detected");
+    let risk_halted = v18_any_available_bool_any(&artifacts, "risk_halted");
+    let manual_review_required = v18_any_available_bool_any(&artifacts, "manual_review_required");
+    let new_orders_blocked = v18_any_available_bool_any(&artifacts, "new_orders_blocked");
+    let approval_lifecycle_status = manual_owner_approval_lifecycle
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let owner_approval_state = first_available_string_from_values([
+        incident_audit_closeout
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "owner_approval_state")
+            }),
+        manual_owner_approval_lifecycle
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "approval_state")
+            }),
+    ]);
+    let manual_approval_recorded =
+        v18_any_available_bool_any(&artifacts, "manual_approval_recorded");
+    let approval_lifecycle_valid =
+        v18_any_available_bool_any(&artifacts, "approval_lifecycle_valid");
+    let approval_consumed = v18_any_available_bool_any(&artifacts, "approval_consumed");
+    let redaction_contract_state = incident_audit_closeout
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "redaction_contract_state")
+        });
+    let cancel_response_redaction_ready = first_available_bool_from_values([
+        incident_audit_closeout
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "cancel_response_redaction_ready")
+            }),
+        cancel_response_redaction
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_bool_field(value, "response_redaction_ready")
+            }),
+    ]);
+    let cancel_response_redacted =
+        v18_any_available_bool_any(&artifacts, "cancel_response_redacted");
+    let post_cancel_readback_status = post_cancel_readback
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let post_cancel_readback_ready =
+        v18_any_available_bool_any(&artifacts, "post_cancel_readback_ready");
+    let readback_state = v18_first_available_string_any(&artifacts, "readback_state");
+    let readback_state_class = v18_first_available_string_any(&artifacts, "readback_state_class");
+    let readback_outcome = v18_first_available_string_any(&artifacts, "readback_outcome");
+    let terminal_state_observed = v18_any_available_bool_any(&artifacts, "terminal_state_observed");
+    let ambiguous_state_observed =
+        v18_any_available_bool_any(&artifacts, "ambiguous_state_observed");
+    let incident_closeout_status = incident_audit_closeout
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let incident_closeout_ready = v18_any_available_bool_any(&artifacts, "incident_closeout_ready");
+    let audit_trail_ready = v18_any_available_bool_any(&artifacts, "audit_trail_ready");
+    let audit_traceability_ready =
+        v18_any_available_bool_any(&artifacts, "audit_traceability_ready");
+    let cancel_recovery_lineage_ready =
+        v18_any_available_bool_any(&artifacts, "cancel_recovery_lineage_ready");
+    let terminal_action_recommendation =
+        v18_first_available_string_any(&artifacts, "terminal_action_recommendation");
+    let remaining_risk = v18_first_available_string_any(&artifacts, "remaining_risk");
+    let remaining_risk_requires_manual_review =
+        v18_any_available_bool_any(&artifacts, "remaining_risk_requires_manual_review");
+    let source_artifact_issues = incident_audit_closeout
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_array_field(value, "source_artifact_issues")
+        });
+    let lineage_issues = incident_audit_closeout
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_array_field(value, "lineage_issues")
+        });
+    let missing_cli_flags = incident_audit_closeout
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_array_field(value, "missing_cli_flags")
+        });
+    let actual_cancel_send_allowed =
+        v18_any_available_bool_any(&artifacts, "actual_cancel_send_allowed");
+    let cancel_attempted = v18_any_available_bool_any(&artifacts, "cancel_attempted");
+    let cancel_requests_sent = v18_max_available_u64_any(&artifacts, "cancel_requests_sent");
+    let production_order_mutations_attempted =
+        v18_max_available_u64_any(&artifacts, "production_order_mutations_attempted");
+    let readback_execution_attempted =
+        v18_any_available_bool_any(&artifacts, "readback_execution_attempted");
+    let production_order_state_reads_attempted =
+        v18_max_available_u64_any(&artifacts, "production_order_state_reads_attempted");
+    let network_attempted = v18_any_available_bool_any(&artifacts, "network_attempted");
+    let network_readback_endpoint_attempted =
+        v18_any_available_bool_any(&artifacts, "network_readback_endpoint_attempted");
+    let network_cancel_endpoint_attempted =
+        v18_any_available_bool_any(&artifacts, "network_cancel_endpoint_attempted");
+    let retry_attempted = v18_any_available_bool_any(&artifacts, "retry_attempted");
+    let remediation_attempted = v18_any_available_bool_any(&artifacts, "remediation_attempted");
+    let automatic_cancel_allowed =
+        v18_any_available_bool_any(&artifacts, "automatic_cancel_allowed");
+    let automatic_remediation_allowed =
+        v18_any_available_bool_any(&artifacts, "automatic_remediation_allowed");
+    let dashboard_order_controls_enabled =
+        v18_any_available_bool_any(&artifacts, "dashboard_order_controls_enabled");
+    let dashboard_cancel_controls_enabled =
+        v18_any_available_bool_any(&artifacts, "dashboard_cancel_controls_enabled");
+
+    let boundary_violation = !schema_ok
+        || !provenance_ok
+        || !stale_artifacts.is_empty()
+        || actual_cancel_send_allowed.value == Some(true)
+        || cancel_attempted.value == Some(true)
+        || dashboard_u64_gt_zero(&cancel_requests_sent)
+        || dashboard_u64_gt_zero(&production_order_mutations_attempted)
+        || readback_execution_attempted.value == Some(true)
+        || dashboard_u64_gt_zero(&production_order_state_reads_attempted)
+        || network_attempted.value == Some(true)
+        || network_readback_endpoint_attempted.value == Some(true)
+        || network_cancel_endpoint_attempted.value == Some(true)
+        || retry_attempted.value == Some(true)
+        || remediation_attempted.value == Some(true)
+        || automatic_cancel_allowed.value == Some(true)
+        || automatic_remediation_allowed.value == Some(true)
+        || dashboard_order_controls_enabled.value == Some(true)
+        || dashboard_cancel_controls_enabled.value == Some(true);
+    let closeout_blocked = v18_array_has_items(&incident_audit_closeout, "source_artifact_issues")
+        || v18_array_has_items(&incident_audit_closeout, "lineage_issues")
+        || v18_array_has_items(&incident_audit_closeout, "missing_cli_flags");
+    let ready = missing_artifacts.is_empty()
+        && cancel_request_preview_ready.value == Some(true)
+        && risk_gate_ready.value == Some(true)
+        && approval_lifecycle_valid.value == Some(true)
+        && cancel_response_redaction_ready.value == Some(true)
+        && cancel_response_redacted.value == Some(true)
+        && post_cancel_readback_ready.value == Some(true)
+        && incident_closeout_ready.value == Some(true)
+        && audit_trail_ready.value == Some(true)
+        && audit_traceability_ready.value == Some(true)
+        && cancel_recovery_lineage_ready.value == Some(true)
+        && !closeout_blocked
+        && !boundary_violation;
+    let manual_followup_required =
+        ready && remaining_risk_requires_manual_review.value == Some(true);
+    let readiness_status = if boundary_violation {
+        "production_cancel_recovery_boundary_violation"
+    } else if manual_followup_required {
+        "production_cancel_recovery_manual_review_required"
+    } else if ready {
+        "production_cancel_recovery_ready"
+    } else {
+        "production_cancel_recovery_incomplete"
+    };
+
+    Some(ProductionCancelRecoveryStatus {
+        node_id: record.node_id.clone(),
+        health: if ready && !manual_followup_required {
+            HealthStatus::Healthy
+        } else {
+            HealthStatus::Degraded
+        },
+        readiness_status: DashboardValue::available(readiness_status.to_string()),
+        diagnostic: DashboardValue::available(v18_cancel_recovery_diagnostic(
+            readiness_status,
+            &missing_artifacts,
+            &schema_diagnostics,
+            &provenance_diagnostics,
+            &stale_artifacts,
+            closeout_blocked,
+        )),
+        missing_artifacts: diagnostic_value(&missing_artifacts),
+        schema_diagnostics: diagnostic_value(&schema_diagnostics),
+        provenance_diagnostics: diagnostic_value(&provenance_diagnostics),
+        stale_artifacts: diagnostic_value(&stale_artifacts),
+        order_lineage_id,
+        cancel_preview_status,
+        cancel_request_preview_ready,
+        cancel_reason,
+        candidate_count,
+        known_order_id,
+        known_client_order_id,
+        symbol,
+        account_label,
+        risk_gate_status,
+        risk_gate_result,
+        risk_gate_ready,
+        orphan_risk_detected,
+        risk_halted,
+        manual_review_required,
+        new_orders_blocked,
+        approval_lifecycle_status,
+        owner_approval_state,
+        manual_approval_recorded,
+        approval_lifecycle_valid,
+        approval_consumed,
+        redaction_contract_state,
+        cancel_response_redaction_ready,
+        cancel_response_redacted,
+        post_cancel_readback_status,
+        post_cancel_readback_ready,
+        readback_state,
+        readback_state_class,
+        readback_outcome,
+        terminal_state_observed,
+        ambiguous_state_observed,
+        incident_closeout_status,
+        incident_closeout_ready,
+        audit_trail_ready,
+        audit_traceability_ready,
+        cancel_recovery_lineage_ready,
+        terminal_action_recommendation,
+        remaining_risk,
+        remaining_risk_requires_manual_review,
+        source_artifact_issues,
+        lineage_issues,
+        missing_cli_flags,
+        actual_cancel_send_allowed,
+        cancel_attempted,
+        cancel_requests_sent,
+        production_order_mutations_attempted,
+        readback_execution_attempted,
+        production_order_state_reads_attempted,
+        network_attempted,
+        network_readback_endpoint_attempted,
+        network_cancel_endpoint_attempted,
+        retry_attempted,
+        remediation_attempted,
+        automatic_cancel_allowed,
+        automatic_remediation_allowed,
+        dashboard_order_controls_enabled,
+        dashboard_cancel_controls_enabled,
+        cancel_request_preview_path: dashboard_path_if_exists(&paths.cancel_request_preview_path),
+        cancel_risk_gate_path: dashboard_path_if_exists(&paths.cancel_risk_gate_path),
+        manual_owner_approval_lifecycle_path: dashboard_path_if_exists(
+            &paths.manual_owner_approval_lifecycle_path,
+        ),
+        cancel_response_redaction_path: dashboard_path_if_exists(
+            &paths.cancel_response_redaction_path,
+        ),
+        post_cancel_readback_path: dashboard_path_if_exists(&paths.post_cancel_readback_path),
+        incident_audit_closeout_path: dashboard_path_if_exists(&paths.incident_audit_closeout_path),
+    })
+}
+
 fn diagnostic_value(diagnostics: &[String]) -> DashboardValue<String> {
     if diagnostics.is_empty() {
         DashboardValue::unknown()
@@ -6558,6 +7095,64 @@ fn v17_reconciliation_orphan_diagnostic(
     } else {
         readiness_status.to_string()
     }
+}
+
+fn v18_cancel_recovery_diagnostic(
+    readiness_status: &str,
+    missing_artifacts: &[String],
+    schema_diagnostics: &[String],
+    provenance_diagnostics: &[String],
+    stale_artifacts: &[String],
+    closeout_blocked: bool,
+) -> String {
+    if !missing_artifacts.is_empty() {
+        format!(
+            "production_cancel_recovery_missing_artifacts:{}",
+            missing_artifacts.join("|")
+        )
+    } else if !schema_diagnostics.is_empty() {
+        format!(
+            "production_cancel_recovery_schema_mismatch:{}",
+            schema_diagnostics.join("|")
+        )
+    } else if !provenance_diagnostics.is_empty() {
+        format!(
+            "production_cancel_recovery_provenance_mismatch:{}",
+            provenance_diagnostics.join("|")
+        )
+    } else if !stale_artifacts.is_empty() {
+        format!(
+            "production_cancel_recovery_stale_evidence:{}",
+            stale_artifacts.join("|")
+        )
+    } else if closeout_blocked {
+        "production_cancel_recovery_closeout_blocked".to_string()
+    } else {
+        readiness_status.to_string()
+    }
+}
+
+fn v18_first_available_string_any(
+    artifacts: &[&Option<Value>],
+    field: &str,
+) -> DashboardValue<String> {
+    v17_first_available_string_any(artifacts, field)
+}
+
+fn v18_any_available_bool_any(artifacts: &[&Option<Value>], field: &str) -> DashboardValue<bool> {
+    v17_any_available_bool_any(artifacts, field)
+}
+
+fn v18_max_available_u64_any(artifacts: &[&Option<Value>], field: &str) -> DashboardValue<u64> {
+    v16_max_available_u64_any(artifacts, field)
+}
+
+fn v18_array_has_items(artifact: &Option<Value>, field: &str) -> bool {
+    artifact
+        .as_ref()
+        .and_then(|value| value.get(field))
+        .and_then(Value::as_array)
+        .is_some_and(|items| !items.is_empty())
 }
 
 fn sha256_bytes(bytes: &[u8]) -> String {
@@ -11661,6 +12256,221 @@ mod tests {
     }
 
     #[test]
+    fn production_cancel_recovery_artifacts_populate_readonly_dashboard_panel() {
+        let root = temp_root("production-cancel-recovery");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "production-cancel-recovery-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_cancel_recovery_v18_artifacts(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-26T18:10:00Z").unwrap();
+
+        assert_eq!(snapshot.production_cancel_recovery.len(), 1);
+        let item = &snapshot.production_cancel_recovery[0];
+        assert_eq!(item.node_id, "production-cancel-recovery-a");
+        assert_eq!(item.health, HealthStatus::Healthy);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_cancel_recovery_ready")
+        );
+        assert_eq!(
+            item.order_lineage_id.value.as_deref(),
+            Some("lineage-v160-single-shot")
+        );
+        assert_eq!(
+            item.cancel_preview_status.value.as_deref(),
+            Some("ready_cancel_request_preview")
+        );
+        assert_eq!(item.cancel_request_preview_ready.value, Some(true));
+        assert_eq!(
+            item.risk_gate_result.value.as_deref(),
+            Some("ready_owner_approval_required")
+        );
+        assert_eq!(item.risk_gate_ready.value, Some(true));
+        assert_eq!(item.orphan_risk_detected.value, Some(true));
+        assert_eq!(item.risk_halted.value, Some(true));
+        assert_eq!(item.manual_review_required.value, Some(true));
+        assert_eq!(item.new_orders_blocked.value, Some(true));
+        assert_eq!(item.owner_approval_state.value.as_deref(), Some("approved"));
+        assert_eq!(item.manual_approval_recorded.value, Some(true));
+        assert_eq!(item.approval_lifecycle_valid.value, Some(true));
+        assert_eq!(
+            item.redaction_contract_state.value.as_deref(),
+            Some("ready_redacted_metadata_only")
+        );
+        assert_eq!(item.cancel_response_redaction_ready.value, Some(true));
+        assert_eq!(item.cancel_response_redacted.value, Some(true));
+        assert_eq!(item.post_cancel_readback_ready.value, Some(true));
+        assert_eq!(item.readback_state.value.as_deref(), Some("CANCELED"));
+        assert_eq!(
+            item.terminal_action_recommendation.value.as_deref(),
+            Some("close_incident_cancel_confirmed")
+        );
+        assert_eq!(
+            item.remaining_risk.value.as_deref(),
+            Some("none_cancel_confirmed")
+        );
+        assert_eq!(
+            item.remaining_risk_requires_manual_review.value,
+            Some(false)
+        );
+        assert_eq!(item.actual_cancel_send_allowed.value, Some(false));
+        assert_eq!(item.cancel_attempted.value, Some(false));
+        assert_eq!(item.cancel_requests_sent.value, Some(0));
+        assert_eq!(item.production_order_mutations_attempted.value, Some(0));
+        assert_eq!(item.readback_execution_attempted.value, Some(false));
+        assert_eq!(item.production_order_state_reads_attempted.value, Some(0));
+        assert_eq!(item.network_attempted.value, Some(false));
+        assert_eq!(item.network_readback_endpoint_attempted.value, Some(false));
+        assert_eq!(item.network_cancel_endpoint_attempted.value, Some(false));
+        assert_eq!(item.retry_attempted.value, Some(false));
+        assert_eq!(item.remediation_attempted.value, Some(false));
+        assert_eq!(item.automatic_cancel_allowed.value, Some(false));
+        assert_eq!(item.automatic_remediation_allowed.value, Some(false));
+        assert_eq!(item.dashboard_order_controls_enabled.value, Some(false));
+        assert_eq!(item.dashboard_cancel_controls_enabled.value, Some(false));
+        assert!(
+            item.incident_audit_closeout_path
+                .value
+                .as_deref()
+                .is_some_and(|path| {
+                    path.ends_with("v0_18/cancel_recovery_incident_audit_closeout.json")
+                })
+        );
+
+        assert!(DASHBOARD_HTML.contains("production-cancel-recovery"));
+        assert!(DASHBOARD_HTML.contains("v0.18 撤单恢复只读面板"));
+        let renderer = dashboard_js_function_body("renderProductionCancelRecovery");
+        for forbidden in [
+            "<button",
+            "data-dashboard-action",
+            "fetch(",
+            "credential",
+            "api_key",
+            "api_secret",
+            "/api/control/cancel",
+            "/api/control/order",
+        ] {
+            assert!(
+                !renderer.contains(forbidden),
+                "cancel recovery renderer must stay read-only and not contain {forbidden}"
+            );
+        }
+        assert!(renderer.contains("撤单预览"));
+        assert!(renderer.contains("风险门禁"));
+        assert!(renderer.contains("Owner 审批"));
+        assert!(renderer.contains("Incident / Audit"));
+        let snapshot_value = serde_json::to_value(&snapshot).unwrap();
+        assert_forbidden_keys_absent(&snapshot_value);
+    }
+
+    #[test]
+    fn production_cancel_recovery_missing_artifact_names_are_visible() {
+        let root = temp_root("production-cancel-recovery-missing");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "production-cancel-recovery-missing");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_cancel_recovery_v18_artifacts(&record);
+        fs::remove_file(
+            record
+                .artifact_root
+                .join("v0_18")
+                .join("post_cancel_readback.json"),
+        )
+        .unwrap();
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-26T18:11:00Z").unwrap();
+
+        assert_eq!(snapshot.production_cancel_recovery.len(), 1);
+        let item = &snapshot.production_cancel_recovery[0];
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_cancel_recovery_incomplete")
+        );
+        assert!(item.diagnostic.value.as_deref().is_some_and(|value| {
+            value.contains("production_cancel_recovery_missing_artifacts")
+                && value.contains("post_cancel_readback")
+        }));
+        assert_eq!(
+            item.missing_artifacts.value.as_deref(),
+            Some("post_cancel_readback")
+        );
+        assert_eq!(item.dashboard_order_controls_enabled.value, Some(false));
+        assert_eq!(item.dashboard_cancel_controls_enabled.value, Some(false));
+    }
+
+    #[test]
+    fn production_cancel_recovery_boundary_violation_degrades_without_control_routes() {
+        let root = temp_root("production-cancel-recovery-boundary");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "production-cancel-recovery-boundary");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_cancel_recovery_v18_artifacts(&record);
+        let closeout_path = record
+            .artifact_root
+            .join("v0_18")
+            .join("cancel_recovery_incident_audit_closeout.json");
+        let mut closeout: Value =
+            serde_json::from_str(&fs::read_to_string(&closeout_path).unwrap()).unwrap();
+        closeout["dashboard_cancel_controls_enabled"] = json!(true);
+        closeout["network_cancel_endpoint_attempted"] = json!(true);
+        fs::write(
+            &closeout_path,
+            serde_json::to_string_pretty(&closeout).unwrap(),
+        )
+        .unwrap();
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-26T18:12:00Z").unwrap();
+
+        assert_eq!(snapshot.production_cancel_recovery.len(), 1);
+        let item = &snapshot.production_cancel_recovery[0];
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_cancel_recovery_boundary_violation")
+        );
+        assert_eq!(item.dashboard_cancel_controls_enabled.value, Some(true));
+        assert_eq!(item.network_cancel_endpoint_attempted.value, Some(true));
+        for forbidden_route in [
+            "/api/control/cancel",
+            "/api/control/order",
+            "production_cancel_control",
+            "production_order_control",
+        ] {
+            assert!(
+                !DASHBOARD_JS.contains(forbidden_route),
+                "dashboard JS must not expose cancel/order control route {forbidden_route}"
+            );
+            assert!(
+                !DASHBOARD_HTML.contains(forbidden_route),
+                "dashboard shell must not expose cancel/order control route {forbidden_route}"
+            );
+        }
+    }
+
+    #[test]
     fn production_mutation_v16_evidence_boundary_violation_degrades_panel() {
         let root = temp_root("production-mutation-v16-boundary");
         let registry_path = root.join("registry.json");
@@ -13985,6 +14795,236 @@ mod tests {
                 "dashboard_cancel_controls_enabled": false
             }))
             .unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn write_production_cancel_recovery_v18_artifacts(record: &SupervisorNodeRecord) {
+        let root = record.artifact_root.join("v0_18");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("cancel_request_preview.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_MUTATION_CANCEL_REQUEST_PREVIEW_SCHEMA_VERSION,
+                "run_id": "v180-dashboard-cancel-recovery",
+                "order_lineage_id": "lineage-v160-single-shot",
+                "artifact_type": "cancel_request_preview",
+                "status": "ready_cancel_request_preview",
+                "cancel_request_preview_ready": true,
+                "cancel_reason": "orphan_risk_detected",
+                "lineage_scope": "single_mutation_candidate",
+                "candidate_count": 1,
+                "known_order_id": "123456789",
+                "known_client_order_id": "owner-approved-v160-single-shot",
+                "symbol": "BTCUSDT",
+                "account_label": "BINANCE-001",
+                "orphan_risk_detected": true,
+                "risk_halted": true,
+                "manual_review_required": true,
+                "new_orders_blocked": true,
+                "actual_cancel_send_allowed": false,
+                "cancel_attempted": false,
+                "cancel_requests_sent": 0,
+                "network_attempted": false,
+                "network_cancel_endpoint_attempted": false,
+                "retry_attempted": false,
+                "remediation_attempted": false,
+                "automatic_cancel_allowed": false,
+                "automatic_remediation_allowed": false,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            root.join("cancel_risk_gate.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_MUTATION_CANCEL_RISK_GATE_SCHEMA_VERSION,
+                "run_id": "v180-dashboard-cancel-recovery",
+                "order_lineage_id": "lineage-v160-single-shot",
+                "artifact_type": "cancel_risk_gate",
+                "status": "ready_owner_approval_required",
+                "cancel_risk_gate_ready": true,
+                "risk_gate_ready": true,
+                "cancel_request_preview_ready": true,
+                "risk_gate_result": "ready_owner_approval_required",
+                "orphan_risk_detected": true,
+                "risk_halted": true,
+                "manual_review_required": true,
+                "new_orders_blocked": true,
+                "owner_approval_required": true,
+                "candidate_count": 1,
+                "known_order_id": "123456789",
+                "known_client_order_id": "owner-approved-v160-single-shot",
+                "symbol": "BTCUSDT",
+                "account_label": "BINANCE-001",
+                "actual_cancel_send_allowed": false,
+                "cancel_attempted": false,
+                "cancel_requests_sent": 0,
+                "network_attempted": false,
+                "network_cancel_endpoint_attempted": false,
+                "retry_attempted": false,
+                "remediation_attempted": false,
+                "automatic_cancel_allowed": false,
+                "automatic_remediation_allowed": false,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            root.join("manual_owner_approval_lifecycle.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_MUTATION_MANUAL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION,
+                "run_id": "v180-dashboard-cancel-recovery",
+                "order_lineage_id": "lineage-v160-single-shot",
+                "artifact_type": "manual_owner_approval_lifecycle",
+                "status": "ready_manual_owner_approval_lifecycle",
+                "approval_state": "approved",
+                "manual_approval_recorded": true,
+                "approval_lifecycle_valid": true,
+                "approval_consumed": false,
+                "actual_cancel_send_allowed": false,
+                "cancel_attempted": false,
+                "cancel_requests_sent": 0,
+                "network_attempted": false,
+                "network_cancel_endpoint_attempted": false,
+                "retry_attempted": false,
+                "remediation_attempted": false,
+                "automatic_cancel_allowed": false,
+                "automatic_remediation_allowed": false,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            root.join("cancel_response_redaction.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_MUTATION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION,
+                "run_id": "v180-dashboard-cancel-recovery",
+                "order_lineage_id": "lineage-v160-single-shot",
+                "artifact_type": "cancel_response_redaction",
+                "status": "ready_cancel_response_redaction",
+                "response_redaction_ready": true,
+                "cancel_response_redacted": true,
+                "known_order_id": "123456789",
+                "known_client_order_id": "owner-approved-v160-single-shot",
+                "symbol": "BTCUSDT",
+                "account_label": "BINANCE-001",
+                "actual_cancel_send_allowed": false,
+                "cancel_attempted": false,
+                "cancel_requests_sent": 0,
+                "network_attempted": false,
+                "network_cancel_endpoint_attempted": false,
+                "retry_attempted": false,
+                "remediation_attempted": false,
+                "automatic_cancel_allowed": false,
+                "automatic_remediation_allowed": false,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            root.join("post_cancel_readback.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_MUTATION_POST_CANCEL_READBACK_SCHEMA_VERSION,
+                "run_id": "v180-dashboard-cancel-recovery",
+                "order_lineage_id": "lineage-v160-single-shot",
+                "artifact_type": "post_cancel_readback",
+                "status": "ready_post_cancel_readback",
+                "post_cancel_readback_ready": true,
+                "readback_state": "CANCELED",
+                "readback_state_class": "terminal_canceled",
+                "readback_outcome": "cancel_confirmed",
+                "terminal_state_observed": true,
+                "ambiguous_state_observed": false,
+                "order_lineage_preserved": true,
+                "actual_cancel_send_allowed": false,
+                "cancel_attempted": false,
+                "cancel_requests_sent": 0,
+                "readback_execution_attempted": false,
+                "order_state_read_attempted": false,
+                "production_order_state_reads_attempted": 0,
+                "network_attempted": false,
+                "network_readback_endpoint_attempted": false,
+                "network_cancel_endpoint_attempted": false,
+                "retry_attempted": false,
+                "remediation_attempted": false,
+                "automatic_cancel_allowed": false,
+                "automatic_remediation_allowed": false,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let closeout_json = r#"{
+  "schema_version": "__CLOSEOUT_SCHEMA__",
+  "run_id": "v180-dashboard-cancel-recovery",
+  "order_lineage_id": "lineage-v160-single-shot",
+  "artifact_type": "cancel_recovery_incident_audit_closeout",
+  "status": "ready_cancel_recovery_incident_audit_closeout",
+  "incident_closeout_ready": true,
+  "audit_trail_ready": true,
+  "audit_traceability_ready": true,
+  "cancel_recovery_lineage_ready": true,
+  "recovery_needed_reason": "orphan_risk_detected",
+  "risk_gate_result": "ready_owner_approval_required",
+  "risk_gate_ready": true,
+  "orphan_risk_detected": true,
+  "risk_halted": true,
+  "manual_review_required": true,
+  "new_orders_blocked": true,
+  "owner_approval_state": "approved",
+  "manual_approval_recorded": true,
+  "approval_lifecycle_valid": true,
+  "approval_consumed": false,
+  "redaction_contract_state": "ready_redacted_metadata_only",
+  "cancel_response_redaction_ready": true,
+  "cancel_response_redacted": true,
+  "post_cancel_readback_ready": true,
+  "readback_state": "CANCELED",
+  "readback_state_class": "terminal_canceled",
+  "readback_outcome": "cancel_confirmed",
+  "terminal_state_observed": true,
+  "ambiguous_state_observed": false,
+  "terminal_action_recommendation": "close_incident_cancel_confirmed",
+  "remaining_risk": "none_cancel_confirmed",
+  "remaining_risk_requires_manual_review": false,
+  "source_artifact_issues": [],
+  "lineage_issues": [],
+  "missing_cli_flags": [],
+  "actual_cancel_send_allowed": false,
+  "cancel_attempted": false,
+  "cancel_requests_sent": 0,
+  "production_order_mutations_attempted": 0,
+  "readback_execution_attempted": false,
+  "order_state_read_attempted": false,
+  "production_order_state_reads_attempted": 0,
+  "network_attempted": false,
+  "network_readback_endpoint_attempted": false,
+  "network_cancel_endpoint_attempted": false,
+  "retry_attempted": false,
+  "remediation_attempted": false,
+  "automatic_cancel_allowed": false,
+  "automatic_remediation_allowed": false,
+  "dashboard_order_controls_enabled": false,
+  "dashboard_cancel_controls_enabled": false
+}
+"#
+        .replace(
+            "__CLOSEOUT_SCHEMA__",
+            PRODUCTION_MUTATION_CANCEL_RECOVERY_INCIDENT_AUDIT_CLOSEOUT_SCHEMA_VERSION,
+        );
+        fs::write(
+            root.join("cancel_recovery_incident_audit_closeout.json"),
+            closeout_json,
         )
         .unwrap();
     }
