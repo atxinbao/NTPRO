@@ -66,6 +66,7 @@ Rules:
 |---|---|---|---|---|---|---|---|
 | SD-000 | APPROVED | control | Install this append-only scope decision log format. | RCTL-005 | control_scope_agent | verification_release_gatekeeper | 2026-05-27 |
 | SD-001 | APPROVED | removal | Python/PyO3/Cython removal is gated and cannot begin until Rust product surface, runtime smoke, adapter decisions, QA, and release gate evidence are complete. | RREM-*, RREL-*, RPROD-*, RCORE-*, RADP-* | control_scope_agent | verification_release_gatekeeper | 2026-05-27 |
+| SD-002 | APPROVED | release | v0.18.0 is owner-approved cancel recovery preview/gate/approval evidence only; actual cancel send remains forbidden. | V180-* | control_scope_agent | verification_release_gatekeeper | 2026-06-26 |
 
 ## SD-000 - Scope Decision Log Format
 
@@ -162,4 +163,57 @@ Evidence required:
 Rollback / supersession:
 
 - Supersede only with a later `removal` or `route` decision reviewed by the
+  Verification & Release Gatekeeper.
+
+## SD-002 - v0.18.0 Owner-Approved Cancel Recovery Preview Boundary
+
+ID: `SD-002`
+
+State: `APPROVED`
+
+Type: `release`
+
+Date: 2026-06-26
+
+Owner role: `control_scope_agent`
+
+Review role: `verification_release_gatekeeper`
+
+Impacted tasks:
+
+- `V180-*`
+
+Decision:
+
+`v0.18.0` may prepare owner-approved cancel recovery preview, cancel risk gate,
+manual owner approval lifecycle, redaction, readback, incident/audit closeout,
+Dashboard read-only display, and release gate evidence. It must keep actual
+cancel send disabled.
+
+Required boundary:
+
+```text
+actual_cancel_send_allowed = false
+cancel_attempted = false
+automatic_cancel_allowed = false
+dashboard_cancel_controls_enabled = false
+```
+
+Rationale:
+
+v0.17.0 and v0.17.1 remain evidence-only release tracks. Cancel recovery changes
+the system toward active order management, so v0.18.0 must first prove preview,
+gate, owner approval, redaction, and audit contracts without sending a cancel
+request.
+
+Evidence required:
+
+- `docs/rust-cutover/scope/v0_18_0_owner_approved_cancel_recovery_preview.md`
+- V180 task evidence proving the boundary fields remain false.
+- Release gates proving no cancel endpoint was attempted.
+
+Rollback / supersession:
+
+- Revert V180 scope docs and evidence to block v0.18.0 cancel recovery work.
+- Supersede only with a later release scope decision reviewed by the
   Verification & Release Gatekeeper.
