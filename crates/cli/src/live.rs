@@ -57,6 +57,7 @@ use crate::{
         LiveProductionMutationGuardedSendOpt, LiveProductionMutationLocalOrderLedgerOpt,
         LiveProductionMutationManualOwnerApprovalLifecycleOpt,
         LiveProductionMutationOrderStateReadbackOpt, LiveProductionMutationOrphanOrderDetectorOpt,
+        LiveProductionMutationPostCancelReadbackOpt,
         LiveProductionMutationReconciliationClassifierOpt, LiveProductionMutationRequestBuilderOpt,
         LiveProductionMutationResponseRedactionOpt, LiveProductionMutationRuntimeGateOpt,
         LiveProductionMutationSigningApprovalOpt, LiveProductionOrderStateReadOnlyProofOpt,
@@ -193,6 +194,8 @@ const PRODUCTION_MUTATION_MANUAL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION: &str =
     "ntpro.v180_manual_owner_approval_lifecycle.v1";
 const PRODUCTION_MUTATION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION: &str =
     "ntpro.v180_cancel_response_redaction.v1";
+const PRODUCTION_MUTATION_POST_CANCEL_READBACK_SCHEMA_VERSION: &str =
+    "ntpro.v180_post_cancel_readback.v1";
 const PRODUCTION_MUTATION_EXCHANGE_ORDER_READBACK_SCHEMA_VERSION: &str =
     "ntpro.v170_redacted_binance_order_readback.v1";
 const PRODUCTION_MUTATION_EXCHANGE_OPEN_ORDERS_READBACK_SCHEMA_VERSION: &str =
@@ -2910,6 +2913,98 @@ struct ProductionMutationCancelResponseRedactionArtifact {
     diagnostic: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionMutationPostCancelReadbackArtifact {
+    schema_version: String,
+    run_id: String,
+    order_lineage_id: String,
+    source_cancel_response_redaction_path: String,
+    source_readback_path: String,
+    source_cancel_response_redaction_run_id: String,
+    source_cancel_response_redaction_hash: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    capability: String,
+    capability_expansion: String,
+    lineage_scope: String,
+    default_fail_closed: bool,
+    cancel_response_redaction_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    cancel_response_redaction_ready: bool,
+    cancel_response_redacted: bool,
+    post_cancel_readback_ready: bool,
+    post_cancel_readback_classified: bool,
+    redacted_metadata_only: bool,
+    readback_type: String,
+    readback_state: String,
+    readback_state_class: String,
+    readback_outcome: String,
+    terminal_state_observed: bool,
+    ambiguous_state_observed: bool,
+    order_found: bool,
+    order_lineage_preserved: bool,
+    known_order_id: String,
+    known_client_order_id: String,
+    readback_order_id: String,
+    readback_client_order_id: String,
+    readback_orig_client_order_id: String,
+    symbol: String,
+    account_label: String,
+    readback_update_time_shape: String,
+    allowed_readback_fields: Vec<String>,
+    forbidden_readback_markers: Vec<String>,
+    source_artifact_issues: Vec<String>,
+    missing_cli_flags: Vec<String>,
+    unsupported_readback_states: Vec<String>,
+    api_key_value_recorded: bool,
+    api_secret_value_recorded: bool,
+    api_key_header_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    raw_exchange_response_recorded: bool,
+    raw_readback_body_recorded: bool,
+    response_body_recorded: bool,
+    response_headers_recorded: bool,
+    unrestricted_payload_recorded: bool,
+    account_balances_recorded: bool,
+    fills_recorded: bool,
+    readback_execution_attempted: bool,
+    order_state_read_attempted: bool,
+    production_order_state_reads_attempted: u64,
+    actual_cancel_send_allowed: bool,
+    cancel_attempted: bool,
+    cancel_requests_sent: u64,
+    production_order_mutations_attempted: u64,
+    network_attempted: bool,
+    network_readback_endpoint_attempted: bool,
+    network_cancel_endpoint_attempted: bool,
+    retry_attempted: bool,
+    replace_attempted: bool,
+    amend_attempted: bool,
+    flatten_attempted: bool,
+    remediation_attempted: bool,
+    automatic_cancel_allowed: bool,
+    automatic_remediation_allowed: bool,
+    production_order_mutation_allowed: bool,
+    dashboard_order_controls_enabled: bool,
+    dashboard_cancel_controls_enabled: bool,
+    cancel_response_redaction_ready_confirmed: bool,
+    readback_metadata_only_confirmed: bool,
+    terminal_and_ambiguous_classification_confirmed: bool,
+    no_raw_readback_persistence_confirmed: bool,
+    no_headers_persistence_confirmed: bool,
+    no_secret_persistence_confirmed: bool,
+    no_mutation_confirmed: bool,
+    no_retry_confirmed: bool,
+    no_remediation_confirmed: bool,
+    no_cancel_confirmed: bool,
+    no_network_confirmed: bool,
+    dashboard_controls_disabled_confirmed: bool,
+    diagnostic: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProductionMutationGuardedSendHttpResult {
     request_sent: bool,
@@ -4171,6 +4266,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionMutationCancelResponseRedaction(redaction) => {
             run_live_production_mutation_cancel_response_redaction(&redaction)
         }
+        LiveCommand::ProductionMutationPostCancelReadback(readback) => {
+            run_live_production_mutation_post_cancel_readback(&readback)
+        }
         LiveCommand::ProductionLiveAlphaRiskPreflight(preflight) => {
             run_live_production_live_alpha_risk_preflight(&preflight)
         }
@@ -4740,6 +4838,26 @@ fn run_live_production_mutation_cancel_response_redaction(
         opt.output.display(),
         artifact.response_redaction_ready,
         artifact.cancel_response_redacted,
+    );
+    Ok(())
+}
+
+fn run_live_production_mutation_post_cancel_readback(
+    opt: &LiveProductionMutationPostCancelReadbackOpt,
+) -> anyhow::Result<()> {
+    let artifact = build_production_mutation_post_cancel_readback_artifact(opt)?;
+    write_production_mutation_post_cancel_readback_artifact(&opt.output, &artifact)?;
+    println!(
+        "live.production_mutation_post_cancel_readback status={} run_id={} order_lineage_id={} output={} post_cancel_readback_ready={} readback_state={} readback_state_class={} terminal_state_observed={} ambiguous_state_observed={} raw_exchange_response_recorded=false raw_readback_body_recorded=false response_headers_recorded=false unrestricted_payload_recorded=false actual_cancel_send_allowed=false cancel_attempted=false cancel_requests_sent=0 production_order_mutations_attempted=0 readback_execution_attempted=false order_state_read_attempted=false production_order_state_reads_attempted=0 network_attempted=false network_readback_endpoint_attempted=false network_cancel_endpoint_attempted=false retry_attempted=false remediation_attempted=false dashboard_cancel_controls_enabled=false signature_recorded=false signed_query_recorded=false signed_url_recorded=false api_key_value_recorded=false api_secret_value_recorded=false",
+        artifact.status,
+        artifact.run_id,
+        artifact.order_lineage_id,
+        opt.output.display(),
+        artifact.post_cancel_readback_ready,
+        artifact.readback_state,
+        artifact.readback_state_class,
+        artifact.terminal_state_observed,
+        artifact.ambiguous_state_observed,
     );
     Ok(())
 }
@@ -10558,6 +10676,196 @@ fn build_production_mutation_cancel_response_redaction_artifact(
     })
 }
 
+fn build_production_mutation_post_cancel_readback_artifact(
+    opt: &LiveProductionMutationPostCancelReadbackOpt,
+) -> anyhow::Result<ProductionMutationPostCancelReadbackArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+
+    let cancel_response_redaction = load_json_value(
+        &opt.cancel_response_redaction,
+        "cancel response redaction artifact",
+    )?;
+    let readback = load_json_value(&opt.readback, "post-cancel readback metadata")?;
+    let missing_cli_flags = missing_production_mutation_post_cancel_readback_cli_flags(opt);
+    let source_artifact_issues =
+        production_mutation_post_cancel_readback_source_issues(&cancel_response_redaction);
+    let forbidden_readback_markers = production_mutation_response_forbidden_markers(&readback);
+    let readback_state = production_mutation_post_cancel_readback_state(&readback);
+    let (readback_state_class, readback_outcome, terminal_state_observed, ambiguous_state_observed) =
+        production_mutation_post_cancel_readback_classification(&readback_state);
+    let unsupported_readback_states = if readback_state_class == "unsupported" {
+        vec![readback_state.clone()]
+    } else {
+        Vec::new()
+    };
+    let post_cancel_readback_ready = missing_cli_flags.is_empty()
+        && source_artifact_issues.is_empty()
+        && forbidden_readback_markers.is_empty()
+        && unsupported_readback_states.is_empty();
+    let status = if !missing_cli_flags.is_empty() {
+        "blocked_missing_gate"
+    } else if !source_artifact_issues.is_empty() {
+        "blocked_source_artifact"
+    } else if !forbidden_readback_markers.is_empty() {
+        "blocked_forbidden_readback_marker"
+    } else if !unsupported_readback_states.is_empty() {
+        "blocked_unsupported_readback_state"
+    } else {
+        "ready_post_cancel_readback_classified"
+    };
+
+    let order_lineage_id = json_string_value(&cancel_response_redaction, "order_lineage_id")
+        .unwrap_or_else(|| "missing".into());
+    let known_order_id = json_scalar_string_value(&cancel_response_redaction, "known_order_id")
+        .unwrap_or_else(|| "missing".to_string());
+    let known_client_order_id =
+        json_scalar_string_value(&cancel_response_redaction, "known_client_order_id")
+            .unwrap_or_else(|| "missing".to_string());
+    let raw_readback_order_id =
+        json_scalar_string_value(&readback, "orderId").unwrap_or_else(|| "missing".to_string());
+    let raw_readback_client_order_id = json_scalar_string_value(&readback, "clientOrderId")
+        .unwrap_or_else(|| "missing".to_string());
+    let raw_readback_orig_client_order_id =
+        json_scalar_string_value(&readback, "origClientOrderId")
+            .unwrap_or_else(|| "missing".to_string());
+    let symbol = json_scalar_string_value(&readback, "symbol")
+        .or_else(|| json_scalar_string_value(&cancel_response_redaction, "symbol"))
+        .unwrap_or_else(|| "unknown".to_string());
+    let account_label = json_scalar_string_value(&cancel_response_redaction, "account_label")
+        .unwrap_or_else(|| "unknown".to_string());
+    let order_found = readback_state != "MISSING";
+    let order_lineage_preserved =
+        post_cancel_readback_ready && cancel_preview_identifier_known(&order_lineage_id);
+
+    Ok(ProductionMutationPostCancelReadbackArtifact {
+        schema_version: PRODUCTION_MUTATION_POST_CANCEL_READBACK_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        order_lineage_id,
+        source_cancel_response_redaction_path: opt.cancel_response_redaction.display().to_string(),
+        source_readback_path: opt.readback.display().to_string(),
+        source_cancel_response_redaction_run_id: json_string_value(
+            &cancel_response_redaction,
+            "run_id",
+        )
+        .unwrap_or_else(|| "unknown".to_string()),
+        source_cancel_response_redaction_hash: file_fnv1a64_hash(
+            &opt.cancel_response_redaction.display().to_string(),
+        ),
+        artifact_type: "post_cancel_readback".to_string(),
+        status: status.to_string(),
+        created_at: now_millis(),
+        mode: "single_mutation_candidate_post_cancel_readback_contract".to_string(),
+        capability: "Owner-Approved Cancel Recovery Preview".to_string(),
+        capability_expansion: "future_post_cancel_readback_only".to_string(),
+        lineage_scope: json_string_value(&cancel_response_redaction, "lineage_scope")
+            .unwrap_or_else(|| "unknown".to_string()),
+        default_fail_closed: true,
+        cancel_response_redaction_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.cancel_response_redaction,
+            &cancel_response_redaction,
+            "response_redaction_ready",
+        ),
+        cancel_response_redaction_ready: json_bool_value(
+            &cancel_response_redaction,
+            "response_redaction_ready",
+        )
+        .unwrap_or(false),
+        cancel_response_redacted: json_bool_value(
+            &cancel_response_redaction,
+            "cancel_response_redacted",
+        )
+        .unwrap_or(false),
+        post_cancel_readback_ready,
+        post_cancel_readback_classified: post_cancel_readback_ready,
+        redacted_metadata_only: post_cancel_readback_ready,
+        readback_type: "binance_post_cancel_order_readback_redacted_metadata_v1".to_string(),
+        readback_state,
+        readback_state_class: readback_state_class.to_string(),
+        readback_outcome: readback_outcome.to_string(),
+        terminal_state_observed,
+        ambiguous_state_observed,
+        order_found,
+        order_lineage_preserved,
+        known_order_id,
+        known_client_order_id,
+        readback_order_id: redact_cancel_preview_identifier(
+            "readback_order_id",
+            &raw_readback_order_id,
+        ),
+        readback_client_order_id: redact_cancel_preview_identifier(
+            "readback_client_order_id",
+            &raw_readback_client_order_id,
+        ),
+        readback_orig_client_order_id: redact_cancel_preview_identifier(
+            "readback_orig_client_order_id",
+            &raw_readback_orig_client_order_id,
+        ),
+        symbol,
+        account_label,
+        readback_update_time_shape: production_mutation_response_time_shape(&readback, "updateTime"),
+        allowed_readback_fields: production_mutation_post_cancel_readback_allowed_fields(),
+        forbidden_readback_markers,
+        source_artifact_issues,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        unsupported_readback_states,
+        api_key_value_recorded: false,
+        api_secret_value_recorded: false,
+        api_key_header_value_recorded: false,
+        signature_recorded: false,
+        signed_query_recorded: false,
+        signed_url_recorded: false,
+        raw_exchange_response_recorded: false,
+        raw_readback_body_recorded: false,
+        response_body_recorded: false,
+        response_headers_recorded: false,
+        unrestricted_payload_recorded: false,
+        account_balances_recorded: false,
+        fills_recorded: false,
+        readback_execution_attempted: false,
+        order_state_read_attempted: false,
+        production_order_state_reads_attempted: 0,
+        actual_cancel_send_allowed: false,
+        cancel_attempted: false,
+        cancel_requests_sent: 0,
+        production_order_mutations_attempted: 0,
+        network_attempted: false,
+        network_readback_endpoint_attempted: false,
+        network_cancel_endpoint_attempted: false,
+        retry_attempted: false,
+        replace_attempted: false,
+        amend_attempted: false,
+        flatten_attempted: false,
+        remediation_attempted: false,
+        automatic_cancel_allowed: false,
+        automatic_remediation_allowed: false,
+        production_order_mutation_allowed: false,
+        dashboard_order_controls_enabled: false,
+        dashboard_cancel_controls_enabled: false,
+        cancel_response_redaction_ready_confirmed: opt.confirm_cancel_response_redaction_ready,
+        readback_metadata_only_confirmed: opt.confirm_readback_metadata_only,
+        terminal_and_ambiguous_classification_confirmed: opt
+            .confirm_terminal_and_ambiguous_classification,
+        no_raw_readback_persistence_confirmed: opt.confirm_no_raw_readback_persistence,
+        no_headers_persistence_confirmed: opt.confirm_no_headers_persistence,
+        no_secret_persistence_confirmed: opt.confirm_no_secret_persistence,
+        no_mutation_confirmed: opt.confirm_no_mutation,
+        no_retry_confirmed: opt.confirm_no_retry,
+        no_remediation_confirmed: opt.confirm_no_remediation,
+        no_cancel_confirmed: opt.confirm_no_cancel,
+        no_network_confirmed: opt.confirm_no_network,
+        dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
+        diagnostic: if post_cancel_readback_ready {
+            "future post-cancel readback metadata was classified without raw response persistence, network readback, cancel send, retry, remediation, mutation, or Dashboard cancel controls"
+        } else {
+            "future post-cancel readback contract blocked before persisting unrestricted readback material or enabling retry/remediation controls"
+        }
+        .to_string(),
+    })
+}
+
 fn build_production_mutation_runtime_gate_artifact(
     opt: &LiveProductionMutationRuntimeGateOpt,
 ) -> anyhow::Result<ProductionMutationRuntimeGateArtifact> {
@@ -12149,6 +12457,7 @@ fn production_mutation_source_command(artifact_type: &str) -> &'static str {
         "cancel_response_redaction" => {
             "nautilus live production-mutation-cancel-response-redaction"
         }
+        "post_cancel_readback" => "nautilus live production-mutation-post-cancel-readback",
         "redacted_binance_order_readback" => {
             "nautilus live production-mutation-exchange-readback-mapper --order-readback"
         }
@@ -12949,6 +13258,107 @@ fn production_mutation_cancel_response_redaction_source_issues(
     issues
 }
 
+fn production_mutation_post_cancel_readback_source_issues(
+    cancel_response_redaction: &serde_json::Value,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(cancel_response_redaction, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION)
+    {
+        issues.push("cancel_response_redaction_schema_mismatch".to_string());
+    }
+    if json_string_value(cancel_response_redaction, "artifact_type").as_deref()
+        != Some("cancel_response_redaction")
+    {
+        issues.push("cancel_response_redaction_artifact_type_mismatch".to_string());
+    }
+    if json_string_value(cancel_response_redaction, "status").as_deref()
+        != Some("ready_cancel_response_redacted")
+    {
+        let status = json_string_value(cancel_response_redaction, "status")
+            .unwrap_or_else(|| "unknown".to_string());
+        issues.push(format!("cancel_response_redaction_status_{status}"));
+    }
+    for field in [
+        "response_redaction_ready",
+        "cancel_response_redacted",
+        "response_shape_validated",
+        "approval_lifecycle_valid",
+        "manual_approval_recorded",
+    ] {
+        if !json_bool_value(cancel_response_redaction, field).unwrap_or(false) {
+            issues.push(format!("cancel_response_redaction_{field}_not_true"));
+        }
+    }
+    if json_string_value(cancel_response_redaction, "lineage_scope").as_deref()
+        != Some("single_v16_mutation_candidate")
+    {
+        issues.push("cancel_response_redaction_lineage_scope_mismatch".to_string());
+    }
+    let order_lineage_id = json_string_value(cancel_response_redaction, "order_lineage_id")
+        .unwrap_or_else(|| "missing".into());
+    if !cancel_preview_identifier_known(&order_lineage_id) {
+        issues.push("order_lineage_id_missing".to_string());
+    }
+    for field in [
+        "source_artifact_issues",
+        "missing_cli_flags",
+        "forbidden_response_markers",
+    ] {
+        if json_array_has_items(cancel_response_redaction, field) {
+            issues.push(format!("cancel_response_redaction_{field}_not_empty"));
+        }
+    }
+
+    append_true_marker_issues(
+        &mut issues,
+        "cancel_response_redaction",
+        cancel_response_redaction,
+        &[
+            "approval_consumed",
+            "api_key_value_recorded",
+            "api_secret_value_recorded",
+            "api_key_header_value_recorded",
+            "signature_recorded",
+            "signed_query_recorded",
+            "signed_url_recorded",
+            "request_body_recorded",
+            "raw_request_body_recorded",
+            "raw_exchange_response_recorded",
+            "response_body_recorded",
+            "response_headers_recorded",
+            "unrestricted_payload_recorded",
+            "account_balances_recorded",
+            "fills_recorded",
+            "network_attempted",
+            "network_cancel_endpoint_attempted",
+            "actual_cancel_send_allowed",
+            "cancel_attempted",
+            "retry_attempted",
+            "replace_attempted",
+            "amend_attempted",
+            "flatten_attempted",
+            "remediation_attempted",
+            "automatic_cancel_allowed",
+            "automatic_remediation_allowed",
+            "production_order_mutation_allowed",
+            "dashboard_order_controls_enabled",
+            "dashboard_cancel_controls_enabled",
+        ],
+    );
+    append_nonzero_marker_issues(
+        &mut issues,
+        "cancel_response_redaction",
+        cancel_response_redaction,
+        &[
+            "cancel_requests_sent",
+            "production_order_mutations_attempted",
+        ],
+    );
+
+    issues
+}
+
 fn source_ref_path(
     source_path: &Path,
     artifact: &serde_json::Value,
@@ -13573,6 +13983,56 @@ fn production_mutation_cancel_response_allowed_fields() -> Vec<String> {
     .into_iter()
     .map(ToString::to_string)
     .collect()
+}
+
+fn production_mutation_post_cancel_readback_allowed_fields() -> Vec<String> {
+    [
+        "symbol",
+        "orderId",
+        "clientOrderId",
+        "origClientOrderId",
+        "status",
+        "updateTime",
+    ]
+    .into_iter()
+    .map(ToString::to_string)
+    .collect()
+}
+
+fn production_mutation_post_cancel_readback_state(readback: &serde_json::Value) -> String {
+    json_scalar_string_value(readback, "status")
+        .unwrap_or_else(|| "UNKNOWN".to_string())
+        .trim()
+        .to_ascii_uppercase()
+}
+
+fn production_mutation_post_cancel_readback_classification(
+    readback_state: &str,
+) -> (&'static str, &'static str, bool, bool) {
+    match readback_state {
+        "CANCELED" | "CANCELLED" => ("terminal_canceled", "cancel_confirmed", true, false),
+        "FILLED" => (
+            "terminal_filled",
+            "filled_before_or_during_cancel",
+            true,
+            false,
+        ),
+        "REJECTED" => ("terminal_rejected", "cancel_or_order_rejected", true, false),
+        "EXPIRED" => ("terminal_expired", "order_expired", true, false),
+        "MISSING" => (
+            "ambiguous_missing",
+            "order_missing_manual_review",
+            false,
+            true,
+        ),
+        "UNKNOWN" => (
+            "ambiguous_unknown",
+            "unknown_state_manual_review",
+            false,
+            true,
+        ),
+        _ => ("unsupported", "unsupported_state_blocked", false, true),
+    }
 }
 
 fn production_mutation_response_time_shape(value: &serde_json::Value, field: &str) -> String {
@@ -16366,6 +16826,16 @@ fn write_production_mutation_cancel_response_redaction_artifact(
     Ok(())
 }
 
+fn write_production_mutation_post_cancel_readback_artifact(
+    path: &Path,
+    value: &ProductionMutationPostCancelReadbackArtifact,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
 fn decimal_string_to_f64(field: &str, value: &str) -> Result<f64, String> {
     validate_positive_decimal_string(field, value).map_err(|error| error.to_string())?;
     value
@@ -17389,6 +17859,52 @@ fn missing_production_mutation_cancel_response_redaction_cli_flags(
     }
     if !opt.confirm_no_retry {
         missing.push("--confirm-no-retry");
+    }
+    if !opt.confirm_no_cancel {
+        missing.push("--confirm-no-cancel");
+    }
+    if !opt.confirm_no_network {
+        missing.push("--confirm-no-network");
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        missing.push("--confirm-dashboard-order-controls-disabled");
+    }
+    missing
+}
+
+fn missing_production_mutation_post_cancel_readback_cli_flags(
+    opt: &LiveProductionMutationPostCancelReadbackOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_mutation_post_cancel_readback {
+        missing.push("--allow-production-mutation-post-cancel-readback");
+    }
+    if !opt.confirm_cancel_response_redaction_ready {
+        missing.push("--confirm-cancel-response-redaction-ready");
+    }
+    if !opt.confirm_readback_metadata_only {
+        missing.push("--confirm-readback-metadata-only");
+    }
+    if !opt.confirm_terminal_and_ambiguous_classification {
+        missing.push("--confirm-terminal-and-ambiguous-classification");
+    }
+    if !opt.confirm_no_raw_readback_persistence {
+        missing.push("--confirm-no-raw-readback-persistence");
+    }
+    if !opt.confirm_no_headers_persistence {
+        missing.push("--confirm-no-headers-persistence");
+    }
+    if !opt.confirm_no_secret_persistence {
+        missing.push("--confirm-no-secret-persistence");
+    }
+    if !opt.confirm_no_mutation {
+        missing.push("--confirm-no-mutation");
+    }
+    if !opt.confirm_no_retry {
+        missing.push("--confirm-no-retry");
+    }
+    if !opt.confirm_no_remediation {
+        missing.push("--confirm-no-remediation");
     }
     if !opt.confirm_no_cancel {
         missing.push("--confirm-no-cancel");
@@ -19051,6 +19567,33 @@ write_summary = true
         }
     }
 
+    fn production_mutation_post_cancel_readback_opt(
+        cancel_response_redaction: PathBuf,
+        readback: PathBuf,
+        output: PathBuf,
+        all_cli_gates: bool,
+    ) -> LiveProductionMutationPostCancelReadbackOpt {
+        LiveProductionMutationPostCancelReadbackOpt {
+            run_id: "v180-production-mutation-post-cancel-readback".to_string(),
+            cancel_response_redaction,
+            readback,
+            output,
+            allow_production_mutation_post_cancel_readback: all_cli_gates,
+            confirm_cancel_response_redaction_ready: all_cli_gates,
+            confirm_readback_metadata_only: all_cli_gates,
+            confirm_terminal_and_ambiguous_classification: all_cli_gates,
+            confirm_no_raw_readback_persistence: all_cli_gates,
+            confirm_no_headers_persistence: all_cli_gates,
+            confirm_no_secret_persistence: all_cli_gates,
+            confirm_no_mutation: all_cli_gates,
+            confirm_no_retry: all_cli_gates,
+            confirm_no_remediation: all_cli_gates,
+            confirm_no_cancel: all_cli_gates,
+            confirm_no_network: all_cli_gates,
+            confirm_dashboard_order_controls_disabled: all_cli_gates,
+        }
+    }
+
     fn write_kill_switch_approval_artifact(
         output: PathBuf,
         kill_switch_active: bool,
@@ -19408,6 +19951,82 @@ write_summary = true
             .unwrap(),
         )
         .unwrap();
+    }
+
+    fn write_synthetic_production_mutation_post_cancel_readback(path: &Path, status: &str) {
+        fs::write(
+            path,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "symbol": "BTCUSDT",
+                "orderId": 123456789,
+                "clientOrderId": "owner-approved-v160-single-shot",
+                "origClientOrderId": "owner-approved-v160-single-shot",
+                "updateTime": 1718400000001_u64,
+                "status": status
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn write_forbidden_production_mutation_post_cancel_readback(path: &Path) {
+        fs::write(
+            path,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "symbol": "BTCUSDT",
+                "orderId": 123456789,
+                "clientOrderId": "owner-approved-v160-single-shot",
+                "origClientOrderId": "owner-approved-v160-single-shot",
+                "status": "CANCELED",
+                "headers": {"X-MBX-APIKEY": "must_not_persist"},
+                "body": {"raw": "raw readback must not persist"},
+                "apiSecret": "apiSecret must not persist",
+                "payload": {"raw": "unrestricted"},
+                "fills": [{"price": "1", "qty": "1"}]
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn assert_v180_post_cancel_readback_false_boundary(artifact: &serde_json::Value) {
+        for field in [
+            "api_key_value_recorded",
+            "api_secret_value_recorded",
+            "api_key_header_value_recorded",
+            "signature_recorded",
+            "signed_query_recorded",
+            "signed_url_recorded",
+            "raw_exchange_response_recorded",
+            "raw_readback_body_recorded",
+            "response_body_recorded",
+            "response_headers_recorded",
+            "unrestricted_payload_recorded",
+            "account_balances_recorded",
+            "fills_recorded",
+            "readback_execution_attempted",
+            "order_state_read_attempted",
+            "actual_cancel_send_allowed",
+            "cancel_attempted",
+            "network_attempted",
+            "network_readback_endpoint_attempted",
+            "network_cancel_endpoint_attempted",
+            "retry_attempted",
+            "replace_attempted",
+            "amend_attempted",
+            "flatten_attempted",
+            "remediation_attempted",
+            "automatic_cancel_allowed",
+            "automatic_remediation_allowed",
+            "production_order_mutation_allowed",
+            "dashboard_order_controls_enabled",
+            "dashboard_cancel_controls_enabled",
+        ] {
+            assert_eq!(artifact[field], false, "{field}");
+        }
+        assert_eq!(artifact["production_order_state_reads_attempted"], 0);
+        assert_eq!(artifact["cancel_requests_sent"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
     }
 
     fn write_ready_v160_response_redaction_artifact(output_dir: &Path) -> PathBuf {
@@ -19862,6 +20481,27 @@ write_summary = true
         )
         .unwrap();
         approval
+    }
+
+    fn write_ready_v180_cancel_response_redaction_artifact(
+        output_dir: &Path,
+        mapper_fixture: &V170ExchangeReadbackMapperFixture<'_>,
+    ) -> PathBuf {
+        let approval =
+            write_ready_v180_manual_owner_approval_lifecycle_artifact(output_dir, mapper_fixture);
+        let response = output_dir.join("synthetic-cancel-response.json");
+        let redaction = output_dir.join("cancel-response-redaction.json");
+        write_synthetic_production_mutation_cancel_response(&response);
+        run_live_production_mutation_cancel_response_redaction(
+            &production_mutation_cancel_response_redaction_opt(
+                approval,
+                response,
+                redaction.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+        redaction
     }
 
     fn passing_live_alpha_risk_input() -> ProductionLiveAlphaRiskPreflightInput {
@@ -27809,6 +28449,360 @@ write_summary = true
         assert_eq!(artifact["network_attempted"], false);
         assert_eq!(artifact["network_cancel_endpoint_attempted"], false);
         assert_eq!(artifact["dashboard_cancel_controls_enabled"], false);
+    }
+
+    #[test]
+    fn production_mutation_post_cancel_readback_classifies_terminal_and_ambiguous_states() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v180-007-post-cancel-readback-states-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let redaction = write_ready_v180_cancel_response_redaction_artifact(
+            &output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+
+        for (
+            status,
+            expected_class,
+            expected_outcome,
+            terminal_state_observed,
+            ambiguous_state_observed,
+            order_found,
+        ) in [
+            (
+                "CANCELED",
+                "terminal_canceled",
+                "cancel_confirmed",
+                true,
+                false,
+                true,
+            ),
+            (
+                "FILLED",
+                "terminal_filled",
+                "filled_before_or_during_cancel",
+                true,
+                false,
+                true,
+            ),
+            (
+                "REJECTED",
+                "terminal_rejected",
+                "cancel_or_order_rejected",
+                true,
+                false,
+                true,
+            ),
+            (
+                "EXPIRED",
+                "terminal_expired",
+                "order_expired",
+                true,
+                false,
+                true,
+            ),
+            (
+                "MISSING",
+                "ambiguous_missing",
+                "order_missing_manual_review",
+                false,
+                true,
+                false,
+            ),
+            (
+                "UNKNOWN",
+                "ambiguous_unknown",
+                "unknown_state_manual_review",
+                false,
+                true,
+                true,
+            ),
+        ] {
+            let readback = output_dir.join(format!("post-cancel-readback-{status}.json"));
+            let output = output_dir.join(format!("post-cancel-readback-{status}-artifact.json"));
+            write_synthetic_production_mutation_post_cancel_readback(&readback, status);
+
+            run_live_production_mutation_post_cancel_readback(
+                &production_mutation_post_cancel_readback_opt(
+                    redaction.clone(),
+                    readback,
+                    output.clone(),
+                    true,
+                ),
+            )
+            .unwrap();
+
+            let body = fs::read_to_string(output).unwrap();
+            assert!(!body.contains("123456789"));
+            assert!(!body.contains("owner-approved-v160-single-shot"));
+            assert!(!body.contains("\"headers\""));
+            assert!(!body.contains("\"payload\""));
+            assert!(!body.contains("\"body\""));
+            let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert_eq!(
+                artifact["schema_version"],
+                PRODUCTION_MUTATION_POST_CANCEL_READBACK_SCHEMA_VERSION
+            );
+            assert_eq!(artifact["artifact_type"], "post_cancel_readback");
+            assert_eq!(artifact["status"], "ready_post_cancel_readback_classified");
+            assert_eq!(artifact["post_cancel_readback_ready"], true);
+            assert_eq!(artifact["post_cancel_readback_classified"], true);
+            assert_eq!(artifact["redacted_metadata_only"], true);
+            assert_eq!(artifact["readback_state"], status);
+            assert_eq!(artifact["readback_state_class"], expected_class);
+            assert_eq!(artifact["readback_outcome"], expected_outcome);
+            assert_eq!(artifact["terminal_state_observed"], terminal_state_observed);
+            assert_eq!(
+                artifact["ambiguous_state_observed"],
+                ambiguous_state_observed
+            );
+            assert_eq!(artifact["order_found"], order_found);
+            assert_eq!(artifact["order_lineage_preserved"], true);
+            assert_eq!(artifact["symbol"], "BTCUSDT");
+            assert_eq!(artifact["account_label"], "prod-account-redacted");
+            assert!(
+                artifact["readback_order_id"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("readback_order_id:sha256:")
+            );
+            assert!(
+                artifact["readback_client_order_id"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("readback_client_order_id:sha256:")
+            );
+            assert!(
+                artifact["readback_orig_client_order_id"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("readback_orig_client_order_id:sha256:")
+            );
+            assert_eq!(
+                artifact["readback_update_time_shape"],
+                "epoch_millis_present_redacted"
+            );
+            assert_eq!(
+                artifact["cancel_response_redaction_ref"]["schema_version"],
+                PRODUCTION_MUTATION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION
+            );
+            assert_eq!(artifact["cancel_response_redaction_ref"]["ready"], true);
+            assert_eq!(
+                artifact["source_artifact_issues"].as_array().unwrap().len(),
+                0
+            );
+            assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+            assert_eq!(
+                artifact["forbidden_readback_markers"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                0
+            );
+            assert_eq!(
+                artifact["unsupported_readback_states"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                0
+            );
+            assert_v180_post_cancel_readback_false_boundary(&artifact);
+        }
+    }
+
+    #[test]
+    fn production_mutation_post_cancel_readback_blocks_forbidden_readback_markers() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v180-007-post-cancel-readback-forbidden-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let redaction = write_ready_v180_cancel_response_redaction_artifact(
+            &output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+        let readback = output_dir.join("forbidden-post-cancel-readback.json");
+        let output = output_dir.join("post-cancel-readback-forbidden.json");
+        write_forbidden_production_mutation_post_cancel_readback(&readback);
+
+        run_live_production_mutation_post_cancel_readback(
+            &production_mutation_post_cancel_readback_opt(
+                redaction,
+                readback,
+                output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_forbidden_readback_marker");
+        assert_eq!(artifact["post_cancel_readback_ready"], false);
+        assert_eq!(artifact["post_cancel_readback_classified"], false);
+        assert!(
+            artifact["forbidden_readback_markers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|marker| marker.as_str().unwrap().contains("$.headers"))
+        );
+        assert!(
+            artifact["forbidden_readback_markers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|marker| marker.as_str().unwrap().contains("$.body"))
+        );
+        assert!(
+            artifact["forbidden_readback_markers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|marker| marker.as_str().unwrap().contains("$.fills"))
+        );
+        assert_v180_post_cancel_readback_false_boundary(&artifact);
+    }
+
+    #[test]
+    fn production_mutation_post_cancel_readback_blocks_missing_confirmations() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v180-007-post-cancel-readback-missing-gates-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let redaction = write_ready_v180_cancel_response_redaction_artifact(
+            &output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+        let readback = output_dir.join("post-cancel-readback-canceled.json");
+        let output = output_dir.join("post-cancel-readback-missing-gates.json");
+        write_synthetic_production_mutation_post_cancel_readback(&readback, "CANCELED");
+
+        run_live_production_mutation_post_cancel_readback(
+            &production_mutation_post_cancel_readback_opt(
+                redaction,
+                readback,
+                output.clone(),
+                false,
+            ),
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_missing_gate");
+        assert_eq!(artifact["post_cancel_readback_ready"], false);
+        assert_eq!(artifact["post_cancel_readback_classified"], false);
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--allow-production-mutation-post-cancel-readback")
+        );
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--confirm-no-mutation")
+        );
+        assert_v180_post_cancel_readback_false_boundary(&artifact);
+    }
+
+    #[test]
+    fn production_mutation_post_cancel_readback_blocks_invalid_source_redaction() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v180-007-post-cancel-readback-source-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let redaction = write_ready_v180_cancel_response_redaction_artifact(
+            &output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+        let mut source: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&redaction).unwrap()).unwrap();
+        source["status"] = serde_json::Value::String("blocked_source_artifact".to_string());
+        source["response_redaction_ready"] = serde_json::Value::Bool(false);
+        let invalid_redaction = output_dir.join("invalid-cancel-response-redaction.json");
+        fs::write(
+            &invalid_redaction,
+            serde_json::to_string_pretty(&source).unwrap(),
+        )
+        .unwrap();
+        let readback = output_dir.join("post-cancel-readback-canceled.json");
+        let output = output_dir.join("post-cancel-readback-source-blocked.json");
+        write_synthetic_production_mutation_post_cancel_readback(&readback, "CANCELED");
+
+        run_live_production_mutation_post_cancel_readback(
+            &production_mutation_post_cancel_readback_opt(
+                invalid_redaction,
+                readback,
+                output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_source_artifact");
+        assert_eq!(artifact["post_cancel_readback_ready"], false);
+        assert!(
+            artifact["source_artifact_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "cancel_response_redaction_status_blocked_source_artifact")
+        );
+        assert!(
+            artifact["source_artifact_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "cancel_response_redaction_response_redaction_ready_not_true")
+        );
+        assert_v180_post_cancel_readback_false_boundary(&artifact);
     }
 
     #[test]
