@@ -24,6 +24,7 @@ use std::{
 };
 
 use anyhow::{Context, ensure};
+use aws_lc_rs::digest;
 use axum::{
     Json, Router,
     extract::{Path as AxumPath, State},
@@ -1165,7 +1166,7 @@ function renderProductionReconciliationOrphan(items) {
         ${items.map((item) => `
           <tr>
             <td data-label="节点"><strong>${text(item.node_id)}</strong></td>
-            <td data-label="当前结论"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div></td>
+            <td data-label="当前结论"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div>${panelRow("缺失证据", snapshotValue(item.missing_artifacts))}${panelRow("Schema 诊断", snapshotValue(item.schema_diagnostics))}${panelRow("Provenance 诊断", snapshotValue(item.provenance_diagnostics))}${panelRow("Stale 证据", snapshotValue(item.stale_artifacts))}</td>
             <td data-label="Lineage / 本地">${panelRow("Lineage", snapshotValue(item.order_lineage_id))}${panelRow("Ledger", snapshotValue(item.local_ledger_status))}${panelRow("本地状态", snapshotValue(item.local_order_state))}${panelRow("Ledger ready", snapshotValue(item.local_ledger_ready))}${panelRow("可重启读取", snapshotValue(item.restart_readable))}</td>
             <td data-label="交易所 Readback">${panelRow("Mapper", snapshotValue(item.exchange_readback_status))}${panelRow("已映射", snapshotValue(item.exchange_readback_mapped))}${panelRow("状态", snapshotValue(item.exchange_order_state))}${panelRow("原始状态", snapshotValue(item.exchange_order_status))}${panelRow("Open order", snapshotValue(item.open_order_observed))}${panelRow("终态", snapshotValue(item.terminal_state_observed))}</td>
             <td data-label="对账">${panelRow("Classifier", snapshotValue(item.reconciliation_status))}${panelRow("已分类", snapshotValue(item.reconciliation_classified))}${panelRow("结果", snapshotValue(item.reconciliation_outcome))}${panelRow("人工复核", snapshotValue(item.manual_review_required))}${panelRow("新单阻断", snapshotValue(item.new_orders_blocked))}</td>
@@ -3013,6 +3014,10 @@ pub struct ProductionReconciliationOrphanStatus {
     pub health: HealthStatus,
     pub readiness_status: DashboardValue<String>,
     pub diagnostic: DashboardValue<String>,
+    pub missing_artifacts: DashboardValue<String>,
+    pub schema_diagnostics: DashboardValue<String>,
+    pub provenance_diagnostics: DashboardValue<String>,
+    pub stale_artifacts: DashboardValue<String>,
     pub order_lineage_id: DashboardValue<String>,
     pub local_ledger_status: DashboardValue<String>,
     pub local_order_state: DashboardValue<String>,
@@ -6195,28 +6200,38 @@ fn production_reconciliation_orphan_from_record(
         &reconciliation_classifier,
         &orphan_order_detector,
     ];
-
-    let schema_ok = local_order_ledger.as_ref().is_none_or(|_| {
-        artifact_schema_matches(
+    let artifact_specs = [
+        (
+            "local_order_ledger",
+            paths.local_order_ledger_path.as_path(),
             &local_order_ledger,
             PRODUCTION_MUTATION_LOCAL_ORDER_LEDGER_SCHEMA_VERSION,
-        )
-    }) && exchange_readback_mapper.as_ref().is_none_or(|_| {
-        artifact_schema_matches(
+        ),
+        (
+            "exchange_readback_mapper",
+            paths.exchange_readback_mapper_path.as_path(),
             &exchange_readback_mapper,
             PRODUCTION_MUTATION_EXCHANGE_READBACK_MAPPER_SCHEMA_VERSION,
-        )
-    }) && reconciliation_classifier.as_ref().is_none_or(|_| {
-        artifact_schema_matches(
+        ),
+        (
+            "reconciliation_classifier",
+            paths.reconciliation_classifier_path.as_path(),
             &reconciliation_classifier,
             PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_SCHEMA_VERSION,
-        )
-    }) && orphan_order_detector.as_ref().is_none_or(|_| {
-        artifact_schema_matches(
+        ),
+        (
+            "orphan_order_detector",
+            paths.orphan_order_detector_path.as_path(),
             &orphan_order_detector,
             PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_SCHEMA_VERSION,
-        )
-    });
+        ),
+    ];
+    let missing_artifacts = v17_missing_artifact_diagnostics(&artifact_specs);
+    let schema_diagnostics = v17_schema_diagnostics(&artifact_specs);
+    let provenance_diagnostics = v17_provenance_diagnostics(&artifact_specs);
+    let stale_artifacts = v17_stale_artifact_diagnostics(&artifact_specs);
+    let schema_ok = schema_diagnostics.is_empty();
+    let provenance_ok = provenance_diagnostics.is_empty();
 
     let order_lineage_id = v17_first_available_string_any(&artifacts, "order_lineage_id");
     let local_ledger_status = local_order_ledger
@@ -6304,6 +6319,7 @@ fn production_reconciliation_orphan_from_record(
         v17_any_available_bool_any(&artifacts, "production_order_mutation_allowed");
 
     let boundary_violation = !schema_ok
+        || !provenance_ok
         || duplicate_submit_attempted.value == Some(true)
         || retry_attempted.value == Some(true)
         || cancel_attempted.value == Some(true)
@@ -6315,12 +6331,14 @@ fn production_reconciliation_orphan_from_record(
         || network_attempted.value == Some(true)
         || production_order_submission_allowed.value == Some(true)
         || production_order_mutation_allowed.value == Some(true);
-    let review_required = orphan_risk_detected.value == Some(true)
+    let review_required = !stale_artifacts.is_empty()
+        || orphan_risk_detected.value == Some(true)
         || risk_halted.value == Some(true)
         || manual_review_required.value == Some(true)
         || new_orders_blocked.value == Some(true)
         || stale_ledger_restart_required.value == Some(true);
-    let ready = local_ledger_ready.value == Some(true)
+    let ready = missing_artifacts.is_empty()
+        && local_ledger_ready.value == Some(true)
         && exchange_readback_mapped.value == Some(true)
         && reconciliation_classified.value == Some(true)
         && orphan_detection_completed.value == Some(true)
@@ -6343,11 +6361,17 @@ fn production_reconciliation_orphan_from_record(
             HealthStatus::Healthy
         },
         readiness_status: DashboardValue::available(readiness_status.to_string()),
-        diagnostic: DashboardValue::available(if schema_ok {
-            readiness_status.to_string()
-        } else {
-            "production_reconciliation_orphan_schema_invalid".to_string()
-        }),
+        diagnostic: DashboardValue::available(v17_reconciliation_orphan_diagnostic(
+            readiness_status,
+            &missing_artifacts,
+            &schema_diagnostics,
+            &provenance_diagnostics,
+            &stale_artifacts,
+        )),
+        missing_artifacts: diagnostic_value(&missing_artifacts),
+        schema_diagnostics: diagnostic_value(&schema_diagnostics),
+        provenance_diagnostics: diagnostic_value(&provenance_diagnostics),
+        stale_artifacts: diagnostic_value(&stale_artifacts),
         order_lineage_id,
         local_ledger_status,
         local_order_state,
@@ -6390,6 +6414,165 @@ fn production_reconciliation_orphan_from_record(
         ),
         orphan_order_detector_path: dashboard_path_if_exists(&paths.orphan_order_detector_path),
     })
+}
+
+fn diagnostic_value(diagnostics: &[String]) -> DashboardValue<String> {
+    if diagnostics.is_empty() {
+        DashboardValue::unknown()
+    } else {
+        DashboardValue::available(diagnostics.join(";"))
+    }
+}
+
+fn v17_missing_artifact_diagnostics(
+    artifacts: &[(&str, &FsPath, &Option<Value>, &str)],
+) -> Vec<String> {
+    artifacts
+        .iter()
+        .filter(|(_, path, _, _)| !path.exists())
+        .map(|(name, _, _, _)| (*name).to_string())
+        .collect()
+}
+
+fn v17_schema_diagnostics(artifacts: &[(&str, &FsPath, &Option<Value>, &str)]) -> Vec<String> {
+    artifacts
+        .iter()
+        .filter_map(|(name, path, value, expected)| {
+            if !path.exists() {
+                return None;
+            }
+            let actual = value
+                .as_ref()
+                .and_then(|value| value.get("schema_version"))
+                .and_then(Value::as_str)
+                .unwrap_or(if value.is_some() {
+                    "missing_schema"
+                } else {
+                    "json_invalid"
+                });
+            (actual != *expected).then(|| format!("{name}:expected={expected},actual={actual}"))
+        })
+        .collect()
+}
+
+fn v17_provenance_diagnostics(artifacts: &[(&str, &FsPath, &Option<Value>, &str)]) -> Vec<String> {
+    let mut diagnostics = Vec::new();
+    for (artifact_name, _, artifact, _) in artifacts {
+        let Some(object) = artifact.as_ref().and_then(Value::as_object) else {
+            continue;
+        };
+        for (field, source_ref) in object {
+            if !field.ends_with("_ref") || !source_ref.is_object() {
+                continue;
+            }
+            let prefix = format!("{artifact_name}.{field}");
+            for required in [
+                "sha256",
+                "bytes",
+                "source_command",
+                "source_commit",
+                "source_release_tag",
+            ] {
+                if source_ref.get(required).is_none() {
+                    diagnostics.push(format!("{prefix}.{required}_missing"));
+                }
+            }
+            let Some(source_path) = source_ref.get("path").and_then(Value::as_str) else {
+                diagnostics.push(format!("{prefix}.path_missing"));
+                continue;
+            };
+            let source_path = FsPath::new(source_path);
+            if !source_path.exists() {
+                diagnostics.push(format!("{prefix}.source_missing"));
+                continue;
+            }
+            let Ok(bytes) = fs::read(source_path) else {
+                diagnostics.push(format!("{prefix}.source_unreadable"));
+                continue;
+            };
+            if source_ref
+                .get("sha256")
+                .and_then(Value::as_str)
+                .is_some_and(|expected| expected != sha256_bytes(&bytes))
+            {
+                diagnostics.push(format!("{prefix}.sha256_mismatch"));
+            }
+            if source_ref
+                .get("bytes")
+                .and_then(Value::as_u64)
+                .is_some_and(|expected| expected != bytes.len() as u64)
+            {
+                diagnostics.push(format!("{prefix}.bytes_mismatch"));
+            }
+        }
+    }
+    diagnostics
+}
+
+fn v17_stale_artifact_diagnostics(
+    artifacts: &[(&str, &FsPath, &Option<Value>, &str)],
+) -> Vec<String> {
+    artifacts
+        .iter()
+        .filter_map(|(name, _, value, _)| {
+            let value = value.as_ref()?;
+            let stale = json_bool(value, "stale_ledger_restart_required")
+                || json_bool(value, "stale_evidence")
+                || json_bool(value, "regeneration_required")
+                || value
+                    .get("status")
+                    .and_then(Value::as_str)
+                    .is_some_and(|status| status.contains("stale"));
+            stale.then(|| (*name).to_string())
+        })
+        .collect()
+}
+
+fn v17_reconciliation_orphan_diagnostic(
+    readiness_status: &str,
+    missing_artifacts: &[String],
+    schema_diagnostics: &[String],
+    provenance_diagnostics: &[String],
+    stale_artifacts: &[String],
+) -> String {
+    if !missing_artifacts.is_empty() {
+        format!(
+            "production_reconciliation_orphan_missing_artifacts:{}",
+            missing_artifacts.join("|")
+        )
+    } else if !schema_diagnostics.is_empty() {
+        format!(
+            "production_reconciliation_orphan_schema_mismatch:{}",
+            schema_diagnostics.join("|")
+        )
+    } else if !provenance_diagnostics.is_empty() {
+        format!(
+            "production_reconciliation_orphan_provenance_mismatch:{}",
+            provenance_diagnostics.join("|")
+        )
+    } else if !stale_artifacts.is_empty() {
+        format!(
+            "production_reconciliation_orphan_stale_evidence:{}",
+            stale_artifacts.join("|")
+        )
+    } else {
+        readiness_status.to_string()
+    }
+}
+
+fn sha256_bytes(bytes: &[u8]) -> String {
+    let digest = digest::digest(&digest::SHA256, bytes);
+    format!("sha256:{}", lowercase_hex(digest.as_ref()))
+}
+
+fn lowercase_hex(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        out.push(HEX[(byte >> 4) as usize] as char);
+        out.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    out
 }
 
 fn artifact_schema_matches(value: &Option<Value>, expected: &str) -> bool {
@@ -11214,6 +11397,22 @@ mod tests {
             Some("production_reconciliation_orphan_manual_review_required")
         );
         assert_eq!(
+            item.missing_artifacts.availability,
+            DashboardAvailability::Unknown
+        );
+        assert_eq!(
+            item.schema_diagnostics.availability,
+            DashboardAvailability::Unknown
+        );
+        assert_eq!(
+            item.provenance_diagnostics.availability,
+            DashboardAvailability::Unknown
+        );
+        assert_eq!(
+            item.stale_artifacts.availability,
+            DashboardAvailability::Unknown
+        );
+        assert_eq!(
             item.order_lineage_id.value.as_deref(),
             Some("lineage-v160-single-shot")
         );
@@ -11301,8 +11500,164 @@ mod tests {
         assert!(renderer.contains("Lineage / 本地"));
         assert!(renderer.contains("交易所 Readback"));
         assert!(renderer.contains("孤儿单风险"));
+        assert!(renderer.contains("缺失证据"));
+        assert!(renderer.contains("Schema 诊断"));
+        assert!(renderer.contains("Provenance 诊断"));
+        assert!(renderer.contains("Stale 证据"));
         let snapshot_value = serde_json::to_value(&snapshot).unwrap();
         assert_forbidden_keys_absent(&snapshot_value);
+    }
+
+    #[test]
+    fn production_reconciliation_orphan_missing_artifact_names_are_visible() {
+        let root = temp_root("production-reconciliation-orphan-missing");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "production-reconciliation-orphan-missing");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_mutation_v17_reconciliation_orphan_artifacts(&record);
+        fs::remove_file(
+            record
+                .artifact_root
+                .join("v0_17")
+                .join("production_mutation_exchange_readback_mapper.json"),
+        )
+        .unwrap();
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-26T11:20:00Z").unwrap();
+
+        assert_eq!(snapshot.production_reconciliation_orphan.len(), 1);
+        let item = &snapshot.production_reconciliation_orphan[0];
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_reconciliation_orphan_manual_review_required")
+        );
+        assert!(item.diagnostic.value.as_deref().is_some_and(|value| {
+            value.contains("production_reconciliation_orphan_missing_artifacts")
+                && value.contains("exchange_readback_mapper")
+        }));
+        assert_eq!(
+            item.missing_artifacts.value.as_deref(),
+            Some("exchange_readback_mapper")
+        );
+        assert_eq!(item.dashboard_order_controls_enabled.value, Some(false));
+        assert_eq!(item.dashboard_cancel_controls_enabled.value, Some(false));
+    }
+
+    #[test]
+    fn production_reconciliation_orphan_schema_mismatch_is_explicit() {
+        let root = temp_root("production-reconciliation-orphan-schema");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "production-reconciliation-orphan-schema");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_mutation_v17_reconciliation_orphan_artifacts(&record);
+        let classifier_path = record
+            .artifact_root
+            .join("v0_17")
+            .join("production_mutation_reconciliation_classifier.json");
+        let mut classifier: Value =
+            serde_json::from_str(&fs::read_to_string(&classifier_path).unwrap()).unwrap();
+        classifier["schema_version"] = json!("ntpro.v170_wrong_schema.v1");
+        fs::write(
+            &classifier_path,
+            serde_json::to_string_pretty(&classifier).unwrap(),
+        )
+        .unwrap();
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-26T11:21:00Z").unwrap();
+
+        assert_eq!(snapshot.production_reconciliation_orphan.len(), 1);
+        let item = &snapshot.production_reconciliation_orphan[0];
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert!(item.diagnostic.value.as_deref().is_some_and(|value| {
+            value.contains("production_reconciliation_orphan_schema_mismatch")
+                && value.contains("reconciliation_classifier")
+        }));
+        assert!(
+            item.schema_diagnostics
+                .value
+                .as_deref()
+                .is_some_and(|value| {
+                    value.contains(PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_SCHEMA_VERSION)
+                        && value.contains("ntpro.v170_wrong_schema.v1")
+                })
+        );
+        assert_eq!(item.dashboard_order_controls_enabled.value, Some(false));
+        assert_eq!(item.dashboard_cancel_controls_enabled.value, Some(false));
+    }
+
+    #[test]
+    fn production_reconciliation_orphan_provenance_and_stale_diagnostics_are_visible() {
+        let root = temp_root("production-reconciliation-orphan-provenance");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "production-reconciliation-orphan-provenance");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_mutation_v17_reconciliation_orphan_artifacts(&record);
+        let source_path = record.artifact_root.join("v0_17").join("source.json");
+        fs::write(&source_path, r#"{"status":"source"}"#).unwrap();
+        let orphan_path = record
+            .artifact_root
+            .join("v0_17")
+            .join("production_mutation_orphan_order_detector.json");
+        let mut orphan: Value =
+            serde_json::from_str(&fs::read_to_string(&orphan_path).unwrap()).unwrap();
+        orphan["reconciliation_classifier_ref"] = json!({
+            "path": source_path.display().to_string(),
+            "hash": "fnv1a64:legacy",
+            "sha256": "sha256:0000",
+            "bytes": 1,
+            "source_command": "nautilus live production-mutation-reconciliation-classifier",
+            "source_commit": "commit-a",
+            "source_release_tag": "ntpro-rust-only-v0.17.1"
+        });
+        orphan["stale_ledger_restart_required"] = json!(true);
+        fs::write(&orphan_path, serde_json::to_string_pretty(&orphan).unwrap()).unwrap();
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-26T11:22:00Z").unwrap();
+
+        assert_eq!(snapshot.production_reconciliation_orphan.len(), 1);
+        let item = &snapshot.production_reconciliation_orphan[0];
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert!(item.diagnostic.value.as_deref().is_some_and(|value| {
+            value.contains("production_reconciliation_orphan_provenance_mismatch")
+        }));
+        assert!(
+            item.provenance_diagnostics
+                .value
+                .as_deref()
+                .is_some_and(|value| {
+                    value.contains("orphan_order_detector.reconciliation_classifier_ref")
+                        && value.contains("sha256_mismatch")
+                        && value.contains("bytes_mismatch")
+                })
+        );
+        assert_eq!(
+            item.stale_artifacts.value.as_deref(),
+            Some("orphan_order_detector")
+        );
+        assert_eq!(item.dashboard_order_controls_enabled.value, Some(false));
+        assert_eq!(item.dashboard_cancel_controls_enabled.value, Some(false));
     }
 
     #[test]
