@@ -198,6 +198,8 @@ pub enum LiveCommand {
     ProductionMutationReconciliationClassifier(LiveProductionMutationReconciliationClassifierOpt),
     /// Detects v0.17 open/orphan order risk for one mutation candidate lineage.
     ProductionMutationOrphanOrderDetector(LiveProductionMutationOrphanOrderDetectorOpt),
+    /// Builds a v0.18 cancel request preview from one v0.17 orphan-risk artifact; no cancel send.
+    ProductionMutationCancelRequestPreview(LiveProductionMutationCancelRequestPreviewOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -1478,6 +1480,56 @@ pub struct LiveProductionMutationOrphanOrderDetectorOpt {
     /// Confirms no cancel is attempted or scheduled.
     #[arg(long)]
     pub confirm_no_cancel: bool,
+    /// Confirms no replace, amend, correction, flatten, or remediation is attempted.
+    #[arg(long)]
+    pub confirm_no_remediation: bool,
+    /// Confirms Dashboard order and cancel controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+}
+
+/// v0.18 cancel request preview options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationCancelRequestPreviewOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.17 orphan order detector JSON input.
+    #[arg(long)]
+    pub orphan_order_detector: PathBuf,
+    /// Owner-selected account label for the single cancel candidate scope.
+    #[arg(long)]
+    pub account_label: String,
+    /// v0.18 cancel request preview JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for cancel request preview generation.
+    #[arg(long)]
+    pub allow_production_mutation_cancel_request_preview: bool,
+    /// Confirms preview is limited to one v0.16 mutation candidate lineage.
+    #[arg(long)]
+    pub confirm_single_v16_mutation_candidate_lineage: bool,
+    /// Confirms the source orphan detector halted risk and blocked new orders.
+    #[arg(long)]
+    pub confirm_orphan_risk_halted: bool,
+    /// Confirms owner/manual review remains required before any future cancel scope.
+    #[arg(long)]
+    pub confirm_manual_review_required: bool,
+    /// Confirms the preview uses known order identifiers only.
+    #[arg(long)]
+    pub confirm_known_order_identifier_only: bool,
+    /// Confirms no retry is attempted or scheduled.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms no cancel is attempted or scheduled.
+    #[arg(long)]
+    pub confirm_no_cancel: bool,
+    /// Confirms no network endpoint is attempted.
+    #[arg(long)]
+    pub confirm_no_network: bool,
     /// Confirms no replace, amend, correction, flatten, or remediation is attempted.
     #[arg(long)]
     pub confirm_no_remediation: bool,
@@ -3503,6 +3555,64 @@ mod tests {
         assert!(detector.confirm_no_remediation);
         assert!(detector.confirm_dashboard_order_controls_disabled);
         assert!(detector.confirm_no_secret_persistence);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_cancel_request_preview_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-cancel-request-preview",
+            "--run-id",
+            "v180-cancel-request-preview",
+            "--orphan-order-detector",
+            "runs/v170/orphan-order-detector.json",
+            "--account-label",
+            "prod-account-redacted",
+            "--output",
+            "runs/v180/cancel-request-preview.json",
+            "--allow-production-mutation-cancel-request-preview",
+            "--confirm-single-v16-mutation-candidate-lineage",
+            "--confirm-orphan-risk-halted",
+            "--confirm-manual-review-required",
+            "--confirm-known-order-identifier-only",
+            "--confirm-no-retry",
+            "--confirm-no-cancel",
+            "--confirm-no-network",
+            "--confirm-no-remediation",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-secret-persistence",
+        ])
+        .expect("live production-mutation-cancel-request-preview should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationCancelRequestPreview(preview) = live.command else {
+            panic!("expected production-mutation-cancel-request-preview command");
+        };
+
+        assert_eq!(preview.run_id, "v180-cancel-request-preview");
+        assert_eq!(
+            preview.orphan_order_detector,
+            PathBuf::from("runs/v170/orphan-order-detector.json")
+        );
+        assert_eq!(preview.account_label, "prod-account-redacted");
+        assert_eq!(
+            preview.output,
+            PathBuf::from("runs/v180/cancel-request-preview.json")
+        );
+        assert!(preview.allow_production_mutation_cancel_request_preview);
+        assert!(preview.confirm_single_v16_mutation_candidate_lineage);
+        assert!(preview.confirm_orphan_risk_halted);
+        assert!(preview.confirm_manual_review_required);
+        assert!(preview.confirm_known_order_identifier_only);
+        assert!(preview.confirm_no_retry);
+        assert!(preview.confirm_no_cancel);
+        assert!(preview.confirm_no_network);
+        assert!(preview.confirm_no_remediation);
+        assert!(preview.confirm_dashboard_order_controls_disabled);
+        assert!(preview.confirm_no_secret_persistence);
     }
 
     #[test]
