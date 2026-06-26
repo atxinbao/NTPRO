@@ -43,9 +43,23 @@ Hosted release evidence from
 PASS, including both `release-surface-current-guard = PASS` and
 `release-publication-guard = PASS`.
 
+## Release Manifest
+
+`scripts/ai/verify_v171_release_hardening.sh` writes the machine-readable
+manifest to:
+
+```text
+target/ntpro-v171/v0_17_1_release_manifest.json
+```
+
+The manifest records product version, release tag, current published release
+tag, commit, tree, Cargo workspace version, capability, patch-only capability
+expansion, tracked dirty state, gate status, and generated timestamp.
+
 ## Validation Plan
 
 ```text
+scripts/ai/verify_release.sh v171-release-hardening
 scripts/ai/verify_release.sh release-surface-current-guard
 scripts/ai/verify_release.sh release-publication-guard
 scripts/ai/verify_fast.sh
@@ -56,4 +70,3 @@ git diff --check
 
 This task does not publish a tag or GitHub Release. It only records the guard
 requirements for the future v0.17.1 patch hardening path.
-

@@ -16,6 +16,8 @@ surface 当前正确，也要证明 GitHub Release 发布态正确。
 
 - Release-facing docs now require `release-surface-current-guard`.
 - Release-facing docs now require `release-publication-guard`.
+- Added `target/ntpro-v171/v0_17_1_release_manifest.json` as the generated
+  machine-readable release manifest path.
 - Hosted release evidence references the completed
   `ntpro-rust-only-v0.17.0` release gate run with 49/49 PASS.
 
@@ -36,6 +38,7 @@ Dashboard cancel controls = disabled
 Release evidence must include both:
 
 ```text
+scripts/ai/verify_release.sh v171-release-hardening
 scripts/ai/verify_release.sh release-surface-current-guard
 scripts/ai/verify_release.sh release-publication-guard
 ```
@@ -45,4 +48,3 @@ scripts/ai/verify_release.sh release-publication-guard
 This document does not publish a GitHub Release. The current formal release is
 `ntpro-rust-only-v0.17.0`; the future patch target remains
 `ntpro-rust-only-v0.17.1`.
-
