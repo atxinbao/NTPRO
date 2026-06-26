@@ -206,6 +206,8 @@ pub enum LiveCommand {
     ProductionMutationManualOwnerApprovalLifecycle(
         LiveProductionMutationManualOwnerApprovalLifecycleOpt,
     ),
+    /// Redacts a future v0.18 owner-approved cancel response artifact; no cancel send.
+    ProductionMutationCancelResponseRedaction(LiveProductionMutationCancelResponseRedactionOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -1675,6 +1677,59 @@ pub struct LiveProductionMutationManualOwnerApprovalLifecycleOpt {
     /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
     #[arg(long)]
     pub confirm_no_secret_persistence: bool,
+}
+
+/// v0.18 cancel response redaction options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationCancelResponseRedactionOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.18 manual owner approval lifecycle JSON input.
+    #[arg(long)]
+    pub manual_owner_approval_lifecycle: PathBuf,
+    /// Synthetic or manually supplied future cancel response JSON input.
+    #[arg(long)]
+    pub response: PathBuf,
+    /// v0.18 cancel response redaction JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for cancel response redaction contract evaluation.
+    #[arg(long)]
+    pub allow_production_mutation_cancel_response_redaction: bool,
+    /// Confirms the manual owner approval lifecycle must already be valid.
+    #[arg(long)]
+    pub confirm_manual_owner_approval_lifecycle_ready: bool,
+    /// Confirms raw response bodies must not be persisted.
+    #[arg(long)]
+    pub confirm_no_raw_response_persistence: bool,
+    /// Confirms HTTP headers must not be persisted.
+    #[arg(long)]
+    pub confirm_no_headers_persistence: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+    /// Confirms only cancel response metadata fields are allowed.
+    #[arg(long)]
+    pub confirm_cancel_metadata_only: bool,
+    /// Confirms account balances are not persisted in the response artifact.
+    #[arg(long)]
+    pub confirm_no_account_balances: bool,
+    /// Confirms unrestricted payload capture is forbidden.
+    #[arg(long)]
+    pub confirm_no_unrestricted_payload: bool,
+    /// Confirms retry, correction, replace, amend, flatten, and remediation remain forbidden.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms no cancel send is attempted or allowed.
+    #[arg(long)]
+    pub confirm_no_cancel: bool,
+    /// Confirms no network endpoint is attempted.
+    #[arg(long)]
+    pub confirm_no_network: bool,
+    /// Confirms Dashboard order and cancel controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
 }
 
 /// Hypothetical live-alpha risk preflight options.
@@ -3894,6 +3949,69 @@ mod tests {
         assert!(approval.confirm_no_network);
         assert!(approval.confirm_dashboard_order_controls_disabled);
         assert!(approval.confirm_no_secret_persistence);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_cancel_response_redaction_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-cancel-response-redaction",
+            "--run-id",
+            "v180-cancel-response-redaction",
+            "--manual-owner-approval-lifecycle",
+            "runs/v180/manual-owner-approval-lifecycle.json",
+            "--response",
+            "runs/v180/synthetic-cancel-response.json",
+            "--output",
+            "runs/v180/cancel-response-redaction.json",
+            "--allow-production-mutation-cancel-response-redaction",
+            "--confirm-manual-owner-approval-lifecycle-ready",
+            "--confirm-no-raw-response-persistence",
+            "--confirm-no-headers-persistence",
+            "--confirm-no-secret-persistence",
+            "--confirm-cancel-metadata-only",
+            "--confirm-no-account-balances",
+            "--confirm-no-unrestricted-payload",
+            "--confirm-no-retry",
+            "--confirm-no-cancel",
+            "--confirm-no-network",
+            "--confirm-dashboard-order-controls-disabled",
+        ])
+        .expect("live production-mutation-cancel-response-redaction should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationCancelResponseRedaction(redaction) = live.command else {
+            panic!("expected production-mutation-cancel-response-redaction command");
+        };
+
+        assert_eq!(redaction.run_id, "v180-cancel-response-redaction");
+        assert_eq!(
+            redaction.manual_owner_approval_lifecycle,
+            PathBuf::from("runs/v180/manual-owner-approval-lifecycle.json")
+        );
+        assert_eq!(
+            redaction.response,
+            PathBuf::from("runs/v180/synthetic-cancel-response.json")
+        );
+        assert_eq!(
+            redaction.output,
+            PathBuf::from("runs/v180/cancel-response-redaction.json")
+        );
+        assert!(redaction.allow_production_mutation_cancel_response_redaction);
+        assert!(redaction.confirm_manual_owner_approval_lifecycle_ready);
+        assert!(redaction.confirm_no_raw_response_persistence);
+        assert!(redaction.confirm_no_headers_persistence);
+        assert!(redaction.confirm_no_secret_persistence);
+        assert!(redaction.confirm_cancel_metadata_only);
+        assert!(redaction.confirm_no_account_balances);
+        assert!(redaction.confirm_no_unrestricted_payload);
+        assert!(redaction.confirm_no_retry);
+        assert!(redaction.confirm_no_cancel);
+        assert!(redaction.confirm_no_network);
+        assert!(redaction.confirm_dashboard_order_controls_disabled);
     }
 
     #[test]
