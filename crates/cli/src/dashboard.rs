@@ -129,6 +129,21 @@ const PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_SCHEMA_VERSION: &str =
     "ntpro.v170_production_mutation_reconciliation_classifier.v1";
 const PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_SCHEMA_VERSION: &str =
     "ntpro.v170_production_mutation_orphan_order_detector.v1";
+const PRODUCTION_CANCEL_RECOVERY_SCOPE_DECISION_SCHEMA_VERSION: &str =
+    "ntpro.v180_cancel_recovery_scope_decision.v1";
+const PRODUCTION_CANCEL_RECOVERY_ARTIFACT_CONTRACTS_SCHEMA_VERSION: &str =
+    "ntpro.v180_cancel_recovery_artifact_contracts.v1";
+const PRODUCTION_CANCEL_REQUEST_PREVIEW_SCHEMA_VERSION: &str =
+    "ntpro.v180_cancel_request_preview.v1";
+const PRODUCTION_CANCEL_RISK_GATE_SCHEMA_VERSION: &str = "ntpro.v180_cancel_risk_gate.v1";
+const PRODUCTION_CANCEL_MANUAL_APPROVAL_LIFECYCLE_SCHEMA_VERSION: &str =
+    "ntpro.v180_cancel_manual_approval_lifecycle.v1";
+const PRODUCTION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION: &str =
+    "ntpro.v180_cancel_response_redaction.v1";
+const PRODUCTION_CANCEL_POST_READBACK_SCHEMA_VERSION: &str =
+    "ntpro.v180_cancel_post_cancel_readback.v1";
+const PRODUCTION_CANCEL_INCIDENT_AUDIT_CLOSEOUT_SCHEMA_VERSION: &str =
+    "ntpro.v180_cancel_incident_audit_closeout.v1";
 const LIVE_ALPHA_DRY_RUN_ORDER_GATE_ARTIFACT_RELATIVE_PATH: &str =
     "v0_14/live_alpha_dry_run_order_gate.json";
 const LIVE_ALPHA_RISK_PREFLIGHT_ARTIFACT_RELATIVE_PATH: &str =
@@ -167,6 +182,21 @@ const PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_ARTIFACT_RELATIVE_PATH: &str
     "v0_17/production_mutation_reconciliation_classifier.json";
 const PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_ARTIFACT_RELATIVE_PATH: &str =
     "v0_17/production_mutation_orphan_order_detector.json";
+const PRODUCTION_CANCEL_RECOVERY_SCOPE_DECISION_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_18/cancel_recovery_scope_decision.json";
+const PRODUCTION_CANCEL_RECOVERY_ARTIFACT_CONTRACTS_RELATIVE_PATH: &str =
+    "v0_18/cancel_recovery_artifact_contracts.json";
+const PRODUCTION_CANCEL_REQUEST_PREVIEW_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_18/cancel_request_preview.json";
+const PRODUCTION_CANCEL_RISK_GATE_ARTIFACT_RELATIVE_PATH: &str = "v0_18/cancel_risk_gate.json";
+const PRODUCTION_CANCEL_MANUAL_APPROVAL_LIFECYCLE_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_18/cancel_manual_approval_lifecycle.json";
+const PRODUCTION_CANCEL_RESPONSE_REDACTION_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_18/cancel_response_redaction.json";
+const PRODUCTION_CANCEL_POST_READBACK_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_18/cancel_post_cancel_readback.json";
+const PRODUCTION_CANCEL_INCIDENT_AUDIT_CLOSEOUT_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_18/cancel_incident_audit_closeout.json";
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
 <html lang="zh-CN">
@@ -220,6 +250,10 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
     <section class="band">
       <h2>v0.17 对账与孤儿单风险</h2>
       <div id="production-reconciliation-orphan" class="table-wrap"></div>
+    </section>
+    <section class="band">
+      <h2>v0.18 Cancel Recovery Preview</h2>
+      <div id="production-cancel-recovery" class="table-wrap"></div>
     </section>
     <section class="band">
       <h2>节点</h2>
@@ -782,6 +816,7 @@ function render(payload) {
   renderLiveAlphaDryRun(snapshot.live_alpha_dry_run || []);
   renderProductionMutationEvidence(snapshot.production_mutation_evidence || []);
   renderProductionReconciliationOrphan(snapshot.production_reconciliation_orphan || []);
+  renderProductionCancelRecovery(snapshot.production_cancel_recovery || []);
   renderDataSources(snapshot.data_sources || []);
   renderExecutionGateways(snapshot.execution_gateways || []);
   renderRisk(snapshot.risk || {});
@@ -1165,7 +1200,7 @@ function renderProductionReconciliationOrphan(items) {
         ${items.map((item) => `
           <tr>
             <td data-label="节点"><strong>${text(item.node_id)}</strong></td>
-            <td data-label="当前结论"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div></td>
+            <td data-label="当前结论"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div><div class="muted">${panelRow("缺失", snapshotValue(item.missing_artifacts))}${panelRow("Schema", snapshotValue(item.schema_mismatches))}${panelRow("Provenance", snapshotValue(item.provenance_issues))}${panelRow("Stale", snapshotValue(item.stale_evidence_issues))}</div></td>
             <td data-label="Lineage / 本地">${panelRow("Lineage", snapshotValue(item.order_lineage_id))}${panelRow("Ledger", snapshotValue(item.local_ledger_status))}${panelRow("本地状态", snapshotValue(item.local_order_state))}${panelRow("Ledger ready", snapshotValue(item.local_ledger_ready))}${panelRow("可重启读取", snapshotValue(item.restart_readable))}</td>
             <td data-label="交易所 Readback">${panelRow("Mapper", snapshotValue(item.exchange_readback_status))}${panelRow("已映射", snapshotValue(item.exchange_readback_mapped))}${panelRow("状态", snapshotValue(item.exchange_order_state))}${panelRow("原始状态", snapshotValue(item.exchange_order_status))}${panelRow("Open order", snapshotValue(item.open_order_observed))}${panelRow("终态", snapshotValue(item.terminal_state_observed))}</td>
             <td data-label="对账">${panelRow("Classifier", snapshotValue(item.reconciliation_status))}${panelRow("已分类", snapshotValue(item.reconciliation_classified))}${panelRow("结果", snapshotValue(item.reconciliation_outcome))}${panelRow("人工复核", snapshotValue(item.manual_review_required))}${panelRow("新单阻断", snapshotValue(item.new_orders_blocked))}</td>
@@ -1181,6 +1216,45 @@ function renderProductionReconciliationOrphan(items) {
         `).join("")}
       </tbody>
     </table>` : emptyTable("没有 v0.17 对账与孤儿单风险工件");
+}
+
+function renderProductionCancelRecovery(items) {
+  document.getElementById("production-cancel-recovery").innerHTML = items.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>节点</th>
+          <th>当前结论</th>
+          <th>Scope / Preview</th>
+          <th>Gate / Approval</th>
+          <th>Redaction / Readback</th>
+          <th>边界</th>
+          <th>工件</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map((item) => `
+          <tr>
+            <td data-label="节点"><strong>${text(item.node_id)}</strong></td>
+            <td data-label="当前结论"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div><div class="muted">${panelRow("缺失", snapshotValue(item.missing_artifacts))}${panelRow("Schema", snapshotValue(item.schema_mismatches))}</div></td>
+            <td data-label="Scope / Preview">${panelRow("Lineage", snapshotValue(item.order_lineage_id))}${panelRow("Cancel candidate", snapshotValue(item.cancel_candidate_id))}${panelRow("Scope", snapshotValue(item.scope_status))}${panelRow("Contracts", snapshotValue(item.artifact_contracts_status))}${panelRow("Preview", snapshotValue(item.preview_status))}${panelRow("Preview ready", snapshotValue(item.request_preview_ready))}</td>
+            <td data-label="Gate / Approval">${panelRow("Risk gate", snapshotValue(item.risk_gate_status))}${panelRow("Gate passed", snapshotValue(item.risk_gate_passed))}${panelRow("Owner approval required", snapshotValue(item.manual_owner_approval_required))}${panelRow("Owner approved", snapshotValue(item.owner_approved))}${panelRow("Approval", snapshotValue(item.manual_approval_status))}</td>
+            <td data-label="Redaction / Readback">${panelRow("Redaction", snapshotValue(item.response_redaction_status))}${panelRow("Redaction ready", snapshotValue(item.response_redaction_ready))}${panelRow("Readback", snapshotValue(item.post_readback_status))}${panelRow("Readback ready", snapshotValue(item.post_cancel_readback_ready))}${panelRow("Incident", snapshotValue(item.incident_status))}${panelRow("Incident ready", snapshotValue(item.incident_closeout_ready))}</td>
+            <td data-label="边界">${panelRow("实际撤单允许", snapshotValue(item.actual_cancel_send_allowed))}${panelRow("撤单尝试", snapshotValue(item.cancel_attempted))}${panelRow("自动撤单", snapshotValue(item.automatic_cancel_allowed))}${panelRow("Dashboard 撤单控件", snapshotValue(item.dashboard_cancel_controls_enabled))}${panelRow("网络尝试", snapshotValue(item.network_attempted))}${panelRow("生产变更尝试", snapshotValue(item.production_order_mutations_attempted))}</td>
+            <td data-label="工件" class="path">
+              ${panelRow("scope", snapshotValue(item.scope_decision_path))}
+              ${panelRow("contracts", snapshotValue(item.artifact_contracts_path))}
+              ${panelRow("preview", snapshotValue(item.request_preview_path))}
+              ${panelRow("risk", snapshotValue(item.risk_gate_path))}
+              ${panelRow("approval", snapshotValue(item.manual_approval_lifecycle_path))}
+              ${panelRow("redaction", snapshotValue(item.response_redaction_path))}
+              ${panelRow("readback", snapshotValue(item.post_readback_path))}
+              ${panelRow("incident", snapshotValue(item.incident_audit_closeout_path))}
+            </td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>` : emptyTable("没有 v0.18 cancel recovery preview 工件");
 }
 
 function renderDataSources(dataSources) {
@@ -2195,6 +2269,7 @@ pub struct DashboardSnapshot {
     pub live_alpha_dry_run: Vec<LiveAlphaDryRunStatus>,
     pub production_mutation_evidence: Vec<ProductionMutationEvidenceStatus>,
     pub production_reconciliation_orphan: Vec<ProductionReconciliationOrphanStatus>,
+    pub production_cancel_recovery: Vec<ProductionCancelRecoveryStatus>,
     pub runtime_modules: Vec<RuntimeModuleStatus>,
     pub logs: Vec<LogStatus>,
     pub metrics: Vec<MetricStatus>,
@@ -2222,6 +2297,7 @@ impl DashboardSnapshot {
             live_alpha_dry_run: Vec::new(),
             production_mutation_evidence: Vec::new(),
             production_reconciliation_orphan: Vec::new(),
+            production_cancel_recovery: Vec::new(),
             runtime_modules: Vec::new(),
             logs: Vec::new(),
             metrics: Vec::new(),
@@ -3013,6 +3089,10 @@ pub struct ProductionReconciliationOrphanStatus {
     pub health: HealthStatus,
     pub readiness_status: DashboardValue<String>,
     pub diagnostic: DashboardValue<String>,
+    pub missing_artifacts: DashboardValue<Vec<String>>,
+    pub schema_mismatches: DashboardValue<Vec<String>>,
+    pub provenance_issues: DashboardValue<Vec<String>>,
+    pub stale_evidence_issues: DashboardValue<Vec<String>>,
     pub order_lineage_id: DashboardValue<String>,
     pub local_ledger_status: DashboardValue<String>,
     pub local_order_state: DashboardValue<String>,
@@ -3050,6 +3130,47 @@ pub struct ProductionReconciliationOrphanStatus {
     pub exchange_readback_mapper_path: DashboardValue<String>,
     pub reconciliation_classifier_path: DashboardValue<String>,
     pub orphan_order_detector_path: DashboardValue<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProductionCancelRecoveryStatus {
+    pub node_id: String,
+    pub health: HealthStatus,
+    pub readiness_status: DashboardValue<String>,
+    pub diagnostic: DashboardValue<String>,
+    pub missing_artifacts: DashboardValue<Vec<String>>,
+    pub schema_mismatches: DashboardValue<Vec<String>>,
+    pub order_lineage_id: DashboardValue<String>,
+    pub cancel_candidate_id: DashboardValue<String>,
+    pub scope_status: DashboardValue<String>,
+    pub artifact_contracts_status: DashboardValue<String>,
+    pub preview_status: DashboardValue<String>,
+    pub risk_gate_status: DashboardValue<String>,
+    pub manual_approval_status: DashboardValue<String>,
+    pub response_redaction_status: DashboardValue<String>,
+    pub post_readback_status: DashboardValue<String>,
+    pub incident_status: DashboardValue<String>,
+    pub request_preview_ready: DashboardValue<bool>,
+    pub risk_gate_passed: DashboardValue<bool>,
+    pub manual_owner_approval_required: DashboardValue<bool>,
+    pub owner_approved: DashboardValue<bool>,
+    pub response_redaction_ready: DashboardValue<bool>,
+    pub post_cancel_readback_ready: DashboardValue<bool>,
+    pub incident_closeout_ready: DashboardValue<bool>,
+    pub actual_cancel_send_allowed: DashboardValue<bool>,
+    pub cancel_attempted: DashboardValue<bool>,
+    pub automatic_cancel_allowed: DashboardValue<bool>,
+    pub dashboard_cancel_controls_enabled: DashboardValue<bool>,
+    pub network_attempted: DashboardValue<bool>,
+    pub production_order_mutations_attempted: DashboardValue<u64>,
+    pub scope_decision_path: DashboardValue<String>,
+    pub artifact_contracts_path: DashboardValue<String>,
+    pub request_preview_path: DashboardValue<String>,
+    pub risk_gate_path: DashboardValue<String>,
+    pub manual_approval_lifecycle_path: DashboardValue<String>,
+    pub response_redaction_path: DashboardValue<String>,
+    pub post_readback_path: DashboardValue<String>,
+    pub incident_audit_closeout_path: DashboardValue<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -3338,6 +3459,9 @@ pub fn snapshot_from_supervisor_artifacts_with_workflow_root(
             snapshot
                 .production_reconciliation_orphan
                 .push(reconciliation_orphan);
+        }
+        if let Some(cancel_recovery) = production_cancel_recovery_from_record(record) {
+            snapshot.production_cancel_recovery.push(cancel_recovery);
         }
         snapshot
             .logs
@@ -6175,6 +6299,24 @@ impl ProductionReconciliationOrphanArtifactPaths {
             || self.reconciliation_classifier_path.exists()
             || self.orphan_order_detector_path.exists()
     }
+
+    fn missing_artifacts(&self) -> Vec<String> {
+        [
+            ("local_order_ledger", &self.local_order_ledger_path),
+            (
+                "exchange_readback_mapper",
+                &self.exchange_readback_mapper_path,
+            ),
+            (
+                "reconciliation_classifier",
+                &self.reconciliation_classifier_path,
+            ),
+            ("orphan_order_detector", &self.orphan_order_detector_path),
+        ]
+        .into_iter()
+        .filter_map(|(label, path)| (!path.exists()).then_some(label.to_string()))
+        .collect()
+    }
 }
 
 fn production_reconciliation_orphan_from_record(
@@ -6217,6 +6359,37 @@ fn production_reconciliation_orphan_from_record(
             PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_SCHEMA_VERSION,
         )
     });
+    let missing_artifacts = paths.missing_artifacts();
+    let schema_mismatches = production_reconciliation_orphan_schema_mismatches(
+        [
+            (
+                "local_order_ledger",
+                &paths.local_order_ledger_path,
+                &local_order_ledger,
+                PRODUCTION_MUTATION_LOCAL_ORDER_LEDGER_SCHEMA_VERSION,
+            ),
+            (
+                "exchange_readback_mapper",
+                &paths.exchange_readback_mapper_path,
+                &exchange_readback_mapper,
+                PRODUCTION_MUTATION_EXCHANGE_READBACK_MAPPER_SCHEMA_VERSION,
+            ),
+            (
+                "reconciliation_classifier",
+                &paths.reconciliation_classifier_path,
+                &reconciliation_classifier,
+                PRODUCTION_MUTATION_RECONCILIATION_CLASSIFIER_SCHEMA_VERSION,
+            ),
+            (
+                "orphan_order_detector",
+                &paths.orphan_order_detector_path,
+                &orphan_order_detector,
+                PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_SCHEMA_VERSION,
+            ),
+        ]
+        .into_iter(),
+    );
+    let provenance_issues = production_reconciliation_orphan_provenance_issues(&artifacts);
 
     let order_lineage_id = v17_first_available_string_any(&artifacts, "order_lineage_id");
     let local_ledger_status = local_order_ledger
@@ -6284,6 +6457,8 @@ fn production_reconciliation_orphan_from_record(
     let new_orders_blocked = v17_any_available_bool_any(&artifacts, "new_orders_blocked");
     let stale_ledger_restart_required =
         v17_any_available_bool_any(&artifacts, "stale_ledger_restart_required");
+    let stale_evidence_issues =
+        production_reconciliation_orphan_stale_issues(&artifacts, &stale_ledger_restart_required);
     let duplicate_submit_attempted =
         v17_any_available_bool_any(&artifacts, "duplicate_submit_attempted");
     let retry_attempted = v17_any_available_bool_any(&artifacts, "retry_attempted");
@@ -6304,6 +6479,9 @@ fn production_reconciliation_orphan_from_record(
         v17_any_available_bool_any(&artifacts, "production_order_mutation_allowed");
 
     let boundary_violation = !schema_ok
+        || !missing_artifacts.is_empty()
+        || !schema_mismatches.is_empty()
+        || !provenance_issues.is_empty()
         || duplicate_submit_attempted.value == Some(true)
         || retry_attempted.value == Some(true)
         || cancel_attempted.value == Some(true)
@@ -6319,7 +6497,8 @@ fn production_reconciliation_orphan_from_record(
         || risk_halted.value == Some(true)
         || manual_review_required.value == Some(true)
         || new_orders_blocked.value == Some(true)
-        || stale_ledger_restart_required.value == Some(true);
+        || stale_ledger_restart_required.value == Some(true)
+        || !stale_evidence_issues.is_empty();
     let ready = local_ledger_ready.value == Some(true)
         && exchange_readback_mapped.value == Some(true)
         && reconciliation_classified.value == Some(true)
@@ -6343,11 +6522,23 @@ fn production_reconciliation_orphan_from_record(
             HealthStatus::Healthy
         },
         readiness_status: DashboardValue::available(readiness_status.to_string()),
-        diagnostic: DashboardValue::available(if schema_ok {
+        diagnostic: DashboardValue::available(if !missing_artifacts.is_empty() {
+            "production_reconciliation_orphan_missing_artifacts".to_string()
+        } else if !schema_mismatches.is_empty() {
+            "production_reconciliation_orphan_schema_invalid".to_string()
+        } else if !provenance_issues.is_empty() {
+            "production_reconciliation_orphan_provenance_degraded".to_string()
+        } else if !stale_evidence_issues.is_empty() {
+            "production_reconciliation_orphan_stale_evidence".to_string()
+        } else if schema_ok {
             readiness_status.to_string()
         } else {
             "production_reconciliation_orphan_schema_invalid".to_string()
         }),
+        missing_artifacts: DashboardValue::available(missing_artifacts),
+        schema_mismatches: DashboardValue::available(schema_mismatches),
+        provenance_issues: DashboardValue::available(provenance_issues),
+        stale_evidence_issues: DashboardValue::available(stale_evidence_issues),
         order_lineage_id,
         local_ledger_status,
         local_order_state,
@@ -6399,6 +6590,439 @@ fn artifact_schema_matches(value: &Option<Value>, expected: &str) -> bool {
             .and_then(Value::as_str)
             .is_some_and(|schema| schema == expected)
     })
+}
+
+fn production_reconciliation_orphan_schema_mismatches<'a>(
+    artifacts: impl IntoIterator<Item = (&'static str, &'a PathBuf, &'a Option<Value>, &'static str)>,
+) -> Vec<String> {
+    artifacts
+        .into_iter()
+        .filter_map(|(label, path, value, expected)| {
+            if !path.exists() {
+                return None;
+            }
+            let Some(value) = value.as_ref() else {
+                return Some(format!("{label}:unreadable_json"));
+            };
+            let actual = value
+                .get("schema_version")
+                .and_then(Value::as_str)
+                .unwrap_or("missing");
+            (actual != expected)
+                .then(|| format!("{label}:schema_version={actual} expected={expected}"))
+        })
+        .collect()
+}
+
+fn production_reconciliation_orphan_provenance_issues(artifacts: &[&Option<Value>]) -> Vec<String> {
+    let mut issues = Vec::new();
+    for artifact in artifacts.iter().filter_map(|value| value.as_ref()) {
+        let artifact_label = artifact
+            .get("artifact_type")
+            .and_then(Value::as_str)
+            .unwrap_or("artifact");
+        for ref_field in [
+            "request_builder_ref",
+            "guarded_send_ref",
+            "response_redaction_ref",
+            "readback_ref",
+            "audit_ref",
+            "failure_ref",
+            "local_ledger_ref",
+            "order_readback_ref",
+            "open_orders_readback_ref",
+            "exchange_readback_mapper_ref",
+            "reconciliation_classifier_ref",
+        ] {
+            let Some(source_ref) = artifact.get(ref_field).and_then(Value::as_object) else {
+                continue;
+            };
+            if !source_ref
+                .get("sha256")
+                .and_then(Value::as_str)
+                .is_some_and(|value| value.starts_with("sha256:") && value.len() == 71)
+            {
+                issues.push(format!(
+                    "{artifact_label}:{ref_field}:sha256_missing_or_invalid"
+                ));
+            }
+            if !source_ref
+                .get("bytes")
+                .and_then(Value::as_u64)
+                .is_some_and(|value| value > 0)
+            {
+                issues.push(format!(
+                    "{artifact_label}:{ref_field}:bytes_missing_or_zero"
+                ));
+            }
+            if !source_ref
+                .get("source_command")
+                .and_then(Value::as_str)
+                .is_some_and(|value| !value.trim().is_empty() && value != "unknown")
+            {
+                issues.push(format!(
+                    "{artifact_label}:{ref_field}:source_command_missing"
+                ));
+            }
+            if !source_ref
+                .get("source_commit")
+                .and_then(Value::as_str)
+                .is_some_and(|value| !value.trim().is_empty() && value != "unknown")
+            {
+                issues.push(format!(
+                    "{artifact_label}:{ref_field}:source_commit_missing"
+                ));
+            }
+            if !source_ref
+                .get("source_release_tag")
+                .and_then(Value::as_str)
+                .is_some_and(|value| !value.trim().is_empty())
+            {
+                issues.push(format!(
+                    "{artifact_label}:{ref_field}:source_release_tag_missing"
+                ));
+            }
+        }
+    }
+    issues
+}
+
+fn production_reconciliation_orphan_stale_issues(
+    artifacts: &[&Option<Value>],
+    stale_ledger_restart_required: &DashboardValue<bool>,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if stale_ledger_restart_required.value == Some(true) {
+        issues.push("stale_ledger_restart_required".to_string());
+    }
+    for artifact in artifacts.iter().filter_map(|value| value.as_ref()) {
+        let artifact_label = artifact
+            .get("artifact_type")
+            .and_then(Value::as_str)
+            .unwrap_or("artifact");
+        if artifact
+            .get("status")
+            .and_then(Value::as_str)
+            .is_some_and(|status| status.contains("stale"))
+        {
+            issues.push(format!("{artifact_label}:status_stale"));
+        }
+    }
+    issues
+}
+
+#[derive(Clone, Debug)]
+struct ProductionCancelRecoveryArtifactPaths {
+    scope_decision_path: PathBuf,
+    artifact_contracts_path: PathBuf,
+    request_preview_path: PathBuf,
+    risk_gate_path: PathBuf,
+    manual_approval_lifecycle_path: PathBuf,
+    response_redaction_path: PathBuf,
+    post_readback_path: PathBuf,
+    incident_audit_closeout_path: PathBuf,
+}
+
+impl ProductionCancelRecoveryArtifactPaths {
+    fn v18(record: &SupervisorNodeRecord) -> Self {
+        Self {
+            scope_decision_path: record
+                .artifact_root
+                .join(PRODUCTION_CANCEL_RECOVERY_SCOPE_DECISION_ARTIFACT_RELATIVE_PATH),
+            artifact_contracts_path: record
+                .artifact_root
+                .join(PRODUCTION_CANCEL_RECOVERY_ARTIFACT_CONTRACTS_RELATIVE_PATH),
+            request_preview_path: record
+                .artifact_root
+                .join(PRODUCTION_CANCEL_REQUEST_PREVIEW_ARTIFACT_RELATIVE_PATH),
+            risk_gate_path: record
+                .artifact_root
+                .join(PRODUCTION_CANCEL_RISK_GATE_ARTIFACT_RELATIVE_PATH),
+            manual_approval_lifecycle_path: record
+                .artifact_root
+                .join(PRODUCTION_CANCEL_MANUAL_APPROVAL_LIFECYCLE_ARTIFACT_RELATIVE_PATH),
+            response_redaction_path: record
+                .artifact_root
+                .join(PRODUCTION_CANCEL_RESPONSE_REDACTION_ARTIFACT_RELATIVE_PATH),
+            post_readback_path: record
+                .artifact_root
+                .join(PRODUCTION_CANCEL_POST_READBACK_ARTIFACT_RELATIVE_PATH),
+            incident_audit_closeout_path: record
+                .artifact_root
+                .join(PRODUCTION_CANCEL_INCIDENT_AUDIT_CLOSEOUT_ARTIFACT_RELATIVE_PATH),
+        }
+    }
+
+    fn has_any_artifact(&self) -> bool {
+        self.scope_decision_path.exists()
+            || self.artifact_contracts_path.exists()
+            || self.request_preview_path.exists()
+            || self.risk_gate_path.exists()
+            || self.manual_approval_lifecycle_path.exists()
+            || self.response_redaction_path.exists()
+            || self.post_readback_path.exists()
+            || self.incident_audit_closeout_path.exists()
+    }
+
+    fn missing_artifacts(&self) -> Vec<String> {
+        [
+            ("scope_decision", &self.scope_decision_path),
+            ("artifact_contracts", &self.artifact_contracts_path),
+            ("request_preview", &self.request_preview_path),
+            ("risk_gate", &self.risk_gate_path),
+            (
+                "manual_approval_lifecycle",
+                &self.manual_approval_lifecycle_path,
+            ),
+            ("response_redaction", &self.response_redaction_path),
+            ("post_cancel_readback", &self.post_readback_path),
+            (
+                "incident_audit_closeout",
+                &self.incident_audit_closeout_path,
+            ),
+        ]
+        .into_iter()
+        .filter_map(|(label, path)| (!path.exists()).then_some(label.to_string()))
+        .collect()
+    }
+}
+
+fn production_cancel_recovery_from_record(
+    record: &SupervisorNodeRecord,
+) -> Option<ProductionCancelRecoveryStatus> {
+    let paths = ProductionCancelRecoveryArtifactPaths::v18(record);
+    if !paths.has_any_artifact() {
+        return None;
+    }
+
+    let scope_decision = read_json_file_value(&paths.scope_decision_path);
+    let artifact_contracts = read_json_file_value(&paths.artifact_contracts_path);
+    let request_preview = read_json_file_value(&paths.request_preview_path);
+    let risk_gate = read_json_file_value(&paths.risk_gate_path);
+    let manual_approval_lifecycle = read_json_file_value(&paths.manual_approval_lifecycle_path);
+    let response_redaction = read_json_file_value(&paths.response_redaction_path);
+    let post_readback = read_json_file_value(&paths.post_readback_path);
+    let incident_audit_closeout = read_json_file_value(&paths.incident_audit_closeout_path);
+    let artifacts = [
+        &scope_decision,
+        &artifact_contracts,
+        &request_preview,
+        &risk_gate,
+        &manual_approval_lifecycle,
+        &response_redaction,
+        &post_readback,
+        &incident_audit_closeout,
+    ];
+
+    let missing_artifacts = paths.missing_artifacts();
+    let schema_mismatches = production_reconciliation_orphan_schema_mismatches(
+        [
+            (
+                "scope_decision",
+                &paths.scope_decision_path,
+                &scope_decision,
+                PRODUCTION_CANCEL_RECOVERY_SCOPE_DECISION_SCHEMA_VERSION,
+            ),
+            (
+                "artifact_contracts",
+                &paths.artifact_contracts_path,
+                &artifact_contracts,
+                PRODUCTION_CANCEL_RECOVERY_ARTIFACT_CONTRACTS_SCHEMA_VERSION,
+            ),
+            (
+                "request_preview",
+                &paths.request_preview_path,
+                &request_preview,
+                PRODUCTION_CANCEL_REQUEST_PREVIEW_SCHEMA_VERSION,
+            ),
+            (
+                "risk_gate",
+                &paths.risk_gate_path,
+                &risk_gate,
+                PRODUCTION_CANCEL_RISK_GATE_SCHEMA_VERSION,
+            ),
+            (
+                "manual_approval_lifecycle",
+                &paths.manual_approval_lifecycle_path,
+                &manual_approval_lifecycle,
+                PRODUCTION_CANCEL_MANUAL_APPROVAL_LIFECYCLE_SCHEMA_VERSION,
+            ),
+            (
+                "response_redaction",
+                &paths.response_redaction_path,
+                &response_redaction,
+                PRODUCTION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION,
+            ),
+            (
+                "post_readback",
+                &paths.post_readback_path,
+                &post_readback,
+                PRODUCTION_CANCEL_POST_READBACK_SCHEMA_VERSION,
+            ),
+            (
+                "incident_audit_closeout",
+                &paths.incident_audit_closeout_path,
+                &incident_audit_closeout,
+                PRODUCTION_CANCEL_INCIDENT_AUDIT_CLOSEOUT_SCHEMA_VERSION,
+            ),
+        ]
+        .into_iter(),
+    );
+
+    let order_lineage_id = v17_first_available_string_any(&artifacts, "order_lineage_id");
+    let cancel_candidate_id = v17_first_available_string_any(&artifacts, "cancel_candidate_id");
+    let scope_status = scope_decision
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let artifact_contracts_status = artifact_contracts
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let preview_status = request_preview
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let risk_gate_status = risk_gate
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let manual_approval_status = manual_approval_lifecycle
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let response_redaction_status = response_redaction
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let post_readback_status = post_readback
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let incident_status = incident_audit_closeout
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let request_preview_ready = v17_any_available_bool_any(&artifacts, "request_preview_ready");
+    let risk_gate_passed = v17_any_available_bool_any(&artifacts, "risk_gate_passed");
+    let manual_owner_approval_required =
+        v17_any_available_bool_any(&artifacts, "manual_owner_approval_required");
+    let owner_approved = v17_any_available_bool_any(&artifacts, "owner_approved");
+    let response_redaction_ready =
+        v17_any_available_bool_any(&artifacts, "response_redaction_ready");
+    let post_cancel_readback_ready =
+        v17_any_available_bool_any(&artifacts, "post_cancel_readback_ready");
+    let incident_closeout_ready = v17_any_available_bool_any(&artifacts, "incident_closeout_ready");
+    let actual_cancel_send_allowed =
+        v17_any_available_bool_any(&artifacts, "actual_cancel_send_allowed");
+    let cancel_attempted = v17_any_available_bool_any(&artifacts, "cancel_attempted");
+    let automatic_cancel_allowed =
+        v17_any_available_bool_any(&artifacts, "automatic_cancel_allowed");
+    let dashboard_cancel_controls_enabled =
+        v17_any_available_bool_any(&artifacts, "dashboard_cancel_controls_enabled");
+    let network_attempted = v17_any_available_bool_any(&artifacts, "network_attempted");
+    let production_order_mutations_attempted =
+        v18_max_available_u64_any(&artifacts, "production_order_mutations_attempted");
+
+    let mutation_attempts = production_order_mutations_attempted.value.unwrap_or(0);
+    let boundary_violation = actual_cancel_send_allowed.value == Some(true)
+        || cancel_attempted.value == Some(true)
+        || automatic_cancel_allowed.value == Some(true)
+        || dashboard_cancel_controls_enabled.value == Some(true)
+        || network_attempted.value == Some(true)
+        || mutation_attempts > 0;
+    let incomplete = !missing_artifacts.is_empty() || !schema_mismatches.is_empty();
+    let ready_for_owner_review = request_preview_ready.value == Some(true)
+        && risk_gate_passed.value == Some(true)
+        && response_redaction_ready.value == Some(true)
+        && post_cancel_readback_ready.value == Some(true)
+        && incident_closeout_ready.value == Some(true)
+        && manual_owner_approval_required.value == Some(true)
+        && owner_approved.value == Some(false)
+        && !boundary_violation
+        && !incomplete;
+    let readiness_status = if boundary_violation {
+        "production_cancel_recovery_boundary_violation"
+    } else if incomplete {
+        "production_cancel_recovery_incomplete"
+    } else if ready_for_owner_review {
+        "production_cancel_recovery_ready_for_owner_review"
+    } else {
+        "production_cancel_recovery_pending"
+    };
+    let diagnostic = if !missing_artifacts.is_empty() {
+        "production_cancel_recovery_missing_artifacts"
+    } else if !schema_mismatches.is_empty() {
+        "production_cancel_recovery_schema_invalid"
+    } else {
+        readiness_status
+    };
+
+    Some(ProductionCancelRecoveryStatus {
+        node_id: record.node_id.clone(),
+        health: if boundary_violation || incomplete || ready_for_owner_review {
+            HealthStatus::Degraded
+        } else {
+            HealthStatus::Healthy
+        },
+        readiness_status: DashboardValue::available(readiness_status.to_string()),
+        diagnostic: DashboardValue::available(diagnostic.to_string()),
+        missing_artifacts: DashboardValue::available(missing_artifacts),
+        schema_mismatches: DashboardValue::available(schema_mismatches),
+        order_lineage_id,
+        cancel_candidate_id,
+        scope_status,
+        artifact_contracts_status,
+        preview_status,
+        risk_gate_status,
+        manual_approval_status,
+        response_redaction_status,
+        post_readback_status,
+        incident_status,
+        request_preview_ready,
+        risk_gate_passed,
+        manual_owner_approval_required,
+        owner_approved,
+        response_redaction_ready,
+        post_cancel_readback_ready,
+        incident_closeout_ready,
+        actual_cancel_send_allowed,
+        cancel_attempted,
+        automatic_cancel_allowed,
+        dashboard_cancel_controls_enabled,
+        network_attempted,
+        production_order_mutations_attempted,
+        scope_decision_path: dashboard_path_if_exists(&paths.scope_decision_path),
+        artifact_contracts_path: dashboard_path_if_exists(&paths.artifact_contracts_path),
+        request_preview_path: dashboard_path_if_exists(&paths.request_preview_path),
+        risk_gate_path: dashboard_path_if_exists(&paths.risk_gate_path),
+        manual_approval_lifecycle_path: dashboard_path_if_exists(
+            &paths.manual_approval_lifecycle_path,
+        ),
+        response_redaction_path: dashboard_path_if_exists(&paths.response_redaction_path),
+        post_readback_path: dashboard_path_if_exists(&paths.post_readback_path),
+        incident_audit_closeout_path: dashboard_path_if_exists(&paths.incident_audit_closeout_path),
+    })
+}
+
+fn v18_max_available_u64_any(artifacts: &[&Option<Value>], field: &str) -> DashboardValue<u64> {
+    let mut max_value: Option<u64> = None;
+    for value in artifacts
+        .iter()
+        .filter_map(|artifact| artifact.as_ref())
+        .filter_map(|value| value.get(field).and_then(Value::as_u64))
+    {
+        max_value = Some(max_value.map_or(value, |current| current.max(value)));
+    }
+    max_value.map_or_else(DashboardValue::unknown, DashboardValue::available)
 }
 
 fn order_state_readonly_proof_boundary_violation(value: &Option<Value>, schema_ok: bool) -> bool {
@@ -11213,6 +11837,10 @@ mod tests {
             item.readiness_status.value.as_deref(),
             Some("production_reconciliation_orphan_manual_review_required")
         );
+        assert_eq!(item.missing_artifacts.value.as_ref().unwrap().len(), 0);
+        assert_eq!(item.schema_mismatches.value.as_ref().unwrap().len(), 0);
+        assert_eq!(item.provenance_issues.value.as_ref().unwrap().len(), 0);
+        assert_eq!(item.stale_evidence_issues.value.as_ref().unwrap().len(), 0);
         assert_eq!(
             item.order_lineage_id.value.as_deref(),
             Some("lineage-v160-single-shot")
@@ -11301,8 +11929,296 @@ mod tests {
         assert!(renderer.contains("Lineage / 本地"));
         assert!(renderer.contains("交易所 Readback"));
         assert!(renderer.contains("孤儿单风险"));
+        assert!(renderer.contains("Provenance"));
+        assert!(renderer.contains("Stale"));
         let snapshot_value = serde_json::to_value(&snapshot).unwrap();
         assert_forbidden_keys_absent(&snapshot_value);
+    }
+
+    #[test]
+    fn production_reconciliation_orphan_missing_artifacts_degrade_panel() {
+        let root = temp_root("production-reconciliation-orphan-missing");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "production-reconciliation-orphan-missing-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_mutation_v17_reconciliation_orphan_artifacts(&record);
+        fs::remove_file(
+            record
+                .artifact_root
+                .join(PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_ARTIFACT_RELATIVE_PATH),
+        )
+        .unwrap();
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-26T08:20:00Z").unwrap();
+
+        assert_eq!(snapshot.production_reconciliation_orphan.len(), 1);
+        let item = &snapshot.production_reconciliation_orphan[0];
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.diagnostic.value.as_deref(),
+            Some("production_reconciliation_orphan_missing_artifacts")
+        );
+        assert!(
+            item.missing_artifacts
+                .value
+                .as_ref()
+                .unwrap()
+                .contains(&"orphan_order_detector".to_string())
+        );
+    }
+
+    #[test]
+    fn production_reconciliation_orphan_schema_provenance_and_stale_diagnostics_degrade_panel() {
+        let root = temp_root("production-reconciliation-orphan-degraded");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "production-reconciliation-orphan-degraded-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_mutation_v17_reconciliation_orphan_artifacts(&record);
+
+        let ledger_path = record
+            .artifact_root
+            .join(PRODUCTION_MUTATION_LOCAL_ORDER_LEDGER_ARTIFACT_RELATIVE_PATH);
+        let mut ledger: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&ledger_path).unwrap()).unwrap();
+        ledger["schema_version"] = serde_json::Value::String("ntpro.invalid.v1".to_string());
+        ledger["request_builder_ref"] = json!({
+            "sha256": "fnv1a64:legacy-only",
+            "bytes": 0,
+            "source_command": "unknown",
+            "source_commit": "unknown",
+            "source_release_tag": ""
+        });
+        fs::write(&ledger_path, serde_json::to_string_pretty(&ledger).unwrap()).unwrap();
+
+        let orphan_path = record
+            .artifact_root
+            .join(PRODUCTION_MUTATION_ORPHAN_ORDER_DETECTOR_ARTIFACT_RELATIVE_PATH);
+        let mut orphan: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&orphan_path).unwrap()).unwrap();
+        orphan["stale_ledger_restart_required"] = serde_json::Value::Bool(true);
+        fs::write(&orphan_path, serde_json::to_string_pretty(&orphan).unwrap()).unwrap();
+
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-26T08:25:00Z").unwrap();
+
+        assert_eq!(snapshot.production_reconciliation_orphan.len(), 1);
+        let item = &snapshot.production_reconciliation_orphan[0];
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.diagnostic.value.as_deref(),
+            Some("production_reconciliation_orphan_schema_invalid")
+        );
+        assert!(
+            item.schema_mismatches
+                .value
+                .as_ref()
+                .unwrap()
+                .iter()
+                .any(|issue| issue.contains("local_order_ledger:schema_version"))
+        );
+        assert!(
+            item.provenance_issues
+                .value
+                .as_ref()
+                .unwrap()
+                .iter()
+                .any(|issue| issue.contains("sha256_missing_or_invalid"))
+        );
+        assert!(
+            item.stale_evidence_issues
+                .value
+                .as_ref()
+                .unwrap()
+                .contains(&"stale_ledger_restart_required".to_string())
+        );
+    }
+
+    #[test]
+    fn production_cancel_recovery_artifacts_populate_readonly_dashboard_panel() {
+        let root = temp_root("production-cancel-recovery");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "production-cancel-recovery-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_cancel_recovery_v18_artifacts(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-26T09:10:00Z").unwrap();
+
+        assert_eq!(snapshot.production_cancel_recovery.len(), 1);
+        let item = &snapshot.production_cancel_recovery[0];
+        assert_eq!(item.node_id, "production-cancel-recovery-a");
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_cancel_recovery_ready_for_owner_review")
+        );
+        assert_eq!(item.missing_artifacts.value.as_ref().unwrap().len(), 0);
+        assert_eq!(item.schema_mismatches.value.as_ref().unwrap().len(), 0);
+        assert_eq!(
+            item.order_lineage_id.value.as_deref(),
+            Some("lineage-v160-single-shot")
+        );
+        assert_eq!(
+            item.cancel_candidate_id.value.as_deref(),
+            Some("cancel-preview-v180-single-shot")
+        );
+        assert_eq!(
+            item.preview_status.value.as_deref(),
+            Some("cancel_request_preview_ready")
+        );
+        assert_eq!(
+            item.risk_gate_status.value.as_deref(),
+            Some("cancel_risk_gate_passed_for_preview_only")
+        );
+        assert_eq!(item.request_preview_ready.value, Some(true));
+        assert_eq!(item.risk_gate_passed.value, Some(true));
+        assert_eq!(item.manual_owner_approval_required.value, Some(true));
+        assert_eq!(item.owner_approved.value, Some(false));
+        assert_eq!(item.response_redaction_ready.value, Some(true));
+        assert_eq!(item.post_cancel_readback_ready.value, Some(true));
+        assert_eq!(item.incident_closeout_ready.value, Some(true));
+        assert_eq!(item.actual_cancel_send_allowed.value, Some(false));
+        assert_eq!(item.cancel_attempted.value, Some(false));
+        assert_eq!(item.automatic_cancel_allowed.value, Some(false));
+        assert_eq!(item.dashboard_cancel_controls_enabled.value, Some(false));
+        assert_eq!(item.network_attempted.value, Some(false));
+        assert_eq!(item.production_order_mutations_attempted.value, Some(0));
+        assert!(
+            item.request_preview_path
+                .value
+                .as_deref()
+                .is_some_and(|path| path.ends_with("v0_18/cancel_request_preview.json"))
+        );
+        assert!(
+            item.incident_audit_closeout_path
+                .value
+                .as_deref()
+                .is_some_and(|path| path.ends_with("v0_18/cancel_incident_audit_closeout.json"))
+        );
+
+        let renderer = dashboard_js_function_body("renderProductionCancelRecovery");
+        for forbidden in [
+            "<button",
+            "data-dashboard-action",
+            "fetch(",
+            "credential",
+            "api_key",
+            "api_secret",
+        ] {
+            assert!(
+                !renderer.contains(forbidden),
+                "cancel recovery renderer must stay read-only and not contain {forbidden}"
+            );
+        }
+        assert!(renderer.contains("Scope / Preview"));
+        assert!(renderer.contains("Gate / Approval"));
+        assert!(renderer.contains("Dashboard 撤单控件"));
+        let snapshot_value = serde_json::to_value(&snapshot).unwrap();
+        assert_forbidden_keys_absent(&snapshot_value);
+    }
+
+    #[test]
+    fn production_cancel_recovery_missing_artifacts_degrade_panel() {
+        let root = temp_root("production-cancel-recovery-missing");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "production-cancel-recovery-missing-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_cancel_recovery_v18_artifacts(&record);
+        fs::remove_file(
+            record
+                .artifact_root
+                .join(PRODUCTION_CANCEL_RESPONSE_REDACTION_ARTIFACT_RELATIVE_PATH),
+        )
+        .unwrap();
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-26T09:15:00Z").unwrap();
+
+        assert_eq!(snapshot.production_cancel_recovery.len(), 1);
+        let item = &snapshot.production_cancel_recovery[0];
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.diagnostic.value.as_deref(),
+            Some("production_cancel_recovery_missing_artifacts")
+        );
+        assert!(
+            item.missing_artifacts
+                .value
+                .as_ref()
+                .unwrap()
+                .contains(&"response_redaction".to_string())
+        );
+    }
+
+    #[test]
+    fn production_cancel_recovery_boundary_violation_degrades_panel() {
+        let root = temp_root("production-cancel-recovery-boundary");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "production-cancel-recovery-boundary-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_cancel_recovery_v18_artifacts(&record);
+
+        let risk_gate_path = record
+            .artifact_root
+            .join(PRODUCTION_CANCEL_RISK_GATE_ARTIFACT_RELATIVE_PATH);
+        let mut risk_gate: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&risk_gate_path).unwrap()).unwrap();
+        risk_gate["actual_cancel_send_allowed"] = serde_json::Value::Bool(true);
+        risk_gate["cancel_attempted"] = serde_json::Value::Bool(true);
+        risk_gate["production_order_mutations_attempted"] =
+            serde_json::Value::Number(serde_json::Number::from(1_u64));
+        fs::write(
+            &risk_gate_path,
+            serde_json::to_string_pretty(&risk_gate).unwrap(),
+        )
+        .unwrap();
+
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-26T09:20:00Z").unwrap();
+
+        assert_eq!(snapshot.production_cancel_recovery.len(), 1);
+        let item = &snapshot.production_cancel_recovery[0];
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_cancel_recovery_boundary_violation")
+        );
+        assert_eq!(item.actual_cancel_send_allowed.value, Some(true));
+        assert_eq!(item.cancel_attempted.value, Some(true));
+        assert_eq!(item.production_order_mutations_attempted.value, Some(1));
     }
 
     #[test]
@@ -13632,6 +14548,114 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
+    }
+
+    fn write_production_cancel_recovery_v18_artifacts(record: &SupervisorNodeRecord) {
+        let root = record.artifact_root.join("v0_18");
+        fs::create_dir_all(&root).unwrap();
+        let common = json!({
+            "run_id": "v180-cancel-recovery-dashboard",
+            "order_lineage_id": "lineage-v160-single-shot",
+            "cancel_candidate_id": "cancel-preview-v180-single-shot",
+            "actual_cancel_send_allowed": false,
+            "cancel_attempted": false,
+            "automatic_cancel_allowed": false,
+            "dashboard_cancel_controls_enabled": false,
+            "network_attempted": false,
+            "production_order_mutations_attempted": 0
+        });
+        let write_artifact = |name: &str, mut value: serde_json::Value| {
+            let value_map = value.as_object_mut().unwrap();
+            for (key, common_value) in common.as_object().unwrap() {
+                value_map.entry(key.clone()).or_insert(common_value.clone());
+            }
+            fs::write(
+                root.join(name),
+                serde_json::to_string_pretty(&value).unwrap(),
+            )
+            .unwrap();
+        };
+
+        write_artifact(
+            "cancel_recovery_scope_decision.json",
+            json!({
+                "schema_version": PRODUCTION_CANCEL_RECOVERY_SCOPE_DECISION_SCHEMA_VERSION,
+                "artifact_type": "cancel_recovery_scope_decision",
+                "status": "scope_defined_preview_only",
+                "request_preview_ready": true,
+                "manual_owner_approval_required": true,
+                "owner_approved": false
+            }),
+        );
+        write_artifact(
+            "cancel_recovery_artifact_contracts.json",
+            json!({
+                "schema_version": PRODUCTION_CANCEL_RECOVERY_ARTIFACT_CONTRACTS_SCHEMA_VERSION,
+                "artifact_type": "cancel_recovery_artifact_contracts",
+                "status": "artifact_contracts_ready",
+                "request_preview_ready": true
+            }),
+        );
+        write_artifact(
+            "cancel_request_preview.json",
+            json!({
+                "schema_version": PRODUCTION_CANCEL_REQUEST_PREVIEW_SCHEMA_VERSION,
+                "artifact_type": "cancel_request_preview",
+                "status": "cancel_request_preview_ready",
+                "request_preview_ready": true,
+                "redacted_request_only": true
+            }),
+        );
+        write_artifact(
+            "cancel_risk_gate.json",
+            json!({
+                "schema_version": PRODUCTION_CANCEL_RISK_GATE_SCHEMA_VERSION,
+                "artifact_type": "cancel_risk_gate",
+                "status": "cancel_risk_gate_passed_for_preview_only",
+                "risk_gate_passed": true,
+                "request_preview_ready": true
+            }),
+        );
+        write_artifact(
+            "cancel_manual_approval_lifecycle.json",
+            json!({
+                "schema_version": PRODUCTION_CANCEL_MANUAL_APPROVAL_LIFECYCLE_SCHEMA_VERSION,
+                "artifact_type": "cancel_manual_approval_lifecycle",
+                "status": "manual_owner_approval_required",
+                "manual_owner_approval_required": true,
+                "owner_approved": false
+            }),
+        );
+        write_artifact(
+            "cancel_response_redaction.json",
+            json!({
+                "schema_version": PRODUCTION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION,
+                "artifact_type": "cancel_response_redaction",
+                "status": "cancel_response_redaction_ready",
+                "response_redaction_ready": true,
+                "raw_exchange_response_recorded": false
+            }),
+        );
+        write_artifact(
+            "cancel_post_cancel_readback.json",
+            json!({
+                "schema_version": PRODUCTION_CANCEL_POST_READBACK_SCHEMA_VERSION,
+                "artifact_type": "cancel_post_cancel_readback",
+                "status": "post_cancel_readback_contract_ready",
+                "post_cancel_readback_ready": true,
+                "readback_fixture_only": true
+            }),
+        );
+        write_artifact(
+            "cancel_incident_audit_closeout.json",
+            json!({
+                "schema_version": PRODUCTION_CANCEL_INCIDENT_AUDIT_CLOSEOUT_SCHEMA_VERSION,
+                "artifact_type": "cancel_incident_audit_closeout",
+                "status": "incident_audit_closeout_ready",
+                "incident_closeout_ready": true,
+                "audit_closeout_ready": true
+            }),
+        );
     }
 
     fn dashboard_js_function_body(function_name: &str) -> &str {

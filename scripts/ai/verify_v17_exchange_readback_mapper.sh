@@ -10,6 +10,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 source scripts/ai/toolchain_env.sh
+export NTPRO_SOURCE_COMMIT="${NTPRO_SOURCE_COMMIT:-$(git rev-parse HEAD)}"
+export NTPRO_SOURCE_RELEASE_TAG="${NTPRO_SOURCE_RELEASE_TAG:-unreleased-v17-local-gate}"
 
 if [[ "${NTPRO_V17_SKIP_BUILD:-0}" != "1" && -z "${NTPRO_V17_NAUTILUS_BIN:-}" ]]; then
   cargo build -p nautilus-cli --bin nautilus
@@ -187,6 +189,17 @@ from pathlib import Path
 
 root = Path(sys.argv[1])
 
+def assert_source_refs(artifact, fields):
+    for field in fields:
+        ref = artifact[field]
+        assert ref["hash"].startswith("fnv1a64:"), field
+        assert ref["sha256"].startswith("sha256:"), field
+        assert len(ref["sha256"]) == 71, field
+        assert ref["bytes"] > 0, field
+        assert ref["source_command"] != "unknown", field
+        assert ref["source_commit"] != "unknown", field
+        assert ref["source_release_tag"], field
+
 missing_flags = json.loads((root / "missing-flags-exchange-readback-mapper.json").read_text())
 assert missing_flags["schema_version"] == "ntpro.v170_production_mutation_exchange_readback_mapper.v1"
 assert missing_flags["status"] == "blocked_missing_gate"
@@ -218,6 +231,11 @@ for status, (state, terminal, open_observed) in expected.items():
     assert artifact["source_artifact_issues"] == []
     assert artifact["malformed_readback_issues"] == []
     assert artifact["missing_cli_flags"] == []
+    assert_source_refs(artifact, [
+        "local_ledger_ref",
+        "order_readback_ref",
+        "open_orders_readback_ref",
+    ])
     assert artifact["manual_review_required"] is False
     assert artifact["new_orders_blocked"] is False
     for field in [

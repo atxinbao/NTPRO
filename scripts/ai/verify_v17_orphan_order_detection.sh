@@ -9,6 +9,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 source scripts/ai/toolchain_env.sh
+export NTPRO_SOURCE_COMMIT="${NTPRO_SOURCE_COMMIT:-$(git rev-parse HEAD)}"
+export NTPRO_SOURCE_RELEASE_TAG="${NTPRO_SOURCE_RELEASE_TAG:-unreleased-v17-local-gate}"
 
 if [[ "${NTPRO_V17_SKIP_BUILD:-0}" != "1" && -z "${NTPRO_V17_NAUTILUS_BIN:-}" ]]; then
   cargo build -p nautilus-cli --bin nautilus
@@ -157,6 +159,16 @@ from pathlib import Path
 
 root = Path(sys.argv[1])
 
+def assert_source_ref(artifact, field):
+    ref = artifact[field]
+    assert ref["hash"].startswith("fnv1a64:"), field
+    assert ref["sha256"].startswith("sha256:"), field
+    assert len(ref["sha256"]) == 71, field
+    assert ref["bytes"] > 0, field
+    assert ref["source_command"] != "unknown", field
+    assert ref["source_commit"] != "unknown", field
+    assert ref["source_release_tag"], field
+
 missing_flags = json.loads((root / "missing-flags-orphan-detector.json").read_text())
 assert missing_flags["schema_version"] == "ntpro.v170_production_mutation_orphan_order_detector.v1"
 assert missing_flags["status"] == "blocked_missing_gate"
@@ -190,6 +202,7 @@ for name, (outcome, risk, halted, manual, blocked, stale_restart, local_terminal
     assert artifact["local_terminal_state"] is local_terminal
     assert artifact["source_artifact_issues"] == []
     assert artifact["missing_cli_flags"] == []
+    assert_source_ref(artifact, "reconciliation_classifier_ref")
     for field in [
         "network_attempted",
         "production_order_submission_allowed",

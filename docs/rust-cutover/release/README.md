@@ -359,6 +359,21 @@ Final release checks, benchmark summaries, and audit reports live here.
   does not include network readback execution, new production order submission,
   production order mutation, actual cancel send, automatic remediation,
   real-funds proof in CI, or Dashboard order/cancel controls.
+- `v0_17_1_readiness_report.md` - readiness material for the v0.17.1 release
+  evidence hardening patch. It records manifest, binary provenance, artifact
+  provenance, release guard, and Dashboard diagnostic closure without
+  publishing a tag.
+- `v0_17_1_release_notes.md` - draft release notes for the future
+  `ntpro-rust-only-v0.17.1` patch target. It keeps
+  `capability_expansion = none_patch_hardening_only`.
+- `v0_18_0_cancel_recovery_artifact_contracts.md` - artifact contract set for
+  the v0.18 Owner-Approved Cancel Recovery Preview milestone. It keeps
+  `actual_cancel_send_allowed=false`, `cancel_attempted=false`, and Dashboard
+  cancel controls disabled.
+- `v0_18_0_readiness_report.md` - readiness material for the v0.18 cancel
+  recovery preview evidence chain and local release gate.
+- `v0_18_0_release_notes.md` - draft release notes for v0.18.0. It does not
+  publish a tag and does not claim actual cancel send.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
