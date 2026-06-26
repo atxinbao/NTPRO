@@ -52,9 +52,9 @@ use crate::{
         LiveProductionLiveAlphaManualApprovalLifecycleOpt,
         LiveProductionLiveAlphaOrderRequestPreviewOpt, LiveProductionLiveAlphaRiskPreflightOpt,
         LiveProductionMutationAuditTrailOpt, LiveProductionMutationCancelRequestPreviewOpt,
-        LiveProductionMutationCancelRiskGateOpt, LiveProductionMutationExchangeReadbackMapperOpt,
-        LiveProductionMutationFailureSemanticsOpt, LiveProductionMutationGuardedSendOpt,
-        LiveProductionMutationLocalOrderLedgerOpt,
+        LiveProductionMutationCancelResponseRedactionOpt, LiveProductionMutationCancelRiskGateOpt,
+        LiveProductionMutationExchangeReadbackMapperOpt, LiveProductionMutationFailureSemanticsOpt,
+        LiveProductionMutationGuardedSendOpt, LiveProductionMutationLocalOrderLedgerOpt,
         LiveProductionMutationManualOwnerApprovalLifecycleOpt,
         LiveProductionMutationOrderStateReadbackOpt, LiveProductionMutationOrphanOrderDetectorOpt,
         LiveProductionMutationReconciliationClassifierOpt, LiveProductionMutationRequestBuilderOpt,
@@ -191,6 +191,8 @@ const PRODUCTION_MUTATION_CANCEL_REQUEST_PREVIEW_SCHEMA_VERSION: &str =
 const PRODUCTION_MUTATION_CANCEL_RISK_GATE_SCHEMA_VERSION: &str = "ntpro.v180_cancel_risk_gate.v1";
 const PRODUCTION_MUTATION_MANUAL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION: &str =
     "ntpro.v180_manual_owner_approval_lifecycle.v1";
+const PRODUCTION_MUTATION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION: &str =
+    "ntpro.v180_cancel_response_redaction.v1";
 const PRODUCTION_MUTATION_EXCHANGE_ORDER_READBACK_SCHEMA_VERSION: &str =
     "ntpro.v170_redacted_binance_order_readback.v1";
 const PRODUCTION_MUTATION_EXCHANGE_OPEN_ORDERS_READBACK_SCHEMA_VERSION: &str =
@@ -2826,6 +2828,88 @@ struct ProductionMutationManualOwnerApprovalLifecycleArtifact {
     diagnostic: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionMutationCancelResponseRedactionArtifact {
+    schema_version: String,
+    run_id: String,
+    order_lineage_id: String,
+    source_manual_owner_approval_lifecycle_path: String,
+    source_response_path: String,
+    source_manual_owner_approval_lifecycle_run_id: String,
+    source_manual_owner_approval_lifecycle_hash: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    capability: String,
+    capability_expansion: String,
+    lineage_scope: String,
+    default_fail_closed: bool,
+    manual_owner_approval_lifecycle_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    approval_lifecycle_valid: bool,
+    approval_state: String,
+    manual_approval_recorded: bool,
+    approval_consumed: bool,
+    response_redaction_ready: bool,
+    cancel_response_redacted: bool,
+    response_shape_validated: bool,
+    response_type: String,
+    known_order_id: String,
+    known_client_order_id: String,
+    cancel_order_id: String,
+    cancel_client_order_id: String,
+    orig_client_order_id: String,
+    symbol: String,
+    account_label: String,
+    exchange_status: String,
+    transact_time_shape: String,
+    allowed_response_fields: Vec<String>,
+    forbidden_response_markers: Vec<String>,
+    source_artifact_issues: Vec<String>,
+    missing_cli_flags: Vec<String>,
+    api_key_value_recorded: bool,
+    api_secret_value_recorded: bool,
+    api_key_header_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    request_body_recorded: bool,
+    raw_request_body_recorded: bool,
+    raw_exchange_response_recorded: bool,
+    response_body_recorded: bool,
+    response_headers_recorded: bool,
+    unrestricted_payload_recorded: bool,
+    account_balances_recorded: bool,
+    fills_recorded: bool,
+    actual_cancel_send_allowed: bool,
+    cancel_attempted: bool,
+    cancel_requests_sent: u64,
+    network_attempted: bool,
+    network_cancel_endpoint_attempted: bool,
+    retry_attempted: bool,
+    replace_attempted: bool,
+    amend_attempted: bool,
+    flatten_attempted: bool,
+    remediation_attempted: bool,
+    automatic_cancel_allowed: bool,
+    automatic_remediation_allowed: bool,
+    production_order_mutation_allowed: bool,
+    dashboard_order_controls_enabled: bool,
+    dashboard_cancel_controls_enabled: bool,
+    manual_owner_approval_lifecycle_ready_confirmed: bool,
+    no_raw_response_persistence_confirmed: bool,
+    no_headers_persistence_confirmed: bool,
+    no_secret_persistence_confirmed: bool,
+    cancel_metadata_only_confirmed: bool,
+    no_account_balances_confirmed: bool,
+    no_unrestricted_payload_confirmed: bool,
+    no_retry_confirmed: bool,
+    no_cancel_confirmed: bool,
+    no_network_confirmed: bool,
+    dashboard_controls_disabled_confirmed: bool,
+    diagnostic: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProductionMutationGuardedSendHttpResult {
     request_sent: bool,
@@ -4084,6 +4168,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionMutationManualOwnerApprovalLifecycle(approval) => {
             run_live_production_mutation_manual_owner_approval_lifecycle(&approval)
         }
+        LiveCommand::ProductionMutationCancelResponseRedaction(redaction) => {
+            run_live_production_mutation_cancel_response_redaction(&redaction)
+        }
         LiveCommand::ProductionLiveAlphaRiskPreflight(preflight) => {
             run_live_production_live_alpha_risk_preflight(&preflight)
         }
@@ -4636,6 +4723,23 @@ fn run_live_production_mutation_manual_owner_approval_lifecycle(
         artifact.approval_lifecycle_valid,
         artifact.approval_scope,
         artifact.approval_expires,
+    );
+    Ok(())
+}
+
+fn run_live_production_mutation_cancel_response_redaction(
+    opt: &LiveProductionMutationCancelResponseRedactionOpt,
+) -> anyhow::Result<()> {
+    let artifact = build_production_mutation_cancel_response_redaction_artifact(opt)?;
+    write_production_mutation_cancel_response_redaction_artifact(&opt.output, &artifact)?;
+    println!(
+        "live.production_mutation_cancel_response_redaction status={} run_id={} order_lineage_id={} output={} response_redaction_ready={} cancel_response_redacted={} raw_exchange_response_recorded=false response_headers_recorded=false unrestricted_payload_recorded=false account_balances_recorded=false actual_cancel_send_allowed=false cancel_attempted=false cancel_requests_sent=0 network_attempted=false network_cancel_endpoint_attempted=false signature_recorded=false signed_query_recorded=false signed_url_recorded=false api_key_value_recorded=false api_secret_value_recorded=false",
+        artifact.status,
+        artifact.run_id,
+        artifact.order_lineage_id,
+        opt.output.display(),
+        artifact.response_redaction_ready,
+        artifact.cancel_response_redacted,
     );
     Ok(())
 }
@@ -10291,6 +10395,169 @@ fn build_production_mutation_manual_owner_approval_lifecycle_artifact(
     })
 }
 
+fn build_production_mutation_cancel_response_redaction_artifact(
+    opt: &LiveProductionMutationCancelResponseRedactionOpt,
+) -> anyhow::Result<ProductionMutationCancelResponseRedactionArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+
+    let approval_lifecycle = load_json_value(
+        &opt.manual_owner_approval_lifecycle,
+        "manual owner approval lifecycle",
+    )?;
+    let response = load_json_value(&opt.response, "production mutation cancel response")?;
+    let missing_cli_flags = missing_production_mutation_cancel_response_redaction_cli_flags(opt);
+    let source_artifact_issues =
+        production_mutation_cancel_response_redaction_source_issues(&approval_lifecycle);
+    let forbidden_response_markers = production_mutation_response_forbidden_markers(&response);
+    let response_redaction_ready = missing_cli_flags.is_empty()
+        && source_artifact_issues.is_empty()
+        && forbidden_response_markers.is_empty();
+    let status = if !missing_cli_flags.is_empty() {
+        "blocked_missing_gate"
+    } else if !source_artifact_issues.is_empty() {
+        "blocked_source_artifact"
+    } else if !forbidden_response_markers.is_empty() {
+        "blocked_forbidden_response_marker"
+    } else {
+        "ready_cancel_response_redacted"
+    };
+
+    let order_lineage_id = json_string_value(&approval_lifecycle, "order_lineage_id")
+        .unwrap_or_else(|| "missing".into());
+    let known_order_id = json_scalar_string_value(&approval_lifecycle, "known_order_id")
+        .unwrap_or_else(|| "missing".to_string());
+    let known_client_order_id =
+        json_scalar_string_value(&approval_lifecycle, "known_client_order_id")
+            .unwrap_or_else(|| "missing".to_string());
+    let raw_cancel_order_id =
+        json_scalar_string_value(&response, "orderId").unwrap_or_else(|| "missing".to_string());
+    let raw_cancel_client_order_id = json_scalar_string_value(&response, "clientOrderId")
+        .unwrap_or_else(|| "missing".to_string());
+    let raw_orig_client_order_id = json_scalar_string_value(&response, "origClientOrderId")
+        .unwrap_or_else(|| "missing".to_string());
+
+    Ok(ProductionMutationCancelResponseRedactionArtifact {
+        schema_version: PRODUCTION_MUTATION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        order_lineage_id,
+        source_manual_owner_approval_lifecycle_path: opt
+            .manual_owner_approval_lifecycle
+            .display()
+            .to_string(),
+        source_response_path: opt.response.display().to_string(),
+        source_manual_owner_approval_lifecycle_run_id: json_string_value(
+            &approval_lifecycle,
+            "run_id",
+        )
+        .unwrap_or_else(|| "unknown".to_string()),
+        source_manual_owner_approval_lifecycle_hash: file_fnv1a64_hash(
+            &opt.manual_owner_approval_lifecycle.display().to_string(),
+        ),
+        artifact_type: "cancel_response_redaction".to_string(),
+        status: status.to_string(),
+        created_at: now_millis(),
+        mode: "single_mutation_candidate_cancel_response_redaction_contract".to_string(),
+        capability: "Owner-Approved Cancel Recovery Preview".to_string(),
+        capability_expansion: "future_cancel_response_redaction_only".to_string(),
+        lineage_scope: json_string_value(&approval_lifecycle, "lineage_scope")
+            .unwrap_or_else(|| "unknown".to_string()),
+        default_fail_closed: true,
+        manual_owner_approval_lifecycle_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.manual_owner_approval_lifecycle,
+            &approval_lifecycle,
+            "approval_lifecycle_valid",
+        ),
+        approval_lifecycle_valid: json_bool_value(&approval_lifecycle, "approval_lifecycle_valid")
+            .unwrap_or(false),
+        approval_state: json_string_value(&approval_lifecycle, "approval_state")
+            .unwrap_or_else(|| "unknown".to_string()),
+        manual_approval_recorded: json_bool_value(
+            &approval_lifecycle,
+            "manual_approval_recorded",
+        )
+        .unwrap_or(false),
+        approval_consumed: json_bool_value(&approval_lifecycle, "approval_consumed")
+            .unwrap_or(false),
+        response_redaction_ready,
+        cancel_response_redacted: true,
+        response_shape_validated: response_redaction_ready,
+        response_type: "binance_cancel_response_redacted_metadata_v1".to_string(),
+        known_order_id,
+        known_client_order_id,
+        cancel_order_id: redact_cancel_preview_identifier("cancel_order_id", &raw_cancel_order_id),
+        cancel_client_order_id: redact_cancel_preview_identifier(
+            "cancel_client_order_id",
+            &raw_cancel_client_order_id,
+        ),
+        orig_client_order_id: redact_cancel_preview_identifier(
+            "orig_client_order_id",
+            &raw_orig_client_order_id,
+        ),
+        symbol: json_scalar_string_value(&response, "symbol")
+            .or_else(|| json_scalar_string_value(&approval_lifecycle, "symbol"))
+            .unwrap_or_else(|| "unknown".to_string()),
+        account_label: json_scalar_string_value(&approval_lifecycle, "account_label")
+            .unwrap_or_else(|| "unknown".to_string()),
+        exchange_status: json_scalar_string_value(&response, "status")
+            .unwrap_or_else(|| "unknown".to_string()),
+        transact_time_shape: production_mutation_response_time_shape(&response, "transactTime"),
+        allowed_response_fields: production_mutation_cancel_response_allowed_fields(),
+        forbidden_response_markers,
+        source_artifact_issues,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        api_key_value_recorded: false,
+        api_secret_value_recorded: false,
+        api_key_header_value_recorded: false,
+        signature_recorded: false,
+        signed_query_recorded: false,
+        signed_url_recorded: false,
+        request_body_recorded: false,
+        raw_request_body_recorded: false,
+        raw_exchange_response_recorded: false,
+        response_body_recorded: false,
+        response_headers_recorded: false,
+        unrestricted_payload_recorded: false,
+        account_balances_recorded: false,
+        fills_recorded: false,
+        actual_cancel_send_allowed: false,
+        cancel_attempted: false,
+        cancel_requests_sent: 0,
+        network_attempted: false,
+        network_cancel_endpoint_attempted: false,
+        retry_attempted: false,
+        replace_attempted: false,
+        amend_attempted: false,
+        flatten_attempted: false,
+        remediation_attempted: false,
+        automatic_cancel_allowed: false,
+        automatic_remediation_allowed: false,
+        production_order_mutation_allowed: false,
+        dashboard_order_controls_enabled: false,
+        dashboard_cancel_controls_enabled: false,
+        manual_owner_approval_lifecycle_ready_confirmed: opt
+            .confirm_manual_owner_approval_lifecycle_ready,
+        no_raw_response_persistence_confirmed: opt.confirm_no_raw_response_persistence,
+        no_headers_persistence_confirmed: opt.confirm_no_headers_persistence,
+        no_secret_persistence_confirmed: opt.confirm_no_secret_persistence,
+        cancel_metadata_only_confirmed: opt.confirm_cancel_metadata_only,
+        no_account_balances_confirmed: opt.confirm_no_account_balances,
+        no_unrestricted_payload_confirmed: opt.confirm_no_unrestricted_payload,
+        no_retry_confirmed: opt.confirm_no_retry,
+        no_cancel_confirmed: opt.confirm_no_cancel,
+        no_network_confirmed: opt.confirm_no_network,
+        dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
+        diagnostic: if response_redaction_ready {
+            "future cancel response was reduced to allowed cancel metadata only; raw body, headers, secrets, balances, fills, unrestricted payload, cancel send, network, retry, and Dashboard cancel controls were not persisted or enabled"
+        } else {
+            "future cancel response redaction contract blocked before persisting unrestricted response material"
+        }
+        .to_string(),
+    })
+}
+
 fn build_production_mutation_runtime_gate_artifact(
     opt: &LiveProductionMutationRuntimeGateOpt,
 ) -> anyhow::Result<ProductionMutationRuntimeGateArtifact> {
@@ -11879,6 +12146,9 @@ fn production_mutation_source_command(artifact_type: &str) -> &'static str {
         "manual_owner_approval_lifecycle" => {
             "nautilus live production-mutation-manual-owner-approval-lifecycle"
         }
+        "cancel_response_redaction" => {
+            "nautilus live production-mutation-cancel-response-redaction"
+        }
         "redacted_binance_order_readback" => {
             "nautilus live production-mutation-exchange-readback-mapper --order-readback"
         }
@@ -12555,6 +12825,130 @@ fn production_mutation_manual_owner_approval_lifecycle_source_issues(
     issues
 }
 
+fn production_mutation_cancel_response_redaction_source_issues(
+    approval_lifecycle: &serde_json::Value,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(approval_lifecycle, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_MANUAL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION)
+    {
+        issues.push("manual_owner_approval_lifecycle_schema_mismatch".to_string());
+    }
+    if json_string_value(approval_lifecycle, "artifact_type").as_deref()
+        != Some("manual_owner_approval_lifecycle")
+    {
+        issues.push("manual_owner_approval_lifecycle_artifact_type_mismatch".to_string());
+    }
+    if json_string_value(approval_lifecycle, "status").as_deref()
+        != Some("approval_lifecycle_recorded_for_cancel_candidate")
+    {
+        let status = json_string_value(approval_lifecycle, "status")
+            .unwrap_or_else(|| "unknown".to_string());
+        issues.push(format!("manual_owner_approval_lifecycle_status_{status}"));
+    }
+    for field in [
+        "approval_lifecycle_valid",
+        "manual_approval_recorded",
+        "owner_approval_required",
+        "owner_approval_lifecycle_recorded",
+        "one_time_approval",
+        "approval_expires",
+    ] {
+        if !json_bool_value(approval_lifecycle, field).unwrap_or(false) {
+            issues.push(format!("manual_owner_approval_lifecycle_{field}_not_true"));
+        }
+    }
+    if json_string_value(approval_lifecycle, "approval_state").as_deref() != Some("approved") {
+        let state = json_string_value(approval_lifecycle, "approval_state")
+            .unwrap_or_else(|| "unknown".to_string());
+        issues.push(format!("manual_owner_approval_lifecycle_state_{state}"));
+    }
+    if json_string_value(approval_lifecycle, "approval_scope").as_deref()
+        != Some("one_order_cancel_candidate")
+    {
+        issues.push("manual_owner_approval_lifecycle_scope_mismatch".to_string());
+    }
+    if json_string_value(approval_lifecycle, "lineage_scope").as_deref()
+        != Some("single_v16_mutation_candidate")
+    {
+        issues.push("manual_owner_approval_lifecycle_lineage_scope_mismatch".to_string());
+    }
+    let order_lineage_id = json_string_value(approval_lifecycle, "order_lineage_id")
+        .unwrap_or_else(|| "missing".into());
+    if !cancel_preview_identifier_known(&order_lineage_id) {
+        issues.push("order_lineage_id_missing".to_string());
+    }
+    if json_u64_value(approval_lifecycle, "candidate_count").unwrap_or(0) != 1 {
+        issues.push("manual_owner_approval_lifecycle_candidate_count_not_one".to_string());
+    }
+    for field in [
+        "source_artifact_issues",
+        "missing_cli_flags",
+        "lifecycle_issues",
+    ] {
+        if json_array_has_items(approval_lifecycle, field) {
+            issues.push(format!("manual_owner_approval_lifecycle_{field}_not_empty"));
+        }
+    }
+
+    append_true_marker_issues(
+        &mut issues,
+        "manual_owner_approval_lifecycle",
+        approval_lifecycle,
+        &[
+            "approval_expired",
+            "approval_revoked",
+            "approval_used",
+            "approval_reusable",
+            "approval_consumed",
+            "approval_consumed_before_send",
+            "approval_consumed_after_send",
+            "strategy_auto_approval_allowed",
+            "strategy_auto_approval_attempted",
+            "background_auto_approval_allowed",
+            "background_auto_approval_attempted",
+            "dashboard_auto_approval_allowed",
+            "dashboard_auto_approval_attempted",
+            "incident_handler_auto_approval_allowed",
+            "incident_handler_auto_approval_attempted",
+            "api_key_value_recorded",
+            "api_secret_value_recorded",
+            "api_key_header_value_recorded",
+            "signature_recorded",
+            "signed_query_recorded",
+            "signed_url_recorded",
+            "raw_exchange_response_recorded",
+            "response_body_recorded",
+            "response_headers_recorded",
+            "network_attempted",
+            "network_cancel_endpoint_attempted",
+            "actual_cancel_send_allowed",
+            "cancel_attempted",
+            "retry_attempted",
+            "replace_attempted",
+            "amend_attempted",
+            "flatten_attempted",
+            "remediation_attempted",
+            "automatic_cancel_allowed",
+            "automatic_remediation_allowed",
+            "production_order_mutation_allowed",
+            "dashboard_order_controls_enabled",
+            "dashboard_cancel_controls_enabled",
+        ],
+    );
+    append_nonzero_marker_issues(
+        &mut issues,
+        "manual_owner_approval_lifecycle",
+        approval_lifecycle,
+        &[
+            "cancel_requests_sent",
+            "production_order_mutations_attempted",
+        ],
+    );
+
+    issues
+}
+
 fn source_ref_path(
     source_path: &Path,
     artifact: &serde_json::Value,
@@ -13161,6 +13555,20 @@ fn production_mutation_response_allowed_fields() -> Vec<String> {
         "status",
         "transactTime",
         "workingTime",
+    ]
+    .into_iter()
+    .map(ToString::to_string)
+    .collect()
+}
+
+fn production_mutation_cancel_response_allowed_fields() -> Vec<String> {
+    [
+        "symbol",
+        "orderId",
+        "clientOrderId",
+        "origClientOrderId",
+        "status",
+        "transactTime",
     ]
     .into_iter()
     .map(ToString::to_string)
@@ -15948,6 +16356,16 @@ fn write_production_mutation_manual_owner_approval_lifecycle_artifact(
     Ok(())
 }
 
+fn write_production_mutation_cancel_response_redaction_artifact(
+    path: &Path,
+    value: &ProductionMutationCancelResponseRedactionArtifact,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
 fn decimal_string_to_f64(field: &str, value: &str) -> Result<f64, String> {
     validate_positive_decimal_string(field, value).map_err(|error| error.to_string())?;
     value
@@ -16937,6 +17355,49 @@ fn missing_production_mutation_manual_owner_approval_lifecycle_cli_flags(
     }
     if !opt.confirm_no_secret_persistence {
         missing.push("--confirm-no-secret-persistence");
+    }
+    missing
+}
+
+fn missing_production_mutation_cancel_response_redaction_cli_flags(
+    opt: &LiveProductionMutationCancelResponseRedactionOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_mutation_cancel_response_redaction {
+        missing.push("--allow-production-mutation-cancel-response-redaction");
+    }
+    if !opt.confirm_manual_owner_approval_lifecycle_ready {
+        missing.push("--confirm-manual-owner-approval-lifecycle-ready");
+    }
+    if !opt.confirm_no_raw_response_persistence {
+        missing.push("--confirm-no-raw-response-persistence");
+    }
+    if !opt.confirm_no_headers_persistence {
+        missing.push("--confirm-no-headers-persistence");
+    }
+    if !opt.confirm_no_secret_persistence {
+        missing.push("--confirm-no-secret-persistence");
+    }
+    if !opt.confirm_cancel_metadata_only {
+        missing.push("--confirm-cancel-metadata-only");
+    }
+    if !opt.confirm_no_account_balances {
+        missing.push("--confirm-no-account-balances");
+    }
+    if !opt.confirm_no_unrestricted_payload {
+        missing.push("--confirm-no-unrestricted-payload");
+    }
+    if !opt.confirm_no_retry {
+        missing.push("--confirm-no-retry");
+    }
+    if !opt.confirm_no_cancel {
+        missing.push("--confirm-no-cancel");
+    }
+    if !opt.confirm_no_network {
+        missing.push("--confirm-no-network");
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        missing.push("--confirm-dashboard-order-controls-disabled");
     }
     missing
 }
@@ -18564,6 +19025,32 @@ write_summary = true
         }
     }
 
+    fn production_mutation_cancel_response_redaction_opt(
+        manual_owner_approval_lifecycle: PathBuf,
+        response: PathBuf,
+        output: PathBuf,
+        all_cli_gates: bool,
+    ) -> LiveProductionMutationCancelResponseRedactionOpt {
+        LiveProductionMutationCancelResponseRedactionOpt {
+            run_id: "v180-production-mutation-cancel-response-redaction".to_string(),
+            manual_owner_approval_lifecycle,
+            response,
+            output,
+            allow_production_mutation_cancel_response_redaction: all_cli_gates,
+            confirm_manual_owner_approval_lifecycle_ready: all_cli_gates,
+            confirm_no_raw_response_persistence: all_cli_gates,
+            confirm_no_headers_persistence: all_cli_gates,
+            confirm_no_secret_persistence: all_cli_gates,
+            confirm_cancel_metadata_only: all_cli_gates,
+            confirm_no_account_balances: all_cli_gates,
+            confirm_no_unrestricted_payload: all_cli_gates,
+            confirm_no_retry: all_cli_gates,
+            confirm_no_cancel: all_cli_gates,
+            confirm_no_network: all_cli_gates,
+            confirm_dashboard_order_controls_disabled: all_cli_gates,
+        }
+    }
+
     fn write_kill_switch_approval_artifact(
         output: PathBuf,
         kill_switch_active: bool,
@@ -18881,6 +19368,41 @@ write_summary = true
                 "headers": {"X-MBX-APIKEY": "must_not_persist"},
                 "signature": "signature=must_not_persist",
                 "balances": [{"asset": "USDT", "free": "100.0"}],
+                "payload": {"raw": "unrestricted"}
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn write_synthetic_production_mutation_cancel_response(path: &Path) {
+        fs::write(
+            path,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "symbol": "BTCUSDT",
+                "orderId": 123456789,
+                "clientOrderId": "owner-approved-v160-single-shot",
+                "origClientOrderId": "owner-approved-v160-single-shot",
+                "transactTime": 1718400000000_u64,
+                "status": "CANCELED"
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn write_forbidden_production_mutation_cancel_response(path: &Path) {
+        fs::write(
+            path,
+            serde_json::to_string_pretty(&serde_json::json!({
+                "symbol": "BTCUSDT",
+                "orderId": 123456789,
+                "clientOrderId": "owner-approved-v160-single-shot",
+                "origClientOrderId": "owner-approved-v160-single-shot",
+                "status": "CANCELED",
+                "headers": {"X-MBX-APIKEY": "must_not_persist"},
+                "body": {"raw": "raw response must not persist"},
+                "signature": "signature=must_not_persist",
                 "payload": {"raw": "unrestricted"}
             }))
             .unwrap(),
@@ -19321,6 +19843,25 @@ write_summary = true
         .unwrap();
 
         risk_gate
+    }
+
+    fn write_ready_v180_manual_owner_approval_lifecycle_artifact(
+        output_dir: &Path,
+        mapper_fixture: &V170ExchangeReadbackMapperFixture<'_>,
+    ) -> PathBuf {
+        let risk_gate =
+            write_v180_manual_owner_approval_lifecycle_source_chain(output_dir, mapper_fixture);
+        let approval = output_dir.join("manual-owner-approval-lifecycle.json");
+        run_live_production_mutation_manual_owner_approval_lifecycle(
+            &production_mutation_manual_owner_approval_lifecycle_opt(
+                risk_gate,
+                approval.clone(),
+                "approved",
+                true,
+            ),
+        )
+        .unwrap();
+        approval
     }
 
     fn passing_live_alpha_risk_input() -> ProductionLiveAlphaRiskPreflightInput {
@@ -26999,6 +27540,275 @@ write_summary = true
         );
         assert_eq!(source["actual_cancel_send_allowed"], false);
         assert_eq!(source["network_cancel_endpoint_attempted"], false);
+    }
+
+    #[test]
+    fn production_mutation_cancel_response_redaction_persists_allowed_cancel_metadata_only() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v180-006-cancel-response-redaction-ready-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let approval = write_ready_v180_manual_owner_approval_lifecycle_artifact(
+            &output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+        let response = output_dir.join("synthetic-cancel-response.json");
+        let output = output_dir.join("cancel-response-redaction.json");
+        write_synthetic_production_mutation_cancel_response(&response);
+
+        run_live_production_mutation_cancel_response_redaction(
+            &production_mutation_cancel_response_redaction_opt(
+                approval.clone(),
+                response,
+                output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(!body.contains("123456789"));
+        assert!(!body.contains("owner-approved-v160-single-shot"));
+        assert!(!body.contains("X-MBX-APIKEY"));
+        assert!(!body.contains("signature=must_not_persist"));
+        assert!(!body.contains("\"headers\""));
+        assert!(!body.contains("\"payload\""));
+        assert!(!body.contains("\"body\""));
+        let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(
+            artifact["schema_version"],
+            PRODUCTION_MUTATION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION
+        );
+        assert_eq!(artifact["artifact_type"], "cancel_response_redaction");
+        assert_eq!(artifact["status"], "ready_cancel_response_redacted");
+        assert_eq!(artifact["response_redaction_ready"], true);
+        assert_eq!(artifact["cancel_response_redacted"], true);
+        assert_eq!(artifact["response_shape_validated"], true);
+        assert_eq!(
+            artifact["response_type"],
+            "binance_cancel_response_redacted_metadata_v1"
+        );
+        assert_eq!(
+            artifact["source_manual_owner_approval_lifecycle_hash"],
+            file_fnv1a64_hash(&approval.display().to_string())
+        );
+        assert_eq!(
+            artifact["source_manual_owner_approval_lifecycle_run_id"],
+            "v180-production-mutation-manual-owner-approval-lifecycle"
+        );
+        assert_eq!(artifact["approval_lifecycle_valid"], true);
+        assert_eq!(artifact["approval_state"], "approved");
+        assert_eq!(artifact["manual_approval_recorded"], true);
+        assert_eq!(artifact["approval_consumed"], false);
+        assert_eq!(artifact["symbol"], "BTCUSDT");
+        assert_eq!(artifact["account_label"], "prod-account-redacted");
+        assert!(
+            artifact["cancel_order_id"]
+                .as_str()
+                .unwrap()
+                .starts_with("cancel_order_id:sha256:")
+        );
+        assert!(
+            artifact["cancel_client_order_id"]
+                .as_str()
+                .unwrap()
+                .starts_with("cancel_client_order_id:sha256:")
+        );
+        assert!(
+            artifact["orig_client_order_id"]
+                .as_str()
+                .unwrap()
+                .starts_with("orig_client_order_id:sha256:")
+        );
+        assert_eq!(artifact["exchange_status"], "CANCELED");
+        assert_eq!(
+            artifact["transact_time_shape"],
+            "epoch_millis_present_redacted"
+        );
+        assert_eq!(
+            artifact["forbidden_response_markers"]
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
+        assert_eq!(
+            artifact["source_artifact_issues"].as_array().unwrap().len(),
+            0
+        );
+        assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+        assert_eq!(artifact["api_key_value_recorded"], false);
+        assert_eq!(artifact["api_secret_value_recorded"], false);
+        assert_eq!(artifact["api_key_header_value_recorded"], false);
+        assert_eq!(artifact["signature_recorded"], false);
+        assert_eq!(artifact["signed_query_recorded"], false);
+        assert_eq!(artifact["signed_url_recorded"], false);
+        assert_eq!(artifact["request_body_recorded"], false);
+        assert_eq!(artifact["raw_request_body_recorded"], false);
+        assert_eq!(artifact["raw_exchange_response_recorded"], false);
+        assert_eq!(artifact["response_body_recorded"], false);
+        assert_eq!(artifact["response_headers_recorded"], false);
+        assert_eq!(artifact["unrestricted_payload_recorded"], false);
+        assert_eq!(artifact["account_balances_recorded"], false);
+        assert_eq!(artifact["fills_recorded"], false);
+        assert_eq!(artifact["actual_cancel_send_allowed"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["cancel_requests_sent"], 0);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["network_cancel_endpoint_attempted"], false);
+        assert_eq!(artifact["retry_attempted"], false);
+        assert_eq!(artifact["remediation_attempted"], false);
+        assert_eq!(artifact["dashboard_cancel_controls_enabled"], false);
+        assert_eq!(
+            artifact["manual_owner_approval_lifecycle_ref"]["schema_version"],
+            PRODUCTION_MUTATION_MANUAL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION
+        );
+        assert_eq!(
+            artifact["manual_owner_approval_lifecycle_ref"]["ready"],
+            true
+        );
+    }
+
+    #[test]
+    fn production_mutation_cancel_response_redaction_blocks_forbidden_response_markers() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v180-006-cancel-response-redaction-forbidden-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let approval = write_ready_v180_manual_owner_approval_lifecycle_artifact(
+            &output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+        let response = output_dir.join("forbidden-cancel-response.json");
+        let output = output_dir.join("cancel-response-redaction-forbidden.json");
+        write_forbidden_production_mutation_cancel_response(&response);
+
+        run_live_production_mutation_cancel_response_redaction(
+            &production_mutation_cancel_response_redaction_opt(
+                approval,
+                response,
+                output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_forbidden_response_marker");
+        assert_eq!(artifact["response_redaction_ready"], false);
+        assert_eq!(artifact["response_shape_validated"], false);
+        assert!(
+            artifact["forbidden_response_markers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|marker| marker.as_str().unwrap().contains("$.headers"))
+        );
+        assert!(
+            artifact["forbidden_response_markers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|marker| marker.as_str().unwrap().contains("$.body"))
+        );
+        assert!(
+            artifact["forbidden_response_markers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|marker| marker.as_str().unwrap().contains("$.signature"))
+        );
+        assert_eq!(artifact["raw_exchange_response_recorded"], false);
+        assert_eq!(artifact["response_headers_recorded"], false);
+        assert_eq!(artifact["unrestricted_payload_recorded"], false);
+        assert_eq!(artifact["actual_cancel_send_allowed"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["network_cancel_endpoint_attempted"], false);
+    }
+
+    #[test]
+    fn production_mutation_cancel_response_redaction_blocks_missing_confirmations() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v180-006-cancel-response-redaction-missing-gates-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let approval = write_ready_v180_manual_owner_approval_lifecycle_artifact(
+            &output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+        let response = output_dir.join("synthetic-cancel-response.json");
+        let output = output_dir.join("cancel-response-redaction-missing-gates.json");
+        write_synthetic_production_mutation_cancel_response(&response);
+
+        run_live_production_mutation_cancel_response_redaction(
+            &production_mutation_cancel_response_redaction_opt(
+                approval,
+                response,
+                output.clone(),
+                false,
+            ),
+        )
+        .unwrap();
+
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["status"], "blocked_missing_gate");
+        assert_eq!(artifact["response_redaction_ready"], false);
+        assert_eq!(artifact["response_shape_validated"], false);
+        assert_eq!(
+            artifact["source_artifact_issues"].as_array().unwrap().len(),
+            0
+        );
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--allow-production-mutation-cancel-response-redaction")
+        );
+        assert!(
+            artifact["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--confirm-no-raw-response-persistence")
+        );
+        assert_eq!(artifact["actual_cancel_send_allowed"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["network_cancel_endpoint_attempted"], false);
+        assert_eq!(artifact["dashboard_cancel_controls_enabled"], false);
     }
 
     #[test]
