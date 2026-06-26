@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# V171-006：v0.17.1 发布 provenance manifest gate。
+# V171-008：v0.17.1 发布 closeout provenance manifest gate。
 # 该 gate 写入机器可读的 release、binary 与 artifact provenance。
 # 它不会发布 tag、打开网络访问、提交订单、变更订单、取消订单或启用 Dashboard 控件。
 
@@ -75,6 +75,8 @@ paths = [
     "docs/rust-cutover/evidence/V171-004.md",
     "docs/rust-cutover/evidence/V171-005.md",
     "docs/rust-cutover/evidence/V171-006.md",
+    "docs/rust-cutover/evidence/V171-007.md",
+    "docs/rust-cutover/evidence/V171-008.md",
     "docs/rust-cutover/release/v0_17_1_readiness_report.md",
     "docs/rust-cutover/release/v0_17_1_release_notes.md",
     "scripts/ai/verify_v171_release_hardening.sh",
