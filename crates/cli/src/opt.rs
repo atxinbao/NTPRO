@@ -208,6 +208,8 @@ pub enum LiveCommand {
     ),
     /// Redacts a future v0.18 owner-approved cancel response artifact; no cancel send.
     ProductionMutationCancelResponseRedaction(LiveProductionMutationCancelResponseRedactionOpt),
+    /// Classifies a future v0.18 post-cancel readback artifact; no network read or cancel send.
+    ProductionMutationPostCancelReadback(LiveProductionMutationPostCancelReadbackOpt),
     /// Writes a v0.14 hypothetical live-alpha dry-run risk preflight; no production mutation.
     ProductionLiveAlphaRiskPreflight(LiveProductionLiveAlphaRiskPreflightOpt),
     /// Builds local v0.12 shadow portfolio artifacts from read-only inputs; no production mutation.
@@ -1721,6 +1723,62 @@ pub struct LiveProductionMutationCancelResponseRedactionOpt {
     /// Confirms retry, correction, replace, amend, flatten, and remediation remain forbidden.
     #[arg(long)]
     pub confirm_no_retry: bool,
+    /// Confirms no cancel send is attempted or allowed.
+    #[arg(long)]
+    pub confirm_no_cancel: bool,
+    /// Confirms no network endpoint is attempted.
+    #[arg(long)]
+    pub confirm_no_network: bool,
+    /// Confirms Dashboard order and cancel controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+}
+
+/// v0.18 post-cancel readback contract options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationPostCancelReadbackOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// v0.18 cancel response redaction JSON input.
+    #[arg(long)]
+    pub cancel_response_redaction: PathBuf,
+    /// Synthetic or manually supplied read-only post-cancel readback JSON input.
+    #[arg(long)]
+    pub readback: PathBuf,
+    /// v0.18 post-cancel readback JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for post-cancel readback contract evaluation.
+    #[arg(long)]
+    pub allow_production_mutation_post_cancel_readback: bool,
+    /// Confirms the cancel response redaction artifact must already be valid.
+    #[arg(long)]
+    pub confirm_cancel_response_redaction_ready: bool,
+    /// Confirms only redacted readback metadata fields are allowed.
+    #[arg(long)]
+    pub confirm_readback_metadata_only: bool,
+    /// Confirms canceled, filled, rejected, expired, missing, and unknown states are classified.
+    #[arg(long)]
+    pub confirm_terminal_and_ambiguous_classification: bool,
+    /// Confirms raw readback bodies must not be persisted.
+    #[arg(long)]
+    pub confirm_no_raw_readback_persistence: bool,
+    /// Confirms HTTP headers must not be persisted.
+    #[arg(long)]
+    pub confirm_no_headers_persistence: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+    /// Confirms no production mutation is attempted or allowed.
+    #[arg(long)]
+    pub confirm_no_mutation: bool,
+    /// Confirms retry remains forbidden.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms remediation remains forbidden.
+    #[arg(long)]
+    pub confirm_no_remediation: bool,
     /// Confirms no cancel send is attempted or allowed.
     #[arg(long)]
     pub confirm_no_cancel: bool,
@@ -4012,6 +4070,71 @@ mod tests {
         assert!(redaction.confirm_no_cancel);
         assert!(redaction.confirm_no_network);
         assert!(redaction.confirm_dashboard_order_controls_disabled);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_post_cancel_readback_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-post-cancel-readback",
+            "--run-id",
+            "v180-post-cancel-readback",
+            "--cancel-response-redaction",
+            "runs/v180/cancel-response-redaction.json",
+            "--readback",
+            "runs/v180/post-cancel-readback-canceled.json",
+            "--output",
+            "runs/v180/post-cancel-readback.json",
+            "--allow-production-mutation-post-cancel-readback",
+            "--confirm-cancel-response-redaction-ready",
+            "--confirm-readback-metadata-only",
+            "--confirm-terminal-and-ambiguous-classification",
+            "--confirm-no-raw-readback-persistence",
+            "--confirm-no-headers-persistence",
+            "--confirm-no-secret-persistence",
+            "--confirm-no-mutation",
+            "--confirm-no-retry",
+            "--confirm-no-remediation",
+            "--confirm-no-cancel",
+            "--confirm-no-network",
+            "--confirm-dashboard-order-controls-disabled",
+        ])
+        .expect("live production-mutation-post-cancel-readback should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationPostCancelReadback(readback) = live.command else {
+            panic!("expected production-mutation-post-cancel-readback command");
+        };
+
+        assert_eq!(readback.run_id, "v180-post-cancel-readback");
+        assert_eq!(
+            readback.cancel_response_redaction,
+            PathBuf::from("runs/v180/cancel-response-redaction.json")
+        );
+        assert_eq!(
+            readback.readback,
+            PathBuf::from("runs/v180/post-cancel-readback-canceled.json")
+        );
+        assert_eq!(
+            readback.output,
+            PathBuf::from("runs/v180/post-cancel-readback.json")
+        );
+        assert!(readback.allow_production_mutation_post_cancel_readback);
+        assert!(readback.confirm_cancel_response_redaction_ready);
+        assert!(readback.confirm_readback_metadata_only);
+        assert!(readback.confirm_terminal_and_ambiguous_classification);
+        assert!(readback.confirm_no_raw_readback_persistence);
+        assert!(readback.confirm_no_headers_persistence);
+        assert!(readback.confirm_no_secret_persistence);
+        assert!(readback.confirm_no_mutation);
+        assert!(readback.confirm_no_retry);
+        assert!(readback.confirm_no_remediation);
+        assert!(readback.confirm_no_cancel);
+        assert!(readback.confirm_no_network);
+        assert!(readback.confirm_dashboard_order_controls_disabled);
     }
 
     #[test]
