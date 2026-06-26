@@ -54,12 +54,18 @@ target/ntpro-v171/v0_17_1_release_manifest.json
 
 The manifest records product version, release tag, current published release
 tag, commit, tree, Cargo workspace version, capability, patch-only capability
-expansion, tracked dirty state, gate status, and generated timestamp.
+expansion, tracked dirty state, gate status, generated timestamp, release
+binary paths, binary sha256 values, binary byte counts, CLI version output,
+build timestamp, source commit, and source tree.
+
+Release mode rejects missing release binaries and rejects non-`target/release`
+binaries unless the diagnostic override is set explicitly.
 
 ## Validation Plan
 
 ```text
 scripts/ai/verify_release.sh v171-release-hardening
+NTPRO_RELEASE_GATE=1 scripts/ai/verify_v171_release_hardening.sh
 scripts/ai/verify_release.sh release-surface-current-guard
 scripts/ai/verify_release.sh release-publication-guard
 scripts/ai/verify_fast.sh
