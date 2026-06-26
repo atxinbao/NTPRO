@@ -10,6 +10,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 source scripts/ai/toolchain_env.sh
+export NTPRO_SOURCE_COMMIT="${NTPRO_SOURCE_COMMIT:-$(git rev-parse HEAD)}"
+export NTPRO_SOURCE_RELEASE_TAG="${NTPRO_SOURCE_RELEASE_TAG:-unreleased-v17-local-gate}"
 
 if [[ "${NTPRO_V17_SKIP_BUILD:-0}" != "1" && -z "${NTPRO_V17_NAUTILUS_BIN:-}" ]]; then
   cargo build -p nautilus-cli --bin nautilus
@@ -132,6 +134,12 @@ expected_refs = {
 for field, schema in expected_refs.items():
     assert ready[field]["schema_version"] == schema, field
     assert ready[field]["hash"].startswith("fnv1a64:"), field
+    assert ready[field]["sha256"].startswith("sha256:"), field
+    assert len(ready[field]["sha256"]) == 71, field
+    assert ready[field]["bytes"] > 0, field
+    assert ready[field]["source_command"] != "unknown", field
+    assert ready[field]["source_commit"] != "unknown", field
+    assert ready[field]["source_release_tag"], field
 
 assert ready["symbol"] == "BTCUSDT"
 assert ready["side"] == "BUY"

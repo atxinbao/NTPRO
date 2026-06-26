@@ -20,6 +20,8 @@ surface 当前正确，也要证明 GitHub Release 发布态正确。
   machine-readable release manifest path.
 - Release binary provenance now records path, bytes, sha256, CLI version output,
   build timestamp, source commit, source tree, and clean tracked-worktree state.
+- v0.17 source artifact references retain legacy `fnv1a64` and add `sha256`,
+  `bytes`, `source_command`, `source_commit`, and `source_release_tag`.
 - Hosted release evidence references the completed
   `ntpro-rust-only-v0.17.0` release gate run with 49/49 PASS.
 

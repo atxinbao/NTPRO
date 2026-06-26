@@ -56,7 +56,9 @@ The manifest records product version, release tag, current published release
 tag, commit, tree, Cargo workspace version, capability, patch-only capability
 expansion, tracked dirty state, gate status, generated timestamp, release
 binary paths, binary sha256 values, binary byte counts, CLI version output,
-build timestamp, source commit, and source tree.
+build timestamp, source commit, source tree, and tracked artifact provenance
+with `sha256`, `bytes`, `source_command`, `source_commit`, and
+`source_release_tag`.
 
 Release mode rejects missing release binaries and rejects non-`target/release`
 binaries unless the diagnostic override is set explicitly.
