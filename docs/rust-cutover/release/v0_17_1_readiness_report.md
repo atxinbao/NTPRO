@@ -61,6 +61,14 @@ build timestamp, source commit, and source tree.
 Release mode rejects missing release binaries and rejects non-`target/release`
 binaries unless the diagnostic override is set explicitly.
 
+## verify_fast Boundary
+
+`verify_fast alone does not prove compile/static-check coverage`; it is a fast
+local smoke check for toolchain and formatting by default. Release evidence must
+use `scripts/ai/verify_release.sh v171-release-hardening`, which performs the
+explicit release binary build/provenance checks unless diagnostic reuse is
+requested by environment override.
+
 ## Validation Plan
 
 ```text

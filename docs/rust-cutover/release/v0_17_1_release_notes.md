@@ -45,6 +45,10 @@ scripts/ai/verify_release.sh release-surface-current-guard
 scripts/ai/verify_release.sh release-publication-guard
 ```
 
+`verify_fast alone does not prove compile/static-check coverage`; it remains a
+fast local smoke check by default. The v0.17.1 release proof comes from the
+explicit release binary/provenance checks in `v171-release-hardening`.
+
 ## Publication Status
 
 This document does not publish a GitHub Release. The current formal release is
