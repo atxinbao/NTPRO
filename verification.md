@@ -1,3 +1,34 @@
+# V190-003 Verification
+
+Date: 2026-06-27
+Executor: Codex
+Task: `V190-003` / GitHub issue `#579`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-cli = PASS
+cargo test -p nautilus-cli owner_approval --lib = PASS, 8 tests
+cargo test -p nautilus-cli parses_live_production_mutation_actual_cancel_owner_approval_lifecycle_options --lib = PASS, 1 test
+cargo fmt --check -p nautilus-cli = PASS
+cargo clippy -p nautilus-cli --all-targets -- -D warnings = PASS
+scripts/ai/verify_fast.sh = PASS
+rg -n "actual_cancel_owner_approval_lifecycle|owner_approval_reused|approval_execution_authorized|production-mutation-actual-cancel-owner-approval-lifecycle" crates/cli/src docs/rust-cutover verification.md = PASS
+git diff --check = PASS
+```
+
+## Result
+
+The v0.19 owner approval execution lifecycle is implemented as a local/offline
+evidence command. It authorizes one future actual cancel attempt only for a
+matched, unexpired, unused owner-approved lifecycle bound to the V190-002 safety
+contract, release manifest, cancel risk gate, order lineage, symbol, account
+label, and venue. Missing, expired, reused, rejected, audited, release-mismatch,
+order-mismatch, and missing-confirmation paths fail closed. This verification
+does not add a cancel executor, adapter behavior change, network cancel
+request, Dashboard approve/cancel control, automatic or bulk cancel, retry,
+replace, amend, flatten, or production order submit lifecycle.
+
 # V190-002 Verification
 
 Date: 2026-06-27

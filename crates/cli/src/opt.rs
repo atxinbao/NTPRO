@@ -206,6 +206,10 @@ pub enum LiveCommand {
     ProductionMutationManualOwnerApprovalLifecycle(
         LiveProductionMutationManualOwnerApprovalLifecycleOpt,
     ),
+    /// Writes a v0.19 single-use owner approval lifecycle artifact for actual cancel authorization; no cancel send.
+    ProductionMutationActualCancelOwnerApprovalLifecycle(
+        Box<LiveProductionMutationActualCancelOwnerApprovalLifecycleOpt>,
+    ),
     /// Redacts a future v0.18 owner-approved cancel response artifact; no cancel send.
     ProductionMutationCancelResponseRedaction(LiveProductionMutationCancelResponseRedactionOpt),
     /// Classifies a future v0.18 post-cancel readback artifact; no network read or cancel send.
@@ -1680,6 +1684,101 @@ pub struct LiveProductionMutationManualOwnerApprovalLifecycleOpt {
     /// Confirms Dashboard order and cancel controls remain disabled.
     #[arg(long)]
     pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+}
+
+/// v0.19 actual cancel owner approval lifecycle options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationActualCancelOwnerApprovalLifecycleOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// V190-002 actual cancel safety contract Markdown input.
+    #[arg(long)]
+    pub actual_cancel_safety_contract: PathBuf,
+    /// v0.18/v0.19 release manifest JSON input that anchors approval provenance.
+    #[arg(long)]
+    pub release_manifest: PathBuf,
+    /// v0.18 cancel risk gate JSON input for the same order lineage.
+    #[arg(long)]
+    pub cancel_risk_gate: PathBuf,
+    /// Expected order lineage identifier to bind this approval.
+    #[arg(long)]
+    pub expected_order_lineage_id: String,
+    /// Expected symbol to bind this approval.
+    #[arg(long)]
+    pub expected_symbol: String,
+    /// Expected account label to bind this approval.
+    #[arg(long)]
+    pub expected_account_label: String,
+    /// Expected venue to bind this approval.
+    #[arg(long)]
+    pub venue: String,
+    /// Expected release tag/provenance anchor.
+    #[arg(long)]
+    pub expected_release_tag: String,
+    /// Approval state: created, approved, expired, used, rejected, or audited.
+    #[arg(long, default_value = "created")]
+    pub approval_state: String,
+    /// Optional owner approval identifier for approved/expired/used/rejected/audited states.
+    #[arg(long)]
+    pub manual_approval_id: Option<String>,
+    /// Optional owner/operator identity.
+    #[arg(long)]
+    pub approved_by: Option<String>,
+    /// Optional owner-visible reason for this actual cancel approval decision.
+    #[arg(long)]
+    pub approval_reason: Option<String>,
+    /// Deterministic current time in milliseconds for lifecycle evaluation.
+    #[arg(long)]
+    pub now_unix_ms: u64,
+    /// Approval expiry in milliseconds.
+    #[arg(long)]
+    pub expires_at_unix_ms: u64,
+    /// v0.19 actual cancel owner approval lifecycle JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for actual cancel owner approval lifecycle evidence.
+    #[arg(long)]
+    pub allow_production_mutation_actual_cancel_owner_approval_lifecycle: bool,
+    /// Confirms the V190-002 actual cancel safety contract must be present.
+    #[arg(long)]
+    pub confirm_actual_cancel_safety_contract: bool,
+    /// Confirms approval is scoped to one order, one venue, and one attempt.
+    #[arg(long)]
+    pub confirm_one_order_one_venue_one_attempt: bool,
+    /// Confirms approval is single-use and cannot be reused.
+    #[arg(long)]
+    pub confirm_single_use_approval: bool,
+    /// Confirms approval expiry is required and enforced.
+    #[arg(long)]
+    pub confirm_approval_expiry: bool,
+    /// Confirms order, risk gate, and release provenance are bound together.
+    #[arg(long)]
+    pub confirm_bind_order_risk_gate_release_provenance: bool,
+    /// Confirms used/rejected/audited states leave audit evidence.
+    #[arg(long)]
+    pub confirm_audit_evidence: bool,
+    /// Confirms Dashboard cannot approve or trigger the actual cancel.
+    #[arg(long)]
+    pub confirm_no_dashboard_approval: bool,
+    /// Confirms automatic cancel remains forbidden.
+    #[arg(long)]
+    pub confirm_no_automatic_cancel: bool,
+    /// Confirms bulk and cancel-all paths remain forbidden.
+    #[arg(long)]
+    pub confirm_no_bulk_cancel: bool,
+    /// Confirms retry, replace, amend, flatten, and remediation remain forbidden.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms this lifecycle does not introduce production order submission.
+    #[arg(long)]
+    pub confirm_no_submit_lifecycle: bool,
+    /// Confirms this lifecycle does not open network access.
+    #[arg(long)]
+    pub confirm_no_network: bool,
     /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
     #[arg(long)]
     pub confirm_no_secret_persistence: bool,
@@ -4084,6 +4183,123 @@ mod tests {
         assert!(approval.confirm_no_cancel);
         assert!(approval.confirm_no_network);
         assert!(approval.confirm_dashboard_order_controls_disabled);
+        assert!(approval.confirm_no_secret_persistence);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_actual_cancel_owner_approval_lifecycle_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-actual-cancel-owner-approval-lifecycle",
+            "--run-id",
+            "v190-owner-approval-lifecycle",
+            "--actual-cancel-safety-contract",
+            "docs/rust-cutover/release/v0_19_0_actual_cancel_safety_contract.md",
+            "--release-manifest",
+            "docs/rust-cutover/release/v0_18_1_release_manifest.json",
+            "--cancel-risk-gate",
+            "runs/v180/cancel-risk-gate.json",
+            "--expected-order-lineage-id",
+            "lineage-v160-single-shot",
+            "--expected-symbol",
+            "BTCUSDT",
+            "--expected-account-label",
+            "prod-account-redacted",
+            "--venue",
+            "binance_spot",
+            "--expected-release-tag",
+            "ntpro-rust-only-v0.18.1",
+            "--approval-state",
+            "approved",
+            "--manual-approval-id",
+            "owner-approval-v190-003",
+            "--approved-by",
+            "owner",
+            "--approval-reason",
+            "orphan-risk-single-order-cancel",
+            "--now-unix-ms",
+            "1718400000000",
+            "--expires-at-unix-ms",
+            "1718400060000",
+            "--output",
+            "runs/v190/actual-cancel-owner-approval-lifecycle.json",
+            "--allow-production-mutation-actual-cancel-owner-approval-lifecycle",
+            "--confirm-actual-cancel-safety-contract",
+            "--confirm-one-order-one-venue-one-attempt",
+            "--confirm-single-use-approval",
+            "--confirm-approval-expiry",
+            "--confirm-bind-order-risk-gate-release-provenance",
+            "--confirm-audit-evidence",
+            "--confirm-no-dashboard-approval",
+            "--confirm-no-automatic-cancel",
+            "--confirm-no-bulk-cancel",
+            "--confirm-no-retry",
+            "--confirm-no-submit-lifecycle",
+            "--confirm-no-network",
+            "--confirm-no-secret-persistence",
+        ])
+        .expect("live production-mutation-actual-cancel-owner-approval-lifecycle should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationActualCancelOwnerApprovalLifecycle(approval) =
+            live.command
+        else {
+            panic!("expected production-mutation-actual-cancel-owner-approval-lifecycle command");
+        };
+
+        assert_eq!(approval.run_id, "v190-owner-approval-lifecycle");
+        assert_eq!(
+            approval.actual_cancel_safety_contract,
+            PathBuf::from("docs/rust-cutover/release/v0_19_0_actual_cancel_safety_contract.md")
+        );
+        assert_eq!(
+            approval.release_manifest,
+            PathBuf::from("docs/rust-cutover/release/v0_18_1_release_manifest.json")
+        );
+        assert_eq!(
+            approval.cancel_risk_gate,
+            PathBuf::from("runs/v180/cancel-risk-gate.json")
+        );
+        assert_eq!(
+            approval.expected_order_lineage_id,
+            "lineage-v160-single-shot"
+        );
+        assert_eq!(approval.expected_symbol, "BTCUSDT");
+        assert_eq!(approval.expected_account_label, "prod-account-redacted");
+        assert_eq!(approval.venue, "binance_spot");
+        assert_eq!(approval.expected_release_tag, "ntpro-rust-only-v0.18.1");
+        assert_eq!(approval.approval_state, "approved");
+        assert_eq!(
+            approval.manual_approval_id.as_deref(),
+            Some("owner-approval-v190-003")
+        );
+        assert_eq!(approval.approved_by.as_deref(), Some("owner"));
+        assert_eq!(
+            approval.approval_reason.as_deref(),
+            Some("orphan-risk-single-order-cancel")
+        );
+        assert_eq!(approval.now_unix_ms, 1_718_400_000_000);
+        assert_eq!(approval.expires_at_unix_ms, 1_718_400_060_000);
+        assert_eq!(
+            approval.output,
+            PathBuf::from("runs/v190/actual-cancel-owner-approval-lifecycle.json")
+        );
+        assert!(approval.allow_production_mutation_actual_cancel_owner_approval_lifecycle);
+        assert!(approval.confirm_actual_cancel_safety_contract);
+        assert!(approval.confirm_one_order_one_venue_one_attempt);
+        assert!(approval.confirm_single_use_approval);
+        assert!(approval.confirm_approval_expiry);
+        assert!(approval.confirm_bind_order_risk_gate_release_provenance);
+        assert!(approval.confirm_audit_evidence);
+        assert!(approval.confirm_no_dashboard_approval);
+        assert!(approval.confirm_no_automatic_cancel);
+        assert!(approval.confirm_no_bulk_cancel);
+        assert!(approval.confirm_no_retry);
+        assert!(approval.confirm_no_submit_lifecycle);
+        assert!(approval.confirm_no_network);
         assert!(approval.confirm_no_secret_persistence);
     }
 

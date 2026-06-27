@@ -51,6 +51,7 @@ use crate::{
         LiveProductionLiveAlphaExecutionDryRunOpt, LiveProductionLiveAlphaKillSwitchRuntimeGateOpt,
         LiveProductionLiveAlphaManualApprovalLifecycleOpt,
         LiveProductionLiveAlphaOrderRequestPreviewOpt, LiveProductionLiveAlphaRiskPreflightOpt,
+        LiveProductionMutationActualCancelOwnerApprovalLifecycleOpt,
         LiveProductionMutationAuditTrailOpt,
         LiveProductionMutationCancelRecoveryIncidentAuditCloseoutOpt,
         LiveProductionMutationCancelRequestPreviewOpt,
@@ -194,6 +195,8 @@ const PRODUCTION_MUTATION_CANCEL_REQUEST_PREVIEW_SCHEMA_VERSION: &str =
 const PRODUCTION_MUTATION_CANCEL_RISK_GATE_SCHEMA_VERSION: &str = "ntpro.v180_cancel_risk_gate.v1";
 const PRODUCTION_MUTATION_MANUAL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION: &str =
     "ntpro.v180_manual_owner_approval_lifecycle.v1";
+const PRODUCTION_MUTATION_ACTUAL_CANCEL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION: &str =
+    "ntpro.v190_actual_cancel_owner_approval_lifecycle.v1";
 const PRODUCTION_MUTATION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION: &str =
     "ntpro.v180_cancel_response_redaction.v1";
 const PRODUCTION_MUTATION_POST_CANCEL_READBACK_SCHEMA_VERSION: &str =
@@ -2836,6 +2839,121 @@ struct ProductionMutationManualOwnerApprovalLifecycleArtifact {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionMutationSourceFileRef {
+    path: String,
+    hash: String,
+    sha256: String,
+    bytes: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionMutationActualCancelOwnerApprovalLifecycleArtifact {
+    schema_version: String,
+    run_id: String,
+    order_lineage_id: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    capability: String,
+    execution_mode: String,
+    approval_scope: String,
+    default_fail_closed: bool,
+    actual_cancel_safety_contract_ref: ProductionMutationSourceFileRef,
+    release_manifest_ref: ProductionMutationSourceFileRef,
+    cancel_risk_gate_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    safety_contract_ready: bool,
+    release_provenance_ready: bool,
+    cancel_risk_gate_ready: bool,
+    approval_state: String,
+    approval_lifecycle_valid: bool,
+    approval_execution_authorized: bool,
+    approval_failure_reason: String,
+    manual_approval_recorded: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    manual_approval_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    approved_by: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    approval_reason: Option<String>,
+    now_unix_ms: u64,
+    expires_at_unix_ms: u64,
+    approval_created: bool,
+    approval_approved: bool,
+    approval_expired: bool,
+    approval_used: bool,
+    approval_rejected: bool,
+    approval_audited: bool,
+    approval_reusable: bool,
+    one_time_approval: bool,
+    single_order_required: bool,
+    single_venue_required: bool,
+    single_execution_attempt_required: bool,
+    approval_consumed: bool,
+    approval_consumed_before_send: bool,
+    approval_consumed_after_send: bool,
+    audit_evidence_recorded: bool,
+    audit_event: String,
+    known_order_id: String,
+    known_client_order_id: String,
+    symbol: String,
+    account_label: String,
+    venue: String,
+    expected_release_tag: String,
+    release_manifest_product_version: String,
+    release_manifest_planned_tag: String,
+    release_manifest_actual_cancel_scope: String,
+    actual_cancel_send_allowed: bool,
+    cancel_attempted: bool,
+    cancel_requests_sent: u64,
+    network_attempted: bool,
+    network_cancel_endpoint_attempted: bool,
+    retry_attempted: bool,
+    replace_attempted: bool,
+    amend_attempted: bool,
+    flatten_attempted: bool,
+    remediation_attempted: bool,
+    automatic_cancel_allowed: bool,
+    automatic_remediation_allowed: bool,
+    bulk_cancel_allowed: bool,
+    multi_account_cancel_allowed: bool,
+    multi_strategy_cancel_allowed: bool,
+    multi_venue_cancel_allowed: bool,
+    production_order_submit_lifecycle_included: bool,
+    dashboard_order_controls_enabled: bool,
+    dashboard_cancel_controls_enabled: bool,
+    dashboard_auto_approval_allowed: bool,
+    api_key_value_recorded: bool,
+    api_secret_value_recorded: bool,
+    api_key_header_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    raw_exchange_response_recorded: bool,
+    response_body_recorded: bool,
+    response_headers_recorded: bool,
+    safety_contract_issues: Vec<String>,
+    release_manifest_issues: Vec<String>,
+    source_artifact_issues: Vec<String>,
+    lifecycle_issues: Vec<String>,
+    missing_cli_flags: Vec<String>,
+    actual_cancel_safety_contract_confirmed: bool,
+    one_order_one_venue_one_attempt_confirmed: bool,
+    single_use_approval_confirmed: bool,
+    approval_expiry_confirmed: bool,
+    bind_order_risk_gate_release_provenance_confirmed: bool,
+    audit_evidence_confirmed: bool,
+    no_dashboard_approval_confirmed: bool,
+    no_automatic_cancel_confirmed: bool,
+    no_bulk_cancel_confirmed: bool,
+    no_retry_confirmed: bool,
+    no_submit_lifecycle_confirmed: bool,
+    no_network_confirmed: bool,
+    no_secret_persistence_confirmed: bool,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct ProductionMutationCancelResponseRedactionArtifact {
     schema_version: String,
     run_id: String,
@@ -4384,6 +4502,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionMutationManualOwnerApprovalLifecycle(approval) => {
             run_live_production_mutation_manual_owner_approval_lifecycle(&approval)
         }
+        LiveCommand::ProductionMutationActualCancelOwnerApprovalLifecycle(approval) => {
+            run_live_production_mutation_actual_cancel_owner_approval_lifecycle(&approval)
+        }
         LiveCommand::ProductionMutationCancelResponseRedaction(redaction) => {
             run_live_production_mutation_cancel_response_redaction(&redaction)
         }
@@ -4945,6 +5066,28 @@ fn run_live_production_mutation_manual_owner_approval_lifecycle(
         artifact.approval_lifecycle_valid,
         artifact.approval_scope,
         artifact.approval_expires,
+    );
+    Ok(())
+}
+
+fn run_live_production_mutation_actual_cancel_owner_approval_lifecycle(
+    opt: &LiveProductionMutationActualCancelOwnerApprovalLifecycleOpt,
+) -> anyhow::Result<()> {
+    let artifact = build_production_mutation_actual_cancel_owner_approval_lifecycle_artifact(opt)?;
+    write_production_mutation_actual_cancel_owner_approval_lifecycle_artifact(
+        &opt.output,
+        &artifact,
+    )?;
+    println!(
+        "live.production_mutation_actual_cancel_owner_approval_lifecycle status={} run_id={} order_lineage_id={} venue={} output={} approval_state={} approval_lifecycle_valid={} approval_execution_authorized={} approval_reusable=false one_order_one_venue_one_attempt=true actual_cancel_send_allowed=false cancel_attempted=false cancel_requests_sent=0 network_attempted=false dashboard_cancel_controls_enabled=false",
+        artifact.status,
+        artifact.run_id,
+        artifact.order_lineage_id,
+        artifact.venue,
+        opt.output.display(),
+        artifact.approval_state,
+        artifact.approval_lifecycle_valid,
+        artifact.approval_execution_authorized,
     );
     Ok(())
 }
@@ -10665,6 +10808,277 @@ fn build_production_mutation_manual_owner_approval_lifecycle_artifact(
     })
 }
 
+fn build_production_mutation_actual_cancel_owner_approval_lifecycle_artifact(
+    opt: &LiveProductionMutationActualCancelOwnerApprovalLifecycleOpt,
+) -> anyhow::Result<ProductionMutationActualCancelOwnerApprovalLifecycleArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+    validate_non_empty("expected_order_lineage_id", &opt.expected_order_lineage_id)?;
+    validate_non_empty("expected_symbol", &opt.expected_symbol)?;
+    validate_non_empty("expected_account_label", &opt.expected_account_label)?;
+    validate_non_empty("venue", &opt.venue)?;
+    validate_non_empty("expected_release_tag", &opt.expected_release_tag)?;
+    if opt.now_unix_ms == 0 {
+        anyhow::bail!("actual cancel owner approval lifecycle now_unix_ms must be positive");
+    }
+    if opt.expires_at_unix_ms == 0 {
+        anyhow::bail!("actual cancel owner approval lifecycle expires_at_unix_ms must be positive");
+    }
+
+    let approval_state = opt.approval_state.trim();
+    if !matches!(
+        approval_state,
+        "created" | "approved" | "expired" | "used" | "rejected" | "audited"
+    ) {
+        anyhow::bail!(
+            "approval_state must be created, approved, expired, used, rejected, or audited"
+        );
+    }
+    let manual_approval_id = optional_non_empty("manual_approval_id", &opt.manual_approval_id)?;
+    let approved_by = optional_non_empty("approved_by", &opt.approved_by)?;
+    let approval_reason = optional_non_empty("approval_reason", &opt.approval_reason)?;
+
+    let safety_contract_raw =
+        fs::read_to_string(&opt.actual_cancel_safety_contract).with_context(|| {
+            format!(
+                "failed to read actual cancel safety contract '{}'",
+                opt.actual_cancel_safety_contract.display()
+            )
+        })?;
+    let release_manifest = load_json_value(&opt.release_manifest, "release manifest")?;
+    let cancel_risk_gate = load_json_value(&opt.cancel_risk_gate, "cancel risk gate")?;
+
+    let missing_cli_flags =
+        missing_production_mutation_actual_cancel_owner_approval_lifecycle_cli_flags(opt);
+    let safety_contract_issues =
+        actual_cancel_owner_approval_safety_contract_issues(&safety_contract_raw);
+    let release_manifest_issues =
+        actual_cancel_owner_approval_release_manifest_issues(&release_manifest, opt);
+    let source_artifact_issues =
+        production_mutation_actual_cancel_owner_approval_lifecycle_source_issues(
+            &cancel_risk_gate,
+            opt,
+        );
+
+    let approval_created = approval_state == "created";
+    let approval_approved = approval_state == "approved";
+    let approval_expired = approval_state == "expired" || opt.now_unix_ms > opt.expires_at_unix_ms;
+    let approval_used = approval_state == "used";
+    let approval_rejected = approval_state == "rejected";
+    let approval_audited = approval_state == "audited";
+    let approval_consumed = approval_used || approval_audited;
+    let audit_evidence_recorded = (approval_used || approval_rejected || approval_audited)
+        && manual_approval_id.is_some()
+        && approved_by.is_some()
+        && approval_reason.is_some();
+    let manual_approval_recorded =
+        manual_approval_id.is_some() && approved_by.is_some() && approval_reason.is_some();
+
+    let mut lifecycle_issues = Vec::new();
+    if !approval_approved {
+        lifecycle_issues.push(format!("approval_state_{approval_state}"));
+    }
+    if approval_expired {
+        lifecycle_issues.push("owner_approval_expired".to_string());
+    }
+    if approval_used {
+        lifecycle_issues.push("owner_approval_reused".to_string());
+    }
+    if approval_rejected {
+        lifecycle_issues.push("owner_approval_rejected".to_string());
+    }
+    if approval_audited {
+        lifecycle_issues.push("owner_approval_already_audited".to_string());
+    }
+    if !manual_approval_recorded {
+        lifecycle_issues.push("missing_owner_approval".to_string());
+    }
+    if (approval_used || approval_rejected || approval_audited) && !audit_evidence_recorded {
+        lifecycle_issues.push("approval_audit_evidence_missing".to_string());
+    }
+
+    let approval_lifecycle_valid = missing_cli_flags.is_empty()
+        && safety_contract_issues.is_empty()
+        && release_manifest_issues.is_empty()
+        && source_artifact_issues.is_empty()
+        && lifecycle_issues.is_empty();
+    let approval_execution_authorized = approval_lifecycle_valid && approval_approved;
+    let status = if approval_execution_authorized {
+        "approval_execution_lifecycle_ready"
+    } else if !missing_cli_flags.is_empty() {
+        "blocked_missing_gate"
+    } else if !safety_contract_issues.is_empty() {
+        "blocked_safety_contract"
+    } else if !release_manifest_issues.is_empty() {
+        "blocked_release_provenance"
+    } else if !source_artifact_issues.is_empty() {
+        "blocked_source_artifact"
+    } else if approval_created {
+        "approval_created"
+    } else if approval_expired {
+        "approval_expired"
+    } else if approval_used {
+        "approval_used"
+    } else if approval_rejected {
+        "approval_rejected"
+    } else if approval_audited {
+        "approval_audited"
+    } else {
+        "approval_invalid"
+    };
+    let approval_failure_reason = first_actual_cancel_owner_approval_failure_reason(
+        &missing_cli_flags,
+        &safety_contract_issues,
+        &release_manifest_issues,
+        &source_artifact_issues,
+        &lifecycle_issues,
+    );
+    let order_lineage_id = json_string_value(&cancel_risk_gate, "order_lineage_id")
+        .unwrap_or_else(|| "missing".to_string());
+    let release_manifest_product_version = json_string_value(&release_manifest, "product_version")
+        .unwrap_or_else(|| "missing".to_string());
+    let release_manifest_planned_tag =
+        json_pointer_string_value(&release_manifest, "/patch_release/planned_tag")
+            .unwrap_or_else(|| "missing".to_string());
+    let release_manifest_actual_cancel_scope =
+        json_pointer_string_value(&release_manifest, "/capability/actual_cancel_scope")
+            .unwrap_or_else(|| "missing".to_string());
+
+    Ok(
+        ProductionMutationActualCancelOwnerApprovalLifecycleArtifact {
+            schema_version:
+                PRODUCTION_MUTATION_ACTUAL_CANCEL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION
+                    .to_string(),
+            run_id: opt.run_id.clone(),
+            order_lineage_id,
+            artifact_type: "actual_cancel_owner_approval_lifecycle".to_string(),
+            status: status.to_string(),
+            created_at: now_millis(),
+            mode: "single_shot_actual_cancel_owner_approval_lifecycle".to_string(),
+            capability: "Owner-Approved Single-Shot Actual Cancel".to_string(),
+            execution_mode: "owner_approved_single_shot_manual_only".to_string(),
+            approval_scope: "one_order_one_venue_one_attempt".to_string(),
+            default_fail_closed: true,
+            actual_cancel_safety_contract_ref: production_mutation_source_file_ref(
+                &opt.actual_cancel_safety_contract,
+            ),
+            release_manifest_ref: production_mutation_source_file_ref(&opt.release_manifest),
+            cancel_risk_gate_ref: production_mutation_local_order_ledger_source_ref(
+                &opt.cancel_risk_gate,
+                &cancel_risk_gate,
+                "cancel_risk_gate_ready",
+            ),
+            safety_contract_ready: safety_contract_issues.is_empty(),
+            release_provenance_ready: release_manifest_issues.is_empty(),
+            cancel_risk_gate_ready: json_bool_value(&cancel_risk_gate, "cancel_risk_gate_ready")
+                .unwrap_or(false),
+            approval_state: approval_state.to_string(),
+            approval_lifecycle_valid,
+            approval_execution_authorized,
+            approval_failure_reason,
+            manual_approval_recorded,
+            manual_approval_id,
+            approved_by,
+            approval_reason,
+            now_unix_ms: opt.now_unix_ms,
+            expires_at_unix_ms: opt.expires_at_unix_ms,
+            approval_created,
+            approval_approved,
+            approval_expired,
+            approval_used,
+            approval_rejected,
+            approval_audited,
+            approval_reusable: false,
+            one_time_approval: true,
+            single_order_required: true,
+            single_venue_required: true,
+            single_execution_attempt_required: true,
+            approval_consumed,
+            approval_consumed_before_send: approval_consumed,
+            approval_consumed_after_send: approval_consumed,
+            audit_evidence_recorded,
+            audit_event: if audit_evidence_recorded {
+                format!("approval_{approval_state}_audited")
+            } else {
+                "not_recorded".to_string()
+            },
+            known_order_id: json_scalar_string_value(&cancel_risk_gate, "known_order_id")
+                .unwrap_or_else(|| "missing".to_string()),
+            known_client_order_id: json_scalar_string_value(
+                &cancel_risk_gate,
+                "known_client_order_id",
+            )
+            .unwrap_or_else(|| "missing".to_string()),
+            symbol: json_scalar_string_value(&cancel_risk_gate, "symbol")
+                .unwrap_or_else(|| "unknown".to_string()),
+            account_label: json_scalar_string_value(&cancel_risk_gate, "account_label")
+                .unwrap_or_else(|| "unknown".to_string()),
+            venue: opt.venue.clone(),
+            expected_release_tag: opt.expected_release_tag.clone(),
+            release_manifest_product_version,
+            release_manifest_planned_tag,
+            release_manifest_actual_cancel_scope,
+            actual_cancel_send_allowed: false,
+            cancel_attempted: false,
+            cancel_requests_sent: 0,
+            network_attempted: false,
+            network_cancel_endpoint_attempted: false,
+            retry_attempted: false,
+            replace_attempted: false,
+            amend_attempted: false,
+            flatten_attempted: false,
+            remediation_attempted: false,
+            automatic_cancel_allowed: false,
+            automatic_remediation_allowed: false,
+            bulk_cancel_allowed: false,
+            multi_account_cancel_allowed: false,
+            multi_strategy_cancel_allowed: false,
+            multi_venue_cancel_allowed: false,
+            production_order_submit_lifecycle_included: false,
+            dashboard_order_controls_enabled: false,
+            dashboard_cancel_controls_enabled: false,
+            dashboard_auto_approval_allowed: false,
+            api_key_value_recorded: false,
+            api_secret_value_recorded: false,
+            api_key_header_value_recorded: false,
+            signature_recorded: false,
+            signed_query_recorded: false,
+            signed_url_recorded: false,
+            raw_exchange_response_recorded: false,
+            response_body_recorded: false,
+            response_headers_recorded: false,
+            safety_contract_issues,
+            release_manifest_issues,
+            source_artifact_issues,
+            lifecycle_issues,
+            missing_cli_flags: missing_cli_flags
+                .iter()
+                .map(|flag| (*flag).to_string())
+                .collect(),
+            actual_cancel_safety_contract_confirmed: opt.confirm_actual_cancel_safety_contract,
+            one_order_one_venue_one_attempt_confirmed: opt
+                .confirm_one_order_one_venue_one_attempt,
+            single_use_approval_confirmed: opt.confirm_single_use_approval,
+            approval_expiry_confirmed: opt.confirm_approval_expiry,
+            bind_order_risk_gate_release_provenance_confirmed: opt
+                .confirm_bind_order_risk_gate_release_provenance,
+            audit_evidence_confirmed: opt.confirm_audit_evidence,
+            no_dashboard_approval_confirmed: opt.confirm_no_dashboard_approval,
+            no_automatic_cancel_confirmed: opt.confirm_no_automatic_cancel,
+            no_bulk_cancel_confirmed: opt.confirm_no_bulk_cancel,
+            no_retry_confirmed: opt.confirm_no_retry,
+            no_submit_lifecycle_confirmed: opt.confirm_no_submit_lifecycle,
+            no_network_confirmed: opt.confirm_no_network,
+            no_secret_persistence_confirmed: opt.confirm_no_secret_persistence,
+            diagnostic: if approval_execution_authorized {
+                "owner approval authorizes exactly one future actual cancel attempt for the bound order, venue, risk gate, and release provenance; this artifact does not send the cancel"
+            } else {
+                "owner approval lifecycle is fail-closed before any cancel send because required gates, provenance, source artifacts, or lifecycle state are incomplete"
+            }
+            .to_string(),
+        },
+    )
+}
+
 fn build_production_mutation_cancel_response_redaction_artifact(
     opt: &LiveProductionMutationCancelResponseRedactionOpt,
 ) -> anyhow::Result<ProductionMutationCancelResponseRedactionArtifact> {
@@ -12864,6 +13278,15 @@ fn production_mutation_local_order_ledger_source_ref(
     }
 }
 
+fn production_mutation_source_file_ref(path: &Path) -> ProductionMutationSourceFileRef {
+    ProductionMutationSourceFileRef {
+        path: path.display().to_string(),
+        hash: file_fnv1a64_hash(&path.display().to_string()),
+        sha256: file_sha256_hash(path),
+        bytes: file_byte_len(path),
+    }
+}
+
 fn production_mutation_source_command(artifact_type: &str) -> &'static str {
     match artifact_type {
         "production_mutation_request_builder" => {
@@ -13577,6 +14000,121 @@ fn production_mutation_manual_owner_approval_lifecycle_source_issues(
         ],
     );
 
+    issues
+}
+
+fn actual_cancel_owner_approval_safety_contract_issues(raw: &str) -> Vec<String> {
+    let mut issues = Vec::new();
+    for (token, issue) in [
+        (
+            "ntpro.v190_actual_cancel_safety_contract.v1",
+            "missing_v190_safety_contract_schema",
+        ),
+        (
+            "Owner-Approved Single-Shot Actual Cancel",
+            "missing_actual_cancel_capability",
+        ),
+        (
+            "one_order_one_venue_one_attempt",
+            "missing_one_order_one_venue_one_attempt_scope",
+        ),
+        (
+            "missing_owner_approval",
+            "missing_missing_owner_approval_reason",
+        ),
+        (
+            "owner_approval_reused",
+            "missing_owner_approval_reused_reason",
+        ),
+        (
+            "bulk_cancel_requested",
+            "missing_bulk_cancel_forbidden_reason",
+        ),
+        (
+            "retry_or_repair_requested",
+            "missing_retry_forbidden_reason",
+        ),
+        (
+            "dashboard_operation_requested",
+            "missing_dashboard_operation_forbidden_reason",
+        ),
+    ] {
+        if !raw.contains(token) {
+            issues.push(issue.to_string());
+        }
+    }
+    issues
+}
+
+fn actual_cancel_owner_approval_release_manifest_issues(
+    release_manifest: &serde_json::Value,
+    opt: &LiveProductionMutationActualCancelOwnerApprovalLifecycleOpt,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(release_manifest, "schema_version").as_deref()
+        != Some("ntpro.v181_release_manifest.v1")
+    {
+        issues.push("release_manifest_schema_mismatch".to_string());
+    }
+    if json_string_value(release_manifest, "product_version").as_deref() != Some("v0.18.1") {
+        issues.push("release_manifest_product_version_mismatch".to_string());
+    }
+    if json_pointer_string_value(release_manifest, "/patch_release/planned_tag").as_deref()
+        != Some(opt.expected_release_tag.as_str())
+    {
+        issues.push("release_manifest_planned_tag_mismatch".to_string());
+    }
+    if json_pointer_string_value(release_manifest, "/capability/actual_cancel_scope").as_deref()
+        != Some("not_included")
+    {
+        issues.push("release_manifest_actual_cancel_scope_mismatch".to_string());
+    }
+    for (pointer, issue) in [
+        (
+            "/boundary_flags/actual_cancel_send_allowed",
+            "release_manifest_actual_cancel_send_allowed_true",
+        ),
+        (
+            "/boundary_flags/automatic_cancel_allowed",
+            "release_manifest_automatic_cancel_allowed_true",
+        ),
+        (
+            "/boundary_flags/dashboard_cancel_controls_enabled",
+            "release_manifest_dashboard_cancel_controls_enabled_true",
+        ),
+        (
+            "/boundary_flags/network_cancel_endpoint_attempted",
+            "release_manifest_network_cancel_endpoint_attempted_true",
+        ),
+    ] {
+        if json_pointer_bool_value(release_manifest, pointer).unwrap_or(true) {
+            issues.push(issue.to_string());
+        }
+    }
+    issues
+}
+
+fn production_mutation_actual_cancel_owner_approval_lifecycle_source_issues(
+    cancel_risk_gate: &serde_json::Value,
+    opt: &LiveProductionMutationActualCancelOwnerApprovalLifecycleOpt,
+) -> Vec<String> {
+    let mut issues =
+        production_mutation_manual_owner_approval_lifecycle_source_issues(cancel_risk_gate);
+    if json_string_value(cancel_risk_gate, "order_lineage_id").as_deref()
+        != Some(opt.expected_order_lineage_id.as_str())
+    {
+        issues.push("order_lineage_id_mismatch".to_string());
+    }
+    if json_scalar_string_value(cancel_risk_gate, "symbol").as_deref()
+        != Some(opt.expected_symbol.as_str())
+    {
+        issues.push("symbol_mismatch".to_string());
+    }
+    if json_scalar_string_value(cancel_risk_gate, "account_label").as_deref()
+        != Some(opt.expected_account_label.as_str())
+    {
+        issues.push("account_label_mismatch".to_string());
+    }
     issues
 }
 
@@ -15670,6 +16208,17 @@ fn json_u64_value(value: &serde_json::Value, field: &str) -> Option<u64> {
     value.get(field).and_then(serde_json::Value::as_u64)
 }
 
+fn json_pointer_string_value(value: &serde_json::Value, pointer: &str) -> Option<String> {
+    value
+        .pointer(pointer)
+        .and_then(serde_json::Value::as_str)
+        .map(ToString::to_string)
+}
+
+fn json_pointer_bool_value(value: &serde_json::Value, pointer: &str) -> Option<bool> {
+    value.pointer(pointer).and_then(serde_json::Value::as_bool)
+}
+
 fn json_array_len(value: &serde_json::Value, field: &str) -> Option<usize> {
     value
         .get(field)
@@ -17492,6 +18041,16 @@ fn write_production_mutation_manual_owner_approval_lifecycle_artifact(
     Ok(())
 }
 
+fn write_production_mutation_actual_cancel_owner_approval_lifecycle_artifact(
+    path: &Path,
+    value: &ProductionMutationActualCancelOwnerApprovalLifecycleArtifact,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
 fn write_production_mutation_cancel_response_redaction_artifact(
     path: &Path,
     value: &ProductionMutationCancelResponseRedactionArtifact,
@@ -18513,6 +19072,74 @@ fn missing_production_mutation_manual_owner_approval_lifecycle_cli_flags(
         missing.push("--confirm-no-secret-persistence");
     }
     missing
+}
+
+fn missing_production_mutation_actual_cancel_owner_approval_lifecycle_cli_flags(
+    opt: &LiveProductionMutationActualCancelOwnerApprovalLifecycleOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_mutation_actual_cancel_owner_approval_lifecycle {
+        missing.push("--allow-production-mutation-actual-cancel-owner-approval-lifecycle");
+    }
+    if !opt.confirm_actual_cancel_safety_contract {
+        missing.push("--confirm-actual-cancel-safety-contract");
+    }
+    if !opt.confirm_one_order_one_venue_one_attempt {
+        missing.push("--confirm-one-order-one-venue-one-attempt");
+    }
+    if !opt.confirm_single_use_approval {
+        missing.push("--confirm-single-use-approval");
+    }
+    if !opt.confirm_approval_expiry {
+        missing.push("--confirm-approval-expiry");
+    }
+    if !opt.confirm_bind_order_risk_gate_release_provenance {
+        missing.push("--confirm-bind-order-risk-gate-release-provenance");
+    }
+    if !opt.confirm_audit_evidence {
+        missing.push("--confirm-audit-evidence");
+    }
+    if !opt.confirm_no_dashboard_approval {
+        missing.push("--confirm-no-dashboard-approval");
+    }
+    if !opt.confirm_no_automatic_cancel {
+        missing.push("--confirm-no-automatic-cancel");
+    }
+    if !opt.confirm_no_bulk_cancel {
+        missing.push("--confirm-no-bulk-cancel");
+    }
+    if !opt.confirm_no_retry {
+        missing.push("--confirm-no-retry");
+    }
+    if !opt.confirm_no_submit_lifecycle {
+        missing.push("--confirm-no-submit-lifecycle");
+    }
+    if !opt.confirm_no_network {
+        missing.push("--confirm-no-network");
+    }
+    if !opt.confirm_no_secret_persistence {
+        missing.push("--confirm-no-secret-persistence");
+    }
+    missing
+}
+
+fn first_actual_cancel_owner_approval_failure_reason(
+    missing_cli_flags: &[&'static str],
+    safety_contract_issues: &[String],
+    release_manifest_issues: &[String],
+    source_artifact_issues: &[String],
+    lifecycle_issues: &[String],
+) -> String {
+    if !missing_cli_flags.is_empty() {
+        return "missing_cli_flags".to_string();
+    }
+    safety_contract_issues
+        .first()
+        .or_else(|| release_manifest_issues.first())
+        .or_else(|| source_artifact_issues.first())
+        .or_else(|| lifecycle_issues.first())
+        .cloned()
+        .unwrap_or_else(|| "none".to_string())
 }
 
 fn missing_production_mutation_cancel_response_redaction_cli_flags(
@@ -20281,6 +20908,100 @@ write_summary = true
             confirm_no_cancel: all_cli_gates,
             confirm_no_network: all_cli_gates,
             confirm_dashboard_order_controls_disabled: all_cli_gates,
+            confirm_no_secret_persistence: all_cli_gates,
+        }
+    }
+
+    fn write_v190_actual_cancel_owner_approval_source_files(
+        output_dir: &Path,
+    ) -> (PathBuf, PathBuf) {
+        let safety_contract = output_dir.join("v0_19_0_actual_cancel_safety_contract.md");
+        fs::write(
+            &safety_contract,
+            "# v0.19.0 Actual Cancel Safety Contract
+
+schema_version = ntpro.v190_actual_cancel_safety_contract.v1
+capability = Owner-Approved Single-Shot Actual Cancel
+approval_scope = one_order_one_venue_one_attempt
+missing_owner_approval
+owner_approval_reused
+bulk_cancel_requested
+retry_or_repair_requested
+dashboard_operation_requested
+",
+        )
+        .unwrap();
+
+        let release_manifest = output_dir.join("v0_18_1_release_manifest.json");
+        fs::write(
+            &release_manifest,
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&json!({
+                    "schema_version": "ntpro.v181_release_manifest.v1",
+                    "product_version": "v0.18.1",
+                    "patch_release": {
+                        "planned_tag": "ntpro-rust-only-v0.18.1",
+                        "publication_status": "not_published"
+                    },
+                    "capability": {
+                        "actual_cancel_scope": "not_included"
+                    },
+                    "boundary_flags": {
+                        "actual_cancel_send_allowed": false,
+                        "automatic_cancel_allowed": false,
+                        "dashboard_cancel_controls_enabled": false,
+                        "network_cancel_endpoint_attempted": false
+                    }
+                }))
+                .unwrap()
+            ),
+        )
+        .unwrap();
+
+        (safety_contract, release_manifest)
+    }
+
+    fn production_mutation_actual_cancel_owner_approval_lifecycle_opt(
+        actual_cancel_safety_contract: PathBuf,
+        release_manifest: PathBuf,
+        cancel_risk_gate: PathBuf,
+        output: PathBuf,
+        approval_state: &str,
+        all_cli_gates: bool,
+    ) -> LiveProductionMutationActualCancelOwnerApprovalLifecycleOpt {
+        LiveProductionMutationActualCancelOwnerApprovalLifecycleOpt {
+            run_id: "v190-actual-cancel-owner-approval-lifecycle".to_string(),
+            actual_cancel_safety_contract,
+            release_manifest,
+            cancel_risk_gate,
+            expected_order_lineage_id: "lineage-v160-single-shot".to_string(),
+            expected_symbol: "BTCUSDT".to_string(),
+            expected_account_label: "prod-account-redacted".to_string(),
+            venue: "binance_spot".to_string(),
+            expected_release_tag: "ntpro-rust-only-v0.18.1".to_string(),
+            approval_state: approval_state.to_string(),
+            manual_approval_id: (approval_state != "created")
+                .then(|| "owner-approval-v190-003".to_string()),
+            approved_by: (approval_state != "created").then(|| "owner".to_string()),
+            approval_reason: (approval_state != "created")
+                .then(|| "orphan-risk-single-order-cancel".to_string()),
+            now_unix_ms: 1_718_400_000_000,
+            expires_at_unix_ms: 1_718_400_060_000,
+            output,
+            allow_production_mutation_actual_cancel_owner_approval_lifecycle: all_cli_gates,
+            confirm_actual_cancel_safety_contract: all_cli_gates,
+            confirm_one_order_one_venue_one_attempt: all_cli_gates,
+            confirm_single_use_approval: all_cli_gates,
+            confirm_approval_expiry: all_cli_gates,
+            confirm_bind_order_risk_gate_release_provenance: all_cli_gates,
+            confirm_audit_evidence: all_cli_gates,
+            confirm_no_dashboard_approval: all_cli_gates,
+            confirm_no_automatic_cancel: all_cli_gates,
+            confirm_no_bulk_cancel: all_cli_gates,
+            confirm_no_retry: all_cli_gates,
+            confirm_no_submit_lifecycle: all_cli_gates,
+            confirm_no_network: all_cli_gates,
             confirm_no_secret_persistence: all_cli_gates,
         }
     }
@@ -29048,6 +29769,354 @@ write_summary = true
         );
         assert_eq!(source["actual_cancel_send_allowed"], false);
         assert_eq!(source["network_cancel_endpoint_attempted"], false);
+    }
+
+    #[test]
+    fn production_mutation_actual_cancel_owner_approval_lifecycle_authorizes_single_use_scope() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v190-003-actual-cancel-owner-approval-ready-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (safety_contract, release_manifest) =
+            write_v190_actual_cancel_owner_approval_source_files(&output_dir);
+        let risk_gate = write_v180_manual_owner_approval_lifecycle_source_chain(
+            &output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+        let output = output_dir.join("actual-cancel-owner-approval-lifecycle.json");
+
+        run_live_production_mutation_actual_cancel_owner_approval_lifecycle(
+            &production_mutation_actual_cancel_owner_approval_lifecycle_opt(
+                safety_contract,
+                release_manifest,
+                risk_gate,
+                output.clone(),
+                "approved",
+                true,
+            ),
+        )
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(!body.contains("123456789"));
+        assert!(!body.contains("owner-approved-v160-single-shot"));
+        assert!(!body.contains("X-MBX-APIKEY"));
+        assert!(!body.contains("signature="));
+        let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(
+            artifact["schema_version"],
+            PRODUCTION_MUTATION_ACTUAL_CANCEL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION
+        );
+        assert_eq!(
+            artifact["artifact_type"],
+            "actual_cancel_owner_approval_lifecycle"
+        );
+        assert_eq!(artifact["status"], "approval_execution_lifecycle_ready");
+        assert_eq!(
+            artifact["capability"],
+            "Owner-Approved Single-Shot Actual Cancel"
+        );
+        assert_eq!(
+            artifact["execution_mode"],
+            "owner_approved_single_shot_manual_only"
+        );
+        assert_eq!(
+            artifact["approval_scope"],
+            "one_order_one_venue_one_attempt"
+        );
+        assert_eq!(artifact["approval_state"], "approved");
+        assert_eq!(artifact["approval_lifecycle_valid"], true);
+        assert_eq!(artifact["approval_execution_authorized"], true);
+        assert_eq!(artifact["manual_approval_recorded"], true);
+        assert_eq!(artifact["approval_reusable"], false);
+        assert_eq!(artifact["one_time_approval"], true);
+        assert_eq!(artifact["single_order_required"], true);
+        assert_eq!(artifact["single_venue_required"], true);
+        assert_eq!(artifact["single_execution_attempt_required"], true);
+        assert_eq!(artifact["approval_consumed"], false);
+        assert_eq!(artifact["actual_cancel_send_allowed"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["cancel_requests_sent"], 0);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["dashboard_cancel_controls_enabled"], false);
+        assert_eq!(artifact["dashboard_auto_approval_allowed"], false);
+        assert_eq!(artifact["bulk_cancel_allowed"], false);
+        assert_eq!(artifact["retry_attempted"], false);
+        assert_eq!(
+            artifact["production_order_submit_lifecycle_included"],
+            false
+        );
+        assert_eq!(artifact["venue"], "binance_spot");
+        assert_eq!(artifact["release_manifest_product_version"], "v0.18.1");
+        assert_eq!(
+            artifact["release_manifest_planned_tag"],
+            "ntpro-rust-only-v0.18.1"
+        );
+        assert_eq!(
+            artifact["release_manifest_actual_cancel_scope"],
+            "not_included"
+        );
+        assert_eq!(artifact["safety_contract_ready"], true);
+        assert_eq!(artifact["release_provenance_ready"], true);
+        assert_eq!(artifact["cancel_risk_gate_ready"], true);
+        assert_eq!(
+            artifact["safety_contract_issues"].as_array().unwrap().len(),
+            0
+        );
+        assert_eq!(
+            artifact["release_manifest_issues"]
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
+        assert_eq!(
+            artifact["source_artifact_issues"].as_array().unwrap().len(),
+            0
+        );
+        assert_eq!(artifact["lifecycle_issues"].as_array().unwrap().len(), 0);
+        assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn production_mutation_actual_cancel_owner_approval_lifecycle_blocks_missing_gates_and_owner() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v190-003-actual-cancel-owner-approval-missing-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (safety_contract, release_manifest) =
+            write_v190_actual_cancel_owner_approval_source_files(&output_dir);
+        let risk_gate = write_v180_manual_owner_approval_lifecycle_source_chain(
+            &output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+        let missing_gates_output = output_dir.join("missing-gates.json");
+        let missing_owner_output = output_dir.join("missing-owner.json");
+
+        run_live_production_mutation_actual_cancel_owner_approval_lifecycle(
+            &production_mutation_actual_cancel_owner_approval_lifecycle_opt(
+                safety_contract.clone(),
+                release_manifest.clone(),
+                risk_gate.clone(),
+                missing_gates_output.clone(),
+                "approved",
+                false,
+            ),
+        )
+        .unwrap();
+        let mut missing_owner_opt = production_mutation_actual_cancel_owner_approval_lifecycle_opt(
+            safety_contract,
+            release_manifest,
+            risk_gate,
+            missing_owner_output.clone(),
+            "approved",
+            true,
+        );
+        missing_owner_opt.manual_approval_id = None;
+        missing_owner_opt.approved_by = None;
+        missing_owner_opt.approval_reason = None;
+        run_live_production_mutation_actual_cancel_owner_approval_lifecycle(&missing_owner_opt)
+            .unwrap();
+
+        let missing_gates: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(missing_gates_output).unwrap()).unwrap();
+        assert_eq!(missing_gates["status"], "blocked_missing_gate");
+        assert_eq!(missing_gates["approval_execution_authorized"], false);
+        assert!(
+            missing_gates["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| {
+                    flag == "--allow-production-mutation-actual-cancel-owner-approval-lifecycle"
+                })
+        );
+        assert_eq!(missing_gates["actual_cancel_send_allowed"], false);
+
+        let missing_owner: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(missing_owner_output).unwrap()).unwrap();
+        assert_eq!(missing_owner["status"], "approval_invalid");
+        assert_eq!(missing_owner["approval_execution_authorized"], false);
+        assert!(
+            missing_owner["lifecycle_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "missing_owner_approval")
+        );
+        assert_eq!(
+            missing_owner["approval_failure_reason"],
+            "missing_owner_approval"
+        );
+        assert_eq!(missing_owner["actual_cancel_send_allowed"], false);
+    }
+
+    #[test]
+    fn production_mutation_actual_cancel_owner_approval_lifecycle_blocks_reuse_expiry_and_mismatch()
+    {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v190-003-actual-cancel-owner-approval-blocked-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (safety_contract, release_manifest) =
+            write_v190_actual_cancel_owner_approval_source_files(&output_dir);
+        let risk_gate = write_v180_manual_owner_approval_lifecycle_source_chain(
+            &output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+
+        let expired_output = output_dir.join("expired.json");
+        let used_output = output_dir.join("used.json");
+        let rejected_output = output_dir.join("rejected.json");
+        let release_mismatch_output = output_dir.join("release-mismatch.json");
+        let symbol_mismatch_output = output_dir.join("symbol-mismatch.json");
+
+        let mut expired_opt = production_mutation_actual_cancel_owner_approval_lifecycle_opt(
+            safety_contract.clone(),
+            release_manifest.clone(),
+            risk_gate.clone(),
+            expired_output.clone(),
+            "approved",
+            true,
+        );
+        expired_opt.now_unix_ms = 1_718_400_070_000;
+        run_live_production_mutation_actual_cancel_owner_approval_lifecycle(&expired_opt).unwrap();
+        run_live_production_mutation_actual_cancel_owner_approval_lifecycle(
+            &production_mutation_actual_cancel_owner_approval_lifecycle_opt(
+                safety_contract.clone(),
+                release_manifest.clone(),
+                risk_gate.clone(),
+                used_output.clone(),
+                "used",
+                true,
+            ),
+        )
+        .unwrap();
+        run_live_production_mutation_actual_cancel_owner_approval_lifecycle(
+            &production_mutation_actual_cancel_owner_approval_lifecycle_opt(
+                safety_contract.clone(),
+                release_manifest.clone(),
+                risk_gate.clone(),
+                rejected_output.clone(),
+                "rejected",
+                true,
+            ),
+        )
+        .unwrap();
+        let mut release_mismatch_opt =
+            production_mutation_actual_cancel_owner_approval_lifecycle_opt(
+                safety_contract.clone(),
+                release_manifest,
+                risk_gate.clone(),
+                release_mismatch_output.clone(),
+                "approved",
+                true,
+            );
+        release_mismatch_opt.expected_release_tag = "ntpro-rust-only-v0.18.0".to_string();
+        run_live_production_mutation_actual_cancel_owner_approval_lifecycle(&release_mismatch_opt)
+            .unwrap();
+        let mut symbol_mismatch_opt =
+            production_mutation_actual_cancel_owner_approval_lifecycle_opt(
+                safety_contract,
+                write_v190_actual_cancel_owner_approval_source_files(&output_dir).1,
+                risk_gate,
+                symbol_mismatch_output.clone(),
+                "approved",
+                true,
+            );
+        symbol_mismatch_opt.expected_symbol = "ETHUSDT".to_string();
+        run_live_production_mutation_actual_cancel_owner_approval_lifecycle(&symbol_mismatch_opt)
+            .unwrap();
+
+        let expired: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(expired_output).unwrap()).unwrap();
+        assert_eq!(expired["status"], "approval_expired");
+        assert_eq!(expired["approval_execution_authorized"], false);
+        assert!(
+            expired["lifecycle_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "owner_approval_expired")
+        );
+
+        let used: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(used_output).unwrap()).unwrap();
+        assert_eq!(used["status"], "approval_used");
+        assert_eq!(used["approval_consumed"], true);
+        assert_eq!(used["audit_evidence_recorded"], true);
+        assert!(
+            used["lifecycle_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "owner_approval_reused")
+        );
+
+        let rejected: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(rejected_output).unwrap()).unwrap();
+        assert_eq!(rejected["status"], "approval_rejected");
+        assert_eq!(rejected["audit_evidence_recorded"], true);
+        assert!(
+            rejected["lifecycle_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "owner_approval_rejected")
+        );
+
+        let release_mismatch: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(release_mismatch_output).unwrap()).unwrap();
+        assert_eq!(release_mismatch["status"], "blocked_release_provenance");
+        assert!(
+            release_mismatch["release_manifest_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "release_manifest_planned_tag_mismatch")
+        );
+
+        let symbol_mismatch: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(symbol_mismatch_output).unwrap()).unwrap();
+        assert_eq!(symbol_mismatch["status"], "blocked_source_artifact");
+        assert!(
+            symbol_mismatch["source_artifact_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "symbol_mismatch")
+        );
+        assert_eq!(symbol_mismatch["actual_cancel_send_allowed"], false);
     }
 
     #[test]
