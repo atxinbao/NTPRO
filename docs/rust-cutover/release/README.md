@@ -404,6 +404,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   failure taxonomy, and fail-closes unsupported venue, unsupported order-id
   type, missing capability, bulk, retry, automatic cancel, or Dashboard
   execution requests without sending a cancel request.
+- `v0_19_0_single_shot_cancel_command.md` - V190-004 single-shot actual cancel
+  command for the v0.19 line. It adds the manual-online
+  `production-mutation-actual-cancel-single-shot` command, validates owner
+  approval, risk gate, release provenance, adapter boundary/capability, and
+  owner-supplied order identity, records one attempted `DELETE /api/v3/order`
+  through a redacted audit artifact, and blocks missing, reused, mismatched,
+  unsupported, automatic, bulk, retry, or Dashboard paths before any send.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,

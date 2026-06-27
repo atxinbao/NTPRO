@@ -214,6 +214,8 @@ pub enum LiveCommand {
     ProductionMutationActualCancelExecutorAdapterBoundary(
         Box<LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt>,
     ),
+    /// Executes or prepares a v0.19 owner-approved single-shot actual cancel command.
+    ProductionMutationActualCancelSingleShot(Box<LiveProductionMutationActualCancelSingleShotOpt>),
     /// Redacts a future v0.18 owner-approved cancel response artifact; no cancel send.
     ProductionMutationCancelResponseRedaction(LiveProductionMutationCancelResponseRedactionOpt),
     /// Classifies a future v0.18 post-cancel readback artifact; no network read or cancel send.
@@ -1852,6 +1854,113 @@ pub struct LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt {
     #[arg(long)]
     pub confirm_no_network: bool,
     /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+}
+
+/// v0.19 owner-approved single-shot actual cancel command options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationActualCancelSingleShotOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// V190-002 actual cancel safety contract Markdown input.
+    #[arg(long)]
+    pub actual_cancel_safety_contract: PathBuf,
+    /// v0.18.1 release manifest JSON input.
+    #[arg(long)]
+    pub release_manifest: PathBuf,
+    /// v0.18 cancel risk gate JSON input.
+    #[arg(long)]
+    pub cancel_risk_gate: PathBuf,
+    /// V190-003 owner approval lifecycle JSON input.
+    #[arg(long)]
+    pub owner_approval_lifecycle: PathBuf,
+    /// V190-005 cancel executor adapter boundary JSON input.
+    #[arg(long)]
+    pub adapter_boundary: PathBuf,
+    /// Adapter capability declaration JSON input.
+    #[arg(long)]
+    pub adapter_capability: PathBuf,
+    /// Expected order lineage identifier.
+    #[arg(long)]
+    pub expected_order_lineage_id: String,
+    /// Expected symbol.
+    #[arg(long)]
+    pub expected_symbol: String,
+    /// Expected account label.
+    #[arg(long)]
+    pub expected_account_label: String,
+    /// Expected venue.
+    #[arg(long)]
+    pub venue: String,
+    /// Expected order id type: exchange_order_id or client_order_id.
+    #[arg(long)]
+    pub order_id_type: String,
+    /// Expected release tag/provenance anchor.
+    #[arg(long)]
+    pub expected_release_tag: String,
+    /// Actual exchange order id supplied manually by the owner for exchange_order_id mode.
+    #[arg(long)]
+    pub cancel_order_id: Option<String>,
+    /// Actual original client order id supplied manually by the owner for client_order_id mode.
+    #[arg(long)]
+    pub cancel_orig_client_order_id: Option<String>,
+    /// Environment variable name containing the Binance production API key.
+    #[arg(long, default_value = "BINANCE_PRODUCTION_LIVE_ALPHA_API_KEY")]
+    pub api_key_env: String,
+    /// Environment variable name containing the Binance production API secret.
+    #[arg(long, default_value = "BINANCE_PRODUCTION_LIVE_ALPHA_API_SECRET")]
+    pub api_secret_env: String,
+    /// Timestamp in milliseconds for deterministic memory-only signing.
+    #[arg(long)]
+    pub timestamp_ms: u64,
+    /// Binance recvWindow in milliseconds.
+    #[arg(long, default_value_t = 5_000)]
+    pub recv_window_ms: u64,
+    /// v0.19 actual cancel attempt JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Requests the manual online single-shot cancel path.
+    #[arg(long)]
+    pub manual_online: bool,
+    /// Manual CLI gate for actual cancel single-shot execution.
+    #[arg(long)]
+    pub allow_production_mutation_actual_cancel_single_shot: bool,
+    /// Confirms owner approval lifecycle is required and matched.
+    #[arg(long)]
+    pub confirm_owner_approval: bool,
+    /// Confirms risk gate is required and matched.
+    #[arg(long)]
+    pub confirm_risk_gate: bool,
+    /// Confirms release provenance is required and matched.
+    #[arg(long)]
+    pub confirm_release_provenance: bool,
+    /// Confirms adapter boundary and capability are required and matched.
+    #[arg(long)]
+    pub confirm_adapter_boundary: bool,
+    /// Confirms exactly one cancel attempt is allowed.
+    #[arg(long)]
+    pub confirm_single_shot: bool,
+    /// Confirms owner approval is consumed before send and remains consumed after attempt.
+    #[arg(long)]
+    pub confirm_consume_approval_before_send: bool,
+    /// Confirms post-cancel readback is required after any attempt.
+    #[arg(long)]
+    pub confirm_readback_required: bool,
+    /// Confirms bulk and cancel-all paths remain forbidden.
+    #[arg(long)]
+    pub confirm_no_bulk_cancel: bool,
+    /// Confirms retry, replace, amend, flatten, and remediation remain forbidden.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms automatic cancel remains forbidden.
+    #[arg(long)]
+    pub confirm_no_automatic_cancel: bool,
+    /// Confirms Dashboard cannot execute the actual cancel.
+    #[arg(long)]
+    pub confirm_no_dashboard_execution: bool,
+    /// Confirms API key, secret, signature, signed query, signed URL, raw response, and raw body are not persisted.
     #[arg(long)]
     pub confirm_no_secret_persistence: bool,
 }
@@ -4457,6 +4566,130 @@ mod tests {
         assert!(boundary.confirm_no_dashboard_execution);
         assert!(boundary.confirm_no_network);
         assert!(boundary.confirm_no_secret_persistence);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_actual_cancel_single_shot_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-actual-cancel-single-shot",
+            "--run-id",
+            "v190-actual-cancel-single-shot",
+            "--actual-cancel-safety-contract",
+            "docs/rust-cutover/release/v0_19_0_actual_cancel_safety_contract.md",
+            "--release-manifest",
+            "docs/rust-cutover/release/v0_18_1_release_manifest.json",
+            "--cancel-risk-gate",
+            "runs/v180/cancel-risk-gate.json",
+            "--owner-approval-lifecycle",
+            "runs/v190/actual-cancel-owner-approval-lifecycle.json",
+            "--adapter-boundary",
+            "runs/v190/actual-cancel-executor-adapter-boundary.json",
+            "--adapter-capability",
+            "runs/v190/adapter-capability.json",
+            "--expected-order-lineage-id",
+            "lineage-v160-single-shot",
+            "--expected-symbol",
+            "BTCUSDT",
+            "--expected-account-label",
+            "prod-account-redacted",
+            "--venue",
+            "binance_spot",
+            "--order-id-type",
+            "exchange_order_id",
+            "--expected-release-tag",
+            "ntpro-rust-only-v0.18.1",
+            "--cancel-order-id",
+            "123456789",
+            "--api-key-env",
+            "NTPRO_V190004_API_KEY",
+            "--api-secret-env",
+            "NTPRO_V190004_API_SECRET",
+            "--timestamp-ms",
+            "1718400000000",
+            "--recv-window-ms",
+            "5000",
+            "--output",
+            "runs/v190/actual-cancel-single-shot.json",
+            "--manual-online",
+            "--allow-production-mutation-actual-cancel-single-shot",
+            "--confirm-owner-approval",
+            "--confirm-risk-gate",
+            "--confirm-release-provenance",
+            "--confirm-adapter-boundary",
+            "--confirm-single-shot",
+            "--confirm-consume-approval-before-send",
+            "--confirm-readback-required",
+            "--confirm-no-bulk-cancel",
+            "--confirm-no-retry",
+            "--confirm-no-automatic-cancel",
+            "--confirm-no-dashboard-execution",
+            "--confirm-no-secret-persistence",
+        ])
+        .expect("live production-mutation-actual-cancel-single-shot should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationActualCancelSingleShot(cancel) = live.command else {
+            panic!("expected production-mutation-actual-cancel-single-shot command");
+        };
+
+        assert_eq!(cancel.run_id, "v190-actual-cancel-single-shot");
+        assert_eq!(
+            cancel.actual_cancel_safety_contract,
+            PathBuf::from("docs/rust-cutover/release/v0_19_0_actual_cancel_safety_contract.md")
+        );
+        assert_eq!(
+            cancel.release_manifest,
+            PathBuf::from("docs/rust-cutover/release/v0_18_1_release_manifest.json")
+        );
+        assert_eq!(
+            cancel.cancel_risk_gate,
+            PathBuf::from("runs/v180/cancel-risk-gate.json")
+        );
+        assert_eq!(
+            cancel.owner_approval_lifecycle,
+            PathBuf::from("runs/v190/actual-cancel-owner-approval-lifecycle.json")
+        );
+        assert_eq!(
+            cancel.adapter_boundary,
+            PathBuf::from("runs/v190/actual-cancel-executor-adapter-boundary.json")
+        );
+        assert_eq!(
+            cancel.adapter_capability,
+            PathBuf::from("runs/v190/adapter-capability.json")
+        );
+        assert_eq!(cancel.expected_order_lineage_id, "lineage-v160-single-shot");
+        assert_eq!(cancel.expected_symbol, "BTCUSDT");
+        assert_eq!(cancel.expected_account_label, "prod-account-redacted");
+        assert_eq!(cancel.venue, "binance_spot");
+        assert_eq!(cancel.order_id_type, "exchange_order_id");
+        assert_eq!(cancel.expected_release_tag, "ntpro-rust-only-v0.18.1");
+        assert_eq!(cancel.cancel_order_id.as_deref(), Some("123456789"));
+        assert_eq!(cancel.api_key_env, "NTPRO_V190004_API_KEY");
+        assert_eq!(cancel.api_secret_env, "NTPRO_V190004_API_SECRET");
+        assert_eq!(cancel.timestamp_ms, 1_718_400_000_000);
+        assert_eq!(cancel.recv_window_ms, 5_000);
+        assert_eq!(
+            cancel.output,
+            PathBuf::from("runs/v190/actual-cancel-single-shot.json")
+        );
+        assert!(cancel.manual_online);
+        assert!(cancel.allow_production_mutation_actual_cancel_single_shot);
+        assert!(cancel.confirm_owner_approval);
+        assert!(cancel.confirm_risk_gate);
+        assert!(cancel.confirm_release_provenance);
+        assert!(cancel.confirm_adapter_boundary);
+        assert!(cancel.confirm_single_shot);
+        assert!(cancel.confirm_consume_approval_before_send);
+        assert!(cancel.confirm_readback_required);
+        assert!(cancel.confirm_no_bulk_cancel);
+        assert!(cancel.confirm_no_retry);
+        assert!(cancel.confirm_no_automatic_cancel);
+        assert!(cancel.confirm_no_dashboard_execution);
+        assert!(cancel.confirm_no_secret_persistence);
     }
 
     #[test]
