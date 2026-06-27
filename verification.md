@@ -1,3 +1,29 @@
+# V190-002 Verification
+
+Date: 2026-06-27
+Executor: Codex
+Task: `V190-002` / GitHub issue `#578`
+
+## Commands
+
+```text
+rg -n "single-shot|owner-approved|actual cancel|bulk|retry|Dashboard" docs crates scripts = PASS
+rg -n "v0_19_0_actual_cancel_safety_contract|missing_owner_approval|owner_approval_reused|adapter_capability_missing|dashboard_operation_requested" README.md docs/rust-cutover/release docs/rust-cutover/evidence docs/versioning.md verification.md = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+The v0.19 actual cancel safety contract is documented and indexed. It binds any
+future actual cancel path to one manual owner approval, one order, one venue,
+one execution attempt, required owner-approval/risk-gate/order/release-manifest
+and adapter-capability artifacts, and fail-closed behavior for missing, expired,
+reused, stale, or mismatched evidence. This verification does not add a cancel
+executor, adapter behavior change, runtime network request, production order
+submit lifecycle, automatic or bulk cancel, retry/replace/amend/flatten, or
+Dashboard operation controls.
+
 # V190-001 Verification
 
 Date: 2026-06-27

@@ -74,7 +74,14 @@ v0.19.0
 
 v0.19.0 is the first follow-up line allowed to evaluate and implement
 owner-approved single-shot actual cancel. It is not part of v0.18.0 or
-v0.18.1.
+v0.18.1. Any v0.19 actual-cancel work must follow
+`docs/rust-cutover/release/v0_19_0_actual_cancel_safety_contract.md`: one
+manual owner approval, one order, one venue, one execution attempt, required
+owner-approval/risk-gate/order/release-manifest/adapter-capability artifacts,
+and fail-closed behavior for missing, expired, reused, or mismatched evidence.
+It does not authorize production order submission, automatic cancel, bulk
+cancel, retry/replace/amend/flatten, multi-account or multi-venue expansion, or
+Dashboard operation controls.
 
 ## Cargo Workspace Version
 
