@@ -1,3 +1,29 @@
+# V181-006 Verification
+
+Date: 2026-06-27
+Executor: Codex
+Task: `V181-006` / GitHub issue `#575`
+
+## Commands
+
+```text
+jq empty docs/rust-cutover/release/v0_18_1_release_manifest.json = PASS
+scripts/ai/verify_release_strict.sh v18 = PASS
+NTPRO_RELEASE_STRICT_VERIFY_ONLY=1 scripts/ai/verify_release_strict.sh v18 = PASS
+bash -n scripts/ai/verify_release_strict.sh scripts/ai/verify_release.sh = PASS
+rg -n "release manifest|manifest|v0.18.1|actual_cancel" docs/rust-cutover/release scripts/ai = PASS
+git diff --check = PASS
+```
+
+## Result
+
+The v0.18.1 release manifest is machine-readable JSON and records the v0.18.0
+baseline release, planned and actual patch tag fields, release gate list,
+source/binary provenance handoff, capability boundary, and no-actual-cancel
+flags. `verify_release_strict.sh v18` now reads this docs manifest, validates
+its key fields, and embeds the manifest path/sha256 into the generated strict
+binary provenance manifest.
+
 # V181-005 Verification
 
 Date: 2026-06-27

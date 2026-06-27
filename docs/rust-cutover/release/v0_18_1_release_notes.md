@@ -34,12 +34,17 @@ coverage, and not strict provenance evidence.
 The strict provenance gate writes or verifies:
 
 ```text
+docs/rust-cutover/release/v0_18_1_release_manifest.json
 target/ntpro-v181/v0_18_strict_release_manifest.json
 ```
 
-The manifest binds the target binary path, binary sha256, binary byte count,
-source commit, source tree, baseline release tag, baseline release commit,
-`cargo --version`, and `rustc --version`.
+The docs release manifest records the v0.18.1 release contract: product
+version, v0.18.0 baseline release/tag/commit, planned and actual patch tag
+fields, required release gates, capability boundary, and no-actual-cancel
+flags. The generated strict provenance manifest binds that contract to the
+target binary path, binary sha256, binary byte count, source commit, source
+tree, baseline release tag, baseline release commit, `cargo --version`, and
+`rustc --version`.
 
 ## What Did Not Change
 

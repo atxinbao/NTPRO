@@ -378,6 +378,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   Provenance Hardening patch. It lists `v18-strict-provenance` and
   `scripts/ai/verify_release_strict.sh v18` as required release evidence and
   preserves the v0.18.0 preview-only boundary.
+- `v0_18_1_release_manifest.json` - machine-readable v0.18.1 release manifest
+  for release surface/provenance hardening. It records the v0.18.0 baseline,
+  planned/actual patch tag fields, release gates, source/binary provenance
+  handoff to `verify_release_strict.sh v18`, and no-actual-cancel boundary
+  flags.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
