@@ -2,9 +2,13 @@
 
 Date: 2026-06-26
 Executor: Codex
-Status: PREPARED - not published by V180-011
-Tag: `not-published-by-v180-011`
+Status: RELEASED
+Tag: `ntpro-rust-only-v0.18.0`
 Release name: `NTPRO Rust-only v0.18.0`
+Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.18.0`
+Release commit: `6790688ae46d1b25806f3d1d25146c9b47d43328`
+Published at: `2026-06-27T07:58:22Z`
+Hosted release gate: `https://github.com/atxinbao/NTPRO/actions/runs/28281346239`
 
 ## Summary
 
@@ -71,7 +75,6 @@ bulk cancel
 multi-account cancel recovery
 multi-venue cancel recovery
 production trading claim
-release tag publication by V180-011
 ```
 
 ## Merged PR Accounting
@@ -115,6 +118,7 @@ scripts/ai/verify_release.sh v18-release-gates
 scripts/ai/verify_fast.sh
 git diff --check
 hosted Rust Cutover Smoke
+hosted Rust Cutover Release Gate run 28281346239, 50 jobs, 0 failures
 hosted security-audit when audit-relevant paths change
 ```
 
@@ -131,16 +135,21 @@ PR #565 smoke SUCCESS, run 28249293792, job 83696428771
 PR #566 smoke SUCCESS, run 28251759505, job 83704754746
 PR #567 smoke SUCCESS, run 28254034782, job 83712457887
 PR #568 smoke SUCCESS, run 28256269452, job 83719995949
+PR #569 smoke SUCCESS, run 28257950925, job 83725730229
 ```
 
 ## Release Status
 
-This document is prepared as release-note source material only:
+This document is published as the GitHub Release note body for:
 
 ```text
-tag = not published by V180-011
+tag = ntpro-rust-only-v0.18.0
 release name = NTPRO Rust-only v0.18.0
-GitHub Release URL = not published by V180-011
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.18.0
+release commit = 6790688ae46d1b25806f3d1d25146c9b47d43328
+published at = 2026-06-27T07:58:22Z
+hosted release gate = https://github.com/atxinbao/NTPRO/actions/runs/28281346239
+hosted release gate result = success, 50 jobs, 0 failures
 ```
 
 The release boundary must continue to preserve: one v0.16 single lineage only,

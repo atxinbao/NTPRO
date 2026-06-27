@@ -2,8 +2,8 @@
 
 Date: 2026-06-26
 Executor: Codex
-Milestone: `v0.18.0`
-Status: PASS - readiness docs prepared, release tag not published
+Milestone: `ntpro-rust-only-v0.18.0`
+Status: PASS - RELEASED
 
 ## Summary
 
@@ -24,8 +24,12 @@ Plain Chinese summary: v0.18.0 是“撤单恢复预览和门禁”版本。大�
 ```text
 capability = Owner-Approved Cancel Recovery Preview
 capability_expansion = preview_gate_approval_only
-release tag = not published by V180-011
+release tag = ntpro-rust-only-v0.18.0
 release name = NTPRO Rust-only v0.18.0
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.18.0
+release commit = 6790688ae46d1b25806f3d1d25146c9b47d43328
+published at = 2026-06-27T07:58:22Z
+hosted release gate = https://github.com/atxinbao/NTPRO/actions/runs/28281346239
 default execution posture = offline fail-closed
 lineage_scope = single_v16_mutation_candidate
 cancel request preview = included
@@ -84,7 +88,6 @@ Dashboard credential input
 raw secret persistence
 raw exchange response persistence
 production trading platform claim
-release tag publication
 ```
 
 ## Merged PR Accounting
@@ -101,7 +104,7 @@ release tag publication
 | V180-008 | #546 | #566 | 2026-06-26T17:06:03Z | `844eeae20578783f25d5c7c7224cebef8a605856` | `docs/rust-cutover/evidence/V180-008.md` | Adds incident/audit closeout evidence |
 | V180-009 | #547 | #567 | 2026-06-26T17:49:20Z | `dd3d4441975ec12f7e49426f0c2947577e26b355` | `docs/rust-cutover/evidence/V180-009.md` | Adds read-only Dashboard visibility only |
 | V180-010 | #548 | #568 | 2026-06-26T18:30:21Z | `68c0df4985767fc879cc56858926abec9f4d68aa` | `docs/rust-cutover/evidence/V180-010.md` | Adds aggregate release gates only |
-| V180-011 | #549 | IN THIS SOURCE TREE | pending before PR | pending before PR | `docs/rust-cutover/evidence/V180-011.md` | Adds readiness and release-note accounting only |
+| V180-011 | #549 | #569 | 2026-06-26T18:59:37Z | `6790688ae46d1b25806f3d1d25146c9b47d43328` | `docs/rust-cutover/evidence/V180-011.md` | Adds readiness and release-note accounting only |
 
 ## Hosted Gate Evidence
 
@@ -118,6 +121,8 @@ V180-007 PR #565 smoke SUCCESS, run 28249293792, job 83696428771
 V180-008 PR #566 smoke SUCCESS, run 28251759505, job 83704754746
 V180-009 PR #567 smoke SUCCESS, run 28254034782, job 83712457887
 V180-010 PR #568 smoke SUCCESS, run 28256269452, job 83719995949
+V180-011 PR #569 smoke SUCCESS, run 28257950925, job 83725730229
+v0.18.0 release tag push SUCCESS, run 28281346239, 50 jobs, 0 failures
 ```
 
 ## Local Release Gate Evidence
@@ -128,6 +133,8 @@ Required local validation for the v0.18 readiness decision:
 scripts/ai/verify_release.sh v18-release-gates
 scripts/ai/verify_fast.sh
 git diff --check
+gh release view ntpro-rust-only-v0.18.0
+gh run view 28281346239 --repo atxinbao/NTPRO
 ```
 
 The aggregate `v18-release-gates` stage includes:
@@ -186,16 +193,21 @@ any real cancel can be considered.
 ## Release Closure Status
 
 ```text
-latest formal release before this line = ntpro-rust-only-v0.17.1
-v0.18.0 readiness = PASS - docs prepared
-v0.18.0 tag = not published by V180-011
-v0.18.0 GitHub Release = not published by V180-011
+previous formal release before this line = ntpro-rust-only-v0.17.0
+current formal release = ntpro-rust-only-v0.18.0
+v0.18.0 readiness = PASS - RELEASED
+v0.18.0 tag = ntpro-rust-only-v0.18.0
+v0.18.0 GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.18.0
+v0.18.0 release commit = 6790688ae46d1b25806f3d1d25146c9b47d43328
+v0.18.0 hosted release gate = https://github.com/atxinbao/NTPRO/actions/runs/28281346239
 ```
 
 ## Final Verdict
 
-The v0.18 source-tree package is ready as `Owner-Approved Cancel Recovery
-Preview` evidence. Do not describe this readiness as actual cancel execution
-readiness, automatic remediation readiness, strategy-driven cancel readiness,
-multi-account/multi-venue cancel readiness, Dashboard cancel-control readiness,
-or general production trading readiness.
+The v0.18 source-tree package is formally released as `Owner-Approved Cancel
+Recovery Preview` evidence.
+
+Do not describe this release as actual cancel execution readiness, automatic
+remediation readiness, strategy-driven cancel readiness, multi-account or
+multi-venue cancel readiness, Dashboard cancel-control readiness, or general
+production trading readiness.
