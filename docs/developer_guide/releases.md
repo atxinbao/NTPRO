@@ -130,15 +130,28 @@ A future binary release task must prove:
 
 ## Required Verification
 
-Fast local gate:
+Fast local smoke:
 
 ```bash
 scripts/ai/verify_fast.sh
 ```
 
 This is a fast smoke only. By default it covers the pinned Rust toolchain and
-`cargo fmt --check`; it is not release evidence and does not replace workspace
-`cargo check`, clippy, golden traces, or `verify_release.sh`.
+`cargo fmt --check`; it is not release validation, is not release evidence,
+and does not replace workspace `cargo check`, clippy, golden traces,
+`verify_release.sh`, or strict provenance.
+
+Compile and lint gate:
+
+```bash
+VERIFY_FAST_CARGO_CHECK=1 VERIFY_FAST_CLIPPY=1 scripts/ai/verify_fast.sh
+```
+
+Full test gate:
+
+```bash
+scripts/ai/verify_full.sh
+```
 
 Release-oriented gate:
 
@@ -146,6 +159,7 @@ Release-oriented gate:
 scripts/ai/check_rust_only_runtime.sh
 scripts/ai/check_cython_removed.sh
 scripts/ai/verify_release.sh
+scripts/ai/verify_release_strict.sh v18
 ```
 
 Golden trace gate:

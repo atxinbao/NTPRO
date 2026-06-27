@@ -1,3 +1,28 @@
+# V181-005 Verification
+
+Date: 2026-06-27
+Executor: Codex
+Task: `V181-005` / GitHub issue `#574`
+
+## Commands
+
+```text
+scripts/ai/verify_fast.sh = PASS
+scripts/ai/verify_release.sh v18-release-gates = PASS
+bash -n scripts/ai/verify_fast.sh scripts/ai/verify_release.sh scripts/ai/verify_release_strict.sh = PASS
+rg -n "verify_fast|verify_release|verify_release_strict|release gate" README.md docs scripts/ai verification.md = PASS
+old misleading wording scan = no matches
+git diff --check = PASS
+```
+
+## Result
+
+Default `verify_fast.sh` is now documented and printed as fast smoke only. It
+checks the pinned Rust toolchain and `cargo fmt --check` by default, and it is
+not release validation or release evidence. v0.18/v0.18.1 release evidence
+points to `verify_release.sh`; v0.18.1 strict provenance points to
+`verify_release_strict.sh`.
+
 # V181-004 Verification
 
 Date: 2026-06-27

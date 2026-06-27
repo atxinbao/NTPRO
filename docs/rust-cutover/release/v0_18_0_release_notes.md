@@ -115,12 +115,21 @@ Required release validation for this package:
 
 ```text
 scripts/ai/verify_release.sh v18-release-gates
-scripts/ai/verify_fast.sh
 git diff --check
 hosted Rust Cutover Smoke
 hosted Rust Cutover Release Gate run 28281346239, 50 jobs, 0 failures
 hosted security-audit when audit-relevant paths change
 ```
+
+Auxiliary local fast smoke, not release evidence:
+
+```text
+scripts/ai/verify_fast.sh
+```
+
+The default fast smoke checks the pinned Rust toolchain and `cargo fmt --check`
+only. It must not be cited as a release gate or as complete release
+validation.
 
 Hosted v0.18 PR smoke evidence:
 
