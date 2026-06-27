@@ -1,3 +1,33 @@
+# V181-004 Verification
+
+Date: 2026-06-27
+Executor: Codex
+Task: `V181-004` / GitHub issue `#573`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release_strict.sh scripts/ai/verify_release.sh = PASS
+scripts/ai/verify_release_strict.sh v18 = PASS
+NTPRO_RELEASE_STRICT_SKIP_BUILD=1 scripts/ai/verify_release.sh v18-strict-provenance = PASS
+shasum -a 256 target/release/nautilus = d1762dae5cc5962638fd0c62ce675176cbdcd202d096eee5bf25baabbaad61d6
+git status --short = tracked changes present during development validation
+git rev-list -n1 ntpro-rust-only-v0.18.0 = 6790688ae46d1b25806f3d1d25146c9b47d43328
+cargo --version = cargo 1.95.0 (f2d3ce0bd 2026-03-21)
+rustc --version = rustc 1.95.0 (59807616e 2026-04-14)
+NTPRO_RELEASE_GATE=1 NTPRO_RELEASE_STRICT_SKIP_BUILD=1 scripts/ai/verify_release_strict.sh v18 = expected FAIL on dirty tracked worktree
+NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG=1 NTPRO_RELEASE_STRICT_SKIP_BUILD=1 scripts/ai/verify_release_strict.sh v18 = expected FAIL on tag mismatch
+corrupted manifest binary.sha256 with NTPRO_RELEASE_STRICT_VERIFY_ONLY=1 = expected FAIL on binary sha256 mismatch
+git diff --check = PASS
+```
+
+## Result
+
+The v0.18 strict provenance gate records and verifies the release binary path,
+binary sha256, binary byte count, source commit, source tree, baseline release
+tag, baseline release commit, cargo version, and rustc version. The v0.18.1
+release-note draft lists `v18-strict-provenance` as required release evidence.
+
 # V181-003 Verification
 
 Date: 2026-06-27

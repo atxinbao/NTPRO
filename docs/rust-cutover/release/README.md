@@ -374,6 +374,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   evidence, release gates, and Dashboard diagnostics; it does not include
   actual cancel send, automatic cancel, remediation, or Dashboard order/cancel
   controls.
+- `v0_18_1_release_notes.md` - draft notes for the v0.18.1 Release Surface &
+  Provenance Hardening patch. It lists `v18-strict-provenance` and
+  `scripts/ai/verify_release_strict.sh v18` as required release evidence and
+  preserves the v0.18.0 preview-only boundary.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
