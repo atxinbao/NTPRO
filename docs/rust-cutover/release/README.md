@@ -389,6 +389,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   required artifacts, fail-closed reasons, and forbidden automatic, bulk,
   multi-account, multi-strategy, multi-venue, retry, and Dashboard operation
   expansions without implementing a cancel executor.
+- `v0_19_0_owner_approval_execution_lifecycle.md` - V190-003 owner approval
+  execution lifecycle for the v0.19 actual cancel line. It adds the local
+  `production-mutation-actual-cancel-owner-approval-lifecycle` evidence command,
+  binds approval to the V190-002 safety contract, release manifest, risk gate,
+  order lineage, symbol, account label, venue, owner identity, timestamp, and
+  reason, and fail-closes reused, expired, rejected, audited, missing, or
+  mismatched approvals without sending a cancel request.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
