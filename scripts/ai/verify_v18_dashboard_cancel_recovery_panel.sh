@@ -14,11 +14,11 @@ cargo test -p nautilus-cli \
   production_cancel_recovery \
   --lib
 
-grep -R -n -E "v0\\.18 撤单恢复只读面板|production-cancel-recovery|renderProductionCancelRecovery|dashboard_cancel_controls_enabled" \
+grep -R -n -E "v0\\.18 撤单恢复只读面板|production-cancel-recovery|renderProductionCancelRecovery|dashboard_cancel_controls_enabled|dashboard_auto_approval_allowed|dashboard_auto_approval_attempted" \
   crates/cli/src/dashboard.rs >/dev/null
 
 if [[ "${NTPRO_V18_DASHBOARD_SKIP_CLOSEOUT_CHAIN:-0}" != "1" ]]; then
   scripts/ai/verify_v18_cancel_recovery_incident_audit_closeout.sh >/dev/null
 fi
 
-echo "verify_v18_dashboard_cancel_recovery_panel PASS dashboard_cancel_controls_enabled=false cancel_order_control_routes_exposed=false"
+echo "verify_v18_dashboard_cancel_recovery_panel PASS dashboard_cancel_controls_enabled=false dashboard_auto_approval_allowed=false cancel_order_control_routes_exposed=false"

@@ -46,6 +46,14 @@ target binary path, binary sha256, binary byte count, source commit, source
 tree, baseline release tag, baseline release commit, `cargo --version`, and
 `rustc --version`.
 
+## Dashboard Diagnostics Regression Coverage
+
+V181-007 adds v0.18 Dashboard cancel recovery regression tests for missing
+artifacts, schema mismatches, source commit/tag provenance mismatches, stale
+artifacts, and forbidden cancel/Dashboard approval flags. The panel must report
+degraded or boundary violation states for those cases and must not report
+`healthy` or `production_cancel_recovery_ready`.
+
 ## What Did Not Change
 
 ```text
@@ -55,6 +63,7 @@ automatic cancel = disabled
 automatic remediation = disabled
 Dashboard order controls = disabled
 Dashboard cancel controls = disabled
+Dashboard auto-approval controls = disabled
 v0.18.1 tag publication = not included
 GitHub Release publication = not included
 ```

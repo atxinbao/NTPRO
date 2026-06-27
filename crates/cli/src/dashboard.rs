@@ -1238,7 +1238,7 @@ function renderProductionCancelRecovery(items) {
             <td data-label="Owner 审批">${panelRow("状态", snapshotValue(item.approval_lifecycle_status))}${panelRow("审批状态", snapshotValue(item.owner_approval_state))}${panelRow("已记录", snapshotValue(item.manual_approval_recorded))}${panelRow("生命周期有效", snapshotValue(item.approval_lifecycle_valid))}${panelRow("已消耗", snapshotValue(item.approval_consumed))}</td>
             <td data-label="Readback">${panelRow("脱敏合同", snapshotValue(item.redaction_contract_state))}${panelRow("脱敏 ready", snapshotValue(item.cancel_response_redaction_ready))}${panelRow("响应已脱敏", snapshotValue(item.cancel_response_redacted))}${panelRow("Readback 状态", snapshotValue(item.post_cancel_readback_status))}${panelRow("Readback ready", snapshotValue(item.post_cancel_readback_ready))}${panelRow("交易所状态", snapshotValue(item.readback_state))}${panelRow("状态分类", snapshotValue(item.readback_state_class))}${panelRow("结果", snapshotValue(item.readback_outcome))}${panelRow("终态", snapshotValue(item.terminal_state_observed))}${panelRow("歧义状态", snapshotValue(item.ambiguous_state_observed))}</td>
             <td data-label="Incident / Audit">${panelRow("Closeout 状态", snapshotValue(item.incident_closeout_status))}${panelRow("Incident ready", snapshotValue(item.incident_closeout_ready))}${panelRow("Audit ready", snapshotValue(item.audit_trail_ready))}${panelRow("Traceability", snapshotValue(item.audit_traceability_ready))}${panelRow("Lineage ready", snapshotValue(item.cancel_recovery_lineage_ready))}${panelRow("推荐动作", snapshotValue(item.terminal_action_recommendation))}${panelRow("剩余风险", snapshotValue(item.remaining_risk))}${panelRow("需人工复核", snapshotValue(item.remaining_risk_requires_manual_review))}${panelRow("Source issues", snapshotValue(item.source_artifact_issues))}${panelRow("Lineage issues", snapshotValue(item.lineage_issues))}${panelRow("Missing flags", snapshotValue(item.missing_cli_flags))}</td>
-            <td data-label="只读边界">${panelRow("允许真实撤单", snapshotValue(item.actual_cancel_send_allowed))}${panelRow("撤单尝试", snapshotValue(item.cancel_attempted))}${panelRow("撤单请求", snapshotValue(item.cancel_requests_sent))}${panelRow("生产变更", snapshotValue(item.production_order_mutations_attempted))}${panelRow("Readback 执行", snapshotValue(item.readback_execution_attempted))}${panelRow("状态读取尝试", snapshotValue(item.production_order_state_reads_attempted))}${panelRow("网络尝试", snapshotValue(item.network_attempted))}${panelRow("Readback 端点", snapshotValue(item.network_readback_endpoint_attempted))}${panelRow("Cancel 端点", snapshotValue(item.network_cancel_endpoint_attempted))}${panelRow("重试", snapshotValue(item.retry_attempted))}${panelRow("补救", snapshotValue(item.remediation_attempted))}${panelRow("自动撤单", snapshotValue(item.automatic_cancel_allowed))}${panelRow("自动补救", snapshotValue(item.automatic_remediation_allowed))}${panelRow("Dashboard 下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("Dashboard 撤单控件", snapshotValue(item.dashboard_cancel_controls_enabled))}</td>
+            <td data-label="只读边界">${panelRow("允许真实撤单", snapshotValue(item.actual_cancel_send_allowed))}${panelRow("撤单尝试", snapshotValue(item.cancel_attempted))}${panelRow("撤单请求", snapshotValue(item.cancel_requests_sent))}${panelRow("生产变更", snapshotValue(item.production_order_mutations_attempted))}${panelRow("Readback 执行", snapshotValue(item.readback_execution_attempted))}${panelRow("状态读取尝试", snapshotValue(item.production_order_state_reads_attempted))}${panelRow("网络尝试", snapshotValue(item.network_attempted))}${panelRow("Readback 端点", snapshotValue(item.network_readback_endpoint_attempted))}${panelRow("Cancel 端点", snapshotValue(item.network_cancel_endpoint_attempted))}${panelRow("重试", snapshotValue(item.retry_attempted))}${panelRow("补救", snapshotValue(item.remediation_attempted))}${panelRow("自动撤单", snapshotValue(item.automatic_cancel_allowed))}${panelRow("自动补救", snapshotValue(item.automatic_remediation_allowed))}${panelRow("Dashboard 下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("Dashboard 撤单控件", snapshotValue(item.dashboard_cancel_controls_enabled))}${panelRow("Dashboard 自动审批", snapshotValue(item.dashboard_auto_approval_allowed))}${panelRow("Dashboard 审批尝试", snapshotValue(item.dashboard_auto_approval_attempted))}</td>
             <td data-label="工件" class="path">
               ${panelRow("preview", snapshotValue(item.cancel_request_preview_path))}
               ${panelRow("risk-gate", snapshotValue(item.cancel_risk_gate_path))}
@@ -3195,6 +3195,8 @@ pub struct ProductionCancelRecoveryStatus {
     pub automatic_remediation_allowed: DashboardValue<bool>,
     pub dashboard_order_controls_enabled: DashboardValue<bool>,
     pub dashboard_cancel_controls_enabled: DashboardValue<bool>,
+    pub dashboard_auto_approval_allowed: DashboardValue<bool>,
+    pub dashboard_auto_approval_attempted: DashboardValue<bool>,
     pub cancel_request_preview_path: DashboardValue<String>,
     pub cancel_risk_gate_path: DashboardValue<String>,
     pub manual_owner_approval_lifecycle_path: DashboardValue<String>,
@@ -6816,6 +6818,10 @@ fn production_cancel_recovery_from_record(
         v18_any_available_bool_any(&artifacts, "dashboard_order_controls_enabled");
     let dashboard_cancel_controls_enabled =
         v18_any_available_bool_any(&artifacts, "dashboard_cancel_controls_enabled");
+    let dashboard_auto_approval_allowed =
+        v18_any_available_bool_any(&artifacts, "dashboard_auto_approval_allowed");
+    let dashboard_auto_approval_attempted =
+        v18_any_available_bool_any(&artifacts, "dashboard_auto_approval_attempted");
 
     let boundary_violation = !schema_ok
         || !provenance_ok
@@ -6834,7 +6840,9 @@ fn production_cancel_recovery_from_record(
         || automatic_cancel_allowed.value == Some(true)
         || automatic_remediation_allowed.value == Some(true)
         || dashboard_order_controls_enabled.value == Some(true)
-        || dashboard_cancel_controls_enabled.value == Some(true);
+        || dashboard_cancel_controls_enabled.value == Some(true)
+        || dashboard_auto_approval_allowed.value == Some(true)
+        || dashboard_auto_approval_attempted.value == Some(true);
     let closeout_blocked = v18_array_has_items(&incident_audit_closeout, "source_artifact_issues")
         || v18_array_has_items(&incident_audit_closeout, "lineage_issues")
         || v18_array_has_items(&incident_audit_closeout, "missing_cli_flags");
@@ -6940,6 +6948,8 @@ fn production_cancel_recovery_from_record(
         automatic_remediation_allowed,
         dashboard_order_controls_enabled,
         dashboard_cancel_controls_enabled,
+        dashboard_auto_approval_allowed,
+        dashboard_auto_approval_attempted,
         cancel_request_preview_path: dashboard_path_if_exists(&paths.cancel_request_preview_path),
         cancel_risk_gate_path: dashboard_path_if_exists(&paths.cancel_risk_gate_path),
         manual_owner_approval_lifecycle_path: dashboard_path_if_exists(
@@ -7040,6 +7050,30 @@ fn v17_provenance_diagnostics(artifacts: &[(&str, &FsPath, &Option<Value>, &str)
                 .is_some_and(|expected| expected != bytes.len() as u64)
             {
                 diagnostics.push(format!("{prefix}.bytes_mismatch"));
+            }
+            if let Ok(source_value) = serde_json::from_slice::<Value>(&bytes) {
+                match (
+                    source_ref.get("source_commit").and_then(Value::as_str),
+                    source_value.get("source_commit").and_then(Value::as_str),
+                ) {
+                    (Some(expected_commit), Some(actual_commit))
+                        if expected_commit != actual_commit =>
+                    {
+                        diagnostics.push(format!("{prefix}.source_commit_mismatch"));
+                    }
+                    _ => {}
+                }
+                match (
+                    source_ref.get("source_release_tag").and_then(Value::as_str),
+                    source_value
+                        .get("source_release_tag")
+                        .and_then(Value::as_str),
+                ) {
+                    (Some(expected_tag), Some(actual_tag)) if expected_tag != actual_tag => {
+                        diagnostics.push(format!("{prefix}.source_release_tag_mismatch"));
+                    }
+                    _ => {}
+                }
             }
         }
     }
@@ -12336,6 +12370,8 @@ mod tests {
         assert_eq!(item.automatic_remediation_allowed.value, Some(false));
         assert_eq!(item.dashboard_order_controls_enabled.value, Some(false));
         assert_eq!(item.dashboard_cancel_controls_enabled.value, Some(false));
+        assert_eq!(item.dashboard_auto_approval_allowed.value, Some(false));
+        assert_eq!(item.dashboard_auto_approval_attempted.value, Some(false));
         assert!(
             item.incident_audit_closeout_path
                 .value
@@ -12369,6 +12405,53 @@ mod tests {
         assert!(renderer.contains("Incident / Audit"));
         let snapshot_value = serde_json::to_value(&snapshot).unwrap();
         assert_forbidden_keys_absent(&snapshot_value);
+    }
+
+    fn production_cancel_recovery_item_with(
+        name: &str,
+        mutate: impl FnOnce(&SupervisorNodeRecord),
+    ) -> ProductionCancelRecoveryStatus {
+        let root = temp_root(name);
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, name);
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_cancel_recovery_v18_artifacts(&record);
+        mutate(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-27T18:58:00Z").unwrap();
+        assert_eq!(snapshot.production_cancel_recovery.len(), 1);
+        snapshot.production_cancel_recovery[0].clone()
+    }
+
+    fn mutate_v18_cancel_recovery_artifact(
+        record: &SupervisorNodeRecord,
+        artifact_name: &str,
+        mutate: impl FnOnce(&mut Value),
+    ) {
+        let path = record.artifact_root.join("v0_18").join(artifact_name);
+        let mut artifact: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap())
+            .expect("v0.18 cancel recovery test artifact must be valid JSON");
+        mutate(&mut artifact);
+        fs::write(&path, serde_json::to_string_pretty(&artifact).unwrap()).unwrap();
+    }
+
+    fn assert_production_cancel_recovery_boundary_violation(item: &ProductionCancelRecoveryStatus) {
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_cancel_recovery_boundary_violation")
+        );
+        assert_ne!(
+            item.readiness_status.value.as_deref(),
+            Some("production_cancel_recovery_ready")
+        );
     }
 
     #[test]
@@ -12412,6 +12495,158 @@ mod tests {
         );
         assert_eq!(item.dashboard_order_controls_enabled.value, Some(false));
         assert_eq!(item.dashboard_cancel_controls_enabled.value, Some(false));
+    }
+
+    #[test]
+    fn production_cancel_recovery_schema_mismatch_degrades_panel() {
+        let item =
+            production_cancel_recovery_item_with("production-cancel-recovery-schema", |record| {
+                mutate_v18_cancel_recovery_artifact(record, "cancel_risk_gate.json", |artifact| {
+                    artifact["schema_version"] = json!("ntpro.v180_wrong_cancel_risk_gate.v1");
+                });
+            });
+
+        assert_production_cancel_recovery_boundary_violation(&item);
+        assert!(item.diagnostic.value.as_deref().is_some_and(|value| {
+            value.contains("production_cancel_recovery_schema_mismatch")
+                && value.contains("cancel_risk_gate")
+        }));
+        assert!(
+            item.schema_diagnostics
+                .value
+                .as_deref()
+                .is_some_and(|value| {
+                    value.contains(PRODUCTION_MUTATION_CANCEL_RISK_GATE_SCHEMA_VERSION)
+                        && value.contains("ntpro.v180_wrong_cancel_risk_gate.v1")
+                })
+        );
+    }
+
+    #[test]
+    fn production_cancel_recovery_source_commit_and_release_tag_mismatch_degrade_panel() {
+        let item = production_cancel_recovery_item_with(
+            "production-cancel-recovery-provenance",
+            |record| {
+                let source_path = record
+                    .artifact_root
+                    .join("v0_18")
+                    .join("source-preview.json");
+                let source = json!({
+                    "schema_version": PRODUCTION_MUTATION_CANCEL_REQUEST_PREVIEW_SCHEMA_VERSION,
+                    "status": "ready_cancel_request_preview",
+                    "source_commit": "commit-from-source-artifact",
+                    "source_release_tag": "ntpro-rust-only-v0.18.0"
+                });
+                let source_bytes = serde_json::to_vec_pretty(&source).unwrap();
+                fs::write(&source_path, &source_bytes).unwrap();
+                mutate_v18_cancel_recovery_artifact(record, "cancel_risk_gate.json", |artifact| {
+                    artifact["cancel_request_preview_ref"] = json!({
+                        "path": source_path.display().to_string(),
+                        "sha256": sha256_bytes(&source_bytes),
+                        "bytes": source_bytes.len() as u64,
+                        "source_command": "nautilus live production-mutation-cancel-request-preview",
+                        "source_commit": "different-commit-in-ref",
+                        "source_release_tag": "ntpro-rust-only-v0.18.bad"
+                    });
+                });
+            },
+        );
+
+        assert_production_cancel_recovery_boundary_violation(&item);
+        assert!(item.diagnostic.value.as_deref().is_some_and(|value| {
+            value.contains("production_cancel_recovery_provenance_mismatch")
+        }));
+        assert!(
+            item.provenance_diagnostics
+                .value
+                .as_deref()
+                .is_some_and(|value| {
+                    value.contains("cancel_risk_gate.cancel_request_preview_ref")
+                        && value.contains("source_commit_mismatch")
+                        && value.contains("source_release_tag_mismatch")
+                })
+        );
+    }
+
+    #[test]
+    fn production_cancel_recovery_stale_artifact_degrades_panel() {
+        let item =
+            production_cancel_recovery_item_with("production-cancel-recovery-stale", |record| {
+                mutate_v18_cancel_recovery_artifact(
+                    record,
+                    "post_cancel_readback.json",
+                    |artifact| {
+                        artifact["stale_evidence"] = json!(true);
+                        artifact["status"] = json!("stale_post_cancel_readback");
+                    },
+                );
+            });
+
+        assert_production_cancel_recovery_boundary_violation(&item);
+        assert!(item.diagnostic.value.as_deref().is_some_and(|value| {
+            value.contains("production_cancel_recovery_stale_evidence")
+                && value.contains("post_cancel_readback")
+        }));
+        assert_eq!(
+            item.stale_artifacts.value.as_deref(),
+            Some("post_cancel_readback")
+        );
+    }
+
+    #[test]
+    fn production_cancel_recovery_forbidden_flags_each_degrade_panel() {
+        for (field, value) in [
+            ("actual_cancel_send_allowed", json!(true)),
+            ("cancel_attempted", json!(true)),
+            ("network_cancel_endpoint_attempted", json!(true)),
+            ("dashboard_order_controls_enabled", json!(true)),
+            ("dashboard_cancel_controls_enabled", json!(true)),
+            ("dashboard_auto_approval_allowed", json!(true)),
+            ("dashboard_auto_approval_attempted", json!(true)),
+            ("cancel_requests_sent", json!(1)),
+        ] {
+            let item = production_cancel_recovery_item_with(
+                &format!("production-cancel-recovery-forbidden-{field}"),
+                |record| {
+                    mutate_v18_cancel_recovery_artifact(
+                        record,
+                        "cancel_recovery_incident_audit_closeout.json",
+                        |artifact| {
+                            artifact[field] = value;
+                        },
+                    );
+                },
+            );
+
+            assert_production_cancel_recovery_boundary_violation(&item);
+            match field {
+                "actual_cancel_send_allowed" => {
+                    assert_eq!(item.actual_cancel_send_allowed.value, Some(true));
+                }
+                "cancel_attempted" => {
+                    assert_eq!(item.cancel_attempted.value, Some(true));
+                }
+                "network_cancel_endpoint_attempted" => {
+                    assert_eq!(item.network_cancel_endpoint_attempted.value, Some(true));
+                }
+                "dashboard_order_controls_enabled" => {
+                    assert_eq!(item.dashboard_order_controls_enabled.value, Some(true));
+                }
+                "dashboard_cancel_controls_enabled" => {
+                    assert_eq!(item.dashboard_cancel_controls_enabled.value, Some(true));
+                }
+                "dashboard_auto_approval_allowed" => {
+                    assert_eq!(item.dashboard_auto_approval_allowed.value, Some(true));
+                }
+                "dashboard_auto_approval_attempted" => {
+                    assert_eq!(item.dashboard_auto_approval_attempted.value, Some(true));
+                }
+                "cancel_requests_sent" => {
+                    assert_eq!(item.cancel_requests_sent.value, Some(1));
+                }
+                _ => unreachable!(),
+            }
+        }
     }
 
     #[test]
@@ -14730,7 +14965,9 @@ mod tests {
                 "automatic_cancel_allowed": false,
                 "automatic_remediation_allowed": false,
                 "dashboard_order_controls_enabled": false,
-                "dashboard_cancel_controls_enabled": false
+                "dashboard_cancel_controls_enabled": false,
+                "dashboard_auto_approval_allowed": false,
+                "dashboard_auto_approval_attempted": false
             }))
             .unwrap(),
         )
@@ -15015,7 +15252,9 @@ mod tests {
   "automatic_cancel_allowed": false,
   "automatic_remediation_allowed": false,
   "dashboard_order_controls_enabled": false,
-  "dashboard_cancel_controls_enabled": false
+  "dashboard_cancel_controls_enabled": false,
+  "dashboard_auto_approval_allowed": false,
+  "dashboard_auto_approval_attempted": false
 }
 "#
         .replace(
