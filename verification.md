@@ -1,3 +1,31 @@
+# V190-001 Verification
+
+Date: 2026-06-27
+Executor: Codex
+Task: `V190-001` / GitHub issue `#577`
+
+## Commands
+
+```text
+gh issue list --repo atxinbao/NTPRO --milestone v0.18.1 --state open = PASS, no open issues
+NTPRO_RELEASE_GATE=1 scripts/ai/verify_release.sh release-surface-current-guard release-publication-guard = PASS
+NTPRO_RELEASE_GATE=1 scripts/ai/verify_release_strict.sh v18 = PASS
+gh run view 28299860864 --repo atxinbao/NTPRO = PASS, completed success
+gh release view ntpro-rust-only-v0.18.1 --repo atxinbao/NTPRO = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+The v0.19 readiness gate is open for owner-approved single-shot actual cancel
+design work only. The v0.18.1 blocker issues are closed, the v0.18.1 tag and
+GitHub Release are published, hosted release gate run `28299860864` succeeded
+with 50 jobs and 0 failures, and local strict provenance resolves the source to
+commit `c395e71960255fefbf4100654fd53ce2bf33a08f`. This verification does not
+add actual cancel send, adapter changes, runtime behavior changes, production
+order submission, or Dashboard cancel controls.
+
 # V181-007 Verification
 
 Date: 2026-06-27
