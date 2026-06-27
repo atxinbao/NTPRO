@@ -1,0 +1,81 @@
+{
+  "schema_version": "ntpro.v181_release_manifest.v1",
+  "task_id": "V181-006",
+  "product_version": "v0.18.1",
+  "release_status": "draft_not_published",
+  "baseline_release": {
+    "version": "v0.18.0",
+    "tag": "ntpro-rust-only-v0.18.0",
+    "commit": "6790688ae46d1b25806f3d1d25146c9b47d43328",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.18.0"
+  },
+  "patch_release": {
+    "planned_tag": "ntpro-rust-only-v0.18.1",
+    "actual_tag": null,
+    "actual_github_release_url": null,
+    "publication_status": "not_published"
+  },
+  "source_provenance": {
+    "planned_source_ref": "main after v0.18.1 closeout",
+    "actual_source_commit": null,
+    "actual_source_tree": null,
+    "actual_fields_resolved_by": "scripts/ai/verify_release_strict.sh v18",
+    "generated_manifest_path": "target/ntpro-v181/v0_18_strict_release_manifest.json"
+  },
+  "toolchain": {
+    "cargo_version": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
+    "rustc_version": "rustc 1.95.0 (59807616e 2026-04-14)"
+  },
+  "binary_artifacts": [
+    {
+      "name": "nautilus",
+      "path": "target/release/nautilus",
+      "build_profile": "release",
+      "sha256": null,
+      "bytes": null,
+      "actual_fields_resolved_by": "scripts/ai/verify_release_strict.sh v18"
+    }
+  ],
+  "release_gates": [
+    {
+      "name": "release-surface-current-guard",
+      "command": "scripts/ai/verify_release.sh release-surface-current-guard",
+      "required": true
+    },
+    {
+      "name": "release-publication-guard",
+      "command": "scripts/ai/verify_release.sh release-publication-guard",
+      "required": true
+    },
+    {
+      "name": "v18-strict-provenance",
+      "command": "scripts/ai/verify_release.sh v18-strict-provenance",
+      "required": true
+    },
+    {
+      "name": "strict-binary-provenance",
+      "command": "scripts/ai/verify_release_strict.sh v18",
+      "required": true
+    }
+  ],
+  "capability": {
+    "name": "release surface/provenance hardening only",
+    "capability_expansion": "none_patch_hardening_only",
+    "actual_cancel_scope": "not_included"
+  },
+  "boundary_flags": {
+    "actual_cancel_send_allowed": false,
+    "actual_cancel_attempted": false,
+    "automatic_cancel_allowed": false,
+    "automatic_remediation_allowed": false,
+    "dashboard_order_controls_enabled": false,
+    "dashboard_cancel_controls_enabled": false,
+    "production_order_mutation_allowed": false,
+    "network_cancel_endpoint_attempted": false,
+    "binary_asset_publication_included": false
+  },
+  "validation_artifacts": {
+    "strict_binary_provenance_manifest_path": "target/ntpro-v181/v0_18_strict_release_manifest.json",
+    "release_notes_path": "docs/rust-cutover/release/v0_18_1_release_notes.md"
+  }
+}
