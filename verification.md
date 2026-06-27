@@ -1,3 +1,28 @@
+# V181-003 Verification
+
+Date: 2026-06-27
+Executor: Codex
+Task: `V181-003` / GitHub issue `#572`
+
+## Commands
+
+```text
+scripts/ai/verify_release.sh release-surface-current-guard release-publication-guard = PASS
+NTPRO_CURRENT_RELEASE_VERSION=v0.18.0 NTPRO_NEXT_PATCH_VERSION=v0.18.1 NTPRO_NEXT_CAPABILITY_VERSION=v0.19.0 NTPRO_CURRENT_RELEASE_CAPABILITY='Owner-Approved Cancel Recovery Preview' scripts/ai/check_release_surface_current.sh = PASS
+NTPRO_CURRENT_RELEASE_VERSION=v0.18.0 NTPRO_CURRENT_RELEASE_NAME='NTPRO Rust-only v0.18.0' scripts/ai/check_github_release_published.sh = PASS
+bash -n scripts/ai/check_github_release_published.sh scripts/ai/check_release_surface_current.sh scripts/ai/verify_release.sh = PASS
+scripts/ai/verify_fast.sh = PASS
+stale v0.17 default / unsupported v0.18 publication guard scan = no matches
+git diff --check = PASS
+```
+
+## Result
+
+The default release guard path now validates `ntpro-rust-only-v0.18.0` for both
+release surface and GitHub Release publication evidence. The v0.18.0 release
+remains preview-only: no actual cancel send, no automatic remediation, no
+Dashboard cancel controls, and no v0.18.1 release publication.
+
 # V181-002 Verification
 
 Date: 2026-06-27
