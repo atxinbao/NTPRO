@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.17.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.18.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
@@ -233,6 +233,41 @@ case "$CURRENT_RELEASE_VERSION" in
       "multi-venue production execution"
       "real-funds proof in CI"
       "general production trading platform claim"
+    )
+    ;;
+  v0.18.0)
+    required_fields=(
+      "Status: RELEASED"
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Owner-Approved Cancel Recovery Preview"
+      "capability_expansion = preview_gate_approval_only"
+      "lineage_scope = single_v16_mutation_candidate"
+      "cancel request preview"
+      "cancel risk gate"
+      "manual owner approval lifecycle"
+      "cancel response redaction contract"
+      "post-cancel readback contract"
+      "incident/audit closeout contract"
+      "read-only Dashboard evidence"
+      "aggregate v0.18 release gate"
+      "actual cancel send = not included"
+      "automatic cancel = disabled"
+      "automatic remediation = disabled"
+      "Dashboard order controls = disabled"
+      "Dashboard cancel controls = disabled"
+      "retry_attempted = false"
+      "cancel_attempted = false"
+      "remediation_attempted = false"
+      "DELETE /api/v3/order"
+      "DELETE /api/v3/openOrders"
+      "strategy-driven cancel"
+      "cancel all open orders"
+      "bulk cancel"
+      "multi-account cancel recovery"
+      "multi-venue cancel recovery"
+      "production trading claim"
     )
     ;;
   *)
