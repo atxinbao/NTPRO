@@ -396,6 +396,14 @@ Final release checks, benchmark summaries, and audit reports live here.
   order lineage, symbol, account label, venue, owner identity, timestamp, and
   reason, and fail-closes reused, expired, rejected, audited, missing, or
   mismatched approvals without sending a cancel request.
+- `v0_19_0_cancel_executor_adapter_boundary.md` - V190-005 cancel executor
+  adapter boundary for the v0.19 actual cancel line. It adds the local
+  `production-mutation-actual-cancel-executor-adapter-boundary` evidence
+  command, binds a V190-003 owner approval lifecycle to an adapter capability
+  declaration, records request/response/readback/audit contracts and adapter
+  failure taxonomy, and fail-closes unsupported venue, unsupported order-id
+  type, missing capability, bulk, retry, automatic cancel, or Dashboard
+  execution requests without sending a cancel request.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,

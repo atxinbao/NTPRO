@@ -1,3 +1,37 @@
+# V190-005 Verification
+
+Date: 2026-06-27
+Executor: Codex
+Task: `V190-005` / GitHub issue `#580`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-cli = PASS
+cargo test -p nautilus-cli actual_cancel --lib = PASS, 8 tests
+cargo test -p nautilus-cli parses_live_production_mutation_actual_cancel_executor_adapter_boundary_options --lib = PASS, 1 test
+cargo fmt --check -p nautilus-cli = PASS
+cargo clippy -p nautilus-cli --all-targets -- -D warnings = PASS
+scripts/ai/verify_fast.sh = PASS
+rg -n "actual_cancel_executor_adapter_boundary|adapter_venue_unsupported|single_order_cancel_request_v1|production-mutation-actual-cancel-executor-adapter-boundary" crates/cli/src docs/rust-cutover verification.md = PASS
+git diff --check = PASS
+```
+
+## Result
+
+The v0.19 cancel executor adapter boundary is implemented as a local/offline
+evidence command. It records that a future actual cancel command may only use a
+matched V190-003 owner approval lifecycle and adapter capability declaration
+for one order, one venue, one order-id type, and one attempt. It records
+request, response, post-cancel readback, audit, and adapter failure taxonomy
+contracts, and fail-closes missing CLI gates, unapproved owner lifecycle,
+unsupported actual cancel capability, unsupported venue, unsupported order-id
+type, bulk/cancel-all, retry, automatic cancel, multi-venue, and Dashboard
+execution paths. This verification does not add a network cancel send,
+production adapter integration, Dashboard operation controls, automatic or bulk
+cancel, retry/replace/amend/flatten/remediation, credential persistence, or
+production order submit lifecycle.
+
 # V190-003 Verification
 
 Date: 2026-06-27
