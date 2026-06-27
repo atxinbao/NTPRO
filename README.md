@@ -539,8 +539,15 @@ real-funds proof in CI, multi-account or multi-venue execution, production
 trading platform claims, or Dashboard order/cancel controls.
 `v0.18.1` is the active Release Surface & Provenance Hardening patch track,
 and `v0.19.0` is the next capability track for owner-approved single-shot
-actual cancel. `v0.17.0` remains the Production Reconciliation And Orphan
-Recovery Evidence baseline, `v0.12.1` remains the Production Read-Only Evidence
+actual cancel. v0.19 actual-cancel work is bounded by
+`docs/rust-cutover/release/v0_19_0_actual_cancel_safety_contract.md`: one
+manual owner approval, one order, one venue, one execution attempt, required
+owner-approval/risk-gate/order/release-manifest/adapter-capability artifacts,
+and fail-closed handling for missing, expired, reused, or mismatched evidence;
+it still does not authorize production order submission, automatic/bulk cancel,
+retry/replace/amend/flatten, multi-account or multi-venue expansion, or
+Dashboard operation controls. `v0.17.0` remains the Production Reconciliation
+And Orphan Recovery Evidence baseline, `v0.12.1` remains the Production Read-Only Evidence
 & Release Surface Hardening baseline, `v0.10.0` remains the Binance spot
 sandbox order-proof baseline, `v0.9.0` remains the local deterministic Strategy
 Runtime batch foundation baseline, `v0.8.0` remains the authenticated Binance

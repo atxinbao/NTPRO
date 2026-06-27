@@ -383,6 +383,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   planned/actual patch tag fields, release gates, source/binary provenance
   handoff to `verify_release_strict.sh v18`, and no-actual-cancel boundary
   flags.
+- `v0_19_0_actual_cancel_safety_contract.md` - V190-002 safety contract for
+  the v0.19 owner-approved single-shot actual cancel line. It defines the
+  one approval / one order / one venue / one execution attempt boundary,
+  required artifacts, fail-closed reasons, and forbidden automatic, bulk,
+  multi-account, multi-strategy, multi-venue, retry, and Dashboard operation
+  expansions without implementing a cancel executor.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
