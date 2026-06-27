@@ -1,3 +1,29 @@
+# V181-002 Verification
+
+Date: 2026-06-27
+Executor: Codex
+Task: `V181-002` / GitHub issue `#571`
+
+## Commands
+
+```text
+rg -n "v0\\.17\\.0|v0\\.17\\.1|v0\\.18\\.0|v0\\.18\\.1|v0\\.19\\.0" README.md docs/rust-cutover/versioning.md docs/rust-cutover/release = PASS
+stale current/latest v0.17 or future/unpublished v0.18 surface scan = no matches in current release-surface files
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/check_release_surface_current.sh = PASS, current_release_version=v0.18.0
+scripts/ai/verify_release.sh release-surface-current-guard = PASS, current_release_version=v0.18.0
+bash -n scripts/ai/check_release_surface_current.sh = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+The public release surface now presents `ntpro-rust-only-v0.18.0` as the
+current formal baseline, `v0.18.1` as the release surface and provenance
+hardening patch, and `v0.19.0` as the next owner-approved single-shot actual
+cancel capability track. The v0.18.0 boundary remains preview-only: no actual
+cancel send, no automatic remediation, and no Dashboard cancel controls.
+
 # V181-001 Verification
 
 Date: 2026-06-27

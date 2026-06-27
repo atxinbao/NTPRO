@@ -359,6 +359,21 @@ Final release checks, benchmark summaries, and audit reports live here.
   does not include network readback execution, new production order submission,
   production order mutation, actual cancel send, automatic remediation,
   real-funds proof in CI, or Dashboard order/cancel controls.
+- `v0_18_0_cancel_recovery_artifact_contracts.md` - V180-002 cancel recovery
+  preview artifact contracts for the formal v0.18.0 Owner-Approved Cancel
+  Recovery Preview line. It defines preview-only cancel intent, approval,
+  request, response, and post-cancel readback evidence while preserving no
+  actual cancel send.
+- `v0_18_0_readiness_report.md` - released readiness report for the formal
+  `ntpro-rust-only-v0.18.0` Owner-Approved Cancel Recovery Preview release. It
+  records the formal tag, GitHub Release URL, release commit, hosted release
+  gate, V180 task accounting, and preview-only no-actual-cancel boundary.
+- `v0_18_0_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.18.0` GitHub Release. It limits the claim to cancel
+  recovery preview evidence, owner approval lifecycle, failure/rollback
+  evidence, release gates, and Dashboard diagnostics; it does not include
+  actual cancel send, automatic cancel, remediation, or Dashboard order/cancel
+  controls.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,

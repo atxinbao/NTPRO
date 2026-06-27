@@ -1,6 +1,6 @@
 # NTPRO Versioning
 
-Date: 2026-06-21
+Date: 2026-06-27
 Executor: Codex
 
 NTPRO uses several version-like identifiers. They do not mean the same thing.
@@ -10,12 +10,13 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.17.0` 是当前正式公开发布点；它是 Production Reconciliation And Orphan
-Recovery Evidence，只在 v0.16 那一笔 owner 明确批准的极小 `LIMIT` `GTC`
-生产订单候选之后，提供本地账本、脱敏只读回查映射、对账分类、孤儿单风险检测、重启恢复、
-只读 Dashboard 证据和失败事件归类。它不是新下单、不是联网回查执行、不是撤单执行、
-不是自动补救、不是策略实盘、不是多账户多交易所执行，也没有 Dashboard 下单或撤单按钮。
-`v0.18.0` 需要单独 scope decision，不能从 v0.17.0 的证据线里推导出来。
+`v0.18.0` 是当前正式公开发布点；它是 Owner-Approved Cancel Recovery
+Preview，只在 v0.17 的生产对账和孤儿单风险证据之后，提供撤单恢复意图、owner 审批
+生命周期、preview-only 请求/响应证据、回查合同、失败/回滚证据和只读 Dashboard 诊断。
+它不是实际撤单执行、不是自动撤单、不是 retry/replace/amend/correction/flatten/
+remediation、不是策略实盘、不是多账户多交易所执行，也没有 Dashboard 下单或撤单按钮。
+`v0.18.1` 是 release surface / provenance hardening patch；`v0.19.0` 才是
+owner-approved single-shot actual cancel 的后续评估与实现版本。
 
 ## Release Tags
 
@@ -36,6 +37,7 @@ ntpro-rust-only-v0.14.0
 ntpro-rust-only-v0.15.0
 ntpro-rust-only-v0.16.0
 ntpro-rust-only-v0.17.0
+ntpro-rust-only-v0.18.0
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -48,22 +50,31 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.17.0
+ntpro-rust-only-v0.18.0
 ```
 
 The active patch track is:
 
 ```text
-v0.17.1
+v0.18.1
 ```
 
-v0.17.1 is the reserved patch track, if needed. It must not expand beyond the
-v0.17.0 reconciliation and orphan-risk evidence boundary and must not be
-described as network readback execution, new production order submission,
-production order mutation, actual cancel send, automatic cancel, retry/replace/
-amend/correction/flatten/remediation, strategy-driven production execution,
+v0.18.1 is the Release Surface & Provenance Hardening patch track. It must not
+expand beyond the v0.18.0 cancel recovery preview boundary and must not be
+described as actual cancel execution, automatic cancel, retry/replace/amend/
+correction/flatten/remediation, strategy-driven production execution,
 multi-account/multi-venue execution, real funds, production trading platform
 readiness, or Dashboard order/cancel controls.
+
+The next capability track is:
+
+```text
+v0.19.0
+```
+
+v0.19.0 is the first follow-up line allowed to evaluate and implement
+owner-approved single-shot actual cancel. It is not part of v0.18.0 or
+v0.18.1.
 
 ## Cargo Workspace Version
 
@@ -235,7 +246,7 @@ remediation, or Dashboard order controls.
 
 ### v0.17.0
 
-Current boundary:
+Published boundary:
 
 ```text
 Production Reconciliation And Orphan Recovery Evidence
@@ -248,6 +259,24 @@ classification, orphan order risk detection, restart recovery, read-only
 Dashboard evidence, and failure incident semantics. It must not be treated as
 network readback execution, new production order submission, production order
 mutation, actual cancel send, automatic orphan cleanup, strategy-driven
+production execution, multi-account/multi-venue execution, real-funds trading
+platform readiness, or Dashboard order/cancel controls.
+
+### v0.18.0
+
+Current boundary:
+
+```text
+Owner-Approved Cancel Recovery Preview
+```
+
+V180-000 defines the v0.18.0 scope, and the formal release keeps that boundary.
+v0.18.0 includes preview-only cancel recovery evidence for the v0.17
+reconciliation line: cancel intent contracts, owner approval lifecycle,
+preview request/response evidence, post-cancel readback contracts, failure and
+partial-success semantics, rollback evidence, release gates, and read-only
+Dashboard diagnostics. It must not be treated as actual cancel send, automatic
+cancel, retry/replace/amend/correction/flatten/remediation, strategy-driven
 production execution, multi-account/multi-venue execution, real-funds trading
 platform readiness, or Dashboard order/cancel controls.
 
