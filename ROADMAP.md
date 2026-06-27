@@ -1,53 +1,52 @@
 # NTPRO Roadmap
 
-Date: 2026-06-21
+Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is
-`ntpro-rust-only-v0.17.0`, the Production Reconciliation And Orphan Recovery Evidence release. The next patch track is `v0.17.1`, if needed. `v0.18.0` requires a separate scope decision before any capability may be claimed beyond v0.17.0 reconciliation and orphan-risk evidence.
+`ntpro-rust-only-v0.18.0`, the Owner-Approved Cancel Recovery Preview release.
+The next patch track is `v0.18.1`. The next capability track is `v0.19.0`,
+which is the follow-up line for owner-approved single-shot actual cancel.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.17.0
+ntpro-rust-only-v0.18.0
 ```
 
 Current capability boundary:
 
 ```text
-Production Reconciliation And Orphan Recovery Evidence
-single v0.16 production mutation candidate lineage
-local production order ledger
-redacted exchange readback mapper
-local-vs-exchange reconciliation classifier
-orphan order risk detector
-restart recovery evidence
-failure incident semantics
-read-only Dashboard reconciliation and orphan-risk evidence
+Owner-Approved Cancel Recovery Preview
+v0.17 reconciliation and orphan-risk evidence lineage
+cancel recovery intent contract
+owner approval lifecycle evidence
+preview request/response artifact contracts
+post-cancel readback contract
+failure and partial-success semantics
+rollback evidence
+read-only Dashboard cancel recovery diagnostics
 default local/PR/release execution offline and fail-closed
-production mutation disabled by default
-network readback execution not included
-actual cancel send deferred
+actual cancel send disabled
 automatic cancel disabled
+automatic remediation disabled
 no strategy-driven production execution
-no multiple orders
-no MARKET orders
 no cancel/replace/amend/retry/correction/flatten
-no automatic remediation
 no listenKey lifecycle
 no real-funds proof in CI
 no multi-account or multi-venue execution
 no Dashboard order controls
+no Dashboard cancel controls
 ```
 
-`v0.17.0` builds on the v0.16 Minimum Owner-Approved Production Order Mutation
-Candidate line. It does not submit another order and does not enable cancel
-execution. It adds local/offline evidence for ledger persistence, redacted
-readback mapping, reconciliation classification, orphan order risk, restart
-recovery, read-only Dashboard visibility, and failure incident semantics.
+`v0.18.0` builds on the v0.17 Production Reconciliation And Orphan Recovery
+Evidence line. It does not submit another order and does not enable actual
+cancel execution. It adds preview-only evidence for cancel recovery intent,
+owner approval, request/response handling, post-cancel readback contracts,
+failure/rollback semantics, release gates, and Dashboard diagnostics.
 
 ## Published Hardening Patch: v0.7.1
 
@@ -488,8 +487,44 @@ incident classification.
 - real-funds proof in CI;
 - general production trading platform claim.
 
-`v0.18.0` requires a separate scope decision before any capability may be
-claimed beyond v0.17.0 reconciliation and orphan-risk evidence.
+## Published Capability Track: v0.18.0
+
+`v0.18.0` is the published Owner-Approved Cancel Recovery Preview line. It
+preserves the v0.17 reconciliation and orphan-risk evidence boundary while
+adding preview-only cancel recovery contracts, owner approval lifecycle
+evidence, failure/rollback evidence, release gates, and Dashboard diagnostics.
+
+`v0.18.0` includes:
+
+- cancel recovery intent contract;
+- owner approval lifecycle evidence;
+- preview request/response artifact contracts;
+- post-cancel readback contract;
+- failure and partial-success semantics;
+- rollback evidence;
+- read-only Dashboard cancel recovery diagnostics;
+- v0.18 aggregate release gates;
+- readiness report and release notes.
+
+`v0.18.0` explicitly does not include:
+
+- actual cancel send;
+- automatic cancel;
+- automatic remediation;
+- retry, replace, amend, correction, flatten, or remediation;
+- Dashboard order controls;
+- Dashboard cancel controls;
+- Dashboard credential input;
+- strategy-driven production execution;
+- multi-account production execution;
+- multi-venue production execution;
+- listenKey creation, keepalive, or close lifecycle;
+- real-funds proof in CI;
+- general production trading platform claim.
+
+`v0.18.1` is the release surface and provenance hardening patch for this
+preview-only line. `v0.19.0` is the next capability track for owner-approved
+single-shot actual cancel.
 
 ## Corrected Capability Sequence: v0.9.0 through v0.16.0
 
@@ -558,8 +593,9 @@ production trading capability is claimed. `v0.14.0` is the published follow-up
 read-only/dry-run line. `v0.15.0` is the published mutation-scope/request-preview
 dry-run line. `v0.16.0` is the published owner-approved single-order candidate
 line. `v0.17.0` is the published reconciliation and orphan-risk evidence line.
-`v0.18.0` requires a separate scope decision before any capability may be
-claimed beyond v0.17.0 evidence.
+`v0.18.0` is the published owner-approved cancel recovery preview line.
+`v0.18.1` is the release surface and provenance hardening patch. `v0.19.0` is
+the next capability track for owner-approved single-shot actual cancel.
 
 ## Product Surface Direction
 
