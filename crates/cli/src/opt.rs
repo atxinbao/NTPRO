@@ -210,6 +210,10 @@ pub enum LiveCommand {
     ProductionMutationActualCancelOwnerApprovalLifecycle(
         Box<LiveProductionMutationActualCancelOwnerApprovalLifecycleOpt>,
     ),
+    /// Writes a v0.19 actual cancel executor adapter boundary artifact; no cancel send.
+    ProductionMutationActualCancelExecutorAdapterBoundary(
+        Box<LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt>,
+    ),
     /// Redacts a future v0.18 owner-approved cancel response artifact; no cancel send.
     ProductionMutationCancelResponseRedaction(LiveProductionMutationCancelResponseRedactionOpt),
     /// Classifies a future v0.18 post-cancel readback artifact; no network read or cancel send.
@@ -1777,6 +1781,74 @@ pub struct LiveProductionMutationActualCancelOwnerApprovalLifecycleOpt {
     #[arg(long)]
     pub confirm_no_submit_lifecycle: bool,
     /// Confirms this lifecycle does not open network access.
+    #[arg(long)]
+    pub confirm_no_network: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+}
+
+/// v0.19 actual cancel executor adapter boundary options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// V190-003 owner approval lifecycle JSON input.
+    #[arg(long)]
+    pub owner_approval_lifecycle: PathBuf,
+    /// Adapter capability declaration JSON input.
+    #[arg(long)]
+    pub adapter_capability: PathBuf,
+    /// Expected adapter identifier.
+    #[arg(long)]
+    pub adapter_id: String,
+    /// Expected venue for the single cancel attempt.
+    #[arg(long)]
+    pub venue: String,
+    /// Expected order id type used by the adapter request.
+    #[arg(long)]
+    pub order_id_type: String,
+    /// Expected order lineage identifier.
+    #[arg(long)]
+    pub expected_order_lineage_id: String,
+    /// Expected symbol.
+    #[arg(long)]
+    pub expected_symbol: String,
+    /// Expected account label.
+    #[arg(long)]
+    pub expected_account_label: String,
+    /// v0.19 actual cancel executor adapter boundary JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for actual cancel adapter boundary evidence.
+    #[arg(long)]
+    pub allow_production_mutation_actual_cancel_executor_adapter_boundary: bool,
+    /// Confirms adapter capability declaration must be present and matched.
+    #[arg(long)]
+    pub confirm_adapter_capability: bool,
+    /// Confirms cancel request/response/readback/audit contracts are recorded.
+    #[arg(long)]
+    pub confirm_request_response_readback_audit_contract: bool,
+    /// Confirms the boundary is scoped to one order, one venue, and one attempt.
+    #[arg(long)]
+    pub confirm_one_order_one_venue_one_attempt: bool,
+    /// Confirms unsupported venue or adapter capability fails closed.
+    #[arg(long)]
+    pub confirm_fail_closed_unsupported_capability: bool,
+    /// Confirms bulk and cancel-all paths remain forbidden.
+    #[arg(long)]
+    pub confirm_no_bulk_cancel: bool,
+    /// Confirms retry, replace, amend, flatten, and remediation remain forbidden.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms automatic cancel remains forbidden.
+    #[arg(long)]
+    pub confirm_no_automatic_cancel: bool,
+    /// Confirms Dashboard cannot trigger the adapter boundary.
+    #[arg(long)]
+    pub confirm_no_dashboard_execution: bool,
+    /// Confirms this boundary command does not open network access.
     #[arg(long)]
     pub confirm_no_network: bool,
     /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
@@ -4301,6 +4373,90 @@ mod tests {
         assert!(approval.confirm_no_submit_lifecycle);
         assert!(approval.confirm_no_network);
         assert!(approval.confirm_no_secret_persistence);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_actual_cancel_executor_adapter_boundary_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-actual-cancel-executor-adapter-boundary",
+            "--run-id",
+            "v190-cancel-executor-adapter-boundary",
+            "--owner-approval-lifecycle",
+            "runs/v190/actual-cancel-owner-approval-lifecycle.json",
+            "--adapter-capability",
+            "runs/v190/adapter-capability.json",
+            "--adapter-id",
+            "binance_spot_cancel_adapter",
+            "--venue",
+            "binance_spot",
+            "--order-id-type",
+            "exchange_order_id",
+            "--expected-order-lineage-id",
+            "lineage-v160-single-shot",
+            "--expected-symbol",
+            "BTCUSDT",
+            "--expected-account-label",
+            "prod-account-redacted",
+            "--output",
+            "runs/v190/actual-cancel-executor-adapter-boundary.json",
+            "--allow-production-mutation-actual-cancel-executor-adapter-boundary",
+            "--confirm-adapter-capability",
+            "--confirm-request-response-readback-audit-contract",
+            "--confirm-one-order-one-venue-one-attempt",
+            "--confirm-fail-closed-unsupported-capability",
+            "--confirm-no-bulk-cancel",
+            "--confirm-no-retry",
+            "--confirm-no-automatic-cancel",
+            "--confirm-no-dashboard-execution",
+            "--confirm-no-network",
+            "--confirm-no-secret-persistence",
+        ])
+        .expect("live production-mutation-actual-cancel-executor-adapter-boundary should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationActualCancelExecutorAdapterBoundary(boundary) =
+            live.command
+        else {
+            panic!("expected production-mutation-actual-cancel-executor-adapter-boundary command");
+        };
+
+        assert_eq!(boundary.run_id, "v190-cancel-executor-adapter-boundary");
+        assert_eq!(
+            boundary.owner_approval_lifecycle,
+            PathBuf::from("runs/v190/actual-cancel-owner-approval-lifecycle.json")
+        );
+        assert_eq!(
+            boundary.adapter_capability,
+            PathBuf::from("runs/v190/adapter-capability.json")
+        );
+        assert_eq!(boundary.adapter_id, "binance_spot_cancel_adapter");
+        assert_eq!(boundary.venue, "binance_spot");
+        assert_eq!(boundary.order_id_type, "exchange_order_id");
+        assert_eq!(
+            boundary.expected_order_lineage_id,
+            "lineage-v160-single-shot"
+        );
+        assert_eq!(boundary.expected_symbol, "BTCUSDT");
+        assert_eq!(boundary.expected_account_label, "prod-account-redacted");
+        assert_eq!(
+            boundary.output,
+            PathBuf::from("runs/v190/actual-cancel-executor-adapter-boundary.json")
+        );
+        assert!(boundary.allow_production_mutation_actual_cancel_executor_adapter_boundary);
+        assert!(boundary.confirm_adapter_capability);
+        assert!(boundary.confirm_request_response_readback_audit_contract);
+        assert!(boundary.confirm_one_order_one_venue_one_attempt);
+        assert!(boundary.confirm_fail_closed_unsupported_capability);
+        assert!(boundary.confirm_no_bulk_cancel);
+        assert!(boundary.confirm_no_retry);
+        assert!(boundary.confirm_no_automatic_cancel);
+        assert!(boundary.confirm_no_dashboard_execution);
+        assert!(boundary.confirm_no_network);
+        assert!(boundary.confirm_no_secret_persistence);
     }
 
     #[test]

@@ -51,6 +51,7 @@ use crate::{
         LiveProductionLiveAlphaExecutionDryRunOpt, LiveProductionLiveAlphaKillSwitchRuntimeGateOpt,
         LiveProductionLiveAlphaManualApprovalLifecycleOpt,
         LiveProductionLiveAlphaOrderRequestPreviewOpt, LiveProductionLiveAlphaRiskPreflightOpt,
+        LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt,
         LiveProductionMutationActualCancelOwnerApprovalLifecycleOpt,
         LiveProductionMutationAuditTrailOpt,
         LiveProductionMutationCancelRecoveryIncidentAuditCloseoutOpt,
@@ -197,6 +198,8 @@ const PRODUCTION_MUTATION_MANUAL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION: &str =
     "ntpro.v180_manual_owner_approval_lifecycle.v1";
 const PRODUCTION_MUTATION_ACTUAL_CANCEL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION: &str =
     "ntpro.v190_actual_cancel_owner_approval_lifecycle.v1";
+const PRODUCTION_MUTATION_ACTUAL_CANCEL_EXECUTOR_ADAPTER_BOUNDARY_SCHEMA_VERSION: &str =
+    "ntpro.v190_actual_cancel_executor_adapter_boundary.v1";
 const PRODUCTION_MUTATION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION: &str =
     "ntpro.v180_cancel_response_redaction.v1";
 const PRODUCTION_MUTATION_POST_CANCEL_READBACK_SCHEMA_VERSION: &str =
@@ -2954,6 +2957,90 @@ struct ProductionMutationActualCancelOwnerApprovalLifecycleArtifact {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionMutationActualCancelExecutorAdapterBoundaryArtifact {
+    schema_version: String,
+    run_id: String,
+    order_lineage_id: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    capability: String,
+    execution_mode: String,
+    adapter_boundary_scope: String,
+    default_fail_closed: bool,
+    owner_approval_lifecycle_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    adapter_capability_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    owner_approval_lifecycle_ready: bool,
+    adapter_capability_ready: bool,
+    adapter_boundary_ready: bool,
+    actual_cancel_send_allowed_by_adapter_boundary: bool,
+    adapter_id: String,
+    venue: String,
+    order_id_type: String,
+    known_order_id: String,
+    known_client_order_id: String,
+    symbol: String,
+    account_label: String,
+    cancel_request_contract: String,
+    cancel_response_contract: String,
+    post_cancel_readback_contract: String,
+    audit_contract: String,
+    adapter_failure_taxonomy: Vec<String>,
+    max_cancel_requests: u64,
+    allowed_attempts: u64,
+    allowed_order_count: u64,
+    allowed_venue_count: u64,
+    request_contract_ready: bool,
+    response_contract_ready: bool,
+    readback_contract_ready: bool,
+    audit_contract_ready: bool,
+    actual_cancel_send_allowed: bool,
+    cancel_attempted: bool,
+    cancel_requests_sent: u64,
+    network_attempted: bool,
+    network_cancel_endpoint_attempted: bool,
+    retry_attempted: bool,
+    replace_attempted: bool,
+    amend_attempted: bool,
+    flatten_attempted: bool,
+    remediation_attempted: bool,
+    automatic_cancel_allowed: bool,
+    automatic_remediation_allowed: bool,
+    bulk_cancel_allowed: bool,
+    cancel_all_allowed: bool,
+    multi_account_cancel_allowed: bool,
+    multi_strategy_cancel_allowed: bool,
+    multi_venue_cancel_allowed: bool,
+    dashboard_order_controls_enabled: bool,
+    dashboard_cancel_controls_enabled: bool,
+    dashboard_execution_allowed: bool,
+    api_key_value_recorded: bool,
+    api_secret_value_recorded: bool,
+    api_key_header_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    raw_exchange_response_recorded: bool,
+    response_body_recorded: bool,
+    response_headers_recorded: bool,
+    source_artifact_issues: Vec<String>,
+    adapter_capability_issues: Vec<String>,
+    missing_cli_flags: Vec<String>,
+    adapter_capability_confirmed: bool,
+    request_response_readback_audit_contract_confirmed: bool,
+    one_order_one_venue_one_attempt_confirmed: bool,
+    fail_closed_unsupported_capability_confirmed: bool,
+    no_bulk_cancel_confirmed: bool,
+    no_retry_confirmed: bool,
+    no_automatic_cancel_confirmed: bool,
+    no_dashboard_execution_confirmed: bool,
+    no_network_confirmed: bool,
+    no_secret_persistence_confirmed: bool,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct ProductionMutationCancelResponseRedactionArtifact {
     schema_version: String,
     run_id: String,
@@ -4505,6 +4592,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionMutationActualCancelOwnerApprovalLifecycle(approval) => {
             run_live_production_mutation_actual_cancel_owner_approval_lifecycle(&approval)
         }
+        LiveCommand::ProductionMutationActualCancelExecutorAdapterBoundary(boundary) => {
+            run_live_production_mutation_actual_cancel_executor_adapter_boundary(&boundary)
+        }
         LiveCommand::ProductionMutationCancelResponseRedaction(redaction) => {
             run_live_production_mutation_cancel_response_redaction(&redaction)
         }
@@ -5088,6 +5178,29 @@ fn run_live_production_mutation_actual_cancel_owner_approval_lifecycle(
         artifact.approval_state,
         artifact.approval_lifecycle_valid,
         artifact.approval_execution_authorized,
+    );
+    Ok(())
+}
+
+fn run_live_production_mutation_actual_cancel_executor_adapter_boundary(
+    opt: &LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt,
+) -> anyhow::Result<()> {
+    let artifact = build_production_mutation_actual_cancel_executor_adapter_boundary_artifact(opt)?;
+    write_production_mutation_actual_cancel_executor_adapter_boundary_artifact(
+        &opt.output,
+        &artifact,
+    )?;
+    println!(
+        "live.production_mutation_actual_cancel_executor_adapter_boundary status={} run_id={} order_lineage_id={} adapter_id={} venue={} order_id_type={} output={} adapter_boundary_ready={} actual_cancel_send_allowed_by_adapter_boundary={} actual_cancel_send_allowed=false cancel_attempted=false cancel_requests_sent=0 network_attempted=false retry_attempted=false bulk_cancel_allowed=false dashboard_cancel_controls_enabled=false",
+        artifact.status,
+        artifact.run_id,
+        artifact.order_lineage_id,
+        artifact.adapter_id,
+        artifact.venue,
+        artifact.order_id_type,
+        opt.output.display(),
+        artifact.adapter_boundary_ready,
+        artifact.actual_cancel_send_allowed_by_adapter_boundary,
     );
     Ok(())
 }
@@ -11079,6 +11192,166 @@ fn build_production_mutation_actual_cancel_owner_approval_lifecycle_artifact(
     )
 }
 
+fn build_production_mutation_actual_cancel_executor_adapter_boundary_artifact(
+    opt: &LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt,
+) -> anyhow::Result<ProductionMutationActualCancelExecutorAdapterBoundaryArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+    validate_non_empty("adapter_id", &opt.adapter_id)?;
+    validate_non_empty("venue", &opt.venue)?;
+    validate_non_empty("order_id_type", &opt.order_id_type)?;
+    validate_non_empty("expected_order_lineage_id", &opt.expected_order_lineage_id)?;
+    validate_non_empty("expected_symbol", &opt.expected_symbol)?;
+    validate_non_empty("expected_account_label", &opt.expected_account_label)?;
+
+    let owner_approval_lifecycle =
+        load_json_value(&opt.owner_approval_lifecycle, "owner approval lifecycle")?;
+    let adapter_capability = load_json_value(&opt.adapter_capability, "adapter capability")?;
+
+    let missing_cli_flags =
+        missing_production_mutation_actual_cancel_executor_adapter_boundary_cli_flags(opt);
+    let source_artifact_issues =
+        production_mutation_actual_cancel_executor_adapter_boundary_source_issues(
+            &owner_approval_lifecycle,
+            opt,
+        );
+    let adapter_capability_issues =
+        production_mutation_actual_cancel_executor_adapter_boundary_capability_issues(
+            &adapter_capability,
+            opt,
+        );
+    let adapter_boundary_ready = missing_cli_flags.is_empty()
+        && source_artifact_issues.is_empty()
+        && adapter_capability_issues.is_empty();
+    let status = if adapter_boundary_ready {
+        "adapter_boundary_ready"
+    } else if !missing_cli_flags.is_empty() {
+        "blocked_missing_gate"
+    } else if !source_artifact_issues.is_empty() {
+        "blocked_owner_approval_lifecycle"
+    } else {
+        "blocked_adapter_capability"
+    };
+    let order_lineage_id = json_string_value(&owner_approval_lifecycle, "order_lineage_id")
+        .unwrap_or_else(|| "missing".to_string());
+
+    Ok(ProductionMutationActualCancelExecutorAdapterBoundaryArtifact {
+        schema_version: PRODUCTION_MUTATION_ACTUAL_CANCEL_EXECUTOR_ADAPTER_BOUNDARY_SCHEMA_VERSION
+            .to_string(),
+        run_id: opt.run_id.clone(),
+        order_lineage_id,
+        artifact_type: "actual_cancel_executor_adapter_boundary".to_string(),
+        status: status.to_string(),
+        created_at: now_millis(),
+        mode: "single_shot_actual_cancel_executor_adapter_boundary".to_string(),
+        capability: "Owner-Approved Single-Shot Actual Cancel Adapter Boundary".to_string(),
+        execution_mode: "owner_approved_single_shot_manual_only".to_string(),
+        adapter_boundary_scope: "one_order_one_venue_one_attempt".to_string(),
+        default_fail_closed: true,
+        owner_approval_lifecycle_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.owner_approval_lifecycle,
+            &owner_approval_lifecycle,
+            "approval_execution_authorized",
+        ),
+        adapter_capability_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.adapter_capability,
+            &adapter_capability,
+            "actual_cancel_supported",
+        ),
+        owner_approval_lifecycle_ready: source_artifact_issues.is_empty(),
+        adapter_capability_ready: adapter_capability_issues.is_empty(),
+        adapter_boundary_ready,
+        actual_cancel_send_allowed_by_adapter_boundary: adapter_boundary_ready,
+        adapter_id: opt.adapter_id.clone(),
+        venue: opt.venue.clone(),
+        order_id_type: opt.order_id_type.clone(),
+        known_order_id: json_scalar_string_value(&owner_approval_lifecycle, "known_order_id")
+            .unwrap_or_else(|| "missing".to_string()),
+        known_client_order_id: json_scalar_string_value(
+            &owner_approval_lifecycle,
+            "known_client_order_id",
+        )
+        .unwrap_or_else(|| "missing".to_string()),
+        symbol: json_scalar_string_value(&owner_approval_lifecycle, "symbol")
+            .unwrap_or_else(|| "unknown".to_string()),
+        account_label: json_scalar_string_value(&owner_approval_lifecycle, "account_label")
+            .unwrap_or_else(|| "unknown".to_string()),
+        cancel_request_contract: "single_order_cancel_request_v1".to_string(),
+        cancel_response_contract: "single_order_cancel_response_metadata_v1".to_string(),
+        post_cancel_readback_contract: "single_order_post_cancel_readback_required_v1"
+            .to_string(),
+        audit_contract: "single_order_cancel_audit_event_required_v1".to_string(),
+        adapter_failure_taxonomy: vec![
+            "rejected".to_string(),
+            "timeout".to_string(),
+            "unknown".to_string(),
+            "already_cancelled".to_string(),
+            "venue_unavailable".to_string(),
+            "transport_failure".to_string(),
+        ],
+        max_cancel_requests: 1,
+        allowed_attempts: 1,
+        allowed_order_count: 1,
+        allowed_venue_count: 1,
+        request_contract_ready: adapter_boundary_ready,
+        response_contract_ready: adapter_boundary_ready,
+        readback_contract_ready: adapter_boundary_ready,
+        audit_contract_ready: adapter_boundary_ready,
+        actual_cancel_send_allowed: false,
+        cancel_attempted: false,
+        cancel_requests_sent: 0,
+        network_attempted: false,
+        network_cancel_endpoint_attempted: false,
+        retry_attempted: false,
+        replace_attempted: false,
+        amend_attempted: false,
+        flatten_attempted: false,
+        remediation_attempted: false,
+        automatic_cancel_allowed: false,
+        automatic_remediation_allowed: false,
+        bulk_cancel_allowed: false,
+        cancel_all_allowed: false,
+        multi_account_cancel_allowed: false,
+        multi_strategy_cancel_allowed: false,
+        multi_venue_cancel_allowed: false,
+        dashboard_order_controls_enabled: false,
+        dashboard_cancel_controls_enabled: false,
+        dashboard_execution_allowed: false,
+        api_key_value_recorded: false,
+        api_secret_value_recorded: false,
+        api_key_header_value_recorded: false,
+        signature_recorded: false,
+        signed_query_recorded: false,
+        signed_url_recorded: false,
+        raw_exchange_response_recorded: false,
+        response_body_recorded: false,
+        response_headers_recorded: false,
+        source_artifact_issues,
+        adapter_capability_issues,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        adapter_capability_confirmed: opt.confirm_adapter_capability,
+        request_response_readback_audit_contract_confirmed: opt
+            .confirm_request_response_readback_audit_contract,
+        one_order_one_venue_one_attempt_confirmed: opt.confirm_one_order_one_venue_one_attempt,
+        fail_closed_unsupported_capability_confirmed: opt
+            .confirm_fail_closed_unsupported_capability,
+        no_bulk_cancel_confirmed: opt.confirm_no_bulk_cancel,
+        no_retry_confirmed: opt.confirm_no_retry,
+        no_automatic_cancel_confirmed: opt.confirm_no_automatic_cancel,
+        no_dashboard_execution_confirmed: opt.confirm_no_dashboard_execution,
+        no_network_confirmed: opt.confirm_no_network,
+        no_secret_persistence_confirmed: opt.confirm_no_secret_persistence,
+        diagnostic: if adapter_boundary_ready {
+            "adapter boundary is ready for one future owner-approved single-order cancel attempt; this artifact does not send the cancel"
+        } else {
+            "adapter boundary is fail-closed before any cancel send because owner approval, adapter capability, scope, or CLI confirmations are incomplete"
+        }
+        .to_string(),
+    })
+}
+
 fn build_production_mutation_cancel_response_redaction_artifact(
     opt: &LiveProductionMutationCancelResponseRedactionOpt,
 ) -> anyhow::Result<ProductionMutationCancelResponseRedactionArtifact> {
@@ -14114,6 +14387,138 @@ fn production_mutation_actual_cancel_owner_approval_lifecycle_source_issues(
         != Some(opt.expected_account_label.as_str())
     {
         issues.push("account_label_mismatch".to_string());
+    }
+    issues
+}
+
+fn production_mutation_actual_cancel_executor_adapter_boundary_source_issues(
+    owner_approval_lifecycle: &serde_json::Value,
+    opt: &LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(owner_approval_lifecycle, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_ACTUAL_CANCEL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION)
+    {
+        issues.push("owner_approval_lifecycle_schema_mismatch".to_string());
+    }
+    if json_string_value(owner_approval_lifecycle, "artifact_type").as_deref()
+        != Some("actual_cancel_owner_approval_lifecycle")
+    {
+        issues.push("owner_approval_lifecycle_artifact_type_mismatch".to_string());
+    }
+    if !json_bool_value(owner_approval_lifecycle, "approval_execution_authorized").unwrap_or(false)
+    {
+        issues.push("owner_approval_not_authorized".to_string());
+    }
+    if !json_bool_value(owner_approval_lifecycle, "single_order_required").unwrap_or(false) {
+        issues.push("owner_approval_single_order_not_required".to_string());
+    }
+    if !json_bool_value(owner_approval_lifecycle, "single_venue_required").unwrap_or(false) {
+        issues.push("owner_approval_single_venue_not_required".to_string());
+    }
+    if !json_bool_value(
+        owner_approval_lifecycle,
+        "single_execution_attempt_required",
+    )
+    .unwrap_or(false)
+    {
+        issues.push("owner_approval_single_attempt_not_required".to_string());
+    }
+    if json_bool_value(owner_approval_lifecycle, "approval_reusable").unwrap_or(true) {
+        issues.push("owner_approval_reusable".to_string());
+    }
+    if json_string_value(owner_approval_lifecycle, "order_lineage_id").as_deref()
+        != Some(opt.expected_order_lineage_id.as_str())
+    {
+        issues.push("order_lineage_id_mismatch".to_string());
+    }
+    if json_scalar_string_value(owner_approval_lifecycle, "symbol").as_deref()
+        != Some(opt.expected_symbol.as_str())
+    {
+        issues.push("symbol_mismatch".to_string());
+    }
+    if json_scalar_string_value(owner_approval_lifecycle, "account_label").as_deref()
+        != Some(opt.expected_account_label.as_str())
+    {
+        issues.push("account_label_mismatch".to_string());
+    }
+    if json_string_value(owner_approval_lifecycle, "venue").as_deref() != Some(opt.venue.as_str()) {
+        issues.push("venue_mismatch".to_string());
+    }
+    if json_bool_value(owner_approval_lifecycle, "bulk_cancel_allowed").unwrap_or(true) {
+        issues.push("owner_approval_bulk_cancel_allowed".to_string());
+    }
+    if json_bool_value(owner_approval_lifecycle, "retry_attempted").unwrap_or(true) {
+        issues.push("owner_approval_retry_attempted".to_string());
+    }
+    if json_bool_value(
+        owner_approval_lifecycle,
+        "dashboard_cancel_controls_enabled",
+    )
+    .unwrap_or(true)
+    {
+        issues.push("owner_approval_dashboard_cancel_controls_enabled".to_string());
+    }
+    issues
+}
+
+fn production_mutation_actual_cancel_executor_adapter_boundary_capability_issues(
+    adapter_capability: &serde_json::Value,
+    opt: &LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(adapter_capability, "schema_version").as_deref()
+        != Some("ntpro.v190_actual_cancel_adapter_capability.v1")
+    {
+        issues.push("adapter_capability_schema_mismatch".to_string());
+    }
+    if json_string_value(adapter_capability, "artifact_type").as_deref()
+        != Some("actual_cancel_adapter_capability")
+    {
+        issues.push("adapter_capability_artifact_type_mismatch".to_string());
+    }
+    if json_string_value(adapter_capability, "adapter_id").as_deref()
+        != Some(opt.adapter_id.as_str())
+    {
+        issues.push("adapter_id_mismatch".to_string());
+    }
+    if !json_bool_value(adapter_capability, "actual_cancel_supported").unwrap_or(false) {
+        issues.push("adapter_actual_cancel_unsupported".to_string());
+    }
+    let supported_venues = json_string_array(adapter_capability, "supported_venues");
+    if !supported_venues.iter().any(|venue| venue == &opt.venue) {
+        issues.push("adapter_venue_unsupported".to_string());
+    }
+    let supported_order_id_types =
+        json_string_array(adapter_capability, "supported_order_id_types");
+    if !supported_order_id_types
+        .iter()
+        .any(|order_id_type| order_id_type == &opt.order_id_type)
+    {
+        issues.push("adapter_order_id_type_unsupported".to_string());
+    }
+    for (field, issue) in [
+        (
+            "bulk_cancel_supported",
+            "adapter_bulk_cancel_supported_forbidden",
+        ),
+        (
+            "cancel_all_supported",
+            "adapter_cancel_all_supported_forbidden",
+        ),
+        ("retry_supported", "adapter_retry_supported_forbidden"),
+        (
+            "automatic_cancel_supported",
+            "adapter_automatic_cancel_supported_forbidden",
+        ),
+        (
+            "multi_venue_supported",
+            "adapter_multi_venue_supported_forbidden",
+        ),
+    ] {
+        if json_bool_value(adapter_capability, field).unwrap_or(true) {
+            issues.push(issue.to_string());
+        }
     }
     issues
 }
@@ -18051,6 +18456,16 @@ fn write_production_mutation_actual_cancel_owner_approval_lifecycle_artifact(
     Ok(())
 }
 
+fn write_production_mutation_actual_cancel_executor_adapter_boundary_artifact(
+    path: &Path,
+    value: &ProductionMutationActualCancelExecutorAdapterBoundaryArtifact,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
 fn write_production_mutation_cancel_response_redaction_artifact(
     path: &Path,
     value: &ProductionMutationCancelResponseRedactionArtifact,
@@ -19113,6 +19528,46 @@ fn missing_production_mutation_actual_cancel_owner_approval_lifecycle_cli_flags(
     }
     if !opt.confirm_no_submit_lifecycle {
         missing.push("--confirm-no-submit-lifecycle");
+    }
+    if !opt.confirm_no_network {
+        missing.push("--confirm-no-network");
+    }
+    if !opt.confirm_no_secret_persistence {
+        missing.push("--confirm-no-secret-persistence");
+    }
+    missing
+}
+
+fn missing_production_mutation_actual_cancel_executor_adapter_boundary_cli_flags(
+    opt: &LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_mutation_actual_cancel_executor_adapter_boundary {
+        missing.push("--allow-production-mutation-actual-cancel-executor-adapter-boundary");
+    }
+    if !opt.confirm_adapter_capability {
+        missing.push("--confirm-adapter-capability");
+    }
+    if !opt.confirm_request_response_readback_audit_contract {
+        missing.push("--confirm-request-response-readback-audit-contract");
+    }
+    if !opt.confirm_one_order_one_venue_one_attempt {
+        missing.push("--confirm-one-order-one-venue-one-attempt");
+    }
+    if !opt.confirm_fail_closed_unsupported_capability {
+        missing.push("--confirm-fail-closed-unsupported-capability");
+    }
+    if !opt.confirm_no_bulk_cancel {
+        missing.push("--confirm-no-bulk-cancel");
+    }
+    if !opt.confirm_no_retry {
+        missing.push("--confirm-no-retry");
+    }
+    if !opt.confirm_no_automatic_cancel {
+        missing.push("--confirm-no-automatic-cancel");
+    }
+    if !opt.confirm_no_dashboard_execution {
+        missing.push("--confirm-no-dashboard-execution");
     }
     if !opt.confirm_no_network {
         missing.push("--confirm-no-network");
@@ -21001,6 +21456,102 @@ dashboard_operation_requested
             confirm_no_bulk_cancel: all_cli_gates,
             confirm_no_retry: all_cli_gates,
             confirm_no_submit_lifecycle: all_cli_gates,
+            confirm_no_network: all_cli_gates,
+            confirm_no_secret_persistence: all_cli_gates,
+        }
+    }
+
+    fn write_ready_v190_actual_cancel_owner_approval_lifecycle_artifact(
+        output_dir: &Path,
+    ) -> PathBuf {
+        let (safety_contract, release_manifest) =
+            write_v190_actual_cancel_owner_approval_source_files(output_dir);
+        let risk_gate = write_v180_manual_owner_approval_lifecycle_source_chain(
+            output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+        let output = output_dir.join("actual-cancel-owner-approval-lifecycle.json");
+        run_live_production_mutation_actual_cancel_owner_approval_lifecycle(
+            &production_mutation_actual_cancel_owner_approval_lifecycle_opt(
+                safety_contract,
+                release_manifest,
+                risk_gate,
+                output.clone(),
+                "approved",
+                true,
+            ),
+        )
+        .unwrap();
+        output
+    }
+
+    fn write_v190_actual_cancel_adapter_capability(
+        output_dir: &Path,
+        name: &str,
+        actual_cancel_supported: bool,
+        venues: &[&str],
+        order_id_types: &[&str],
+    ) -> PathBuf {
+        let adapter_capability = output_dir.join(name);
+        fs::write(
+            &adapter_capability,
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&json!({
+                    "schema_version": "ntpro.v190_actual_cancel_adapter_capability.v1",
+                    "artifact_type": "actual_cancel_adapter_capability",
+                    "adapter_id": "binance_spot_cancel_adapter",
+                    "actual_cancel_supported": actual_cancel_supported,
+                    "supported_venues": venues,
+                    "supported_order_id_types": order_id_types,
+                    "bulk_cancel_supported": false,
+                    "cancel_all_supported": false,
+                    "retry_supported": false,
+                    "automatic_cancel_supported": false,
+                    "multi_venue_supported": false
+                }))
+                .unwrap()
+            ),
+        )
+        .unwrap();
+        adapter_capability
+    }
+
+    fn production_mutation_actual_cancel_executor_adapter_boundary_opt(
+        owner_approval_lifecycle: PathBuf,
+        adapter_capability: PathBuf,
+        output: PathBuf,
+        all_cli_gates: bool,
+    ) -> LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt {
+        LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt {
+            run_id: "v190-actual-cancel-executor-adapter-boundary".to_string(),
+            owner_approval_lifecycle,
+            adapter_capability,
+            adapter_id: "binance_spot_cancel_adapter".to_string(),
+            venue: "binance_spot".to_string(),
+            order_id_type: "exchange_order_id".to_string(),
+            expected_order_lineage_id: "lineage-v160-single-shot".to_string(),
+            expected_symbol: "BTCUSDT".to_string(),
+            expected_account_label: "prod-account-redacted".to_string(),
+            output,
+            allow_production_mutation_actual_cancel_executor_adapter_boundary: all_cli_gates,
+            confirm_adapter_capability: all_cli_gates,
+            confirm_request_response_readback_audit_contract: all_cli_gates,
+            confirm_one_order_one_venue_one_attempt: all_cli_gates,
+            confirm_fail_closed_unsupported_capability: all_cli_gates,
+            confirm_no_bulk_cancel: all_cli_gates,
+            confirm_no_retry: all_cli_gates,
+            confirm_no_automatic_cancel: all_cli_gates,
+            confirm_no_dashboard_execution: all_cli_gates,
             confirm_no_network: all_cli_gates,
             confirm_no_secret_persistence: all_cli_gates,
         }
@@ -30117,6 +30668,319 @@ dashboard_operation_requested
                 .any(|issue| issue == "symbol_mismatch")
         );
         assert_eq!(symbol_mismatch["actual_cancel_send_allowed"], false);
+    }
+
+    #[test]
+    fn production_mutation_actual_cancel_executor_adapter_boundary_records_ready_contract() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v190-005-actual-cancel-adapter-boundary-ready-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let owner_approval =
+            write_ready_v190_actual_cancel_owner_approval_lifecycle_artifact(&output_dir);
+        let adapter_capability = write_v190_actual_cancel_adapter_capability(
+            &output_dir,
+            "adapter-capability.json",
+            true,
+            &["binance_spot"],
+            &["exchange_order_id"],
+        );
+        let output = output_dir.join("actual-cancel-executor-adapter-boundary.json");
+
+        run_live_production_mutation_actual_cancel_executor_adapter_boundary(
+            &production_mutation_actual_cancel_executor_adapter_boundary_opt(
+                owner_approval,
+                adapter_capability,
+                output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(!body.contains("123456789"));
+        assert!(!body.contains("owner-approved-v160-single-shot"));
+        assert!(!body.contains("X-MBX-APIKEY"));
+        assert!(!body.contains("signature="));
+        let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(
+            artifact["schema_version"],
+            PRODUCTION_MUTATION_ACTUAL_CANCEL_EXECUTOR_ADAPTER_BOUNDARY_SCHEMA_VERSION
+        );
+        assert_eq!(
+            artifact["artifact_type"],
+            "actual_cancel_executor_adapter_boundary"
+        );
+        assert_eq!(artifact["status"], "adapter_boundary_ready");
+        assert_eq!(artifact["adapter_boundary_ready"], true);
+        assert_eq!(
+            artifact["actual_cancel_send_allowed_by_adapter_boundary"],
+            true
+        );
+        assert_eq!(artifact["actual_cancel_send_allowed"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["cancel_requests_sent"], 0);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["retry_attempted"], false);
+        assert_eq!(artifact["bulk_cancel_allowed"], false);
+        assert_eq!(artifact["cancel_all_allowed"], false);
+        assert_eq!(artifact["dashboard_execution_allowed"], false);
+        assert_eq!(artifact["adapter_id"], "binance_spot_cancel_adapter");
+        assert_eq!(artifact["venue"], "binance_spot");
+        assert_eq!(artifact["order_id_type"], "exchange_order_id");
+        assert_eq!(artifact["max_cancel_requests"], 1);
+        assert_eq!(artifact["allowed_attempts"], 1);
+        assert_eq!(artifact["allowed_order_count"], 1);
+        assert_eq!(artifact["allowed_venue_count"], 1);
+        assert_eq!(artifact["request_contract_ready"], true);
+        assert_eq!(artifact["response_contract_ready"], true);
+        assert_eq!(artifact["readback_contract_ready"], true);
+        assert_eq!(artifact["audit_contract_ready"], true);
+        assert_eq!(
+            artifact["cancel_request_contract"],
+            "single_order_cancel_request_v1"
+        );
+        assert_eq!(
+            artifact["cancel_response_contract"],
+            "single_order_cancel_response_metadata_v1"
+        );
+        assert_eq!(
+            artifact["post_cancel_readback_contract"],
+            "single_order_post_cancel_readback_required_v1"
+        );
+        assert_eq!(
+            artifact["audit_contract"],
+            "single_order_cancel_audit_event_required_v1"
+        );
+        for expected in [
+            "rejected",
+            "timeout",
+            "unknown",
+            "already_cancelled",
+            "venue_unavailable",
+            "transport_failure",
+        ] {
+            assert!(
+                artifact["adapter_failure_taxonomy"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|item| item == expected)
+            );
+        }
+        assert_eq!(
+            artifact["source_artifact_issues"].as_array().unwrap().len(),
+            0
+        );
+        assert_eq!(
+            artifact["adapter_capability_issues"]
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
+        assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn production_mutation_actual_cancel_executor_adapter_boundary_blocks_capability_mismatch() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v190-005-actual-cancel-adapter-boundary-blocked-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let owner_approval =
+            write_ready_v190_actual_cancel_owner_approval_lifecycle_artifact(&output_dir);
+        let unsupported_capability = write_v190_actual_cancel_adapter_capability(
+            &output_dir,
+            "adapter-capability-unsupported.json",
+            false,
+            &["binance_spot"],
+            &["exchange_order_id"],
+        );
+        let unsupported_venue = write_v190_actual_cancel_adapter_capability(
+            &output_dir,
+            "adapter-capability-venue-mismatch.json",
+            true,
+            &["okx_spot"],
+            &["exchange_order_id"],
+        );
+        let unsupported_order_id_type = write_v190_actual_cancel_adapter_capability(
+            &output_dir,
+            "adapter-capability-order-id-mismatch.json",
+            true,
+            &["binance_spot"],
+            &["client_order_id"],
+        );
+        let unsupported_output = output_dir.join("unsupported.json");
+        let venue_output = output_dir.join("venue-mismatch.json");
+        let order_id_output = output_dir.join("order-id-mismatch.json");
+
+        run_live_production_mutation_actual_cancel_executor_adapter_boundary(
+            &production_mutation_actual_cancel_executor_adapter_boundary_opt(
+                owner_approval.clone(),
+                unsupported_capability,
+                unsupported_output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+        run_live_production_mutation_actual_cancel_executor_adapter_boundary(
+            &production_mutation_actual_cancel_executor_adapter_boundary_opt(
+                owner_approval.clone(),
+                unsupported_venue,
+                venue_output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+        run_live_production_mutation_actual_cancel_executor_adapter_boundary(
+            &production_mutation_actual_cancel_executor_adapter_boundary_opt(
+                owner_approval,
+                unsupported_order_id_type,
+                order_id_output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let unsupported: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(unsupported_output).unwrap()).unwrap();
+        assert_eq!(unsupported["status"], "blocked_adapter_capability");
+        assert_eq!(unsupported["adapter_boundary_ready"], false);
+        assert_eq!(
+            unsupported["actual_cancel_send_allowed_by_adapter_boundary"],
+            false
+        );
+        assert!(
+            unsupported["adapter_capability_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "adapter_actual_cancel_unsupported")
+        );
+        assert_eq!(unsupported["actual_cancel_send_allowed"], false);
+        assert_eq!(unsupported["cancel_attempted"], false);
+
+        let venue: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(venue_output).unwrap()).unwrap();
+        assert_eq!(venue["status"], "blocked_adapter_capability");
+        assert!(
+            venue["adapter_capability_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "adapter_venue_unsupported")
+        );
+        assert_eq!(venue["network_attempted"], false);
+
+        let order_id: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(order_id_output).unwrap()).unwrap();
+        assert_eq!(order_id["status"], "blocked_adapter_capability");
+        assert!(
+            order_id["adapter_capability_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "adapter_order_id_type_unsupported")
+        );
+        assert_eq!(order_id["retry_attempted"], false);
+    }
+
+    #[test]
+    fn production_mutation_actual_cancel_executor_adapter_boundary_blocks_missing_gates_and_owner()
+    {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v190-005-actual-cancel-adapter-boundary-missing-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let (safety_contract, release_manifest) =
+            write_v190_actual_cancel_owner_approval_source_files(&output_dir);
+        let risk_gate = write_v180_manual_owner_approval_lifecycle_source_chain(
+            &output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+        let created_owner_approval = output_dir.join("owner-approval-created.json");
+        run_live_production_mutation_actual_cancel_owner_approval_lifecycle(
+            &production_mutation_actual_cancel_owner_approval_lifecycle_opt(
+                safety_contract,
+                release_manifest,
+                risk_gate,
+                created_owner_approval.clone(),
+                "created",
+                true,
+            ),
+        )
+        .unwrap();
+        let adapter_capability = write_v190_actual_cancel_adapter_capability(
+            &output_dir,
+            "adapter-capability-ready.json",
+            true,
+            &["binance_spot"],
+            &["exchange_order_id"],
+        );
+        let missing_gate_output = output_dir.join("missing-gates.json");
+        let blocked_owner_output = output_dir.join("blocked-owner.json");
+
+        run_live_production_mutation_actual_cancel_executor_adapter_boundary(
+            &production_mutation_actual_cancel_executor_adapter_boundary_opt(
+                created_owner_approval.clone(),
+                adapter_capability.clone(),
+                missing_gate_output.clone(),
+                false,
+            ),
+        )
+        .unwrap();
+        run_live_production_mutation_actual_cancel_executor_adapter_boundary(
+            &production_mutation_actual_cancel_executor_adapter_boundary_opt(
+                created_owner_approval,
+                adapter_capability,
+                blocked_owner_output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let missing_gate: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(missing_gate_output).unwrap()).unwrap();
+        assert_eq!(missing_gate["status"], "blocked_missing_gate");
+        assert!(
+            missing_gate["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| {
+                    flag == "--allow-production-mutation-actual-cancel-executor-adapter-boundary"
+                })
+        );
+        assert_eq!(missing_gate["adapter_boundary_ready"], false);
+
+        let blocked_owner: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(blocked_owner_output).unwrap()).unwrap();
+        assert_eq!(blocked_owner["status"], "blocked_owner_approval_lifecycle");
+        assert!(
+            blocked_owner["source_artifact_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "owner_approval_not_authorized")
+        );
+        assert_eq!(
+            blocked_owner["actual_cancel_send_allowed_by_adapter_boundary"],
+            false
+        );
+        assert_eq!(blocked_owner["network_attempted"], false);
     }
 
     #[test]
