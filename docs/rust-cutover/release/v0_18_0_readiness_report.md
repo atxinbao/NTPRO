@@ -131,11 +131,20 @@ Required local validation for the v0.18 readiness decision:
 
 ```text
 scripts/ai/verify_release.sh v18-release-gates
-scripts/ai/verify_fast.sh
 git diff --check
 gh release view ntpro-rust-only-v0.18.0
 gh run view 28281346239 --repo atxinbao/NTPRO
 ```
+
+Auxiliary local fast smoke:
+
+```text
+scripts/ai/verify_fast.sh
+```
+
+The default fast smoke is recorded only as local preflight evidence. It is not
+the v0.18 release gate and does not replace `verify_release.sh`, hosted release
+gate evidence, golden traces, or strict provenance.
 
 The aggregate `v18-release-gates` stage includes:
 

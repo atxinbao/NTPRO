@@ -15,8 +15,12 @@ rustc --version
 
 echo "== verify_fast: scope =="
 echo "fast smoke only: toolchain + cargo fmt by default"
-echo "not a full workspace check, clippy gate, release gate, or golden trace gate"
-echo "for release evidence use scripts/ai/verify_release.sh"
+echo "not release validation and not release evidence"
+echo "does not replace workspace cargo check, clippy, golden traces, release gates, or strict provenance"
+echo "compile/lint check: use VERIFY_FAST_CARGO_CHECK=1 VERIFY_FAST_CLIPPY=1 scripts/ai/verify_fast.sh"
+echo "full test check: use scripts/ai/verify_full.sh"
+echo "release gate: use scripts/ai/verify_release.sh"
+echo "strict provenance gate: use scripts/ai/verify_release_strict.sh v18"
 
 echo "== verify_fast: rust fmt =="
 cargo fmt --check
@@ -25,14 +29,14 @@ if [ "$VERIFY_FAST_CARGO_CHECK" = "1" ]; then
   echo "== verify_fast: optional cargo check workspace without Python bridge product path =="
   cargo check --workspace --features "$FEATURES"
 else
-  echo "== verify_fast: cargo check skipped by fast-smoke default; set VERIFY_FAST_CARGO_CHECK=1 for workspace cargo check =="
+  echo "== verify_fast: cargo check skipped by fast-smoke default; set VERIFY_FAST_CARGO_CHECK=1 for compile coverage =="
 fi
 
 if [ "$VERIFY_FAST_CLIPPY" = "1" ]; then
   echo "== verify_fast: optional clippy =="
   cargo clippy --workspace --lib --tests --features "$FEATURES" -- -D warnings
 else
-  echo "== verify_fast: clippy skipped by fast-smoke default; set VERIFY_FAST_CLIPPY=1 to run clippy in fast mode =="
+  echo "== verify_fast: clippy skipped by fast-smoke default; set VERIFY_FAST_CLIPPY=1 for lint coverage =="
 fi
 
-echo "== verify_fast complete: fast smoke only; release work still requires stronger verification =="
+echo "== verify_fast complete: fast smoke only; release work still requires verify_release.sh and strict provenance when applicable =="

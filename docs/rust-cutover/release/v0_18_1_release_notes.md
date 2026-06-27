@@ -26,6 +26,11 @@ scripts/ai/verify_release.sh v18-strict-provenance
 scripts/ai/verify_release_strict.sh v18
 ```
 
+The default `scripts/ai/verify_fast.sh` command is intentionally excluded from
+this release-evidence list. It remains a local fast smoke for pinned toolchain
+and `cargo fmt --check` only; it is not a release gate, not compile/test
+coverage, and not strict provenance evidence.
+
 The strict provenance gate writes or verifies:
 
 ```text

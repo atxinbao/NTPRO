@@ -163,15 +163,23 @@ nautilus live --help
 
 ## Local verification
 
-Run the fast local gate before opening a PR:
+Run the fast local smoke before opening a PR:
 
 ```bash
 scripts/ai/verify_fast.sh
 ```
 
 `verify_fast.sh` is intentionally a fast smoke. By default it verifies the
-pinned toolchain and `cargo fmt --check`; it does not replace workspace
-`cargo check`, clippy, golden traces, or release verification.
+pinned toolchain and `cargo fmt --check`; it is not release validation and is
+not release evidence. It does not replace workspace `cargo check`, clippy,
+golden traces, release gates, or strict provenance.
+
+For compile/lint-oriented checks, run:
+
+```bash
+VERIFY_FAST_CARGO_CHECK=1 VERIFY_FAST_CLIPPY=1 scripts/ai/verify_fast.sh
+scripts/ai/verify_full.sh
+```
 
 For release-oriented checks, run:
 
@@ -179,6 +187,7 @@ For release-oriented checks, run:
 scripts/ai/check_rust_only_runtime.sh
 scripts/ai/check_cython_removed.sh
 scripts/ai/verify_release.sh
+scripts/ai/verify_release_strict.sh v18
 ```
 
 `verify_release.sh` is broader and slower than the fast gate. It is intended

@@ -390,14 +390,34 @@ scripts/ai/verify_fast.sh
 ```
 
 `verify_fast.sh` is a fast smoke only: it checks the pinned Rust toolchain and
-`cargo fmt --check` by default. It does not run workspace `cargo check`,
-clippy, golden traces, or release validation unless optional flags or stronger
-scripts are used.
+`cargo fmt --check` by default. A passing default fast smoke is not release
+validation and is not release evidence.
 
-Full release validation:
+Compile and lint validation:
+
+```bash
+VERIFY_FAST_CARGO_CHECK=1 VERIFY_FAST_CLIPPY=1 scripts/ai/verify_fast.sh
+```
+
+That check adds workspace compile/lint coverage, but still does not replace
+release gates, full tests, or golden trace evidence.
+
+Full test validation:
+
+```bash
+scripts/ai/verify_full.sh
+```
+
+Release gate validation:
 
 ```bash
 scripts/ai/verify_release.sh
+```
+
+Strict binary provenance, when required by the release line:
+
+```bash
+scripts/ai/verify_release_strict.sh v18
 ```
 
 Rust-only surface checks:
