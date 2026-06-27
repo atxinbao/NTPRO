@@ -1,3 +1,31 @@
+# V181-007 Verification
+
+Date: 2026-06-27
+Executor: Codex
+Task: `V181-007` / GitHub issue `#576`
+
+## Commands
+
+```text
+cargo test -p nautilus-cli dashboard --lib = PASS, 63 tests
+cargo test -p nautilus-cli production_cancel_recovery --lib = PASS, 7 tests
+cargo clippy --workspace --lib --tests --features "arrow,ffi,high-precision,streaming,defi" -- -D warnings = PASS
+scripts/ai/verify_v18_dashboard_cancel_recovery_panel.sh = PASS
+scripts/ai/verify_release.sh v18-release-gates = PASS
+bash -n scripts/ai/verify_v18_dashboard_cancel_recovery_panel.sh = PASS
+rg -n "actual_cancel_send_allowed|cancel_attempted|network_cancel_endpoint_attempted|schema mismatch|source_commit|source_release_tag|release_tag|dashboard_auto_approval|dashboard_cancel_controls_enabled" crates/cli/src/dashboard.rs scripts/ai/verify_v18_dashboard_cancel_recovery_panel.sh docs/rust-cutover/release docs/rust-cutover/evidence = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+Dashboard cancel recovery diagnostics now degrade the v0.18 read-only panel for
+missing artifacts, schema mismatches, source commit/tag provenance mismatches,
+stale artifacts, true forbidden cancel flags, and true Dashboard cancel or
+auto-approval controls. No actual cancel entrypoint, owner approval write
+surface, network cancel endpoint, or adapter behavior was added.
+
 # V181-006 Verification
 
 Date: 2026-06-27
