@@ -2,20 +2,25 @@
 
 Date: 2026-06-28
 Executor: Codex
-Status: RELEASE CANDIDATE - pending V190-010 PR merge and tag publication
-Planned tag: `ntpro-rust-only-v0.19.0`
+Status: RELEASED
+Tag: `ntpro-rust-only-v0.19.0`
 Release name: `NTPRO Rust-only v0.19.0`
+Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.19.0`
+Release commit: `e72a7d29f052757be6c185c1f9ba007ef7146ee0`
+Published at: `2026-06-28T08:40:28Z`
+Hosted release gate run: `28314859483`
+Hosted release gate stage: `release-v19-release-gates`
 
 ## Summary
 
-`v0.19.0` is the owner-approved single-shot actual cancel release candidate.
+`v0.19.0` is the published owner-approved single-shot actual cancel release.
 It promotes the v0.18 preview evidence into a tightly gated manual execution
 line: the cancel is allowed only when owner approval, risk gate, adapter
 boundary, release provenance, one-order identity, one-venue scope, readback,
 failure evidence, Dashboard read-only audit, and golden trace coverage all
 agree.
 
-Plain Chinese summary: v0.19.0 是“Owner 人工批准的一次性真实撤单”候选版本。大白话：
+Plain Chinese summary: v0.19.0 是“Owner 人工批准的一次性真实撤单”正式发布版本。大白话：
 这版只允许 owner-approved single-shot actual cancel：一个审批、一个订单、一个 venue、
 一次撤单尝试，并且必须有 risk gate、adapter boundary、readback、failure evidence 和
 golden trace 证明。它不是生产下单生命周期版本，不允许自动撤单、批量撤单、Dashboard 撤单按钮、
@@ -138,7 +143,21 @@ docs/rust-cutover/evidence/V190-010.md
 
 ## Release Status
 
-This document is the release-note candidate for the formal
-`ntpro-rust-only-v0.19.0` GitHub Release. It must not be described as published
-until the V190-010 PR is merged, the tag is pushed, and the release-tag workflow
-passes `release-v19-release-gates`.
+```text
+release status = RELEASED
+release tag = ntpro-rust-only-v0.19.0
+release name = NTPRO Rust-only v0.19.0
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.19.0
+release commit = e72a7d29f052757be6c185c1f9ba007ef7146ee0
+published at = 2026-06-28T08:40:28Z
+hosted release gate run = 28314859483
+hosted release gate URL = https://github.com/atxinbao/NTPRO/actions/runs/28314859483
+hosted release gate stage = release-v19-release-gates
+hosted release gate result = PASS
+GitHub Release draft = false
+GitHub Release prerelease = false
+```
+
+The release remains limited to owner-approved single-shot actual cancel. It
+does not include production order submit lifecycle, automatic cancel, bulk
+cancel, Dashboard cancel controls, retry, second cancel, or remediation.

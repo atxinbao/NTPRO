@@ -3,18 +3,19 @@
 Date: 2026-06-28
 Executor: Codex
 Milestone: `ntpro-rust-only-v0.19.0`
-Status: RELEASE CANDIDATE - pending V190-010 PR merge and tag publication
+Status: RELEASED
 
 ## Summary
 
-`v0.19.0` packages the owner-approved single-shot actual cancel line. It starts
+`v0.19.0` publishes the owner-approved single-shot actual cancel line. It starts
 from the released v0.18 preview, requires a single-use owner approval, binds
 that approval to risk gate evidence and adapter capability evidence, permits at
 most one cancel attempt, requires post-cancel readback reconciliation, records
 failure/partial-success evidence, exposes a Dashboard read-only audit view, and
-locks the release through golden traces and `v19-release-gates`.
+locks the release through golden traces and the hosted `release-v19-release-gates`
+stage.
 
-Plain Chinese summary: v0.19.0 的结论是“可以进入 Owner 人工批准的一次性真实撤单候选”。
+Plain Chinese summary: v0.19.0 的结论是“已经发布 Owner 人工批准的一次性真实撤单”。
 大白话：只有 owner-approved single-shot actual cancel 这一条路径能成立；缺审批来源、
 缺 risk gate、缺 adapter boundary、缺 readback、缺 failure evidence、出现自动撤单/批量撤单/
 Dashboard 撤单按钮/重试/二次撤单，都会被 release gate 拒绝。
@@ -157,18 +158,25 @@ partial_fill = request_sent true, residual risk visible
 
 ```text
 previous formal release = ntpro-rust-only-v0.18.1
-planned formal release = ntpro-rust-only-v0.19.0
-v0.19.0 readiness = release candidate until V190-010 merge
-v0.19.0 tag = pending
-v0.19.0 GitHub Release = pending
-hosted release gate = pending tag workflow
+formal release = ntpro-rust-only-v0.19.0
+release name = NTPRO Rust-only v0.19.0
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.19.0
+release commit = e72a7d29f052757be6c185c1f9ba007ef7146ee0
+published at = 2026-06-28T08:40:28Z
+GitHub Release draft = false
+GitHub Release prerelease = false
+hosted release gate run = 28314859483
+hosted release gate URL = https://github.com/atxinbao/NTPRO/actions/runs/28314859483
+hosted release gate stage = release-v19-release-gates
+hosted release gate result = PASS
 ```
 
 ## Final Verdict
 
-The v0.19 source-tree package is ready for PR review as an
-`Owner-Approved Single-Shot Actual Cancel` release candidate after
-`v19-release-gates` passes locally and in hosted release verification.
+The v0.19 source-tree package is closed out as the published
+`Owner-Approved Single-Shot Actual Cancel` release after `v19-release-gates`
+passed locally and `release-v19-release-gates` passed in hosted tag
+verification.
 
 Do not describe this release as automatic cancel readiness, bulk cancel
 readiness, Dashboard operation-control readiness, production order submit
