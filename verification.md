@@ -244,6 +244,33 @@ does not add a cancel executor, adapter behavior change, network cancel
 request, Dashboard approve/cancel control, automatic or bulk cancel, retry,
 replace, amend, flatten, or production order submit lifecycle.
 
+# V191-002 Verification
+
+Date: 2026-06-28
+Executor: Codex
+Task: `V191-002` / GitHub issue `#605`
+
+## Commands
+
+```text
+gh release view ntpro-rust-only-v0.18.1 --repo atxinbao/NTPRO --json tagName,name,isDraft,isPrerelease,publishedAt,targetCommitish,url = PASS
+git rev-list -n1 ntpro-rust-only-v0.18.1 = c395e71960255fefbf4100654fd53ce2bf33a08f
+jq empty docs/rust-cutover/release/v0_18_1_release_manifest.json = PASS
+rg -n "draft_not_published|DRAFT_NOT_PUBLISHED|not_published|actual_tag.*null|no v0.18.1 tag|not publish" docs/rust-cutover/release/v0_18_1_release_manifest.json docs/rust-cutover/release/v0_18_1_release_notes.md = no matches
+published release markers and no-actual-cancel boundary markers = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+The v0.18.1 prerequisite release evidence now matches the live GitHub Release
+and tag. The manifest records the actual tag, release URL, release commit,
+publication time, draft/prerelease flags, and resolved source commit/tree while
+preserving the release/provenance-hardening-only boundary: no actual cancel
+send, no automatic cancel, no automatic remediation, no Dashboard cancel
+controls, no production order mutation, and no binary asset publication.
+
 # V190-002 Verification
 
 Date: 2026-06-27
