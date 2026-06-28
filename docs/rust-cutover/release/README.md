@@ -411,6 +411,14 @@ Final release checks, benchmark summaries, and audit reports live here.
   owner-supplied order identity, records one attempted `DELETE /api/v3/order`
   through a redacted audit artifact, and blocks missing, reused, mismatched,
   unsupported, automatic, bulk, retry, or Dashboard paths before any send.
+- `v0_19_0_post_cancel_readback_reconciliation.md` - V190-006 post-cancel
+  readback reconciliation for the v0.19 actual cancel line. It adds the
+  `production-mutation-actual-cancel-readback-reconciliation` evidence command,
+  requires a recorded V190-004 actual cancel attempt plus redacted readback
+  metadata, classifies cancel confirmed, already cancelled, filled before
+  cancel, unknown, timeout, and inconsistent outcomes, and keeps degraded
+  readback states explicit for Dashboard read-only audit consumption without
+  retry, remediation, second cancel, or network readback execution.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
