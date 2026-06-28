@@ -1,3 +1,42 @@
+# V190-004 Verification
+
+Date: 2026-06-27
+Executor: Codex
+Task: `V190-004` / GitHub issue `#581`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-cli = PASS
+cargo test -p nautilus-cli actual_cancel --lib = PASS, 12 tests, including persisted used marker and same-approval second-run block
+cargo test -p nautilus-cli parses_live_production_mutation_actual_cancel_single_shot_options --lib = PASS, 1 test
+cargo fmt --check -p nautilus-cli = PASS
+cargo clippy -p nautilus-cli --all-targets -- -D warnings = PASS
+scripts/ai/verify_fast.sh = PASS
+rg -n "actual_cancel_single_shot|production-mutation-actual-cancel-single-shot|actual_cancel_attempt_recorded|ready_actual_cancel_command_offline_no_send|owner_approval_reused|order_identity_mismatch|blocked_missing_manual_online_gate|approval_used_after_actual_cancel_attempt|consumed_actual_cancel_request_id|consumed_by_actual_cancel_run_id" crates/cli/src docs/rust-cutover verification.md = PASS
+scripts/ai/verify_release.sh v19-release-gates = UNAVAILABLE, unknown verify_release stage: v19-release-gates
+git diff --check = PASS
+```
+
+## Result
+
+The v0.19 single-shot actual cancel command is implemented as a default-offline
+CLI command. It records ready/no-send evidence without `--manual-online`, and
+records exactly one injected executor cancel attempt when all owner approval,
+risk gate, release provenance, adapter boundary/capability, owner-supplied
+order identity, CLI confirmations, and manual online env gates match. The
+attempt path atomically marks the source owner approval lifecycle as `used`
+before the send, records post-attempt readback requirements on the consumed
+lifecycle artifact, and blocks a second run with the same approval before any
+executor call. Missing gates, missing manual-online API credentials, release
+mismatch, reused owner approval, unsupported adapter capability, and order
+identity mismatch fail closed before any send. The artifact does not
+persist raw order ids, API key values, API secret values, API key headers,
+signatures, signed queries, signed URLs, request bodies, response bodies, or
+response headers. This verification does not add Dashboard cancel controls,
+automatic cancel, bulk/cancel-all, retry, replace, amend, flatten, remediation,
+multi-account/strategy/venue cancel, or production order submit lifecycle.
+
 # V190-005 Verification
 
 Date: 2026-06-27

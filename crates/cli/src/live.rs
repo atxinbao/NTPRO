@@ -53,7 +53,7 @@ use crate::{
         LiveProductionLiveAlphaOrderRequestPreviewOpt, LiveProductionLiveAlphaRiskPreflightOpt,
         LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt,
         LiveProductionMutationActualCancelOwnerApprovalLifecycleOpt,
-        LiveProductionMutationAuditTrailOpt,
+        LiveProductionMutationActualCancelSingleShotOpt, LiveProductionMutationAuditTrailOpt,
         LiveProductionMutationCancelRecoveryIncidentAuditCloseoutOpt,
         LiveProductionMutationCancelRequestPreviewOpt,
         LiveProductionMutationCancelResponseRedactionOpt, LiveProductionMutationCancelRiskGateOpt,
@@ -200,6 +200,8 @@ const PRODUCTION_MUTATION_ACTUAL_CANCEL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION:
     "ntpro.v190_actual_cancel_owner_approval_lifecycle.v1";
 const PRODUCTION_MUTATION_ACTUAL_CANCEL_EXECUTOR_ADAPTER_BOUNDARY_SCHEMA_VERSION: &str =
     "ntpro.v190_actual_cancel_executor_adapter_boundary.v1";
+const PRODUCTION_MUTATION_ACTUAL_CANCEL_SINGLE_SHOT_SCHEMA_VERSION: &str =
+    "ntpro.v190_actual_cancel_single_shot.v1";
 const PRODUCTION_MUTATION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION: &str =
     "ntpro.v180_cancel_response_redaction.v1";
 const PRODUCTION_MUTATION_POST_CANCEL_READBACK_SCHEMA_VERSION: &str =
@@ -739,6 +741,56 @@ impl EnvOnlyProductionMutationPreviewCredentials {
             api_secret_env: opt.api_secret_env.clone(),
             api_secret_value,
             credential_material: "production_live_alpha",
+            production_signing_material_gate_required: true,
+            production_signing_material_gate_open,
+            production_signing_material_env_read,
+            production_signing_material_missing_gate_env_vars: missing_gate_env_vars,
+        })
+    }
+
+    fn from_actual_cancel_opt<F>(
+        opt: &LiveProductionMutationActualCancelSingleShotOpt,
+        mut read_env: F,
+    ) -> Self
+    where
+        F: FnMut(&str) -> Option<String>,
+    {
+        let mut missing_gate_env_vars = Vec::new();
+        for env_name in [
+            PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW,
+            PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED,
+            PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW,
+            PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED,
+            PRODUCTION_MUTATION_HTTP_SEND_ENV_SINGLE_SHOT,
+        ] {
+            if read_env(env_name).as_deref() != Some("1") {
+                missing_gate_env_vars.push(env_name.to_string());
+            }
+        }
+
+        let gate_env_open = missing_gate_env_vars.is_empty();
+        let (api_key_value, api_secret_value, production_signing_material_env_read) =
+            if gate_env_open {
+                let api_key_value = read_env(&opt.api_key_env);
+                let api_secret_value = read_env(&opt.api_secret_env);
+                if api_key_value.as_deref().is_none_or(str::is_empty) {
+                    missing_gate_env_vars.push(opt.api_key_env.clone());
+                }
+                if api_secret_value.as_deref().is_none_or(str::is_empty) {
+                    missing_gate_env_vars.push(opt.api_secret_env.clone());
+                }
+                (api_key_value, api_secret_value, true)
+            } else {
+                (None, None, false)
+            };
+        let production_signing_material_gate_open = missing_gate_env_vars.is_empty();
+
+        Self::from_values(ProductionMutationPreviewCredentialInput {
+            api_key_env: opt.api_key_env.clone(),
+            api_key_value,
+            api_secret_env: opt.api_secret_env.clone(),
+            api_secret_value,
+            credential_material: "production_actual_cancel",
             production_signing_material_gate_required: true,
             production_signing_material_gate_open,
             production_signing_material_env_read,
@@ -3041,6 +3093,158 @@ struct ProductionMutationActualCancelExecutorAdapterBoundaryArtifact {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionMutationActualCancelSingleShotArtifact {
+    schema_version: String,
+    run_id: String,
+    order_lineage_id: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    capability: String,
+    execution_mode: String,
+    default_fail_closed: bool,
+    actual_cancel_safety_contract_ref: ProductionMutationSourceFileRef,
+    release_manifest_ref: ProductionMutationSourceFileRef,
+    cancel_risk_gate_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    owner_approval_lifecycle_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    adapter_boundary_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    adapter_capability_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    manual_online_requested: bool,
+    actual_cancel_command_ready: bool,
+    single_shot_cancel_allowed: bool,
+    owner_approval_ready: bool,
+    risk_gate_ready: bool,
+    release_provenance_ready: bool,
+    adapter_boundary_ready: bool,
+    adapter_capability_ready: bool,
+    approval_consumed_before_send: bool,
+    approval_consumed_after_send: bool,
+    approval_state_before_attempt: String,
+    approval_state_after_attempt: String,
+    request_id: String,
+    request_method: String,
+    request_target: String,
+    request_contract: String,
+    adapter_id: String,
+    venue: String,
+    order_id_type: String,
+    known_order_id: String,
+    known_client_order_id: String,
+    cancel_order_identifier_ref: String,
+    symbol: String,
+    account_label: String,
+    recv_window_ms: u64,
+    timestamp_recorded: bool,
+    timestamp_shape: String,
+    credential_material: String,
+    production_signing_material_gate_required: bool,
+    production_signing_material_gate_open: bool,
+    production_signing_material_env_read: bool,
+    production_signing_material_missing_gate_env_vars: Vec<String>,
+    api_key_env: String,
+    api_secret_env: String,
+    api_key_value_recorded: bool,
+    api_secret_value_recorded: bool,
+    api_key_header_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    request_body_recorded: bool,
+    raw_request_body_recorded: bool,
+    raw_exchange_response_recorded: bool,
+    response_body_recorded: bool,
+    response_headers_recorded: bool,
+    response_redacted: bool,
+    venue_response_status: String,
+    venue_response_source: String,
+    venue_response_code: Option<u16>,
+    venue_response_error_code: String,
+    latency_ms: Option<u64>,
+    local_audit_reference: String,
+    readback_required: bool,
+    readback_requirement: String,
+    source_artifact_issues: Vec<String>,
+    adapter_capability_issues: Vec<String>,
+    safety_contract_issues: Vec<String>,
+    release_manifest_issues: Vec<String>,
+    missing_cli_flags: Vec<String>,
+    missing_env_vars: Vec<String>,
+    request_sent: bool,
+    cancel_attempted: bool,
+    cancel_requests_sent: u64,
+    production_order_mutations_attempted: u64,
+    network_attempted: bool,
+    network_cancel_endpoint_attempted: bool,
+    http_send_attempted: bool,
+    venue_ack_observed: bool,
+    retry_attempted: bool,
+    replace_attempted: bool,
+    amend_attempted: bool,
+    flatten_attempted: bool,
+    remediation_attempted: bool,
+    automatic_cancel_allowed: bool,
+    automatic_remediation_allowed: bool,
+    bulk_cancel_allowed: bool,
+    cancel_all_allowed: bool,
+    multi_account_cancel_allowed: bool,
+    multi_strategy_cancel_allowed: bool,
+    multi_venue_cancel_allowed: bool,
+    dashboard_order_controls_enabled: bool,
+    dashboard_cancel_controls_enabled: bool,
+    dashboard_execution_allowed: bool,
+    owner_approval_confirmed: bool,
+    risk_gate_confirmed: bool,
+    release_provenance_confirmed: bool,
+    adapter_boundary_confirmed: bool,
+    single_shot_confirmed: bool,
+    consume_approval_before_send_confirmed: bool,
+    readback_required_confirmed: bool,
+    no_bulk_cancel_confirmed: bool,
+    no_retry_confirmed: bool,
+    no_automatic_cancel_confirmed: bool,
+    no_dashboard_execution_confirmed: bool,
+    no_secret_persistence_confirmed: bool,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ProductionMutationActualCancelHttpResult {
+    request_sent: bool,
+    network_attempted: bool,
+    http_send_attempted: bool,
+    venue_ack_observed: bool,
+    latency_ms: Option<u64>,
+    status_code: Option<u16>,
+    error_code: String,
+}
+
+struct ProductionActualCancelSignedRequest {
+    method: String,
+    endpoint_path: String,
+    endpoint_url_redacted: String,
+    signature: String,
+    signed_query: String,
+    api_key_header_name: String,
+    api_key_header_value: String,
+}
+
+impl Debug for ProductionActualCancelSignedRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProductionActualCancelSignedRequest")
+            .field("method", &self.method)
+            .field("endpoint_path", &self.endpoint_path)
+            .field("endpoint_url_redacted", &self.endpoint_url_redacted)
+            .field("signature", &"<redacted>")
+            .field("signed_query", &"<redacted>")
+            .field("api_key_header_name", &self.api_key_header_name)
+            .field("api_key_header_value", &"<redacted>")
+            .finish()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct ProductionMutationCancelResponseRedactionArtifact {
     schema_version: String,
     run_id: String,
@@ -3423,6 +3627,66 @@ impl ProductionMutationGuardedSendHttpResult {
             status_code: None,
             error_code: error_code.to_string(),
         }
+    }
+}
+
+impl ProductionMutationActualCancelHttpResult {
+    fn success(latency_ms: u64, status_code: u16) -> Self {
+        Self {
+            request_sent: true,
+            network_attempted: true,
+            http_send_attempted: true,
+            venue_ack_observed: (200..300).contains(&status_code),
+            latency_ms: Some(latency_ms),
+            status_code: Some(status_code),
+            error_code: "none".to_string(),
+        }
+    }
+
+    fn failure(latency_ms: Option<u64>, status_code: Option<u16>, error_code: &str) -> Self {
+        Self {
+            request_sent: true,
+            network_attempted: true,
+            http_send_attempted: true,
+            venue_ack_observed: false,
+            latency_ms,
+            status_code,
+            error_code: error_code.to_string(),
+        }
+    }
+
+    fn pre_http_failure(error_code: &str) -> Self {
+        Self {
+            request_sent: true,
+            network_attempted: false,
+            http_send_attempted: false,
+            venue_ack_observed: false,
+            latency_ms: None,
+            status_code: None,
+            error_code: error_code.to_string(),
+        }
+    }
+}
+
+impl ProductionActualCancelSignedRequest {
+    fn ensure_memory_only_redacted(
+        &self,
+        credentials: &EnvOnlyProductionMutationPreviewCredentials,
+        raw_order_identifier: &str,
+    ) -> anyhow::Result<()> {
+        let body = format!("{self:?}");
+        credentials.ensure_no_secret_values_absent("production-actual-cancel-request", &body)?;
+        for (label, sensitive_value) in [
+            ("raw order identifier", raw_order_identifier),
+            ("signature", self.signature.as_str()),
+            ("signed query", self.signed_query.as_str()),
+            ("API key header value", self.api_key_header_value.as_str()),
+        ] {
+            if !sensitive_value.is_empty() && body.contains(sensitive_value) {
+                anyhow::bail!("production actual cancel request leaked {label}");
+            }
+        }
+        Ok(())
     }
 }
 
@@ -4595,6 +4859,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionMutationActualCancelExecutorAdapterBoundary(boundary) => {
             run_live_production_mutation_actual_cancel_executor_adapter_boundary(&boundary)
         }
+        LiveCommand::ProductionMutationActualCancelSingleShot(cancel) => {
+            run_live_production_mutation_actual_cancel_single_shot(&cancel)
+        }
         LiveCommand::ProductionMutationCancelResponseRedaction(redaction) => {
             run_live_production_mutation_cancel_response_redaction(&redaction)
         }
@@ -5201,6 +5468,50 @@ fn run_live_production_mutation_actual_cancel_executor_adapter_boundary(
         opt.output.display(),
         artifact.adapter_boundary_ready,
         artifact.actual_cancel_send_allowed_by_adapter_boundary,
+    );
+    Ok(())
+}
+
+fn run_live_production_mutation_actual_cancel_single_shot(
+    opt: &LiveProductionMutationActualCancelSingleShotOpt,
+) -> anyhow::Result<()> {
+    run_live_production_mutation_actual_cancel_single_shot_with_env(opt, |name| {
+        std::env::var(name).ok()
+    })
+}
+
+fn run_live_production_mutation_actual_cancel_single_shot_with_env<F>(
+    opt: &LiveProductionMutationActualCancelSingleShotOpt,
+    read_env: F,
+) -> anyhow::Result<()>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    let credentials =
+        EnvOnlyProductionMutationPreviewCredentials::from_actual_cancel_opt(opt, read_env);
+    let artifact = build_production_mutation_actual_cancel_single_shot_artifact(
+        opt,
+        &credentials,
+        execute_production_mutation_actual_cancel,
+    )?;
+    write_production_mutation_actual_cancel_single_shot_artifact(&opt.output, &artifact)?;
+    println!(
+        "live.production_mutation_actual_cancel_single_shot status={} run_id={} order_lineage_id={} venue={} order_id_type={} output={} manual_online_requested={} actual_cancel_command_ready={} single_shot_cancel_allowed={} request_sent={} cancel_attempted={} cancel_requests_sent={} network_attempted={} readback_required={} approval_state_after_attempt={} retry_attempted=false bulk_cancel_allowed=false dashboard_cancel_controls_enabled=false",
+        artifact.status,
+        artifact.run_id,
+        artifact.order_lineage_id,
+        artifact.venue,
+        artifact.order_id_type,
+        opt.output.display(),
+        artifact.manual_online_requested,
+        artifact.actual_cancel_command_ready,
+        artifact.single_shot_cancel_allowed,
+        artifact.request_sent,
+        artifact.cancel_attempted,
+        artifact.cancel_requests_sent,
+        artifact.network_attempted,
+        artifact.readback_required,
+        artifact.approval_state_after_attempt,
     );
     Ok(())
 }
@@ -8144,6 +8455,138 @@ fn consume_production_live_alpha_manual_approval_lifecycle(
     object.insert("lifecycle_issues".to_string(), json!(lifecycle_issues));
 
     atomic_write_json(approval_path, &approval)?;
+    Ok(())
+}
+
+fn consume_production_mutation_actual_cancel_owner_approval_lifecycle(
+    approval_path: &Path,
+    approval: &mut serde_json::Value,
+    actual_cancel_output_path: &Path,
+    actual_cancel_run_id: &str,
+    request_id: &str,
+    http_result: Option<&ProductionMutationActualCancelHttpResult>,
+) -> anyhow::Result<()> {
+    if json_string_value(approval, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_ACTUAL_CANCEL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION)
+    {
+        anyhow::bail!(
+            "actual cancel approval consume requires v0.19 actual cancel owner approval lifecycle schema"
+        );
+    }
+    if json_string_value(approval, "approval_state").as_deref() != Some("approved")
+        && !json_bool_value(approval, "approval_consumed").unwrap_or(false)
+    {
+        anyhow::bail!("actual cancel approval consume requires approval_state=approved");
+    }
+    if json_bool_value(approval, "approval_consumed").unwrap_or(false) && http_result.is_none() {
+        anyhow::bail!("actual cancel approval consume requires unused one-time approval");
+    }
+
+    let mut lifecycle_issues = json_string_array(approval, "lifecycle_issues");
+    if !lifecycle_issues
+        .iter()
+        .any(|issue| issue == "owner_approval_reused")
+    {
+        lifecycle_issues.push("owner_approval_reused".to_string());
+    }
+    let Some(object) = approval.as_object_mut() else {
+        anyhow::bail!("actual cancel owner approval lifecycle must be a JSON object");
+    };
+    object.insert("approval_state".to_string(), json!("used"));
+    object.insert(
+        "status".to_string(),
+        json!(if http_result.is_some() {
+            "approval_used_after_actual_cancel_attempt"
+        } else {
+            "approval_consumed_before_actual_cancel_send"
+        }),
+    );
+    object.insert("approval_execution_authorized".to_string(), json!(false));
+    object.insert(
+        "approval_failure_reason".to_string(),
+        json!("owner_approval_reused"),
+    );
+    object.insert("approval_lifecycle_valid".to_string(), json!(false));
+    object.insert("approval_used".to_string(), json!(true));
+    object.insert("approval_consumed".to_string(), json!(true));
+    object.insert("approval_consumed_before_send".to_string(), json!(true));
+    object.insert(
+        "approval_consumed_after_send".to_string(),
+        json!(http_result.is_some()),
+    );
+    object.insert("audit_evidence_recorded".to_string(), json!(true));
+    object.insert(
+        "audit_event".to_string(),
+        json!("actual_cancel_approval_consumed"),
+    );
+    object.insert("actual_cancel_send_allowed".to_string(), json!(false));
+    object.insert(
+        "consumed_by_actual_cancel_run_id".to_string(),
+        json!(actual_cancel_run_id),
+    );
+    object.insert(
+        "consumed_actual_cancel_request_id".to_string(),
+        json!(request_id),
+    );
+    object.insert(
+        "consumed_actual_cancel_output_path".to_string(),
+        json!(actual_cancel_output_path.display().to_string()),
+    );
+    object.insert("approval_consumed_at".to_string(), json!(now_millis()));
+    object.insert("lifecycle_issues".to_string(), json!(lifecycle_issues));
+
+    if let Some(result) = http_result {
+        object.insert("cancel_attempted".to_string(), json!(true));
+        object.insert(
+            "cancel_requests_sent".to_string(),
+            json!(u64::from(result.request_sent)),
+        );
+        object.insert(
+            "network_attempted".to_string(),
+            json!(result.network_attempted),
+        );
+        object.insert(
+            "network_cancel_endpoint_attempted".to_string(),
+            json!(result.network_attempted),
+        );
+        object.insert(
+            "venue_ack_observed".to_string(),
+            json!(result.venue_ack_observed),
+        );
+        object.insert(
+            "venue_response_status".to_string(),
+            json!(if result.venue_ack_observed {
+                "accepted"
+            } else {
+                "attempted_without_ack"
+            }),
+        );
+        object.insert("venue_response_code".to_string(), json!(result.status_code));
+        object.insert(
+            "venue_response_error_code".to_string(),
+            json!(result.error_code.clone()),
+        );
+        object.insert("readback_required".to_string(), json!(true));
+        object.insert(
+            "diagnostic".to_string(),
+            json!("owner approval was consumed by the actual cancel command and cannot be reused; post-cancel readback is required after any attempt"),
+        );
+    } else {
+        object.insert("cancel_attempted".to_string(), json!(false));
+        object.insert("cancel_requests_sent".to_string(), json!(0_u64));
+        object.insert("network_attempted".to_string(), json!(false));
+        object.insert(
+            "network_cancel_endpoint_attempted".to_string(),
+            json!(false),
+        );
+        object.insert("readback_required".to_string(), json!(false));
+        object.insert(
+            "diagnostic".to_string(),
+            json!("owner approval was consumed before the actual cancel send and cannot be reused"),
+        );
+    }
+
+    atomic_write_json(approval_path, approval)?;
     Ok(())
 }
 
@@ -11352,6 +11795,332 @@ fn build_production_mutation_actual_cancel_executor_adapter_boundary_artifact(
     })
 }
 
+fn build_production_mutation_actual_cancel_single_shot_artifact<H>(
+    opt: &LiveProductionMutationActualCancelSingleShotOpt,
+    credentials: &EnvOnlyProductionMutationPreviewCredentials,
+    mut cancel_executor: H,
+) -> anyhow::Result<ProductionMutationActualCancelSingleShotArtifact>
+where
+    H: FnMut(&ProductionActualCancelSignedRequest) -> ProductionMutationActualCancelHttpResult,
+{
+    validate_non_empty("run_id", &opt.run_id)?;
+    validate_non_empty("expected_order_lineage_id", &opt.expected_order_lineage_id)?;
+    validate_non_empty("expected_symbol", &opt.expected_symbol)?;
+    validate_non_empty("expected_account_label", &opt.expected_account_label)?;
+    validate_non_empty("venue", &opt.venue)?;
+    validate_non_empty("order_id_type", &opt.order_id_type)?;
+    validate_non_empty("expected_release_tag", &opt.expected_release_tag)?;
+    if !matches!(
+        opt.order_id_type.as_str(),
+        "exchange_order_id" | "client_order_id"
+    ) {
+        anyhow::bail!("order_id_type must be exchange_order_id or client_order_id");
+    }
+    if opt.timestamp_ms == 0 {
+        anyhow::bail!("actual cancel single-shot timestamp_ms must be positive");
+    }
+    if opt.recv_window_ms == 0 {
+        anyhow::bail!("actual cancel single-shot recvWindow must be positive");
+    }
+
+    let safety_contract_raw =
+        fs::read_to_string(&opt.actual_cancel_safety_contract).with_context(|| {
+            format!(
+                "failed to read actual cancel safety contract '{}'",
+                opt.actual_cancel_safety_contract.display()
+            )
+        })?;
+    let release_manifest = load_json_value(&opt.release_manifest, "release manifest")?;
+    let cancel_risk_gate = load_json_value(&opt.cancel_risk_gate, "cancel risk gate")?;
+    let mut owner_approval_lifecycle =
+        load_json_value(&opt.owner_approval_lifecycle, "owner approval lifecycle")?;
+    let adapter_boundary = load_json_value(&opt.adapter_boundary, "adapter boundary")?;
+    let adapter_capability = load_json_value(&opt.adapter_capability, "adapter capability")?;
+
+    let missing_cli_flags = missing_production_mutation_actual_cancel_single_shot_cli_flags(opt);
+    let missing_env_vars = credentials
+        .production_signing_material_missing_gate_env_vars
+        .clone();
+    let safety_contract_issues =
+        actual_cancel_owner_approval_safety_contract_issues(&safety_contract_raw);
+    let release_manifest_issues =
+        actual_cancel_single_shot_release_manifest_issues(&release_manifest, opt);
+    let mut source_artifact_issues = production_mutation_actual_cancel_single_shot_source_issues(
+        &cancel_risk_gate,
+        &owner_approval_lifecycle,
+        &adapter_boundary,
+        opt,
+    );
+    let adapter_capability_issues =
+        production_mutation_actual_cancel_single_shot_adapter_capability_issues(
+            &adapter_capability,
+            opt,
+        );
+    let (cancel_order_identifier_ref, raw_order_identifier_issue, raw_order_identifier) =
+        actual_cancel_single_shot_order_identifier(opt, &owner_approval_lifecycle);
+    if let Some(issue) = raw_order_identifier_issue {
+        source_artifact_issues.push(issue);
+    }
+
+    let actual_cancel_command_ready = missing_cli_flags.is_empty()
+        && safety_contract_issues.is_empty()
+        && release_manifest_issues.is_empty()
+        && source_artifact_issues.is_empty()
+        && adapter_capability_issues.is_empty()
+        && (!opt.manual_online || missing_env_vars.is_empty());
+    let single_shot_cancel_allowed = actual_cancel_command_ready && opt.manual_online;
+    let request_id = format!("actual-cancel:{}:{}", opt.run_id, opt.timestamp_ms);
+    let approval_state_before_attempt =
+        json_string_value(&owner_approval_lifecycle, "approval_state")
+            .unwrap_or_else(|| "unknown".to_string());
+    let owner_approval_authorized_before_attempt =
+        json_bool_value(&owner_approval_lifecycle, "approval_execution_authorized")
+            .unwrap_or(false);
+    let http_result = if single_shot_cancel_allowed {
+        let request =
+            build_production_actual_cancel_signed_request(opt, &raw_order_identifier, credentials)?;
+        request.ensure_memory_only_redacted(credentials, &raw_order_identifier)?;
+        consume_production_mutation_actual_cancel_owner_approval_lifecycle(
+            &opt.owner_approval_lifecycle,
+            &mut owner_approval_lifecycle,
+            &opt.output,
+            &opt.run_id,
+            &request_id,
+            None,
+        )?;
+        let result = cancel_executor(&request);
+        consume_production_mutation_actual_cancel_owner_approval_lifecycle(
+            &opt.owner_approval_lifecycle,
+            &mut owner_approval_lifecycle,
+            &opt.output,
+            &opt.run_id,
+            &request_id,
+            Some(&result),
+        )?;
+        Some(result)
+    } else {
+        None
+    };
+    let request_sent = http_result
+        .as_ref()
+        .is_some_and(|result| result.request_sent);
+    let cancel_attempted = http_result.is_some();
+    let network_attempted = http_result
+        .as_ref()
+        .is_some_and(|result| result.network_attempted);
+    let http_send_attempted = http_result
+        .as_ref()
+        .is_some_and(|result| result.http_send_attempted);
+    let venue_ack_observed = http_result
+        .as_ref()
+        .is_some_and(|result| result.venue_ack_observed);
+    let status = if request_sent {
+        "actual_cancel_attempt_recorded"
+    } else if !missing_cli_flags.is_empty() {
+        "blocked_missing_gate"
+    } else if opt.manual_online && !missing_env_vars.is_empty() {
+        "blocked_missing_manual_online_gate"
+    } else if !safety_contract_issues.is_empty() {
+        "blocked_safety_contract"
+    } else if !release_manifest_issues.is_empty() {
+        "blocked_release_provenance"
+    } else if !source_artifact_issues.is_empty() {
+        "blocked_source_artifact"
+    } else if !adapter_capability_issues.is_empty() {
+        "blocked_adapter_capability"
+    } else {
+        "ready_actual_cancel_command_offline_no_send"
+    };
+    let approval_state_after_attempt = if cancel_attempted {
+        "used".to_string()
+    } else {
+        approval_state_before_attempt.clone()
+    };
+    let readback_required = cancel_attempted;
+    let local_audit_reference = format!(
+        "actual_cancel_audit:{}:{}:{}",
+        opt.run_id, request_id, status
+    );
+    let order_lineage_id = json_string_value(&owner_approval_lifecycle, "order_lineage_id")
+        .unwrap_or_else(|| "missing".to_string());
+    let known_order_id = json_scalar_string_value(&owner_approval_lifecycle, "known_order_id")
+        .unwrap_or_else(|| "missing".to_string());
+    let known_client_order_id =
+        json_scalar_string_value(&owner_approval_lifecycle, "known_client_order_id")
+            .unwrap_or_else(|| "missing".to_string());
+
+    Ok(ProductionMutationActualCancelSingleShotArtifact {
+        schema_version: PRODUCTION_MUTATION_ACTUAL_CANCEL_SINGLE_SHOT_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        order_lineage_id,
+        artifact_type: "actual_cancel_single_shot".to_string(),
+        status: status.to_string(),
+        created_at: now_millis(),
+        mode: "owner_approved_single_shot_actual_cancel".to_string(),
+        capability: "Owner-Approved Single-Shot Actual Cancel".to_string(),
+        execution_mode: "owner_approved_single_shot_manual_only".to_string(),
+        default_fail_closed: true,
+        actual_cancel_safety_contract_ref: production_mutation_source_file_ref(
+            &opt.actual_cancel_safety_contract,
+        ),
+        release_manifest_ref: production_mutation_source_file_ref(&opt.release_manifest),
+        cancel_risk_gate_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.cancel_risk_gate,
+            &cancel_risk_gate,
+            "cancel_risk_gate_ready",
+        ),
+        owner_approval_lifecycle_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.owner_approval_lifecycle,
+            &owner_approval_lifecycle,
+            if cancel_attempted {
+                "approval_consumed"
+            } else {
+                "approval_execution_authorized"
+            },
+        ),
+        adapter_boundary_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.adapter_boundary,
+            &adapter_boundary,
+            "adapter_boundary_ready",
+        ),
+        adapter_capability_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.adapter_capability,
+            &adapter_capability,
+            "actual_cancel_supported",
+        ),
+        manual_online_requested: opt.manual_online,
+        actual_cancel_command_ready,
+        single_shot_cancel_allowed,
+        owner_approval_ready: source_artifact_issues.is_empty()
+            && owner_approval_authorized_before_attempt,
+        risk_gate_ready: json_bool_value(&cancel_risk_gate, "cancel_risk_gate_ready")
+            .unwrap_or(false),
+        release_provenance_ready: release_manifest_issues.is_empty(),
+        adapter_boundary_ready: json_bool_value(&adapter_boundary, "adapter_boundary_ready")
+            .unwrap_or(false),
+        adapter_capability_ready: adapter_capability_issues.is_empty(),
+        approval_consumed_before_send: cancel_attempted,
+        approval_consumed_after_send: cancel_attempted,
+        approval_state_before_attempt,
+        approval_state_after_attempt,
+        request_id,
+        request_method: TESTNET_ORDER_METHOD_DELETE.to_string(),
+        request_target: TESTNET_ORDER_ENDPOINT_ORDER.to_string(),
+        request_contract: "single_order_cancel_request_v1".to_string(),
+        adapter_id: json_string_value(&adapter_boundary, "adapter_id")
+            .unwrap_or_else(|| "unknown".to_string()),
+        venue: opt.venue.clone(),
+        order_id_type: opt.order_id_type.clone(),
+        known_order_id,
+        known_client_order_id,
+        cancel_order_identifier_ref,
+        symbol: opt.expected_symbol.clone(),
+        account_label: opt.expected_account_label.clone(),
+        recv_window_ms: opt.recv_window_ms,
+        timestamp_recorded: false,
+        timestamp_shape: "epoch_millis_present_redacted".to_string(),
+        credential_material: credentials.credential_material.clone(),
+        production_signing_material_gate_required: credentials
+            .production_signing_material_gate_required,
+        production_signing_material_gate_open: credentials.production_signing_material_gate_open,
+        production_signing_material_env_read: credentials.production_signing_material_env_read,
+        production_signing_material_missing_gate_env_vars: credentials
+            .production_signing_material_missing_gate_env_vars
+            .clone(),
+        api_key_env: credentials.api_key_env.clone(),
+        api_secret_env: credentials.api_secret_env.clone(),
+        api_key_value_recorded: false,
+        api_secret_value_recorded: false,
+        api_key_header_value_recorded: false,
+        signature_recorded: false,
+        signed_query_recorded: false,
+        signed_url_recorded: false,
+        request_body_recorded: false,
+        raw_request_body_recorded: false,
+        raw_exchange_response_recorded: false,
+        response_body_recorded: false,
+        response_headers_recorded: false,
+        response_redacted: true,
+        venue_response_status: if venue_ack_observed {
+            "accepted".to_string()
+        } else if cancel_attempted {
+            "attempted_without_ack".to_string()
+        } else {
+            "not_attempted".to_string()
+        },
+        venue_response_source: if cancel_attempted {
+            "actual_cancel_http_result_redacted".to_string()
+        } else {
+            "not_attempted_offline".to_string()
+        },
+        venue_response_code: http_result.as_ref().and_then(|result| result.status_code),
+        venue_response_error_code: http_result.as_ref().map_or_else(
+            || "not_attempted_offline".to_string(),
+            |result| result.error_code.clone(),
+        ),
+        latency_ms: http_result.as_ref().and_then(|result| result.latency_ms),
+        local_audit_reference,
+        readback_required,
+        readback_requirement: if readback_required {
+            "post_cancel_readback_required_before_any_retry_or_followup".to_string()
+        } else {
+            "not_required_without_send_attempt".to_string()
+        },
+        source_artifact_issues,
+        adapter_capability_issues,
+        safety_contract_issues,
+        release_manifest_issues,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        missing_env_vars,
+        request_sent,
+        cancel_attempted,
+        cancel_requests_sent: u64::from(request_sent),
+        production_order_mutations_attempted: u64::from(cancel_attempted),
+        network_attempted,
+        network_cancel_endpoint_attempted: network_attempted,
+        http_send_attempted,
+        venue_ack_observed,
+        retry_attempted: false,
+        replace_attempted: false,
+        amend_attempted: false,
+        flatten_attempted: false,
+        remediation_attempted: false,
+        automatic_cancel_allowed: false,
+        automatic_remediation_allowed: false,
+        bulk_cancel_allowed: false,
+        cancel_all_allowed: false,
+        multi_account_cancel_allowed: false,
+        multi_strategy_cancel_allowed: false,
+        multi_venue_cancel_allowed: false,
+        dashboard_order_controls_enabled: false,
+        dashboard_cancel_controls_enabled: false,
+        dashboard_execution_allowed: false,
+        owner_approval_confirmed: opt.confirm_owner_approval,
+        risk_gate_confirmed: opt.confirm_risk_gate,
+        release_provenance_confirmed: opt.confirm_release_provenance,
+        adapter_boundary_confirmed: opt.confirm_adapter_boundary,
+        single_shot_confirmed: opt.confirm_single_shot,
+        consume_approval_before_send_confirmed: opt.confirm_consume_approval_before_send,
+        readback_required_confirmed: opt.confirm_readback_required,
+        no_bulk_cancel_confirmed: opt.confirm_no_bulk_cancel,
+        no_retry_confirmed: opt.confirm_no_retry,
+        no_automatic_cancel_confirmed: opt.confirm_no_automatic_cancel,
+        no_dashboard_execution_confirmed: opt.confirm_no_dashboard_execution,
+        no_secret_persistence_confirmed: opt.confirm_no_secret_persistence,
+        diagnostic: if venue_ack_observed {
+            "owner-approved single-shot actual cancel attempted exactly one DELETE request and observed venue acknowledgement; raw response, signed URL, signed query, signature, order id, and secrets were not persisted"
+        } else if cancel_attempted {
+            "owner-approved single-shot actual cancel attempted exactly one DELETE request without venue acknowledgement; approval is treated as used and readback is required before any follow-up"
+        } else {
+            "actual cancel command stayed fail-closed or offline; no cancel request, retry, bulk cancel, automatic cancel, or Dashboard execution was attempted"
+        }
+        .to_string(),
+    })
+}
+
 fn build_production_mutation_cancel_response_redaction_artifact(
     opt: &LiveProductionMutationCancelResponseRedactionOpt,
 ) -> anyhow::Result<ProductionMutationCancelResponseRedactionArtifact> {
@@ -14521,6 +15290,225 @@ fn production_mutation_actual_cancel_executor_adapter_boundary_capability_issues
         }
     }
     issues
+}
+
+fn actual_cancel_single_shot_release_manifest_issues(
+    release_manifest: &serde_json::Value,
+    opt: &LiveProductionMutationActualCancelSingleShotOpt,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(release_manifest, "schema_version").as_deref()
+        != Some("ntpro.v181_release_manifest.v1")
+    {
+        issues.push("release_manifest_schema_mismatch".to_string());
+    }
+    if json_string_value(release_manifest, "product_version").as_deref() != Some("v0.18.1") {
+        issues.push("release_manifest_product_version_mismatch".to_string());
+    }
+    if json_pointer_string_value(release_manifest, "/patch_release/planned_tag").as_deref()
+        != Some(opt.expected_release_tag.as_str())
+    {
+        issues.push("release_manifest_planned_tag_mismatch".to_string());
+    }
+    if json_pointer_string_value(release_manifest, "/capability/actual_cancel_scope").as_deref()
+        != Some("not_included")
+    {
+        issues.push("release_manifest_actual_cancel_scope_mismatch".to_string());
+    }
+    issues
+}
+
+fn production_mutation_actual_cancel_single_shot_source_issues(
+    cancel_risk_gate: &serde_json::Value,
+    owner_approval_lifecycle: &serde_json::Value,
+    adapter_boundary: &serde_json::Value,
+    opt: &LiveProductionMutationActualCancelSingleShotOpt,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(cancel_risk_gate, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_CANCEL_RISK_GATE_SCHEMA_VERSION)
+    {
+        issues.push("cancel_risk_gate_schema_mismatch".to_string());
+    }
+    if !json_bool_value(cancel_risk_gate, "cancel_risk_gate_ready").unwrap_or(false) {
+        issues.push("risk_gate_not_passed".to_string());
+    }
+    if !json_bool_value(cancel_risk_gate, "new_orders_blocked").unwrap_or(false) {
+        issues.push("risk_gate_new_orders_not_blocked".to_string());
+    }
+    if json_string_value(cancel_risk_gate, "order_lineage_id").as_deref()
+        != Some(opt.expected_order_lineage_id.as_str())
+    {
+        issues.push("order_lineage_id_mismatch".to_string());
+    }
+    if json_scalar_string_value(cancel_risk_gate, "symbol").as_deref()
+        != Some(opt.expected_symbol.as_str())
+    {
+        issues.push("symbol_mismatch".to_string());
+    }
+    if json_scalar_string_value(cancel_risk_gate, "account_label").as_deref()
+        != Some(opt.expected_account_label.as_str())
+    {
+        issues.push("account_label_mismatch".to_string());
+    }
+
+    if json_string_value(owner_approval_lifecycle, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_ACTUAL_CANCEL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION)
+    {
+        issues.push("owner_approval_lifecycle_schema_mismatch".to_string());
+    }
+    if !json_bool_value(owner_approval_lifecycle, "approval_execution_authorized").unwrap_or(false)
+    {
+        issues.push("missing_owner_approval".to_string());
+    }
+    if json_bool_value(owner_approval_lifecycle, "approval_consumed").unwrap_or(false)
+        || json_bool_value(owner_approval_lifecycle, "approval_used").unwrap_or(false)
+    {
+        issues.push("owner_approval_reused".to_string());
+    }
+    if json_string_value(owner_approval_lifecycle, "order_lineage_id").as_deref()
+        != Some(opt.expected_order_lineage_id.as_str())
+    {
+        issues.push("owner_approval_scope_mismatch".to_string());
+    }
+    if json_string_value(owner_approval_lifecycle, "venue").as_deref() != Some(opt.venue.as_str()) {
+        issues.push("venue_mismatch".to_string());
+    }
+
+    if json_string_value(adapter_boundary, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_ACTUAL_CANCEL_EXECUTOR_ADAPTER_BOUNDARY_SCHEMA_VERSION)
+    {
+        issues.push("adapter_boundary_schema_mismatch".to_string());
+    }
+    if !json_bool_value(adapter_boundary, "adapter_boundary_ready").unwrap_or(false) {
+        issues.push("adapter_capability_missing".to_string());
+    }
+    if !json_bool_value(
+        adapter_boundary,
+        "actual_cancel_send_allowed_by_adapter_boundary",
+    )
+    .unwrap_or(false)
+    {
+        issues.push("adapter_boundary_not_authorized".to_string());
+    }
+    if json_string_value(adapter_boundary, "order_lineage_id").as_deref()
+        != Some(opt.expected_order_lineage_id.as_str())
+    {
+        issues.push("adapter_boundary_order_lineage_mismatch".to_string());
+    }
+    if json_string_value(adapter_boundary, "venue").as_deref() != Some(opt.venue.as_str()) {
+        issues.push("adapter_boundary_venue_mismatch".to_string());
+    }
+    if json_string_value(adapter_boundary, "order_id_type").as_deref()
+        != Some(opt.order_id_type.as_str())
+    {
+        issues.push("adapter_boundary_order_id_type_mismatch".to_string());
+    }
+    for (field, issue) in [
+        ("bulk_cancel_allowed", "bulk_cancel_requested"),
+        ("cancel_all_allowed", "bulk_cancel_requested"),
+        ("retry_attempted", "retry_or_repair_requested"),
+        ("automatic_cancel_allowed", "automatic_cancel_requested"),
+        (
+            "dashboard_execution_allowed",
+            "dashboard_operation_requested",
+        ),
+        (
+            "dashboard_cancel_controls_enabled",
+            "dashboard_operation_requested",
+        ),
+    ] {
+        if json_bool_value(adapter_boundary, field).unwrap_or(false) {
+            issues.push(issue.to_string());
+        }
+    }
+    issues.sort();
+    issues.dedup();
+    issues
+}
+
+fn production_mutation_actual_cancel_single_shot_adapter_capability_issues(
+    adapter_capability: &serde_json::Value,
+    opt: &LiveProductionMutationActualCancelSingleShotOpt,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(adapter_capability, "schema_version").as_deref()
+        != Some("ntpro.v190_actual_cancel_adapter_capability.v1")
+    {
+        issues.push("adapter_capability_schema_mismatch".to_string());
+    }
+    if json_string_value(adapter_capability, "artifact_type").as_deref()
+        != Some("actual_cancel_adapter_capability")
+    {
+        issues.push("adapter_capability_artifact_type_mismatch".to_string());
+    }
+    if !json_bool_value(adapter_capability, "actual_cancel_supported").unwrap_or(false) {
+        issues.push("adapter_capability_missing".to_string());
+    }
+    let supported_venues = json_string_array(adapter_capability, "supported_venues");
+    if !supported_venues.iter().any(|venue| venue == &opt.venue) {
+        issues.push("venue_mismatch".to_string());
+    }
+    let supported_order_id_types =
+        json_string_array(adapter_capability, "supported_order_id_types");
+    if !supported_order_id_types
+        .iter()
+        .any(|order_id_type| order_id_type == &opt.order_id_type)
+    {
+        issues.push("order_identity_mismatch".to_string());
+    }
+    for (field, issue) in [
+        ("bulk_cancel_supported", "bulk_cancel_requested"),
+        ("cancel_all_supported", "bulk_cancel_requested"),
+        ("retry_supported", "retry_or_repair_requested"),
+        ("automatic_cancel_supported", "automatic_cancel_requested"),
+        ("multi_venue_supported", "scope_expansion_requested"),
+    ] {
+        if json_bool_value(adapter_capability, field).unwrap_or(true) {
+            issues.push(issue.to_string());
+        }
+    }
+    issues.sort();
+    issues.dedup();
+    issues
+}
+
+fn actual_cancel_single_shot_order_identifier(
+    opt: &LiveProductionMutationActualCancelSingleShotOpt,
+    owner_approval_lifecycle: &serde_json::Value,
+) -> (String, Option<String>, String) {
+    let (raw, source, kind, missing_issue) = if opt.order_id_type == "exchange_order_id" {
+        (
+            opt.cancel_order_id.as_deref(),
+            json_scalar_string_value(owner_approval_lifecycle, "known_order_id")
+                .unwrap_or_else(|| "missing".to_string()),
+            "order_id",
+            "cancel_order_id_missing",
+        )
+    } else {
+        (
+            opt.cancel_orig_client_order_id.as_deref(),
+            json_scalar_string_value(owner_approval_lifecycle, "known_client_order_id")
+                .unwrap_or_else(|| "missing".to_string()),
+            "client_order_id",
+            "cancel_orig_client_order_id_missing",
+        )
+    };
+    let raw = raw.map(str::trim).unwrap_or_default();
+    if raw.is_empty() {
+        return (
+            "missing".to_string(),
+            Some(missing_issue.to_string()),
+            String::new(),
+        );
+    }
+    let redacted = redact_cancel_preview_identifier(kind, raw);
+    let issue = if source == raw || source == redacted {
+        None
+    } else {
+        Some("order_identity_mismatch".to_string())
+    };
+    (redacted, issue, raw.to_string())
 }
 
 fn production_mutation_cancel_response_redaction_source_issues(
@@ -18160,6 +19148,118 @@ fn execute_production_mutation_guarded_send_on_thread(
     }
 }
 
+fn build_production_actual_cancel_signed_request(
+    opt: &LiveProductionMutationActualCancelSingleShotOpt,
+    raw_order_identifier: &str,
+    credentials: &EnvOnlyProductionMutationPreviewCredentials,
+) -> anyhow::Result<ProductionActualCancelSignedRequest> {
+    validate_non_empty("raw_order_identifier", raw_order_identifier)?;
+    let signing_credential = credentials.signing_credential()?;
+    let mut pairs = vec![
+        ("symbol".to_string(), opt.expected_symbol.clone()),
+        ("recvWindow".to_string(), opt.recv_window_ms.to_string()),
+        ("timestamp".to_string(), opt.timestamp_ms.to_string()),
+    ];
+    if opt.order_id_type == "exchange_order_id" {
+        pairs.push(("orderId".to_string(), raw_order_identifier.to_string()));
+    } else {
+        pairs.push((
+            "origClientOrderId".to_string(),
+            raw_order_identifier.to_string(),
+        ));
+    }
+    let query_without_signature = join_query_pair_vec(&pairs);
+    let signature =
+        urlencoding::encode(&signing_credential.sign(&query_without_signature)).into_owned();
+    let signed_query = format!("{query_without_signature}&signature={signature}");
+    let request = ProductionActualCancelSignedRequest {
+        method: TESTNET_ORDER_METHOD_DELETE.to_string(),
+        endpoint_path: TESTNET_ORDER_ENDPOINT_ORDER.to_string(),
+        endpoint_url_redacted: format!(
+            "{BINANCE_PRODUCTION_HTTP_BASE_URL}{TESTNET_ORDER_ENDPOINT_ORDER}"
+        ),
+        signature,
+        signed_query,
+        api_key_header_name: BINANCE_API_KEY_HEADER.to_string(),
+        api_key_header_value: signing_credential.api_key().to_string(),
+    };
+    request.ensure_memory_only_redacted(credentials, raw_order_identifier)?;
+    Ok(request)
+}
+
+fn execute_production_mutation_actual_cancel(
+    request: &ProductionActualCancelSignedRequest,
+) -> ProductionMutationActualCancelHttpResult {
+    std::thread::spawn({
+        let endpoint_url = request.endpoint_url_redacted.clone();
+        let signed_query = request.signed_query.clone();
+        let api_key_header_name = request.api_key_header_name.clone();
+        let api_key_header_value = request.api_key_header_value.clone();
+        move || {
+            execute_production_mutation_actual_cancel_on_thread(
+                &endpoint_url,
+                &signed_query,
+                &api_key_header_name,
+                &api_key_header_value,
+            )
+        }
+    })
+    .join()
+    .unwrap_or_else(|_| {
+        ProductionMutationActualCancelHttpResult::pre_http_failure("http_cancel_thread_panicked")
+    })
+}
+
+fn execute_production_mutation_actual_cancel_on_thread(
+    endpoint_url: &str,
+    signed_query: &str,
+    api_key_header_name: &str,
+    api_key_header_value: &str,
+) -> ProductionMutationActualCancelHttpResult {
+    let started = Instant::now();
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(PRODUCTION_ORDER_STATE_PROBE_TIMEOUT)
+        .user_agent("NTPRO-v190-production-mutation-actual-cancel")
+        .build()
+    {
+        Ok(client) => client,
+        Err(_) => {
+            return ProductionMutationActualCancelHttpResult::pre_http_failure(
+                "http_client_build_failed",
+            );
+        }
+    };
+
+    let signed_url = format!("{endpoint_url}?{signed_query}");
+    match client
+        .delete(signed_url)
+        .header(api_key_header_name, api_key_header_value)
+        .send()
+    {
+        Ok(response) => {
+            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            let status = response.status().as_u16();
+            if response.status().is_success() {
+                ProductionMutationActualCancelHttpResult::success(latency_ms, status)
+            } else {
+                ProductionMutationActualCancelHttpResult::failure(
+                    Some(latency_ms),
+                    Some(status),
+                    "http_status_not_success",
+                )
+            }
+        }
+        Err(error) => {
+            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            ProductionMutationActualCancelHttpResult::failure(
+                Some(latency_ms),
+                error.status().map(|status| status.as_u16()),
+                classify_production_public_read_error(&error),
+            )
+        }
+    }
+}
+
 fn normalize_production_live_alpha_order_endpoint_path(
     endpoint_path: &str,
 ) -> anyhow::Result<String> {
@@ -18459,6 +19559,16 @@ fn write_production_mutation_actual_cancel_owner_approval_lifecycle_artifact(
 fn write_production_mutation_actual_cancel_executor_adapter_boundary_artifact(
     path: &Path,
     value: &ProductionMutationActualCancelExecutorAdapterBoundaryArtifact,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
+fn write_production_mutation_actual_cancel_single_shot_artifact(
+    path: &Path,
+    value: &ProductionMutationActualCancelSingleShotArtifact,
 ) -> anyhow::Result<()> {
     let raw = serde_json::to_string_pretty(value)?;
     let body = format!("{raw}\n");
@@ -19571,6 +20681,52 @@ fn missing_production_mutation_actual_cancel_executor_adapter_boundary_cli_flags
     }
     if !opt.confirm_no_network {
         missing.push("--confirm-no-network");
+    }
+    if !opt.confirm_no_secret_persistence {
+        missing.push("--confirm-no-secret-persistence");
+    }
+    missing
+}
+
+fn missing_production_mutation_actual_cancel_single_shot_cli_flags(
+    opt: &LiveProductionMutationActualCancelSingleShotOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_mutation_actual_cancel_single_shot {
+        missing.push("--allow-production-mutation-actual-cancel-single-shot");
+    }
+    if !opt.confirm_owner_approval {
+        missing.push("--confirm-owner-approval");
+    }
+    if !opt.confirm_risk_gate {
+        missing.push("--confirm-risk-gate");
+    }
+    if !opt.confirm_release_provenance {
+        missing.push("--confirm-release-provenance");
+    }
+    if !opt.confirm_adapter_boundary {
+        missing.push("--confirm-adapter-boundary");
+    }
+    if !opt.confirm_single_shot {
+        missing.push("--confirm-single-shot");
+    }
+    if !opt.confirm_consume_approval_before_send {
+        missing.push("--confirm-consume-approval-before-send");
+    }
+    if !opt.confirm_readback_required {
+        missing.push("--confirm-readback-required");
+    }
+    if !opt.confirm_no_bulk_cancel {
+        missing.push("--confirm-no-bulk-cancel");
+    }
+    if !opt.confirm_no_retry {
+        missing.push("--confirm-no-retry");
+    }
+    if !opt.confirm_no_automatic_cancel {
+        missing.push("--confirm-no-automatic-cancel");
+    }
+    if !opt.confirm_no_dashboard_execution {
+        missing.push("--confirm-no-dashboard-execution");
     }
     if !opt.confirm_no_secret_persistence {
         missing.push("--confirm-no-secret-persistence");
@@ -21554,6 +22710,132 @@ dashboard_operation_requested
             confirm_no_dashboard_execution: all_cli_gates,
             confirm_no_network: all_cli_gates,
             confirm_no_secret_persistence: all_cli_gates,
+        }
+    }
+
+    fn write_ready_v190_actual_cancel_adapter_boundary_artifact(
+        output_dir: &Path,
+        owner_approval_lifecycle: PathBuf,
+        adapter_capability: PathBuf,
+    ) -> PathBuf {
+        let output = output_dir.join("actual-cancel-executor-adapter-boundary.json");
+        run_live_production_mutation_actual_cancel_executor_adapter_boundary(
+            &production_mutation_actual_cancel_executor_adapter_boundary_opt(
+                owner_approval_lifecycle,
+                adapter_capability,
+                output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+        output
+    }
+
+    #[derive(Clone)]
+    struct V190ActualCancelSingleShotSourceChain {
+        actual_cancel_safety_contract: PathBuf,
+        release_manifest: PathBuf,
+        cancel_risk_gate: PathBuf,
+        owner_approval_lifecycle: PathBuf,
+        adapter_boundary: PathBuf,
+        adapter_capability: PathBuf,
+    }
+
+    fn production_mutation_actual_cancel_single_shot_opt(
+        sources: &V190ActualCancelSingleShotSourceChain,
+        output: PathBuf,
+        manual_online: bool,
+        all_cli_gates: bool,
+    ) -> LiveProductionMutationActualCancelSingleShotOpt {
+        LiveProductionMutationActualCancelSingleShotOpt {
+            run_id: "v190-actual-cancel-single-shot".to_string(),
+            actual_cancel_safety_contract: sources.actual_cancel_safety_contract.clone(),
+            release_manifest: sources.release_manifest.clone(),
+            cancel_risk_gate: sources.cancel_risk_gate.clone(),
+            owner_approval_lifecycle: sources.owner_approval_lifecycle.clone(),
+            adapter_boundary: sources.adapter_boundary.clone(),
+            adapter_capability: sources.adapter_capability.clone(),
+            expected_order_lineage_id: "lineage-v160-single-shot".to_string(),
+            expected_symbol: "BTCUSDT".to_string(),
+            expected_account_label: "prod-account-redacted".to_string(),
+            venue: "binance_spot".to_string(),
+            order_id_type: "exchange_order_id".to_string(),
+            expected_release_tag: "ntpro-rust-only-v0.18.1".to_string(),
+            cancel_order_id: Some("123456789".to_string()),
+            cancel_orig_client_order_id: None,
+            api_key_env: "NTPRO_V190004_API_KEY".to_string(),
+            api_secret_env: "NTPRO_V190004_API_SECRET".to_string(),
+            timestamp_ms: 1_718_400_000_000,
+            recv_window_ms: 5_000,
+            output,
+            manual_online,
+            allow_production_mutation_actual_cancel_single_shot: all_cli_gates,
+            confirm_owner_approval: all_cli_gates,
+            confirm_risk_gate: all_cli_gates,
+            confirm_release_provenance: all_cli_gates,
+            confirm_adapter_boundary: all_cli_gates,
+            confirm_single_shot: all_cli_gates,
+            confirm_consume_approval_before_send: all_cli_gates,
+            confirm_readback_required: all_cli_gates,
+            confirm_no_bulk_cancel: all_cli_gates,
+            confirm_no_retry: all_cli_gates,
+            confirm_no_automatic_cancel: all_cli_gates,
+            confirm_no_dashboard_execution: all_cli_gates,
+            confirm_no_secret_persistence: all_cli_gates,
+        }
+    }
+
+    fn write_ready_v190_actual_cancel_single_shot_source_chain(
+        output_dir: &Path,
+    ) -> V190ActualCancelSingleShotSourceChain {
+        let (safety_contract, release_manifest) =
+            write_v190_actual_cancel_owner_approval_source_files(output_dir);
+        let risk_gate = write_v180_manual_owner_approval_lifecycle_source_chain(
+            output_dir,
+            &V170ExchangeReadbackMapperFixture {
+                source_status: "ready_exchange_readback_mapped",
+                exchange_readback_mapped: true,
+                request_sent: true,
+                exchange_order_status: "NEW",
+                exchange_order_state: "open",
+                order_found: true,
+                open_order_observed: true,
+                terminal_state_observed: false,
+            },
+        );
+        let owner_approval_lifecycle =
+            output_dir.join("actual-cancel-owner-approval-lifecycle.json");
+        run_live_production_mutation_actual_cancel_owner_approval_lifecycle(
+            &production_mutation_actual_cancel_owner_approval_lifecycle_opt(
+                safety_contract.clone(),
+                release_manifest.clone(),
+                risk_gate.clone(),
+                owner_approval_lifecycle.clone(),
+                "approved",
+                true,
+            ),
+        )
+        .unwrap();
+        let adapter_capability = write_v190_actual_cancel_adapter_capability(
+            output_dir,
+            "adapter-capability-ready.json",
+            true,
+            &["binance_spot"],
+            &["exchange_order_id"],
+        );
+        let adapter_boundary = write_ready_v190_actual_cancel_adapter_boundary_artifact(
+            output_dir,
+            owner_approval_lifecycle.clone(),
+            adapter_capability.clone(),
+        );
+
+        V190ActualCancelSingleShotSourceChain {
+            actual_cancel_safety_contract: safety_contract,
+            release_manifest,
+            cancel_risk_gate: risk_gate,
+            owner_approval_lifecycle,
+            adapter_boundary,
+            adapter_capability,
         }
     }
 
@@ -30981,6 +32263,530 @@ dashboard_operation_requested
             false
         );
         assert_eq!(blocked_owner["network_attempted"], false);
+    }
+
+    #[test]
+    fn production_mutation_actual_cancel_single_shot_records_offline_ready_without_network() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v190-004-actual-cancel-single-shot-offline-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let sources = write_ready_v190_actual_cancel_single_shot_source_chain(&output_dir);
+        let output = output_dir.join("actual-cancel-single-shot-offline.json");
+
+        run_live_production_mutation_actual_cancel_single_shot_with_env(
+            &production_mutation_actual_cancel_single_shot_opt(
+                &sources,
+                output.clone(),
+                false,
+                true,
+            ),
+            |_| None,
+        )
+        .unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(!body.contains("123456789"));
+        assert!(!body.contains("owner-approved-v160-single-shot"));
+        assert!(!body.contains("X-MBX-APIKEY"));
+        assert!(!body.contains("signature="));
+        let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(
+            artifact["schema_version"],
+            PRODUCTION_MUTATION_ACTUAL_CANCEL_SINGLE_SHOT_SCHEMA_VERSION
+        );
+        assert_eq!(artifact["artifact_type"], "actual_cancel_single_shot");
+        assert_eq!(
+            artifact["status"],
+            "ready_actual_cancel_command_offline_no_send"
+        );
+        assert_eq!(
+            artifact["capability"],
+            "Owner-Approved Single-Shot Actual Cancel"
+        );
+        assert_eq!(
+            artifact["execution_mode"],
+            "owner_approved_single_shot_manual_only"
+        );
+        assert_eq!(artifact["manual_online_requested"], false);
+        assert_eq!(artifact["actual_cancel_command_ready"], true);
+        assert_eq!(artifact["single_shot_cancel_allowed"], false);
+        assert_eq!(artifact["owner_approval_ready"], true);
+        assert_eq!(artifact["risk_gate_ready"], true);
+        assert_eq!(artifact["release_provenance_ready"], true);
+        assert_eq!(artifact["adapter_boundary_ready"], true);
+        assert_eq!(artifact["adapter_capability_ready"], true);
+        assert_eq!(artifact["request_method"], TESTNET_ORDER_METHOD_DELETE);
+        assert_eq!(artifact["request_target"], TESTNET_ORDER_ENDPOINT_ORDER);
+        assert_eq!(
+            artifact["request_contract"],
+            "single_order_cancel_request_v1"
+        );
+        assert_eq!(artifact["adapter_id"], "binance_spot_cancel_adapter");
+        assert_eq!(artifact["venue"], "binance_spot");
+        assert_eq!(artifact["order_id_type"], "exchange_order_id");
+        assert!(
+            artifact["cancel_order_identifier_ref"]
+                .as_str()
+                .unwrap()
+                .starts_with("order_id:sha256:")
+        );
+        assert_eq!(artifact["approval_consumed_before_send"], false);
+        assert_eq!(artifact["approval_consumed_after_send"], false);
+        assert_eq!(artifact["approval_state_before_attempt"], "approved");
+        assert_eq!(artifact["approval_state_after_attempt"], "approved");
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["cancel_requests_sent"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["network_cancel_endpoint_attempted"], false);
+        assert_eq!(artifact["http_send_attempted"], false);
+        assert_eq!(artifact["venue_ack_observed"], false);
+        assert_eq!(artifact["readback_required"], false);
+        assert_eq!(
+            artifact["readback_requirement"],
+            "not_required_without_send_attempt"
+        );
+        assert_eq!(artifact["retry_attempted"], false);
+        assert_eq!(artifact["bulk_cancel_allowed"], false);
+        assert_eq!(artifact["cancel_all_allowed"], false);
+        assert_eq!(artifact["dashboard_execution_allowed"], false);
+        assert_eq!(artifact["dashboard_cancel_controls_enabled"], false);
+        assert_eq!(artifact["api_key_value_recorded"], false);
+        assert_eq!(artifact["api_secret_value_recorded"], false);
+        assert_eq!(artifact["api_key_header_value_recorded"], false);
+        assert_eq!(artifact["signature_recorded"], false);
+        assert_eq!(artifact["signed_query_recorded"], false);
+        assert_eq!(artifact["signed_url_recorded"], false);
+        assert_eq!(artifact["raw_exchange_response_recorded"], false);
+        assert_eq!(artifact["response_body_recorded"], false);
+        assert_eq!(artifact["response_headers_recorded"], false);
+        assert_eq!(
+            artifact["source_artifact_issues"].as_array().unwrap().len(),
+            0
+        );
+        assert_eq!(
+            artifact["adapter_capability_issues"]
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
+        assert_eq!(
+            artifact["safety_contract_issues"].as_array().unwrap().len(),
+            0
+        );
+        assert_eq!(
+            artifact["release_manifest_issues"]
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
+        assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn production_mutation_actual_cancel_single_shot_records_injected_single_attempt() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v190-004-actual-cancel-single-shot-attempt-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let sources = write_ready_v190_actual_cancel_single_shot_source_chain(&output_dir);
+        let output = output_dir.join("actual-cancel-single-shot-attempt.json");
+        let opt =
+            production_mutation_actual_cancel_single_shot_opt(&sources, output.clone(), true, true);
+        let credentials =
+            EnvOnlyProductionMutationPreviewCredentials::from_actual_cancel_opt(&opt, |name| {
+                match name {
+                    PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW
+                    | PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED
+                    | PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW
+                    | PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED
+                    | PRODUCTION_MUTATION_HTTP_SEND_ENV_SINGLE_SHOT => Some("1".to_string()),
+                    "NTPRO_V190004_API_KEY" => Some("ntpro-v190004-api-key".to_string()),
+                    "NTPRO_V190004_API_SECRET" => Some("ntpro-v190004-api-secret".to_string()),
+                    _ => None,
+                }
+            });
+        let mut request_seen = false;
+
+        let artifact = build_production_mutation_actual_cancel_single_shot_artifact(
+            &opt,
+            &credentials,
+            |request| {
+                request_seen = true;
+                assert_eq!(request.method, TESTNET_ORDER_METHOD_DELETE);
+                assert_eq!(request.endpoint_path, TESTNET_ORDER_ENDPOINT_ORDER);
+                assert_eq!(
+                    request.endpoint_url_redacted,
+                    format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{TESTNET_ORDER_ENDPOINT_ORDER}")
+                );
+                assert_eq!(request.api_key_header_name, BINANCE_API_KEY_HEADER);
+                assert_eq!(request.api_key_header_value, "ntpro-v190004-api-key");
+                assert!(request.signed_query.contains("symbol=BTCUSDT"));
+                assert!(request.signed_query.contains("orderId=123456789"));
+                assert!(request.signed_query.contains("signature="));
+                let debug_body = format!("{request:?}");
+                assert!(!debug_body.contains("123456789"));
+                assert!(!debug_body.contains("ntpro-v190004-api-key"));
+                assert!(!debug_body.contains("ntpro-v190004-api-secret"));
+                assert!(!debug_body.contains("signature="));
+                ProductionMutationActualCancelHttpResult::success(7, 200)
+            },
+        )
+        .unwrap();
+        assert!(request_seen);
+        write_production_mutation_actual_cancel_single_shot_artifact(&output, &artifact).unwrap();
+
+        let body = fs::read_to_string(output).unwrap();
+        assert!(!body.contains("123456789"));
+        assert!(!body.contains("owner-approved-v160-single-shot"));
+        assert!(!body.contains("ntpro-v190004-api-key"));
+        assert!(!body.contains("ntpro-v190004-api-secret"));
+        assert!(!body.contains("signature="));
+        assert!(!body.contains("X-MBX-APIKEY"));
+        let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(artifact["status"], "actual_cancel_attempt_recorded");
+        assert_eq!(artifact["manual_online_requested"], true);
+        assert_eq!(artifact["actual_cancel_command_ready"], true);
+        assert_eq!(artifact["single_shot_cancel_allowed"], true);
+        assert_eq!(artifact["request_sent"], true);
+        assert_eq!(artifact["cancel_attempted"], true);
+        assert_eq!(artifact["cancel_requests_sent"], 1);
+        assert_eq!(artifact["production_order_mutations_attempted"], 1);
+        assert_eq!(artifact["network_attempted"], true);
+        assert_eq!(artifact["network_cancel_endpoint_attempted"], true);
+        assert_eq!(artifact["http_send_attempted"], true);
+        assert_eq!(artifact["venue_ack_observed"], true);
+        assert_eq!(artifact["venue_response_status"], "accepted");
+        assert_eq!(
+            artifact["venue_response_source"],
+            "actual_cancel_http_result_redacted"
+        );
+        assert_eq!(artifact["venue_response_code"], 200);
+        assert_eq!(artifact["venue_response_error_code"], "none");
+        assert_eq!(artifact["latency_ms"], 7);
+        assert_eq!(artifact["approval_consumed_before_send"], true);
+        assert_eq!(artifact["approval_consumed_after_send"], true);
+        assert_eq!(artifact["approval_state_before_attempt"], "approved");
+        assert_eq!(artifact["approval_state_after_attempt"], "used");
+        assert_eq!(artifact["readback_required"], true);
+        assert_eq!(
+            artifact["readback_requirement"],
+            "post_cancel_readback_required_before_any_retry_or_followup"
+        );
+        assert!(
+            artifact["local_audit_reference"]
+                .as_str()
+                .unwrap()
+                .contains("v190-actual-cancel-single-shot")
+        );
+        assert_eq!(artifact["retry_attempted"], false);
+        assert_eq!(artifact["bulk_cancel_allowed"], false);
+        assert_eq!(artifact["cancel_all_allowed"], false);
+        assert_eq!(artifact["dashboard_execution_allowed"], false);
+        assert_eq!(artifact["api_key_value_recorded"], false);
+        assert_eq!(artifact["api_secret_value_recorded"], false);
+        assert_eq!(artifact["api_key_header_value_recorded"], false);
+        assert_eq!(artifact["signature_recorded"], false);
+        assert_eq!(artifact["signed_query_recorded"], false);
+        assert_eq!(artifact["signed_url_recorded"], false);
+        assert_eq!(artifact["response_body_recorded"], false);
+        assert_eq!(artifact["response_headers_recorded"], false);
+        assert_eq!(
+            artifact["source_artifact_issues"].as_array().unwrap().len(),
+            0
+        );
+        assert_eq!(
+            artifact["adapter_capability_issues"]
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
+        assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+        assert_eq!(artifact["missing_env_vars"].as_array().unwrap().len(), 0);
+
+        let consumed_owner_approval: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&sources.owner_approval_lifecycle).unwrap())
+                .unwrap();
+        assert_eq!(consumed_owner_approval["approval_state"], "used");
+        assert_eq!(
+            consumed_owner_approval["status"],
+            "approval_used_after_actual_cancel_attempt"
+        );
+        assert_eq!(
+            consumed_owner_approval["approval_execution_authorized"],
+            false
+        );
+        assert_eq!(consumed_owner_approval["approval_consumed"], true);
+        assert_eq!(
+            consumed_owner_approval["approval_consumed_before_send"],
+            true
+        );
+        assert_eq!(
+            consumed_owner_approval["approval_consumed_after_send"],
+            true
+        );
+        assert_eq!(consumed_owner_approval["approval_used"], true);
+        assert_eq!(consumed_owner_approval["cancel_attempted"], true);
+        assert_eq!(consumed_owner_approval["cancel_requests_sent"], 1);
+        assert_eq!(consumed_owner_approval["readback_required"], true);
+        assert_eq!(
+            consumed_owner_approval["consumed_by_actual_cancel_run_id"],
+            opt.run_id
+        );
+        assert_eq!(
+            consumed_owner_approval["consumed_actual_cancel_request_id"],
+            artifact["request_id"]
+        );
+        assert!(
+            consumed_owner_approval["lifecycle_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "owner_approval_reused")
+        );
+
+        let second_output = output_dir.join("actual-cancel-single-shot-reused.json");
+        let second_opt = production_mutation_actual_cancel_single_shot_opt(
+            &sources,
+            second_output.clone(),
+            true,
+            true,
+        );
+        let second_artifact = build_production_mutation_actual_cancel_single_shot_artifact(
+            &second_opt,
+            &credentials,
+            |_| panic!("reused owner approval must not call actual cancel executor"),
+        )
+        .unwrap();
+        write_production_mutation_actual_cancel_single_shot_artifact(
+            &second_output,
+            &second_artifact,
+        )
+        .unwrap();
+        let second: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(second_output).unwrap()).unwrap();
+        assert_eq!(second["status"], "blocked_source_artifact");
+        assert_eq!(second["request_sent"], false);
+        assert_eq!(second["cancel_attempted"], false);
+        assert!(
+            second["source_artifact_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "owner_approval_reused")
+        );
+    }
+
+    #[test]
+    fn production_mutation_actual_cancel_single_shot_blocks_gates_mismatch_reuse_and_adapter() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v190-004-actual-cancel-single-shot-blocked-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let sources = write_ready_v190_actual_cancel_single_shot_source_chain(&output_dir);
+
+        let missing_gate_output = output_dir.join("missing-gates.json");
+        run_live_production_mutation_actual_cancel_single_shot_with_env(
+            &production_mutation_actual_cancel_single_shot_opt(
+                &sources,
+                missing_gate_output.clone(),
+                false,
+                false,
+            ),
+            |_| None,
+        )
+        .unwrap();
+
+        let missing_env_output = output_dir.join("missing-env.json");
+        run_live_production_mutation_actual_cancel_single_shot_with_env(
+            &production_mutation_actual_cancel_single_shot_opt(
+                &sources,
+                missing_env_output.clone(),
+                true,
+                true,
+            ),
+            |name| match name {
+                PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW
+                | PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED
+                | PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW
+                | PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED
+                | PRODUCTION_MUTATION_HTTP_SEND_ENV_SINGLE_SHOT => Some("1".to_string()),
+                _ => None,
+            },
+        )
+        .unwrap();
+
+        let release_mismatch_output = output_dir.join("release-mismatch.json");
+        let mut release_mismatch_opt = production_mutation_actual_cancel_single_shot_opt(
+            &sources,
+            release_mismatch_output.clone(),
+            false,
+            true,
+        );
+        release_mismatch_opt.expected_release_tag = "ntpro-rust-only-v0.18.0".to_string();
+        run_live_production_mutation_actual_cancel_single_shot_with_env(
+            &release_mismatch_opt,
+            |_| None,
+        )
+        .unwrap();
+
+        let reused_owner = output_dir.join("owner-approval-used.json");
+        run_live_production_mutation_actual_cancel_owner_approval_lifecycle(
+            &production_mutation_actual_cancel_owner_approval_lifecycle_opt(
+                sources.actual_cancel_safety_contract.clone(),
+                sources.release_manifest.clone(),
+                sources.cancel_risk_gate.clone(),
+                reused_owner.clone(),
+                "used",
+                true,
+            ),
+        )
+        .unwrap();
+        let mut reused_sources = sources.clone();
+        reused_sources.owner_approval_lifecycle = reused_owner;
+        let reused_output = output_dir.join("reused-owner.json");
+        run_live_production_mutation_actual_cancel_single_shot_with_env(
+            &production_mutation_actual_cancel_single_shot_opt(
+                &reused_sources,
+                reused_output.clone(),
+                false,
+                true,
+            ),
+            |_| None,
+        )
+        .unwrap();
+
+        let unsupported_capability = write_v190_actual_cancel_adapter_capability(
+            &output_dir,
+            "single-shot-adapter-capability-unsupported.json",
+            false,
+            &["binance_spot"],
+            &["exchange_order_id"],
+        );
+        let mut unsupported_sources = sources.clone();
+        unsupported_sources.adapter_capability = unsupported_capability;
+        let unsupported_output = output_dir.join("unsupported-adapter.json");
+        run_live_production_mutation_actual_cancel_single_shot_with_env(
+            &production_mutation_actual_cancel_single_shot_opt(
+                &unsupported_sources,
+                unsupported_output.clone(),
+                false,
+                true,
+            ),
+            |_| None,
+        )
+        .unwrap();
+
+        let order_mismatch_output = output_dir.join("order-mismatch.json");
+        let mut order_mismatch_opt = production_mutation_actual_cancel_single_shot_opt(
+            &sources,
+            order_mismatch_output.clone(),
+            false,
+            true,
+        );
+        order_mismatch_opt.cancel_order_id = Some("987654321".to_string());
+        run_live_production_mutation_actual_cancel_single_shot_with_env(
+            &order_mismatch_opt,
+            |_| None,
+        )
+        .unwrap();
+
+        let missing_gate: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(missing_gate_output).unwrap()).unwrap();
+        assert_eq!(missing_gate["status"], "blocked_missing_gate");
+        assert_eq!(missing_gate["actual_cancel_command_ready"], false);
+        assert_eq!(missing_gate["request_sent"], false);
+        assert_eq!(missing_gate["cancel_attempted"], false);
+        assert!(
+            missing_gate["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| flag == "--allow-production-mutation-actual-cancel-single-shot")
+        );
+
+        let missing_env: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(missing_env_output).unwrap()).unwrap();
+        assert_eq!(missing_env["status"], "blocked_missing_manual_online_gate");
+        assert_eq!(missing_env["actual_cancel_command_ready"], false);
+        assert_eq!(missing_env["request_sent"], false);
+        assert_eq!(missing_env["cancel_attempted"], false);
+        assert!(
+            missing_env["missing_env_vars"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|env| env == "NTPRO_V190004_API_KEY")
+        );
+        assert!(
+            missing_env["missing_env_vars"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|env| env == "NTPRO_V190004_API_SECRET")
+        );
+
+        let release_mismatch: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(release_mismatch_output).unwrap()).unwrap();
+        assert_eq!(release_mismatch["status"], "blocked_release_provenance");
+        assert_eq!(release_mismatch["request_sent"], false);
+        assert!(
+            release_mismatch["release_manifest_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "release_manifest_planned_tag_mismatch")
+        );
+
+        let reused: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(reused_output).unwrap()).unwrap();
+        assert_eq!(reused["status"], "blocked_source_artifact");
+        assert_eq!(reused["approval_state_before_attempt"], "used");
+        assert_eq!(reused["approval_state_after_attempt"], "used");
+        assert!(
+            reused["source_artifact_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "owner_approval_reused")
+        );
+        assert_eq!(reused["request_sent"], false);
+        assert_eq!(reused["readback_required"], false);
+
+        let unsupported: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(unsupported_output).unwrap()).unwrap();
+        assert_eq!(unsupported["status"], "blocked_adapter_capability");
+        assert!(
+            unsupported["adapter_capability_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "adapter_capability_missing")
+        );
+        assert_eq!(unsupported["cancel_attempted"], false);
+        assert_eq!(unsupported["network_attempted"], false);
+
+        let order_mismatch: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(order_mismatch_output).unwrap()).unwrap();
+        assert_eq!(order_mismatch["status"], "blocked_source_artifact");
+        assert!(
+            order_mismatch["source_artifact_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "order_identity_mismatch")
+        );
+        assert_eq!(order_mismatch["single_shot_cancel_allowed"], false);
+        assert_eq!(order_mismatch["request_sent"], false);
+        assert_eq!(order_mismatch["cancel_attempted"], false);
     }
 
     #[test]
