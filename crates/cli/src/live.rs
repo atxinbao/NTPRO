@@ -53,6 +53,7 @@ use crate::{
         LiveProductionLiveAlphaOrderRequestPreviewOpt, LiveProductionLiveAlphaRiskPreflightOpt,
         LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt,
         LiveProductionMutationActualCancelOwnerApprovalLifecycleOpt,
+        LiveProductionMutationActualCancelReadbackReconciliationOpt,
         LiveProductionMutationActualCancelSingleShotOpt, LiveProductionMutationAuditTrailOpt,
         LiveProductionMutationCancelRecoveryIncidentAuditCloseoutOpt,
         LiveProductionMutationCancelRequestPreviewOpt,
@@ -202,6 +203,8 @@ const PRODUCTION_MUTATION_ACTUAL_CANCEL_EXECUTOR_ADAPTER_BOUNDARY_SCHEMA_VERSION
     "ntpro.v190_actual_cancel_executor_adapter_boundary.v1";
 const PRODUCTION_MUTATION_ACTUAL_CANCEL_SINGLE_SHOT_SCHEMA_VERSION: &str =
     "ntpro.v190_actual_cancel_single_shot.v1";
+const PRODUCTION_MUTATION_ACTUAL_CANCEL_READBACK_RECONCILIATION_SCHEMA_VERSION: &str =
+    "ntpro.v190_actual_cancel_readback_reconciliation.v1";
 const PRODUCTION_MUTATION_CANCEL_RESPONSE_REDACTION_SCHEMA_VERSION: &str =
     "ntpro.v180_cancel_response_redaction.v1";
 const PRODUCTION_MUTATION_POST_CANCEL_READBACK_SCHEMA_VERSION: &str =
@@ -3208,6 +3211,128 @@ struct ProductionMutationActualCancelSingleShotArtifact {
     diagnostic: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct ProductionMutationActualCancelReadbackReconciliationArtifact {
+    schema_version: String,
+    run_id: String,
+    order_lineage_id: String,
+    source_actual_cancel_attempt_path: String,
+    source_readback_path: String,
+    source_actual_cancel_attempt_run_id: String,
+    source_actual_cancel_attempt_hash: String,
+    artifact_type: String,
+    status: String,
+    created_at: String,
+    mode: String,
+    capability: String,
+    execution_mode: String,
+    lineage_scope: String,
+    default_fail_closed: bool,
+    actual_cancel_attempt_ref: ProductionMutationLocalOrderLedgerSourceRef,
+    actual_cancel_attempt_ready: bool,
+    actual_cancel_attempt_recorded: bool,
+    actual_cancel_request_sent: bool,
+    actual_cancel_request_id: String,
+    readback_required: bool,
+    readback_evidence_present: bool,
+    reconciliation_evidence_present: bool,
+    reconciliation_ready: bool,
+    readback_reconciliation_complete: bool,
+    actual_cancel_followup_complete: bool,
+    redacted_metadata_only: bool,
+    venue: String,
+    symbol: String,
+    account_label: String,
+    known_order_id: String,
+    known_client_order_id: String,
+    readback_type: String,
+    readback_state: String,
+    readback_result: String,
+    reconciliation_status: String,
+    venue_state: String,
+    order_status: String,
+    execution_fill_status: String,
+    remaining_quantity_state: String,
+    residual_risk_state: String,
+    local_audit_state: String,
+    readback_order_id: String,
+    readback_client_order_id: String,
+    readback_orig_client_order_id: String,
+    readback_update_time_shape: String,
+    partial_fill_observed: bool,
+    already_cancelled_observed: bool,
+    filled_before_cancel_observed: bool,
+    timeout_observed: bool,
+    unknown_observed: bool,
+    inconsistent_observed: bool,
+    degraded: bool,
+    error_state: bool,
+    terminal_state_observed: bool,
+    manual_review_required: bool,
+    new_orders_blocked: bool,
+    risk_halted: bool,
+    dashboard_read_only_consumable: bool,
+    dashboard_audit_view_ready: bool,
+    allowed_readback_fields: Vec<String>,
+    forbidden_readback_markers: Vec<String>,
+    source_artifact_issues: Vec<String>,
+    readback_lineage_issues: Vec<String>,
+    unsupported_readback_states: Vec<String>,
+    missing_cli_flags: Vec<String>,
+    api_key_value_recorded: bool,
+    api_secret_value_recorded: bool,
+    api_key_header_value_recorded: bool,
+    signature_recorded: bool,
+    signed_query_recorded: bool,
+    signed_url_recorded: bool,
+    raw_exchange_response_recorded: bool,
+    raw_readback_body_recorded: bool,
+    response_body_recorded: bool,
+    response_headers_recorded: bool,
+    unrestricted_payload_recorded: bool,
+    account_balances_recorded: bool,
+    fills_recorded: bool,
+    readback_execution_attempted: bool,
+    order_state_read_attempted: bool,
+    production_order_state_reads_attempted: u64,
+    actual_cancel_send_allowed: bool,
+    cancel_attempted: bool,
+    cancel_requests_sent: u64,
+    production_order_mutations_attempted: u64,
+    network_attempted: bool,
+    network_readback_endpoint_attempted: bool,
+    network_cancel_endpoint_attempted: bool,
+    retry_attempted: bool,
+    replace_attempted: bool,
+    amend_attempted: bool,
+    flatten_attempted: bool,
+    remediation_attempted: bool,
+    second_cancel_attempted: bool,
+    automatic_cancel_allowed: bool,
+    automatic_remediation_allowed: bool,
+    production_order_mutation_allowed: bool,
+    dashboard_order_controls_enabled: bool,
+    dashboard_cancel_controls_enabled: bool,
+    actual_cancel_attempt_recorded_confirmed: bool,
+    readback_required_confirmed: bool,
+    readback_metadata_only_confirmed: bool,
+    order_status_reconciled_confirmed: bool,
+    execution_fill_status_reconciled_confirmed: bool,
+    remaining_quantity_reconciled_confirmed: bool,
+    risk_state_recorded_confirmed: bool,
+    local_audit_state_recorded_confirmed: bool,
+    dashboard_read_only_consumable_confirmed: bool,
+    no_raw_readback_persistence_confirmed: bool,
+    no_headers_persistence_confirmed: bool,
+    no_secret_persistence_confirmed: bool,
+    no_retry_confirmed: bool,
+    no_remediation_confirmed: bool,
+    no_second_cancel_confirmed: bool,
+    no_network_confirmed: bool,
+    dashboard_controls_disabled_confirmed: bool,
+    diagnostic: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProductionMutationActualCancelHttpResult {
     request_sent: bool,
@@ -4862,6 +4987,9 @@ pub(crate) async fn run_live_command(opt: LiveOpt) -> anyhow::Result<()> {
         LiveCommand::ProductionMutationActualCancelSingleShot(cancel) => {
             run_live_production_mutation_actual_cancel_single_shot(&cancel)
         }
+        LiveCommand::ProductionMutationActualCancelReadbackReconciliation(reconciliation) => {
+            run_live_production_mutation_actual_cancel_readback_reconciliation(&reconciliation)
+        }
         LiveCommand::ProductionMutationCancelResponseRedaction(redaction) => {
             run_live_production_mutation_cancel_response_redaction(&redaction)
         }
@@ -5512,6 +5640,36 @@ where
         artifact.network_attempted,
         artifact.readback_required,
         artifact.approval_state_after_attempt,
+    );
+    Ok(())
+}
+
+fn run_live_production_mutation_actual_cancel_readback_reconciliation(
+    opt: &LiveProductionMutationActualCancelReadbackReconciliationOpt,
+) -> anyhow::Result<()> {
+    let artifact = build_production_mutation_actual_cancel_readback_reconciliation_artifact(opt)?;
+    write_production_mutation_actual_cancel_readback_reconciliation_artifact(
+        &opt.output,
+        &artifact,
+    )?;
+    println!(
+        "live.production_mutation_actual_cancel_readback_reconciliation status={} run_id={} order_lineage_id={} output={} reconciliation_ready={} readback_result={} reconciliation_status={} partial_fill_observed={} already_cancelled_observed={} timeout_observed={} unknown_observed={} inconsistent_observed={} manual_review_required={} new_orders_blocked={} risk_halted={} dashboard_read_only_consumable={} raw_exchange_response_recorded=false raw_readback_body_recorded=false response_headers_recorded=false unrestricted_payload_recorded=false actual_cancel_send_allowed=false cancel_attempted=false cancel_requests_sent=0 production_order_mutations_attempted=0 readback_execution_attempted=false order_state_read_attempted=false production_order_state_reads_attempted=0 network_attempted=false network_readback_endpoint_attempted=false network_cancel_endpoint_attempted=false retry_attempted=false remediation_attempted=false second_cancel_attempted=false dashboard_cancel_controls_enabled=false signature_recorded=false signed_query_recorded=false signed_url_recorded=false api_key_value_recorded=false api_secret_value_recorded=false",
+        artifact.status,
+        artifact.run_id,
+        artifact.order_lineage_id,
+        opt.output.display(),
+        artifact.reconciliation_ready,
+        artifact.readback_result,
+        artifact.reconciliation_status,
+        artifact.partial_fill_observed,
+        artifact.already_cancelled_observed,
+        artifact.timeout_observed,
+        artifact.unknown_observed,
+        artifact.inconsistent_observed,
+        artifact.manual_review_required,
+        artifact.new_orders_blocked,
+        artifact.risk_halted,
+        artifact.dashboard_read_only_consumable,
     );
     Ok(())
 }
@@ -12121,6 +12279,238 @@ where
     })
 }
 
+fn build_production_mutation_actual_cancel_readback_reconciliation_artifact(
+    opt: &LiveProductionMutationActualCancelReadbackReconciliationOpt,
+) -> anyhow::Result<ProductionMutationActualCancelReadbackReconciliationArtifact> {
+    validate_non_empty("run_id", &opt.run_id)?;
+    validate_non_empty("expected_order_lineage_id", &opt.expected_order_lineage_id)?;
+    validate_non_empty("expected_symbol", &opt.expected_symbol)?;
+    validate_non_empty("expected_account_label", &opt.expected_account_label)?;
+    validate_non_empty("venue", &opt.venue)?;
+
+    let actual_cancel_attempt =
+        load_json_value(&opt.actual_cancel_attempt, "actual cancel attempt artifact")?;
+    let readback = load_json_value(&opt.readback, "actual cancel post-cancel readback metadata")?;
+    let missing_cli_flags =
+        missing_production_mutation_actual_cancel_readback_reconciliation_cli_flags(opt);
+    let source_artifact_issues =
+        production_mutation_actual_cancel_readback_reconciliation_source_issues(
+            &actual_cancel_attempt,
+            opt,
+        );
+    let forbidden_readback_markers = production_mutation_response_forbidden_markers(&readback);
+    let readback_state = production_mutation_actual_cancel_readback_reconciliation_state(&readback);
+    let reconciliation = classify_production_mutation_actual_cancel_readback_reconciliation(
+        &readback_state,
+        &readback,
+    );
+    let readback_lineage_issues =
+        production_mutation_actual_cancel_readback_reconciliation_lineage_issues(
+            &actual_cancel_attempt,
+            &readback,
+            opt,
+        );
+    let unsupported_readback_states = if reconciliation.readback_result == "unsupported" {
+        vec![readback_state.clone()]
+    } else {
+        Vec::new()
+    };
+    let reconciliation_ready = missing_cli_flags.is_empty()
+        && source_artifact_issues.is_empty()
+        && forbidden_readback_markers.is_empty()
+        && readback_lineage_issues.is_empty()
+        && unsupported_readback_states.is_empty();
+    let status = if !missing_cli_flags.is_empty() {
+        "blocked_missing_gate".to_string()
+    } else if !source_artifact_issues.is_empty() {
+        "blocked_source_artifact".to_string()
+    } else if !forbidden_readback_markers.is_empty() {
+        "blocked_forbidden_readback_marker".to_string()
+    } else if !readback_lineage_issues.is_empty() {
+        "blocked_readback_lineage".to_string()
+    } else if !unsupported_readback_states.is_empty() {
+        "blocked_unsupported_readback_state".to_string()
+    } else {
+        reconciliation.artifact_status.clone()
+    };
+
+    let known_order_id = json_scalar_string_value(&actual_cancel_attempt, "known_order_id")
+        .unwrap_or_else(|| "missing".to_string());
+    let known_client_order_id =
+        json_scalar_string_value(&actual_cancel_attempt, "known_client_order_id")
+            .unwrap_or_else(|| "missing".to_string());
+    let raw_readback_order_id =
+        json_scalar_string_value(&readback, "orderId").unwrap_or_else(|| "missing".to_string());
+    let raw_readback_client_order_id = json_scalar_string_value(&readback, "clientOrderId")
+        .unwrap_or_else(|| "missing".to_string());
+    let raw_readback_orig_client_order_id =
+        json_scalar_string_value(&readback, "origClientOrderId")
+            .unwrap_or_else(|| "missing".to_string());
+
+    Ok(ProductionMutationActualCancelReadbackReconciliationArtifact {
+        schema_version:
+            PRODUCTION_MUTATION_ACTUAL_CANCEL_READBACK_RECONCILIATION_SCHEMA_VERSION.to_string(),
+        run_id: opt.run_id.clone(),
+        order_lineage_id: json_string_value(&actual_cancel_attempt, "order_lineage_id")
+            .unwrap_or_else(|| "missing".to_string()),
+        source_actual_cancel_attempt_path: opt.actual_cancel_attempt.display().to_string(),
+        source_readback_path: opt.readback.display().to_string(),
+        source_actual_cancel_attempt_run_id: json_string_value(&actual_cancel_attempt, "run_id")
+            .unwrap_or_else(|| "unknown".to_string()),
+        source_actual_cancel_attempt_hash: file_fnv1a64_hash(
+            &opt.actual_cancel_attempt.display().to_string(),
+        ),
+        artifact_type: "actual_cancel_readback_reconciliation".to_string(),
+        status,
+        created_at: now_millis(),
+        mode: "owner_approved_single_shot_actual_cancel_readback_reconciliation".to_string(),
+        capability: "Owner-Approved Single-Shot Actual Cancel Readback Reconciliation"
+            .to_string(),
+        execution_mode: "post_actual_cancel_readback_evidence_only".to_string(),
+        lineage_scope: "single_actual_cancel_attempt".to_string(),
+        default_fail_closed: true,
+        actual_cancel_attempt_ref: production_mutation_local_order_ledger_source_ref(
+            &opt.actual_cancel_attempt,
+            &actual_cancel_attempt,
+            "readback_required",
+        ),
+        actual_cancel_attempt_ready: source_artifact_issues.is_empty(),
+        actual_cancel_attempt_recorded: json_bool_value(
+            &actual_cancel_attempt,
+            "cancel_attempted",
+        )
+        .unwrap_or(false),
+        actual_cancel_request_sent: json_bool_value(&actual_cancel_attempt, "request_sent")
+            .unwrap_or(false),
+        actual_cancel_request_id: json_string_value(&actual_cancel_attempt, "request_id")
+            .unwrap_or_else(|| "unknown".to_string()),
+        readback_required: json_bool_value(&actual_cancel_attempt, "readback_required")
+            .unwrap_or(false),
+        readback_evidence_present: reconciliation_ready,
+        reconciliation_evidence_present: reconciliation_ready,
+        reconciliation_ready,
+        readback_reconciliation_complete: reconciliation_ready
+            && reconciliation.readback_reconciliation_complete,
+        actual_cancel_followup_complete: reconciliation_ready
+            && reconciliation.actual_cancel_followup_complete,
+        redacted_metadata_only: reconciliation_ready,
+        venue: opt.venue.clone(),
+        symbol: json_scalar_string_value(&readback, "symbol")
+            .or_else(|| json_scalar_string_value(&actual_cancel_attempt, "symbol"))
+            .unwrap_or_else(|| "unknown".to_string()),
+        account_label: json_scalar_string_value(&actual_cancel_attempt, "account_label")
+            .unwrap_or_else(|| "unknown".to_string()),
+        known_order_id,
+        known_client_order_id,
+        readback_type: "binance_actual_cancel_post_readback_reconciliation_metadata_v1"
+            .to_string(),
+        readback_state,
+        readback_result: reconciliation.readback_result,
+        reconciliation_status: reconciliation.reconciliation_status,
+        venue_state: reconciliation.venue_state,
+        order_status: reconciliation.order_status,
+        execution_fill_status: reconciliation.execution_fill_status,
+        remaining_quantity_state: reconciliation.remaining_quantity_state,
+        residual_risk_state: reconciliation.residual_risk_state,
+        local_audit_state: reconciliation.local_audit_state,
+        readback_order_id: redact_cancel_preview_identifier(
+            "readback_order_id",
+            &raw_readback_order_id,
+        ),
+        readback_client_order_id: redact_cancel_preview_identifier(
+            "readback_client_order_id",
+            &raw_readback_client_order_id,
+        ),
+        readback_orig_client_order_id: redact_cancel_preview_identifier(
+            "readback_orig_client_order_id",
+            &raw_readback_orig_client_order_id,
+        ),
+        readback_update_time_shape: production_mutation_response_time_shape(&readback, "updateTime"),
+        partial_fill_observed: reconciliation.partial_fill_observed,
+        already_cancelled_observed: reconciliation.already_cancelled_observed,
+        filled_before_cancel_observed: reconciliation.filled_before_cancel_observed,
+        timeout_observed: reconciliation.timeout_observed,
+        unknown_observed: reconciliation.unknown_observed,
+        inconsistent_observed: reconciliation.inconsistent_observed,
+        degraded: reconciliation.degraded,
+        error_state: reconciliation.error_state,
+        terminal_state_observed: reconciliation.terminal_state_observed,
+        manual_review_required: reconciliation.manual_review_required,
+        new_orders_blocked: reconciliation.new_orders_blocked,
+        risk_halted: reconciliation.risk_halted,
+        dashboard_read_only_consumable: reconciliation_ready,
+        dashboard_audit_view_ready: reconciliation_ready,
+        allowed_readback_fields:
+            production_mutation_actual_cancel_readback_reconciliation_allowed_fields(),
+        forbidden_readback_markers,
+        source_artifact_issues,
+        readback_lineage_issues,
+        unsupported_readback_states,
+        missing_cli_flags: missing_cli_flags
+            .iter()
+            .map(|flag| (*flag).to_string())
+            .collect(),
+        api_key_value_recorded: false,
+        api_secret_value_recorded: false,
+        api_key_header_value_recorded: false,
+        signature_recorded: false,
+        signed_query_recorded: false,
+        signed_url_recorded: false,
+        raw_exchange_response_recorded: false,
+        raw_readback_body_recorded: false,
+        response_body_recorded: false,
+        response_headers_recorded: false,
+        unrestricted_payload_recorded: false,
+        account_balances_recorded: false,
+        fills_recorded: false,
+        readback_execution_attempted: false,
+        order_state_read_attempted: false,
+        production_order_state_reads_attempted: 0,
+        actual_cancel_send_allowed: false,
+        cancel_attempted: false,
+        cancel_requests_sent: 0,
+        production_order_mutations_attempted: 0,
+        network_attempted: false,
+        network_readback_endpoint_attempted: false,
+        network_cancel_endpoint_attempted: false,
+        retry_attempted: false,
+        replace_attempted: false,
+        amend_attempted: false,
+        flatten_attempted: false,
+        remediation_attempted: false,
+        second_cancel_attempted: false,
+        automatic_cancel_allowed: false,
+        automatic_remediation_allowed: false,
+        production_order_mutation_allowed: false,
+        dashboard_order_controls_enabled: false,
+        dashboard_cancel_controls_enabled: false,
+        actual_cancel_attempt_recorded_confirmed: opt.confirm_actual_cancel_attempt_recorded,
+        readback_required_confirmed: opt.confirm_readback_required,
+        readback_metadata_only_confirmed: opt.confirm_readback_metadata_only,
+        order_status_reconciled_confirmed: opt.confirm_order_status_reconciled,
+        execution_fill_status_reconciled_confirmed: opt
+            .confirm_execution_fill_status_reconciled,
+        remaining_quantity_reconciled_confirmed: opt.confirm_remaining_quantity_reconciled,
+        risk_state_recorded_confirmed: opt.confirm_risk_state_recorded,
+        local_audit_state_recorded_confirmed: opt.confirm_local_audit_state_recorded,
+        dashboard_read_only_consumable_confirmed: opt.confirm_dashboard_read_only_consumable,
+        no_raw_readback_persistence_confirmed: opt.confirm_no_raw_readback_persistence,
+        no_headers_persistence_confirmed: opt.confirm_no_headers_persistence,
+        no_secret_persistence_confirmed: opt.confirm_no_secret_persistence,
+        no_retry_confirmed: opt.confirm_no_retry,
+        no_remediation_confirmed: opt.confirm_no_remediation,
+        no_second_cancel_confirmed: opt.confirm_no_second_cancel,
+        no_network_confirmed: opt.confirm_no_network,
+        dashboard_controls_disabled_confirmed: opt.confirm_dashboard_order_controls_disabled,
+        diagnostic: if reconciliation_ready {
+            "actual cancel attempt has post-cancel readback reconciliation evidence; degraded readback outcomes remain explicit and do not enable retry, remediation, second cancel, network readback, raw persistence, or Dashboard cancel controls"
+        } else {
+            "actual cancel readback reconciliation blocked because the actual cancel attempt, readback metadata, lineage, or manual confirmations are incomplete"
+        }
+        .to_string(),
+    })
+}
+
 fn build_production_mutation_cancel_response_redaction_artifact(
     opt: &LiveProductionMutationCancelResponseRedactionOpt,
 ) -> anyhow::Result<ProductionMutationCancelResponseRedactionArtifact> {
@@ -14362,6 +14752,18 @@ fn production_mutation_source_command(artifact_type: &str) -> &'static str {
         "manual_owner_approval_lifecycle" => {
             "nautilus live production-mutation-manual-owner-approval-lifecycle"
         }
+        "actual_cancel_owner_approval_lifecycle" => {
+            "nautilus live production-mutation-actual-cancel-owner-approval-lifecycle"
+        }
+        "actual_cancel_executor_adapter_boundary" => {
+            "nautilus live production-mutation-actual-cancel-executor-adapter-boundary"
+        }
+        "actual_cancel_single_shot" => {
+            "nautilus live production-mutation-actual-cancel-single-shot"
+        }
+        "actual_cancel_readback_reconciliation" => {
+            "nautilus live production-mutation-actual-cancel-readback-reconciliation"
+        }
         "cancel_response_redaction" => {
             "nautilus live production-mutation-cancel-response-redaction"
         }
@@ -15473,6 +15875,195 @@ fn production_mutation_actual_cancel_single_shot_adapter_capability_issues(
     issues
 }
 
+fn production_mutation_actual_cancel_readback_reconciliation_source_issues(
+    actual_cancel_attempt: &serde_json::Value,
+    opt: &LiveProductionMutationActualCancelReadbackReconciliationOpt,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_string_value(actual_cancel_attempt, "schema_version").as_deref()
+        != Some(PRODUCTION_MUTATION_ACTUAL_CANCEL_SINGLE_SHOT_SCHEMA_VERSION)
+    {
+        issues.push("actual_cancel_attempt_schema_mismatch".to_string());
+    }
+    if json_string_value(actual_cancel_attempt, "artifact_type").as_deref()
+        != Some("actual_cancel_single_shot")
+    {
+        issues.push("actual_cancel_attempt_artifact_type_mismatch".to_string());
+    }
+    if json_string_value(actual_cancel_attempt, "status").as_deref()
+        != Some("actual_cancel_attempt_recorded")
+    {
+        let status = json_string_value(actual_cancel_attempt, "status")
+            .unwrap_or_else(|| "unknown".to_string());
+        issues.push(format!("actual_cancel_attempt_status_{status}"));
+    }
+    if json_string_value(actual_cancel_attempt, "order_lineage_id").as_deref()
+        != Some(opt.expected_order_lineage_id.as_str())
+    {
+        issues.push("actual_cancel_attempt_order_lineage_mismatch".to_string());
+    }
+    if json_scalar_string_value(actual_cancel_attempt, "symbol").as_deref()
+        != Some(opt.expected_symbol.as_str())
+    {
+        issues.push("actual_cancel_attempt_symbol_mismatch".to_string());
+    }
+    if json_scalar_string_value(actual_cancel_attempt, "account_label").as_deref()
+        != Some(opt.expected_account_label.as_str())
+    {
+        issues.push("actual_cancel_attempt_account_label_mismatch".to_string());
+    }
+    if json_string_value(actual_cancel_attempt, "venue").as_deref() != Some(opt.venue.as_str()) {
+        issues.push("actual_cancel_attempt_venue_mismatch".to_string());
+    }
+    for field in [
+        "actual_cancel_command_ready",
+        "single_shot_cancel_allowed",
+        "owner_approval_ready",
+        "risk_gate_ready",
+        "release_provenance_ready",
+        "adapter_boundary_ready",
+        "adapter_capability_ready",
+        "approval_consumed_before_send",
+        "approval_consumed_after_send",
+        "request_sent",
+        "cancel_attempted",
+        "http_send_attempted",
+        "readback_required",
+    ] {
+        if !json_bool_value(actual_cancel_attempt, field).unwrap_or(false) {
+            issues.push(format!("actual_cancel_attempt_{field}_not_true"));
+        }
+    }
+    if json_u64_value(actual_cancel_attempt, "cancel_requests_sent").unwrap_or(0) != 1 {
+        issues.push("actual_cancel_attempt_cancel_requests_sent_not_one".to_string());
+    }
+    if json_u64_value(
+        actual_cancel_attempt,
+        "production_order_mutations_attempted",
+    )
+    .unwrap_or(0)
+        != 1
+    {
+        issues.push("actual_cancel_attempt_mutations_attempted_not_one".to_string());
+    }
+    if json_string_value(actual_cancel_attempt, "readback_requirement").as_deref()
+        != Some("post_cancel_readback_required_before_any_retry_or_followup")
+    {
+        issues.push("actual_cancel_attempt_readback_requirement_mismatch".to_string());
+    }
+    for field in [
+        "source_artifact_issues",
+        "adapter_capability_issues",
+        "safety_contract_issues",
+        "release_manifest_issues",
+        "missing_cli_flags",
+        "missing_env_vars",
+    ] {
+        if json_array_has_items(actual_cancel_attempt, field) {
+            issues.push(format!("actual_cancel_attempt_{field}_not_empty"));
+        }
+    }
+    append_true_marker_issues(
+        &mut issues,
+        "actual_cancel_attempt",
+        actual_cancel_attempt,
+        &[
+            "retry_attempted",
+            "replace_attempted",
+            "amend_attempted",
+            "flatten_attempted",
+            "remediation_attempted",
+            "automatic_cancel_allowed",
+            "automatic_remediation_allowed",
+            "bulk_cancel_allowed",
+            "cancel_all_allowed",
+            "multi_account_cancel_allowed",
+            "multi_strategy_cancel_allowed",
+            "multi_venue_cancel_allowed",
+            "dashboard_order_controls_enabled",
+            "dashboard_cancel_controls_enabled",
+            "dashboard_execution_allowed",
+            "api_key_value_recorded",
+            "api_secret_value_recorded",
+            "api_key_header_value_recorded",
+            "signature_recorded",
+            "signed_query_recorded",
+            "signed_url_recorded",
+            "request_body_recorded",
+            "raw_request_body_recorded",
+            "raw_exchange_response_recorded",
+            "response_body_recorded",
+            "response_headers_recorded",
+        ],
+    );
+
+    issues.sort();
+    issues.dedup();
+    issues
+}
+
+fn production_mutation_actual_cancel_readback_reconciliation_lineage_issues(
+    actual_cancel_attempt: &serde_json::Value,
+    readback: &serde_json::Value,
+    opt: &LiveProductionMutationActualCancelReadbackReconciliationOpt,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    if json_scalar_string_value(readback, "symbol").as_deref() != Some(opt.expected_symbol.as_str())
+    {
+        issues.push("readback_symbol_mismatch".to_string());
+    }
+
+    let readback_order_id_ref = redact_cancel_preview_identifier(
+        "readback_order_id",
+        &json_scalar_string_value(readback, "orderId").unwrap_or_else(|| "missing".to_string()),
+    );
+    let readback_client_order_id_ref = redact_cancel_preview_identifier(
+        "readback_client_order_id",
+        &json_scalar_string_value(readback, "clientOrderId")
+            .unwrap_or_else(|| "missing".to_string()),
+    );
+    let readback_orig_client_order_id_ref = redact_cancel_preview_identifier(
+        "readback_orig_client_order_id",
+        &json_scalar_string_value(readback, "origClientOrderId")
+            .unwrap_or_else(|| "missing".to_string()),
+    );
+    let known_order_id = json_scalar_string_value(actual_cancel_attempt, "known_order_id")
+        .unwrap_or_else(|| "missing".to_string());
+    let known_client_order_id =
+        json_scalar_string_value(actual_cancel_attempt, "known_client_order_id")
+            .unwrap_or_else(|| "missing".to_string());
+    let cancel_order_identifier_ref =
+        json_scalar_string_value(actual_cancel_attempt, "cancel_order_identifier_ref")
+            .unwrap_or_else(|| "missing".to_string());
+    let readback_timeout =
+        production_mutation_actual_cancel_readback_reconciliation_timeout(readback);
+    let order_identity_matches =
+        redacted_cancel_identifiers_match(&readback_order_id_ref, &known_order_id)
+            || redacted_cancel_identifiers_match(
+                &readback_order_id_ref,
+                &cancel_order_identifier_ref,
+            )
+            || redacted_cancel_identifiers_match(
+                &readback_client_order_id_ref,
+                &known_client_order_id,
+            )
+            || redacted_cancel_identifiers_match(
+                &readback_orig_client_order_id_ref,
+                &known_client_order_id,
+            )
+            || redacted_cancel_identifiers_match(
+                &readback_orig_client_order_id_ref,
+                &cancel_order_identifier_ref,
+            );
+    if !order_identity_matches && !readback_timeout {
+        issues.push("readback_order_identity_mismatch".to_string());
+    }
+
+    issues.sort();
+    issues.dedup();
+    issues
+}
+
 fn actual_cancel_single_shot_order_identifier(
     opt: &LiveProductionMutationActualCancelSingleShotOpt,
     owner_approval_lifecycle: &serde_json::Value,
@@ -16044,6 +16635,23 @@ fn redact_cancel_preview_identifier(kind: &str, value: &str) -> String {
     let digest = digest::digest(&digest::SHA256, value.trim().as_bytes());
     let hex = lowercase_hex(digest.as_ref());
     format!("{kind}:sha256:{}:len={}", &hex[..16], value.trim().len())
+}
+
+fn redacted_cancel_identifiers_match(left: &str, right: &str) -> bool {
+    let Some(left_signature) = redacted_cancel_identifier_signature(left) else {
+        return false;
+    };
+    let Some(right_signature) = redacted_cancel_identifier_signature(right) else {
+        return false;
+    };
+    left_signature == right_signature
+}
+
+fn redacted_cancel_identifier_signature(value: &str) -> Option<&str> {
+    value
+        .trim()
+        .split_once(":sha256:")
+        .map(|(_, suffix)| suffix)
 }
 
 fn cancel_request_preview_reason(orphan_detection_outcome: &str) -> &'static str {
@@ -16640,6 +17248,408 @@ fn production_mutation_post_cancel_readback_classification(
         ),
         _ => ("unsupported", "unsupported_state_blocked", false, true),
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ProductionMutationActualCancelReadbackReconciliationDecision {
+    readback_result: String,
+    reconciliation_status: String,
+    artifact_status: String,
+    venue_state: String,
+    order_status: String,
+    execution_fill_status: String,
+    remaining_quantity_state: String,
+    residual_risk_state: String,
+    local_audit_state: String,
+    partial_fill_observed: bool,
+    already_cancelled_observed: bool,
+    filled_before_cancel_observed: bool,
+    timeout_observed: bool,
+    unknown_observed: bool,
+    inconsistent_observed: bool,
+    degraded: bool,
+    error_state: bool,
+    terminal_state_observed: bool,
+    manual_review_required: bool,
+    new_orders_blocked: bool,
+    risk_halted: bool,
+    readback_reconciliation_complete: bool,
+    actual_cancel_followup_complete: bool,
+}
+
+fn production_mutation_actual_cancel_readback_reconciliation_allowed_fields() -> Vec<String> {
+    [
+        "symbol",
+        "orderId",
+        "clientOrderId",
+        "origClientOrderId",
+        "status",
+        "readbackStatus",
+        "readbackResult",
+        "cancelResult",
+        "reconciliationHint",
+        "venueDisposition",
+        "alreadyCancelled",
+        "already_cancelled",
+        "executedQty",
+        "origQty",
+        "remainingQty",
+        "updateTime",
+        "localAuditState",
+    ]
+    .into_iter()
+    .map(ToString::to_string)
+    .collect()
+}
+
+fn production_mutation_actual_cancel_readback_reconciliation_state(
+    readback: &serde_json::Value,
+) -> String {
+    json_scalar_string_value(readback, "readbackStatus")
+        .or_else(|| json_scalar_string_value(readback, "status"))
+        .unwrap_or_else(|| "UNKNOWN".to_string())
+        .trim()
+        .to_ascii_uppercase()
+}
+
+fn classify_production_mutation_actual_cancel_readback_reconciliation(
+    readback_state: &str,
+    readback: &serde_json::Value,
+) -> ProductionMutationActualCancelReadbackReconciliationDecision {
+    let timeout = production_mutation_actual_cancel_readback_reconciliation_timeout(readback)
+        || readback_state == "TIMEOUT";
+    if timeout {
+        return actual_cancel_readback_reconciliation_decision(
+            "timeout",
+            "degraded_timeout",
+            "degraded_actual_cancel_readback_timeout",
+            "readback_timeout",
+            "timeout",
+            "unknown_timeout",
+            "unknown_timeout",
+            "unknown_timeout_manual_review",
+            "readback_timeout_recorded",
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            true,
+            true,
+            false,
+            true,
+            true,
+            true,
+            false,
+            false,
+        );
+    }
+
+    let already_cancelled = production_mutation_actual_cancel_readback_already_cancelled(readback);
+    let executed_qty = production_mutation_readback_decimal_field(readback, "executedQty");
+    let orig_qty = production_mutation_readback_decimal_field(readback, "origQty");
+    let partial_fill_observed = readback_state == "PARTIALLY_FILLED"
+        || matches!(
+            (executed_qty, orig_qty),
+            (Some(executed), Some(orig)) if executed > Decimal::ZERO && executed < orig
+        );
+    let filled_before_cancel_observed = readback_state == "FILLED"
+        || matches!(
+            (executed_qty, orig_qty),
+            (Some(executed), Some(orig)) if orig > Decimal::ZERO && executed >= orig
+        );
+
+    if partial_fill_observed {
+        return actual_cancel_readback_reconciliation_decision(
+            "inconsistent",
+            "degraded_inconsistent",
+            "degraded_actual_cancel_readback_inconsistent",
+            "partial_fill_observed_after_cancel",
+            "partially_filled",
+            "partial_fill",
+            "remaining_quantity_open_or_unknown",
+            "partial_fill_residual_risk_manual_review",
+            "partial_fill_inconsistent_recorded",
+            true,
+            false,
+            false,
+            false,
+            false,
+            true,
+            true,
+            true,
+            false,
+            true,
+            true,
+            true,
+            false,
+            false,
+        );
+    }
+
+    if already_cancelled {
+        return actual_cancel_readback_reconciliation_decision(
+            "already_cancelled",
+            "ready_already_cancelled",
+            "ready_actual_cancel_readback_already_cancelled",
+            "terminal_cancelled_before_or_by_attempt",
+            "cancelled",
+            "no_fill_observed",
+            "zero_remaining_or_terminal",
+            "none_terminal_already_cancelled",
+            "already_cancelled_readback_recorded",
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            true,
+            true,
+        );
+    }
+
+    if matches!(readback_state, "CANCELED" | "CANCELLED") {
+        return actual_cancel_readback_reconciliation_decision(
+            "cancel_confirmed",
+            "ready_cancel_confirmed",
+            "ready_actual_cancel_readback_cancel_confirmed",
+            "terminal_cancelled",
+            "cancelled",
+            "no_fill_observed",
+            "zero_remaining_or_terminal",
+            "none_terminal_cancel_confirmed",
+            "cancel_confirmed_readback_recorded",
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            true,
+            true,
+        );
+    }
+
+    if filled_before_cancel_observed {
+        return actual_cancel_readback_reconciliation_decision(
+            "filled_before_cancel",
+            "ready_filled_before_cancel",
+            "ready_actual_cancel_readback_filled_before_cancel",
+            "terminal_filled",
+            "filled",
+            "filled_before_cancel",
+            "zero_remaining_terminal_fill",
+            "filled_position_review_required",
+            "filled_before_cancel_readback_recorded",
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            false,
+        );
+    }
+
+    if readback_state == "UNKNOWN" {
+        return actual_cancel_readback_reconciliation_decision(
+            "unknown",
+            "degraded_unknown",
+            "degraded_actual_cancel_readback_unknown",
+            "unknown",
+            "unknown",
+            "unknown",
+            "unknown",
+            "unknown_manual_review",
+            "unknown_readback_recorded",
+            false,
+            false,
+            false,
+            false,
+            true,
+            false,
+            true,
+            true,
+            false,
+            true,
+            true,
+            true,
+            false,
+            false,
+        );
+    }
+
+    match readback_state {
+        "NEW" | "PENDING_CANCEL" | "REJECTED" | "EXPIRED" | "MISSING" => {
+            actual_cancel_readback_reconciliation_decision(
+                "inconsistent",
+                "degraded_inconsistent",
+                "degraded_actual_cancel_readback_inconsistent",
+                "post_cancel_state_not_cancelled",
+                &readback_state.to_ascii_lowercase(),
+                "not_fully_reconciled",
+                "remaining_quantity_open_or_unknown",
+                "inconsistent_manual_review",
+                "inconsistent_readback_recorded",
+                false,
+                false,
+                false,
+                false,
+                false,
+                true,
+                true,
+                true,
+                false,
+                true,
+                true,
+                true,
+                false,
+                false,
+            )
+        }
+        _ => actual_cancel_readback_reconciliation_decision(
+            "unsupported",
+            "blocked_unsupported",
+            "blocked_unsupported_readback_state",
+            "unsupported",
+            "unsupported",
+            "unsupported",
+            "unsupported",
+            "unsupported_manual_review",
+            "unsupported_readback_recorded",
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
+            true,
+            true,
+            false,
+            true,
+            true,
+            true,
+            false,
+            false,
+        ),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn actual_cancel_readback_reconciliation_decision(
+    readback_result: &str,
+    reconciliation_status: &str,
+    artifact_status: &str,
+    venue_state: &str,
+    order_status: &str,
+    execution_fill_status: &str,
+    remaining_quantity_state: &str,
+    residual_risk_state: &str,
+    local_audit_state: &str,
+    partial_fill_observed: bool,
+    already_cancelled_observed: bool,
+    filled_before_cancel_observed: bool,
+    timeout_observed: bool,
+    unknown_observed: bool,
+    inconsistent_observed: bool,
+    degraded: bool,
+    error_state: bool,
+    terminal_state_observed: bool,
+    manual_review_required: bool,
+    new_orders_blocked: bool,
+    risk_halted: bool,
+    readback_reconciliation_complete: bool,
+    actual_cancel_followup_complete: bool,
+) -> ProductionMutationActualCancelReadbackReconciliationDecision {
+    ProductionMutationActualCancelReadbackReconciliationDecision {
+        readback_result: readback_result.to_string(),
+        reconciliation_status: reconciliation_status.to_string(),
+        artifact_status: artifact_status.to_string(),
+        venue_state: venue_state.to_string(),
+        order_status: order_status.to_string(),
+        execution_fill_status: execution_fill_status.to_string(),
+        remaining_quantity_state: remaining_quantity_state.to_string(),
+        residual_risk_state: residual_risk_state.to_string(),
+        local_audit_state: local_audit_state.to_string(),
+        partial_fill_observed,
+        already_cancelled_observed,
+        filled_before_cancel_observed,
+        timeout_observed,
+        unknown_observed,
+        inconsistent_observed,
+        degraded,
+        error_state,
+        terminal_state_observed,
+        manual_review_required,
+        new_orders_blocked,
+        risk_halted,
+        readback_reconciliation_complete,
+        actual_cancel_followup_complete,
+    }
+}
+
+fn production_mutation_actual_cancel_readback_reconciliation_timeout(
+    readback: &serde_json::Value,
+) -> bool {
+    json_bool_value(readback, "timeout").unwrap_or(false)
+        || json_scalar_string_value(readback, "readbackResult")
+            .is_some_and(|value| value.trim().eq_ignore_ascii_case("timeout"))
+        || json_scalar_string_value(readback, "readbackStatus")
+            .is_some_and(|value| value.trim().eq_ignore_ascii_case("timeout"))
+}
+
+fn production_mutation_actual_cancel_readback_already_cancelled(
+    readback: &serde_json::Value,
+) -> bool {
+    json_bool_value(readback, "alreadyCancelled").unwrap_or(false)
+        || json_bool_value(readback, "already_cancelled").unwrap_or(false)
+        || [
+            "cancelResult",
+            "readbackResult",
+            "reconciliationHint",
+            "venueDisposition",
+        ]
+        .into_iter()
+        .filter_map(|field| json_scalar_string_value(readback, field))
+        .any(|value| {
+            matches!(
+                value
+                    .trim()
+                    .replace([' ', '-'], "_")
+                    .to_ascii_uppercase()
+                    .as_str(),
+                "ALREADY_CANCELLED" | "ALREADY_CANCELED"
+            )
+        })
+}
+
+fn production_mutation_readback_decimal_field(
+    readback: &serde_json::Value,
+    field: &str,
+) -> Option<Decimal> {
+    let value = json_scalar_string_value(readback, field)?;
+    parse_non_negative_decimal(&value).ok()
 }
 
 fn production_mutation_response_time_shape(value: &serde_json::Value, field: &str) -> String {
@@ -19576,6 +20586,16 @@ fn write_production_mutation_actual_cancel_single_shot_artifact(
     Ok(())
 }
 
+fn write_production_mutation_actual_cancel_readback_reconciliation_artifact(
+    path: &Path,
+    value: &ProductionMutationActualCancelReadbackReconciliationArtifact,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_string_pretty(value)?;
+    let body = format!("{raw}\n");
+    atomic_write_text(path, &body)?;
+    Ok(())
+}
+
 fn write_production_mutation_cancel_response_redaction_artifact(
     path: &Path,
     value: &ProductionMutationCancelResponseRedactionArtifact,
@@ -20730,6 +21750,67 @@ fn missing_production_mutation_actual_cancel_single_shot_cli_flags(
     }
     if !opt.confirm_no_secret_persistence {
         missing.push("--confirm-no-secret-persistence");
+    }
+    missing
+}
+
+fn missing_production_mutation_actual_cancel_readback_reconciliation_cli_flags(
+    opt: &LiveProductionMutationActualCancelReadbackReconciliationOpt,
+) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !opt.allow_production_mutation_actual_cancel_readback_reconciliation {
+        missing.push("--allow-production-mutation-actual-cancel-readback-reconciliation");
+    }
+    if !opt.confirm_actual_cancel_attempt_recorded {
+        missing.push("--confirm-actual-cancel-attempt-recorded");
+    }
+    if !opt.confirm_readback_required {
+        missing.push("--confirm-readback-required");
+    }
+    if !opt.confirm_readback_metadata_only {
+        missing.push("--confirm-readback-metadata-only");
+    }
+    if !opt.confirm_order_status_reconciled {
+        missing.push("--confirm-order-status-reconciled");
+    }
+    if !opt.confirm_execution_fill_status_reconciled {
+        missing.push("--confirm-execution-fill-status-reconciled");
+    }
+    if !opt.confirm_remaining_quantity_reconciled {
+        missing.push("--confirm-remaining-quantity-reconciled");
+    }
+    if !opt.confirm_risk_state_recorded {
+        missing.push("--confirm-risk-state-recorded");
+    }
+    if !opt.confirm_local_audit_state_recorded {
+        missing.push("--confirm-local-audit-state-recorded");
+    }
+    if !opt.confirm_dashboard_read_only_consumable {
+        missing.push("--confirm-dashboard-read-only-consumable");
+    }
+    if !opt.confirm_no_raw_readback_persistence {
+        missing.push("--confirm-no-raw-readback-persistence");
+    }
+    if !opt.confirm_no_headers_persistence {
+        missing.push("--confirm-no-headers-persistence");
+    }
+    if !opt.confirm_no_secret_persistence {
+        missing.push("--confirm-no-secret-persistence");
+    }
+    if !opt.confirm_no_retry {
+        missing.push("--confirm-no-retry");
+    }
+    if !opt.confirm_no_remediation {
+        missing.push("--confirm-no-remediation");
+    }
+    if !opt.confirm_no_second_cancel {
+        missing.push("--confirm-no-second-cancel");
+    }
+    if !opt.confirm_no_network {
+        missing.push("--confirm-no-network");
+    }
+    if !opt.confirm_dashboard_order_controls_disabled {
+        missing.push("--confirm-dashboard-order-controls-disabled");
     }
     missing
 }
@@ -22785,6 +23866,34 @@ dashboard_operation_requested
         }
     }
 
+    fn write_ready_v190_actual_cancel_single_shot_attempt_artifact(output_dir: &Path) -> PathBuf {
+        let sources = write_ready_v190_actual_cancel_single_shot_source_chain(output_dir);
+        let output = output_dir.join("actual-cancel-single-shot-attempt.json");
+        let opt =
+            production_mutation_actual_cancel_single_shot_opt(&sources, output.clone(), true, true);
+        let credentials =
+            EnvOnlyProductionMutationPreviewCredentials::from_actual_cancel_opt(&opt, |name| {
+                match name {
+                    PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW
+                    | PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED
+                    | PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW
+                    | PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED
+                    | PRODUCTION_MUTATION_HTTP_SEND_ENV_SINGLE_SHOT => Some("1".to_string()),
+                    "NTPRO_V190004_API_KEY" => Some("ntpro-v190004-api-key".to_string()),
+                    "NTPRO_V190004_API_SECRET" => Some("ntpro-v190004-api-secret".to_string()),
+                    _ => None,
+                }
+            });
+        let artifact = build_production_mutation_actual_cancel_single_shot_artifact(
+            &opt,
+            &credentials,
+            |_| ProductionMutationActualCancelHttpResult::success(7, 200),
+        )
+        .unwrap();
+        write_production_mutation_actual_cancel_single_shot_artifact(&output, &artifact).unwrap();
+        output
+    }
+
     fn write_ready_v190_actual_cancel_single_shot_source_chain(
         output_dir: &Path,
     ) -> V190ActualCancelSingleShotSourceChain {
@@ -22836,6 +23945,42 @@ dashboard_operation_requested
             owner_approval_lifecycle,
             adapter_boundary,
             adapter_capability,
+        }
+    }
+
+    fn production_mutation_actual_cancel_readback_reconciliation_opt(
+        actual_cancel_attempt: PathBuf,
+        readback: PathBuf,
+        output: PathBuf,
+        all_cli_gates: bool,
+    ) -> LiveProductionMutationActualCancelReadbackReconciliationOpt {
+        LiveProductionMutationActualCancelReadbackReconciliationOpt {
+            run_id: "v190-actual-cancel-readback-reconciliation".to_string(),
+            actual_cancel_attempt,
+            readback,
+            expected_order_lineage_id: "lineage-v160-single-shot".to_string(),
+            expected_symbol: "BTCUSDT".to_string(),
+            expected_account_label: "prod-account-redacted".to_string(),
+            venue: "binance_spot".to_string(),
+            output,
+            allow_production_mutation_actual_cancel_readback_reconciliation: all_cli_gates,
+            confirm_actual_cancel_attempt_recorded: all_cli_gates,
+            confirm_readback_required: all_cli_gates,
+            confirm_readback_metadata_only: all_cli_gates,
+            confirm_order_status_reconciled: all_cli_gates,
+            confirm_execution_fill_status_reconciled: all_cli_gates,
+            confirm_remaining_quantity_reconciled: all_cli_gates,
+            confirm_risk_state_recorded: all_cli_gates,
+            confirm_local_audit_state_recorded: all_cli_gates,
+            confirm_dashboard_read_only_consumable: all_cli_gates,
+            confirm_no_raw_readback_persistence: all_cli_gates,
+            confirm_no_headers_persistence: all_cli_gates,
+            confirm_no_secret_persistence: all_cli_gates,
+            confirm_no_retry: all_cli_gates,
+            confirm_no_remediation: all_cli_gates,
+            confirm_no_second_cancel: all_cli_gates,
+            confirm_no_network: all_cli_gates,
+            confirm_dashboard_order_controls_disabled: all_cli_gates,
         }
     }
 
@@ -23302,6 +24447,35 @@ dashboard_operation_requested
         .unwrap();
     }
 
+    fn write_synthetic_v190_actual_cancel_readback_reconciliation(
+        path: &Path,
+        status: &str,
+        executed_qty: &str,
+        orig_qty: &str,
+        readback_result: Option<&str>,
+        already_cancelled: bool,
+    ) {
+        let mut value = serde_json::json!({
+            "symbol": "BTCUSDT",
+            "orderId": 123456789,
+            "clientOrderId": "owner-approved-v160-single-shot",
+            "origClientOrderId": "owner-approved-v160-single-shot",
+            "updateTime": 1718400000001_u64,
+            "status": status,
+            "executedQty": executed_qty,
+            "origQty": orig_qty,
+            "remainingQty": "0",
+            "localAuditState": "actual_cancel_attempt_recorded"
+        });
+        if let Some(result) = readback_result {
+            value["readbackResult"] = serde_json::Value::String(result.to_string());
+        }
+        if already_cancelled {
+            value["alreadyCancelled"] = serde_json::Value::Bool(true);
+        }
+        fs::write(path, serde_json::to_string_pretty(&value).unwrap()).unwrap();
+    }
+
     fn write_forbidden_production_mutation_post_cancel_readback(path: &Path) {
         fs::write(
             path,
@@ -23320,6 +24494,49 @@ dashboard_operation_requested
             .unwrap(),
         )
         .unwrap();
+    }
+
+    fn assert_v190_actual_cancel_readback_reconciliation_false_boundary(
+        artifact: &serde_json::Value,
+    ) {
+        for field in [
+            "api_key_value_recorded",
+            "api_secret_value_recorded",
+            "api_key_header_value_recorded",
+            "signature_recorded",
+            "signed_query_recorded",
+            "signed_url_recorded",
+            "raw_exchange_response_recorded",
+            "raw_readback_body_recorded",
+            "response_body_recorded",
+            "response_headers_recorded",
+            "unrestricted_payload_recorded",
+            "account_balances_recorded",
+            "fills_recorded",
+            "readback_execution_attempted",
+            "order_state_read_attempted",
+            "actual_cancel_send_allowed",
+            "cancel_attempted",
+            "network_attempted",
+            "network_readback_endpoint_attempted",
+            "network_cancel_endpoint_attempted",
+            "retry_attempted",
+            "replace_attempted",
+            "amend_attempted",
+            "flatten_attempted",
+            "remediation_attempted",
+            "second_cancel_attempted",
+            "automatic_cancel_allowed",
+            "automatic_remediation_allowed",
+            "production_order_mutation_allowed",
+            "dashboard_order_controls_enabled",
+            "dashboard_cancel_controls_enabled",
+        ] {
+            assert_eq!(artifact[field], false, "{field}");
+        }
+        assert_eq!(artifact["cancel_requests_sent"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["production_order_state_reads_attempted"], 0);
     }
 
     fn assert_v180_post_cancel_readback_false_boundary(artifact: &serde_json::Value) {
@@ -32787,6 +34004,341 @@ dashboard_operation_requested
         assert_eq!(order_mismatch["single_shot_cancel_allowed"], false);
         assert_eq!(order_mismatch["request_sent"], false);
         assert_eq!(order_mismatch["cancel_attempted"], false);
+    }
+
+    #[test]
+    fn production_mutation_actual_cancel_readback_reconciliation_classifies_required_paths() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v190-006-actual-cancel-readback-reconciliation-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let actual_cancel_attempt =
+            write_ready_v190_actual_cancel_single_shot_attempt_artifact(&output_dir);
+
+        for (
+            name,
+            status,
+            executed_qty,
+            orig_qty,
+            readback_result_hint,
+            already_cancelled,
+            expected_status,
+            expected_result,
+            expected_reconciliation_status,
+            expected_partial_fill,
+            expected_filled_before_cancel,
+            expected_degraded,
+            expected_followup_complete,
+        ) in [
+            (
+                "confirmed",
+                "CANCELED",
+                "0",
+                "1",
+                None,
+                false,
+                "ready_actual_cancel_readback_cancel_confirmed",
+                "cancel_confirmed",
+                "ready_cancel_confirmed",
+                false,
+                false,
+                false,
+                true,
+            ),
+            (
+                "already-cancelled",
+                "CANCELED",
+                "0",
+                "1",
+                Some("already_cancelled"),
+                true,
+                "ready_actual_cancel_readback_already_cancelled",
+                "already_cancelled",
+                "ready_already_cancelled",
+                false,
+                false,
+                false,
+                true,
+            ),
+            (
+                "filled-before-cancel",
+                "FILLED",
+                "1",
+                "1",
+                None,
+                false,
+                "ready_actual_cancel_readback_filled_before_cancel",
+                "filled_before_cancel",
+                "ready_filled_before_cancel",
+                false,
+                true,
+                false,
+                false,
+            ),
+            (
+                "unknown",
+                "UNKNOWN",
+                "0",
+                "1",
+                None,
+                false,
+                "degraded_actual_cancel_readback_unknown",
+                "unknown",
+                "degraded_unknown",
+                false,
+                false,
+                true,
+                false,
+            ),
+            (
+                "timeout",
+                "UNKNOWN",
+                "0",
+                "1",
+                Some("timeout"),
+                false,
+                "degraded_actual_cancel_readback_timeout",
+                "timeout",
+                "degraded_timeout",
+                false,
+                false,
+                true,
+                false,
+            ),
+            (
+                "partial-fill",
+                "PARTIALLY_FILLED",
+                "0.4",
+                "1",
+                None,
+                false,
+                "degraded_actual_cancel_readback_inconsistent",
+                "inconsistent",
+                "degraded_inconsistent",
+                true,
+                false,
+                true,
+                false,
+            ),
+        ] {
+            let readback = output_dir.join(format!("readback-{name}.json"));
+            let output = output_dir.join(format!("reconciliation-{name}.json"));
+            write_synthetic_v190_actual_cancel_readback_reconciliation(
+                &readback,
+                status,
+                executed_qty,
+                orig_qty,
+                readback_result_hint,
+                already_cancelled,
+            );
+
+            run_live_production_mutation_actual_cancel_readback_reconciliation(
+                &production_mutation_actual_cancel_readback_reconciliation_opt(
+                    actual_cancel_attempt.clone(),
+                    readback,
+                    output.clone(),
+                    true,
+                ),
+            )
+            .unwrap();
+
+            let body = fs::read_to_string(output).unwrap();
+            assert!(!body.contains("123456789"));
+            assert!(!body.contains("owner-approved-v160-single-shot"));
+            assert!(!body.contains("ntpro-v190004-api-key"));
+            assert!(!body.contains("ntpro-v190004-api-secret"));
+            assert!(!body.contains("signature="));
+            assert!(!body.contains("\"headers\""));
+            assert!(!body.contains("\"payload\""));
+            assert!(!body.contains("\"body\""));
+            let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert_eq!(
+                artifact["schema_version"],
+                PRODUCTION_MUTATION_ACTUAL_CANCEL_READBACK_RECONCILIATION_SCHEMA_VERSION
+            );
+            assert_eq!(
+                artifact["artifact_type"],
+                "actual_cancel_readback_reconciliation"
+            );
+            assert_eq!(artifact["status"], expected_status);
+            assert_eq!(artifact["reconciliation_ready"], true);
+            assert_eq!(artifact["readback_evidence_present"], true);
+            assert_eq!(artifact["reconciliation_evidence_present"], true);
+            assert_eq!(
+                artifact["actual_cancel_followup_complete"],
+                expected_followup_complete
+            );
+            assert_eq!(artifact["readback_result"], expected_result);
+            assert_eq!(
+                artifact["reconciliation_status"],
+                expected_reconciliation_status
+            );
+            assert_eq!(artifact["partial_fill_observed"], expected_partial_fill);
+            assert_eq!(
+                artifact["filled_before_cancel_observed"],
+                expected_filled_before_cancel
+            );
+            assert_eq!(artifact["already_cancelled_observed"], already_cancelled);
+            assert_eq!(artifact["degraded"], expected_degraded);
+            assert_eq!(artifact["error_state"], expected_degraded);
+            assert_eq!(artifact["dashboard_read_only_consumable"], true);
+            assert_eq!(artifact["dashboard_audit_view_ready"], true);
+            assert_eq!(artifact["actual_cancel_attempt_recorded"], true);
+            assert_eq!(artifact["actual_cancel_request_sent"], true);
+            assert_eq!(artifact["readback_required"], true);
+            assert_eq!(artifact["symbol"], "BTCUSDT");
+            assert_eq!(artifact["account_label"], "prod-account-redacted");
+            assert!(
+                artifact["readback_order_id"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("readback_order_id:sha256:")
+            );
+            assert_eq!(
+                artifact["source_artifact_issues"].as_array().unwrap().len(),
+                0
+            );
+            assert_eq!(
+                artifact["readback_lineage_issues"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                0
+            );
+            assert_eq!(
+                artifact["forbidden_readback_markers"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                0
+            );
+            assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
+            assert_v190_actual_cancel_readback_reconciliation_false_boundary(&artifact);
+        }
+    }
+
+    #[test]
+    fn production_mutation_actual_cancel_readback_reconciliation_blocks_bad_inputs() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "ntpro-v190-006-actual-cancel-readback-reconciliation-blocked-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&output_dir).unwrap();
+        let actual_cancel_attempt =
+            write_ready_v190_actual_cancel_single_shot_attempt_artifact(&output_dir);
+        let valid_readback = output_dir.join("readback-canceled.json");
+        write_synthetic_v190_actual_cancel_readback_reconciliation(
+            &valid_readback,
+            "CANCELED",
+            "0",
+            "1",
+            None,
+            false,
+        );
+
+        let missing_flags_output = output_dir.join("reconciliation-missing-flags.json");
+        run_live_production_mutation_actual_cancel_readback_reconciliation(
+            &production_mutation_actual_cancel_readback_reconciliation_opt(
+                actual_cancel_attempt.clone(),
+                valid_readback.clone(),
+                missing_flags_output.clone(),
+                false,
+            ),
+        )
+        .unwrap();
+
+        let sources = write_ready_v190_actual_cancel_single_shot_source_chain(&output_dir);
+        let no_attempt_output = output_dir.join("actual-cancel-no-send.json");
+        run_live_production_mutation_actual_cancel_single_shot_with_env(
+            &production_mutation_actual_cancel_single_shot_opt(
+                &sources,
+                no_attempt_output.clone(),
+                false,
+                true,
+            ),
+            |_| None,
+        )
+        .unwrap();
+        let invalid_source_output = output_dir.join("reconciliation-invalid-source.json");
+        run_live_production_mutation_actual_cancel_readback_reconciliation(
+            &production_mutation_actual_cancel_readback_reconciliation_opt(
+                no_attempt_output,
+                valid_readback,
+                invalid_source_output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let forbidden_readback = output_dir.join("forbidden-readback.json");
+        write_forbidden_production_mutation_post_cancel_readback(&forbidden_readback);
+        let forbidden_output = output_dir.join("reconciliation-forbidden.json");
+        run_live_production_mutation_actual_cancel_readback_reconciliation(
+            &production_mutation_actual_cancel_readback_reconciliation_opt(
+                actual_cancel_attempt,
+                forbidden_readback,
+                forbidden_output.clone(),
+                true,
+            ),
+        )
+        .unwrap();
+
+        let missing_flags: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(missing_flags_output).unwrap()).unwrap();
+        assert_eq!(missing_flags["status"], "blocked_missing_gate");
+        assert_eq!(missing_flags["reconciliation_ready"], false);
+        assert!(
+            missing_flags["missing_cli_flags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|flag| {
+                    flag == "--allow-production-mutation-actual-cancel-readback-reconciliation"
+                })
+        );
+        assert_v190_actual_cancel_readback_reconciliation_false_boundary(&missing_flags);
+
+        let invalid_source: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(invalid_source_output).unwrap()).unwrap();
+        assert_eq!(invalid_source["status"], "blocked_source_artifact");
+        assert_eq!(invalid_source["reconciliation_ready"], false);
+        assert!(
+            invalid_source["source_artifact_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue
+                    == "actual_cancel_attempt_status_ready_actual_cancel_command_offline_no_send")
+        );
+        assert!(
+            invalid_source["source_artifact_issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue == "actual_cancel_attempt_request_sent_not_true")
+        );
+        assert_v190_actual_cancel_readback_reconciliation_false_boundary(&invalid_source);
+
+        let forbidden: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(forbidden_output).unwrap()).unwrap();
+        assert_eq!(forbidden["status"], "blocked_forbidden_readback_marker");
+        assert_eq!(forbidden["reconciliation_ready"], false);
+        assert!(
+            forbidden["forbidden_readback_markers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|marker| marker.as_str().unwrap().contains("$.headers"))
+        );
+        assert!(
+            forbidden["forbidden_readback_markers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|marker| marker.as_str().unwrap().contains("$.fills"))
+        );
+        assert_v190_actual_cancel_readback_reconciliation_false_boundary(&forbidden);
     }
 
     #[test]

@@ -216,6 +216,10 @@ pub enum LiveCommand {
     ),
     /// Executes or prepares a v0.19 owner-approved single-shot actual cancel command.
     ProductionMutationActualCancelSingleShot(Box<LiveProductionMutationActualCancelSingleShotOpt>),
+    /// Reconciles a v0.19 actual cancel attempt with redacted post-cancel readback evidence.
+    ProductionMutationActualCancelReadbackReconciliation(
+        Box<LiveProductionMutationActualCancelReadbackReconciliationOpt>,
+    ),
     /// Redacts a future v0.18 owner-approved cancel response artifact; no cancel send.
     ProductionMutationCancelResponseRedaction(LiveProductionMutationCancelResponseRedactionOpt),
     /// Classifies a future v0.18 post-cancel readback artifact; no network read or cancel send.
@@ -1963,6 +1967,89 @@ pub struct LiveProductionMutationActualCancelSingleShotOpt {
     /// Confirms API key, secret, signature, signed query, signed URL, raw response, and raw body are not persisted.
     #[arg(long)]
     pub confirm_no_secret_persistence: bool,
+}
+
+/// v0.19 actual cancel post-readback reconciliation options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationActualCancelReadbackReconciliationOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// V190-004 actual cancel single-shot JSON input.
+    #[arg(long)]
+    pub actual_cancel_attempt: PathBuf,
+    /// Synthetic or manually supplied read-only post-cancel readback JSON input.
+    #[arg(long)]
+    pub readback: PathBuf,
+    /// Expected order lineage identifier.
+    #[arg(long)]
+    pub expected_order_lineage_id: String,
+    /// Expected symbol.
+    #[arg(long)]
+    pub expected_symbol: String,
+    /// Expected account label.
+    #[arg(long)]
+    pub expected_account_label: String,
+    /// Expected venue.
+    #[arg(long)]
+    pub venue: String,
+    /// v0.19 actual cancel readback reconciliation JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for actual cancel readback reconciliation.
+    #[arg(long)]
+    pub allow_production_mutation_actual_cancel_readback_reconciliation: bool,
+    /// Confirms an actual cancel attempt artifact must already be recorded.
+    #[arg(long)]
+    pub confirm_actual_cancel_attempt_recorded: bool,
+    /// Confirms post-cancel readback evidence is mandatory after any actual cancel attempt.
+    #[arg(long)]
+    pub confirm_readback_required: bool,
+    /// Confirms only redacted readback metadata fields are allowed.
+    #[arg(long)]
+    pub confirm_readback_metadata_only: bool,
+    /// Confirms venue/order status is reconciled into the artifact.
+    #[arg(long)]
+    pub confirm_order_status_reconciled: bool,
+    /// Confirms execution and fill status are reconciled into the artifact.
+    #[arg(long)]
+    pub confirm_execution_fill_status_reconciled: bool,
+    /// Confirms remaining quantity state is reconciled into the artifact.
+    #[arg(long)]
+    pub confirm_remaining_quantity_reconciled: bool,
+    /// Confirms residual risk state is recorded.
+    #[arg(long)]
+    pub confirm_risk_state_recorded: bool,
+    /// Confirms local audit state is recorded.
+    #[arg(long)]
+    pub confirm_local_audit_state_recorded: bool,
+    /// Confirms the evidence is consumable by Dashboard read-only audit views.
+    #[arg(long)]
+    pub confirm_dashboard_read_only_consumable: bool,
+    /// Confirms raw readback bodies must not be persisted.
+    #[arg(long)]
+    pub confirm_no_raw_readback_persistence: bool,
+    /// Confirms HTTP headers are not persisted.
+    #[arg(long)]
+    pub confirm_no_headers_persistence: bool,
+    /// Confirms API key, secret, signature, signed query, and signed URL are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
+    /// Confirms retry remains forbidden.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms remediation remains forbidden.
+    #[arg(long)]
+    pub confirm_no_remediation: bool,
+    /// Confirms no second cancel is attempted or allowed.
+    #[arg(long)]
+    pub confirm_no_second_cancel: bool,
+    /// Confirms no network endpoint is attempted by this reconciliation command.
+    #[arg(long)]
+    pub confirm_no_network: bool,
+    /// Confirms Dashboard order and cancel controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
 }
 
 /// v0.18 cancel response redaction options.
@@ -4690,6 +4777,104 @@ mod tests {
         assert!(cancel.confirm_no_automatic_cancel);
         assert!(cancel.confirm_no_dashboard_execution);
         assert!(cancel.confirm_no_secret_persistence);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_actual_cancel_readback_reconciliation_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-actual-cancel-readback-reconciliation",
+            "--run-id",
+            "v190-actual-cancel-readback-reconciliation",
+            "--actual-cancel-attempt",
+            "runs/v190/actual-cancel-single-shot.json",
+            "--readback",
+            "runs/v190/post-cancel-readback-canceled.json",
+            "--expected-order-lineage-id",
+            "lineage-v160-single-shot",
+            "--expected-symbol",
+            "BTCUSDT",
+            "--expected-account-label",
+            "prod-account-redacted",
+            "--venue",
+            "binance_spot",
+            "--output",
+            "runs/v190/actual-cancel-readback-reconciliation.json",
+            "--allow-production-mutation-actual-cancel-readback-reconciliation",
+            "--confirm-actual-cancel-attempt-recorded",
+            "--confirm-readback-required",
+            "--confirm-readback-metadata-only",
+            "--confirm-order-status-reconciled",
+            "--confirm-execution-fill-status-reconciled",
+            "--confirm-remaining-quantity-reconciled",
+            "--confirm-risk-state-recorded",
+            "--confirm-local-audit-state-recorded",
+            "--confirm-dashboard-read-only-consumable",
+            "--confirm-no-raw-readback-persistence",
+            "--confirm-no-headers-persistence",
+            "--confirm-no-secret-persistence",
+            "--confirm-no-retry",
+            "--confirm-no-remediation",
+            "--confirm-no-second-cancel",
+            "--confirm-no-network",
+            "--confirm-dashboard-order-controls-disabled",
+        ])
+        .expect("live production-mutation-actual-cancel-readback-reconciliation should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationActualCancelReadbackReconciliation(reconciliation) =
+            live.command
+        else {
+            panic!("expected production-mutation-actual-cancel-readback-reconciliation command");
+        };
+
+        assert_eq!(
+            reconciliation.run_id,
+            "v190-actual-cancel-readback-reconciliation"
+        );
+        assert_eq!(
+            reconciliation.actual_cancel_attempt,
+            PathBuf::from("runs/v190/actual-cancel-single-shot.json")
+        );
+        assert_eq!(
+            reconciliation.readback,
+            PathBuf::from("runs/v190/post-cancel-readback-canceled.json")
+        );
+        assert_eq!(
+            reconciliation.expected_order_lineage_id,
+            "lineage-v160-single-shot"
+        );
+        assert_eq!(reconciliation.expected_symbol, "BTCUSDT");
+        assert_eq!(
+            reconciliation.expected_account_label,
+            "prod-account-redacted"
+        );
+        assert_eq!(reconciliation.venue, "binance_spot");
+        assert_eq!(
+            reconciliation.output,
+            PathBuf::from("runs/v190/actual-cancel-readback-reconciliation.json")
+        );
+        assert!(reconciliation.allow_production_mutation_actual_cancel_readback_reconciliation);
+        assert!(reconciliation.confirm_actual_cancel_attempt_recorded);
+        assert!(reconciliation.confirm_readback_required);
+        assert!(reconciliation.confirm_readback_metadata_only);
+        assert!(reconciliation.confirm_order_status_reconciled);
+        assert!(reconciliation.confirm_execution_fill_status_reconciled);
+        assert!(reconciliation.confirm_remaining_quantity_reconciled);
+        assert!(reconciliation.confirm_risk_state_recorded);
+        assert!(reconciliation.confirm_local_audit_state_recorded);
+        assert!(reconciliation.confirm_dashboard_read_only_consumable);
+        assert!(reconciliation.confirm_no_raw_readback_persistence);
+        assert!(reconciliation.confirm_no_headers_persistence);
+        assert!(reconciliation.confirm_no_secret_persistence);
+        assert!(reconciliation.confirm_no_retry);
+        assert!(reconciliation.confirm_no_remediation);
+        assert!(reconciliation.confirm_no_second_cancel);
+        assert!(reconciliation.confirm_no_network);
+        assert!(reconciliation.confirm_dashboard_order_controls_disabled);
     }
 
     #[test]

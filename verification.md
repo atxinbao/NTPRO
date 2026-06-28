@@ -1,3 +1,37 @@
+# V190-006 Verification
+
+Date: 2026-06-28
+Executor: Codex
+Task: `V190-006` / GitHub issue `#582`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-cli = PASS
+cargo test -p nautilus-cli actual_cancel --lib = PASS, 15 tests
+cargo test -p nautilus-cli actual_cancel_readback_reconciliation --lib = PASS, 3 tests
+cargo test -p nautilus-cli parses_live_production_mutation_actual_cancel_readback_reconciliation_options --lib = PASS, 1 test
+scripts/ai/verify_v19_post_cancel_readback_reconciliation.sh = PASS
+cargo fmt --check -p nautilus-cli = PASS
+cargo clippy -p nautilus-cli --all-targets -- -D warnings = PASS
+scripts/ai/verify_fast.sh = PASS
+rg -n "readback|reconciliation|partial fill|unknown|already cancelled" crates docs scripts = PASS
+git diff --check = PASS
+```
+
+## Result
+
+The v0.19 actual-cancel post-readback reconciliation command is implemented as
+a local/offline evidence command. It requires a recorded V190-004 actual cancel
+attempt with `readback_required=true`, consumes redacted readback metadata, and
+classifies `cancel_confirmed`, `already_cancelled`, `filled_before_cancel`,
+`unknown`, `timeout`, and `inconsistent`. Unknown, timeout, partial-fill, and
+inconsistent outcomes are explicit degraded/error states and do not enable
+retry, remediation, second cancel, network readback, raw persistence, or
+Dashboard cancel controls. The artifact records order status, execution/fill
+status, remaining quantity state, residual risk, local audit state, and
+Dashboard read-only audit readiness.
+
 # V190-004 Verification
 
 Date: 2026-06-27
