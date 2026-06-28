@@ -220,6 +220,10 @@ pub enum LiveCommand {
     ProductionMutationActualCancelReadbackReconciliation(
         Box<LiveProductionMutationActualCancelReadbackReconciliationOpt>,
     ),
+    /// Writes v0.19 actual-cancel failure and partial-success evidence; no network call.
+    ProductionMutationActualCancelFailureEvidence(
+        Box<LiveProductionMutationActualCancelFailureEvidenceOpt>,
+    ),
     /// Redacts a future v0.18 owner-approved cancel response artifact; no cancel send.
     ProductionMutationCancelResponseRedaction(LiveProductionMutationCancelResponseRedactionOpt),
     /// Classifies a future v0.18 post-cancel readback artifact; no network read or cancel send.
@@ -2050,6 +2054,92 @@ pub struct LiveProductionMutationActualCancelReadbackReconciliationOpt {
     /// Confirms Dashboard order and cancel controls remain disabled.
     #[arg(long)]
     pub confirm_dashboard_order_controls_disabled: bool,
+}
+
+/// v0.19 actual cancel failure and partial-success evidence options.
+#[derive(Parser, Debug, Clone)]
+pub struct LiveProductionMutationActualCancelFailureEvidenceOpt {
+    /// Owner-visible run identifier.
+    #[arg(long)]
+    pub run_id: String,
+    /// V190-006 actual cancel readback reconciliation JSON input.
+    #[arg(long)]
+    pub readback_reconciliation: PathBuf,
+    /// Redacted request reference JSON input.
+    #[arg(long)]
+    pub request_ref: PathBuf,
+    /// Redacted response reference JSON input.
+    #[arg(long)]
+    pub response_ref: PathBuf,
+    /// Redacted readback reference JSON input.
+    #[arg(long)]
+    pub readback_ref: PathBuf,
+    /// Local audit reference JSON input.
+    #[arg(long)]
+    pub audit_ref: PathBuf,
+    /// Expected order lineage identifier.
+    #[arg(long)]
+    pub expected_order_lineage_id: String,
+    /// Expected symbol.
+    #[arg(long)]
+    pub expected_symbol: String,
+    /// Expected account label.
+    #[arg(long)]
+    pub expected_account_label: String,
+    /// Expected venue.
+    #[arg(long)]
+    pub venue: String,
+    /// v0.19 actual cancel failure evidence JSON output path.
+    #[arg(long)]
+    pub output: PathBuf,
+    /// Manual CLI gate for actual cancel failure and partial-success evidence.
+    #[arg(long)]
+    pub allow_production_mutation_actual_cancel_failure_evidence: bool,
+    /// Confirms request reference is recorded.
+    #[arg(long)]
+    pub confirm_request_ref_recorded: bool,
+    /// Confirms response reference is recorded.
+    #[arg(long)]
+    pub confirm_response_ref_recorded: bool,
+    /// Confirms readback reference is recorded.
+    #[arg(long)]
+    pub confirm_readback_ref_recorded: bool,
+    /// Confirms audit reference is recorded.
+    #[arg(long)]
+    pub confirm_audit_ref_recorded: bool,
+    /// Confirms all required failure outcomes are classified.
+    #[arg(long)]
+    pub confirm_failure_outcomes_classified: bool,
+    /// Confirms each outcome records operator action required, recovered, degraded, or failed.
+    #[arg(long)]
+    pub confirm_operator_action_model: bool,
+    /// Confirms unknown state cannot be marked as recovered.
+    #[arg(long)]
+    pub confirm_unknown_not_recovered: bool,
+    /// Confirms partial fills expose residual risk.
+    #[arg(long)]
+    pub confirm_partial_fill_residual_risk: bool,
+    /// Confirms the evidence can be consumed by Dashboard read-only views and release gates.
+    #[arg(long)]
+    pub confirm_dashboard_release_gate_consumable: bool,
+    /// Confirms retry remains forbidden.
+    #[arg(long)]
+    pub confirm_no_retry: bool,
+    /// Confirms remediation remains forbidden.
+    #[arg(long)]
+    pub confirm_no_remediation: bool,
+    /// Confirms no compensation trade is attempted.
+    #[arg(long)]
+    pub confirm_no_compensation_trade: bool,
+    /// Confirms no network endpoint is attempted by this evidence command.
+    #[arg(long)]
+    pub confirm_no_network: bool,
+    /// Confirms Dashboard order and cancel controls remain disabled.
+    #[arg(long)]
+    pub confirm_dashboard_order_controls_disabled: bool,
+    /// Confirms API key, secret, signature, signed query, signed URL, raw response, and raw body are not persisted.
+    #[arg(long)]
+    pub confirm_no_secret_persistence: bool,
 }
 
 /// v0.18 cancel response redaction options.
@@ -4875,6 +4965,111 @@ mod tests {
         assert!(reconciliation.confirm_no_second_cancel);
         assert!(reconciliation.confirm_no_network);
         assert!(reconciliation.confirm_dashboard_order_controls_disabled);
+    }
+
+    #[test]
+    fn parses_live_production_mutation_actual_cancel_failure_evidence_options() {
+        let parsed = NautilusCli::try_parse_from([
+            "nautilus",
+            "live",
+            "production-mutation-actual-cancel-failure-evidence",
+            "--run-id",
+            "v190-actual-cancel-failure-evidence",
+            "--readback-reconciliation",
+            "runs/v190/actual-cancel-readback-reconciliation.json",
+            "--request-ref",
+            "runs/v190/actual-cancel-request-ref.json",
+            "--response-ref",
+            "runs/v190/actual-cancel-response-ref.json",
+            "--readback-ref",
+            "runs/v190/actual-cancel-readback-ref.json",
+            "--audit-ref",
+            "runs/v190/actual-cancel-audit-ref.json",
+            "--expected-order-lineage-id",
+            "lineage-v160-single-shot",
+            "--expected-symbol",
+            "BTCUSDT",
+            "--expected-account-label",
+            "prod-account-redacted",
+            "--venue",
+            "binance_spot",
+            "--output",
+            "runs/v190/actual-cancel-failure-evidence.json",
+            "--allow-production-mutation-actual-cancel-failure-evidence",
+            "--confirm-request-ref-recorded",
+            "--confirm-response-ref-recorded",
+            "--confirm-readback-ref-recorded",
+            "--confirm-audit-ref-recorded",
+            "--confirm-failure-outcomes-classified",
+            "--confirm-operator-action-model",
+            "--confirm-unknown-not-recovered",
+            "--confirm-partial-fill-residual-risk",
+            "--confirm-dashboard-release-gate-consumable",
+            "--confirm-no-retry",
+            "--confirm-no-remediation",
+            "--confirm-no-compensation-trade",
+            "--confirm-no-network",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-secret-persistence",
+        ])
+        .expect("live production-mutation-actual-cancel-failure-evidence should parse");
+
+        let Commands::Live(live) = parsed.command else {
+            panic!("expected live command");
+        };
+        let LiveCommand::ProductionMutationActualCancelFailureEvidence(evidence) = live.command
+        else {
+            panic!("expected production-mutation-actual-cancel-failure-evidence command");
+        };
+
+        assert_eq!(evidence.run_id, "v190-actual-cancel-failure-evidence");
+        assert_eq!(
+            evidence.readback_reconciliation,
+            PathBuf::from("runs/v190/actual-cancel-readback-reconciliation.json")
+        );
+        assert_eq!(
+            evidence.request_ref,
+            PathBuf::from("runs/v190/actual-cancel-request-ref.json")
+        );
+        assert_eq!(
+            evidence.response_ref,
+            PathBuf::from("runs/v190/actual-cancel-response-ref.json")
+        );
+        assert_eq!(
+            evidence.readback_ref,
+            PathBuf::from("runs/v190/actual-cancel-readback-ref.json")
+        );
+        assert_eq!(
+            evidence.audit_ref,
+            PathBuf::from("runs/v190/actual-cancel-audit-ref.json")
+        );
+        assert_eq!(
+            evidence.expected_order_lineage_id,
+            "lineage-v160-single-shot"
+        );
+        assert_eq!(evidence.expected_symbol, "BTCUSDT");
+        assert_eq!(evidence.expected_account_label, "prod-account-redacted");
+        assert_eq!(evidence.venue, "binance_spot");
+        assert_eq!(
+            evidence.output,
+            PathBuf::from("runs/v190/actual-cancel-failure-evidence.json")
+        );
+        assert!(evidence.allow_production_mutation_actual_cancel_failure_evidence);
+        assert!(evidence.confirm_request_ref_recorded);
+        assert!(evidence.confirm_response_ref_recorded);
+        assert!(evidence.confirm_readback_ref_recorded);
+        assert!(evidence.confirm_audit_ref_recorded);
+        assert!(evidence.confirm_failure_outcomes_classified);
+        assert!(evidence.confirm_operator_action_model);
+        assert!(evidence.confirm_unknown_not_recovered);
+        assert!(evidence.confirm_partial_fill_residual_risk);
+        assert!(evidence.confirm_dashboard_release_gate_consumable);
+        assert!(evidence.confirm_no_retry);
+        assert!(evidence.confirm_no_remediation);
+        assert!(evidence.confirm_no_compensation_trade);
+        assert!(evidence.confirm_no_network);
+        assert!(evidence.confirm_dashboard_order_controls_disabled);
+        assert!(evidence.confirm_no_secret_persistence);
     }
 
     #[test]
