@@ -1,3 +1,36 @@
+# V190-008 Verification
+
+Date: 2026-06-28
+Executor: Codex
+Task: `V190-008` / GitHub issue `#584`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-cli = PASS
+cargo test -p nautilus-cli production_actual_cancel_audit --lib = PASS, 6 tests
+cargo test -p nautilus-cli production_cancel_recovery --lib = PASS, 7 tests
+scripts/ai/verify_v19_dashboard_actual_cancel_audit_view.sh = PASS
+cargo fmt --check -p nautilus-cli = PASS
+cargo clippy -p nautilus-cli --all-targets -- -D warnings = PASS
+scripts/ai/verify_fast.sh = PASS
+rg -n "cancel button|approve button|retry|bulk|actual_cancel|read-only|readonly" crates docs scripts = PASS
+git diff --check = PASS
+```
+
+## Result
+
+The v0.19 Dashboard actual-cancel audit view is implemented as a read-only
+local artifact surface. It consumes risk gate, owner approval, single-shot
+cancel attempt, post-cancel readback reconciliation, and failure evidence
+artifacts. The view distinguishes `ready`, `recovered`, `degraded`, `failed`,
+and `unknown`; missing evidence, schema mismatch, provenance mismatch, stale
+evidence, unknown readback, source issues, and Dashboard/control boundary
+violations do not render as healthy/recovered. This verification does not add a
+Dashboard cancel button, owner approval button, retry button, bulk action,
+trader terminal, Dashboard write operation, or multi-account/multi-strategy
+view.
+
 # V190-007 Verification
 
 Date: 2026-06-28
