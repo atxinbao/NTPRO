@@ -19,6 +19,10 @@ cargo fmt --check -p nautilus-cli = PASS
 cargo clippy -p nautilus-cli --all-targets -- -D warnings = PASS
 scripts/ai/verify_fast.sh = PASS
 git diff --check = PASS
+PR smoke classifier simulation for this change set = PASS
+  v19_smoke = true
+  heavy_rust = true
+  heavy_rust_reason = verification.md
 ```
 
 ## Result
@@ -427,6 +431,39 @@ The default release guard path now validates `ntpro-rust-only-v0.18.0` for both
 release surface and GitHub Release publication evidence. The v0.18.0 release
 remains preview-only: no actual cancel send, no automatic remediation, no
 Dashboard cancel controls, and no v0.18.1 release publication.
+
+# V190-010 Verification
+
+Date: 2026-06-28
+Executor: Codex
+Task: `V190-010` / GitHub issue `#586`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v19_release_gates.sh scripts/ai/verify_release.sh = PASS
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); YAML.load_file(".github/workflows/rust-cutover-smoke.yml")' = PASS
+scripts/ai/verify_v19_release_gates.sh = PASS, checked 27 v190 artifacts and 10 actual-cancel trace cases
+scripts/ai/verify_release.sh v19-release-gates = PASS
+scripts/ai/verify_v19_actual_cancel_golden_traces.sh = PASS
+scripts/ai/run_golden_traces.sh = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, 45 cases, 44 executable replay, 1 schema-only scoped
+scripts/ai/verify_release_strict.sh v19 = UNAVAILABLE, current script usage is v18 only
+cargo fmt --check -p nautilus-cli = PASS
+cargo clippy -p nautilus-cli --all-targets -- -D warnings = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+Local validation passed. The gate wires `v19-release-gates`,
+`release-v19-release-gates`, release notes, readiness evidence, and JSON/golden
+trace checks for owner-approved single-shot actual cancel only. It preserves:
+automatic cancel = not included, bulk cancel = not included, Dashboard cancel
+button = not included, missing readback = release-blocking, missing approval
+provenance = release-blocking, production order submit lifecycle = not
+included, and v0.20 enters owner-approved production order lifecycle.
 
 # V181-002 Verification
 

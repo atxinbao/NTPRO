@@ -116,6 +116,8 @@ jobs:
             command: scripts/ai/verify_release.sh v17-release-gates
           - stage: release-v18-release-gates
             command: scripts/ai/verify_release.sh v18-release-gates
+          - stage: release-v19-release-gates
+            command: scripts/ai/verify_release.sh v19-release-gates
           - stage: release-surface-current-guard
             command: scripts/ai/verify_release.sh release-surface-current-guard
           - stage: release-publication-guard
