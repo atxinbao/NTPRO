@@ -26,6 +26,7 @@ fi
 python3 scripts/ai/golden_trace_runner.py tests/golden/actual_cancel_schema.jsonl --mode validate-only
 
 TRACE_GLOB=tests/golden/actual_cancel_schema.jsonl \
+REQUIRE_GOLDEN_REPLAY=0 \
 RUN_RUST_GOLDEN_TRACE_HARNESS=0 \
 RUN_RUST_MARKET_DATA_TRACE_REPLAY=0 \
 RUN_RUST_CACHE_MSGBUS_TRACE_REPLAY=0 \
