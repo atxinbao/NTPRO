@@ -141,6 +141,14 @@ const PRODUCTION_MUTATION_POST_CANCEL_READBACK_SCHEMA_VERSION: &str =
     "ntpro.v180_post_cancel_readback.v1";
 const PRODUCTION_MUTATION_CANCEL_RECOVERY_INCIDENT_AUDIT_CLOSEOUT_SCHEMA_VERSION: &str =
     "ntpro.v180_cancel_recovery_incident_audit_closeout.v1";
+const PRODUCTION_MUTATION_ACTUAL_CANCEL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION: &str =
+    "ntpro.v190_actual_cancel_owner_approval_lifecycle.v1";
+const PRODUCTION_MUTATION_ACTUAL_CANCEL_SINGLE_SHOT_SCHEMA_VERSION: &str =
+    "ntpro.v190_actual_cancel_single_shot.v1";
+const PRODUCTION_MUTATION_ACTUAL_CANCEL_READBACK_RECONCILIATION_SCHEMA_VERSION: &str =
+    "ntpro.v190_actual_cancel_readback_reconciliation.v1";
+const PRODUCTION_MUTATION_ACTUAL_CANCEL_FAILURE_EVIDENCE_SCHEMA_VERSION: &str =
+    "ntpro.v190_actual_cancel_failure_evidence.v1";
 const LIVE_ALPHA_DRY_RUN_ORDER_GATE_ARTIFACT_RELATIVE_PATH: &str =
     "v0_14/live_alpha_dry_run_order_gate.json";
 const LIVE_ALPHA_RISK_PREFLIGHT_ARTIFACT_RELATIVE_PATH: &str =
@@ -191,6 +199,14 @@ const PRODUCTION_MUTATION_POST_CANCEL_READBACK_ARTIFACT_RELATIVE_PATH: &str =
     "v0_18/post_cancel_readback.json";
 const PRODUCTION_MUTATION_CANCEL_RECOVERY_INCIDENT_AUDIT_CLOSEOUT_ARTIFACT_RELATIVE_PATH: &str =
     "v0_18/cancel_recovery_incident_audit_closeout.json";
+const PRODUCTION_MUTATION_ACTUAL_CANCEL_OWNER_APPROVAL_LIFECYCLE_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_19/actual_cancel_owner_approval_lifecycle.json";
+const PRODUCTION_MUTATION_ACTUAL_CANCEL_SINGLE_SHOT_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_19/actual_cancel_single_shot.json";
+const PRODUCTION_MUTATION_ACTUAL_CANCEL_READBACK_RECONCILIATION_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_19/actual_cancel_readback_reconciliation.json";
+const PRODUCTION_MUTATION_ACTUAL_CANCEL_FAILURE_EVIDENCE_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_19/actual_cancel_failure_evidence.json";
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
 <html lang="zh-CN">
@@ -248,6 +264,10 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
     <section class="band">
       <h2>v0.18 撤单恢复只读面板</h2>
       <div id="production-cancel-recovery" class="table-wrap"></div>
+    </section>
+    <section class="band">
+      <h2>v0.19 真实撤单审计只读视图</h2>
+      <div id="production-actual-cancel-audit" class="table-wrap"></div>
     </section>
     <section class="band">
       <h2>节点</h2>
@@ -811,6 +831,7 @@ function render(payload) {
   renderProductionMutationEvidence(snapshot.production_mutation_evidence || []);
   renderProductionReconciliationOrphan(snapshot.production_reconciliation_orphan || []);
   renderProductionCancelRecovery(snapshot.production_cancel_recovery || []);
+  renderProductionActualCancelAudit(snapshot.production_actual_cancel_audit || []);
   renderDataSources(snapshot.data_sources || []);
   renderExecutionGateways(snapshot.execution_gateways || []);
   renderRisk(snapshot.risk || {});
@@ -1251,6 +1272,44 @@ function renderProductionCancelRecovery(items) {
         `).join("")}
       </tbody>
     </table>` : emptyTable("没有 v0.18 撤单恢复只读工件");
+}
+
+function renderProductionActualCancelAudit(items) {
+  document.getElementById("production-actual-cancel-audit").innerHTML = items.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>节点</th>
+          <th>当前结论</th>
+          <th>Approval / Risk</th>
+          <th>Cancel Attempt / Venue</th>
+          <th>Readback</th>
+          <th>Outcome / Audit</th>
+          <th>只读边界</th>
+          <th>工件</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map((item) => `
+          <tr>
+            <td data-label="节点"><strong>${text(item.node_id)}</strong></td>
+            <td data-label="当前结论"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.audit_state))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div>${panelRow("缺失证据", snapshotValue(item.missing_artifacts))}${panelRow("Schema 诊断", snapshotValue(item.schema_diagnostics))}${panelRow("Provenance 诊断", snapshotValue(item.provenance_diagnostics))}${panelRow("Stale 证据", snapshotValue(item.stale_artifacts))}</td>
+            <td data-label="Approval / Risk">${panelRow("Lineage", snapshotValue(item.order_lineage_id))}${panelRow("审批工件", snapshotValue(item.approval_lifecycle_status))}${panelRow("审批状态", snapshotValue(item.owner_approval_state))}${panelRow("审批有效", snapshotValue(item.approval_lifecycle_valid))}${panelRow("执行授权", snapshotValue(item.approval_execution_authorized))}${panelRow("Risk gate", snapshotValue(item.risk_gate_status))}${panelRow("Risk result", snapshotValue(item.risk_gate_result))}${panelRow("Risk ready", snapshotValue(item.risk_gate_ready))}</td>
+            <td data-label="Cancel Attempt / Venue">${panelRow("Attempt 状态", snapshotValue(item.cancel_attempt_status))}${panelRow("命令 ready", snapshotValue(item.actual_cancel_command_ready))}${panelRow("Single-shot gate", snapshotValue(item.single_shot_cancel_allowed))}${panelRow("Request sent", snapshotValue(item.request_sent))}${panelRow("Cancel attempted", snapshotValue(item.cancel_attempted))}${panelRow("Cancel requests", snapshotValue(item.cancel_requests_sent))}${panelRow("Request ID", snapshotValue(item.request_id))}${panelRow("Venue status", snapshotValue(item.venue_response_status))}${panelRow("Venue source", snapshotValue(item.venue_response_source))}${panelRow("Venue code", snapshotValue(item.venue_response_code))}${panelRow("Venue error", snapshotValue(item.venue_response_error_code))}${panelRow("Local audit", snapshotValue(item.local_audit_reference))}</td>
+            <td data-label="Readback">${panelRow("Readback 状态", snapshotValue(item.readback_status))}${panelRow("Readback result", snapshotValue(item.readback_result))}${panelRow("Reconciliation", snapshotValue(item.reconciliation_status))}${panelRow("Readback state", snapshotValue(item.readback_state))}${panelRow("Venue state", snapshotValue(item.venue_state))}${panelRow("终态", snapshotValue(item.terminal_state_observed))}${panelRow("Unknown", snapshotValue(item.unknown_observed))}${panelRow("Dashboard 只读可消费", snapshotValue(item.dashboard_read_only_consumable))}${panelRow("Audit view ready", snapshotValue(item.dashboard_audit_view_ready))}</td>
+            <td data-label="Outcome / Audit">${panelRow("Evidence 状态", snapshotValue(item.outcome_status))}${panelRow("Cancel outcome", snapshotValue(item.cancel_outcome))}${panelRow("Outcome category", snapshotValue(item.outcome_category))}${panelRow("Recovered", snapshotValue(item.recovered))}${panelRow("Degraded", snapshotValue(item.degraded))}${panelRow("Failed", snapshotValue(item.failed))}${panelRow("Partial success", snapshotValue(item.partial_success))}${panelRow("Operator action", snapshotValue(item.operator_action_required))}${panelRow("Residual risk", snapshotValue(item.residual_risk_visible))}${panelRow("Audit refs", snapshotValue(item.request_response_readback_audit_refs_recorded))}${panelRow("Source issues", snapshotValue(item.source_artifact_issues))}${panelRow("Lineage issues", snapshotValue(item.lineage_issues))}${panelRow("Missing flags", snapshotValue(item.missing_cli_flags))}</td>
+            <td data-label="只读边界">${panelRow("Dashboard 下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("Dashboard 撤单控件", snapshotValue(item.dashboard_cancel_controls_enabled))}${panelRow("重试", snapshotValue(item.retry_attempted))}${panelRow("补救", snapshotValue(item.remediation_attempted))}${panelRow("自动撤单", snapshotValue(item.automatic_cancel_allowed))}${panelRow("自动补救", snapshotValue(item.automatic_remediation_allowed))}${panelRow("批量撤单允许标记", snapshotValue(item.bulk_cancel_allowed))}${panelRow("二次撤单尝试", snapshotValue(item.second_cancel_attempted))}${panelRow("补偿交易", snapshotValue(item.compensation_trade_attempted))}${panelRow("实际发送允许标记", snapshotValue(item.actual_cancel_send_allowed))}${panelRow("生产变更次数", snapshotValue(item.production_order_mutations_attempted))}${panelRow("Readback 执行", snapshotValue(item.readback_execution_attempted))}${panelRow("状态读取次数", snapshotValue(item.production_order_state_reads_attempted))}${panelRow("网络尝试", snapshotValue(item.network_attempted))}${panelRow("Readback 端点", snapshotValue(item.network_readback_endpoint_attempted))}${panelRow("Cancel 端点", snapshotValue(item.network_cancel_endpoint_attempted))}</td>
+            <td data-label="工件" class="path">
+              ${panelRow("risk-gate", snapshotValue(item.cancel_risk_gate_path))}
+              ${panelRow("approval", snapshotValue(item.owner_approval_lifecycle_path))}
+              ${panelRow("attempt", snapshotValue(item.actual_cancel_single_shot_path))}
+              ${panelRow("readback", snapshotValue(item.readback_reconciliation_path))}
+              ${panelRow("failure", snapshotValue(item.failure_evidence_path))}
+            </td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>` : emptyTable("没有 v0.19 真实撤单审计只读工件");
 }
 
 function renderDataSources(dataSources) {
@@ -2266,6 +2325,7 @@ pub struct DashboardSnapshot {
     pub production_mutation_evidence: Vec<ProductionMutationEvidenceStatus>,
     pub production_reconciliation_orphan: Vec<ProductionReconciliationOrphanStatus>,
     pub production_cancel_recovery: Vec<ProductionCancelRecoveryStatus>,
+    pub production_actual_cancel_audit: Vec<ProductionActualCancelAuditStatus>,
     pub runtime_modules: Vec<RuntimeModuleStatus>,
     pub logs: Vec<LogStatus>,
     pub metrics: Vec<MetricStatus>,
@@ -2294,6 +2354,7 @@ impl DashboardSnapshot {
             production_mutation_evidence: Vec::new(),
             production_reconciliation_orphan: Vec::new(),
             production_cancel_recovery: Vec::new(),
+            production_actual_cancel_audit: Vec::new(),
             runtime_modules: Vec::new(),
             logs: Vec::new(),
             metrics: Vec::new(),
@@ -3206,6 +3267,82 @@ pub struct ProductionCancelRecoveryStatus {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProductionActualCancelAuditStatus {
+    pub node_id: String,
+    pub health: HealthStatus,
+    pub readiness_status: DashboardValue<String>,
+    pub audit_state: DashboardValue<String>,
+    pub diagnostic: DashboardValue<String>,
+    pub missing_artifacts: DashboardValue<String>,
+    pub schema_diagnostics: DashboardValue<String>,
+    pub provenance_diagnostics: DashboardValue<String>,
+    pub stale_artifacts: DashboardValue<String>,
+    pub order_lineage_id: DashboardValue<String>,
+    pub approval_lifecycle_status: DashboardValue<String>,
+    pub owner_approval_state: DashboardValue<String>,
+    pub approval_lifecycle_valid: DashboardValue<bool>,
+    pub approval_execution_authorized: DashboardValue<bool>,
+    pub risk_gate_status: DashboardValue<String>,
+    pub risk_gate_result: DashboardValue<String>,
+    pub risk_gate_ready: DashboardValue<bool>,
+    pub cancel_attempt_status: DashboardValue<String>,
+    pub actual_cancel_command_ready: DashboardValue<bool>,
+    pub single_shot_cancel_allowed: DashboardValue<bool>,
+    pub request_sent: DashboardValue<bool>,
+    pub cancel_attempted: DashboardValue<bool>,
+    pub cancel_requests_sent: DashboardValue<u64>,
+    pub request_id: DashboardValue<String>,
+    pub venue_response_status: DashboardValue<String>,
+    pub venue_response_source: DashboardValue<String>,
+    pub venue_response_code: DashboardValue<u64>,
+    pub venue_response_error_code: DashboardValue<String>,
+    pub local_audit_reference: DashboardValue<String>,
+    pub readback_status: DashboardValue<String>,
+    pub readback_result: DashboardValue<String>,
+    pub reconciliation_status: DashboardValue<String>,
+    pub readback_state: DashboardValue<String>,
+    pub venue_state: DashboardValue<String>,
+    pub terminal_state_observed: DashboardValue<bool>,
+    pub unknown_observed: DashboardValue<bool>,
+    pub dashboard_read_only_consumable: DashboardValue<bool>,
+    pub dashboard_audit_view_ready: DashboardValue<bool>,
+    pub outcome_status: DashboardValue<String>,
+    pub cancel_outcome: DashboardValue<String>,
+    pub outcome_category: DashboardValue<String>,
+    pub recovered: DashboardValue<bool>,
+    pub degraded: DashboardValue<bool>,
+    pub failed: DashboardValue<bool>,
+    pub partial_success: DashboardValue<bool>,
+    pub operator_action_required: DashboardValue<bool>,
+    pub residual_risk_visible: DashboardValue<bool>,
+    pub request_response_readback_audit_refs_recorded: DashboardValue<bool>,
+    pub source_artifact_issues: DashboardValue<String>,
+    pub lineage_issues: DashboardValue<String>,
+    pub missing_cli_flags: DashboardValue<String>,
+    pub actual_cancel_send_allowed: DashboardValue<bool>,
+    pub production_order_mutations_attempted: DashboardValue<u64>,
+    pub readback_execution_attempted: DashboardValue<bool>,
+    pub production_order_state_reads_attempted: DashboardValue<u64>,
+    pub network_attempted: DashboardValue<bool>,
+    pub network_readback_endpoint_attempted: DashboardValue<bool>,
+    pub network_cancel_endpoint_attempted: DashboardValue<bool>,
+    pub retry_attempted: DashboardValue<bool>,
+    pub remediation_attempted: DashboardValue<bool>,
+    pub automatic_cancel_allowed: DashboardValue<bool>,
+    pub automatic_remediation_allowed: DashboardValue<bool>,
+    pub dashboard_order_controls_enabled: DashboardValue<bool>,
+    pub dashboard_cancel_controls_enabled: DashboardValue<bool>,
+    pub bulk_cancel_allowed: DashboardValue<bool>,
+    pub second_cancel_attempted: DashboardValue<bool>,
+    pub compensation_trade_attempted: DashboardValue<bool>,
+    pub cancel_risk_gate_path: DashboardValue<String>,
+    pub owner_approval_lifecycle_path: DashboardValue<String>,
+    pub actual_cancel_single_shot_path: DashboardValue<String>,
+    pub readback_reconciliation_path: DashboardValue<String>,
+    pub failure_evidence_path: DashboardValue<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeModuleStatus {
     pub module_name: String,
     pub status: DashboardValue<String>,
@@ -3494,6 +3631,11 @@ pub fn snapshot_from_supervisor_artifacts_with_workflow_root(
         }
         if let Some(cancel_recovery) = production_cancel_recovery_from_record(record) {
             snapshot.production_cancel_recovery.push(cancel_recovery);
+        }
+        if let Some(actual_cancel_audit) = production_actual_cancel_audit_from_record(record) {
+            snapshot
+                .production_actual_cancel_audit
+                .push(actual_cancel_audit);
         }
         snapshot
             .logs
@@ -6963,6 +7105,507 @@ fn production_cancel_recovery_from_record(
     })
 }
 
+#[derive(Clone, Debug)]
+struct ProductionActualCancelAuditArtifactPaths {
+    cancel_risk_gate_path: PathBuf,
+    owner_approval_lifecycle_path: PathBuf,
+    actual_cancel_single_shot_path: PathBuf,
+    readback_reconciliation_path: PathBuf,
+    failure_evidence_path: PathBuf,
+}
+
+impl ProductionActualCancelAuditArtifactPaths {
+    fn v19(record: &SupervisorNodeRecord) -> Self {
+        Self {
+            cancel_risk_gate_path: record
+                .artifact_root
+                .join(PRODUCTION_MUTATION_CANCEL_RISK_GATE_ARTIFACT_RELATIVE_PATH),
+            owner_approval_lifecycle_path: record.artifact_root.join(
+                PRODUCTION_MUTATION_ACTUAL_CANCEL_OWNER_APPROVAL_LIFECYCLE_ARTIFACT_RELATIVE_PATH,
+            ),
+            actual_cancel_single_shot_path: record
+                .artifact_root
+                .join(PRODUCTION_MUTATION_ACTUAL_CANCEL_SINGLE_SHOT_ARTIFACT_RELATIVE_PATH),
+            readback_reconciliation_path: record.artifact_root.join(
+                PRODUCTION_MUTATION_ACTUAL_CANCEL_READBACK_RECONCILIATION_ARTIFACT_RELATIVE_PATH,
+            ),
+            failure_evidence_path: record
+                .artifact_root
+                .join(PRODUCTION_MUTATION_ACTUAL_CANCEL_FAILURE_EVIDENCE_ARTIFACT_RELATIVE_PATH),
+        }
+    }
+
+    fn has_any_artifact(&self) -> bool {
+        self.cancel_risk_gate_path.exists()
+            || self.owner_approval_lifecycle_path.exists()
+            || self.actual_cancel_single_shot_path.exists()
+            || self.readback_reconciliation_path.exists()
+            || self.failure_evidence_path.exists()
+    }
+}
+
+fn production_actual_cancel_audit_from_record(
+    record: &SupervisorNodeRecord,
+) -> Option<ProductionActualCancelAuditStatus> {
+    let paths = ProductionActualCancelAuditArtifactPaths::v19(record);
+    if !paths.has_any_artifact() {
+        return None;
+    }
+
+    let cancel_risk_gate = read_json_file_value(&paths.cancel_risk_gate_path);
+    let owner_approval_lifecycle = read_json_file_value(&paths.owner_approval_lifecycle_path);
+    let actual_cancel_single_shot = read_json_file_value(&paths.actual_cancel_single_shot_path);
+    let readback_reconciliation = read_json_file_value(&paths.readback_reconciliation_path);
+    let failure_evidence = read_json_file_value(&paths.failure_evidence_path);
+    let artifacts = [
+        &cancel_risk_gate,
+        &owner_approval_lifecycle,
+        &actual_cancel_single_shot,
+        &readback_reconciliation,
+        &failure_evidence,
+    ];
+    let artifact_specs = [
+        (
+            "cancel_risk_gate",
+            paths.cancel_risk_gate_path.as_path(),
+            &cancel_risk_gate,
+            PRODUCTION_MUTATION_CANCEL_RISK_GATE_SCHEMA_VERSION,
+        ),
+        (
+            "actual_cancel_owner_approval_lifecycle",
+            paths.owner_approval_lifecycle_path.as_path(),
+            &owner_approval_lifecycle,
+            PRODUCTION_MUTATION_ACTUAL_CANCEL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION,
+        ),
+        (
+            "actual_cancel_single_shot",
+            paths.actual_cancel_single_shot_path.as_path(),
+            &actual_cancel_single_shot,
+            PRODUCTION_MUTATION_ACTUAL_CANCEL_SINGLE_SHOT_SCHEMA_VERSION,
+        ),
+        (
+            "actual_cancel_readback_reconciliation",
+            paths.readback_reconciliation_path.as_path(),
+            &readback_reconciliation,
+            PRODUCTION_MUTATION_ACTUAL_CANCEL_READBACK_RECONCILIATION_SCHEMA_VERSION,
+        ),
+        (
+            "actual_cancel_failure_evidence",
+            paths.failure_evidence_path.as_path(),
+            &failure_evidence,
+            PRODUCTION_MUTATION_ACTUAL_CANCEL_FAILURE_EVIDENCE_SCHEMA_VERSION,
+        ),
+    ];
+    let missing_artifacts = v17_missing_artifact_diagnostics(&artifact_specs);
+    let schema_diagnostics = v17_schema_diagnostics(&artifact_specs);
+    let provenance_diagnostics = v17_provenance_diagnostics(&artifact_specs);
+    let stale_artifacts = v17_stale_artifact_diagnostics(&artifact_specs);
+    let schema_ok = schema_diagnostics.is_empty();
+    let provenance_ok = provenance_diagnostics.is_empty();
+
+    let order_lineage_id = v18_first_available_string_any(&artifacts, "order_lineage_id");
+    let approval_lifecycle_status = owner_approval_lifecycle
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let owner_approval_state = owner_approval_lifecycle
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "approval_state")
+        });
+    let approval_lifecycle_valid =
+        v18_any_available_bool_any(&artifacts, "approval_lifecycle_valid");
+    let approval_execution_authorized =
+        v18_any_available_bool_any(&artifacts, "approval_execution_authorized");
+    let risk_gate_status = cancel_risk_gate
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let risk_gate_result = v18_first_available_string_any(&artifacts, "risk_gate_result");
+    let risk_gate_ready = v18_any_available_bool_any(&artifacts, "risk_gate_ready");
+    let cancel_attempt_status = actual_cancel_single_shot
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let actual_cancel_command_ready =
+        v18_any_available_bool_any(&artifacts, "actual_cancel_command_ready");
+    let single_shot_cancel_allowed =
+        v18_any_available_bool_any(&artifacts, "single_shot_cancel_allowed");
+    let request_sent = v18_any_available_bool_any(&artifacts, "request_sent");
+    let cancel_attempted = v18_any_available_bool_any(&artifacts, "cancel_attempted");
+    let cancel_requests_sent = v18_max_available_u64_any(&artifacts, "cancel_requests_sent");
+    let request_id = first_available_string_from_values([
+        actual_cancel_single_shot
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "request_id")
+            }),
+        readback_reconciliation
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "actual_cancel_request_id")
+            }),
+    ]);
+    let venue_response_status = actual_cancel_single_shot
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "venue_response_status")
+        });
+    let venue_response_source = actual_cancel_single_shot
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "venue_response_source")
+        });
+    let venue_response_code = actual_cancel_single_shot
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_u64_field(value, "venue_response_code")
+        });
+    let venue_response_error_code = actual_cancel_single_shot
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "venue_response_error_code")
+        });
+    let local_audit_reference = actual_cancel_single_shot
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "local_audit_reference")
+        });
+    let readback_status = readback_reconciliation
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let readback_result = first_available_string_from_values([
+        failure_evidence
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "readback_result")
+            }),
+        readback_reconciliation
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "readback_result")
+            }),
+    ]);
+    let reconciliation_status = v18_first_available_string_any(&artifacts, "reconciliation_status");
+    let readback_state = first_available_string_from_values([
+        failure_evidence
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "source_readback_state")
+            }),
+        readback_reconciliation
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "readback_state")
+            }),
+    ]);
+    let venue_state = first_available_string_from_values([
+        failure_evidence
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "source_venue_state")
+            }),
+        readback_reconciliation
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_field(value, "venue_state")
+            }),
+    ]);
+    let terminal_state_observed = v18_any_available_bool_any(&artifacts, "terminal_state_observed");
+    let unknown_observed = v18_any_available_bool_any(&artifacts, "unknown_observed");
+    let dashboard_read_only_consumable =
+        v18_any_available_bool_any(&artifacts, "dashboard_read_only_consumable");
+    let dashboard_audit_view_ready =
+        v18_any_available_bool_any(&artifacts, "dashboard_audit_view_ready");
+    let outcome_status = failure_evidence
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let cancel_outcome = failure_evidence
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "cancel_outcome")
+        });
+    let outcome_category = failure_evidence
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "outcome_category")
+        });
+    let recovered = v18_any_available_bool_any(&artifacts, "recovered");
+    let degraded = v18_any_available_bool_any(&artifacts, "degraded");
+    let failed = v18_any_available_bool_any(&artifacts, "failed");
+    let partial_success = v18_any_available_bool_any(&artifacts, "partial_success");
+    let operator_action_required =
+        v18_any_available_bool_any(&artifacts, "operator_action_required");
+    let residual_risk_visible = v18_any_available_bool_any(&artifacts, "residual_risk_visible");
+    let request_response_readback_audit_refs_recorded =
+        v18_any_available_bool_any(&artifacts, "request_response_readback_audit_refs_recorded");
+    let source_artifact_issues = first_available_string_from_values([
+        failure_evidence
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_array_field(value, "source_artifact_issues")
+            }),
+        readback_reconciliation
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_array_field(value, "source_artifact_issues")
+            }),
+        actual_cancel_single_shot
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_array_field(value, "source_artifact_issues")
+            }),
+    ]);
+    let lineage_issues = first_available_string_from_values([
+        failure_evidence
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_array_field(value, "lineage_issues")
+            }),
+        readback_reconciliation
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_array_field(value, "readback_lineage_issues")
+            }),
+    ]);
+    let missing_cli_flags = first_available_string_from_values([
+        failure_evidence
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_array_field(value, "missing_cli_flags")
+            }),
+        readback_reconciliation
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_array_field(value, "missing_cli_flags")
+            }),
+        actual_cancel_single_shot
+            .as_ref()
+            .map_or_else(DashboardValue::unknown, |value| {
+                json_string_array_field(value, "missing_cli_flags")
+            }),
+    ]);
+    let actual_cancel_send_allowed =
+        v18_any_available_bool_any(&artifacts, "actual_cancel_send_allowed");
+    let production_order_mutations_attempted =
+        v18_max_available_u64_any(&artifacts, "production_order_mutations_attempted");
+    let readback_execution_attempted =
+        v18_any_available_bool_any(&artifacts, "readback_execution_attempted");
+    let production_order_state_reads_attempted =
+        v18_max_available_u64_any(&artifacts, "production_order_state_reads_attempted");
+    let network_attempted = v18_any_available_bool_any(&artifacts, "network_attempted");
+    let network_readback_endpoint_attempted =
+        v18_any_available_bool_any(&artifacts, "network_readback_endpoint_attempted");
+    let network_cancel_endpoint_attempted =
+        v18_any_available_bool_any(&artifacts, "network_cancel_endpoint_attempted");
+    let retry_attempted = v18_any_available_bool_any(&artifacts, "retry_attempted");
+    let remediation_attempted = v18_any_available_bool_any(&artifacts, "remediation_attempted");
+    let automatic_cancel_allowed =
+        v18_any_available_bool_any(&artifacts, "automatic_cancel_allowed");
+    let automatic_remediation_allowed =
+        v18_any_available_bool_any(&artifacts, "automatic_remediation_allowed");
+    let dashboard_order_controls_enabled =
+        v18_any_available_bool_any(&artifacts, "dashboard_order_controls_enabled");
+    let dashboard_cancel_controls_enabled =
+        v18_any_available_bool_any(&artifacts, "dashboard_cancel_controls_enabled");
+    let bulk_cancel_allowed = v18_any_available_bool_any(&artifacts, "bulk_cancel_allowed");
+    let second_cancel_attempted = v18_any_available_bool_any(&artifacts, "second_cancel_attempted");
+    let compensation_trade_attempted =
+        v18_any_available_bool_any(&artifacts, "compensation_trade_attempted");
+    let reconciliation_ready = v18_any_available_bool_any(&artifacts, "reconciliation_ready");
+    let readback_reconciliation_complete =
+        v18_any_available_bool_any(&artifacts, "readback_reconciliation_complete");
+    let evidence_ready = v18_any_available_bool_any(&artifacts, "evidence_ready");
+    let failure_evidence_ready = v18_any_available_bool_any(&artifacts, "failure_evidence_ready");
+
+    let issue_artifacts = [
+        &actual_cancel_single_shot,
+        &readback_reconciliation,
+        &failure_evidence,
+    ];
+    let source_issue_blocked = issue_artifacts.iter().any(|artifact| {
+        v18_array_has_items(artifact, "source_artifact_issues")
+            || v18_array_has_items(artifact, "lineage_issues")
+            || v18_array_has_items(artifact, "readback_lineage_issues")
+            || v18_array_has_items(artifact, "missing_cli_flags")
+    });
+    let boundary_violation = !schema_ok
+        || !provenance_ok
+        || !stale_artifacts.is_empty()
+        || actual_cancel_send_allowed.value == Some(true)
+        || retry_attempted.value == Some(true)
+        || remediation_attempted.value == Some(true)
+        || automatic_cancel_allowed.value == Some(true)
+        || automatic_remediation_allowed.value == Some(true)
+        || dashboard_order_controls_enabled.value == Some(true)
+        || dashboard_cancel_controls_enabled.value == Some(true)
+        || bulk_cancel_allowed.value == Some(true)
+        || second_cancel_attempted.value == Some(true)
+        || compensation_trade_attempted.value == Some(true);
+    let unknown_readback = unknown_observed.value == Some(true)
+        || readback_result
+            .value
+            .as_deref()
+            .is_some_and(|value| value == "unknown")
+        || cancel_outcome
+            .value
+            .as_deref()
+            .is_some_and(|value| value == "unknown");
+    let required_ready = missing_artifacts.is_empty()
+        && !boundary_violation
+        && !source_issue_blocked
+        && risk_gate_ready.value == Some(true)
+        && approval_lifecycle_valid.value == Some(true)
+        && approval_execution_authorized.value == Some(true)
+        && actual_cancel_command_ready.value == Some(true)
+        && single_shot_cancel_allowed.value == Some(true)
+        && request_sent.value == Some(true)
+        && cancel_attempted.value == Some(true)
+        && dashboard_u64_gt_zero(&cancel_requests_sent)
+        && reconciliation_ready.value == Some(true)
+        && readback_reconciliation_complete.value == Some(true)
+        && dashboard_read_only_consumable.value == Some(true)
+        && dashboard_audit_view_ready.value == Some(true)
+        && evidence_ready.value == Some(true)
+        && failure_evidence_ready.value == Some(true)
+        && request_response_readback_audit_refs_recorded.value == Some(true);
+    let audit_state = if !required_ready || unknown_readback {
+        "unknown"
+    } else if outcome_category.value.as_deref() == Some("ready") {
+        "ready"
+    } else if recovered.value == Some(true)
+        || outcome_category.value.as_deref() == Some("recovered")
+        || cancel_outcome
+            .value
+            .as_deref()
+            .is_some_and(|value| matches!(value, "cancel_confirmed" | "already_cancelled"))
+    {
+        "recovered"
+    } else if failed.value == Some(true) || outcome_category.value.as_deref() == Some("failed") {
+        "failed"
+    } else if degraded.value == Some(true)
+        || partial_success.value == Some(true)
+        || operator_action_required.value == Some(true)
+        || outcome_category
+            .value
+            .as_deref()
+            .is_some_and(|value| matches!(value, "degraded" | "partial_success"))
+    {
+        "degraded"
+    } else {
+        "unknown"
+    };
+    let readiness_status = if boundary_violation {
+        "production_actual_cancel_audit_boundary_violation".to_string()
+    } else if !required_ready {
+        "production_actual_cancel_audit_incomplete".to_string()
+    } else {
+        format!("production_actual_cancel_audit_{audit_state}")
+    };
+    let health = match audit_state {
+        "ready" | "recovered" if readiness_status.ends_with(audit_state) => HealthStatus::Healthy,
+        "failed" if readiness_status.ends_with(audit_state) => HealthStatus::Error,
+        _ => HealthStatus::Degraded,
+    };
+
+    Some(ProductionActualCancelAuditStatus {
+        node_id: record.node_id.clone(),
+        health,
+        readiness_status: DashboardValue::available(readiness_status.clone()),
+        audit_state: DashboardValue::available(audit_state.to_string()),
+        diagnostic: DashboardValue::available(v19_actual_cancel_audit_diagnostic(
+            &readiness_status,
+            &missing_artifacts,
+            &schema_diagnostics,
+            &provenance_diagnostics,
+            &stale_artifacts,
+            V19ActualCancelAuditDiagnosticFlags {
+                boundary_violation,
+                unknown_readback,
+                source_issue_blocked,
+            },
+        )),
+        missing_artifacts: diagnostic_value(&missing_artifacts),
+        schema_diagnostics: diagnostic_value(&schema_diagnostics),
+        provenance_diagnostics: diagnostic_value(&provenance_diagnostics),
+        stale_artifacts: diagnostic_value(&stale_artifacts),
+        order_lineage_id,
+        approval_lifecycle_status,
+        owner_approval_state,
+        approval_lifecycle_valid,
+        approval_execution_authorized,
+        risk_gate_status,
+        risk_gate_result,
+        risk_gate_ready,
+        cancel_attempt_status,
+        actual_cancel_command_ready,
+        single_shot_cancel_allowed,
+        request_sent,
+        cancel_attempted,
+        cancel_requests_sent,
+        request_id,
+        venue_response_status,
+        venue_response_source,
+        venue_response_code,
+        venue_response_error_code,
+        local_audit_reference,
+        readback_status,
+        readback_result,
+        reconciliation_status,
+        readback_state,
+        venue_state,
+        terminal_state_observed,
+        unknown_observed,
+        dashboard_read_only_consumable,
+        dashboard_audit_view_ready,
+        outcome_status,
+        cancel_outcome,
+        outcome_category,
+        recovered,
+        degraded,
+        failed,
+        partial_success,
+        operator_action_required,
+        residual_risk_visible,
+        request_response_readback_audit_refs_recorded,
+        source_artifact_issues,
+        lineage_issues,
+        missing_cli_flags,
+        actual_cancel_send_allowed,
+        production_order_mutations_attempted,
+        readback_execution_attempted,
+        production_order_state_reads_attempted,
+        network_attempted,
+        network_readback_endpoint_attempted,
+        network_cancel_endpoint_attempted,
+        retry_attempted,
+        remediation_attempted,
+        automatic_cancel_allowed,
+        automatic_remediation_allowed,
+        dashboard_order_controls_enabled,
+        dashboard_cancel_controls_enabled,
+        bulk_cancel_allowed,
+        second_cancel_attempted,
+        compensation_trade_attempted,
+        cancel_risk_gate_path: dashboard_path_if_exists(&paths.cancel_risk_gate_path),
+        owner_approval_lifecycle_path: dashboard_path_if_exists(
+            &paths.owner_approval_lifecycle_path,
+        ),
+        actual_cancel_single_shot_path: dashboard_path_if_exists(
+            &paths.actual_cancel_single_shot_path,
+        ),
+        readback_reconciliation_path: dashboard_path_if_exists(&paths.readback_reconciliation_path),
+        failure_evidence_path: dashboard_path_if_exists(&paths.failure_evidence_path),
+    })
+}
+
 fn diagnostic_value(diagnostics: &[String]) -> DashboardValue<String> {
     if diagnostics.is_empty() {
         DashboardValue::unknown()
@@ -7161,6 +7804,52 @@ fn v18_cancel_recovery_diagnostic(
         )
     } else if closeout_blocked {
         "production_cancel_recovery_closeout_blocked".to_string()
+    } else {
+        readiness_status.to_string()
+    }
+}
+
+#[derive(Clone, Copy)]
+struct V19ActualCancelAuditDiagnosticFlags {
+    boundary_violation: bool,
+    unknown_readback: bool,
+    source_issue_blocked: bool,
+}
+
+fn v19_actual_cancel_audit_diagnostic(
+    readiness_status: &str,
+    missing_artifacts: &[String],
+    schema_diagnostics: &[String],
+    provenance_diagnostics: &[String],
+    stale_artifacts: &[String],
+    flags: V19ActualCancelAuditDiagnosticFlags,
+) -> String {
+    if !missing_artifacts.is_empty() {
+        format!(
+            "production_actual_cancel_audit_missing_evidence:{}",
+            missing_artifacts.join("|")
+        )
+    } else if !schema_diagnostics.is_empty() {
+        format!(
+            "production_actual_cancel_audit_schema_mismatch:{}",
+            schema_diagnostics.join("|")
+        )
+    } else if !provenance_diagnostics.is_empty() {
+        format!(
+            "production_actual_cancel_audit_provenance_mismatch:{}",
+            provenance_diagnostics.join("|")
+        )
+    } else if !stale_artifacts.is_empty() {
+        format!(
+            "production_actual_cancel_audit_stale_evidence:{}",
+            stale_artifacts.join("|")
+        )
+    } else if flags.boundary_violation {
+        "production_actual_cancel_audit_boundary_violation".to_string()
+    } else if flags.unknown_readback {
+        "production_actual_cancel_audit_unknown_readback".to_string()
+    } else if flags.source_issue_blocked {
+        "production_actual_cancel_audit_source_issue_blocked".to_string()
     } else {
         readiness_status.to_string()
     }
@@ -9770,6 +10459,7 @@ mod tests {
             "preflight_readiness",
             "live_alpha_dry_run",
             "production_mutation_evidence",
+            "production_actual_cancel_audit",
             "runtime_modules",
             "logs",
             "metrics",
@@ -9793,6 +10483,7 @@ mod tests {
         assert_eq!(value["preflight_readiness"], json!([]));
         assert_eq!(value["live_alpha_dry_run"], json!([]));
         assert_eq!(value["production_mutation_evidence"], json!([]));
+        assert_eq!(value["production_actual_cancel_audit"], json!([]));
         assert_eq!(value["sandbox_business"]["availability"], "available");
         assert_eq!(
             value["sandbox_business"]["exchange"]["venue"],
@@ -9810,6 +10501,7 @@ mod tests {
             "strategy-runtime",
             "preflight-readiness",
             "live-alpha-dry-run",
+            "production-actual-cancel-audit",
             "risk",
             "runtime-modules",
             "logs-metrics",
@@ -12287,6 +12979,417 @@ mod tests {
         );
         assert_eq!(item.dashboard_order_controls_enabled.value, Some(false));
         assert_eq!(item.dashboard_cancel_controls_enabled.value, Some(false));
+    }
+
+    #[test]
+    fn production_actual_cancel_audit_artifacts_populate_readonly_dashboard_view() {
+        let root = temp_root("production-actual-cancel-audit");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "production-actual-cancel-audit-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_actual_cancel_audit_v19_artifacts(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-28T09:10:00Z").unwrap();
+
+        assert_eq!(snapshot.production_actual_cancel_audit.len(), 1);
+        let item = &snapshot.production_actual_cancel_audit[0];
+        assert_eq!(item.node_id, "production-actual-cancel-audit-a");
+        assert_eq!(item.health, HealthStatus::Healthy);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_actual_cancel_audit_recovered")
+        );
+        assert_eq!(item.audit_state.value.as_deref(), Some("recovered"));
+        assert_eq!(
+            item.order_lineage_id.value.as_deref(),
+            Some("lineage-v190-actual-cancel")
+        );
+        assert_eq!(item.risk_gate_ready.value, Some(true));
+        assert_eq!(item.owner_approval_state.value.as_deref(), Some("approved"));
+        assert_eq!(item.approval_execution_authorized.value, Some(true));
+        assert_eq!(item.actual_cancel_command_ready.value, Some(true));
+        assert_eq!(item.single_shot_cancel_allowed.value, Some(true));
+        assert_eq!(item.request_sent.value, Some(true));
+        assert_eq!(item.cancel_attempted.value, Some(true));
+        assert_eq!(item.cancel_requests_sent.value, Some(1));
+        assert_eq!(
+            item.venue_response_status.value.as_deref(),
+            Some("accepted")
+        );
+        assert_eq!(
+            item.readback_result.value.as_deref(),
+            Some("cancel_confirmed")
+        );
+        assert_eq!(
+            item.cancel_outcome.value.as_deref(),
+            Some("cancel_confirmed")
+        );
+        assert_eq!(item.outcome_category.value.as_deref(), Some("recovered"));
+        assert_eq!(item.recovered.value, Some(true));
+        assert_eq!(item.dashboard_read_only_consumable.value, Some(true));
+        assert_eq!(item.dashboard_audit_view_ready.value, Some(true));
+        assert_eq!(
+            item.request_response_readback_audit_refs_recorded.value,
+            Some(true)
+        );
+        assert_eq!(item.dashboard_order_controls_enabled.value, Some(false));
+        assert_eq!(item.dashboard_cancel_controls_enabled.value, Some(false));
+        assert_eq!(item.retry_attempted.value, Some(false));
+        assert_eq!(item.bulk_cancel_allowed.value, Some(false));
+        assert!(
+            item.failure_evidence_path
+                .value
+                .as_deref()
+                .is_some_and(|path| path.ends_with("v0_19/actual_cancel_failure_evidence.json"))
+        );
+
+        assert!(DASHBOARD_HTML.contains("production-actual-cancel-audit"));
+        assert!(DASHBOARD_HTML.contains("v0.19 真实撤单审计只读视图"));
+        let renderer = dashboard_js_function_body("renderProductionActualCancelAudit");
+        for forbidden in [
+            "<button",
+            "data-dashboard-action",
+            "fetch(",
+            "/api/control/cancel",
+            "/api/control/order",
+            "cancel button",
+            "approve button",
+            "retry button",
+            "bulk action",
+        ] {
+            assert!(
+                !renderer.contains(forbidden),
+                "actual cancel audit renderer must stay read-only and not contain {forbidden}"
+            );
+        }
+        assert!(renderer.contains("Cancel Attempt / Venue"));
+        assert!(renderer.contains("Outcome / Audit"));
+        assert!(renderer.contains("只读边界"));
+        let snapshot_value = serde_json::to_value(&snapshot).unwrap();
+        assert_forbidden_keys_absent(&snapshot_value);
+    }
+
+    fn production_actual_cancel_audit_item_with(
+        name: &str,
+        mutate: impl FnOnce(&SupervisorNodeRecord),
+    ) -> ProductionActualCancelAuditStatus {
+        let root = temp_root(name);
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, name);
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_actual_cancel_audit_v19_artifacts(&record);
+        mutate(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-28T09:30:00Z").unwrap();
+        assert_eq!(snapshot.production_actual_cancel_audit.len(), 1);
+        snapshot.production_actual_cancel_audit[0].clone()
+    }
+
+    fn mutate_v19_actual_cancel_audit_artifact(
+        record: &SupervisorNodeRecord,
+        artifact_name: &str,
+        mutate: impl FnOnce(&mut Value),
+    ) {
+        let path = record.artifact_root.join("v0_19").join(artifact_name);
+        let mut artifact: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap())
+            .expect("v0.19 actual cancel audit test artifact must be valid JSON");
+        mutate(&mut artifact);
+        fs::write(&path, serde_json::to_string_pretty(&artifact).unwrap()).unwrap();
+    }
+
+    #[test]
+    fn production_actual_cancel_audit_distinguishes_ready_recovered_degraded_failed_unknown() {
+        for (category, outcome, recovered, failed, partial, expected_state, expected_health) in [
+            (
+                "ready",
+                "ready_for_owner_review",
+                false,
+                false,
+                false,
+                "ready",
+                HealthStatus::Healthy,
+            ),
+            (
+                "recovered",
+                "cancel_confirmed",
+                true,
+                false,
+                false,
+                "recovered",
+                HealthStatus::Healthy,
+            ),
+            (
+                "partial_success",
+                "partial_fill",
+                false,
+                false,
+                true,
+                "degraded",
+                HealthStatus::Degraded,
+            ),
+            (
+                "failed",
+                "rejected",
+                false,
+                true,
+                false,
+                "failed",
+                HealthStatus::Error,
+            ),
+        ] {
+            let item = production_actual_cancel_audit_item_with(
+                &format!("production-actual-cancel-audit-state-{expected_state}"),
+                |record| {
+                    mutate_v19_actual_cancel_audit_artifact(
+                        record,
+                        "actual_cancel_failure_evidence.json",
+                        |artifact| {
+                            artifact["outcome_category"] = json!(category);
+                            artifact["cancel_outcome"] = json!(outcome);
+                            artifact["recovered"] = json!(recovered);
+                            artifact["failed"] = json!(failed);
+                            artifact["partial_success"] = json!(partial);
+                            artifact["degraded"] = json!(partial);
+                            artifact["operator_action_required"] = json!(partial || failed);
+                            artifact["residual_risk_visible"] = json!(partial || failed);
+                        },
+                    );
+                },
+            );
+
+            assert_eq!(item.audit_state.value.as_deref(), Some(expected_state));
+            assert_eq!(item.health, expected_health);
+            let expected_status = format!("production_actual_cancel_audit_{expected_state}");
+            assert_eq!(
+                item.readiness_status.value.as_deref(),
+                Some(expected_status.as_str())
+            );
+        }
+
+        let unknown = production_actual_cancel_audit_item_with(
+            "production-actual-cancel-audit-state-unknown",
+            |record| {
+                mutate_v19_actual_cancel_audit_artifact(
+                    record,
+                    "actual_cancel_readback_reconciliation.json",
+                    |artifact| {
+                        artifact["readback_result"] = json!("unknown");
+                        artifact["unknown_observed"] = json!(true);
+                    },
+                );
+                mutate_v19_actual_cancel_audit_artifact(
+                    record,
+                    "actual_cancel_failure_evidence.json",
+                    |artifact| {
+                        artifact["readback_result"] = json!("unknown");
+                        artifact["cancel_outcome"] = json!("unknown");
+                        artifact["outcome_category"] = json!("failed");
+                        artifact["recovered"] = json!(false);
+                        artifact["failed"] = json!(true);
+                        artifact["unknown_not_recovered"] = json!(true);
+                    },
+                );
+            },
+        );
+        assert_eq!(unknown.audit_state.value.as_deref(), Some("unknown"));
+        assert_eq!(unknown.health, HealthStatus::Degraded);
+        assert!(unknown.diagnostic.value.as_deref().is_some_and(|value| {
+            value.contains("production_actual_cancel_audit_unknown_readback")
+        }));
+    }
+
+    #[test]
+    fn production_actual_cancel_audit_missing_evidence_never_shows_recovered() {
+        let item = production_actual_cancel_audit_item_with(
+            "production-actual-cancel-audit-missing",
+            |record| {
+                fs::remove_file(
+                    record
+                        .artifact_root
+                        .join("v0_19")
+                        .join("actual_cancel_failure_evidence.json"),
+                )
+                .unwrap();
+            },
+        );
+
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_actual_cancel_audit_incomplete")
+        );
+        assert_ne!(item.audit_state.value.as_deref(), Some("recovered"));
+        assert!(item.diagnostic.value.as_deref().is_some_and(|value| {
+            value.contains("production_actual_cancel_audit_missing_evidence")
+                && value.contains("actual_cancel_failure_evidence")
+        }));
+    }
+
+    #[test]
+    fn production_actual_cancel_audit_schema_mismatch_degrades_view() {
+        let item = production_actual_cancel_audit_item_with(
+            "production-actual-cancel-audit-schema",
+            |record| {
+                mutate_v19_actual_cancel_audit_artifact(
+                    record,
+                    "actual_cancel_single_shot.json",
+                    |artifact| {
+                        artifact["schema_version"] =
+                            json!("ntpro.v190_wrong_actual_cancel_single_shot.v1");
+                    },
+                );
+            },
+        );
+
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_actual_cancel_audit_boundary_violation")
+        );
+        assert!(item.diagnostic.value.as_deref().is_some_and(|value| {
+            value.contains("production_actual_cancel_audit_schema_mismatch")
+                && value.contains("actual_cancel_single_shot")
+        }));
+        assert!(
+            item.schema_diagnostics
+                .value
+                .as_deref()
+                .is_some_and(|value| {
+                    value.contains(PRODUCTION_MUTATION_ACTUAL_CANCEL_SINGLE_SHOT_SCHEMA_VERSION)
+                        && value.contains("ntpro.v190_wrong_actual_cancel_single_shot.v1")
+                })
+        );
+    }
+
+    #[test]
+    fn production_actual_cancel_audit_provenance_mismatch_degrades_view() {
+        let item = production_actual_cancel_audit_item_with(
+            "production-actual-cancel-audit-provenance",
+            |record| {
+                let source_path = record
+                    .artifact_root
+                    .join("v0_19")
+                    .join("source-readback-reconciliation.json");
+                let source = json!({
+                    "schema_version": PRODUCTION_MUTATION_ACTUAL_CANCEL_READBACK_RECONCILIATION_SCHEMA_VERSION,
+                    "status": "ready_actual_cancel_readback_cancel_confirmed",
+                    "source_commit": "commit-from-source-artifact",
+                    "source_release_tag": "ntpro-rust-only-v0.19.0"
+                });
+                let source_bytes = serde_json::to_vec_pretty(&source).unwrap();
+                fs::write(&source_path, &source_bytes).unwrap();
+                mutate_v19_actual_cancel_audit_artifact(
+                    record,
+                    "actual_cancel_failure_evidence.json",
+                    |artifact| {
+                        artifact["readback_reconciliation_ref"] = json!({
+                            "path": source_path.display().to_string(),
+                            "sha256": sha256_bytes(&source_bytes),
+                            "bytes": source_bytes.len() as u64,
+                            "source_command": "nautilus live production-mutation-actual-cancel-readback-reconciliation",
+                            "source_commit": "different-commit-in-ref",
+                            "source_release_tag": "ntpro-rust-only-v0.19.bad"
+                        });
+                    },
+                );
+            },
+        );
+
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_actual_cancel_audit_boundary_violation")
+        );
+        assert!(item.diagnostic.value.as_deref().is_some_and(|value| {
+            value.contains("production_actual_cancel_audit_provenance_mismatch")
+        }));
+        assert!(
+            item.provenance_diagnostics
+                .value
+                .as_deref()
+                .is_some_and(|value| {
+                    value.contains("actual_cancel_failure_evidence.readback_reconciliation_ref")
+                        && value.contains("source_commit_mismatch")
+                        && value.contains("source_release_tag_mismatch")
+                })
+        );
+    }
+
+    #[test]
+    fn production_actual_cancel_audit_forbidden_controls_degrade_without_routes() {
+        for (artifact_name, field, value) in [
+            (
+                "actual_cancel_failure_evidence.json",
+                "dashboard_cancel_controls_enabled",
+                json!(true),
+            ),
+            (
+                "actual_cancel_failure_evidence.json",
+                "retry_attempted",
+                json!(true),
+            ),
+            (
+                "actual_cancel_single_shot.json",
+                "bulk_cancel_allowed",
+                json!(true),
+            ),
+            (
+                "actual_cancel_readback_reconciliation.json",
+                "second_cancel_attempted",
+                json!(true),
+            ),
+            (
+                "actual_cancel_failure_evidence.json",
+                "compensation_trade_attempted",
+                json!(true),
+            ),
+        ] {
+            let item = production_actual_cancel_audit_item_with(
+                &format!("production-actual-cancel-audit-forbidden-{field}"),
+                |record| {
+                    mutate_v19_actual_cancel_audit_artifact(record, artifact_name, |artifact| {
+                        artifact[field] = value;
+                    });
+                },
+            );
+
+            assert_eq!(item.health, HealthStatus::Degraded);
+            assert_eq!(
+                item.readiness_status.value.as_deref(),
+                Some("production_actual_cancel_audit_boundary_violation")
+            );
+            assert_ne!(item.audit_state.value.as_deref(), Some("recovered"));
+        }
+
+        for forbidden_route in [
+            "/api/control/cancel",
+            "/api/control/order",
+            "production_actual_cancel_control",
+            "production_order_control",
+        ] {
+            assert!(
+                !DASHBOARD_JS.contains(forbidden_route),
+                "dashboard JS must not expose actual cancel/order control route {forbidden_route}"
+            );
+            assert!(
+                !DASHBOARD_HTML.contains(forbidden_route),
+                "dashboard shell must not expose actual cancel/order control route {forbidden_route}"
+            );
+        }
     }
 
     #[test]
@@ -15032,6 +16135,305 @@ mod tests {
                 "dashboard_cancel_controls_enabled": false
             }))
             .unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn write_production_actual_cancel_audit_v19_artifacts(record: &SupervisorNodeRecord) {
+        let v18_root = record.artifact_root.join("v0_18");
+        let v19_root = record.artifact_root.join("v0_19");
+        fs::create_dir_all(&v18_root).unwrap();
+        fs::create_dir_all(&v19_root).unwrap();
+        fs::write(
+            v18_root.join("cancel_risk_gate.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_MUTATION_CANCEL_RISK_GATE_SCHEMA_VERSION,
+                "run_id": "v190-dashboard-actual-cancel-audit",
+                "order_lineage_id": "lineage-v190-actual-cancel",
+                "artifact_type": "cancel_risk_gate",
+                "status": "ready_owner_approval_required",
+                "cancel_risk_gate_ready": true,
+                "risk_gate_ready": true,
+                "risk_gate_result": "ready_owner_approval_required",
+                "owner_approval_required": true,
+                "actual_cancel_send_allowed": false,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            v19_root.join("actual_cancel_owner_approval_lifecycle.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_MUTATION_ACTUAL_CANCEL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION,
+                "run_id": "v190-dashboard-actual-cancel-audit",
+                "order_lineage_id": "lineage-v190-actual-cancel",
+                "artifact_type": "actual_cancel_owner_approval_lifecycle",
+                "status": "ready_actual_cancel_owner_approval_lifecycle",
+                "approval_state": "approved",
+                "approval_lifecycle_valid": true,
+                "approval_execution_authorized": true,
+                "approval_reusable": false,
+                "one_order_one_venue_one_attempt": true,
+                "actual_cancel_send_allowed": false,
+                "cancel_attempted": false,
+                "cancel_requests_sent": 0,
+                "network_attempted": false,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let single_shot_json = r#"{
+  "schema_version": "__SINGLE_SHOT_SCHEMA__",
+  "run_id": "v190-dashboard-actual-cancel-audit",
+  "order_lineage_id": "lineage-v190-actual-cancel",
+  "artifact_type": "actual_cancel_single_shot",
+  "status": "actual_cancel_attempt_recorded",
+  "mode": "online",
+  "execution_mode": "single_shot",
+  "manual_online_requested": true,
+  "actual_cancel_command_ready": true,
+  "single_shot_cancel_allowed": true,
+  "owner_approval_ready": true,
+  "risk_gate_ready": true,
+  "release_provenance_ready": true,
+  "adapter_boundary_ready": true,
+  "adapter_capability_ready": true,
+  "approval_state_before_attempt": "approved",
+  "approval_state_after_attempt": "consumed",
+  "request_id": "actual-cancel-request-001",
+  "request_method": "DELETE",
+  "request_target": "/api/v3/order",
+  "venue": "binance_spot",
+  "order_id_type": "order_id",
+  "known_order_id": "123456789",
+  "known_client_order_id": "owner-approved-v190-single-shot",
+  "symbol": "BTCUSDT",
+  "account_label": "prod-account-redacted",
+  "venue_response_status": "accepted",
+  "venue_response_source": "redacted_exchange_metadata",
+  "venue_response_code": 200,
+  "venue_response_error_code": "none",
+  "local_audit_reference": "audit://v190/actual-cancel/request-001",
+  "readback_required": true,
+  "readback_requirement": "post_cancel_readback_required",
+  "source_artifact_issues": [],
+  "adapter_capability_issues": [],
+  "safety_contract_issues": [],
+  "release_manifest_issues": [],
+  "missing_cli_flags": [],
+  "missing_env_vars": [],
+  "request_sent": true,
+  "cancel_attempted": true,
+  "cancel_requests_sent": 1,
+  "production_order_mutations_attempted": 1,
+  "network_attempted": true,
+  "network_cancel_endpoint_attempted": true,
+  "http_send_attempted": true,
+  "venue_ack_observed": true,
+  "retry_attempted": false,
+  "replace_attempted": false,
+  "amend_attempted": false,
+  "flatten_attempted": false,
+  "remediation_attempted": false,
+  "automatic_cancel_allowed": false,
+  "automatic_remediation_allowed": false,
+  "bulk_cancel_allowed": false,
+  "cancel_all_allowed": false,
+  "multi_account_cancel_allowed": false,
+  "multi_strategy_cancel_allowed": false,
+  "multi_venue_cancel_allowed": false,
+  "dashboard_order_controls_enabled": false,
+  "dashboard_cancel_controls_enabled": false,
+  "dashboard_execution_allowed": false,
+  "raw_exchange_response_recorded": false,
+  "response_body_recorded": false,
+  "response_headers_recorded": false,
+  "signature_recorded": false,
+  "signed_query_recorded": false,
+  "signed_url_recorded": false,
+  "api_key_value_recorded": false,
+  "api_secret_value_recorded": false
+}
+"#
+        .replace(
+            "__SINGLE_SHOT_SCHEMA__",
+            PRODUCTION_MUTATION_ACTUAL_CANCEL_SINGLE_SHOT_SCHEMA_VERSION,
+        );
+        fs::write(
+            v19_root.join("actual_cancel_single_shot.json"),
+            single_shot_json,
+        )
+        .unwrap();
+        let readback_json = r#"{
+  "schema_version": "__READBACK_SCHEMA__",
+  "run_id": "v190-dashboard-actual-cancel-audit",
+  "order_lineage_id": "lineage-v190-actual-cancel",
+  "artifact_type": "actual_cancel_readback_reconciliation",
+  "status": "ready_actual_cancel_readback_cancel_confirmed",
+  "actual_cancel_attempt_ready": true,
+  "actual_cancel_attempt_recorded": true,
+  "actual_cancel_request_sent": true,
+  "actual_cancel_request_id": "actual-cancel-request-001",
+  "readback_required": true,
+  "readback_evidence_present": true,
+  "reconciliation_evidence_present": true,
+  "reconciliation_ready": true,
+  "readback_reconciliation_complete": true,
+  "actual_cancel_followup_complete": true,
+  "redacted_metadata_only": true,
+  "venue": "binance_spot",
+  "symbol": "BTCUSDT",
+  "account_label": "prod-account-redacted",
+  "known_order_id": "123456789",
+  "known_client_order_id": "owner-approved-v190-single-shot",
+  "readback_type": "metadata_only",
+  "readback_state": "CANCELED",
+  "readback_result": "cancel_confirmed",
+  "reconciliation_status": "ready_cancel_confirmed",
+  "venue_state": "CANCELED",
+  "order_status": "CANCELED",
+  "execution_fill_status": "not_filled",
+  "remaining_quantity_state": "zero",
+  "residual_risk_state": "none",
+  "local_audit_state": "actual_cancel_attempt_recorded",
+  "partial_fill_observed": false,
+  "already_cancelled_observed": false,
+  "filled_before_cancel_observed": false,
+  "timeout_observed": false,
+  "unknown_observed": false,
+  "inconsistent_observed": false,
+  "degraded": false,
+  "error_state": false,
+  "terminal_state_observed": true,
+  "manual_review_required": false,
+  "new_orders_blocked": false,
+  "risk_halted": false,
+  "dashboard_read_only_consumable": true,
+  "dashboard_audit_view_ready": true,
+  "source_artifact_issues": [],
+  "readback_lineage_issues": [],
+  "unsupported_readback_states": [],
+  "missing_cli_flags": [],
+  "actual_cancel_send_allowed": false,
+  "cancel_attempted": false,
+  "cancel_requests_sent": 0,
+  "production_order_mutations_attempted": 0,
+  "readback_execution_attempted": false,
+  "order_state_read_attempted": false,
+  "production_order_state_reads_attempted": 0,
+  "network_attempted": false,
+  "network_readback_endpoint_attempted": false,
+  "network_cancel_endpoint_attempted": false,
+  "retry_attempted": false,
+  "remediation_attempted": false,
+  "second_cancel_attempted": false,
+  "automatic_cancel_allowed": false,
+  "automatic_remediation_allowed": false,
+  "production_order_mutation_allowed": false,
+  "dashboard_order_controls_enabled": false,
+  "dashboard_cancel_controls_enabled": false
+}
+"#
+        .replace(
+            "__READBACK_SCHEMA__",
+            PRODUCTION_MUTATION_ACTUAL_CANCEL_READBACK_RECONCILIATION_SCHEMA_VERSION,
+        );
+        fs::write(
+            v19_root.join("actual_cancel_readback_reconciliation.json"),
+            readback_json,
+        )
+        .unwrap();
+        let failure_json = r#"{
+  "schema_version": "__FAILURE_SCHEMA__",
+  "run_id": "v190-dashboard-actual-cancel-audit",
+  "order_lineage_id": "lineage-v190-actual-cancel",
+  "artifact_type": "actual_cancel_failure_evidence",
+  "status": "ready_actual_cancel_failure_recovered_cancel_confirmed",
+  "references_ready": true,
+  "evidence_ready": true,
+  "failure_evidence_ready": true,
+  "dashboard_read_only_consumable": true,
+  "release_gate_consumable": true,
+  "venue": "binance_spot",
+  "symbol": "BTCUSDT",
+  "account_label": "prod-account-redacted",
+  "readback_result": "cancel_confirmed",
+  "reconciliation_status": "ready_cancel_confirmed",
+  "source_readback_state": "CANCELED",
+  "source_venue_state": "CANCELED",
+  "source_order_status": "CANCELED",
+  "source_execution_fill_status": "not_filled",
+  "source_remaining_quantity_state": "zero",
+  "source_residual_risk_state": "none",
+  "source_local_audit_state": "actual_cancel_attempt_recorded",
+  "cancel_outcome": "cancel_confirmed",
+  "outcome_category": "recovered",
+  "failure_mode": "none",
+  "partial_success_mode": "none",
+  "operator_action": "none",
+  "operator_action_required": false,
+  "recovered": true,
+  "degraded": false,
+  "failed": false,
+  "partial_success": false,
+  "residual_risk_visible": false,
+  "residual_risk_state": "none",
+  "manual_review_required": false,
+  "new_orders_blocked": false,
+  "risk_halted": false,
+  "outcome_cancel_confirmed": true,
+  "outcome_already_cancelled": false,
+  "outcome_rejected": false,
+  "outcome_timeout": false,
+  "outcome_unknown": false,
+  "outcome_partial_fill": false,
+  "outcome_filled_before_cancel": false,
+  "outcome_venue_unavailable": false,
+  "outcome_adapter_failure": false,
+  "outcome_inconsistent": false,
+  "outcome_failed": false,
+  "actual_cancel_followup_complete": true,
+  "unknown_not_recovered": true,
+  "partial_fill_residual_risk_visible": true,
+  "request_response_readback_audit_refs_recorded": true,
+  "source_artifact_issues": [],
+  "lineage_issues": [],
+  "missing_cli_flags": [],
+  "actual_cancel_send_allowed": false,
+  "cancel_attempted": false,
+  "cancel_requests_sent": 0,
+  "production_order_mutations_attempted": 0,
+  "readback_execution_attempted": false,
+  "order_state_read_attempted": false,
+  "production_order_state_reads_attempted": 0,
+  "network_attempted": false,
+  "network_readback_endpoint_attempted": false,
+  "network_cancel_endpoint_attempted": false,
+  "retry_attempted": false,
+  "replace_attempted": false,
+  "amend_attempted": false,
+  "flatten_attempted": false,
+  "remediation_attempted": false,
+  "compensation_trade_attempted": false,
+  "second_cancel_attempted": false,
+  "automatic_cancel_allowed": false,
+  "automatic_remediation_allowed": false,
+  "production_order_mutation_allowed": false,
+  "dashboard_order_controls_enabled": false,
+  "dashboard_cancel_controls_enabled": false
+}
+"#
+        .replace(
+            "__FAILURE_SCHEMA__",
+            PRODUCTION_MUTATION_ACTUAL_CANCEL_FAILURE_EVIDENCE_SCHEMA_VERSION,
+        );
+        fs::write(
+            v19_root.join("actual_cancel_failure_evidence.json"),
+            failure_json,
         )
         .unwrap();
     }

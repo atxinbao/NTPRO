@@ -427,6 +427,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   rejected, timeout, unknown, partial fill, already cancelled, venue
   unavailable, and adapter failure, and keeps unknown non-recovered and partial
   fill residual risk visible for Dashboard and release-gate consumption.
+- `v0_19_0_dashboard_actual_cancel_audit_view.md` - V190-008 Dashboard
+  read-only audit view for the v0.19 actual cancel line. It consumes risk gate,
+  owner approval, single-shot cancel attempt, readback reconciliation, and
+  failure evidence artifacts, distinguishes ready/recovered/degraded/failed/
+  unknown states, and degrades missing, mismatched, unknown, stale, or boundary
+  violating evidence without adding Dashboard cancel, approval, retry, bulk, or
+  write-operation controls.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
