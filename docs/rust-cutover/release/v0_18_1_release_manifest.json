@@ -2,7 +2,7 @@
   "schema_version": "ntpro.v181_release_manifest.v1",
   "task_id": "V181-006",
   "product_version": "v0.18.1",
-  "release_status": "draft_not_published",
+  "release_status": "published",
   "baseline_release": {
     "version": "v0.18.0",
     "tag": "ntpro-rust-only-v0.18.0",
@@ -11,14 +11,19 @@
   },
   "patch_release": {
     "planned_tag": "ntpro-rust-only-v0.18.1",
-    "actual_tag": null,
-    "actual_github_release_url": null,
-    "publication_status": "not_published"
+    "actual_tag": "ntpro-rust-only-v0.18.1",
+    "actual_release_name": "NTPRO Rust-only v0.18.1",
+    "actual_github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.18.1",
+    "actual_release_commit": "c395e71960255fefbf4100654fd53ce2bf33a08f",
+    "actual_published_at": "2026-06-27T21:06:12Z",
+    "actual_is_draft": false,
+    "actual_is_prerelease": false,
+    "publication_status": "published"
   },
   "source_provenance": {
     "planned_source_ref": "main after v0.18.1 closeout",
-    "actual_source_commit": null,
-    "actual_source_tree": null,
+    "actual_source_commit": "c395e71960255fefbf4100654fd53ce2bf33a08f",
+    "actual_source_tree": "2274b4f6787cb222ed96006773c64b0c97092c23",
     "actual_fields_resolved_by": "scripts/ai/verify_release_strict.sh v18",
     "generated_manifest_path": "target/ntpro-v181/v0_18_strict_release_manifest.json"
   },

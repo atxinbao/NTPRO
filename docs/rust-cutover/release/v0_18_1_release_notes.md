@@ -1,19 +1,25 @@
-# v0.18.1 Release Notes - Draft Provenance Hardening
+# v0.18.1 Release Notes - Published Provenance Hardening
 
 Date: 2026-06-27
 Executor: Codex
-Status: DRAFT_NOT_PUBLISHED
+Status: RELEASED
+Tag: `ntpro-rust-only-v0.18.1`
+Release name: `NTPRO Rust-only v0.18.1`
+Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.18.1`
+Release commit: `c395e71960255fefbf4100654fd53ce2bf33a08f`
+Published at: `2026-06-27T21:06:12Z`
 
 ## Summary
 
 v0.18.1 is the Release Surface & Provenance Hardening patch for the published
 `ntpro-rust-only-v0.18.0` Owner-Approved Cancel Recovery Preview release. It
-does not expand the v0.18.0 capability boundary and does not publish a tag or
-GitHub Release.
+does not expand the v0.18.0 capability boundary. It is now published as the
+formal `ntpro-rust-only-v0.18.1` prerequisite release for the v0.19 actual
+cancel line.
 
 Plain Chinese summary: v0.18.1 是发版面和 provenance 加固补丁。大白话：补 binary、
 commit、tag、toolchain、manifest 的对应关系，让后续 v0.19 开始前先证明当前发布证据可信；
-不新增真实撤单，不发布 v0.18.1 tag。
+已经发布 v0.18.1 tag / GitHub Release，但不新增真实撤单。
 
 ## Required Release Gates
 
@@ -64,15 +70,26 @@ automatic remediation = disabled
 Dashboard order controls = disabled
 Dashboard cancel controls = disabled
 Dashboard auto-approval controls = disabled
-v0.18.1 tag publication = not included
-GitHub Release publication = not included
+v0.18.1 tag publication = completed
+GitHub Release publication = completed
 ```
 
 ## Publication Status
 
-This document does not publish a GitHub Release. The current formal release is
-`ntpro-rust-only-v0.18.0`; the patch target remains `v0.18.1` until explicitly
-published in a later owner-approved release step.
+```text
+release status = RELEASED
+release tag = ntpro-rust-only-v0.18.1
+release name = NTPRO Rust-only v0.18.1
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.18.1
+release commit = c395e71960255fefbf4100654fd53ce2bf33a08f
+published at = 2026-06-27T21:06:12Z
+GitHub Release draft = false
+GitHub Release prerelease = false
+```
+
+The publication changes release evidence only. It does not add actual cancel
+send, automatic cancel, automatic remediation, Dashboard cancel controls,
+production order mutation, or binary asset upload.
 
 ## Rollback
 
