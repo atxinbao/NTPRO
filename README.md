@@ -6,38 +6,39 @@ NautilusTrader.
 The current source-tree milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.18.0
-Latest formal release: ntpro-rust-only-v0.18.0
-Current source-tree readiness: ntpro-rust-only-v0.18.0 released
-Current capability: Owner-Approved Cancel Recovery Preview
-Next patch: v0.18.1 Release Surface & Provenance Hardening Patch
-Next capability: v0.19.0 Owner-Approved Single-Shot Actual Cancel
-Boundary: v0.18.0 extends the v0.17 production reconciliation and orphan recovery evidence line with owner-approved cancel recovery preview artifacts and gates only. It prepares cancel intent, approval lifecycle, preview request/response contracts, post-cancel readback contracts, failure semantics, rollback evidence, and Dashboard diagnostics while keeping actual cancel send disabled. Default local/PR/release execution remains offline and fail-closed; it does not add real cancel execution, automatic cancel, retry/replace/amend/correction/flatten/remediation, strategy-driven production execution, multi-account or multi-venue execution, real-funds proof in CI, or Dashboard order/cancel controls.
+Current source tag: ntpro-rust-only-v0.19.0
+Latest formal release: ntpro-rust-only-v0.19.0
+Current source-tree readiness: ntpro-rust-only-v0.19.0 released
+Current capability: Owner-Approved Single-Shot Actual Cancel
+Next patch: v0.19.1 Actual Cancel Release Closeout & Provenance Hardening Patch
+Next capability: v0.20.0 Owner-Approved Production Order Lifecycle Foundation
+Boundary: v0.19.0 publishes only owner-approved single-shot actual cancel. It permits one owner approval, one order, one venue, and one execution attempt with required risk gate, adapter boundary, release provenance, readback, failure evidence, read-only Dashboard audit evidence, and golden traces. It does not include production order submit lifecycle, automatic cancel, bulk cancel, retry/replace/amend/correction/flatten/remediation, strategy-driven production execution, multi-account or multi-venue execution, real-funds proof in CI, or Dashboard order/cancel controls.
 ```
 
-`ntpro-rust-only-v0.18.0` is the latest formal GitHub Release. The v0.18 line
-is the scoped Owner-Approved Cancel Recovery Preview line. It builds on the
-v0.17 production reconciliation and orphan recovery evidence release by adding
-cancel recovery artifact contracts, approval lifecycle evidence, preview-only
-request/response handling, failure/rollback evidence, and read-only Dashboard
-diagnostics.
+`ntpro-rust-only-v0.19.0` is the latest formal GitHub Release. The v0.19 line
+is the scoped Owner-Approved Single-Shot Actual Cancel line. It builds on the
+v0.18.1 release surface and provenance hardening baseline by adding one
+owner-approved actual cancel path with strict risk, adapter, readback, failure,
+Dashboard audit, and golden-trace evidence.
 
-The latest formal release is published as a GitHub Release for the v0.18.0
+The latest formal release is published as a GitHub Release for the v0.19.0
 tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.18.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.19.0
 ```
 
-`v0.18.0` is the current formal Owner-Approved Cancel Recovery Preview release.
-It remains a tightly gated preview-only line, not a general production trading
-platform claim. It keeps actual cancel send disabled by default and does not
-add automatic cancel, retry/remediation, or Dashboard order/cancel controls.
+`v0.19.0` is the current formal Owner-Approved Single-Shot Actual Cancel
+release. It remains a tightly gated manual line, not a general production
+trading platform claim. It allows only one owner-approved actual cancel attempt
+and does not add production order submission, automatic cancel, bulk cancel,
+retry/remediation, or Dashboard order/cancel controls.
 
-The next patch track is `v0.18.1`. It must preserve the v0.18.0 preview-only
-cancel recovery boundary while hardening release surface and provenance
-evidence. The next capability track is `v0.19.0`, which is the first follow-up
-line allowed to evaluate and implement owner-approved single-shot actual cancel.
+The next patch track is `v0.19.1`. It must preserve the v0.19.0
+actual-cancel-only boundary while closing release evidence and hardening
+provenance. The next capability track is `v0.20.0`, which is the first
+follow-up line allowed to evaluate owner-approved production order lifecycle
+foundation work.
 
 ## Current Status
 
@@ -113,7 +114,7 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.18.0 is the current formal release line. It builds on the earlier foundation
+v0.19.0 is the current formal release line. It builds on the earlier foundation
 layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
@@ -179,6 +180,12 @@ layers:
   intent, approval lifecycle, preview request/response artifacts,
   post-cancel readback contracts, failure/rollback evidence, Dashboard
   diagnostics, and no actual cancel send.
+- `v0.18.1`: Release Surface & Provenance Hardening patch, with strict
+  provenance evidence and published prerequisite release evidence.
+- `v0.19.0`: Owner-Approved Single-Shot Actual Cancel, with one manual owner
+  approval, one order, one venue, one execution attempt, risk gate, adapter
+  boundary, post-cancel readback, failure evidence, read-only Dashboard audit,
+  golden traces, and no production order submit lifecycle.
 
 `v0.5.0` was completed as a scoped readiness milestone and is absorbed into the
 `v0.6.0` release tree. It is not published as a separate public GitHub Release.
@@ -528,25 +535,17 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.18.0` is the latest formal GitHub Release for the
-Owner-Approved Cancel Recovery Preview line. It extends the v0.17 production
-reconciliation and orphan recovery evidence release with preview-only cancel
-recovery contracts, owner approval lifecycle evidence, failure/rollback
-evidence, release gates, and Dashboard diagnostics. It does not add actual
-cancel send, automatic cancel, retry/replace/amend/correction/flatten/
-remediation, listenKey lifecycle, signed WebSocket user stream runtime,
-real-funds proof in CI, multi-account or multi-venue execution, production
-trading platform claims, or Dashboard order/cancel controls.
-`v0.18.1` is the active Release Surface & Provenance Hardening patch track,
-and `v0.19.0` is the next capability track for owner-approved single-shot
-actual cancel. v0.19 actual-cancel work is bounded by
-`docs/rust-cutover/release/v0_19_0_actual_cancel_safety_contract.md`: one
-manual owner approval, one order, one venue, one execution attempt, required
+`ntpro-rust-only-v0.19.0` is the latest formal GitHub Release for the
+Owner-Approved Single-Shot Actual Cancel line. It permits one manual owner
+approval, one order, one venue, one execution attempt, required
 owner-approval/risk-gate/order/release-manifest/adapter-capability artifacts,
-and fail-closed handling for missing, expired, reused, or mismatched evidence;
-it still does not authorize production order submission, automatic/bulk cancel,
-retry/replace/amend/flatten, multi-account or multi-venue expansion, or
-Dashboard operation controls. `v0.17.0` remains the Production Reconciliation
+post-cancel readback, failure evidence, read-only Dashboard audit, and golden
+trace coverage. It does not authorize production order submission,
+automatic/bulk cancel, retry/replace/amend/flatten, multi-account or
+multi-venue expansion, or Dashboard operation controls. `v0.19.1` is the active
+Actual Cancel Release Closeout & Provenance Hardening patch track, and
+`v0.20.0` is the next capability track for Owner-Approved Production Order
+Lifecycle Foundation. `v0.17.0` remains the Production Reconciliation
 And Orphan Recovery Evidence baseline, `v0.12.1` remains the Production Read-Only Evidence
 & Release Surface Hardening baseline, `v0.10.0` remains the Binance spot
 sandbox order-proof baseline, `v0.9.0` remains the local deterministic Strategy

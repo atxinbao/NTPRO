@@ -10,13 +10,14 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.18.0` 是当前正式公开发布点；它是 Owner-Approved Cancel Recovery
-Preview，只在 v0.17 的生产对账和孤儿单风险证据之后，提供撤单恢复意图、owner 审批
-生命周期、preview-only 请求/响应证据、回查合同、失败/回滚证据和只读 Dashboard 诊断。
-它不是实际撤单执行、不是自动撤单、不是 retry/replace/amend/correction/flatten/
-remediation、不是策略实盘、不是多账户多交易所执行，也没有 Dashboard 下单或撤单按钮。
-`v0.18.1` 是 release surface / provenance hardening patch；`v0.19.0` 才是
-owner-approved single-shot actual cancel 的后续评估与实现版本。
+`v0.19.0` 是当前正式公开发布点；它是 Owner-Approved Single-Shot Actual
+Cancel，只允许一个 owner approval、一个订单、一个 venue、一次 actual cancel 尝试，
+并且必须有 risk gate、adapter boundary、readback、failure evidence、只读 Dashboard
+audit 和 golden trace 证据。它不是 production order submit lifecycle，不是自动撤单、
+不是批量撤单、不是 retry/replace/amend/correction/flatten/remediation、不是策略实盘、
+不是多账户多交易所执行，也没有 Dashboard 下单或撤单按钮。`v0.19.1` 是 actual
+cancel release closeout / provenance hardening patch；`v0.20.0` 才是
+Owner-Approved Production Order Lifecycle Foundation 的后续评估与实现版本。
 
 ## Release Tags
 
@@ -38,6 +39,7 @@ ntpro-rust-only-v0.15.0
 ntpro-rust-only-v0.16.0
 ntpro-rust-only-v0.17.0
 ntpro-rust-only-v0.18.0
+ntpro-rust-only-v0.19.0
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -50,38 +52,34 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.18.0
+ntpro-rust-only-v0.19.0
 ```
 
 The active patch track is:
 
 ```text
-v0.18.1
+v0.19.1
 ```
 
-v0.18.1 is the Release Surface & Provenance Hardening patch track. It must not
-expand beyond the v0.18.0 cancel recovery preview boundary and must not be
-described as actual cancel execution, automatic cancel, retry/replace/amend/
-correction/flatten/remediation, strategy-driven production execution,
-multi-account/multi-venue execution, real funds, production trading platform
-readiness, or Dashboard order/cancel controls.
+v0.19.1 is the Actual Cancel Release Closeout & Provenance Hardening patch
+track. It must not expand beyond the v0.19.0 actual-cancel-only boundary and
+must not be described as production order submission, automatic cancel, bulk
+cancel, retry/replace/amend/correction/flatten/remediation, strategy-driven
+production execution, multi-account/multi-venue execution, real funds,
+production trading platform readiness, or Dashboard order/cancel controls.
 
 The next capability track is:
 
 ```text
-v0.19.0
+v0.20.0
 ```
 
-v0.19.0 is the first follow-up line allowed to evaluate and implement
-owner-approved single-shot actual cancel. It is not part of v0.18.0 or
-v0.18.1. Any v0.19 actual-cancel work must follow
-`docs/rust-cutover/release/v0_19_0_actual_cancel_safety_contract.md`: one
-manual owner approval, one order, one venue, one execution attempt, required
-owner-approval/risk-gate/order/release-manifest/adapter-capability artifacts,
-and fail-closed behavior for missing, expired, reused, or mismatched evidence.
-It does not authorize production order submission, automatic cancel, bulk
-cancel, retry/replace/amend/flatten, multi-account or multi-venue expansion, or
-Dashboard operation controls.
+v0.20.0 is the first follow-up line allowed to evaluate Owner-Approved
+Production Order Lifecycle Foundation work. It is not part of v0.19.0 or
+v0.19.1. The v0.19 release only authorizes owner-approved single-shot actual
+cancel and does not authorize production order submission, automatic cancel,
+bulk cancel, retry/replace/amend/flatten, multi-account or multi-venue
+expansion, or Dashboard operation controls.
 
 ## Cargo Workspace Version
 
@@ -286,6 +284,25 @@ Dashboard diagnostics. It must not be treated as actual cancel send, automatic
 cancel, retry/replace/amend/correction/flatten/remediation, strategy-driven
 production execution, multi-account/multi-venue execution, real-funds trading
 platform readiness, or Dashboard order/cancel controls.
+
+### v0.19.0
+
+Current boundary:
+
+```text
+Owner-Approved Single-Shot Actual Cancel
+```
+
+V190-001 through V190-010 define and release the v0.19.0 scope. v0.19.0
+includes one owner-approved actual cancel path with one approval, one order,
+one venue, one execution attempt, risk gate evidence, adapter boundary
+evidence, post-cancel readback reconciliation, failure and partial-success
+evidence, read-only Dashboard actual cancel audit, golden trace coverage, and
+release gates. It must not be treated as production order submit lifecycle,
+automatic cancel, bulk cancel, retry/replace/amend/correction/flatten/
+remediation, second cancel, compensation trade, strategy-driven production
+execution, multi-account/multi-venue execution, real-funds trading platform
+readiness, or Dashboard order/cancel controls.
 
 ### v0.16.0
 
