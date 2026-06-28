@@ -1,3 +1,40 @@
+# V190-009 Verification
+
+Date: 2026-06-28
+Executor: Codex
+Task: `V190-009` / GitHub issue `#585`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-cli = PASS
+python3 scripts/ai/golden_trace_runner.py tests/golden/actual_cancel_schema.jsonl --mode validate-only = PASS, 10 rows
+cargo test -p nautilus-cli --test golden_trace_actual_cancel = PASS, 1 test
+TRACE_GLOB=tests/golden/actual_cancel_schema.jsonl RUN_RUST_GOLDEN_TRACE_HARNESS=0 RUN_RUST_MARKET_DATA_TRACE_REPLAY=0 RUN_RUST_CACHE_MSGBUS_TRACE_REPLAY=0 RUN_RUST_BACKTEST_TRACE_REPLAY=0 RUN_RUST_BACKTEST_LIVE_PARITY_TRACE_REPLAY=0 RUN_RUST_LIVE_SANDBOX_TRACE_REPLAY=0 RUN_RUST_ORDER_LIFECYCLE_TRACE_REPLAY=0 RUN_RUST_RISK_REJECTION_TRACE_REPLAY=0 RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY=0 RUN_RUST_LIVE_ALPHA_RECONCILIATION_TRACE_REPLAY=0 RUN_RUST_LIVE_ALPHA_MUTATION_DRY_RUN_TRACE_REPLAY=0 RUN_RUST_ACTUAL_CANCEL_TRACE_REPLAY=1 scripts/ai/run_golden_traces.sh = PASS
+scripts/ai/verify_v19_actual_cancel_golden_traces.sh = PASS
+scripts/ai/run_golden_traces.sh = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, 45 cases, 44 executable replay, 1 schema-only scoped
+scripts/ai/verify_release.sh v19-release-gates = UNAVAILABLE, unknown verify_release stage: v19-release-gates
+cargo fmt --check -p nautilus-cli = PASS
+cargo clippy -p nautilus-cli --all-targets -- -D warnings = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+The v0.19 actual-cancel golden trace coverage is implemented as a local/offline
+fixture and Rust harness. It covers success, approval missing, approval reused,
+risk mismatch, adapter unsupported, cancel rejected, timeout, unknown, already
+cancelled, and partial fill. Each case carries request, response, readback,
+audit, and provenance references. Partial-fill quantity fields remain decimal
+strings, and no quantity/price arithmetic path changed. This verification does
+not add live venue credentials, live broker connectivity, actual-cancel runtime
+behavior changes, production order submit expansion, retry, remediation, second
+cancel, Dashboard cancel controls, raw response persistence, or credential
+persistence. The `v19-release-gates` stage remains unavailable and is owned by
+V190-010.
+
 # V190-008 Verification
 
 Date: 2026-06-28

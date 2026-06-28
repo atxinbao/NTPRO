@@ -39,6 +39,9 @@ cargo test -p nautilus-live --test golden_trace_live_sandbox
 cargo test -p nautilus-execution --test golden_trace_order_lifecycle
 cargo test -p nautilus-risk --test golden_trace_risk_rejection
 cargo test -p nautilus-okx --test golden_trace_adapter_payload
+cargo test -p nautilus-cli --test golden_trace_live_alpha_reconciliation
+cargo test -p nautilus-cli --test golden_trace_live_alpha_mutation_dry_run
+cargo test -p nautilus-cli --test golden_trace_actual_cancel
 ```
 
 Final release mode runs the same validation plus:
@@ -61,16 +64,19 @@ The manifest requires each `tests/golden/*.jsonl` case to be either
 | File | Rows | Category | Execution status |
 | --- | ---: | --- | --- |
 | `tests/golden/adapter_payload_schema.jsonl` | 1 | `adapter_payload` | Rust OKX adapter parser replay |
+| `tests/golden/actual_cancel_schema.jsonl` | 10 | `execution` | Rust CLI actual-cancel fixture coverage |
 | `tests/golden/backtest_live_semantic_parity_schema.jsonl` | 1 | `backtest_live` | Rust backtest/live scoped parity replay |
 | `tests/golden/backtest_replay_schema.jsonl` | 1 | `backtest_live` | Rust backtest replay |
 | `tests/golden/cache_msgbus_schema.jsonl` | 1 | `cache_msgbus` | Rust common cache/message-bus replay |
+| `tests/golden/live_alpha_mutation_dry_run_schema.jsonl` | 9 | `execution` | Rust CLI live-alpha mutation dry-run replay |
+| `tests/golden/live_alpha_reconciliation_schema.jsonl` | 7 | `execution` | Rust CLI live-alpha reconciliation replay |
 | `tests/golden/live_sandbox_lifecycle_schema.jsonl` | 1 | `backtest_live` | Rust live/sandbox lifecycle replay |
 | `tests/golden/market_data_schema.jsonl` | 6 | `market_data` | Rust market-data model replay |
 | `tests/golden/order_lifecycle_schema.jsonl` | 6 | `order_lifecycle` | Rust execution lifecycle replay |
 | `tests/golden/risk_rejection_schema.jsonl` | 1 | `risk` | Rust `RiskEngine` rejection replay |
 | `tests/golden/schema_smoke.jsonl` | 1 | `market_data` | Schema-only scoped in release manifest |
 
-Total: 9 JSONL files, 19 trace rows.
+Total: 12 JSONL files, 45 trace rows.
 
 ## Executable Evidence
 
@@ -85,6 +91,9 @@ Total: 9 JSONL files, 19 trace rows.
 | DRG-009 | `nautilus-risk::golden_trace_risk_rejection` | Replays a valid submit command through `RiskEngine` with halted trading state, proving one denial event and no forwarded execution command. |
 | RTRACE-007 | `nautilus-okx::golden_trace_adapter_payload` | Parses one OKX WebSocket trade payload fixture through the Rust adapter parser into a normalized `TradeTick`. |
 | RBTL-009 | `nautilus-backtest::backtest_live_semantic_parity` | Compares a scoped Rust backtest quote replay against a Rust live sandbox lifecycle summary. |
+| V140-005 | `nautilus-cli::golden_trace_live_alpha_reconciliation` | Replays local live-alpha reconciliation scenarios for fresh/stale order state, account readability, kill switch, and risk-limit outcomes without production mutation. |
+| V150-006 | `nautilus-cli::golden_trace_live_alpha_mutation_dry_run` | Replays local mutation dry-run scenarios for approval, kill switch, risk, network-disabled, and Dashboard-control boundaries without production mutation. |
+| V190-009 | `nautilus-cli::golden_trace_actual_cancel` | Validates owner-approved actual-cancel success, blocked pre-send, failed, recovered, unknown, already-cancelled, and partial-fill trace outcomes plus request/response/readback/audit/provenance references. |
 
 ## Schema-Only Seed Evidence
 
