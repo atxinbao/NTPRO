@@ -377,6 +377,33 @@ not release validation or release evidence. v0.18/v0.18.1 release evidence
 points to `verify_release.sh`; v0.18.1 strict provenance points to
 `verify_release_strict.sh`.
 
+# V191-001 Verification
+
+Date: 2026-06-28
+Executor: Codex
+Task: `V191-001` / GitHub issue `#604`
+
+## Commands
+
+```text
+gh release view ntpro-rust-only-v0.19.0 --repo atxinbao/NTPRO --json tagName,name,isDraft,isPrerelease,publishedAt,targetCommitish,url = PASS
+gh run view 28314859483 --repo atxinbao/NTPRO = PASS, completed success, 51 jobs, 0 failures
+rg -n "RELEASE CANDIDATE|pending V190-010|tag = pending|GitHub Release = pending|hosted release gate = pending" docs/rust-cutover/release/v0_19_0_release_notes.md docs/rust-cutover/release/v0_19_0_readiness_report.md docs/rust-cutover/evidence/V190-010.md = no matches
+published release markers, release commit, hosted gate URL, and actual-cancel-only boundary markers = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+The v0.19.0 release surface is closed out against the live GitHub Release and
+hosted tag workflow. The closeout records the tag, release URL, release commit,
+publication time, hosted `release-v19-release-gates` PASS state, merged PR, and
+issue closure evidence. The release remains limited to owner-approved
+single-shot actual cancel: no production order submit lifecycle, no automatic
+or bulk cancel, no Dashboard cancel controls, no retry, no second cancel, and
+no remediation.
+
 # V181-004 Verification
 
 Date: 2026-06-27
