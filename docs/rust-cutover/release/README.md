@@ -419,6 +419,14 @@ Final release checks, benchmark summaries, and audit reports live here.
   cancel, unknown, timeout, and inconsistent outcomes, and keeps degraded
   readback states explicit for Dashboard read-only audit consumption without
   retry, remediation, second cancel, or network readback execution.
+- `v0_19_0_actual_cancel_failure_evidence.md` - V190-007 failure and
+  partial-success evidence model for the v0.19 actual cancel line. It adds the
+  `production-mutation-actual-cancel-failure-evidence` command, consumes
+  V190-006 readback reconciliation plus request/response/readback/audit refs,
+  classifies recovered, failed, and partial-success outcomes including
+  rejected, timeout, unknown, partial fill, already cancelled, venue
+  unavailable, and adapter failure, and keeps unknown non-recovered and partial
+  fill residual risk visible for Dashboard and release-gate consumption.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,

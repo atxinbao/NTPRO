@@ -1,3 +1,37 @@
+# V190-007 Verification
+
+Date: 2026-06-28
+Executor: Codex
+Task: `V190-007` / GitHub issue `#583`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-cli = PASS
+cargo test -p nautilus-cli parses_live_production_mutation_actual_cancel_failure_evidence_options --lib = PASS, 1 test
+cargo test -p nautilus-cli actual_cancel_failure_evidence --lib = PASS, 3 tests
+cargo test -p nautilus-cli actual_cancel --lib = PASS, 18 tests
+scripts/ai/verify_v19_actual_cancel_failure_evidence.sh = PASS
+cargo fmt --check -p nautilus-cli = PASS
+cargo clippy -p nautilus-cli --all-targets -- -D warnings = PASS
+scripts/ai/verify_fast.sh = PASS
+rg -n "failure evidence|partial-success|partial fill|venue_unavailable|adapter_failure|unknown_not_recovered|production-mutation-actual-cancel-failure-evidence" crates/cli/src docs/rust-cutover scripts/ai verification.md = PASS
+git diff --check = PASS
+```
+
+## Result
+
+The v0.19 actual-cancel failure and partial-success evidence command is
+implemented as a local/offline evidence command. It consumes V190-006 readback
+reconciliation plus request, response, readback, and audit refs, and classifies
+`cancel_confirmed`, `already_cancelled`, `rejected`, `timeout`, `unknown`,
+`partial_fill`, `filled_before_cancel`, `venue_unavailable`, and
+`adapter_failure`. Unknown outcomes are never marked recovered. Partial-fill
+outcomes expose residual risk and require manual review. The artifact is
+Dashboard/release-gate consumable and does not enable retry, remediation,
+compensation trades, second cancel, network readback, raw persistence, or
+Dashboard order/cancel controls.
+
 # V190-006 Verification
 
 Date: 2026-06-28
