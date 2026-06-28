@@ -434,6 +434,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   unknown states, and degrades missing, mismatched, unknown, stale, or boundary
   violating evidence without adding Dashboard cancel, approval, retry, bulk, or
   write-operation controls.
+- `v0_19_0_actual_cancel_golden_trace_fixtures.md` - V190-009 golden trace and
+  fixture coverage for the v0.19 owner-approved actual cancel line. It records
+  success, approval missing, approval reused, risk mismatch, adapter
+  unsupported, rejected, timeout, unknown, already-cancelled, and partial-fill
+  cases with request/response/readback/audit/provenance references and a Rust
+  CLI harness, without adding live venue credentials, retry, remediation,
+  second cancel, or Dashboard cancel controls.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,

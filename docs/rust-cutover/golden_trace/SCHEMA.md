@@ -163,6 +163,7 @@ cargo test -p nautilus-risk --test golden_trace_risk_rejection
 cargo test -p nautilus-okx --test golden_trace_adapter_payload
 cargo test -p nautilus-cli --test golden_trace_live_alpha_reconciliation
 cargo test -p nautilus-cli --test golden_trace_live_alpha_mutation_dry_run
+cargo test -p nautilus-cli --test golden_trace_actual_cancel
 ```
 
 Set `RUN_RUST_GOLDEN_TRACE_HARNESS=0` or
@@ -175,8 +176,9 @@ Set `RUN_RUST_GOLDEN_TRACE_HARNESS=0` or
 `RUN_RUST_RISK_REJECTION_TRACE_REPLAY=0` or
 `RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY=0` or
 `RUN_RUST_LIVE_ALPHA_RECONCILIATION_TRACE_REPLAY=0` or
-`RUN_RUST_LIVE_ALPHA_MUTATION_DRY_RUN_TRACE_REPLAY=0` only when documenting an
-explicit local toolchain or scoped replay blocker in task evidence.
+`RUN_RUST_LIVE_ALPHA_MUTATION_DRY_RUN_TRACE_REPLAY=0` or
+`RUN_RUST_ACTUAL_CANCEL_TRACE_REPLAY=0` only when documenting an explicit local
+toolchain or scoped replay blocker in task evidence.
 
 The final release gate may require replay by setting:
 
