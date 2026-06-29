@@ -53,6 +53,7 @@ pub mod v04_rejection;
 pub mod v20_owner_approval;
 pub mod v20_pre_submit_gate;
 pub mod v20_signing_material_gate;
+pub mod v20_submit_request_builder;
 
 // Re-exports
 pub use engine::RiskEngine;
