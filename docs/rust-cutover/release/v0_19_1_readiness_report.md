@@ -25,8 +25,8 @@ V191-002 = PASS, v0.18.1 prerequisite release evidence reconciliation
 V191-003 = PASS, current release surface alignment to v0.19.0
 V191-004 = PASS, v0.19.0 release publication guard
 V191-005 = PASS, v19 strict release provenance
-V191-006 = pending PR, V190-004 / PR #598 post-merge review attestation
-V191-007 = pending issue, standalone v19 release gate hardening
+V191-006 = PASS, V190-004 / PR #598 post-merge review attestation
+V191-007 = PASS after merge, standalone v19 release gate hardening
 ```
 
 ## V191-006 Attestation Readiness
@@ -69,6 +69,25 @@ no Dashboard execution
 no Dashboard cancel button
 ```
 
+## V191-007 Gate Semantics Readiness
+
+The standalone v19 gate now uses `target/release/nautilus` by default and no
+longer silently validates release-looking evidence through `target/debug/nautilus`.
+The command boundaries are:
+
+```text
+local standalone gate = scripts/ai/verify_v19_release_gates.sh
+default standalone binary = target/release/nautilus
+authoritative release dispatcher = scripts/ai/verify_release.sh v19-release-gates
+strict provenance dispatcher = scripts/ai/verify_release_strict.sh v19
+non-release binary mode = local smoke only, explicit opt-in required
+local smoke marker = local smoke only
+```
+
+This hardening changes verification semantics only. It does not open production
+network gates, production order mutation gates, Dashboard execution, retry,
+bulk cancel, second cancel, or automatic cancel.
+
 ## Not Included
 
 ```text
@@ -89,13 +108,18 @@ release tag publication = not complete
 gh pr view 598 --repo atxinbao/NTPRO --json number,title,state,mergedAt,reviews,reviewDecision,url
 gh issue view 581 --repo atxinbao/NTPRO --json number,title,state,closedAt,url
 rg -n "V190-004|PR #598|post-merge review|REVIEW_REQUIRED|owner approval consumption|no retry|no bulk|no second cancel|Dashboard" docs/rust-cutover/evidence docs/rust-cutover/release
+scripts/ai/verify_v19_release_gates.sh
+scripts/ai/verify_release.sh v19-release-gates
+scripts/ai/verify_release_strict.sh v19
+rg -n "debug/nautilus|target/release/nautilus|local smoke only|release binary|v19-release-gates" scripts/ai docs/rust-cutover/release docs/rust-cutover/evidence verification.md
 git diff --check
 scripts/ai/verify_fast.sh
 ```
 
 ## Release Readiness Verdict
 
-The V191-006 post-merge review attestation is required before v0.19.1 can be
-considered ready. v0.19.1 is still not published because V191-006 and V191-007
-must close first. v0.20 remains blocked until all v0.19.1 closeout evidence is
-merged.
+The V191-006 post-merge review attestation and V191-007 standalone gate
+hardening are the final v0.19.1 closeout blockers. After the V191-007 PR
+merges, the v0.19.1 closeout evidence chain is complete, but the v0.19.1 tag
+and GitHub Release remain unpublished until an explicit release decision.
+v0.20 remains blocked until V191-007 is merged.

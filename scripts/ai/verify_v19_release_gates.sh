@@ -12,13 +12,25 @@ export NTPRO_SOURCE_COMMIT="${NTPRO_SOURCE_COMMIT:-$(git rev-parse HEAD)}"
 export NTPRO_SOURCE_RELEASE_TAG="${NTPRO_SOURCE_RELEASE_TAG:-unreleased-v19-local-gate}"
 
 if [[ "${NTPRO_V19_SKIP_BUILD:-0}" != "1" && -z "${NTPRO_V19_NAUTILUS_BIN:-}" ]]; then
-  cargo build -p nautilus-cli --bin nautilus
+  cargo build -p nautilus-cli --release --bin nautilus
 fi
 
-NAUTILUS_BIN="${NTPRO_V19_NAUTILUS_BIN:-$ROOT_DIR/target/debug/nautilus}"
+NAUTILUS_BIN="${NTPRO_V19_NAUTILUS_BIN:-$ROOT_DIR/target/release/nautilus}"
 if [[ ! -x "$NAUTILUS_BIN" ]]; then
   echo "missing nautilus binary: $NAUTILUS_BIN" >&2
   exit 1
+fi
+if [[ "$NAUTILUS_BIN" != "$ROOT_DIR/target/release/nautilus" && "$NAUTILUS_BIN" != */target/release/nautilus ]]; then
+  if [[ "${NTPRO_V19_ALLOW_LOCAL_SMOKE_ONLY:-0}" != "1" ]]; then
+    echo "v19 release gate requires release binary evidence: $NAUTILUS_BIN" >&2
+    echo "use scripts/ai/verify_release.sh v19-release-gates or pass target/release/nautilus" >&2
+    echo "set NTPRO_V19_ALLOW_LOCAL_SMOKE_ONLY=1 only for explicit local smoke runs" >&2
+    exit 1
+  fi
+  echo "local smoke only: non-release nautilus binary: $NAUTILUS_BIN"
+  echo "local smoke only: this run is not release binary evidence"
+else
+  echo "release binary: $NAUTILUS_BIN"
 fi
 
 export NTPRO_V19_SKIP_BUILD=1

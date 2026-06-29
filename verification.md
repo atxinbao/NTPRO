@@ -1,3 +1,35 @@
+# V191-007 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V191-007` / GitHub issue `#610`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v19_release_gates.sh scripts/ai/verify_release.sh scripts/ai/verify_release_strict.sh = PASS
+NTPRO_V19_SKIP_BUILD=1 NTPRO_V19_NAUTILUS_BIN="$PWD/target/debug/nautilus" scripts/ai/verify_v19_release_gates.sh = EXPECTED FAIL, debug binary rejected before any release-evidence-looking output
+scripts/ai/verify_v19_release_gates.sh = PASS, printed release binary: /Users/mac/Documents/NTPRO/target/release/nautilus; checked 27 v190 artifacts and 10 actual-cancel trace cases
+scripts/ai/verify_release.sh v19-release-gates = PASS
+scripts/ai/verify_release_strict.sh v19 = PASS, strict_release_provenance status=ok, binary_path=/Users/mac/Documents/NTPRO/target/release/nautilus
+rg -n "debug/nautilus|target/release/nautilus|local smoke only|release binary|v19-release-gates" scripts/ai docs/rust-cutover/release docs/rust-cutover/evidence verification.md = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+The standalone v19 release gate now defaults to `target/release/nautilus` and
+builds the release binary when no explicit binary is supplied. Explicit
+`target/debug/nautilus` use is rejected by default; non-release runs must opt in
+with `NTPRO_V19_ALLOW_LOCAL_SMOKE_ONLY=1` and are labeled `local smoke only`.
+
+This verification keeps `scripts/ai/verify_release.sh v19-release-gates` as the
+authoritative release dispatcher path and keeps `scripts/ai/verify_release_strict.sh v19`
+as the strict provenance path. It does not open production network/env gates,
+production order submission, automatic cancel, bulk cancel, retry, second
+cancel, remediation, Dashboard execution, or Dashboard cancel controls.
+
 # V191-006 Verification
 
 Date: 2026-06-29
