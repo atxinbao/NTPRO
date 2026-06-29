@@ -14,6 +14,7 @@ NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE=1 scripts/ai/check_github_release_publis
 git diff --check = PASS
 cargo update -p anyhow --precise 1.0.103 = PASS
 cargo tree -i anyhow = PASS, anyhow v1.0.103
+cargo vet --locked = PASS, anyhow v1.0.103 safe-to-deploy exemption synced
 scripts/ai/verify_v20_release_gates.sh = PASS
 scripts/ai/verify_release.sh v20-strict-provenance = PASS
 scripts/ai/verify_release.sh v20-release-gates = PASS
