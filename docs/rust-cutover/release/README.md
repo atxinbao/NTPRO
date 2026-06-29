@@ -489,6 +489,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   digest, scope, owner, expiry, nonce, environment, and release provenance to a
   single submit candidate, defines rejected/expired/revoked/consumed evidence,
   and keeps Dashboard approval controls and actual submit out of scope.
+- `v0_20_0_signing_material_env_gate.md` - V200-004 Rust signing material
+  env-only gate contract and local implementation notes. It blocks missing,
+  empty, wrong-environment, or non-env credential material, records only
+  redacted env-var/fingerprint evidence, and keeps secret storage, remote key
+  management, Dashboard credential UI, and actual submit out of scope.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
