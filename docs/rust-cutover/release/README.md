@@ -451,6 +451,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   aggregate, golden trace coverage, release-blocking conditions, Dashboard
   read-only boundary, and the handoff that v0.20 enters owner-approved
   production order lifecycle.
+- `v0_19_0_release_manifest.json` - machine-readable v0.19.0 release manifest
+  for the strict v19 provenance gate. It fixes the published tag, release
+  commit/tree, toolchain, release notes/readiness inputs, golden trace
+  manifest, v19 gate output root, and strict-manifest artifact path without
+  changing the published release tag or runtime behavior.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,

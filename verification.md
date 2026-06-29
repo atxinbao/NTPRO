@@ -1,3 +1,43 @@
+# V191-005 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V191-005` / GitHub issue `#608`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release_strict.sh scripts/ai/verify_release.sh = PASS
+git diff --check = PASS
+rg -n "candidate|pending|RELEASE CANDIDATE" docs/rust-cutover/release/v0_19_0_release_notes.md docs/rust-cutover/release/v0_19_0_readiness_report.md = PASS, no matches
+NTPRO_RELEASE_GATE=1 NTPRO_RELEASE_STRICT_SKIP_BUILD=1 scripts/ai/verify_release_strict.sh v19 = EXPECTED FAIL, dirty tracked worktree rejected
+NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG=1 NTPRO_RELEASE_STRICT_SKIP_BUILD=1 scripts/ai/verify_release_strict.sh v19 = EXPECTED FAIL, HEAD/tag mismatch rejected
+NTPRO_V19_RELEASE_MANIFEST=/tmp/ntpro-v191-005-missing-manifest.json NTPRO_RELEASE_STRICT_SKIP_BUILD=1 scripts/ai/verify_release_strict.sh v19 = EXPECTED FAIL, missing release manifest rejected
+NTPRO_V19_RELEASE_NOTES=<temp stale notes> NTPRO_RELEASE_STRICT_SKIP_BUILD=1 scripts/ai/verify_release_strict.sh v19 = EXPECTED FAIL, stale release status rejected
+NTPRO_RELEASE_STRICT_SKIP_BUILD=1 NTPRO_RELEASE_STRICT_SKIP_V19_GATES=1 scripts/ai/verify_release_strict.sh v19 = PASS
+scripts/ai/verify_release_strict.sh v19 = PASS
+scripts/ai/verify_release.sh v19-strict-provenance = PASS
+NTPRO_RELEASE_STRICT_VERIFY_ONLY=1 scripts/ai/verify_release_strict.sh v19 = PASS
+NTPRO_RELEASE_GATE=1 scripts/ai/verify_release_strict.sh v19 = PASS after commit clean-tree, source_dirty=false
+bash -n scripts/ai/verify_release_strict.sh scripts/ai/verify_release.sh scripts/ai/verify_fast.sh = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+The strict release provenance verifier now supports `v19`, validates the
+published `ntpro-rust-only-v0.19.0` release notes/readiness/manifest, records
+the source release tag commit/tree, current source commit/tree, cargo/rustc
+versions, release binary hash/bytes/version, release manifest hash, golden trace
+manifest hash, and v19 gate output root, and writes the machine-readable strict
+manifest under `target/ntpro-v190/`. The aggregate `verify_release.sh` command
+now exposes `v19-strict-provenance`.
+
+This verification does not change the v0.19.0 release tag, runtime behavior,
+adapter behavior, production order submission, automatic cancel, bulk cancel,
+retry, second cancel, remediation, Dashboard order controls, Dashboard cancel
+controls, or release asset publication.
+
 # V191-004 Verification
 
 Date: 2026-06-29
