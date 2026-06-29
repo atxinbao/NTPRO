@@ -1,3 +1,31 @@
+# V200-009 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V200-009` / GitHub issue `#620`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-risk = PASS
+cargo test -p nautilus-risk --test v20_failure_no_retry -- --nocapture = PASS, 5 passed
+cargo clippy -p nautilus-risk --all-targets -- -D warnings = PASS
+rg -n "ntpro\\.v200_failure_no_retry_evidence\\.v1|v200_failure_validation_failed|v200_failure_approval_failed|v200_failure_credential_unavailable|v200_failure_submit_failed|v200_failure_venue_rejected|v200_failure_response_unknown|v200_failure_readback_missing|v200_failure_readback_mismatch|v200_failure_cancel_required|v200_failure_audit_incomplete|no_implicit_retry|retry_attempted = false|automatic_remediation_allowed = false|dashboard_order_controls_enabled = false" crates/risk/src/v20_failure_no_retry.rs crates/risk/tests/v20_failure_no_retry.rs docs/rust-cutover/release/v0_20_0_failure_no_retry_evidence.md docs/rust-cutover/evidence/V200-009.md verification.md = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V200-009 implements local Rust failure and no-retry evidence in
+`nautilus-risk`. It records blocked, validation_failed, approval_failed,
+credential_unavailable, submit_failed, venue_rejected, response_unknown,
+readback_missing, readback_mismatch, cancel_required, and audit_incomplete
+categories with stable codes, source evidence pointers, and next allowed
+actions. It keeps implicit retry, replacement, amendment, flattening,
+automatic cancel, automatic remediation, strategy continuation, and Dashboard
+order controls disabled.
+
 # V200-008 Verification
 
 Date: 2026-06-29
