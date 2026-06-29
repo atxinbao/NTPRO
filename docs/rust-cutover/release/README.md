@@ -511,6 +511,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   evidence, retains only readback/audit correlation fields, and forbids raw
   response, header, credential, signature, token, signed-query, signed-URL, and
   Dashboard raw-response exposure.
+- `v0_20_0_submit_readback_reconciliation.md` - V200-008 post-submit readback
+  reconciliation contract and local implementation notes. It compares local
+  submit expectation, V200-007 redacted response evidence, and venue readback
+  snapshot fields, emits matched/mismatched/missing/ambiguous/readback_failed
+  evidence, and keeps automatic cancel, retry, remediation, raw readback body
+  recording, and Dashboard order controls out of scope.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
