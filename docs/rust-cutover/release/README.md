@@ -500,6 +500,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   readiness evidence, emits request digest plus redacted preview, and keeps
   signing, networking, adapter submit, retry, and Dashboard controls out of
   scope.
+- `v0_20_0_guarded_single_shot_submit_candidate.md` - V200-006 guarded
+  single-shot submit candidate contract and local implementation notes. It
+  validates prerequisite evidence, request digest, release provenance, manual
+  online gate, and duplicate-attempt state before recording submitted evidence
+  and consuming owner approval; preview and dry-run modes remain no-submit.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,

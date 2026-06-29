@@ -1,3 +1,28 @@
+# V200-006 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V200-006` / GitHub issue `#617`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-risk = PASS
+cargo test -p nautilus-risk --test v20_submit_candidate -- --nocapture = PASS, 9 passed
+cargo clippy -p nautilus-risk --all-targets -- -D warnings = PASS
+rg -n "ntpro\\.v200_guarded_single_shot_submit_candidate\\.v1|v200_guarded_submit_submitted|v200_guarded_submit_duplicate_rejected|v200_guarded_submit_manual_gate_missing|submit_attempt_evidence_ready|owner_approval_consumed|production_submit_attempted|adapter_submit_handoff_allowed|readback_required|dashboard_order_controls_enabled = false" crates/risk/src/v20_submit_candidate.rs crates/risk/tests/v20_submit_candidate.rs docs/rust-cutover/release/v0_20_0_guarded_single_shot_submit_candidate.md docs/rust-cutover/evidence/V200-006.md verification.md = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V200-006 implements the local Rust guarded single-shot submit candidate gate in
+`nautilus-risk`. It records blocked, preview, dry-run, and submitted evidence;
+submit mode requires all prerequisite evidence, matching request digest, manual
+online gate, and no prior matching submit digest before consuming owner
+approval.
+
 # V200-005 Verification
 
 Date: 2026-06-29
