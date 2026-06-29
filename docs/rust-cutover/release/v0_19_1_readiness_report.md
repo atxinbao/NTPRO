@@ -3,7 +3,7 @@
 Date: 2026-06-29
 Executor: Codex
 Milestone: `ntpro-rust-only-v0.19.1`
-Status: CLOSEOUT IN PROGRESS - NOT PUBLISHED
+Status: CLOSEOUT EVIDENCE COMPLETE - NOT PUBLISHED
 
 ## Summary
 
@@ -26,7 +26,7 @@ V191-003 = PASS, current release surface alignment to v0.19.0
 V191-004 = PASS, v0.19.0 release publication guard
 V191-005 = PASS, v19 strict release provenance
 V191-006 = PASS, V190-004 / PR #598 post-merge review attestation
-V191-007 = PASS after merge, standalone v19 release gate hardening
+V191-007 = PASS, standalone v19 release gate hardening
 ```
 
 ## V191-006 Attestation Readiness
@@ -119,7 +119,8 @@ scripts/ai/verify_fast.sh
 ## Release Readiness Verdict
 
 The V191-006 post-merge review attestation and V191-007 standalone gate
-hardening are the final v0.19.1 closeout blockers. After the V191-007 PR
-merges, the v0.19.1 closeout evidence chain is complete, but the v0.19.1 tag
-and GitHub Release remain unpublished until an explicit release decision.
-v0.20 remains blocked until V191-007 is merged.
+hardening were the final v0.19.1 closeout blockers. After PR #630 merged, the
+v0.19.1 closeout evidence chain is complete, but the v0.19.1 tag and GitHub
+Release remain unpublished until an explicit release decision. v0.20 planning
+and bounded implementation may proceed only through the V200-000 go/no-go scope
+decision.
