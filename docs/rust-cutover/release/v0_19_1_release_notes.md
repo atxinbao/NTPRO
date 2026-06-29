@@ -60,6 +60,25 @@ failure-evidence follow-up
 known limitation: post-merge review is not a pre-merge review replacement
 ```
 
+## V191-007 Standalone Gate Semantics
+
+`scripts/ai/verify_v19_release_gates.sh` now defaults to the release binary
+path, `target/release/nautilus`, and builds that binary when no explicit
+`NTPRO_V19_NAUTILUS_BIN` is supplied. This prevents the standalone command from
+silently producing release-evidence-looking output with `target/debug/nautilus`.
+
+The release dispatcher remains the authoritative release gate entrypoint:
+
+```text
+release gate = scripts/ai/verify_release.sh v19-release-gates
+release binary = target/release/nautilus
+strict provenance = scripts/ai/verify_release_strict.sh v19
+```
+
+Explicit non-release binary runs are local smoke only. They require
+`NTPRO_V19_ALLOW_LOCAL_SMOKE_ONLY=1`, print `local smoke only`, and do not
+replace release binary evidence or strict provenance evidence.
+
 ## Not Included
 
 ```text
@@ -83,6 +102,10 @@ Required local validation for this closeout note:
 ```text
 gh pr view 598 --repo atxinbao/NTPRO --json number,title,state,mergedAt,reviews,reviewDecision,url
 rg -n "V190-004|PR #598|post-merge review|REVIEW_REQUIRED|owner approval consumption|no retry|no bulk|no second cancel|Dashboard" docs/rust-cutover/evidence docs/rust-cutover/release
+scripts/ai/verify_v19_release_gates.sh
+scripts/ai/verify_release.sh v19-release-gates
+scripts/ai/verify_release_strict.sh v19
+rg -n "debug/nautilus|target/release/nautilus|local smoke only|release binary|v19-release-gates" scripts/ai docs/rust-cutover/release docs/rust-cutover/evidence verification.md
 git diff --check
 scripts/ai/verify_fast.sh
 ```
@@ -90,7 +113,7 @@ scripts/ai/verify_fast.sh
 ## Release Status
 
 ```text
-v0.19.1 status = closeout in progress
+v0.19.1 status = closeout evidence complete after V191-007 merge
 GitHub Release = not published
 tag = not created
 current formal release = ntpro-rust-only-v0.19.0
