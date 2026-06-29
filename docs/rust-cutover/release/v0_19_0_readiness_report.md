@@ -111,6 +111,8 @@ Required local validation for the v0.19 readiness decision:
 ```text
 scripts/ai/verify_v19_release_gates.sh
 scripts/ai/verify_release.sh v19-release-gates
+scripts/ai/verify_release.sh v19-strict-provenance
+scripts/ai/verify_release_strict.sh v19
 scripts/ai/verify_v19_actual_cancel_golden_traces.sh
 scripts/ai/run_golden_traces.sh
 python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl'
@@ -175,8 +177,9 @@ hosted release gate result = PASS
 
 The v0.19 source-tree package is closed out as the published
 `Owner-Approved Single-Shot Actual Cancel` release after `v19-release-gates`
-passed locally and `release-v19-release-gates` passed in hosted tag
-verification.
+passed locally, `release-v19-release-gates` passed in hosted tag verification,
+and the v0.19.1 closeout line added `scripts/ai/verify_release_strict.sh v19`
+for binary/source/tag/toolchain/manifest provenance.
 
 Do not describe this release as automatic cancel readiness, bulk cancel
 readiness, Dashboard operation-control readiness, production order submit

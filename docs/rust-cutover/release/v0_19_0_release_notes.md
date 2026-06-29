@@ -110,6 +110,8 @@ Required release validation:
 
 ```text
 scripts/ai/verify_release.sh v19-release-gates
+scripts/ai/verify_release.sh v19-strict-provenance
+scripts/ai/verify_release_strict.sh v19
 scripts/ai/verify_v19_release_gates.sh
 scripts/ai/verify_v19_actual_cancel_golden_traces.sh
 scripts/ai/run_golden_traces.sh
@@ -120,9 +122,10 @@ scripts/ai/verify_fast.sh
 git diff --check
 ```
 
-`scripts/ai/verify_release_strict.sh v19` is intentionally not a required gate
-until the strict provenance verifier grows v19 support. The v0.19 release gate
-uses `v19-release-gates` as the authoritative local/offline release bundle.
+The v0.19.1 closeout line adds `scripts/ai/verify_release_strict.sh v19` as
+the strict provenance gate for this published release. It records source/tag,
+binary, toolchain, release manifest, golden trace manifest, and v19 gate output
+evidence without changing the v0.19.0 release tag or runtime behavior.
 
 ## Evidence
 
@@ -139,6 +142,7 @@ docs/rust-cutover/evidence/V190-007.md
 docs/rust-cutover/evidence/V190-008.md
 docs/rust-cutover/evidence/V190-009.md
 docs/rust-cutover/evidence/V190-010.md
+docs/rust-cutover/release/v0_19_0_release_manifest.json
 ```
 
 ## Release Status

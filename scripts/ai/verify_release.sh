@@ -340,6 +340,11 @@ run_v18_strict_provenance() {
   scripts/ai/verify_release_strict.sh v18
 }
 
+run_v19_strict_provenance() {
+  echo "== verify_release: v0.19 strict release provenance =="
+  scripts/ai/verify_release_strict.sh v19
+}
+
 run_release_surface_current_guard() {
   echo "== verify_release: release surface current guard =="
   scripts/ai/check_release_surface_current.sh
@@ -383,6 +388,7 @@ run_stage() {
       run_v18_release_gates
       run_v171_release_hardening
       run_v19_release_gates
+      run_v19_strict_provenance
       run_release_surface_current_guard
       run_release_publication_guard
       ;;
@@ -476,6 +482,9 @@ run_stage() {
     v18-strict-provenance)
       run_v18_strict_provenance
       ;;
+    v19-strict-provenance)
+      run_v19_strict_provenance
+      ;;
     release-surface-current-guard)
       run_release_surface_current_guard
       ;;
@@ -484,7 +493,7 @@ run_stage() {
       ;;
     *)
       echo "unknown verify_release stage: $stage" >&2
-      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate, v08-authenticated-readonly-preflight, v09-strategy-runtime-smoke, v09-shadow-mode-no-order-gate, v091-strategy-supervisor-dashboard-integration, v10-offline-release-gates, v10-manual-order-proof-preflight, v11-offline-release-gates, v12-offline-release-gates, v12-manual-online-preflight, v13-no-production-mutation-gate, v14-release-gates, v15-release-gates, v151-release-gates, v16-release-gates, v17-release-gates, v18-release-gates, v19-release-gates, v171-release-hardening, v18-strict-provenance, release-surface-current-guard, release-publication-guard" >&2
+      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate, v08-authenticated-readonly-preflight, v09-strategy-runtime-smoke, v09-shadow-mode-no-order-gate, v091-strategy-supervisor-dashboard-integration, v10-offline-release-gates, v10-manual-order-proof-preflight, v11-offline-release-gates, v12-offline-release-gates, v12-manual-online-preflight, v13-no-production-mutation-gate, v14-release-gates, v15-release-gates, v151-release-gates, v16-release-gates, v17-release-gates, v18-release-gates, v19-release-gates, v171-release-hardening, v18-strict-provenance, v19-strict-provenance, release-surface-current-guard, release-publication-guard" >&2
       exit 2
       ;;
   esac
