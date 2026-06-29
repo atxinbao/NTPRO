@@ -523,6 +523,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   incomplete failures with stable codes, source evidence pointers, next allowed
   actions, release/Dashboard audit consumability, and no implicit retry or
   automatic remediation.
+- `v0_20_0_dashboard_order_lifecycle_audit.md` - V200-010 Dashboard
+  read-only production order lifecycle audit view. It consumes guarded submit,
+  redacted response, readback reconciliation, failure/no-retry, and audit
+  closeout evidence, shows unknown/missing/mismatch as risk-visible, and keeps
+  submit, approval, retry, replacement, amendment, flatten, cancel, and
+  remediation controls out of the Dashboard.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
