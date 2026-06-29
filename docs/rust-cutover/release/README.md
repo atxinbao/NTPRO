@@ -505,6 +505,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   validates prerequisite evidence, request digest, release provenance, manual
   online gate, and duplicate-attempt state before recording submitted evidence
   and consuming owner approval; preview and dry-run modes remain no-submit.
+- `v0_20_0_submit_response_redaction.md` - V200-007 production submit response
+  redaction contract and local implementation notes. It consumes submitted
+  attempt evidence, emits accepted/rejected/unknown/malformed redacted response
+  evidence, retains only readback/audit correlation fields, and forbids raw
+  response, header, credential, signature, token, signed-query, signed-URL, and
+  Dashboard raw-response exposure.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
