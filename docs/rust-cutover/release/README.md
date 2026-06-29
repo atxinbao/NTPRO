@@ -473,6 +473,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   keeps automatic execution, bulk orders, retry/replace/amend/flatten,
   Dashboard order controls, and general production trading platform claims out
   of scope.
+- `v0_20_0_order_lifecycle_safety_contract.md` - V200-001 planned safety
+  contract for the v0.20 production order lifecycle foundation. It defines the
+  lifecycle states, allowed and forbidden transitions, immutable fields,
+  evidence fields, failure semantics, submit/readback/cancel/audit boundaries,
+  and read-only Dashboard boundary before runtime or adapter implementation.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
