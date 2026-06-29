@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.19.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.20.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
@@ -97,7 +97,7 @@ if ! "$GH_BIN" auth status >/dev/null 2>&1; then
 fi
 
 if ! git rev-parse -q --verify "${CURRENT_RELEASE_TAG}^{commit}" >/dev/null; then
-  fail "missing local git tag: $CURRENT_RELEASE_TAG"
+  offline_skip "missing_local_git_tag:$CURRENT_RELEASE_TAG"
 fi
 
 ensure_origin_main_ref
@@ -289,6 +289,28 @@ case "$CURRENT_RELEASE_VERSION" in
       "automatic cancel = not included"
       "bulk cancel = not included"
       "retry / replace / amend / flatten = not included"
+    )
+    ;;
+  v0.20.0)
+    required_fields=(
+      "Status: RELEASED"
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Owner-Approved Production Order Lifecycle Foundation"
+      "owner approval = required"
+      "single submit attempt = required"
+      "post-submit readback = required"
+      "failure/no-retry evidence = required"
+      "production submit lifecycle foundation = included"
+      "Dashboard order controls = not included"
+      "implicit retry = not included"
+      "automatic cancel = not included"
+      "automatic remediation = not included"
+      "bulk order execution = not included"
+      "retry / replace / amend / flatten = not included"
+      "strategy-driven production execution = not included"
+      "general production trading platform claim = not included"
     )
     ;;
   *)

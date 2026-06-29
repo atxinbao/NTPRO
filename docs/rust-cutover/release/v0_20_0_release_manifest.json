@@ -1,0 +1,87 @@
+{
+  "schema_version": "ntpro.v200_release_manifest.v1",
+  "task_id": "V200-012",
+  "product_version": "v0.20.0",
+  "release_status": "ready_pending_publication",
+  "planned_release": {
+    "tag": "ntpro-rust-only-v0.20.0",
+    "name": "NTPRO Rust-only v0.20.0",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.20.0",
+    "publication_status": "not_published_in_source_tree"
+  },
+  "source_provenance": {
+    "planned_release_tag": "ntpro-rust-only-v0.20.0",
+    "actual_source_commit": null,
+    "actual_source_tree": null,
+    "actual_fields_resolved_by": "scripts/ai/verify_release_strict.sh v20",
+    "generated_manifest_path": "target/ntpro-v200/v0_20_strict_release_manifest.json"
+  },
+  "toolchain": {
+    "cargo_version": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
+    "rustc_version": "rustc 1.95.0 (59807616e 2026-04-14)"
+  },
+  "binary_artifacts": [
+    {
+      "name": "nautilus",
+      "path": "target/release/nautilus",
+      "build_profile": "release",
+      "sha256": null,
+      "bytes": null,
+      "actual_fields_resolved_by": "scripts/ai/verify_release_strict.sh v20"
+    }
+  ],
+  "release_inputs": {
+    "release_notes_path": "docs/rust-cutover/release/v0_20_0_release_notes.md",
+    "readiness_report_path": "docs/rust-cutover/release/v0_20_0_readiness_report.md",
+    "golden_trace_manifest_path": "docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json",
+    "v20_gate_output_root": "target/ntpro-v200/v20-release-gates"
+  },
+  "release_gates": [
+    {
+      "name": "v20-release-gates",
+      "command": "scripts/ai/verify_release.sh v20-release-gates",
+      "required": true
+    },
+    {
+      "name": "v20-strict-provenance",
+      "command": "scripts/ai/verify_release.sh v20-strict-provenance",
+      "required": true
+    },
+    {
+      "name": "strict-release-provenance",
+      "command": "scripts/ai/verify_release_strict.sh v20",
+      "required": true
+    },
+    {
+      "name": "release-publication-guard",
+      "command": "scripts/ai/check_github_release_published.sh",
+      "required_after_publication": true
+    }
+  ],
+  "capability": {
+    "name": "Owner-Approved Production Order Lifecycle Foundation",
+    "capability_expansion": "owner_approved_production_order_lifecycle_foundation",
+    "production_order_lifecycle": "foundation_only"
+  },
+  "boundary_flags": {
+    "implicit_retry_allowed": false,
+    "automatic_cancel_allowed": false,
+    "automatic_remediation_allowed": false,
+    "bulk_order_allowed": false,
+    "multi_account_execution_allowed": false,
+    "multi_venue_execution_allowed": false,
+    "strategy_driven_production_execution_allowed": false,
+    "dashboard_order_controls_enabled": false,
+    "dashboard_approval_controls_enabled": false,
+    "dashboard_cancel_controls_enabled": false,
+    "dashboard_retry_controls_enabled": false,
+    "raw_credential_plaintext_allowed": false,
+    "raw_exchange_payload_publication_allowed": false,
+    "general_production_trading_platform_claim": false,
+    "binary_asset_publication_included": false
+  },
+  "validation_artifacts": {
+    "strict_release_provenance_manifest_path": "target/ntpro-v200/v0_20_strict_release_manifest.json",
+    "v20_gate_output_root": "target/ntpro-v200/v20-release-gates"
+  }
+}
