@@ -1,3 +1,30 @@
+# V200-007 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V200-007` / GitHub issue `#618`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-risk = PASS
+cargo test -p nautilus-risk --test v20_submit_response_redaction -- --nocapture = PASS, 7 passed after fixing venue_status retention
+cargo clippy -p nautilus-risk --all-targets -- -D warnings = PASS
+rg -n "ntpro\\.v200_submit_response_redaction\\.v1|v200_submit_response_accepted|v200_submit_response_rejected|v200_submit_response_unknown|v200_submit_response_malformed|v200_submit_response_sensitive_material_observed|response_digest|raw_exchange_response_recorded|signature_material_recorded|readback_success_inferred = false|dashboard_raw_response_enabled = false" crates/risk/src/v20_submit_response_redaction.rs crates/risk/tests/v20_submit_response_redaction.rs docs/rust-cutover/release/v0_20_0_submit_response_redaction.md docs/rust-cutover/evidence/V200-007.md verification.md = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V200-007 implements local Rust production submit response redaction evidence in
+`nautilus-risk`. It consumes V200-006 submitted attempt evidence, records
+accepted/rejected/unknown/malformed/blocked states, emits request and response
+digests plus minimal order correlation fields, and keeps raw exchange payloads,
+headers, credentials, signatures, tokens, signed query strings, signed URLs,
+Dashboard raw response controls, and readback-success inference out of the
+artifact.
+
 # V200-006 Verification
 
 Date: 2026-06-29
