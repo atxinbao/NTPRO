@@ -478,6 +478,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   lifecycle states, allowed and forbidden transitions, immutable fields,
   evidence fields, failure semantics, submit/readback/cancel/audit boundaries,
   and read-only Dashboard boundary before runtime or adapter implementation.
+- `v0_20_0_pre_submit_risk_gate.md` - V200-002 Rust pre-submit risk gate
+  contract and local implementation notes. It defines the allow, deny, and
+  blocked evidence model, stable rejection codes, required account/instrument/
+  venue/order/approval/provenance checks, and keeps actual submit, retry,
+  automatic remediation, adapter calls, and Dashboard order controls out of
+  scope.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
