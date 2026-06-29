@@ -1,3 +1,29 @@
+# V200-002 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V200-002` / GitHub issue `#613`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-risk = PASS
+cargo test -p nautilus-risk --test v20_pre_submit_gate -- --nocapture = PASS, 10 passed
+cargo clippy -p nautilus-risk --all-targets -- -D warnings = PASS
+rg -n "ntpro\\.v200_pre_submit_risk_gate_decision\\.v1|v200_pre_submit_unknown_field|v200_pre_submit_account_unknown|v200_pre_submit_price_missing|v200_pre_submit_notional_limit_exceeded|v200_pre_submit_approval_expired|v200_pre_submit_environment_mismatch|v200_pre_submit_provenance_missing|production_order_submission_allowed|dashboard_order_controls_enabled" crates/risk/src/v20_pre_submit_gate.rs crates/risk/tests/v20_pre_submit_gate.rs docs/rust-cutover/release/v0_20_0_pre_submit_risk_gate.md docs/rust-cutover/evidence/V200-002.md verification.md = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V200-002 implements a local Rust pre-submit risk gate in `nautilus-risk`. The
+gate returns allow, deny, or blocked evidence with stable codes for unknown
+fields, unknown account/venue, missing fields, limit breaches, missing or
+expired approval, environment mismatch, and missing or invalid release
+provenance. It does not submit orders, connect to adapters, retry, remediate,
+or enable Dashboard order controls.
+
 # V200-001 Verification
 
 Date: 2026-06-29
