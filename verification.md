@@ -1,3 +1,34 @@
+# V191-004 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V191-004` / GitHub issue `#607`
+
+## Commands
+
+```text
+scripts/ai/check_github_release_published.sh = PASS
+NTPRO_CURRENT_RELEASE_VERSION=v0.19.0 NTPRO_CURRENT_RELEASE_TAG=ntpro-rust-only-v0.19.0 NTPRO_CURRENT_RELEASE_NAME='NTPRO Rust-only v0.19.0' scripts/ai/check_github_release_published.sh = PASS
+scripts/ai/verify_release.sh release-publication-guard = PASS
+bash -n scripts/ai/check_github_release_published.sh scripts/ai/verify_release.sh = PASS
+NTPRO_CURRENT_RELEASE_VERSION=v0.18.0 NTPRO_CURRENT_RELEASE_TAG=ntpro-rust-only-v0.18.0 NTPRO_CURRENT_RELEASE_NAME='NTPRO Rust-only v0.18.0' scripts/ai/check_github_release_published.sh = PASS
+rg -n 'Status: RELEASED|Tag: `ntpro-rust-only-v0\\.19\\.0`|Owner-Approved Single-Shot Actual Cancel|actual cancel only owner-approved single-shot|owner approval = required|single order = required|single venue = required|single execution attempt = required|post-cancel readback = required|failure evidence = required|Dashboard cancel button = not included|production order submit lifecycle = not included|automatic cancel = not included|bulk cancel = not included|retry / replace / amend / flatten = not included' docs/rust-cutover/release/v0_19_0_release_notes.md = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+The GitHub Release publication guard now defaults to `v0.19.0`, validates the
+formal `ntpro-rust-only-v0.19.0` GitHub Release and local release notes, and
+retains explicit `v0.18.0` support. The live v0.19.0 GitHub Release body was
+aligned to `docs/rust-cutover/release/v0_19_0_release_notes.md` so the guard can
+check both local and remote publication metadata against the same formal field
+family. This verification does not add production order submission, automatic
+cancel, bulk cancel, retry, second cancel, remediation, Dashboard order
+controls, Dashboard cancel controls, runtime behavior, adapter behavior,
+release tag changes, or release asset changes.
+
 # V191-003 Verification
 
 Date: 2026-06-28

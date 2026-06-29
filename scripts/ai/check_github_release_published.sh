@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.18.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.19.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
@@ -268,6 +268,27 @@ case "$CURRENT_RELEASE_VERSION" in
       "multi-account cancel recovery"
       "multi-venue cancel recovery"
       "production trading claim"
+    )
+    ;;
+  v0.19.0)
+    required_fields=(
+      "Status: RELEASED"
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Owner-Approved Single-Shot Actual Cancel"
+      "actual cancel only owner-approved single-shot"
+      "owner approval = required"
+      "single order = required"
+      "single venue = required"
+      "single execution attempt = required"
+      "post-cancel readback = required"
+      "failure evidence = required"
+      "Dashboard cancel button = not included"
+      "production order submit lifecycle = not included"
+      "automatic cancel = not included"
+      "bulk cancel = not included"
+      "retry / replace / amend / flatten = not included"
     )
     ;;
   *)
