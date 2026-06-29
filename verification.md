@@ -1,3 +1,29 @@
+# V200-004 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V200-004` / GitHub issue `#615`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-risk = PASS
+cargo test -p nautilus-risk --test v20_signing_material_gate -- --nocapture = PASS, 6 passed
+cargo clippy -p nautilus-risk --all-targets -- -D warnings = PASS
+rg -n "ntpro\\.v200_signing_material_env_gate\\.v1|v200_signing_material_ready|v200_signing_material_environment_mismatch|v200_signing_material_missing|v200_signing_material_empty|v200_signing_material_source_not_env|raw_secret_persisted|dashboard_credential_output_enabled|ntpro-fnv64" crates/risk/src/v20_signing_material_gate.rs crates/risk/tests/v20_signing_material_gate.rs docs/rust-cutover/release/v0_20_0_signing_material_env_gate.md docs/rust-cutover/evidence/V200-004.md verification.md = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V200-004 implements a local Rust env-only signing material gate in
+`nautilus-risk`. The gate blocks missing env material, empty material,
+environment mismatch, and non-env sources with stable evidence codes. Evidence
+and redacted artifacts include only env var names, material kind, source,
+presence, and non-secret fingerprints; they do not include raw key, secret,
+token, or signature material and do not add Dashboard credential controls.
+
 # V200-003 Verification
 
 Date: 2026-06-29
