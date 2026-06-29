@@ -50,6 +50,7 @@
 pub mod engine;
 pub mod sizing;
 pub mod v04_rejection;
+pub mod v20_owner_approval;
 pub mod v20_pre_submit_gate;
 
 // Re-exports

@@ -484,6 +484,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   venue/order/approval/provenance checks, and keeps actual submit, retry,
   automatic remediation, adapter calls, and Dashboard order controls out of
   scope.
+- `v0_20_0_owner_approval_lifecycle.md` - V200-003 Rust owner approval
+  lifecycle contract and local implementation notes. It binds approval request
+  digest, scope, owner, expiry, nonce, environment, and release provenance to a
+  single submit candidate, defines rejected/expired/revoked/consumed evidence,
+  and keeps Dashboard approval controls and actual submit out of scope.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
