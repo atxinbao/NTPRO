@@ -2,7 +2,7 @@
 
 Date: 2026-06-29
 Executor: Codex
-Status: CLOSEOUT IN PROGRESS - NOT PUBLISHED
+Status: CLOSEOUT EVIDENCE COMPLETE - NOT PUBLISHED
 Target tag: `ntpro-rust-only-v0.19.1`
 
 ## Summary
@@ -113,7 +113,7 @@ scripts/ai/verify_fast.sh
 ## Release Status
 
 ```text
-v0.19.1 status = closeout evidence complete after V191-007 merge
+v0.19.1 status = closeout evidence complete
 GitHub Release = not published
 tag = not created
 current formal release = ntpro-rust-only-v0.19.0

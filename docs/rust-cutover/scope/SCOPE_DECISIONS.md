@@ -67,6 +67,7 @@ Rules:
 | SD-000 | APPROVED | control | Install this append-only scope decision log format. | RCTL-005 | control_scope_agent | verification_release_gatekeeper | 2026-05-27 |
 | SD-001 | APPROVED | removal | Python/PyO3/Cython removal is gated and cannot begin until Rust product surface, runtime smoke, adapter decisions, QA, and release gate evidence are complete. | RREM-*, RREL-*, RPROD-*, RCORE-*, RADP-* | control_scope_agent | verification_release_gatekeeper | 2026-05-27 |
 | SD-002 | APPROVED | release | v0.18.0 is owner-approved cancel recovery preview/gate/approval evidence only; actual cancel send remains forbidden. | V180-* | control_scope_agent | verification_release_gatekeeper | 2026-06-26 |
+| SD-003 | APPROVED | release | v0.20.0 may enter owner-approved production order lifecycle foundation after v0.19.1 closeout evidence, with strict single-shot owner approval, risk, readback, audit, and no-automation boundaries. | V200-* | control_scope_agent | verification_release_gatekeeper | 2026-06-29 |
 
 ## SD-000 - Scope Decision Log Format
 
@@ -215,5 +216,74 @@ Evidence required:
 Rollback / supersession:
 
 - Revert V180 scope docs and evidence to block v0.18.0 cancel recovery work.
+- Supersede only with a later release scope decision reviewed by the
+  Verification & Release Gatekeeper.
+
+## SD-003 - v0.20.0 Owner-Approved Production Order Lifecycle Foundation
+
+ID: `SD-003`
+
+State: `APPROVED`
+
+Type: `release`
+
+Date: 2026-06-29
+
+Owner role: `control_scope_agent`
+
+Review role: `verification_release_gatekeeper`
+
+Impacted tasks:
+
+- `V200-000`
+- `V200-001` through `V200-012`
+
+Decision:
+
+`v0.20.0` may proceed from planning into the owner-approved production order
+lifecycle foundation only after the V200-000 PR merges. The allowed capability
+is a tightly bounded, single-shot, owner-approved submit/readback/cancel/audit
+foundation. The scope does not approve a general production trading platform,
+strategy-driven production execution, automatic order placement, bulk orders,
+retry/replace/amend/flatten, automatic remediation, multi-account or multi-venue
+execution, Dashboard order controls, or MARKET orders without a later explicit
+scope decision.
+
+Required boundary:
+
+```text
+owner_approval_required = true
+single_order_required = true
+single_venue_required = true
+single_attempt_required = true
+pre_submit_risk_gate_required = true
+post_submit_readback_required = true
+audit_artifact_required = true
+automatic_order_placement_allowed = false
+strategy_driven_production_execution_allowed = false
+bulk_order_allowed = false
+retry_replace_amend_flatten_allowed = false
+dashboard_order_controls_enabled = false
+general_production_trading_platform_claim = false
+```
+
+Rationale:
+
+The v0.19.0 line established owner-approved single-shot actual cancel, and the
+v0.19.1 closeout line completed release evidence, publication guard, strict
+provenance, post-merge review attestation, and standalone gate hardening. That
+evidence allows v0.20.0 to start only as a controlled lifecycle foundation, not
+as an unrestricted trading surface.
+
+Evidence required:
+
+- `docs/rust-cutover/scope/v0_20_0_owner_approved_production_order_lifecycle_foundation.md`
+- V200 task evidence proving the owner approval, risk, readback, audit, no retry,
+  no bulk, no automatic execution, and no Dashboard control boundaries.
+- Release gates and golden traces before any v0.20 release claim.
+
+Rollback / supersession:
+
+- Revert V200-000 scope docs and evidence to block V200-001 through V200-012.
 - Supersede only with a later release scope decision reviewed by the
   Verification & Release Gatekeeper.
