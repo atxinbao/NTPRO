@@ -1,3 +1,30 @@
+# V200-003 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V200-003` / GitHub issue `#614`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-risk = PASS
+cargo test -p nautilus-risk --test v20_owner_approval -- --nocapture = PASS, 10 passed
+cargo clippy -p nautilus-risk --all-targets -- -D warnings = PASS
+rg -n "ntpro\\.v200_owner_approval_lifecycle_event\\.v1|v200_owner_approval_expired|v200_owner_approval_revoked|v200_owner_approval_already_consumed|v200_owner_approval_request_digest_mismatch|v200_owner_approval_environment_mismatch|submit_consumption_allowed|dashboard_approval_controls_enabled|approval_reusable = false" crates/risk/src/v20_owner_approval.rs crates/risk/tests/v20_owner_approval.rs docs/rust-cutover/release/v0_20_0_owner_approval_lifecycle.md docs/rust-cutover/evidence/V200-003.md verification.md = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V200-003 implements a local Rust owner approval lifecycle in `nautilus-risk`.
+The lifecycle binds approval request digest, production order scope, owner,
+expiry, nonce, environment, and release provenance to one submit candidate.
+Expired, revoked, owner-rejected, already-consumed, digest-mismatched, and
+cross-environment approval reuse paths all produce evidence and cannot be
+consumed for submit. It does not add Dashboard approval controls, adapter
+submit calls, retry, or automatic remediation.
+
 # V200-002 Verification
 
 Date: 2026-06-29
