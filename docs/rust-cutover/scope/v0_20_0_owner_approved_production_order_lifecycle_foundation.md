@@ -156,6 +156,12 @@ raw exchange response persistence
 No later V200 task may claim release readiness until the preceding boundary
 evidence it depends on has merged.
 
+The first required downstream contract is:
+
+```text
+V200-001 safety contract = docs/rust-cutover/release/v0_20_0_order_lifecycle_safety_contract.md
+```
+
 ## Validation Requirements
 
 Every later V200 implementation PR must provide local evidence for:

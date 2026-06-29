@@ -1,3 +1,24 @@
+# V200-001 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V200-001` / GitHub issue `#612`
+
+## Commands
+
+```text
+rg -n "draft|risk_checked|owner_approved|submit_attempted|readback_verified|cancel_requested|cancel_verified|audit_closed|approval_expired|readback_mismatch|cancel_failed|retry_attempted = false|dashboard_order_controls_enabled = false|Silent failure is forbidden|ntpro.v200_order_lifecycle_safety_contract.v1" docs/rust-cutover/release/v0_20_0_order_lifecycle_safety_contract.md docs/rust-cutover/evidence/V200-001.md = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V200-001 defines the v0.20 production order lifecycle safety contract and state
+machine before implementation. The contract covers normal path, rejection,
+expired approval, reused/mismatched approval, readback mismatch, cancel failure,
+no implicit retry, audit-first evidence, and read-only Dashboard boundaries.
+
 # V200-000 Verification
 
 Date: 2026-06-29
