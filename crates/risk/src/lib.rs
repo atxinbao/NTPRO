@@ -54,6 +54,7 @@ pub mod v20_owner_approval;
 pub mod v20_pre_submit_gate;
 pub mod v20_signing_material_gate;
 pub mod v20_submit_candidate;
+pub mod v20_submit_readback_reconciliation;
 pub mod v20_submit_request_builder;
 pub mod v20_submit_response_redaction;
 

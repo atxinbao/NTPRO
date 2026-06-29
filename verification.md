@@ -1,3 +1,30 @@
+# V200-008 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V200-008` / GitHub issue `#619`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-risk = PASS
+cargo test -p nautilus-risk --test v20_submit_readback_reconciliation -- --nocapture = PASS, 6 passed
+cargo clippy -p nautilus-risk --all-targets -- -D warnings = PASS
+rg -n "ntpro\\.v200_submit_readback_reconciliation\\.v1|v200_submit_readback_matched|v200_submit_readback_mismatched|v200_submit_readback_missing|v200_submit_readback_ambiguous|v200_submit_readback_failed|risk_evidence_required|cancel_or_audit_input_ready|dashboard_read_only_consumable|automatic_cancel_attempted = false" crates/risk/src/v20_submit_readback_reconciliation.rs crates/risk/tests/v20_submit_readback_reconciliation.rs docs/rust-cutover/release/v0_20_0_submit_readback_reconciliation.md docs/rust-cutover/evidence/V200-008.md verification.md = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V200-008 implements local Rust post-submit readback reconciliation evidence in
+`nautilus-risk`. It consumes local submit expectation, V200-007 redacted
+response evidence, and a venue readback snapshot to classify matched,
+mismatched, missing, ambiguous, readback_failed, or blocked outcomes. It creates
+read-only dashboard/audit evidence and risk evidence inputs without automatic
+cancel, retry, replacement, amendment, flattening, raw readback recording, or
+Dashboard order controls.
+
 # V200-007 Verification
 
 Date: 2026-06-29
