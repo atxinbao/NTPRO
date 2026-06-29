@@ -494,6 +494,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   empty, wrong-environment, or non-env credential material, records only
   redacted env-var/fingerprint evidence, and keeps secret storage, remote key
   management, Dashboard credential UI, and actual submit out of scope.
+- `v0_20_0_single_shot_submit_request_builder.md` - V200-005 deterministic
+  single-shot production submit request builder contract and local
+  implementation notes. It consumes only risk allow, owner approval, and signing
+  readiness evidence, emits request digest plus redacted preview, and keeps
+  signing, networking, adapter submit, retry, and Dashboard controls out of
+  scope.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,

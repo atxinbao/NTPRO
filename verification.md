@@ -1,3 +1,29 @@
+# V200-005 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V200-005` / GitHub issue `#616`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-risk = PASS
+cargo test -p nautilus-risk --test v20_submit_request_builder -- --nocapture = PASS, 6 passed
+cargo clippy -p nautilus-risk --all-targets -- -D warnings = PASS
+rg -n "ntpro\\.v200_single_shot_submit_request_builder\\.v1|v200_submit_request_built|v200_submit_request_missing_risk_allow|v200_submit_request_missing_owner_approval|v200_submit_request_missing_signing_readiness|v200_submit_request_candidate_mismatch|request_digest|redacted_preview|network_attempted = false|raw_signed_payload_persisted = false" crates/risk/src/v20_submit_request_builder.rs crates/risk/tests/v20_submit_request_builder.rs docs/rust-cutover/release/v0_20_0_single_shot_submit_request_builder.md docs/rust-cutover/evidence/V200-005.md verification.md = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V200-005 implements a local Rust single-shot submit request builder in
+`nautilus-risk`. The builder requires risk allow, active owner approval, and
+signing readiness evidence before producing a deterministic request digest and
+redacted preview. Missing prerequisite evidence, candidate mismatch, and
+unsupported order shapes are rejected. The builder does not sign, submit, send,
+retry, persist raw request payloads, or enable Dashboard order controls.
+
 # V200-004 Verification
 
 Date: 2026-06-29
