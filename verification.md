@@ -1,3 +1,34 @@
+# V191-006 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V191-006` / GitHub issue `#609`
+
+## Commands
+
+```text
+gh pr view 598 --repo atxinbao/NTPRO --json number,title,state,mergedAt,reviews,reviewDecision,url = PASS, reviews=[]
+gh issue view 581 --repo atxinbao/NTPRO --json number,title,state,closedAt,url = PASS, state=CLOSED
+rg -n "V190-004|PR #598|post-merge review|REVIEW_REQUIRED|owner approval consumption|no retry|no bulk|no second cancel|Dashboard" docs/rust-cutover/evidence docs/rust-cutover/release = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+The V190-004 / PR #598 review-record gap is now captured as explicit v0.19.1
+closeout evidence. PR #598 is merged and issue #581 is closed, but GitHub
+review submissions are absent, so `V191-006_actual_cancel_review_attestation.md`
+records a compensating post-merge review of the actual-cancel command boundary,
+manual-online env gates, owner approval consumption, one-order/one-venue/
+one-attempt limit, readback/failure-evidence follow-up, and no retry / no bulk
+/ no second cancel / no Dashboard execution boundary.
+
+This verification does not change runtime behavior, CLI behavior, adapter
+behavior, release tags, release assets, order submission, automatic cancel,
+bulk cancel, retry, second cancel, remediation, Dashboard order controls, or
+Dashboard cancel controls.
+
 # V191-005 Verification
 
 Date: 2026-06-29

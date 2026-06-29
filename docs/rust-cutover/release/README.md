@@ -456,6 +456,14 @@ Final release checks, benchmark summaries, and audit reports live here.
   commit/tree, toolchain, release notes/readiness inputs, golden trace
   manifest, v19 gate output root, and strict-manifest artifact path without
   changing the published release tag or runtime behavior.
+- `v0_19_1_release_notes.md` - closeout-in-progress release notes for the
+  v0.19.1 actual-cancel release evidence hardening patch. It records V191-006
+  as the V190-004 / PR #598 post-merge review attestation and keeps v0.20
+  production order lifecycle blocked until all v0.19.1 closeout issues merge.
+- `v0_19_1_readiness_report.md` - closeout-in-progress readiness report for
+  the v0.19.1 patch. It records the V191 chain, the missing PR #598 GitHub
+  review submissions, the compensating post-merge review evidence, and the
+  no-new-capability boundary.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
