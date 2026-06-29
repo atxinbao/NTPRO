@@ -529,6 +529,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   closeout evidence, shows unknown/missing/mismatch as risk-visible, and keeps
   submit, approval, retry, replacement, amendment, flatten, cancel, and
   remediation controls out of the Dashboard.
+- `v0_20_0_order_lifecycle_golden_traces.md` - V200-011 executable golden
+  traces and fixture coverage for the v0.20 production order lifecycle. It
+  covers pre-submit blocking, accepted/rejected/unknown responses, readback
+  matched/mismatch/missing, failure/no-retry evidence, Dashboard read-only audit
+  references, credential/plaintext boundaries, and release-scope replay wiring.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
