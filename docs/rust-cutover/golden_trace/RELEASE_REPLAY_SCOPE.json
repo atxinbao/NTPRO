@@ -447,6 +447,66 @@
       "release_decision": "included_in_final_replay_scope"
     },
     {
+      "case_id": "order_lifecycle.production_order.pre_submit_blocked_missing_approval.001",
+      "trace": "tests/golden/production_order_lifecycle_schema.jsonl",
+      "category": "order_lifecycle",
+      "status": "executable_replay",
+      "evidence_id": "V200-011",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_production_order_lifecycle",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_production_order_lifecycle.rs::rust_cli_production_order_lifecycle_golden_traces_cover_v200_required_paths",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "order_lifecycle.production_order.accepted_readback_matched_audit_closed.001",
+      "trace": "tests/golden/production_order_lifecycle_schema.jsonl",
+      "category": "order_lifecycle",
+      "status": "executable_replay",
+      "evidence_id": "V200-011",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_production_order_lifecycle",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_production_order_lifecycle.rs::rust_cli_production_order_lifecycle_golden_traces_cover_v200_required_paths",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "order_lifecycle.production_order.venue_rejected_failure_no_retry.001",
+      "trace": "tests/golden/production_order_lifecycle_schema.jsonl",
+      "category": "order_lifecycle",
+      "status": "executable_replay",
+      "evidence_id": "V200-011",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_production_order_lifecycle",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_production_order_lifecycle.rs::rust_cli_production_order_lifecycle_golden_traces_cover_v200_required_paths",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "order_lifecycle.production_order.unknown_response_failure_no_retry.001",
+      "trace": "tests/golden/production_order_lifecycle_schema.jsonl",
+      "category": "order_lifecycle",
+      "status": "executable_replay",
+      "evidence_id": "V200-011",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_production_order_lifecycle",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_production_order_lifecycle.rs::rust_cli_production_order_lifecycle_golden_traces_cover_v200_required_paths",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "order_lifecycle.production_order.readback_mismatch_failure_no_retry.001",
+      "trace": "tests/golden/production_order_lifecycle_schema.jsonl",
+      "category": "order_lifecycle",
+      "status": "executable_replay",
+      "evidence_id": "V200-011",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_production_order_lifecycle",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_production_order_lifecycle.rs::rust_cli_production_order_lifecycle_golden_traces_cover_v200_required_paths",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "order_lifecycle.production_order.readback_missing_failure_no_retry.001",
+      "trace": "tests/golden/production_order_lifecycle_schema.jsonl",
+      "category": "order_lifecycle",
+      "status": "executable_replay",
+      "evidence_id": "V200-011",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_production_order_lifecycle",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_production_order_lifecycle.rs::rust_cli_production_order_lifecycle_golden_traces_cover_v200_required_paths",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",

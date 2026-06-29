@@ -1,3 +1,33 @@
+# V200-011 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V200-011` / GitHub issue `#622`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-cli = PASS
+python3 scripts/ai/golden_trace_runner.py tests/golden/production_order_lifecycle_schema.jsonl --mode validate-only = PASS, 6 rows
+cargo test -p nautilus-cli --test golden_trace_production_order_lifecycle = PASS, 1 passed
+scripts/ai/verify_v20_order_lifecycle_golden_traces.sh = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, 51 cases
+cargo clippy -p nautilus-cli --test golden_trace_production_order_lifecycle -- -D warnings = PASS
+rg -n "ntpro\\.v200_order_lifecycle_golden_fixture\\.v1|production_order_lifecycle_schema\\.jsonl|RUN_RUST_PRODUCTION_ORDER_LIFECYCLE_TRACE_REPLAY|v200_order_lifecycle_failure_response_unknown|readback_mismatch_failure_no_retry|credential_plaintext_recorded|second_submit_attempted|dashboard_order_controls_enabled" tests/golden/production_order_lifecycle_schema.jsonl crates/cli/tests/golden_trace_production_order_lifecycle.rs scripts/ai/run_golden_traces.sh scripts/ai/verify_v20_order_lifecycle_golden_traces.sh docs/rust-cutover/golden_trace/SCHEMA.md docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json docs/rust-cutover/release/v0_20_0_order_lifecycle_golden_traces.md docs/rust-cutover/evidence/V200-011.md verification.md = PASS
+git diff --check = PASS
+scripts/ai/run_golden_traces.sh = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V200-011 adds executable local golden traces and fixture coverage for the v0.20
+production order lifecycle. The trace set covers submit-before blocking,
+accepted response with matched readback and closed audit, venue rejection,
+unknown response, readback mismatch, and readback missing. The Rust harness
+checks stable state, shared evidence refs, Dashboard read-only consumption,
+no implicit retry, and no credential/plaintext or raw payload leakage.
+
 # V200-010 Verification
 
 Date: 2026-06-29
