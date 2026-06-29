@@ -441,13 +441,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   cases with request/response/readback/audit/provenance references and a Rust
   CLI harness, without adding live venue credentials, retry, remediation,
   second cancel, or Dashboard cancel controls.
-- `v0_19_0_release_notes.md` - V190-010 release-note candidate for the formal
+- `v0_19_0_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.19.0` GitHub Release. It states that v0.19 includes only
   owner-approved single-shot actual cancel and excludes automatic cancel, bulk
   cancel, Dashboard cancel controls, retry, second cancel, remediation, and
   production order submit lifecycle.
-- `v0_19_0_readiness_report.md` - V190-010 readiness report for the v0.19
-  actual cancel release candidate. It records the `v19-release-gates`
+- `v0_19_0_readiness_report.md` - released readiness report for the formal
+  `ntpro-rust-only-v0.19.0` GitHub Release. It records the `v19-release-gates`
   aggregate, golden trace coverage, release-blocking conditions, Dashboard
   read-only boundary, and the handoff that v0.20 enters owner-approved
   production order lifecycle.

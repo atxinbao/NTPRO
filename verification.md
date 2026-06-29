@@ -1,3 +1,31 @@
+# V191-003 Verification
+
+Date: 2026-06-28
+Executor: Codex
+Task: `V191-003` / GitHub issue `#606`
+
+## Commands
+
+```text
+scripts/ai/check_release_surface_current.sh = PASS
+NTPRO_CURRENT_RELEASE_VERSION=v0.19.0 NTPRO_CURRENT_RELEASE_TAG=ntpro-rust-only-v0.19.0 NTPRO_NEXT_PATCH_VERSION=v0.19.1 NTPRO_NEXT_CAPABILITY_VERSION=v0.20.0 NTPRO_CURRENT_RELEASE_CAPABILITY='Owner-Approved Single-Shot Actual Cancel' scripts/ai/check_release_surface_current.sh = PASS
+rg -n "Current source tag|Latest formal release|next patch|next capability|v0\\.18\\.0|v0\\.19\\.0|v0\\.19\\.1|v0\\.20\\.0" README.md ROADMAP.md docs/versioning.md docs/rust-cutover/release/README.md = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+The public current release surface now points to the formal
+`ntpro-rust-only-v0.19.0` release and Owner-Approved Single-Shot Actual Cancel
+capability. README, ROADMAP, versioning docs, the release index, and the default
+current-release guard agree that `v0.19.1` is only the actual-cancel release
+closeout / provenance hardening patch and `v0.20.0` is the next capability
+track for Owner-Approved Production Order Lifecycle Foundation. This
+verification does not add production order submission, automatic cancel, bulk
+cancel, retry, second cancel, remediation, Dashboard order controls, or
+Dashboard cancel controls.
+
 # V190-009 Verification
 
 Date: 2026-06-28

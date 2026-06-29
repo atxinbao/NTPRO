@@ -4,11 +4,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.18.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.19.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
-NEXT_PATCH_VERSION="${NTPRO_NEXT_PATCH_VERSION:-v0.18.1}"
-NEXT_CAPABILITY_VERSION="${NTPRO_NEXT_CAPABILITY_VERSION:-v0.19.0}"
-CURRENT_RELEASE_CAPABILITY="${NTPRO_CURRENT_RELEASE_CAPABILITY:-Owner-Approved Cancel Recovery Preview}"
+NEXT_PATCH_VERSION="${NTPRO_NEXT_PATCH_VERSION:-v0.19.1}"
+NEXT_CAPABILITY_VERSION="${NTPRO_NEXT_CAPABILITY_VERSION:-v0.20.0}"
+CURRENT_RELEASE_CAPABILITY="${NTPRO_CURRENT_RELEASE_CAPABILITY:-Owner-Approved Single-Shot Actual Cancel}"
 
 CURRENT_RELEASE_STEM="v${CURRENT_RELEASE_VERSION#v}"
 CURRENT_RELEASE_STEM="${CURRENT_RELEASE_STEM//./_}"
@@ -173,9 +173,12 @@ require_contains "$CURRENT_RELEASE_NOTES" \
 require_contains "$CURRENT_READINESS_REPORT" \
   "Milestone: \`$CURRENT_RELEASE_TAG\`" \
   "readiness report milestone"
-require_contains "$CURRENT_READINESS_REPORT" \
-  "Status: PASS" \
-  "readiness report PASS status"
+if ! grep -F -- "Status: PASS" "$CURRENT_READINESS_REPORT" >/dev/null \
+  && ! grep -F -- "Status: RELEASED" "$CURRENT_READINESS_REPORT" >/dev/null; then
+  echo "expected: readiness report PASS or RELEASED status" >&2
+  echo "file: $CURRENT_READINESS_REPORT" >&2
+  fail "missing current readiness report release status"
+fi
 
 reject_stale_current_release_wording README.md ROADMAP.md docs/versioning.md
 
