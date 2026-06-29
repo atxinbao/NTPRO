@@ -517,6 +517,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   snapshot fields, emits matched/mismatched/missing/ambiguous/readback_failed
   evidence, and keeps automatic cancel, retry, remediation, raw readback body
   recording, and Dashboard order controls out of scope.
+- `v0_20_0_failure_no_retry_evidence.md` - V200-009 failure and no-retry
+  evidence model. It records blocked, validation, approval, credential, submit,
+  venue rejection, unknown response, readback, cancel-required, and audit
+  incomplete failures with stable codes, source evidence pointers, next allowed
+  actions, release/Dashboard audit consumability, and no implicit retry or
+  automatic remediation.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
