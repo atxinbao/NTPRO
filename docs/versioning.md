@@ -10,14 +10,15 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.19.0` 是当前正式公开发布点；它是 Owner-Approved Single-Shot Actual
-Cancel，只允许一个 owner approval、一个订单、一个 venue、一次 actual cancel 尝试，
-并且必须有 risk gate、adapter boundary、readback、failure evidence、只读 Dashboard
-audit 和 golden trace 证据。它不是 production order submit lifecycle，不是自动撤单、
-不是批量撤单、不是 retry/replace/amend/correction/flatten/remediation、不是策略实盘、
-不是多账户多交易所执行，也没有 Dashboard 下单或撤单按钮。`v0.19.1` 是 actual
-cancel release closeout / provenance hardening patch；`v0.20.0` 才是
-Owner-Approved Production Order Lifecycle Foundation 的后续评估与实现版本。
+`v0.20.0` 是当前正式公开发布点；它是 Owner-Approved Production Order
+Lifecycle Foundation，只允许 owner-approved 的生产订单生命周期基础链条，并且必须有
+risk gate、signing material env gate、single submit attempt、response redaction、
+post-submit readback、failure/no-retry evidence、只读 Dashboard audit、golden trace
+和 strict provenance 证据。它不是产品级实盘交易终端，不是隐式 retry，不是自动撤单、
+不是自动补救，不是批量订单，不是 retry/replace/amend/flatten，不是策略实盘，不是多账户
+多交易所执行，也没有 Dashboard 下单/审批/撤单/重试控件。`v0.20.1` 是 production
+order lifecycle release closeout / provenance hardening patch；`v0.21.0` 是延期的
+下一能力轨。
 
 ## Release Tags
 
@@ -40,6 +41,7 @@ ntpro-rust-only-v0.16.0
 ntpro-rust-only-v0.17.0
 ntpro-rust-only-v0.18.0
 ntpro-rust-only-v0.19.0
+ntpro-rust-only-v0.20.0
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -52,34 +54,35 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.19.0
+ntpro-rust-only-v0.20.0
 ```
 
 The active patch track is:
 
 ```text
-v0.19.1
+v0.20.1
 ```
 
-v0.19.1 is the Actual Cancel Release Closeout & Provenance Hardening patch
-track. It must not expand beyond the v0.19.0 actual-cancel-only boundary and
-must not be described as production order submission, automatic cancel, bulk
-cancel, retry/replace/amend/correction/flatten/remediation, strategy-driven
-production execution, multi-account/multi-venue execution, real funds,
-production trading platform readiness, or Dashboard order/cancel controls.
+v0.20.1 is the Production Order Lifecycle Release Closeout & Provenance
+Hardening patch track. It must not expand beyond the v0.20.0
+owner-approved-foundation-only boundary and must not be described as automatic
+execution, implicit retry, automatic cancel, automatic remediation, bulk order
+execution, retry/replace/amend/correction/flatten, strategy-driven production
+execution, multi-account/multi-venue execution, real funds, production trading
+platform readiness, or Dashboard operation controls.
 
 The next capability track is:
 
 ```text
-v0.20.0
+v0.21.0
 ```
 
-v0.20.0 is the first follow-up line allowed to evaluate Owner-Approved
-Production Order Lifecycle Foundation work. It is not part of v0.19.0 or
-v0.19.1. The v0.19 release only authorizes owner-approved single-shot actual
-cancel and does not authorize production order submission, automatic cancel,
-bulk cancel, retry/replace/amend/flatten, multi-account or multi-venue
-expansion, or Dashboard operation controls.
+v0.21.0 is deferred until a separate scoped plan is approved. It is not part of
+v0.20.0 or v0.20.1. The v0.20 release only authorizes the owner-approved
+production order lifecycle foundation and does not authorize implicit retry,
+automatic cancel, automatic remediation, bulk order execution, strategy-driven
+production execution, multi-account or multi-venue expansion, or Dashboard
+operation controls.
 
 ## Cargo Workspace Version
 
@@ -285,9 +288,29 @@ cancel, retry/replace/amend/correction/flatten/remediation, strategy-driven
 production execution, multi-account/multi-venue execution, real-funds trading
 platform readiness, or Dashboard order/cancel controls.
 
+### v0.20.0
+
+Published boundary:
+
+```text
+Owner-Approved Production Order Lifecycle Foundation
+```
+
+V200-000 through V200-012 define and release the v0.20.0 scope. v0.20.0
+includes only the owner-approved production order lifecycle foundation with
+pre-submit risk evidence, owner approval, env-only signing-material readiness,
+one guarded submit attempt, response redaction, post-submit readback
+reconciliation, failure/no-retry evidence, read-only Dashboard order lifecycle
+audit, golden trace coverage, aggregate release gates, and strict provenance.
+It must not be treated as product-grade live trading, implicit retry, automatic
+cancel, automatic remediation, bulk order execution, retry/replace/amend/
+correction/flatten, strategy-driven production execution, multi-account/
+multi-venue execution, real-funds trading platform readiness, or Dashboard
+operation controls.
+
 ### v0.19.0
 
-Current boundary:
+Published boundary:
 
 ```text
 Owner-Approved Single-Shot Actual Cancel

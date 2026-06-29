@@ -6,39 +6,41 @@ NautilusTrader.
 The current source-tree milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.19.0
-Latest formal release: ntpro-rust-only-v0.19.0
-Current source-tree readiness: ntpro-rust-only-v0.19.0 released
-Current capability: Owner-Approved Single-Shot Actual Cancel
-Next patch: v0.19.1 Actual Cancel Release Closeout & Provenance Hardening Patch
-Next capability: v0.20.0 Owner-Approved Production Order Lifecycle Foundation
-Boundary: v0.19.0 publishes only owner-approved single-shot actual cancel. It permits one owner approval, one order, one venue, and one execution attempt with required risk gate, adapter boundary, release provenance, readback, failure evidence, read-only Dashboard audit evidence, and golden traces. It does not include production order submit lifecycle, automatic cancel, bulk cancel, retry/replace/amend/correction/flatten/remediation, strategy-driven production execution, multi-account or multi-venue execution, real-funds proof in CI, or Dashboard order/cancel controls.
+Current source tag: ntpro-rust-only-v0.20.0
+Latest formal release: ntpro-rust-only-v0.20.0
+Current source-tree readiness: ntpro-rust-only-v0.20.0 released
+Current capability: Owner-Approved Production Order Lifecycle Foundation
+Next patch: v0.20.1 Production Order Lifecycle Release Closeout & Provenance Hardening Patch
+Next capability: v0.21.0 Deferred Next Capability Track
+Boundary: v0.20.0 publishes only the owner-approved production order lifecycle foundation. It requires owner approval, risk gate evidence, env-only signing material readiness, one guarded submit attempt, redacted response evidence, post-submit readback, failure/no-retry evidence, read-only Dashboard audit evidence, golden traces, and strict release provenance. It does not include product-grade live trading, implicit retry, automatic cancel, automatic remediation, bulk order execution, retry/replace/amend/flatten, strategy-driven production execution, multi-account or multi-venue execution, real-funds proof in CI, or Dashboard order/approval/cancel/retry controls.
 ```
 
-`ntpro-rust-only-v0.19.0` is the latest formal GitHub Release. The v0.19 line
-is the scoped Owner-Approved Single-Shot Actual Cancel line. It builds on the
-v0.18.1 release surface and provenance hardening baseline by adding one
-owner-approved actual cancel path with strict risk, adapter, readback, failure,
-Dashboard audit, and golden-trace evidence.
+`ntpro-rust-only-v0.20.0` is the latest formal GitHub Release. The v0.20 line
+is the scoped Owner-Approved Production Order Lifecycle Foundation line. It
+builds on the v0.19.1 release surface and provenance hardening baseline by
+connecting owner approval, pre-submit risk, signing-material env gate,
+single-shot submit evidence, response redaction, readback reconciliation,
+failure/no-retry evidence, read-only Dashboard audit, golden traces, and strict
+release provenance.
 
-The latest formal release is published as a GitHub Release for the v0.19.0
+The latest formal release is published as a GitHub Release for the v0.20.0
 tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.19.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.20.0
 ```
 
-`v0.19.0` is the current formal Owner-Approved Single-Shot Actual Cancel
-release. It remains a tightly gated manual line, not a general production
-trading platform claim. It allows only one owner-approved actual cancel attempt
-and does not add production order submission, automatic cancel, bulk cancel,
-retry/remediation, or Dashboard order/cancel controls.
+`v0.20.0` is the current formal Owner-Approved Production Order Lifecycle
+Foundation release. It remains a tightly gated manual line, not a general
+production trading platform claim. It allows only one owner-approved submit
+foundation attempt with required readback and audit evidence, and does not add
+implicit retry, automatic cancel, automatic remediation, bulk order execution,
+strategy-driven production execution, or Dashboard operation controls.
 
-The next patch track is `v0.19.1`. It must preserve the v0.19.0
-actual-cancel-only boundary while closing release evidence and hardening
-provenance. The next capability track is `v0.20.0`, which is the first
-follow-up line allowed to evaluate owner-approved production order lifecycle
-foundation work.
+The next patch track is `v0.20.1`. It must preserve the v0.20.0
+owner-approved foundation boundary while closing release evidence and hardening
+provenance. The next capability track is `v0.21.0`, which remains deferred
+until a separate scoped plan is approved.
 
 ## Current Status
 
@@ -114,7 +116,7 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.19.0 is the current formal release line. It builds on the earlier foundation
+v0.20.0 is the current formal release line. It builds on the earlier foundation
 layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
@@ -535,17 +537,17 @@ Start with:
 
 ## Release Notes
 
-`ntpro-rust-only-v0.19.0` is the latest formal GitHub Release for the
-Owner-Approved Single-Shot Actual Cancel line. It permits one manual owner
-approval, one order, one venue, one execution attempt, required
-owner-approval/risk-gate/order/release-manifest/adapter-capability artifacts,
-post-cancel readback, failure evidence, read-only Dashboard audit, and golden
-trace coverage. It does not authorize production order submission,
-automatic/bulk cancel, retry/replace/amend/flatten, multi-account or
-multi-venue expansion, or Dashboard operation controls. `v0.19.1` is the active
-Actual Cancel Release Closeout & Provenance Hardening patch track, and
-`v0.20.0` is the next capability track for Owner-Approved Production Order
-Lifecycle Foundation. `v0.17.0` remains the Production Reconciliation
+`ntpro-rust-only-v0.20.0` is the latest formal GitHub Release for the
+Owner-Approved Production Order Lifecycle Foundation line. It permits only a
+manual owner-approved submit foundation path with required risk gate,
+env-only signing material readiness, one guarded submit attempt, redacted
+response, post-submit readback, failure/no-retry evidence, read-only Dashboard
+audit, golden traces, and strict provenance. It does not authorize product-grade
+live trading, implicit retry, automatic cancel/remediation, bulk order
+execution, strategy-driven production execution, multi-account or multi-venue
+expansion, or Dashboard operation controls. `v0.20.1` is the active Production
+Order Lifecycle Release Closeout & Provenance Hardening patch track, and
+`v0.21.0` is the deferred next capability track. `v0.17.0` remains the Production Reconciliation
 And Orphan Recovery Evidence baseline, `v0.12.1` remains the Production Read-Only Evidence
 & Release Surface Hardening baseline, `v0.10.0` remains the Binance spot
 sandbox order-proof baseline, `v0.9.0` remains the local deterministic Strategy

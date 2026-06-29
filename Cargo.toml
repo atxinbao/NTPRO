@@ -121,7 +121,7 @@ alloy-primitives = { version = "1.6.0", default-features = false, features = [
   "std",
   "serde",
 ] }
-anyhow = "1.0.102"
+anyhow = "1.0.103"
 arraydeque = "0.5.1"
 arrow = { version = "58.3.0", default-features = false, features = [
   "csv",

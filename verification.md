@@ -1,3 +1,38 @@
+# V200-012 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V200-012` / GitHub issue `#623`
+
+## Commands
+
+```text
+bash -n scripts/ai/check_github_release_published.sh scripts/ai/check_release_surface_current.sh scripts/ai/verify_release.sh scripts/ai/verify_release_strict.sh scripts/ai/verify_v20_release_gates.sh scripts/ai/verify_v20_strict_provenance.sh = PASS
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); YAML.load_file(".github/workflows/rust-cutover-smoke.yml")' = PASS
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/check_release_surface_current.sh = PASS
+NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE=1 scripts/ai/check_github_release_published.sh = PASS, offline_skip missing local v0.20 tag
+git diff --check = PASS
+cargo update -p anyhow --precise 1.0.103 = PASS
+cargo tree -i anyhow = PASS, anyhow v1.0.103
+cargo vet --locked = PASS, anyhow v1.0.103 safe-to-deploy exemption synced
+scripts/ai/verify_v20_release_gates.sh = PASS
+scripts/ai/verify_release.sh v20-strict-provenance = PASS
+scripts/ai/verify_release.sh v20-release-gates = PASS
+scripts/ai/verify_fast.sh = PASS
+NTPRO_RELEASE_GATE=1 scripts/ai/verify_release_strict.sh v20 = PASS, clean tracked tree, source_dirty=false
+NTPRO_RELEASE_GATE=1 NTPRO_RELEASE_STRICT_VERIFY_ONLY=1 NTPRO_RELEASE_STRICT_SKIP_BUILD=1 NTPRO_RELEASE_STRICT_SKIP_V20_GATES=1 scripts/ai/verify_release_strict.sh v20 = EXPECTED FAIL, dirty tree rejected
+NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG=1 NTPRO_RELEASE_STRICT_VERIFY_ONLY=1 NTPRO_RELEASE_STRICT_SKIP_BUILD=1 NTPRO_RELEASE_STRICT_SKIP_V20_GATES=1 scripts/ai/verify_release_strict.sh v20 = EXPECTED FAIL, missing v0.20 tag rejected
+```
+
+## Result
+
+V200-012 adds v0.20 release gates and strict provenance for the
+Owner-Approved Production Order Lifecycle Foundation. The release path now
+requires V200 evidence, production order lifecycle golden traces, release
+manifest validation, release binary provenance, current release-surface
+wording, and GitHub Release publication body markers. The guard rejects dirty
+release trees and rejects forced tag provenance when the v0.20 tag is missing.
+
 # V200-011 Verification
 
 Date: 2026-06-29
