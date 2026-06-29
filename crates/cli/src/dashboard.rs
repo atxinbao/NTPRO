@@ -207,6 +207,26 @@ const PRODUCTION_MUTATION_ACTUAL_CANCEL_READBACK_RECONCILIATION_ARTIFACT_RELATIV
     "v0_19/actual_cancel_readback_reconciliation.json";
 const PRODUCTION_MUTATION_ACTUAL_CANCEL_FAILURE_EVIDENCE_ARTIFACT_RELATIVE_PATH: &str =
     "v0_19/actual_cancel_failure_evidence.json";
+const PRODUCTION_ORDER_LIFECYCLE_SUBMIT_CANDIDATE_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_20/guarded_submit_candidate.json";
+const PRODUCTION_ORDER_LIFECYCLE_RESPONSE_REDACTION_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_20/submit_response_redaction.json";
+const PRODUCTION_ORDER_LIFECYCLE_READBACK_RECONCILIATION_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_20/submit_readback_reconciliation.json";
+const PRODUCTION_ORDER_LIFECYCLE_FAILURE_NO_RETRY_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_20/failure_no_retry_evidence.json";
+const PRODUCTION_ORDER_LIFECYCLE_AUDIT_CLOSEOUT_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_20/order_lifecycle_audit_closeout.json";
+const PRODUCTION_ORDER_LIFECYCLE_SUBMIT_CANDIDATE_SCHEMA_VERSION: &str =
+    "ntpro.v200_guarded_single_shot_submit_candidate.v1";
+const PRODUCTION_ORDER_LIFECYCLE_RESPONSE_REDACTION_SCHEMA_VERSION: &str =
+    "ntpro.v200_submit_response_redaction.v1";
+const PRODUCTION_ORDER_LIFECYCLE_READBACK_RECONCILIATION_SCHEMA_VERSION: &str =
+    "ntpro.v200_submit_readback_reconciliation.v1";
+const PRODUCTION_ORDER_LIFECYCLE_FAILURE_NO_RETRY_SCHEMA_VERSION: &str =
+    "ntpro.v200_failure_no_retry_evidence.v1";
+const PRODUCTION_ORDER_LIFECYCLE_AUDIT_CLOSEOUT_SCHEMA_VERSION: &str =
+    "ntpro.v200_order_lifecycle_audit_closeout.v1";
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
 <html lang="zh-CN">
@@ -268,6 +288,10 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
     <section class="band">
       <h2>v0.19 真实撤单审计只读视图</h2>
       <div id="production-actual-cancel-audit" class="table-wrap"></div>
+    </section>
+    <section class="band">
+      <h2>v0.20 订单生命周期审计只读视图</h2>
+      <div id="production-order-lifecycle-audit" class="table-wrap"></div>
     </section>
     <section class="band">
       <h2>节点</h2>
@@ -832,6 +856,7 @@ function render(payload) {
   renderProductionReconciliationOrphan(snapshot.production_reconciliation_orphan || []);
   renderProductionCancelRecovery(snapshot.production_cancel_recovery || []);
   renderProductionActualCancelAudit(snapshot.production_actual_cancel_audit || []);
+  renderProductionOrderLifecycleAudit(snapshot.production_order_lifecycle_audit || []);
   renderDataSources(snapshot.data_sources || []);
   renderExecutionGateways(snapshot.execution_gateways || []);
   renderRisk(snapshot.risk || {});
@@ -1310,6 +1335,42 @@ function renderProductionActualCancelAudit(items) {
         `).join("")}
       </tbody>
     </table>` : emptyTable("没有 v0.19 真实撤单审计只读工件");
+}
+
+function renderProductionOrderLifecycleAudit(items) {
+  document.getElementById("production-order-lifecycle-audit").innerHTML = items.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>节点</th>
+          <th>当前结论</th>
+          <th>Submit / Approval</th>
+          <th>Response / Readback</th>
+          <th>Failure / Audit</th>
+          <th>只读边界</th>
+          <th>工件</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map((item) => `
+          <tr>
+            <td data-label="节点"><strong>${text(item.node_id)}</strong></td>
+            <td data-label="当前结论"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.audit_state))}</div><div class="muted">${displayText(snapshotValue(item.risk_visibility))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div>${panelRow("缺失证据", snapshotValue(item.missing_artifacts))}${panelRow("Schema 诊断", snapshotValue(item.schema_diagnostics))}${panelRow("Provenance 诊断", snapshotValue(item.provenance_diagnostics))}${panelRow("Stale 证据", snapshotValue(item.stale_artifacts))}</td>
+            <td data-label="Submit / Approval">${panelRow("Lifecycle", snapshotValue(item.lifecycle_id))}${panelRow("Attempt", snapshotValue(item.attempt_id))}${panelRow("Submit 状态", snapshotValue(item.submit_attempt_state))}${panelRow("Submit code", snapshotValue(item.submit_attempt_code))}${panelRow("Owner before", snapshotValue(item.owner_approval_state_before_attempt))}${panelRow("Owner after", snapshotValue(item.owner_approval_state_after_attempt))}${panelRow("Approval consumed", snapshotValue(item.owner_approval_consumed))}${panelRow("Submit attempted", snapshotValue(item.production_submit_attempted))}${panelRow("Readback required", snapshotValue(item.readback_required))}</td>
+            <td data-label="Response / Readback">${panelRow("Response 状态", snapshotValue(item.response_state))}${panelRow("Response code", snapshotValue(item.response_code))}${panelRow("Venue status", snapshotValue(item.venue_status))}${panelRow("Order id", snapshotValue(item.venue_order_id))}${panelRow("Client order id", snapshotValue(item.client_order_id))}${panelRow("Readback 状态", snapshotValue(item.readback_state))}${panelRow("Readback code", snapshotValue(item.readback_code))}${panelRow("Mismatch fields", snapshotValue(item.mismatch_fields))}${panelRow("Readback consistent", snapshotValue(item.readback_consistent))}${panelRow("Readback missing", snapshotValue(item.readback_missing))}${panelRow("Readback failed", snapshotValue(item.readback_failed))}</td>
+            <td data-label="Failure / Audit">${panelRow("Failure category", snapshotValue(item.failure_category))}${panelRow("Failure code", snapshotValue(item.failure_code))}${panelRow("Next action", snapshotValue(item.next_allowed_action))}${panelRow("No implicit retry", snapshotValue(item.no_implicit_retry))}${panelRow("Unknown visible", snapshotValue(item.unknown_state_visible))}${panelRow("Audit status", snapshotValue(item.audit_closeout_status))}${panelRow("Audit closed", snapshotValue(item.audit_closed))}${panelRow("Dashboard audit", snapshotValue(item.dashboard_audit_consumable))}${panelRow("Release gate", snapshotValue(item.release_gate_consumable))}</td>
+            <td data-label="只读边界">${panelRow("Dashboard 下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("Dashboard 审批控件", snapshotValue(item.dashboard_approval_controls_enabled))}${panelRow("Dashboard 撤单控件", snapshotValue(item.dashboard_cancel_controls_enabled))}${panelRow("重试", snapshotValue(item.retry_attempted))}${panelRow("Replace", snapshotValue(item.replace_attempted))}${panelRow("Amend", snapshotValue(item.amend_attempted))}${panelRow("Flatten", snapshotValue(item.flatten_attempted))}${panelRow("自动撤单", snapshotValue(item.automatic_cancel_attempted))}${panelRow("自动补救", snapshotValue(item.automatic_remediation_allowed))}${panelRow("策略继续", snapshotValue(item.strategy_continuation_allowed))}</td>
+            <td data-label="工件" class="path">
+              ${panelRow("submit", snapshotValue(item.submit_candidate_path))}
+              ${panelRow("response", snapshotValue(item.response_redaction_path))}
+              ${panelRow("readback", snapshotValue(item.readback_reconciliation_path))}
+              ${panelRow("failure", snapshotValue(item.failure_no_retry_path))}
+              ${panelRow("audit", snapshotValue(item.audit_closeout_path))}
+            </td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>` : emptyTable("没有 v0.20 生产订单生命周期审计只读工件");
 }
 
 function renderDataSources(dataSources) {
@@ -2326,6 +2387,7 @@ pub struct DashboardSnapshot {
     pub production_reconciliation_orphan: Vec<ProductionReconciliationOrphanStatus>,
     pub production_cancel_recovery: Vec<ProductionCancelRecoveryStatus>,
     pub production_actual_cancel_audit: Vec<ProductionActualCancelAuditStatus>,
+    pub production_order_lifecycle_audit: Vec<ProductionOrderLifecycleAuditStatus>,
     pub runtime_modules: Vec<RuntimeModuleStatus>,
     pub logs: Vec<LogStatus>,
     pub metrics: Vec<MetricStatus>,
@@ -2355,6 +2417,7 @@ impl DashboardSnapshot {
             production_reconciliation_orphan: Vec::new(),
             production_cancel_recovery: Vec::new(),
             production_actual_cancel_audit: Vec::new(),
+            production_order_lifecycle_audit: Vec::new(),
             runtime_modules: Vec::new(),
             logs: Vec::new(),
             metrics: Vec::new(),
@@ -3343,6 +3406,64 @@ pub struct ProductionActualCancelAuditStatus {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProductionOrderLifecycleAuditStatus {
+    pub node_id: String,
+    pub health: HealthStatus,
+    pub readiness_status: DashboardValue<String>,
+    pub audit_state: DashboardValue<String>,
+    pub risk_visibility: DashboardValue<String>,
+    pub diagnostic: DashboardValue<String>,
+    pub missing_artifacts: DashboardValue<String>,
+    pub schema_diagnostics: DashboardValue<String>,
+    pub provenance_diagnostics: DashboardValue<String>,
+    pub stale_artifacts: DashboardValue<String>,
+    pub lifecycle_id: DashboardValue<String>,
+    pub attempt_id: DashboardValue<String>,
+    pub submit_attempt_state: DashboardValue<String>,
+    pub submit_attempt_code: DashboardValue<String>,
+    pub owner_approval_state_before_attempt: DashboardValue<String>,
+    pub owner_approval_state_after_attempt: DashboardValue<String>,
+    pub owner_approval_consumed: DashboardValue<bool>,
+    pub production_submit_attempted: DashboardValue<bool>,
+    pub readback_required: DashboardValue<bool>,
+    pub response_state: DashboardValue<String>,
+    pub response_code: DashboardValue<String>,
+    pub venue_status: DashboardValue<String>,
+    pub venue_order_id: DashboardValue<String>,
+    pub client_order_id: DashboardValue<String>,
+    pub readback_state: DashboardValue<String>,
+    pub readback_code: DashboardValue<String>,
+    pub mismatch_fields: DashboardValue<String>,
+    pub readback_consistent: DashboardValue<bool>,
+    pub readback_missing: DashboardValue<bool>,
+    pub readback_failed: DashboardValue<bool>,
+    pub failure_category: DashboardValue<String>,
+    pub failure_code: DashboardValue<String>,
+    pub next_allowed_action: DashboardValue<String>,
+    pub no_implicit_retry: DashboardValue<bool>,
+    pub unknown_state_visible: DashboardValue<bool>,
+    pub audit_closeout_status: DashboardValue<String>,
+    pub audit_closed: DashboardValue<bool>,
+    pub dashboard_audit_consumable: DashboardValue<bool>,
+    pub release_gate_consumable: DashboardValue<bool>,
+    pub dashboard_order_controls_enabled: DashboardValue<bool>,
+    pub dashboard_approval_controls_enabled: DashboardValue<bool>,
+    pub dashboard_cancel_controls_enabled: DashboardValue<bool>,
+    pub retry_attempted: DashboardValue<bool>,
+    pub replace_attempted: DashboardValue<bool>,
+    pub amend_attempted: DashboardValue<bool>,
+    pub flatten_attempted: DashboardValue<bool>,
+    pub automatic_cancel_attempted: DashboardValue<bool>,
+    pub automatic_remediation_allowed: DashboardValue<bool>,
+    pub strategy_continuation_allowed: DashboardValue<bool>,
+    pub submit_candidate_path: DashboardValue<String>,
+    pub response_redaction_path: DashboardValue<String>,
+    pub readback_reconciliation_path: DashboardValue<String>,
+    pub failure_no_retry_path: DashboardValue<String>,
+    pub audit_closeout_path: DashboardValue<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeModuleStatus {
     pub module_name: String,
     pub status: DashboardValue<String>,
@@ -3636,6 +3757,11 @@ pub fn snapshot_from_supervisor_artifacts_with_workflow_root(
             snapshot
                 .production_actual_cancel_audit
                 .push(actual_cancel_audit);
+        }
+        if let Some(order_lifecycle_audit) = production_order_lifecycle_audit_from_record(record) {
+            snapshot
+                .production_order_lifecycle_audit
+                .push(order_lifecycle_audit);
         }
         snapshot
             .logs
@@ -7606,6 +7732,348 @@ fn production_actual_cancel_audit_from_record(
     })
 }
 
+#[derive(Clone, Debug)]
+struct ProductionOrderLifecycleAuditArtifactPaths {
+    submit_candidate_path: PathBuf,
+    response_redaction_path: PathBuf,
+    readback_reconciliation_path: PathBuf,
+    failure_no_retry_path: PathBuf,
+    audit_closeout_path: PathBuf,
+}
+
+impl ProductionOrderLifecycleAuditArtifactPaths {
+    fn v20(record: &SupervisorNodeRecord) -> Self {
+        Self {
+            submit_candidate_path: record
+                .artifact_root
+                .join(PRODUCTION_ORDER_LIFECYCLE_SUBMIT_CANDIDATE_ARTIFACT_RELATIVE_PATH),
+            response_redaction_path: record
+                .artifact_root
+                .join(PRODUCTION_ORDER_LIFECYCLE_RESPONSE_REDACTION_ARTIFACT_RELATIVE_PATH),
+            readback_reconciliation_path: record
+                .artifact_root
+                .join(PRODUCTION_ORDER_LIFECYCLE_READBACK_RECONCILIATION_ARTIFACT_RELATIVE_PATH),
+            failure_no_retry_path: record
+                .artifact_root
+                .join(PRODUCTION_ORDER_LIFECYCLE_FAILURE_NO_RETRY_ARTIFACT_RELATIVE_PATH),
+            audit_closeout_path: record
+                .artifact_root
+                .join(PRODUCTION_ORDER_LIFECYCLE_AUDIT_CLOSEOUT_ARTIFACT_RELATIVE_PATH),
+        }
+    }
+
+    fn has_any_artifact(&self) -> bool {
+        self.submit_candidate_path.exists()
+            || self.response_redaction_path.exists()
+            || self.readback_reconciliation_path.exists()
+            || self.failure_no_retry_path.exists()
+            || self.audit_closeout_path.exists()
+    }
+}
+
+fn production_order_lifecycle_audit_from_record(
+    record: &SupervisorNodeRecord,
+) -> Option<ProductionOrderLifecycleAuditStatus> {
+    let paths = ProductionOrderLifecycleAuditArtifactPaths::v20(record);
+    if !paths.has_any_artifact() {
+        return None;
+    }
+
+    let submit_candidate = read_json_file_value(&paths.submit_candidate_path);
+    let response_redaction = read_json_file_value(&paths.response_redaction_path);
+    let readback_reconciliation = read_json_file_value(&paths.readback_reconciliation_path);
+    let failure_no_retry = read_json_file_value(&paths.failure_no_retry_path);
+    let audit_closeout = read_json_file_value(&paths.audit_closeout_path);
+    let artifacts = [
+        &submit_candidate,
+        &response_redaction,
+        &readback_reconciliation,
+        &failure_no_retry,
+        &audit_closeout,
+    ];
+    let artifact_specs = [
+        (
+            "guarded_submit_candidate",
+            paths.submit_candidate_path.as_path(),
+            &submit_candidate,
+            PRODUCTION_ORDER_LIFECYCLE_SUBMIT_CANDIDATE_SCHEMA_VERSION,
+        ),
+        (
+            "submit_response_redaction",
+            paths.response_redaction_path.as_path(),
+            &response_redaction,
+            PRODUCTION_ORDER_LIFECYCLE_RESPONSE_REDACTION_SCHEMA_VERSION,
+        ),
+        (
+            "submit_readback_reconciliation",
+            paths.readback_reconciliation_path.as_path(),
+            &readback_reconciliation,
+            PRODUCTION_ORDER_LIFECYCLE_READBACK_RECONCILIATION_SCHEMA_VERSION,
+        ),
+        (
+            "failure_no_retry_evidence",
+            paths.failure_no_retry_path.as_path(),
+            &failure_no_retry,
+            PRODUCTION_ORDER_LIFECYCLE_FAILURE_NO_RETRY_SCHEMA_VERSION,
+        ),
+        (
+            "order_lifecycle_audit_closeout",
+            paths.audit_closeout_path.as_path(),
+            &audit_closeout,
+            PRODUCTION_ORDER_LIFECYCLE_AUDIT_CLOSEOUT_SCHEMA_VERSION,
+        ),
+    ];
+    let missing_artifacts = v17_missing_artifact_diagnostics(&artifact_specs);
+    let schema_diagnostics = v17_schema_diagnostics(&artifact_specs);
+    let provenance_diagnostics = v17_provenance_diagnostics(&artifact_specs);
+    let stale_artifacts = v17_stale_artifact_diagnostics(&artifact_specs);
+    let schema_ok = schema_diagnostics.is_empty();
+    let provenance_ok = provenance_diagnostics.is_empty();
+
+    let lifecycle_id = v18_first_available_string_any(&artifacts, "lifecycle_id");
+    let attempt_id = v18_first_available_string_any(&artifacts, "attempt_id");
+    let submit_attempt_state = submit_candidate
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "state")
+        });
+    let submit_attempt_code = submit_candidate
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "code")
+        });
+    let owner_approval_state_before_attempt = submit_candidate
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "owner_approval_state_before_attempt")
+        });
+    let owner_approval_state_after_attempt = submit_candidate
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "owner_approval_state_after_attempt")
+        });
+    let owner_approval_consumed = v18_any_available_bool_any(&artifacts, "owner_approval_consumed");
+    let production_submit_attempted =
+        v18_any_available_bool_any(&artifacts, "production_submit_attempted");
+    let readback_required = v18_any_available_bool_any(&artifacts, "readback_required");
+    let response_state = response_redaction
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "state")
+        });
+    let response_code = response_redaction
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "code")
+        });
+    let venue_status = response_redaction
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "venue_status")
+        });
+    let venue_order_id = response_redaction
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "order_id")
+        });
+    let client_order_id = response_redaction
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "client_order_id")
+        });
+    let readback_state = readback_reconciliation
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "state")
+        });
+    let readback_code = readback_reconciliation
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "code")
+        });
+    let mismatch_fields = readback_reconciliation
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_array_field(value, "mismatch_fields")
+        });
+    let readback_consistent = v18_any_available_bool_any(&artifacts, "readback_consistent");
+    let readback_missing = v18_any_available_bool_any(&artifacts, "readback_missing");
+    let readback_failed = v18_any_available_bool_any(&artifacts, "readback_failed");
+    let failure_category = failure_no_retry
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "category")
+        });
+    let failure_code = failure_no_retry
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "code")
+        });
+    let next_allowed_action = failure_no_retry
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "next_allowed_action")
+        });
+    let no_implicit_retry = v18_any_available_bool_any(&artifacts, "no_implicit_retry");
+    let unknown_state_visible = v18_any_available_bool_any(&artifacts, "unknown_state_visible");
+    let audit_closeout_status = audit_closeout
+        .as_ref()
+        .map_or_else(DashboardValue::unknown, |value| {
+            json_string_field(value, "status")
+        });
+    let audit_closed = v18_any_available_bool_any(&artifacts, "audit_closed");
+    let dashboard_audit_consumable =
+        v18_any_available_bool_any(&artifacts, "dashboard_audit_consumable");
+    let release_gate_consumable = v18_any_available_bool_any(&artifacts, "release_gate_consumable");
+    let dashboard_order_controls_enabled =
+        v18_any_available_bool_any(&artifacts, "dashboard_order_controls_enabled");
+    let dashboard_approval_controls_enabled =
+        v18_any_available_bool_any(&artifacts, "dashboard_approval_controls_enabled");
+    let dashboard_cancel_controls_enabled =
+        v18_any_available_bool_any(&artifacts, "dashboard_cancel_controls_enabled");
+    let retry_attempted = v18_any_available_bool_any(&artifacts, "retry_attempted");
+    let replace_attempted = v18_any_available_bool_any(&artifacts, "replace_attempted");
+    let amend_attempted = v18_any_available_bool_any(&artifacts, "amend_attempted");
+    let flatten_attempted = v18_any_available_bool_any(&artifacts, "flatten_attempted");
+    let automatic_cancel_attempted =
+        v18_any_available_bool_any(&artifacts, "automatic_cancel_attempted");
+    let automatic_cancel_allowed =
+        v18_any_available_bool_any(&artifacts, "automatic_cancel_allowed");
+    let automatic_remediation_allowed =
+        v18_any_available_bool_any(&artifacts, "automatic_remediation_allowed");
+    let strategy_continuation_allowed =
+        v18_any_available_bool_any(&artifacts, "strategy_continuation_allowed");
+
+    let boundary_violation = !schema_ok
+        || !provenance_ok
+        || !stale_artifacts.is_empty()
+        || dashboard_order_controls_enabled.value == Some(true)
+        || dashboard_approval_controls_enabled.value == Some(true)
+        || dashboard_cancel_controls_enabled.value == Some(true)
+        || retry_attempted.value == Some(true)
+        || replace_attempted.value == Some(true)
+        || amend_attempted.value == Some(true)
+        || flatten_attempted.value == Some(true)
+        || automatic_cancel_attempted.value == Some(true)
+        || automatic_cancel_allowed.value == Some(true)
+        || automatic_remediation_allowed.value == Some(true)
+        || strategy_continuation_allowed.value == Some(true);
+    let risk_visible = unknown_state_visible.value == Some(true)
+        || readback_missing.value == Some(true)
+        || readback_failed.value == Some(true)
+        || readback_state.value.as_deref().is_some_and(|value| {
+            matches!(
+                value,
+                "mismatched" | "missing" | "ambiguous" | "readback_failed"
+            )
+        })
+        || failure_category.value.as_deref().is_some_and(|value| {
+            matches!(
+                value,
+                "response_unknown"
+                    | "readback_missing"
+                    | "readback_mismatch"
+                    | "cancel_required"
+                    | "audit_incomplete"
+            )
+        });
+    let ready = missing_artifacts.is_empty()
+        && !boundary_violation
+        && production_submit_attempted.value == Some(true)
+        && readback_required.value == Some(true)
+        && dashboard_audit_consumable.value == Some(true)
+        && release_gate_consumable.value == Some(true)
+        && no_implicit_retry.value == Some(true)
+        && audit_closed.value == Some(true);
+    let audit_state = if boundary_violation {
+        "boundary_violation"
+    } else if !ready {
+        "incomplete"
+    } else if risk_visible {
+        "risk_visible"
+    } else {
+        "audit_closed"
+    };
+    let readiness_status = format!("production_order_lifecycle_audit_{audit_state}");
+    let health = match audit_state {
+        "audit_closed" => HealthStatus::Healthy,
+        "boundary_violation" => HealthStatus::Error,
+        _ => HealthStatus::Degraded,
+    };
+
+    Some(ProductionOrderLifecycleAuditStatus {
+        node_id: record.node_id.clone(),
+        health,
+        readiness_status: DashboardValue::available(readiness_status.clone()),
+        audit_state: DashboardValue::available(audit_state.to_string()),
+        risk_visibility: DashboardValue::available(
+            if risk_visible {
+                "risk_visible"
+            } else {
+                "no_risk_visible"
+            }
+            .to_string(),
+        ),
+        diagnostic: DashboardValue::available(v20_order_lifecycle_audit_diagnostic(
+            &readiness_status,
+            &missing_artifacts,
+            &schema_diagnostics,
+            &provenance_diagnostics,
+            &stale_artifacts,
+            boundary_violation,
+            risk_visible,
+        )),
+        missing_artifacts: diagnostic_value(&missing_artifacts),
+        schema_diagnostics: diagnostic_value(&schema_diagnostics),
+        provenance_diagnostics: diagnostic_value(&provenance_diagnostics),
+        stale_artifacts: diagnostic_value(&stale_artifacts),
+        lifecycle_id,
+        attempt_id,
+        submit_attempt_state,
+        submit_attempt_code,
+        owner_approval_state_before_attempt,
+        owner_approval_state_after_attempt,
+        owner_approval_consumed,
+        production_submit_attempted,
+        readback_required,
+        response_state,
+        response_code,
+        venue_status,
+        venue_order_id,
+        client_order_id,
+        readback_state,
+        readback_code,
+        mismatch_fields,
+        readback_consistent,
+        readback_missing,
+        readback_failed,
+        failure_category,
+        failure_code,
+        next_allowed_action,
+        no_implicit_retry,
+        unknown_state_visible,
+        audit_closeout_status,
+        audit_closed,
+        dashboard_audit_consumable,
+        release_gate_consumable,
+        dashboard_order_controls_enabled,
+        dashboard_approval_controls_enabled,
+        dashboard_cancel_controls_enabled,
+        retry_attempted,
+        replace_attempted,
+        amend_attempted,
+        flatten_attempted,
+        automatic_cancel_attempted,
+        automatic_remediation_allowed,
+        strategy_continuation_allowed,
+        submit_candidate_path: dashboard_path_if_exists(&paths.submit_candidate_path),
+        response_redaction_path: dashboard_path_if_exists(&paths.response_redaction_path),
+        readback_reconciliation_path: dashboard_path_if_exists(&paths.readback_reconciliation_path),
+        failure_no_retry_path: dashboard_path_if_exists(&paths.failure_no_retry_path),
+        audit_closeout_path: dashboard_path_if_exists(&paths.audit_closeout_path),
+    })
+}
+
 fn diagnostic_value(diagnostics: &[String]) -> DashboardValue<String> {
     if diagnostics.is_empty() {
         DashboardValue::unknown()
@@ -7850,6 +8318,44 @@ fn v19_actual_cancel_audit_diagnostic(
         "production_actual_cancel_audit_unknown_readback".to_string()
     } else if flags.source_issue_blocked {
         "production_actual_cancel_audit_source_issue_blocked".to_string()
+    } else {
+        readiness_status.to_string()
+    }
+}
+
+fn v20_order_lifecycle_audit_diagnostic(
+    readiness_status: &str,
+    missing_artifacts: &[String],
+    schema_diagnostics: &[String],
+    provenance_diagnostics: &[String],
+    stale_artifacts: &[String],
+    boundary_violation: bool,
+    risk_visible: bool,
+) -> String {
+    if !missing_artifacts.is_empty() {
+        format!(
+            "production_order_lifecycle_audit_missing_evidence:{}",
+            missing_artifacts.join("|")
+        )
+    } else if !schema_diagnostics.is_empty() {
+        format!(
+            "production_order_lifecycle_audit_schema_mismatch:{}",
+            schema_diagnostics.join("|")
+        )
+    } else if !provenance_diagnostics.is_empty() {
+        format!(
+            "production_order_lifecycle_audit_provenance_mismatch:{}",
+            provenance_diagnostics.join("|")
+        )
+    } else if !stale_artifacts.is_empty() {
+        format!(
+            "production_order_lifecycle_audit_stale_evidence:{}",
+            stale_artifacts.join("|")
+        )
+    } else if boundary_violation {
+        "production_order_lifecycle_audit_boundary_violation".to_string()
+    } else if risk_visible {
+        "production_order_lifecycle_audit_risk_visible".to_string()
     } else {
         readiness_status.to_string()
     }
@@ -13393,6 +13899,355 @@ mod tests {
     }
 
     #[test]
+    fn production_order_lifecycle_audit_artifacts_populate_readonly_dashboard_view() {
+        let root = temp_root("production-order-lifecycle-audit");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "production-order-lifecycle-audit-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_order_lifecycle_audit_v20_artifacts(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-29T17:10:00Z").unwrap();
+
+        assert_eq!(snapshot.production_order_lifecycle_audit.len(), 1);
+        let item = &snapshot.production_order_lifecycle_audit[0];
+        assert_eq!(item.node_id, "production-order-lifecycle-audit-a");
+        assert_eq!(item.health, HealthStatus::Healthy);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_order_lifecycle_audit_audit_closed")
+        );
+        assert_eq!(item.audit_state.value.as_deref(), Some("audit_closed"));
+        assert_eq!(
+            item.risk_visibility.value.as_deref(),
+            Some("no_risk_visible")
+        );
+        assert_eq!(
+            item.lifecycle_id.value.as_deref(),
+            Some("lineage-v200-single-shot-submit")
+        );
+        assert_eq!(item.attempt_id.value.as_deref(), Some("attempt-v200-001"));
+        assert_eq!(
+            item.submit_attempt_state.value.as_deref(),
+            Some("submit_attempt_recorded")
+        );
+        assert_eq!(item.production_submit_attempted.value, Some(true));
+        assert_eq!(item.readback_required.value, Some(true));
+        assert_eq!(item.response_state.value.as_deref(), Some("accepted"));
+        assert_eq!(item.venue_status.value.as_deref(), Some("NEW"));
+        assert_eq!(item.venue_order_id.value.as_deref(), Some("123456789"));
+        assert_eq!(
+            item.client_order_id.value.as_deref(),
+            Some("owner-approved-v200-submit")
+        );
+        assert_eq!(item.readback_state.value.as_deref(), Some("matched"));
+        assert_eq!(item.readback_consistent.value, Some(true));
+        assert_eq!(item.readback_missing.value, Some(false));
+        assert_eq!(item.readback_failed.value, Some(false));
+        assert_eq!(item.failure_category.value.as_deref(), Some("none"));
+        assert_eq!(
+            item.next_allowed_action.value.as_deref(),
+            Some("audit_closeout_only")
+        );
+        assert_eq!(item.no_implicit_retry.value, Some(true));
+        assert_eq!(item.unknown_state_visible.value, Some(false));
+        assert_eq!(item.audit_closed.value, Some(true));
+        assert_eq!(item.dashboard_audit_consumable.value, Some(true));
+        assert_eq!(item.release_gate_consumable.value, Some(true));
+        assert_eq!(item.dashboard_order_controls_enabled.value, Some(false));
+        assert_eq!(item.dashboard_approval_controls_enabled.value, Some(false));
+        assert_eq!(item.dashboard_cancel_controls_enabled.value, Some(false));
+        assert_eq!(item.retry_attempted.value, Some(false));
+        assert_eq!(item.replace_attempted.value, Some(false));
+        assert_eq!(item.amend_attempted.value, Some(false));
+        assert_eq!(item.flatten_attempted.value, Some(false));
+        assert_eq!(item.automatic_cancel_attempted.value, Some(false));
+        assert_eq!(item.automatic_remediation_allowed.value, Some(false));
+        assert_eq!(item.strategy_continuation_allowed.value, Some(false));
+        assert!(
+            item.submit_candidate_path
+                .value
+                .as_deref()
+                .is_some_and(|path| path.ends_with("v0_20/guarded_submit_candidate.json"))
+        );
+        assert!(
+            item.audit_closeout_path
+                .value
+                .as_deref()
+                .is_some_and(|path| path.ends_with("v0_20/order_lifecycle_audit_closeout.json"))
+        );
+
+        assert!(DASHBOARD_HTML.contains("production-order-lifecycle-audit"));
+        assert!(DASHBOARD_HTML.contains("v0.20 订单生命周期审计只读视图"));
+        let renderer = dashboard_js_function_body("renderProductionOrderLifecycleAudit");
+        for forbidden in [
+            "<button",
+            "data-dashboard-action",
+            "fetch(",
+            "/api/control/cancel",
+            "/api/control/order",
+            "approve button",
+            "retry button",
+            "cancel button",
+        ] {
+            assert!(
+                !renderer.contains(forbidden),
+                "order lifecycle audit renderer must stay read-only and not contain {forbidden}"
+            );
+        }
+        assert!(renderer.contains("Submit / Approval"));
+        assert!(renderer.contains("Response / Readback"));
+        assert!(renderer.contains("Failure / Audit"));
+        assert!(renderer.contains("只读边界"));
+        let snapshot_value = serde_json::to_value(&snapshot).unwrap();
+        assert_forbidden_keys_absent(&snapshot_value);
+    }
+
+    fn production_order_lifecycle_audit_item_with(
+        name: &str,
+        mutate: impl FnOnce(&SupervisorNodeRecord),
+    ) -> ProductionOrderLifecycleAuditStatus {
+        let root = temp_root(name);
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, name);
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_production_order_lifecycle_audit_v20_artifacts(&record);
+        mutate(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-06-29T17:20:00Z").unwrap();
+        assert_eq!(snapshot.production_order_lifecycle_audit.len(), 1);
+        snapshot.production_order_lifecycle_audit[0].clone()
+    }
+
+    fn mutate_v20_order_lifecycle_audit_artifact(
+        record: &SupervisorNodeRecord,
+        artifact_name: &str,
+        mutate: impl FnOnce(&mut Value),
+    ) {
+        let path = record.artifact_root.join("v0_20").join(artifact_name);
+        let mut artifact: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap())
+            .expect("v0.20 order lifecycle audit test artifact must be valid JSON");
+        mutate(&mut artifact);
+        fs::write(&path, serde_json::to_string_pretty(&artifact).unwrap()).unwrap();
+    }
+
+    #[test]
+    fn production_order_lifecycle_audit_readback_mismatch_is_risk_visible_not_success() {
+        let item = production_order_lifecycle_audit_item_with(
+            "production-order-lifecycle-audit-mismatch",
+            |record| {
+                mutate_v20_order_lifecycle_audit_artifact(
+                    record,
+                    "submit_readback_reconciliation.json",
+                    |artifact| {
+                        artifact["state"] = json!("mismatched");
+                        artifact["code"] = json!("venue_status_mismatch");
+                        artifact["mismatch_fields"] = json!(["venue_status"]);
+                        artifact["readback_consistent"] = json!(false);
+                    },
+                );
+                mutate_v20_order_lifecycle_audit_artifact(
+                    record,
+                    "failure_no_retry_evidence.json",
+                    |artifact| {
+                        artifact["category"] = json!("readback_mismatch");
+                        artifact["code"] = json!("manual_audit_required");
+                        artifact["next_allowed_action"] = json!("operator_manual_audit");
+                    },
+                );
+            },
+        );
+
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_order_lifecycle_audit_risk_visible")
+        );
+        assert_eq!(item.audit_state.value.as_deref(), Some("risk_visible"));
+        assert_eq!(item.risk_visibility.value.as_deref(), Some("risk_visible"));
+        assert_eq!(item.readback_state.value.as_deref(), Some("mismatched"));
+        assert_eq!(
+            item.failure_category.value.as_deref(),
+            Some("readback_mismatch")
+        );
+        assert!(item.diagnostic.value.as_deref().is_some_and(|value| {
+            value.contains("production_order_lifecycle_audit_risk_visible")
+        }));
+    }
+
+    #[test]
+    fn production_order_lifecycle_audit_unknown_response_is_risk_visible_not_success() {
+        let item = production_order_lifecycle_audit_item_with(
+            "production-order-lifecycle-audit-unknown-response",
+            |record| {
+                mutate_v20_order_lifecycle_audit_artifact(
+                    record,
+                    "submit_response_redaction.json",
+                    |artifact| {
+                        artifact["state"] = json!("unknown");
+                        artifact["code"] = json!("exchange_response_timeout");
+                    },
+                );
+                mutate_v20_order_lifecycle_audit_artifact(
+                    record,
+                    "failure_no_retry_evidence.json",
+                    |artifact| {
+                        artifact["category"] = json!("response_unknown");
+                        artifact["code"] = json!("unknown_response_no_retry");
+                        artifact["unknown_state_visible"] = json!(true);
+                        artifact["next_allowed_action"] = json!("operator_manual_audit");
+                    },
+                );
+            },
+        );
+
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_order_lifecycle_audit_risk_visible")
+        );
+        assert_eq!(item.audit_state.value.as_deref(), Some("risk_visible"));
+        assert_eq!(item.response_state.value.as_deref(), Some("unknown"));
+        assert_eq!(
+            item.failure_category.value.as_deref(),
+            Some("response_unknown")
+        );
+        assert_eq!(item.unknown_state_visible.value, Some(true));
+    }
+
+    #[test]
+    fn production_order_lifecycle_audit_forbidden_controls_degrade_without_routes() {
+        for (artifact_name, field, value) in [
+            (
+                "guarded_submit_candidate.json",
+                "dashboard_order_controls_enabled",
+                json!(true),
+            ),
+            (
+                "guarded_submit_candidate.json",
+                "dashboard_approval_controls_enabled",
+                json!(true),
+            ),
+            (
+                "failure_no_retry_evidence.json",
+                "dashboard_cancel_controls_enabled",
+                json!(true),
+            ),
+            (
+                "failure_no_retry_evidence.json",
+                "retry_attempted",
+                json!(true),
+            ),
+            (
+                "failure_no_retry_evidence.json",
+                "replace_attempted",
+                json!(true),
+            ),
+            (
+                "failure_no_retry_evidence.json",
+                "amend_attempted",
+                json!(true),
+            ),
+            (
+                "failure_no_retry_evidence.json",
+                "flatten_attempted",
+                json!(true),
+            ),
+            (
+                "order_lifecycle_audit_closeout.json",
+                "automatic_cancel_attempted",
+                json!(true),
+            ),
+            (
+                "order_lifecycle_audit_closeout.json",
+                "automatic_remediation_allowed",
+                json!(true),
+            ),
+            (
+                "order_lifecycle_audit_closeout.json",
+                "strategy_continuation_allowed",
+                json!(true),
+            ),
+        ] {
+            let item = production_order_lifecycle_audit_item_with(
+                &format!("production-order-lifecycle-audit-forbidden-{field}"),
+                |record| {
+                    mutate_v20_order_lifecycle_audit_artifact(record, artifact_name, |artifact| {
+                        artifact[field] = value;
+                    });
+                },
+            );
+
+            assert_eq!(item.health, HealthStatus::Error);
+            assert_eq!(
+                item.readiness_status.value.as_deref(),
+                Some("production_order_lifecycle_audit_boundary_violation")
+            );
+            assert_ne!(item.audit_state.value.as_deref(), Some("audit_closed"));
+        }
+
+        for forbidden_route in [
+            "/api/control/cancel",
+            "/api/control/order",
+            "production_order_lifecycle_control",
+            "production_order_approval_control",
+        ] {
+            assert!(
+                !DASHBOARD_JS.contains(forbidden_route),
+                "dashboard JS must not expose order lifecycle execution route {forbidden_route}"
+            );
+            assert!(
+                !DASHBOARD_HTML.contains(forbidden_route),
+                "dashboard shell must not expose order lifecycle execution route {forbidden_route}"
+            );
+        }
+    }
+
+    #[test]
+    fn production_order_lifecycle_audit_missing_evidence_never_healthy() {
+        let item = production_order_lifecycle_audit_item_with(
+            "production-order-lifecycle-audit-missing",
+            |record| {
+                fs::remove_file(
+                    record
+                        .artifact_root
+                        .join("v0_20")
+                        .join("failure_no_retry_evidence.json"),
+                )
+                .unwrap();
+            },
+        );
+
+        assert_eq!(item.health, HealthStatus::Degraded);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_order_lifecycle_audit_incomplete")
+        );
+        assert_ne!(item.audit_state.value.as_deref(), Some("audit_closed"));
+        assert!(item.diagnostic.value.as_deref().is_some_and(|value| {
+            value.contains("production_order_lifecycle_audit_missing_evidence")
+                && value.contains("failure_no_retry_evidence")
+        }));
+        assert_eq!(
+            item.missing_artifacts.value.as_deref(),
+            Some("failure_no_retry_evidence")
+        );
+    }
+
+    #[test]
     fn production_cancel_recovery_artifacts_populate_readonly_dashboard_panel() {
         let root = temp_root("production-cancel-recovery");
         let registry_path = root.join("registry.json");
@@ -16434,6 +17289,166 @@ mod tests {
         fs::write(
             v19_root.join("actual_cancel_failure_evidence.json"),
             failure_json,
+        )
+        .unwrap();
+    }
+
+    fn write_production_order_lifecycle_audit_v20_artifacts(record: &SupervisorNodeRecord) {
+        let root = record.artifact_root.join("v0_20");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("guarded_submit_candidate.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_ORDER_LIFECYCLE_SUBMIT_CANDIDATE_SCHEMA_VERSION,
+                "run_id": "v200-dashboard-order-lifecycle-audit",
+                "lifecycle_id": "lineage-v200-single-shot-submit",
+                "attempt_id": "attempt-v200-001",
+                "artifact_type": "guarded_submit_candidate",
+                "state": "submit_attempt_recorded",
+                "code": "production_submit_single_shot_recorded",
+                "owner_approval_state_before_attempt": "approved",
+                "owner_approval_state_after_attempt": "consumed",
+                "owner_approval_consumed": true,
+                "production_submit_attempted": true,
+                "readback_required": true,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_approval_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false,
+                "retry_attempted": false,
+                "replace_attempted": false,
+                "amend_attempted": false,
+                "flatten_attempted": false,
+                "automatic_cancel_attempted": false,
+                "automatic_cancel_allowed": false,
+                "automatic_remediation_allowed": false,
+                "strategy_continuation_allowed": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            root.join("submit_response_redaction.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_ORDER_LIFECYCLE_RESPONSE_REDACTION_SCHEMA_VERSION,
+                "run_id": "v200-dashboard-order-lifecycle-audit",
+                "lifecycle_id": "lineage-v200-single-shot-submit",
+                "attempt_id": "attempt-v200-001",
+                "artifact_type": "submit_response_redaction",
+                "state": "accepted",
+                "code": "venue_metadata_redacted",
+                "venue_status": "NEW",
+                "order_id": "123456789",
+                "client_order_id": "owner-approved-v200-submit",
+                "response_redacted": true,
+                "raw_response_recorded": false,
+                "api_key_value_recorded": false,
+                "api_secret_value_recorded": false,
+                "production_submit_attempted": true,
+                "readback_required": true,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_approval_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false,
+                "retry_attempted": false,
+                "replace_attempted": false,
+                "amend_attempted": false,
+                "flatten_attempted": false,
+                "automatic_cancel_attempted": false,
+                "automatic_cancel_allowed": false,
+                "automatic_remediation_allowed": false,
+                "strategy_continuation_allowed": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            root.join("submit_readback_reconciliation.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_ORDER_LIFECYCLE_READBACK_RECONCILIATION_SCHEMA_VERSION,
+                "run_id": "v200-dashboard-order-lifecycle-audit",
+                "lifecycle_id": "lineage-v200-single-shot-submit",
+                "attempt_id": "attempt-v200-001",
+                "artifact_type": "submit_readback_reconciliation",
+                "state": "matched",
+                "code": "readback_matched_redacted_metadata",
+                "mismatch_fields": [],
+                "readback_consistent": true,
+                "readback_missing": false,
+                "readback_failed": false,
+                "production_submit_attempted": true,
+                "readback_required": true,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_approval_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false,
+                "retry_attempted": false,
+                "replace_attempted": false,
+                "amend_attempted": false,
+                "flatten_attempted": false,
+                "automatic_cancel_attempted": false,
+                "automatic_cancel_allowed": false,
+                "automatic_remediation_allowed": false,
+                "strategy_continuation_allowed": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            root.join("failure_no_retry_evidence.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_ORDER_LIFECYCLE_FAILURE_NO_RETRY_SCHEMA_VERSION,
+                "run_id": "v200-dashboard-order-lifecycle-audit",
+                "lifecycle_id": "lineage-v200-single-shot-submit",
+                "attempt_id": "attempt-v200-001",
+                "artifact_type": "failure_no_retry_evidence",
+                "category": "none",
+                "code": "no_failure",
+                "next_allowed_action": "audit_closeout_only",
+                "no_implicit_retry": true,
+                "unknown_state_visible": false,
+                "production_submit_attempted": true,
+                "readback_required": true,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_approval_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false,
+                "retry_attempted": false,
+                "replace_attempted": false,
+                "amend_attempted": false,
+                "flatten_attempted": false,
+                "automatic_cancel_attempted": false,
+                "automatic_cancel_allowed": false,
+                "automatic_remediation_allowed": false,
+                "strategy_continuation_allowed": false
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            root.join("order_lifecycle_audit_closeout.json"),
+            serde_json::to_string_pretty(&json!({
+                "schema_version": PRODUCTION_ORDER_LIFECYCLE_AUDIT_CLOSEOUT_SCHEMA_VERSION,
+                "run_id": "v200-dashboard-order-lifecycle-audit",
+                "lifecycle_id": "lineage-v200-single-shot-submit",
+                "attempt_id": "attempt-v200-001",
+                "artifact_type": "order_lifecycle_audit_closeout",
+                "status": "closed",
+                "audit_closed": true,
+                "dashboard_audit_consumable": true,
+                "release_gate_consumable": true,
+                "production_submit_attempted": true,
+                "readback_required": true,
+                "no_implicit_retry": true,
+                "dashboard_order_controls_enabled": false,
+                "dashboard_approval_controls_enabled": false,
+                "dashboard_cancel_controls_enabled": false,
+                "retry_attempted": false,
+                "replace_attempted": false,
+                "amend_attempted": false,
+                "flatten_attempted": false,
+                "automatic_cancel_attempted": false,
+                "automatic_cancel_allowed": false,
+                "automatic_remediation_allowed": false,
+                "strategy_continuation_allowed": false
+            }))
+            .unwrap(),
         )
         .unwrap();
     }

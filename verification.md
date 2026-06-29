@@ -1,3 +1,30 @@
+# V200-010 Verification
+
+Date: 2026-06-29
+Executor: Codex
+Task: `V200-010` / GitHub issue `#621`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-cli = PASS
+cargo test -p nautilus-cli production_order_lifecycle_audit --lib -- --nocapture = PASS, 5 passed
+cargo clippy -p nautilus-cli --all-targets -- -D warnings = PASS
+rg -n "production_order_lifecycle_audit|ntpro\\.v200_order_lifecycle_audit_closeout\\.v1|v0_20/guarded_submit_candidate\\.json|readback_mismatch|response_unknown|dashboard_order_controls_enabled|dashboard_approval_controls_enabled|dashboard_cancel_controls_enabled|retry_attempted" crates/cli/src/dashboard.rs docs/rust-cutover/release/v0_20_0_dashboard_order_lifecycle_audit.md docs/rust-cutover/evidence/V200-010.md verification.md = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V200-010 implements the local Dashboard read-only production order lifecycle
+audit view. It consumes v0.20 submit candidate, redacted response, readback
+reconciliation, failure/no-retry, and audit closeout artifacts; renders
+submit/readback/failure/audit state and artifact paths; and marks
+unknown/missing/mismatch states as risk-visible instead of successful. The
+view exposes no submit, approval, retry, cancel, replace, amend, flatten, or
+remediation controls.
+
 # V200-009 Verification
 
 Date: 2026-06-29
