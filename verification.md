@@ -1,3 +1,30 @@
+# V201-006 Verification
+
+Date: 2026-06-30
+Executor: Codex
+Task: `V201-006` / GitHub issue `#648`
+
+## Commands
+
+```text
+cargo fmt -p nautilus-cli = PASS
+cargo test -p nautilus-cli production_order_lifecycle_audit --lib = PASS, 9 passed
+cargo clippy -p nautilus-cli --lib -- -D warnings = PASS
+bash -n scripts/ai/verify_v20_release_gates.sh = PASS
+scripts/ai/verify_release.sh v20-release-gates = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+V201-006 adds explicit Dashboard foundation boundary diagnostics for the v20
+order lifecycle audit panel. The panel now distinguishes `audit_closed`,
+`risk_visible`, and `foundation_only_no_adapter_runtime` while blocking stale
+evidence, source/provenance mismatches, retry/auto remediation flags, adapter
+runtime claim mismatches, and submit/cancel/approval controls from appearing as
+safe operational readiness.
+
 # V201-005 Verification
 
 Date: 2026-06-30

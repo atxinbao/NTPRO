@@ -271,8 +271,13 @@ regression_markers = {
     ),
     "crates/cli/src/dashboard.rs": (
         "foundation_only_manual_structured",
+        "foundation_boundary_status",
+        "foundation_only_no_adapter_runtime",
+        "adapter_runtime_claim_mismatch",
         "production_order_lifecycle_audit_source_mismatch",
+        "production_order_lifecycle_audit_foundation_boundary",
         "Source class",
+        "Foundation boundary",
     ),
     "docs/rust-cutover/release/v0_20_0_submit_response_redaction.md": (
         "manual_structured must not claim exchange truth",
@@ -284,6 +289,8 @@ regression_markers = {
     ),
     "docs/rust-cutover/release/v0_20_0_dashboard_order_lifecycle_audit.md": (
         "foundation_only_manual_structured",
+        "foundation_only_no_adapter_runtime",
+        "adapter runtime claim mismatch",
         "not trader terminal readiness",
     ),
 }
@@ -306,4 +313,4 @@ if violations:
 print(f"v20_release_gate_artifact_scan checked_docs={len(required_docs)} trace_cases={len(rows)} root={root}")
 PY
 
-echo "v20_release_gates status=ok root=$GATE_ROOT owner_approved_production_order_lifecycle_foundation=true pre_submit_gate_required=true owner_approval_required=true signing_material_gate_required=true single_submit_attempt_required=true response_redaction_required=true post_submit_readback_required=true failure_no_retry_required=true dashboard_audit_read_only=true golden_traces_checked=true implicit_retry_allowed=false automatic_cancel_allowed=false automatic_remediation_allowed=false dashboard_order_controls_enabled=false strategy_driven_production_execution_allowed=false general_production_trading_platform_claim=false"
+echo "v20_release_gates status=ok root=$GATE_ROOT owner_approved_production_order_lifecycle_foundation=true pre_submit_gate_required=true owner_approval_required=true signing_material_gate_required=true single_submit_attempt_required=true response_redaction_required=true post_submit_readback_required=true failure_no_retry_required=true dashboard_audit_read_only=true foundation_boundary_status=foundation_only_no_adapter_runtime golden_traces_checked=true implicit_retry_allowed=false automatic_cancel_allowed=false automatic_remediation_allowed=false dashboard_order_controls_enabled=false strategy_driven_production_execution_allowed=false general_production_trading_platform_claim=false"
