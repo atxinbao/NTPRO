@@ -137,19 +137,63 @@ for needle in (
 require(release_manifest.get("schema_version") == "ntpro.v200_release_manifest.v1", "release manifest schema_version mismatch")
 require(release_manifest.get("task_id") == "V200-012", "release manifest task_id mismatch")
 require(release_manifest.get("product_version") == os.environ["PRODUCT_VERSION"], "release manifest product_version mismatch")
-require(release_manifest.get("release_status") == "ready_pending_publication", "release manifest status mismatch")
+require(release_manifest.get("release_status") == "published", "release manifest status mismatch")
 
 planned = release_manifest.get("planned_release") or {}
 require(planned.get("tag") == os.environ["RELEASE_TAG"], "planned release tag mismatch")
 require(planned.get("name") == "NTPRO Rust-only v0.20.0", "planned release name mismatch")
 require(planned.get("github_release_url") == "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.20.0", "planned release URL mismatch")
+require(planned.get("publication_status") == "published_in_source_tree", "planned release publication status mismatch")
+require(planned.get("published_at") == "2026-06-29T20:03:15Z", "planned release published_at mismatch")
+require(planned.get("draft") is False, "planned release draft flag mismatch")
+require(planned.get("prerelease") is False, "planned release prerelease flag mismatch")
+require(planned.get("target_commitish") == "main", "planned release target_commitish mismatch")
 
 source_provenance = release_manifest.get("source_provenance") or {}
 require(source_provenance.get("planned_release_tag") == os.environ["RELEASE_TAG"], "source planned release tag mismatch")
-require(source_provenance.get("actual_source_commit") is None, "actual source commit must be runtime-resolved")
-require(source_provenance.get("actual_source_tree") is None, "actual source tree must be runtime-resolved")
+require(source_provenance.get("actual_source_commit") == "d29a764a2fb6b3f9c187d2af17337b08b40d794b", "actual source commit mismatch")
+require(source_provenance.get("actual_source_tree") == "c321ee45b1b56bd7c50a5f809c00ef6d476de2f8", "actual source tree mismatch")
+if os.environ["RELEASE_TAG_EXISTS"] == "true":
+    require(source_provenance.get("actual_source_commit") == os.environ["RELEASE_TAG_COMMIT"], "actual source commit does not match release tag")
+    require(source_provenance.get("actual_source_tree") == os.environ["RELEASE_TAG_TREE"], "actual source tree does not match release tag")
 require(source_provenance.get("actual_fields_resolved_by") == "scripts/ai/verify_release_strict.sh v20", "source resolver mismatch")
 require(source_provenance.get("generated_manifest_path") == os.environ["STRICT_MANIFEST_REL"], "strict manifest path mismatch")
+
+hosted_release_workflow = release_manifest.get("hosted_release_workflow") or {}
+require(hosted_release_workflow.get("run_id") == "28399170642", "hosted release workflow run id mismatch")
+require(hosted_release_workflow.get("url") == "https://github.com/atxinbao/NTPRO/actions/runs/28399170642", "hosted release workflow url mismatch")
+require(hosted_release_workflow.get("status") == "completed", "hosted release workflow status mismatch")
+require(hosted_release_workflow.get("conclusion") == "success", "hosted release workflow conclusion mismatch")
+require(hosted_release_workflow.get("created_at") == "2026-06-29T20:03:06Z", "hosted release workflow created_at mismatch")
+require(hosted_release_workflow.get("updated_at") == "2026-06-29T21:29:46Z", "hosted release workflow updated_at mismatch")
+require(hosted_release_workflow.get("jobs_total") == 53, "hosted release workflow job count mismatch")
+key_jobs = {
+    job.get("name"): job.get("conclusion")
+    for job in hosted_release_workflow.get("key_jobs", [])
+}
+for job_name in (
+    "verify-release (release-v20-release-gates)",
+    "verify-release (release-v20-strict-provenance)",
+    "verify-release (release-publication-guard)",
+    "verify-release (release-surface-current-guard)",
+):
+    require(key_jobs.get(job_name) == "success", f"hosted release workflow key job mismatch: {job_name}")
+
+issue_closeout = release_manifest.get("issue_closeout") or {}
+require(issue_closeout.get("v0_20_0_closed_issues") == list(range(611, 624)), "v0.20.0 closed issue set mismatch")
+require(issue_closeout.get("v0_20_0_last_issue_closed_at") == "2026-06-29T20:02:08Z", "v0.20.0 last issue closed_at mismatch")
+v0191_milestone = issue_closeout.get("v0_19_1_milestone") or {}
+require(v0191_milestone.get("number") == 5, "v0.19.1 milestone number mismatch")
+require(v0191_milestone.get("state") == "closed", "v0.19.1 milestone state mismatch")
+require(v0191_milestone.get("closed_at") == "2026-06-30T07:41:15Z", "v0.19.1 milestone closed_at mismatch")
+require(v0191_milestone.get("open_issues") == 0, "v0.19.1 milestone open issue mismatch")
+require(v0191_milestone.get("closed_issues") == 7, "v0.19.1 milestone closed issue mismatch")
+v0200_milestone = issue_closeout.get("v0_20_0_milestone") or {}
+require(v0200_milestone.get("number") == 6, "v0.20.0 milestone number mismatch")
+require(v0200_milestone.get("state") == "closed", "v0.20.0 milestone state mismatch")
+require(v0200_milestone.get("closed_at") == "2026-06-30T07:41:15Z", "v0.20.0 milestone closed_at mismatch")
+require(v0200_milestone.get("open_issues") == 0, "v0.20.0 milestone open issue mismatch")
+require(v0200_milestone.get("closed_issues") == 13, "v0.20.0 milestone closed issue mismatch")
 
 toolchain = release_manifest.get("toolchain") or {}
 require(toolchain.get("cargo_version") == os.environ["CARGO_VERSION"], "release manifest cargo version mismatch")
