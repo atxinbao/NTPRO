@@ -21,12 +21,14 @@ use nautilus_risk::{
         owner_approval_digest,
     },
     v20_pre_submit_gate::{
-        PreSubmitReleaseProvenance, V20_ORDER_LIFECYCLE_CONTRACT_ID, evaluate_pre_submit_risk_gate,
+        PreSubmitReleaseProvenance, V20_ORDER_LIFECYCLE_CONTRACT_ID, V20_REQUIRED_RELEASE_GATE,
+        V20_REQUIRED_RELEASE_TAG, evaluate_pre_submit_risk_gate,
     },
 };
 use rust_decimal_macros::dec;
 
 const NOW_NS: u64 = 1_780_000_000_000_000_000;
+const V20_RELEASE_COMMIT: &str = "d29a764a2fb6b3f9c187d2af17337b08b40d794b";
 
 #[test]
 fn approves_matching_owner_decision_and_exports_pre_submit_shape() {
@@ -270,9 +272,9 @@ fn scope() -> OwnerApprovalScope {
 
 fn provenance() -> PreSubmitReleaseProvenance {
     PreSubmitReleaseProvenance {
-        release_tag: "ntpro-rust-only-v0.19.1".to_string(),
-        release_commit: "c7c5472505dcbc0c5b8ecc781f3ca287aededf54".to_string(),
-        release_gate: "v19-release-gates".to_string(),
+        release_tag: V20_REQUIRED_RELEASE_TAG.to_string(),
+        release_commit: V20_RELEASE_COMMIT.to_string(),
+        release_gate: V20_REQUIRED_RELEASE_GATE.to_string(),
         strict_provenance: true,
     }
 }
@@ -310,7 +312,8 @@ fn super_like_policy() -> nautilus_risk::v20_pre_submit_gate::PreSubmitRiskPolic
         allowed_order_types: ["limit"].into_iter().map(str::to_string).collect(),
         allowed_time_in_force: ["gtc"].into_iter().map(str::to_string).collect(),
         expected_environment: "production".to_string(),
-        required_release_gate: "v19-release-gates".to_string(),
+        required_release_tag: V20_REQUIRED_RELEASE_TAG.to_string(),
+        required_release_gate: V20_REQUIRED_RELEASE_GATE.to_string(),
         max_quantity: dec!(0.25),
         max_price: dec!(100000),
         max_notional: dec!(10000),

@@ -1,3 +1,33 @@
+# V201-002 Verification
+
+Date: 2026-06-30
+Executor: Codex
+Task: `V201-002` / GitHub issue `#645`
+
+## Commands
+
+```text
+cargo fmt --all = PASS
+cargo test -p nautilus-risk --test v20_pre_submit_gate --test v20_owner_approval --test v20_submit_request_builder --test v20_submit_candidate --test v20_submit_response_redaction --test v20_submit_readback_reconciliation --test v20_failure_no_retry = PASS
+cargo test -p nautilus-cli --test golden_trace_production_order_lifecycle = PASS
+scripts/ai/verify_v20_order_lifecycle_golden_traces.sh = PASS
+scripts/ai/verify_release.sh v20-release-gates = PASS
+NTPRO_RELEASE_STRICT_VERIFY_ONLY=1 NTPRO_RELEASE_STRICT_SKIP_BUILD=1 NTPRO_RELEASE_STRICT_SKIP_V20_GATES=1 scripts/ai/verify_release.sh v20-strict-provenance = PASS
+bash -n scripts/ai/verify_v20_release_gates.sh = PASS
+node JSONL parse for tests/golden/production_order_lifecycle_schema.jsonl = PASS
+rg -n 'ntpro-rust-only-v0\.19\.1|v19-release-gates|strict v19' crates/risk/tests/v20_*.rs crates/risk/src/v20_*.rs docs/rust-cutover/release/v0_20_0_* tests/golden/production_order_lifecycle_schema.jsonl = PASS, only negative tests retain v19 stale-provenance inputs
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+V201-002 makes V20 runtime submit evidence require
+`ntpro-rust-only-v0.20.0` plus `v20-release-gates`, adds fail-closed negative
+coverage for stale v19 provenance, updates V20 tests and downstream evidence
+fixtures away from v19 tag/gate values, and adds explicit
+`runtime_release_provenance` to production order lifecycle golden traces.
+
 # V201-001 Verification
 
 Date: 2026-06-30

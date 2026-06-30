@@ -23,7 +23,7 @@ use nautilus_risk::{
     v20_pre_submit_gate::{
         PreSubmitApproval, PreSubmitReleaseProvenance, PreSubmitRiskCode,
         PreSubmitRiskDecisionKind, PreSubmitRiskPolicy, PreSubmitRiskRequest,
-        evaluate_pre_submit_risk_gate,
+        V20_REQUIRED_RELEASE_GATE, V20_REQUIRED_RELEASE_TAG, evaluate_pre_submit_risk_gate,
     },
     v20_signing_material_gate::{
         SigningMaterialCode, SigningMaterialDecision, SigningMaterialEnvSnapshot,
@@ -43,6 +43,7 @@ use nautilus_risk::{
 use rust_decimal_macros::dec;
 
 const NOW_NS: u64 = 1_780_000_000_000_000_000;
+const V20_RELEASE_COMMIT: &str = "d29a764a2fb6b3f9c187d2af17337b08b40d794b";
 
 #[test]
 fn preview_records_ready_evidence_without_consuming_approval() {
@@ -268,6 +269,35 @@ fn blocks_missing_signing_readiness() {
     );
 }
 
+#[test]
+fn blocks_v19_release_provenance_even_when_risk_flag_is_valid() {
+    let mut risk = risk_allow();
+    risk.release_tag = Some("ntpro-rust-only-v0.19.1".to_string());
+    risk.release_gate = Some("v19-release-gates".to_string());
+    risk.release_provenance_valid = true;
+    let approval = owner_approval();
+    let signing = signing_ready();
+    let builder = builder_evidence(&risk_allow(), &approval, &signing);
+    let request = guarded_request(GuardedSubmitMode::Submit, true, BTreeSet::new());
+
+    let evidence = evaluate_guarded_single_shot_submit_candidate(
+        &request, &risk, &approval, &signing, &builder, NOW_NS,
+    );
+
+    assert_eq!(evidence.state, GuardedSubmitCandidateState::Blocked);
+    assert_eq!(
+        evidence.code,
+        GuardedSubmitCandidateCode::MissingReleaseProvenance
+    );
+    assert_eq!(
+        evidence.release_tag.as_deref(),
+        Some("ntpro-rust-only-v0.19.1")
+    );
+    assert_eq!(evidence.release_gate.as_deref(), Some("v19-release-gates"));
+    assert!(!evidence.production_submit_attempted);
+    assert!(!evidence.adapter_submit_handoff_allowed);
+}
+
 fn guarded_request(
     mode: GuardedSubmitMode,
     manual_online_gate: bool,
@@ -358,7 +388,8 @@ fn risk_policy() -> PreSubmitRiskPolicy {
         allowed_order_types: set(["limit", "market"]),
         allowed_time_in_force: set(["gtc"]),
         expected_environment: "production".to_string(),
-        required_release_gate: "v19-release-gates".to_string(),
+        required_release_tag: V20_REQUIRED_RELEASE_TAG.to_string(),
+        required_release_gate: V20_REQUIRED_RELEASE_GATE.to_string(),
         max_quantity: dec!(0.25),
         max_price: dec!(100000),
         max_notional: dec!(10000),
@@ -478,9 +509,9 @@ fn signing_snapshot() -> SigningMaterialEnvSnapshot {
 
 fn provenance() -> PreSubmitReleaseProvenance {
     PreSubmitReleaseProvenance {
-        release_tag: "ntpro-rust-only-v0.19.1".to_string(),
-        release_commit: "a35eadfe10d0df3bfa6c882d9daf7a746919d249".to_string(),
-        release_gate: "v19-release-gates".to_string(),
+        release_tag: V20_REQUIRED_RELEASE_TAG.to_string(),
+        release_commit: V20_RELEASE_COMMIT.to_string(),
+        release_gate: V20_REQUIRED_RELEASE_GATE.to_string(),
         strict_provenance: true,
     }
 }

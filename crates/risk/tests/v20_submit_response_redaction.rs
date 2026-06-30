@@ -15,7 +15,9 @@
 
 use nautilus_risk::{
     v20_owner_approval::OwnerApprovalState,
-    v20_pre_submit_gate::V20_ORDER_LIFECYCLE_CONTRACT_ID,
+    v20_pre_submit_gate::{
+        V20_ORDER_LIFECYCLE_CONTRACT_ID, V20_REQUIRED_RELEASE_GATE, V20_REQUIRED_RELEASE_TAG,
+    },
     v20_submit_candidate::{
         GuardedSubmitCandidateCode, GuardedSubmitCandidateEvidence, GuardedSubmitCandidateState,
         GuardedSubmitMode, V20_GUARDED_SUBMIT_CANDIDATE_SCHEMA_VERSION,
@@ -29,6 +31,7 @@ use nautilus_risk::{
 
 const NOW_NS: u64 = 1_780_000_000_000_000_000;
 const REQUEST_DIGEST: &str = "request-digest-v200-007";
+const V20_RELEASE_COMMIT: &str = "d29a764a2fb6b3f9c187d2af17337b08b40d794b";
 
 #[test]
 fn redacts_accepted_response_for_readback_correlation() {
@@ -234,9 +237,9 @@ fn submitted_attempt() -> GuardedSubmitCandidateEvidence {
         risk_gate_id: "risk-gate-v200-007".to_string(),
         approval_id: "approval-v200-007".to_string(),
         signing_gate_id: "signing-gate-v200-007".to_string(),
-        release_tag: Some("ntpro-rust-only-v0.19.1".to_string()),
-        release_commit: Some("b48958b0e362641a5dc654fb78dad1621f35edde".to_string()),
-        release_gate: Some("v19-release-gates".to_string()),
+        release_tag: Some(V20_REQUIRED_RELEASE_TAG.to_string()),
+        release_commit: Some(V20_RELEASE_COMMIT.to_string()),
+        release_gate: Some(V20_REQUIRED_RELEASE_GATE.to_string()),
         owner_approval_state_before_attempt: OwnerApprovalState::Approved,
         owner_approval_state_after_attempt: OwnerApprovalState::Consumed,
         approval_consumed_at_unix_ns: Some(NOW_NS),

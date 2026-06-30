@@ -18,11 +18,13 @@ use std::collections::BTreeSet;
 use nautilus_risk::v20_pre_submit_gate::{
     PreSubmitApproval, PreSubmitReleaseProvenance, PreSubmitRiskCode, PreSubmitRiskDecisionKind,
     PreSubmitRiskPolicy, PreSubmitRiskRequest, V20_ORDER_LIFECYCLE_CONTRACT_ID,
-    V20_PRE_SUBMIT_RISK_GATE_SCHEMA_VERSION, evaluate_pre_submit_risk_gate,
+    V20_PRE_SUBMIT_RISK_GATE_SCHEMA_VERSION, V20_REQUIRED_RELEASE_GATE, V20_REQUIRED_RELEASE_TAG,
+    evaluate_pre_submit_risk_gate,
 };
 use rust_decimal_macros::dec;
 
 const NOW_NS: u64 = 1_780_000_000_000_000_000;
+const V20_RELEASE_COMMIT: &str = "d29a764a2fb6b3f9c187d2af17337b08b40d794b";
 
 #[test]
 fn allows_valid_owner_approved_production_limit_order() {
@@ -147,6 +149,49 @@ fn blocks_missing_release_provenance() {
 }
 
 #[test]
+fn blocks_v19_release_tag_even_with_v20_gate() {
+    let mut request = valid_request();
+    let mut release_provenance = provenance();
+    release_provenance.release_tag = "ntpro-rust-only-v0.19.1".to_string();
+    request.release_provenance = Some(release_provenance);
+
+    let evidence = evaluate_pre_submit_risk_gate(&request, &policy(), NOW_NS);
+
+    assert_eq!(evidence.decision, PreSubmitRiskDecisionKind::Blocked);
+    assert_eq!(evidence.code, PreSubmitRiskCode::ProvenanceTagMismatch);
+    assert_eq!(
+        evidence.code.as_str(),
+        "v200_pre_submit_provenance_tag_mismatch"
+    );
+    assert_eq!(
+        evidence.release_tag.as_deref(),
+        Some("ntpro-rust-only-v0.19.1")
+    );
+    assert!(!evidence.release_provenance_valid);
+    assert!(!evidence.production_order_submission_allowed);
+}
+
+#[test]
+fn blocks_v19_release_gate_even_with_v20_tag() {
+    let mut request = valid_request();
+    let mut release_provenance = provenance();
+    release_provenance.release_gate = "v19-release-gates".to_string();
+    request.release_provenance = Some(release_provenance);
+
+    let evidence = evaluate_pre_submit_risk_gate(&request, &policy(), NOW_NS);
+
+    assert_eq!(evidence.decision, PreSubmitRiskDecisionKind::Blocked);
+    assert_eq!(evidence.code, PreSubmitRiskCode::ProvenanceGateMismatch);
+    assert_eq!(
+        evidence.code.as_str(),
+        "v200_pre_submit_provenance_gate_mismatch"
+    );
+    assert_eq!(evidence.release_gate.as_deref(), Some("v19-release-gates"));
+    assert!(!evidence.release_provenance_valid);
+    assert!(!evidence.submit_builder_entry_allowed);
+}
+
+#[test]
 fn denies_unrecognized_fields_and_serializes_evidence() {
     let mut request = valid_request();
     request
@@ -188,9 +233,9 @@ fn rejects_unknown_json_shape_before_evaluation() {
             "consumed": false
         },
         "release_provenance": {
-            "release_tag": "ntpro-rust-only-v0.19.1",
-            "release_commit": "e8ccc9c44390fb9d4c0ab9af86a77ca6d4b32261",
-            "release_gate": "v19-release-gates",
+            "release_tag": "ntpro-rust-only-v0.20.0",
+            "release_commit": "d29a764a2fb6b3f9c187d2af17337b08b40d794b",
+            "release_gate": "v20-release-gates",
             "strict_provenance": true
         },
         "unexpected": true
@@ -235,9 +280,9 @@ fn approval() -> PreSubmitApproval {
 
 fn provenance() -> PreSubmitReleaseProvenance {
     PreSubmitReleaseProvenance {
-        release_tag: "ntpro-rust-only-v0.19.1".to_string(),
-        release_commit: "e8ccc9c44390fb9d4c0ab9af86a77ca6d4b32261".to_string(),
-        release_gate: "v19-release-gates".to_string(),
+        release_tag: V20_REQUIRED_RELEASE_TAG.to_string(),
+        release_commit: V20_RELEASE_COMMIT.to_string(),
+        release_gate: V20_REQUIRED_RELEASE_GATE.to_string(),
         strict_provenance: true,
     }
 }
@@ -251,7 +296,8 @@ fn policy() -> PreSubmitRiskPolicy {
         allowed_order_types: set(["limit"]),
         allowed_time_in_force: set(["gtc"]),
         expected_environment: "production".to_string(),
-        required_release_gate: "v19-release-gates".to_string(),
+        required_release_tag: V20_REQUIRED_RELEASE_TAG.to_string(),
+        required_release_gate: V20_REQUIRED_RELEASE_GATE.to_string(),
         max_quantity: dec!(0.25),
         max_price: dec!(100000),
         max_notional: dec!(10000),
