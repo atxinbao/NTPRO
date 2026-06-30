@@ -13,6 +13,9 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_21_0_account_snapshot_read_model.md` - V210 account snapshot read-model
   component contract for redacted balances, available funds, margin/risk
   summary, account freshness, provenance, and no-operation Dashboard boundary.
+- `v0_21_0_position_read_model.md` - V210 position read-model component
+  contract for long/short/flat position state, quantity precision, risk
+  projection inputs, source freshness, and account-position lineage checks.
 - `BACKTEST_LIVE_GATE_EVIDENCE.md` - RBTL-010 backtest/live gate evidence and
   remaining blockers.
 - `binary_install_path.md` - NBIN-001 source-build, local `cargo install`,
