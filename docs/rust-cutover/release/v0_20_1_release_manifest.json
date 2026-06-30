@@ -67,8 +67,11 @@
   "v21_dependency": {
     "milestone": "v0.21.0",
     "issues": [651, 652, 653, 654, 655, 656, 657, 658, 659],
-    "blocked_by_milestone": "v0.20.1",
-    "blocked_by_issues": [644, 645, 646, 647, 648, 649, 650],
+    "dependency_status": "satisfied",
+    "satisfied_at": "2026-06-30T16:08:16Z",
+    "satisfied_by_milestone": "v0.20.1",
+    "satisfied_by_issues": [644, 645, 646, 647, 648, 649, 650],
+    "release_gate_run": 28452719493,
     "dependency_sources": [
       "GitHub milestone description",
       "V210 issue bodies",

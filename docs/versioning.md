@@ -72,9 +72,10 @@ The next capability track is:
 v0.21.0
 ```
 
-v0.21.0 starts from its own scoped issue order. It is not part of v0.20.0 or
-v0.20.1. The v0.20 release line only authorizes the owner-approved production
-order lifecycle foundation and does not authorize implicit retry,
+v0.21.0 starts from its own scoped issue order after the v0.20.1 release
+evidence was published on 2026-06-30. It is not part of v0.20.0 or v0.20.1.
+The v0.20 release line only authorizes the owner-approved production order
+lifecycle foundation and does not authorize implicit retry,
 automatic cancel, automatic remediation, bulk order execution, strategy-driven
 production execution, multi-account or multi-venue expansion, or Dashboard
 operation controls.

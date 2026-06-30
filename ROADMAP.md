@@ -6,7 +6,8 @@ Executor: Codex
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is `ntpro-rust-only-v0.20.1`, the Production Order Lifecycle Release Closeout & Provenance Hardening Patch release.
 The next patch track is `v0.20.2`. The next capability track is `v0.21.0`,
-which starts from its own scoped issue order.
+which is now unblocked by the published v0.20.1 evidence and starts from its
+own scoped issue order.
 
 ## Current Release Surface
 

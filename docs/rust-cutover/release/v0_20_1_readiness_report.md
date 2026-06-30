@@ -39,8 +39,8 @@ release surface current guard = required
 ```text
 v0.20.1 milestone = #644-#650
 v0.21.0 milestone = #651-#659
-v0.21.0 blocked-by source = GitHub milestone description, V210 issue bodies, V210 issue comments
-start rule = no V210 implementation starts until all V201 issues are closed and v0.20.1 release evidence is published
+v0.21.0 dependency source = GitHub milestone description, V210 issue bodies, V210 issue comments
+start rule = satisfied on 2026-06-30 after all V201 issues closed and v0.20.1 release evidence was published
 ```
 
 ## Boundary

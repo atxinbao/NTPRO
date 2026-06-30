@@ -68,6 +68,7 @@ Rules:
 | SD-001 | APPROVED | removal | Python/PyO3/Cython removal is gated and cannot begin until Rust product surface, runtime smoke, adapter decisions, QA, and release gate evidence are complete. | RREM-*, RREL-*, RPROD-*, RCORE-*, RADP-* | control_scope_agent | verification_release_gatekeeper | 2026-05-27 |
 | SD-002 | APPROVED | release | v0.18.0 is owner-approved cancel recovery preview/gate/approval evidence only; actual cancel send remains forbidden. | V180-* | control_scope_agent | verification_release_gatekeeper | 2026-06-26 |
 | SD-003 | APPROVED | release | v0.20.0 may enter owner-approved production order lifecycle foundation after v0.19.1 closeout evidence, with strict single-shot owner approval, risk, readback, audit, and no-automation boundaries. | V200-* | control_scope_agent | verification_release_gatekeeper | 2026-06-29 |
+| SD-004 | APPROVED | release | v0.21.0 may enter unified read model foundation work after v0.20.1 publication evidence, with read-only/foundation boundaries and no submit expansion. | V210-* | control_scope_agent | verification_release_gatekeeper | 2026-06-30 |
 
 ## SD-000 - Scope Decision Log Format
 
@@ -285,5 +286,55 @@ Evidence required:
 Rollback / supersession:
 
 - Revert V200-000 scope docs and evidence to block V200-001 through V200-012.
+- Supersede only with a later release scope decision reviewed by the
+  Verification & Release Gatekeeper.
+
+## SD-004 - v0.21.0 Unified Read Model Foundation Boundary
+
+ID: `SD-004`
+
+State: `APPROVED`
+
+Type: `release`
+
+Date: 2026-06-30
+
+Owner role: `control_scope_agent`
+
+Review role: `verification_release_gatekeeper`
+
+Impacted tasks:
+
+- `V210-*`
+
+Decision:
+
+`v0.21.0` may start its scoped unified read model foundation after the
+`v0.20.1` hardening patch was published and all V201 issues were closed. The
+scope is read-only account, position, order, fill, and risk projection work
+plus a read-only foundation Dashboard. It must not add submit capability,
+Dashboard order controls, retry/replace/amend/flatten, strategy-driven live
+trading, or product-grade live trading terminal claims.
+
+Rationale:
+
+The v0.20.1 closeout established release evidence, strict provenance,
+single-shot attempt ledger hardening, notional consistency, adapter/source
+labels, Dashboard foundation-boundary diagnostics, and a successful hosted
+release-tag gate. That evidence is sufficient to begin read-model work, but not
+to expand order mutation capability.
+
+Evidence required:
+
+- `docs/rust-cutover/scope/v0_21_0_unified_read_model_foundation.md`
+- `docs/rust-cutover/evidence/V210-000.md`
+- GitHub issue `#651` closed through merged PR evidence.
+- Later V210 tasks must preserve no-new-submit and no-Dashboard-operation
+  controls evidence.
+
+Rollback / supersession:
+
+- Revert V210-000 scope and evidence docs to restore blocked V210 wording if
+  the v0.20.1 publication evidence is found inaccurate.
 - Supersede only with a later release scope decision reviewed by the
   Verification & Release Gatekeeper.
