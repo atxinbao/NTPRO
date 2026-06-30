@@ -15,8 +15,6 @@
 
 //! V200 guarded single-shot production submit candidate evidence.
 
-use std::collections::BTreeSet;
-
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -32,6 +30,8 @@ use crate::{
 /// Stable schema for V200 guarded submit candidate evidence.
 pub const V20_GUARDED_SUBMIT_CANDIDATE_SCHEMA_VERSION: &str =
     "ntpro.v200_guarded_single_shot_submit_candidate.v1";
+/// Stable schema for the durable V20 submit attempt ledger read model.
+pub const V20_SUBMIT_ATTEMPT_LEDGER_SCHEMA_VERSION: &str = "ntpro.v200_submit_attempt_ledger.v1";
 
 /// Operator-selected candidate mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -83,6 +83,16 @@ pub enum GuardedSubmitCandidateCode {
     RequestDigestMissing,
     #[serde(rename = "v200_guarded_submit_request_digest_mismatch")]
     RequestDigestMismatch,
+    #[serde(rename = "v200_guarded_submit_attempt_ledger_missing")]
+    AttemptLedgerMissing,
+    #[serde(rename = "v200_guarded_submit_attempt_ledger_untrusted")]
+    AttemptLedgerUntrusted,
+    #[serde(rename = "v200_guarded_submit_attempt_ledger_lineage_mismatch")]
+    AttemptLedgerLineageMismatch,
+    #[serde(rename = "v200_guarded_submit_attempt_ledger_provenance_mismatch")]
+    AttemptLedgerProvenanceMismatch,
+    #[serde(rename = "v200_guarded_submit_approval_already_consumed")]
+    ApprovalAlreadyConsumed,
     #[serde(rename = "v200_guarded_submit_manual_gate_missing")]
     ManualGateMissing,
     #[serde(rename = "v200_guarded_submit_duplicate_rejected")]
@@ -107,10 +117,45 @@ impl GuardedSubmitCandidateCode {
             Self::MissingReleaseProvenance => "v200_guarded_submit_missing_release_provenance",
             Self::RequestDigestMissing => "v200_guarded_submit_request_digest_missing",
             Self::RequestDigestMismatch => "v200_guarded_submit_request_digest_mismatch",
+            Self::AttemptLedgerMissing => "v200_guarded_submit_attempt_ledger_missing",
+            Self::AttemptLedgerUntrusted => "v200_guarded_submit_attempt_ledger_untrusted",
+            Self::AttemptLedgerLineageMismatch => {
+                "v200_guarded_submit_attempt_ledger_lineage_mismatch"
+            }
+            Self::AttemptLedgerProvenanceMismatch => {
+                "v200_guarded_submit_attempt_ledger_provenance_mismatch"
+            }
+            Self::ApprovalAlreadyConsumed => "v200_guarded_submit_approval_already_consumed",
             Self::ManualGateMissing => "v200_guarded_submit_manual_gate_missing",
             Self::DuplicateSubmitRejected => "v200_guarded_submit_duplicate_rejected",
         }
     }
+}
+
+/// One durable submit attempt ledger entry read before candidate evaluation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SubmitAttemptLedgerEntry {
+    pub attempt_id: String,
+    pub lifecycle_id: String,
+    pub request_digest: String,
+    pub approval_id: String,
+    pub approval_consumed: bool,
+    pub consumed_at_unix_ns: Option<u64>,
+}
+
+/// Durable submit attempt ledger read model used for single-shot dedupe.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SubmitAttemptLedgerSnapshot {
+    pub schema_version: String,
+    pub ledger_key: String,
+    pub lifecycle_id: String,
+    pub release_tag: String,
+    pub release_gate: String,
+    pub trusted: bool,
+    pub stale: bool,
+    pub entries: Vec<SubmitAttemptLedgerEntry>,
 }
 
 /// Request to evaluate one guarded single-shot submit candidate.
@@ -123,7 +168,7 @@ pub struct GuardedSubmitCandidateRequest {
     pub mode: GuardedSubmitMode,
     pub manual_online_gate: bool,
     pub expected_request_digest: Option<String>,
-    pub prior_attempt_digests: BTreeSet<String>,
+    pub attempt_ledger: Option<SubmitAttemptLedgerSnapshot>,
 }
 
 /// Auditable evidence for one guarded single-shot submit candidate decision.
@@ -152,6 +197,11 @@ pub struct GuardedSubmitCandidateEvidence {
     pub approval_consumed_at_unix_ns: Option<u64>,
     pub owner_approval_consumed: bool,
     pub previous_attempt_count: usize,
+    pub attempt_ledger_required: bool,
+    pub attempt_ledger_trusted: bool,
+    pub attempt_ledger_key: Option<String>,
+    pub atomic_approval_consumption_required: bool,
+    pub atomic_approval_consumption_recorded: bool,
     pub submit_attempt_evidence_ready: bool,
     pub preview_evidence_ready: bool,
     pub dry_run_evidence_ready: bool,
@@ -212,7 +262,21 @@ impl GuardedSubmitCandidateEvidence {
             owner_approval_state_after_attempt: approval.state,
             approval_consumed_at_unix_ns: approval.consumed_at_unix_ns,
             owner_approval_consumed: approval.consumed,
-            previous_attempt_count: request.prior_attempt_digests.len(),
+            previous_attempt_count: request
+                .attempt_ledger
+                .as_ref()
+                .map_or(0, |ledger| ledger.entries.len()),
+            attempt_ledger_required: true,
+            attempt_ledger_trusted: request
+                .attempt_ledger
+                .as_ref()
+                .is_some_and(|ledger| ledger.trusted && !ledger.stale),
+            attempt_ledger_key: request
+                .attempt_ledger
+                .as_ref()
+                .map(|ledger| ledger.ledger_key.clone()),
+            atomic_approval_consumption_required: true,
+            atomic_approval_consumption_recorded: false,
             submit_attempt_evidence_ready: false,
             preview_evidence_ready: false,
             dry_run_evidence_ready: false,
@@ -269,6 +333,7 @@ impl GuardedSubmitCandidateEvidence {
                 self.production_submit_attempted = true;
                 self.adapter_submit_handoff_allowed = true;
                 self.readback_required = true;
+                self.atomic_approval_consumption_recorded = true;
             }
         }
 
@@ -413,15 +478,64 @@ pub fn evaluate_guarded_single_shot_submit_candidate(
             "expected request digest does not match built request evidence",
         );
     }
-    if request.mode == GuardedSubmitMode::Submit
-        && request
-            .prior_attempt_digests
-            .contains(actual_request_digest)
+
+    let Some(ledger) = request.attempt_ledger.as_ref() else {
+        return evidence.with_request_digest(actual_request_digest).finish(
+            GuardedSubmitCandidateState::Blocked,
+            GuardedSubmitCandidateCode::AttemptLedgerMissing,
+            "durable submit attempt ledger is required",
+        );
+    };
+    if ledger.schema_version != V20_SUBMIT_ATTEMPT_LEDGER_SCHEMA_VERSION
+        || is_blank(&ledger.ledger_key)
+        || !ledger.trusted
+        || ledger.stale
     {
         return evidence.with_request_digest(actual_request_digest).finish(
             GuardedSubmitCandidateState::Blocked,
+            GuardedSubmitCandidateCode::AttemptLedgerUntrusted,
+            "durable submit attempt ledger must be current and trusted",
+        );
+    }
+    if ledger.lifecycle_id != request.lifecycle_id
+        || ledger
+            .entries
+            .iter()
+            .any(|entry| entry.lifecycle_id != request.lifecycle_id)
+    {
+        return evidence.with_request_digest(actual_request_digest).finish(
+            GuardedSubmitCandidateState::Blocked,
+            GuardedSubmitCandidateCode::AttemptLedgerLineageMismatch,
+            "submit attempt ledger lineage does not match candidate lifecycle",
+        );
+    }
+    if ledger.release_tag != V20_REQUIRED_RELEASE_TAG
+        || ledger.release_gate != V20_REQUIRED_RELEASE_GATE
+    {
+        return evidence.with_request_digest(actual_request_digest).finish(
+            GuardedSubmitCandidateState::Blocked,
+            GuardedSubmitCandidateCode::AttemptLedgerProvenanceMismatch,
+            "submit attempt ledger runtime provenance does not match v20 provenance",
+        );
+    }
+    if ledger.entries.iter().any(|entry| {
+        entry.request_digest == actual_request_digest || entry.attempt_id == request.attempt_id
+    }) {
+        return evidence.with_request_digest(actual_request_digest).finish(
+            GuardedSubmitCandidateState::Blocked,
             GuardedSubmitCandidateCode::DuplicateSubmitRejected,
-            "single-shot request digest was already submitted",
+            "single-shot request digest or attempt id was already submitted",
+        );
+    }
+    if ledger
+        .entries
+        .iter()
+        .any(|entry| entry.approval_id == approval.approval_id && entry.approval_consumed)
+    {
+        return evidence.with_request_digest(actual_request_digest).finish(
+            GuardedSubmitCandidateState::Blocked,
+            GuardedSubmitCandidateCode::ApprovalAlreadyConsumed,
+            "owner approval was already consumed by the durable submit attempt ledger",
         );
     }
 
