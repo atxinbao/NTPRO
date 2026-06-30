@@ -2,6 +2,10 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
+- `product_live_trading_roadmap.md` - planning baseline for the path from
+  v0.20 production order lifecycle evidence through v0.21 unified read model
+  and toward v0.22-v0.26+ product-grade live trading readiness. It is the
+  current roadmap guardrail for future milestone planning.
 - `BACKTEST_LIVE_GATE_EVIDENCE.md` - RBTL-010 backtest/live gate evidence and
   remaining blockers.
 - `binary_install_path.md` - NBIN-001 source-build, local `cargo install`,
