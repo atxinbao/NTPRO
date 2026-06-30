@@ -122,6 +122,8 @@ jobs:
             command: scripts/ai/verify_release.sh v20-release-gates
           - stage: release-v20-strict-provenance
             command: scripts/ai/verify_release.sh v20-strict-provenance
+          - stage: release-v201-patch-release-gates
+            command: scripts/ai/verify_release.sh v20.1-release-gates
           - stage: release-surface-current-guard
             command: scripts/ai/verify_release.sh release-surface-current-guard
           - stage: release-publication-guard

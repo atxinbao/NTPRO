@@ -4,22 +4,23 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.20.0`, the Owner-Approved Production Order Lifecycle Foundation release.
-The next patch track is `v0.20.1`. The next capability track is `v0.21.0`,
-which remains deferred until a separate scoped plan is approved.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.20.1`, the Production Order Lifecycle Release Closeout & Provenance Hardening Patch release.
+The next patch track is `v0.20.2`. The next capability track is `v0.21.0`,
+which starts from its own scoped issue order.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.20.0
+ntpro-rust-only-v0.20.1
 ```
 
 Current capability boundary:
 
 ```text
-Owner-Approved Production Order Lifecycle Foundation
+Production Order Lifecycle Release Closeout & Provenance Hardening Patch
+v0.20.0 owner-approved production order lifecycle foundation baseline
 v0.19.1 release surface and provenance hardening baseline
 owner approval required
 pre-submit risk gate required
@@ -45,12 +46,12 @@ no Dashboard order controls
 no Dashboard approval/cancel/retry controls
 ```
 
-`v0.20.0` builds on the v0.19.1 release-surface and provenance baseline. It
-does not create a general production trading terminal and does not enable
-automatic execution. It adds only the owner-approved production order lifecycle
-foundation plus risk gate, env-only signing material readiness, single submit
-attempt evidence, response redaction, readback, failure/no-retry evidence,
-golden traces, strict provenance, and Dashboard read-only audit evidence.
+`v0.20.1` hardens the v0.20.0 owner-approved production order lifecycle
+foundation with release closeout evidence, provenance hardening, durable attempt
+ledger proof, notional consistency, adapter/source provenance labeling,
+Dashboard foundation-boundary diagnostics, and patch release gates. It does not
+create a general production trading terminal and does not enable automatic
+execution.
 
 ## Published Hardening Patch: v0.7.1
 
@@ -491,30 +492,27 @@ incident classification.
 - real-funds proof in CI;
 - general production trading platform claim.
 
-## Published Capability Track: v0.20.0
+## Published Capability Track: v0.20.1
 
-`v0.20.0` is the published Owner-Approved Production Order Lifecycle
-Foundation line. It preserves the v0.19 actual-cancel release/provenance
-hardening boundary while adding the minimum owner-approved submit/readback/audit
-foundation with explicit no-retry and read-only Dashboard evidence.
+`v0.20.1` is the published Production Order Lifecycle Release Closeout &
+Provenance Hardening Patch. It preserves the v0.20.0 owner-approved foundation
+boundary while closing V201 release evidence before v0.21.0 read-model work
+starts.
 
-`v0.20.0` includes:
+`v0.20.1` includes:
 
-- owner-approved production order lifecycle foundation;
-- pre-submit risk gate evidence;
-- signing-material env-only readiness evidence;
-- one guarded submit candidate and one submit attempt;
-- production submit response redaction;
-- post-submit readback reconciliation;
-- failure and no-retry evidence;
-- read-only Dashboard production order lifecycle audit;
-- production order lifecycle golden traces;
-- v0.20 aggregate release gates and strict provenance;
-- released readiness report and release notes.
+- v0.20.0 release closeout and publication evidence backfill;
+- V20 provenance hardening across tests, fixtures, and golden traces;
+- durable single-shot attempt ledger and atomic approval consumption;
+- pre-submit notional consistency hardening;
+- adapter source and readback provenance labeling;
+- Dashboard diagnostics hardening for foundation boundaries;
+- v0.20.1 release gates and dependency proof.
 
-`v0.20.0` explicitly does not include:
+`v0.20.1` explicitly does not include:
 
 - product-grade live trading terminal;
+- new production submit capability;
 - implicit retry;
 - automatic cancel;
 - automatic remediation;
@@ -531,9 +529,9 @@ foundation with explicit no-retry and read-only Dashboard evidence.
 - real-funds proof in CI;
 - general production trading platform claim.
 
-`v0.20.1` is the Production Order Lifecycle Release Closeout & Provenance
-Hardening patch for this foundation-only line. `v0.21.0` is the deferred next
-capability track.
+`v0.20.0` remains the base Owner-Approved Production Order Lifecycle Foundation
+release for this hardening patch. `v0.21.0` is the next capability track and
+must not inherit submit expansion from v0.20.1.
 
 ## Published Capability Track: v0.19.0
 

@@ -1,0 +1,78 @@
+{
+  "schema_version": "ntpro.v201_patch_release_manifest.v1",
+  "task_id": "V201-007",
+  "product_version": "v0.20.1",
+  "release_status": "published",
+  "patch_scope": "hardening_patch_only",
+  "base_release": {
+    "tag": "ntpro-rust-only-v0.20.0",
+    "name": "NTPRO Rust-only v0.20.0",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.20.0",
+    "published_at": "2026-06-29T20:03:15Z"
+  },
+  "planned_release": {
+    "tag": "ntpro-rust-only-v0.20.1",
+    "name": "NTPRO Rust-only v0.20.1",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.20.1",
+    "target_commitish": "main",
+    "draft": false,
+    "prerelease": false
+  },
+  "release_inputs": {
+    "release_notes_path": "docs/rust-cutover/release/v0_20_1_release_notes.md",
+    "readiness_report_path": "docs/rust-cutover/release/v0_20_1_readiness_report.md",
+    "release_manifest_path": "docs/rust-cutover/release/v0_20_1_release_manifest.json",
+    "base_release_manifest_path": "docs/rust-cutover/release/v0_20_0_release_manifest.json",
+    "golden_trace_manifest_path": "docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json"
+  },
+  "v201_evidence": [
+    {"task_id": "V201-001", "issue": 644, "path": "docs/rust-cutover/evidence/V201-001.md"},
+    {"task_id": "V201-002", "issue": 645, "path": "docs/rust-cutover/evidence/V201-002.md"},
+    {"task_id": "V201-003", "issue": 650, "path": "docs/rust-cutover/evidence/V201-003.md"},
+    {"task_id": "V201-004", "issue": 646, "path": "docs/rust-cutover/evidence/V201-004.md"},
+    {"task_id": "V201-005", "issue": 647, "path": "docs/rust-cutover/evidence/V201-005.md"},
+    {"task_id": "V201-006", "issue": 648, "path": "docs/rust-cutover/evidence/V201-006.md"},
+    {"task_id": "V201-007", "issue": 649, "path": "docs/rust-cutover/evidence/V201-007.md"}
+  ],
+  "release_gates": [
+    {"name": "v20-release-gates", "command": "scripts/ai/verify_release.sh v20-release-gates", "required": true},
+    {"name": "v20-strict-provenance", "command": "scripts/ai/verify_release.sh v20-strict-provenance", "required": true},
+    {"name": "v20.1-release-gates", "command": "scripts/ai/verify_release.sh v20.1-release-gates", "required": true},
+    {"name": "v20.1-patch-release-gates", "command": "scripts/ai/verify_v20_patch_release_gates.sh", "required": true},
+    {"name": "release-surface-current-guard", "command": "scripts/ai/verify_release.sh release-surface-current-guard", "required": true},
+    {"name": "release-publication-guard", "command": "scripts/ai/verify_release.sh release-publication-guard", "required": true}
+  ],
+  "source_tree_manifest": {
+    "release_tag": "ntpro-rust-only-v0.20.1",
+    "source_tree_resolved_by": "git rev-parse ntpro-rust-only-v0.20.1^{tree}",
+    "release_body_path": "docs/rust-cutover/release/v0_20_1_release_notes.md",
+    "manifest_path": "docs/rust-cutover/release/v0_20_1_release_manifest.json"
+  },
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "implicit_retry_allowed": false,
+    "automatic_cancel_allowed": false,
+    "automatic_remediation_allowed": false,
+    "bulk_order_allowed": false,
+    "retry_replace_amend_flatten_allowed": false,
+    "strategy_driven_production_execution_allowed": false,
+    "multi_account_execution_allowed": false,
+    "multi_venue_execution_allowed": false,
+    "dashboard_order_controls_enabled": false,
+    "dashboard_approval_controls_enabled": false,
+    "dashboard_cancel_controls_enabled": false,
+    "dashboard_retry_controls_enabled": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "v21_dependency": {
+    "milestone": "v0.21.0",
+    "issues": [651, 652, 653, 654, 655, 656, 657, 658, 659],
+    "blocked_by_milestone": "v0.20.1",
+    "blocked_by_issues": [644, 645, 646, 647, 648, 649, 650],
+    "dependency_sources": [
+      "GitHub milestone description",
+      "V210 issue bodies",
+      "V210 issue comments"
+    ]
+  }
+}

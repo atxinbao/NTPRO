@@ -558,6 +558,21 @@ Final release checks, benchmark summaries, and audit reports live here.
   evidence. It records the v20 gate wiring, publication guard scope, GitHub
   issue state, local validation commands, and rollback plan for the formal
   `ntpro-rust-only-v0.20.0` GitHub Release.
+- `v0_20_1_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.20.1` GitHub Release. It states that v0.20.1 is a
+  hardening patch only and does not expand production submit capability.
+- `v0_20_1_readiness_report.md` - released readiness report for the formal
+  `ntpro-rust-only-v0.20.1` GitHub Release. It records the V201 evidence chain,
+  v0.20.1 gate, publication guard, current-surface guard, and v0.21.0
+  dependency proof.
+- `v0_20_1_release_manifest.json` - machine-readable v0.20.1 patch release
+  manifest for the V201 gate. It fixes the V201 evidence set, base v0.20.0
+  release dependency, planned patch tag, boundary flags, release body path, and
+  v0.21.0 dependency sources.
+- `../evidence/V201-007.md` - V201-007 release gate and dependency proof
+  evidence. It records v0.20.1 release gate wiring, publication guard scope,
+  GitHub milestone dependency proof, local validation commands, and rollback
+  plan for the `ntpro-rust-only-v0.20.1` GitHub Release.
 - `v0_13_0_no_production_mutation_gate.md` - V130-007 release/PR gate wiring
   for the v0.13 Guarded Live Alpha Preflight line. It aggregates v13 preflight
   evidence and preserves default offline, no-production-mutation, no-listenKey,
