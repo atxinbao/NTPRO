@@ -527,6 +527,46 @@
       "release_decision": "schema_only_scope_recorded"
     },
     {
+      "case_id": "read_model.account_snapshot.fresh.001",
+      "trace": "tests/golden/read_model_account_snapshot_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-002",
+      "reason": "Account snapshot component row proves fresh redacted summary data source provenance lineage freshness and read-only boundaries before executable projection promotion.",
+      "follow_up": "V210-006 through V210-008 must connect account snapshot risk projection dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.account_snapshot.stale.001",
+      "trace": "tests/golden/read_model_account_snapshot_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-002",
+      "reason": "Account snapshot component row proves stale account freshness fails closed while keeping risk state visible.",
+      "follow_up": "V210-006 through V210-008 must connect account snapshot risk projection dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.account_snapshot.missing_provenance.001",
+      "trace": "tests/golden/read_model_account_snapshot_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-002",
+      "reason": "Account snapshot component row proves missing account source provenance prevents healthy status and fails closed.",
+      "follow_up": "V210-006 through V210-008 must connect account snapshot risk projection dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.account_snapshot.redaction_breach.001",
+      "trace": "tests/golden/read_model_account_snapshot_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-002",
+      "reason": "Account snapshot component row proves sensitive or raw account material forces fail-closed redaction status.",
+      "follow_up": "V210-006 through V210-008 must connect account snapshot risk projection dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",
