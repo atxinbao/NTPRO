@@ -567,6 +567,66 @@
       "release_decision": "schema_only_scope_recorded"
     },
     {
+      "case_id": "read_model.position.long.001",
+      "trace": "tests/golden/read_model_position_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-003",
+      "reason": "Position component row proves fresh long position state can feed risk projection without operation controls.",
+      "follow_up": "V210-006 through V210-008 must connect position risk projection dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.position.short.001",
+      "trace": "tests/golden/read_model_position_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-003",
+      "reason": "Position component row proves fresh short position state can feed risk projection without operation controls.",
+      "follow_up": "V210-006 through V210-008 must connect position risk projection dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.position.flat.001",
+      "trace": "tests/golden/read_model_position_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-003",
+      "reason": "Position component row proves flat position state has zero quantity and remains read-only.",
+      "follow_up": "V210-006 through V210-008 must connect position risk projection dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.position.precision_mismatch.001",
+      "trace": "tests/golden/read_model_position_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-003",
+      "reason": "Position component row proves quantity precision mismatches fail closed.",
+      "follow_up": "V210-006 through V210-008 must connect position risk projection dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.position.stale_source.001",
+      "trace": "tests/golden/read_model_position_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-003",
+      "reason": "Position component row proves stale position source freshness fails closed.",
+      "follow_up": "V210-006 through V210-008 must connect position risk projection dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.position.account_mismatch.001",
+      "trace": "tests/golden/read_model_position_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-003",
+      "reason": "Position component row proves account and position lineage mismatches fail closed.",
+      "follow_up": "V210-006 through V210-008 must connect position risk projection dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",
