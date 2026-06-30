@@ -1,3 +1,31 @@
+# V210-004 Verification
+
+Date: 2026-06-30
+Executor: Codex
+Task: `V210-004` / GitHub issue `#655`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v21_order_lifecycle_read_model.sh scripts/ai/verify_release.sh = PASS
+jq empty docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json = PASS
+scripts/ai/golden_trace_runner.py tests/golden/read_model_order_lifecycle_schema.jsonl --mode validate-only = PASS, 5 rows
+scripts/ai/verify_release.sh v21-order-lifecycle-read-model = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, 68 cases, 50 executable replay, 18 schema-only scoped
+RUN_RUST_MARKET_DATA_TRACE_REPLAY=0 RUN_RUST_CACHE_MSGBUS_TRACE_REPLAY=0 RUN_RUST_BACKTEST_TRACE_REPLAY=0 RUN_RUST_BACKTEST_LIVE_PARITY_TRACE_REPLAY=0 RUN_RUST_LIVE_SANDBOX_TRACE_REPLAY=0 RUN_RUST_ORDER_LIFECYCLE_TRACE_REPLAY=0 RUN_RUST_RISK_REJECTION_TRACE_REPLAY=0 RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY=0 RUN_RUST_LIVE_ALPHA_RECONCILIATION_TRACE_REPLAY=0 RUN_RUST_LIVE_ALPHA_MUTATION_DRY_RUN_TRACE_REPLAY=0 RUN_RUST_ACTUAL_CANCEL_TRACE_REPLAY=0 RUN_RUST_PRODUCTION_ORDER_LIFECYCLE_TRACE_REPLAY=0 scripts/ai/run_golden_traces.sh = PASS, all JSONL schema validation plus Rust golden trace schema contract
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+V210-004 establishes the order lifecycle read-model component under the v0.21
+unified read model. The schema-only golden trace covers matched lifecycle,
+unknown response, readback mismatch, duplicate attempt, and missing ledger.
+The verifier confirms that order lifecycle state is read-only, redacted by
+reference, and does not enable retry, automatic remediation, automatic cancel,
+new submit, mutation, or Dashboard operation controls.
+
 # V210-003 Verification
 
 Date: 2026-06-30

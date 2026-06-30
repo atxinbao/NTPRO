@@ -27,6 +27,7 @@ schema smoke = tests/golden/read_model_contract_schema.jsonl
 validator = scripts/ai/verify_v21_read_model_contract.sh
 account component = docs/rust-cutover/release/v0_21_0_account_snapshot_read_model.md
 position component = docs/rust-cutover/release/v0_21_0_position_read_model.md
+order lifecycle component = docs/rust-cutover/release/v0_21_0_order_lifecycle_read_model.md
 ```
 
 ## Snapshot Identity
