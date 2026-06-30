@@ -39,6 +39,9 @@ fn allows_valid_owner_approved_production_limit_order() {
     assert_eq!(evidence.contract_id, V20_ORDER_LIFECYCLE_CONTRACT_ID);
     assert!(evidence.owner_approval_valid);
     assert!(evidence.release_provenance_valid);
+    assert_eq!(evidence.computed_notional, Some(dec!(5000)));
+    assert!(evidence.notional_consistency_required);
+    assert!(evidence.notional_consistent);
     assert!(evidence.production_order_submission_allowed);
     assert!(evidence.submit_builder_entry_allowed);
     assert!(!evidence.retry_attempted);
@@ -79,6 +82,8 @@ fn denies_missing_required_field_with_stable_code() {
 #[test]
 fn denies_notional_limit_exceeded() {
     let mut request = valid_request();
+    request.quantity = Some(dec!(0.10001));
+    request.price = Some(dec!(100000));
     request.notional = Some(dec!(10001));
 
     let evidence = evaluate_pre_submit_risk_gate(&request, &policy(), NOW_NS);
@@ -89,6 +94,54 @@ fn denies_notional_limit_exceeded() {
         evidence.code.as_str(),
         "v200_pre_submit_notional_limit_exceeded"
     );
+    assert_eq!(evidence.computed_notional, Some(dec!(10001)));
+    assert!(evidence.notional_consistent);
+}
+
+#[test]
+fn denies_underreported_notional_before_max_notional_bypass() {
+    let mut request = valid_request();
+    request.quantity = Some(dec!(0.11));
+    request.price = Some(dec!(100000));
+    request.notional = Some(dec!(9000));
+
+    let evidence = evaluate_pre_submit_risk_gate(&request, &policy(), NOW_NS);
+
+    assert_eq!(evidence.decision, PreSubmitRiskDecisionKind::Deny);
+    assert_eq!(evidence.code, PreSubmitRiskCode::NotionalMismatch);
+    assert_eq!(evidence.code.as_str(), "v200_pre_submit_notional_mismatch");
+    assert_eq!(evidence.computed_notional, Some(dec!(11000)));
+    assert!(!evidence.notional_consistent);
+    assert!(!evidence.production_order_submission_allowed);
+    assert!(!evidence.submit_builder_entry_allowed);
+}
+
+#[test]
+fn denies_overreported_notional_mismatch() {
+    let mut request = valid_request();
+    request.notional = Some(dec!(5000.01));
+
+    let evidence = evaluate_pre_submit_risk_gate(&request, &policy(), NOW_NS);
+
+    assert_eq!(evidence.decision, PreSubmitRiskDecisionKind::Deny);
+    assert_eq!(evidence.code, PreSubmitRiskCode::NotionalMismatch);
+    assert_eq!(evidence.computed_notional, Some(dec!(5000)));
+    assert!(!evidence.notional_consistent);
+}
+
+#[test]
+fn allows_exact_boundary_precision_notional() {
+    let mut request = valid_request();
+    request.quantity = Some(dec!(0.00000003));
+    request.price = Some(dec!(33333.33));
+    request.notional = Some(dec!(0.0009999999));
+
+    let evidence = evaluate_pre_submit_risk_gate(&request, &policy(), NOW_NS);
+
+    assert_eq!(evidence.decision, PreSubmitRiskDecisionKind::Allow);
+    assert_eq!(evidence.code, PreSubmitRiskCode::Allowed);
+    assert_eq!(evidence.computed_notional, Some(dec!(0.0009999999)));
+    assert!(evidence.notional_consistent);
 }
 
 #[test]

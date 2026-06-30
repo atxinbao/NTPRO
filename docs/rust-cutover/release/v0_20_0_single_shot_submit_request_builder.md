@@ -39,6 +39,9 @@ V200-003 submit_consumption_allowed = true
 V200-004 signing material decision = ready
 V200-004 submit_builder_credential_ready = true
 candidate fields match risk and approval evidence
+risk evidence records notional_consistency_required = true
+risk evidence records notional_consistent = true
+candidate notional = exact quantity * price = risk computed_notional
 ```
 
 ## Supported Request Shape
@@ -53,6 +56,7 @@ time_in_force = gtc
 quantity > 0
 price > 0
 notional > 0
+notional = exact quantity * price
 ```
 
 ## Evidence Flags
@@ -76,6 +80,7 @@ v200_submit_request_missing_risk_allow
 v200_submit_request_missing_owner_approval
 v200_submit_request_missing_signing_readiness
 v200_submit_request_candidate_mismatch
+v200_submit_request_notional_mismatch
 v200_submit_request_unsupported_order_shape
 ```
 
@@ -91,6 +96,8 @@ missing risk allow rejection
 missing owner approval rejection
 missing signing readiness rejection
 candidate/evidence mismatch rejection
+candidate notional mismatch rejection
+allow evidence missing notional consistency rejection
 unsupported order shape rejection
 ```
 

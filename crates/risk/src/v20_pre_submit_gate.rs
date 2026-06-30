@@ -82,6 +82,8 @@ pub enum PreSubmitRiskCode {
     NotionalMissing,
     #[serde(rename = "v200_pre_submit_notional_not_positive")]
     NotionalNotPositive,
+    #[serde(rename = "v200_pre_submit_notional_mismatch")]
+    NotionalMismatch,
     #[serde(rename = "v200_pre_submit_notional_limit_exceeded")]
     NotionalLimitExceeded,
     #[serde(rename = "v200_pre_submit_order_type_missing")]
@@ -148,6 +150,7 @@ impl PreSubmitRiskCode {
             Self::PriceLimitExceeded => "v200_pre_submit_price_limit_exceeded",
             Self::NotionalMissing => "v200_pre_submit_notional_missing",
             Self::NotionalNotPositive => "v200_pre_submit_notional_not_positive",
+            Self::NotionalMismatch => "v200_pre_submit_notional_mismatch",
             Self::NotionalLimitExceeded => "v200_pre_submit_notional_limit_exceeded",
             Self::OrderTypeMissing => "v200_pre_submit_order_type_missing",
             Self::OrderTypeUnsupported => "v200_pre_submit_order_type_unsupported",
@@ -253,6 +256,7 @@ pub struct PreSubmitRiskGateEvidence {
     pub quantity: Option<Decimal>,
     pub price: Option<Decimal>,
     pub notional: Option<Decimal>,
+    pub computed_notional: Option<Decimal>,
     pub order_type: Option<String>,
     pub time_in_force: Option<String>,
     pub environment: Option<String>,
@@ -267,6 +271,8 @@ pub struct PreSubmitRiskGateEvidence {
     pub release_provenance_required: bool,
     pub release_provenance_valid: bool,
     pub pre_submit_risk_gate_required: bool,
+    pub notional_consistency_required: bool,
+    pub notional_consistent: bool,
     pub single_order_required: bool,
     pub single_venue_required: bool,
     pub single_account_required: bool,
@@ -297,6 +303,10 @@ impl PreSubmitRiskGateEvidence {
             quantity: request.quantity,
             price: request.price,
             notional: request.notional,
+            computed_notional: request
+                .quantity
+                .zip(request.price)
+                .and_then(|(quantity, price)| compute_exact_notional(quantity, price)),
             order_type: request.order_type.clone(),
             time_in_force: request.time_in_force.clone(),
             environment: request.environment.clone(),
@@ -323,6 +333,8 @@ impl PreSubmitRiskGateEvidence {
             release_provenance_required: true,
             release_provenance_valid: false,
             pre_submit_risk_gate_required: true,
+            notional_consistency_required: true,
+            notional_consistent: false,
             single_order_required: true,
             single_venue_required: true,
             single_account_required: true,
@@ -513,11 +525,32 @@ pub fn evaluate_pre_submit_risk_gate(
             "notional must be positive",
         );
     }
-    if notional > policy.max_notional {
+    let Some(computed_notional) = compute_exact_notional(quantity, price) else {
+        return evidence.finish(
+            PreSubmitRiskDecisionKind::Deny,
+            PreSubmitRiskCode::NotionalMismatch,
+            "quantity * price cannot be represented as an exact Decimal notional",
+        );
+    };
+    if computed_notional != notional {
+        return evidence.finish(
+            PreSubmitRiskDecisionKind::Deny,
+            PreSubmitRiskCode::NotionalMismatch,
+            format!(
+                "request notional {notional} does not match exact quantity * price {computed_notional}"
+            ),
+        );
+    }
+    let mut evidence = evidence;
+    evidence.notional_consistent = true;
+    if computed_notional > policy.max_notional {
         return evidence.finish(
             PreSubmitRiskDecisionKind::Deny,
             PreSubmitRiskCode::NotionalLimitExceeded,
-            format!("notional {notional} exceeds max {}", policy.max_notional),
+            format!(
+                "computed notional {computed_notional} exceeds max {}",
+                policy.max_notional
+            ),
         );
     }
 
@@ -686,4 +719,10 @@ fn present(value: &Option<String>) -> Option<&str> {
 
 fn contains(values: &BTreeSet<String>, value: &str) -> bool {
     values.iter().any(|item| item == value)
+}
+
+/// Computes the exact LIMIT/GTC notional used by V20 submit gates.
+#[must_use]
+pub fn compute_exact_notional(quantity: Decimal, price: Decimal) -> Option<Decimal> {
+    quantity.checked_mul(price)
 }

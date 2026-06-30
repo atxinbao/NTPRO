@@ -22,7 +22,7 @@ use crate::{
     v20_owner_approval::{OwnerApprovalEvidence, OwnerApprovalState},
     v20_pre_submit_gate::{
         PreSubmitRiskDecisionKind, PreSubmitRiskGateEvidence, V20_ORDER_LIFECYCLE_CONTRACT_ID,
-        V20_REQUIRED_RELEASE_GATE, V20_REQUIRED_RELEASE_TAG,
+        V20_REQUIRED_RELEASE_GATE, V20_REQUIRED_RELEASE_TAG, compute_exact_notional,
     },
     v20_signing_material_gate::{SigningMaterialDecision, SigningMaterialGateEvidence},
 };
@@ -57,6 +57,8 @@ pub enum SubmitRequestBuildCode {
     MissingSigningReadiness,
     #[serde(rename = "v200_submit_request_candidate_mismatch")]
     CandidateMismatch,
+    #[serde(rename = "v200_submit_request_notional_mismatch")]
+    NotionalMismatch,
     #[serde(rename = "v200_submit_request_unsupported_order_shape")]
     UnsupportedOrderShape,
 }
@@ -71,6 +73,7 @@ impl SubmitRequestBuildCode {
             Self::MissingOwnerApproval => "v200_submit_request_missing_owner_approval",
             Self::MissingSigningReadiness => "v200_submit_request_missing_signing_readiness",
             Self::CandidateMismatch => "v200_submit_request_candidate_mismatch",
+            Self::NotionalMismatch => "v200_submit_request_notional_mismatch",
             Self::UnsupportedOrderShape => "v200_submit_request_unsupported_order_shape",
         }
     }
@@ -238,6 +241,16 @@ pub fn build_single_shot_submit_request(
             "candidate does not match prerequisite evidence",
         );
     }
+    if !candidate_notional_matches_risk(candidate, risk) {
+        return SubmitRequestBuilderEvidence::rejected(
+            candidate,
+            risk,
+            approval,
+            signing,
+            SubmitRequestBuildCode::NotionalMismatch,
+            "candidate notional does not match exact quantity * price risk evidence",
+        );
+    }
     if candidate.order_type != "limit"
         || candidate.time_in_force != "gtc"
         || !matches!(candidate.side.as_str(), "buy" | "sell")
@@ -337,6 +350,16 @@ fn candidate_matches_risk(
         && risk.order_type.as_deref() == Some(candidate.order_type.as_str())
         && risk.time_in_force.as_deref() == Some(candidate.time_in_force.as_str())
         && risk.order_intent_hash.as_deref() == Some(candidate.order_intent_hash.as_str())
+}
+
+fn candidate_notional_matches_risk(
+    candidate: &SingleShotSubmitCandidate,
+    risk: &PreSubmitRiskGateEvidence,
+) -> bool {
+    risk.notional_consistency_required
+        && risk.notional_consistent
+        && compute_exact_notional(candidate.quantity, candidate.price) == Some(candidate.notional)
+        && risk.computed_notional == Some(candidate.notional)
 }
 
 fn is_blank(value: &str) -> bool {
