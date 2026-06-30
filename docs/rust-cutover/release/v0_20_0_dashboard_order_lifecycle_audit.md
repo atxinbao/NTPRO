@@ -56,6 +56,8 @@ missing_artifacts
 schema_diagnostics
 provenance_diagnostics
 source_diagnostics
+foundation_boundary_status
+foundation_boundary_diagnostics
 stale_artifacts
 evidence_source_class
 adapter_runtime_integrated
@@ -101,10 +103,12 @@ production_order_lifecycle_audit_boundary_violation = schema/provenance/source/s
 
 ```text
 foundation_only_manual_structured = response/readback evidence is local structured foundation evidence
+foundation_only_no_adapter_runtime = Dashboard audit is closed for local foundation evidence, but no adapter-integrated runtime readback is proven
 adapter_integrated_runtime = source labels prove adapter-integrated runtime evidence
 mixed_or_unknown_source = source labels are missing or inconsistent
 manual_structured exchange truth claim = boundary_violation
 adapter/exchange source missing provenance = boundary_violation
+adapter runtime claim mismatch = boundary_violation when manual evidence claims adapter runtime, exchange truth lacks adapter runtime, or adapter runtime flags conflict with source labels
 v0.20.1 Dashboard = read-only evidence foundation, not trader terminal readiness
 ```
 
@@ -134,6 +138,9 @@ readback mismatch is risk_visible, not successful
 unknown response is risk_visible, not successful
 manual structured source claiming exchange truth is boundary_violation
 adapter/exchange source missing provenance is boundary_violation
+foundation-only evidence is visible as foundation_only_no_adapter_runtime
+stale evidence is boundary_violation, not audit_closed
+adapter runtime claim mismatch is boundary_violation
 forbidden Dashboard/action flags degrade to boundary_violation
 missing evidence never appears healthy
 renderer contains no execution routes, action attributes, fetch calls, or buttons

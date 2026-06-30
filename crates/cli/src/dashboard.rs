@@ -1355,7 +1355,7 @@ function renderProductionOrderLifecycleAudit(items) {
         ${items.map((item) => `
           <tr>
             <td data-label="节点"><strong>${text(item.node_id)}</strong></td>
-            <td data-label="当前结论"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.audit_state))}</div><div class="muted">${displayText(snapshotValue(item.risk_visibility))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div>${panelRow("缺失证据", snapshotValue(item.missing_artifacts))}${panelRow("Schema 诊断", snapshotValue(item.schema_diagnostics))}${panelRow("Provenance 诊断", snapshotValue(item.provenance_diagnostics))}${panelRow("Source 诊断", snapshotValue(item.source_diagnostics))}${panelRow("Stale 证据", snapshotValue(item.stale_artifacts))}</td>
+            <td data-label="当前结论"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.audit_state))}</div><div class="muted">${displayText(snapshotValue(item.risk_visibility))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div>${panelRow("缺失证据", snapshotValue(item.missing_artifacts))}${panelRow("Schema 诊断", snapshotValue(item.schema_diagnostics))}${panelRow("Provenance 诊断", snapshotValue(item.provenance_diagnostics))}${panelRow("Source 诊断", snapshotValue(item.source_diagnostics))}${panelRow("Foundation boundary", snapshotValue(item.foundation_boundary_status))}${panelRow("Boundary diagnostics", snapshotValue(item.foundation_boundary_diagnostics))}${panelRow("Stale 证据", snapshotValue(item.stale_artifacts))}</td>
             <td data-label="Submit / Approval">${panelRow("Lifecycle", snapshotValue(item.lifecycle_id))}${panelRow("Attempt", snapshotValue(item.attempt_id))}${panelRow("Submit 状态", snapshotValue(item.submit_attempt_state))}${panelRow("Submit code", snapshotValue(item.submit_attempt_code))}${panelRow("Owner before", snapshotValue(item.owner_approval_state_before_attempt))}${panelRow("Owner after", snapshotValue(item.owner_approval_state_after_attempt))}${panelRow("Approval consumed", snapshotValue(item.owner_approval_consumed))}${panelRow("Submit attempted", snapshotValue(item.production_submit_attempted))}${panelRow("Readback required", snapshotValue(item.readback_required))}</td>
             <td data-label="Response / Readback">${panelRow("Source class", snapshotValue(item.evidence_source_class))}${panelRow("Adapter runtime", snapshotValue(item.adapter_runtime_integrated))}${panelRow("Foundation only", snapshotValue(item.foundation_only))}${panelRow("Exchange truth", snapshotValue(item.exchange_truth_claimed))}${panelRow("Response 状态", snapshotValue(item.response_state))}${panelRow("Response code", snapshotValue(item.response_code))}${panelRow("Venue status", snapshotValue(item.venue_status))}${panelRow("Order id", snapshotValue(item.venue_order_id))}${panelRow("Client order id", snapshotValue(item.client_order_id))}${panelRow("Readback 状态", snapshotValue(item.readback_state))}${panelRow("Readback code", snapshotValue(item.readback_code))}${panelRow("Mismatch fields", snapshotValue(item.mismatch_fields))}${panelRow("Readback consistent", snapshotValue(item.readback_consistent))}${panelRow("Readback missing", snapshotValue(item.readback_missing))}${panelRow("Readback failed", snapshotValue(item.readback_failed))}</td>
             <td data-label="Failure / Audit">${panelRow("Failure category", snapshotValue(item.failure_category))}${panelRow("Failure code", snapshotValue(item.failure_code))}${panelRow("Next action", snapshotValue(item.next_allowed_action))}${panelRow("No implicit retry", snapshotValue(item.no_implicit_retry))}${panelRow("Unknown visible", snapshotValue(item.unknown_state_visible))}${panelRow("Audit status", snapshotValue(item.audit_closeout_status))}${panelRow("Audit closed", snapshotValue(item.audit_closed))}${panelRow("Dashboard audit", snapshotValue(item.dashboard_audit_consumable))}${panelRow("Release gate", snapshotValue(item.release_gate_consumable))}</td>
@@ -3418,6 +3418,8 @@ pub struct ProductionOrderLifecycleAuditStatus {
     pub provenance_diagnostics: DashboardValue<String>,
     pub stale_artifacts: DashboardValue<String>,
     pub source_diagnostics: DashboardValue<String>,
+    pub foundation_boundary_status: DashboardValue<String>,
+    pub foundation_boundary_diagnostics: DashboardValue<String>,
     pub evidence_source_class: DashboardValue<String>,
     pub adapter_runtime_integrated: DashboardValue<bool>,
     pub foundation_only: DashboardValue<bool>,
@@ -7920,6 +7922,17 @@ fn production_order_lifecycle_audit_from_record(
         &readback_reconciliation,
         adapter_runtime_integrated.value == Some(true),
     ));
+    let foundation_boundary_status =
+        DashboardValue::available(v20_order_lifecycle_foundation_boundary_status(
+            &source_diagnostics,
+            foundation_only.value,
+            adapter_runtime_integrated.value,
+            exchange_truth_claimed.value,
+        ));
+    let foundation_boundary_diagnostics = v20_order_lifecycle_foundation_boundary_diagnostics(
+        foundation_boundary_status.value.as_deref(),
+        evidence_source_class.value.as_deref(),
+    );
     let failure_category = failure_no_retry
         .as_ref()
         .map_or_else(DashboardValue::unknown, |value| {
@@ -7968,6 +7981,7 @@ fn production_order_lifecycle_audit_from_record(
     let boundary_violation = !schema_ok
         || !provenance_ok
         || !source_diagnostics.is_empty()
+        || !foundation_boundary_diagnostics.is_empty()
         || !stale_artifacts.is_empty()
         || dashboard_order_controls_enabled.value == Some(true)
         || dashboard_approval_controls_enabled.value == Some(true)
@@ -8043,6 +8057,7 @@ fn production_order_lifecycle_audit_from_record(
                 schema_diagnostics: &schema_diagnostics,
                 provenance_diagnostics: &provenance_diagnostics,
                 source_diagnostics: &source_diagnostics,
+                foundation_boundary_diagnostics: &foundation_boundary_diagnostics,
                 stale_artifacts: &stale_artifacts,
             },
             boundary_violation,
@@ -8052,6 +8067,8 @@ fn production_order_lifecycle_audit_from_record(
         schema_diagnostics: diagnostic_value(&schema_diagnostics),
         provenance_diagnostics: diagnostic_value(&provenance_diagnostics),
         source_diagnostics: diagnostic_value(&source_diagnostics),
+        foundation_boundary_status,
+        foundation_boundary_diagnostics: diagnostic_value(&foundation_boundary_diagnostics),
         evidence_source_class,
         adapter_runtime_integrated,
         foundation_only,
@@ -8358,6 +8375,7 @@ struct V20OrderLifecycleAuditDiagnostics<'a> {
     schema_diagnostics: &'a [String],
     provenance_diagnostics: &'a [String],
     source_diagnostics: &'a [String],
+    foundation_boundary_diagnostics: &'a [String],
     stale_artifacts: &'a [String],
 }
 
@@ -8386,6 +8404,11 @@ fn v20_order_lifecycle_audit_diagnostic(
         format!(
             "production_order_lifecycle_audit_source_mismatch:{}",
             diagnostics.source_diagnostics.join("|")
+        )
+    } else if !diagnostics.foundation_boundary_diagnostics.is_empty() {
+        format!(
+            "production_order_lifecycle_audit_foundation_boundary:{}",
+            diagnostics.foundation_boundary_diagnostics.join("|")
         )
     } else if !diagnostics.stale_artifacts.is_empty() {
         format!(
@@ -8462,6 +8485,22 @@ fn v20_collect_source_diagnostics(
             "{artifact_name}_manual_structured_claims_exchange_truth"
         ));
     }
+    if source_value == Some("manual_structured") && adapter_runtime_integrated.value == Some(true) {
+        diagnostics.push(format!(
+            "{artifact_name}_manual_structured_claims_adapter_runtime"
+        ));
+    }
+    if source_value == Some("exchange_readback") && adapter_runtime_integrated.value != Some(true) {
+        diagnostics.push(format!(
+            "{artifact_name}_exchange_readback_without_adapter_runtime"
+        ));
+    }
+    if exchange_truth_claimed.value == Some(true) && adapter_runtime_integrated.value != Some(true)
+    {
+        diagnostics.push(format!(
+            "{artifact_name}_exchange_truth_without_adapter_runtime"
+        ));
+    }
     if foundation_only.value == Some(true)
         && (adapter_runtime_integrated.value == Some(true)
             || exchange_truth_claimed.value == Some(true))
@@ -8491,6 +8530,46 @@ fn v20_order_lifecycle_source_class(
         "mixed_or_unknown_source"
     };
     source_class.to_string()
+}
+
+fn v20_order_lifecycle_foundation_boundary_status(
+    source_diagnostics: &[String],
+    foundation_only: Option<bool>,
+    adapter_runtime_integrated: Option<bool>,
+    exchange_truth_claimed: Option<bool>,
+) -> String {
+    if source_diagnostics.iter().any(|diagnostic| {
+        diagnostic.contains("adapter_runtime")
+            || diagnostic.contains("exchange_truth_without_adapter_runtime")
+    }) {
+        "adapter_runtime_claim_mismatch"
+    } else if foundation_only == Some(true)
+        && adapter_runtime_integrated != Some(true)
+        && exchange_truth_claimed != Some(true)
+    {
+        "foundation_only_no_adapter_runtime"
+    } else if adapter_runtime_integrated == Some(true) {
+        "adapter_integrated_runtime"
+    } else if exchange_truth_claimed == Some(true) {
+        "exchange_truth_claim_without_adapter_runtime"
+    } else {
+        "mixed_or_unknown_foundation_boundary"
+    }
+    .to_string()
+}
+
+fn v20_order_lifecycle_foundation_boundary_diagnostics(
+    foundation_boundary_status: Option<&str>,
+    evidence_source_class: Option<&str>,
+) -> Vec<String> {
+    match foundation_boundary_status {
+        Some("foundation_only_no_adapter_runtime" | "adapter_integrated_runtime") => Vec::new(),
+        Some(status) => vec![format!(
+            "{status}:source_class={}",
+            evidence_source_class.unwrap_or("unknown")
+        )],
+        None => vec!["foundation_boundary_status_missing".to_string()],
+    }
 }
 
 fn v18_first_available_string_any(
@@ -14093,6 +14172,14 @@ mod tests {
             item.source_diagnostics.availability,
             DashboardAvailability::Unknown
         );
+        assert_eq!(
+            item.foundation_boundary_status.value.as_deref(),
+            Some("foundation_only_no_adapter_runtime")
+        );
+        assert_eq!(
+            item.foundation_boundary_diagnostics.availability,
+            DashboardAvailability::Unknown
+        );
         assert_eq!(item.failure_category.value.as_deref(), Some("none"));
         assert_eq!(
             item.next_allowed_action.value.as_deref(),
@@ -14150,6 +14237,8 @@ mod tests {
         assert!(renderer.contains("Adapter runtime"));
         assert!(renderer.contains("Foundation only"));
         assert!(renderer.contains("Exchange truth"));
+        assert!(renderer.contains("Foundation boundary"));
+        assert!(renderer.contains("Boundary diagnostics"));
         assert!(renderer.contains("Failure / Audit"));
         assert!(renderer.contains("只读边界"));
         let snapshot_value = serde_json::to_value(&snapshot).unwrap();
@@ -14356,6 +14445,81 @@ mod tests {
     }
 
     #[test]
+    fn production_order_lifecycle_audit_adapter_runtime_claim_mismatch_is_boundary_violation() {
+        let item = production_order_lifecycle_audit_item_with(
+            "production-order-lifecycle-audit-adapter-runtime-claim",
+            |record| {
+                mutate_v20_order_lifecycle_audit_artifact(
+                    record,
+                    "submit_response_redaction.json",
+                    |artifact| {
+                        artifact["adapter_runtime_integrated"] = json!(true);
+                        artifact["foundation_only"] = json!(false);
+                    },
+                );
+            },
+        );
+
+        assert_eq!(item.health, HealthStatus::Error);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_order_lifecycle_audit_boundary_violation")
+        );
+        assert_eq!(
+            item.foundation_boundary_status.value.as_deref(),
+            Some("adapter_runtime_claim_mismatch")
+        );
+        assert!(
+            item.source_diagnostics
+                .value
+                .as_deref()
+                .is_some_and(|value| value.contains(
+                    "submit_response_redaction_manual_structured_claims_adapter_runtime"
+                ))
+        );
+        assert!(
+            item.foundation_boundary_diagnostics
+                .value
+                .as_deref()
+                .is_some_and(|value| value.contains("adapter_runtime_claim_mismatch"))
+        );
+    }
+
+    #[test]
+    fn production_order_lifecycle_audit_stale_evidence_blocks_audit_closed() {
+        let item = production_order_lifecycle_audit_item_with(
+            "production-order-lifecycle-audit-stale-evidence",
+            |record| {
+                mutate_v20_order_lifecycle_audit_artifact(
+                    record,
+                    "submit_response_redaction.json",
+                    |artifact| {
+                        artifact["stale_evidence"] = json!(true);
+                    },
+                );
+            },
+        );
+
+        assert_eq!(item.health, HealthStatus::Error);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_order_lifecycle_audit_boundary_violation")
+        );
+        assert_eq!(
+            item.audit_state.value.as_deref(),
+            Some("boundary_violation")
+        );
+        assert_eq!(
+            item.stale_artifacts.value.as_deref(),
+            Some("submit_response_redaction")
+        );
+        assert!(item.diagnostic.value.as_deref().is_some_and(|value| {
+            value.contains("production_order_lifecycle_audit_stale_evidence")
+                && value.contains("submit_response_redaction")
+        }));
+    }
+
+    #[test]
     fn production_order_lifecycle_audit_forbidden_controls_degrade_without_routes() {
         for (artifact_name, field, value) in [
             (
@@ -14429,8 +14593,13 @@ mod tests {
         for forbidden_route in [
             "/api/control/cancel",
             "/api/control/order",
+            "/api/control/approval",
             "production_order_lifecycle_control",
             "production_order_approval_control",
+            "production_order_cancel_control",
+            "data-dashboard-action=\"submit\"",
+            "data-dashboard-action=\"cancel\"",
+            "data-dashboard-action=\"approval\"",
         ] {
             assert!(
                 !DASHBOARD_JS.contains(forbidden_route),
