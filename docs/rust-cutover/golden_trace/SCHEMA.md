@@ -62,6 +62,7 @@ blockers for these categories:
 | `execution` | Execution routing, venue order reports, fill reports, and reconciliation events. | `RTRACE-003` and `RTRACE-007` |
 | `position` | Position open, increase, reduce, close, flip, and hedge/netting distinctions. | runtime parity tasks |
 | `portfolio_pnl` | Account balance, margin, realized PnL, unrealized PnL, and equity snapshots. | runtime parity tasks |
+| `read_model` | Unified account, position, order, fill, risk, and lifecycle projection snapshots. | V210 read-model tasks |
 | `cache_msgbus` | Cache updates, message-bus ordering, command/event sequencing, and replay ordering. | runtime parity tasks |
 | `backtest_live` | Backtest, sandbox, and live lifecycle parity for scoped workflows. | `RTRACE-005` and `RTRACE-006` |
 | `adapter_payload` | Adapter raw payload parsing into Rust model, data, and execution events. | `RTRACE-007` |

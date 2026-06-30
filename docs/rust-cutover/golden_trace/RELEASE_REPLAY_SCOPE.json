@@ -507,6 +507,26 @@
       "release_decision": "included_in_final_replay_scope"
     },
     {
+      "case_id": "read_model.contract.healthy_minimal.001",
+      "trace": "tests/golden/read_model_contract_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-001",
+      "reason": "Contract baseline row validates the unified read model envelope before executable Rust projection exists.",
+      "follow_up": "V210-002 through V210-008 must add component implementations and promote required read_model cases to executable replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.contract.fail_closed_missing_lineage_source_freshness.001",
+      "trace": "tests/golden/read_model_contract_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-001",
+      "reason": "Contract baseline row proves fail-closed schema semantics for missing lineage, source provenance, and freshness.",
+      "follow_up": "V210-002 through V210-008 must add component implementations and promote required read_model cases to executable replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",

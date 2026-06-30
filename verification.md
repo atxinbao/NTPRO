@@ -1,3 +1,31 @@
+# V210-001 Verification
+
+Date: 2026-06-30
+Executor: Codex
+Task: `V210-001` / GitHub issue `#652`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v21_read_model_contract.sh scripts/ai/verify_release.sh = PASS
+jq empty docs/rust-cutover/release/v0_21_0_unified_read_model_schema.json docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json = PASS
+scripts/ai/golden_trace_runner.py tests/golden/read_model_contract_schema.jsonl --mode validate-only = PASS, 2 rows
+scripts/ai/verify_release.sh v21-read-model-contract = PASS
+RUN_RUST_*_TRACE_REPLAY=0 scripts/ai/run_golden_traces.sh = PASS, all JSONL schema validation only
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, 53 cases, 50 executable replay, 3 schema-only scoped
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+V210-001 establishes the v0.21 unified read model contract and schema for
+account, position, order, fill, risk, and lifecycle status projections. The
+schema-only golden trace smoke covers a healthy minimal snapshot and a
+fail-closed snapshot where lineage, source provenance, or freshness is missing
+or stale. The new verifier confirms that such incomplete snapshots cannot be
+marked healthy and that submit/Dashboard operation controls remain false.
+
 # V210-000 Verification
 
 Date: 2026-06-30

@@ -28,6 +28,7 @@ VALID_CATEGORIES = {
     "execution",
     "position",
     "portfolio_pnl",
+    "read_model",
     "cache_msgbus",
     "backtest_live",
     "adapter_payload",
