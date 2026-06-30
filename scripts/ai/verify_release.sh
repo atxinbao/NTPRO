@@ -343,6 +343,11 @@ run_v20_patch_release_gates() {
   scripts/ai/verify_v20_patch_release_gates.sh
 }
 
+run_v21_read_model_contract() {
+  echo "== verify_release: v0.21 read model contract =="
+  scripts/ai/verify_v21_read_model_contract.sh
+}
+
 run_v171_release_hardening() {
   echo "== verify_release: v0.17.1 release hardening =="
   scripts/ai/verify_v171_release_hardening.sh
@@ -410,6 +415,7 @@ run_stage() {
       run_v20_release_gates
       run_v20_strict_provenance
       run_v20_patch_release_gates
+      run_v21_read_model_contract
       run_release_surface_current_guard
       run_release_publication_guard
       ;;
@@ -502,6 +508,9 @@ run_stage() {
       ;;
     v20.1-release-gates)
       run_v20_patch_release_gates
+      ;;
+    v21-read-model-contract)
+      run_v21_read_model_contract
       ;;
     v171-release-hardening)
       run_v171_release_hardening

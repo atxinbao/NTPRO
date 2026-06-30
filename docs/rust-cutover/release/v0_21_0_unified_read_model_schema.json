@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/atxinbao/NTPRO/docs/rust-cutover/release/v0_21_0_unified_read_model_schema.json",
+  "schema_version": "ntpro.v210.unified_read_model.schema.v1",
+  "title": "NTPRO v0.21 Unified Read Model Snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "schema_version",
+    "snapshot_id",
+    "snapshot_identity",
+    "as_of_unix_ns",
+    "health_status",
+    "freshness",
+    "source_provenance",
+    "lineage",
+    "components",
+    "blocking_reasons",
+    "redaction",
+    "capability_boundary"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "ntpro.v210.unified_read_model.v1"
+    },
+    "schema_version": {
+      "const": "ntpro.v210.unified_read_model.schema.v1"
+    },
+    "snapshot_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "snapshot_identity": {
+      "type": "object",
+      "required": ["account_id", "venue", "instrument_ids", "created_at_unix_ns"],
+      "additionalProperties": false,
+      "properties": {
+        "account_id": {"type": "string"},
+        "venue": {"type": "string"},
+        "instrument_ids": {"type": "array", "items": {"type": "string"}},
+        "created_at_unix_ns": {"type": "string", "pattern": "^[0-9]+$"}
+      }
+    },
+    "as_of_unix_ns": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "health_status": {
+      "enum": ["healthy", "degraded", "fail_closed"]
+    },
+    "freshness": {
+      "$ref": "#/$defs/freshness"
+    },
+    "source_provenance": {
+      "$ref": "#/$defs/source_provenance"
+    },
+    "lineage": {
+      "$ref": "#/$defs/lineage"
+    },
+    "components": {
+      "type": "object",
+      "required": [
+        "account",
+        "positions",
+        "orders",
+        "fills",
+        "risk",
+        "lifecycle_status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "account": {"$ref": "#/$defs/component"},
+        "positions": {"$ref": "#/$defs/component"},
+        "orders": {"$ref": "#/$defs/component"},
+        "fills": {"$ref": "#/$defs/component"},
+        "risk": {"$ref": "#/$defs/component"},
+        "lifecycle_status": {"$ref": "#/$defs/component"}
+      }
+    },
+    "blocking_reasons": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "redaction": {
+      "type": "object",
+      "required": ["status", "raw_secret_persisted", "raw_exchange_response_persisted"],
+      "additionalProperties": true,
+      "properties": {
+        "status": {"enum": ["redacted", "no_sensitive_fields", "fail_closed"]},
+        "raw_secret_persisted": {"const": false},
+        "raw_exchange_response_persisted": {"const": false}
+      }
+    },
+    "capability_boundary": {
+      "type": "object",
+      "required": [
+        "new_submit_capability",
+        "production_order_submission_allowed",
+        "production_order_mutation_allowed",
+        "dashboard_order_controls_enabled",
+        "dashboard_approval_controls_enabled",
+        "dashboard_cancel_controls_enabled",
+        "dashboard_retry_controls_enabled",
+        "retry_replace_amend_flatten_allowed",
+        "product_grade_trading_terminal_claim"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "new_submit_capability": {"const": false},
+        "production_order_submission_allowed": {"const": false},
+        "production_order_mutation_allowed": {"const": false},
+        "dashboard_order_controls_enabled": {"const": false},
+        "dashboard_approval_controls_enabled": {"const": false},
+        "dashboard_cancel_controls_enabled": {"const": false},
+        "dashboard_retry_controls_enabled": {"const": false},
+        "retry_replace_amend_flatten_allowed": {"const": false},
+        "product_grade_trading_terminal_claim": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "source_provenance": {
+      "type": "object",
+      "required": [
+        "source_type",
+        "source_ref",
+        "captured_at_unix_ns",
+        "redaction_state",
+        "exchange_truth",
+        "adapter_runtime_integrated"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "source_type": {
+          "enum": [
+            "fixture",
+            "artifact",
+            "exchange_readback",
+            "adapter_runtime",
+            "manual_evidence",
+            "unavailable"
+          ]
+        },
+        "source_ref": {"type": "string"},
+        "captured_at_unix_ns": {"type": "string", "pattern": "^[0-9]+$"},
+        "redaction_state": {
+          "enum": ["redacted", "no_sensitive_fields", "unavailable"]
+        },
+        "exchange_truth": {"type": "boolean"},
+        "adapter_runtime_integrated": {"type": "boolean"}
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "required": ["input_refs", "transform", "parent_snapshot_ids", "lossy_fields"],
+      "additionalProperties": true,
+      "properties": {
+        "input_refs": {"type": "array", "items": {"type": "string"}},
+        "transform": {"type": "string"},
+        "parent_snapshot_ids": {"type": "array", "items": {"type": "string"}},
+        "lossy_fields": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "required": [
+        "status",
+        "observed_age_ms",
+        "max_age_ms",
+        "as_of_unix_ns",
+        "checked_at_unix_ns"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "status": {"enum": ["fresh", "stale", "missing", "ambiguous"]},
+        "observed_age_ms": {"type": "integer", "minimum": 0},
+        "max_age_ms": {"type": "integer", "minimum": 0},
+        "as_of_unix_ns": {"type": "string", "pattern": "^[0-9]+$"},
+        "checked_at_unix_ns": {"type": "string", "pattern": "^[0-9]+$"}
+      }
+    },
+    "component": {
+      "type": "object",
+      "required": [
+        "component_status",
+        "source_provenance",
+        "lineage",
+        "freshness",
+        "redaction",
+        "data",
+        "diagnostics"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "component_status": {
+          "enum": ["healthy", "degraded", "fail_closed", "unavailable"]
+        },
+        "source_provenance": {"$ref": "#/$defs/source_provenance"},
+        "lineage": {"$ref": "#/$defs/lineage"},
+        "freshness": {"$ref": "#/$defs/freshness"},
+        "redaction": {"type": "object"},
+        "data": {"type": "object"},
+        "diagnostics": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

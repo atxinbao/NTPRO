@@ -6,6 +6,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   v0.20 production order lifecycle evidence through v0.21 unified read model
   and toward v0.22-v0.26+ product-grade live trading readiness. It is the
   current roadmap guardrail for future milestone planning.
+- `v0_21_0_unified_read_model_contract.md` - V210 unified account, position,
+  order, fill, risk, and lifecycle read-model contract and fail-closed rules.
+- `v0_21_0_unified_read_model_schema.json` - machine-readable schema baseline
+  for the v0.21 unified read model snapshot contract.
 - `BACKTEST_LIVE_GATE_EVIDENCE.md` - RBTL-010 backtest/live gate evidence and
   remaining blockers.
 - `binary_install_path.md` - NBIN-001 source-build, local `cargo install`,
