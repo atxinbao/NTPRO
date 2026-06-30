@@ -1,3 +1,31 @@
+# V201-003 Verification
+
+Date: 2026-06-30
+Executor: Codex
+Task: `V201-003` / GitHub issue `#650`
+
+## Commands
+
+```text
+cargo fmt --all = PASS
+cargo test -p nautilus-risk --test v20_submit_candidate = PASS, 15 passed
+cargo test -p nautilus-risk --test v20_submit_candidate --test v20_submit_response_redaction --test v20_submit_readback_reconciliation --test v20_failure_no_retry = PASS
+cargo clippy -p nautilus-risk --test v20_submit_candidate -- -D warnings = PASS
+scripts/ai/verify_release.sh v20-release-gates = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+V201-003 replaces caller-supplied prior attempt digest dedupe with a typed
+durable submit attempt ledger read model. The guarded submit candidate now
+fails closed when the ledger is missing, stale, untrusted, lineage-mismatched,
+provenance-mismatched, or already records the same request digest, attempt id,
+or consumed approval id. Submitted evidence records atomic approval consumption
+without enabling retry, replace, amend, flatten, bulk submit, or
+strategy-driven submit.
+
 # V201-002 Verification
 
 Date: 2026-06-30
