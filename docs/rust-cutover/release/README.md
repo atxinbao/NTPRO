@@ -16,6 +16,9 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_21_0_position_read_model.md` - V210 position read-model component
   contract for long/short/flat position state, quantity precision, risk
   projection inputs, source freshness, and account-position lineage checks.
+- `v0_21_0_order_lifecycle_read_model.md` - V210 order lifecycle read-model
+  component contract for submit candidate, attempt ledger, response redaction,
+  readback, cancel evidence, audit state, and no-retry boundaries.
 - `BACKTEST_LIVE_GATE_EVIDENCE.md` - RBTL-010 backtest/live gate evidence and
   remaining blockers.
 - `binary_install_path.md` - NBIN-001 source-build, local `cargo install`,

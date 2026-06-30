@@ -627,6 +627,56 @@
       "release_decision": "schema_only_scope_recorded"
     },
     {
+      "case_id": "read_model.order_lifecycle.matched.001",
+      "trace": "tests/golden/read_model_order_lifecycle_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-004",
+      "reason": "Order lifecycle row proves accepted readback matched audit evidence can be projected as read-only order state.",
+      "follow_up": "V210-005 through V210-008 must connect fill reconciliation dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.order_lifecycle.unknown_response.001",
+      "trace": "tests/golden/read_model_order_lifecycle_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-004",
+      "reason": "Order lifecycle row proves unknown response fails closed with no retry or automatic remediation.",
+      "follow_up": "V210-005 through V210-008 must connect fill reconciliation dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.order_lifecycle.readback_mismatch.001",
+      "trace": "tests/golden/read_model_order_lifecycle_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-004",
+      "reason": "Order lifecycle row proves post-submit readback mismatch fails closed.",
+      "follow_up": "V210-005 through V210-008 must connect fill reconciliation dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.order_lifecycle.duplicate_attempt.001",
+      "trace": "tests/golden/read_model_order_lifecycle_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-004",
+      "reason": "Order lifecycle row proves duplicate submit attempts fail closed.",
+      "follow_up": "V210-005 through V210-008 must connect fill reconciliation dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.order_lifecycle.missing_ledger.001",
+      "trace": "tests/golden/read_model_order_lifecycle_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-004",
+      "reason": "Order lifecycle row proves missing durable attempt ledger evidence fails closed.",
+      "follow_up": "V210-005 through V210-008 must connect fill reconciliation dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",
