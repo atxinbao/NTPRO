@@ -25,6 +25,7 @@ contract_version = ntpro.v210.unified_read_model.v1
 schema = docs/rust-cutover/release/v0_21_0_unified_read_model_schema.json
 schema smoke = tests/golden/read_model_contract_schema.jsonl
 validator = scripts/ai/verify_v21_read_model_contract.sh
+account component = docs/rust-cutover/release/v0_21_0_account_snapshot_read_model.md
 ```
 
 ## Snapshot Identity

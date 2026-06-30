@@ -1,3 +1,32 @@
+# V210-002 Verification
+
+Date: 2026-06-30
+Executor: Codex
+Task: `V210-002` / GitHub issue `#653`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v21_account_snapshot_read_model.sh scripts/ai/verify_release.sh = PASS
+jq empty docs/rust-cutover/release/v0_21_0_unified_read_model_schema.json docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json = PASS
+scripts/ai/golden_trace_runner.py tests/golden/read_model_account_snapshot_schema.jsonl --mode validate-only = PASS, 4 rows
+scripts/ai/verify_release.sh v21-account-snapshot-read-model = PASS
+cargo test -p nautilus-testkit --test golden_trace_schema = PASS
+RUN_RUST_MARKET_DATA_TRACE_REPLAY=0 RUN_RUST_CACHE_MSGBUS_TRACE_REPLAY=0 RUN_RUST_BACKTEST_TRACE_REPLAY=0 RUN_RUST_BACKTEST_LIVE_PARITY_TRACE_REPLAY=0 RUN_RUST_LIVE_SANDBOX_TRACE_REPLAY=0 RUN_RUST_ORDER_LIFECYCLE_TRACE_REPLAY=0 RUN_RUST_RISK_REJECTION_TRACE_REPLAY=0 RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY=0 RUN_RUST_LIVE_ALPHA_RECONCILIATION_TRACE_REPLAY=0 RUN_RUST_LIVE_ALPHA_MUTATION_DRY_RUN_TRACE_REPLAY=0 RUN_RUST_ACTUAL_CANCEL_TRACE_REPLAY=0 RUN_RUST_PRODUCTION_ORDER_LIFECYCLE_TRACE_REPLAY=0 scripts/ai/run_golden_traces.sh = PASS, all JSONL schema validation plus Rust golden trace schema contract
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, 57 cases, 50 executable replay, 7 schema-only scoped
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+V210-002 establishes the account snapshot read-model component under the v0.21
+unified read model. The schema-only golden trace covers fresh account summary,
+stale account freshness, missing account source provenance, and redaction
+breach. The verifier confirms that account data stays redacted-only, stale or
+incomplete snapshots fail closed or remain risk-visible, and Dashboard account
+state display does not add account operation controls.
+
 # V210-001 Verification
 
 Date: 2026-06-30

@@ -42,6 +42,7 @@ const VALID_CATEGORIES: &[&str] = &[
     "cache_msgbus",
     "backtest_live",
     "adapter_payload",
+    "read_model",
 ];
 
 #[test]

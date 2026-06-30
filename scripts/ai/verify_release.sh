@@ -348,6 +348,11 @@ run_v21_read_model_contract() {
   scripts/ai/verify_v21_read_model_contract.sh
 }
 
+run_v21_account_snapshot_read_model() {
+  echo "== verify_release: v0.21 account snapshot read model =="
+  scripts/ai/verify_v21_account_snapshot_read_model.sh
+}
+
 run_v171_release_hardening() {
   echo "== verify_release: v0.17.1 release hardening =="
   scripts/ai/verify_v171_release_hardening.sh
@@ -416,6 +421,7 @@ run_stage() {
       run_v20_strict_provenance
       run_v20_patch_release_gates
       run_v21_read_model_contract
+      run_v21_account_snapshot_read_model
       run_release_surface_current_guard
       run_release_publication_guard
       ;;
@@ -511,6 +517,9 @@ run_stage() {
       ;;
     v21-read-model-contract)
       run_v21_read_model_contract
+      ;;
+    v21-account-snapshot-read-model)
+      run_v21_account_snapshot_read_model
       ;;
     v171-release-hardening)
       run_v171_release_hardening
