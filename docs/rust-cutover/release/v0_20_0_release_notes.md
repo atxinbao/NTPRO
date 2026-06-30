@@ -6,9 +6,10 @@ Status: RELEASED
 Tag: `ntpro-rust-only-v0.20.0`
 Release name: `NTPRO Rust-only v0.20.0`
 Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.20.0`
-Release commit: `resolved by release tag`
-Published at: `resolved by GitHub Release`
+Release commit: `d29a764a2fb6b3f9c187d2af17337b08b40d794b`
+Published at: `2026-06-29T20:03:15Z`
 Hosted release gate stage: `release-v20-release-gates`
+Hosted release workflow: `https://github.com/atxinbao/NTPRO/actions/runs/28399170642`
 
 ## Summary
 
@@ -158,7 +159,15 @@ release status = RELEASED
 release tag = ntpro-rust-only-v0.20.0
 release name = NTPRO Rust-only v0.20.0
 release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.20.0
-release commit = resolved by release tag
+release commit = d29a764a2fb6b3f9c187d2af17337b08b40d794b
+release tree = c321ee45b1b56bd7c50a5f809c00ef6d476de2f8
+published at = 2026-06-29T20:03:15Z
+hosted release workflow = https://github.com/atxinbao/NTPRO/actions/runs/28399170642
+hosted release workflow conclusion = success
+hosted release workflow jobs = 53/53 success
+v0.20.0 issue set = #611-#623 closed
+v0.19.1 milestone = closed
+v0.20.0 milestone = closed
 hosted release gate stage = release-v20-release-gates
 GitHub Release draft = false
 GitHub Release prerelease = false

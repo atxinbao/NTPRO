@@ -7,10 +7,11 @@ Status: RELEASED
 
 ## Summary
 
-`v0.20.0` is ready for release as the Owner-Approved Production Order Lifecycle
-Foundation. The readiness decision is based on the completed V200 issue chain,
+`v0.20.0` is released as the Owner-Approved Production Order Lifecycle
+Foundation. The release decision is based on the completed V200 issue chain,
 local evidence files, production order lifecycle golden traces, aggregate
-v20 release gates, and strict release provenance.
+v20 release gates, strict release provenance, the published GitHub Release, and
+the successful tag-triggered hosted release workflow.
 
 Plain Chinese summary: v0.20.0 的结论是“可以发布 owner-approved production order
 lifecycle foundation”。它只发布受 owner approval 约束的基础 submit/readback/audit
@@ -60,11 +61,32 @@ Live GitHub status captured on 2026-06-29:
 #620 V200-009 CLOSED
 #621 V200-010 CLOSED
 #622 V200-011 CLOSED
-#623 V200-012 OPEN until this release-gate PR merges
+#623 V200-012 CLOSED
 ```
 
-The release gate requires V200-000 through V200-011 evidence documents before
-publication and treats V200-012 as the release-gate/provenance closure task.
+The published release is backed by V200-000 through V200-012 evidence
+documents. V200-012 closed the release-gate/provenance task before the
+`ntpro-rust-only-v0.20.0` tag and GitHub Release were published.
+
+## Publication Evidence
+
+Live GitHub release state captured on 2026-06-30:
+
+```text
+release tag = ntpro-rust-only-v0.20.0
+release name = NTPRO Rust-only v0.20.0
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.20.0
+release commit = d29a764a2fb6b3f9c187d2af17337b08b40d794b
+release tree = c321ee45b1b56bd7c50a5f809c00ef6d476de2f8
+published at = 2026-06-29T20:03:15Z
+GitHub Release draft = false
+GitHub Release prerelease = false
+hosted release workflow = https://github.com/atxinbao/NTPRO/actions/runs/28399170642
+hosted release workflow conclusion = success
+hosted release workflow jobs = 53/53 success
+v0.19.1 milestone = closed at 2026-06-30T07:41:15Z
+v0.20.0 milestone = closed at 2026-06-30T07:41:15Z
+```
 
 ## Release-Blocking Boundary
 
@@ -159,10 +181,11 @@ general production trading platform claim = not included
 
 ## Final Verdict
 
-The v0.20 source-tree package is ready for the formal
-`Owner-Approved Production Order Lifecycle Foundation` release after the
-`v20-release-gates` and `v20-strict-provenance` gates pass locally and in the
-tag-triggered hosted release workflow.
+The v0.20 source-tree package has been formally released as
+`Owner-Approved Production Order Lifecycle Foundation`. The
+`v20-release-gates`, `v20-strict-provenance`, `release-publication-guard`, and
+`release-surface-current-guard` stages passed in the tag-triggered hosted
+release workflow.
 
 Do not describe this release as automatic trading readiness, unattended
 execution readiness, Dashboard operation-control readiness, multi-account or

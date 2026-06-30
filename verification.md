@@ -1,3 +1,31 @@
+# V201-001 Verification
+
+Date: 2026-06-30
+Executor: Codex
+Task: `V201-001` / GitHub issue `#644`
+
+## Commands
+
+```text
+jq empty docs/rust-cutover/release/v0_20_0_release_manifest.json = PASS
+bash -n scripts/ai/verify_v20_strict_provenance.sh scripts/ai/verify_release_strict.sh scripts/ai/check_github_release_published.sh scripts/ai/check_release_surface_current.sh = PASS
+scripts/ai/check_release_surface_current.sh = PASS
+scripts/ai/check_github_release_published.sh = PASS, tag_sha=d29a764a2fb6b3f9c187d2af17337b08b40d794b, origin_main_sha=0f391958a65745151dc3c9ef25a3419de5a8c396, published_at=2026-06-29T20:03:15Z
+rg -n 'ready_pending_publication|not_published_in_source_tree|OPEN until|resolved by release tag|resolved by GitHub Release|ready for release|after the `v20-release-gates`' docs/rust-cutover/release/v0_20_0_release_manifest.json docs/rust-cutover/release/v0_20_0_readiness_report.md docs/rust-cutover/release/v0_20_0_release_notes.md docs/rust-cutover/evidence/V200-012.md scripts/ai/verify_v20_strict_provenance.sh = PASS, no matches
+NTPRO_RELEASE_STRICT_VERIFY_ONLY=1 NTPRO_RELEASE_STRICT_SKIP_BUILD=1 NTPRO_RELEASE_STRICT_SKIP_V20_GATES=1 scripts/ai/verify_release_strict.sh v20 = PASS
+NTPRO_RELEASE_STRICT_VERIFY_ONLY=1 NTPRO_RELEASE_STRICT_SKIP_BUILD=1 NTPRO_RELEASE_STRICT_SKIP_V20_GATES=1 scripts/ai/verify_release.sh v20-strict-provenance = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+V201-001 backfills v0.20.0 publication facts into the source tree and strict
+provenance verifier. The v0.20.0 release manifest now records published state,
+GitHub Release URL, tag commit/tree, publication timestamp, hosted release
+workflow run `28399170642`, and the closed V200 issue set. The v0.19.1 and
+v0.20.0 GitHub milestones were closed after confirming `open_issues=0`.
+
 # V200-012 Verification
 
 Date: 2026-06-29
