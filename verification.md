@@ -1,3 +1,29 @@
+# V201-004 Verification
+
+Date: 2026-06-30
+Executor: Codex
+Task: `V201-004` / GitHub issue `#646`
+
+## Commands
+
+```text
+cargo fmt --all = PASS
+cargo test -p nautilus-risk --test v20_pre_submit_gate --test v20_submit_request_builder = PASS
+bash -n scripts/ai/verify_v20_release_gates.sh = PASS
+cargo test -p nautilus-risk --test v20_pre_submit_gate --test v20_submit_request_builder --test v20_submit_candidate --test v20_failure_no_retry = PASS
+cargo clippy -p nautilus-risk --test v20_pre_submit_gate --test v20_submit_request_builder -- -D warnings = PASS
+scripts/ai/verify_release.sh v20-release-gates = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+V201-004 makes V20 pre-submit risk recompute exact `quantity * price` notional
+before max-notional evaluation. Low-reported and high-reported caller notional
+now fail closed with stable evidence, and the submit request builder rejects
+candidate/risk evidence that does not carry notional consistency proof.
+
 # V201-003 Verification
 
 Date: 2026-06-30

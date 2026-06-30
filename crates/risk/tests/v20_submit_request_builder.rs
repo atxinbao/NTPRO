@@ -166,6 +166,39 @@ fn rejects_candidate_mismatch() {
 }
 
 #[test]
+fn rejects_candidate_notional_mismatch_after_risk_match() {
+    let mut candidate = candidate();
+    candidate.notional = dec!(4999);
+    let mut risk = risk_allow();
+    risk.notional = Some(dec!(4999));
+
+    let evidence =
+        build_single_shot_submit_request(&candidate, &risk, &owner_approval(), &signing_ready());
+
+    assert_eq!(evidence.decision, SubmitRequestBuildDecision::Rejected);
+    assert_eq!(evidence.code, SubmitRequestBuildCode::NotionalMismatch);
+    assert_eq!(
+        evidence.code.as_str(),
+        "v200_submit_request_notional_mismatch"
+    );
+    assert!(evidence.redacted_preview.is_none());
+    assert!(!evidence.submit_request_built);
+}
+
+#[test]
+fn rejects_allow_evidence_without_notional_consistency() {
+    let mut risk = risk_allow();
+    risk.notional_consistent = false;
+
+    let evidence =
+        build_single_shot_submit_request(&candidate(), &risk, &owner_approval(), &signing_ready());
+
+    assert_eq!(evidence.decision, SubmitRequestBuildDecision::Rejected);
+    assert_eq!(evidence.code, SubmitRequestBuildCode::NotionalMismatch);
+    assert!(!evidence.submit_request_built);
+}
+
+#[test]
 fn rejects_unsupported_order_shape() {
     let mut candidate = candidate();
     let mut risk = risk_allow();

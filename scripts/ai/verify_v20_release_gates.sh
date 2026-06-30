@@ -233,6 +233,44 @@ for marker in (
     if marker not in combined:
         violations.append(f"missing v0.20 release boundary marker: {marker}")
 
+regression_markers = {
+    "crates/risk/src/v20_pre_submit_gate.rs": (
+        "v200_pre_submit_notional_mismatch",
+        "computed_notional",
+        "notional_consistency_required",
+    ),
+    "crates/risk/src/v20_submit_request_builder.rs": (
+        "v200_submit_request_notional_mismatch",
+        "candidate_notional_matches_risk",
+    ),
+    "crates/risk/tests/v20_pre_submit_gate.rs": (
+        "denies_underreported_notional_before_max_notional_bypass",
+        "denies_overreported_notional_mismatch",
+        "allows_exact_boundary_precision_notional",
+    ),
+    "crates/risk/tests/v20_submit_request_builder.rs": (
+        "rejects_candidate_notional_mismatch_after_risk_match",
+        "rejects_allow_evidence_without_notional_consistency",
+    ),
+    "docs/rust-cutover/release/v0_20_0_pre_submit_risk_gate.md": (
+        "v200_pre_submit_notional_mismatch",
+        "quantity * price == notional",
+    ),
+    "docs/rust-cutover/release/v0_20_0_single_shot_submit_request_builder.md": (
+        "v200_submit_request_notional_mismatch",
+        "notional_consistent = true",
+    ),
+}
+for path, markers in regression_markers.items():
+    file_path = Path(path)
+    if not file_path.is_file():
+        violations.append(f"missing v20 notional consistency artifact: {path}")
+        continue
+    text = file_path.read_text(encoding="utf-8")
+    for marker in markers:
+        if marker not in text:
+            violations.append(f"missing v20 notional consistency marker in {path}: {marker}")
+
 if violations:
     print("v20 release gate validation failed:", file=sys.stderr)
     for violation in violations:

@@ -42,6 +42,7 @@ side
 quantity
 price
 notional
+computed_notional = exact quantity * price
 order_type
 time_in_force
 environment
@@ -53,10 +54,13 @@ unrecognized fields
 
 The default supported production shape is a single allowlisted account, venue,
 instrument, side, LIMIT order type, GTC time-in-force, positive quantity,
-positive price, capped notional, matching production environment, unexpired
-single-use owner approval, and strict v20 runtime release provenance. The
-v0.19.1 closeout is prerequisite evidence only; it is not accepted as current
-runtime submit provenance.
+positive price, exact `quantity * price == notional`, capped computed notional,
+matching production environment, unexpired single-use owner approval, and
+strict v20 runtime release provenance. The current LIMIT/GTC scope has no
+instrument precision contract, so notional consistency is exact fail-closed:
+low-reported or high-reported caller notional is denied before submit-builder
+entry. The v0.19.1 closeout is prerequisite evidence only; it is not accepted
+as current runtime submit provenance.
 
 ## Decisions
 
@@ -103,6 +107,7 @@ v200_pre_submit_price_not_positive
 v200_pre_submit_price_limit_exceeded
 v200_pre_submit_notional_missing
 v200_pre_submit_notional_not_positive
+v200_pre_submit_notional_mismatch
 v200_pre_submit_notional_limit_exceeded
 v200_pre_submit_order_type_missing
 v200_pre_submit_order_type_unsupported
@@ -133,6 +138,9 @@ allow path
 unknown account denial
 missing field denial
 notional limit denial
+low-reported notional mismatch denial
+high-reported notional mismatch denial
+exact boundary precision notional allow
 expired approval denial
 missing approval denial
 environment mismatch blocked
