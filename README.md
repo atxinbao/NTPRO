@@ -11,7 +11,7 @@ Latest formal release: ntpro-rust-only-v0.20.1
 Current source-tree readiness: ntpro-rust-only-v0.20.1 released
 Current capability: Production Order Lifecycle Release Closeout & Provenance Hardening Patch
 Next patch: v0.20.2 Reserved Hardening Patch
-Next capability: v0.21.0 Deferred Next Capability Track
+Next capability: v0.21.0 Active Scoped Read Model Track
 Boundary: v0.20.1 is a hardening patch for the v0.20.0 owner-approved production order lifecycle foundation. It backfills release evidence, hardens provenance, durable attempt ledger checks, notional consistency, adapter/source labels, and Dashboard foundation-boundary diagnostics. It does not include product-grade live trading, new production submit capability, implicit retry, automatic cancel, automatic remediation, bulk order execution, retry/replace/amend/flatten, strategy-driven production execution, multi-account or multi-venue execution, real-funds proof in CI, or Dashboard order/approval/cancel/retry controls.
 ```
 
@@ -19,6 +19,8 @@ Boundary: v0.20.1 is a hardening patch for the v0.20.0 owner-approved production
 hardening patch for the scoped Owner-Approved Production Order Lifecycle
 Foundation line. It preserves the v0.20.0 capability boundary while closing
 release evidence and dependency proof before v0.21.0 read-model work starts.
+That dependency is now satisfied; v0.21.0 must proceed only through its scoped
+issue order and read-only/foundation boundary.
 
 The latest formal release is published as a GitHub Release for the v0.20.1
 tagged source tree:

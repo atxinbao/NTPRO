@@ -58,6 +58,7 @@ v0.20.1 explicitly does not include:
 
 ## v0.21.0 Dependency
 
-v0.21.0 remains blocked until all V201 issues are closed and this v0.20.1
-release evidence is published. After publication, V210 work may start from its
-own scoped issue order; it must not inherit any submit expansion from v0.20.1.
+The v0.21.0 start gate was satisfied on 2026-06-30 after all V201 issues were
+closed and this v0.20.1 release evidence was published. V210 work may start
+from its own scoped issue order; it must not inherit any submit expansion from
+v0.20.1.

@@ -57,7 +57,8 @@ for marker in \
   "Status: RELEASED" \
   "V201-001 evidence" \
   "V201-007 evidence" \
-  "v0.21.0 blocked-by source" \
+  "v0.21.0 dependency source" \
+  "start rule = satisfied on 2026-06-30" \
   "product_grade_trading_terminal_claim = false"; do
   require_contains "$READINESS_REPORT_PATH" "$marker"
 done
@@ -171,8 +172,15 @@ for key in (
 dependency = manifest.get("v21_dependency") or {}
 require(dependency.get("milestone") == "v0.21.0", "v21 dependency milestone mismatch")
 require(dependency.get("issues") == list(range(651, 660)), "v21 issue set mismatch")
-require(dependency.get("blocked_by_milestone") == "v0.20.1", "v21 blocked-by milestone mismatch")
-require(dependency.get("blocked_by_issues") == [644, 645, 646, 647, 648, 649, 650], "v21 blocked-by issue set mismatch")
+dependency_status = dependency.get("dependency_status", "blocked")
+require(dependency_status in {"blocked", "satisfied"}, "v21 dependency status mismatch")
+if dependency_status == "satisfied":
+    require(dependency.get("satisfied_by_milestone") == "v0.20.1", "v21 satisfied-by milestone mismatch")
+    require(dependency.get("satisfied_by_issues") == [644, 645, 646, 647, 648, 649, 650], "v21 satisfied-by issue set mismatch")
+    require(dependency.get("release_gate_run") == 28452719493, "v21 satisfied release gate run mismatch")
+else:
+    require(dependency.get("blocked_by_milestone") == "v0.20.1", "v21 blocked-by milestone mismatch")
+    require(dependency.get("blocked_by_issues") == [644, 645, 646, 647, 648, 649, 650], "v21 blocked-by issue set mismatch")
 
 for text, label in ((release_notes, "release notes"), (readiness_report, "readiness report")):
     for forbidden in (
@@ -193,16 +201,23 @@ if [[ "${NTPRO_V201_SKIP_GITHUB_DEPENDENCY:-0}" != "1" ]]; then
     fail "gh auth is required for GitHub dependency proof"
   fi
 
-  gh api repos/atxinbao/NTPRO/milestones --paginate --jq '
+  gh api "repos/atxinbao/NTPRO/milestones?state=all" --paginate --jq '
     def require(cond; msg): if cond then empty else error(msg) end;
     [.[] | select(.title=="v0.20.1" or .title=="v0.21.0")] as $m |
     require(($m | length) == 2; "missing v0.20.1/v0.21.0 milestones") |
     ($m[] | select(.title=="v0.20.1")) as $v201 |
     ($m[] | select(.title=="v0.21.0")) as $v210 |
     require(($v201.description | contains("#644-#650")); "v0.20.1 milestone missing #644-#650") |
-    require(($v201.description | contains("Hard-blocks v0.21.0")); "v0.20.1 milestone missing v0.21 block") |
     require(($v210.description | contains("#651-#659")); "v0.21.0 milestone missing #651-#659") |
-    require(($v210.description | contains("Hard-blocked by v0.20.1")); "v0.21.0 milestone missing v0.20.1 dependency") |
+    (
+      (($v201.description | contains("Hard-blocks v0.21.0")) and
+       ($v210.description | contains("Hard-blocked by v0.20.1"))) or
+      (($v201.state == "closed") and
+       ($v201.open_issues == 0) and
+       ($v210.description | contains("Unblocked on 2026-06-30")) and
+       ($v210.description | contains("release ntpro-rust-only-v0.20.1")))
+    ) as $dependency_ok |
+    require($dependency_ok; "v0.21.0 milestone missing blocked or satisfied v0.20.1 dependency") |
     "github milestone dependency proof ok"
   ' >/tmp/ntpro-v201-milestone-proof.txt
   cat /tmp/ntpro-v201-milestone-proof.txt

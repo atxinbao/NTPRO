@@ -88,7 +88,7 @@ GitHub milestone:
 
 ```text
 v0.21.0 = #651-#659
-blocked by v0.20.1 #644-#650
+unblocked by v0.20.1 #644-#650 closeout and ntpro-rust-only-v0.20.1 publication
 ```
 
 Non-goals:
@@ -202,7 +202,7 @@ Scope:
 ## Dependency Rules
 
 ```text
-v0.21.0 must remain blocked until v0.20.1 is closed and released.
+v0.21.0 start gate was satisfied on 2026-06-30 by the v0.20.1 closeout and release evidence.
 v0.22.0 must remain blocked until v0.21.0 read model evidence is closed and released.
 v0.23.0 must remain blocked until the Trader Terminal workbench has a stable read-only/operator boundary.
 v0.24.0 must remain blocked until account/strategy/venue isolation exists.

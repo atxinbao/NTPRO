@@ -1,3 +1,31 @@
+# V210-000 Verification
+
+Date: 2026-06-30
+Executor: Codex
+Task: `V210-000` / GitHub issue `#651`
+
+## Commands
+
+```text
+jq empty docs/rust-cutover/release/v0_20_1_release_manifest.json = PASS
+rg stale v0.21 blocked markers across README, ROADMAP, docs/versioning.md, docs/rust-cutover/release, docs/rust-cutover/scope, docs/rust-cutover/evidence = PASS, no matches for remains-blocked/must-remain-blocked wording
+bash -n scripts/ai/verify_v20_patch_release_gates.sh = PASS
+scripts/ai/verify_release.sh v20.1-release-gates = PASS
+scripts/ai/verify_release.sh release-surface-current-guard release-publication-guard = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+V210-000 records the v0.21.0 go/no-go decision after the published v0.20.1
+release evidence. The result is GO for scoped unified read-model foundation
+work only. It keeps new submit capability, Dashboard operation controls,
+retry/replace/amend/flatten, strategy-driven live trading, and product-grade
+terminal claims out of scope. The v20.1 patch release verifier now accepts the
+post-publication `dependency_status=satisfied` state and closed v0.20.1
+milestone while preserving the historical blocked dependency checks.
+
 # V201-007 Verification
 
 Date: 2026-06-30
