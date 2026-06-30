@@ -1,3 +1,33 @@
+# V201-007 Verification
+
+Date: 2026-06-30
+Executor: Codex
+Task: `V201-007` / GitHub issue `#649`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v20_patch_release_gates.sh scripts/ai/verify_release.sh scripts/ai/check_release_surface_current.sh scripts/ai/check_github_release_published.sh = PASS
+scripts/ai/verify_v20_patch_release_gates.sh = PASS
+scripts/ai/verify_release.sh v20.1-release-gates = PASS
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/verify_release.sh release-surface-current-guard = PASS
+scripts/ai/verify_release.sh v20-release-gates v20-strict-provenance = PASS
+NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE=1 scripts/ai/verify_release.sh release-publication-guard = PASS, pre-tag missing_local_git_tag expected
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); puts "release-tag yaml ok"' = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+V201-007 adds the v0.20.1 hardening patch release notes, readiness report,
+manifest, release gate, release-tag workflow stage, current-surface defaults,
+and publication guard markers. The gate verifies all V201 evidence files,
+the published v0.20.0 base manifest, and the v0.21.0 dependency chain from
+GitHub milestone descriptions plus V210 issue bodies/comments. The publication
+guard is wired for `ntpro-rust-only-v0.20.1` and is expected to pass live after
+the PR merges and the GitHub Release is created.
+
 # V201-006 Verification
 
 Date: 2026-06-30

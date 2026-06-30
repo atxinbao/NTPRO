@@ -10,15 +10,13 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.20.0` 是当前正式公开发布点；它是 Owner-Approved Production Order
-Lifecycle Foundation，只允许 owner-approved 的生产订单生命周期基础链条，并且必须有
-risk gate、signing material env gate、single submit attempt、response redaction、
-post-submit readback、failure/no-retry evidence、只读 Dashboard audit、golden trace
-和 strict provenance 证据。它不是产品级实盘交易终端，不是隐式 retry，不是自动撤单、
-不是自动补救，不是批量订单，不是 retry/replace/amend/flatten，不是策略实盘，不是多账户
-多交易所执行，也没有 Dashboard 下单/审批/撤单/重试控件。`v0.20.1` 是 production
-order lifecycle release closeout / provenance hardening patch；`v0.21.0` 是延期的
-下一能力轨。
+`v0.20.1` 是当前正式公开发布点；它是 Production Order Lifecycle Release
+Closeout & Provenance Hardening Patch，用来补齐 v0.20.0 发布证据、provenance、
+durable attempt ledger、notional consistency、adapter/source labels 和 Dashboard
+foundation-boundary diagnostics。它不是产品级实盘交易终端，不是新增 submit 能力，
+不是隐式 retry，不是自动撤单，不是自动补救，不是批量订单，不是
+retry/replace/amend/flatten，不是策略实盘，不是多账户多交易所执行，也没有 Dashboard
+下单/审批/撤单/重试控件。`v0.21.0` 是下一能力轨。
 
 ## Release Tags
 
@@ -42,6 +40,7 @@ ntpro-rust-only-v0.17.0
 ntpro-rust-only-v0.18.0
 ntpro-rust-only-v0.19.0
 ntpro-rust-only-v0.20.0
+ntpro-rust-only-v0.20.1
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -54,22 +53,18 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.20.0
+ntpro-rust-only-v0.20.1
 ```
 
 The active patch track is:
 
 ```text
-v0.20.1
+v0.20.2
 ```
 
-v0.20.1 is the Production Order Lifecycle Release Closeout & Provenance
-Hardening patch track. It must not expand beyond the v0.20.0
-owner-approved-foundation-only boundary and must not be described as automatic
-execution, implicit retry, automatic cancel, automatic remediation, bulk order
-execution, retry/replace/amend/correction/flatten, strategy-driven production
-execution, multi-account/multi-venue execution, real funds, production trading
-platform readiness, or Dashboard operation controls.
+v0.20.2 is reserved for future patch hardening only. It must not expand beyond
+the v0.20.1 owner-approved-foundation-only boundary unless a later scoped
+release issue explicitly changes that contract.
 
 The next capability track is:
 
@@ -77,9 +72,9 @@ The next capability track is:
 v0.21.0
 ```
 
-v0.21.0 is deferred until a separate scoped plan is approved. It is not part of
-v0.20.0 or v0.20.1. The v0.20 release only authorizes the owner-approved
-production order lifecycle foundation and does not authorize implicit retry,
+v0.21.0 starts from its own scoped issue order. It is not part of v0.20.0 or
+v0.20.1. The v0.20 release line only authorizes the owner-approved production
+order lifecycle foundation and does not authorize implicit retry,
 automatic cancel, automatic remediation, bulk order execution, strategy-driven
 production execution, multi-account or multi-venue expansion, or Dashboard
 operation controls.
@@ -307,6 +302,25 @@ cancel, automatic remediation, bulk order execution, retry/replace/amend/
 correction/flatten, strategy-driven production execution, multi-account/
 multi-venue execution, real-funds trading platform readiness, or Dashboard
 operation controls.
+
+### v0.20.1
+
+Published boundary:
+
+```text
+Production Order Lifecycle Release Closeout & Provenance Hardening Patch
+```
+
+V201-001 through V201-007 define and release the v0.20.1 hardening patch. It
+backfills v0.20.0 publication evidence, hardens V20 provenance, adds durable
+submit-attempt ledger proof, recomputes pre-submit notional consistency, labels
+adapter/readback source provenance, displays Dashboard foundation-boundary
+diagnostics, and records v0.21.0 dependency proof. It must not be treated as new
+submit capability, product-grade live trading, implicit retry, automatic cancel,
+automatic remediation, bulk order execution, retry/replace/amend/correction/
+flatten, strategy-driven production execution, multi-account/multi-venue
+execution, real-funds trading platform readiness, or Dashboard operation
+controls.
 
 ### v0.19.0
 

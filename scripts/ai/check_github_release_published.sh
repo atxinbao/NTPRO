@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.20.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.20.1}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
@@ -311,6 +311,29 @@ case "$CURRENT_RELEASE_VERSION" in
       "retry / replace / amend / flatten = not included"
       "strategy-driven production execution = not included"
       "general production trading platform claim = not included"
+    )
+    ;;
+  v0.20.1)
+    required_fields=(
+      "Status: RELEASED"
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Production Order Lifecycle Release Closeout & Provenance Hardening Patch"
+      "This patch does not expand production submit capability"
+      "V201-001"
+      "V201-007"
+      "scripts/ai/verify_release.sh v20.1-release-gates"
+      "new production submit capability"
+      "implicit retry"
+      "automatic cancel"
+      "automatic remediation"
+      "bulk order execution"
+      "retry, replace, amend, correction, or flatten"
+      "strategy-driven production execution"
+      "multi-account or multi-venue execution"
+      "product-grade live trading terminal readiness"
+      "Dashboard order, approval, cancel, or retry controls"
     )
     ;;
   *)
