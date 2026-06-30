@@ -28,7 +28,8 @@ use nautilus_risk::{
         VenueOrderReadback, reconcile_post_submit_readback,
     },
     v20_submit_response_redaction::{
-        SubmitResponseKind, SubmitResponseRedactionRequest, redact_production_submit_response,
+        SubmitEvidenceSource, SubmitResponseKind, SubmitResponseRedactionRequest,
+        redact_production_submit_response,
     },
 };
 use rust_decimal_macros::dec;
@@ -59,6 +60,20 @@ fn reconciles_matched_readback_for_read_only_audit() {
     assert!(!evidence.risk_evidence_required);
     assert!(evidence.cancel_or_audit_input_ready);
     assert!(evidence.dashboard_read_only_consumable);
+    assert_eq!(
+        evidence.evidence_source,
+        SubmitEvidenceSource::ManualStructured
+    );
+    assert_eq!(
+        evidence.source_provenance_id.as_deref(),
+        Some("manual-structured-readback-v200-008")
+    );
+    assert!(evidence.source_provenance_required);
+    assert!(evidence.source_provenance_valid);
+    assert!(evidence.source_claim_consistent);
+    assert!(!evidence.exchange_truth_claimed);
+    assert!(!evidence.adapter_runtime_integrated);
+    assert!(evidence.foundation_only);
     assert!(!evidence.raw_readback_body_recorded);
     assert!(!evidence.response_headers_recorded);
     assert!(!evidence.automatic_cancel_attempted);
@@ -187,6 +202,71 @@ fn blocks_when_response_lineage_does_not_match_expectation() {
     assert!(!evidence.dashboard_read_only_consumable);
 }
 
+#[test]
+fn blocks_unknown_readback_source() {
+    let mut readback = matched_readback();
+    readback.evidence_source = SubmitEvidenceSource::Unknown;
+
+    let evidence = reconcile_post_submit_readback(&expectation(), &response_evidence(), &readback);
+
+    assert_eq!(evidence.state, SubmitReadbackReconciliationState::Blocked);
+    assert_eq!(
+        evidence.code,
+        SubmitReadbackReconciliationCode::UnknownSource
+    );
+    assert_eq!(
+        evidence.code.as_str(),
+        "v200_submit_readback_unknown_source"
+    );
+    assert!(!evidence.source_provenance_valid);
+    assert!(!evidence.source_claim_consistent);
+}
+
+#[test]
+fn blocks_manual_readback_claimed_as_exchange_truth() {
+    let mut readback = matched_readback();
+    readback.exchange_truth_claimed = true;
+
+    let evidence = reconcile_post_submit_readback(&expectation(), &response_evidence(), &readback);
+
+    assert_eq!(evidence.state, SubmitReadbackReconciliationState::Blocked);
+    assert_eq!(
+        evidence.code,
+        SubmitReadbackReconciliationCode::SourceClaimMismatch
+    );
+    assert_eq!(
+        evidence.code.as_str(),
+        "v200_submit_readback_source_claim_mismatch"
+    );
+    assert!(evidence.exchange_truth_claimed);
+    assert!(evidence.foundation_only);
+}
+
+#[test]
+fn blocks_adapter_readback_missing_source_provenance() {
+    let mut readback = matched_readback();
+    readback.evidence_source = SubmitEvidenceSource::ExchangeReadback;
+    readback.adapter_runtime_integrated = true;
+    readback.source_provenance_id = None;
+
+    let evidence = reconcile_post_submit_readback(&expectation(), &response_evidence(), &readback);
+
+    assert_eq!(evidence.state, SubmitReadbackReconciliationState::Blocked);
+    assert_eq!(
+        evidence.code,
+        SubmitReadbackReconciliationCode::SourceProvenanceMissing
+    );
+    assert_eq!(
+        evidence.code.as_str(),
+        "v200_submit_readback_source_provenance_missing"
+    );
+    assert_eq!(
+        evidence.evidence_source,
+        SubmitEvidenceSource::ExchangeReadback
+    );
+    assert!(!evidence.source_provenance_valid);
+}
+
 fn expectation() -> SubmitReadbackExpectation {
     SubmitReadbackExpectation {
         lifecycle_id: "lc-v200-008".to_string(),
@@ -224,6 +304,10 @@ fn matched_readback() -> VenueOrderReadback {
         failure_code: None,
         raw_readback_body_present: true,
         response_headers_present: true,
+        evidence_source: SubmitEvidenceSource::ManualStructured,
+        source_provenance_id: Some("manual-structured-readback-v200-008".to_string()),
+        exchange_truth_claimed: false,
+        adapter_runtime_integrated: false,
     }
 }
 
@@ -258,6 +342,10 @@ fn accepted_response() -> SubmitResponseRedactionRequest {
         signed_query_present: false,
         signed_url_present: false,
         sensitive_marker_count: 0,
+        evidence_source: SubmitEvidenceSource::ManualStructured,
+        source_provenance_id: Some("manual-structured-response-v200-008".to_string()),
+        exchange_truth_claimed: false,
+        adapter_runtime_integrated: false,
     }
 }
 

@@ -1355,9 +1355,9 @@ function renderProductionOrderLifecycleAudit(items) {
         ${items.map((item) => `
           <tr>
             <td data-label="节点"><strong>${text(item.node_id)}</strong></td>
-            <td data-label="当前结论"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.audit_state))}</div><div class="muted">${displayText(snapshotValue(item.risk_visibility))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div>${panelRow("缺失证据", snapshotValue(item.missing_artifacts))}${panelRow("Schema 诊断", snapshotValue(item.schema_diagnostics))}${panelRow("Provenance 诊断", snapshotValue(item.provenance_diagnostics))}${panelRow("Stale 证据", snapshotValue(item.stale_artifacts))}</td>
+            <td data-label="当前结论"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.audit_state))}</div><div class="muted">${displayText(snapshotValue(item.risk_visibility))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div>${panelRow("缺失证据", snapshotValue(item.missing_artifacts))}${panelRow("Schema 诊断", snapshotValue(item.schema_diagnostics))}${panelRow("Provenance 诊断", snapshotValue(item.provenance_diagnostics))}${panelRow("Source 诊断", snapshotValue(item.source_diagnostics))}${panelRow("Stale 证据", snapshotValue(item.stale_artifacts))}</td>
             <td data-label="Submit / Approval">${panelRow("Lifecycle", snapshotValue(item.lifecycle_id))}${panelRow("Attempt", snapshotValue(item.attempt_id))}${panelRow("Submit 状态", snapshotValue(item.submit_attempt_state))}${panelRow("Submit code", snapshotValue(item.submit_attempt_code))}${panelRow("Owner before", snapshotValue(item.owner_approval_state_before_attempt))}${panelRow("Owner after", snapshotValue(item.owner_approval_state_after_attempt))}${panelRow("Approval consumed", snapshotValue(item.owner_approval_consumed))}${panelRow("Submit attempted", snapshotValue(item.production_submit_attempted))}${panelRow("Readback required", snapshotValue(item.readback_required))}</td>
-            <td data-label="Response / Readback">${panelRow("Response 状态", snapshotValue(item.response_state))}${panelRow("Response code", snapshotValue(item.response_code))}${panelRow("Venue status", snapshotValue(item.venue_status))}${panelRow("Order id", snapshotValue(item.venue_order_id))}${panelRow("Client order id", snapshotValue(item.client_order_id))}${panelRow("Readback 状态", snapshotValue(item.readback_state))}${panelRow("Readback code", snapshotValue(item.readback_code))}${panelRow("Mismatch fields", snapshotValue(item.mismatch_fields))}${panelRow("Readback consistent", snapshotValue(item.readback_consistent))}${panelRow("Readback missing", snapshotValue(item.readback_missing))}${panelRow("Readback failed", snapshotValue(item.readback_failed))}</td>
+            <td data-label="Response / Readback">${panelRow("Source class", snapshotValue(item.evidence_source_class))}${panelRow("Adapter runtime", snapshotValue(item.adapter_runtime_integrated))}${panelRow("Foundation only", snapshotValue(item.foundation_only))}${panelRow("Exchange truth", snapshotValue(item.exchange_truth_claimed))}${panelRow("Response 状态", snapshotValue(item.response_state))}${panelRow("Response code", snapshotValue(item.response_code))}${panelRow("Venue status", snapshotValue(item.venue_status))}${panelRow("Order id", snapshotValue(item.venue_order_id))}${panelRow("Client order id", snapshotValue(item.client_order_id))}${panelRow("Readback 状态", snapshotValue(item.readback_state))}${panelRow("Readback code", snapshotValue(item.readback_code))}${panelRow("Mismatch fields", snapshotValue(item.mismatch_fields))}${panelRow("Readback consistent", snapshotValue(item.readback_consistent))}${panelRow("Readback missing", snapshotValue(item.readback_missing))}${panelRow("Readback failed", snapshotValue(item.readback_failed))}</td>
             <td data-label="Failure / Audit">${panelRow("Failure category", snapshotValue(item.failure_category))}${panelRow("Failure code", snapshotValue(item.failure_code))}${panelRow("Next action", snapshotValue(item.next_allowed_action))}${panelRow("No implicit retry", snapshotValue(item.no_implicit_retry))}${panelRow("Unknown visible", snapshotValue(item.unknown_state_visible))}${panelRow("Audit status", snapshotValue(item.audit_closeout_status))}${panelRow("Audit closed", snapshotValue(item.audit_closed))}${panelRow("Dashboard audit", snapshotValue(item.dashboard_audit_consumable))}${panelRow("Release gate", snapshotValue(item.release_gate_consumable))}</td>
             <td data-label="只读边界">${panelRow("Dashboard 下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("Dashboard 审批控件", snapshotValue(item.dashboard_approval_controls_enabled))}${panelRow("Dashboard 撤单控件", snapshotValue(item.dashboard_cancel_controls_enabled))}${panelRow("重试", snapshotValue(item.retry_attempted))}${panelRow("Replace", snapshotValue(item.replace_attempted))}${panelRow("Amend", snapshotValue(item.amend_attempted))}${panelRow("Flatten", snapshotValue(item.flatten_attempted))}${panelRow("自动撤单", snapshotValue(item.automatic_cancel_attempted))}${panelRow("自动补救", snapshotValue(item.automatic_remediation_allowed))}${panelRow("策略继续", snapshotValue(item.strategy_continuation_allowed))}</td>
             <td data-label="工件" class="path">
@@ -3417,6 +3417,11 @@ pub struct ProductionOrderLifecycleAuditStatus {
     pub schema_diagnostics: DashboardValue<String>,
     pub provenance_diagnostics: DashboardValue<String>,
     pub stale_artifacts: DashboardValue<String>,
+    pub source_diagnostics: DashboardValue<String>,
+    pub evidence_source_class: DashboardValue<String>,
+    pub adapter_runtime_integrated: DashboardValue<bool>,
+    pub foundation_only: DashboardValue<bool>,
+    pub exchange_truth_claimed: DashboardValue<bool>,
     pub lifecycle_id: DashboardValue<String>,
     pub attempt_id: DashboardValue<String>,
     pub submit_attempt_state: DashboardValue<String>,
@@ -7827,6 +7832,8 @@ fn production_order_lifecycle_audit_from_record(
     let schema_diagnostics = v17_schema_diagnostics(&artifact_specs);
     let provenance_diagnostics = v17_provenance_diagnostics(&artifact_specs);
     let stale_artifacts = v17_stale_artifact_diagnostics(&artifact_specs);
+    let source_diagnostics =
+        v20_order_lifecycle_source_diagnostics(&response_redaction, &readback_reconciliation);
     let schema_ok = schema_diagnostics.is_empty();
     let provenance_ok = provenance_diagnostics.is_empty();
 
@@ -7899,6 +7906,20 @@ fn production_order_lifecycle_audit_from_record(
     let readback_consistent = v18_any_available_bool_any(&artifacts, "readback_consistent");
     let readback_missing = v18_any_available_bool_any(&artifacts, "readback_missing");
     let readback_failed = v18_any_available_bool_any(&artifacts, "readback_failed");
+    let source_artifacts = [&response_redaction, &readback_reconciliation];
+    let adapter_runtime_integrated =
+        v18_any_available_bool_any(&source_artifacts, "adapter_runtime_integrated");
+    let exchange_truth_claimed =
+        v18_any_available_bool_any(&source_artifacts, "exchange_truth_claimed");
+    let foundation_only = DashboardValue::available(
+        adapter_runtime_integrated.value != Some(true)
+            && exchange_truth_claimed.value != Some(true),
+    );
+    let evidence_source_class = DashboardValue::available(v20_order_lifecycle_source_class(
+        &response_redaction,
+        &readback_reconciliation,
+        adapter_runtime_integrated.value == Some(true),
+    ));
     let failure_category = failure_no_retry
         .as_ref()
         .map_or_else(DashboardValue::unknown, |value| {
@@ -7946,6 +7967,7 @@ fn production_order_lifecycle_audit_from_record(
 
     let boundary_violation = !schema_ok
         || !provenance_ok
+        || !source_diagnostics.is_empty()
         || !stale_artifacts.is_empty()
         || dashboard_order_controls_enabled.value == Some(true)
         || dashboard_approval_controls_enabled.value == Some(true)
@@ -8016,16 +8038,24 @@ fn production_order_lifecycle_audit_from_record(
         ),
         diagnostic: DashboardValue::available(v20_order_lifecycle_audit_diagnostic(
             &readiness_status,
-            &missing_artifacts,
-            &schema_diagnostics,
-            &provenance_diagnostics,
-            &stale_artifacts,
+            &V20OrderLifecycleAuditDiagnostics {
+                missing_artifacts: &missing_artifacts,
+                schema_diagnostics: &schema_diagnostics,
+                provenance_diagnostics: &provenance_diagnostics,
+                source_diagnostics: &source_diagnostics,
+                stale_artifacts: &stale_artifacts,
+            },
             boundary_violation,
             risk_visible,
         )),
         missing_artifacts: diagnostic_value(&missing_artifacts),
         schema_diagnostics: diagnostic_value(&schema_diagnostics),
         provenance_diagnostics: diagnostic_value(&provenance_diagnostics),
+        source_diagnostics: diagnostic_value(&source_diagnostics),
+        evidence_source_class,
+        adapter_runtime_integrated,
+        foundation_only,
+        exchange_truth_claimed,
         stale_artifacts: diagnostic_value(&stale_artifacts),
         lifecycle_id,
         attempt_id,
@@ -8323,34 +8353,44 @@ fn v19_actual_cancel_audit_diagnostic(
     }
 }
 
+struct V20OrderLifecycleAuditDiagnostics<'a> {
+    missing_artifacts: &'a [String],
+    schema_diagnostics: &'a [String],
+    provenance_diagnostics: &'a [String],
+    source_diagnostics: &'a [String],
+    stale_artifacts: &'a [String],
+}
+
 fn v20_order_lifecycle_audit_diagnostic(
     readiness_status: &str,
-    missing_artifacts: &[String],
-    schema_diagnostics: &[String],
-    provenance_diagnostics: &[String],
-    stale_artifacts: &[String],
+    diagnostics: &V20OrderLifecycleAuditDiagnostics<'_>,
     boundary_violation: bool,
     risk_visible: bool,
 ) -> String {
-    if !missing_artifacts.is_empty() {
+    if !diagnostics.missing_artifacts.is_empty() {
         format!(
             "production_order_lifecycle_audit_missing_evidence:{}",
-            missing_artifacts.join("|")
+            diagnostics.missing_artifacts.join("|")
         )
-    } else if !schema_diagnostics.is_empty() {
+    } else if !diagnostics.schema_diagnostics.is_empty() {
         format!(
             "production_order_lifecycle_audit_schema_mismatch:{}",
-            schema_diagnostics.join("|")
+            diagnostics.schema_diagnostics.join("|")
         )
-    } else if !provenance_diagnostics.is_empty() {
+    } else if !diagnostics.provenance_diagnostics.is_empty() {
         format!(
             "production_order_lifecycle_audit_provenance_mismatch:{}",
-            provenance_diagnostics.join("|")
+            diagnostics.provenance_diagnostics.join("|")
         )
-    } else if !stale_artifacts.is_empty() {
+    } else if !diagnostics.source_diagnostics.is_empty() {
+        format!(
+            "production_order_lifecycle_audit_source_mismatch:{}",
+            diagnostics.source_diagnostics.join("|")
+        )
+    } else if !diagnostics.stale_artifacts.is_empty() {
         format!(
             "production_order_lifecycle_audit_stale_evidence:{}",
-            stale_artifacts.join("|")
+            diagnostics.stale_artifacts.join("|")
         )
     } else if boundary_violation {
         "production_order_lifecycle_audit_boundary_violation".to_string()
@@ -8359,6 +8399,98 @@ fn v20_order_lifecycle_audit_diagnostic(
     } else {
         readiness_status.to_string()
     }
+}
+
+fn v20_order_lifecycle_source_diagnostics(
+    response_redaction: &Option<Value>,
+    readback_reconciliation: &Option<Value>,
+) -> Vec<String> {
+    let mut diagnostics = Vec::new();
+    v20_collect_source_diagnostics(
+        &mut diagnostics,
+        "submit_response_redaction",
+        response_redaction,
+        false,
+    );
+    v20_collect_source_diagnostics(
+        &mut diagnostics,
+        "submit_readback_reconciliation",
+        readback_reconciliation,
+        true,
+    );
+    diagnostics
+}
+
+fn v20_collect_source_diagnostics(
+    diagnostics: &mut Vec<String>,
+    artifact_name: &str,
+    artifact: &Option<Value>,
+    allow_exchange_readback: bool,
+) {
+    let Some(value) = artifact.as_ref() else {
+        return;
+    };
+    let source = json_string_field(value, "evidence_source");
+    let source_value = source.value.as_deref();
+    let provenance = json_string_field(value, "source_provenance_id");
+    let provenance_valid = json_bool_field(value, "source_provenance_valid");
+    let claim_consistent = json_bool_field(value, "source_claim_consistent");
+    let exchange_truth_claimed = json_bool_field(value, "exchange_truth_claimed");
+    let adapter_runtime_integrated = json_bool_field(value, "adapter_runtime_integrated");
+    let foundation_only = json_bool_field(value, "foundation_only");
+
+    match source_value {
+        None => diagnostics.push(format!("{artifact_name}_evidence_source_missing")),
+        Some("unknown") => diagnostics.push(format!("{artifact_name}_evidence_source_unknown")),
+        Some("manual_structured" | "adapter_snapshot") => {}
+        Some("exchange_readback") if allow_exchange_readback => {}
+        Some(other) => diagnostics.push(format!("{artifact_name}_evidence_source_invalid:{other}")),
+    }
+    if provenance
+        .value
+        .as_deref()
+        .is_none_or(|value| value.trim().is_empty())
+        || provenance_valid.value == Some(false)
+    {
+        diagnostics.push(format!("{artifact_name}_source_provenance_missing"));
+    }
+    if claim_consistent.value == Some(false) {
+        diagnostics.push(format!("{artifact_name}_source_claim_inconsistent"));
+    }
+    if source_value == Some("manual_structured") && exchange_truth_claimed.value == Some(true) {
+        diagnostics.push(format!(
+            "{artifact_name}_manual_structured_claims_exchange_truth"
+        ));
+    }
+    if foundation_only.value == Some(true)
+        && (adapter_runtime_integrated.value == Some(true)
+            || exchange_truth_claimed.value == Some(true))
+    {
+        diagnostics.push(format!("{artifact_name}_foundation_only_claim_conflict"));
+    }
+}
+
+fn v20_order_lifecycle_source_class(
+    response_redaction: &Option<Value>,
+    readback_reconciliation: &Option<Value>,
+    adapter_runtime_integrated: bool,
+) -> String {
+    let response_source = response_redaction
+        .as_ref()
+        .and_then(|value| json_string_field(value, "evidence_source").value);
+    let readback_source = readback_reconciliation
+        .as_ref()
+        .and_then(|value| json_string_field(value, "evidence_source").value);
+    let source_class = if adapter_runtime_integrated {
+        "adapter_integrated_runtime"
+    } else if response_source.as_deref() == Some("manual_structured")
+        && readback_source.as_deref() == Some("manual_structured")
+    {
+        "foundation_only_manual_structured"
+    } else {
+        "mixed_or_unknown_source"
+    };
+    source_class.to_string()
 }
 
 fn v18_first_available_string_any(
@@ -13950,6 +14082,17 @@ mod tests {
         assert_eq!(item.readback_consistent.value, Some(true));
         assert_eq!(item.readback_missing.value, Some(false));
         assert_eq!(item.readback_failed.value, Some(false));
+        assert_eq!(
+            item.evidence_source_class.value.as_deref(),
+            Some("foundation_only_manual_structured")
+        );
+        assert_eq!(item.adapter_runtime_integrated.value, Some(false));
+        assert_eq!(item.foundation_only.value, Some(true));
+        assert_eq!(item.exchange_truth_claimed.value, Some(false));
+        assert_eq!(
+            item.source_diagnostics.availability,
+            DashboardAvailability::Unknown
+        );
         assert_eq!(item.failure_category.value.as_deref(), Some("none"));
         assert_eq!(
             item.next_allowed_action.value.as_deref(),
@@ -14003,6 +14146,10 @@ mod tests {
         }
         assert!(renderer.contains("Submit / Approval"));
         assert!(renderer.contains("Response / Readback"));
+        assert!(renderer.contains("Source class"));
+        assert!(renderer.contains("Adapter runtime"));
+        assert!(renderer.contains("Foundation only"));
+        assert!(renderer.contains("Exchange truth"));
         assert!(renderer.contains("Failure / Audit"));
         assert!(renderer.contains("只读边界"));
         let snapshot_value = serde_json::to_value(&snapshot).unwrap();
@@ -14126,6 +14273,86 @@ mod tests {
             Some("response_unknown")
         );
         assert_eq!(item.unknown_state_visible.value, Some(true));
+    }
+
+    #[test]
+    fn production_order_lifecycle_audit_manual_source_claiming_exchange_truth_is_boundary_violation()
+     {
+        let item = production_order_lifecycle_audit_item_with(
+            "production-order-lifecycle-audit-manual-source-claim",
+            |record| {
+                mutate_v20_order_lifecycle_audit_artifact(
+                    record,
+                    "submit_response_redaction.json",
+                    |artifact| {
+                        artifact["exchange_truth_claimed"] = json!(true);
+                        artifact["source_claim_consistent"] = json!(false);
+                    },
+                );
+            },
+        );
+
+        assert_eq!(item.health, HealthStatus::Error);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_order_lifecycle_audit_boundary_violation")
+        );
+        assert_eq!(
+            item.audit_state.value.as_deref(),
+            Some("boundary_violation")
+        );
+        assert_eq!(item.exchange_truth_claimed.value, Some(true));
+        assert!(
+            item.source_diagnostics
+                .value
+                .as_deref()
+                .is_some_and(|value| {
+                    value.contains("submit_response_redaction_source_claim_inconsistent")
+                        && value.contains(
+                            "submit_response_redaction_manual_structured_claims_exchange_truth",
+                        )
+                })
+        );
+    }
+
+    #[test]
+    fn production_order_lifecycle_audit_adapter_source_missing_provenance_is_boundary_violation() {
+        let item = production_order_lifecycle_audit_item_with(
+            "production-order-lifecycle-audit-adapter-source-provenance",
+            |record| {
+                mutate_v20_order_lifecycle_audit_artifact(
+                    record,
+                    "submit_readback_reconciliation.json",
+                    |artifact| {
+                        artifact["evidence_source"] = json!("exchange_readback");
+                        artifact["adapter_runtime_integrated"] = json!(true);
+                        artifact["foundation_only"] = json!(false);
+                        artifact["source_provenance_id"] = Value::Null;
+                        artifact["source_provenance_valid"] = json!(false);
+                    },
+                );
+            },
+        );
+
+        assert_eq!(item.health, HealthStatus::Error);
+        assert_eq!(
+            item.readiness_status.value.as_deref(),
+            Some("production_order_lifecycle_audit_boundary_violation")
+        );
+        assert_eq!(
+            item.evidence_source_class.value.as_deref(),
+            Some("adapter_integrated_runtime")
+        );
+        assert_eq!(item.adapter_runtime_integrated.value, Some(true));
+        assert_eq!(item.foundation_only.value, Some(false));
+        assert!(
+            item.source_diagnostics
+                .value
+                .as_deref()
+                .is_some_and(|value| {
+                    value.contains("submit_readback_reconciliation_source_provenance_missing")
+                })
+        );
     }
 
     #[test]
@@ -17340,6 +17567,14 @@ mod tests {
                 "order_id": "123456789",
                 "client_order_id": "owner-approved-v200-submit",
                 "response_redacted": true,
+                "evidence_source": "manual_structured",
+                "source_provenance_id": "dashboard-fixture-manual-response-v200",
+                "source_provenance_required": true,
+                "source_provenance_valid": true,
+                "source_claim_consistent": true,
+                "exchange_truth_claimed": false,
+                "adapter_runtime_integrated": false,
+                "foundation_only": true,
                 "raw_response_recorded": false,
                 "api_key_value_recorded": false,
                 "api_secret_value_recorded": false,
@@ -17374,6 +17609,14 @@ mod tests {
                 "readback_consistent": true,
                 "readback_missing": false,
                 "readback_failed": false,
+                "evidence_source": "manual_structured",
+                "source_provenance_id": "dashboard-fixture-manual-readback-v200",
+                "source_provenance_required": true,
+                "source_provenance_valid": true,
+                "source_claim_consistent": true,
+                "exchange_truth_claimed": false,
+                "adapter_runtime_integrated": false,
+                "foundation_only": true,
                 "production_submit_attempted": true,
                 "readback_required": true,
                 "dashboard_order_controls_enabled": false,

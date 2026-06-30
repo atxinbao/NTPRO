@@ -50,6 +50,16 @@ pub enum SubmitResponseKind {
     Malformed,
 }
 
+/// Source label for structured submit/readback evidence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SubmitEvidenceSource {
+    ManualStructured,
+    AdapterSnapshot,
+    ExchangeReadback,
+    Unknown,
+}
+
 /// Stable submit response redaction evidence codes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SubmitResponseRedactionCode {
@@ -71,6 +81,12 @@ pub enum SubmitResponseRedactionCode {
     RequestDigestMismatch,
     #[serde(rename = "v200_submit_response_id_missing")]
     ResponseIdMissing,
+    #[serde(rename = "v200_submit_response_unknown_source")]
+    UnknownSource,
+    #[serde(rename = "v200_submit_response_source_provenance_missing")]
+    SourceProvenanceMissing,
+    #[serde(rename = "v200_submit_response_source_claim_mismatch")]
+    SourceClaimMismatch,
     #[serde(rename = "v200_submit_response_sensitive_material_observed")]
     SensitiveMaterialObserved,
 }
@@ -88,6 +104,9 @@ impl SubmitResponseRedactionCode {
             Self::RequestDigestMissing => "v200_submit_response_request_digest_missing",
             Self::RequestDigestMismatch => "v200_submit_response_request_digest_mismatch",
             Self::ResponseIdMissing => "v200_submit_response_id_missing",
+            Self::UnknownSource => "v200_submit_response_unknown_source",
+            Self::SourceProvenanceMissing => "v200_submit_response_source_provenance_missing",
+            Self::SourceClaimMismatch => "v200_submit_response_source_claim_mismatch",
             Self::SensitiveMaterialObserved => "v200_submit_response_sensitive_material_observed",
         }
     }
@@ -121,6 +140,10 @@ pub struct SubmitResponseRedactionRequest {
     pub signed_query_present: bool,
     pub signed_url_present: bool,
     pub sensitive_marker_count: u32,
+    pub evidence_source: SubmitEvidenceSource,
+    pub source_provenance_id: Option<String>,
+    pub exchange_truth_claimed: bool,
+    pub adapter_runtime_integrated: bool,
 }
 
 /// Redacted production submit response evidence.
@@ -167,6 +190,14 @@ pub struct SubmitResponseRedactionEvidence {
     pub raw_payload_present: bool,
     pub response_headers_present: bool,
     pub sensitive_marker_count: u32,
+    pub evidence_source: SubmitEvidenceSource,
+    pub source_provenance_id: Option<String>,
+    pub source_provenance_required: bool,
+    pub source_provenance_valid: bool,
+    pub source_claim_consistent: bool,
+    pub exchange_truth_claimed: bool,
+    pub adapter_runtime_integrated: bool,
+    pub foundation_only: bool,
 }
 
 impl SubmitResponseRedactionEvidence {
@@ -215,6 +246,14 @@ impl SubmitResponseRedactionEvidence {
             raw_payload_present: request.raw_payload_present,
             response_headers_present: request.response_headers_present,
             sensitive_marker_count: request.sensitive_marker_count,
+            evidence_source: request.evidence_source,
+            source_provenance_id: request.source_provenance_id.clone(),
+            source_provenance_required: true,
+            source_provenance_valid: false,
+            source_claim_consistent: false,
+            exchange_truth_claimed: request.exchange_truth_claimed,
+            adapter_runtime_integrated: request.adapter_runtime_integrated,
+            foundation_only: !request.adapter_runtime_integrated,
         }
     }
 
@@ -236,6 +275,10 @@ impl SubmitResponseRedactionEvidence {
         self.readback_correlation_ready = self.request_digest.is_some()
             && (self.client_order_id.is_some() || self.order_id.is_some())
             && state != SubmitResponseRedactionState::Malformed;
+        if state != SubmitResponseRedactionState::Blocked {
+            self.source_provenance_valid = true;
+            self.source_claim_consistent = true;
+        }
         self
     }
 
@@ -307,6 +350,27 @@ pub fn redact_production_submit_response(
             "response request digest does not match submit attempt",
         );
     }
+    if request.evidence_source == SubmitEvidenceSource::Unknown {
+        return evidence.finish(
+            SubmitResponseRedactionState::Blocked,
+            SubmitResponseRedactionCode::UnknownSource,
+            "submit response evidence source is unknown",
+        );
+    }
+    if request.source_provenance_id.as_deref().is_none_or(is_blank) {
+        return evidence.finish(
+            SubmitResponseRedactionState::Blocked,
+            SubmitResponseRedactionCode::SourceProvenanceMissing,
+            "submit response source provenance id is required",
+        );
+    }
+    if !response_source_claim_consistent(request) {
+        return evidence.finish(
+            SubmitResponseRedactionState::Blocked,
+            SubmitResponseRedactionCode::SourceClaimMismatch,
+            "submit response source label does not support the claimed adapter/runtime truth",
+        );
+    }
     if request.credential_material_present
         || request.signature_material_present
         || request.token_value_present
@@ -369,8 +433,25 @@ fn response_digest(request: &SubmitResponseRedactionRequest) -> String {
         request.reject_code.clone().unwrap_or_default(),
         request.reject_reason_code.clone().unwrap_or_default(),
         request.malformed_reason_code.clone().unwrap_or_default(),
+        format!("{:?}", request.evidence_source),
+        request.source_provenance_id.clone().unwrap_or_default(),
+        request.exchange_truth_claimed.to_string(),
+        request.adapter_runtime_integrated.to_string(),
     ];
     checksum_fields(&fields)
+}
+
+fn response_source_claim_consistent(request: &SubmitResponseRedactionRequest) -> bool {
+    match request.evidence_source {
+        SubmitEvidenceSource::ManualStructured => {
+            !request.exchange_truth_claimed && !request.adapter_runtime_integrated
+        }
+        SubmitEvidenceSource::AdapterSnapshot => {
+            !request.exchange_truth_claimed || request.adapter_runtime_integrated
+        }
+        SubmitEvidenceSource::ExchangeReadback => false,
+        SubmitEvidenceSource::Unknown => false,
+    }
 }
 
 fn checksum_fields(fields: &[String]) -> String {

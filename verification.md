@@ -1,3 +1,31 @@
+# V201-005 Verification
+
+Date: 2026-06-30
+Executor: Codex
+Task: `V201-005` / GitHub issue `#647`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v20_release_gates.sh = PASS
+cargo test -p nautilus-risk --test v20_submit_response_redaction --test v20_submit_readback_reconciliation --test v20_failure_no_retry = PASS
+cargo test -p nautilus-cli production_order_lifecycle_audit --lib = PASS
+cargo clippy -p nautilus-risk --test v20_submit_response_redaction --test v20_submit_readback_reconciliation -- -D warnings = PASS
+cargo clippy -p nautilus-cli --lib -- -D warnings = PASS
+scripts/ai/verify_release.sh v20-release-gates = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+V201-005 adds explicit source/provenance labels to V20 submit response and
+readback evidence, blocks unknown/missing/inconsistent source claims, and makes
+the Dashboard distinguish `foundation_only_manual_structured` evidence from
+future adapter-integrated runtime evidence. The release docs now state that the
+v0.20.1 Dashboard remains a read-only evidence foundation, not trader terminal
+readiness.
+
 # V201-004 Verification
 
 Date: 2026-06-30

@@ -55,7 +55,12 @@ diagnostic
 missing_artifacts
 schema_diagnostics
 provenance_diagnostics
+source_diagnostics
 stale_artifacts
+evidence_source_class
+adapter_runtime_integrated
+foundation_only
+exchange_truth_claimed
 lifecycle_id
 attempt_id
 submit_attempt_state
@@ -89,7 +94,18 @@ artifact paths
 production_order_lifecycle_audit_audit_closed = all required artifacts present, schema/provenance/stale checks clean, submit/readback/audit evidence complete, no risk visible
 production_order_lifecycle_audit_risk_visible = evidence complete, but unknown/missing/mismatch/cancel/audit risk remains visible
 production_order_lifecycle_audit_incomplete = required artifact or readiness evidence is missing
-production_order_lifecycle_audit_boundary_violation = schema/provenance/stale or forbidden control/action evidence is present
+production_order_lifecycle_audit_boundary_violation = schema/provenance/source/stale or forbidden control/action evidence is present
+```
+
+## Source Boundary
+
+```text
+foundation_only_manual_structured = response/readback evidence is local structured foundation evidence
+adapter_integrated_runtime = source labels prove adapter-integrated runtime evidence
+mixed_or_unknown_source = source labels are missing or inconsistent
+manual_structured exchange truth claim = boundary_violation
+adapter/exchange source missing provenance = boundary_violation
+v0.20.1 Dashboard = read-only evidence foundation, not trader terminal readiness
 ```
 
 ## Forbidden Dashboard Behavior
@@ -116,6 +132,8 @@ The target test filter `production_order_lifecycle_audit` covers:
 complete artifacts populate the read-only Dashboard view
 readback mismatch is risk_visible, not successful
 unknown response is risk_visible, not successful
+manual structured source claiming exchange truth is boundary_violation
+adapter/exchange source missing provenance is boundary_violation
 forbidden Dashboard/action flags degrade to boundary_violation
 missing evidence never appears healthy
 renderer contains no execution routes, action attributes, fetch calls, or buttons

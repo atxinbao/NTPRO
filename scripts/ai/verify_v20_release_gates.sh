@@ -260,6 +260,32 @@ regression_markers = {
         "v200_submit_request_notional_mismatch",
         "notional_consistent = true",
     ),
+    "crates/risk/src/v20_submit_response_redaction.rs": (
+        "SubmitEvidenceSource",
+        "v200_submit_response_source_claim_mismatch",
+        "source_provenance_id",
+    ),
+    "crates/risk/src/v20_submit_readback_reconciliation.rs": (
+        "v200_submit_readback_source_claim_mismatch",
+        "readback_source_claim_consistent",
+    ),
+    "crates/cli/src/dashboard.rs": (
+        "foundation_only_manual_structured",
+        "production_order_lifecycle_audit_source_mismatch",
+        "Source class",
+    ),
+    "docs/rust-cutover/release/v0_20_0_submit_response_redaction.md": (
+        "manual_structured must not claim exchange truth",
+        "v200_submit_response_source_claim_mismatch",
+    ),
+    "docs/rust-cutover/release/v0_20_0_submit_readback_reconciliation.md": (
+        "manual_structured must not claim exchange truth",
+        "v200_submit_readback_source_claim_mismatch",
+    ),
+    "docs/rust-cutover/release/v0_20_0_dashboard_order_lifecycle_audit.md": (
+        "foundation_only_manual_structured",
+        "not trader terminal readiness",
+    ),
 }
 for path, markers in regression_markers.items():
     file_path = Path(path)
