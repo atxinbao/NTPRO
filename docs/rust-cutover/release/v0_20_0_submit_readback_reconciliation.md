@@ -40,6 +40,27 @@ expectation.lifecycle_id = response.lifecycle_id
 expectation.attempt_id = response.attempt_id
 expectation.request_digest = response.request_digest
 readback.readback_id = present
+evidence_source = manual_structured | adapter_snapshot | exchange_readback
+source_provenance_id = present
+manual_structured must not claim exchange truth
+exchange_readback must be adapter_runtime_integrated
+```
+
+## Source and Provenance Labels
+
+V201-005 makes the readback source explicit. Local structured readback evidence
+is accepted for the v0.20 foundation, but it remains `foundation_only` and must
+not be presented as exchange truth or adapter-integrated runtime truth.
+
+```text
+manual_structured = local structured readback evidence for the v0.20 foundation
+adapter_snapshot = adapter-sourced structured snapshot with provenance
+exchange_readback = adapter-integrated exchange readback with provenance
+unknown = blocked
+source_provenance_id = required
+exchange_truth_claimed = false for manual_structured
+adapter_runtime_integrated = false for v0.20 foundation evidence
+foundation_only = true when adapter_runtime_integrated is false
 ```
 
 ## Compared Fields
@@ -79,6 +100,9 @@ v200_submit_readback_failed
 v200_submit_readback_missing_response_evidence
 v200_submit_readback_lineage_mismatch
 v200_submit_readback_id_missing
+v200_submit_readback_unknown_source
+v200_submit_readback_source_provenance_missing
+v200_submit_readback_source_claim_mismatch
 ```
 
 ## Risk Evidence and Audit Output
@@ -110,6 +134,9 @@ missing order readback
 ambiguous readback
 venue read failure
 lineage mismatch blocked before readback evidence is accepted
+unknown source blocked
+manual structured readback claimed as exchange truth blocked
+adapter readback source missing provenance blocked
 ```
 
 ## Non-Goals
@@ -118,4 +145,6 @@ V200-008 does not query a live adapter, perform network I/O, submit orders,
 cancel orders, infer success from a submit response alone, retry, replace,
 amend, flatten, store raw readback bodies, persist headers, expose Dashboard
 order controls, add golden traces, or add release gates. Those remain assigned
-to later V200 issues.
+to later V200 issues. V201-005 hardening keeps local readback evidence
+foundation-only unless a future adapter-integrated source label and provenance
+explicitly proves otherwise.

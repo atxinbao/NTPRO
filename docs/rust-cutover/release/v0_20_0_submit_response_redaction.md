@@ -38,6 +38,26 @@ V200-006 submit_attempt_evidence_ready = true
 request.lifecycle_id = submit_attempt.lifecycle_id
 request.attempt_id = submit_attempt.attempt_id
 request.request_digest = submit_attempt.request_digest
+evidence_source = manual_structured | adapter_snapshot
+source_provenance_id = present
+manual_structured must not claim exchange truth
+adapter_snapshot claiming exchange truth must be adapter_runtime_integrated
+```
+
+## Source and Provenance Labels
+
+V201-005 adds explicit source labels so redacted response evidence cannot be
+mistaken for adapter-integrated runtime truth.
+
+```text
+manual_structured = local structured evidence for the v0.20 foundation only
+adapter_snapshot = adapter-sourced structured response snapshot with provenance
+exchange_readback = not valid for submit response redaction
+unknown = blocked
+source_provenance_id = required
+exchange_truth_claimed = false for manual_structured
+adapter_runtime_integrated = false for v0.20 foundation evidence
+foundation_only = true when adapter_runtime_integrated is false
 ```
 
 ## Retained Fields
@@ -98,6 +118,9 @@ v200_submit_response_lifecycle_mismatch
 v200_submit_response_request_digest_missing
 v200_submit_response_request_digest_mismatch
 v200_submit_response_id_missing
+v200_submit_response_unknown_source
+v200_submit_response_source_provenance_missing
+v200_submit_response_source_claim_mismatch
 v200_submit_response_sensitive_material_observed
 ```
 
@@ -112,6 +135,9 @@ rejected response redaction with stable reason codes
 unknown response with manual review required
 malformed response with diagnostic-only evidence
 request digest mismatch blocked
+unknown source blocked
+manual structured evidence claimed as exchange truth blocked
+adapter response source missing provenance blocked
 sensitive material observed without leaking marker text
 missing submitted attempt evidence blocked
 ```
@@ -122,4 +148,5 @@ V200-007 does not perform readback, infer order success, call adapters, parse
 raw exchange payloads, store raw response bodies, persist headers, expose
 Dashboard raw response controls, retry, replace, amend, flatten, cancel, add
 golden traces, or add release gates. Those remain assigned to later V200
-issues.
+issues. V201-005 hardening keeps this as foundation-only evidence unless an
+explicit adapter source and provenance label says otherwise.

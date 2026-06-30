@@ -23,9 +23,9 @@ use nautilus_risk::{
         GuardedSubmitMode, V20_GUARDED_SUBMIT_CANDIDATE_SCHEMA_VERSION,
     },
     v20_submit_response_redaction::{
-        SubmitResponseKind, SubmitResponseRedactionCode, SubmitResponseRedactionRequest,
-        SubmitResponseRedactionState, V20_SUBMIT_RESPONSE_REDACTION_SCHEMA_VERSION,
-        redact_production_submit_response,
+        SubmitEvidenceSource, SubmitResponseKind, SubmitResponseRedactionCode,
+        SubmitResponseRedactionRequest, SubmitResponseRedactionState,
+        V20_SUBMIT_RESPONSE_REDACTION_SCHEMA_VERSION, redact_production_submit_response,
     },
 };
 
@@ -56,6 +56,20 @@ fn redacts_accepted_response_for_readback_correlation() {
     assert!(first.readback_correlation_ready);
     assert!(!first.readback_success_inferred);
     assert!(!first.manual_review_required);
+    assert_eq!(
+        first.evidence_source,
+        SubmitEvidenceSource::ManualStructured
+    );
+    assert_eq!(
+        first.source_provenance_id.as_deref(),
+        Some("manual-structured-response-v200-007")
+    );
+    assert!(first.source_provenance_required);
+    assert!(first.source_provenance_valid);
+    assert!(first.source_claim_consistent);
+    assert!(!first.exchange_truth_claimed);
+    assert!(!first.adapter_runtime_integrated);
+    assert!(first.foundation_only);
     assert!(!first.raw_exchange_response_recorded);
     assert!(!first.response_headers_recorded);
     assert!(!first.unrestricted_payload_recorded);
@@ -152,6 +166,68 @@ fn blocks_request_digest_mismatch() {
 }
 
 #[test]
+fn blocks_unknown_response_source() {
+    let mut request = accepted_response();
+    request.evidence_source = SubmitEvidenceSource::Unknown;
+
+    let evidence = redact_production_submit_response(&request, &submitted_attempt());
+
+    assert_eq!(evidence.state, SubmitResponseRedactionState::Blocked);
+    assert_eq!(evidence.code, SubmitResponseRedactionCode::UnknownSource);
+    assert_eq!(
+        evidence.code.as_str(),
+        "v200_submit_response_unknown_source"
+    );
+    assert!(!evidence.source_provenance_valid);
+    assert!(!evidence.source_claim_consistent);
+}
+
+#[test]
+fn blocks_manual_response_claimed_as_exchange_truth() {
+    let mut request = accepted_response();
+    request.exchange_truth_claimed = true;
+
+    let evidence = redact_production_submit_response(&request, &submitted_attempt());
+
+    assert_eq!(evidence.state, SubmitResponseRedactionState::Blocked);
+    assert_eq!(
+        evidence.code,
+        SubmitResponseRedactionCode::SourceClaimMismatch
+    );
+    assert_eq!(
+        evidence.code.as_str(),
+        "v200_submit_response_source_claim_mismatch"
+    );
+    assert!(evidence.exchange_truth_claimed);
+    assert!(evidence.foundation_only);
+}
+
+#[test]
+fn blocks_adapter_response_missing_source_provenance() {
+    let mut request = accepted_response();
+    request.evidence_source = SubmitEvidenceSource::AdapterSnapshot;
+    request.adapter_runtime_integrated = true;
+    request.source_provenance_id = None;
+
+    let evidence = redact_production_submit_response(&request, &submitted_attempt());
+
+    assert_eq!(evidence.state, SubmitResponseRedactionState::Blocked);
+    assert_eq!(
+        evidence.code,
+        SubmitResponseRedactionCode::SourceProvenanceMissing
+    );
+    assert_eq!(
+        evidence.code.as_str(),
+        "v200_submit_response_source_provenance_missing"
+    );
+    assert_eq!(
+        evidence.evidence_source,
+        SubmitEvidenceSource::AdapterSnapshot
+    );
+    assert!(!evidence.source_provenance_valid);
+}
+
+#[test]
 fn blocks_sensitive_material_without_leaking_marker() {
     let mut request = accepted_response();
     request.response_id = "response-sensitive-v200-007".to_string();
@@ -218,6 +294,10 @@ fn accepted_response() -> SubmitResponseRedactionRequest {
         signed_query_present: false,
         signed_url_present: false,
         sensitive_marker_count: 0,
+        evidence_source: SubmitEvidenceSource::ManualStructured,
+        source_provenance_id: Some("manual-structured-response-v200-007".to_string()),
+        exchange_truth_claimed: false,
+        adapter_runtime_integrated: false,
     }
 }
 

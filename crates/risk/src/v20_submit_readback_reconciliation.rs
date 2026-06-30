@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     v20_pre_submit_gate::V20_ORDER_LIFECYCLE_CONTRACT_ID,
     v20_submit_response_redaction::{
-        SubmitResponseRedactionEvidence, SubmitResponseRedactionState,
+        SubmitEvidenceSource, SubmitResponseRedactionEvidence, SubmitResponseRedactionState,
     },
 };
 
@@ -60,6 +60,12 @@ pub enum SubmitReadbackReconciliationCode {
     LineageMismatch,
     #[serde(rename = "v200_submit_readback_id_missing")]
     ReadbackIdMissing,
+    #[serde(rename = "v200_submit_readback_unknown_source")]
+    UnknownSource,
+    #[serde(rename = "v200_submit_readback_source_provenance_missing")]
+    SourceProvenanceMissing,
+    #[serde(rename = "v200_submit_readback_source_claim_mismatch")]
+    SourceClaimMismatch,
 }
 
 impl SubmitReadbackReconciliationCode {
@@ -74,6 +80,9 @@ impl SubmitReadbackReconciliationCode {
             Self::MissingResponseEvidence => "v200_submit_readback_missing_response_evidence",
             Self::LineageMismatch => "v200_submit_readback_lineage_mismatch",
             Self::ReadbackIdMissing => "v200_submit_readback_id_missing",
+            Self::UnknownSource => "v200_submit_readback_unknown_source",
+            Self::SourceProvenanceMissing => "v200_submit_readback_source_provenance_missing",
+            Self::SourceClaimMismatch => "v200_submit_readback_source_claim_mismatch",
         }
     }
 }
@@ -118,6 +127,10 @@ pub struct VenueOrderReadback {
     pub failure_code: Option<String>,
     pub raw_readback_body_present: bool,
     pub response_headers_present: bool,
+    pub evidence_source: SubmitEvidenceSource,
+    pub source_provenance_id: Option<String>,
+    pub exchange_truth_claimed: bool,
+    pub adapter_runtime_integrated: bool,
 }
 
 /// Auditable post-submit readback reconciliation evidence.
@@ -175,6 +188,14 @@ pub struct SubmitReadbackReconciliationEvidence {
     pub raw_readback_body_recorded: bool,
     pub response_headers_recorded: bool,
     pub failure_code: Option<String>,
+    pub evidence_source: SubmitEvidenceSource,
+    pub source_provenance_id: Option<String>,
+    pub source_provenance_required: bool,
+    pub source_provenance_valid: bool,
+    pub source_claim_consistent: bool,
+    pub exchange_truth_claimed: bool,
+    pub adapter_runtime_integrated: bool,
+    pub foundation_only: bool,
 }
 
 impl SubmitReadbackReconciliationEvidence {
@@ -235,6 +256,14 @@ impl SubmitReadbackReconciliationEvidence {
             raw_readback_body_recorded: false,
             response_headers_recorded: false,
             failure_code: readback.failure_code.clone(),
+            evidence_source: readback.evidence_source,
+            source_provenance_id: readback.source_provenance_id.clone(),
+            source_provenance_required: true,
+            source_provenance_valid: false,
+            source_claim_consistent: false,
+            exchange_truth_claimed: readback.exchange_truth_claimed,
+            adapter_runtime_integrated: readback.adapter_runtime_integrated,
+            foundation_only: !readback.adapter_runtime_integrated,
         }
     }
 
@@ -267,6 +296,10 @@ impl SubmitReadbackReconciliationEvidence {
         );
         self.cancel_or_audit_input_ready = state != SubmitReadbackReconciliationState::Blocked;
         self.dashboard_read_only_consumable = state != SubmitReadbackReconciliationState::Blocked;
+        if state != SubmitReadbackReconciliationState::Blocked {
+            self.source_provenance_valid = true;
+            self.source_claim_consistent = true;
+        }
         self
     }
 
@@ -309,6 +342,31 @@ pub fn reconcile_post_submit_readback(
             SubmitReadbackReconciliationState::Blocked,
             SubmitReadbackReconciliationCode::LineageMismatch,
             "readback expectation does not match redacted response evidence",
+        );
+    }
+    if readback.evidence_source == SubmitEvidenceSource::Unknown {
+        return evidence.finish(
+            SubmitReadbackReconciliationState::Blocked,
+            SubmitReadbackReconciliationCode::UnknownSource,
+            "readback evidence source is unknown",
+        );
+    }
+    if readback
+        .source_provenance_id
+        .as_deref()
+        .is_none_or(is_blank)
+    {
+        return evidence.finish(
+            SubmitReadbackReconciliationState::Blocked,
+            SubmitReadbackReconciliationCode::SourceProvenanceMissing,
+            "readback source provenance id is required",
+        );
+    }
+    if !readback_source_claim_consistent(readback) {
+        return evidence.finish(
+            SubmitReadbackReconciliationState::Blocked,
+            SubmitReadbackReconciliationCode::SourceClaimMismatch,
+            "readback source label does not support the claimed adapter/runtime truth",
         );
     }
     if readback.read_failed {
@@ -435,6 +493,19 @@ fn compare_decimal(
 ) {
     if expected != observed {
         fields.push(field.to_string());
+    }
+}
+
+fn readback_source_claim_consistent(readback: &VenueOrderReadback) -> bool {
+    match readback.evidence_source {
+        SubmitEvidenceSource::ManualStructured => {
+            !readback.exchange_truth_claimed && !readback.adapter_runtime_integrated
+        }
+        SubmitEvidenceSource::AdapterSnapshot => {
+            !readback.exchange_truth_claimed || readback.adapter_runtime_integrated
+        }
+        SubmitEvidenceSource::ExchangeReadback => readback.adapter_runtime_integrated,
+        SubmitEvidenceSource::Unknown => false,
     }
 }
 
