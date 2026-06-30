@@ -23,6 +23,7 @@ use crate::{
     v20_owner_approval::{OwnerApprovalEvidence, OwnerApprovalState, consume_owner_approval},
     v20_pre_submit_gate::{
         PreSubmitRiskDecisionKind, PreSubmitRiskGateEvidence, V20_ORDER_LIFECYCLE_CONTRACT_ID,
+        V20_REQUIRED_RELEASE_GATE, V20_REQUIRED_RELEASE_TAG,
     },
     v20_signing_material_gate::{SigningMaterialDecision, SigningMaterialGateEvidence},
     v20_submit_request_builder::{SubmitRequestBuildDecision, SubmitRequestBuilderEvidence},
@@ -381,11 +382,13 @@ pub fn evaluate_guarded_single_shot_submit_candidate(
         || risk.release_tag.as_deref().is_none_or(is_blank)
         || risk.release_commit.as_deref().is_none_or(is_blank)
         || risk.release_gate.as_deref().is_none_or(is_blank)
+        || risk.release_tag.as_deref() != Some(V20_REQUIRED_RELEASE_TAG)
+        || risk.release_gate.as_deref() != Some(V20_REQUIRED_RELEASE_GATE)
     {
         return evidence.finish(
             GuardedSubmitCandidateState::Blocked,
             GuardedSubmitCandidateCode::MissingReleaseProvenance,
-            "strict release provenance evidence is required",
+            "strict v20 release provenance evidence is required",
         );
     }
 

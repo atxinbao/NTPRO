@@ -22,6 +22,7 @@ use crate::{
     v20_owner_approval::{OwnerApprovalEvidence, OwnerApprovalState},
     v20_pre_submit_gate::{
         PreSubmitRiskDecisionKind, PreSubmitRiskGateEvidence, V20_ORDER_LIFECYCLE_CONTRACT_ID,
+        V20_REQUIRED_RELEASE_GATE, V20_REQUIRED_RELEASE_TAG,
     },
     v20_signing_material_gate::{SigningMaterialDecision, SigningMaterialGateEvidence},
 };
@@ -48,6 +49,8 @@ pub enum SubmitRequestBuildCode {
     Built,
     #[serde(rename = "v200_submit_request_missing_risk_allow")]
     MissingRiskAllow,
+    #[serde(rename = "v200_submit_request_missing_release_provenance")]
+    MissingReleaseProvenance,
     #[serde(rename = "v200_submit_request_missing_owner_approval")]
     MissingOwnerApproval,
     #[serde(rename = "v200_submit_request_missing_signing_readiness")]
@@ -64,6 +67,7 @@ impl SubmitRequestBuildCode {
         match self {
             Self::Built => "v200_submit_request_built",
             Self::MissingRiskAllow => "v200_submit_request_missing_risk_allow",
+            Self::MissingReleaseProvenance => "v200_submit_request_missing_release_provenance",
             Self::MissingOwnerApproval => "v200_submit_request_missing_owner_approval",
             Self::MissingSigningReadiness => "v200_submit_request_missing_signing_readiness",
             Self::CandidateMismatch => "v200_submit_request_candidate_mismatch",
@@ -182,6 +186,22 @@ pub fn build_single_shot_submit_request(
             signing,
             SubmitRequestBuildCode::MissingRiskAllow,
             "risk allow evidence is required",
+        );
+    }
+    if !risk.release_provenance_valid
+        || risk.release_tag.as_deref().is_none_or(is_blank)
+        || risk.release_commit.as_deref().is_none_or(is_blank)
+        || risk.release_gate.as_deref().is_none_or(is_blank)
+        || risk.release_tag.as_deref() != Some(V20_REQUIRED_RELEASE_TAG)
+        || risk.release_gate.as_deref() != Some(V20_REQUIRED_RELEASE_GATE)
+    {
+        return SubmitRequestBuilderEvidence::rejected(
+            candidate,
+            risk,
+            approval,
+            signing,
+            SubmitRequestBuildCode::MissingReleaseProvenance,
+            "strict v20 release provenance evidence is required",
         );
     }
     if approval.state != OwnerApprovalState::Approved || !approval.submit_consumption_allowed {
@@ -317,6 +337,10 @@ fn candidate_matches_risk(
         && risk.order_type.as_deref() == Some(candidate.order_type.as_str())
         && risk.time_in_force.as_deref() == Some(candidate.time_in_force.as_str())
         && risk.order_intent_hash.as_deref() == Some(candidate.order_intent_hash.as_str())
+}
+
+fn is_blank(value: &str) -> bool {
+    value.trim().is_empty()
 }
 
 fn checksum_fields(fields: &[String]) -> String {

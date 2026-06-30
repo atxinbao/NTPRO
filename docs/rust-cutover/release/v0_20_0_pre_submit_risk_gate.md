@@ -54,7 +54,9 @@ unrecognized fields
 The default supported production shape is a single allowlisted account, venue,
 instrument, side, LIMIT order type, GTC time-in-force, positive quantity,
 positive price, capped notional, matching production environment, unexpired
-single-use owner approval, and strict v19 release provenance.
+single-use owner approval, and strict v20 runtime release provenance. The
+v0.19.1 closeout is prerequisite evidence only; it is not accepted as current
+runtime submit provenance.
 
 ## Decisions
 

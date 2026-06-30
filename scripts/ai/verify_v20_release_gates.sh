@@ -153,6 +153,15 @@ false_fields = {
     "live_broker_required",
 }
 for row in rows:
+    for section in ("input", "expected"):
+        payload = row[section]["events"][0]["payload"]
+        runtime_provenance = payload.get("runtime_release_provenance") or {}
+        if runtime_provenance.get("release_tag") != "ntpro-rust-only-v0.20.0":
+            violations.append(f"{payload.get('scenario')}: {section} runtime release tag is not v20")
+        if runtime_provenance.get("release_gate") != "v20-release-gates":
+            violations.append(f"{payload.get('scenario')}: {section} runtime release gate is not v20")
+        if runtime_provenance.get("strict_provenance") is not True:
+            violations.append(f"{payload.get('scenario')}: {section} strict provenance is not true")
     payload = row["expected"]["events"][0]["payload"]
     scenario = payload.get("scenario")
     seen.add(scenario)

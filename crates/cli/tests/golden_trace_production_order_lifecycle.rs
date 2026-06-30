@@ -24,6 +24,8 @@ use serde_json::Value;
 
 const TRACE_FILE: &str = "production_order_lifecycle_schema.jsonl";
 const CONTRACT_VERSION: &str = "ntpro.v200_order_lifecycle_golden_fixture.v1";
+const REQUIRED_RELEASE_TAG: &str = "ntpro-rust-only-v0.20.0";
+const REQUIRED_RELEASE_GATE: &str = "v20-release-gates";
 const REQUIRED_REFS: &[&str] = &[
     "candidate_ref",
     "response_ref",
@@ -180,6 +182,8 @@ fn rust_cli_production_order_lifecycle_golden_traces_cover_v200_required_paths()
         let expected_payload = payload(expected_event)?;
 
         assert_input_contract(input_payload, expected.scenario)?;
+        assert_runtime_release_provenance(input_payload, expected.scenario, "input")?;
+        assert_runtime_release_provenance(expected_payload, expected.scenario, "expected")?;
         assert_expected_fields(expected_payload, expected)?;
         assert_required_refs(input_payload, expected.scenario, "input")?;
         assert_required_refs(expected_payload, expected.scenario, "expected")?;
@@ -237,6 +241,33 @@ fn assert_input_contract(payload: &Value, scenario: &str) -> Result<(), Box<dyn 
     }
     if string_field(payload, "fixture_family")? != "production_order_lifecycle_raw_adapter" {
         return Err(format!("{scenario} must stay in the raw/adapter fixture family").into());
+    }
+    Ok(())
+}
+
+fn assert_runtime_release_provenance(
+    payload: &Value,
+    scenario: &str,
+    section: &str,
+) -> Result<(), Box<dyn Error>> {
+    let provenance = object_field(payload, "runtime_release_provenance")?;
+    if string_field(provenance, "release_tag")? != REQUIRED_RELEASE_TAG {
+        return Err(format!(
+            "{scenario} {section}.runtime_release_provenance.release_tag must be {REQUIRED_RELEASE_TAG}"
+        )
+        .into());
+    }
+    if string_field(provenance, "release_gate")? != REQUIRED_RELEASE_GATE {
+        return Err(format!(
+            "{scenario} {section}.runtime_release_provenance.release_gate must be {REQUIRED_RELEASE_GATE}"
+        )
+        .into());
+    }
+    if !bool_field(provenance, "strict_provenance")? {
+        return Err(format!(
+            "{scenario} {section}.runtime_release_provenance.strict_provenance must be true"
+        )
+        .into());
     }
     Ok(())
 }

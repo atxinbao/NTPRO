@@ -25,6 +25,10 @@ pub const V20_PRE_SUBMIT_RISK_GATE_SCHEMA_VERSION: &str =
     "ntpro.v200_pre_submit_risk_gate_decision.v1";
 /// Contract inherited from V200-001 production order lifecycle safety work.
 pub const V20_ORDER_LIFECYCLE_CONTRACT_ID: &str = "ntpro.v200_order_lifecycle_safety_contract.v1";
+/// Runtime release tag required for V20 production submit evidence.
+pub const V20_REQUIRED_RELEASE_TAG: &str = "ntpro-rust-only-v0.20.0";
+/// Runtime release gate required for V20 production submit evidence.
+pub const V20_REQUIRED_RELEASE_GATE: &str = "v20-release-gates";
 
 /// Final pre-submit gate decision class.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -110,6 +114,8 @@ pub enum PreSubmitRiskCode {
     ProvenanceMissing,
     #[serde(rename = "v200_pre_submit_provenance_tag_missing")]
     ProvenanceTagMissing,
+    #[serde(rename = "v200_pre_submit_provenance_tag_mismatch")]
+    ProvenanceTagMismatch,
     #[serde(rename = "v200_pre_submit_provenance_commit_missing")]
     ProvenanceCommitMissing,
     #[serde(rename = "v200_pre_submit_provenance_gate_mismatch")]
@@ -158,6 +164,7 @@ impl PreSubmitRiskCode {
             Self::ApprovalAlreadyConsumed => "v200_pre_submit_approval_already_consumed",
             Self::ProvenanceMissing => "v200_pre_submit_provenance_missing",
             Self::ProvenanceTagMissing => "v200_pre_submit_provenance_tag_missing",
+            Self::ProvenanceTagMismatch => "v200_pre_submit_provenance_tag_mismatch",
             Self::ProvenanceCommitMissing => "v200_pre_submit_provenance_commit_missing",
             Self::ProvenanceGateMismatch => "v200_pre_submit_provenance_gate_mismatch",
             Self::ProvenanceNotStrict => "v200_pre_submit_provenance_not_strict",
@@ -221,6 +228,7 @@ pub struct PreSubmitRiskPolicy {
     pub allowed_order_types: BTreeSet<String>,
     pub allowed_time_in_force: BTreeSet<String>,
     pub expected_environment: String,
+    pub required_release_tag: String,
     pub required_release_gate: String,
     pub max_quantity: Decimal,
     pub max_price: Decimal,
@@ -624,6 +632,16 @@ pub fn evaluate_pre_submit_risk_gate(
             PreSubmitRiskDecisionKind::Blocked,
             PreSubmitRiskCode::ProvenanceTagMissing,
             "release_tag is required",
+        );
+    }
+    if provenance.release_tag != policy.required_release_tag {
+        return evidence.finish(
+            PreSubmitRiskDecisionKind::Blocked,
+            PreSubmitRiskCode::ProvenanceTagMismatch,
+            format!(
+                "release_tag {} does not match required {}",
+                provenance.release_tag, policy.required_release_tag
+            ),
         );
     }
     if missing(&provenance.release_commit) {
