@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.20.1}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.21.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
@@ -334,6 +334,33 @@ case "$CURRENT_RELEASE_VERSION" in
       "multi-account or multi-venue execution"
       "product-grade live trading terminal readiness"
       "Dashboard order, approval, cancel, or retry controls"
+    )
+    ;;
+  v0.21.0)
+    required_fields=(
+      "Status: RELEASED"
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Unified Read Model Foundation"
+      "This release does not expand production submit capability"
+      "V210-000"
+      "V210-008"
+      "scripts/ai/verify_release.sh v21-release-gates"
+      "scripts/ai/verify_release.sh v21-strict-provenance"
+      "scripts/ai/verify_release_strict.sh v21"
+      "unified_read_model_foundation"
+      "read_only_foundation"
+      "new production submit capability"
+      "production order mutation"
+      "implicit retry"
+      "automatic cancel"
+      "automatic remediation"
+      "retry, replace, amend, correction, or flatten"
+      "strategy-driven production execution"
+      "multi-account or multi-venue execution expansion"
+      "product-grade live trading terminal readiness"
+      "Dashboard order, approval, cancel, retry, submit, replace, amend, flatten, or order-ticket controls"
     )
     ;;
   *)

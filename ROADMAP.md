@@ -4,54 +4,49 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.20.1`, the Production Order Lifecycle Release Closeout & Provenance Hardening Patch release.
-The next patch track is `v0.20.2`. The next capability track is `v0.21.0`,
-which is now unblocked by the published v0.20.1 evidence and starts from its
-own scoped issue order.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.21.0`, the Unified Read Model Foundation release.
+The next patch track is `v0.21.1`.
+The next capability track is `v0.22.0`.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.20.1
+ntpro-rust-only-v0.21.0
 ```
 
 Current capability boundary:
 
 ```text
-Production Order Lifecycle Release Closeout & Provenance Hardening Patch
-v0.20.0 owner-approved production order lifecycle foundation baseline
-v0.19.1 release surface and provenance hardening baseline
-owner approval required
-pre-submit risk gate required
-signing material env gate required
-single submit attempt required
-post-submit response redaction required
-post-submit readback required
-failure/no-retry evidence required
-read-only Dashboard order lifecycle audit
-production order lifecycle golden trace coverage
+Unified Read Model Foundation
+v0.20.1 production order lifecycle hardening baseline
+account read model evidence required
+position read model evidence required
+order lifecycle read model evidence required
+fill/execution read model evidence required
+risk state projection evidence required
+Trader Terminal read-only Dashboard foundation evidence required
+read model golden trace coverage
 strict release provenance required
 default local/PR/release execution fail-closed
+new submit capability not included
+production order mutation not included
 implicit retry not included
 automatic cancel not included
 automatic remediation not included
-bulk order execution not included
 retry / replace / amend / flatten not included
 no strategy-driven production execution
 no listenKey lifecycle
 no real-funds proof in CI
 no multi-account or multi-venue execution
-no Dashboard order controls
-no Dashboard approval/cancel/retry controls
+no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
+no product-grade live trading terminal claim
 ```
 
-`v0.20.1` hardens the v0.20.0 owner-approved production order lifecycle
-foundation with release closeout evidence, provenance hardening, durable attempt
-ledger proof, notional consistency, adapter/source provenance labeling,
-Dashboard foundation-boundary diagnostics, and patch release gates. It does not
-create a general production trading terminal and does not enable automatic
+`v0.21.0` establishes the unified read model foundation with account, position,
+order, fill, risk, and Trader Terminal read-only Dashboard evidence. It does
+not create a general production trading terminal and does not enable automatic
 execution.
 
 ## Published Hardening Patch: v0.7.1
@@ -493,12 +488,50 @@ incident classification.
 - real-funds proof in CI;
 - general production trading platform claim.
 
-## Published Capability Track: v0.20.1
+## Published Capability Track: v0.21.0
+
+`v0.21.0` is the published Unified Read Model Foundation line. It preserves the
+v0.20.1 no-submit/no-Dashboard-controls boundary while adding account,
+position, order, fill, risk, and Trader Terminal read-only Dashboard evidence.
+
+`v0.21.0` includes:
+
+- unified read model contract and JSON schema;
+- account snapshot read model;
+- position read model and risk projection inputs;
+- order lifecycle read model;
+- fill/execution read model with dedupe and reconciliation;
+- unified risk state projection;
+- Trader Terminal read-only Dashboard foundation;
+- v0.21 release gates and strict provenance.
+
+`v0.21.0` explicitly does not include:
+
+- product-grade live trading terminal;
+- new production submit capability;
+- production order mutation;
+- implicit retry;
+- automatic cancel;
+- automatic remediation;
+- retry, replace, amend, correction, flatten, or remediation;
+- Dashboard order controls;
+- Dashboard approval controls;
+- Dashboard cancel controls;
+- Dashboard retry controls;
+- Dashboard submit/replace/amend/flatten/order-ticket controls;
+- strategy-driven production execution;
+- multi-account production execution;
+- multi-venue production execution;
+- listenKey creation, keepalive, or close lifecycle;
+- real-funds proof in CI;
+- general production trading platform claim.
+
+## Published Hardening Patch: v0.20.1
 
 `v0.20.1` is the published Production Order Lifecycle Release Closeout &
 Provenance Hardening Patch. It preserves the v0.20.0 owner-approved foundation
 boundary while closing V201 release evidence before v0.21.0 read-model work
-starts.
+started.
 
 `v0.20.1` includes:
 
@@ -531,8 +564,8 @@ starts.
 - general production trading platform claim.
 
 `v0.20.0` remains the base Owner-Approved Production Order Lifecycle Foundation
-release for this hardening patch. `v0.21.0` is the next capability track and
-must not inherit submit expansion from v0.20.1.
+release for this hardening patch. `v0.21.0` absorbed the next scoped read-model
+foundation line without inheriting submit expansion from v0.20.1.
 
 ## Published Capability Track: v0.19.0
 
