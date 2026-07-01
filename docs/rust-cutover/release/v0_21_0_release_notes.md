@@ -7,6 +7,9 @@ Tag: `ntpro-rust-only-v0.21.0`
 Release name: `NTPRO Rust-only v0.21.0`
 Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.21.0`
 Base release: `ntpro-rust-only-v0.20.1`
+Published at: `2026-07-01T11:06:06Z`
+Tag commit: `7e1cb46d692974bb5ef1398967c0927dd51c8091`
+Hosted release gate: `https://github.com/atxinbao/NTPRO/actions/runs/28513012766`
 
 ## Summary
 
@@ -17,6 +20,17 @@ foundation evidence chain for the Rust-only product surface.
 This release does not expand production submit capability. It is a read-only
 foundation release for unified read-model evidence, schema gates, golden
 traces, release gates, and strict provenance.
+
+## Publication Closeout
+
+The formal GitHub Release `ntpro-rust-only-v0.21.0` is published and the hosted
+release gate run `28513012766` completed successfully. The v0.21.0 issue set
+`#651-#659` is closed, and milestone `#8` is closed with a live milestone
+description that records the release URL, tag commit, hosted run, and boundary
+claim.
+
+The follow-up `v0.21.1` hardening patch (`#677-#682`) is the required blocker
+before `v0.22.0` Trader Terminal workbench work (`#683-#690`) can start.
 
 ## Included Foundation Work
 
@@ -64,6 +78,8 @@ v0.21.0 explicitly does not include:
 - multi-account or multi-venue execution expansion;
 - real-funds proof in CI;
 - product-grade live trading terminal readiness;
+- executable read-model runtime readiness;
+- Trader Terminal workbench readiness;
 - Dashboard order, approval, cancel, retry, submit, replace, amend, flatten, or order-ticket controls.
 
 ## Scope Claim

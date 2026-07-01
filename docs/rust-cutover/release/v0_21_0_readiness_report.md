@@ -7,10 +7,24 @@ Status: RELEASED
 
 ## Summary
 
-v0.21.0 is ready as the unified read model foundation for account, position,
+v0.21.0 is released as the unified read model foundation for account, position,
 order, fill, risk, and Trader Terminal read-only Dashboard evidence. The
 milestone closes the V210 issue chain without adding submit, cancel, retry,
 remediation, strategy-driven execution, or Dashboard operation controls.
+
+## Publication Closeout
+
+```text
+GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.21.0
+release tag = ntpro-rust-only-v0.21.0
+release name = NTPRO Rust-only v0.21.0
+published at = 2026-07-01T11:06:06Z
+tag commit = 7e1cb46d692974bb5ef1398967c0927dd51c8091
+tag tree = d33fe810aab4c0e0f743340c9dac6bc993a9428a
+hosted release gate run = https://github.com/atxinbao/NTPRO/actions/runs/28513012766
+hosted release gate conclusion = success
+hosted release gate completed at = 2026-07-01T12:35:48Z
+```
 
 ## Required Evidence
 
@@ -59,6 +73,17 @@ v0.20.1 release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-
 v0.20.1 release gate run = 28452719493
 V201 issues #644-#650 = closed
 v0.21.0 milestone = #651-#659
+v0.21.0 issue closeout = #651-#659 closed
+v0.21.0 milestone #8 = closed at 2026-07-01T14:38:16Z
+```
+
+## v0.21.1 And v0.22.0 Dependency
+
+```text
+v0.21.1 milestone = #677-#682
+v0.21.1 status = required hardening and closeout patch
+v0.22.0 milestone = #683-#690
+v0.22.0 status = blocked until all V211 issues close and v0.21.1 release evidence is published
 ```
 
 ## Boundary
@@ -86,4 +111,6 @@ dashboard_amend_controls_enabled = false
 dashboard_flatten_controls_enabled = false
 trader_terminal_order_ticket_enabled = false
 product_grade_trading_terminal_claim = false
+executable_read_model_runtime_claim = false
+trader_terminal_workbench_claim = false
 ```

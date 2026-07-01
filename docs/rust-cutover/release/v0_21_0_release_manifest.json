@@ -2,7 +2,7 @@
   "schema_version": "ntpro.v210_release_manifest.v1",
   "task_id": "V210-008",
   "product_version": "v0.21.0",
-  "release_status": "published_in_source_tree",
+  "release_status": "published_closeout_complete",
   "base_release": {
     "tag": "ntpro-rust-only-v0.20.1",
     "name": "NTPRO Rust-only v0.20.1",
@@ -16,6 +16,44 @@
     "target_commitish": "main",
     "draft": false,
     "prerelease": false
+  },
+  "published_release": {
+    "tag": "ntpro-rust-only-v0.21.0",
+    "name": "NTPRO Rust-only v0.21.0",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.21.0",
+    "published_at": "2026-07-01T11:06:06Z",
+    "target_commitish": "7e1cb46d692974bb5ef1398967c0927dd51c8091",
+    "tag_commit": "7e1cb46d692974bb5ef1398967c0927dd51c8091",
+    "tag_tree": "d33fe810aab4c0e0f743340c9dac6bc993a9428a",
+    "draft": false,
+    "prerelease": false,
+    "hosted_release_gate_run": 28513012766,
+    "hosted_release_gate_conclusion": "success",
+    "hosted_release_gate_completed_at": "2026-07-01T12:35:48Z"
+  },
+  "issue_closeout": {
+    "milestone": "v0.21.0",
+    "milestone_number": 8,
+    "closed_issues": [651, 652, 653, 654, 655, 656, 657, 658, 659],
+    "open_issues": 0,
+    "closed_issue_count": 9
+  },
+  "milestone_closeout": {
+    "milestone": "v0.21.0",
+    "milestone_number": 8,
+    "state": "closed",
+    "closed_at": "2026-07-01T14:38:16Z",
+    "html_url": "https://github.com/atxinbao/NTPRO/milestone/8",
+    "closeout_issue": 677,
+    "closeout_evidence_path": "docs/rust-cutover/evidence/V211-001.md"
+  },
+  "next_patch_dependency": {
+    "version": "v0.21.1",
+    "milestone_number": 9,
+    "issues": [677, 678, 679, 680, 681, 682],
+    "dependency_status": "required_before_v0.22.0",
+    "blocks_capability_track": "v0.22.0",
+    "blocked_issues": [683, 684, 685, 686, 687, 688, 689, 690]
   },
   "release_inputs": {
     "release_notes_path": "docs/rust-cutover/release/v0_21_0_release_notes.md",
