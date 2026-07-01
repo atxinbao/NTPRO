@@ -737,6 +737,66 @@
       "release_decision": "schema_only_scope_recorded"
     },
     {
+      "case_id": "read_model.risk_state.healthy.001",
+      "trace": "tests/golden/read_model_risk_state_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-006",
+      "reason": "Risk state row proves fresh linked account position order and fill evidence can become healthy audit-closed projection.",
+      "follow_up": "V210-007 and V210-008 must connect risk projection into read-only dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.risk_state.risk_visible.001",
+      "trace": "tests/golden/read_model_risk_state_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-006",
+      "reason": "Risk state row proves risk-visible projection remains read-only and not audit-closed.",
+      "follow_up": "V210-007 and V210-008 must connect risk projection into read-only dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.risk_state.manual_review.001",
+      "trace": "tests/golden/read_model_risk_state_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-006",
+      "reason": "Risk state row proves partial fill or review-required evidence degrades to manual review without automatic action.",
+      "follow_up": "V210-007 and V210-008 must connect risk projection into read-only dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.risk_state.halted.001",
+      "trace": "tests/golden/read_model_risk_state_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-006",
+      "reason": "Risk state row proves halted projection fails closed without triggering automatic risk actions.",
+      "follow_up": "V210-007 and V210-008 must connect risk projection into read-only dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.risk_state.stale.001",
+      "trace": "tests/golden/read_model_risk_state_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-006",
+      "reason": "Risk state row proves stale input component freshness fails closed and cannot be healthy or audit closed.",
+      "follow_up": "V210-007 and V210-008 must connect risk projection into read-only dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.risk_state.mismatch.001",
+      "trace": "tests/golden/read_model_risk_state_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-006",
+      "reason": "Risk state row proves component lineage mismatch fails closed and cannot be healthy or audit closed.",
+      "follow_up": "V210-007 and V210-008 must connect risk projection into read-only dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",
