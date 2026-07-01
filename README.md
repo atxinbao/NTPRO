@@ -6,35 +6,36 @@ NautilusTrader.
 The current source-tree milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.21.0
-Latest formal release: ntpro-rust-only-v0.21.0
-Current source-tree readiness: ntpro-rust-only-v0.21.0 released
-Current capability: Unified Read Model Foundation
-Next patch: v0.21.1 Reserved Hardening Patch
+Current source tag: ntpro-rust-only-v0.21.1
+Latest formal release: ntpro-rust-only-v0.21.1
+Current source-tree readiness: ntpro-rust-only-v0.21.1 released
+Current capability: Unified Read Model Foundation Hardening Patch
+Next patch: v0.21.2 Reserved Hardening Patch
 Next capability: v0.22.0 Reserved Capability Track
-Boundary: v0.21.0 is a read-only unified read model foundation for account, position, order, fill, risk, and Trader Terminal Dashboard evidence. It does not include product-grade live trading, new production submit capability, production order mutation, implicit retry, automatic cancel, automatic remediation, retry/replace/amend/flatten, strategy-driven production execution, multi-account or multi-venue execution, real-funds proof in CI, or Dashboard order/approval/cancel/retry/submit/replace/amend/flatten/order-ticket controls.
+Boundary: v0.21.1 is a hardening patch for the read-only unified read model foundation for account, position, order, fill, risk, and Trader Terminal Dashboard evidence. It does not include Trader Terminal workbench, product-grade live trading, new production submit capability, production order mutation, implicit retry, automatic cancel, automatic remediation, retry/replace/amend/flatten, strategy-driven production execution, multi-account or multi-venue execution, real-funds proof in CI, or Dashboard order/approval/cancel/retry/submit/replace/amend/flatten/order-ticket controls.
 ```
 
-`ntpro-rust-only-v0.21.0` is the latest formal GitHub Release. It is the
-Unified Read Model Foundation line for account, position, order, fill, risk,
-and Trader Terminal read-only Dashboard evidence. It preserves the v0.20.1
-no-submit/no-Dashboard-controls boundary while closing V210 golden trace,
-schema gate, release gate, and strict provenance evidence.
+`ntpro-rust-only-v0.21.1` is the latest formal GitHub Release. It is the
+Unified Read Model Foundation Hardening Patch for account, position, order,
+fill, risk, and Trader Terminal read-only Dashboard evidence. It preserves the
+v0.21.0 no-submit/no-Dashboard-controls boundary while closing V211 release
+gate, strict provenance, and v0.22.0 dependency evidence.
 
-The latest formal release is published as a GitHub Release for the v0.21.0
+The latest formal release is published as a GitHub Release for the v0.21.1
 tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.21.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.21.1
 ```
 
-`v0.21.0` is the current formal Unified Read Model Foundation. It remains a
-read-only foundation line, not a general production trading platform claim. It
-does not add production submit, order mutation, implicit retry, automatic
-cancel, automatic remediation, bulk order execution, strategy-driven production
-execution, or Dashboard operation controls.
+`v0.21.1` is the current formal Unified Read Model Foundation Hardening Patch.
+It remains a read-only foundation line, not a Trader Terminal workbench or
+general production trading platform claim. It does not add production submit,
+order mutation, implicit retry, automatic cancel, automatic remediation, bulk
+order execution, strategy-driven production execution, or Dashboard operation
+controls.
 
-The next patch track is `v0.21.1`. The next capability track is `v0.22.0`.
+The next patch track is `v0.21.2`. The next capability track is `v0.22.0`.
 
 ## Current Status
 
@@ -110,8 +111,8 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.21.0 is the current formal release line. It is the Unified Read Model
-Foundation and builds on the earlier foundation layers:
+v0.21.1 is the current formal release line. It is the Unified Read Model
+Foundation Hardening Patch and builds on the earlier foundation layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
 - `v0.5.0`: local Binance sandbox workflow artifacts;

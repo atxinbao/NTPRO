@@ -4,8 +4,8 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.21.0`, the Unified Read Model Foundation release.
-The next patch track is `v0.21.1`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.21.1`, the Unified Read Model Foundation Hardening Patch release.
+The next patch track is `v0.21.2`.
 The next capability track is `v0.22.0`.
 
 ## Current Release Surface
@@ -13,14 +13,15 @@ The next capability track is `v0.22.0`.
 Current published release:
 
 ```text
-ntpro-rust-only-v0.21.0
+ntpro-rust-only-v0.21.1
 ```
 
 Current capability boundary:
 
 ```text
-Unified Read Model Foundation
+Unified Read Model Foundation Hardening Patch
 v0.20.1 production order lifecycle hardening baseline
+v0.21.0 unified read model foundation closeout baseline
 account read model evidence required
 position read model evidence required
 order lifecycle read model evidence required
@@ -44,10 +45,11 @@ no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no product-grade live trading terminal claim
 ```
 
-`v0.21.0` establishes the unified read model foundation with account, position,
-order, fill, risk, and Trader Terminal read-only Dashboard evidence. It does
-not create a general production trading terminal and does not enable automatic
-execution.
+`v0.21.1` hardens the unified read model foundation with v0.21.0 closeout,
+health status semantics, executable read-model replay, JSON Schema boundaries,
+Trader Terminal read-only runtime bridge evidence, and v0.22.0 dependency
+proof. It does not create a Trader Terminal workbench, a general production
+trading terminal, or automatic execution.
 
 ## Published Hardening Patch: v0.7.1
 
@@ -488,13 +490,14 @@ incident classification.
 - real-funds proof in CI;
 - general production trading platform claim.
 
-## Published Capability Track: v0.21.0
+## Published Capability Track: v0.21.1
 
-`v0.21.0` is the published Unified Read Model Foundation line. It preserves the
-v0.20.1 no-submit/no-Dashboard-controls boundary while adding account,
-position, order, fill, risk, and Trader Terminal read-only Dashboard evidence.
+`v0.21.1` is the published Unified Read Model Foundation Hardening Patch line.
+It preserves the v0.21.0 no-submit/no-Dashboard-controls boundary while adding
+release gates, strict provenance, and v0.22.0 dependency proof for the V211
+hardening chain.
 
-`v0.21.0` includes:
+`v0.21.1` includes:
 
 - unified read model contract and JSON schema;
 - account snapshot read model;
@@ -503,11 +506,16 @@ position, order, fill, risk, and Trader Terminal read-only Dashboard evidence.
 - fill/execution read model with dedupe and reconciliation;
 - unified risk state projection;
 - Trader Terminal read-only Dashboard foundation;
-- v0.21 release gates and strict provenance.
+- health status semantic hardening;
+- executable read-model replay for critical cases;
+- JSON Schema boundary tightening;
+- Trader Terminal read-only runtime bridge evidence;
+- v0.21.1 release gates and strict provenance.
 
-`v0.21.0` explicitly does not include:
+`v0.21.1` explicitly does not include:
 
 - product-grade live trading terminal;
+- Trader Terminal workbench;
 - new production submit capability;
 - production order mutation;
 - implicit retry;

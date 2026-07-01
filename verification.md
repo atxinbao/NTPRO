@@ -1,3 +1,35 @@
+# V211-006 Verification
+
+Date: 2026-07-01
+Executor: Codex
+Task: `V211-006` / GitHub issue `#682`
+
+## Commands
+
+```text
+bash -n scripts/ai/check_github_release_published.sh scripts/ai/check_release_surface_current.sh scripts/ai/verify_fast.sh scripts/ai/verify_release.sh scripts/ai/verify_release_strict.sh scripts/ai/verify_v21_1_release_gates.sh scripts/ai/verify_v21_1_strict_provenance.sh scripts/ai/verify_v21_release_gates.sh scripts/ai/verify_v21_strict_provenance.sh scripts/ai/verify_v21_account_snapshot_read_model.sh = PASS
+jq empty docs/rust-cutover/release/v0_21_1_release_manifest.json docs/rust-cutover/release/v0_21_0_release_manifest.json docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json = PASS
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); YAML.load_file(".github/workflows/rust-cutover-smoke.yml")' = PASS
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/verify_release.sh release-surface-current-guard = PASS, current_release_version=v0.21.1, next_capability_version=v0.22.0, pre-tag missing local tag expected
+NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE=1 scripts/ai/verify_release.sh release-publication-guard = PASS, pre-tag missing local tag expected
+scripts/ai/verify_release.sh v21-release-gates = PASS
+NTPRO_RELEASE_STRICT_VERIFY_ONLY=1 NTPRO_RELEASE_STRICT_SKIP_BUILD=1 NTPRO_RELEASE_STRICT_SKIP_V21_GATES=1 scripts/ai/verify_release.sh v21-strict-provenance = PASS
+scripts/ai/verify_release.sh v21.1-release-gates = PASS, V211 evidence complete, v0.22.0 dependency proof recorded, current issue state OPEN before PR merge
+scripts/ai/verify_release.sh v21.1-strict-provenance = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+V211-006 is locally verified. The v0.21.1 release gate requires V211-001
+through V211-006 evidence, checks the v0.21.0 closeout manifest, validates the
+v21.1 hardening gates, records strict provenance, and verifies live GitHub
+dependency proof for v0.22.0 through milestone descriptions and V220 issue
+body/comment rules. The release surface now points to v0.21.1 with
+next_capability_version=v0.22.0, while pre-tag publication guards remain
+explicitly fail-closed unless offline/pre-tag mode is set.
+
 # V211-005 Verification
 
 Date: 2026-07-01

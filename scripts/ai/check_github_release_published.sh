@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.21.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.21.1}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
@@ -359,6 +359,34 @@ case "$CURRENT_RELEASE_VERSION" in
       "retry, replace, amend, correction, or flatten"
       "strategy-driven production execution"
       "multi-account or multi-venue execution expansion"
+      "product-grade live trading terminal readiness"
+      "Dashboard order, approval, cancel, retry, submit, replace, amend, flatten, or order-ticket controls"
+    )
+    ;;
+  v0.21.1)
+    required_fields=(
+      "Status: RELEASED"
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Unified Read Model Foundation Hardening Patch"
+      "This patch is not the Trader Terminal workbench"
+      "This patch does not add submit capability"
+      "V211-001"
+      "V211-006"
+      "scripts/ai/verify_release.sh v21.1-release-gates"
+      "scripts/ai/verify_release.sh v21.1-strict-provenance"
+      "scripts/ai/verify_v21_1_strict_provenance.sh"
+      "v0.22.0"
+      "new production submit capability"
+      "production order mutation"
+      "implicit retry"
+      "automatic cancel"
+      "automatic remediation"
+      "retry, replace, amend, correction, or flatten"
+      "strategy-driven production execution"
+      "multi-account or multi-venue execution expansion"
+      "Trader Terminal workbench"
       "product-grade live trading terminal readiness"
       "Dashboard order, approval, cancel, retry, submit, replace, amend, flatten, or order-ticket controls"
     )

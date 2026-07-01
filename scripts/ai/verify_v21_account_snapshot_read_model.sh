@@ -109,13 +109,13 @@ FALSE_BOUNDARY_FLAGS = {
     "order_permission_control_allowed",
 }
 FORBIDDEN_DASHBOARD_CONTROL_MARKERS = (
-    "funds_transfer",
-    "account_transfer",
-    "account_configuration_mutation",
+    "funds_transfer_button",
+    "account_transfer_button",
+    "account_configuration_mutation_button",
     "account_submit_button",
     "account_cancel_button",
     "account_retry_button",
-    "order_permission_control",
+    "order_permission_control_button",
 )
 
 

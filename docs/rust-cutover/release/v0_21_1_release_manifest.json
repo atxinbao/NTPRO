@@ -1,0 +1,96 @@
+{
+  "schema_version": "ntpro.v211_patch_release_manifest.v1",
+  "task_id": "V211-006",
+  "product_version": "v0.21.1",
+  "release_status": "published",
+  "patch_scope": "hardening_patch_only",
+  "base_release": {
+    "version": "v0.21.0",
+    "tag": "ntpro-rust-only-v0.21.0",
+    "name": "NTPRO Rust-only v0.21.0",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.21.0",
+    "release_manifest_path": "docs/rust-cutover/release/v0_21_0_release_manifest.json",
+    "closeout_evidence_path": "docs/rust-cutover/evidence/V211-001.md"
+  },
+  "planned_release": {
+    "tag": "ntpro-rust-only-v0.21.1",
+    "name": "NTPRO Rust-only v0.21.1",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.21.1",
+    "target_commitish": "main",
+    "draft": false,
+    "prerelease": false
+  },
+  "release_inputs": {
+    "release_notes_path": "docs/rust-cutover/release/v0_21_1_release_notes.md",
+    "readiness_report_path": "docs/rust-cutover/release/v0_21_1_readiness_report.md",
+    "release_manifest_path": "docs/rust-cutover/release/v0_21_1_release_manifest.json",
+    "base_release_manifest_path": "docs/rust-cutover/release/v0_21_0_release_manifest.json",
+    "golden_trace_manifest_path": "docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json",
+    "unified_schema_path": "docs/rust-cutover/release/v0_21_0_unified_read_model_schema.json"
+  },
+  "v211_evidence": [
+    {"task_id": "V211-001", "issue": 677, "path": "docs/rust-cutover/evidence/V211-001.md"},
+    {"task_id": "V211-002", "issue": 678, "path": "docs/rust-cutover/evidence/V211-002.md"},
+    {"task_id": "V211-003", "issue": 679, "path": "docs/rust-cutover/evidence/V211-003.md"},
+    {"task_id": "V211-004", "issue": 680, "path": "docs/rust-cutover/evidence/V211-004.md"},
+    {"task_id": "V211-005", "issue": 681, "path": "docs/rust-cutover/evidence/V211-005.md"},
+    {"task_id": "V211-006", "issue": 682, "path": "docs/rust-cutover/evidence/V211-006.md"}
+  ],
+  "release_gates": [
+    {"name": "v21-release-gates", "command": "scripts/ai/verify_release.sh v21-release-gates", "required": true},
+    {"name": "v21.1-health-status-semantics", "command": "scripts/ai/verify_release.sh v21.1-health-status-semantics", "required": true},
+    {"name": "v21.1-read-model-projection-replay", "command": "scripts/ai/verify_release.sh v21.1-read-model-projection-replay", "required": true},
+    {"name": "v21.1-read-model-schema-boundary", "command": "scripts/ai/verify_release.sh v21.1-read-model-schema-boundary", "required": true},
+    {"name": "v21.1-trader-terminal-read-model-bridge", "command": "scripts/ai/verify_release.sh v21.1-trader-terminal-read-model-bridge", "required": true},
+    {"name": "v21.1-release-gates", "command": "scripts/ai/verify_release.sh v21.1-release-gates", "required": true},
+    {"name": "v21.1-strict-provenance", "command": "scripts/ai/verify_release.sh v21.1-strict-provenance", "required": true},
+    {"name": "v21.1-release-gate-script", "command": "scripts/ai/verify_v21_1_release_gates.sh", "required": true},
+    {"name": "v21.1-strict-provenance-script", "command": "scripts/ai/verify_v21_1_strict_provenance.sh", "required": true},
+    {"name": "release-surface-current-guard", "command": "scripts/ai/verify_release.sh release-surface-current-guard", "required": true},
+    {"name": "release-publication-guard", "command": "scripts/ai/verify_release.sh release-publication-guard", "required": true}
+  ],
+  "source_tree_manifest": {
+    "release_tag": "ntpro-rust-only-v0.21.1",
+    "source_tree_resolved_by": "git rev-parse ntpro-rust-only-v0.21.1^{tree}",
+    "release_body_path": "docs/rust-cutover/release/v0_21_1_release_notes.md",
+    "manifest_path": "docs/rust-cutover/release/v0_21_1_release_manifest.json"
+  },
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "implicit_retry_allowed": false,
+    "automatic_cancel_allowed": false,
+    "automatic_remediation_allowed": false,
+    "retry_replace_amend_flatten_allowed": false,
+    "strategy_driven_production_execution_allowed": false,
+    "multi_account_execution_allowed": false,
+    "multi_venue_execution_allowed": false,
+    "dashboard_order_controls_enabled": false,
+    "dashboard_approval_controls_enabled": false,
+    "dashboard_cancel_controls_enabled": false,
+    "dashboard_retry_controls_enabled": false,
+    "dashboard_submit_controls_enabled": false,
+    "dashboard_replace_controls_enabled": false,
+    "dashboard_amend_controls_enabled": false,
+    "dashboard_flatten_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "trader_terminal_workbench_claim": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "v220_dependency": {
+    "milestone": "v0.22.0",
+    "blocked_issues": [683, 684, 685, 686, 687, 688, 689, 690],
+    "blocked_by_milestone": "v0.21.1",
+    "blocked_by_issues": [677, 678, 679, 680, 681, 682],
+    "dependency_status": "blocked_until_v0_21_1_publication",
+    "dependency_sources": [
+      "GitHub milestone description",
+      "V220 issue bodies",
+      "V220 issue comments"
+    ]
+  },
+  "validation_artifacts": {
+    "strict_release_provenance_manifest_path": "target/ntpro-v211/v0_21_1_strict_release_manifest.json"
+  }
+}

@@ -135,7 +135,10 @@ for needle in (
 require(release_manifest.get("schema_version") == "ntpro.v210_release_manifest.v1", "release manifest schema mismatch")
 require(release_manifest.get("task_id") == "V210-008", "release manifest task mismatch")
 require(release_manifest.get("product_version") == os.environ["PRODUCT_VERSION"], "release manifest product version mismatch")
-require(release_manifest.get("release_status") == "published_in_source_tree", "release manifest status mismatch")
+require(
+    release_manifest.get("release_status") in {"published_in_source_tree", "published_closeout_complete"},
+    "release manifest status mismatch",
+)
 
 planned = release_manifest.get("planned_release") or {}
 require(planned.get("tag") == os.environ["RELEASE_TAG"], "planned release tag mismatch")
@@ -190,7 +193,27 @@ cases = golden_trace_manifest.get("cases") or []
 require(len(cases) == 83, "golden trace manifest case count mismatch")
 read_model_cases = [case for case in cases if case.get("category") == "read_model"]
 require(len(read_model_cases) == 32, "read model case count mismatch")
-require(all(case.get("status") == "schema_only_scoped" for case in read_model_cases), "read model release cases must remain schema-only scoped")
+read_model_executable_cases = [
+    case for case in read_model_cases
+    if case.get("status") == "executable_replay"
+]
+read_model_schema_only_cases = [
+    case for case in read_model_cases
+    if case.get("status") == "schema_only_scoped"
+]
+expected_executable = {
+    "read_model.account_snapshot.fresh.001",
+    "read_model.account_snapshot.stale.001",
+    "read_model.order_lifecycle.matched.001",
+    "read_model.order_lifecycle.missing_ledger.001",
+    "read_model.risk_state.healthy.001",
+    "read_model.risk_state.mismatch.001",
+    "read_model.dashboard.readonly_complete.001",
+    "read_model.dashboard.missing_evidence_degraded.001",
+}
+actual_executable = {case.get("case_id") for case in read_model_executable_cases}
+require(actual_executable == expected_executable, "read model executable replay case set mismatch")
+require(len(read_model_schema_only_cases) == 24, "read model schema-only case count mismatch")
 PY
 
 if [[ "$VERIFY_ONLY" != "1" && "${NTPRO_RELEASE_STRICT_SKIP_BUILD:-0}" != "1" ]]; then
