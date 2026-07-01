@@ -1,3 +1,35 @@
+# V210-007 Verification
+
+Date: 2026-07-01
+Executor: Codex
+Task: `V210-007` / GitHub issue `#658`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v21_trader_terminal_readonly_dashboard.sh scripts/ai/verify_release.sh = PASS
+jq empty docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json = PASS
+python3 scripts/ai/golden_trace_runner.py tests/golden/read_model_dashboard_schema.jsonl --mode validate-only = PASS, 3 rows
+scripts/ai/verify_v21_trader_terminal_readonly_dashboard.sh = PASS
+scripts/ai/verify_release.sh v21-trader-terminal-readonly-dashboard = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, 83 cases, 50 executable replay, 33 schema-only scoped
+RUN_RUST_MARKET_DATA_TRACE_REPLAY=0 RUN_RUST_CACHE_MSGBUS_TRACE_REPLAY=0 RUN_RUST_BACKTEST_TRACE_REPLAY=0 RUN_RUST_BACKTEST_LIVE_PARITY_TRACE_REPLAY=0 RUN_RUST_LIVE_SANDBOX_TRACE_REPLAY=0 RUN_RUST_ORDER_LIFECYCLE_TRACE_REPLAY=0 RUN_RUST_RISK_REJECTION_TRACE_REPLAY=0 RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY=0 RUN_RUST_LIVE_ALPHA_RECONCILIATION_TRACE_REPLAY=0 RUN_RUST_LIVE_ALPHA_MUTATION_DRY_RUN_TRACE_REPLAY=0 RUN_RUST_ACTUAL_CANCEL_TRACE_REPLAY=0 RUN_RUST_PRODUCTION_ORDER_LIFECYCLE_TRACE_REPLAY=0 scripts/ai/run_golden_traces.sh = PASS, all JSONL schema validation plus Rust golden trace schema contract
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+Local validation passed. The gate wires
+`v21-trader-terminal-readonly-dashboard`,
+`read_model_dashboard_schema.jsonl`, release replay scope entries, and evidence
+for a Trader Terminal read-only Dashboard foundation. It preserves:
+foundation_only = true, read_only = true, no_submit_controls = true,
+dashboard_submit_controls_enabled = false, dashboard_cancel_controls_enabled =
+false, dashboard_retry_controls_enabled = false,
+retry_replace_amend_flatten_allowed = false, and no product-grade trading
+terminal claim.
+
 # V210-006 Verification
 
 Date: 2026-07-01

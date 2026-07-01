@@ -25,6 +25,10 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_21_0_risk_state_projection.md` - V210 unified risk state projection for
   account, position, order, and fill rollups, risk-state priority, degradation,
   and no-automatic-action boundaries.
+- `v0_21_0_trader_terminal_readonly_dashboard.md` - V210 Trader Terminal
+  read-only Dashboard foundation for account, position, order, fill, risk, and
+  audit/provenance diagnostics display without submit, approval, cancel, retry,
+  replace, amend, flatten, or product-grade trading terminal claims.
 - `BACKTEST_LIVE_GATE_EVIDENCE.md` - RBTL-010 backtest/live gate evidence and
   remaining blockers.
 - `binary_install_path.md` - NBIN-001 source-build, local `cargo install`,
