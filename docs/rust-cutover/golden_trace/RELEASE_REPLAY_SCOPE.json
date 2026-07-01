@@ -677,6 +677,66 @@
       "release_decision": "schema_only_scope_recorded"
     },
     {
+      "case_id": "read_model.fill_execution.reconciled.001",
+      "trace": "tests/golden/read_model_fill_execution_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-005",
+      "reason": "Fill/execution row proves a reconciled fill can feed risk projection as read-only linked order evidence.",
+      "follow_up": "V210-006 through V210-008 must connect fill reconciliation into risk state dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.fill_execution.partial_fill.001",
+      "trace": "tests/golden/read_model_fill_execution_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-005",
+      "reason": "Fill/execution row proves partial fills remain visible with remaining quantity and no operation controls.",
+      "follow_up": "V210-006 through V210-008 must connect fill reconciliation into risk state dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.fill_execution.duplicate_fill.001",
+      "trace": "tests/golden/read_model_fill_execution_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-005",
+      "reason": "Fill/execution row proves duplicate fills fail closed and cannot be counted twice.",
+      "follow_up": "V210-006 through V210-008 must connect fill reconciliation into risk state dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.fill_execution.missing_order_linkage.001",
+      "trace": "tests/golden/read_model_fill_execution_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-005",
+      "reason": "Fill/execution row proves missing order linkage fails closed instead of inventing an order relationship.",
+      "follow_up": "V210-006 through V210-008 must connect fill reconciliation into risk state dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.fill_execution.stale_source.001",
+      "trace": "tests/golden/read_model_fill_execution_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-005",
+      "reason": "Fill/execution row proves stale execution source freshness fails closed.",
+      "follow_up": "V210-006 through V210-008 must connect fill reconciliation into risk state dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.fill_execution.ambiguous_source.001",
+      "trace": "tests/golden/read_model_fill_execution_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-005",
+      "reason": "Fill/execution row proves ambiguous source provenance fails closed.",
+      "follow_up": "V210-006 through V210-008 must connect fill reconciliation into risk state dashboard foundation and final strict provenance release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",

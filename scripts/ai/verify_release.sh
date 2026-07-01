@@ -363,6 +363,11 @@ run_v21_order_lifecycle_read_model() {
   scripts/ai/verify_v21_order_lifecycle_read_model.sh
 }
 
+run_v21_fill_execution_read_model() {
+  echo "== verify_release: v0.21 fill/execution read model =="
+  scripts/ai/verify_v21_fill_execution_read_model.sh
+}
+
 run_v171_release_hardening() {
   echo "== verify_release: v0.17.1 release hardening =="
   scripts/ai/verify_v171_release_hardening.sh
@@ -434,6 +439,7 @@ run_stage() {
       run_v21_account_snapshot_read_model
       run_v21_position_read_model
       run_v21_order_lifecycle_read_model
+      run_v21_fill_execution_read_model
       run_release_surface_current_guard
       run_release_publication_guard
       ;;
@@ -538,6 +544,9 @@ run_stage() {
       ;;
     v21-order-lifecycle-read-model)
       run_v21_order_lifecycle_read_model
+      ;;
+    v21-fill-execution-read-model)
+      run_v21_fill_execution_read_model
       ;;
     v171-release-hardening)
       run_v171_release_hardening
