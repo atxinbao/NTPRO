@@ -632,6 +632,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   flatten/product-grade-terminal claim.
 - `../evidence/V220-000.md` - V220-000 scope decision and v0.21.1 dependency
   gate evidence for GitHub issue #683.
+- `v0_22_0_trader_terminal_workbench_shell.md` - V220-001 Trader Terminal
+  workbench shell release note. It records the read-only dashboard shell,
+  navigation, status summary, artifact/provenance drawer, degraded missing
+  read-model fallback, and no operation buttons/product-grade-terminal claim.
+- `../evidence/V220-001.md` - V220-001 Trader Terminal read-only workbench
+  shell and navigation evidence for GitHub issue #684.
 - `../evidence/V211-006.md` - V211-006 release gate, strict provenance, and
   dependency proof evidence for the `ntpro-rust-only-v0.21.1` GitHub Release.
 - `../evidence/V211-001.md` - V211-001 release closeout and milestone evidence

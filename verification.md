@@ -1,3 +1,29 @@
+# V220-001 Verification
+
+Date: 2026-07-01
+Executor: Codex
+Task: `V220-001` / GitHub issue `#684`
+
+## Commands
+
+```text
+cargo test -p nautilus-cli trader_terminal_workbench_shell_is_readonly_and_degrades_without_artifact -- --nocapture = PASS
+cargo test -p nautilus-cli dashboard_shell_includes_system_panel_mounts_and_redaction_helpers -- --nocapture = PASS
+cargo test -p nautilus-cli trader_terminal_read_model -- --nocapture = PASS, 6 dashboard read-model runtime bridge tests passed
+node dashboard JS syntax smoke = PASS
+cargo fmt --all -- --check = PASS
+git diff --check = PASS
+rg required V220-001 / workbench / degraded fallback / provenance markers = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V220-001 is locally verified. The Trader Terminal workbench shell loads from
+`read_model_runtime`, displays a degraded missing-artifact fallback, adds
+read-only navigation/status/provenance layout, and keeps submit/cancel/retry/
+replace/amend/flatten operation entrypoints absent.
+
 # V220-000 Verification
 
 Date: 2026-07-01
