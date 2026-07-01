@@ -1,3 +1,38 @@
+# V211-002 Verification
+
+Date: 2026-07-01
+Executor: Codex
+Task: `V211-002` / GitHub issue `#678`
+
+## Commands
+
+```text
+jq empty docs/rust-cutover/release/v0_21_0_unified_read_model_schema.json = PASS
+bash -n scripts/ai/verify_v211_health_status_semantics.sh scripts/ai/verify_release.sh scripts/ai/verify_v21_account_snapshot_read_model.sh scripts/ai/verify_v21_position_read_model.sh scripts/ai/verify_v21_order_lifecycle_read_model.sh scripts/ai/verify_v21_fill_execution_read_model.sh scripts/ai/verify_v21_risk_state_projection.sh = PASS
+python3 scripts/ai/golden_trace_runner.py tests/golden/v211/read_model_health_status_semantics_schema.jsonl --mode validate-only = PASS
+scripts/ai/verify_v211_health_status_semantics.sh = PASS
+scripts/ai/verify_v21_account_snapshot_read_model.sh = PASS
+scripts/ai/verify_v21_position_read_model.sh = PASS
+scripts/ai/verify_v21_order_lifecycle_read_model.sh = PASS
+scripts/ai/verify_v21_fill_execution_read_model.sh = PASS
+scripts/ai/verify_v21_risk_state_projection.sh = PASS
+scripts/ai/verify_v21_trader_terminal_readonly_dashboard.sh = PASS
+scripts/ai/verify_v21_read_model_contract.sh = PASS
+scripts/ai/verify_release.sh v21.1-health-status-semantics = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, 83 cases, 50 executable replay, 33 schema-only scoped
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+scripts/ai/verify_release.sh v21-release-gates = EXISTING LIMITATION, flat golden trace scope passes, then script expects manifest release_status=published_in_source_tree while current main records published_closeout_complete
+```
+
+## Result
+
+V211-002 is locally verified. Component snapshots preserve local healthy
+component status while top-level health remains degraded unless the full
+unified component set is complete. Dashboard views expose missing/unavailable
+evidence as degraded. Unified snapshots fail closed when required provenance,
+lineage, freshness, or redaction evidence is missing.
+
 # V211-001 Verification
 
 Date: 2026-07-01

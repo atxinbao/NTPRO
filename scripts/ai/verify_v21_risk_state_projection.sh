@@ -43,7 +43,7 @@ SCHEMA_VERSION = "ntpro.v210.unified_read_model.schema.v1"
 RISK_TRANSFORM = "ntpro.v210.risk_state_projection.v1"
 EXPECTED_CASES = {
     "read_model.risk_state.healthy.001": {
-        "health_status": "healthy",
+        "health_status": "degraded",
         "component_status": "healthy",
         "risk_state": "healthy",
         "freshness": "fresh",
@@ -270,9 +270,9 @@ def validate_case(row: dict[str, Any]) -> None:
 
     lifecycle_data = lifecycle.get("data", {}) if isinstance(lifecycle, dict) else {}
     if expected["audit_closed_allowed"]:
-        require(lifecycle_data.get("lifecycle_status") == "audit_closed", f"{case_id}: healthy case must audit close")
-        require(data.get("blocking_reasons") == [], f"{case_id}: healthy case must not block")
-        require(snapshot.get("blocking_reasons") == [], f"{case_id}: healthy snapshot must not block")
+        require(lifecycle_data.get("lifecycle_status") == "audit_closed", f"{case_id}: complete risk component evidence must audit close")
+        require(data.get("blocking_reasons") == [], f"{case_id}: complete risk component evidence must not block")
+        require(snapshot.get("blocking_reasons") == [], f"{case_id}: complete risk component evidence must not block")
     else:
         require(lifecycle_data.get("lifecycle_status") != "audit_closed", f"{case_id}: non-healthy case must not audit close")
         require(data.get("risk_state") != "healthy", f"{case_id}: non-healthy case must not show healthy")
