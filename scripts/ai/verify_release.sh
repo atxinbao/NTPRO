@@ -378,6 +378,11 @@ run_v21_trader_terminal_readonly_dashboard() {
   scripts/ai/verify_v21_trader_terminal_readonly_dashboard.sh
 }
 
+run_v21_release_gates() {
+  echo "== verify_release: v0.21 release gates =="
+  scripts/ai/verify_v21_release_gates.sh
+}
+
 run_v171_release_hardening() {
   echo "== verify_release: v0.17.1 release hardening =="
   scripts/ai/verify_v171_release_hardening.sh
@@ -396,6 +401,11 @@ run_v19_strict_provenance() {
 run_v20_strict_provenance() {
   echo "== verify_release: v0.20 strict release provenance =="
   scripts/ai/verify_release_strict.sh v20
+}
+
+run_v21_strict_provenance() {
+  echo "== verify_release: v0.21 strict release provenance =="
+  scripts/ai/verify_release_strict.sh v21
 }
 
 run_release_surface_current_guard() {
@@ -452,6 +462,8 @@ run_stage() {
       run_v21_fill_execution_read_model
       run_v21_risk_state_projection
       run_v21_trader_terminal_readonly_dashboard
+      run_v21_release_gates
+      run_v21_strict_provenance
       run_release_surface_current_guard
       run_release_publication_guard
       ;;
@@ -565,6 +577,12 @@ run_stage() {
       ;;
     v21-trader-terminal-readonly-dashboard)
       run_v21_trader_terminal_readonly_dashboard
+      ;;
+    v21-release-gates)
+      run_v21_release_gates
+      ;;
+    v21-strict-provenance)
+      run_v21_strict_provenance
       ;;
     v171-release-hardening)
       run_v171_release_hardening

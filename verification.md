@@ -1,3 +1,34 @@
+# V210-008 Verification
+
+Date: 2026-07-01
+Executor: Codex
+Task: `V210-008` / GitHub issue `#659`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v21_release_gates.sh scripts/ai/verify_v21_strict_provenance.sh scripts/ai/verify_release.sh scripts/ai/verify_release_strict.sh scripts/ai/check_release_surface_current.sh scripts/ai/check_github_release_published.sh = PASS
+jq empty docs/rust-cutover/release/v0_21_0_release_manifest.json docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json = PASS
+scripts/ai/verify_release.sh v21-release-gates = PASS
+NTPRO_RELEASE_STRICT_VERIFY_ONLY=1 NTPRO_RELEASE_STRICT_SKIP_BUILD=1 NTPRO_RELEASE_STRICT_SKIP_V21_GATES=1 scripts/ai/verify_release.sh v21-strict-provenance = PASS
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/check_release_surface_current.sh = PASS
+NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE=1 scripts/ai/verify_release.sh release-publication-guard = PASS, pre-tag missing_local_git_tag expected
+NTPRO_RELEASE_STRICT_SKIP_BUILD=1 scripts/ai/verify_release.sh v21-strict-provenance = PASS
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); YAML.load_file(".github/workflows/rust-cutover-smoke.yml")' = PASS
+RUN_RUST_MARKET_DATA_TRACE_REPLAY=0 RUN_RUST_CACHE_MSGBUS_TRACE_REPLAY=0 RUN_RUST_BACKTEST_TRACE_REPLAY=0 RUN_RUST_BACKTEST_LIVE_PARITY_TRACE_REPLAY=0 RUN_RUST_LIVE_SANDBOX_TRACE_REPLAY=0 RUN_RUST_ORDER_LIFECYCLE_TRACE_REPLAY=0 RUN_RUST_RISK_REJECTION_TRACE_REPLAY=0 RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY=0 RUN_RUST_LIVE_ALPHA_RECONCILIATION_TRACE_REPLAY=0 RUN_RUST_LIVE_ALPHA_MUTATION_DRY_RUN_TRACE_REPLAY=0 RUN_RUST_ACTUAL_CANCEL_TRACE_REPLAY=0 RUN_RUST_PRODUCTION_ORDER_LIFECYCLE_TRACE_REPLAY=0 scripts/ai/run_golden_traces.sh = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+Local validation passed. The gate wires `v21-release-gates`,
+`v21-strict-provenance`, `verify_release_strict.sh v21`, v0.21.0 release notes,
+readiness report, release manifest, current release surface, publication guard
+fields, and release-tag workflow stages. It preserves the read-only unified
+read-model foundation boundary and keeps submit/mutation/Dashboard operation
+controls disabled.
+
 # V210-007 Verification
 
 Date: 2026-07-01

@@ -592,6 +592,20 @@ Final release checks, benchmark summaries, and audit reports live here.
   manifest for the V201 gate. It fixes the V201 evidence set, base v0.20.0
   release dependency, planned patch tag, boundary flags, release body path, and
   v0.21.0 dependency sources.
+- `v0_21_0_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.21.0` GitHub Release. It records the Unified Read Model
+  Foundation scope and preserves no new submit capability, no Dashboard
+  operation controls, and no product-grade trading terminal claim.
+- `v0_21_0_readiness_report.md` - released readiness report for the formal
+  `ntpro-rust-only-v0.21.0` GitHub Release. It records the V210 evidence chain,
+  read-model golden trace scope, v21 release gates, and strict provenance
+  requirements.
+- `v0_21_0_release_manifest.json` - machine-readable v0.21.0 release manifest
+  for the V210 gate. It fixes the read-model evidence set, base v0.20.1
+  release dependency, planned release tag, boundary flags, release body path,
+  golden trace manifest, and strict provenance target.
+- `../evidence/V210-008.md` - dedicated V210-008 release gate and strict
+  provenance evidence for the `ntpro-rust-only-v0.21.0` GitHub Release.
 - `../evidence/V201-007.md` - V201-007 release gate and dependency proof
   evidence. It records v0.20.1 release gate wiring, publication guard scope,
   GitHub milestone dependency proof, local validation commands, and rollback

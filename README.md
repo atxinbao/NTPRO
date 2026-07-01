@@ -6,38 +6,35 @@ NautilusTrader.
 The current source-tree milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.20.1
-Latest formal release: ntpro-rust-only-v0.20.1
-Current source-tree readiness: ntpro-rust-only-v0.20.1 released
-Current capability: Production Order Lifecycle Release Closeout & Provenance Hardening Patch
-Next patch: v0.20.2 Reserved Hardening Patch
-Next capability: v0.21.0 Active Scoped Read Model Track
-Boundary: v0.20.1 is a hardening patch for the v0.20.0 owner-approved production order lifecycle foundation. It backfills release evidence, hardens provenance, durable attempt ledger checks, notional consistency, adapter/source labels, and Dashboard foundation-boundary diagnostics. It does not include product-grade live trading, new production submit capability, implicit retry, automatic cancel, automatic remediation, bulk order execution, retry/replace/amend/flatten, strategy-driven production execution, multi-account or multi-venue execution, real-funds proof in CI, or Dashboard order/approval/cancel/retry controls.
+Current source tag: ntpro-rust-only-v0.21.0
+Latest formal release: ntpro-rust-only-v0.21.0
+Current source-tree readiness: ntpro-rust-only-v0.21.0 released
+Current capability: Unified Read Model Foundation
+Next patch: v0.21.1 Reserved Hardening Patch
+Next capability: v0.22.0 Reserved Capability Track
+Boundary: v0.21.0 is a read-only unified read model foundation for account, position, order, fill, risk, and Trader Terminal Dashboard evidence. It does not include product-grade live trading, new production submit capability, production order mutation, implicit retry, automatic cancel, automatic remediation, retry/replace/amend/flatten, strategy-driven production execution, multi-account or multi-venue execution, real-funds proof in CI, or Dashboard order/approval/cancel/retry/submit/replace/amend/flatten/order-ticket controls.
 ```
 
-`ntpro-rust-only-v0.20.1` is the latest formal GitHub Release. It is a
-hardening patch for the scoped Owner-Approved Production Order Lifecycle
-Foundation line. It preserves the v0.20.0 capability boundary while closing
-release evidence and dependency proof before v0.21.0 read-model work starts.
-That dependency is now satisfied; v0.21.0 must proceed only through its scoped
-issue order and read-only/foundation boundary.
+`ntpro-rust-only-v0.21.0` is the latest formal GitHub Release. It is the
+Unified Read Model Foundation line for account, position, order, fill, risk,
+and Trader Terminal read-only Dashboard evidence. It preserves the v0.20.1
+no-submit/no-Dashboard-controls boundary while closing V210 golden trace,
+schema gate, release gate, and strict provenance evidence.
 
-The latest formal release is published as a GitHub Release for the v0.20.1
+The latest formal release is published as a GitHub Release for the v0.21.0
 tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.20.1
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.21.0
 ```
 
-`v0.20.1` is the current formal Production Order Lifecycle Release Closeout &
-Provenance Hardening Patch. It remains a tightly gated manual foundation line,
-not a general production trading platform claim. It does not add implicit
-retry, automatic cancel, automatic remediation, bulk order execution,
-strategy-driven production execution, or Dashboard operation controls.
+`v0.21.0` is the current formal Unified Read Model Foundation. It remains a
+read-only foundation line, not a general production trading platform claim. It
+does not add production submit, order mutation, implicit retry, automatic
+cancel, automatic remediation, bulk order execution, strategy-driven production
+execution, or Dashboard operation controls.
 
-The next patch track is `v0.20.2`. The next capability track is `v0.21.0`,
-which must start from its own scoped issue order and must not inherit any
-submit expansion from v0.20.1.
+The next patch track is `v0.21.1`. The next capability track is `v0.22.0`.
 
 ## Current Status
 
@@ -113,9 +110,8 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.20.1 is the current formal release line. It is the hardening patch for the
-owner-approved production order lifecycle foundation and builds on the earlier
-foundation layers:
+v0.21.0 is the current formal release line. It is the Unified Read Model
+Foundation and builds on the earlier foundation layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
 - `v0.5.0`: local Binance sandbox workflow artifacts;
