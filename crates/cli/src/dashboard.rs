@@ -4649,11 +4649,10 @@ fn trader_terminal_read_model_status_from_value(
     if let (Some(account_id), Some(positions_account_id)) = (
         account_id.value.as_deref(),
         positions_account_id.value.as_deref(),
-    ) {
-        if account_id != positions_account_id {
-            component_diagnostics.push("account_position_mismatch".to_string());
-            health = strongest_health(health, HealthStatus::Error);
-        }
+    ) && account_id != positions_account_id
+    {
+        component_diagnostics.push("account_position_mismatch".to_string());
+        health = strongest_health(health, HealthStatus::Error);
     }
 
     if blocking_reasons.availability == DashboardAvailability::Available {

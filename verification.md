@@ -11,6 +11,7 @@ cargo test -p nautilus-cli trader_terminal_account_position -- --nocapture = PAS
 cargo test -p nautilus-cli trader_terminal_read_model -- --nocapture = PASS, 6 dashboard read-model runtime bridge tests passed
 cargo test -p nautilus-cli trader_terminal_workbench_shell_is_readonly_and_degrades_without_artifact -- --nocapture = PASS
 cargo test -p nautilus-cli dashboard_trader_ops_boundary_keeps_order_controls_absent -- --nocapture = PASS
+source scripts/ai/toolchain_env.sh && cargo clippy --workspace --lib --tests --features "${NAUTILUS_RUST_FEATURES:-arrow,ffi,high-precision,streaming,defi}" -- -D warnings = PASS
 node dashboard JS syntax smoke = PASS
 cargo fmt --all -- --check = PASS
 git diff --check = PASS
