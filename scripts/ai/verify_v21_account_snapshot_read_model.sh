@@ -220,13 +220,19 @@ def validate_case(row: dict[str, Any]) -> None:
         require(data.get("response_shape_validated") is False or case_id.endswith("stale.001"), f"{case_id}: blocked non-stale case must not claim shape validation")
 
     if case_id.endswith("missing_provenance.001"):
-        require("source_provenance" not in account, f"{case_id}: account source provenance must be absent in missing provenance smoke")
+        provenance = account.get("source_provenance", {})
+        require(provenance.get("source_type") == "unavailable", f"{case_id}: account source provenance must be unavailable in missing provenance smoke")
+        require(provenance.get("redaction_state") == "unavailable", f"{case_id}: account redaction state must be unavailable in missing provenance smoke")
+        require(provenance.get("exchange_truth") is False, f"{case_id}: unavailable provenance must not claim exchange truth")
+        require(provenance.get("adapter_runtime_integrated") is False, f"{case_id}: unavailable provenance must not claim adapter runtime")
     else:
         require(isinstance(account.get("source_provenance"), dict), f"{case_id}: account source provenance required")
 
     if case_id.endswith("redaction_breach.001"):
-        require(account.get("redaction", {}).get("credential_material_persisted") is True, f"{case_id}: redaction breach fixture must record credential material detection")
-        require(account.get("redaction", {}).get("raw_account_payload_persisted") is True, f"{case_id}: redaction breach fixture must record raw payload detection")
+        require(account.get("redaction", {}).get("credential_material_persisted") is False, f"{case_id}: credential material must still be schema-fail-closed")
+        require(account.get("redaction", {}).get("raw_account_payload_persisted") is False, f"{case_id}: raw account payload must still be schema-fail-closed")
+        require("credential_material_detected" in account.get("diagnostics", []), f"{case_id}: redaction breach fixture must record credential material detection")
+        require("raw_account_payload_detected" in account.get("diagnostics", []), f"{case_id}: redaction breach fixture must record raw payload detection")
     else:
         require(account.get("redaction", {}).get("credential_material_persisted") is False, f"{case_id}: credential material must not persist")
         require(account.get("redaction", {}).get("raw_account_payload_persisted") is False, f"{case_id}: raw account payload must not persist")

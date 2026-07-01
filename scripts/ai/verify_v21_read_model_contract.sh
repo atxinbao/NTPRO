@@ -149,10 +149,21 @@ def validate_schema(schema: dict[str, Any]) -> None:
     require(schema.get("properties", {}).get("contract_version", {}).get("const") == CONTRACT_VERSION, "contract_version const missing")
     required = set(schema.get("required", []))
     require(REQUIRED_TOP_LEVEL <= required, f"schema missing top-level required fields: {sorted(REQUIRED_TOP_LEVEL - required)}")
-    components = schema.get("properties", {}).get("components", {})
-    require(REQUIRED_COMPONENTS <= set(components.get("required", [])), "schema missing required components")
+    unified_component_requirements = []
+    for clause in schema.get("allOf", []):
+        condition = clause.get("if", {}).get("properties", {}).get("snapshot_kind", {})
+        if condition.get("const") == "unified_snapshot":
+            required_components = (
+                clause.get("then", {})
+                .get("properties", {})
+                .get("components", {})
+                .get("required", [])
+            )
+            unified_component_requirements.extend(required_components)
+    require(REQUIRED_COMPONENTS <= set(unified_component_requirements), "schema missing unified_snapshot required components")
     boundary = schema.get("properties", {}).get("capability_boundary", {})
-    require(FALSE_BOUNDARY_FLAGS <= set(boundary.get("required", [])), "schema missing false boundary flags")
+    boundary_required = schema.get("$defs", {}).get("capability_boundary", {}).get("required", boundary.get("required", []))
+    require(FALSE_BOUNDARY_FLAGS <= set(boundary_required), "schema missing false boundary flags")
 
 
 def snapshot_from_row(row: dict[str, Any]) -> dict[str, Any]:
@@ -206,9 +217,9 @@ def validate_fail_closed_snapshot(snapshot: dict[str, Any], payload: dict[str, A
         require(expected_reason in payload.get("blocking_reasons", []), f"expected payload missing reason {expected_reason}")
 
     components = snapshot.get("components", {})
-    require("lineage" not in components.get("account", {}), "account must intentionally miss lineage in fail-closed smoke")
-    require("source_provenance" not in components.get("orders", {}), "orders must intentionally miss source provenance in fail-closed smoke")
-    require("freshness" not in components.get("risk", {}), "risk must intentionally miss freshness in fail-closed smoke")
+    require(components.get("account", {}).get("lineage", {}).get("transform", "").startswith("missing:"), "account must expose unavailable lineage in fail-closed smoke")
+    require(components.get("orders", {}).get("source_provenance", {}).get("source_type") == "unavailable", "orders must expose unavailable source provenance in fail-closed smoke")
+    require(components.get("risk", {}).get("freshness", {}).get("status") == "missing", "risk must expose missing freshness in fail-closed smoke")
     require(components.get("lifecycle_status", {}).get("freshness", {}).get("status") == "stale", "lifecycle_status must be stale")
     for name in ("account", "orders", "risk", "lifecycle_status"):
         require(components.get(name, {}).get("component_status") == "fail_closed", f"{name}: fail_closed status required")

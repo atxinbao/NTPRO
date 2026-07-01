@@ -14,7 +14,8 @@ Final release checks, benchmark summaries, and audit reports live here.
   component snapshot health, full unified snapshot health, and read-only
   dashboard view degradation semantics.
 - `v0_21_1_release_notes.md` - V211 patch release notes draft covering
-  health-status hardening and executable read-model projection replay coverage.
+  health-status hardening, executable read-model projection replay coverage,
+  and JSON Schema boundary tightening.
 - `v0_21_0_account_snapshot_read_model.md` - V210 account snapshot read-model
   component contract for redacted balances, available funds, margin/risk
   summary, account freshness, provenance, and no-operation Dashboard boundary.

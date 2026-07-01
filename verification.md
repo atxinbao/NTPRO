@@ -1659,3 +1659,31 @@ The V180-011 readiness report and release notes are locally verified. They
 account for all V180 tasks and hosted smoke evidence while preserving the
 no-send, no-automatic-remediation, no-Dashboard-cancel-control boundary and
 stating that actual single-shot cancel remains v0.19+ scope.
+# V211-004 Verification
+
+Date: 2026-07-01
+Executor: Codex
+Task: `V211-004` / GitHub issue `#680`
+
+## Commands
+
+```text
+scripts/ai/verify_release.sh v21-read-model-contract = PASS
+scripts/ai/verify_release.sh v21-account-snapshot-read-model = PASS
+scripts/ai/verify_release.sh v21.1-health-status-semantics = PASS
+scripts/ai/verify_release.sh v21.1-read-model-projection-replay = PASS
+scripts/ai/verify_release.sh v21.1-read-model-schema-boundary = PASS, validated_read_model_snapshots=36, negative_mutations=8
+bash -n scripts/ai/verify_v21_1_read_model_schema_boundary.sh scripts/ai/verify_release.sh scripts/ai/verify_v21_account_snapshot_read_model.sh scripts/ai/verify_v21_read_model_contract.sh = PASS
+python3 -m py_compile scripts/ai/validate_v21_read_model_schema.py = PASS
+jq empty docs/rust-cutover/release/v0_21_0_unified_read_model_schema.json = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+The unified read-model JSON Schema now rejects undeclared source provenance,
+redaction, capability boundary, component envelope, and component data fields.
+Dashboard submit/replace/amend/flatten, order-ticket, and live-trading-claim
+boundary flags are declared and constrained to `false`. Fixture/manual sources
+cannot claim exchange truth or adapter runtime integration.

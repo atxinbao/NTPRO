@@ -9,6 +9,7 @@
     "contract_version",
     "schema_version",
     "snapshot_id",
+    "snapshot_kind",
     "snapshot_identity",
     "as_of_unix_ns",
     "health_status",
@@ -33,6 +34,10 @@
     },
     "snapshot_kind": {
       "enum": ["component_snapshot", "unified_snapshot", "dashboard_view"]
+    },
+    "missing_required_components": {
+      "type": "array",
+      "items": {"type": "string"}
     },
     "snapshot_identity": {
       "type": "object",
@@ -63,14 +68,6 @@
     },
     "components": {
       "type": "object",
-      "required": [
-        "account",
-        "positions",
-        "orders",
-        "fills",
-        "risk",
-        "lifecycle_status"
-      ],
       "additionalProperties": false,
       "properties": {
         "account": {"$ref": "#/$defs/component"},
@@ -86,42 +83,115 @@
       "items": {"type": "string"}
     },
     "redaction": {
-      "type": "object",
-      "required": ["status", "raw_secret_persisted", "raw_exchange_response_persisted"],
-      "additionalProperties": true,
-      "properties": {
-        "status": {"enum": ["redacted", "no_sensitive_fields", "fail_closed"]},
-        "raw_secret_persisted": {"const": false},
-        "raw_exchange_response_persisted": {"const": false}
-      }
+      "$ref": "#/$defs/snapshot_redaction"
     },
     "capability_boundary": {
-      "type": "object",
-      "required": [
-        "new_submit_capability",
-        "production_order_submission_allowed",
-        "production_order_mutation_allowed",
-        "dashboard_order_controls_enabled",
-        "dashboard_approval_controls_enabled",
-        "dashboard_cancel_controls_enabled",
-        "dashboard_retry_controls_enabled",
-        "retry_replace_amend_flatten_allowed",
-        "product_grade_trading_terminal_claim"
-      ],
-      "additionalProperties": true,
-      "properties": {
-        "new_submit_capability": {"const": false},
-        "production_order_submission_allowed": {"const": false},
-        "production_order_mutation_allowed": {"const": false},
-        "dashboard_order_controls_enabled": {"const": false},
-        "dashboard_approval_controls_enabled": {"const": false},
-        "dashboard_cancel_controls_enabled": {"const": false},
-        "dashboard_retry_controls_enabled": {"const": false},
-        "retry_replace_amend_flatten_allowed": {"const": false},
-        "product_grade_trading_terminal_claim": {"const": false}
-      }
+      "$ref": "#/$defs/capability_boundary"
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "snapshot_kind": {"const": "component_snapshot"}
+        },
+        "required": ["snapshot_kind"]
+      },
+      "then": {
+        "properties": {
+          "health_status": {"enum": ["degraded", "fail_closed"]}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "snapshot_kind": {"const": "dashboard_view"}
+        },
+        "required": ["snapshot_kind"]
+      },
+      "then": {
+        "properties": {
+          "capability_boundary": {
+            "required": [
+              "dashboard_submit_controls_enabled",
+              "dashboard_replace_controls_enabled",
+              "dashboard_amend_controls_enabled",
+              "dashboard_flatten_controls_enabled",
+              "trader_terminal_order_ticket_enabled",
+              "trader_terminal_live_trading_claim"
+            ]
+          },
+          "components": {
+            "required": [
+              "account",
+              "positions",
+              "orders",
+              "fills",
+              "risk",
+              "lifecycle_status"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "snapshot_kind": {"const": "unified_snapshot"},
+          "health_status": {"const": "healthy"}
+        },
+        "required": ["snapshot_kind", "health_status"]
+      },
+      "then": {
+        "properties": {
+          "components": {
+            "required": [
+              "account",
+              "positions",
+              "orders",
+              "fills",
+              "risk",
+              "lifecycle_status"
+            ],
+            "properties": {
+              "account": {"$ref": "#/$defs/healthy_component"},
+              "positions": {"$ref": "#/$defs/healthy_component"},
+              "orders": {"$ref": "#/$defs/healthy_component"},
+              "fills": {"$ref": "#/$defs/healthy_component"},
+              "risk": {"$ref": "#/$defs/healthy_component"},
+              "lifecycle_status": {"$ref": "#/$defs/healthy_component"}
+            }
+          },
+          "blocking_reasons": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "snapshot_kind": {"const": "unified_snapshot"}
+        },
+        "required": ["snapshot_kind"]
+      },
+      "then": {
+        "properties": {
+          "components": {
+            "required": [
+              "account",
+              "positions",
+              "orders",
+              "fills",
+              "risk",
+              "lifecycle_status"
+            ]
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "source_provenance": {
       "type": "object",
@@ -133,7 +203,7 @@
         "exchange_truth",
         "adapter_runtime_integrated"
       ],
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "source_type": {
           "enum": [
@@ -152,12 +222,74 @@
         },
         "exchange_truth": {"type": "boolean"},
         "adapter_runtime_integrated": {"type": "boolean"}
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "exchange_truth": {"const": true}
+            },
+            "required": ["exchange_truth"]
+          },
+          "then": {
+            "properties": {
+              "source_type": {"enum": ["exchange_readback", "adapter_runtime"]},
+              "source_ref": {
+                "pattern": "(exchange|readback|adapter|runtime)"
+              },
+              "adapter_runtime_integrated": {"const": true}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "adapter_runtime_integrated": {"const": true}
+            },
+            "required": ["adapter_runtime_integrated"]
+          },
+          "then": {
+            "properties": {
+              "source_type": {"enum": ["exchange_readback", "adapter_runtime"]},
+              "source_ref": {
+                "pattern": "(exchange|readback|adapter|runtime)"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_type": {"enum": ["fixture", "manual_evidence", "unavailable"]}
+            },
+            "required": ["source_type"]
+          },
+          "then": {
+            "properties": {
+              "exchange_truth": {"const": false},
+              "adapter_runtime_integrated": {"const": false}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_type": {"const": "unavailable"}
+            },
+            "required": ["source_type"]
+          },
+          "then": {
+            "properties": {
+              "redaction_state": {"const": "unavailable"}
+            }
+          }
+        }
+      ]
     },
     "lineage": {
       "type": "object",
       "required": ["input_refs", "transform", "parent_snapshot_ids", "lossy_fields"],
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "input_refs": {"type": "array", "items": {"type": "string"}},
         "transform": {"type": "string"},
@@ -174,13 +306,85 @@
         "as_of_unix_ns",
         "checked_at_unix_ns"
       ],
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "status": {"enum": ["fresh", "stale", "missing", "ambiguous"]},
         "observed_age_ms": {"type": "integer", "minimum": 0},
         "max_age_ms": {"type": "integer", "minimum": 0},
         "as_of_unix_ns": {"type": "string", "pattern": "^[0-9]+$"},
         "checked_at_unix_ns": {"type": "string", "pattern": "^[0-9]+$"}
+      }
+    },
+    "snapshot_redaction": {
+      "type": "object",
+      "required": [
+        "status",
+        "raw_secret_persisted",
+        "raw_exchange_response_persisted"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {"enum": ["redacted", "no_sensitive_fields", "fail_closed"]},
+        "raw_secret_persisted": {"const": false},
+        "raw_exchange_response_persisted": {"const": false},
+        "raw_account_payload_persisted": {"const": false}
+      }
+    },
+    "component_redaction": {
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {"enum": ["redacted", "no_sensitive_fields", "fail_closed", "unavailable"]},
+        "raw_account_payload_persisted": {"const": false},
+        "credential_material_persisted": {"const": false}
+      }
+    },
+    "capability_boundary": {
+      "type": "object",
+      "required": [
+        "new_submit_capability",
+        "production_order_submission_allowed",
+        "production_order_mutation_allowed",
+        "dashboard_order_controls_enabled",
+        "dashboard_approval_controls_enabled",
+        "dashboard_cancel_controls_enabled",
+        "dashboard_retry_controls_enabled",
+        "retry_replace_amend_flatten_allowed",
+        "product_grade_trading_terminal_claim"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "new_submit_capability": {"const": false},
+        "production_order_submission_allowed": {"const": false},
+        "production_order_mutation_allowed": {"const": false},
+        "dashboard_order_controls_enabled": {"const": false},
+        "dashboard_approval_controls_enabled": {"const": false},
+        "dashboard_cancel_controls_enabled": {"const": false},
+        "dashboard_retry_controls_enabled": {"const": false},
+        "dashboard_submit_controls_enabled": {"const": false},
+        "dashboard_replace_controls_enabled": {"const": false},
+        "dashboard_amend_controls_enabled": {"const": false},
+        "dashboard_flatten_controls_enabled": {"const": false},
+        "dashboard_fill_controls_enabled": {"const": false},
+        "dashboard_risk_controls_enabled": {"const": false},
+        "retry_replace_amend_flatten_allowed": {"const": false},
+        "trader_terminal_order_ticket_enabled": {"const": false},
+        "trader_terminal_live_trading_claim": {"const": false},
+        "product_grade_trading_terminal_claim": {"const": false},
+        "funds_transfer_allowed": {"const": false},
+        "account_configuration_mutation_allowed": {"const": false},
+        "order_permission_control_allowed": {"const": false},
+        "auto_flatten_position_allowed": {"const": false},
+        "automatic_position_repair_allowed": {"const": false},
+        "retry_order_allowed": {"const": false},
+        "automatic_cancel_allowed": {"const": false},
+        "automatic_order_remediation_allowed": {"const": false},
+        "execution_algorithm_allowed": {"const": false},
+        "automatic_fill_repair_allowed": {"const": false},
+        "automatic_reconciliation_repair_allowed": {"const": false},
+        "automatic_risk_action_allowed": {"const": false},
+        "automatic_risk_repair_allowed": {"const": false}
       }
     },
     "component": {
@@ -194,7 +398,7 @@
         "data",
         "diagnostics"
       ],
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "component_status": {
           "enum": ["healthy", "degraded", "fail_closed", "unavailable"]
@@ -202,9 +406,171 @@
         "source_provenance": {"$ref": "#/$defs/source_provenance"},
         "lineage": {"$ref": "#/$defs/lineage"},
         "freshness": {"$ref": "#/$defs/freshness"},
-        "redaction": {"type": "object"},
-        "data": {"type": "object"},
+        "redaction": {"$ref": "#/$defs/component_redaction"},
+        "data": {"$ref": "#/$defs/component_data"},
         "diagnostics": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "healthy_component": {
+      "allOf": [
+        {"$ref": "#/$defs/component"},
+        {
+          "properties": {
+            "component_status": {"const": "healthy"},
+            "freshness": {
+              "properties": {
+                "status": {"const": "fresh"}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "component_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "account_status": {"type": "string"},
+        "available_balance": {"type": "string"},
+        "balance_entry_count": {"type": "integer"},
+        "dashboard_visible": {"type": "boolean"},
+        "equity": {"type": "string"},
+        "evidence_ref": {"type": "string"},
+        "margin_available": {"type": "string"},
+        "response_shape": {"type": "string"},
+        "response_shape_validated": {"type": "boolean"},
+        "risk_state": {"type": "string"},
+        "summary_status": {"type": "string"},
+        "automatic_reconciliation_repair_allowed": {"type": "boolean"},
+        "client_order_id": {"type": "string"},
+        "cumulative_quantity": {"type": "string"},
+        "dashboard_readonly_visible": {"type": "boolean"},
+        "duplicate_fill_detected": {"type": "boolean"},
+        "execution_id": {"type": "string"},
+        "fill_count": {"type": "integer"},
+        "fill_id": {"type": "string"},
+        "fill_status": {"type": "string"},
+        "last_fill_id": {"type": "string"},
+        "no_execution_algorithm": {"type": "boolean"},
+        "order_id": {"type": "string"},
+        "order_linkage_status": {"type": "string"},
+        "partial_fill_detected": {"type": "boolean"},
+        "precision_status": {"type": "string"},
+        "price": {"type": "string"},
+        "price_precision": {"type": "integer"},
+        "quantity": {"type": "string"},
+        "quantity_precision": {"type": "integer"},
+        "reconciliation_status": {"type": "string"},
+        "redaction_state": {"type": "string"},
+        "remaining_quantity": {"type": "string"},
+        "risk_projection_input": {"$ref": "#/$defs/risk_projection_input"},
+        "source_provenance_ref": {"type": "string"},
+        "values_are_exchange_truth": {"type": "boolean"},
+        "lifecycle_status": {"type": "string"},
+        "accepted": {"type": "boolean"},
+        "approval_id": {"type": "string"},
+        "attempt_id": {"type": "string"},
+        "audit_state": {"type": "string"},
+        "automatic_remediation_allowed": {"type": "boolean"},
+        "cancel_evidence_state": {"type": "string"},
+        "duplicate_attempt_detected": {"type": "boolean"},
+        "ledger_present": {"type": "boolean"},
+        "no_retry": {"type": "boolean"},
+        "open_order_count": {"type": "integer"},
+        "readback_status": {"type": "string"},
+        "refs": {"$ref": "#/$defs/order_refs"},
+        "rejected": {"type": "boolean"},
+        "request_digest": {"type": "string"},
+        "submitted": {"type": "boolean"},
+        "terminal_order_count": {"type": "integer"},
+        "account_id_ref": {"type": "string"},
+        "cost_basis": {"type": "string"},
+        "instrument_identity": {"$ref": "#/$defs/instrument_identity"},
+        "instrument_quantity_precision": {"type": "integer"},
+        "mark_price": {"type": "string"},
+        "net_exposure": {"type": "string"},
+        "net_position_side": {"type": "string"},
+        "notional": {"type": "string"},
+        "position_count": {"type": "integer"},
+        "position_id": {"type": "string"},
+        "audit_closed_allowed": {"type": "boolean"},
+        "automatic_trading_action_allowed": {"type": "boolean"},
+        "blocking_reasons": {"type": "array", "items": {"type": "string"}},
+        "component_inputs": {"$ref": "#/$defs/component_inputs"},
+        "critical_evidence_complete": {"type": "boolean"},
+        "freshness_rollup": {"type": "string"},
+        "halted": {"type": "boolean"},
+        "lineage_rollup": {"type": "string"},
+        "manual_review_required": {"type": "boolean"},
+        "mismatch_risks": {"type": "array", "items": {"type": "string"}},
+        "production_mutation_allowed": {"type": "boolean"},
+        "provenance_rollup": {"type": "string"},
+        "risk_state_priority": {"type": "integer"}
+      }
+    },
+    "risk_projection_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "automatic_reconciliation_repair_allowed": {"type": "boolean"},
+        "blocking_reasons": {"type": "array", "items": {"type": "string"}},
+        "execution_algorithm_allowed": {"type": "boolean"},
+        "fill_reconciliation_status": {"type": "string"},
+        "realized_fill_quantity": {"type": "string"},
+        "remaining_order_quantity": {"type": "string"},
+        "risk_state": {"type": "string"},
+        "auto_flatten_position_allowed": {"type": "boolean"},
+        "automatic_position_repair_allowed": {"type": "boolean"},
+        "current_position_notional": {"type": "string"},
+        "max_position_notional": {"type": "string"},
+        "projected_position_notional": {"type": "string"}
+      }
+    },
+    "order_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "approval_ref": {"type": "string"},
+        "attempt_ref": {"type": "string"},
+        "audit_ref": {"type": "string"},
+        "candidate_ref": {"type": "string"},
+        "provenance_ref": {"type": "string"}
+      }
+    },
+    "instrument_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "instrument_id": {"type": "string"},
+        "quote_currency": {"type": "string"},
+        "symbol": {"type": "string"},
+        "venue": {"type": "string"}
+      }
+    },
+    "component_inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "account": {"$ref": "#/$defs/component_input_status"},
+        "positions": {"$ref": "#/$defs/component_input_status"},
+        "orders": {"$ref": "#/$defs/component_input_status"},
+        "fills": {"$ref": "#/$defs/component_input_status"}
+      }
+    },
+    "component_input_status": {
+      "type": "object",
+      "required": [
+        "component_status",
+        "freshness_status",
+        "lineage_status",
+        "provenance_status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "component_status": {"type": "string"},
+        "freshness_status": {"type": "string"},
+        "lineage_status": {"type": "string"},
+        "provenance_status": {"type": "string"}
       }
     }
   }
