@@ -110,6 +110,9 @@ Scope:
 
 - Trader Terminal read-only shell with navigation, status summary, and
   artifact/provenance drawer over the v0.21.1 canonical read model.
+- Account and position workbench panels for account status, balance, position
+  side, quantity, notional, precision, freshness, provenance, redaction, and
+  lineage diagnostics.
 - Read-only trader workbench for orders, positions, fills, risk, alerts, and
   audit state.
 - Manual operation entry design.
@@ -122,8 +125,10 @@ Boundary:
 ```text
 operation entry design = included
 read-only workbench shell = included
+account/position workbench panels = included
 ungated real operation buttons = not included
 automatic execution = not included
+funds transfer/account mutation/auto flatten/position repair controls = not included
 ```
 
 ### v0.23.0 - Multi-Account / Multi-Strategy / Multi-Venue Node Isolation

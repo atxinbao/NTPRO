@@ -1105,8 +1105,9 @@ function traderWorkbenchReadiness(readModels) {
     .map((item) => safe(item.health))
     .sort((a, b) => orderedHealth.indexOf(a) - orderedHealth.indexOf(b))[0] || "unknown";
   const primary = readModels.find((item) => safe(item.health) !== "healthy") || readModels[0];
+  const shellHealth = strongest === "healthy" ? "healthy" : ["error", "stale"].includes(strongest) ? strongest : "degraded";
   return {
-    health: strongest === "healthy" ? "healthy" : "degraded",
+    health: shellHealth,
     readiness: snapshotValue(primary.readiness_status) || "read_model_runtime_degraded",
     diagnostic: snapshotValue(primary.diagnostic) || "read_model_runtime_degraded",
     artifact: snapshotValue(primary.artifact_path) || "v0_21/unified_read_model_snapshot.json",
@@ -1137,6 +1138,36 @@ function renderTraderTerminalWorkbench(readModels) {
     "dashboard_flatten_controls_enabled",
     "trader_terminal_order_ticket_enabled",
   ].every((field) => boundaryValue(field) === false);
+  const accountRows = [
+    panelRow("Account status", snapshotValue(primary.account_status)),
+    panelRow("Freshness", snapshotValue(primary.account_freshness_status)),
+    panelRow("Risk state", snapshotValue(primary.account_risk_state)),
+    panelRow("Equity", snapshotValue(primary.account_equity)),
+    panelRow("Available balance", snapshotValue(primary.account_available_balance)),
+    panelRow("Balance entries", snapshotValue(primary.account_balance_entry_count)),
+    panelRow("Source", `${snapshotValue(primary.account_source_type)} ${snapshotValue(primary.account_source_ref)}`),
+    panelRow("Redaction", snapshotValue(primary.account_redaction_state)),
+    panelRow("Funds transfer", boundaryValue("funds_transfer_allowed")),
+    panelRow("Account config mutation", boundaryValue("account_configuration_mutation_allowed")),
+  ];
+  const positionRows = [
+    panelRow("Position status", snapshotValue(primary.positions_status)),
+    panelRow("Freshness", snapshotValue(primary.positions_freshness_status)),
+    panelRow("Account", snapshotValue(primary.positions_account_id)),
+    panelRow("Side", snapshotValue(primary.positions_net_position_side)),
+    panelRow("Quantity", snapshotValue(primary.positions_quantity)),
+    panelRow("Notional", snapshotValue(primary.positions_notional)),
+    panelRow("Precision", snapshotValue(primary.positions_precision)),
+    panelRow("Lineage", snapshotValue(primary.positions_lineage)),
+    panelRow("Source", `${snapshotValue(primary.positions_source_type)} ${snapshotValue(primary.positions_source_ref)}`),
+    panelRow("Redaction", snapshotValue(primary.positions_redaction_state)),
+    panelRow("Auto flatten", boundaryValue("auto_flatten_position_allowed")),
+    panelRow("Position repair", boundaryValue("automatic_position_repair_allowed")),
+  ];
+  const panelRows = {
+    "workbench-panel-account": accountRows,
+    "workbench-panel-positions": positionRows,
+  };
 
   document.getElementById("trader-terminal-workbench").innerHTML = `
     <div class="grid">
@@ -1177,6 +1208,7 @@ function renderTraderTerminalWorkbench(readModels) {
           ${panelRow("阶段", stage)}
           ${panelRow("状态", status)}
           ${panelRow("来源", readModels.length > 0 ? "canonical_read_model" : "degraded_shell")}
+          ${(panelRows[panelId] || []).join("")}
         </section>`
       ).join("")}
     </div>
@@ -3706,6 +3738,24 @@ pub struct TraderTerminalReadModelStatus {
     pub lifecycle_status: DashboardValue<String>,
     pub account_summary: DashboardValue<String>,
     pub positions_summary: DashboardValue<String>,
+    pub account_freshness_status: DashboardValue<String>,
+    pub account_source_type: DashboardValue<String>,
+    pub account_source_ref: DashboardValue<String>,
+    pub account_redaction_state: DashboardValue<String>,
+    pub account_risk_state: DashboardValue<String>,
+    pub account_equity: DashboardValue<String>,
+    pub account_available_balance: DashboardValue<String>,
+    pub account_balance_entry_count: DashboardValue<String>,
+    pub positions_freshness_status: DashboardValue<String>,
+    pub positions_source_type: DashboardValue<String>,
+    pub positions_source_ref: DashboardValue<String>,
+    pub positions_redaction_state: DashboardValue<String>,
+    pub positions_account_id: DashboardValue<String>,
+    pub positions_net_position_side: DashboardValue<String>,
+    pub positions_quantity: DashboardValue<String>,
+    pub positions_notional: DashboardValue<String>,
+    pub positions_precision: DashboardValue<String>,
+    pub positions_lineage: DashboardValue<String>,
     pub orders_summary: DashboardValue<String>,
     pub fills_summary: DashboardValue<String>,
     pub risk_summary: DashboardValue<String>,
@@ -3724,6 +3774,10 @@ pub struct TraderTerminalReadModelStatus {
     pub trader_terminal_order_ticket_enabled: DashboardValue<bool>,
     pub trader_terminal_live_trading_claim: DashboardValue<bool>,
     pub retry_replace_amend_flatten_allowed: DashboardValue<bool>,
+    pub funds_transfer_allowed: DashboardValue<bool>,
+    pub account_configuration_mutation_allowed: DashboardValue<bool>,
+    pub auto_flatten_position_allowed: DashboardValue<bool>,
+    pub automatic_position_repair_allowed: DashboardValue<bool>,
     pub product_grade_trading_terminal_claim: DashboardValue<bool>,
 }
 
@@ -4389,6 +4443,24 @@ fn degraded_trader_terminal_read_model_status(
         lifecycle_status: DashboardValue::unknown(),
         account_summary: DashboardValue::unknown(),
         positions_summary: DashboardValue::unknown(),
+        account_freshness_status: DashboardValue::unknown(),
+        account_source_type: DashboardValue::unknown(),
+        account_source_ref: DashboardValue::unknown(),
+        account_redaction_state: DashboardValue::unknown(),
+        account_risk_state: DashboardValue::unknown(),
+        account_equity: DashboardValue::unknown(),
+        account_available_balance: DashboardValue::unknown(),
+        account_balance_entry_count: DashboardValue::unknown(),
+        positions_freshness_status: DashboardValue::unknown(),
+        positions_source_type: DashboardValue::unknown(),
+        positions_source_ref: DashboardValue::unknown(),
+        positions_redaction_state: DashboardValue::unknown(),
+        positions_account_id: DashboardValue::unknown(),
+        positions_net_position_side: DashboardValue::unknown(),
+        positions_quantity: DashboardValue::unknown(),
+        positions_notional: DashboardValue::unknown(),
+        positions_precision: DashboardValue::unknown(),
+        positions_lineage: DashboardValue::unknown(),
         orders_summary: DashboardValue::unknown(),
         fills_summary: DashboardValue::unknown(),
         risk_summary: DashboardValue::unknown(),
@@ -4407,6 +4479,10 @@ fn degraded_trader_terminal_read_model_status(
         trader_terminal_order_ticket_enabled: DashboardValue::available(false),
         trader_terminal_live_trading_claim: DashboardValue::available(false),
         retry_replace_amend_flatten_allowed: DashboardValue::available(false),
+        funds_transfer_allowed: DashboardValue::available(false),
+        account_configuration_mutation_allowed: DashboardValue::available(false),
+        auto_flatten_position_allowed: DashboardValue::available(false),
+        automatic_position_repair_allowed: DashboardValue::available(false),
         product_grade_trading_terminal_claim: DashboardValue::available(false),
     }
 }
@@ -4547,6 +4623,39 @@ fn trader_terminal_read_model_status_from_value(
         })
         .collect::<BTreeMap<_, _>>();
 
+    for component in ["account", "positions"] {
+        let source_type = read_model_component_source_field(value, component, "source_type");
+        let source_ref = read_model_component_source_field(value, component, "source_ref");
+        if source_type.availability != DashboardAvailability::Available
+            || source_ref.availability != DashboardAvailability::Available
+        {
+            component_diagnostics.push(format!("{component}:source_provenance_missing"));
+            health = strongest_health(health, HealthStatus::Error);
+        }
+
+        let component_redaction = read_model_component_redaction_status(value, component);
+        if component_redaction
+            .value
+            .as_deref()
+            .is_none_or(|status| matches!(status, "fail_closed" | "unavailable" | "unknown"))
+        {
+            component_diagnostics.push(format!("{component}:redaction_state_not_ready"));
+            health = strongest_health(health, HealthStatus::Degraded);
+        }
+    }
+
+    let account_id = read_model_component_data_scalar(value, "account", "account_id");
+    let positions_account_id = read_model_component_data_scalar(value, "positions", "account_id");
+    if let (Some(account_id), Some(positions_account_id)) = (
+        account_id.value.as_deref(),
+        positions_account_id.value.as_deref(),
+    ) {
+        if account_id != positions_account_id {
+            component_diagnostics.push("account_position_mismatch".to_string());
+            health = strongest_health(health, HealthStatus::Error);
+        }
+    }
+
     if blocking_reasons.availability == DashboardAvailability::Available {
         diagnostics.push("blocking_reasons_present".to_string());
         health = strongest_health(health, HealthStatus::Degraded);
@@ -4616,6 +4725,30 @@ fn trader_terminal_read_model_status_from_value(
     let retry_replace_amend_flatten_allowed = required_read_model_boundary_bool(
         boundary,
         "retry_replace_amend_flatten_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let funds_transfer_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "funds_transfer_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let account_configuration_mutation_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "account_configuration_mutation_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let auto_flatten_position_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "auto_flatten_position_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let automatic_position_repair_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "automatic_position_repair_allowed",
         &mut diagnostics,
         &mut health,
     );
@@ -4689,6 +4822,36 @@ fn trader_terminal_read_model_status_from_value(
             .unwrap_or_else(DashboardValue::unknown),
         account_summary: read_model_component_data_summary(value, "account"),
         positions_summary: read_model_component_data_summary(value, "positions"),
+        account_freshness_status: read_model_component_freshness_status(value, "account"),
+        account_source_type: read_model_component_source_field(value, "account", "source_type"),
+        account_source_ref: read_model_component_source_field(value, "account", "source_ref"),
+        account_redaction_state: read_model_component_redaction_status(value, "account"),
+        account_risk_state: read_model_component_data_scalar(value, "account", "risk_state"),
+        account_equity: read_model_component_data_scalar(value, "account", "equity"),
+        account_available_balance: read_model_component_data_scalar(
+            value,
+            "account",
+            "available_balance",
+        ),
+        account_balance_entry_count: read_model_component_data_scalar(
+            value,
+            "account",
+            "balance_entry_count",
+        ),
+        positions_freshness_status: read_model_component_freshness_status(value, "positions"),
+        positions_source_type: read_model_component_source_field(value, "positions", "source_type"),
+        positions_source_ref: read_model_component_source_field(value, "positions", "source_ref"),
+        positions_redaction_state: read_model_component_redaction_status(value, "positions"),
+        positions_account_id,
+        positions_net_position_side: read_model_component_data_scalar(
+            value,
+            "positions",
+            "net_position_side",
+        ),
+        positions_quantity: read_model_component_data_scalar(value, "positions", "quantity"),
+        positions_notional: read_model_component_data_scalar(value, "positions", "notional"),
+        positions_precision: read_model_component_data_scalar(value, "positions", "precision"),
+        positions_lineage: read_model_component_lineage_summary(value, "positions"),
         orders_summary: read_model_component_data_summary(value, "orders"),
         fills_summary: read_model_component_data_summary(value, "fills"),
         risk_summary: read_model_component_data_summary(value, "risk"),
@@ -4707,6 +4870,10 @@ fn trader_terminal_read_model_status_from_value(
         trader_terminal_order_ticket_enabled,
         trader_terminal_live_trading_claim,
         retry_replace_amend_flatten_allowed,
+        funds_transfer_allowed,
+        account_configuration_mutation_allowed,
+        auto_flatten_position_allowed,
+        automatic_position_repair_allowed,
         product_grade_trading_terminal_claim,
     }
 }
@@ -4807,6 +4974,7 @@ fn read_model_component_data_summary(snapshot: &Value, component: &str) -> Dashb
     let fields: &[&str] = match component {
         "account" => &[
             "summary_status",
+            "account_id",
             "account_status",
             "risk_state",
             "equity",
@@ -4815,10 +4983,13 @@ fn read_model_component_data_summary(snapshot: &Value, component: &str) -> Dashb
         ],
         "positions" => &[
             "summary_status",
+            "account_id",
             "position_count",
             "net_position_side",
+            "quantity",
             "net_exposure",
             "notional",
+            "precision",
         ],
         "orders" => &[
             "lifecycle_status",
@@ -4865,6 +5036,88 @@ fn read_model_component_data_summary(snapshot: &Value, component: &str) -> Dashb
         DashboardValue::unknown()
     } else {
         DashboardValue::available(summary)
+    }
+}
+
+fn read_model_component_data_scalar(
+    snapshot: &Value,
+    component: &str,
+    field: &str,
+) -> DashboardValue<String> {
+    snapshot
+        .get("components")
+        .and_then(|components| components.get(component))
+        .and_then(|component| component.get("data"))
+        .and_then(|data| data.get(field))
+        .and_then(read_model_scalar_string)
+        .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn read_model_component_freshness_status(
+    snapshot: &Value,
+    component: &str,
+) -> DashboardValue<String> {
+    snapshot
+        .get("components")
+        .and_then(|components| components.get(component))
+        .and_then(|component| component.get("freshness"))
+        .and_then(|freshness| freshness.get("status"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn read_model_component_source_field(
+    snapshot: &Value,
+    component: &str,
+    field: &str,
+) -> DashboardValue<String> {
+    snapshot
+        .get("components")
+        .and_then(|components| components.get(component))
+        .and_then(|component| component.get("source_provenance"))
+        .and_then(|source| source.get(field))
+        .and_then(read_model_scalar_string)
+        .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn read_model_component_redaction_status(
+    snapshot: &Value,
+    component: &str,
+) -> DashboardValue<String> {
+    snapshot
+        .get("components")
+        .and_then(|components| components.get(component))
+        .and_then(|component| component.get("redaction"))
+        .and_then(|redaction| redaction.get("status"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn read_model_component_lineage_summary(
+    snapshot: &Value,
+    component: &str,
+) -> DashboardValue<String> {
+    let Some(lineage) = snapshot
+        .get("components")
+        .and_then(|components| components.get(component))
+        .and_then(|component| component.get("lineage"))
+    else {
+        return DashboardValue::unknown();
+    };
+
+    let mut parts = Vec::new();
+    if let Some(transform) = lineage.get("transform").and_then(read_model_scalar_string) {
+        parts.push(format!("transform={transform}"));
+    }
+    if let Some(input_refs) = lineage.get("input_refs").and_then(read_model_scalar_string) {
+        parts.push(format!("input_refs={input_refs}"));
+    }
+    if parts.is_empty() {
+        DashboardValue::unknown()
+    } else {
+        DashboardValue::available(parts.join(", "))
     }
 }
 
@@ -12173,7 +12426,9 @@ mod tests {
             "amend_order",
             "retry_order",
             "correct_order",
-            "flatten_position",
+            "flatten_position_action",
+            "data-dashboard-action=\"flatten_position\"",
+            "/actions/flatten_position",
             "credential_entry",
             "listen_key_control",
             "production_order_control",
@@ -12209,6 +12464,11 @@ mod tests {
             "degraded_shell",
             "all_operation_controls_disabled",
             "required_before_any_manual_entry",
+            "Funds transfer",
+            "Account config mutation",
+            "Auto flatten",
+            "Position repair",
+            "positions_lineage",
         ] {
             assert!(
                 DASHBOARD_HTML.contains(required_marker) || DASHBOARD_JS.contains(required_marker),
@@ -12242,7 +12502,13 @@ mod tests {
             "replace_order",
             "amend_order",
             "flatten_order",
-            "flatten_position",
+            "flatten_position_action",
+            "data-dashboard-action=\"flatten_position\"",
+            "/actions/flatten_position",
+            "funds_transfer_action",
+            "account_config_action",
+            "auto_flatten_action",
+            "position_repair_action",
         ] {
             assert!(
                 !DASHBOARD_HTML.contains(forbidden_control),
@@ -13489,6 +13755,63 @@ mod tests {
                 .as_deref()
                 .is_some_and(|summary| summary.contains("summary_status=ready"))
         );
+        assert_eq!(
+            runtime.account_freshness_status.value.as_deref(),
+            Some("fresh")
+        );
+        assert_eq!(
+            runtime.account_source_type.value.as_deref(),
+            Some("artifact")
+        );
+        assert_eq!(
+            runtime.account_source_ref.value.as_deref(),
+            Some("artifact://v0_21/unified_read_model_snapshot.json")
+        );
+        assert_eq!(
+            runtime.account_redaction_state.value.as_deref(),
+            Some("redacted")
+        );
+        assert_eq!(runtime.account_risk_state.value.as_deref(), Some("active"));
+        assert_eq!(runtime.account_equity.value.as_deref(), Some("1000.00"));
+        assert_eq!(
+            runtime.account_available_balance.value.as_deref(),
+            Some("900.00")
+        );
+        assert_eq!(
+            runtime.account_balance_entry_count.value.as_deref(),
+            Some("2")
+        );
+        assert_eq!(
+            runtime.positions_freshness_status.value.as_deref(),
+            Some("fresh")
+        );
+        assert_eq!(
+            runtime.positions_source_ref.value.as_deref(),
+            Some("artifact://v0_21/unified_read_model_snapshot.json")
+        );
+        assert_eq!(
+            runtime.positions_redaction_state.value.as_deref(),
+            Some("redacted")
+        );
+        assert_eq!(
+            runtime.positions_account_id.value.as_deref(),
+            Some("acct-redacted-001")
+        );
+        assert_eq!(
+            runtime.positions_net_position_side.value.as_deref(),
+            Some("flat")
+        );
+        assert_eq!(runtime.positions_quantity.value.as_deref(), Some("0"));
+        assert_eq!(runtime.positions_notional.value.as_deref(), Some("0"));
+        assert_eq!(
+            runtime.positions_precision.value.as_deref(),
+            Some("standard")
+        );
+        assert!(
+            runtime.positions_lineage.value.as_deref().is_some_and(
+                |lineage| lineage.contains("ntpro.v210.trader_terminal_readonly_dashboard.v1")
+            )
+        );
         assert_eq!(runtime.dashboard_order_controls_enabled.value, Some(false));
         assert_eq!(runtime.dashboard_submit_controls_enabled.value, Some(false));
         assert_eq!(
@@ -13512,6 +13835,13 @@ mod tests {
             runtime.product_grade_trading_terminal_claim.value,
             Some(false)
         );
+        assert_eq!(runtime.funds_transfer_allowed.value, Some(false));
+        assert_eq!(
+            runtime.account_configuration_mutation_allowed.value,
+            Some(false)
+        );
+        assert_eq!(runtime.auto_flatten_position_allowed.value, Some(false));
+        assert_eq!(runtime.automatic_position_repair_allowed.value, Some(false));
         assert!(
             runtime.artifact_path.value.as_deref().is_some_and(
                 |path| path.ends_with(TRADER_TERMINAL_READ_MODEL_ARTIFACT_RELATIVE_PATH)
@@ -13525,6 +13855,122 @@ mod tests {
         assert!(!DASHBOARD_JS.contains("replace_order"));
         assert!(!DASHBOARD_JS.contains("amend_order"));
         assert!(!DASHBOARD_JS.contains("flatten_order"));
+    }
+
+    #[test]
+    fn trader_terminal_account_position_component_stale_degrades_panel() {
+        let root = temp_root("trader-terminal-account-position-stale");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "terminal-account-position-stale");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_trader_terminal_read_model_artifact(&record, |artifact| {
+            artifact["components"]["account"]["freshness"]["status"] = json!("stale");
+        });
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-07-01T18:02:00Z").unwrap();
+
+        let runtime = &snapshot.read_model_runtime[0];
+        assert_eq!(runtime.health, HealthStatus::Stale);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("stale_artifact")
+        );
+        assert_eq!(
+            runtime.account_freshness_status.value.as_deref(),
+            Some("stale")
+        );
+        assert!(
+            runtime
+                .component_diagnostics
+                .value
+                .as_deref()
+                .is_some_and(|diagnostic| diagnostic.contains("account:freshness_stale"))
+        );
+    }
+
+    #[test]
+    fn trader_terminal_account_position_missing_provenance_fails_closed() {
+        let root = temp_root("trader-terminal-account-position-provenance");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "terminal-account-position-provenance");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_trader_terminal_read_model_artifact(&record, |artifact| {
+            artifact["components"]["positions"]
+                .as_object_mut()
+                .unwrap()
+                .remove("source_provenance");
+        });
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-07-01T18:03:00Z").unwrap();
+
+        let runtime = &snapshot.read_model_runtime[0];
+        assert_eq!(runtime.health, HealthStatus::Error);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("fail_closed")
+        );
+        assert_eq!(
+            runtime.positions_source_ref.availability,
+            DashboardAvailability::Unknown
+        );
+        assert!(
+            runtime.diagnostic.value.as_deref().is_some_and(
+                |diagnostic| diagnostic.contains("positions:source_provenance_missing")
+            )
+        );
+    }
+
+    #[test]
+    fn trader_terminal_account_position_mismatch_fails_closed() {
+        let root = temp_root("trader-terminal-account-position-mismatch");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "terminal-account-position-mismatch");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_trader_terminal_read_model_artifact(&record, |artifact| {
+            artifact["components"]["account"]["data"]["account_id"] = json!("acct-a");
+            artifact["components"]["positions"]["data"]["account_id"] = json!("acct-b");
+        });
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-07-01T18:04:00Z").unwrap();
+
+        let runtime = &snapshot.read_model_runtime[0];
+        assert_eq!(runtime.health, HealthStatus::Error);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("fail_closed")
+        );
+        assert_eq!(
+            runtime.positions_account_id.value.as_deref(),
+            Some("acct-b")
+        );
+        assert!(
+            runtime
+                .diagnostic
+                .value
+                .as_deref()
+                .is_some_and(|diagnostic| diagnostic.contains("account_position_mismatch"))
+        );
     }
 
     #[test]
@@ -17631,6 +18077,7 @@ mod tests {
         let components = json!({
             "account": read_model_component("healthy", &json!({
                 "summary_status": "ready",
+                "account_id": "acct-redacted-001",
                 "account_status": "redacted_ready",
                 "risk_state": "active",
                 "equity": "1000.00",
@@ -17641,10 +18088,13 @@ mod tests {
             })),
             "positions": read_model_component("healthy", &json!({
                 "summary_status": "ready",
+                "account_id": "acct-redacted-001",
                 "position_count": 1,
                 "net_position_side": "flat",
+                "quantity": "0",
                 "net_exposure": "0",
                 "notional": "0",
+                "precision": "standard",
                 "values_are_exchange_truth": false
             })),
             "orders": read_model_component("healthy", &json!({
