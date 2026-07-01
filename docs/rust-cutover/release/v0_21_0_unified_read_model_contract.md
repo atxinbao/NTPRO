@@ -246,7 +246,13 @@ dashboard_order_controls_enabled = false
 dashboard_approval_controls_enabled = false
 dashboard_cancel_controls_enabled = false
 dashboard_retry_controls_enabled = false
+dashboard_submit_controls_enabled = false
+dashboard_replace_controls_enabled = false
+dashboard_amend_controls_enabled = false
+dashboard_flatten_controls_enabled = false
 retry_replace_amend_flatten_allowed = false
+trader_terminal_order_ticket_enabled = false
+trader_terminal_live_trading_claim = false
 product_grade_trading_terminal_claim = false
 ```
 
@@ -275,8 +281,17 @@ Use:
 ```bash
 scripts/ai/verify_release.sh v21-read-model-contract
 scripts/ai/verify_release.sh v21.1-health-status-semantics
+scripts/ai/verify_release.sh v21.1-read-model-schema-boundary
 ```
 
 The validator checks the JSON schema, validates the schema-only golden trace
 envelope, and asserts that missing lineage/source/freshness snapshots cannot be
 marked healthy.
+
+V211-004 tightens the JSON Schema boundary itself: `source_provenance`,
+`redaction`, `capability_boundary`, component envelopes, and component `data`
+fail closed on undeclared fields. Dashboard read-only snapshots must explicitly
+carry submit/replace/amend/flatten, order-ticket, and live-trading-claim flags,
+all constrained to `false`. `exchange_truth=true` and
+`adapter_runtime_integrated=true` require exchange/readback or adapter/runtime
+source provenance instead of fixture or manual evidence.

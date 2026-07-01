@@ -11,7 +11,8 @@ Trader Terminal workbench work starts.
 
 Plain Chinese summary: v0.21.1 是 read model 基础的补丁版本。它先修正
 `health_status` 语义，再把关键 read_model golden traces 提升为 Rust 可执行 replay。
-它不新增下单、撤单、重试、替换、改单、平仓、自动修复或产品级实盘终端能力。
+它还收紧 JSON Schema 边界，防止未声明字段、敏感字段或越权 boundary flags
+静默穿透。它不新增下单、撤单、重试、替换、改单、平仓、自动修复或产品级实盘终端能力。
 
 ## Executable Read-Model Replay
 
@@ -40,6 +41,27 @@ snapshot and compares it to the golden expected event. The release scope now
 records 8 executable read_model replay cases and 24 remaining schema-only
 read_model cases.
 
+## JSON Schema Boundary
+
+V211-004 tightens the unified read-model JSON Schema:
+
+```text
+source_provenance.additionalProperties = false
+redaction.additionalProperties = false
+capability_boundary.additionalProperties = false
+component.additionalProperties = false
+component.data.additionalProperties = false
+dashboard submit/replace/amend/flatten flags = explicit false
+trader_terminal_order_ticket_enabled = false
+trader_terminal_live_trading_claim = false
+```
+
+`exchange_truth=true` and `adapter_runtime_integrated=true` now require
+exchange/readback or adapter/runtime source provenance. Fixture, manual, and
+unavailable sources cannot claim exchange truth or adapter runtime integration.
+The schema gate also rejects partial component snapshots that try to advertise
+top-level unified `healthy`.
+
 ## Remaining Schema-Only Cases
 
 The remaining schema-only read_model cases are intentionally not promoted yet.
@@ -66,8 +88,12 @@ Use:
 
 ```bash
 scripts/ai/verify_release.sh v21.1-read-model-projection-replay
+scripts/ai/verify_release.sh v21.1-read-model-schema-boundary
 ```
 
 This gate fails if the Rust read-model projection replay fails, if the release
 scope does not mark exactly the promoted cases as executable replay, or if any
 remaining schema-only read_model case claims executable replay fields.
+The schema-boundary gate fails if any read_model fixture violates the JSON
+Schema, or if negative mutations for undeclared fields, sensitive fields,
+forbidden boundary flags, or invalid source truth claims unexpectedly pass.
