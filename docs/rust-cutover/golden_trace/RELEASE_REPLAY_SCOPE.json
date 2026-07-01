@@ -513,7 +513,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-001",
       "reason": "Contract baseline row validates the unified read model envelope before executable Rust projection exists.",
-      "follow_up": "V210-002 through V210-008 must add component implementations and promote required read_model cases to executable replay.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -523,28 +523,28 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-001",
       "reason": "Contract baseline row proves fail-closed schema semantics for missing lineage, source provenance, and freshness.",
-      "follow_up": "V210-002 through V210-008 must add component implementations and promote required read_model cases to executable replay.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
       "case_id": "read_model.account_snapshot.fresh.001",
       "trace": "tests/golden/read_model_account_snapshot_schema.jsonl",
       "category": "read_model",
-      "status": "schema_only_scoped",
-      "scope_owner": "V210-002",
-      "reason": "Account snapshot component row proves fresh redacted summary data source provenance lineage freshness and read-only boundaries before executable projection promotion.",
-      "follow_up": "V210-006 through V210-008 must connect account snapshot risk projection dashboard foundation and final strict provenance release gates.",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V211-003",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v211_required_paths"
     },
     {
       "case_id": "read_model.account_snapshot.stale.001",
       "trace": "tests/golden/read_model_account_snapshot_schema.jsonl",
       "category": "read_model",
-      "status": "schema_only_scoped",
-      "scope_owner": "V210-002",
-      "reason": "Account snapshot component row proves stale account freshness fails closed while keeping risk state visible.",
-      "follow_up": "V210-006 through V210-008 must connect account snapshot risk projection dashboard foundation and final strict provenance release gates.",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V211-003",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v211_required_paths"
     },
     {
       "case_id": "read_model.account_snapshot.missing_provenance.001",
@@ -553,7 +553,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-002",
       "reason": "Account snapshot component row proves missing account source provenance prevents healthy status and fails closed.",
-      "follow_up": "V210-006 through V210-008 must connect account snapshot risk projection dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -563,7 +563,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-002",
       "reason": "Account snapshot component row proves sensitive or raw account material forces fail-closed redaction status.",
-      "follow_up": "V210-006 through V210-008 must connect account snapshot risk projection dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -573,7 +573,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-003",
       "reason": "Position component row proves fresh long position state can feed risk projection without operation controls.",
-      "follow_up": "V210-006 through V210-008 must connect position risk projection dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -583,7 +583,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-003",
       "reason": "Position component row proves fresh short position state can feed risk projection without operation controls.",
-      "follow_up": "V210-006 through V210-008 must connect position risk projection dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -593,7 +593,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-003",
       "reason": "Position component row proves flat position state has zero quantity and remains read-only.",
-      "follow_up": "V210-006 through V210-008 must connect position risk projection dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -603,7 +603,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-003",
       "reason": "Position component row proves quantity precision mismatches fail closed.",
-      "follow_up": "V210-006 through V210-008 must connect position risk projection dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -613,7 +613,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-003",
       "reason": "Position component row proves stale position source freshness fails closed.",
-      "follow_up": "V210-006 through V210-008 must connect position risk projection dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -623,18 +623,18 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-003",
       "reason": "Position component row proves account and position lineage mismatches fail closed.",
-      "follow_up": "V210-006 through V210-008 must connect position risk projection dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
       "case_id": "read_model.order_lifecycle.matched.001",
       "trace": "tests/golden/read_model_order_lifecycle_schema.jsonl",
       "category": "read_model",
-      "status": "schema_only_scoped",
-      "scope_owner": "V210-004",
-      "reason": "Order lifecycle row proves accepted readback matched audit evidence can be projected as read-only order state.",
-      "follow_up": "V210-005 through V210-008 must connect fill reconciliation dashboard foundation and final strict provenance release gates.",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V211-003",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v211_required_paths"
     },
     {
       "case_id": "read_model.order_lifecycle.unknown_response.001",
@@ -643,7 +643,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-004",
       "reason": "Order lifecycle row proves unknown response fails closed with no retry or automatic remediation.",
-      "follow_up": "V210-005 through V210-008 must connect fill reconciliation dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -653,7 +653,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-004",
       "reason": "Order lifecycle row proves post-submit readback mismatch fails closed.",
-      "follow_up": "V210-005 through V210-008 must connect fill reconciliation dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -663,18 +663,18 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-004",
       "reason": "Order lifecycle row proves duplicate submit attempts fail closed.",
-      "follow_up": "V210-005 through V210-008 must connect fill reconciliation dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
       "case_id": "read_model.order_lifecycle.missing_ledger.001",
       "trace": "tests/golden/read_model_order_lifecycle_schema.jsonl",
       "category": "read_model",
-      "status": "schema_only_scoped",
-      "scope_owner": "V210-004",
-      "reason": "Order lifecycle row proves missing durable attempt ledger evidence fails closed.",
-      "follow_up": "V210-005 through V210-008 must connect fill reconciliation dashboard foundation and final strict provenance release gates.",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V211-003",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v211_required_paths"
     },
     {
       "case_id": "read_model.fill_execution.reconciled.001",
@@ -683,7 +683,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-005",
       "reason": "Fill/execution row proves a reconciled fill can feed risk projection as read-only linked order evidence.",
-      "follow_up": "V210-006 through V210-008 must connect fill reconciliation into risk state dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -693,7 +693,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-005",
       "reason": "Fill/execution row proves partial fills remain visible with remaining quantity and no operation controls.",
-      "follow_up": "V210-006 through V210-008 must connect fill reconciliation into risk state dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -703,7 +703,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-005",
       "reason": "Fill/execution row proves duplicate fills fail closed and cannot be counted twice.",
-      "follow_up": "V210-006 through V210-008 must connect fill reconciliation into risk state dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -713,7 +713,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-005",
       "reason": "Fill/execution row proves missing order linkage fails closed instead of inventing an order relationship.",
-      "follow_up": "V210-006 through V210-008 must connect fill reconciliation into risk state dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -723,7 +723,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-005",
       "reason": "Fill/execution row proves stale execution source freshness fails closed.",
-      "follow_up": "V210-006 through V210-008 must connect fill reconciliation into risk state dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -733,18 +733,18 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-005",
       "reason": "Fill/execution row proves ambiguous source provenance fails closed.",
-      "follow_up": "V210-006 through V210-008 must connect fill reconciliation into risk state dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
       "case_id": "read_model.risk_state.healthy.001",
       "trace": "tests/golden/read_model_risk_state_schema.jsonl",
       "category": "read_model",
-      "status": "schema_only_scoped",
-      "scope_owner": "V210-006",
-      "reason": "Risk state row proves fresh linked account position order and fill evidence can become healthy audit-closed projection.",
-      "follow_up": "V210-007 and V210-008 must connect risk projection into read-only dashboard foundation and final strict provenance release gates.",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V211-003",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v211_required_paths"
     },
     {
       "case_id": "read_model.risk_state.risk_visible.001",
@@ -753,7 +753,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-006",
       "reason": "Risk state row proves risk-visible projection remains read-only and not audit-closed.",
-      "follow_up": "V210-007 and V210-008 must connect risk projection into read-only dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -763,7 +763,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-006",
       "reason": "Risk state row proves partial fill or review-required evidence degrades to manual review without automatic action.",
-      "follow_up": "V210-007 and V210-008 must connect risk projection into read-only dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -773,7 +773,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-006",
       "reason": "Risk state row proves halted projection fails closed without triggering automatic risk actions.",
-      "follow_up": "V210-007 and V210-008 must connect risk projection into read-only dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
@@ -783,38 +783,38 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-006",
       "reason": "Risk state row proves stale input component freshness fails closed and cannot be healthy or audit closed.",
-      "follow_up": "V210-007 and V210-008 must connect risk projection into read-only dashboard foundation and final strict provenance release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {
       "case_id": "read_model.risk_state.mismatch.001",
       "trace": "tests/golden/read_model_risk_state_schema.jsonl",
       "category": "read_model",
-      "status": "schema_only_scoped",
-      "scope_owner": "V210-006",
-      "reason": "Risk state row proves component lineage mismatch fails closed and cannot be healthy or audit closed.",
-      "follow_up": "V210-007 and V210-008 must connect risk projection into read-only dashboard foundation and final strict provenance release gates.",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V211-003",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v211_required_paths"
     },
     {
       "case_id": "read_model.dashboard.readonly_complete.001",
       "trace": "tests/golden/read_model_dashboard_schema.jsonl",
       "category": "read_model",
-      "status": "schema_only_scoped",
-      "scope_owner": "V210-007",
-      "reason": "Dashboard row proves the Trader Terminal foundation displays account position order fill risk and provenance diagnostics as read-only evidence.",
-      "follow_up": "V210-008 must connect the completed read-only dashboard foundation into final strict provenance and release gates.",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V211-003",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v211_required_paths"
     },
     {
       "case_id": "read_model.dashboard.missing_evidence_degraded.001",
       "trace": "tests/golden/read_model_dashboard_schema.jsonl",
       "category": "read_model",
-      "status": "schema_only_scoped",
-      "scope_owner": "V210-007",
-      "reason": "Dashboard row proves missing fill evidence degrades the foundation view instead of inventing a healthy terminal state.",
-      "follow_up": "V210-008 must connect the completed read-only dashboard foundation into final strict provenance and release gates.",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V211-003",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v211_required_paths"
     },
     {
       "case_id": "read_model.dashboard.forbidden_controls_blocked.001",
@@ -823,7 +823,7 @@
       "status": "schema_only_scoped",
       "scope_owner": "V210-007",
       "reason": "Dashboard row proves submit approval cancel retry replace amend and flatten control attempts fail closed while all controls remain disabled.",
-      "follow_up": "V210-008 must connect the completed read-only dashboard foundation into final strict provenance and release gates.",
+      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
       "release_decision": "schema_only_scope_recorded"
     },
     {

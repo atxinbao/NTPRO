@@ -1,3 +1,27 @@
+# V211-003 Verification
+
+Date: 2026-07-01
+Executor: Codex
+Task: `V211-003` / GitHub issue `#679`
+
+## Commands
+
+```text
+cargo test -p nautilus-cli --test golden_trace_read_model_projection = PASS
+cargo clippy -p nautilus-cli --test golden_trace_read_model_projection --features defi -- -D warnings = PASS
+scripts/ai/verify_v21_1_read_model_projection_replay.sh = PASS
+scripts/ai/verify_release.sh v21.1-read-model-projection-replay = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V211-003 is locally verified. Eight key read_model cases now have executable
+Rust projection replay coverage. The remaining read_model cases stay
+schema-only with explicit V211 follow-up and no executable replay fields.
+
 # V211-002 Verification
 
 Date: 2026-07-01
