@@ -10,6 +10,9 @@ Task: `V211-005` / GitHub issue `#681`
 cargo test -p nautilus-cli trader_terminal_read_model -- --nocapture = PASS
 bash -n scripts/ai/verify_v21_1_trader_terminal_read_model_bridge.sh scripts/ai/verify_release.sh = PASS
 scripts/ai/verify_release.sh v21.1-trader-terminal-read-model-bridge = PASS
+ci failure 28537696476 root cause = Workspace clippy `needless_pass_by_value` in `read_model_component`
+cargo clippy -p nautilus-cli --lib --tests --features defi -- -D warnings = PASS
+scripts/ai/verify_release.sh v21.1-trader-terminal-read-model-bridge = PASS after clippy fix
 scripts/ai/verify_release.sh v21-trader-terminal-readonly-dashboard = PASS
 scripts/ai/verify_release.sh v21.1-read-model-schema-boundary = PASS, validated_read_model_snapshots=36, negative_mutations=8
 cargo test -p nautilus-cli --lib dashboard::tests::empty_snapshot_serializes_stable_top_level_sections -- --nocapture = PASS

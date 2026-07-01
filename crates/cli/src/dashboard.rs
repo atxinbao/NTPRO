@@ -17396,7 +17396,7 @@ mod tests {
 
     fn healthy_trader_terminal_read_model_artifact() -> Value {
         let components = json!({
-            "account": read_model_component("healthy", json!({
+            "account": read_model_component("healthy", &json!({
                 "summary_status": "ready",
                 "account_status": "redacted_ready",
                 "risk_state": "active",
@@ -17406,7 +17406,7 @@ mod tests {
                 "dashboard_visible": true,
                 "values_are_exchange_truth": false
             })),
-            "positions": read_model_component("healthy", json!({
+            "positions": read_model_component("healthy", &json!({
                 "summary_status": "ready",
                 "position_count": 1,
                 "net_position_side": "flat",
@@ -17414,7 +17414,7 @@ mod tests {
                 "notional": "0",
                 "values_are_exchange_truth": false
             })),
-            "orders": read_model_component("healthy", json!({
+            "orders": read_model_component("healthy", &json!({
                 "lifecycle_status": "read_only_complete",
                 "open_order_count": 0,
                 "terminal_order_count": 0,
@@ -17424,7 +17424,7 @@ mod tests {
                 "readback_status": "not_applicable_readonly",
                 "dashboard_readonly_visible": true
             })),
-            "fills": read_model_component("healthy", json!({
+            "fills": read_model_component("healthy", &json!({
                 "fill_status": "reconciled",
                 "fill_count": 0,
                 "order_linkage_status": "no_open_order",
@@ -17432,7 +17432,7 @@ mod tests {
                 "no_execution_algorithm": true,
                 "dashboard_readonly_visible": true
             })),
-            "risk": read_model_component("healthy", json!({
+            "risk": read_model_component("healthy", &json!({
                 "risk_state": "active",
                 "critical_evidence_complete": true,
                 "manual_review_required": false,
@@ -17442,7 +17442,7 @@ mod tests {
                 "automatic_trading_action_allowed": false,
                 "audit_closed_allowed": false
             })),
-            "lifecycle_status": read_model_component("healthy", json!({
+            "lifecycle_status": read_model_component("healthy", &json!({
                 "lifecycle_status": "read_only_foundation",
                 "audit_state": "closed",
                 "readback_status": "not_applicable_readonly",
@@ -17511,7 +17511,7 @@ mod tests {
         })
     }
 
-    fn read_model_component(status: &str, data: Value) -> Value {
+    fn read_model_component(status: &str, data: &Value) -> Value {
         json!({
             "component_status": status,
             "source_provenance": read_model_source_provenance(),
