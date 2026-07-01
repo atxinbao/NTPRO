@@ -30,6 +30,7 @@ position component = docs/rust-cutover/release/v0_21_0_position_read_model.md
 order lifecycle component = docs/rust-cutover/release/v0_21_0_order_lifecycle_read_model.md
 fill/execution component = docs/rust-cutover/release/v0_21_0_fill_execution_read_model.md
 risk projection component = docs/rust-cutover/release/v0_21_0_risk_state_projection.md
+Trader Terminal read-only dashboard foundation = docs/rust-cutover/release/v0_21_0_trader_terminal_readonly_dashboard.md
 ```
 
 ## Snapshot Identity
@@ -214,6 +215,24 @@ dashboard_retry_controls_enabled = false
 retry_replace_amend_flatten_allowed = false
 product_grade_trading_terminal_claim = false
 ```
+
+## Trader Terminal Dashboard Foundation
+
+The v0.21 Trader Terminal dashboard foundation is a read-only projection over
+the unified account, position, order, fill, risk, and lifecycle components. It
+may display account, position, order, fill, risk, and audit/provenance
+diagnostics, but it must preserve:
+
+```text
+foundation_only = true
+read_only = true
+no_submit_controls = true
+view transform = ntpro.v210.trader_terminal_readonly_dashboard.v1
+```
+
+It must not expose submit, approval, cancel, retry, replace, amend, flatten,
+order ticket, automatic repair, automatic execution, or product-grade trading
+terminal behavior.
 
 ## Validation
 

@@ -797,6 +797,36 @@
       "release_decision": "schema_only_scope_recorded"
     },
     {
+      "case_id": "read_model.dashboard.readonly_complete.001",
+      "trace": "tests/golden/read_model_dashboard_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-007",
+      "reason": "Dashboard row proves the Trader Terminal foundation displays account position order fill risk and provenance diagnostics as read-only evidence.",
+      "follow_up": "V210-008 must connect the completed read-only dashboard foundation into final strict provenance and release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.dashboard.missing_evidence_degraded.001",
+      "trace": "tests/golden/read_model_dashboard_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-007",
+      "reason": "Dashboard row proves missing fill evidence degrades the foundation view instead of inventing a healthy terminal state.",
+      "follow_up": "V210-008 must connect the completed read-only dashboard foundation into final strict provenance and release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "read_model.dashboard.forbidden_controls_blocked.001",
+      "trace": "tests/golden/read_model_dashboard_schema.jsonl",
+      "category": "read_model",
+      "status": "schema_only_scoped",
+      "scope_owner": "V210-007",
+      "reason": "Dashboard row proves submit approval cancel retry replace amend and flatten control attempts fail closed while all controls remain disabled.",
+      "follow_up": "V210-008 must connect the completed read-only dashboard foundation into final strict provenance and release gates.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",

@@ -373,6 +373,11 @@ run_v21_risk_state_projection() {
   scripts/ai/verify_v21_risk_state_projection.sh
 }
 
+run_v21_trader_terminal_readonly_dashboard() {
+  echo "== verify_release: v0.21 Trader Terminal read-only dashboard foundation =="
+  scripts/ai/verify_v21_trader_terminal_readonly_dashboard.sh
+}
+
 run_v171_release_hardening() {
   echo "== verify_release: v0.17.1 release hardening =="
   scripts/ai/verify_v171_release_hardening.sh
@@ -446,6 +451,7 @@ run_stage() {
       run_v21_order_lifecycle_read_model
       run_v21_fill_execution_read_model
       run_v21_risk_state_projection
+      run_v21_trader_terminal_readonly_dashboard
       run_release_surface_current_guard
       run_release_publication_guard
       ;;
@@ -556,6 +562,9 @@ run_stage() {
       ;;
     v21-risk-state-projection)
       run_v21_risk_state_projection
+      ;;
+    v21-trader-terminal-readonly-dashboard)
+      run_v21_trader_terminal_readonly_dashboard
       ;;
     v171-release-hardening)
       run_v171_release_hardening
