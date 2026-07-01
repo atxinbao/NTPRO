@@ -1,3 +1,32 @@
+# V210-006 Verification
+
+Date: 2026-07-01
+Executor: Codex
+Task: `V210-006` / GitHub issue `#657`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v21_risk_state_projection.sh scripts/ai/verify_release.sh = PASS
+jq empty docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json = PASS
+python3 scripts/ai/golden_trace_runner.py tests/golden/read_model_risk_state_schema.jsonl --mode validate-only = PASS, 6 rows
+scripts/ai/verify_release.sh v21-risk-state-projection = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, 80 cases, 50 executable replay, 30 schema-only scoped
+RUN_RUST_MARKET_DATA_TRACE_REPLAY=0 RUN_RUST_CACHE_MSGBUS_TRACE_REPLAY=0 RUN_RUST_BACKTEST_TRACE_REPLAY=0 RUN_RUST_BACKTEST_LIVE_PARITY_TRACE_REPLAY=0 RUN_RUST_LIVE_SANDBOX_TRACE_REPLAY=0 RUN_RUST_ORDER_LIFECYCLE_TRACE_REPLAY=0 RUN_RUST_RISK_REJECTION_TRACE_REPLAY=0 RUN_RUST_ADAPTER_PAYLOAD_TRACE_REPLAY=0 RUN_RUST_LIVE_ALPHA_RECONCILIATION_TRACE_REPLAY=0 RUN_RUST_LIVE_ALPHA_MUTATION_DRY_RUN_TRACE_REPLAY=0 RUN_RUST_ACTUAL_CANCEL_TRACE_REPLAY=0 RUN_RUST_PRODUCTION_ORDER_LIFECYCLE_TRACE_REPLAY=0 scripts/ai/run_golden_traces.sh = PASS, all JSONL schema validation plus Rust golden trace schema contract
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+Local validation passed. The gate wires `v21-risk-state-projection`,
+`read_model_risk_state_schema.jsonl`, release replay scope entries, and evidence
+for unified account/position/order/fill risk-state rollups. It preserves:
+automatic_risk_action_allowed = false, automatic_risk_repair_allowed = false,
+execution_algorithm_allowed = false, dashboard_risk_controls_enabled = false,
+no submit/cancel/mutation capability, and no product-grade trading terminal
+claim.
+
 # V210-005 Verification
 
 Date: 2026-07-01

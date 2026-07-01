@@ -22,6 +22,9 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_21_0_fill_execution_read_model.md` - V210 fill/execution read-model
   component contract for fill/execution identity, order linkage, dedupe,
   partial fill visibility, source freshness, and reconciliation boundaries.
+- `v0_21_0_risk_state_projection.md` - V210 unified risk state projection for
+  account, position, order, and fill rollups, risk-state priority, degradation,
+  and no-automatic-action boundaries.
 - `BACKTEST_LIVE_GATE_EVIDENCE.md` - RBTL-010 backtest/live gate evidence and
   remaining blockers.
 - `binary_install_path.md` - NBIN-001 source-build, local `cargo install`,
