@@ -45,7 +45,7 @@ SCHEMA_VERSION = "ntpro.v210.unified_read_model.schema.v1"
 ACCOUNT_TRANSFORM = "ntpro.v210.account_snapshot_read_model.v1"
 EXPECTED_CASES = {
     "read_model.account_snapshot.fresh.001": {
-        "health_status": "healthy",
+        "health_status": "degraded",
         "account_status": "healthy",
         "reasons": [],
         "freshness": "fresh",
@@ -211,8 +211,8 @@ def validate_case(row: dict[str, Any]) -> None:
         require(reason in payload.get("blocking_reasons", []), f"{case_id}: expected payload missing reason {reason}")
         require(reason in account.get("diagnostics", []) or reason in snapshot.get("blocking_reasons", []), f"{case_id}: missing account diagnostic {reason}")
 
-    if expected["health_status"] == "healthy":
-        require(snapshot.get("blocking_reasons") == [], f"{case_id}: healthy case must not block")
+    if not expected["reasons"]:
+        require(snapshot.get("blocking_reasons") == [], f"{case_id}: non-blocking component case must not block")
         require(account.get("source_provenance", {}).get("redaction_state") == "redacted", f"{case_id}: healthy source must be redacted")
         require(data.get("response_shape_validated") is True, f"{case_id}: fresh case must validate response shape")
     else:

@@ -43,7 +43,7 @@ SCHEMA_VERSION = "ntpro.v210.unified_read_model.schema.v1"
 FILL_TRANSFORM = "ntpro.v210.fill_execution_read_model.v1"
 EXPECTED_CASES = {
     "read_model.fill_execution.reconciled.001": {
-        "health_status": "healthy",
+        "health_status": "degraded",
         "component_status": "healthy",
         "fill_status": "filled",
         "reconciliation_status": "reconciled",

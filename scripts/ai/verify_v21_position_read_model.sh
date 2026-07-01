@@ -43,7 +43,7 @@ SCHEMA_VERSION = "ntpro.v210.unified_read_model.schema.v1"
 POSITION_TRANSFORM = "ntpro.v210.position_read_model.v1"
 EXPECTED_CASES = {
     "read_model.position.long.001": {
-        "health_status": "healthy",
+        "health_status": "degraded",
         "component_status": "healthy",
         "side": "long",
         "reasons": [],
@@ -51,7 +51,7 @@ EXPECTED_CASES = {
         "precision_status": "valid",
     },
     "read_model.position.short.001": {
-        "health_status": "healthy",
+        "health_status": "degraded",
         "component_status": "healthy",
         "side": "short",
         "reasons": [],
@@ -59,7 +59,7 @@ EXPECTED_CASES = {
         "precision_status": "valid",
     },
     "read_model.position.flat.001": {
-        "health_status": "healthy",
+        "health_status": "degraded",
         "component_status": "healthy",
         "side": "flat",
         "reasons": [],
@@ -231,8 +231,8 @@ def validate_case(row: dict[str, Any]) -> None:
     require(risk.get("automatic_position_repair_allowed") is False, f"{case_id}: automatic repair must be false")
     require(risk.get("auto_flatten_position_allowed") is False, f"{case_id}: auto flatten must be false")
 
-    if expected["health_status"] == "healthy":
-        require(snapshot.get("blocking_reasons") == [], f"{case_id}: healthy case must not block")
+    if not expected["reasons"]:
+        require(snapshot.get("blocking_reasons") == [], f"{case_id}: non-blocking component case must not block")
         require(data.get("position_count") in (0, 1), f"{case_id}: position count must be scoped")
         if expected["side"] == "flat":
             require(data.get("quantity") == "0", f"{case_id}: flat quantity must be zero")

@@ -43,7 +43,7 @@ SCHEMA_VERSION = "ntpro.v210.unified_read_model.schema.v1"
 ORDER_TRANSFORM = "ntpro.v210.order_lifecycle_read_model.v1"
 EXPECTED_CASES = {
     "read_model.order_lifecycle.matched.001": {
-        "health_status": "healthy",
+        "health_status": "degraded",
         "component_status": "healthy",
         "lifecycle_status": "readback_matched",
         "readback_status": "matched",
@@ -234,8 +234,8 @@ def validate_case(row: dict[str, Any]) -> None:
     for key in ("candidate_ref", "attempt_ref", "approval_ref", "audit_ref", "provenance_ref"):
         require(key in refs, f"{case_id}: missing ref {key}")
 
-    if expected["health_status"] == "healthy":
-        require(snapshot.get("blocking_reasons") == [], f"{case_id}: healthy case must not block")
+    if not expected["reasons"]:
+        require(snapshot.get("blocking_reasons") == [], f"{case_id}: non-blocking component case must not block")
         require(data.get("submitted") is True, f"{case_id}: matched case must record submitted")
         require(data.get("accepted") is True, f"{case_id}: matched case must record accepted")
         require(data.get("audit_state") == "audit_closed", f"{case_id}: matched case must close audit")

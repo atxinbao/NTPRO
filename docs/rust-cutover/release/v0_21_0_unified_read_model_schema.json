@@ -31,6 +31,9 @@
       "type": "string",
       "minLength": 1
     },
+    "snapshot_kind": {
+      "enum": ["component_snapshot", "unified_snapshot", "dashboard_view"]
+    },
     "snapshot_identity": {
       "type": "object",
       "required": ["account_id", "venue", "instrument_ids", "created_at_unix_ns"],

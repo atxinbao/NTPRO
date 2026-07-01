@@ -25,6 +25,7 @@ contract_version = ntpro.v210.unified_read_model.v1
 schema = docs/rust-cutover/release/v0_21_0_unified_read_model_schema.json
 schema smoke = tests/golden/read_model_contract_schema.jsonl
 validator = scripts/ai/verify_v21_read_model_contract.sh
+health status semantics validator = scripts/ai/verify_v211_health_status_semantics.sh
 account component = docs/rust-cutover/release/v0_21_0_account_snapshot_read_model.md
 position component = docs/rust-cutover/release/v0_21_0_position_read_model.md
 order lifecycle component = docs/rust-cutover/release/v0_21_0_order_lifecycle_read_model.md
@@ -81,8 +82,41 @@ degraded
 fail_closed
 ```
 
-`healthy` is allowed only when every required component has source provenance,
-lineage, freshness, and redaction status.
+`healthy` is allowed only for a `unified_snapshot` when every required
+component has source provenance, lineage, `freshness.status=fresh`, redaction
+status, and `component_status=healthy`.
+
+## Snapshot Semantic Kinds
+
+The read model distinguishes three semantic kinds:
+
+```text
+snapshot_kind = component_snapshot | unified_snapshot | dashboard_view
+```
+
+Rules:
+
+- `component_snapshot` can express local component health, for example
+  `components.account.component_status=healthy`, but it must not advertise
+  top-level `health_status=healthy` unless it is promoted into a complete
+  `unified_snapshot`.
+- `unified_snapshot.health_status=healthy` requires exactly the required
+  component set: account, positions, orders, fills, risk, and lifecycle status.
+  Every required component must include source provenance, lineage,
+  `freshness.status=fresh`, redaction, and `component_status=healthy`.
+- `dashboard_view` may display locally visible account, position, order, fill,
+  risk, and audit/provenance state, but any missing, degraded, fail-closed, or
+  unavailable component must remain visible as `degraded`, `missing`, or
+  `unavailable`. A partial dashboard view must not hide missing evidence behind
+  top-level `health_status=healthy`.
+- Missing source provenance, lineage, freshness, or redaction on any required
+  unified component prevents `healthy`; blocking evidence gaps must set
+  `health_status=fail_closed`.
+
+V211-002 corrected the account, position, order, fill, and risk component
+fixtures so local component health no longer creates unified top-level healthy.
+The explicit semantics smoke is
+`tests/golden/v211/read_model_health_status_semantics_schema.jsonl`.
 
 ## Components
 
@@ -240,6 +274,7 @@ Use:
 
 ```bash
 scripts/ai/verify_release.sh v21-read-model-contract
+scripts/ai/verify_release.sh v21.1-health-status-semantics
 ```
 
 The validator checks the JSON schema, validates the schema-only golden trace
