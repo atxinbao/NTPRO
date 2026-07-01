@@ -10,11 +10,12 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.21.0` 是当前正式公开发布点；它是 Unified Read Model Foundation，用来建立
-account、position、order、fill、risk 和 Trader Terminal read-only Dashboard
-foundation 的证据链。它不是产品级实盘交易终端，不是新增 submit 能力，不是生产订单
-mutation，不是隐式 retry，不是自动撤单，不是自动补救，不是
-retry/replace/amend/flatten，不是策略实盘，不是多账户多交易所执行，也没有 Dashboard
+`v0.21.1` 是当前正式公开发布点；它是 Unified Read Model Foundation Hardening
+Patch，用来固化 v0.21.0 closeout、health_status 语义、read-model executable
+replay、JSON Schema boundary、Trader Terminal read-only runtime bridge 和
+v0.22.0 dependency proof。它不是 Trader Terminal workbench，不是产品级实盘交易终端，
+不是新增 submit 能力，不是生产订单 mutation，不是隐式 retry，不是自动撤单，不是自动补救，
+不是 retry/replace/amend/flatten，不是策略实盘，不是多账户多交易所执行，也没有 Dashboard
 下单/审批/撤单/重试/submit/replace/amend/flatten/order-ticket 控件。`v0.22.0` 是下一能力轨。
 
 ## Release Tags
@@ -41,6 +42,7 @@ ntpro-rust-only-v0.19.0
 ntpro-rust-only-v0.20.0
 ntpro-rust-only-v0.20.1
 ntpro-rust-only-v0.21.0
+ntpro-rust-only-v0.21.1
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -53,17 +55,17 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.21.0
+ntpro-rust-only-v0.21.1
 ```
 
 The active patch track is:
 
 ```text
-v0.21.1
+v0.21.2
 ```
 
-v0.21.1 is reserved for future patch hardening only. It must not expand beyond
-the v0.21.0 read-only-foundation boundary unless a later scoped
+v0.21.2 is reserved for future patch hardening only. It must not expand beyond
+the v0.21.1 read-only-foundation hardening boundary unless a later scoped
 release issue explicitly changes that contract.
 
 The next capability track is:
@@ -72,12 +74,13 @@ The next capability track is:
 v0.22.0
 ```
 
-v0.22.0 must start from its own scoped issue order after the v0.21.0 release
-evidence is published. The v0.21 release line only authorizes the unified
-read model foundation and read-only Trader Terminal Dashboard foundation; it
-does not authorize production submit, production order mutation, implicit retry,
-automatic cancel, automatic remediation, strategy-driven production execution,
-multi-account or multi-venue expansion, or Dashboard operation controls.
+v0.22.0 must start from its own scoped issue order after all V211 issues close
+and the v0.21.1 release evidence is published. The v0.21 release line only
+authorizes the unified read model foundation, its hardening patch, and
+read-only Trader Terminal Dashboard evidence; it does not authorize production
+submit, production order mutation, implicit retry, automatic cancel, automatic
+remediation, strategy-driven production execution, multi-account or multi-venue
+expansion, or Dashboard operation controls.
 
 ## Cargo Workspace Version
 

@@ -613,6 +613,20 @@ Final release checks, benchmark summaries, and audit reports live here.
   for the V210 gate. It fixes the read-model evidence set, base v0.20.1
   release dependency, planned release tag, boundary flags, release body path,
   golden trace manifest, and strict provenance target.
+- `v0_21_1_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.21.1` GitHub Release. It records the Unified Read Model
+  Foundation Hardening Patch scope, V211 release gates, v0.22.0 dependency
+  proof, and the no-workbench/no-submit boundary.
+- `v0_21_1_readiness_report.md` - released readiness report for the formal
+  `ntpro-rust-only-v0.21.1` GitHub Release. It records V211 evidence,
+  v21.1 release gates, strict provenance, publication/current-surface guards,
+  and v0.22.0 dependency sources.
+- `v0_21_1_release_manifest.json` - machine-readable v0.21.1 patch release
+  manifest for the V211 gate. It fixes the V211 evidence set, v0.21.0 closeout
+  dependency, planned patch tag, boundary flags, release body path, and v0.22.0
+  dependency sources.
+- `../evidence/V211-006.md` - V211-006 release gate, strict provenance, and
+  dependency proof evidence for the `ntpro-rust-only-v0.21.1` GitHub Release.
 - `../evidence/V211-001.md` - V211-001 release closeout and milestone evidence
   backfill for the published `ntpro-rust-only-v0.21.0` GitHub Release. It
   records the release URL, tag commit, hosted release gate run, closed V210

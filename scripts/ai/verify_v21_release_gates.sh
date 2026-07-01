@@ -117,7 +117,10 @@ def require_false(mapping: dict, key: str) -> None:
 require(manifest.get("schema_version") == "ntpro.v210_release_manifest.v1", "manifest schema mismatch")
 require(manifest.get("task_id") == "V210-008", "manifest task_id mismatch")
 require(manifest.get("product_version") == os.environ["VERSION"], "manifest version mismatch")
-require(manifest.get("release_status") == "published_in_source_tree", "manifest status mismatch")
+require(
+    manifest.get("release_status") in {"published_in_source_tree", "published_closeout_complete"},
+    "manifest status mismatch",
+)
 require(schema.get("schema_version") == "ntpro.v210.unified_read_model.schema.v1", "schema version mismatch")
 
 base = manifest.get("base_release") or {}
@@ -216,8 +219,28 @@ for key in (
 cases = scope.get("cases") or []
 require(len(cases) == 83, "golden trace release scope case count mismatch")
 read_model_cases = [case for case in cases if case.get("category") == "read_model"]
-require(len(read_model_cases) == 32, "read model schema-only case count mismatch")
-require(all(case.get("status") == "schema_only_scoped" for case in read_model_cases), "read model cases must be schema-only scoped")
+require(len(read_model_cases) == 32, "read model release case count mismatch")
+read_model_executable_cases = [
+    case for case in read_model_cases
+    if case.get("status") == "executable_replay"
+]
+read_model_schema_only_cases = [
+    case for case in read_model_cases
+    if case.get("status") == "schema_only_scoped"
+]
+expected_executable = {
+    "read_model.account_snapshot.fresh.001",
+    "read_model.account_snapshot.stale.001",
+    "read_model.order_lifecycle.matched.001",
+    "read_model.order_lifecycle.missing_ledger.001",
+    "read_model.risk_state.healthy.001",
+    "read_model.risk_state.mismatch.001",
+    "read_model.dashboard.readonly_complete.001",
+    "read_model.dashboard.missing_evidence_degraded.001",
+}
+actual_executable = {case.get("case_id") for case in read_model_executable_cases}
+require(actual_executable == expected_executable, "read model executable replay case set mismatch")
+require(len(read_model_schema_only_cases) == 24, "read model schema-only case count mismatch")
 owners = {case.get("scope_owner") for case in read_model_cases}
 for owner in ("V210-001", "V210-002", "V210-003", "V210-004", "V210-005", "V210-006", "V210-007"):
     require(owner in owners, f"read model scope owner missing: {owner}")
@@ -277,7 +300,8 @@ payload = {
     "target": "v21-release-gates",
     "product_version": "v0.21.0",
     "release_tag": "ntpro-rust-only-v0.21.0",
-    "read_model_schema_only_cases": 32,
+    "read_model_executable_replay_cases": 8,
+    "read_model_schema_only_cases": 24,
     "release_scope_cases": 83,
     "unified_read_model_foundation": True,
     "read_only_foundation": True,

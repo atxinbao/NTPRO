@@ -128,6 +128,10 @@ jobs:
             command: scripts/ai/verify_release.sh v21-release-gates
           - stage: release-v21-strict-provenance
             command: scripts/ai/verify_release.sh v21-strict-provenance
+          - stage: release-v211-release-gates
+            command: scripts/ai/verify_release.sh v21.1-release-gates
+          - stage: release-v211-strict-provenance
+            command: scripts/ai/verify_release.sh v21.1-strict-provenance
           - stage: release-surface-current-guard
             command: scripts/ai/verify_release.sh release-surface-current-guard
           - stage: release-publication-guard
