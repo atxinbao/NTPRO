@@ -62,6 +62,39 @@ unavailable sources cannot claim exchange truth or adapter runtime integration.
 The schema gate also rejects partial component snapshots that try to advertise
 top-level unified `healthy`.
 
+## Trader Terminal Read-Model Runtime Bridge
+
+V211-005 adds a local Dashboard runtime bridge for the canonical unified read
+model artifact:
+
+```text
+canonical artifact = v0_21/unified_read_model_snapshot.json
+Dashboard key = read_model_runtime
+release target = scripts/ai/verify_release.sh v21.1-trader-terminal-read-model-bridge
+```
+
+The bridge reads `contract_version`, `schema_version`, `snapshot_id`,
+`snapshot_kind`, `health_status`, `freshness`, `source_provenance`,
+`redaction`, `blocking_reasons`, and the required `account`, `positions`,
+`orders`, `fills`, `risk`, and `lifecycle_status` component envelopes. It keeps
+missing or invalid runtime evidence visible instead of treating the foundation
+as healthy:
+
+```text
+missing_artifact
+schema_mismatch
+stale_artifact
+component_missing
+component_unavailable
+```
+
+Plain Chinese summary: V211-005 让 Dashboard 读取本地 canonical unified read
+model artifact，并展示 account、position、order、fill、risk、lifecycle 的基础只读状态。
+缺 artifact、schema mismatch、stale、component missing 或 component_unavailable
+都会显示 degraded、stale 或 fail_closed，不会显示 healthy。边界仍保持：
+`dashboard_order_controls_enabled = false`，且不新增下单、审批、撤单、重试、替换、改单、
+平仓或产品级实盘终端能力。
+
 ## Remaining Schema-Only Cases
 
 The remaining schema-only read_model cases are intentionally not promoted yet.
@@ -89,6 +122,7 @@ Use:
 ```bash
 scripts/ai/verify_release.sh v21.1-read-model-projection-replay
 scripts/ai/verify_release.sh v21.1-read-model-schema-boundary
+scripts/ai/verify_release.sh v21.1-trader-terminal-read-model-bridge
 ```
 
 This gate fails if the Rust read-model projection replay fails, if the release
@@ -97,3 +131,7 @@ remaining schema-only read_model case claims executable replay fields.
 The schema-boundary gate fails if any read_model fixture violates the JSON
 Schema, or if negative mutations for undeclared fields, sensitive fields,
 forbidden boundary flags, or invalid source truth claims unexpectedly pass.
+The Trader Terminal bridge gate fails if the Dashboard cannot read the
+canonical read-model artifact, or if missing, stale, schema-mismatch, component
+missing, or component unavailable states stop being represented as non-healthy
+read-only runtime statuses.

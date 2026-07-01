@@ -26,6 +26,7 @@ view transform = ntpro.v210.trader_terminal_readonly_dashboard.v1
 validator = scripts/ai/verify_v21_trader_terminal_readonly_dashboard.sh
 release target = scripts/ai/verify_release.sh v21-trader-terminal-readonly-dashboard
 golden trace = tests/golden/read_model_dashboard_schema.jsonl
+runtime bridge = scripts/ai/verify_release.sh v21.1-trader-terminal-read-model-bridge
 ```
 
 ## Display Scope
@@ -56,6 +57,58 @@ redaction status, and blocking reasons visible enough for audit and review. A
 missing input component must degrade the displayed evidence instead of
 inventing a healthy state.
 
+## Runtime Bridge
+
+V211-005 adds the first local runtime bridge from supervisor node artifacts into
+the Dashboard JSON snapshot:
+
+```text
+canonical artifact = v0_21/unified_read_model_snapshot.json
+Dashboard key = read_model_runtime
+contract_version = ntpro.v210.unified_read_model.v1
+schema_version = ntpro.v210.unified_read_model.schema.v1
+release target = scripts/ai/verify_release.sh v21.1-trader-terminal-read-model-bridge
+```
+
+The bridge reads the canonical artifact from each node artifact root and
+displays these read-only fields:
+
+```text
+snapshot_id
+snapshot_kind
+health_status
+freshness.status
+source_provenance.source_type
+source_provenance.source_ref
+redaction.status
+components.account.component_status
+components.positions.component_status
+components.orders.component_status
+components.fills.component_status
+components.risk.component_status
+components.lifecycle_status.component_status
+blocking_reasons
+component diagnostics
+```
+
+Runtime readiness values:
+
+```text
+ready_readonly_artifact
+missing_artifact
+schema_mismatch
+stale_artifact
+component_missing
+component_unavailable
+fail_closed
+degraded_artifact
+```
+
+Missing artifact, schema mismatch, stale freshness, component missing, and
+component_unavailable states must remain degraded, stale, or fail_closed. They
+must not be rendered as healthy, and they must create a Dashboard gap so the
+operator sees the missing evidence.
+
 ## Forbidden Controls
 
 The dashboard foundation must not expose or enable:
@@ -82,6 +135,7 @@ trader_terminal_order_ticket_enabled = false
 trader_terminal_live_trading_claim = false
 retry_replace_amend_flatten_allowed = false
 product_grade_trading_terminal_claim = false
+dashboard_order_controls_enabled = false
 ```
 
 If a dashboard request attempts any forbidden control, the view contract must
@@ -102,4 +156,5 @@ Use:
 
 ```bash
 scripts/ai/verify_release.sh v21-trader-terminal-readonly-dashboard
+scripts/ai/verify_release.sh v21.1-trader-terminal-read-model-bridge
 ```
