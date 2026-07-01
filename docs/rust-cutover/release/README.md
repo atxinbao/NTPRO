@@ -625,6 +625,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   manifest for the V211 gate. It fixes the V211 evidence set, v0.21.0 closeout
   dependency, planned patch tag, boundary flags, release body path, and v0.22.0
   dependency sources.
+- `../scope/v0_22_0_trader_terminal_workbench_scope.md` - V220-000 scope
+  decision for the v0.22.0 Trader Terminal workbench line. It records the
+  v0.21.1 closeout dependency, read-only-first workbench boundary, gated manual
+  operation entry design, and no-ungated-submit/cancel/retry/replace/amend/
+  flatten/product-grade-terminal claim.
+- `../evidence/V220-000.md` - V220-000 scope decision and v0.21.1 dependency
+  gate evidence for GitHub issue #683.
 - `../evidence/V211-006.md` - V211-006 release gate, strict provenance, and
   dependency proof evidence for the `ntpro-rust-only-v0.21.1` GitHub Release.
 - `../evidence/V211-001.md` - V211-001 release closeout and milestone evidence
