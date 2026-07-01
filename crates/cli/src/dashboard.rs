@@ -270,6 +270,10 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
       <div id="workflow-artifacts" class="table-wrap"></div>
     </section>
     <section class="band">
+      <h2>Trader Terminal Workbench</h2>
+      <div id="trader-terminal-workbench" class="workbench-shell"></div>
+    </section>
+    <section class="band">
       <h2>Unified Read Model</h2>
       <div id="read-model-runtime" class="table-wrap"></div>
     </section>
@@ -506,6 +510,53 @@ td {
   gap: 4px;
 }
 
+.workbench-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.workbench-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.workbench-tab {
+  background: #ffffff;
+  border: 1px solid #d8dee6;
+  border-radius: 6px;
+  color: #334155;
+  font-weight: 700;
+  padding: 8px 10px;
+}
+
+.workbench-tab[aria-selected="true"] {
+  background: #111827;
+  color: #ffffff;
+}
+
+.workbench-panels,
+.workbench-boundary {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.workbench-panel,
+.workbench-drawer {
+  background: #ffffff;
+  border: 1px solid #d8dee6;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.workbench-panel h3,
+.workbench-drawer summary {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
 .status-healthy {
   color: #166534;
 }
@@ -737,6 +788,17 @@ const DISPLAY_TEXT = {
   missing: "缺失",
   invalid: "无效",
   configured: "已配置",
+  missing_artifact: "缺失工件",
+  canonical_unified_read_model_artifact_missing: "canonical read model 工件缺失",
+  locked_readonly: "只读锁定",
+  degraded_boundary: "边界降级",
+  read_model_runtime_degraded: "read model runtime 降级",
+  all_operation_controls_disabled: "所有操作控件禁用",
+  operation_boundary_degraded: "操作边界降级",
+  degraded_shell: "降级 shell",
+  canonical_read_model: "canonical read model",
+  required_before_any_manual_entry: "任何人工录入前必须审批",
+  display_only: "仅展示",
 };
 
 const displayValue = (value) => {
@@ -864,6 +926,7 @@ function render(payload) {
 
   renderSandboxBusiness(snapshot.sandbox_business || {});
   renderWorkflowArtifacts(snapshot.workflow_artifacts || []);
+  renderTraderTerminalWorkbench(snapshot.read_model_runtime || []);
   renderReadModelRuntime(snapshot.read_model_runtime || []);
   renderStrategyRuntime(snapshot.strategy_runtime || []);
   renderProductionShadow(snapshot.production_shadow || []);
@@ -1025,6 +1088,106 @@ function renderWorkflowArtifacts(workflows) {
         `).join("")}
       </tbody>
     </table>` : emptyTable("没有 workflow manifest 工件");
+}
+
+function traderWorkbenchReadiness(readModels) {
+  if (readModels.length === 0) {
+    return {
+      health: "degraded",
+      readiness: "missing_artifact",
+      diagnostic: "canonical_unified_read_model_artifact_missing",
+      artifact: "v0_21/unified_read_model_snapshot.json",
+    };
+  }
+
+  const orderedHealth = ["error", "degraded", "stale", "unknown", "healthy"];
+  const strongest = readModels
+    .map((item) => safe(item.health))
+    .sort((a, b) => orderedHealth.indexOf(a) - orderedHealth.indexOf(b))[0] || "unknown";
+  const primary = readModels.find((item) => safe(item.health) !== "healthy") || readModels[0];
+  return {
+    health: strongest === "healthy" ? "healthy" : "degraded",
+    readiness: snapshotValue(primary.readiness_status) || "read_model_runtime_degraded",
+    diagnostic: snapshotValue(primary.diagnostic) || "read_model_runtime_degraded",
+    artifact: snapshotValue(primary.artifact_path) || "v0_21/unified_read_model_snapshot.json",
+  };
+}
+
+function renderTraderTerminalWorkbench(readModels) {
+  const readiness = traderWorkbenchReadiness(readModels);
+  const primary = readModels.find((item) => safe(item.health) !== "healthy") || readModels[0] || {};
+  const panelStatus = (field) => snapshotValue(primary[field]) || "missing_artifact";
+  const boundaryValue = (field) => readModels.length > 0 ? snapshotValue(primary[field]) : false;
+  const panels = [
+    ["workbench-tab-account", "workbench-panel-account", "账户", panelStatus("account_status"), "V220-002"],
+    ["workbench-tab-positions", "workbench-panel-positions", "持仓", panelStatus("positions_status"), "V220-002"],
+    ["workbench-tab-orders", "workbench-panel-orders", "订单", panelStatus("orders_status"), "V220-003"],
+    ["workbench-tab-fills", "workbench-panel-fills", "成交", panelStatus("fills_status"), "V220-003"],
+    ["workbench-tab-risk", "workbench-panel-risk", "风险", panelStatus("risk_status"), "V220-004"],
+    ["workbench-tab-audit-provenance", "workbench-panel-audit-provenance", "审计 / Provenance", panelStatus("lifecycle_status"), "V220-004"],
+  ];
+  const controlsDisabled = [
+    "dashboard_order_controls_enabled",
+    "dashboard_approval_controls_enabled",
+    "dashboard_cancel_controls_enabled",
+    "dashboard_retry_controls_enabled",
+    "dashboard_submit_controls_enabled",
+    "dashboard_replace_controls_enabled",
+    "dashboard_amend_controls_enabled",
+    "dashboard_flatten_controls_enabled",
+    "trader_terminal_order_ticket_enabled",
+  ].every((field) => boundaryValue(field) === false);
+
+  document.getElementById("trader-terminal-workbench").innerHTML = `
+    <div class="grid">
+      ${renderTile("Workbench 状态", readiness.readiness, `status-${safe(readiness.health)}`)}
+      ${renderTile("Read Model", readModels.length > 0 ? `${readModels.length} 个节点` : "缺失")}
+      ${renderTile("只读边界", controlsDisabled ? "locked_readonly" : "degraded_boundary", controlsDisabled ? "status-healthy" : "status-degraded")}
+      ${renderTile("诊断", readiness.diagnostic, `status-${safe(readiness.health)}`)}
+    </div>
+    <nav class="workbench-tabs" aria-label="Trader Terminal workbench read-only navigation">
+      ${panels.map(([tabId, panelId, label], index) =>
+        `<span class="workbench-tab" id="${text(tabId)}" role="tab" aria-selected="${index === 0 ? "true" : "false"}" aria-controls="${text(panelId)}">${text(label)}</span>`
+      ).join("")}
+    </nav>
+    <div class="workbench-boundary">
+      <div class="workbench-panel" id="foundation-boundary">
+        <h3>Foundation</h3>
+        ${panelRow("来源", "v0.21.1 canonical read model")}
+        ${panelRow("Artifact", readiness.artifact)}
+        ${panelRow("Contract", snapshotValue(primary.contract_version) || "missing_artifact")}
+      </div>
+      <div class="workbench-panel" id="read-only-boundary">
+        <h3>Read-only</h3>
+        ${panelRow("节点视图", readModels.length > 0 ? "read_model_runtime" : "degraded_shell")}
+        ${panelRow("状态", controlsDisabled ? "all_operation_controls_disabled" : "operation_boundary_degraded")}
+        ${panelRow("订单票据", boundaryValue("trader_terminal_order_ticket_enabled"))}
+      </div>
+      <div class="workbench-panel" id="gated-operation-boundary">
+        <h3>Gated operation</h3>
+        ${panelRow("Owner approval", "required_before_any_manual_entry")}
+        ${panelRow("当前阶段", "display_only")}
+        ${panelRow("产品级终端声明", boundaryValue("product_grade_trading_terminal_claim"))}
+      </div>
+    </div>
+    <div class="workbench-panels">
+      ${panels.map(([tabId, panelId, label, status, stage]) => `
+        <section class="workbench-panel" id="${text(panelId)}" role="tabpanel" aria-labelledby="${text(tabId)}">
+          <h3>${text(label)}</h3>
+          ${panelRow("阶段", stage)}
+          ${panelRow("状态", status)}
+          ${panelRow("来源", readModels.length > 0 ? "canonical_read_model" : "degraded_shell")}
+        </section>`
+      ).join("")}
+    </div>
+    <details class="workbench-drawer" id="workbench-artifact-provenance-drawer" open>
+      <summary>Artifact / Provenance</summary>
+      ${panelRow("Artifact path", readiness.artifact)}
+      ${panelRow("Snapshot", snapshotValue(primary.snapshot_id) || "missing_artifact")}
+      ${panelRow("Source", `${snapshotValue(primary.source_type) || "unknown"} ${snapshotValue(primary.source_ref) || ""}`)}
+      ${panelRow("Redaction", snapshotValue(primary.redaction_state) || "unknown")}
+      ${panelRow("Blocking reasons", snapshotValue(primary.blocking_reasons) || "none")}
+    </details>`;
 }
 
 function renderReadModelRuntime(readModels) {
@@ -11910,6 +12073,7 @@ mod tests {
             "execution-gateways",
             "sandbox-business",
             "workflow-artifacts",
+            "trader-terminal-workbench",
             "read-model-runtime",
             "strategy-runtime",
             "preflight-readiness",
@@ -11932,6 +12096,8 @@ mod tests {
             "renderExecutionGateways",
             "renderSandboxBusiness",
             "renderWorkflowArtifacts",
+            "renderTraderTerminalWorkbench",
+            "traderWorkbenchReadiness",
             "renderReadModelRuntime",
             "renderStrategyRuntime",
             "renderPreflightReadiness",
@@ -11945,6 +12111,7 @@ mod tests {
             "没有数据源上报",
             "没有执行网关上报",
             "没有 workflow manifest 工件",
+            "workbench-artifact-provenance-drawer",
             "没有 Unified Read Model runtime 工件",
             "没有 Strategy Runtime 工件",
             "没有 v0.13 预检就绪工件",
@@ -12018,6 +12185,72 @@ mod tests {
             assert!(
                 !DASHBOARD_HTML.contains(forbidden_control),
                 "dashboard shell must not expose v0.13 forbidden control {forbidden_control}",
+            );
+        }
+    }
+
+    #[test]
+    fn trader_terminal_workbench_shell_is_readonly_and_degrades_without_artifact() {
+        for required_marker in [
+            "trader-terminal-workbench",
+            "workbench-tabs",
+            "workbench-panel-account",
+            "workbench-panel-positions",
+            "workbench-panel-orders",
+            "workbench-panel-fills",
+            "workbench-panel-risk",
+            "workbench-panel-audit-provenance",
+            "foundation-boundary",
+            "read-only-boundary",
+            "gated-operation-boundary",
+            "workbench-artifact-provenance-drawer",
+            "canonical_unified_read_model_artifact_missing",
+            "missing_artifact",
+            "degraded_shell",
+            "all_operation_controls_disabled",
+            "required_before_any_manual_entry",
+        ] {
+            assert!(
+                DASHBOARD_HTML.contains(required_marker) || DASHBOARD_JS.contains(required_marker),
+                "Trader Terminal workbench shell missing marker {required_marker}"
+            );
+        }
+
+        assert!(
+            DASHBOARD_JS
+                .contains("renderTraderTerminalWorkbench(snapshot.read_model_runtime || [])"),
+            "dashboard render path must load the workbench from read_model_runtime"
+        );
+        assert!(
+            DASHBOARD_JS.contains("v0_21/unified_read_model_snapshot.json"),
+            "workbench fallback must name the canonical v0.21.1 read-model artifact"
+        );
+        assert!(
+            !DASHBOARD_HTML.contains("product-grade live trading terminal"),
+            "dashboard shell must not claim product-grade live trading terminal readiness"
+        );
+        assert!(
+            !DASHBOARD_JS.contains("product-grade live trading terminal"),
+            "dashboard JS must not claim product-grade live trading terminal readiness"
+        );
+
+        for forbidden_control in [
+            "data-workbench-action",
+            "submit_order",
+            "cancel_order",
+            "retry_order",
+            "replace_order",
+            "amend_order",
+            "flatten_order",
+            "flatten_position",
+        ] {
+            assert!(
+                !DASHBOARD_HTML.contains(forbidden_control),
+                "workbench shell must not expose operation control {forbidden_control}"
+            );
+            assert!(
+                !DASHBOARD_JS.contains(forbidden_control),
+                "workbench JS must not expose operation control {forbidden_control}"
             );
         }
     }

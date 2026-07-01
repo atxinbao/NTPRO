@@ -108,6 +108,8 @@ real operations gated.
 
 Scope:
 
+- Trader Terminal read-only shell with navigation, status summary, and
+  artifact/provenance drawer over the v0.21.1 canonical read model.
 - Read-only trader workbench for orders, positions, fills, risk, alerts, and
   audit state.
 - Manual operation entry design.
@@ -119,6 +121,7 @@ Boundary:
 
 ```text
 operation entry design = included
+read-only workbench shell = included
 ungated real operation buttons = not included
 automatic execution = not included
 ```
