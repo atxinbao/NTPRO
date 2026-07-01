@@ -15,7 +15,8 @@ Final release checks, benchmark summaries, and audit reports live here.
   dashboard view degradation semantics.
 - `v0_21_1_release_notes.md` - V211 patch release notes draft covering
   health-status hardening, executable read-model projection replay coverage,
-  and JSON Schema boundary tightening.
+  JSON Schema boundary tightening, and the Trader Terminal read-model runtime
+  bridge.
 - `v0_21_0_account_snapshot_read_model.md` - V210 account snapshot read-model
   component contract for redacted balances, available funds, margin/risk
   summary, account freshness, provenance, and no-operation Dashboard boundary.
@@ -32,9 +33,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   account, position, order, and fill rollups, risk-state priority, degradation,
   and no-automatic-action boundaries.
 - `v0_21_0_trader_terminal_readonly_dashboard.md` - V210 Trader Terminal
-  read-only Dashboard foundation for account, position, order, fill, risk, and
-  audit/provenance diagnostics display without submit, approval, cancel, retry,
-  replace, amend, flatten, or product-grade trading terminal claims.
+  read-only Dashboard foundation and V211-005 runtime bridge for the canonical
+  `v0_21/unified_read_model_snapshot.json` artifact. It displays account,
+  position, order, fill, risk, lifecycle, and audit/provenance diagnostics
+  without submit, approval, cancel, retry, replace, amend, flatten, or
+  product-grade trading terminal claims.
 - `BACKTEST_LIVE_GATE_EVIDENCE.md` - RBTL-010 backtest/live gate evidence and
   remaining blockers.
 - `binary_install_path.md` - NBIN-001 source-build, local `cargo install`,

@@ -227,6 +227,18 @@ const PRODUCTION_ORDER_LIFECYCLE_FAILURE_NO_RETRY_SCHEMA_VERSION: &str =
     "ntpro.v200_failure_no_retry_evidence.v1";
 const PRODUCTION_ORDER_LIFECYCLE_AUDIT_CLOSEOUT_SCHEMA_VERSION: &str =
     "ntpro.v200_order_lifecycle_audit_closeout.v1";
+const TRADER_TERMINAL_READ_MODEL_ARTIFACT_RELATIVE_PATH: &str =
+    "v0_21/unified_read_model_snapshot.json";
+const UNIFIED_READ_MODEL_CONTRACT_VERSION: &str = "ntpro.v210.unified_read_model.v1";
+const UNIFIED_READ_MODEL_SCHEMA_VERSION: &str = "ntpro.v210.unified_read_model.schema.v1";
+const TRADER_TERMINAL_READ_MODEL_REQUIRED_COMPONENTS: [&str; 6] = [
+    "account",
+    "positions",
+    "orders",
+    "fills",
+    "risk",
+    "lifecycle_status",
+];
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
 <html lang="zh-CN">
@@ -256,6 +268,10 @@ const DASHBOARD_HTML: &str = r#"<!doctype html>
     <section class="band">
       <h2>Workflow 工件</h2>
       <div id="workflow-artifacts" class="table-wrap"></div>
+    </section>
+    <section class="band">
+      <h2>Unified Read Model</h2>
+      <div id="read-model-runtime" class="table-wrap"></div>
     </section>
     <section class="band">
       <h2>Strategy Runtime</h2>
@@ -848,6 +864,7 @@ function render(payload) {
 
   renderSandboxBusiness(snapshot.sandbox_business || {});
   renderWorkflowArtifacts(snapshot.workflow_artifacts || []);
+  renderReadModelRuntime(snapshot.read_model_runtime || []);
   renderStrategyRuntime(snapshot.strategy_runtime || []);
   renderProductionShadow(snapshot.production_shadow || []);
   renderPreflightReadiness(snapshot.preflight_readiness || []);
@@ -1008,6 +1025,36 @@ function renderWorkflowArtifacts(workflows) {
         `).join("")}
       </tbody>
     </table>` : emptyTable("没有 workflow manifest 工件");
+}
+
+function renderReadModelRuntime(readModels) {
+  document.getElementById("read-model-runtime").innerHTML = readModels.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>节点</th>
+          <th>当前结论</th>
+          <th>Snapshot</th>
+          <th>组件状态</th>
+          <th>基础状态</th>
+          <th>只读边界</th>
+          <th>工件</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${readModels.map((item) => `
+          <tr>
+            <td data-label="节点"><strong>${text(item.node_id)}</strong></td>
+            <td data-label="当前结论"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div>${panelRow("阻塞原因", snapshotValue(item.blocking_reasons))}${panelRow("缺失组件", snapshotValue(item.missing_components))}${panelRow("组件诊断", snapshotValue(item.component_diagnostics))}</td>
+            <td data-label="Snapshot">${panelRow("Contract", snapshotValue(item.contract_version))}${panelRow("Schema", snapshotValue(item.schema_version))}${panelRow("ID", snapshotValue(item.snapshot_id))}${panelRow("Kind", snapshotValue(item.snapshot_kind))}${panelRow("Health", snapshotValue(item.snapshot_health_status))}${panelRow("Freshness", snapshotValue(item.freshness_status))}${panelRow("Source", `${snapshotValue(item.source_type)} ${snapshotValue(item.source_ref)}`)}${panelRow("Redaction", snapshotValue(item.redaction_state))}</td>
+            <td data-label="组件状态">${panelRow("Account", snapshotValue(item.account_status))}${panelRow("Positions", snapshotValue(item.positions_status))}${panelRow("Orders", snapshotValue(item.orders_status))}${panelRow("Fills", snapshotValue(item.fills_status))}${panelRow("Risk", snapshotValue(item.risk_status))}${panelRow("Lifecycle", snapshotValue(item.lifecycle_status))}</td>
+            <td data-label="基础状态">${panelRow("Account", snapshotValue(item.account_summary))}${panelRow("Positions", snapshotValue(item.positions_summary))}${panelRow("Orders", snapshotValue(item.orders_summary))}${panelRow("Fills", snapshotValue(item.fills_summary))}${panelRow("Risk", snapshotValue(item.risk_summary))}${panelRow("Lifecycle", snapshotValue(item.lifecycle_summary))}</td>
+            <td data-label="只读边界">${panelRow("下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("审批控件", snapshotValue(item.dashboard_approval_controls_enabled))}${panelRow("撤单控件", snapshotValue(item.dashboard_cancel_controls_enabled))}${panelRow("重试控件", snapshotValue(item.dashboard_retry_controls_enabled))}${panelRow("Submit", snapshotValue(item.dashboard_submit_controls_enabled))}${panelRow("Replace", snapshotValue(item.dashboard_replace_controls_enabled))}${panelRow("Amend", snapshotValue(item.dashboard_amend_controls_enabled))}${panelRow("Flatten", snapshotValue(item.dashboard_flatten_controls_enabled))}${panelRow("订单票据", snapshotValue(item.trader_terminal_order_ticket_enabled))}${panelRow("实盘终端声明", snapshotValue(item.trader_terminal_live_trading_claim))}${panelRow("产品级声明", snapshotValue(item.product_grade_trading_terminal_claim))}</td>
+            <td data-label="工件" class="path">${displayText(snapshotValue(item.artifact_path))}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>` : emptyTable("没有 Unified Read Model runtime 工件");
 }
 
 function renderStrategyRuntime(strategyRuntime) {
@@ -2379,6 +2426,7 @@ pub struct DashboardSnapshot {
     pub risk: RiskStatus,
     pub sandbox_business: SandboxBusinessStatus,
     pub workflow_artifacts: Vec<WorkflowArtifactStatus>,
+    pub read_model_runtime: Vec<TraderTerminalReadModelStatus>,
     pub strategy_runtime: Vec<StrategyRuntimeStatus>,
     pub production_shadow: Vec<ProductionShadowStatus>,
     pub preflight_readiness: Vec<PreflightReadinessStatus>,
@@ -2409,6 +2457,7 @@ impl DashboardSnapshot {
             risk: RiskStatus::unknown(),
             sandbox_business: sandbox_business_status_from_v04_evidence(),
             workflow_artifacts: Vec::new(),
+            read_model_runtime: Vec::new(),
             strategy_runtime: Vec::new(),
             production_shadow: Vec::new(),
             preflight_readiness: Vec::new(),
@@ -3471,6 +3520,51 @@ pub struct ProductionOrderLifecycleAuditStatus {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TraderTerminalReadModelStatus {
+    pub node_id: String,
+    pub health: HealthStatus,
+    pub readiness_status: DashboardValue<String>,
+    pub diagnostic: DashboardValue<String>,
+    pub artifact_path: DashboardValue<String>,
+    pub contract_version: DashboardValue<String>,
+    pub schema_version: DashboardValue<String>,
+    pub snapshot_id: DashboardValue<String>,
+    pub snapshot_kind: DashboardValue<String>,
+    pub snapshot_health_status: DashboardValue<String>,
+    pub freshness_status: DashboardValue<String>,
+    pub source_type: DashboardValue<String>,
+    pub source_ref: DashboardValue<String>,
+    pub redaction_state: DashboardValue<String>,
+    pub account_status: DashboardValue<String>,
+    pub positions_status: DashboardValue<String>,
+    pub orders_status: DashboardValue<String>,
+    pub fills_status: DashboardValue<String>,
+    pub risk_status: DashboardValue<String>,
+    pub lifecycle_status: DashboardValue<String>,
+    pub account_summary: DashboardValue<String>,
+    pub positions_summary: DashboardValue<String>,
+    pub orders_summary: DashboardValue<String>,
+    pub fills_summary: DashboardValue<String>,
+    pub risk_summary: DashboardValue<String>,
+    pub lifecycle_summary: DashboardValue<String>,
+    pub missing_components: DashboardValue<String>,
+    pub blocking_reasons: DashboardValue<String>,
+    pub component_diagnostics: DashboardValue<String>,
+    pub dashboard_order_controls_enabled: DashboardValue<bool>,
+    pub dashboard_approval_controls_enabled: DashboardValue<bool>,
+    pub dashboard_cancel_controls_enabled: DashboardValue<bool>,
+    pub dashboard_retry_controls_enabled: DashboardValue<bool>,
+    pub dashboard_submit_controls_enabled: DashboardValue<bool>,
+    pub dashboard_replace_controls_enabled: DashboardValue<bool>,
+    pub dashboard_amend_controls_enabled: DashboardValue<bool>,
+    pub dashboard_flatten_controls_enabled: DashboardValue<bool>,
+    pub trader_terminal_order_ticket_enabled: DashboardValue<bool>,
+    pub trader_terminal_live_trading_claim: DashboardValue<bool>,
+    pub retry_replace_amend_flatten_allowed: DashboardValue<bool>,
+    pub product_grade_trading_terminal_claim: DashboardValue<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeModuleStatus {
     pub module_name: String,
     pub status: DashboardValue<String>,
@@ -3731,6 +3825,22 @@ pub fn snapshot_from_supervisor_artifacts_with_workflow_root(
         snapshot
             .execution_gateways
             .push(execution_gateway_from_status(record, &status));
+        let read_model_runtime = trader_terminal_read_model_status_from_record(record);
+        if read_model_runtime.health != HealthStatus::Healthy {
+            snapshot.gaps.push(DashboardGap::new(
+                format!("read_model_runtime.{}", record.node_id),
+                dashboard_availability_from_read_model_health(read_model_runtime.health),
+                "V211-005",
+                read_model_runtime
+                    .diagnostic
+                    .value
+                    .clone()
+                    .unwrap_or_else(|| {
+                        "Unified Read Model runtime artifact is not ready".to_string()
+                    }),
+            ));
+        }
+        snapshot.read_model_runtime.push(read_model_runtime);
         snapshot.runtime_modules.extend(modules);
         if let Some(strategy_runtime) = strategy_runtime_from_record(record) {
             snapshot.strategy_runtime.push(strategy_runtime);
@@ -4040,6 +4150,589 @@ fn runtime_modules_from_status(
     }
 
     RuntimeModuleReadout { modules, gaps }
+}
+
+fn trader_terminal_read_model_status_from_record(
+    record: &SupervisorNodeRecord,
+) -> TraderTerminalReadModelStatus {
+    let artifact_path = record
+        .artifact_root
+        .join(TRADER_TERMINAL_READ_MODEL_ARTIFACT_RELATIVE_PATH);
+    if !artifact_path.exists() {
+        return degraded_trader_terminal_read_model_status(
+            record,
+            &artifact_path,
+            HealthStatus::Degraded,
+            "missing_artifact",
+            "canonical_unified_read_model_artifact_missing",
+        );
+    }
+
+    let raw = match fs::read_to_string(&artifact_path) {
+        Ok(raw) => raw,
+        Err(error) => {
+            return degraded_trader_terminal_read_model_status(
+                record,
+                &artifact_path,
+                HealthStatus::Error,
+                "artifact_unreadable",
+                format!("canonical_unified_read_model_artifact_unreadable:{error}"),
+            );
+        }
+    };
+    let value: Value = match serde_json::from_str(&raw) {
+        Ok(value) => value,
+        Err(error) => {
+            return degraded_trader_terminal_read_model_status(
+                record,
+                &artifact_path,
+                HealthStatus::Error,
+                "invalid_artifact",
+                format!("canonical_unified_read_model_artifact_invalid_json:{error}"),
+            );
+        }
+    };
+
+    trader_terminal_read_model_status_from_value(record, &artifact_path, &value)
+}
+
+fn degraded_trader_terminal_read_model_status(
+    record: &SupervisorNodeRecord,
+    artifact_path: &FsPath,
+    health: HealthStatus,
+    readiness_status: impl Into<String>,
+    diagnostic: impl Into<String>,
+) -> TraderTerminalReadModelStatus {
+    TraderTerminalReadModelStatus {
+        node_id: record.node_id.clone(),
+        health,
+        readiness_status: DashboardValue::available(readiness_status.into()),
+        diagnostic: DashboardValue::available(diagnostic.into()),
+        artifact_path: DashboardValue::available(artifact_path.display().to_string()),
+        contract_version: DashboardValue::unknown(),
+        schema_version: DashboardValue::unknown(),
+        snapshot_id: DashboardValue::unknown(),
+        snapshot_kind: DashboardValue::unknown(),
+        snapshot_health_status: DashboardValue::unknown(),
+        freshness_status: DashboardValue::unknown(),
+        source_type: DashboardValue::unknown(),
+        source_ref: DashboardValue::unknown(),
+        redaction_state: DashboardValue::unknown(),
+        account_status: DashboardValue::unknown(),
+        positions_status: DashboardValue::unknown(),
+        orders_status: DashboardValue::unknown(),
+        fills_status: DashboardValue::unknown(),
+        risk_status: DashboardValue::unknown(),
+        lifecycle_status: DashboardValue::unknown(),
+        account_summary: DashboardValue::unknown(),
+        positions_summary: DashboardValue::unknown(),
+        orders_summary: DashboardValue::unknown(),
+        fills_summary: DashboardValue::unknown(),
+        risk_summary: DashboardValue::unknown(),
+        lifecycle_summary: DashboardValue::unknown(),
+        missing_components: DashboardValue::unknown(),
+        blocking_reasons: DashboardValue::unknown(),
+        component_diagnostics: DashboardValue::unknown(),
+        dashboard_order_controls_enabled: DashboardValue::available(false),
+        dashboard_approval_controls_enabled: DashboardValue::available(false),
+        dashboard_cancel_controls_enabled: DashboardValue::available(false),
+        dashboard_retry_controls_enabled: DashboardValue::available(false),
+        dashboard_submit_controls_enabled: DashboardValue::available(false),
+        dashboard_replace_controls_enabled: DashboardValue::available(false),
+        dashboard_amend_controls_enabled: DashboardValue::available(false),
+        dashboard_flatten_controls_enabled: DashboardValue::available(false),
+        trader_terminal_order_ticket_enabled: DashboardValue::available(false),
+        trader_terminal_live_trading_claim: DashboardValue::available(false),
+        retry_replace_amend_flatten_allowed: DashboardValue::available(false),
+        product_grade_trading_terminal_claim: DashboardValue::available(false),
+    }
+}
+
+fn trader_terminal_read_model_status_from_value(
+    record: &SupervisorNodeRecord,
+    artifact_path: &FsPath,
+    value: &Value,
+) -> TraderTerminalReadModelStatus {
+    let contract_version = json_string_field(value, "contract_version");
+    let schema_version = json_string_field(value, "schema_version");
+    let snapshot_kind = json_string_field(value, "snapshot_kind");
+    let snapshot_health_status = json_string_field(value, "health_status");
+    let freshness_status = nested_json_string_field(value, "freshness", "status");
+    let source_type = nested_json_string_field(value, "source_provenance", "source_type");
+    let source_ref = nested_json_string_field(value, "source_provenance", "source_ref");
+    let redaction_state = nested_json_string_field(value, "redaction", "status");
+    let blocking_reasons = read_model_string_array_field(value, "blocking_reasons");
+    let mut diagnostics = Vec::new();
+    let mut health = match snapshot_health_status.value.as_deref() {
+        Some("healthy") => HealthStatus::Healthy,
+        Some("degraded") => HealthStatus::Degraded,
+        Some("fail_closed") => HealthStatus::Error,
+        Some(other) => {
+            diagnostics.push(format!("health_status_unexpected:{other}"));
+            HealthStatus::Error
+        }
+        None => {
+            diagnostics.push("health_status_missing".to_string());
+            HealthStatus::Error
+        }
+    };
+
+    if contract_version.value.as_deref() != Some(UNIFIED_READ_MODEL_CONTRACT_VERSION) {
+        diagnostics.push("contract_version_mismatch".to_string());
+        health = strongest_health(health, HealthStatus::Error);
+    }
+    if schema_version.value.as_deref() != Some(UNIFIED_READ_MODEL_SCHEMA_VERSION) {
+        diagnostics.push("schema_version_mismatch".to_string());
+        health = strongest_health(health, HealthStatus::Error);
+    }
+    if !matches!(
+        snapshot_kind.value.as_deref(),
+        Some("unified_snapshot" | "dashboard_view")
+    ) {
+        diagnostics.push("snapshot_kind_not_terminal_read_model".to_string());
+        health = strongest_health(health, HealthStatus::Degraded);
+    }
+    match freshness_status.value.as_deref() {
+        Some("fresh") => {}
+        Some("stale") => {
+            diagnostics.push("snapshot_freshness_stale".to_string());
+            health = strongest_health(health, HealthStatus::Stale);
+        }
+        Some(other) => {
+            diagnostics.push(format!("snapshot_freshness_{other}"));
+            health = strongest_health(health, HealthStatus::Degraded);
+        }
+        None => {
+            diagnostics.push("snapshot_freshness_missing".to_string());
+            health = strongest_health(health, HealthStatus::Error);
+        }
+    }
+    if source_type.availability != DashboardAvailability::Available
+        || source_ref.availability != DashboardAvailability::Available
+    {
+        diagnostics.push("source_provenance_missing".to_string());
+        health = strongest_health(health, HealthStatus::Error);
+    }
+    if redaction_state
+        .value
+        .as_deref()
+        .is_none_or(|status| matches!(status, "fail_closed" | "unavailable" | "unknown"))
+    {
+        diagnostics.push("redaction_state_not_ready".to_string());
+        health = strongest_health(health, HealthStatus::Degraded);
+    }
+
+    let components = value.get("components").and_then(Value::as_object);
+    let mut missing_components = Vec::new();
+    let mut component_diagnostics = Vec::new();
+    let component_statuses = TRADER_TERMINAL_READ_MODEL_REQUIRED_COMPONENTS
+        .iter()
+        .map(|component| {
+            let status = components
+                .and_then(|items| items.get(*component))
+                .and_then(|component_value| component_value.get("component_status"))
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .map_or_else(DashboardValue::unknown, DashboardValue::available);
+            if status.availability != DashboardAvailability::Available {
+                missing_components.push((*component).to_string());
+                component_diagnostics.push(format!("{component}:missing"));
+                health = strongest_health(health, HealthStatus::Error);
+                return (*component, status);
+            }
+            match status.value.as_deref() {
+                Some("healthy") => {}
+                Some("degraded") => {
+                    component_diagnostics.push(format!("{component}:degraded"));
+                    health = strongest_health(health, HealthStatus::Degraded);
+                }
+                Some("unavailable") => {
+                    component_diagnostics.push(format!("{component}:unavailable"));
+                    health = strongest_health(health, HealthStatus::Degraded);
+                }
+                Some("fail_closed") => {
+                    component_diagnostics.push(format!("{component}:fail_closed"));
+                    health = strongest_health(health, HealthStatus::Error);
+                }
+                Some(other) => {
+                    component_diagnostics.push(format!("{component}:status_unexpected:{other}"));
+                    health = strongest_health(health, HealthStatus::Error);
+                }
+                None => {}
+            }
+            let component_freshness = components
+                .and_then(|items| items.get(*component))
+                .and_then(|component_value| component_value.get("freshness"))
+                .and_then(|freshness| freshness.get("status"))
+                .and_then(Value::as_str);
+            match component_freshness {
+                Some("fresh") => {}
+                Some("stale") => {
+                    component_diagnostics.push(format!("{component}:freshness_stale"));
+                    health = strongest_health(health, HealthStatus::Stale);
+                }
+                Some(other) => {
+                    component_diagnostics.push(format!("{component}:freshness_{other}"));
+                    health = strongest_health(health, HealthStatus::Degraded);
+                }
+                None => {
+                    component_diagnostics.push(format!("{component}:freshness_missing"));
+                    health = strongest_health(health, HealthStatus::Error);
+                }
+            }
+            (*component, status)
+        })
+        .collect::<BTreeMap<_, _>>();
+
+    if blocking_reasons.availability == DashboardAvailability::Available {
+        diagnostics.push("blocking_reasons_present".to_string());
+        health = strongest_health(health, HealthStatus::Degraded);
+    }
+
+    let boundary = value.get("capability_boundary").unwrap_or(&Value::Null);
+    let dashboard_order_controls_enabled = required_read_model_boundary_bool(
+        boundary,
+        "dashboard_order_controls_enabled",
+        &mut diagnostics,
+        &mut health,
+    );
+    let dashboard_approval_controls_enabled = required_read_model_boundary_bool(
+        boundary,
+        "dashboard_approval_controls_enabled",
+        &mut diagnostics,
+        &mut health,
+    );
+    let dashboard_cancel_controls_enabled = required_read_model_boundary_bool(
+        boundary,
+        "dashboard_cancel_controls_enabled",
+        &mut diagnostics,
+        &mut health,
+    );
+    let dashboard_retry_controls_enabled = required_read_model_boundary_bool(
+        boundary,
+        "dashboard_retry_controls_enabled",
+        &mut diagnostics,
+        &mut health,
+    );
+    let dashboard_submit_controls_enabled = optional_false_read_model_boundary_bool(
+        boundary,
+        "dashboard_submit_controls_enabled",
+        &mut diagnostics,
+        &mut health,
+    );
+    let dashboard_replace_controls_enabled = optional_false_read_model_boundary_bool(
+        boundary,
+        "dashboard_replace_controls_enabled",
+        &mut diagnostics,
+        &mut health,
+    );
+    let dashboard_amend_controls_enabled = optional_false_read_model_boundary_bool(
+        boundary,
+        "dashboard_amend_controls_enabled",
+        &mut diagnostics,
+        &mut health,
+    );
+    let dashboard_flatten_controls_enabled = optional_false_read_model_boundary_bool(
+        boundary,
+        "dashboard_flatten_controls_enabled",
+        &mut diagnostics,
+        &mut health,
+    );
+    let trader_terminal_order_ticket_enabled = optional_false_read_model_boundary_bool(
+        boundary,
+        "trader_terminal_order_ticket_enabled",
+        &mut diagnostics,
+        &mut health,
+    );
+    let trader_terminal_live_trading_claim = optional_false_read_model_boundary_bool(
+        boundary,
+        "trader_terminal_live_trading_claim",
+        &mut diagnostics,
+        &mut health,
+    );
+    let retry_replace_amend_flatten_allowed = required_read_model_boundary_bool(
+        boundary,
+        "retry_replace_amend_flatten_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let product_grade_trading_terminal_claim = required_read_model_boundary_bool(
+        boundary,
+        "product_grade_trading_terminal_claim",
+        &mut diagnostics,
+        &mut health,
+    );
+
+    let readiness_status = trader_terminal_read_model_readiness(
+        health,
+        schema_version.value.as_deref(),
+        &missing_components,
+        &component_diagnostics,
+        freshness_status.value.as_deref(),
+        blocking_reasons.availability == DashboardAvailability::Available,
+    );
+    if readiness_status != "ready_readonly_artifact" && health == HealthStatus::Healthy {
+        health = HealthStatus::Degraded;
+    }
+    let diagnostic = if diagnostics.is_empty() && component_diagnostics.is_empty() {
+        "canonical_unified_read_model_artifact_ready".to_string()
+    } else {
+        diagnostics
+            .iter()
+            .chain(component_diagnostics.iter())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(",")
+    };
+
+    TraderTerminalReadModelStatus {
+        node_id: record.node_id.clone(),
+        health,
+        readiness_status: DashboardValue::available(readiness_status),
+        diagnostic: DashboardValue::available(diagnostic),
+        artifact_path: DashboardValue::available(artifact_path.display().to_string()),
+        contract_version,
+        schema_version,
+        snapshot_id: json_string_field(value, "snapshot_id"),
+        snapshot_kind,
+        snapshot_health_status,
+        freshness_status,
+        source_type,
+        source_ref,
+        redaction_state,
+        account_status: component_statuses
+            .get("account")
+            .cloned()
+            .unwrap_or_else(DashboardValue::unknown),
+        positions_status: component_statuses
+            .get("positions")
+            .cloned()
+            .unwrap_or_else(DashboardValue::unknown),
+        orders_status: component_statuses
+            .get("orders")
+            .cloned()
+            .unwrap_or_else(DashboardValue::unknown),
+        fills_status: component_statuses
+            .get("fills")
+            .cloned()
+            .unwrap_or_else(DashboardValue::unknown),
+        risk_status: component_statuses
+            .get("risk")
+            .cloned()
+            .unwrap_or_else(DashboardValue::unknown),
+        lifecycle_status: component_statuses
+            .get("lifecycle_status")
+            .cloned()
+            .unwrap_or_else(DashboardValue::unknown),
+        account_summary: read_model_component_data_summary(value, "account"),
+        positions_summary: read_model_component_data_summary(value, "positions"),
+        orders_summary: read_model_component_data_summary(value, "orders"),
+        fills_summary: read_model_component_data_summary(value, "fills"),
+        risk_summary: read_model_component_data_summary(value, "risk"),
+        lifecycle_summary: read_model_component_data_summary(value, "lifecycle_status"),
+        missing_components: diagnostic_value(&missing_components),
+        blocking_reasons,
+        component_diagnostics: diagnostic_value(&component_diagnostics),
+        dashboard_order_controls_enabled,
+        dashboard_approval_controls_enabled,
+        dashboard_cancel_controls_enabled,
+        dashboard_retry_controls_enabled,
+        dashboard_submit_controls_enabled,
+        dashboard_replace_controls_enabled,
+        dashboard_amend_controls_enabled,
+        dashboard_flatten_controls_enabled,
+        trader_terminal_order_ticket_enabled,
+        trader_terminal_live_trading_claim,
+        retry_replace_amend_flatten_allowed,
+        product_grade_trading_terminal_claim,
+    }
+}
+
+fn required_read_model_boundary_bool(
+    boundary: &Value,
+    field: &str,
+    diagnostics: &mut Vec<String>,
+    health: &mut HealthStatus,
+) -> DashboardValue<bool> {
+    match boundary.get(field).and_then(Value::as_bool) {
+        Some(false) => DashboardValue::available(false),
+        Some(true) => {
+            diagnostics.push(format!("{field}_true"));
+            *health = strongest_health(*health, HealthStatus::Error);
+            DashboardValue::available(true)
+        }
+        None => {
+            diagnostics.push(format!("{field}_missing"));
+            *health = strongest_health(*health, HealthStatus::Error);
+            DashboardValue::unknown()
+        }
+    }
+}
+
+fn optional_false_read_model_boundary_bool(
+    boundary: &Value,
+    field: &str,
+    diagnostics: &mut Vec<String>,
+    health: &mut HealthStatus,
+) -> DashboardValue<bool> {
+    match boundary.get(field).and_then(Value::as_bool) {
+        Some(false) => DashboardValue::available(false),
+        Some(true) => {
+            diagnostics.push(format!("{field}_true"));
+            *health = strongest_health(*health, HealthStatus::Error);
+            DashboardValue::available(true)
+        }
+        None => DashboardValue::unknown(),
+    }
+}
+
+fn trader_terminal_read_model_readiness(
+    health: HealthStatus,
+    schema_version: Option<&str>,
+    missing_components: &[String],
+    component_diagnostics: &[String],
+    freshness_status: Option<&str>,
+    has_blocking_reasons: bool,
+) -> String {
+    if schema_version != Some(UNIFIED_READ_MODEL_SCHEMA_VERSION) {
+        "schema_mismatch".to_string()
+    } else if freshness_status == Some("stale")
+        || component_diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.ends_with(":freshness_stale"))
+    {
+        "stale_artifact".to_string()
+    } else if !missing_components.is_empty() {
+        "component_missing".to_string()
+    } else if component_diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.ends_with(":unavailable"))
+    {
+        "component_unavailable".to_string()
+    } else if health == HealthStatus::Error {
+        "fail_closed".to_string()
+    } else if health == HealthStatus::Degraded || has_blocking_reasons {
+        "degraded_artifact".to_string()
+    } else {
+        "ready_readonly_artifact".to_string()
+    }
+}
+
+fn read_model_string_array_field(value: &Value, field: &str) -> DashboardValue<String> {
+    value
+        .get(field)
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(read_model_scalar_string)
+                .collect::<Vec<_>>()
+                .join(",")
+        })
+        .filter(|joined| !joined.is_empty())
+        .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn read_model_component_data_summary(snapshot: &Value, component: &str) -> DashboardValue<String> {
+    let Some(data) = snapshot
+        .get("components")
+        .and_then(|components| components.get(component))
+        .and_then(|component| component.get("data"))
+    else {
+        return DashboardValue::unknown();
+    };
+    let fields: &[&str] = match component {
+        "account" => &[
+            "summary_status",
+            "account_status",
+            "risk_state",
+            "equity",
+            "available_balance",
+            "balance_entry_count",
+        ],
+        "positions" => &[
+            "summary_status",
+            "position_count",
+            "net_position_side",
+            "net_exposure",
+            "notional",
+        ],
+        "orders" => &[
+            "lifecycle_status",
+            "open_order_count",
+            "terminal_order_count",
+            "submitted",
+            "accepted",
+            "rejected",
+            "readback_status",
+        ],
+        "fills" => &[
+            "fill_status",
+            "fill_count",
+            "order_linkage_status",
+            "reconciliation_status",
+            "last_fill_id",
+        ],
+        "risk" => &[
+            "risk_state",
+            "critical_evidence_complete",
+            "manual_review_required",
+            "halted",
+            "freshness_rollup",
+        ],
+        "lifecycle_status" => &[
+            "lifecycle_status",
+            "audit_state",
+            "readback_status",
+            "no_retry",
+            "ledger_present",
+        ],
+        _ => &[],
+    };
+    let summary = fields
+        .iter()
+        .filter_map(|field| {
+            data.get(*field)
+                .and_then(read_model_scalar_string)
+                .map(|value| format!("{field}={value}"))
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+    if summary.is_empty() {
+        DashboardValue::unknown()
+    } else {
+        DashboardValue::available(summary)
+    }
+}
+
+fn read_model_scalar_string(value: &Value) -> Option<String> {
+    match value {
+        Value::String(value) => Some(value.clone()),
+        Value::Bool(value) => Some(value.to_string()),
+        Value::Number(value) => Some(value.to_string()),
+        Value::Array(items) => {
+            let joined = items
+                .iter()
+                .filter_map(read_model_scalar_string)
+                .collect::<Vec<_>>()
+                .join(",");
+            if joined.is_empty() {
+                None
+            } else {
+                Some(joined)
+            }
+        }
+        Value::Null | Value::Object(_) => None,
+    }
+}
+
+fn dashboard_availability_from_read_model_health(health: HealthStatus) -> DashboardAvailability {
+    match health {
+        HealthStatus::Healthy => DashboardAvailability::Available,
+        HealthStatus::Stale => DashboardAvailability::Stale,
+        HealthStatus::Degraded | HealthStatus::Error => DashboardAvailability::Unknown,
+        HealthStatus::Unknown => DashboardAvailability::Unknown,
+    }
 }
 
 fn logging_module_status(
@@ -11172,6 +11865,7 @@ mod tests {
             "risk",
             "sandbox_business",
             "workflow_artifacts",
+            "read_model_runtime",
             "strategy_runtime",
             "preflight_readiness",
             "live_alpha_dry_run",
@@ -11196,6 +11890,7 @@ mod tests {
         assert_eq!(value["overview"]["external_network_attempted"], false);
         assert_eq!(value["risk"]["availability"], "unknown");
         assert_eq!(value["workflow_artifacts"], json!([]));
+        assert_eq!(value["read_model_runtime"], json!([]));
         assert_eq!(value["strategy_runtime"], json!([]));
         assert_eq!(value["preflight_readiness"], json!([]));
         assert_eq!(value["live_alpha_dry_run"], json!([]));
@@ -11215,6 +11910,7 @@ mod tests {
             "execution-gateways",
             "sandbox-business",
             "workflow-artifacts",
+            "read-model-runtime",
             "strategy-runtime",
             "preflight-readiness",
             "live-alpha-dry-run",
@@ -11236,6 +11932,7 @@ mod tests {
             "renderExecutionGateways",
             "renderSandboxBusiness",
             "renderWorkflowArtifacts",
+            "renderReadModelRuntime",
             "renderStrategyRuntime",
             "renderPreflightReadiness",
             "renderLiveAlphaDryRun",
@@ -11248,6 +11945,7 @@ mod tests {
             "没有数据源上报",
             "没有执行网关上报",
             "没有 workflow manifest 工件",
+            "没有 Unified Read Model runtime 工件",
             "没有 Strategy Runtime 工件",
             "没有 v0.13 预检就绪工件",
             "没有 v0.14 Live Alpha dry-run 工件",
@@ -11261,6 +11959,7 @@ mod tests {
             "订单证明",
             "预检就绪",
             "Live Alpha dry-run",
+            "Unified Read Model",
         ] {
             assert!(
                 DASHBOARD_JS.contains(js_symbol),
@@ -12498,6 +13197,281 @@ mod tests {
 
         let snapshot_value = serde_json::to_value(&snapshot).unwrap();
         assert_forbidden_keys_absent(&snapshot_value);
+    }
+
+    #[test]
+    fn trader_terminal_read_model_artifact_populates_runtime_bridge() {
+        let root = temp_root("trader-terminal-read-model-ready");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "terminal-a");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_trader_terminal_read_model_artifact(&record, |_| {});
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-07-01T18:00:00Z").unwrap();
+
+        assert_eq!(snapshot.read_model_runtime.len(), 1);
+        let runtime = &snapshot.read_model_runtime[0];
+        assert_eq!(runtime.node_id, "terminal-a");
+        assert_eq!(runtime.health, HealthStatus::Healthy);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("ready_readonly_artifact")
+        );
+        assert_eq!(
+            runtime.contract_version.value.as_deref(),
+            Some(UNIFIED_READ_MODEL_CONTRACT_VERSION)
+        );
+        assert_eq!(
+            runtime.schema_version.value.as_deref(),
+            Some(UNIFIED_READ_MODEL_SCHEMA_VERSION)
+        );
+        assert_eq!(
+            runtime.snapshot_kind.value.as_deref(),
+            Some("unified_snapshot")
+        );
+        assert_eq!(
+            runtime.snapshot_health_status.value.as_deref(),
+            Some("healthy")
+        );
+        assert_eq!(runtime.freshness_status.value.as_deref(), Some("fresh"));
+        assert_eq!(runtime.source_type.value.as_deref(), Some("artifact"));
+        assert_eq!(runtime.redaction_state.value.as_deref(), Some("redacted"));
+        assert_eq!(runtime.account_status.value.as_deref(), Some("healthy"));
+        assert_eq!(runtime.positions_status.value.as_deref(), Some("healthy"));
+        assert_eq!(runtime.orders_status.value.as_deref(), Some("healthy"));
+        assert_eq!(runtime.fills_status.value.as_deref(), Some("healthy"));
+        assert_eq!(runtime.risk_status.value.as_deref(), Some("healthy"));
+        assert_eq!(runtime.lifecycle_status.value.as_deref(), Some("healthy"));
+        assert!(
+            runtime
+                .account_summary
+                .value
+                .as_deref()
+                .is_some_and(|summary| summary.contains("summary_status=ready"))
+        );
+        assert_eq!(runtime.dashboard_order_controls_enabled.value, Some(false));
+        assert_eq!(runtime.dashboard_submit_controls_enabled.value, Some(false));
+        assert_eq!(
+            runtime.dashboard_replace_controls_enabled.value,
+            Some(false)
+        );
+        assert_eq!(runtime.dashboard_amend_controls_enabled.value, Some(false));
+        assert_eq!(
+            runtime.dashboard_flatten_controls_enabled.value,
+            Some(false)
+        );
+        assert_eq!(
+            runtime.trader_terminal_order_ticket_enabled.value,
+            Some(false)
+        );
+        assert_eq!(
+            runtime.trader_terminal_live_trading_claim.value,
+            Some(false)
+        );
+        assert_eq!(
+            runtime.product_grade_trading_terminal_claim.value,
+            Some(false)
+        );
+        assert!(
+            runtime.artifact_path.value.as_deref().is_some_and(
+                |path| path.ends_with(TRADER_TERMINAL_READ_MODEL_ARTIFACT_RELATIVE_PATH)
+            )
+        );
+
+        let snapshot_value = serde_json::to_value(&snapshot).unwrap();
+        assert_forbidden_keys_absent(&snapshot_value);
+        assert!(!DASHBOARD_JS.contains("submit_order"));
+        assert!(!DASHBOARD_JS.contains("cancel_order"));
+        assert!(!DASHBOARD_JS.contains("replace_order"));
+        assert!(!DASHBOARD_JS.contains("amend_order"));
+        assert!(!DASHBOARD_JS.contains("flatten_order"));
+    }
+
+    #[test]
+    fn trader_terminal_read_model_missing_artifact_degrades_runtime_bridge() {
+        let root = temp_root("trader-terminal-read-model-missing");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "terminal-missing");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-07-01T18:05:00Z").unwrap();
+
+        assert_eq!(snapshot.read_model_runtime.len(), 1);
+        let runtime = &snapshot.read_model_runtime[0];
+        assert_eq!(runtime.health, HealthStatus::Degraded);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("missing_artifact")
+        );
+        assert_eq!(
+            runtime.diagnostic.value.as_deref(),
+            Some("canonical_unified_read_model_artifact_missing")
+        );
+        assert_eq!(runtime.dashboard_order_controls_enabled.value, Some(false));
+        assert!(snapshot.gaps.iter().any(|gap| {
+            gap.field_path == "read_model_runtime.terminal-missing"
+                && gap.reason == DashboardAvailability::Unknown
+        }));
+    }
+
+    #[test]
+    fn trader_terminal_read_model_stale_artifact_is_not_healthy() {
+        let root = temp_root("trader-terminal-read-model-stale");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "terminal-stale");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_trader_terminal_read_model_artifact(&record, |artifact| {
+            artifact["freshness"]["status"] = json!("stale");
+        });
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-07-01T18:10:00Z").unwrap();
+
+        let runtime = &snapshot.read_model_runtime[0];
+        assert_eq!(runtime.health, HealthStatus::Stale);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("stale_artifact")
+        );
+        assert_eq!(runtime.freshness_status.value.as_deref(), Some("stale"));
+        assert!(
+            runtime
+                .diagnostic
+                .value
+                .as_deref()
+                .is_some_and(|diagnostic| diagnostic.contains("snapshot_freshness_stale"))
+        );
+    }
+
+    #[test]
+    fn trader_terminal_read_model_schema_mismatch_fails_closed() {
+        let root = temp_root("trader-terminal-read-model-schema-mismatch");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "terminal-schema");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_trader_terminal_read_model_artifact(&record, |artifact| {
+            artifact["schema_version"] = json!("ntpro.v210.unified_read_model.schema.wrong");
+        });
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-07-01T18:15:00Z").unwrap();
+
+        let runtime = &snapshot.read_model_runtime[0];
+        assert_eq!(runtime.health, HealthStatus::Error);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("schema_mismatch")
+        );
+        assert!(
+            runtime
+                .diagnostic
+                .value
+                .as_deref()
+                .is_some_and(|diagnostic| diagnostic.contains("schema_version_mismatch"))
+        );
+    }
+
+    #[test]
+    fn trader_terminal_read_model_component_unavailable_degrades_runtime_bridge() {
+        let root = temp_root("trader-terminal-read-model-component-unavailable");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "terminal-unavailable");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_trader_terminal_read_model_artifact(&record, |artifact| {
+            artifact["components"]["fills"]["component_status"] = json!("unavailable");
+            artifact["components"]["fills"]["freshness"]["status"] = json!("missing");
+        });
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-07-01T18:20:00Z").unwrap();
+
+        let runtime = &snapshot.read_model_runtime[0];
+        assert_eq!(runtime.health, HealthStatus::Degraded);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("component_unavailable")
+        );
+        assert_eq!(runtime.fills_status.value.as_deref(), Some("unavailable"));
+        assert!(
+            runtime
+                .component_diagnostics
+                .value
+                .as_deref()
+                .is_some_and(|diagnostic| diagnostic.contains("fills:unavailable"))
+        );
+    }
+
+    #[test]
+    fn trader_terminal_read_model_component_missing_fails_closed() {
+        let root = temp_root("trader-terminal-read-model-component-missing");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "terminal-component-missing");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_trader_terminal_read_model_artifact(&record, |artifact| {
+            artifact["components"]
+                .as_object_mut()
+                .unwrap()
+                .remove("risk");
+        });
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-07-01T18:25:00Z").unwrap();
+
+        let runtime = &snapshot.read_model_runtime[0];
+        assert_eq!(runtime.health, HealthStatus::Error);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("component_missing")
+        );
+        assert!(
+            runtime
+                .missing_components
+                .value
+                .as_deref()
+                .is_some_and(|missing| missing.contains("risk"))
+        );
+        assert_eq!(
+            runtime.risk_status.availability,
+            DashboardAvailability::Unknown
+        );
     }
 
     #[test]
@@ -16399,6 +17373,188 @@ mod tests {
         )
         .unwrap();
         write_strategy_manifest(&strategy_root);
+    }
+
+    fn write_trader_terminal_read_model_artifact(
+        record: &SupervisorNodeRecord,
+        mutate: impl FnOnce(&mut Value),
+    ) {
+        let artifact_path = record
+            .artifact_root
+            .join(TRADER_TERMINAL_READ_MODEL_ARTIFACT_RELATIVE_PATH);
+        if let Some(parent) = artifact_path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        let mut artifact = healthy_trader_terminal_read_model_artifact();
+        mutate(&mut artifact);
+        fs::write(
+            artifact_path,
+            format!("{}\n", serde_json::to_string_pretty(&artifact).unwrap()),
+        )
+        .unwrap();
+    }
+
+    fn healthy_trader_terminal_read_model_artifact() -> Value {
+        let components = json!({
+            "account": read_model_component("healthy", json!({
+                "summary_status": "ready",
+                "account_status": "redacted_ready",
+                "risk_state": "active",
+                "equity": "1000.00",
+                "available_balance": "900.00",
+                "balance_entry_count": 2,
+                "dashboard_visible": true,
+                "values_are_exchange_truth": false
+            })),
+            "positions": read_model_component("healthy", json!({
+                "summary_status": "ready",
+                "position_count": 1,
+                "net_position_side": "flat",
+                "net_exposure": "0",
+                "notional": "0",
+                "values_are_exchange_truth": false
+            })),
+            "orders": read_model_component("healthy", json!({
+                "lifecycle_status": "read_only_complete",
+                "open_order_count": 0,
+                "terminal_order_count": 0,
+                "submitted": false,
+                "accepted": false,
+                "rejected": false,
+                "readback_status": "not_applicable_readonly",
+                "dashboard_readonly_visible": true
+            })),
+            "fills": read_model_component("healthy", json!({
+                "fill_status": "reconciled",
+                "fill_count": 0,
+                "order_linkage_status": "no_open_order",
+                "reconciliation_status": "complete",
+                "no_execution_algorithm": true,
+                "dashboard_readonly_visible": true
+            })),
+            "risk": read_model_component("healthy", json!({
+                "risk_state": "active",
+                "critical_evidence_complete": true,
+                "manual_review_required": false,
+                "halted": false,
+                "freshness_rollup": "fresh",
+                "production_mutation_allowed": false,
+                "automatic_trading_action_allowed": false,
+                "audit_closed_allowed": false
+            })),
+            "lifecycle_status": read_model_component("healthy", json!({
+                "lifecycle_status": "read_only_foundation",
+                "audit_state": "closed",
+                "readback_status": "not_applicable_readonly",
+                "no_retry": true,
+                "ledger_present": true,
+                "automatic_remediation_allowed": false
+            }))
+        });
+        let capability_boundary = json!({
+            "new_submit_capability": false,
+            "production_order_submission_allowed": false,
+            "production_order_mutation_allowed": false,
+            "dashboard_order_controls_enabled": false,
+            "dashboard_approval_controls_enabled": false,
+            "dashboard_cancel_controls_enabled": false,
+            "dashboard_retry_controls_enabled": false,
+            "dashboard_submit_controls_enabled": false,
+            "dashboard_replace_controls_enabled": false,
+            "dashboard_amend_controls_enabled": false,
+            "dashboard_flatten_controls_enabled": false,
+            "dashboard_fill_controls_enabled": false,
+            "dashboard_risk_controls_enabled": false,
+            "retry_replace_amend_flatten_allowed": false,
+            "trader_terminal_order_ticket_enabled": false,
+            "trader_terminal_live_trading_claim": false,
+            "product_grade_trading_terminal_claim": false,
+            "funds_transfer_allowed": false,
+            "account_configuration_mutation_allowed": false,
+            "order_permission_control_allowed": false,
+            "auto_flatten_position_allowed": false,
+            "automatic_position_repair_allowed": false,
+            "retry_order_allowed": false,
+            "automatic_cancel_allowed": false,
+            "automatic_order_remediation_allowed": false,
+            "execution_algorithm_allowed": false,
+            "automatic_fill_repair_allowed": false,
+            "automatic_reconciliation_repair_allowed": false,
+            "automatic_risk_action_allowed": false,
+            "automatic_risk_repair_allowed": false
+        });
+        json!({
+            "contract_version": UNIFIED_READ_MODEL_CONTRACT_VERSION,
+            "schema_version": UNIFIED_READ_MODEL_SCHEMA_VERSION,
+            "snapshot_id": "read_model.dashboard.ready.001",
+            "snapshot_kind": "unified_snapshot",
+            "snapshot_identity": {
+                "account_id": "acct-redacted-001",
+                "venue": "BINANCE",
+                "instrument_ids": ["BTCUSDT.BINANCE"],
+                "created_at_unix_ns": "1782918000000000000"
+            },
+            "as_of_unix_ns": "1782917999000000000",
+            "health_status": "healthy",
+            "freshness": read_model_freshness("fresh"),
+            "source_provenance": read_model_source_provenance(),
+            "lineage": read_model_lineage(),
+            "components": components,
+            "blocking_reasons": [],
+            "redaction": {
+                "status": "redacted",
+                "raw_secret_persisted": false,
+                "raw_exchange_response_persisted": false,
+                "raw_account_payload_persisted": false
+            },
+            "capability_boundary": capability_boundary
+        })
+    }
+
+    fn read_model_component(status: &str, data: Value) -> Value {
+        json!({
+            "component_status": status,
+            "source_provenance": read_model_source_provenance(),
+            "lineage": read_model_lineage(),
+            "freshness": read_model_freshness("fresh"),
+            "redaction": {
+                "status": "redacted",
+                "raw_account_payload_persisted": false,
+                "credential_material_persisted": false
+            },
+            "data": data,
+            "diagnostics": []
+        })
+    }
+
+    fn read_model_source_provenance() -> Value {
+        json!({
+            "source_type": "artifact",
+            "source_ref": "artifact://v0_21/unified_read_model_snapshot.json",
+            "captured_at_unix_ns": "1782917999000000000",
+            "redaction_state": "redacted",
+            "exchange_truth": false,
+            "adapter_runtime_integrated": false
+        })
+    }
+
+    fn read_model_lineage() -> Value {
+        json!({
+            "input_refs": ["tests/golden/read_model_dashboard_schema.jsonl"],
+            "transform": "ntpro.v210.trader_terminal_readonly_dashboard.v1",
+            "parent_snapshot_ids": [],
+            "lossy_fields": ["raw_exchange_response", "account_object"]
+        })
+    }
+
+    fn read_model_freshness(status: &str) -> Value {
+        json!({
+            "status": status,
+            "observed_age_ms": 100,
+            "max_age_ms": 60000,
+            "as_of_unix_ns": "1782917999000000000",
+            "checked_at_unix_ns": "1782918000000000000"
+        })
     }
 
     fn write_production_shadow_artifacts(record: &SupervisorNodeRecord) {

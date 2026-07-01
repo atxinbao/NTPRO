@@ -1,3 +1,34 @@
+# V211-005 Verification
+
+Date: 2026-07-01
+Executor: Codex
+Task: `V211-005` / GitHub issue `#681`
+
+## Commands
+
+```text
+cargo test -p nautilus-cli trader_terminal_read_model -- --nocapture = PASS
+bash -n scripts/ai/verify_v21_1_trader_terminal_read_model_bridge.sh scripts/ai/verify_release.sh = PASS
+scripts/ai/verify_release.sh v21.1-trader-terminal-read-model-bridge = PASS
+scripts/ai/verify_release.sh v21-trader-terminal-readonly-dashboard = PASS
+scripts/ai/verify_release.sh v21.1-read-model-schema-boundary = PASS, validated_read_model_snapshots=36, negative_mutations=8
+cargo test -p nautilus-cli --lib dashboard::tests::empty_snapshot_serializes_stable_top_level_sections -- --nocapture = PASS
+cargo test -p nautilus-cli --lib dashboard::tests::dashboard_shell_includes_system_panel_mounts_and_redaction_helpers -- --nocapture = PASS
+cargo fmt --all -- --check = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V211-005 has local Rust coverage for the Trader Terminal read-model runtime
+bridge. The Dashboard reads `v0_21/unified_read_model_snapshot.json` into
+`read_model_runtime` and keeps missing_artifact, schema_mismatch,
+stale_artifact, component_missing, and component_unavailable states non-healthy.
+The read-only boundary keeps `dashboard_order_controls_enabled = false` and does
+not add submit, approval, cancel, retry, replace, amend, flatten, or product-grade
+trading terminal capability.
+
 # V211-003 Verification
 
 Date: 2026-07-01
