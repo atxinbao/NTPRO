@@ -604,6 +604,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   for the V210 gate. It fixes the read-model evidence set, base v0.20.1
   release dependency, planned release tag, boundary flags, release body path,
   golden trace manifest, and strict provenance target.
+- `../evidence/V211-001.md` - V211-001 release closeout and milestone evidence
+  backfill for the published `ntpro-rust-only-v0.21.0` GitHub Release. It
+  records the release URL, tag commit, hosted release gate run, closed V210
+  issues, closed milestone #8, and the v0.21.1 hard blocker before v0.22.0.
 - `../evidence/V210-008.md` - dedicated V210-008 release gate and strict
   provenance evidence for the `ntpro-rust-only-v0.21.0` GitHub Release.
 - `../evidence/V201-007.md` - V201-007 release gate and dependency proof

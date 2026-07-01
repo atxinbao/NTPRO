@@ -1,3 +1,29 @@
+# V211-001 Verification
+
+Date: 2026-07-01
+Executor: Codex
+Task: `V211-001` / GitHub issue `#677`
+
+## Commands
+
+```text
+jq empty docs/rust-cutover/release/v0_21_0_release_manifest.json = PASS
+gh api repos/atxinbao/NTPRO/milestones/8 = PASS, state=closed, open_issues=0, closed_issues=9, closed_at=2026-07-01T14:38:16Z
+gh release view ntpro-rust-only-v0.21.0 = PASS, draft=false, prerelease=false, targetCommitish=7e1cb46d692974bb5ef1398967c0927dd51c8091
+gh run view 28513012766 = PASS, status=completed, conclusion=success, headSha=7e1cb46d692974bb5ef1398967c0927dd51c8091
+scripts/ai/check_github_release_published.sh = PASS
+scripts/ai/check_release_surface_current.sh = PASS
+required marker rg scan = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+Local validation passed. This task backfills v0.21.0 publication facts,
+milestone #8 closeout, and v0.21.1/v0.22.0 dependency evidence without runtime
+behavior changes, public API changes, or trading capability expansion.
+
 # V210-008 Verification
 
 Date: 2026-07-01
