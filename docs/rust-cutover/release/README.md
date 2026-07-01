@@ -19,6 +19,9 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_21_0_order_lifecycle_read_model.md` - V210 order lifecycle read-model
   component contract for submit candidate, attempt ledger, response redaction,
   readback, cancel evidence, audit state, and no-retry boundaries.
+- `v0_21_0_fill_execution_read_model.md` - V210 fill/execution read-model
+  component contract for fill/execution identity, order linkage, dedupe,
+  partial fill visibility, source freshness, and reconciliation boundaries.
 - `BACKTEST_LIVE_GATE_EVIDENCE.md` - RBTL-010 backtest/live gate evidence and
   remaining blockers.
 - `binary_install_path.md` - NBIN-001 source-build, local `cargo install`,
