@@ -1,3 +1,31 @@
+# V220-000 Verification
+
+Date: 2026-07-01
+Executor: Codex
+Task: `V220-000` / GitHub issue `#683`
+
+## Commands
+
+```text
+for issue in 677 678 679 680 681 682; gh issue view "$issue" --repo atxinbao/NTPRO --json number,title,state,closedAt,url = PASS, all CLOSED
+gh release view ntpro-rust-only-v0.21.1 --repo atxinbao/NTPRO --json tagName,name,isDraft,isPrerelease,publishedAt,targetCommitish,url = PASS, published final release
+gh run view 28543669704 --repo atxinbao/NTPRO --json status,conclusion,workflowName,event,headSha,headBranch,createdAt,updatedAt,url,jobs = PASS, completed success, 58 jobs, 0 failed jobs
+gh api repos/atxinbao/NTPRO/milestones = PASS, v0.21.1 open_issues=0 closed_issues=6, v0.22.0 open_issues=8 closed_issues=0
+rg required V220-000 / SD-005 / read-only-first / gated-operation markers = PASS
+stale v0.22 blocker wording scan = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V220-000 is locally verified. The v0.22.0 scope decision is GO only for the
+Trader Terminal workbench read-only-first line after v0.21.1 publication proof.
+The decision preserves owner approval, risk gate, and audit gate requirements
+for any future real operation entry and keeps ungated submit/cancel/retry/
+replace/amend/flatten, strategy-driven live trading, and product-grade live
+trading terminal claims prohibited.
+
 # V211-006 Verification
 
 Date: 2026-07-01

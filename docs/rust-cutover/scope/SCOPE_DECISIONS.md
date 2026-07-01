@@ -69,6 +69,7 @@ Rules:
 | SD-002 | APPROVED | release | v0.18.0 is owner-approved cancel recovery preview/gate/approval evidence only; actual cancel send remains forbidden. | V180-* | control_scope_agent | verification_release_gatekeeper | 2026-06-26 |
 | SD-003 | APPROVED | release | v0.20.0 may enter owner-approved production order lifecycle foundation after v0.19.1 closeout evidence, with strict single-shot owner approval, risk, readback, audit, and no-automation boundaries. | V200-* | control_scope_agent | verification_release_gatekeeper | 2026-06-29 |
 | SD-004 | APPROVED | release | v0.21.0 may enter unified read model foundation work after v0.20.1 publication evidence, with read-only/foundation boundaries and no submit expansion. | V210-* | control_scope_agent | verification_release_gatekeeper | 2026-06-30 |
+| SD-005 | APPROVED | release | v0.22.0 may enter Trader Terminal workbench work after v0.21.1 publication evidence, with read-only-first and gated-operation boundaries. | V220-* | control_scope_agent | verification_release_gatekeeper | 2026-07-01 |
 
 ## SD-000 - Scope Decision Log Format
 
@@ -336,5 +337,59 @@ Rollback / supersession:
 
 - Revert V210-000 scope and evidence docs to restore blocked V210 wording if
   the v0.20.1 publication evidence is found inaccurate.
+- Supersede only with a later release scope decision reviewed by the
+  Verification & Release Gatekeeper.
+
+## SD-005 - v0.22.0 Trader Terminal Workbench Boundary
+
+ID: `SD-005`
+
+State: `APPROVED`
+
+Type: `release`
+
+Date: 2026-07-01
+
+Owner role: `control_scope_agent`
+
+Review role: `verification_release_gatekeeper`
+
+Impacted tasks:
+
+- `V220-*`
+
+Decision:
+
+`v0.22.0` may start its scoped Trader Terminal workbench line after the
+`v0.21.1` hardening patch was published and all V211 issues were closed. The
+scope is a read-only first workbench for account, position, order, fill, risk,
+alert, audit, and provenance drill-down views, plus gated manual operation entry
+design. Any future real operation entry must require owner approval, risk gate,
+and audit gate evidence. The scope must not add ungated submit, cancel, retry,
+replace, amend, flatten, strategy-driven live trading, or product-grade live
+trading terminal claims.
+
+Rationale:
+
+The v0.21.1 closeout established release evidence, strict provenance,
+health-status semantics, executable read-model replay, JSON Schema boundary
+hardening, Trader Terminal read-model runtime bridge, v0.22 dependency proof,
+and a successful hosted release-tag gate. That evidence is sufficient to begin
+workbench work, but not to expand order mutation capability or claim a
+production trading terminal.
+
+Evidence required:
+
+- `docs/rust-cutover/scope/v0_22_0_trader_terminal_workbench_scope.md`
+- `docs/rust-cutover/evidence/V220-000.md`
+- GitHub issue `#683` closed through merged PR evidence.
+- Later V220 tasks must preserve read-only first, owner approval gate, risk
+  gate, audit gate, no-ungated-operation, and no-product-grade-terminal
+  evidence.
+
+Rollback / supersession:
+
+- Revert V220-000 scope and evidence docs to restore blocked V220 wording if
+  the v0.21.1 publication evidence is found inaccurate.
 - Supersede only with a later release scope decision reviewed by the
   Verification & Release Gatekeeper.

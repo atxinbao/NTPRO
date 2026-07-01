@@ -203,7 +203,8 @@ Scope:
 
 ```text
 v0.21.0 start gate was satisfied on 2026-06-30 by the v0.20.1 closeout and release evidence.
-v0.22.0 must remain blocked until v0.21.0 read model evidence is closed and released.
+v0.22.0 start gate was satisfied on 2026-07-01 by the v0.21.1 closeout and release evidence.
+V220 work must still follow the V220-000 through V220-007 issue order.
 v0.23.0 must remain blocked until the Trader Terminal workbench has a stable read-only/operator boundary.
 v0.24.0 must remain blocked until account/strategy/venue isolation exists.
 v0.25.0 must remain blocked until order control semantics are explicit and gated.
@@ -220,9 +221,9 @@ issue comments
 
 ## Product Claim Guardrails
 
-Before `v0.25.0`, do not claim product-grade live trading. Before `v0.22.0`,
-do not claim Trader Terminal readiness. Before `v0.21.0`, do not claim a
-trader-facing unified data foundation.
+Before `v0.25.0`, do not claim product-grade live trading. Before V220 release
+gates close, do not claim Trader Terminal readiness beyond the scoped workbench
+line. Before `v0.21.0`, do not claim a trader-facing unified data foundation.
 
 Allowed staged claim after `v0.21.0`:
 
