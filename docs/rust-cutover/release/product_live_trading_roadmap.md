@@ -121,20 +121,23 @@ Scope:
   missing/stale/schema/redaction/forbidden-control alert severity, audit
   evidence completeness, release provenance, artifact digest, and lineage
   diagnostics.
-- Manual operation entry design.
-- Owner approval, risk gate, and audit gate integration for any future real
-  operation.
+- Manual operation entry design as a disabled/gated preview contract.
+- Owner approval reference, risk decision reference, and audit evidence
+  reference required for any future real operation.
+- Blocked states for missing approval, missing risk gate, missing audit gate,
+  stale read model, provenance mismatch, and ungated operation attempt.
 - Operator-facing diagnostics and evidence drill-down.
 
 Boundary:
 
 ```text
-operation entry design = included
+operation entry contract = included as disabled/gated preview only
 read-only workbench shell = included
 account/position workbench panels = included
 order/fill workbench panels = included
 ungated real operation buttons = not included
 automatic execution = not included
+submit/cancel/retry/replace/amend/flatten = not included
 funds transfer/account mutation/auto flatten/position repair controls = not included
 order/fill repair/reconciliation repair/execution algorithm controls = not included
 risk/alert/audit/provenance automatic action controls = not included

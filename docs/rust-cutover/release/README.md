@@ -659,6 +659,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   no automatic risk/alert/audit/provenance action controls.
 - `../evidence/V220-004.md` - V220-004 Trader Terminal risk, alerts, audit,
   and provenance drill-down panel evidence for GitHub issue #687.
+- `v0_22_0_gated_manual_operation_entry_contract.md` - V220-005 Trader
+  Terminal gated manual operation entry contract release note. It records the
+  disabled/gated intent preview, owner approval reference, risk decision
+  reference, audit evidence reference, blocked states, fail-closed ungated
+  attempt behavior, and no submit/cancel/retry/replace/amend/flatten controls.
+- `../evidence/V220-005.md` - V220-005 gated manual operation entry contract
+  evidence for GitHub issue #688.
 - `../evidence/V211-006.md` - V211-006 release gate, strict provenance, and
   dependency proof evidence for the `ntpro-rust-only-v0.21.1` GitHub Release.
 - `../evidence/V211-001.md` - V211-001 release closeout and milestone evidence

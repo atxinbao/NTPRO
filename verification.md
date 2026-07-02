@@ -1899,3 +1899,34 @@ redaction, capability boundary, component envelope, and component data fields.
 Dashboard submit/replace/amend/flatten, order-ticket, and live-trading-claim
 boundary flags are declared and constrained to `false`. Fixture/manual sources
 cannot claim exchange truth or adapter runtime integration.
+
+# V220-005 Verification
+
+Date: 2026-07-02
+Executor: Codex
+Task: `V220-005` / GitHub issue `#688`
+
+## Commands
+
+```text
+cargo test -p nautilus-cli trader_terminal_operation_entry -- --nocapture = PASS, 4 operation-entry tests passed
+cargo test -p nautilus-cli trader_terminal_ungated_operation_attempt_fails_closed -- --nocapture = PASS, 1 ungated-attempt fail-closed test passed
+cargo test -p nautilus-cli trader_terminal_read_model -- --nocapture = PASS, 6 dashboard read-model runtime bridge tests passed
+cargo test -p nautilus-cli trader_terminal_ -- --nocapture = PASS, 23 Trader Terminal workbench tests passed
+cargo test -p nautilus-cli dashboard_trader_ops_boundary_keeps_order_controls_absent -- --nocapture = PASS, 1 boundary test passed
+node dashboard JS syntax smoke = PASS
+cargo fmt --all -- --check = PASS
+git diff --check = PASS
+required V220-005 marker scan = PASS
+scripts/ai/verify_fast.sh = PASS
+source scripts/ai/toolchain_env.sh && cargo clippy --workspace --lib --tests --features "${NAUTILUS_RUST_FEATURES:-arrow,ffi,high-precision,streaming,defi}" -- -D warnings = PASS
+```
+
+## Result
+
+The Trader Terminal workbench now exposes a disabled/gated manual operation
+entry contract over the canonical read model. Missing owner approval, missing
+risk gate, missing audit gate, stale read model, provenance mismatch, and
+ungated operation attempt states are visible and fail closed where required.
+v0.22 remains read-only first and does not implement execution algorithms,
+order controls, or submit/cancel/retry/replace/amend/flatten routes.
