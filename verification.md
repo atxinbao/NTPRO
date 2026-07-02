@@ -1,3 +1,34 @@
+# V220-003 Verification
+
+Date: 2026-07-02
+Executor: Codex
+Task: `V220-003` / GitHub issue `#686`
+
+## Commands
+
+```text
+cargo test -p nautilus-cli trader_terminal_read_model -- --nocapture = PASS, 6 dashboard read-model runtime bridge tests passed
+cargo test -p nautilus-cli trader_terminal_order -- --nocapture = PASS, 2 order/schema-truth tests passed
+cargo test -p nautilus-cli trader_terminal_fill -- --nocapture = PASS, 1 fill workbench test passed
+cargo test -p nautilus-cli trader_terminal_workbench_shell_is_readonly_and_degrades_without_artifact -- --nocapture = PASS
+cargo test -p nautilus-cli dashboard_trader_ops_boundary_keeps_order_controls_absent -- --nocapture = PASS
+node dashboard JS syntax smoke = PASS
+cargo fmt --all -- --check = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+source scripts/ai/toolchain_env.sh && cargo clippy --workspace --lib --tests --features "${NAUTILUS_RUST_FEATURES:-arrow,ffi,high-precision,streaming,defi}" -- -D warnings = PASS
+```
+
+## Result
+
+V220-003 is locally verified. The Trader Terminal workbench order and fill
+panels read from `read_model_runtime`, expose lifecycle/readback/attempt/audit,
+fill/execution/linkage/dedupe/reconciliation/risk-input/provenance fields,
+degrade or fail closed for unknown response, readback mismatch, duplicate
+attempt, missing ledger, partial fill, duplicate fill, missing linkage, and
+schema-only truth claims, and keep order/fill operation controls absent or
+false.
+
 # V220-002 Verification
 
 Date: 2026-07-01

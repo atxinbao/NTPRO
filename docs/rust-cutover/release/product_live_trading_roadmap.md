@@ -113,6 +113,10 @@ Scope:
 - Account and position workbench panels for account status, balance, position
   side, quantity, notional, precision, freshness, provenance, redaction, and
   lineage diagnostics.
+- Order and fill workbench panels for order lifecycle, attempt ledger,
+  readback, audit, fill/execution identity, dedupe, partial fill, linkage,
+  reconciliation, risk input, provenance, lineage, and schema-only truth
+  diagnostics.
 - Read-only trader workbench for orders, positions, fills, risk, alerts, and
   audit state.
 - Manual operation entry design.
@@ -126,9 +130,11 @@ Boundary:
 operation entry design = included
 read-only workbench shell = included
 account/position workbench panels = included
+order/fill workbench panels = included
 ungated real operation buttons = not included
 automatic execution = not included
 funds transfer/account mutation/auto flatten/position repair controls = not included
+order/fill repair/reconciliation repair/execution algorithm controls = not included
 ```
 
 ### v0.23.0 - Multi-Account / Multi-Strategy / Multi-Venue Node Isolation

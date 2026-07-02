@@ -1164,9 +1164,68 @@ function renderTraderTerminalWorkbench(readModels) {
     panelRow("Auto flatten", boundaryValue("auto_flatten_position_allowed")),
     panelRow("Position repair", boundaryValue("automatic_position_repair_allowed")),
   ];
+  const orderRows = [
+    panelRow("Order status", snapshotValue(primary.orders_status)),
+    panelRow("Freshness", snapshotValue(primary.orders_freshness_status)),
+    panelRow("Lifecycle", snapshotValue(primary.orders_lifecycle_state)),
+    panelRow("Client order id", snapshotValue(primary.orders_client_order_id)),
+    panelRow("Request digest", snapshotValue(primary.orders_request_digest)),
+    panelRow("Attempt id", snapshotValue(primary.orders_attempt_id)),
+    panelRow("Approval id", snapshotValue(primary.orders_approval_id)),
+    panelRow("Readback", snapshotValue(primary.orders_readback_status)),
+    panelRow("Audit", snapshotValue(primary.orders_audit_state)),
+    panelRow("Ledger present", snapshotValue(primary.orders_ledger_present)),
+    panelRow("Duplicate attempt", snapshotValue(primary.orders_duplicate_attempt_detected)),
+    panelRow("No retry", snapshotValue(primary.orders_no_retry)),
+    panelRow("Diagnostics", snapshotValue(primary.orders_diagnostics)),
+    panelRow("Lineage", snapshotValue(primary.orders_lineage)),
+    panelRow("Source", `${snapshotValue(primary.orders_source_type)} ${snapshotValue(primary.orders_source_ref)}`),
+    panelRow("Exchange truth", snapshotValue(primary.orders_exchange_truth)),
+    panelRow("Adapter runtime", snapshotValue(primary.orders_adapter_runtime_integrated)),
+    panelRow("Schema-only truth", snapshotValue(primary.orders_values_are_exchange_truth)),
+    panelRow("Redaction", snapshotValue(primary.orders_redaction_state)),
+    panelRow("Submit allowed", boundaryValue("production_order_submission_allowed")),
+    panelRow("Mutation allowed", boundaryValue("production_order_mutation_allowed")),
+    panelRow("Order controls", boundaryValue("dashboard_order_controls_enabled")),
+    panelRow("Permission controls", boundaryValue("order_permission_control_allowed")),
+    panelRow("Retry allowed", boundaryValue("retry_order_allowed")),
+    panelRow("Auto cancel", boundaryValue("automatic_cancel_allowed")),
+    panelRow("Auto remediation", boundaryValue("automatic_order_remediation_allowed")),
+  ];
+  const fillRows = [
+    panelRow("Fill status", snapshotValue(primary.fills_fill_status)),
+    panelRow("Freshness", snapshotValue(primary.fills_freshness_status)),
+    panelRow("Fill id", snapshotValue(primary.fills_fill_id)),
+    panelRow("Execution id", snapshotValue(primary.fills_execution_id)),
+    panelRow("Order id", snapshotValue(primary.fills_order_id)),
+    panelRow("Client order id", snapshotValue(primary.fills_client_order_id)),
+    panelRow("Order linkage", snapshotValue(primary.fills_order_linkage_status)),
+    panelRow("Reconciliation", snapshotValue(primary.fills_reconciliation_status)),
+    panelRow("Quantity", snapshotValue(primary.fills_quantity)),
+    panelRow("Cumulative", snapshotValue(primary.fills_cumulative_quantity)),
+    panelRow("Remaining", snapshotValue(primary.fills_remaining_quantity)),
+    panelRow("Price", snapshotValue(primary.fills_price)),
+    panelRow("Precision", snapshotValue(primary.fills_precision_status)),
+    panelRow("Partial fill", snapshotValue(primary.fills_partial_fill_detected)),
+    panelRow("Duplicate fill", snapshotValue(primary.fills_duplicate_fill_detected)),
+    panelRow("Risk input", snapshotValue(primary.fills_risk_projection_input)),
+    panelRow("Diagnostics", snapshotValue(primary.fills_diagnostics)),
+    panelRow("Lineage", snapshotValue(primary.fills_lineage)),
+    panelRow("Source", `${snapshotValue(primary.fills_source_type)} ${snapshotValue(primary.fills_source_ref)}`),
+    panelRow("Exchange truth", snapshotValue(primary.fills_exchange_truth)),
+    panelRow("Adapter runtime", snapshotValue(primary.fills_adapter_runtime_integrated)),
+    panelRow("Schema-only truth", snapshotValue(primary.fills_values_are_exchange_truth)),
+    panelRow("Redaction", snapshotValue(primary.fills_redaction_state)),
+    panelRow("Fill controls", boundaryValue("dashboard_fill_controls_enabled")),
+    panelRow("Execution algorithm", boundaryValue("execution_algorithm_allowed")),
+    panelRow("Fill repair", boundaryValue("automatic_fill_repair_allowed")),
+    panelRow("Reconciliation repair", boundaryValue("automatic_reconciliation_repair_allowed")),
+  ];
   const panelRows = {
     "workbench-panel-account": accountRows,
     "workbench-panel-positions": positionRows,
+    "workbench-panel-orders": orderRows,
+    "workbench-panel-fills": fillRows,
   };
 
   document.getElementById("trader-terminal-workbench").innerHTML = `
@@ -3756,6 +3815,51 @@ pub struct TraderTerminalReadModelStatus {
     pub positions_notional: DashboardValue<String>,
     pub positions_precision: DashboardValue<String>,
     pub positions_lineage: DashboardValue<String>,
+    pub orders_freshness_status: DashboardValue<String>,
+    pub orders_source_type: DashboardValue<String>,
+    pub orders_source_ref: DashboardValue<String>,
+    pub orders_redaction_state: DashboardValue<String>,
+    pub orders_lifecycle_state: DashboardValue<String>,
+    pub orders_client_order_id: DashboardValue<String>,
+    pub orders_request_digest: DashboardValue<String>,
+    pub orders_attempt_id: DashboardValue<String>,
+    pub orders_approval_id: DashboardValue<String>,
+    pub orders_readback_status: DashboardValue<String>,
+    pub orders_audit_state: DashboardValue<String>,
+    pub orders_ledger_present: DashboardValue<String>,
+    pub orders_duplicate_attempt_detected: DashboardValue<String>,
+    pub orders_no_retry: DashboardValue<String>,
+    pub orders_diagnostics: DashboardValue<String>,
+    pub orders_lineage: DashboardValue<String>,
+    pub orders_exchange_truth: DashboardValue<String>,
+    pub orders_adapter_runtime_integrated: DashboardValue<String>,
+    pub orders_values_are_exchange_truth: DashboardValue<String>,
+    pub fills_freshness_status: DashboardValue<String>,
+    pub fills_source_type: DashboardValue<String>,
+    pub fills_source_ref: DashboardValue<String>,
+    pub fills_redaction_state: DashboardValue<String>,
+    pub fills_fill_id: DashboardValue<String>,
+    pub fills_execution_id: DashboardValue<String>,
+    pub fills_order_id: DashboardValue<String>,
+    pub fills_client_order_id: DashboardValue<String>,
+    pub fills_fill_status: DashboardValue<String>,
+    pub fills_order_linkage_status: DashboardValue<String>,
+    pub fills_reconciliation_status: DashboardValue<String>,
+    pub fills_quantity: DashboardValue<String>,
+    pub fills_cumulative_quantity: DashboardValue<String>,
+    pub fills_remaining_quantity: DashboardValue<String>,
+    pub fills_quantity_precision: DashboardValue<String>,
+    pub fills_price: DashboardValue<String>,
+    pub fills_price_precision: DashboardValue<String>,
+    pub fills_precision_status: DashboardValue<String>,
+    pub fills_duplicate_fill_detected: DashboardValue<String>,
+    pub fills_partial_fill_detected: DashboardValue<String>,
+    pub fills_risk_projection_input: DashboardValue<String>,
+    pub fills_diagnostics: DashboardValue<String>,
+    pub fills_lineage: DashboardValue<String>,
+    pub fills_exchange_truth: DashboardValue<String>,
+    pub fills_adapter_runtime_integrated: DashboardValue<String>,
+    pub fills_values_are_exchange_truth: DashboardValue<String>,
     pub orders_summary: DashboardValue<String>,
     pub fills_summary: DashboardValue<String>,
     pub risk_summary: DashboardValue<String>,
@@ -3767,17 +3871,27 @@ pub struct TraderTerminalReadModelStatus {
     pub dashboard_approval_controls_enabled: DashboardValue<bool>,
     pub dashboard_cancel_controls_enabled: DashboardValue<bool>,
     pub dashboard_retry_controls_enabled: DashboardValue<bool>,
+    pub dashboard_fill_controls_enabled: DashboardValue<bool>,
     pub dashboard_submit_controls_enabled: DashboardValue<bool>,
     pub dashboard_replace_controls_enabled: DashboardValue<bool>,
     pub dashboard_amend_controls_enabled: DashboardValue<bool>,
     pub dashboard_flatten_controls_enabled: DashboardValue<bool>,
     pub trader_terminal_order_ticket_enabled: DashboardValue<bool>,
     pub trader_terminal_live_trading_claim: DashboardValue<bool>,
+    pub production_order_submission_allowed: DashboardValue<bool>,
+    pub production_order_mutation_allowed: DashboardValue<bool>,
     pub retry_replace_amend_flatten_allowed: DashboardValue<bool>,
+    pub order_permission_control_allowed: DashboardValue<bool>,
+    pub retry_order_allowed: DashboardValue<bool>,
+    pub automatic_cancel_allowed: DashboardValue<bool>,
+    pub automatic_order_remediation_allowed: DashboardValue<bool>,
     pub funds_transfer_allowed: DashboardValue<bool>,
     pub account_configuration_mutation_allowed: DashboardValue<bool>,
     pub auto_flatten_position_allowed: DashboardValue<bool>,
     pub automatic_position_repair_allowed: DashboardValue<bool>,
+    pub execution_algorithm_allowed: DashboardValue<bool>,
+    pub automatic_fill_repair_allowed: DashboardValue<bool>,
+    pub automatic_reconciliation_repair_allowed: DashboardValue<bool>,
     pub product_grade_trading_terminal_claim: DashboardValue<bool>,
 }
 
@@ -4461,6 +4575,51 @@ fn degraded_trader_terminal_read_model_status(
         positions_notional: DashboardValue::unknown(),
         positions_precision: DashboardValue::unknown(),
         positions_lineage: DashboardValue::unknown(),
+        orders_freshness_status: DashboardValue::unknown(),
+        orders_source_type: DashboardValue::unknown(),
+        orders_source_ref: DashboardValue::unknown(),
+        orders_redaction_state: DashboardValue::unknown(),
+        orders_lifecycle_state: DashboardValue::unknown(),
+        orders_client_order_id: DashboardValue::unknown(),
+        orders_request_digest: DashboardValue::unknown(),
+        orders_attempt_id: DashboardValue::unknown(),
+        orders_approval_id: DashboardValue::unknown(),
+        orders_readback_status: DashboardValue::unknown(),
+        orders_audit_state: DashboardValue::unknown(),
+        orders_ledger_present: DashboardValue::unknown(),
+        orders_duplicate_attempt_detected: DashboardValue::unknown(),
+        orders_no_retry: DashboardValue::unknown(),
+        orders_diagnostics: DashboardValue::unknown(),
+        orders_lineage: DashboardValue::unknown(),
+        orders_exchange_truth: DashboardValue::unknown(),
+        orders_adapter_runtime_integrated: DashboardValue::unknown(),
+        orders_values_are_exchange_truth: DashboardValue::unknown(),
+        fills_freshness_status: DashboardValue::unknown(),
+        fills_source_type: DashboardValue::unknown(),
+        fills_source_ref: DashboardValue::unknown(),
+        fills_redaction_state: DashboardValue::unknown(),
+        fills_fill_id: DashboardValue::unknown(),
+        fills_execution_id: DashboardValue::unknown(),
+        fills_order_id: DashboardValue::unknown(),
+        fills_client_order_id: DashboardValue::unknown(),
+        fills_fill_status: DashboardValue::unknown(),
+        fills_order_linkage_status: DashboardValue::unknown(),
+        fills_reconciliation_status: DashboardValue::unknown(),
+        fills_quantity: DashboardValue::unknown(),
+        fills_cumulative_quantity: DashboardValue::unknown(),
+        fills_remaining_quantity: DashboardValue::unknown(),
+        fills_quantity_precision: DashboardValue::unknown(),
+        fills_price: DashboardValue::unknown(),
+        fills_price_precision: DashboardValue::unknown(),
+        fills_precision_status: DashboardValue::unknown(),
+        fills_duplicate_fill_detected: DashboardValue::unknown(),
+        fills_partial_fill_detected: DashboardValue::unknown(),
+        fills_risk_projection_input: DashboardValue::unknown(),
+        fills_diagnostics: DashboardValue::unknown(),
+        fills_lineage: DashboardValue::unknown(),
+        fills_exchange_truth: DashboardValue::unknown(),
+        fills_adapter_runtime_integrated: DashboardValue::unknown(),
+        fills_values_are_exchange_truth: DashboardValue::unknown(),
         orders_summary: DashboardValue::unknown(),
         fills_summary: DashboardValue::unknown(),
         risk_summary: DashboardValue::unknown(),
@@ -4472,17 +4631,27 @@ fn degraded_trader_terminal_read_model_status(
         dashboard_approval_controls_enabled: DashboardValue::available(false),
         dashboard_cancel_controls_enabled: DashboardValue::available(false),
         dashboard_retry_controls_enabled: DashboardValue::available(false),
+        dashboard_fill_controls_enabled: DashboardValue::available(false),
         dashboard_submit_controls_enabled: DashboardValue::available(false),
         dashboard_replace_controls_enabled: DashboardValue::available(false),
         dashboard_amend_controls_enabled: DashboardValue::available(false),
         dashboard_flatten_controls_enabled: DashboardValue::available(false),
         trader_terminal_order_ticket_enabled: DashboardValue::available(false),
         trader_terminal_live_trading_claim: DashboardValue::available(false),
+        production_order_submission_allowed: DashboardValue::available(false),
+        production_order_mutation_allowed: DashboardValue::available(false),
         retry_replace_amend_flatten_allowed: DashboardValue::available(false),
+        order_permission_control_allowed: DashboardValue::available(false),
+        retry_order_allowed: DashboardValue::available(false),
+        automatic_cancel_allowed: DashboardValue::available(false),
+        automatic_order_remediation_allowed: DashboardValue::available(false),
         funds_transfer_allowed: DashboardValue::available(false),
         account_configuration_mutation_allowed: DashboardValue::available(false),
         auto_flatten_position_allowed: DashboardValue::available(false),
         automatic_position_repair_allowed: DashboardValue::available(false),
+        execution_algorithm_allowed: DashboardValue::available(false),
+        automatic_fill_repair_allowed: DashboardValue::available(false),
+        automatic_reconciliation_repair_allowed: DashboardValue::available(false),
         product_grade_trading_terminal_claim: DashboardValue::available(false),
     }
 }
@@ -4623,7 +4792,7 @@ fn trader_terminal_read_model_status_from_value(
         })
         .collect::<BTreeMap<_, _>>();
 
-    for component in ["account", "positions"] {
+    for component in ["account", "positions", "orders", "fills"] {
         let source_type = read_model_component_source_field(value, component, "source_type");
         let source_ref = read_model_component_source_field(value, component, "source_ref");
         if source_type.availability != DashboardAvailability::Available
@@ -4641,6 +4810,34 @@ fn trader_terminal_read_model_status_from_value(
         {
             component_diagnostics.push(format!("{component}:redaction_state_not_ready"));
             health = strongest_health(health, HealthStatus::Degraded);
+        }
+    }
+
+    for component in ["orders", "fills"] {
+        for diagnostic in read_model_component_diagnostics(value, component) {
+            component_diagnostics.push(format!("{component}:diagnostic:{diagnostic}"));
+        }
+
+        for (field, claim) in [
+            (
+                "source_exchange_truth",
+                read_model_component_source_field(value, component, "exchange_truth"),
+            ),
+            (
+                "source_adapter_runtime_integrated",
+                read_model_component_source_field(value, component, "adapter_runtime_integrated"),
+            ),
+            (
+                "values_are_exchange_truth",
+                read_model_component_data_scalar(value, component, "values_are_exchange_truth"),
+            ),
+        ] {
+            if claim.value.as_deref() == Some("true") {
+                component_diagnostics.push(format!(
+                    "{component}:runtime_exchange_truth_claimed:{field}"
+                ));
+                health = strongest_health(health, HealthStatus::Error);
+            }
         }
     }
 
@@ -4685,6 +4882,12 @@ fn trader_terminal_read_model_status_from_value(
         &mut diagnostics,
         &mut health,
     );
+    let dashboard_fill_controls_enabled = optional_false_read_model_boundary_bool(
+        boundary,
+        "dashboard_fill_controls_enabled",
+        &mut diagnostics,
+        &mut health,
+    );
     let dashboard_submit_controls_enabled = optional_false_read_model_boundary_bool(
         boundary,
         "dashboard_submit_controls_enabled",
@@ -4721,9 +4924,45 @@ fn trader_terminal_read_model_status_from_value(
         &mut diagnostics,
         &mut health,
     );
+    let production_order_submission_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "production_order_submission_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let production_order_mutation_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "production_order_mutation_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
     let retry_replace_amend_flatten_allowed = required_read_model_boundary_bool(
         boundary,
         "retry_replace_amend_flatten_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let order_permission_control_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "order_permission_control_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let retry_order_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "retry_order_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let automatic_cancel_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "automatic_cancel_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let automatic_order_remediation_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "automatic_order_remediation_allowed",
         &mut diagnostics,
         &mut health,
     );
@@ -4748,6 +4987,24 @@ fn trader_terminal_read_model_status_from_value(
     let automatic_position_repair_allowed = optional_false_read_model_boundary_bool(
         boundary,
         "automatic_position_repair_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let execution_algorithm_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "execution_algorithm_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let automatic_fill_repair_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "automatic_fill_repair_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let automatic_reconciliation_repair_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "automatic_reconciliation_repair_allowed",
         &mut diagnostics,
         &mut health,
     );
@@ -4851,6 +5108,128 @@ fn trader_terminal_read_model_status_from_value(
         positions_notional: read_model_component_data_scalar(value, "positions", "notional"),
         positions_precision: read_model_component_data_scalar(value, "positions", "precision"),
         positions_lineage: read_model_component_lineage_summary(value, "positions"),
+        orders_freshness_status: read_model_component_freshness_status(value, "orders"),
+        orders_source_type: read_model_component_source_field(value, "orders", "source_type"),
+        orders_source_ref: read_model_component_source_field(value, "orders", "source_ref"),
+        orders_redaction_state: read_model_component_redaction_status(value, "orders"),
+        orders_lifecycle_state: read_model_component_data_scalar(
+            value,
+            "orders",
+            "lifecycle_status",
+        ),
+        orders_client_order_id: read_model_component_data_scalar(
+            value,
+            "orders",
+            "client_order_id",
+        ),
+        orders_request_digest: read_model_component_data_scalar(value, "orders", "request_digest"),
+        orders_attempt_id: read_model_component_data_scalar(value, "orders", "attempt_id"),
+        orders_approval_id: read_model_component_data_scalar(value, "orders", "approval_id"),
+        orders_readback_status: read_model_component_data_scalar(
+            value,
+            "orders",
+            "readback_status",
+        ),
+        orders_audit_state: read_model_component_data_scalar(value, "orders", "audit_state"),
+        orders_ledger_present: read_model_component_data_scalar(value, "orders", "ledger_present"),
+        orders_duplicate_attempt_detected: read_model_component_data_scalar(
+            value,
+            "orders",
+            "duplicate_attempt_detected",
+        ),
+        orders_no_retry: read_model_component_data_scalar(value, "orders", "no_retry"),
+        orders_diagnostics: read_model_component_diagnostics_summary(value, "orders"),
+        orders_lineage: read_model_component_lineage_summary(value, "orders"),
+        orders_exchange_truth: read_model_component_source_field(value, "orders", "exchange_truth"),
+        orders_adapter_runtime_integrated: read_model_component_source_field(
+            value,
+            "orders",
+            "adapter_runtime_integrated",
+        ),
+        orders_values_are_exchange_truth: read_model_component_data_scalar(
+            value,
+            "orders",
+            "values_are_exchange_truth",
+        ),
+        fills_freshness_status: read_model_component_freshness_status(value, "fills"),
+        fills_source_type: read_model_component_source_field(value, "fills", "source_type"),
+        fills_source_ref: read_model_component_source_field(value, "fills", "source_ref"),
+        fills_redaction_state: read_model_component_redaction_status(value, "fills"),
+        fills_fill_id: read_model_component_data_scalar(value, "fills", "fill_id"),
+        fills_execution_id: read_model_component_data_scalar(value, "fills", "execution_id"),
+        fills_order_id: read_model_component_data_scalar(value, "fills", "order_id"),
+        fills_client_order_id: read_model_component_data_scalar(value, "fills", "client_order_id"),
+        fills_fill_status: read_model_component_data_scalar(value, "fills", "fill_status"),
+        fills_order_linkage_status: read_model_component_data_scalar(
+            value,
+            "fills",
+            "order_linkage_status",
+        ),
+        fills_reconciliation_status: read_model_component_data_scalar(
+            value,
+            "fills",
+            "reconciliation_status",
+        ),
+        fills_quantity: read_model_component_data_scalar(value, "fills", "quantity"),
+        fills_cumulative_quantity: read_model_component_data_scalar(
+            value,
+            "fills",
+            "cumulative_quantity",
+        ),
+        fills_remaining_quantity: read_model_component_data_scalar(
+            value,
+            "fills",
+            "remaining_quantity",
+        ),
+        fills_quantity_precision: read_model_component_data_scalar(
+            value,
+            "fills",
+            "quantity_precision",
+        ),
+        fills_price: read_model_component_data_scalar(value, "fills", "price"),
+        fills_price_precision: read_model_component_data_scalar(value, "fills", "price_precision"),
+        fills_precision_status: read_model_component_data_scalar(
+            value,
+            "fills",
+            "precision_status",
+        ),
+        fills_duplicate_fill_detected: read_model_component_data_scalar(
+            value,
+            "fills",
+            "duplicate_fill_detected",
+        ),
+        fills_partial_fill_detected: read_model_component_data_scalar(
+            value,
+            "fills",
+            "partial_fill_detected",
+        ),
+        fills_risk_projection_input: read_model_component_data_object_summary(
+            value,
+            "fills",
+            "risk_projection_input",
+            &[
+                "fill_reconciliation_status",
+                "realized_fill_quantity",
+                "remaining_order_quantity",
+                "risk_state",
+                "blocking_reasons",
+                "automatic_reconciliation_repair_allowed",
+                "execution_algorithm_allowed",
+            ],
+        ),
+        fills_diagnostics: read_model_component_diagnostics_summary(value, "fills"),
+        fills_lineage: read_model_component_lineage_summary(value, "fills"),
+        fills_exchange_truth: read_model_component_source_field(value, "fills", "exchange_truth"),
+        fills_adapter_runtime_integrated: read_model_component_source_field(
+            value,
+            "fills",
+            "adapter_runtime_integrated",
+        ),
+        fills_values_are_exchange_truth: read_model_component_data_scalar(
+            value,
+            "fills",
+            "values_are_exchange_truth",
+        ),
         orders_summary: read_model_component_data_summary(value, "orders"),
         fills_summary: read_model_component_data_summary(value, "fills"),
         risk_summary: read_model_component_data_summary(value, "risk"),
@@ -4862,17 +5241,27 @@ fn trader_terminal_read_model_status_from_value(
         dashboard_approval_controls_enabled,
         dashboard_cancel_controls_enabled,
         dashboard_retry_controls_enabled,
+        dashboard_fill_controls_enabled,
         dashboard_submit_controls_enabled,
         dashboard_replace_controls_enabled,
         dashboard_amend_controls_enabled,
         dashboard_flatten_controls_enabled,
         trader_terminal_order_ticket_enabled,
         trader_terminal_live_trading_claim,
+        production_order_submission_allowed,
+        production_order_mutation_allowed,
         retry_replace_amend_flatten_allowed,
+        order_permission_control_allowed,
+        retry_order_allowed,
+        automatic_cancel_allowed,
+        automatic_order_remediation_allowed,
         funds_transfer_allowed,
         account_configuration_mutation_allowed,
         auto_flatten_position_allowed,
         automatic_position_repair_allowed,
+        execution_algorithm_allowed,
+        automatic_fill_repair_allowed,
+        automatic_reconciliation_repair_allowed,
         product_grade_trading_terminal_claim,
     }
 }
@@ -4991,6 +5380,10 @@ fn read_model_component_data_summary(snapshot: &Value, component: &str) -> Dashb
             "precision",
         ],
         "orders" => &[
+            "client_order_id",
+            "request_digest",
+            "attempt_id",
+            "approval_id",
             "lifecycle_status",
             "open_order_count",
             "terminal_order_count",
@@ -4998,12 +5391,19 @@ fn read_model_component_data_summary(snapshot: &Value, component: &str) -> Dashb
             "accepted",
             "rejected",
             "readback_status",
+            "audit_state",
         ],
         "fills" => &[
+            "fill_id",
+            "execution_id",
             "fill_status",
             "fill_count",
             "order_linkage_status",
             "reconciliation_status",
+            "quantity",
+            "price",
+            "partial_fill_detected",
+            "duplicate_fill_detected",
             "last_fill_id",
         ],
         "risk" => &[
@@ -5052,6 +5452,38 @@ fn read_model_component_data_scalar(
         .map_or_else(DashboardValue::unknown, DashboardValue::available)
 }
 
+fn read_model_component_data_object_summary(
+    snapshot: &Value,
+    component: &str,
+    object_field: &str,
+    fields: &[&str],
+) -> DashboardValue<String> {
+    let Some(object) = snapshot
+        .get("components")
+        .and_then(|components| components.get(component))
+        .and_then(|component| component.get("data"))
+        .and_then(|data| data.get(object_field))
+        .and_then(Value::as_object)
+    else {
+        return DashboardValue::unknown();
+    };
+    let summary = fields
+        .iter()
+        .filter_map(|field| {
+            object
+                .get(*field)
+                .and_then(read_model_scalar_string)
+                .map(|value| format!("{field}={value}"))
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+    if summary.is_empty() {
+        DashboardValue::unknown()
+    } else {
+        DashboardValue::available(summary)
+    }
+}
+
 fn read_model_component_freshness_status(
     snapshot: &Value,
     component: &str,
@@ -5092,6 +5524,33 @@ fn read_model_component_redaction_status(
         .and_then(Value::as_str)
         .map(str::to_string)
         .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn read_model_component_diagnostics(snapshot: &Value, component: &str) -> Vec<String> {
+    snapshot
+        .get("components")
+        .and_then(|components| components.get(component))
+        .and_then(|component| component.get("diagnostics"))
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(read_model_scalar_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn read_model_component_diagnostics_summary(
+    snapshot: &Value,
+    component: &str,
+) -> DashboardValue<String> {
+    let diagnostics = read_model_component_diagnostics(snapshot, component);
+    if diagnostics.is_empty() {
+        DashboardValue::unknown()
+    } else {
+        DashboardValue::available(diagnostics.join(";"))
+    }
 }
 
 fn read_model_component_lineage_summary(
@@ -12423,7 +12882,9 @@ mod tests {
             "cancel_order",
             "replace_order",
             "amend_order",
-            "retry_order",
+            "retry_order_action",
+            "data-dashboard-action=\"retry_order\"",
+            "/actions/retry_order",
             "correct_order",
             "flatten_position_action",
             "data-dashboard-action=\"flatten_position\"",
@@ -12468,6 +12929,18 @@ mod tests {
             "Auto flatten",
             "Position repair",
             "positions_lineage",
+            "Client order id",
+            "Request digest",
+            "Attempt id",
+            "Approval id",
+            "Ledger present",
+            "Duplicate attempt",
+            "Fill id",
+            "Execution id",
+            "Order linkage",
+            "Reconciliation",
+            "Risk input",
+            "Schema-only truth",
         ] {
             assert!(
                 DASHBOARD_HTML.contains(required_marker) || DASHBOARD_JS.contains(required_marker),
@@ -12497,7 +12970,9 @@ mod tests {
             "data-workbench-action",
             "submit_order",
             "cancel_order",
-            "retry_order",
+            "retry_order_action",
+            "data-workbench-action=\"retry_order\"",
+            "/actions/retry_order",
             "replace_order",
             "amend_order",
             "flatten_order",
@@ -12508,6 +12983,14 @@ mod tests {
             "account_config_action",
             "auto_flatten_action",
             "position_repair_action",
+            "order_submit_action",
+            "order_retry_action",
+            "order_replace_action",
+            "order_amend_action",
+            "order_cancel_action",
+            "fill_repair_action",
+            "reconciliation_repair_action",
+            "execution_algorithm_action",
         ] {
             assert!(
                 !DASHBOARD_HTML.contains(forbidden_control),
@@ -13811,7 +14294,131 @@ mod tests {
                 |lineage| lineage.contains("ntpro.v210.trader_terminal_readonly_dashboard.v1")
             )
         );
+        assert_eq!(
+            runtime.orders_freshness_status.value.as_deref(),
+            Some("fresh")
+        );
+        assert_eq!(
+            runtime.orders_source_ref.value.as_deref(),
+            Some("artifact://v0_21/unified_read_model_snapshot.json")
+        );
+        assert_eq!(
+            runtime.orders_lifecycle_state.value.as_deref(),
+            Some("readback_matched")
+        );
+        assert_eq!(
+            runtime.orders_client_order_id.value.as_deref(),
+            Some("client-redacted-001")
+        );
+        assert_eq!(
+            runtime.orders_request_digest.value.as_deref(),
+            Some("sha256-redacted-request-001")
+        );
+        assert_eq!(
+            runtime.orders_attempt_id.value.as_deref(),
+            Some("attempt-redacted-001")
+        );
+        assert_eq!(
+            runtime.orders_approval_id.value.as_deref(),
+            Some("approval-redacted-001")
+        );
+        assert_eq!(
+            runtime.orders_readback_status.value.as_deref(),
+            Some("matched")
+        );
+        assert_eq!(
+            runtime.orders_audit_state.value.as_deref(),
+            Some("audit_closed")
+        );
+        assert_eq!(runtime.orders_ledger_present.value.as_deref(), Some("true"));
+        assert_eq!(
+            runtime.orders_duplicate_attempt_detected.value.as_deref(),
+            Some("false")
+        );
+        assert_eq!(runtime.orders_no_retry.value.as_deref(), Some("true"));
+        assert_eq!(
+            runtime.orders_exchange_truth.value.as_deref(),
+            Some("false")
+        );
+        assert_eq!(
+            runtime.orders_adapter_runtime_integrated.value.as_deref(),
+            Some("false")
+        );
+        assert_eq!(
+            runtime.orders_values_are_exchange_truth.value.as_deref(),
+            Some("false")
+        );
+        assert_eq!(
+            runtime.fills_freshness_status.value.as_deref(),
+            Some("fresh")
+        );
+        assert_eq!(
+            runtime.fills_source_ref.value.as_deref(),
+            Some("artifact://v0_21/unified_read_model_snapshot.json")
+        );
+        assert_eq!(
+            runtime.fills_fill_id.value.as_deref(),
+            Some("fill-redacted-001")
+        );
+        assert_eq!(
+            runtime.fills_execution_id.value.as_deref(),
+            Some("execution-redacted-001")
+        );
+        assert_eq!(
+            runtime.fills_order_id.value.as_deref(),
+            Some("order-redacted-001")
+        );
+        assert_eq!(
+            runtime.fills_client_order_id.value.as_deref(),
+            Some("client-redacted-001")
+        );
+        assert_eq!(
+            runtime.fills_order_linkage_status.value.as_deref(),
+            Some("linked")
+        );
+        assert_eq!(
+            runtime.fills_reconciliation_status.value.as_deref(),
+            Some("reconciled")
+        );
+        assert_eq!(runtime.fills_quantity.value.as_deref(), Some("0.010"));
+        assert_eq!(
+            runtime.fills_cumulative_quantity.value.as_deref(),
+            Some("0.010")
+        );
+        assert_eq!(runtime.fills_remaining_quantity.value.as_deref(), Some("0"));
+        assert_eq!(runtime.fills_quantity_precision.value.as_deref(), Some("3"));
+        assert_eq!(runtime.fills_price.value.as_deref(), Some("61000.00"));
+        assert_eq!(runtime.fills_price_precision.value.as_deref(), Some("2"));
+        assert_eq!(
+            runtime.fills_precision_status.value.as_deref(),
+            Some("valid")
+        );
+        assert_eq!(
+            runtime.fills_duplicate_fill_detected.value.as_deref(),
+            Some("false")
+        );
+        assert_eq!(
+            runtime.fills_partial_fill_detected.value.as_deref(),
+            Some("false")
+        );
+        assert!(
+            runtime
+                .fills_risk_projection_input
+                .value
+                .as_deref()
+                .is_some_and(|risk| risk.contains("fill_reconciliation_status=reconciled"))
+        );
+        assert_eq!(runtime.fills_exchange_truth.value.as_deref(), Some("false"));
+        assert_eq!(
+            runtime.fills_adapter_runtime_integrated.value.as_deref(),
+            Some("false")
+        );
+        assert_eq!(
+            runtime.fills_values_are_exchange_truth.value.as_deref(),
+            Some("false")
+        );
         assert_eq!(runtime.dashboard_order_controls_enabled.value, Some(false));
+        assert_eq!(runtime.dashboard_fill_controls_enabled.value, Some(false));
         assert_eq!(runtime.dashboard_submit_controls_enabled.value, Some(false));
         assert_eq!(
             runtime.dashboard_replace_controls_enabled.value,
@@ -13834,6 +14441,18 @@ mod tests {
             runtime.product_grade_trading_terminal_claim.value,
             Some(false)
         );
+        assert_eq!(
+            runtime.production_order_submission_allowed.value,
+            Some(false)
+        );
+        assert_eq!(runtime.production_order_mutation_allowed.value, Some(false));
+        assert_eq!(runtime.order_permission_control_allowed.value, Some(false));
+        assert_eq!(runtime.retry_order_allowed.value, Some(false));
+        assert_eq!(runtime.automatic_cancel_allowed.value, Some(false));
+        assert_eq!(
+            runtime.automatic_order_remediation_allowed.value,
+            Some(false)
+        );
         assert_eq!(runtime.funds_transfer_allowed.value, Some(false));
         assert_eq!(
             runtime.account_configuration_mutation_allowed.value,
@@ -13841,6 +14460,12 @@ mod tests {
         );
         assert_eq!(runtime.auto_flatten_position_allowed.value, Some(false));
         assert_eq!(runtime.automatic_position_repair_allowed.value, Some(false));
+        assert_eq!(runtime.execution_algorithm_allowed.value, Some(false));
+        assert_eq!(runtime.automatic_fill_repair_allowed.value, Some(false));
+        assert_eq!(
+            runtime.automatic_reconciliation_repair_allowed.value,
+            Some(false)
+        );
         assert!(
             runtime.artifact_path.value.as_deref().is_some_and(
                 |path| path.ends_with(TRADER_TERMINAL_READ_MODEL_ARTIFACT_RELATIVE_PATH)
@@ -13970,6 +14595,295 @@ mod tests {
                 .as_deref()
                 .is_some_and(|diagnostic| diagnostic.contains("account_position_mismatch"))
         );
+    }
+
+    #[test]
+    fn trader_terminal_order_lifecycle_panel_covers_fail_closed_cases() {
+        for (name, lifecycle, readback, diagnostic, ledger_present, duplicate_attempt) in [
+            (
+                "unknown-response",
+                "unknown_response",
+                "unavailable",
+                "unknown_order_response_no_retry",
+                true,
+                false,
+            ),
+            (
+                "readback-mismatch",
+                "readback_mismatch",
+                "mismatch",
+                "order_readback_mismatch",
+                true,
+                false,
+            ),
+            (
+                "duplicate-attempt",
+                "duplicate_attempt",
+                "not_attempted",
+                "duplicate_submit_attempt",
+                true,
+                true,
+            ),
+            (
+                "missing-ledger",
+                "missing_ledger",
+                "not_attempted",
+                "missing_attempt_ledger",
+                false,
+                false,
+            ),
+        ] {
+            let runtime = trader_terminal_read_model_runtime_with_mutation(
+                &format!("order-{name}"),
+                |artifact| {
+                    artifact["health_status"] = json!("fail_closed");
+                    artifact["blocking_reasons"] = json!([diagnostic]);
+                    let orders = &mut artifact["components"]["orders"];
+                    orders["component_status"] = json!("fail_closed");
+                    orders["data"]["lifecycle_status"] = json!(lifecycle);
+                    orders["data"]["readback_status"] = json!(readback);
+                    orders["data"]["ledger_present"] = json!(ledger_present);
+                    orders["data"]["duplicate_attempt_detected"] = json!(duplicate_attempt);
+                    orders["data"]["audit_state"] = json!("audit_risk_visible");
+                    orders["diagnostics"] = json!([diagnostic]);
+                },
+            );
+
+            assert_eq!(runtime.health, HealthStatus::Error, "{name}");
+            assert_eq!(
+                runtime.readiness_status.value.as_deref(),
+                Some("fail_closed"),
+                "{name}"
+            );
+            assert_eq!(
+                runtime.orders_lifecycle_state.value.as_deref(),
+                Some(lifecycle),
+                "{name}"
+            );
+            assert_eq!(
+                runtime.orders_readback_status.value.as_deref(),
+                Some(readback),
+                "{name}"
+            );
+            assert_eq!(
+                runtime.orders_ledger_present.value.as_deref(),
+                Some(if ledger_present { "true" } else { "false" }),
+                "{name}"
+            );
+            assert_eq!(
+                runtime.orders_duplicate_attempt_detected.value.as_deref(),
+                Some(if duplicate_attempt { "true" } else { "false" }),
+                "{name}"
+            );
+            assert!(
+                runtime
+                    .orders_diagnostics
+                    .value
+                    .as_deref()
+                    .is_some_and(|value| value.contains(diagnostic)),
+                "{name}"
+            );
+            assert!(
+                runtime
+                    .diagnostic
+                    .value
+                    .as_deref()
+                    .is_some_and(|value| value.contains(diagnostic)),
+                "{name}"
+            );
+            assert_eq!(
+                runtime.production_order_submission_allowed.value,
+                Some(false)
+            );
+            assert_eq!(runtime.dashboard_order_controls_enabled.value, Some(false));
+            assert_eq!(runtime.retry_order_allowed.value, Some(false));
+            assert_eq!(runtime.automatic_cancel_allowed.value, Some(false));
+            assert_eq!(
+                runtime.automatic_order_remediation_allowed.value,
+                Some(false)
+            );
+        }
+    }
+
+    #[test]
+    fn trader_terminal_fill_panel_covers_partial_duplicate_and_missing_linkage() {
+        for (
+            name,
+            component_status,
+            expected_health,
+            readiness,
+            fill_status,
+            reconciliation_status,
+            linkage_status,
+            diagnostic,
+            partial_fill,
+            duplicate_fill,
+        ) in [
+            (
+                "partial-fill",
+                "degraded",
+                HealthStatus::Degraded,
+                "degraded_artifact",
+                "partial",
+                "partial_fill_visible",
+                "linked",
+                "partial_fill_visible_readonly",
+                true,
+                false,
+            ),
+            (
+                "duplicate-fill",
+                "fail_closed",
+                HealthStatus::Error,
+                "fail_closed",
+                "duplicate",
+                "duplicate_rejected",
+                "linked",
+                "duplicate_fill",
+                false,
+                true,
+            ),
+            (
+                "missing-linkage",
+                "fail_closed",
+                HealthStatus::Error,
+                "fail_closed",
+                "missing_linkage",
+                "missing_order_linkage",
+                "missing",
+                "missing_order_linkage",
+                false,
+                false,
+            ),
+        ] {
+            let runtime = trader_terminal_read_model_runtime_with_mutation(
+                &format!("fill-{name}"),
+                |artifact| {
+                    artifact["health_status"] = json!(if expected_health == HealthStatus::Error {
+                        "fail_closed"
+                    } else {
+                        "degraded"
+                    });
+                    artifact["blocking_reasons"] = if expected_health == HealthStatus::Error {
+                        json!([diagnostic])
+                    } else {
+                        json!([])
+                    };
+                    let fills = &mut artifact["components"]["fills"];
+                    fills["component_status"] = json!(component_status);
+                    fills["data"]["fill_status"] = json!(fill_status);
+                    fills["data"]["reconciliation_status"] = json!(reconciliation_status);
+                    fills["data"]["order_linkage_status"] = json!(linkage_status);
+                    fills["data"]["partial_fill_detected"] = json!(partial_fill);
+                    fills["data"]["duplicate_fill_detected"] = json!(duplicate_fill);
+                    fills["data"]["remaining_quantity"] = if partial_fill {
+                        json!("0.005")
+                    } else {
+                        json!("0")
+                    };
+                    fills["data"]["risk_projection_input"]["fill_reconciliation_status"] =
+                        json!(reconciliation_status);
+                    fills["data"]["risk_projection_input"]["remaining_order_quantity"] =
+                        fills["data"]["remaining_quantity"].clone();
+                    fills["data"]["risk_projection_input"]["risk_state"] =
+                        if expected_health == HealthStatus::Error {
+                            json!("risk_blocked")
+                        } else {
+                            json!("active")
+                        };
+                    fills["data"]["risk_projection_input"]["blocking_reasons"] =
+                        if expected_health == HealthStatus::Error {
+                            json!([diagnostic])
+                        } else {
+                            json!([])
+                        };
+                    fills["diagnostics"] = json!([diagnostic]);
+                },
+            );
+
+            assert_eq!(runtime.health, expected_health, "{name}");
+            assert_eq!(
+                runtime.readiness_status.value.as_deref(),
+                Some(readiness),
+                "{name}"
+            );
+            assert_eq!(
+                runtime.fills_reconciliation_status.value.as_deref(),
+                Some(reconciliation_status),
+                "{name}"
+            );
+            assert_eq!(
+                runtime.fills_order_linkage_status.value.as_deref(),
+                Some(linkage_status),
+                "{name}"
+            );
+            assert_eq!(
+                runtime.fills_partial_fill_detected.value.as_deref(),
+                Some(if partial_fill { "true" } else { "false" }),
+                "{name}"
+            );
+            assert_eq!(
+                runtime.fills_duplicate_fill_detected.value.as_deref(),
+                Some(if duplicate_fill { "true" } else { "false" }),
+                "{name}"
+            );
+            assert!(
+                runtime
+                    .fills_risk_projection_input
+                    .value
+                    .as_deref()
+                    .is_some_and(|value| value.contains(reconciliation_status)),
+                "{name}"
+            );
+            assert!(
+                runtime
+                    .fills_diagnostics
+                    .value
+                    .as_deref()
+                    .is_some_and(|value| value.contains(diagnostic)),
+                "{name}"
+            );
+            assert_eq!(runtime.dashboard_fill_controls_enabled.value, Some(false));
+            assert_eq!(runtime.execution_algorithm_allowed.value, Some(false));
+            assert_eq!(runtime.automatic_fill_repair_allowed.value, Some(false));
+            assert_eq!(
+                runtime.automatic_reconciliation_repair_allowed.value,
+                Some(false)
+            );
+        }
+    }
+
+    #[test]
+    fn trader_terminal_order_fill_schema_only_truth_claim_fails_closed() {
+        for component in ["orders", "fills"] {
+            let runtime = trader_terminal_read_model_runtime_with_mutation(
+                &format!("{component}-exchange-truth-claim"),
+                |artifact| {
+                    artifact["components"][component]["source_provenance"]["exchange_truth"] =
+                        json!(true);
+                    artifact["components"][component]["source_provenance"]["adapter_runtime_integrated"] =
+                        json!(true);
+                    artifact["components"][component]["data"]["values_are_exchange_truth"] =
+                        json!(true);
+                },
+            );
+
+            assert_eq!(runtime.health, HealthStatus::Error, "{component}");
+            assert_eq!(
+                runtime.readiness_status.value.as_deref(),
+                Some("fail_closed"),
+                "{component}"
+            );
+            assert!(
+                runtime
+                    .diagnostic
+                    .value
+                    .as_deref()
+                    .is_some_and(|value| value
+                        .contains(&format!("{component}:runtime_exchange_truth_claimed"))),
+                "{component}"
+            );
+        }
     }
 
     #[test]
@@ -14350,7 +15264,9 @@ mod tests {
         assert!(!DASHBOARD_JS.contains("cancel_order"));
         assert!(!DASHBOARD_JS.contains("replace_order"));
         assert!(!DASHBOARD_JS.contains("amend_order"));
-        assert!(!DASHBOARD_JS.contains("retry_order"));
+        assert!(!DASHBOARD_JS.contains("retry_order_action"));
+        assert!(!DASHBOARD_JS.contains("data-workbench-action=\"retry_order\""));
+        assert!(!DASHBOARD_JS.contains("/actions/retry_order"));
         assert!(!DASHBOARD_HTML.contains("credential"));
     }
 
@@ -14513,7 +15429,9 @@ mod tests {
         assert!(!DASHBOARD_JS.contains("cancel_order"));
         assert!(!DASHBOARD_JS.contains("replace_order"));
         assert!(!DASHBOARD_JS.contains("amend_order"));
-        assert!(!DASHBOARD_JS.contains("retry_order"));
+        assert!(!DASHBOARD_JS.contains("retry_order_action"));
+        assert!(!DASHBOARD_JS.contains("data-workbench-action=\"retry_order\""));
+        assert!(!DASHBOARD_JS.contains("/actions/retry_order"));
         assert!(!DASHBOARD_HTML.contains("credential"));
     }
 
@@ -14723,7 +15641,9 @@ mod tests {
         assert!(!DASHBOARD_JS.contains("cancel_order"));
         assert!(!DASHBOARD_JS.contains("replace_order"));
         assert!(!DASHBOARD_JS.contains("amend_order"));
-        assert!(!DASHBOARD_JS.contains("retry_order"));
+        assert!(!DASHBOARD_JS.contains("retry_order_action"));
+        assert!(!DASHBOARD_JS.contains("data-workbench-action=\"retry_order\""));
+        assert!(!DASHBOARD_JS.contains("/actions/retry_order"));
     }
 
     #[test]
@@ -18072,6 +18992,31 @@ mod tests {
         .unwrap();
     }
 
+    fn trader_terminal_read_model_runtime_with_mutation(
+        name: &str,
+        mutate: impl FnOnce(&mut Value),
+    ) -> TraderTerminalReadModelStatus {
+        let root = temp_root(name);
+        let registry_path = root.join("registry.json");
+        let node_id = format!("terminal-{name}");
+        let mut record = node_record(&root, &node_id);
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_trader_terminal_read_model_artifact(&record, mutate);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        snapshot_from_supervisor_artifacts(&registry_path, "2026-07-01T19:00:00Z")
+            .unwrap()
+            .read_model_runtime
+            .into_iter()
+            .next()
+            .unwrap()
+    }
+
     fn healthy_trader_terminal_read_model_artifact() -> Value {
         let components = json!({
             "account": read_model_component("healthy", &json!({
@@ -18097,21 +19042,67 @@ mod tests {
                 "values_are_exchange_truth": false
             })),
             "orders": read_model_component("healthy", &json!({
-                "lifecycle_status": "read_only_complete",
+                "order_id": "order-redacted-001",
+                "client_order_id": "client-redacted-001",
+                "request_digest": "sha256-redacted-request-001",
+                "attempt_id": "attempt-redacted-001",
+                "approval_id": "approval-redacted-001",
+                "ledger_present": true,
+                "duplicate_attempt_detected": false,
+                "lifecycle_status": "readback_matched",
                 "open_order_count": 0,
-                "terminal_order_count": 0,
-                "submitted": false,
-                "accepted": false,
+                "terminal_order_count": 1,
+                "submitted": true,
+                "accepted": true,
                 "rejected": false,
-                "readback_status": "not_applicable_readonly",
-                "dashboard_readonly_visible": true
+                "readback_status": "matched",
+                "cancel_evidence_state": "not_requested",
+                "audit_state": "audit_closed",
+                "refs": {
+                    "candidate_ref": "candidate:v210:matched",
+                    "attempt_ref": "attempt:v201:001",
+                    "approval_ref": "approval:v200:001",
+                    "audit_ref": "audit:v200:matched",
+                    "provenance_ref": "provenance:v200:matched"
+                },
+                "redaction_state": "redacted_refs_only",
+                "no_retry": true,
+                "automatic_remediation_allowed": false,
+                "dashboard_readonly_visible": true,
+                "values_are_exchange_truth": false
             })),
             "fills": read_model_component("healthy", &json!({
+                "fill_id": "fill-redacted-001",
+                "execution_id": "execution-redacted-001",
+                "order_id": "order-redacted-001",
+                "client_order_id": "client-redacted-001",
+                "order_linkage_status": "linked",
                 "fill_status": "reconciled",
-                "fill_count": 0,
-                "order_linkage_status": "no_open_order",
-                "reconciliation_status": "complete",
+                "fill_count": 1,
+                "reconciliation_status": "reconciled",
+                "duplicate_fill_detected": false,
+                "partial_fill_detected": false,
+                "quantity": "0.010",
+                "cumulative_quantity": "0.010",
+                "remaining_quantity": "0",
+                "quantity_precision": 3,
+                "price": "61000.00",
+                "price_precision": 2,
+                "precision_status": "valid",
+                "source_provenance_ref": "execution:fixture:v210:fill:001",
+                "risk_projection_input": {
+                    "fill_reconciliation_status": "reconciled",
+                    "realized_fill_quantity": "0.010",
+                    "remaining_order_quantity": "0",
+                    "risk_state": "active",
+                    "blocking_reasons": [],
+                    "automatic_reconciliation_repair_allowed": false,
+                    "execution_algorithm_allowed": false
+                },
+                "values_are_exchange_truth": false,
+                "redaction_state": "redacted_refs_only",
                 "no_execution_algorithm": true,
+                "automatic_reconciliation_repair_allowed": false,
                 "dashboard_readonly_visible": true
             })),
             "risk": read_model_component("healthy", &json!({
