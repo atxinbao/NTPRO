@@ -69,7 +69,7 @@ flatten position route/button = not included
 automatic execution = not included
 execution algorithm = not included
 product-grade live trading terminal claim = false
-runtime degradation and boundary tests = reserved for V220-006
+runtime degradation and boundary tests = covered by V220-006
 release gates = reserved for V220-007
 ```
 
