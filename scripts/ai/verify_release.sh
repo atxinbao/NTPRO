@@ -463,6 +463,11 @@ run_release_publication_guard() {
   scripts/ai/check_github_release_published.sh
 }
 
+run_release_publish_after_gate() {
+  echo "== verify_release: release publish after gate =="
+  scripts/ai/verify_release_publish_after_gate.sh
+}
+
 run_stage() {
   local stage="$1"
   case "$stage" in
@@ -520,6 +525,7 @@ run_stage() {
       run_v22_strict_provenance
       run_release_surface_current_guard
       run_release_publication_guard
+      run_release_publish_after_gate
       ;;
     full)
       run_full_checks
@@ -683,9 +689,12 @@ run_stage() {
     release-publication-guard)
       run_release_publication_guard
       ;;
+    release-publish-after-gate)
+      run_release_publish_after_gate
+      ;;
     *)
       echo "unknown verify_release stage: $stage" >&2
-      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate, v08-authenticated-readonly-preflight, v09-strategy-runtime-smoke, v09-shadow-mode-no-order-gate, v091-strategy-supervisor-dashboard-integration, v10-offline-release-gates, v10-manual-order-proof-preflight, v11-offline-release-gates, v12-offline-release-gates, v12-manual-online-preflight, v13-no-production-mutation-gate, v14-release-gates, v15-release-gates, v151-release-gates, v16-release-gates, v17-release-gates, v18-release-gates, v19-release-gates, v20-release-gates, v20.1-release-gates, v21-read-model-contract, v21-account-snapshot-read-model, v21-position-read-model, v21-order-lifecycle-read-model, v21-fill-execution-read-model, v21-risk-state-projection, v21-trader-terminal-readonly-dashboard, v21-release-gates, v21-strict-provenance, v21.1-health-status-semantics, v21.1-read-model-projection-replay, v21.1-read-model-schema-boundary, v21.1-trader-terminal-read-model-bridge, v21.1-release-gates, v21.1-strict-provenance, v22-runtime-boundary-tests, v22-release-gates, v22-strict-provenance, v171-release-hardening, v18-strict-provenance, v19-strict-provenance, v20-strict-provenance, release-surface-current-guard, release-publication-guard" >&2
+      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate, v08-authenticated-readonly-preflight, v09-strategy-runtime-smoke, v09-shadow-mode-no-order-gate, v091-strategy-supervisor-dashboard-integration, v10-offline-release-gates, v10-manual-order-proof-preflight, v11-offline-release-gates, v12-offline-release-gates, v12-manual-online-preflight, v13-no-production-mutation-gate, v14-release-gates, v15-release-gates, v151-release-gates, v16-release-gates, v17-release-gates, v18-release-gates, v19-release-gates, v20-release-gates, v20.1-release-gates, v21-read-model-contract, v21-account-snapshot-read-model, v21-position-read-model, v21-order-lifecycle-read-model, v21-fill-execution-read-model, v21-risk-state-projection, v21-trader-terminal-readonly-dashboard, v21-release-gates, v21-strict-provenance, v21.1-health-status-semantics, v21.1-read-model-projection-replay, v21.1-read-model-schema-boundary, v21.1-trader-terminal-read-model-bridge, v21.1-release-gates, v21.1-strict-provenance, v22-runtime-boundary-tests, v22-release-gates, v22-strict-provenance, v171-release-hardening, v18-strict-provenance, v19-strict-provenance, v20-strict-provenance, release-surface-current-guard, release-publication-guard, release-publish-after-gate" >&2
       exit 2
       ;;
   esac

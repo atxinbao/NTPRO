@@ -60,6 +60,14 @@ id = "RUSTSEC-2026-0173"
 reason = "proc-macro-error2 unmaintained, transitive via alloy/tabled derive macros; no safe upgrade available and not a runtime vulnerability"
 
 [[IgnoredVulns]]
+id = "RUSTSEC-2026-0194"
+reason = "quick-xml quadratic duplicate-attribute check via object_store cloud features; DataFusion 53 pins object_store 0.13.x and no compatible upgrade currently resolves quick-xml >=0.41"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0195"
+reason = "quick-xml namespace-declaration allocation DoS via object_store cloud features; DataFusion 53 pins object_store 0.13.x and no compatible upgrade currently resolves quick-xml >=0.41"
+
+[[IgnoredVulns]]
 id = "GHSA-7gcm-g887-7qv7"
 reason = "protobuf JSON recursion DoS, no fix available yet, low risk for internal use (we don't parse untrusted JSON with protobuf)"
 

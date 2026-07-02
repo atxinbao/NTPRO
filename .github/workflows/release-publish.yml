@@ -1,0 +1,65 @@
+name: Rust Cutover Publish Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Existing release tag, for example ntpro-rust-only-v0.22.1"
+        required: true
+        type: string
+      release_version:
+        description: "Release version, for example v0.22.1"
+        required: true
+        type: string
+      release_gate_run_id:
+        description: "Successful Rust Cutover Release Gate run id for this tag"
+        required: true
+        type: string
+      release_name:
+        description: "GitHub Release title"
+        required: false
+        type: string
+      release_notes_path:
+        description: "Release notes file to publish as the GitHub Release body"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish-release:
+    name: publish-release-after-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Publish GitHub Release after hosted gate success
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          NTPRO_RELEASE_REPOSITORY: ${{ github.repository }}
+          NTPRO_RELEASE_TAG: ${{ inputs.tag_name }}
+          NTPRO_RELEASE_VERSION: ${{ inputs.release_version }}
+          NTPRO_RELEASE_NAME: ${{ inputs.release_name || format('NTPRO Rust-only {0}', inputs.release_version) }}
+          NTPRO_RELEASE_NOTES: ${{ inputs.release_notes_path }}
+          NTPRO_RELEASE_GATE_RUN_ID: ${{ inputs.release_gate_run_id }}
+          NTPRO_RELEASE_PUBLICATION_EVIDENCE_PATH: release-publication-evidence/${{ inputs.tag_name }}.json
+        run: scripts/ai/publish_ntpro_release_after_gate.sh
+
+      - name: Upload publication evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-publication-evidence-${{ inputs.tag_name }}
+          path: release-publication-evidence/${{ inputs.tag_name }}.json
+          if-no-files-found: error
+          retention-days: 30

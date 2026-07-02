@@ -52,6 +52,13 @@ ignore = [
   # TODO: Monitor alloy-rs/alloy and zhiburt/tabled for migration away from proc-macro-error2
   { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2 unmaintained, transitive via alloy/tabled derive macros; no safe upgrade available" },
 
+  # quick-xml duplicate-attribute and namespace-declaration DoS advisories,
+  # pulled only through object_store cloud features.
+  # DataFusion 53 pins object_store 0.13.x, and object_store 0.14.0 still depends on quick-xml 0.40.x.
+  # TODO: Remove this ignore when DataFusion/object_store can resolve quick-xml >= 0.41.0.
+  { id = "RUSTSEC-2026-0194", reason = "quick-xml via object_store cloud features; no compatible DataFusion/object_store upgrade currently resolves quick-xml >=0.41" },
+  { id = "RUSTSEC-2026-0195", reason = "quick-xml via object_store cloud features; no compatible DataFusion/object_store upgrade currently resolves quick-xml >=0.41" },
+
   # NOTE: cargo-audit also flags RUSTSEC-2024-0388 (derivative) and RUSTSEC-2023-0071 (rsa)
   # which cargo-deny does not surface; those are listed only in .cargo/audit.toml.
 ]

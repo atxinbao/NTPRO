@@ -142,6 +142,8 @@ jobs:
             command: scripts/ai/verify_release.sh release-surface-current-guard
           - stage: release-publication-guard
             command: scripts/ai/verify_release.sh release-publication-guard
+          - stage: release-publish-after-gate
+            command: scripts/ai/verify_release.sh release-publish-after-gate
     env:
       CARGO_BUILD_JOBS: "1"
       CARGO_INCREMENTAL: "0"
