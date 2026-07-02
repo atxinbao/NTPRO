@@ -2051,3 +2051,26 @@ false at runtime. Missing fields and true fields fail closed with explicit
 diagnostics; explicit false remains healthy. The dashboard status now includes
 `new_submit_capability` so the manifest-level submit boundary is visible in the
 runtime surface.
+
+# V221-003 Verification
+
+Date: 2026-07-02
+Executor: Codex
+Task: `V221-003` / GitHub issue `#707`
+
+## Commands
+
+```text
+cargo fmt --all -- --check = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, 83 cases, 78 executable replay, 5 schema-only scoped
+cargo test -p nautilus-cli --test golden_trace_read_model_projection -- --nocapture = PASS, 1 test passed
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+```
+
+## Result
+
+Read-model executable replay coverage increased to 28 rows. The promoted scope
+covers positions, fills, order unknown/readback mismatch/duplicate paths, risk
+states, and dashboard forbidden controls. Four read-model rows remain
+schema-only scoped, so v0.22.1 remains a Workbench/runtime bridge rather than a
+complete executable read-model runtime.
