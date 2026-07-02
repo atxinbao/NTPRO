@@ -1765,6 +1765,38 @@ button = not included, missing readback = release-blocking, missing approval
 provenance = release-blocking, production order submit lifecycle = not
 included, and v0.20 enters owner-approved production order lifecycle.
 
+# V220-004 Verification
+
+Date: 2026-07-02
+Executor: Codex
+Task: `V220-004` / GitHub issue `#687`
+
+## Commands
+
+```text
+cargo test -p nautilus-cli trader_terminal_risk -- --nocapture = PASS
+cargo test -p nautilus-cli trader_terminal_alert -- --nocapture = PASS
+cargo test -p nautilus-cli trader_terminal_audit -- --nocapture = PASS
+cargo test -p nautilus-cli trader_terminal_provenance -- --nocapture = PASS
+cargo test -p nautilus-cli trader_terminal_read_model -- --nocapture = PASS
+cargo test -p nautilus-cli trader_terminal_ -- --nocapture = PASS
+cargo test -p nautilus-cli trader_terminal_workbench_shell_is_readonly_and_degrades_without_artifact -- --nocapture = PASS
+cargo test -p nautilus-cli dashboard_trader_ops_boundary_keeps_order_controls_absent -- --nocapture = PASS
+node dashboard JS syntax smoke = PASS
+cargo fmt --all -- --check = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+source scripts/ai/toolchain_env.sh && cargo clippy --workspace --lib --tests --features "${NAUTILUS_RUST_FEATURES:-arrow,ffi,high-precision,streaming,defi}" -- -D warnings = PASS
+```
+
+## Result
+
+Local targeted validation passed for the Trader Terminal risk, alerts, audit,
+and provenance drill-down panels. The workbench remains read-only: no automatic
+risk action, alert action, audit action, provenance repair, cancel, flatten,
+retry, order remediation, fill repair, reconciliation repair, or execution
+algorithm control was added.
+
 # V181-002 Verification
 
 Date: 2026-06-27

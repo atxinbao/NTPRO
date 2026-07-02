@@ -1125,6 +1125,7 @@ function renderTraderTerminalWorkbench(readModels) {
     ["workbench-tab-orders", "workbench-panel-orders", "订单", panelStatus("orders_status"), "V220-003"],
     ["workbench-tab-fills", "workbench-panel-fills", "成交", panelStatus("fills_status"), "V220-003"],
     ["workbench-tab-risk", "workbench-panel-risk", "风险", panelStatus("risk_status"), "V220-004"],
+    ["workbench-tab-alerts", "workbench-panel-alerts", "告警", snapshotValue(primary.risk_alert_severity) || panelStatus("risk_status"), "V220-004"],
     ["workbench-tab-audit-provenance", "workbench-panel-audit-provenance", "审计 / Provenance", panelStatus("lifecycle_status"), "V220-004"],
   ];
   const controlsDisabled = [
@@ -1221,11 +1222,62 @@ function renderTraderTerminalWorkbench(readModels) {
     panelRow("Fill repair", boundaryValue("automatic_fill_repair_allowed")),
     panelRow("Reconciliation repair", boundaryValue("automatic_reconciliation_repair_allowed")),
   ];
+  const riskRows = [
+    panelRow("Risk status", snapshotValue(primary.risk_status)),
+    panelRow("Priority state", snapshotValue(primary.risk_priority_state)),
+    panelRow("Risk state", snapshotValue(primary.risk_state)),
+    panelRow("Freshness", snapshotValue(primary.risk_freshness_status)),
+    panelRow("Freshness rollup", snapshotValue(primary.risk_freshness_rollup)),
+    panelRow("Critical evidence", snapshotValue(primary.risk_critical_evidence_complete)),
+    panelRow("Risk visible", snapshotValue(primary.risk_visible)),
+    panelRow("Manual review", snapshotValue(primary.risk_manual_review_required)),
+    panelRow("Halted", snapshotValue(primary.risk_halted)),
+    panelRow("Mismatch", snapshotValue(primary.risk_mismatch_detected)),
+    panelRow("Diagnostics", snapshotValue(primary.risk_diagnostics)),
+    panelRow("Lineage", snapshotValue(primary.risk_lineage)),
+    panelRow("Source", `${snapshotValue(primary.risk_source_type)} ${snapshotValue(primary.risk_source_ref)}`),
+    panelRow("Redaction", snapshotValue(primary.risk_redaction_state)),
+    panelRow("Risk controls", boundaryValue("dashboard_risk_controls_enabled")),
+    panelRow("Auto risk action", boundaryValue("automatic_risk_action_allowed")),
+    panelRow("Risk repair", boundaryValue("automatic_risk_repair_allowed")),
+  ];
+  const alertRows = [
+    panelRow("Severity", snapshotValue(primary.risk_alert_severity)),
+    panelRow("Missing evidence", snapshotValue(primary.risk_alert_missing_evidence)),
+    panelRow("Stale source", snapshotValue(primary.risk_alert_stale_source)),
+    panelRow("Schema mismatch", snapshotValue(primary.risk_alert_schema_mismatch)),
+    panelRow("Redaction breach", snapshotValue(primary.risk_alert_redaction_breach)),
+    panelRow("Forbidden control", snapshotValue(primary.risk_alert_forbidden_control_request)),
+    panelRow("Summary", snapshotValue(primary.risk_alert_summary)),
+    panelRow("Alert action", boundaryValue("automatic_alert_action_allowed")),
+  ];
+  const auditProvenanceRows = [
+    panelRow("Lifecycle", snapshotValue(primary.lifecycle_summary)),
+    panelRow("Audit freshness", snapshotValue(primary.audit_freshness_status)),
+    panelRow("Audit state", snapshotValue(primary.audit_state)),
+    panelRow("Audit closed", snapshotValue(primary.audit_closed)),
+    panelRow("Evidence complete", snapshotValue(primary.audit_required_evidence_complete)),
+    panelRow("Components complete", snapshotValue(primary.audit_required_components_complete)),
+    panelRow("Missing evidence", snapshotValue(primary.audit_missing_evidence)),
+    panelRow("Provenance mismatch", snapshotValue(primary.audit_provenance_mismatch)),
+    panelRow("Release provenance", snapshotValue(primary.audit_release_provenance)),
+    panelRow("Artifact digest", snapshotValue(primary.audit_artifact_digest)),
+    panelRow("Artifact sha", snapshotValue(primary.audit_artifact_sha)),
+    panelRow("Diagnostics", snapshotValue(primary.audit_diagnostics)),
+    panelRow("Lineage", snapshotValue(primary.audit_lineage)),
+    panelRow("Source", `${snapshotValue(primary.audit_source_type)} ${snapshotValue(primary.audit_source_ref)}`),
+    panelRow("Redaction", snapshotValue(primary.audit_redaction_state)),
+    panelRow("Audit action", boundaryValue("automatic_audit_action_allowed")),
+    panelRow("Provenance repair", boundaryValue("automatic_provenance_repair_allowed")),
+  ];
   const panelRows = {
     "workbench-panel-account": accountRows,
     "workbench-panel-positions": positionRows,
     "workbench-panel-orders": orderRows,
     "workbench-panel-fills": fillRows,
+    "workbench-panel-risk": riskRows,
+    "workbench-panel-alerts": alertRows,
+    "workbench-panel-audit-provenance": auditProvenanceRows,
   };
 
   document.getElementById("trader-terminal-workbench").innerHTML = `
@@ -1278,6 +1330,8 @@ function renderTraderTerminalWorkbench(readModels) {
       ${panelRow("Source", `${snapshotValue(primary.source_type) || "unknown"} ${snapshotValue(primary.source_ref) || ""}`)}
       ${panelRow("Redaction", snapshotValue(primary.redaction_state) || "unknown")}
       ${panelRow("Blocking reasons", snapshotValue(primary.blocking_reasons) || "none")}
+      ${panelRow("Release provenance", snapshotValue(primary.audit_release_provenance) || "unknown")}
+      ${panelRow("Artifact digest", snapshotValue(primary.audit_artifact_digest) || "unknown")}
     </details>`;
 }
 
@@ -3860,6 +3914,42 @@ pub struct TraderTerminalReadModelStatus {
     pub fills_exchange_truth: DashboardValue<String>,
     pub fills_adapter_runtime_integrated: DashboardValue<String>,
     pub fills_values_are_exchange_truth: DashboardValue<String>,
+    pub risk_freshness_status: DashboardValue<String>,
+    pub risk_source_type: DashboardValue<String>,
+    pub risk_source_ref: DashboardValue<String>,
+    pub risk_redaction_state: DashboardValue<String>,
+    pub risk_state: DashboardValue<String>,
+    pub risk_priority_state: DashboardValue<String>,
+    pub risk_visible: DashboardValue<String>,
+    pub risk_manual_review_required: DashboardValue<String>,
+    pub risk_halted: DashboardValue<String>,
+    pub risk_mismatch_detected: DashboardValue<String>,
+    pub risk_freshness_rollup: DashboardValue<String>,
+    pub risk_critical_evidence_complete: DashboardValue<String>,
+    pub risk_alert_severity: DashboardValue<String>,
+    pub risk_alert_missing_evidence: DashboardValue<String>,
+    pub risk_alert_stale_source: DashboardValue<String>,
+    pub risk_alert_schema_mismatch: DashboardValue<String>,
+    pub risk_alert_redaction_breach: DashboardValue<String>,
+    pub risk_alert_forbidden_control_request: DashboardValue<String>,
+    pub risk_alert_summary: DashboardValue<String>,
+    pub risk_diagnostics: DashboardValue<String>,
+    pub risk_lineage: DashboardValue<String>,
+    pub audit_freshness_status: DashboardValue<String>,
+    pub audit_source_type: DashboardValue<String>,
+    pub audit_source_ref: DashboardValue<String>,
+    pub audit_redaction_state: DashboardValue<String>,
+    pub audit_state: DashboardValue<String>,
+    pub audit_closed: DashboardValue<String>,
+    pub audit_required_evidence_complete: DashboardValue<String>,
+    pub audit_required_components_complete: DashboardValue<String>,
+    pub audit_missing_evidence: DashboardValue<String>,
+    pub audit_release_provenance: DashboardValue<String>,
+    pub audit_artifact_digest: DashboardValue<String>,
+    pub audit_artifact_sha: DashboardValue<String>,
+    pub audit_provenance_mismatch: DashboardValue<String>,
+    pub audit_diagnostics: DashboardValue<String>,
+    pub audit_lineage: DashboardValue<String>,
     pub orders_summary: DashboardValue<String>,
     pub fills_summary: DashboardValue<String>,
     pub risk_summary: DashboardValue<String>,
@@ -3892,6 +3982,12 @@ pub struct TraderTerminalReadModelStatus {
     pub execution_algorithm_allowed: DashboardValue<bool>,
     pub automatic_fill_repair_allowed: DashboardValue<bool>,
     pub automatic_reconciliation_repair_allowed: DashboardValue<bool>,
+    pub dashboard_risk_controls_enabled: DashboardValue<bool>,
+    pub automatic_risk_action_allowed: DashboardValue<bool>,
+    pub automatic_risk_repair_allowed: DashboardValue<bool>,
+    pub automatic_alert_action_allowed: DashboardValue<bool>,
+    pub automatic_audit_action_allowed: DashboardValue<bool>,
+    pub automatic_provenance_repair_allowed: DashboardValue<bool>,
     pub product_grade_trading_terminal_claim: DashboardValue<bool>,
 }
 
@@ -4620,6 +4716,42 @@ fn degraded_trader_terminal_read_model_status(
         fills_exchange_truth: DashboardValue::unknown(),
         fills_adapter_runtime_integrated: DashboardValue::unknown(),
         fills_values_are_exchange_truth: DashboardValue::unknown(),
+        risk_freshness_status: DashboardValue::unknown(),
+        risk_source_type: DashboardValue::unknown(),
+        risk_source_ref: DashboardValue::unknown(),
+        risk_redaction_state: DashboardValue::unknown(),
+        risk_state: DashboardValue::unknown(),
+        risk_priority_state: DashboardValue::unknown(),
+        risk_visible: DashboardValue::unknown(),
+        risk_manual_review_required: DashboardValue::unknown(),
+        risk_halted: DashboardValue::unknown(),
+        risk_mismatch_detected: DashboardValue::unknown(),
+        risk_freshness_rollup: DashboardValue::unknown(),
+        risk_critical_evidence_complete: DashboardValue::unknown(),
+        risk_alert_severity: DashboardValue::unknown(),
+        risk_alert_missing_evidence: DashboardValue::unknown(),
+        risk_alert_stale_source: DashboardValue::unknown(),
+        risk_alert_schema_mismatch: DashboardValue::unknown(),
+        risk_alert_redaction_breach: DashboardValue::unknown(),
+        risk_alert_forbidden_control_request: DashboardValue::unknown(),
+        risk_alert_summary: DashboardValue::unknown(),
+        risk_diagnostics: DashboardValue::unknown(),
+        risk_lineage: DashboardValue::unknown(),
+        audit_freshness_status: DashboardValue::unknown(),
+        audit_source_type: DashboardValue::unknown(),
+        audit_source_ref: DashboardValue::unknown(),
+        audit_redaction_state: DashboardValue::unknown(),
+        audit_state: DashboardValue::unknown(),
+        audit_closed: DashboardValue::unknown(),
+        audit_required_evidence_complete: DashboardValue::unknown(),
+        audit_required_components_complete: DashboardValue::unknown(),
+        audit_missing_evidence: DashboardValue::unknown(),
+        audit_release_provenance: DashboardValue::unknown(),
+        audit_artifact_digest: DashboardValue::unknown(),
+        audit_artifact_sha: DashboardValue::unknown(),
+        audit_provenance_mismatch: DashboardValue::unknown(),
+        audit_diagnostics: DashboardValue::unknown(),
+        audit_lineage: DashboardValue::unknown(),
         orders_summary: DashboardValue::unknown(),
         fills_summary: DashboardValue::unknown(),
         risk_summary: DashboardValue::unknown(),
@@ -4652,6 +4784,12 @@ fn degraded_trader_terminal_read_model_status(
         execution_algorithm_allowed: DashboardValue::available(false),
         automatic_fill_repair_allowed: DashboardValue::available(false),
         automatic_reconciliation_repair_allowed: DashboardValue::available(false),
+        dashboard_risk_controls_enabled: DashboardValue::available(false),
+        automatic_risk_action_allowed: DashboardValue::available(false),
+        automatic_risk_repair_allowed: DashboardValue::available(false),
+        automatic_alert_action_allowed: DashboardValue::available(false),
+        automatic_audit_action_allowed: DashboardValue::available(false),
+        automatic_provenance_repair_allowed: DashboardValue::available(false),
         product_grade_trading_terminal_claim: DashboardValue::available(false),
     }
 }
@@ -4792,7 +4930,7 @@ fn trader_terminal_read_model_status_from_value(
         })
         .collect::<BTreeMap<_, _>>();
 
-    for component in ["account", "positions", "orders", "fills"] {
+    for component in TRADER_TERMINAL_READ_MODEL_REQUIRED_COMPONENTS {
         let source_type = read_model_component_source_field(value, component, "source_type");
         let source_ref = read_model_component_source_field(value, component, "source_ref");
         if source_type.availability != DashboardAvailability::Available
@@ -4813,7 +4951,7 @@ fn trader_terminal_read_model_status_from_value(
         }
     }
 
-    for component in ["orders", "fills"] {
+    for component in ["orders", "fills", "risk", "lifecycle_status"] {
         for diagnostic in read_model_component_diagnostics(value, component) {
             component_diagnostics.push(format!("{component}:diagnostic:{diagnostic}"));
         }
@@ -4855,6 +4993,95 @@ fn trader_terminal_read_model_status_from_value(
     if blocking_reasons.availability == DashboardAvailability::Available {
         diagnostics.push("blocking_reasons_present".to_string());
         health = strongest_health(health, HealthStatus::Degraded);
+    }
+
+    let risk_priority_state = read_model_risk_priority_state(value);
+    if risk_priority_state.value.as_deref() == Some("mismatch") {
+        component_diagnostics.push("risk:mismatch_detected".to_string());
+        health = strongest_health(health, HealthStatus::Error);
+    }
+    let risk_alert_missing_evidence =
+        read_model_component_data_nested_scalar(value, "risk", "alerts", "missing_evidence");
+    let risk_alert_stale_source =
+        read_model_component_data_nested_scalar(value, "risk", "alerts", "stale_source");
+    let risk_alert_schema_mismatch =
+        read_model_component_data_nested_scalar(value, "risk", "alerts", "schema_mismatch");
+    let risk_alert_redaction_breach =
+        read_model_component_data_nested_scalar(value, "risk", "alerts", "redaction_breach");
+    let risk_alert_forbidden_control_request = read_model_component_data_nested_scalar(
+        value,
+        "risk",
+        "alerts",
+        "forbidden_control_request",
+    );
+    for (field, alert_health, alert) in [
+        (
+            "missing_evidence",
+            HealthStatus::Error,
+            &risk_alert_missing_evidence,
+        ),
+        (
+            "stale_source",
+            HealthStatus::Stale,
+            &risk_alert_stale_source,
+        ),
+        (
+            "schema_mismatch",
+            HealthStatus::Error,
+            &risk_alert_schema_mismatch,
+        ),
+        (
+            "redaction_breach",
+            HealthStatus::Error,
+            &risk_alert_redaction_breach,
+        ),
+        (
+            "forbidden_control_request",
+            HealthStatus::Error,
+            &risk_alert_forbidden_control_request,
+        ),
+    ] {
+        if alert.value.as_deref() == Some("true") {
+            component_diagnostics.push(format!("risk:alert:{field}"));
+            health = strongest_health(health, alert_health);
+        }
+    }
+
+    let audit_closed = read_model_component_data_scalar(value, "lifecycle_status", "audit_closed");
+    let audit_required_evidence_complete =
+        read_model_component_data_scalar(value, "lifecycle_status", "required_evidence_complete");
+    let audit_required_components_complete =
+        read_model_component_data_scalar(value, "lifecycle_status", "required_components_complete");
+    let audit_missing_evidence =
+        read_model_component_data_array_field(value, "lifecycle_status", "missing_evidence");
+    let audit_release_provenance =
+        read_model_component_data_scalar(value, "lifecycle_status", "release_provenance");
+    let audit_artifact_digest =
+        read_model_component_data_scalar(value, "lifecycle_status", "artifact_digest");
+    let audit_artifact_sha =
+        read_model_component_data_scalar(value, "lifecycle_status", "artifact_sha");
+    let audit_provenance_mismatch =
+        read_model_component_data_scalar(value, "lifecycle_status", "provenance_mismatch");
+    if audit_closed.value.as_deref() == Some("true")
+        && (audit_required_evidence_complete.value.as_deref() != Some("true")
+            || audit_required_components_complete.value.as_deref() != Some("true")
+            || audit_missing_evidence.availability == DashboardAvailability::Available)
+    {
+        component_diagnostics
+            .push("lifecycle_status:audit_closed_without_complete_evidence".to_string());
+        health = strongest_health(health, HealthStatus::Error);
+    }
+    if audit_closed.value.as_deref() == Some("true")
+        && (audit_release_provenance.availability != DashboardAvailability::Available
+            || audit_artifact_digest.availability != DashboardAvailability::Available
+            || audit_artifact_sha.availability != DashboardAvailability::Available)
+    {
+        component_diagnostics.push("lifecycle_status:audit_closed_missing_provenance".to_string());
+        health = strongest_health(health, HealthStatus::Error);
+    }
+    if audit_provenance_mismatch.value.as_deref() == Some("true") {
+        component_diagnostics.push("lifecycle_status:provenance_mismatch".to_string());
+        health = strongest_health(health, HealthStatus::Error);
     }
 
     let boundary = value.get("capability_boundary").unwrap_or(&Value::Null);
@@ -5005,6 +5232,42 @@ fn trader_terminal_read_model_status_from_value(
     let automatic_reconciliation_repair_allowed = optional_false_read_model_boundary_bool(
         boundary,
         "automatic_reconciliation_repair_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let dashboard_risk_controls_enabled = optional_false_read_model_boundary_bool(
+        boundary,
+        "dashboard_risk_controls_enabled",
+        &mut diagnostics,
+        &mut health,
+    );
+    let automatic_risk_action_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "automatic_risk_action_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let automatic_risk_repair_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "automatic_risk_repair_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let automatic_alert_action_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "automatic_alert_action_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let automatic_audit_action_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "automatic_audit_action_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let automatic_provenance_repair_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "automatic_provenance_repair_allowed",
         &mut diagnostics,
         &mut health,
     );
@@ -5230,6 +5493,74 @@ fn trader_terminal_read_model_status_from_value(
             "fills",
             "values_are_exchange_truth",
         ),
+        risk_freshness_status: read_model_component_freshness_status(value, "risk"),
+        risk_source_type: read_model_component_source_field(value, "risk", "source_type"),
+        risk_source_ref: read_model_component_source_field(value, "risk", "source_ref"),
+        risk_redaction_state: read_model_component_redaction_status(value, "risk"),
+        risk_state: read_model_component_data_scalar(value, "risk", "risk_state"),
+        risk_priority_state,
+        risk_visible: read_model_component_data_scalar(value, "risk", "risk_visible"),
+        risk_manual_review_required: read_model_component_data_scalar(
+            value,
+            "risk",
+            "manual_review_required",
+        ),
+        risk_halted: read_model_component_data_scalar(value, "risk", "halted"),
+        risk_mismatch_detected: read_model_component_data_scalar(
+            value,
+            "risk",
+            "mismatch_detected",
+        ),
+        risk_freshness_rollup: read_model_component_data_scalar(value, "risk", "freshness_rollup"),
+        risk_critical_evidence_complete: read_model_component_data_scalar(
+            value,
+            "risk",
+            "critical_evidence_complete",
+        ),
+        risk_alert_severity: read_model_alert_severity(value),
+        risk_alert_missing_evidence,
+        risk_alert_stale_source,
+        risk_alert_schema_mismatch,
+        risk_alert_redaction_breach,
+        risk_alert_forbidden_control_request,
+        risk_alert_summary: read_model_component_data_object_summary(
+            value,
+            "risk",
+            "alerts",
+            &[
+                "highest_severity",
+                "missing_evidence",
+                "stale_source",
+                "schema_mismatch",
+                "redaction_breach",
+                "forbidden_control_request",
+            ],
+        ),
+        risk_diagnostics: read_model_component_diagnostics_summary(value, "risk"),
+        risk_lineage: read_model_component_lineage_summary(value, "risk"),
+        audit_freshness_status: read_model_component_freshness_status(value, "lifecycle_status"),
+        audit_source_type: read_model_component_source_field(
+            value,
+            "lifecycle_status",
+            "source_type",
+        ),
+        audit_source_ref: read_model_component_source_field(
+            value,
+            "lifecycle_status",
+            "source_ref",
+        ),
+        audit_redaction_state: read_model_component_redaction_status(value, "lifecycle_status"),
+        audit_state: read_model_component_data_scalar(value, "lifecycle_status", "audit_state"),
+        audit_closed,
+        audit_required_evidence_complete,
+        audit_required_components_complete,
+        audit_missing_evidence,
+        audit_release_provenance,
+        audit_artifact_digest,
+        audit_artifact_sha,
+        audit_provenance_mismatch,
+        audit_diagnostics: read_model_component_diagnostics_summary(value, "lifecycle_status"),
+        audit_lineage: read_model_component_lineage_summary(value, "lifecycle_status"),
         orders_summary: read_model_component_data_summary(value, "orders"),
         fills_summary: read_model_component_data_summary(value, "fills"),
         risk_summary: read_model_component_data_summary(value, "risk"),
@@ -5262,6 +5593,12 @@ fn trader_terminal_read_model_status_from_value(
         execution_algorithm_allowed,
         automatic_fill_repair_allowed,
         automatic_reconciliation_repair_allowed,
+        dashboard_risk_controls_enabled,
+        automatic_risk_action_allowed,
+        automatic_risk_repair_allowed,
+        automatic_alert_action_allowed,
+        automatic_audit_action_allowed,
+        automatic_provenance_repair_allowed,
         product_grade_trading_terminal_claim,
     }
 }
@@ -5329,6 +5666,8 @@ fn trader_terminal_read_model_readiness(
         "component_unavailable".to_string()
     } else if health == HealthStatus::Error {
         "fail_closed".to_string()
+    } else if health == HealthStatus::Stale {
+        "stale_artifact".to_string()
     } else if health == HealthStatus::Degraded || has_blocking_reasons {
         "degraded_artifact".to_string()
     } else {
@@ -5408,14 +5747,21 @@ fn read_model_component_data_summary(snapshot: &Value, component: &str) -> Dashb
         ],
         "risk" => &[
             "risk_state",
+            "risk_visible",
             "critical_evidence_complete",
             "manual_review_required",
             "halted",
+            "mismatch_detected",
             "freshness_rollup",
         ],
         "lifecycle_status" => &[
             "lifecycle_status",
             "audit_state",
+            "audit_closed",
+            "required_evidence_complete",
+            "required_components_complete",
+            "release_provenance",
+            "artifact_digest",
             "readback_status",
             "no_retry",
             "ledger_present",
@@ -5450,6 +5796,110 @@ fn read_model_component_data_scalar(
         .and_then(|data| data.get(field))
         .and_then(read_model_scalar_string)
         .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn read_model_component_data_bool(snapshot: &Value, component: &str, field: &str) -> Option<bool> {
+    snapshot
+        .get("components")
+        .and_then(|components| components.get(component))
+        .and_then(|component| component.get("data"))
+        .and_then(|data| data.get(field))
+        .and_then(Value::as_bool)
+}
+
+fn read_model_component_data_nested_scalar(
+    snapshot: &Value,
+    component: &str,
+    object_field: &str,
+    field: &str,
+) -> DashboardValue<String> {
+    snapshot
+        .get("components")
+        .and_then(|components| components.get(component))
+        .and_then(|component| component.get("data"))
+        .and_then(|data| data.get(object_field))
+        .and_then(|object| object.get(field))
+        .and_then(read_model_scalar_string)
+        .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn read_model_component_data_nested_bool(
+    snapshot: &Value,
+    component: &str,
+    object_field: &str,
+    field: &str,
+) -> Option<bool> {
+    snapshot
+        .get("components")
+        .and_then(|components| components.get(component))
+        .and_then(|component| component.get("data"))
+        .and_then(|data| data.get(object_field))
+        .and_then(|object| object.get(field))
+        .and_then(Value::as_bool)
+}
+
+fn read_model_component_data_array_field(
+    snapshot: &Value,
+    component: &str,
+    field: &str,
+) -> DashboardValue<String> {
+    snapshot
+        .get("components")
+        .and_then(|components| components.get(component))
+        .and_then(|component| component.get("data"))
+        .and_then(|data| data.get(field))
+        .and_then(read_model_scalar_string)
+        .filter(|joined| !joined.is_empty())
+        .map_or_else(DashboardValue::unknown, DashboardValue::available)
+}
+
+fn read_model_risk_priority_state(snapshot: &Value) -> DashboardValue<String> {
+    let freshness = read_model_component_freshness_status(snapshot, "risk");
+    let freshness_rollup = read_model_component_data_scalar(snapshot, "risk", "freshness_rollup");
+    let risk_visible = read_model_component_data_bool(snapshot, "risk", "risk_visible");
+    let manual_review_required =
+        read_model_component_data_bool(snapshot, "risk", "manual_review_required");
+    let halted = read_model_component_data_bool(snapshot, "risk", "halted");
+    let mismatch_detected = read_model_component_data_bool(snapshot, "risk", "mismatch_detected");
+
+    let state = if halted == Some(true) {
+        "halted"
+    } else if mismatch_detected == Some(true) {
+        "mismatch"
+    } else if freshness.value.as_deref() == Some("stale")
+        || freshness_rollup.value.as_deref() == Some("stale")
+    {
+        "stale"
+    } else if manual_review_required == Some(true) {
+        "manual_review"
+    } else if risk_visible == Some(true) {
+        "risk_visible"
+    } else {
+        "healthy"
+    };
+    DashboardValue::available(state.to_string())
+}
+
+fn read_model_alert_severity(snapshot: &Value) -> DashboardValue<String> {
+    let critical = [
+        "missing_evidence",
+        "schema_mismatch",
+        "redaction_breach",
+        "forbidden_control_request",
+    ]
+    .iter()
+    .any(|field| {
+        read_model_component_data_nested_bool(snapshot, "risk", "alerts", field) == Some(true)
+    });
+    if critical {
+        return DashboardValue::available("critical".to_string());
+    }
+    if read_model_component_data_nested_bool(snapshot, "risk", "alerts", "stale_source")
+        == Some(true)
+    {
+        return DashboardValue::available("warning".to_string());
+    }
+    read_model_component_data_nested_scalar(snapshot, "risk", "alerts", "highest_severity")
 }
 
 fn read_model_component_data_object_summary(
@@ -12914,6 +13364,7 @@ mod tests {
             "workbench-panel-orders",
             "workbench-panel-fills",
             "workbench-panel-risk",
+            "workbench-panel-alerts",
             "workbench-panel-audit-provenance",
             "foundation-boundary",
             "read-only-boundary",
@@ -12941,6 +13392,13 @@ mod tests {
             "Reconciliation",
             "Risk input",
             "Schema-only truth",
+            "Priority state",
+            "Risk visible",
+            "Manual review",
+            "Forbidden control",
+            "Release provenance",
+            "Artifact digest",
+            "Provenance repair",
         ] {
             assert!(
                 DASHBOARD_HTML.contains(required_marker) || DASHBOARD_JS.contains(required_marker),
@@ -12991,6 +13449,15 @@ mod tests {
             "fill_repair_action",
             "reconciliation_repair_action",
             "execution_algorithm_action",
+            "data-workbench-action=\"risk_action\"",
+            "data-workbench-action=\"risk_repair\"",
+            "data-workbench-action=\"alert_action\"",
+            "data-workbench-action=\"audit_action\"",
+            "data-workbench-action=\"provenance_repair\"",
+            "/actions/risk",
+            "/actions/alert",
+            "/actions/audit",
+            "/actions/provenance_repair",
         ] {
             assert!(
                 !DASHBOARD_HTML.contains(forbidden_control),
@@ -14417,8 +14884,75 @@ mod tests {
             runtime.fills_values_are_exchange_truth.value.as_deref(),
             Some("false")
         );
+        assert_eq!(
+            runtime.risk_priority_state.value.as_deref(),
+            Some("healthy")
+        );
+        assert_eq!(runtime.risk_state.value.as_deref(), Some("active"));
+        assert_eq!(
+            runtime.risk_freshness_status.value.as_deref(),
+            Some("fresh")
+        );
+        assert_eq!(
+            runtime.risk_source_ref.value.as_deref(),
+            Some("artifact://v0_21/unified_read_model_snapshot.json")
+        );
+        assert_eq!(runtime.risk_visible.value.as_deref(), Some("false"));
+        assert_eq!(
+            runtime.risk_manual_review_required.value.as_deref(),
+            Some("false")
+        );
+        assert_eq!(runtime.risk_halted.value.as_deref(), Some("false"));
+        assert_eq!(
+            runtime.risk_mismatch_detected.value.as_deref(),
+            Some("false")
+        );
+        assert_eq!(runtime.risk_alert_severity.value.as_deref(), Some("info"));
+        assert_eq!(
+            runtime.risk_alert_missing_evidence.value.as_deref(),
+            Some("false")
+        );
+        assert_eq!(
+            runtime
+                .risk_alert_forbidden_control_request
+                .value
+                .as_deref(),
+            Some("false")
+        );
+        assert!(
+            runtime.risk_lineage.value.as_deref().is_some_and(
+                |lineage| lineage.contains("ntpro.v210.trader_terminal_readonly_dashboard.v1")
+            )
+        );
+        assert_eq!(runtime.audit_state.value.as_deref(), Some("audit_closed"));
+        assert_eq!(runtime.audit_closed.value.as_deref(), Some("true"));
+        assert_eq!(
+            runtime.audit_required_evidence_complete.value.as_deref(),
+            Some("true")
+        );
+        assert_eq!(
+            runtime.audit_required_components_complete.value.as_deref(),
+            Some("true")
+        );
+        assert_eq!(
+            runtime.audit_release_provenance.value.as_deref(),
+            Some("ntpro-rust-only-v0.21.1")
+        );
+        assert_eq!(
+            runtime.audit_artifact_digest.value.as_deref(),
+            Some("sha256:read-model-dashboard-ready")
+        );
+        assert_eq!(
+            runtime.audit_artifact_sha.value.as_deref(),
+            Some("sha256:read-model-dashboard-ready")
+        );
+        assert_eq!(
+            runtime.audit_provenance_mismatch.value.as_deref(),
+            Some("false")
+        );
         assert_eq!(runtime.dashboard_order_controls_enabled.value, Some(false));
         assert_eq!(runtime.dashboard_fill_controls_enabled.value, Some(false));
+        assert_eq!(runtime.dashboard_risk_controls_enabled.value, Some(false));
         assert_eq!(runtime.dashboard_submit_controls_enabled.value, Some(false));
         assert_eq!(
             runtime.dashboard_replace_controls_enabled.value,
@@ -14464,6 +14998,14 @@ mod tests {
         assert_eq!(runtime.automatic_fill_repair_allowed.value, Some(false));
         assert_eq!(
             runtime.automatic_reconciliation_repair_allowed.value,
+            Some(false)
+        );
+        assert_eq!(runtime.automatic_risk_action_allowed.value, Some(false));
+        assert_eq!(runtime.automatic_risk_repair_allowed.value, Some(false));
+        assert_eq!(runtime.automatic_alert_action_allowed.value, Some(false));
+        assert_eq!(runtime.automatic_audit_action_allowed.value, Some(false));
+        assert_eq!(
+            runtime.automatic_provenance_repair_allowed.value,
             Some(false)
         );
         assert!(
@@ -14882,6 +15424,347 @@ mod tests {
                     .is_some_and(|value| value
                         .contains(&format!("{component}:runtime_exchange_truth_claimed"))),
                 "{component}"
+            );
+        }
+    }
+
+    #[test]
+    fn trader_terminal_risk_panel_prioritizes_state() {
+        for (
+            name,
+            risk_visible,
+            manual_review,
+            halted,
+            stale,
+            mismatch,
+            component_status,
+            snapshot_health,
+            expected_priority,
+            expected_health,
+            expected_readiness,
+        ) in [
+            (
+                "healthy",
+                false,
+                false,
+                false,
+                false,
+                false,
+                "healthy",
+                "healthy",
+                "healthy",
+                HealthStatus::Healthy,
+                "ready_readonly_artifact",
+            ),
+            (
+                "risk-visible",
+                true,
+                false,
+                false,
+                false,
+                false,
+                "healthy",
+                "healthy",
+                "risk_visible",
+                HealthStatus::Healthy,
+                "ready_readonly_artifact",
+            ),
+            (
+                "manual-review",
+                true,
+                true,
+                false,
+                false,
+                false,
+                "degraded",
+                "degraded",
+                "manual_review",
+                HealthStatus::Degraded,
+                "degraded_artifact",
+            ),
+            (
+                "stale",
+                true,
+                true,
+                false,
+                true,
+                false,
+                "healthy",
+                "healthy",
+                "stale",
+                HealthStatus::Stale,
+                "stale_artifact",
+            ),
+            (
+                "mismatch",
+                true,
+                true,
+                false,
+                false,
+                true,
+                "healthy",
+                "healthy",
+                "mismatch",
+                HealthStatus::Error,
+                "fail_closed",
+            ),
+            (
+                "halted",
+                true,
+                true,
+                true,
+                false,
+                false,
+                "degraded",
+                "degraded",
+                "halted",
+                HealthStatus::Degraded,
+                "degraded_artifact",
+            ),
+        ] {
+            let runtime = trader_terminal_read_model_runtime_with_mutation(
+                &format!("risk-priority-{name}"),
+                |artifact| {
+                    artifact["health_status"] = json!(snapshot_health);
+                    let risk = &mut artifact["components"]["risk"];
+                    risk["component_status"] = json!(component_status);
+                    risk["freshness"]["status"] = if stale {
+                        json!("stale")
+                    } else {
+                        json!("fresh")
+                    };
+                    risk["data"]["risk_visible"] = json!(risk_visible);
+                    risk["data"]["manual_review_required"] = json!(manual_review);
+                    risk["data"]["halted"] = json!(halted);
+                    risk["data"]["mismatch_detected"] = json!(mismatch);
+                    risk["data"]["freshness_rollup"] = if stale {
+                        json!("stale")
+                    } else {
+                        json!("fresh")
+                    };
+                },
+            );
+
+            assert_eq!(runtime.health, expected_health, "{name}");
+            assert_eq!(
+                runtime.readiness_status.value.as_deref(),
+                Some(expected_readiness),
+                "{name}"
+            );
+            assert_eq!(
+                runtime.risk_priority_state.value.as_deref(),
+                Some(expected_priority),
+                "{name}"
+            );
+            assert_eq!(
+                runtime.risk_manual_review_required.value.as_deref(),
+                Some(if manual_review { "true" } else { "false" }),
+                "{name}"
+            );
+            assert_eq!(
+                runtime.risk_halted.value.as_deref(),
+                Some(if halted { "true" } else { "false" }),
+                "{name}"
+            );
+            assert_eq!(runtime.dashboard_risk_controls_enabled.value, Some(false));
+            assert_eq!(runtime.automatic_risk_action_allowed.value, Some(false));
+            assert_eq!(runtime.automatic_risk_repair_allowed.value, Some(false));
+        }
+    }
+
+    #[test]
+    fn trader_terminal_alert_panel_prioritizes_severity() {
+        for (name, field, expected_severity, expected_health, expected_readiness) in [
+            (
+                "stale-source",
+                "stale_source",
+                "warning",
+                HealthStatus::Stale,
+                "stale_artifact",
+            ),
+            (
+                "missing-evidence",
+                "missing_evidence",
+                "critical",
+                HealthStatus::Error,
+                "fail_closed",
+            ),
+            (
+                "schema-mismatch",
+                "schema_mismatch",
+                "critical",
+                HealthStatus::Error,
+                "fail_closed",
+            ),
+            (
+                "redaction-breach",
+                "redaction_breach",
+                "critical",
+                HealthStatus::Error,
+                "fail_closed",
+            ),
+            (
+                "forbidden-control",
+                "forbidden_control_request",
+                "critical",
+                HealthStatus::Error,
+                "fail_closed",
+            ),
+        ] {
+            let runtime = trader_terminal_read_model_runtime_with_mutation(
+                &format!("risk-alert-{name}"),
+                |artifact| {
+                    let risk = &mut artifact["components"]["risk"];
+                    risk["data"]["alerts"][field] = json!(true);
+                    if field == "stale_source" {
+                        risk["freshness"]["status"] = json!("stale");
+                        risk["data"]["freshness_rollup"] = json!("stale");
+                    }
+                },
+            );
+
+            assert_eq!(runtime.health, expected_health, "{name}");
+            assert_eq!(
+                runtime.readiness_status.value.as_deref(),
+                Some(expected_readiness),
+                "{name}"
+            );
+            assert_eq!(
+                runtime.risk_alert_severity.value.as_deref(),
+                Some(expected_severity),
+                "{name}"
+            );
+            assert!(
+                runtime
+                    .risk_alert_summary
+                    .value
+                    .as_deref()
+                    .is_some_and(|summary| summary.contains(field)),
+                "{name}"
+            );
+            assert!(
+                runtime
+                    .diagnostic
+                    .value
+                    .as_deref()
+                    .is_some_and(|diagnostic| diagnostic.contains(field)),
+                "{name}"
+            );
+            assert_eq!(runtime.automatic_alert_action_allowed.value, Some(false));
+        }
+    }
+
+    #[test]
+    fn trader_terminal_audit_closed_requires_complete_evidence() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "audit-evidence-missing",
+            |artifact| {
+                let lifecycle = &mut artifact["components"]["lifecycle_status"];
+                lifecycle["data"]["audit_closed"] = json!(true);
+                lifecycle["data"]["required_evidence_complete"] = json!(false);
+                lifecycle["data"]["missing_evidence"] =
+                    json!(["risk_required_evidence", "release_provenance_digest"]);
+            },
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Error);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("fail_closed")
+        );
+        assert_eq!(runtime.audit_closed.value.as_deref(), Some("true"));
+        assert_eq!(
+            runtime.audit_required_evidence_complete.value.as_deref(),
+            Some("false")
+        );
+        assert!(
+            runtime
+                .audit_missing_evidence
+                .value
+                .as_deref()
+                .is_some_and(|missing| missing.contains("release_provenance_digest"))
+        );
+        assert!(
+            runtime
+                .diagnostic
+                .value
+                .as_deref()
+                .is_some_and(|diagnostic| diagnostic
+                    .contains("lifecycle_status:audit_closed_without_complete_evidence"))
+        );
+        assert_eq!(runtime.automatic_audit_action_allowed.value, Some(false));
+    }
+
+    #[test]
+    fn trader_terminal_provenance_mismatch_fails_closed() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "audit-provenance-mismatch",
+            |artifact| {
+                let lifecycle = &mut artifact["components"]["lifecycle_status"];
+                lifecycle["data"]["release_provenance"] = json!("unexpected-release-tag");
+                lifecycle["data"]["artifact_digest"] = json!("sha256:mismatched");
+                lifecycle["data"]["provenance_mismatch"] = json!(true);
+            },
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Error);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("fail_closed")
+        );
+        assert_eq!(
+            runtime.audit_release_provenance.value.as_deref(),
+            Some("unexpected-release-tag")
+        );
+        assert_eq!(
+            runtime.audit_artifact_digest.value.as_deref(),
+            Some("sha256:mismatched")
+        );
+        assert_eq!(
+            runtime.audit_provenance_mismatch.value.as_deref(),
+            Some("true")
+        );
+        assert!(
+            runtime.diagnostic.value.as_deref().is_some_and(
+                |diagnostic| diagnostic.contains("lifecycle_status:provenance_mismatch")
+            )
+        );
+        assert_eq!(
+            runtime.automatic_provenance_repair_allowed.value,
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn trader_terminal_risk_alert_audit_action_flags_fail_closed_when_true() {
+        for field in [
+            "dashboard_risk_controls_enabled",
+            "automatic_risk_action_allowed",
+            "automatic_risk_repair_allowed",
+            "automatic_alert_action_allowed",
+            "automatic_audit_action_allowed",
+            "automatic_provenance_repair_allowed",
+        ] {
+            let runtime = trader_terminal_read_model_runtime_with_mutation(
+                &format!("automatic-action-{field}"),
+                |artifact| {
+                    artifact["capability_boundary"][field] = json!(true);
+                },
+            );
+
+            assert_eq!(runtime.health, HealthStatus::Error, "{field}");
+            assert_eq!(
+                runtime.readiness_status.value.as_deref(),
+                Some("fail_closed"),
+                "{field}"
+            );
+            assert!(
+                runtime
+                    .diagnostic
+                    .value
+                    .as_deref()
+                    .is_some_and(|diagnostic| diagnostic.contains(&format!("{field}_true"))),
+                "{field}"
             );
         }
     }
@@ -19107,17 +19990,36 @@ mod tests {
             })),
             "risk": read_model_component("healthy", &json!({
                 "risk_state": "active",
+                "risk_visible": false,
                 "critical_evidence_complete": true,
                 "manual_review_required": false,
                 "halted": false,
+                "mismatch_detected": false,
                 "freshness_rollup": "fresh",
+                "alerts": {
+                    "highest_severity": "info",
+                    "missing_evidence": false,
+                    "stale_source": false,
+                    "schema_mismatch": false,
+                    "redaction_breach": false,
+                    "forbidden_control_request": false
+                },
+                "blocking_reasons": [],
                 "production_mutation_allowed": false,
                 "automatic_trading_action_allowed": false,
-                "audit_closed_allowed": false
+                "audit_closed_allowed": true
             })),
             "lifecycle_status": read_model_component("healthy", &json!({
                 "lifecycle_status": "read_only_foundation",
-                "audit_state": "closed",
+                "audit_state": "audit_closed",
+                "audit_closed": true,
+                "required_evidence_complete": true,
+                "required_components_complete": true,
+                "missing_evidence": [],
+                "release_provenance": "ntpro-rust-only-v0.21.1",
+                "artifact_digest": "sha256:read-model-dashboard-ready",
+                "artifact_sha": "sha256:read-model-dashboard-ready",
+                "provenance_mismatch": false,
                 "readback_status": "not_applicable_readonly",
                 "no_retry": true,
                 "ledger_present": true,
@@ -19154,7 +20056,10 @@ mod tests {
             "automatic_fill_repair_allowed": false,
             "automatic_reconciliation_repair_allowed": false,
             "automatic_risk_action_allowed": false,
-            "automatic_risk_repair_allowed": false
+            "automatic_risk_repair_allowed": false,
+            "automatic_alert_action_allowed": false,
+            "automatic_audit_action_allowed": false,
+            "automatic_provenance_repair_allowed": false
         });
         json!({
             "contract_version": UNIFIED_READ_MODEL_CONTRACT_VERSION,
