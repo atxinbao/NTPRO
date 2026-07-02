@@ -4,30 +4,33 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.21.1`, the Unified Read Model Foundation Hardening Patch release.
-The next patch track is `v0.21.2`.
-The next capability track is `v0.22.0`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.22.0`, the Trader Terminal Workbench release.
+The next patch track is `v0.22.1`.
+The next capability track is `v0.23.0`.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.21.1
+ntpro-rust-only-v0.22.0
 ```
 
 Current capability boundary:
 
 ```text
-Unified Read Model Foundation Hardening Patch
+Trader Terminal Workbench
 v0.20.1 production order lifecycle hardening baseline
 v0.21.0 unified read model foundation closeout baseline
+v0.21.1 unified read model hardening baseline
 account read model evidence required
 position read model evidence required
 order lifecycle read model evidence required
 fill/execution read model evidence required
 risk state projection evidence required
-Trader Terminal read-only Dashboard foundation evidence required
+Trader Terminal read-only workbench evidence required
+gated manual operation-entry contract required
+runtime degradation and boundary tests required
 read model golden trace coverage
 strict release provenance required
 default local/PR/release execution fail-closed
@@ -37,6 +40,7 @@ implicit retry not included
 automatic cancel not included
 automatic remediation not included
 retry / replace / amend / flatten not included
+ungated submit / cancel / retry / replace / amend / flatten not included
 no strategy-driven production execution
 no listenKey lifecycle
 no real-funds proof in CI
@@ -45,11 +49,11 @@ no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no product-grade live trading terminal claim
 ```
 
-`v0.21.1` hardens the unified read model foundation with v0.21.0 closeout,
-health status semantics, executable read-model replay, JSON Schema boundaries,
-Trader Terminal read-only runtime bridge evidence, and v0.22.0 dependency
-proof. It does not create a Trader Terminal workbench, a general production
-trading terminal, or automatic execution.
+`v0.22.0` publishes the Trader Terminal workbench line with read-only first
+account, position, order, fill, risk, alerts, audit, provenance, gated manual
+operation-entry evidence, runtime degradation tests, release gates, and strict
+provenance. It does not create a product-grade live trading terminal, ungated
+operation controls, or automatic execution.
 
 ## Published Hardening Patch: v0.7.1
 
@@ -522,6 +526,44 @@ hardening chain.
 - automatic cancel;
 - automatic remediation;
 - retry, replace, amend, correction, flatten, or remediation;
+- Dashboard order controls;
+- Dashboard approval controls;
+- Dashboard cancel controls;
+- Dashboard retry controls;
+- Dashboard submit/replace/amend/flatten/order-ticket controls;
+- strategy-driven production execution;
+- multi-account production execution;
+- multi-venue production execution;
+- listenKey creation, keepalive, or close lifecycle;
+- real-funds proof in CI;
+- general production trading platform claim.
+
+## Published Capability Track: v0.22.0
+
+`v0.22.0` is the published Trader Terminal Workbench line. It uses the
+v0.21.1 canonical Unified Read Model runtime bridge and presents the scoped
+workbench as read-only first.
+
+`v0.22.0` includes:
+
+- v0.22 scope decision and v0.21.1 dependency gate;
+- Trader Terminal read-only workbench shell and navigation;
+- account and position workbench panels;
+- order and fill workbench panels;
+- risk, alerts, audit, and provenance drill-down panels;
+- gated manual operation-entry contract;
+- runtime degradation and boundary tests;
+- v0.22 release gates and strict provenance.
+
+`v0.22.0` explicitly does not include:
+
+- product-grade live trading terminal;
+- new production submit capability;
+- production order mutation;
+- ungated submit, cancel, retry, replace, amend, or flatten;
+- implicit retry;
+- automatic cancel;
+- automatic remediation;
 - Dashboard order controls;
 - Dashboard approval controls;
 - Dashboard cancel controls;

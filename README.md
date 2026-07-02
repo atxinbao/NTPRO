@@ -6,36 +6,36 @@ NautilusTrader.
 The current source-tree milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.21.1
-Latest formal release: ntpro-rust-only-v0.21.1
-Current source-tree readiness: ntpro-rust-only-v0.21.1 released
-Current capability: Unified Read Model Foundation Hardening Patch
-Next patch: v0.21.2 Reserved Hardening Patch
-Next capability: v0.22.0 Reserved Capability Track
-Boundary: v0.21.1 is a hardening patch for the read-only unified read model foundation for account, position, order, fill, risk, and Trader Terminal Dashboard evidence. It does not include Trader Terminal workbench, product-grade live trading, new production submit capability, production order mutation, implicit retry, automatic cancel, automatic remediation, retry/replace/amend/flatten, strategy-driven production execution, multi-account or multi-venue execution, real-funds proof in CI, or Dashboard order/approval/cancel/retry/submit/replace/amend/flatten/order-ticket controls.
+Current source tag: ntpro-rust-only-v0.22.0
+Latest formal release: ntpro-rust-only-v0.22.0
+Current source-tree readiness: ntpro-rust-only-v0.22.0 released
+Current capability: Trader Terminal Workbench
+Next patch: v0.22.1 Reserved Hardening Patch
+Next capability: v0.23.0 Reserved Capability Track
+Boundary: v0.22.0 is a read-only first Trader Terminal workbench for account, position, order, fill, risk, alerts, audit, provenance, and gated manual operation-entry evidence. It does not include product-grade live trading, new production submit capability, production order mutation, ungated submit/cancel/retry/replace/amend/flatten, implicit retry, automatic cancel, automatic remediation, strategy-driven production execution, multi-account or multi-venue execution, real-funds proof in CI, or Dashboard order/approval/cancel/retry/submit/replace/amend/flatten/order-ticket controls.
 ```
 
-`ntpro-rust-only-v0.21.1` is the latest formal GitHub Release. It is the
-Unified Read Model Foundation Hardening Patch for account, position, order,
-fill, risk, and Trader Terminal read-only Dashboard evidence. It preserves the
-v0.21.0 no-submit/no-Dashboard-controls boundary while closing V211 release
-gate, strict provenance, and v0.22.0 dependency evidence.
+`ntpro-rust-only-v0.22.0` is the latest formal GitHub Release. It is the Trader
+Terminal Workbench release over the v0.21.1 canonical Unified Read Model
+runtime bridge. It preserves the no-submit/no-Dashboard-controls boundary while
+closing V220 release gate, strict provenance, runtime degradation, and
+workbench evidence.
 
-The latest formal release is published as a GitHub Release for the v0.21.1
+The latest formal release is published as a GitHub Release for the v0.22.0
 tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.21.1
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.22.0
 ```
 
-`v0.21.1` is the current formal Unified Read Model Foundation Hardening Patch.
-It remains a read-only foundation line, not a Trader Terminal workbench or
-general production trading platform claim. It does not add production submit,
-order mutation, implicit retry, automatic cancel, automatic remediation, bulk
-order execution, strategy-driven production execution, or Dashboard operation
-controls.
+`v0.22.0` is the current formal Trader Terminal Workbench release. It remains
+read-only first and gated-operation-boundary only, not a product-grade live
+trading terminal or general production trading platform claim. It does not add
+production submit, order mutation, ungated cancel/retry/replace/amend/flatten,
+implicit retry, automatic cancel, automatic remediation, bulk order execution,
+strategy-driven production execution, or Dashboard operation controls.
 
-The next patch track is `v0.21.2`. The next capability track is `v0.22.0`.
+The next patch track is `v0.22.1`. The next capability track is `v0.23.0`.
 
 ## Current Status
 
@@ -111,8 +111,8 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.21.1 is the current formal release line. It is the Unified Read Model
-Foundation Hardening Patch and builds on the earlier foundation layers:
+v0.22.0 is the current formal release line. It is the Trader Terminal Workbench
+release and builds on the earlier foundation layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
 - `v0.5.0`: local Binance sandbox workflow artifacts;
@@ -183,6 +183,22 @@ Foundation Hardening Patch and builds on the earlier foundation layers:
   approval, one order, one venue, one execution attempt, risk gate, adapter
   boundary, post-cancel readback, failure evidence, read-only Dashboard audit,
   golden traces, and no production order submit lifecycle.
+- `v0.20.0`: Owner-Approved Production Order Lifecycle Foundation, with
+  pre-submit risk evidence, owner approval, one guarded submit attempt,
+  response redaction, post-submit readback, failure/no-retry evidence,
+  read-only Dashboard audit, golden traces, and no product-grade trading claim.
+- `v0.20.1`: Production Order Lifecycle Release Closeout & Provenance Hardening
+  patch, with release evidence, provenance hardening, and no capability
+  expansion from v0.20.0.
+- `v0.21.0`: Unified Read Model Foundation, with account, position, order,
+  fill, risk, and Trader Terminal read-only Dashboard foundation evidence.
+- `v0.21.1`: Unified Read Model Foundation Hardening Patch, with health status
+  semantics, executable read-model replay, JSON Schema boundaries, read-model
+  runtime bridge evidence, and v0.22 dependency proof.
+- `v0.22.0`: Trader Terminal Workbench, with read-only first account,
+  position, order, fill, risk, alerts, audit, provenance, gated manual
+  operation-entry evidence, runtime degradation tests, release gates, and
+  strict provenance.
 
 `v0.5.0` was completed as a scoped readiness milestone and is absorbed into the
 `v0.6.0` release tree. It is not published as a separate public GitHub Release.
