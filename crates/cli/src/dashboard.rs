@@ -15700,6 +15700,225 @@ mod tests {
     }
 
     #[test]
+    fn trader_terminal_v220_runtime_degradation_cases_disable_operation_controls() {
+        let cases = vec![
+            (
+                "missing-artifact",
+                trader_terminal_read_model_runtime_without_artifact("v220-missing-artifact"),
+                HealthStatus::Degraded,
+                "missing_artifact",
+                "canonical_unified_read_model_artifact_missing",
+            ),
+            (
+                "schema-mismatch",
+                trader_terminal_read_model_runtime_with_mutation(
+                    "v220-schema-mismatch",
+                    |artifact| {
+                        artifact["schema_version"] =
+                            json!("ntpro.v220.trader_terminal.schema.unexpected");
+                    },
+                ),
+                HealthStatus::Error,
+                "schema_mismatch",
+                "schema_version_mismatch",
+            ),
+            (
+                "component-unavailable",
+                trader_terminal_read_model_runtime_with_mutation(
+                    "v220-component-unavailable",
+                    |artifact| {
+                        artifact["components"]["orders"]["component_status"] = json!("unavailable");
+                    },
+                ),
+                HealthStatus::Degraded,
+                "component_unavailable",
+                "orders:unavailable",
+            ),
+            (
+                "stale-source",
+                trader_terminal_read_model_runtime_with_mutation("v220-stale-source", |artifact| {
+                    artifact["freshness"]["status"] = json!("stale");
+                    artifact["components"]["operation_entry"]["data"]["blocked_states"]["stale_read_model"] =
+                        json!(true);
+                }),
+                HealthStatus::Stale,
+                "stale_artifact",
+                "snapshot_freshness_stale",
+            ),
+            (
+                "redaction-breach",
+                trader_terminal_read_model_runtime_with_mutation(
+                    "v220-redaction-breach",
+                    |artifact| {
+                        artifact["components"]["risk"]["data"]["alerts"]["redaction_breach"] =
+                            json!(true);
+                    },
+                ),
+                HealthStatus::Error,
+                "fail_closed",
+                "risk:alert:redaction_breach",
+            ),
+            (
+                "provenance-mismatch",
+                trader_terminal_read_model_runtime_with_mutation(
+                    "v220-provenance-mismatch",
+                    |artifact| {
+                        artifact["components"]["lifecycle_status"]["data"]["provenance_mismatch"] =
+                            json!(true);
+                        artifact["components"]["operation_entry"]["data"]["blocked_states"]["provenance_mismatch"] =
+                            json!(true);
+                    },
+                ),
+                HealthStatus::Error,
+                "fail_closed",
+                "lifecycle_status:provenance_mismatch",
+            ),
+        ];
+
+        for (name, runtime, expected_health, expected_readiness, expected_diagnostic) in cases {
+            assert_eq!(runtime.health, expected_health, "{name}");
+            assert_ne!(runtime.health, HealthStatus::Healthy, "{name}");
+            assert_eq!(
+                runtime.readiness_status.value.as_deref(),
+                Some(expected_readiness),
+                "{name}"
+            );
+            assert!(
+                runtime
+                    .diagnostic
+                    .value
+                    .as_deref()
+                    .is_some_and(|diagnostic| diagnostic.contains(expected_diagnostic)),
+                "{name}"
+            );
+            assert_v220_operation_controls_disabled(&runtime, name);
+        }
+    }
+
+    #[test]
+    fn trader_terminal_v220_forbidden_controls_fail_closed_individually() {
+        for field in [
+            "dashboard_submit_controls_enabled",
+            "dashboard_cancel_controls_enabled",
+            "dashboard_retry_controls_enabled",
+            "dashboard_replace_controls_enabled",
+            "dashboard_amend_controls_enabled",
+            "dashboard_flatten_controls_enabled",
+            "trader_terminal_order_ticket_enabled",
+            "manual_operation_submit_allowed",
+            "manual_operation_cancel_allowed",
+            "manual_operation_retry_allowed",
+            "manual_operation_replace_allowed",
+            "manual_operation_amend_allowed",
+            "manual_operation_flatten_allowed",
+        ] {
+            let runtime = trader_terminal_read_model_runtime_with_mutation(
+                &format!("v220-forbidden-{field}"),
+                |artifact| {
+                    artifact["capability_boundary"][field] = json!(true);
+                },
+            );
+
+            assert_eq!(runtime.health, HealthStatus::Error, "{field}");
+            assert_eq!(
+                runtime.readiness_status.value.as_deref(),
+                Some("fail_closed"),
+                "{field}"
+            );
+            assert_eq!(
+                v220_forbidden_boundary_value(&runtime, field),
+                Some(true),
+                "{field}"
+            );
+            assert!(
+                runtime
+                    .diagnostic
+                    .value
+                    .as_deref()
+                    .is_some_and(|diagnostic| diagnostic.contains(&format!("{field}_true"))),
+                "{field}"
+            );
+            assert_eq!(
+                runtime.product_grade_trading_terminal_claim.value,
+                Some(false),
+                "{field}"
+            );
+            assert_eq!(
+                runtime.trader_terminal_live_trading_claim.value,
+                Some(false),
+                "{field}"
+            );
+        }
+    }
+
+    #[test]
+    fn trader_terminal_v220_display_claim_boundary_stays_read_only_first() {
+        let scope_doc = include_str!(
+            "../../../docs/rust-cutover/scope/v0_22_0_trader_terminal_workbench_scope.md"
+        );
+        assert!(scope_doc.contains("read_only_first = required"));
+        assert!(scope_doc.contains("product_grade_trading_terminal_claim = forbidden"));
+        assert!(scope_doc.contains("read_only_first_boundary"));
+
+        for marker in [
+            "workbench-boundary",
+            "foundation-boundary",
+            "read-only-boundary",
+            "gated-operation-boundary",
+            "product_grade_trading_terminal_claim",
+            "all_operation_controls_disabled",
+            "disabled_gated_preview_only",
+        ] {
+            assert!(
+                DASHBOARD_JS.contains(marker) || DASHBOARD_HTML.contains(marker),
+                "V220 workbench display boundary marker missing: {marker}"
+            );
+        }
+
+        for forbidden_claim in [
+            "product-grade live trading terminal",
+            "production trading terminal",
+            "enable live trading",
+        ] {
+            assert!(
+                !DASHBOARD_JS.contains(forbidden_claim),
+                "workbench JS must not claim {forbidden_claim}"
+            );
+            assert!(
+                !DASHBOARD_HTML.contains(forbidden_claim),
+                "workbench shell must not claim {forbidden_claim}"
+            );
+        }
+
+        for field in [
+            "product_grade_trading_terminal_claim",
+            "trader_terminal_live_trading_claim",
+        ] {
+            let runtime = trader_terminal_read_model_runtime_with_mutation(
+                &format!("v220-display-{field}"),
+                |artifact| {
+                    artifact["capability_boundary"][field] = json!(true);
+                },
+            );
+
+            assert_eq!(runtime.health, HealthStatus::Error, "{field}");
+            assert_eq!(
+                runtime.readiness_status.value.as_deref(),
+                Some("fail_closed"),
+                "{field}"
+            );
+            assert!(
+                runtime
+                    .diagnostic
+                    .value
+                    .as_deref()
+                    .is_some_and(|diagnostic| diagnostic.contains(&format!("{field}_true"))),
+                "{field}"
+            );
+        }
+    }
+
+    #[test]
     fn trader_terminal_account_position_component_stale_degrades_panel() {
         let root = temp_root("trader-terminal-account-position-stale");
         let registry_path = root.join("registry.json");
@@ -20574,6 +20793,139 @@ mod tests {
             .into_iter()
             .next()
             .unwrap()
+    }
+
+    fn trader_terminal_read_model_runtime_without_artifact(
+        name: &str,
+    ) -> TraderTerminalReadModelStatus {
+        let root = temp_root(name);
+        let registry_path = root.join("registry.json");
+        let node_id = format!("terminal-{name}");
+        let mut record = node_record(&root, &node_id);
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        snapshot_from_supervisor_artifacts(&registry_path, "2026-07-01T19:30:00Z")
+            .unwrap()
+            .read_model_runtime
+            .into_iter()
+            .next()
+            .unwrap()
+    }
+
+    fn assert_v220_operation_controls_disabled(
+        runtime: &TraderTerminalReadModelStatus,
+        case_name: &str,
+    ) {
+        for (field, value) in [
+            (
+                "dashboard_order_controls_enabled",
+                runtime.dashboard_order_controls_enabled.value,
+            ),
+            (
+                "dashboard_approval_controls_enabled",
+                runtime.dashboard_approval_controls_enabled.value,
+            ),
+            (
+                "dashboard_cancel_controls_enabled",
+                runtime.dashboard_cancel_controls_enabled.value,
+            ),
+            (
+                "dashboard_retry_controls_enabled",
+                runtime.dashboard_retry_controls_enabled.value,
+            ),
+            (
+                "dashboard_submit_controls_enabled",
+                runtime.dashboard_submit_controls_enabled.value,
+            ),
+            (
+                "dashboard_replace_controls_enabled",
+                runtime.dashboard_replace_controls_enabled.value,
+            ),
+            (
+                "dashboard_amend_controls_enabled",
+                runtime.dashboard_amend_controls_enabled.value,
+            ),
+            (
+                "dashboard_flatten_controls_enabled",
+                runtime.dashboard_flatten_controls_enabled.value,
+            ),
+            (
+                "trader_terminal_order_ticket_enabled",
+                runtime.trader_terminal_order_ticket_enabled.value,
+            ),
+            (
+                "manual_operation_entry_enabled",
+                runtime.manual_operation_entry_enabled.value,
+            ),
+            (
+                "manual_operation_submit_allowed",
+                runtime.manual_operation_submit_allowed.value,
+            ),
+            (
+                "manual_operation_cancel_allowed",
+                runtime.manual_operation_cancel_allowed.value,
+            ),
+            (
+                "manual_operation_retry_allowed",
+                runtime.manual_operation_retry_allowed.value,
+            ),
+            (
+                "manual_operation_replace_allowed",
+                runtime.manual_operation_replace_allowed.value,
+            ),
+            (
+                "manual_operation_amend_allowed",
+                runtime.manual_operation_amend_allowed.value,
+            ),
+            (
+                "manual_operation_flatten_allowed",
+                runtime.manual_operation_flatten_allowed.value,
+            ),
+            (
+                "automatic_operation_action_allowed",
+                runtime.automatic_operation_action_allowed.value,
+            ),
+            (
+                "product_grade_trading_terminal_claim",
+                runtime.product_grade_trading_terminal_claim.value,
+            ),
+        ] {
+            assert_eq!(value, Some(false), "{case_name}: {field}");
+        }
+    }
+
+    fn v220_forbidden_boundary_value(
+        runtime: &TraderTerminalReadModelStatus,
+        field: &str,
+    ) -> Option<bool> {
+        match field {
+            "dashboard_submit_controls_enabled" => runtime.dashboard_submit_controls_enabled.value,
+            "dashboard_cancel_controls_enabled" => runtime.dashboard_cancel_controls_enabled.value,
+            "dashboard_retry_controls_enabled" => runtime.dashboard_retry_controls_enabled.value,
+            "dashboard_replace_controls_enabled" => {
+                runtime.dashboard_replace_controls_enabled.value
+            }
+            "dashboard_amend_controls_enabled" => runtime.dashboard_amend_controls_enabled.value,
+            "dashboard_flatten_controls_enabled" => {
+                runtime.dashboard_flatten_controls_enabled.value
+            }
+            "trader_terminal_order_ticket_enabled" => {
+                runtime.trader_terminal_order_ticket_enabled.value
+            }
+            "manual_operation_submit_allowed" => runtime.manual_operation_submit_allowed.value,
+            "manual_operation_cancel_allowed" => runtime.manual_operation_cancel_allowed.value,
+            "manual_operation_retry_allowed" => runtime.manual_operation_retry_allowed.value,
+            "manual_operation_replace_allowed" => runtime.manual_operation_replace_allowed.value,
+            "manual_operation_amend_allowed" => runtime.manual_operation_amend_allowed.value,
+            "manual_operation_flatten_allowed" => runtime.manual_operation_flatten_allowed.value,
+            _ => None,
+        }
     }
 
     fn healthy_trader_terminal_read_model_artifact() -> Value {

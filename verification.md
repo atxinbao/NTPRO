@@ -1930,3 +1930,34 @@ risk gate, missing audit gate, stale read model, provenance mismatch, and
 ungated operation attempt states are visible and fail closed where required.
 v0.22 remains read-only first and does not implement execution algorithms,
 order controls, or submit/cancel/retry/replace/amend/flatten routes.
+
+# V220-006 Verification
+
+Date: 2026-07-02
+Executor: Codex
+Task: `V220-006` / GitHub issue `#689`
+
+## Commands
+
+```text
+scripts/ai/verify_v22_runtime_boundary_tests.sh = PASS
+scripts/ai/verify_release.sh v22-runtime-boundary-tests = PASS
+bash -n scripts/ai/verify_v22_runtime_boundary_tests.sh scripts/ai/verify_release.sh = PASS
+cargo fmt --all -- --check = PASS
+git diff --check = PASS
+ruby workflow YAML parse = PASS
+required V220-006 marker scan = PASS
+cargo test -p nautilus-cli trader_terminal_ --lib -- --nocapture = PASS, 26 Trader Terminal tests passed
+cargo test -p nautilus-cli --lib = PASS, 473 tests passed
+scripts/ai/verify_fast.sh = PASS
+source scripts/ai/toolchain_env.sh && cargo clippy --workspace --lib --tests --features "${NAUTILUS_RUST_FEATURES:-arrow,ffi,high-precision,streaming,defi}" -- -D warnings = PASS
+```
+
+## Result
+
+The Trader Terminal workbench now has executable v0.22 boundary coverage for
+missing read-model artifacts, schema mismatch, component unavailable, stale
+source, redaction breach, provenance mismatch, forbidden submit/cancel/retry/
+replace/amend/flatten/order-ticket controls, read-only-first display claims,
+and no product-grade terminal claim. The local v0.22 release stage is wired as
+`scripts/ai/verify_release.sh v22-runtime-boundary-tests`.

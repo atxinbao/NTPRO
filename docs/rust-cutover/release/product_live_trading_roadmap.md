@@ -126,12 +126,17 @@ Scope:
   reference required for any future real operation.
 - Blocked states for missing approval, missing risk gate, missing audit gate,
   stale read model, provenance mismatch, and ungated operation attempt.
+- Runtime degradation and boundary test gate for missing artifacts, schema
+  mismatch, component unavailable, stale source, redaction breach, provenance
+  mismatch, forbidden controls, read-only-first display claims, and no
+  product-grade terminal claim.
 - Operator-facing diagnostics and evidence drill-down.
 
 Boundary:
 
 ```text
 operation entry contract = included as disabled/gated preview only
+runtime degradation boundary tests = included
 read-only workbench shell = included
 account/position workbench panels = included
 order/fill workbench panels = included

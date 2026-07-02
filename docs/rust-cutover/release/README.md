@@ -666,6 +666,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   attempt behavior, and no submit/cancel/retry/replace/amend/flatten controls.
 - `../evidence/V220-005.md` - V220-005 gated manual operation entry contract
   evidence for GitHub issue #688.
+- `v0_22_0_runtime_degradation_boundary_tests.md` - V220-006 Trader Terminal
+  runtime degradation and boundary test release note. It records missing,
+  stale, schema mismatch, component unavailable, redaction breach, provenance
+  mismatch, forbidden-control, read-only-first, and no-product-grade-claim gate
+  coverage.
+- `../evidence/V220-006.md` - V220-006 runtime degradation and boundary test
+  evidence for GitHub issue #689.
 - `../evidence/V211-006.md` - V211-006 release gate, strict provenance, and
   dependency proof evidence for the `ntpro-rust-only-v0.21.1` GitHub Release.
 - `../evidence/V211-001.md` - V211-001 release closeout and milestone evidence
