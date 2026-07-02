@@ -2024,3 +2024,30 @@ closeout evidence for release/tag publication, hosted release gate success,
 closed issue sets, closed milestones, and the boundary that `v0.22.0` is a
 Trader Terminal Workbench / runtime bridge rather than a complete executable
 read-model runtime or product-grade live trading terminal.
+
+# V221-002 Verification
+
+Date: 2026-07-02
+Executor: Codex
+Task: `V221-002` / GitHub issue `#706`
+
+## Commands
+
+```text
+cargo fmt --all -- --check = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+cargo test -p nautilus-cli trader_terminal_v221_required_false_boundaries_accept_explicit_false --lib -- --nocapture = PASS
+cargo test -p nautilus-cli trader_terminal_v221_missing_required_false_boundaries_fail_closed --lib -- --nocapture = PASS
+cargo test -p nautilus-cli trader_terminal_v220_forbidden_controls_fail_closed_individually --lib -- --nocapture = PASS
+cargo test -p nautilus-cli trader_terminal_ --lib -- --nocapture = PASS, 28 tests passed
+cargo test -p nautilus-cli --lib = PASS, 475 tests passed
+```
+
+## Result
+
+Trader Terminal Workbench operation/control boundary fields are now required
+false at runtime. Missing fields and true fields fail closed with explicit
+diagnostics; explicit false remains healthy. The dashboard status now includes
+`new_submit_capability` so the manifest-level submit boundary is visible in the
+runtime surface.

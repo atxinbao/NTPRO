@@ -642,6 +642,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   `ntpro-rust-only-v0.22.0` releases. It records live GitHub Release, tag,
   hosted release gate, issue closeout, milestone closeout, and the v0.22.0
   Workbench/runtime-bridge boundary before v0.22.1 hardening begins.
+- `v0_22_1_required_false_runtime_boundary.md` - V221-002 required-false
+  runtime boundary note. It records the stricter Workbench operation boundary:
+  missing or true operation/control fields fail closed, while explicit false
+  fields remain healthy.
 - `../scope/v0_22_0_trader_terminal_workbench_scope.md` - V220-000 scope
   decision for the v0.22.0 Trader Terminal workbench line. It records the
   v0.21.1 closeout dependency, read-only-first workbench boundary, gated manual
@@ -697,6 +701,9 @@ Final release checks, benchmark summaries, and audit reports live here.
   ledger for GitHub issue #705. It records closed v0.21.1/v0.22.0 milestones,
   published release/tag facts, hosted release gate success, and the blocker
   chain into v0.22.1 and v0.23.0.
+- `../evidence/V221-002.md` - V221-002 required-false runtime operation
+  boundary evidence for GitHub issue #706. It records missing/false/true
+  runtime health tests and the `new_submit_capability` dashboard status field.
 - `../evidence/V211-006.md` - V211-006 release gate, strict provenance, and
   dependency proof evidence for the `ntpro-rust-only-v0.21.1` GitHub Release.
 - `../evidence/V211-001.md` - V211-001 release closeout and milestone evidence
