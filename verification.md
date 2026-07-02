@@ -1991,3 +1991,36 @@ release notes, readiness report, manifest, release gates, strict provenance,
 publication guard coverage, and hosted release workflow stages. The final
 release gate requires V220 issue closeout when `NTPRO_RELEASE_GATE=1`; PR-stage
 local validation allows #690 to remain open until this PR merges.
+
+# V221-001 Verification
+
+Date: 2026-07-02
+Executor: Codex
+Task: `V221-001` / GitHub issue `#705`
+
+## Commands
+
+```text
+gh issue view 705 --repo atxinbao/NTPRO --json number,title,body,comments,state,milestone,labels,url = PASS
+gh release view ntpro-rust-only-v0.21.1 --repo atxinbao/NTPRO --json tagName,name,isDraft,isPrerelease,url,publishedAt,targetCommitish = PASS
+gh release view ntpro-rust-only-v0.22.0 --repo atxinbao/NTPRO --json tagName,name,isDraft,isPrerelease,url,publishedAt,targetCommitish = PASS
+git ls-remote --tags origin 'refs/tags/ntpro-rust-only-v0.21.1*' = PASS, annotated tag object af51a0e40c17be4d066f97842eae180245eb3912 and peeled commit 016bbb32e6f6a343be1e81bf2ad2e270c11e02b0 recorded
+git ls-remote --tags origin 'refs/tags/ntpro-rust-only-v0.22.0*' = PASS, lightweight tag commit d9d99854fb0f5d4afdb9c8498cb7d34e9feb2830 recorded
+gh run view 28543669704 --repo atxinbao/NTPRO --json status,conclusion,url,createdAt,updatedAt = PASS
+gh run view 28572064792 --repo atxinbao/NTPRO --json status,conclusion,url,createdAt,updatedAt = PASS
+gh api 'repos/atxinbao/NTPRO/milestones?state=all&per_page=100' = PASS, v0.21.1 #9 closed and v0.22.0 #10 closed
+gh issue list --repo atxinbao/NTPRO --state closed --milestone 'v0.21.1' --json number,title,state,closedAt,url --limit 50 = PASS, #677-#682 closed
+gh issue list --repo atxinbao/NTPRO --state closed --milestone 'v0.22.0' --json number,title,state,closedAt,url --limit 50 = PASS, #683-#690 closed
+gh pr list --repo atxinbao/NTPRO --state open --json number,title,url --limit 50 = PASS, []
+git diff --check = PASS
+markdown release closeout marker scan = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+```
+
+## Result
+
+The completed `v0.21.1` and `v0.22.0` release lines now have source-tree
+closeout evidence for release/tag publication, hosted release gate success,
+closed issue sets, closed milestones, and the boundary that `v0.22.0` is a
+Trader Terminal Workbench / runtime bridge rather than a complete executable
+read-model runtime or product-grade live trading terminal.
