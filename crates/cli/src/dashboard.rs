@@ -15812,6 +15812,87 @@ mod tests {
     }
 
     #[test]
+    fn trader_terminal_v221_workbench_snapshot_populates_render_smoke_fields() {
+        let root = temp_root("v221-workbench-render-smoke");
+        let registry_path = root.join("registry.json");
+        let mut record = node_record(&root, "terminal-v221-render-smoke");
+        let status = node_status_for_record(&record, LifecycleStatus::Stopped);
+        write_status_artifact(&record, &status);
+        write_metrics_artifact(&record, &status);
+        write_log_artifacts(&record);
+        write_trader_terminal_read_model_artifact(&record, |_| {});
+        record.status_artifact = RegistryArtifactState::Available;
+        record.metrics_artifact = RegistryArtifactState::Available;
+        write_registry(&registry_path, [record]);
+
+        let snapshot =
+            snapshot_from_supervisor_artifacts(&registry_path, "2026-07-02T16:00:00Z").unwrap();
+
+        assert_eq!(snapshot.read_model_runtime.len(), 1);
+        let runtime = &snapshot.read_model_runtime[0];
+        assert_eq!(runtime.node_id, "terminal-v221-render-smoke");
+        assert_eq!(runtime.health, HealthStatus::Healthy);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("ready_readonly_artifact")
+        );
+        assert_eq!(runtime.account_status.value.as_deref(), Some("healthy"));
+        assert_eq!(
+            runtime.positions_net_position_side.value.as_deref(),
+            Some("flat")
+        );
+        assert_eq!(
+            runtime.orders_lifecycle_state.value.as_deref(),
+            Some("readback_matched")
+        );
+        assert_eq!(
+            runtime.fills_fill_status.value.as_deref(),
+            Some("reconciled")
+        );
+        assert_eq!(runtime.risk_state.value.as_deref(), Some("active"));
+        assert_eq!(runtime.risk_alert_severity.value.as_deref(), Some("info"));
+        assert_eq!(
+            runtime.audit_release_provenance.value.as_deref(),
+            Some("ntpro-rust-only-v0.21.1")
+        );
+        assert_eq!(
+            runtime.operation_entry_status.value.as_deref(),
+            Some("blocked_missing_owner_approval")
+        );
+        assert_eq!(
+            runtime.operation_entry_blocked_reason.value.as_deref(),
+            Some("missing_owner_approval,missing_risk_gate,missing_audit_gate")
+        );
+
+        for field in v220_required_false_operation_boundary_fields() {
+            assert_eq!(v220_boundary_value(runtime, field), Some(false), "{field}");
+        }
+
+        let snapshot_value = serde_json::to_value(&snapshot).unwrap();
+        let runtime_value = &snapshot_value["read_model_runtime"][0];
+        for field in [
+            "account_status",
+            "positions_net_position_side",
+            "orders_lifecycle_state",
+            "fills_fill_status",
+            "risk_alert_severity",
+            "audit_release_provenance",
+            "operation_entry_status",
+            "manual_operation_submit_allowed",
+            "manual_operation_cancel_allowed",
+            "manual_operation_replace_allowed",
+            "manual_operation_amend_allowed",
+            "manual_operation_flatten_allowed",
+        ] {
+            assert!(
+                runtime_value.get(field).is_some(),
+                "render smoke snapshot must expose {field}"
+            );
+        }
+        assert_forbidden_keys_absent(&snapshot_value);
+    }
+
+    #[test]
     fn trader_terminal_v221_missing_required_false_boundaries_fail_closed() {
         for field in v220_required_false_operation_boundary_fields() {
             let runtime = trader_terminal_read_model_runtime_with_mutation(
