@@ -646,6 +646,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   runtime boundary note. It records the stricter Workbench operation boundary:
   missing or true operation/control fields fail closed, while explicit false
   fields remain healthy.
+- `v0_22_1_read_model_executable_replay.md` - V221-003 read-model executable
+  replay expansion note. It records 28 executable read-model replay rows, 4
+  remaining read-model schema-only rows, and the Workbench/runtime bridge
+  wording boundary.
 - `../scope/v0_22_0_trader_terminal_workbench_scope.md` - V220-000 scope
   decision for the v0.22.0 Trader Terminal workbench line. It records the
   v0.21.1 closeout dependency, read-only-first workbench boundary, gated manual
@@ -704,6 +708,10 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `../evidence/V221-002.md` - V221-002 required-false runtime operation
   boundary evidence for GitHub issue #706. It records missing/false/true
   runtime health tests and the `new_submit_capability` dashboard status field.
+- `../evidence/V221-003.md` - V221-003 executable read-model replay expansion
+  evidence for GitHub issue #707. It records promoted position, fill, order,
+  risk, and dashboard forbidden-controls rows plus the remaining schema-only
+  read-model rows.
 - `../evidence/V211-006.md` - V211-006 release gate, strict provenance, and
   dependency proof evidence for the `ntpro-rust-only-v0.21.1` GitHub Release.
 - `../evidence/V211-001.md` - V211-001 release closeout and milestone evidence

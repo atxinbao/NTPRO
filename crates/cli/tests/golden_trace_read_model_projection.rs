@@ -34,8 +34,53 @@ const REQUIRED_CASES: &[ReplayCase] = &[
         family: "account",
     },
     ReplayCase {
+        trace: "read_model_position_schema.jsonl",
+        case_id: "read_model.position.long.001",
+        family: "position",
+    },
+    ReplayCase {
+        trace: "read_model_position_schema.jsonl",
+        case_id: "read_model.position.short.001",
+        family: "position",
+    },
+    ReplayCase {
+        trace: "read_model_position_schema.jsonl",
+        case_id: "read_model.position.flat.001",
+        family: "position",
+    },
+    ReplayCase {
+        trace: "read_model_position_schema.jsonl",
+        case_id: "read_model.position.precision_mismatch.001",
+        family: "position",
+    },
+    ReplayCase {
+        trace: "read_model_position_schema.jsonl",
+        case_id: "read_model.position.stale_source.001",
+        family: "position",
+    },
+    ReplayCase {
+        trace: "read_model_position_schema.jsonl",
+        case_id: "read_model.position.account_mismatch.001",
+        family: "position",
+    },
+    ReplayCase {
         trace: "read_model_order_lifecycle_schema.jsonl",
         case_id: "read_model.order_lifecycle.matched.001",
+        family: "order",
+    },
+    ReplayCase {
+        trace: "read_model_order_lifecycle_schema.jsonl",
+        case_id: "read_model.order_lifecycle.unknown_response.001",
+        family: "order",
+    },
+    ReplayCase {
+        trace: "read_model_order_lifecycle_schema.jsonl",
+        case_id: "read_model.order_lifecycle.readback_mismatch.001",
+        family: "order",
+    },
+    ReplayCase {
+        trace: "read_model_order_lifecycle_schema.jsonl",
+        case_id: "read_model.order_lifecycle.duplicate_attempt.001",
         family: "order",
     },
     ReplayCase {
@@ -44,8 +89,58 @@ const REQUIRED_CASES: &[ReplayCase] = &[
         family: "order",
     },
     ReplayCase {
+        trace: "read_model_fill_execution_schema.jsonl",
+        case_id: "read_model.fill_execution.reconciled.001",
+        family: "fill",
+    },
+    ReplayCase {
+        trace: "read_model_fill_execution_schema.jsonl",
+        case_id: "read_model.fill_execution.partial_fill.001",
+        family: "fill",
+    },
+    ReplayCase {
+        trace: "read_model_fill_execution_schema.jsonl",
+        case_id: "read_model.fill_execution.duplicate_fill.001",
+        family: "fill",
+    },
+    ReplayCase {
+        trace: "read_model_fill_execution_schema.jsonl",
+        case_id: "read_model.fill_execution.missing_order_linkage.001",
+        family: "fill",
+    },
+    ReplayCase {
+        trace: "read_model_fill_execution_schema.jsonl",
+        case_id: "read_model.fill_execution.stale_source.001",
+        family: "fill",
+    },
+    ReplayCase {
+        trace: "read_model_fill_execution_schema.jsonl",
+        case_id: "read_model.fill_execution.ambiguous_source.001",
+        family: "fill",
+    },
+    ReplayCase {
         trace: "read_model_risk_state_schema.jsonl",
         case_id: "read_model.risk_state.healthy.001",
+        family: "risk",
+    },
+    ReplayCase {
+        trace: "read_model_risk_state_schema.jsonl",
+        case_id: "read_model.risk_state.risk_visible.001",
+        family: "risk",
+    },
+    ReplayCase {
+        trace: "read_model_risk_state_schema.jsonl",
+        case_id: "read_model.risk_state.manual_review.001",
+        family: "risk",
+    },
+    ReplayCase {
+        trace: "read_model_risk_state_schema.jsonl",
+        case_id: "read_model.risk_state.halted.001",
+        family: "risk",
+    },
+    ReplayCase {
+        trace: "read_model_risk_state_schema.jsonl",
+        case_id: "read_model.risk_state.stale.001",
         family: "risk",
     },
     ReplayCase {
@@ -61,6 +156,11 @@ const REQUIRED_CASES: &[ReplayCase] = &[
     ReplayCase {
         trace: "read_model_dashboard_schema.jsonl",
         case_id: "read_model.dashboard.missing_evidence_degraded.001",
+        family: "dashboard",
+    },
+    ReplayCase {
+        trace: "read_model_dashboard_schema.jsonl",
+        case_id: "read_model.dashboard.forbidden_controls_blocked.001",
         family: "dashboard",
     },
 ];
@@ -108,7 +208,7 @@ fn rust_cli_read_model_projection_replays_v211_required_paths() -> Result<(), Bo
 
     if covered_cases.len() != REQUIRED_CASES.len() {
         return Err(format!(
-            "V211-003 must keep {} read_model projection cases, got {}",
+            "V221-003 must keep {} read_model projection cases, got {}",
             REQUIRED_CASES.len(),
             covered_cases.len()
         )
@@ -116,7 +216,7 @@ fn rust_cli_read_model_projection_replays_v211_required_paths() -> Result<(), Bo
     }
     assert_contains_all(
         &covered_families,
-        &["account", "order", "risk", "dashboard"],
+        &["account", "position", "order", "fill", "risk", "dashboard"],
         "read_model family",
     )?;
 
@@ -141,15 +241,20 @@ fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value,
         event.insert(key.to_string(), value.clone());
     }
 
-    let snapshot = object_field(payload(input_event)?, "snapshot")?;
+    let input_payload = payload(input_event)?;
+    let snapshot = object_field(input_payload, "snapshot")?;
     let projected_payload = if case_id.starts_with("read_model.account_snapshot.") {
         project_account_payload(case_id, snapshot)?
+    } else if case_id.starts_with("read_model.position.") {
+        project_position_payload(case_id, snapshot)?
     } else if case_id.starts_with("read_model.order_lifecycle.") {
         project_order_payload(case_id, snapshot)?
+    } else if case_id.starts_with("read_model.fill_execution.") {
+        project_fill_payload(case_id, snapshot)?
     } else if case_id.starts_with("read_model.risk_state.") {
         project_risk_payload(case_id, snapshot)?
     } else if case_id.starts_with("read_model.dashboard.") {
-        project_dashboard_payload(case_id, snapshot)?
+        project_dashboard_payload(case_id, input_payload, snapshot)?
     } else {
         return Err(format!("{case_id}: unsupported read-model replay case").into());
     };
@@ -201,6 +306,47 @@ fn project_account_payload(case_id: &str, snapshot: &Value) -> Result<Value, Box
     Ok(Value::Object(payload))
 }
 
+fn project_position_payload(case_id: &str, snapshot: &Value) -> Result<Value, Box<dyn Error>> {
+    let positions = component(snapshot, "positions")?;
+    let data = object_field(positions, "data")?;
+    let risk_projection = object_field(data, "risk_projection_input")?;
+    let mut payload = base_payload(case_id, snapshot);
+    insert_string(
+        &mut payload,
+        "position_component_status",
+        string_field(positions, "component_status")?,
+    );
+    insert_string(
+        &mut payload,
+        "net_position_side",
+        string_field(data, "net_position_side")?,
+    );
+    payload.insert(
+        "blocking_reasons".to_string(),
+        clone_field(risk_projection, "blocking_reasons")?,
+    );
+    insert_string(
+        &mut payload,
+        "risk_state",
+        string_field(risk_projection, "risk_state")?,
+    );
+    payload.insert(
+        "auto_flatten_position_allowed".to_string(),
+        Value::Bool(bool_field(
+            risk_projection,
+            "auto_flatten_position_allowed",
+        )?),
+    );
+    payload.insert(
+        "automatic_position_repair_allowed".to_string(),
+        Value::Bool(bool_field(
+            risk_projection,
+            "automatic_position_repair_allowed",
+        )?),
+    );
+    Ok(Value::Object(payload))
+}
+
 fn project_order_payload(case_id: &str, snapshot: &Value) -> Result<Value, Box<dyn Error>> {
     let orders = component(snapshot, "orders")?;
     let data = object_field(orders, "data")?;
@@ -224,6 +370,37 @@ fn project_order_payload(case_id: &str, snapshot: &Value) -> Result<Value, Box<d
     ] {
         payload.insert(key.to_string(), Value::Bool(bool_field(data, key)?));
     }
+    Ok(Value::Object(payload))
+}
+
+fn project_fill_payload(case_id: &str, snapshot: &Value) -> Result<Value, Box<dyn Error>> {
+    let fills = component(snapshot, "fills")?;
+    let data = object_field(fills, "data")?;
+    let risk_projection = object_field(data, "risk_projection_input")?;
+    let mut payload = base_payload(case_id, snapshot);
+    insert_string(
+        &mut payload,
+        "fill_component_status",
+        string_field(fills, "component_status")?,
+    );
+    for key in ["reconciliation_status", "order_linkage_status"] {
+        insert_string(&mut payload, key, string_field(data, key)?);
+    }
+    payload.insert(
+        "blocking_reasons".to_string(),
+        clone_field(risk_projection, "blocking_reasons")?,
+    );
+    payload.insert(
+        "execution_algorithm_allowed".to_string(),
+        Value::Bool(bool_field(risk_projection, "execution_algorithm_allowed")?),
+    );
+    payload.insert(
+        "automatic_reconciliation_repair_allowed".to_string(),
+        Value::Bool(bool_field(
+            risk_projection,
+            "automatic_reconciliation_repair_allowed",
+        )?),
+    );
     Ok(Value::Object(payload))
 }
 
@@ -256,7 +433,11 @@ fn project_risk_payload(case_id: &str, snapshot: &Value) -> Result<Value, Box<dy
     Ok(Value::Object(payload))
 }
 
-fn project_dashboard_payload(case_id: &str, snapshot: &Value) -> Result<Value, Box<dyn Error>> {
+fn project_dashboard_payload(
+    case_id: &str,
+    input_payload: &Value,
+    snapshot: &Value,
+) -> Result<Value, Box<dyn Error>> {
     let components = object_field(snapshot, "components")?;
     let boundary = object_field(snapshot, "capability_boundary")?;
     let health_status = string_field(snapshot, "health_status")?;
@@ -292,10 +473,16 @@ fn project_dashboard_payload(case_id: &str, snapshot: &Value) -> Result<Value, B
         })
         .collect::<Map<String, Value>>();
 
-    let terminal_status = if health_status == "healthy" {
-        "foundation_only_readonly"
-    } else {
-        "degraded_missing_evidence"
+    let requested_controls = input_payload
+        .get("dashboard_request")
+        .and_then(|request| request.get("requested_controls"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let terminal_status = match health_status {
+        "healthy" => "foundation_only_readonly",
+        "fail_closed" => "blocked_forbidden_controls",
+        _ => "degraded_missing_evidence",
     };
 
     let mut payload = base_payload(case_id, snapshot);
@@ -312,7 +499,14 @@ fn project_dashboard_payload(case_id: &str, snapshot: &Value) -> Result<Value, B
         "missing_evidence".to_string(),
         Value::Array(missing_evidence),
     );
-    payload.insert("blocked_controls".to_string(), Value::Array(Vec::new()));
+    payload.insert(
+        "blocked_controls".to_string(),
+        Value::Array(if health_status == "fail_closed" {
+            requested_controls
+        } else {
+            Vec::new()
+        }),
+    );
     payload.insert("disabled_controls".to_string(), json!(DISABLED_CONTROLS));
     payload.insert("control_flags".to_string(), Value::Object(control_flags));
     insert_string(&mut payload, "display_claim", "read_only_foundation");
