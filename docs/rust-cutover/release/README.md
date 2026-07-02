@@ -650,6 +650,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   replay expansion note. It records 28 executable read-model replay rows, 4
   remaining read-model schema-only rows, and the Workbench/runtime bridge
   wording boundary.
+- `v0_22_1_gate_before_publish.md` - V221-004 gate-before-publish release
+  governance note. It records the controlled publication sequence: draft
+  preparation is allowed before the hosted release gate, but public GitHub
+  Release publication requires a successful `Rust Cutover Release Gate` run for
+  the same tag commit.
 - `../scope/v0_22_0_trader_terminal_workbench_scope.md` - V220-000 scope
   decision for the v0.22.0 Trader Terminal workbench line. It records the
   v0.21.1 closeout dependency, read-only-first workbench boundary, gated manual
