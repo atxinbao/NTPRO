@@ -637,6 +637,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   for the V220 gate. It fixes the V220 evidence set, v0.21.1 base release
   dependency, planned release tag, workbench evidence paths, boundary flags,
   release body path, and strict provenance target.
+- `v0_22_1_release_closeout_evidence.md` - V221-001 release closeout ledger
+  for the completed `ntpro-rust-only-v0.21.1` and
+  `ntpro-rust-only-v0.22.0` releases. It records live GitHub Release, tag,
+  hosted release gate, issue closeout, milestone closeout, and the v0.22.0
+  Workbench/runtime-bridge boundary before v0.22.1 hardening begins.
 - `../scope/v0_22_0_trader_terminal_workbench_scope.md` - V220-000 scope
   decision for the v0.22.0 Trader Terminal workbench line. It records the
   v0.21.1 closeout dependency, read-only-first workbench boundary, gated manual
@@ -688,6 +693,10 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `../evidence/V220-007.md` - V220-007 release gate, strict provenance, and
   workbench evidence closeout for GitHub issue #690 and the
   `ntpro-rust-only-v0.22.0` GitHub Release.
+- `../evidence/V221-001.md` - V221-001 release closeout milestone and evidence
+  ledger for GitHub issue #705. It records closed v0.21.1/v0.22.0 milestones,
+  published release/tag facts, hosted release gate success, and the blocker
+  chain into v0.22.1 and v0.23.0.
 - `../evidence/V211-006.md` - V211-006 release gate, strict provenance, and
   dependency proof evidence for the `ntpro-rust-only-v0.21.1` GitHub Release.
 - `../evidence/V211-001.md` - V211-001 release closeout and milestone evidence
