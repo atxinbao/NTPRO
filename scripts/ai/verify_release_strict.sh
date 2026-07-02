@@ -6,8 +6,8 @@ cd "$ROOT_DIR"
 source scripts/ai/toolchain_env.sh
 
 target="${1:-}"
-if [[ "$target" != "v18" && "$target" != "v19" && "$target" != "v20" && "$target" != "v21" ]]; then
-  echo "usage: scripts/ai/verify_release_strict.sh v18|v19|v20|v21" >&2
+if [[ "$target" != "v18" && "$target" != "v19" && "$target" != "v20" && "$target" != "v21" && "$target" != "v22" ]]; then
+  echo "usage: scripts/ai/verify_release_strict.sh v18|v19|v20|v21|v22" >&2
   exit 2
 fi
 
@@ -17,6 +17,10 @@ fi
 
 if [[ "$target" == "v21" ]]; then
   exec scripts/ai/verify_v21_strict_provenance.sh
+fi
+
+if [[ "$target" == "v22" ]]; then
+  exec scripts/ai/verify_v22_strict_provenance.sh
 fi
 
 PRODUCT_VERSION="${NTPRO_RELEASE_STRICT_PRODUCT_VERSION:-v0.18.1}"

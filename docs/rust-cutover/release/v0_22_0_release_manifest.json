@@ -1,0 +1,116 @@
+{
+  "schema_version": "ntpro.v220_release_manifest.v1",
+  "task_id": "V220-007",
+  "product_version": "v0.22.0",
+  "release_status": "published",
+  "release_scope": "trader_terminal_workbench",
+  "base_release": {
+    "version": "v0.21.1",
+    "tag": "ntpro-rust-only-v0.21.1",
+    "name": "NTPRO Rust-only v0.21.1",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.21.1",
+    "release_manifest_path": "docs/rust-cutover/release/v0_21_1_release_manifest.json",
+    "closeout_evidence_path": "docs/rust-cutover/evidence/V211-006.md"
+  },
+  "planned_release": {
+    "tag": "ntpro-rust-only-v0.22.0",
+    "name": "NTPRO Rust-only v0.22.0",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.22.0",
+    "target_commitish": "main",
+    "draft": false,
+    "prerelease": false
+  },
+  "release_inputs": {
+    "release_notes_path": "docs/rust-cutover/release/v0_22_0_release_notes.md",
+    "readiness_report_path": "docs/rust-cutover/release/v0_22_0_readiness_report.md",
+    "release_manifest_path": "docs/rust-cutover/release/v0_22_0_release_manifest.json",
+    "scope_decision_path": "docs/rust-cutover/scope/v0_22_0_trader_terminal_workbench_scope.md",
+    "base_release_manifest_path": "docs/rust-cutover/release/v0_21_1_release_manifest.json",
+    "golden_trace_manifest_path": "docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json"
+  },
+  "v220_evidence": [
+    {"task_id": "V220-000", "issue": 683, "path": "docs/rust-cutover/evidence/V220-000.md"},
+    {"task_id": "V220-001", "issue": 684, "path": "docs/rust-cutover/evidence/V220-001.md"},
+    {"task_id": "V220-002", "issue": 685, "path": "docs/rust-cutover/evidence/V220-002.md"},
+    {"task_id": "V220-003", "issue": 686, "path": "docs/rust-cutover/evidence/V220-003.md"},
+    {"task_id": "V220-004", "issue": 687, "path": "docs/rust-cutover/evidence/V220-004.md"},
+    {"task_id": "V220-005", "issue": 688, "path": "docs/rust-cutover/evidence/V220-005.md"},
+    {"task_id": "V220-006", "issue": 689, "path": "docs/rust-cutover/evidence/V220-006.md"},
+    {"task_id": "V220-007", "issue": 690, "path": "docs/rust-cutover/evidence/V220-007.md"}
+  ],
+  "workbench_evidence": [
+    {"name": "scope-decision", "path": "docs/rust-cutover/scope/v0_22_0_trader_terminal_workbench_scope.md"},
+    {"name": "workbench-shell", "path": "docs/rust-cutover/release/v0_22_0_trader_terminal_workbench_shell.md"},
+    {"name": "account-position-panels", "path": "docs/rust-cutover/release/v0_22_0_account_position_workbench_panels.md"},
+    {"name": "order-fill-panels", "path": "docs/rust-cutover/release/v0_22_0_order_fill_workbench_panels.md"},
+    {"name": "risk-alert-audit-provenance-panels", "path": "docs/rust-cutover/release/v0_22_0_risk_alert_audit_provenance_workbench_panels.md"},
+    {"name": "gated-manual-operation-entry-contract", "path": "docs/rust-cutover/release/v0_22_0_gated_manual_operation_entry_contract.md"},
+    {"name": "runtime-degradation-boundary-tests", "path": "docs/rust-cutover/release/v0_22_0_runtime_degradation_boundary_tests.md"}
+  ],
+  "release_gates": [
+    {"name": "v22-runtime-boundary-tests", "command": "scripts/ai/verify_release.sh v22-runtime-boundary-tests", "required": true},
+    {"name": "v22-release-gates", "command": "scripts/ai/verify_release.sh v22-release-gates", "required": true},
+    {"name": "v22-strict-provenance", "command": "scripts/ai/verify_release.sh v22-strict-provenance", "required": true},
+    {"name": "v22-release-gate-script", "command": "scripts/ai/verify_v22_release_gates.sh", "required": true},
+    {"name": "v22-strict-provenance-script", "command": "scripts/ai/verify_v22_strict_provenance.sh", "required": true},
+    {"name": "v22-strict-provenance-dispatcher", "command": "scripts/ai/verify_release_strict.sh v22", "required": true},
+    {"name": "release-surface-current-guard", "command": "scripts/ai/verify_release.sh release-surface-current-guard", "required": true},
+    {"name": "release-publication-guard", "command": "scripts/ai/verify_release.sh release-publication-guard", "required": true}
+  ],
+  "capability": {
+    "name": "Trader Terminal Workbench",
+    "capability_expansion": "read_only_first_trader_terminal_workbench",
+    "trader_terminal_workbench": true,
+    "read_only_first": true,
+    "account_panel": true,
+    "position_panel": true,
+    "order_panel": true,
+    "fill_panel": true,
+    "risk_alerts_panel": true,
+    "audit_panel": true,
+    "provenance_drill_down": true,
+    "manual_operation_entry_design": true,
+    "gated_operation_boundary": true,
+    "owner_approval_gate_required": true,
+    "risk_gate_required": true,
+    "audit_gate_required": true,
+    "strict_provenance": true
+  },
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "ungated_submit_allowed": false,
+    "ungated_cancel_allowed": false,
+    "ungated_retry_allowed": false,
+    "ungated_replace_allowed": false,
+    "ungated_amend_allowed": false,
+    "ungated_flatten_allowed": false,
+    "implicit_retry_allowed": false,
+    "automatic_cancel_allowed": false,
+    "automatic_remediation_allowed": false,
+    "retry_replace_amend_flatten_allowed": false,
+    "strategy_driven_production_execution_allowed": false,
+    "multi_account_execution_allowed": false,
+    "multi_venue_execution_allowed": false,
+    "dashboard_order_controls_enabled": false,
+    "dashboard_approval_controls_enabled": false,
+    "dashboard_cancel_controls_enabled": false,
+    "dashboard_retry_controls_enabled": false,
+    "dashboard_submit_controls_enabled": false,
+    "dashboard_replace_controls_enabled": false,
+    "dashboard_amend_controls_enabled": false,
+    "dashboard_flatten_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "source_tree_manifest": {
+    "release_tag": "ntpro-rust-only-v0.22.0",
+    "source_tree_resolved_by": "scripts/ai/verify_v22_strict_provenance.sh",
+    "release_body_path": "docs/rust-cutover/release/v0_22_0_release_notes.md",
+    "manifest_path": "docs/rust-cutover/release/v0_22_0_release_manifest.json"
+  },
+  "validation_artifacts": {
+    "strict_release_provenance_manifest_path": "target/ntpro-v220/v0_22_strict_release_manifest.json"
+  }
+}

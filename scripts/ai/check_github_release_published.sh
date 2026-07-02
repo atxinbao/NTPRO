@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.21.1}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.22.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
@@ -389,6 +389,41 @@ case "$CURRENT_RELEASE_VERSION" in
       "Trader Terminal workbench"
       "product-grade live trading terminal readiness"
       "Dashboard order, approval, cancel, retry, submit, replace, amend, flatten, or order-ticket controls"
+    )
+    ;;
+  v0.22.0)
+    required_fields=(
+      "Status: RELEASED"
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Trader Terminal Workbench"
+      "This release is read-only first"
+      "This release is not a product-grade live trading terminal"
+      "This release does not add submit capability"
+      "V220-000"
+      "V220-007"
+      "scripts/ai/verify_release.sh v22-runtime-boundary-tests"
+      "scripts/ai/verify_release.sh v22-release-gates"
+      "scripts/ai/verify_release.sh v22-strict-provenance"
+      "scripts/ai/verify_release_strict.sh v22"
+      "read_only_first"
+      "gated_operation_boundary"
+      "owner approval"
+      "risk gate"
+      "audit gate"
+      "product-grade live trading terminal readiness"
+      "new production submit capability"
+      "production order mutation"
+      "ungated submit/cancel/retry/replace/amend/flatten"
+      "automatic cancel"
+      "automatic remediation"
+      "retry, replace, amend, correction, or flatten"
+      "strategy-driven production execution"
+      "multi-account production execution expansion"
+      "multi-venue production execution expansion"
+      "Dashboard order, approval, cancel, retry, submit, replace, amend, flatten, or order-ticket controls"
+      "manual operation entry that can mutate live state without owner approval, risk gate, and audit gate"
     )
     ;;
   *)

@@ -1961,3 +1961,33 @@ source, redaction breach, provenance mismatch, forbidden submit/cancel/retry/
 replace/amend/flatten/order-ticket controls, read-only-first display claims,
 and no product-grade terminal claim. The local v0.22 release stage is wired as
 `scripts/ai/verify_release.sh v22-runtime-boundary-tests`.
+
+# V220-007 Verification
+
+Date: 2026-07-02
+Executor: Codex
+Task: `V220-007` / GitHub issue `#690`
+
+## Commands
+
+```text
+scripts/ai/verify_release.sh v22-runtime-boundary-tests = PASS
+scripts/ai/verify_release.sh v22-release-gates = PASS, current issue #690 open is allowed only before PR merge
+NTPRO_V220_STRICT_VERIFY_ONLY=1 scripts/ai/verify_release.sh v22-strict-provenance = PASS
+NTPRO_V220_STRICT_VERIFY_ONLY=1 scripts/ai/verify_release_strict.sh v22 = PASS
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/verify_release.sh release-surface-current-guard = PASS, pre-tag missing local tag expected
+NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE=1 scripts/ai/verify_release.sh release-publication-guard = PASS, pre-tag missing local tag expected
+bash -n scripts/ai/verify_v22_release_gates.sh scripts/ai/verify_v22_strict_provenance.sh scripts/ai/verify_release.sh scripts/ai/verify_release_strict.sh scripts/ai/check_release_surface_current.sh scripts/ai/check_github_release_published.sh scripts/ai/verify_fast.sh = PASS
+jq empty docs/rust-cutover/release/v0_22_0_release_manifest.json docs/rust-cutover/release/v0_21_1_release_manifest.json docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json = PASS
+ruby workflow YAML parse = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+The v0.22.0 release surface now points at `ntpro-rust-only-v0.22.0` and includes
+release notes, readiness report, manifest, release gates, strict provenance,
+publication guard coverage, and hosted release workflow stages. The final
+release gate requires V220 issue closeout when `NTPRO_RELEASE_GATE=1`; PR-stage
+local validation allows #690 to remain open until this PR merges.

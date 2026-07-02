@@ -134,6 +134,10 @@ jobs:
             command: scripts/ai/verify_release.sh v21.1-strict-provenance
           - stage: release-v22-runtime-boundary-tests
             command: scripts/ai/verify_release.sh v22-runtime-boundary-tests
+          - stage: release-v22-release-gates
+            command: scripts/ai/verify_release.sh v22-release-gates
+          - stage: release-v22-strict-provenance
+            command: scripts/ai/verify_release.sh v22-strict-provenance
           - stage: release-surface-current-guard
             command: scripts/ai/verify_release.sh release-surface-current-guard
           - stage: release-publication-guard
