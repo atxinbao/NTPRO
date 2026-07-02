@@ -231,13 +231,14 @@ const TRADER_TERMINAL_READ_MODEL_ARTIFACT_RELATIVE_PATH: &str =
     "v0_21/unified_read_model_snapshot.json";
 const UNIFIED_READ_MODEL_CONTRACT_VERSION: &str = "ntpro.v210.unified_read_model.v1";
 const UNIFIED_READ_MODEL_SCHEMA_VERSION: &str = "ntpro.v210.unified_read_model.schema.v1";
-const TRADER_TERMINAL_READ_MODEL_REQUIRED_COMPONENTS: [&str; 6] = [
+const TRADER_TERMINAL_READ_MODEL_REQUIRED_COMPONENTS: [&str; 7] = [
     "account",
     "positions",
     "orders",
     "fills",
     "risk",
     "lifecycle_status",
+    "operation_entry",
 ];
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
@@ -1127,6 +1128,7 @@ function renderTraderTerminalWorkbench(readModels) {
     ["workbench-tab-risk", "workbench-panel-risk", "风险", panelStatus("risk_status"), "V220-004"],
     ["workbench-tab-alerts", "workbench-panel-alerts", "告警", snapshotValue(primary.risk_alert_severity) || panelStatus("risk_status"), "V220-004"],
     ["workbench-tab-audit-provenance", "workbench-panel-audit-provenance", "审计 / Provenance", panelStatus("lifecycle_status"), "V220-004"],
+    ["workbench-tab-operation-entry", "workbench-panel-operation-entry", "操作入口", snapshotValue(primary.operation_entry_status) || panelStatus("operation_entry_status"), "V220-005"],
   ];
   const controlsDisabled = [
     "dashboard_order_controls_enabled",
@@ -1138,6 +1140,14 @@ function renderTraderTerminalWorkbench(readModels) {
     "dashboard_amend_controls_enabled",
     "dashboard_flatten_controls_enabled",
     "trader_terminal_order_ticket_enabled",
+    "manual_operation_entry_enabled",
+    "manual_operation_submit_allowed",
+    "manual_operation_cancel_allowed",
+    "manual_operation_retry_allowed",
+    "manual_operation_replace_allowed",
+    "manual_operation_amend_allowed",
+    "manual_operation_flatten_allowed",
+    "automatic_operation_action_allowed",
   ].every((field) => boundaryValue(field) === false);
   const accountRows = [
     panelRow("Account status", snapshotValue(primary.account_status)),
@@ -1270,6 +1280,35 @@ function renderTraderTerminalWorkbench(readModels) {
     panelRow("Audit action", boundaryValue("automatic_audit_action_allowed")),
     panelRow("Provenance repair", boundaryValue("automatic_provenance_repair_allowed")),
   ];
+  const operationEntryRows = [
+    panelRow("Entry status", snapshotValue(primary.operation_entry_status)),
+    panelRow("Freshness", snapshotValue(primary.operation_entry_freshness_status)),
+    panelRow("Intent preview", snapshotValue(primary.operation_intent_preview)),
+    panelRow("Owner approval ref", snapshotValue(primary.operation_owner_approval_ref)),
+    panelRow("Risk decision ref", snapshotValue(primary.operation_risk_decision_ref)),
+    panelRow("Audit evidence ref", snapshotValue(primary.operation_audit_evidence_ref)),
+    panelRow("Disabled", snapshotValue(primary.operation_entry_disabled)),
+    panelRow("Blocked reason", snapshotValue(primary.operation_entry_blocked_reason)),
+    panelRow("Missing approval", snapshotValue(primary.operation_missing_owner_approval)),
+    panelRow("Missing risk gate", snapshotValue(primary.operation_missing_risk_gate)),
+    panelRow("Missing audit gate", snapshotValue(primary.operation_missing_audit_gate)),
+    panelRow("Stale read model", snapshotValue(primary.operation_stale_read_model)),
+    panelRow("Provenance mismatch", snapshotValue(primary.operation_provenance_mismatch)),
+    panelRow("Gates complete", snapshotValue(primary.operation_gates_complete)),
+    panelRow("Ungated attempt", snapshotValue(primary.operation_ungated_attempted)),
+    panelRow("Attempt status", snapshotValue(primary.operation_attempt_status)),
+    panelRow("Fail-closed attempt", snapshotValue(primary.operation_ungated_attempt_fail_closed)),
+    panelRow("Source", `${snapshotValue(primary.operation_entry_source_type)} ${snapshotValue(primary.operation_entry_source_ref)}`),
+    panelRow("Redaction", snapshotValue(primary.operation_entry_redaction_state)),
+    panelRow("Entry enabled", boundaryValue("manual_operation_entry_enabled")),
+    panelRow("Submit", boundaryValue("manual_operation_submit_allowed")),
+    panelRow("Cancel", boundaryValue("manual_operation_cancel_allowed")),
+    panelRow("Retry", boundaryValue("manual_operation_retry_allowed")),
+    panelRow("Replace", boundaryValue("manual_operation_replace_allowed")),
+    panelRow("Amend", boundaryValue("manual_operation_amend_allowed")),
+    panelRow("Flatten", boundaryValue("manual_operation_flatten_allowed")),
+    panelRow("Automatic action", boundaryValue("automatic_operation_action_allowed")),
+  ];
   const panelRows = {
     "workbench-panel-account": accountRows,
     "workbench-panel-positions": positionRows,
@@ -1278,6 +1317,7 @@ function renderTraderTerminalWorkbench(readModels) {
     "workbench-panel-risk": riskRows,
     "workbench-panel-alerts": alertRows,
     "workbench-panel-audit-provenance": auditProvenanceRows,
+    "workbench-panel-operation-entry": operationEntryRows,
   };
 
   document.getElementById("trader-terminal-workbench").innerHTML = `
@@ -1308,7 +1348,11 @@ function renderTraderTerminalWorkbench(readModels) {
       <div class="workbench-panel" id="gated-operation-boundary">
         <h3>Gated operation</h3>
         ${panelRow("Owner approval", "required_before_any_manual_entry")}
-        ${panelRow("当前阶段", "display_only")}
+        ${panelRow("Risk gate", "required_before_any_manual_entry")}
+        ${panelRow("Audit gate", "required_before_any_manual_entry")}
+        ${panelRow("Entry status", snapshotValue(primary.operation_entry_status) || "blocked_until_contract_present")}
+        ${panelRow("Blocked reason", snapshotValue(primary.operation_entry_blocked_reason) || "missing_operation_entry_contract")}
+        ${panelRow("当前阶段", "disabled_gated_preview_only")}
         ${panelRow("产品级终端声明", boundaryValue("product_grade_trading_terminal_claim"))}
       </div>
     </div>
@@ -3849,6 +3893,7 @@ pub struct TraderTerminalReadModelStatus {
     pub fills_status: DashboardValue<String>,
     pub risk_status: DashboardValue<String>,
     pub lifecycle_status: DashboardValue<String>,
+    pub operation_entry_status: DashboardValue<String>,
     pub account_summary: DashboardValue<String>,
     pub positions_summary: DashboardValue<String>,
     pub account_freshness_status: DashboardValue<String>,
@@ -3950,6 +3995,25 @@ pub struct TraderTerminalReadModelStatus {
     pub audit_provenance_mismatch: DashboardValue<String>,
     pub audit_diagnostics: DashboardValue<String>,
     pub audit_lineage: DashboardValue<String>,
+    pub operation_entry_freshness_status: DashboardValue<String>,
+    pub operation_entry_source_type: DashboardValue<String>,
+    pub operation_entry_source_ref: DashboardValue<String>,
+    pub operation_entry_redaction_state: DashboardValue<String>,
+    pub operation_intent_preview: DashboardValue<String>,
+    pub operation_owner_approval_ref: DashboardValue<String>,
+    pub operation_risk_decision_ref: DashboardValue<String>,
+    pub operation_audit_evidence_ref: DashboardValue<String>,
+    pub operation_entry_disabled: DashboardValue<String>,
+    pub operation_entry_blocked_reason: DashboardValue<String>,
+    pub operation_missing_owner_approval: DashboardValue<String>,
+    pub operation_missing_risk_gate: DashboardValue<String>,
+    pub operation_missing_audit_gate: DashboardValue<String>,
+    pub operation_stale_read_model: DashboardValue<String>,
+    pub operation_provenance_mismatch: DashboardValue<String>,
+    pub operation_gates_complete: DashboardValue<String>,
+    pub operation_ungated_attempted: DashboardValue<String>,
+    pub operation_attempt_status: DashboardValue<String>,
+    pub operation_ungated_attempt_fail_closed: DashboardValue<String>,
     pub orders_summary: DashboardValue<String>,
     pub fills_summary: DashboardValue<String>,
     pub risk_summary: DashboardValue<String>,
@@ -3988,6 +4052,14 @@ pub struct TraderTerminalReadModelStatus {
     pub automatic_alert_action_allowed: DashboardValue<bool>,
     pub automatic_audit_action_allowed: DashboardValue<bool>,
     pub automatic_provenance_repair_allowed: DashboardValue<bool>,
+    pub manual_operation_entry_enabled: DashboardValue<bool>,
+    pub manual_operation_submit_allowed: DashboardValue<bool>,
+    pub manual_operation_cancel_allowed: DashboardValue<bool>,
+    pub manual_operation_retry_allowed: DashboardValue<bool>,
+    pub manual_operation_replace_allowed: DashboardValue<bool>,
+    pub manual_operation_amend_allowed: DashboardValue<bool>,
+    pub manual_operation_flatten_allowed: DashboardValue<bool>,
+    pub automatic_operation_action_allowed: DashboardValue<bool>,
     pub product_grade_trading_terminal_claim: DashboardValue<bool>,
 }
 
@@ -4651,6 +4723,9 @@ fn degraded_trader_terminal_read_model_status(
         fills_status: DashboardValue::unknown(),
         risk_status: DashboardValue::unknown(),
         lifecycle_status: DashboardValue::unknown(),
+        operation_entry_status: DashboardValue::available(
+            "blocked_missing_operation_entry_contract".to_string(),
+        ),
         account_summary: DashboardValue::unknown(),
         positions_summary: DashboardValue::unknown(),
         account_freshness_status: DashboardValue::unknown(),
@@ -4752,6 +4827,29 @@ fn degraded_trader_terminal_read_model_status(
         audit_provenance_mismatch: DashboardValue::unknown(),
         audit_diagnostics: DashboardValue::unknown(),
         audit_lineage: DashboardValue::unknown(),
+        operation_entry_freshness_status: DashboardValue::unknown(),
+        operation_entry_source_type: DashboardValue::unknown(),
+        operation_entry_source_ref: DashboardValue::unknown(),
+        operation_entry_redaction_state: DashboardValue::unknown(),
+        operation_intent_preview: DashboardValue::unknown(),
+        operation_owner_approval_ref: DashboardValue::unknown(),
+        operation_risk_decision_ref: DashboardValue::unknown(),
+        operation_audit_evidence_ref: DashboardValue::unknown(),
+        operation_entry_disabled: DashboardValue::available("true".to_string()),
+        operation_entry_blocked_reason: DashboardValue::available(
+            "missing_operation_entry_contract".to_string(),
+        ),
+        operation_missing_owner_approval: DashboardValue::available("true".to_string()),
+        operation_missing_risk_gate: DashboardValue::available("true".to_string()),
+        operation_missing_audit_gate: DashboardValue::available("true".to_string()),
+        operation_stale_read_model: DashboardValue::available("true".to_string()),
+        operation_provenance_mismatch: DashboardValue::unknown(),
+        operation_gates_complete: DashboardValue::available("false".to_string()),
+        operation_ungated_attempted: DashboardValue::available("false".to_string()),
+        operation_attempt_status: DashboardValue::available(
+            "fail_closed_without_contract".to_string(),
+        ),
+        operation_ungated_attempt_fail_closed: DashboardValue::available("true".to_string()),
         orders_summary: DashboardValue::unknown(),
         fills_summary: DashboardValue::unknown(),
         risk_summary: DashboardValue::unknown(),
@@ -4790,6 +4888,14 @@ fn degraded_trader_terminal_read_model_status(
         automatic_alert_action_allowed: DashboardValue::available(false),
         automatic_audit_action_allowed: DashboardValue::available(false),
         automatic_provenance_repair_allowed: DashboardValue::available(false),
+        manual_operation_entry_enabled: DashboardValue::available(false),
+        manual_operation_submit_allowed: DashboardValue::available(false),
+        manual_operation_cancel_allowed: DashboardValue::available(false),
+        manual_operation_retry_allowed: DashboardValue::available(false),
+        manual_operation_replace_allowed: DashboardValue::available(false),
+        manual_operation_amend_allowed: DashboardValue::available(false),
+        manual_operation_flatten_allowed: DashboardValue::available(false),
+        automatic_operation_action_allowed: DashboardValue::available(false),
         product_grade_trading_terminal_claim: DashboardValue::available(false),
     }
 }
@@ -5084,6 +5190,94 @@ fn trader_terminal_read_model_status_from_value(
         health = strongest_health(health, HealthStatus::Error);
     }
 
+    let operation_intent_preview =
+        read_model_component_data_scalar(value, "operation_entry", "intent_preview");
+    let operation_owner_approval_ref =
+        read_model_component_data_scalar(value, "operation_entry", "owner_approval_ref");
+    let operation_risk_decision_ref =
+        read_model_component_data_scalar(value, "operation_entry", "risk_decision_ref");
+    let operation_audit_evidence_ref =
+        read_model_component_data_scalar(value, "operation_entry", "audit_evidence_ref");
+    let operation_missing_owner_approval_flag = read_model_component_data_nested_bool(
+        value,
+        "operation_entry",
+        "blocked_states",
+        "missing_owner_approval",
+    )
+    .unwrap_or(operation_owner_approval_ref.availability != DashboardAvailability::Available);
+    let operation_missing_risk_gate_flag = read_model_component_data_nested_bool(
+        value,
+        "operation_entry",
+        "blocked_states",
+        "missing_risk_gate",
+    )
+    .unwrap_or(operation_risk_decision_ref.availability != DashboardAvailability::Available);
+    let operation_missing_audit_gate_flag = read_model_component_data_nested_bool(
+        value,
+        "operation_entry",
+        "blocked_states",
+        "missing_audit_gate",
+    )
+    .unwrap_or(operation_audit_evidence_ref.availability != DashboardAvailability::Available);
+    let operation_stale_read_model_flag = read_model_component_data_nested_bool(
+        value,
+        "operation_entry",
+        "blocked_states",
+        "stale_read_model",
+    )
+    .unwrap_or(freshness_status.value.as_deref() == Some("stale"));
+    let operation_provenance_mismatch_flag = read_model_component_data_nested_bool(
+        value,
+        "operation_entry",
+        "blocked_states",
+        "provenance_mismatch",
+    )
+    .unwrap_or(audit_provenance_mismatch.value.as_deref() == Some("true"));
+    let operation_entry_disabled_flag =
+        read_model_component_data_bool(value, "operation_entry", "disabled").unwrap_or(true);
+    let operation_gates_complete_flag =
+        read_model_component_data_bool(value, "operation_entry", "gates_complete").unwrap_or(false);
+    let operation_ungated_attempted_flag =
+        read_model_component_data_bool(value, "operation_entry", "ungated_operation_attempted")
+            .unwrap_or(false);
+    let operation_ungated_attempt_fail_closed_flag = read_model_component_data_bool(
+        value,
+        "operation_entry",
+        "ungated_operation_attempt_fail_closed",
+    )
+    .unwrap_or(true);
+    if operation_ungated_attempted_flag {
+        component_diagnostics.push("operation_entry:ungated_operation_attempted".to_string());
+        health = strongest_health(health, HealthStatus::Error);
+    }
+    if operation_provenance_mismatch_flag {
+        component_diagnostics.push("operation_entry:provenance_mismatch".to_string());
+        health = strongest_health(health, HealthStatus::Error);
+    }
+    if operation_ungated_attempted_flag && !operation_ungated_attempt_fail_closed_flag {
+        component_diagnostics.push("operation_entry:ungated_attempt_not_fail_closed".to_string());
+        health = strongest_health(health, HealthStatus::Error);
+    }
+
+    let operation_entry_blocked_reason = read_model_operation_entry_blocked_reason(
+        operation_missing_owner_approval_flag,
+        operation_missing_risk_gate_flag,
+        operation_missing_audit_gate_flag,
+        operation_stale_read_model_flag,
+        operation_provenance_mismatch_flag,
+    );
+    let operation_entry_state = ReadModelOperationEntryState {
+        ungated_operation_attempted: operation_ungated_attempted_flag,
+        stale_read_model: operation_stale_read_model_flag,
+        provenance_mismatch: operation_provenance_mismatch_flag,
+        missing_owner_approval: operation_missing_owner_approval_flag,
+        missing_risk_gate: operation_missing_risk_gate_flag,
+        missing_audit_gate: operation_missing_audit_gate_flag,
+        gates_complete: operation_gates_complete_flag,
+        disabled: operation_entry_disabled_flag,
+    };
+    let operation_entry_status = read_model_operation_entry_status(operation_entry_state);
+
     let boundary = value.get("capability_boundary").unwrap_or(&Value::Null);
     let dashboard_order_controls_enabled = required_read_model_boundary_bool(
         boundary,
@@ -5271,6 +5465,54 @@ fn trader_terminal_read_model_status_from_value(
         &mut diagnostics,
         &mut health,
     );
+    let manual_operation_entry_enabled = optional_false_read_model_boundary_bool(
+        boundary,
+        "manual_operation_entry_enabled",
+        &mut diagnostics,
+        &mut health,
+    );
+    let manual_operation_submit_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "manual_operation_submit_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let manual_operation_cancel_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "manual_operation_cancel_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let manual_operation_retry_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "manual_operation_retry_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let manual_operation_replace_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "manual_operation_replace_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let manual_operation_amend_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "manual_operation_amend_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let manual_operation_flatten_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "manual_operation_flatten_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
+    let automatic_operation_action_allowed = optional_false_read_model_boundary_bool(
+        boundary,
+        "automatic_operation_action_allowed",
+        &mut diagnostics,
+        &mut health,
+    );
     let product_grade_trading_terminal_claim = required_read_model_boundary_bool(
         boundary,
         "product_grade_trading_terminal_claim",
@@ -5339,6 +5581,7 @@ fn trader_terminal_read_model_status_from_value(
             .get("lifecycle_status")
             .cloned()
             .unwrap_or_else(DashboardValue::unknown),
+        operation_entry_status,
         account_summary: read_model_component_data_summary(value, "account"),
         positions_summary: read_model_component_data_summary(value, "positions"),
         account_freshness_status: read_model_component_freshness_status(value, "account"),
@@ -5561,6 +5804,47 @@ fn trader_terminal_read_model_status_from_value(
         audit_provenance_mismatch,
         audit_diagnostics: read_model_component_diagnostics_summary(value, "lifecycle_status"),
         audit_lineage: read_model_component_lineage_summary(value, "lifecycle_status"),
+        operation_entry_freshness_status: read_model_component_freshness_status(
+            value,
+            "operation_entry",
+        ),
+        operation_entry_source_type: read_model_component_source_field(
+            value,
+            "operation_entry",
+            "source_type",
+        ),
+        operation_entry_source_ref: read_model_component_source_field(
+            value,
+            "operation_entry",
+            "source_ref",
+        ),
+        operation_entry_redaction_state: read_model_component_redaction_status(
+            value,
+            "operation_entry",
+        ),
+        operation_intent_preview,
+        operation_owner_approval_ref,
+        operation_risk_decision_ref,
+        operation_audit_evidence_ref,
+        operation_entry_disabled: dashboard_bool_string(operation_entry_disabled_flag),
+        operation_entry_blocked_reason,
+        operation_missing_owner_approval: dashboard_bool_string(
+            operation_missing_owner_approval_flag,
+        ),
+        operation_missing_risk_gate: dashboard_bool_string(operation_missing_risk_gate_flag),
+        operation_missing_audit_gate: dashboard_bool_string(operation_missing_audit_gate_flag),
+        operation_stale_read_model: dashboard_bool_string(operation_stale_read_model_flag),
+        operation_provenance_mismatch: dashboard_bool_string(operation_provenance_mismatch_flag),
+        operation_gates_complete: dashboard_bool_string(operation_gates_complete_flag),
+        operation_ungated_attempted: dashboard_bool_string(operation_ungated_attempted_flag),
+        operation_attempt_status: read_model_component_data_scalar(
+            value,
+            "operation_entry",
+            "attempt_status",
+        ),
+        operation_ungated_attempt_fail_closed: dashboard_bool_string(
+            operation_ungated_attempt_fail_closed_flag,
+        ),
         orders_summary: read_model_component_data_summary(value, "orders"),
         fills_summary: read_model_component_data_summary(value, "fills"),
         risk_summary: read_model_component_data_summary(value, "risk"),
@@ -5599,8 +5883,88 @@ fn trader_terminal_read_model_status_from_value(
         automatic_alert_action_allowed,
         automatic_audit_action_allowed,
         automatic_provenance_repair_allowed,
+        manual_operation_entry_enabled,
+        manual_operation_submit_allowed,
+        manual_operation_cancel_allowed,
+        manual_operation_retry_allowed,
+        manual_operation_replace_allowed,
+        manual_operation_amend_allowed,
+        manual_operation_flatten_allowed,
+        automatic_operation_action_allowed,
         product_grade_trading_terminal_claim,
     }
+}
+
+fn dashboard_bool_string(value: bool) -> DashboardValue<String> {
+    DashboardValue::available(value.to_string())
+}
+
+fn read_model_operation_entry_blocked_reason(
+    missing_owner_approval: bool,
+    missing_risk_gate: bool,
+    missing_audit_gate: bool,
+    stale_read_model: bool,
+    provenance_mismatch: bool,
+) -> DashboardValue<String> {
+    let mut reasons = Vec::new();
+    if missing_owner_approval {
+        reasons.push("missing_owner_approval");
+    }
+    if missing_risk_gate {
+        reasons.push("missing_risk_gate");
+    }
+    if missing_audit_gate {
+        reasons.push("missing_audit_gate");
+    }
+    if stale_read_model {
+        reasons.push("stale_read_model");
+    }
+    if provenance_mismatch {
+        reasons.push("provenance_mismatch");
+    }
+
+    if reasons.is_empty() {
+        DashboardValue::available("none".to_string())
+    } else {
+        DashboardValue::available(reasons.join(","))
+    }
+}
+
+#[derive(Clone, Copy)]
+struct ReadModelOperationEntryState {
+    ungated_operation_attempted: bool,
+    stale_read_model: bool,
+    provenance_mismatch: bool,
+    missing_owner_approval: bool,
+    missing_risk_gate: bool,
+    missing_audit_gate: bool,
+    gates_complete: bool,
+    disabled: bool,
+}
+
+fn read_model_operation_entry_status(
+    state: ReadModelOperationEntryState,
+) -> DashboardValue<String> {
+    let status = if state.ungated_operation_attempted {
+        "fail_closed_ungated_operation_attempt"
+    } else if state.stale_read_model {
+        "blocked_stale_read_model"
+    } else if state.provenance_mismatch {
+        "fail_closed_provenance_mismatch"
+    } else if state.missing_owner_approval {
+        "blocked_missing_owner_approval"
+    } else if state.missing_risk_gate {
+        "blocked_missing_risk_gate"
+    } else if state.missing_audit_gate {
+        "blocked_missing_audit_gate"
+    } else if state.gates_complete && state.disabled {
+        "disabled_gated_preview_ready"
+    } else if state.gates_complete {
+        "gated_preview_ready"
+    } else {
+        "blocked_missing_gate"
+    };
+    DashboardValue::available(status.to_string())
 }
 
 fn required_read_model_boundary_bool(
@@ -14697,6 +15061,10 @@ mod tests {
         assert_eq!(runtime.fills_status.value.as_deref(), Some("healthy"));
         assert_eq!(runtime.risk_status.value.as_deref(), Some("healthy"));
         assert_eq!(runtime.lifecycle_status.value.as_deref(), Some("healthy"));
+        assert_eq!(
+            runtime.operation_entry_status.value.as_deref(),
+            Some("blocked_missing_owner_approval")
+        );
         assert!(
             runtime
                 .account_summary
@@ -14950,6 +15318,77 @@ mod tests {
             runtime.audit_provenance_mismatch.value.as_deref(),
             Some("false")
         );
+        assert_eq!(
+            runtime.operation_entry_freshness_status.value.as_deref(),
+            Some("fresh")
+        );
+        assert_eq!(
+            runtime.operation_entry_source_ref.value.as_deref(),
+            Some("artifact://v0_21/unified_read_model_snapshot.json")
+        );
+        assert_eq!(
+            runtime.operation_intent_preview.value.as_deref(),
+            Some("manual_operation_preview_only")
+        );
+        assert_eq!(
+            runtime.operation_owner_approval_ref.value.as_deref(),
+            Some("missing_owner_approval")
+        );
+        assert_eq!(
+            runtime.operation_risk_decision_ref.value.as_deref(),
+            Some("missing_risk_gate")
+        );
+        assert_eq!(
+            runtime.operation_audit_evidence_ref.value.as_deref(),
+            Some("missing_audit_gate")
+        );
+        assert_eq!(
+            runtime.operation_entry_disabled.value.as_deref(),
+            Some("true")
+        );
+        assert_eq!(
+            runtime.operation_entry_blocked_reason.value.as_deref(),
+            Some("missing_owner_approval,missing_risk_gate,missing_audit_gate")
+        );
+        assert_eq!(
+            runtime.operation_missing_owner_approval.value.as_deref(),
+            Some("true")
+        );
+        assert_eq!(
+            runtime.operation_missing_risk_gate.value.as_deref(),
+            Some("true")
+        );
+        assert_eq!(
+            runtime.operation_missing_audit_gate.value.as_deref(),
+            Some("true")
+        );
+        assert_eq!(
+            runtime.operation_stale_read_model.value.as_deref(),
+            Some("false")
+        );
+        assert_eq!(
+            runtime.operation_provenance_mismatch.value.as_deref(),
+            Some("false")
+        );
+        assert_eq!(
+            runtime.operation_gates_complete.value.as_deref(),
+            Some("false")
+        );
+        assert_eq!(
+            runtime.operation_ungated_attempted.value.as_deref(),
+            Some("false")
+        );
+        assert_eq!(
+            runtime.operation_attempt_status.value.as_deref(),
+            Some("fail_closed_without_gates")
+        );
+        assert_eq!(
+            runtime
+                .operation_ungated_attempt_fail_closed
+                .value
+                .as_deref(),
+            Some("true")
+        );
         assert_eq!(runtime.dashboard_order_controls_enabled.value, Some(false));
         assert_eq!(runtime.dashboard_fill_controls_enabled.value, Some(false));
         assert_eq!(runtime.dashboard_risk_controls_enabled.value, Some(false));
@@ -15008,6 +15447,17 @@ mod tests {
             runtime.automatic_provenance_repair_allowed.value,
             Some(false)
         );
+        assert_eq!(runtime.manual_operation_entry_enabled.value, Some(false));
+        assert_eq!(runtime.manual_operation_submit_allowed.value, Some(false));
+        assert_eq!(runtime.manual_operation_cancel_allowed.value, Some(false));
+        assert_eq!(runtime.manual_operation_retry_allowed.value, Some(false));
+        assert_eq!(runtime.manual_operation_replace_allowed.value, Some(false));
+        assert_eq!(runtime.manual_operation_amend_allowed.value, Some(false));
+        assert_eq!(runtime.manual_operation_flatten_allowed.value, Some(false));
+        assert_eq!(
+            runtime.automatic_operation_action_allowed.value,
+            Some(false)
+        );
         assert!(
             runtime.artifact_path.value.as_deref().is_some_and(
                 |path| path.ends_with(TRADER_TERMINAL_READ_MODEL_ARTIFACT_RELATIVE_PATH)
@@ -15021,6 +15471,232 @@ mod tests {
         assert!(!DASHBOARD_JS.contains("replace_order"));
         assert!(!DASHBOARD_JS.contains("amend_order"));
         assert!(!DASHBOARD_JS.contains("flatten_order"));
+    }
+
+    #[test]
+    fn trader_terminal_operation_entry_blocks_without_required_gates() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "operation-entry-missing-gates",
+            |_| {},
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Healthy);
+        assert_eq!(
+            runtime.operation_entry_status.value.as_deref(),
+            Some("blocked_missing_owner_approval")
+        );
+        assert_eq!(
+            runtime.operation_entry_blocked_reason.value.as_deref(),
+            Some("missing_owner_approval,missing_risk_gate,missing_audit_gate")
+        );
+        assert_eq!(
+            runtime.operation_entry_disabled.value.as_deref(),
+            Some("true")
+        );
+        assert_eq!(
+            runtime.operation_missing_owner_approval.value.as_deref(),
+            Some("true")
+        );
+        assert_eq!(
+            runtime.operation_missing_risk_gate.value.as_deref(),
+            Some("true")
+        );
+        assert_eq!(
+            runtime.operation_missing_audit_gate.value.as_deref(),
+            Some("true")
+        );
+        assert_eq!(
+            runtime
+                .operation_ungated_attempt_fail_closed
+                .value
+                .as_deref(),
+            Some("true")
+        );
+        assert_eq!(runtime.manual_operation_entry_enabled.value, Some(false));
+        assert_eq!(runtime.manual_operation_submit_allowed.value, Some(false));
+        assert_eq!(runtime.manual_operation_cancel_allowed.value, Some(false));
+
+        let renderer = dashboard_js_function_body("renderTraderTerminalWorkbench");
+        assert!(renderer.contains("workbench-panel-operation-entry"));
+        assert!(renderer.contains("Owner approval ref"));
+        assert!(renderer.contains("Risk decision ref"));
+        assert!(renderer.contains("Audit evidence ref"));
+        for forbidden in [
+            "<button",
+            "data-workbench-action",
+            "/actions/submit",
+            "/actions/cancel",
+            "/actions/retry",
+            "/actions/replace",
+            "/actions/amend",
+            "/actions/flatten",
+            "fetch(",
+        ] {
+            assert!(
+                !renderer.contains(forbidden),
+                "operation entry renderer must stay display-only and not contain {forbidden}"
+            );
+        }
+    }
+
+    #[test]
+    fn trader_terminal_operation_entry_ready_gates_remains_disabled_preview() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "operation-entry-ready-gates-disabled",
+            |artifact| {
+                let entry = &mut artifact["components"]["operation_entry"]["data"];
+                entry["entry_state"] = json!("disabled_gated_preview_ready");
+                entry["owner_approval_ref"] = json!("approval:v220:owner:001");
+                entry["risk_decision_ref"] = json!("risk:v220:decision:001");
+                entry["audit_evidence_ref"] = json!("audit:v220:evidence:001");
+                entry["blocked_reason"] = json!("none");
+                entry["gates_complete"] = json!(true);
+                entry["attempt_status"] = json!("not_attempted_preview_only");
+                entry["blocked_states"] = json!({
+                    "missing_owner_approval": false,
+                    "missing_risk_gate": false,
+                    "missing_audit_gate": false,
+                    "stale_read_model": false,
+                    "provenance_mismatch": false
+                });
+            },
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Healthy);
+        assert_eq!(
+            runtime.operation_entry_status.value.as_deref(),
+            Some("disabled_gated_preview_ready")
+        );
+        assert_eq!(
+            runtime.operation_entry_blocked_reason.value.as_deref(),
+            Some("none")
+        );
+        assert_eq!(
+            runtime.operation_gates_complete.value.as_deref(),
+            Some("true")
+        );
+        assert_eq!(
+            runtime.operation_entry_disabled.value.as_deref(),
+            Some("true")
+        );
+        assert_eq!(
+            runtime.operation_owner_approval_ref.value.as_deref(),
+            Some("approval:v220:owner:001")
+        );
+        assert_eq!(runtime.manual_operation_entry_enabled.value, Some(false));
+        assert_eq!(runtime.manual_operation_submit_allowed.value, Some(false));
+        assert_eq!(runtime.manual_operation_replace_allowed.value, Some(false));
+        assert_eq!(runtime.manual_operation_flatten_allowed.value, Some(false));
+    }
+
+    #[test]
+    fn trader_terminal_operation_entry_stale_read_model_blocks_entry() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "operation-entry-stale-read-model",
+            |artifact| {
+                artifact["freshness"]["status"] = json!("stale");
+                artifact["components"]["operation_entry"]["data"]["blocked_states"]["stale_read_model"] =
+                    json!(true);
+            },
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Stale);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("stale_artifact")
+        );
+        assert_eq!(
+            runtime.operation_entry_status.value.as_deref(),
+            Some("blocked_stale_read_model")
+        );
+        assert_eq!(
+            runtime.operation_stale_read_model.value.as_deref(),
+            Some("true")
+        );
+        assert!(
+            runtime
+                .operation_entry_blocked_reason
+                .value
+                .as_deref()
+                .is_some_and(|reason| reason.contains("stale_read_model"))
+        );
+        assert_eq!(runtime.manual_operation_submit_allowed.value, Some(false));
+    }
+
+    #[test]
+    fn trader_terminal_operation_entry_provenance_mismatch_fails_closed() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "operation-entry-provenance-mismatch",
+            |artifact| {
+                artifact["health_status"] = json!("fail_closed");
+                artifact["components"]["lifecycle_status"]["data"]["provenance_mismatch"] =
+                    json!(true);
+                artifact["components"]["operation_entry"]["data"]["blocked_states"]["provenance_mismatch"] =
+                    json!(true);
+            },
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Error);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("fail_closed")
+        );
+        assert_eq!(
+            runtime.operation_entry_status.value.as_deref(),
+            Some("fail_closed_provenance_mismatch")
+        );
+        assert_eq!(
+            runtime.operation_provenance_mismatch.value.as_deref(),
+            Some("true")
+        );
+        assert!(
+            runtime.diagnostic.value.as_deref().is_some_and(
+                |diagnostic| diagnostic.contains("operation_entry:provenance_mismatch")
+            )
+        );
+    }
+
+    #[test]
+    fn trader_terminal_ungated_operation_attempt_fails_closed() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "operation-entry-ungated-attempt",
+            |artifact| {
+                artifact["health_status"] = json!("fail_closed");
+                let entry = &mut artifact["components"]["operation_entry"]["data"];
+                entry["ungated_operation_attempted"] = json!(true);
+                entry["ungated_operation_attempt_fail_closed"] = json!(true);
+                entry["attempt_status"] = json!("fail_closed_ungated_operation_attempt");
+                artifact["capability_boundary"]["manual_operation_submit_allowed"] = json!(true);
+            },
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Error);
+        assert_eq!(
+            runtime.operation_entry_status.value.as_deref(),
+            Some("fail_closed_ungated_operation_attempt")
+        );
+        assert_eq!(
+            runtime.operation_ungated_attempted.value.as_deref(),
+            Some("true")
+        );
+        assert_eq!(
+            runtime
+                .operation_ungated_attempt_fail_closed
+                .value
+                .as_deref(),
+            Some("true")
+        );
+        assert_eq!(runtime.manual_operation_submit_allowed.value, Some(true));
+        assert!(
+            runtime
+                .diagnostic
+                .value
+                .as_deref()
+                .is_some_and(|diagnostic| {
+                    diagnostic.contains("operation_entry:ungated_operation_attempted")
+                        && diagnostic.contains("manual_operation_submit_allowed_true")
+                })
+        );
     }
 
     #[test]
@@ -20024,6 +20700,40 @@ mod tests {
                 "no_retry": true,
                 "ledger_present": true,
                 "automatic_remediation_allowed": false
+            })),
+            "operation_entry": read_model_component("healthy", &json!({
+                "entry_contract_version": "ntpro.v220.manual_operation_entry.v1",
+                "entry_state": "blocked_missing_gates",
+                "intent_preview": "manual_operation_preview_only",
+                "owner_approval_ref": "missing_owner_approval",
+                "risk_decision_ref": "missing_risk_gate",
+                "audit_evidence_ref": "missing_audit_gate",
+                "disabled": true,
+                "blocked_reason": "missing_owner_approval,missing_risk_gate,missing_audit_gate",
+                "gates_complete": false,
+                "ungated_operation_attempted": false,
+                "ungated_operation_attempt_fail_closed": true,
+                "attempt_status": "fail_closed_without_gates",
+                "blocked_states": {
+                    "missing_owner_approval": true,
+                    "missing_risk_gate": true,
+                    "missing_audit_gate": true,
+                    "stale_read_model": false,
+                    "provenance_mismatch": false
+                },
+                "operation_controls": {
+                    "submit_allowed": false,
+                    "cancel_allowed": false,
+                    "retry_allowed": false,
+                    "replace_allowed": false,
+                    "amend_allowed": false,
+                    "flatten_allowed": false
+                },
+                "future_execution_version": "v0.24",
+                "execution_algorithm_allowed": false,
+                "production_order_submission_allowed": false,
+                "production_order_mutation_allowed": false,
+                "automatic_operation_action_allowed": false
             }))
         });
         let capability_boundary = json!({
@@ -20059,7 +20769,15 @@ mod tests {
             "automatic_risk_repair_allowed": false,
             "automatic_alert_action_allowed": false,
             "automatic_audit_action_allowed": false,
-            "automatic_provenance_repair_allowed": false
+            "automatic_provenance_repair_allowed": false,
+            "manual_operation_entry_enabled": false,
+            "manual_operation_submit_allowed": false,
+            "manual_operation_cancel_allowed": false,
+            "manual_operation_retry_allowed": false,
+            "manual_operation_replace_allowed": false,
+            "manual_operation_amend_allowed": false,
+            "manual_operation_flatten_allowed": false,
+            "automatic_operation_action_allowed": false
         });
         json!({
             "contract_version": UNIFIED_READ_MODEL_CONTRACT_VERSION,
