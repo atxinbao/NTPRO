@@ -1,0 +1,606 @@
+{
+  "schema_version": "ntpro.v221_workbench_render_smoke.v1",
+  "snapshot_id": "v221-workbench-render-smoke",
+  "generated_at": {
+    "availability": "available",
+    "value": "2026-07-02T16:00:00Z"
+  },
+  "read_model_runtime": [
+    {
+      "node_id": "terminal-v221-render-smoke",
+      "health": "healthy",
+      "readiness_status": {
+        "availability": "available",
+        "value": "ready_readonly_artifact"
+      },
+      "diagnostic": {
+        "availability": "available",
+        "value": "canonical_unified_read_model_artifact_ready"
+      },
+      "artifact_path": {
+        "availability": "available",
+        "value": "tests/golden/v221/workbench_render_snapshot.json"
+      },
+      "contract_version": {
+        "availability": "available",
+        "value": "ntpro.v210.unified_read_model_contract.v1"
+      },
+      "account_status": {
+        "availability": "available",
+        "value": "redacted_ready"
+      },
+      "account_freshness_status": {
+        "availability": "available",
+        "value": "fresh"
+      },
+      "account_risk_state": {
+        "availability": "available",
+        "value": "active"
+      },
+      "account_equity": {
+        "availability": "available",
+        "value": "1000.00"
+      },
+      "account_available_balance": {
+        "availability": "available",
+        "value": "900.00"
+      },
+      "account_balance_entry_count": {
+        "availability": "available",
+        "value": "2"
+      },
+      "account_source_type": {
+        "availability": "available",
+        "value": "artifact"
+      },
+      "account_source_ref": {
+        "availability": "available",
+        "value": "artifact://v0_21/unified_read_model_snapshot.json"
+      },
+      "account_redaction_state": {
+        "availability": "available",
+        "value": "redacted"
+      },
+      "positions_status": {
+        "availability": "available",
+        "value": "healthy"
+      },
+      "positions_freshness_status": {
+        "availability": "available",
+        "value": "fresh"
+      },
+      "positions_account_id": {
+        "availability": "available",
+        "value": "acct-v221-render"
+      },
+      "positions_net_position_side": {
+        "availability": "available",
+        "value": "flat"
+      },
+      "positions_quantity": {
+        "availability": "available",
+        "value": "0"
+      },
+      "positions_notional": {
+        "availability": "available",
+        "value": "0"
+      },
+      "positions_precision": {
+        "availability": "available",
+        "value": "standard"
+      },
+      "positions_lineage": {
+        "availability": "available",
+        "value": "tests/golden/read_model_position_schema.jsonl"
+      },
+      "positions_source_type": {
+        "availability": "available",
+        "value": "artifact"
+      },
+      "positions_source_ref": {
+        "availability": "available",
+        "value": "artifact://v221/positions"
+      },
+      "positions_redaction_state": {
+        "availability": "available",
+        "value": "redacted"
+      },
+      "orders_status": {
+        "availability": "available",
+        "value": "healthy"
+      },
+      "orders_freshness_status": {
+        "availability": "available",
+        "value": "fresh"
+      },
+      "orders_lifecycle_state": {
+        "availability": "available",
+        "value": "readback_matched"
+      },
+      "orders_client_order_id": {
+        "availability": "available",
+        "value": "client-v221-render"
+      },
+      "orders_request_digest": {
+        "availability": "available",
+        "value": "sha256-v221-render-request"
+      },
+      "orders_attempt_id": {
+        "availability": "available",
+        "value": "attempt-v221-render"
+      },
+      "orders_approval_id": {
+        "availability": "available",
+        "value": "approval-v221-render"
+      },
+      "orders_readback_status": {
+        "availability": "available",
+        "value": "matched"
+      },
+      "orders_audit_state": {
+        "availability": "available",
+        "value": "audit_closed"
+      },
+      "orders_ledger_present": {
+        "availability": "available",
+        "value": "true"
+      },
+      "orders_duplicate_attempt_detected": {
+        "availability": "available",
+        "value": "false"
+      },
+      "orders_no_retry": {
+        "availability": "available",
+        "value": "true"
+      },
+      "orders_diagnostics": {
+        "availability": "available",
+        "value": "none"
+      },
+      "orders_lineage": {
+        "availability": "available",
+        "value": "tests/golden/read_model_order_lifecycle_schema.jsonl"
+      },
+      "orders_source_type": {
+        "availability": "available",
+        "value": "artifact"
+      },
+      "orders_source_ref": {
+        "availability": "available",
+        "value": "artifact://v221/orders"
+      },
+      "orders_exchange_truth": {
+        "availability": "available",
+        "value": "false"
+      },
+      "orders_adapter_runtime_integrated": {
+        "availability": "available",
+        "value": "false"
+      },
+      "orders_values_are_exchange_truth": {
+        "availability": "available",
+        "value": "false"
+      },
+      "orders_redaction_state": {
+        "availability": "available",
+        "value": "redacted"
+      },
+      "fills_fill_status": {
+        "availability": "available",
+        "value": "reconciled"
+      },
+      "fills_freshness_status": {
+        "availability": "available",
+        "value": "fresh"
+      },
+      "fills_fill_id": {
+        "availability": "available",
+        "value": "fill-v221-render"
+      },
+      "fills_execution_id": {
+        "availability": "available",
+        "value": "execution-v221-render"
+      },
+      "fills_order_id": {
+        "availability": "available",
+        "value": "order-v221-render"
+      },
+      "fills_client_order_id": {
+        "availability": "available",
+        "value": "client-v221-render"
+      },
+      "fills_order_linkage_status": {
+        "availability": "available",
+        "value": "linked"
+      },
+      "fills_reconciliation_status": {
+        "availability": "available",
+        "value": "reconciled"
+      },
+      "fills_quantity": {
+        "availability": "available",
+        "value": "0.010"
+      },
+      "fills_cumulative_quantity": {
+        "availability": "available",
+        "value": "0.010"
+      },
+      "fills_remaining_quantity": {
+        "availability": "available",
+        "value": "0"
+      },
+      "fills_price": {
+        "availability": "available",
+        "value": "61000.00"
+      },
+      "fills_precision_status": {
+        "availability": "available",
+        "value": "valid"
+      },
+      "fills_partial_fill_detected": {
+        "availability": "available",
+        "value": "false"
+      },
+      "fills_duplicate_fill_detected": {
+        "availability": "available",
+        "value": "false"
+      },
+      "fills_risk_projection_input": {
+        "availability": "available",
+        "value": "active"
+      },
+      "fills_diagnostics": {
+        "availability": "available",
+        "value": "none"
+      },
+      "fills_lineage": {
+        "availability": "available",
+        "value": "tests/golden/read_model_fill_execution_schema.jsonl"
+      },
+      "fills_source_type": {
+        "availability": "available",
+        "value": "artifact"
+      },
+      "fills_source_ref": {
+        "availability": "available",
+        "value": "artifact://v221/fills"
+      },
+      "fills_exchange_truth": {
+        "availability": "available",
+        "value": "false"
+      },
+      "fills_adapter_runtime_integrated": {
+        "availability": "available",
+        "value": "false"
+      },
+      "fills_values_are_exchange_truth": {
+        "availability": "available",
+        "value": "false"
+      },
+      "fills_redaction_state": {
+        "availability": "available",
+        "value": "redacted"
+      },
+      "risk_status": {
+        "availability": "available",
+        "value": "healthy"
+      },
+      "risk_priority_state": {
+        "availability": "available",
+        "value": "active"
+      },
+      "risk_state": {
+        "availability": "available",
+        "value": "active"
+      },
+      "risk_freshness_status": {
+        "availability": "available",
+        "value": "fresh"
+      },
+      "risk_freshness_rollup": {
+        "availability": "available",
+        "value": "fresh"
+      },
+      "risk_critical_evidence_complete": {
+        "availability": "available",
+        "value": "true"
+      },
+      "risk_visible": {
+        "availability": "available",
+        "value": "false"
+      },
+      "risk_manual_review_required": {
+        "availability": "available",
+        "value": "false"
+      },
+      "risk_halted": {
+        "availability": "available",
+        "value": "false"
+      },
+      "risk_mismatch_detected": {
+        "availability": "available",
+        "value": "false"
+      },
+      "risk_alert_severity": {
+        "availability": "available",
+        "value": "info"
+      },
+      "risk_alert_missing_evidence": {
+        "availability": "available",
+        "value": "false"
+      },
+      "risk_alert_stale_source": {
+        "availability": "available",
+        "value": "false"
+      },
+      "risk_alert_schema_mismatch": {
+        "availability": "available",
+        "value": "false"
+      },
+      "risk_alert_redaction_breach": {
+        "availability": "available",
+        "value": "false"
+      },
+      "risk_alert_forbidden_control_request": {
+        "availability": "available",
+        "value": "false"
+      },
+      "risk_alert_summary": {
+        "availability": "available",
+        "value": "read_only_boundary_ok"
+      },
+      "risk_diagnostics": {
+        "availability": "available",
+        "value": "none"
+      },
+      "risk_lineage": {
+        "availability": "available",
+        "value": "tests/golden/read_model_risk_state_schema.jsonl"
+      },
+      "risk_source_type": {
+        "availability": "available",
+        "value": "artifact"
+      },
+      "risk_source_ref": {
+        "availability": "available",
+        "value": "artifact://v221/risk"
+      },
+      "risk_redaction_state": {
+        "availability": "available",
+        "value": "redacted"
+      },
+      "lifecycle_status": {
+        "availability": "available",
+        "value": "read_only_foundation"
+      },
+      "lifecycle_summary": {
+        "availability": "available",
+        "value": "read_only_foundation"
+      },
+      "audit_freshness_status": {
+        "availability": "available",
+        "value": "fresh"
+      },
+      "audit_state": {
+        "availability": "available",
+        "value": "audit_closed"
+      },
+      "audit_closed": {
+        "availability": "available",
+        "value": "true"
+      },
+      "audit_required_evidence_complete": {
+        "availability": "available",
+        "value": "true"
+      },
+      "audit_required_components_complete": {
+        "availability": "available",
+        "value": "true"
+      },
+      "audit_missing_evidence": {
+        "availability": "available",
+        "value": "none"
+      },
+      "audit_provenance_mismatch": {
+        "availability": "available",
+        "value": "false"
+      },
+      "audit_release_provenance": {
+        "availability": "available",
+        "value": "ntpro-rust-only-v0.21.1"
+      },
+      "audit_artifact_digest": {
+        "availability": "available",
+        "value": "sha256:read-model-dashboard-ready"
+      },
+      "audit_artifact_sha": {
+        "availability": "available",
+        "value": "sha256:read-model-dashboard-ready"
+      },
+      "audit_diagnostics": {
+        "availability": "available",
+        "value": "none"
+      },
+      "audit_lineage": {
+        "availability": "available",
+        "value": "tests/golden/read_model_dashboard_schema.jsonl"
+      },
+      "audit_source_type": {
+        "availability": "available",
+        "value": "artifact"
+      },
+      "audit_source_ref": {
+        "availability": "available",
+        "value": "artifact://v221/audit"
+      },
+      "audit_redaction_state": {
+        "availability": "available",
+        "value": "redacted"
+      },
+      "operation_entry_status": {
+        "availability": "available",
+        "value": "blocked_missing_owner_approval"
+      },
+      "operation_entry_freshness_status": {
+        "availability": "available",
+        "value": "fresh"
+      },
+      "operation_intent_preview": {
+        "availability": "available",
+        "value": "manual_operation_preview_only"
+      },
+      "operation_owner_approval_ref": {
+        "availability": "available",
+        "value": "missing_owner_approval"
+      },
+      "operation_risk_decision_ref": {
+        "availability": "available",
+        "value": "missing_risk_gate"
+      },
+      "operation_audit_evidence_ref": {
+        "availability": "available",
+        "value": "missing_audit_gate"
+      },
+      "operation_entry_disabled": {
+        "availability": "available",
+        "value": "true"
+      },
+      "operation_entry_blocked_reason": {
+        "availability": "available",
+        "value": "missing_owner_approval,missing_risk_gate,missing_audit_gate"
+      },
+      "operation_missing_owner_approval": {
+        "availability": "available",
+        "value": "true"
+      },
+      "operation_missing_risk_gate": {
+        "availability": "available",
+        "value": "true"
+      },
+      "operation_missing_audit_gate": {
+        "availability": "available",
+        "value": "true"
+      },
+      "operation_stale_read_model": {
+        "availability": "available",
+        "value": "false"
+      },
+      "operation_provenance_mismatch": {
+        "availability": "available",
+        "value": "false"
+      },
+      "operation_gates_complete": {
+        "availability": "available",
+        "value": "false"
+      },
+      "operation_ungated_attempted": {
+        "availability": "available",
+        "value": "false"
+      },
+      "operation_attempt_status": {
+        "availability": "available",
+        "value": "fail_closed_without_gates"
+      },
+      "operation_ungated_attempt_fail_closed": {
+        "availability": "available",
+        "value": "true"
+      },
+      "operation_entry_source_type": {
+        "availability": "available",
+        "value": "artifact"
+      },
+      "operation_entry_source_ref": {
+        "availability": "available",
+        "value": "artifact://v221/operation_entry"
+      },
+      "operation_entry_redaction_state": {
+        "availability": "available",
+        "value": "redacted"
+      },
+      "new_submit_capability": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_order_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_approval_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_cancel_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_retry_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_submit_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_replace_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_amend_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_flatten_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "trader_terminal_order_ticket_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_entry_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_submit_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_cancel_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_retry_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_replace_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_amend_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_flatten_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "automatic_operation_action_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "production_order_submission_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "production_order_mutation_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "product_grade_trading_terminal_claim": {
+        "availability": "available",
+        "value": false
+      }
+    }
+  ]
+}

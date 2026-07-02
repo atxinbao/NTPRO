@@ -2118,3 +2118,30 @@ script step. The workflow classifier now treats `verification.md` as evidence
 documentation; local simulation reports `heavy_rust=false` and
 `release_verify=true`, so the replacement hosted smoke run must execute the
 release verification script checks.
+
+# V221-005 Verification
+
+Date: 2026-07-02
+Executor: Codex
+Task: `V221-005` / GitHub issue `#709`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v22_workbench_render_smoke.sh = PASS
+python3 -m json.tool tests/golden/v221/workbench_render_snapshot.json >/dev/null = PASS
+scripts/ai/verify_v22_workbench_render_smoke.sh = PASS, panels=8 readonly_boundary=locked false_fields=21
+cargo test -p nautilus-cli trader_terminal_v221_workbench_snapshot_populates_render_smoke_fields --lib -- --nocapture = PASS, 1 test passed
+cargo test -p nautilus-cli trader_terminal_ --lib -- --nocapture = PASS, 29 tests passed
+cargo fmt --all -- --check = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+```
+
+## Result
+
+Workbench render smoke now exercises a representative `read_model_runtime`
+snapshot through the real Dashboard JavaScript renderer. The rendered output
+contains the account, positions, orders, fills, risk, alerts,
+audit/provenance, and operation-entry panels; it preserves a locked read-only
+boundary; and it has no submit/cancel/replace/amend/flatten action surface.
