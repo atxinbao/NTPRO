@@ -1131,6 +1131,7 @@ function renderTraderTerminalWorkbench(readModels) {
     ["workbench-tab-operation-entry", "workbench-panel-operation-entry", "操作入口", snapshotValue(primary.operation_entry_status) || panelStatus("operation_entry_status"), "V220-005"],
   ];
   const controlsDisabled = [
+    "new_submit_capability",
     "dashboard_order_controls_enabled",
     "dashboard_approval_controls_enabled",
     "dashboard_cancel_controls_enabled",
@@ -1401,7 +1402,7 @@ function renderReadModelRuntime(readModels) {
             <td data-label="Snapshot">${panelRow("Contract", snapshotValue(item.contract_version))}${panelRow("Schema", snapshotValue(item.schema_version))}${panelRow("ID", snapshotValue(item.snapshot_id))}${panelRow("Kind", snapshotValue(item.snapshot_kind))}${panelRow("Health", snapshotValue(item.snapshot_health_status))}${panelRow("Freshness", snapshotValue(item.freshness_status))}${panelRow("Source", `${snapshotValue(item.source_type)} ${snapshotValue(item.source_ref)}`)}${panelRow("Redaction", snapshotValue(item.redaction_state))}</td>
             <td data-label="组件状态">${panelRow("Account", snapshotValue(item.account_status))}${panelRow("Positions", snapshotValue(item.positions_status))}${panelRow("Orders", snapshotValue(item.orders_status))}${panelRow("Fills", snapshotValue(item.fills_status))}${panelRow("Risk", snapshotValue(item.risk_status))}${panelRow("Lifecycle", snapshotValue(item.lifecycle_status))}</td>
             <td data-label="基础状态">${panelRow("Account", snapshotValue(item.account_summary))}${panelRow("Positions", snapshotValue(item.positions_summary))}${panelRow("Orders", snapshotValue(item.orders_summary))}${panelRow("Fills", snapshotValue(item.fills_summary))}${panelRow("Risk", snapshotValue(item.risk_summary))}${panelRow("Lifecycle", snapshotValue(item.lifecycle_summary))}</td>
-            <td data-label="只读边界">${panelRow("下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("审批控件", snapshotValue(item.dashboard_approval_controls_enabled))}${panelRow("撤单控件", snapshotValue(item.dashboard_cancel_controls_enabled))}${panelRow("重试控件", snapshotValue(item.dashboard_retry_controls_enabled))}${panelRow("Submit", snapshotValue(item.dashboard_submit_controls_enabled))}${panelRow("Replace", snapshotValue(item.dashboard_replace_controls_enabled))}${panelRow("Amend", snapshotValue(item.dashboard_amend_controls_enabled))}${panelRow("Flatten", snapshotValue(item.dashboard_flatten_controls_enabled))}${panelRow("订单票据", snapshotValue(item.trader_terminal_order_ticket_enabled))}${panelRow("实盘终端声明", snapshotValue(item.trader_terminal_live_trading_claim))}${panelRow("产品级声明", snapshotValue(item.product_grade_trading_terminal_claim))}</td>
+            <td data-label="只读边界">${panelRow("新增 Submit 能力", snapshotValue(item.new_submit_capability))}${panelRow("下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("审批控件", snapshotValue(item.dashboard_approval_controls_enabled))}${panelRow("撤单控件", snapshotValue(item.dashboard_cancel_controls_enabled))}${panelRow("重试控件", snapshotValue(item.dashboard_retry_controls_enabled))}${panelRow("Submit", snapshotValue(item.dashboard_submit_controls_enabled))}${panelRow("Replace", snapshotValue(item.dashboard_replace_controls_enabled))}${panelRow("Amend", snapshotValue(item.dashboard_amend_controls_enabled))}${panelRow("Flatten", snapshotValue(item.dashboard_flatten_controls_enabled))}${panelRow("订单票据", snapshotValue(item.trader_terminal_order_ticket_enabled))}${panelRow("实盘终端声明", snapshotValue(item.trader_terminal_live_trading_claim))}${panelRow("产品级声明", snapshotValue(item.product_grade_trading_terminal_claim))}</td>
             <td data-label="工件" class="path">${displayText(snapshotValue(item.artifact_path))}</td>
           </tr>
         `).join("")}
@@ -4021,6 +4022,7 @@ pub struct TraderTerminalReadModelStatus {
     pub missing_components: DashboardValue<String>,
     pub blocking_reasons: DashboardValue<String>,
     pub component_diagnostics: DashboardValue<String>,
+    pub new_submit_capability: DashboardValue<bool>,
     pub dashboard_order_controls_enabled: DashboardValue<bool>,
     pub dashboard_approval_controls_enabled: DashboardValue<bool>,
     pub dashboard_cancel_controls_enabled: DashboardValue<bool>,
@@ -4857,6 +4859,7 @@ fn degraded_trader_terminal_read_model_status(
         missing_components: DashboardValue::unknown(),
         blocking_reasons: DashboardValue::unknown(),
         component_diagnostics: DashboardValue::unknown(),
+        new_submit_capability: DashboardValue::available(false),
         dashboard_order_controls_enabled: DashboardValue::available(false),
         dashboard_approval_controls_enabled: DashboardValue::available(false),
         dashboard_cancel_controls_enabled: DashboardValue::available(false),
@@ -5279,6 +5282,12 @@ fn trader_terminal_read_model_status_from_value(
     let operation_entry_status = read_model_operation_entry_status(operation_entry_state);
 
     let boundary = value.get("capability_boundary").unwrap_or(&Value::Null);
+    let new_submit_capability = required_read_model_boundary_bool(
+        boundary,
+        "new_submit_capability",
+        &mut diagnostics,
+        &mut health,
+    );
     let dashboard_order_controls_enabled = required_read_model_boundary_bool(
         boundary,
         "dashboard_order_controls_enabled",
@@ -5303,55 +5312,55 @@ fn trader_terminal_read_model_status_from_value(
         &mut diagnostics,
         &mut health,
     );
-    let dashboard_fill_controls_enabled = optional_false_read_model_boundary_bool(
+    let dashboard_fill_controls_enabled = required_read_model_boundary_bool(
         boundary,
         "dashboard_fill_controls_enabled",
         &mut diagnostics,
         &mut health,
     );
-    let dashboard_submit_controls_enabled = optional_false_read_model_boundary_bool(
+    let dashboard_submit_controls_enabled = required_read_model_boundary_bool(
         boundary,
         "dashboard_submit_controls_enabled",
         &mut diagnostics,
         &mut health,
     );
-    let dashboard_replace_controls_enabled = optional_false_read_model_boundary_bool(
+    let dashboard_replace_controls_enabled = required_read_model_boundary_bool(
         boundary,
         "dashboard_replace_controls_enabled",
         &mut diagnostics,
         &mut health,
     );
-    let dashboard_amend_controls_enabled = optional_false_read_model_boundary_bool(
+    let dashboard_amend_controls_enabled = required_read_model_boundary_bool(
         boundary,
         "dashboard_amend_controls_enabled",
         &mut diagnostics,
         &mut health,
     );
-    let dashboard_flatten_controls_enabled = optional_false_read_model_boundary_bool(
+    let dashboard_flatten_controls_enabled = required_read_model_boundary_bool(
         boundary,
         "dashboard_flatten_controls_enabled",
         &mut diagnostics,
         &mut health,
     );
-    let trader_terminal_order_ticket_enabled = optional_false_read_model_boundary_bool(
+    let trader_terminal_order_ticket_enabled = required_read_model_boundary_bool(
         boundary,
         "trader_terminal_order_ticket_enabled",
         &mut diagnostics,
         &mut health,
     );
-    let trader_terminal_live_trading_claim = optional_false_read_model_boundary_bool(
+    let trader_terminal_live_trading_claim = required_read_model_boundary_bool(
         boundary,
         "trader_terminal_live_trading_claim",
         &mut diagnostics,
         &mut health,
     );
-    let production_order_submission_allowed = optional_false_read_model_boundary_bool(
+    let production_order_submission_allowed = required_read_model_boundary_bool(
         boundary,
         "production_order_submission_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let production_order_mutation_allowed = optional_false_read_model_boundary_bool(
+    let production_order_mutation_allowed = required_read_model_boundary_bool(
         boundary,
         "production_order_mutation_allowed",
         &mut diagnostics,
@@ -5363,151 +5372,151 @@ fn trader_terminal_read_model_status_from_value(
         &mut diagnostics,
         &mut health,
     );
-    let order_permission_control_allowed = optional_false_read_model_boundary_bool(
+    let order_permission_control_allowed = required_read_model_boundary_bool(
         boundary,
         "order_permission_control_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let retry_order_allowed = optional_false_read_model_boundary_bool(
+    let retry_order_allowed = required_read_model_boundary_bool(
         boundary,
         "retry_order_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let automatic_cancel_allowed = optional_false_read_model_boundary_bool(
+    let automatic_cancel_allowed = required_read_model_boundary_bool(
         boundary,
         "automatic_cancel_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let automatic_order_remediation_allowed = optional_false_read_model_boundary_bool(
+    let automatic_order_remediation_allowed = required_read_model_boundary_bool(
         boundary,
         "automatic_order_remediation_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let funds_transfer_allowed = optional_false_read_model_boundary_bool(
+    let funds_transfer_allowed = required_read_model_boundary_bool(
         boundary,
         "funds_transfer_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let account_configuration_mutation_allowed = optional_false_read_model_boundary_bool(
+    let account_configuration_mutation_allowed = required_read_model_boundary_bool(
         boundary,
         "account_configuration_mutation_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let auto_flatten_position_allowed = optional_false_read_model_boundary_bool(
+    let auto_flatten_position_allowed = required_read_model_boundary_bool(
         boundary,
         "auto_flatten_position_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let automatic_position_repair_allowed = optional_false_read_model_boundary_bool(
+    let automatic_position_repair_allowed = required_read_model_boundary_bool(
         boundary,
         "automatic_position_repair_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let execution_algorithm_allowed = optional_false_read_model_boundary_bool(
+    let execution_algorithm_allowed = required_read_model_boundary_bool(
         boundary,
         "execution_algorithm_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let automatic_fill_repair_allowed = optional_false_read_model_boundary_bool(
+    let automatic_fill_repair_allowed = required_read_model_boundary_bool(
         boundary,
         "automatic_fill_repair_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let automatic_reconciliation_repair_allowed = optional_false_read_model_boundary_bool(
+    let automatic_reconciliation_repair_allowed = required_read_model_boundary_bool(
         boundary,
         "automatic_reconciliation_repair_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let dashboard_risk_controls_enabled = optional_false_read_model_boundary_bool(
+    let dashboard_risk_controls_enabled = required_read_model_boundary_bool(
         boundary,
         "dashboard_risk_controls_enabled",
         &mut diagnostics,
         &mut health,
     );
-    let automatic_risk_action_allowed = optional_false_read_model_boundary_bool(
+    let automatic_risk_action_allowed = required_read_model_boundary_bool(
         boundary,
         "automatic_risk_action_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let automatic_risk_repair_allowed = optional_false_read_model_boundary_bool(
+    let automatic_risk_repair_allowed = required_read_model_boundary_bool(
         boundary,
         "automatic_risk_repair_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let automatic_alert_action_allowed = optional_false_read_model_boundary_bool(
+    let automatic_alert_action_allowed = required_read_model_boundary_bool(
         boundary,
         "automatic_alert_action_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let automatic_audit_action_allowed = optional_false_read_model_boundary_bool(
+    let automatic_audit_action_allowed = required_read_model_boundary_bool(
         boundary,
         "automatic_audit_action_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let automatic_provenance_repair_allowed = optional_false_read_model_boundary_bool(
+    let automatic_provenance_repair_allowed = required_read_model_boundary_bool(
         boundary,
         "automatic_provenance_repair_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let manual_operation_entry_enabled = optional_false_read_model_boundary_bool(
+    let manual_operation_entry_enabled = required_read_model_boundary_bool(
         boundary,
         "manual_operation_entry_enabled",
         &mut diagnostics,
         &mut health,
     );
-    let manual_operation_submit_allowed = optional_false_read_model_boundary_bool(
+    let manual_operation_submit_allowed = required_read_model_boundary_bool(
         boundary,
         "manual_operation_submit_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let manual_operation_cancel_allowed = optional_false_read_model_boundary_bool(
+    let manual_operation_cancel_allowed = required_read_model_boundary_bool(
         boundary,
         "manual_operation_cancel_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let manual_operation_retry_allowed = optional_false_read_model_boundary_bool(
+    let manual_operation_retry_allowed = required_read_model_boundary_bool(
         boundary,
         "manual_operation_retry_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let manual_operation_replace_allowed = optional_false_read_model_boundary_bool(
+    let manual_operation_replace_allowed = required_read_model_boundary_bool(
         boundary,
         "manual_operation_replace_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let manual_operation_amend_allowed = optional_false_read_model_boundary_bool(
+    let manual_operation_amend_allowed = required_read_model_boundary_bool(
         boundary,
         "manual_operation_amend_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let manual_operation_flatten_allowed = optional_false_read_model_boundary_bool(
+    let manual_operation_flatten_allowed = required_read_model_boundary_bool(
         boundary,
         "manual_operation_flatten_allowed",
         &mut diagnostics,
         &mut health,
     );
-    let automatic_operation_action_allowed = optional_false_read_model_boundary_bool(
+    let automatic_operation_action_allowed = required_read_model_boundary_bool(
         boundary,
         "automatic_operation_action_allowed",
         &mut diagnostics,
@@ -5852,6 +5861,7 @@ fn trader_terminal_read_model_status_from_value(
         missing_components: diagnostic_value(&missing_components),
         blocking_reasons,
         component_diagnostics: diagnostic_value(&component_diagnostics),
+        new_submit_capability,
         dashboard_order_controls_enabled,
         dashboard_approval_controls_enabled,
         dashboard_cancel_controls_enabled,
@@ -5985,23 +5995,6 @@ fn required_read_model_boundary_bool(
             *health = strongest_health(*health, HealthStatus::Error);
             DashboardValue::unknown()
         }
-    }
-}
-
-fn optional_false_read_model_boundary_bool(
-    boundary: &Value,
-    field: &str,
-    diagnostics: &mut Vec<String>,
-    health: &mut HealthStatus,
-) -> DashboardValue<bool> {
-    match boundary.get(field).and_then(Value::as_bool) {
-        Some(false) => DashboardValue::available(false),
-        Some(true) => {
-            diagnostics.push(format!("{field}_true"));
-            *health = strongest_health(*health, HealthStatus::Error);
-            DashboardValue::available(true)
-        }
-        None => DashboardValue::unknown(),
     }
 }
 
@@ -11359,6 +11352,7 @@ fn audit_production_kill_switch_artifact_health(
             "automatic_correction_orders_submitted",
         ],
         &[
+            "new_submit_capability",
             "production_order_submission_allowed",
             "production_order_mutation_allowed",
             "production_order_state_reads_allowed",
@@ -15796,26 +15790,37 @@ mod tests {
     }
 
     #[test]
-    fn trader_terminal_v220_forbidden_controls_fail_closed_individually() {
-        for field in [
-            "dashboard_submit_controls_enabled",
-            "dashboard_cancel_controls_enabled",
-            "dashboard_retry_controls_enabled",
-            "dashboard_replace_controls_enabled",
-            "dashboard_amend_controls_enabled",
-            "dashboard_flatten_controls_enabled",
-            "trader_terminal_order_ticket_enabled",
-            "manual_operation_submit_allowed",
-            "manual_operation_cancel_allowed",
-            "manual_operation_retry_allowed",
-            "manual_operation_replace_allowed",
-            "manual_operation_amend_allowed",
-            "manual_operation_flatten_allowed",
-        ] {
+    fn trader_terminal_v221_required_false_boundaries_accept_explicit_false() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "v221-required-false-explicit",
+            |_| {},
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Healthy);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("ready_readonly_artifact")
+        );
+        assert_eq!(
+            runtime.diagnostic.value.as_deref(),
+            Some("canonical_unified_read_model_artifact_ready")
+        );
+
+        for field in v220_required_false_operation_boundary_fields() {
+            assert_eq!(v220_boundary_value(&runtime, field), Some(false), "{field}");
+        }
+    }
+
+    #[test]
+    fn trader_terminal_v221_missing_required_false_boundaries_fail_closed() {
+        for field in v220_required_false_operation_boundary_fields() {
             let runtime = trader_terminal_read_model_runtime_with_mutation(
-                &format!("v220-forbidden-{field}"),
+                &format!("v221-required-false-missing-{field}"),
                 |artifact| {
-                    artifact["capability_boundary"][field] = json!(true);
+                    artifact["capability_boundary"]
+                        .as_object_mut()
+                        .unwrap()
+                        .remove(*field);
                 },
             );
 
@@ -15825,27 +15830,41 @@ mod tests {
                 Some("fail_closed"),
                 "{field}"
             );
-            assert_eq!(
-                v220_forbidden_boundary_value(&runtime, field),
-                Some(true),
+            assert_eq!(v220_boundary_value(&runtime, field), None, "{field}");
+            assert!(
+                runtime
+                    .diagnostic
+                    .value
+                    .as_deref()
+                    .is_some_and(|diagnostic| diagnostic.contains(&format!("{field}_missing"))),
                 "{field}"
             );
+        }
+    }
+
+    #[test]
+    fn trader_terminal_v220_forbidden_controls_fail_closed_individually() {
+        for field in v220_required_false_operation_boundary_fields() {
+            let runtime = trader_terminal_read_model_runtime_with_mutation(
+                &format!("v220-forbidden-{field}"),
+                |artifact| {
+                    artifact["capability_boundary"][*field] = json!(true);
+                },
+            );
+
+            assert_eq!(runtime.health, HealthStatus::Error, "{field}");
+            assert_eq!(
+                runtime.readiness_status.value.as_deref(),
+                Some("fail_closed"),
+                "{field}"
+            );
+            assert_eq!(v220_boundary_value(&runtime, field), Some(true), "{field}");
             assert!(
                 runtime
                     .diagnostic
                     .value
                     .as_deref()
                     .is_some_and(|diagnostic| diagnostic.contains(&format!("{field}_true"))),
-                "{field}"
-            );
-            assert_eq!(
-                runtime.product_grade_trading_terminal_claim.value,
-                Some(false),
-                "{field}"
-            );
-            assert_eq!(
-                runtime.trader_terminal_live_trading_claim.value,
-                Some(false),
                 "{field}"
             );
         }
@@ -20822,92 +20841,76 @@ mod tests {
         runtime: &TraderTerminalReadModelStatus,
         case_name: &str,
     ) {
-        for (field, value) in [
-            (
-                "dashboard_order_controls_enabled",
-                runtime.dashboard_order_controls_enabled.value,
-            ),
-            (
-                "dashboard_approval_controls_enabled",
-                runtime.dashboard_approval_controls_enabled.value,
-            ),
-            (
-                "dashboard_cancel_controls_enabled",
-                runtime.dashboard_cancel_controls_enabled.value,
-            ),
-            (
-                "dashboard_retry_controls_enabled",
-                runtime.dashboard_retry_controls_enabled.value,
-            ),
-            (
-                "dashboard_submit_controls_enabled",
-                runtime.dashboard_submit_controls_enabled.value,
-            ),
-            (
-                "dashboard_replace_controls_enabled",
-                runtime.dashboard_replace_controls_enabled.value,
-            ),
-            (
-                "dashboard_amend_controls_enabled",
-                runtime.dashboard_amend_controls_enabled.value,
-            ),
-            (
-                "dashboard_flatten_controls_enabled",
-                runtime.dashboard_flatten_controls_enabled.value,
-            ),
-            (
-                "trader_terminal_order_ticket_enabled",
-                runtime.trader_terminal_order_ticket_enabled.value,
-            ),
-            (
-                "manual_operation_entry_enabled",
-                runtime.manual_operation_entry_enabled.value,
-            ),
-            (
-                "manual_operation_submit_allowed",
-                runtime.manual_operation_submit_allowed.value,
-            ),
-            (
-                "manual_operation_cancel_allowed",
-                runtime.manual_operation_cancel_allowed.value,
-            ),
-            (
-                "manual_operation_retry_allowed",
-                runtime.manual_operation_retry_allowed.value,
-            ),
-            (
-                "manual_operation_replace_allowed",
-                runtime.manual_operation_replace_allowed.value,
-            ),
-            (
-                "manual_operation_amend_allowed",
-                runtime.manual_operation_amend_allowed.value,
-            ),
-            (
-                "manual_operation_flatten_allowed",
-                runtime.manual_operation_flatten_allowed.value,
-            ),
-            (
-                "automatic_operation_action_allowed",
-                runtime.automatic_operation_action_allowed.value,
-            ),
-            (
-                "product_grade_trading_terminal_claim",
-                runtime.product_grade_trading_terminal_claim.value,
-            ),
-        ] {
-            assert_eq!(value, Some(false), "{case_name}: {field}");
+        for field in v220_required_false_operation_boundary_fields() {
+            assert_eq!(
+                v220_boundary_value(runtime, field),
+                Some(false),
+                "{case_name}: {field}"
+            );
         }
     }
 
-    fn v220_forbidden_boundary_value(
-        runtime: &TraderTerminalReadModelStatus,
-        field: &str,
-    ) -> Option<bool> {
+    fn v220_required_false_operation_boundary_fields() -> &'static [&'static str] {
+        &[
+            "new_submit_capability",
+            "production_order_submission_allowed",
+            "production_order_mutation_allowed",
+            "dashboard_order_controls_enabled",
+            "dashboard_approval_controls_enabled",
+            "dashboard_cancel_controls_enabled",
+            "dashboard_retry_controls_enabled",
+            "dashboard_fill_controls_enabled",
+            "dashboard_submit_controls_enabled",
+            "dashboard_replace_controls_enabled",
+            "dashboard_amend_controls_enabled",
+            "dashboard_flatten_controls_enabled",
+            "dashboard_risk_controls_enabled",
+            "retry_replace_amend_flatten_allowed",
+            "trader_terminal_order_ticket_enabled",
+            "trader_terminal_live_trading_claim",
+            "product_grade_trading_terminal_claim",
+            "funds_transfer_allowed",
+            "account_configuration_mutation_allowed",
+            "order_permission_control_allowed",
+            "auto_flatten_position_allowed",
+            "automatic_position_repair_allowed",
+            "retry_order_allowed",
+            "automatic_cancel_allowed",
+            "automatic_order_remediation_allowed",
+            "execution_algorithm_allowed",
+            "automatic_fill_repair_allowed",
+            "automatic_reconciliation_repair_allowed",
+            "automatic_risk_action_allowed",
+            "automatic_risk_repair_allowed",
+            "automatic_alert_action_allowed",
+            "automatic_audit_action_allowed",
+            "automatic_provenance_repair_allowed",
+            "manual_operation_entry_enabled",
+            "manual_operation_submit_allowed",
+            "manual_operation_cancel_allowed",
+            "manual_operation_retry_allowed",
+            "manual_operation_replace_allowed",
+            "manual_operation_amend_allowed",
+            "manual_operation_flatten_allowed",
+            "automatic_operation_action_allowed",
+        ]
+    }
+
+    fn v220_boundary_value(runtime: &TraderTerminalReadModelStatus, field: &str) -> Option<bool> {
         match field {
+            "new_submit_capability" => runtime.new_submit_capability.value,
+            "production_order_submission_allowed" => {
+                runtime.production_order_submission_allowed.value
+            }
+            "production_order_mutation_allowed" => runtime.production_order_mutation_allowed.value,
+            "dashboard_order_controls_enabled" => runtime.dashboard_order_controls_enabled.value,
+            "dashboard_approval_controls_enabled" => {
+                runtime.dashboard_approval_controls_enabled.value
+            }
             "dashboard_submit_controls_enabled" => runtime.dashboard_submit_controls_enabled.value,
             "dashboard_cancel_controls_enabled" => runtime.dashboard_cancel_controls_enabled.value,
             "dashboard_retry_controls_enabled" => runtime.dashboard_retry_controls_enabled.value,
+            "dashboard_fill_controls_enabled" => runtime.dashboard_fill_controls_enabled.value,
             "dashboard_replace_controls_enabled" => {
                 runtime.dashboard_replace_controls_enabled.value
             }
@@ -20918,12 +20921,50 @@ mod tests {
             "trader_terminal_order_ticket_enabled" => {
                 runtime.trader_terminal_order_ticket_enabled.value
             }
+            "trader_terminal_live_trading_claim" => {
+                runtime.trader_terminal_live_trading_claim.value
+            }
+            "product_grade_trading_terminal_claim" => {
+                runtime.product_grade_trading_terminal_claim.value
+            }
+            "funds_transfer_allowed" => runtime.funds_transfer_allowed.value,
+            "account_configuration_mutation_allowed" => {
+                runtime.account_configuration_mutation_allowed.value
+            }
+            "order_permission_control_allowed" => runtime.order_permission_control_allowed.value,
+            "auto_flatten_position_allowed" => runtime.auto_flatten_position_allowed.value,
+            "automatic_position_repair_allowed" => runtime.automatic_position_repair_allowed.value,
+            "retry_order_allowed" => runtime.retry_order_allowed.value,
+            "automatic_cancel_allowed" => runtime.automatic_cancel_allowed.value,
+            "automatic_order_remediation_allowed" => {
+                runtime.automatic_order_remediation_allowed.value
+            }
+            "execution_algorithm_allowed" => runtime.execution_algorithm_allowed.value,
+            "automatic_fill_repair_allowed" => runtime.automatic_fill_repair_allowed.value,
+            "automatic_reconciliation_repair_allowed" => {
+                runtime.automatic_reconciliation_repair_allowed.value
+            }
+            "dashboard_risk_controls_enabled" => runtime.dashboard_risk_controls_enabled.value,
+            "retry_replace_amend_flatten_allowed" => {
+                runtime.retry_replace_amend_flatten_allowed.value
+            }
+            "automatic_risk_action_allowed" => runtime.automatic_risk_action_allowed.value,
+            "automatic_risk_repair_allowed" => runtime.automatic_risk_repair_allowed.value,
+            "automatic_alert_action_allowed" => runtime.automatic_alert_action_allowed.value,
+            "automatic_audit_action_allowed" => runtime.automatic_audit_action_allowed.value,
+            "automatic_provenance_repair_allowed" => {
+                runtime.automatic_provenance_repair_allowed.value
+            }
+            "manual_operation_entry_enabled" => runtime.manual_operation_entry_enabled.value,
             "manual_operation_submit_allowed" => runtime.manual_operation_submit_allowed.value,
             "manual_operation_cancel_allowed" => runtime.manual_operation_cancel_allowed.value,
             "manual_operation_retry_allowed" => runtime.manual_operation_retry_allowed.value,
             "manual_operation_replace_allowed" => runtime.manual_operation_replace_allowed.value,
             "manual_operation_amend_allowed" => runtime.manual_operation_amend_allowed.value,
             "manual_operation_flatten_allowed" => runtime.manual_operation_flatten_allowed.value,
+            "automatic_operation_action_allowed" => {
+                runtime.automatic_operation_action_allowed.value
+            }
             _ => None,
         }
     }
@@ -21470,6 +21511,7 @@ mod tests {
                 "manual_approval_required": true,
                 "approval_state": "approved",
                 "owner_approval_required_before_any_mutation": true,
+                "new_submit_capability": false,
                 "production_order_submission_allowed": false,
                 "production_order_mutation_allowed": false,
                 "production_order_state_reads_allowed": false,
