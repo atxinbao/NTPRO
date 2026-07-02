@@ -645,6 +645,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   account-mutation, auto-flatten, or position-repair controls.
 - `../evidence/V220-002.md` - V220-002 Trader Terminal account and position
   workbench panel evidence for GitHub issue #685.
+- `v0_22_0_order_fill_workbench_panels.md` - V220-003 Trader Terminal order
+  and fill panel release note. It records read-only order lifecycle, attempt
+  ledger, readback, audit, fill/execution identity, dedupe, partial fill,
+  linkage, reconciliation, risk input, provenance, lineage, schema-only truth,
+  and no order/fill operation controls.
+- `../evidence/V220-003.md` - V220-003 Trader Terminal order and fill
+  workbench panel evidence for GitHub issue #686.
 - `../evidence/V211-006.md` - V211-006 release gate, strict provenance, and
   dependency proof evidence for the `ntpro-rust-only-v0.21.1` GitHub Release.
 - `../evidence/V211-001.md` - V211-001 release closeout and milestone evidence
