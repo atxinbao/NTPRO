@@ -117,8 +117,10 @@ Scope:
   readback, audit, fill/execution identity, dedupe, partial fill, linkage,
   reconciliation, risk input, provenance, lineage, and schema-only truth
   diagnostics.
-- Read-only trader workbench for orders, positions, fills, risk, alerts, and
-  audit state.
+- Risk, alerts, audit, and provenance drill-down panels for risk priority,
+  missing/stale/schema/redaction/forbidden-control alert severity, audit
+  evidence completeness, release provenance, artifact digest, and lineage
+  diagnostics.
 - Manual operation entry design.
 - Owner approval, risk gate, and audit gate integration for any future real
   operation.
@@ -135,6 +137,7 @@ ungated real operation buttons = not included
 automatic execution = not included
 funds transfer/account mutation/auto flatten/position repair controls = not included
 order/fill repair/reconciliation repair/execution algorithm controls = not included
+risk/alert/audit/provenance automatic action controls = not included
 ```
 
 ### v0.23.0 - Multi-Account / Multi-Strategy / Multi-Venue Node Isolation

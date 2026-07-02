@@ -652,6 +652,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   and no order/fill operation controls.
 - `../evidence/V220-003.md` - V220-003 Trader Terminal order and fill
   workbench panel evidence for GitHub issue #686.
+- `v0_22_0_risk_alert_audit_provenance_workbench_panels.md` - V220-004 Trader
+  Terminal risk, alerts, audit, and provenance drill-down panel release note.
+  It records read-only risk priority, alert severity, audit evidence
+  completeness, release provenance, artifact digest, lineage diagnostics, and
+  no automatic risk/alert/audit/provenance action controls.
+- `../evidence/V220-004.md` - V220-004 Trader Terminal risk, alerts, audit,
+  and provenance drill-down panel evidence for GitHub issue #687.
 - `../evidence/V211-006.md` - V211-006 release gate, strict provenance, and
   dependency proof evidence for the `ntpro-rust-only-v0.21.1` GitHub Release.
 - `../evidence/V211-001.md` - V211-001 release closeout and milestone evidence
