@@ -638,6 +638,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   read-model fallback, and no operation buttons/product-grade-terminal claim.
 - `../evidence/V220-001.md` - V220-001 Trader Terminal read-only workbench
   shell and navigation evidence for GitHub issue #684.
+- `v0_22_0_account_position_workbench_panels.md` - V220-002 Trader Terminal
+  account and position panel release note. It records read-only account status,
+  balance, position side, quantity, notional, precision, freshness,
+  provenance, redaction, and lineage projection without funds-transfer,
+  account-mutation, auto-flatten, or position-repair controls.
+- `../evidence/V220-002.md` - V220-002 Trader Terminal account and position
+  workbench panel evidence for GitHub issue #685.
 - `../evidence/V211-006.md` - V211-006 release gate, strict provenance, and
   dependency proof evidence for the `ntpro-rust-only-v0.21.1` GitHub Release.
 - `../evidence/V211-001.md` - V211-001 release closeout and milestone evidence

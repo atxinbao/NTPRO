@@ -1,3 +1,32 @@
+# V220-002 Verification
+
+Date: 2026-07-01
+Executor: Codex
+Task: `V220-002` / GitHub issue `#685`
+
+## Commands
+
+```text
+cargo test -p nautilus-cli trader_terminal_account_position -- --nocapture = PASS, 3 account/position workbench tests passed
+cargo test -p nautilus-cli trader_terminal_read_model -- --nocapture = PASS, 6 dashboard read-model runtime bridge tests passed
+cargo test -p nautilus-cli trader_terminal_workbench_shell_is_readonly_and_degrades_without_artifact -- --nocapture = PASS
+cargo test -p nautilus-cli dashboard_trader_ops_boundary_keeps_order_controls_absent -- --nocapture = PASS
+source scripts/ai/toolchain_env.sh && cargo clippy --workspace --lib --tests --features "${NAUTILUS_RUST_FEATURES:-arrow,ffi,high-precision,streaming,defi}" -- -D warnings = PASS
+node dashboard JS syntax smoke = PASS
+cargo fmt --all -- --check = PASS
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS
+```
+
+## Result
+
+V220-002 is locally verified. The Trader Terminal workbench account and
+position panels read from `read_model_runtime`, expose freshness/provenance/
+redaction/lineage drill-down fields, degrade or fail closed for stale data,
+missing provenance, and account-position mismatch, and keep funds transfer,
+account configuration mutation, auto-flatten, and position repair controls
+absent or false.
+
 # V220-001 Verification
 
 Date: 2026-07-01
