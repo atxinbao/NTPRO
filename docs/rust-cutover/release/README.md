@@ -697,6 +697,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   consumption, and missing isolation scope fail-closed behavior.
 - `../evidence/V230-005.md` - V230-005 orchestration control-plane gate
   evidence for GitHub issue #716.
+- `v0_23_0_dashboard_observability_surface.md` - V230-006 release note for the
+  Dashboard / Workbench observability surface. It records executable replay and
+  render smoke coverage for read-only multi-account, multi-strategy, and
+  multi-venue node aggregation, scoped filtering, missing identity degradation,
+  and forbidden operation controls.
+- `../evidence/V230-006.md` - V230-006 Dashboard observability evidence for
+  GitHub issue #717.
 - `../scope/v0_22_0_trader_terminal_workbench_scope.md` - V220-000 scope
   decision for the v0.22.0 Trader Terminal workbench line. It records the
   v0.21.1 closeout dependency, read-only-first workbench boundary, gated manual

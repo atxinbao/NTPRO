@@ -1,0 +1,442 @@
+{
+  "schema_version": "ntpro.v230_dashboard_observability_render_smoke.v1",
+  "snapshot_id": "v230-dashboard-observability-render-smoke",
+  "generated_at": {
+    "availability": "available",
+    "value": "2026-07-03T21:45:00+08:00"
+  },
+  "read_model_runtime": [
+    {
+      "node_id": "terminal-v230-acct001-strategy-alpha-venue-binance",
+      "health": "healthy",
+      "readiness_status": {
+        "availability": "available",
+        "value": "dashboard_observability_v230"
+      },
+      "diagnostic": {
+        "availability": "available",
+        "value": "scoped_dashboard_row_ready"
+      },
+      "artifact_path": {
+        "availability": "available",
+        "value": "tests/golden/v230/dashboard_observability_snapshot.json#acct001-alpha-binance"
+      },
+      "contract_version": {
+        "availability": "available",
+        "value": "ntpro.v230.dashboard_observability.v1"
+      },
+      "schema_version": {
+        "availability": "available",
+        "value": "ntpro.v230.dashboard_observability.schema.v1"
+      },
+      "snapshot_id": {
+        "availability": "available",
+        "value": "dashboard-observability-v230-alpha-binance"
+      },
+      "snapshot_kind": {
+        "availability": "available",
+        "value": "dashboard_observability"
+      },
+      "snapshot_health_status": {
+        "availability": "available",
+        "value": "healthy"
+      },
+      "freshness_status": {
+        "availability": "available",
+        "value": "fresh"
+      },
+      "source_type": {
+        "availability": "available",
+        "value": "artifact"
+      },
+      "source_ref": {
+        "availability": "available",
+        "value": "tests/golden/read_model_dashboard_observability_schema.jsonl"
+      },
+      "redaction_state": {
+        "availability": "available",
+        "value": "redacted"
+      },
+      "account_status": {
+        "availability": "available",
+        "value": "healthy"
+      },
+      "positions_status": {
+        "availability": "available",
+        "value": "healthy"
+      },
+      "orders_status": {
+        "availability": "available",
+        "value": "healthy"
+      },
+      "fills_status": {
+        "availability": "available",
+        "value": "healthy"
+      },
+      "risk_status": {
+        "availability": "available",
+        "value": "healthy"
+      },
+      "lifecycle_status": {
+        "availability": "available",
+        "value": "read_only_observability"
+      },
+      "account_summary": {
+        "availability": "available",
+        "value": "acct-redacted-001 / strategy-redacted-alpha / venue-node-binance-a"
+      },
+      "positions_summary": {
+        "availability": "available",
+        "value": "scope acct-redacted-001|strategy:strategy-redacted-alpha|venue:venue-node-binance-a"
+      },
+      "orders_summary": {
+        "availability": "available",
+        "value": "orders read-only, mutation disabled"
+      },
+      "fills_summary": {
+        "availability": "available",
+        "value": "fills read-only, provenance preserved"
+      },
+      "risk_summary": {
+        "availability": "available",
+        "value": "risk healthy for strategy-redacted-alpha"
+      },
+      "lifecycle_summary": {
+        "availability": "available",
+        "value": "venue-node-binance-a lifecycle ready-readonly"
+      },
+      "positions_account_id": {
+        "availability": "available",
+        "value": "acct-redacted-001"
+      },
+      "positions_net_position_side": {
+        "availability": "available",
+        "value": "flat"
+      },
+      "risk_alert_severity": {
+        "availability": "available",
+        "value": "info"
+      },
+      "risk_alert_summary": {
+        "availability": "available",
+        "value": "dashboard_filter_scope_isolated"
+      },
+      "audit_release_provenance": {
+        "availability": "available",
+        "value": "ntpro-rust-only-v0.23.0-candidate"
+      },
+      "audit_artifact_digest": {
+        "availability": "available",
+        "value": "sha256:v230-dashboard-alpha-binance"
+      },
+      "operation_entry_status": {
+        "availability": "available",
+        "value": "disabled_readonly_observability"
+      },
+      "operation_entry_blocked_reason": {
+        "availability": "available",
+        "value": "dashboard_operation_controls_forbidden"
+      },
+      "new_submit_capability": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_order_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_approval_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_cancel_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_retry_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_submit_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_replace_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_amend_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_flatten_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "trader_terminal_order_ticket_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_entry_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_submit_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_cancel_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_retry_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_replace_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_amend_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_flatten_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "automatic_operation_action_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "production_order_submission_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "production_order_mutation_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "product_grade_trading_terminal_claim": {
+        "availability": "available",
+        "value": false
+      }
+    },
+    {
+      "node_id": "terminal-v230-acct002-strategy-beta-venue-coinbase",
+      "health": "healthy",
+      "readiness_status": {
+        "availability": "available",
+        "value": "dashboard_observability_v230"
+      },
+      "diagnostic": {
+        "availability": "available",
+        "value": "scoped_dashboard_row_ready"
+      },
+      "artifact_path": {
+        "availability": "available",
+        "value": "tests/golden/v230/dashboard_observability_snapshot.json#acct002-beta-coinbase"
+      },
+      "contract_version": {
+        "availability": "available",
+        "value": "ntpro.v230.dashboard_observability.v1"
+      },
+      "schema_version": {
+        "availability": "available",
+        "value": "ntpro.v230.dashboard_observability.schema.v1"
+      },
+      "snapshot_id": {
+        "availability": "available",
+        "value": "dashboard-observability-v230-beta-coinbase"
+      },
+      "snapshot_kind": {
+        "availability": "available",
+        "value": "dashboard_observability"
+      },
+      "snapshot_health_status": {
+        "availability": "available",
+        "value": "healthy"
+      },
+      "freshness_status": {
+        "availability": "available",
+        "value": "fresh"
+      },
+      "source_type": {
+        "availability": "available",
+        "value": "artifact"
+      },
+      "source_ref": {
+        "availability": "available",
+        "value": "tests/golden/read_model_dashboard_observability_schema.jsonl"
+      },
+      "redaction_state": {
+        "availability": "available",
+        "value": "redacted"
+      },
+      "account_status": {
+        "availability": "available",
+        "value": "healthy"
+      },
+      "positions_status": {
+        "availability": "available",
+        "value": "healthy"
+      },
+      "orders_status": {
+        "availability": "available",
+        "value": "healthy"
+      },
+      "fills_status": {
+        "availability": "available",
+        "value": "healthy"
+      },
+      "risk_status": {
+        "availability": "available",
+        "value": "healthy"
+      },
+      "lifecycle_status": {
+        "availability": "available",
+        "value": "read_only_observability"
+      },
+      "account_summary": {
+        "availability": "available",
+        "value": "acct-redacted-002 / strategy-redacted-beta / venue-node-coinbase-a"
+      },
+      "positions_summary": {
+        "availability": "available",
+        "value": "scope acct-redacted-002|strategy:strategy-redacted-beta|venue:venue-node-coinbase-a"
+      },
+      "orders_summary": {
+        "availability": "available",
+        "value": "orders read-only, mutation disabled"
+      },
+      "fills_summary": {
+        "availability": "available",
+        "value": "fills read-only, provenance preserved"
+      },
+      "risk_summary": {
+        "availability": "available",
+        "value": "risk healthy for strategy-redacted-beta"
+      },
+      "lifecycle_summary": {
+        "availability": "available",
+        "value": "venue-node-coinbase-a lifecycle ready-readonly"
+      },
+      "positions_account_id": {
+        "availability": "available",
+        "value": "acct-redacted-002"
+      },
+      "positions_net_position_side": {
+        "availability": "available",
+        "value": "flat"
+      },
+      "risk_alert_severity": {
+        "availability": "available",
+        "value": "info"
+      },
+      "risk_alert_summary": {
+        "availability": "available",
+        "value": "dashboard_filter_scope_isolated"
+      },
+      "audit_release_provenance": {
+        "availability": "available",
+        "value": "ntpro-rust-only-v0.23.0-candidate"
+      },
+      "audit_artifact_digest": {
+        "availability": "available",
+        "value": "sha256:v230-dashboard-beta-coinbase"
+      },
+      "operation_entry_status": {
+        "availability": "available",
+        "value": "disabled_readonly_observability"
+      },
+      "operation_entry_blocked_reason": {
+        "availability": "available",
+        "value": "dashboard_operation_controls_forbidden"
+      },
+      "new_submit_capability": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_order_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_approval_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_cancel_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_retry_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_submit_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_replace_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_amend_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "dashboard_flatten_controls_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "trader_terminal_order_ticket_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_entry_enabled": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_submit_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_cancel_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_retry_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_replace_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_amend_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "manual_operation_flatten_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "automatic_operation_action_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "production_order_submission_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "production_order_mutation_allowed": {
+        "availability": "available",
+        "value": false
+      },
+      "product_grade_trading_terminal_claim": {
+        "availability": "available",
+        "value": false
+      }
+    }
+  ]
+}

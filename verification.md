@@ -2342,3 +2342,37 @@ read-only; cross-scope route mismatch, shared approval consumption, and missing
 `isolation_scope_key` all fail closed. No production submit, order mutation,
 automatic cancel, automatic remediation, Dashboard operation controls, or
 release publication behavior is added.
+
+# V230-006 Verification
+
+Date: 2026-07-03
+Executor: Codex
+Task: `V230-006` / GitHub issue `#717`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v23_dashboard_observability_smoke.sh = PASS
+python3 -m json.tool tests/golden/v230/dashboard_observability_snapshot.json >/dev/null = PASS
+scripts/ai/verify_v23_dashboard_observability_smoke.sh = PASS, rows=2 readonly_boundary=locked false_fields=21
+cargo test -p nautilus-cli --test golden_trace_read_model_projection rust_cli_read_model_projection_replays_v230_dashboard_observability_paths -- --nocapture = PASS, 1 test passed
+cargo test -p nautilus-cli --test golden_trace_read_model_projection -- --nocapture = PASS, 6 tests passed
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/read_model_dashboard_observability_schema.jsonl").read_text().splitlines() if line.strip()]' = PASS
+jq . docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 100 cases, 95 executable replay, 5 schema-only scoped
+rg -n "read_model.dashboard_observability|dashboard_observability_v230|dashboard_has_no_operation_controls|filtered_drilldown_isolated|cross_scope_label_mismatch|verify_v23_dashboard_observability_smoke|rust_cli_read_model_projection_replays_v230_dashboard_observability_paths" tests/golden/read_model_dashboard_observability_schema.jsonl tests/golden/v230/dashboard_observability_snapshot.json scripts/ai/verify_v23_dashboard_observability_smoke.sh crates/cli/tests/golden_trace_read_model_projection.rs docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json docs/rust-cutover/evidence/V230-006.md = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V230-006 now has executable Rust replay coverage and a real Dashboard renderer
+smoke for the multi-account, multi-strategy, and multi-venue node observability
+surface. Read-only aggregation and scoped filtering preserve `account_key`,
+`strategy_key`, `venue_node_key`, `isolation_scope_key`, and provenance labels;
+cross-scope label mismatch fails closed; missing identity degrades unavailable;
+and the renderer smoke verifies two scoped rows with 21 operation boundary
+fields explicitly set to `false`. No production submit, order mutation, manual
+operation, order ticket, Dashboard action controls, or release publication
+behavior is added.

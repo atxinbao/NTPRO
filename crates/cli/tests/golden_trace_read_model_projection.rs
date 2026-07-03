@@ -209,6 +209,15 @@ const ORCHESTRATION_CONTROL_PLANE_COMPONENTS: &[&str] = &[
     "audit_gate",
     "provenance",
 ];
+const DASHBOARD_OBSERVABILITY_COMPONENTS: &[&str] = &[
+    "account",
+    "strategy",
+    "venue_node",
+    "risk",
+    "alerts",
+    "audit",
+    "provenance",
+];
 const V230_ACCOUNT_PARTITION_CASES: &[ReplayCase] = &[
     ReplayCase {
         trace: "read_model_account_partition_schema.jsonl",
@@ -280,6 +289,28 @@ const V230_ORCHESTRATION_CONTROL_PLANE_CASES: &[ReplayCase] = &[
         trace: "read_model_orchestration_control_plane_schema.jsonl",
         case_id: "read_model.orchestration_control_plane.missing_scope_key.001",
         family: "orchestration_control_plane",
+    },
+];
+const V230_DASHBOARD_OBSERVABILITY_CASES: &[ReplayCase] = &[
+    ReplayCase {
+        trace: "read_model_dashboard_observability_schema.jsonl",
+        case_id: "read_model.dashboard_observability.multi_scope_readonly.001",
+        family: "dashboard_observability",
+    },
+    ReplayCase {
+        trace: "read_model_dashboard_observability_schema.jsonl",
+        case_id: "read_model.dashboard_observability.filtered_drilldown_isolated.001",
+        family: "dashboard_observability",
+    },
+    ReplayCase {
+        trace: "read_model_dashboard_observability_schema.jsonl",
+        case_id: "read_model.dashboard_observability.cross_scope_label_mismatch.001",
+        family: "dashboard_observability",
+    },
+    ReplayCase {
+        trace: "read_model_dashboard_observability_schema.jsonl",
+        case_id: "read_model.dashboard_observability.missing_identity_degraded.001",
+        family: "dashboard_observability",
     },
 ];
 
@@ -494,6 +525,47 @@ fn rust_cli_read_model_projection_replays_v230_orchestration_control_plane_paths
     Ok(())
 }
 
+#[test]
+fn rust_cli_read_model_projection_replays_v230_dashboard_observability_paths()
+-> Result<(), Box<dyn Error>> {
+    let mut covered_families = BTreeSet::new();
+    let mut covered_cases = BTreeSet::new();
+
+    for replay_case in V230_DASHBOARD_OBSERVABILITY_CASES {
+        let case = load_case(replay_case.trace, replay_case.case_id)?;
+        let input_event = single_event(&case, "input", replay_case.case_id)?;
+        let expected_event = single_event(&case, "expected", replay_case.case_id)?;
+        let actual_event = project_read_model_event(replay_case.case_id, input_event)?;
+
+        if actual_event != *expected_event {
+            return Err(format!(
+                "{} Rust dashboard observability projection replay mismatch\nexpected={}\nactual={}",
+                replay_case.case_id, expected_event, actual_event
+            )
+            .into());
+        }
+
+        covered_families.insert(replay_case.family);
+        covered_cases.insert(replay_case.case_id);
+    }
+
+    if covered_cases.len() != V230_DASHBOARD_OBSERVABILITY_CASES.len() {
+        return Err(format!(
+            "V230-006 must keep {} dashboard observability projection cases, got {}",
+            V230_DASHBOARD_OBSERVABILITY_CASES.len(),
+            covered_cases.len()
+        )
+        .into());
+    }
+    assert_contains_all(
+        &covered_families,
+        &["dashboard_observability"],
+        "read_model dashboard observability family",
+    )?;
+
+    Ok(())
+}
+
 fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value, Box<dyn Error>> {
     let mut event = Map::new();
     let event_type = string_field(input_event, "event_type")?.replace(".input", ".validated");
@@ -514,7 +586,9 @@ fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value,
 
     let input_payload = payload(input_event)?;
     let snapshot = object_field(input_payload, "snapshot")?;
-    let projected_payload = if case_id.starts_with("read_model.orchestration_control_plane.") {
+    let projected_payload = if case_id.starts_with("read_model.dashboard_observability.") {
+        project_dashboard_observability_payload(case_id, input_payload, snapshot)?
+    } else if case_id.starts_with("read_model.orchestration_control_plane.") {
         project_orchestration_control_plane_payload(case_id, snapshot)?
     } else if case_id.starts_with("read_model.venue_node_lifecycle.") {
         project_venue_node_lifecycle_payload(case_id, snapshot)?
@@ -540,6 +614,311 @@ fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value,
     event.insert("payload".to_string(), projected_payload);
 
     Ok(Value::Object(event))
+}
+
+fn project_dashboard_observability_payload(
+    case_id: &str,
+    input_payload: &Value,
+    snapshot: &Value,
+) -> Result<Value, Box<dyn Error>> {
+    let rows = array_field(snapshot, "dashboard_rows")?;
+    let boundary = object_field(snapshot, "capability_boundary")?;
+    let request = input_payload
+        .get("dashboard_request")
+        .unwrap_or(&Value::Null);
+    let account_filter = request.get("account_key").and_then(Value::as_str);
+    let strategy_filter = request.get("strategy_key").and_then(Value::as_str);
+    let venue_node_filter = request.get("venue_node_key").and_then(Value::as_str);
+    let requested_controls = request
+        .get("requested_controls")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let filter_applied =
+        account_filter.is_some() || strategy_filter.is_some() || venue_node_filter.is_some();
+    let mut account_keys = BTreeSet::new();
+    let mut strategy_keys = BTreeSet::new();
+    let mut venue_node_keys = BTreeSet::new();
+    let mut isolation_scope_keys = BTreeSet::new();
+    let mut displayed_account_keys = BTreeSet::new();
+    let mut displayed_strategy_keys = BTreeSet::new();
+    let mut displayed_venue_node_keys = BTreeSet::new();
+    let mut displayed_isolation_scope_keys = BTreeSet::new();
+    let mut displayed_row_count = 0usize;
+    let mut blocking_reasons = string_array(snapshot, "blocking_reasons")?;
+    let mut identity_labels_present = true;
+    let mut cross_scope_contamination_detected = false;
+    let mut read_path_preserves_provenance = true;
+    let mut filter_scope_isolated = true;
+
+    for (row_index, row) in rows.iter().enumerate() {
+        let account_key = optional_non_empty_string(row, "account_key");
+        let strategy_key = optional_non_empty_string(row, "strategy_key");
+        let venue_node_key = optional_non_empty_string(row, "venue_node_key");
+        let isolation_scope_key = optional_non_empty_string(row, "isolation_scope_key");
+
+        match account_key {
+            Some(key) => {
+                account_keys.insert(key.to_string());
+            }
+            None => {
+                identity_labels_present = false;
+                read_path_preserves_provenance = false;
+                filter_scope_isolated = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_account_key:row:{row_index}"),
+                );
+            }
+        }
+        match strategy_key {
+            Some(key) => {
+                strategy_keys.insert(key.to_string());
+            }
+            None => {
+                identity_labels_present = false;
+                read_path_preserves_provenance = false;
+                filter_scope_isolated = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_strategy_key:row:{row_index}"),
+                );
+            }
+        }
+        match venue_node_key {
+            Some(key) => {
+                venue_node_keys.insert(key.to_string());
+            }
+            None => {
+                identity_labels_present = false;
+                read_path_preserves_provenance = false;
+                filter_scope_isolated = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_venue_node_key:row:{row_index}"),
+                );
+            }
+        }
+        match isolation_scope_key {
+            Some(key) => {
+                isolation_scope_keys.insert(key.to_string());
+            }
+            None => {
+                identity_labels_present = false;
+                read_path_preserves_provenance = false;
+                filter_scope_isolated = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_isolation_scope_key:row:{row_index}"),
+                );
+            }
+        }
+
+        let row_matches_filter = account_filter.is_none_or(|filter| account_key == Some(filter))
+            && strategy_filter.is_none_or(|filter| strategy_key == Some(filter))
+            && venue_node_filter.is_none_or(|filter| venue_node_key == Some(filter));
+        if row_matches_filter {
+            displayed_row_count += 1;
+            if let Some(key) = account_key {
+                displayed_account_keys.insert(key.to_string());
+            }
+            if let Some(key) = strategy_key {
+                displayed_strategy_keys.insert(key.to_string());
+            }
+            if let Some(key) = venue_node_key {
+                displayed_venue_node_keys.insert(key.to_string());
+            }
+            if let Some(key) = isolation_scope_key {
+                displayed_isolation_scope_keys.insert(key.to_string());
+            }
+        }
+
+        let Some(row_account_key) = account_key else {
+            continue;
+        };
+        let Some(row_strategy_key) = strategy_key else {
+            continue;
+        };
+        let Some(row_venue_node_key) = venue_node_key else {
+            continue;
+        };
+        let Some(row_scope_key) = isolation_scope_key else {
+            continue;
+        };
+
+        let visible_labels = object_field(row, "visible_labels")?;
+        validate_scoped_component_identity(
+            visible_labels,
+            "visible_labels",
+            row_account_key,
+            row_strategy_key,
+            row_venue_node_key,
+            row_scope_key,
+            &mut identity_labels_present,
+            &mut cross_scope_contamination_detected,
+            &mut read_path_preserves_provenance,
+            &mut blocking_reasons,
+        );
+
+        let components = object_field(row, "components")?;
+        for component_name in DASHBOARD_OBSERVABILITY_COMPONENTS {
+            let component = object_field(components, component_name)?;
+            validate_scoped_component_identity(
+                component,
+                component_name,
+                row_account_key,
+                row_strategy_key,
+                row_venue_node_key,
+                row_scope_key,
+                &mut identity_labels_present,
+                &mut cross_scope_contamination_detected,
+                &mut read_path_preserves_provenance,
+                &mut blocking_reasons,
+            );
+        }
+    }
+
+    if filter_applied && displayed_isolation_scope_keys.len() != 1 {
+        filter_scope_isolated = false;
+        push_reason(
+            &mut blocking_reasons,
+            "filter_did_not_resolve_single_isolation_scope".to_string(),
+        );
+    }
+    if cross_scope_contamination_detected {
+        filter_scope_isolated = false;
+    }
+
+    let mut dashboard_has_no_operation_controls = true;
+    for key in [
+        "new_submit_capability",
+        "dashboard_order_controls_enabled",
+        "dashboard_approval_controls_enabled",
+        "dashboard_cancel_controls_enabled",
+        "dashboard_retry_controls_enabled",
+        "dashboard_submit_controls_enabled",
+        "dashboard_replace_controls_enabled",
+        "dashboard_amend_controls_enabled",
+        "dashboard_flatten_controls_enabled",
+        "trader_terminal_order_ticket_enabled",
+        "manual_operation_entry_enabled",
+        "manual_operation_submit_allowed",
+        "manual_operation_cancel_allowed",
+        "manual_operation_retry_allowed",
+        "manual_operation_replace_allowed",
+        "manual_operation_amend_allowed",
+        "manual_operation_flatten_allowed",
+        "automatic_operation_action_allowed",
+        "production_order_submission_allowed",
+        "production_order_mutation_allowed",
+        "product_grade_trading_terminal_claim",
+    ] {
+        if bool_field(boundary, key)? {
+            dashboard_has_no_operation_controls = false;
+            push_reason(
+                &mut blocking_reasons,
+                format!("forbidden_dashboard_control_enabled:{key}"),
+            );
+        }
+    }
+
+    let missing_identity_degraded_unavailable = !identity_labels_present;
+    let drilldown_preserves_scope = !filter_applied || filter_scope_isolated;
+    let dashboard_observability_status = if cross_scope_contamination_detected {
+        "fail_closed"
+    } else if missing_identity_degraded_unavailable || !read_path_preserves_provenance {
+        "degraded_unavailable"
+    } else if filter_applied {
+        "filtered_readonly"
+    } else {
+        "read_only_aggregated"
+    };
+
+    let mut payload = base_payload(case_id, snapshot);
+    insert_string(
+        &mut payload,
+        "dashboard_observability_status",
+        dashboard_observability_status,
+    );
+    payload.insert("dashboard_row_count".to_string(), json!(rows.len()));
+    payload.insert(
+        "displayed_row_count".to_string(),
+        json!(displayed_row_count),
+    );
+    payload.insert("account_keys".to_string(), string_set_value(account_keys));
+    payload.insert("strategy_keys".to_string(), string_set_value(strategy_keys));
+    payload.insert(
+        "venue_node_keys".to_string(),
+        string_set_value(venue_node_keys),
+    );
+    payload.insert(
+        "isolation_scope_keys".to_string(),
+        string_set_value(isolation_scope_keys),
+    );
+    payload.insert(
+        "displayed_account_keys".to_string(),
+        string_set_value(displayed_account_keys),
+    );
+    payload.insert(
+        "displayed_strategy_keys".to_string(),
+        string_set_value(displayed_strategy_keys),
+    );
+    payload.insert(
+        "displayed_venue_node_keys".to_string(),
+        string_set_value(displayed_venue_node_keys),
+    );
+    payload.insert(
+        "displayed_isolation_scope_keys".to_string(),
+        string_set_value(displayed_isolation_scope_keys),
+    );
+    payload.insert("filter_applied".to_string(), Value::Bool(filter_applied));
+    payload.insert(
+        "filter_scope_isolated".to_string(),
+        Value::Bool(filter_scope_isolated),
+    );
+    payload.insert(
+        "drilldown_preserves_scope".to_string(),
+        Value::Bool(drilldown_preserves_scope),
+    );
+    payload.insert(
+        "identity_labels_present".to_string(),
+        Value::Bool(identity_labels_present),
+    );
+    payload.insert(
+        "cross_scope_contamination_detected".to_string(),
+        Value::Bool(cross_scope_contamination_detected),
+    );
+    payload.insert(
+        "missing_identity_degraded_unavailable".to_string(),
+        Value::Bool(missing_identity_degraded_unavailable),
+    );
+    payload.insert(
+        "read_path_preserves_provenance".to_string(),
+        Value::Bool(read_path_preserves_provenance),
+    );
+    payload.insert(
+        "dashboard_has_no_operation_controls".to_string(),
+        Value::Bool(dashboard_has_no_operation_controls),
+    );
+    payload.insert(
+        "forbidden_controls_absent".to_string(),
+        Value::Bool(dashboard_has_no_operation_controls),
+    );
+    payload.insert(
+        "blocked_controls".to_string(),
+        Value::Array(requested_controls),
+    );
+    payload.insert(
+        "blocking_reasons".to_string(),
+        Value::Array(
+            blocking_reasons
+                .into_iter()
+                .map(Value::String)
+                .collect::<Vec<_>>(),
+        ),
+    );
+
+    Ok(Value::Object(payload))
 }
 
 fn project_orchestration_control_plane_payload(
