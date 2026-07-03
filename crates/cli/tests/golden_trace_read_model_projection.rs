@@ -14,7 +14,7 @@
 // -------------------------------------------------------------------------------------------------
 
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     error::Error,
     fs,
     path::{Path, PathBuf},
@@ -201,6 +201,14 @@ const VENUE_NODE_LIFECYCLE_COMPONENTS: &[&str] = &[
     "audit",
     "provenance",
 ];
+const ORCHESTRATION_CONTROL_PLANE_COMPONENTS: &[&str] = &[
+    "routing",
+    "control_intent",
+    "owner_approval",
+    "risk_gate",
+    "audit_gate",
+    "provenance",
+];
 const V230_ACCOUNT_PARTITION_CASES: &[ReplayCase] = &[
     ReplayCase {
         trace: "read_model_account_partition_schema.jsonl",
@@ -250,6 +258,28 @@ const V230_VENUE_NODE_LIFECYCLE_CASES: &[ReplayCase] = &[
         trace: "read_model_venue_node_lifecycle_schema.jsonl",
         case_id: "read_model.venue_node_lifecycle.missing_venue_node_key.001",
         family: "venue_node_lifecycle",
+    },
+];
+const V230_ORCHESTRATION_CONTROL_PLANE_CASES: &[ReplayCase] = &[
+    ReplayCase {
+        trace: "read_model_orchestration_control_plane_schema.jsonl",
+        case_id: "read_model.orchestration_control_plane.scoped_intents_ready.001",
+        family: "orchestration_control_plane",
+    },
+    ReplayCase {
+        trace: "read_model_orchestration_control_plane_schema.jsonl",
+        case_id: "read_model.orchestration_control_plane.cross_scope_route_mismatch.001",
+        family: "orchestration_control_plane",
+    },
+    ReplayCase {
+        trace: "read_model_orchestration_control_plane_schema.jsonl",
+        case_id: "read_model.orchestration_control_plane.shared_approval_blocked.001",
+        family: "orchestration_control_plane",
+    },
+    ReplayCase {
+        trace: "read_model_orchestration_control_plane_schema.jsonl",
+        case_id: "read_model.orchestration_control_plane.missing_scope_key.001",
+        family: "orchestration_control_plane",
     },
 ];
 
@@ -423,6 +453,47 @@ fn rust_cli_read_model_projection_replays_v230_venue_node_lifecycle_paths()
     Ok(())
 }
 
+#[test]
+fn rust_cli_read_model_projection_replays_v230_orchestration_control_plane_paths()
+-> Result<(), Box<dyn Error>> {
+    let mut covered_families = BTreeSet::new();
+    let mut covered_cases = BTreeSet::new();
+
+    for replay_case in V230_ORCHESTRATION_CONTROL_PLANE_CASES {
+        let case = load_case(replay_case.trace, replay_case.case_id)?;
+        let input_event = single_event(&case, "input", replay_case.case_id)?;
+        let expected_event = single_event(&case, "expected", replay_case.case_id)?;
+        let actual_event = project_read_model_event(replay_case.case_id, input_event)?;
+
+        if actual_event != *expected_event {
+            return Err(format!(
+                "{} Rust orchestration control-plane projection replay mismatch\nexpected={}\nactual={}",
+                replay_case.case_id, expected_event, actual_event
+            )
+            .into());
+        }
+
+        covered_families.insert(replay_case.family);
+        covered_cases.insert(replay_case.case_id);
+    }
+
+    if covered_cases.len() != V230_ORCHESTRATION_CONTROL_PLANE_CASES.len() {
+        return Err(format!(
+            "V230-005 must keep {} orchestration control-plane projection cases, got {}",
+            V230_ORCHESTRATION_CONTROL_PLANE_CASES.len(),
+            covered_cases.len()
+        )
+        .into());
+    }
+    assert_contains_all(
+        &covered_families,
+        &["orchestration_control_plane"],
+        "read_model orchestration control-plane family",
+    )?;
+
+    Ok(())
+}
+
 fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value, Box<dyn Error>> {
     let mut event = Map::new();
     let event_type = string_field(input_event, "event_type")?.replace(".input", ".validated");
@@ -443,7 +514,9 @@ fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value,
 
     let input_payload = payload(input_event)?;
     let snapshot = object_field(input_payload, "snapshot")?;
-    let projected_payload = if case_id.starts_with("read_model.venue_node_lifecycle.") {
+    let projected_payload = if case_id.starts_with("read_model.orchestration_control_plane.") {
+        project_orchestration_control_plane_payload(case_id, snapshot)?
+    } else if case_id.starts_with("read_model.venue_node_lifecycle.") {
         project_venue_node_lifecycle_payload(case_id, snapshot)?
     } else if case_id.starts_with("read_model.strategy_supervisor.") {
         project_strategy_supervisor_payload(case_id, snapshot)?
@@ -467,6 +540,303 @@ fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value,
     event.insert("payload".to_string(), projected_payload);
 
     Ok(Value::Object(event))
+}
+
+fn project_orchestration_control_plane_payload(
+    case_id: &str,
+    snapshot: &Value,
+) -> Result<Value, Box<dyn Error>> {
+    let intents = array_field(snapshot, "orchestration_intents")?;
+    let boundary = object_field(snapshot, "control_boundary")?;
+    let mut account_keys = BTreeSet::new();
+    let mut strategy_keys = BTreeSet::new();
+    let mut venue_node_keys = BTreeSet::new();
+    let mut isolation_scope_keys = BTreeSet::new();
+    let mut approval_reference_ids = BTreeSet::new();
+    let mut approval_scopes_by_reference = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut blocking_reasons = string_array(snapshot, "blocking_reasons")?;
+    let mut identity_keys_present = true;
+    let mut control_gate_contract_present = true;
+    let mut cross_scope_contamination_detected = false;
+    let mut shared_approval_consumption_detected = false;
+    let mut approval_consumption_single_scope_only = true;
+    let mut read_path_preserves_provenance = true;
+
+    for (intent_index, intent) in intents.iter().enumerate() {
+        let account_key = optional_non_empty_string(intent, "account_key");
+        let strategy_key = optional_non_empty_string(intent, "strategy_key");
+        let venue_node_key = optional_non_empty_string(intent, "venue_node_key");
+        let isolation_scope_key = optional_non_empty_string(intent, "isolation_scope_key");
+        let approval_reference_id = optional_non_empty_string(intent, "approval_reference_id");
+        let approval_consumption_scope_key =
+            optional_non_empty_string(intent, "approval_consumption_scope_key");
+
+        match account_key {
+            Some(key) => {
+                account_keys.insert(key.to_string());
+            }
+            None => {
+                identity_keys_present = false;
+                read_path_preserves_provenance = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_account_key:partition:{intent_index}"),
+                );
+            }
+        }
+        match strategy_key {
+            Some(key) => {
+                strategy_keys.insert(key.to_string());
+            }
+            None => {
+                identity_keys_present = false;
+                read_path_preserves_provenance = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_strategy_key:partition:{intent_index}"),
+                );
+            }
+        }
+        match venue_node_key {
+            Some(key) => {
+                venue_node_keys.insert(key.to_string());
+            }
+            None => {
+                identity_keys_present = false;
+                read_path_preserves_provenance = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_venue_node_key:partition:{intent_index}"),
+                );
+            }
+        }
+        match isolation_scope_key {
+            Some(key) => {
+                isolation_scope_keys.insert(key.to_string());
+            }
+            None => {
+                identity_keys_present = false;
+                read_path_preserves_provenance = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_isolation_scope_key:partition:{intent_index}"),
+                );
+            }
+        }
+
+        match approval_reference_id {
+            Some(approval_reference_id) => {
+                approval_reference_ids.insert(approval_reference_id.to_string());
+                if let Some(scope_key) = isolation_scope_key {
+                    approval_scopes_by_reference
+                        .entry(approval_reference_id.to_string())
+                        .or_default()
+                        .insert(scope_key.to_string());
+                }
+            }
+            None => {
+                control_gate_contract_present = false;
+                approval_consumption_single_scope_only = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_approval_reference_id:partition:{intent_index}"),
+                );
+            }
+        }
+
+        match (approval_consumption_scope_key, isolation_scope_key) {
+            (Some(approval_scope_key), Some(scope_key)) if approval_scope_key == scope_key => {}
+            (Some(_), Some(_)) => {
+                control_gate_contract_present = false;
+                cross_scope_contamination_detected = true;
+                approval_consumption_single_scope_only = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("approval_scope_mismatch:partition:{intent_index}"),
+                );
+            }
+            _ => {
+                control_gate_contract_present = false;
+                approval_consumption_single_scope_only = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_approval_consumption_scope_key:partition:{intent_index}"),
+                );
+            }
+        }
+
+        let Some(intent_account_key) = account_key else {
+            continue;
+        };
+        let Some(intent_strategy_key) = strategy_key else {
+            continue;
+        };
+        let Some(intent_venue_node_key) = venue_node_key else {
+            continue;
+        };
+        let Some(intent_scope_key) = isolation_scope_key else {
+            continue;
+        };
+
+        let components = object_field(intent, "components")?;
+        for component_name in ORCHESTRATION_CONTROL_PLANE_COMPONENTS {
+            let component = object_field(components, component_name)?;
+            validate_scoped_component_identity(
+                component,
+                component_name,
+                intent_account_key,
+                intent_strategy_key,
+                intent_venue_node_key,
+                intent_scope_key,
+                &mut identity_keys_present,
+                &mut cross_scope_contamination_detected,
+                &mut read_path_preserves_provenance,
+                &mut blocking_reasons,
+            );
+        }
+    }
+
+    for (approval_reference_id, scope_keys) in approval_scopes_by_reference {
+        if scope_keys.len() > 1 {
+            shared_approval_consumption_detected = true;
+            approval_consumption_single_scope_only = false;
+            push_reason(
+                &mut blocking_reasons,
+                format!("shared_approval_consumption:{approval_reference_id}"),
+            );
+        }
+    }
+
+    for key in [
+        "owner_approval_gate_required",
+        "risk_gate_required",
+        "audit_gate_required",
+    ] {
+        if !bool_field(boundary, key)? {
+            control_gate_contract_present = false;
+            push_reason(
+                &mut blocking_reasons,
+                format!("missing_required_gate:{key}"),
+            );
+        }
+    }
+    for key in [
+        "implicit_cross_account_operation_allowed",
+        "implicit_cross_strategy_operation_allowed",
+        "implicit_cross_venue_operation_allowed",
+        "implicit_cross_node_operation_allowed",
+        "automatic_cancel_allowed",
+        "automatic_remediation_allowed",
+        "ungated_submit_cancel_retry_replace_amend_flatten_allowed",
+        "dashboard_operation_controls_enabled",
+        "production_order_submission_allowed",
+    ] {
+        if bool_field(boundary, key)? {
+            control_gate_contract_present = false;
+            push_reason(
+                &mut blocking_reasons,
+                format!("forbidden_boundary_enabled:{key}"),
+            );
+        }
+    }
+
+    let missing_identity_key_fail_closed = !identity_keys_present;
+    let missing_isolation_scope_key_fail_closed = intents
+        .iter()
+        .any(|intent| optional_non_empty_string(intent, "isolation_scope_key").is_none());
+    let control_plane_gate_status = if missing_identity_key_fail_closed
+        || !control_gate_contract_present
+        || cross_scope_contamination_detected
+        || shared_approval_consumption_detected
+    {
+        "fail_closed"
+    } else {
+        "gated_readonly"
+    };
+
+    let mut payload = base_payload(case_id, snapshot);
+    insert_string(
+        &mut payload,
+        "control_plane_gate_status",
+        control_plane_gate_status,
+    );
+    payload.insert(
+        "orchestration_intent_count".to_string(),
+        json!(intents.len()),
+    );
+    payload.insert("account_keys".to_string(), string_set_value(account_keys));
+    payload.insert("strategy_keys".to_string(), string_set_value(strategy_keys));
+    payload.insert(
+        "venue_node_keys".to_string(),
+        string_set_value(venue_node_keys),
+    );
+    payload.insert(
+        "isolation_scope_keys".to_string(),
+        string_set_value(isolation_scope_keys),
+    );
+    payload.insert(
+        "approval_reference_ids".to_string(),
+        string_set_value(approval_reference_ids),
+    );
+    payload.insert(
+        "identity_keys_present".to_string(),
+        Value::Bool(identity_keys_present),
+    );
+    payload.insert(
+        "control_gate_contract_present".to_string(),
+        Value::Bool(control_gate_contract_present),
+    );
+    payload.insert(
+        "cross_scope_contamination_detected".to_string(),
+        Value::Bool(cross_scope_contamination_detected),
+    );
+    payload.insert(
+        "shared_approval_consumption_detected".to_string(),
+        Value::Bool(shared_approval_consumption_detected),
+    );
+    payload.insert(
+        "approval_consumption_single_scope_only".to_string(),
+        Value::Bool(approval_consumption_single_scope_only),
+    );
+    payload.insert(
+        "missing_identity_key_fail_closed".to_string(),
+        Value::Bool(missing_identity_key_fail_closed),
+    );
+    payload.insert(
+        "missing_isolation_scope_key_fail_closed".to_string(),
+        Value::Bool(missing_isolation_scope_key_fail_closed),
+    );
+    payload.insert(
+        "read_path_preserves_provenance".to_string(),
+        Value::Bool(read_path_preserves_provenance),
+    );
+    for key in [
+        "owner_approval_gate_required",
+        "risk_gate_required",
+        "audit_gate_required",
+        "implicit_cross_account_operation_allowed",
+        "implicit_cross_strategy_operation_allowed",
+        "implicit_cross_venue_operation_allowed",
+        "implicit_cross_node_operation_allowed",
+        "automatic_cancel_allowed",
+        "automatic_remediation_allowed",
+        "ungated_submit_cancel_retry_replace_amend_flatten_allowed",
+        "dashboard_operation_controls_enabled",
+        "production_order_submission_allowed",
+    ] {
+        payload.insert(key.to_string(), Value::Bool(bool_field(boundary, key)?));
+    }
+    payload.insert(
+        "blocking_reasons".to_string(),
+        Value::Array(
+            blocking_reasons
+                .into_iter()
+                .map(Value::String)
+                .collect::<Vec<_>>(),
+        ),
+    );
+
+    Ok(Value::Object(payload))
 }
 
 fn project_venue_node_lifecycle_payload(
@@ -1281,6 +1651,54 @@ fn project_dashboard_payload(
         clone_field(snapshot, "blocking_reasons")?,
     );
     Ok(Value::Object(payload))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_scoped_component_identity(
+    component: &Value,
+    component_name: &str,
+    expected_account_key: &str,
+    expected_strategy_key: &str,
+    expected_venue_node_key: &str,
+    expected_isolation_scope_key: &str,
+    identity_keys_present: &mut bool,
+    cross_scope_contamination_detected: &mut bool,
+    read_path_preserves_provenance: &mut bool,
+    blocking_reasons: &mut Vec<String>,
+) {
+    for (field_name, expected_value) in [
+        ("account_key", expected_account_key),
+        ("strategy_key", expected_strategy_key),
+        ("venue_node_key", expected_venue_node_key),
+        ("isolation_scope_key", expected_isolation_scope_key),
+    ] {
+        match optional_non_empty_string(component, field_name) {
+            Some(component_value) if component_value == expected_value => {}
+            Some(_) => {
+                *cross_scope_contamination_detected = true;
+                push_reason(
+                    blocking_reasons,
+                    format!("cross_scope_component_mismatch:{component_name}:{field_name}"),
+                );
+            }
+            None => {
+                *identity_keys_present = false;
+                *read_path_preserves_provenance = false;
+                push_reason(
+                    blocking_reasons,
+                    format!("missing_component_{field_name}:{component_name}"),
+                );
+            }
+        }
+    }
+
+    if optional_non_empty_string(component, "source_provenance").is_none() {
+        *read_path_preserves_provenance = false;
+        push_reason(
+            blocking_reasons,
+            format!("missing_component_source_provenance:{component_name}"),
+        );
+    }
 }
 
 fn base_payload(case_id: &str, snapshot: &Value) -> Map<String, Value> {

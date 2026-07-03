@@ -691,6 +691,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   venue node registry and lifecycle isolation. It records the registry contract
   shape and executable replay cases for isolated nodes, cross-node mismatch
   fail-closed behavior, and unknown venue node identity fail-closed behavior.
+- `v0_23_0_multi_node_orchestration_control_plane_gating.md` - V230-005
+  release note for orchestration control-plane gating. It records executable
+  replay cases for scoped intents, cross-scope route mismatch, shared approval
+  consumption, and missing isolation scope fail-closed behavior.
+- `../evidence/V230-005.md` - V230-005 orchestration control-plane gate
+  evidence for GitHub issue #716.
 - `../scope/v0_22_0_trader_terminal_workbench_scope.md` - V220-000 scope
   decision for the v0.22.0 Trader Terminal workbench line. It records the
   v0.21.1 closeout dependency, read-only-first workbench boundary, gated manual

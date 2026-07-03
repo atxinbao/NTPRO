@@ -917,6 +917,46 @@
       "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_venue_node_lifecycle_paths"
     },
     {
+      "case_id": "read_model.orchestration_control_plane.scoped_intents_ready.001",
+      "trace": "tests/golden/read_model_orchestration_control_plane_schema.jsonl",
+      "category": "read_model",
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V230-005",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_orchestration_control_plane_paths"
+    },
+    {
+      "case_id": "read_model.orchestration_control_plane.cross_scope_route_mismatch.001",
+      "trace": "tests/golden/read_model_orchestration_control_plane_schema.jsonl",
+      "category": "read_model",
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V230-005",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_orchestration_control_plane_paths"
+    },
+    {
+      "case_id": "read_model.orchestration_control_plane.shared_approval_blocked.001",
+      "trace": "tests/golden/read_model_orchestration_control_plane_schema.jsonl",
+      "category": "read_model",
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V230-005",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_orchestration_control_plane_paths"
+    },
+    {
+      "case_id": "read_model.orchestration_control_plane.missing_scope_key.001",
+      "trace": "tests/golden/read_model_orchestration_control_plane_schema.jsonl",
+      "category": "read_model",
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V230-005",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_orchestration_control_plane_paths"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",

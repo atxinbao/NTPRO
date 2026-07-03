@@ -2314,3 +2314,31 @@ snapshot through the real Dashboard JavaScript renderer. The rendered output
 contains the account, positions, orders, fills, risk, alerts,
 audit/provenance, and operation-entry panels; it preserves a locked read-only
 boundary; and it has no submit/cancel/replace/amend/flatten action surface.
+
+# V230-005 Verification
+
+Date: 2026-07-03
+Executor: Codex
+Task: `V230-005` / GitHub issue `#716`
+
+## Commands
+
+```text
+cargo test -p nautilus-cli --test golden_trace_read_model_projection rust_cli_read_model_projection_replays_v230_orchestration_control_plane_paths -- --nocapture = PASS, 1 test passed
+cargo test -p nautilus-cli --test golden_trace_read_model_projection -- --nocapture = PASS, 5 tests passed
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/read_model_orchestration_control_plane_schema.jsonl").read_text().splitlines() if line.strip()]' = PASS
+jq . docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 96 cases, 91 executable replay, 5 schema-only scoped
+rg -n "read_model.orchestration_control_plane|approval_consumption_single_scope_only|shared_approval_consumption|approval_scope_mismatch|missing_isolation_scope_key|rust_cli_read_model_projection_replays_v230_orchestration_control_plane_paths" tests/golden/read_model_orchestration_control_plane_schema.jsonl crates/cli/tests/golden_trace_read_model_projection.rs docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json docs/rust-cutover/evidence/V230-005.md = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V230-005 now has executable Rust replay coverage for multi-node
+orchestration/control-plane gating. Valid scoped intents remain gated and
+read-only; cross-scope route mismatch, shared approval consumption, and missing
+`isolation_scope_key` all fail closed. No production submit, order mutation,
+automatic cancel, automatic remediation, Dashboard operation controls, or
+release publication behavior is added.
