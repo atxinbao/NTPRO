@@ -831,7 +831,7 @@
       "trace": "tests/golden/read_model_account_partition_schema.jsonl",
       "category": "read_model",
       "status": "executable_replay",
-      "release_decision": "included_in_v230_account_partition_scope",
+      "release_decision": "included_in_final_replay_scope",
       "evidence_id": "V230-002",
       "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
       "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_account_partition_paths"
@@ -841,7 +841,7 @@
       "trace": "tests/golden/read_model_account_partition_schema.jsonl",
       "category": "read_model",
       "status": "executable_replay",
-      "release_decision": "included_in_v230_account_partition_scope",
+      "release_decision": "included_in_final_replay_scope",
       "evidence_id": "V230-002",
       "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
       "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_account_partition_paths"
@@ -851,7 +851,7 @@
       "trace": "tests/golden/read_model_account_partition_schema.jsonl",
       "category": "read_model",
       "status": "executable_replay",
-      "release_decision": "included_in_v230_account_partition_scope",
+      "release_decision": "included_in_final_replay_scope",
       "evidence_id": "V230-002",
       "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
       "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_account_partition_paths"
