@@ -887,6 +887,36 @@
       "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_strategy_supervisor_paths"
     },
     {
+      "case_id": "read_model.venue_node_lifecycle.isolated_nodes.001",
+      "trace": "tests/golden/read_model_venue_node_lifecycle_schema.jsonl",
+      "category": "read_model",
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V230-004",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_venue_node_lifecycle_paths"
+    },
+    {
+      "case_id": "read_model.venue_node_lifecycle.cross_node_mismatch.001",
+      "trace": "tests/golden/read_model_venue_node_lifecycle_schema.jsonl",
+      "category": "read_model",
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V230-004",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_venue_node_lifecycle_paths"
+    },
+    {
+      "case_id": "read_model.venue_node_lifecycle.missing_venue_node_key.001",
+      "trace": "tests/golden/read_model_venue_node_lifecycle_schema.jsonl",
+      "category": "read_model",
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V230-004",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_venue_node_lifecycle_paths"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",
