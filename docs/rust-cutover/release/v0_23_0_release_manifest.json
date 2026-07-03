@@ -1,0 +1,135 @@
+{
+  "schema_version": "ntpro.v230_release_manifest.v1",
+  "task_id": "V230-007",
+  "product_version": "v0.23.0",
+  "release_status": "released",
+  "release_scope": "multi_node_isolation_and_readonly_observability",
+  "previous_release": {
+    "version": "v0.22.1",
+    "tag": "ntpro-rust-only-v0.22.1",
+    "name": "NTPRO Rust-only v0.22.1",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.22.1",
+    "release_manifest_path": "docs/rust-cutover/release/v0_22_1_release_manifest.json",
+    "closeout_evidence_path": "docs/rust-cutover/evidence/V221-006.md"
+  },
+  "planned_release": {
+    "tag": "ntpro-rust-only-v0.23.0",
+    "name": "NTPRO Rust-only v0.23.0",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.23.0",
+    "target_commitish": "main",
+    "draft": false,
+    "prerelease": false
+  },
+  "release_inputs": {
+    "release_notes_path": "docs/rust-cutover/release/v0_23_0_release_notes.md",
+    "readiness_report_path": "docs/rust-cutover/release/v0_23_0_readiness_report.md",
+    "release_manifest_path": "docs/rust-cutover/release/v0_23_0_release_manifest.json",
+    "contract_path": "docs/rust-cutover/release/v0_23_0_multi_node_isolation_contract.md",
+    "contract_manifest_path": "docs/rust-cutover/release/v0_23_0_isolation_contract_manifest.json",
+    "golden_trace_manifest_path": "docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json",
+    "dashboard_observability_smoke_path": "scripts/ai/verify_v23_dashboard_observability_smoke.sh"
+  },
+  "v230_evidence": [
+    {"task_id": "V230-000", "issue": 711, "path": "docs/rust-cutover/evidence/V230-000.md"},
+    {"task_id": "V230-001", "issue": 712, "path": "docs/rust-cutover/evidence/V230-001.md"},
+    {"task_id": "V230-002", "issue": 713, "path": "docs/rust-cutover/evidence/V230-002.md"},
+    {"task_id": "V230-003", "issue": 714, "path": "docs/rust-cutover/evidence/V230-003.md"},
+    {"task_id": "V230-004", "issue": 715, "path": "docs/rust-cutover/evidence/V230-004.md"},
+    {"task_id": "V230-005", "issue": 716, "path": "docs/rust-cutover/evidence/V230-005.md"},
+    {"task_id": "V230-006", "issue": 717, "path": "docs/rust-cutover/evidence/V230-006.md"},
+    {"task_id": "V230-007", "issue": 718, "path": "docs/rust-cutover/evidence/V230-007.md"}
+  ],
+  "release_gates": [
+    {"name": "v23-release-gates", "command": "scripts/ai/verify_release.sh v23-release-gates", "required": true},
+    {"name": "v23-strict-provenance", "command": "scripts/ai/verify_release.sh v23-strict-provenance", "required": true},
+    {"name": "v23-release-gate-script", "command": "scripts/ai/verify_v23_release_gates.sh", "required": true},
+    {"name": "v23-strict-provenance-script", "command": "scripts/ai/verify_v23_strict_provenance.sh", "required": true},
+    {"name": "v23-dashboard-observability-smoke", "command": "scripts/ai/verify_v23_dashboard_observability_smoke.sh", "required": true},
+    {"name": "release-publish-after-gate", "command": "scripts/ai/verify_release.sh release-publish-after-gate", "required": true}
+  ],
+  "capability": {
+    "name": "Multi-Account / Multi-Strategy / Multi-Venue Node Isolation",
+    "multi_account_isolation": true,
+    "multi_strategy_isolation": true,
+    "multi_venue_node_isolation": true,
+    "cross_node_read_model_aggregation": true,
+    "read_only_dashboard_observability": true,
+    "owner_approved_control_contract_defined": true,
+    "gate_before_publish": true,
+    "strict_provenance": true,
+    "product_grade_live_trading_terminal": false,
+    "new_submit_capability": false,
+    "production_order_mutation_expansion": false,
+    "dashboard_operation_controls": false,
+    "complete_executable_read_model_runtime": false
+  },
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "ungated_submit_allowed": false,
+    "ungated_cancel_allowed": false,
+    "ungated_retry_allowed": false,
+    "ungated_replace_allowed": false,
+    "ungated_amend_allowed": false,
+    "ungated_flatten_allowed": false,
+    "automatic_cancel_allowed": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "strategy_driven_production_execution_allowed": false,
+    "cross_account_implicit_operation_allowed": false,
+    "cross_strategy_implicit_operation_allowed": false,
+    "cross_venue_implicit_operation_allowed": false,
+    "cross_node_implicit_operation_allowed": false,
+    "shared_approval_consumption_allowed": false,
+    "dashboard_order_controls_enabled": false,
+    "dashboard_approval_controls_enabled": false,
+    "dashboard_cancel_controls_enabled": false,
+    "dashboard_retry_controls_enabled": false,
+    "dashboard_submit_controls_enabled": false,
+    "dashboard_replace_controls_enabled": false,
+    "dashboard_amend_controls_enabled": false,
+    "dashboard_flatten_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "trader_terminal_live_trading_claim": false,
+    "manual_operation_entry_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "manual_operation_cancel_allowed": false,
+    "manual_operation_retry_allowed": false,
+    "manual_operation_replace_allowed": false,
+    "manual_operation_amend_allowed": false,
+    "manual_operation_flatten_allowed": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "read_model_replay": {
+    "read_model_cases": 49,
+    "read_model_executable_replay_rows": 45,
+    "read_model_schema_only_scoped_rows": 4,
+    "manifest_cases": 100,
+    "manifest_executable_replay_cases": 95,
+    "manifest_schema_only_scoped_cases": 5,
+    "remaining_schema_only_read_model_rows": [
+      "read_model.contract.healthy_minimal.001",
+      "read_model.contract.fail_closed_missing_lineage_source_freshness.001",
+      "read_model.account_snapshot.missing_provenance.001",
+      "read_model.account_snapshot.redaction_breach.001"
+    ]
+  },
+  "publication_governance": {
+    "gate_before_publish": true,
+    "release_gate_workflow_name": "Rust Cutover Release Gate",
+    "publish_workflow_name": "Rust Cutover Publish Release",
+    "publish_script": "scripts/ai/publish_ntpro_release_after_gate.sh",
+    "public_release_requires_successful_hosted_gate_for_same_tag_commit": true,
+    "release_gate_success_before_publication_required": true
+  },
+  "next_tracks": {
+    "patch": "v0.23.1",
+    "capability": "v0.24.0",
+    "inherits_production_submit": false,
+    "inherits_dashboard_operation_controls": false
+  },
+  "validation_artifacts": {
+    "strict_release_provenance_manifest_path": "target/ntpro-v230/v0_23_0_strict_release_manifest.json"
+  }
+}

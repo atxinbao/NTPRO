@@ -2376,3 +2376,33 @@ and the renderer smoke verifies two scoped rows with 21 operation boundary
 fields explicitly set to `false`. No production submit, order mutation, manual
 operation, order ticket, Dashboard action controls, or release publication
 behavior is added.
+
+# V230-007 Verification
+
+Date: 2026-07-03
+Executor: Codex
+Task: `V230-007` / GitHub issue `#718`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v23_release_gates.sh scripts/ai/verify_v23_strict_provenance.sh scripts/ai/verify_release.sh scripts/ai/check_release_surface_current.sh scripts/ai/check_github_release_published.sh scripts/ai/publish_ntpro_release_after_gate.sh scripts/ai/verify_fast.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_23_0_release_manifest.json >/dev/null = PASS
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); YAML.load_file(".github/workflows/rust-cutover-smoke.yml")' = PASS
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/check_release_surface_current.sh = PASS, pre_tag_mode missing_tag=ntpro-rust-only-v0.23.0
+scripts/ai/verify_release.sh v23-release-gates = PASS, 100 release cases / 95 executable replay / 5 schema-only scoped, 6 golden_trace_read_model_projection tests passed, Dashboard smoke passed, current_issue_state=OPEN
+scripts/ai/verify_release.sh v23-strict-provenance = PASS, pre-tag mode tag_exists=false source_dirty=true manifest=target/ntpro-v230/v0_23_0_strict_release_manifest.json
+python3 -m json.tool target/ntpro-v230/v0_23_0_strict_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V230-007 now has local release gate and strict provenance coverage for
+`ntpro-rust-only-v0.23.0`. The release package records V230-000 through
+V230-007 evidence, the v0.23.0 manifest, release notes, readiness report,
+current release surface updates, hosted tag-gate stages, and the
+gate-before-publish path. No production submit, production order mutation,
+manual operation, order ticket, Dashboard action controls, or product-grade live
+terminal behavior is added.
