@@ -2406,3 +2406,16 @@ current release surface updates, hosted tag-gate stages, and the
 gate-before-publish path. No production submit, production order mutation,
 manual operation, order ticket, Dashboard action controls, or product-grade live
 terminal behavior is added.
+
+## Corrective Gate Scope Check
+
+```text
+GitHub Actions release gate run 28669329074 = failed/cancelled before publication
+Root cause = historical strict provenance stages release-v21-strict-provenance and release-v221-strict-provenance were executed on the v0.23.0 tag HEAD
+Fix = strict provenance matrix entries now declare expected_tag and skip when GITHUB_REF_NAME does not match that tag
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml")' = PASS
+historical strict provenance mismatch simulation = PASS, release-v221-strict-provenance skips on actual_tag=ntpro-rust-only-v0.23.0
+current strict provenance matching-tag simulation = PASS, release-v23-strict-provenance reaches command execution
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
