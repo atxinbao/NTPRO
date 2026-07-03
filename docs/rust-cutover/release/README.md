@@ -683,6 +683,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   for account identity and read-model partitioning. It records executable
   replay cases for isolated accounts, cross-account mismatch fail-closed
   behavior, and unknown account identity fail-closed behavior.
+- `v0_23_0_multi_strategy_supervisor_isolation.md` - V230-003 release note
+  for strategy supervisor identity and isolation. It records executable replay
+  cases for isolated strategies, cross-strategy mismatch fail-closed behavior,
+  and unknown strategy identity fail-closed behavior.
 - `../scope/v0_22_0_trader_terminal_workbench_scope.md` - V220-000 scope
   decision for the v0.22.0 Trader Terminal workbench line. It records the
   v0.21.1 closeout dependency, read-only-first workbench boundary, gated manual
