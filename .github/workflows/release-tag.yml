@@ -120,18 +120,22 @@ jobs:
             command: scripts/ai/verify_release.sh v19-release-gates
           - stage: release-v20-release-gates
             command: scripts/ai/verify_release.sh v20-release-gates
+            expected_tag: ntpro-rust-only-v0.20.0
           - stage: release-v20-strict-provenance
             command: scripts/ai/verify_release.sh v20-strict-provenance
             expected_tag: ntpro-rust-only-v0.20.0
           - stage: release-v201-patch-release-gates
             command: scripts/ai/verify_release.sh v20.1-release-gates
+            expected_tag: ntpro-rust-only-v0.20.1
           - stage: release-v21-release-gates
             command: scripts/ai/verify_release.sh v21-release-gates
+            expected_tag: ntpro-rust-only-v0.21.0
           - stage: release-v21-strict-provenance
             command: scripts/ai/verify_release.sh v21-strict-provenance
             expected_tag: ntpro-rust-only-v0.21.0
           - stage: release-v211-release-gates
             command: scripts/ai/verify_release.sh v21.1-release-gates
+            expected_tag: ntpro-rust-only-v0.21.1
           - stage: release-v211-strict-provenance
             command: scripts/ai/verify_release.sh v21.1-strict-provenance
             expected_tag: ntpro-rust-only-v0.21.1
@@ -139,16 +143,19 @@ jobs:
             command: scripts/ai/verify_release.sh v22-runtime-boundary-tests
           - stage: release-v22-release-gates
             command: scripts/ai/verify_release.sh v22-release-gates
+            expected_tag: ntpro-rust-only-v0.22.0
           - stage: release-v22-strict-provenance
             command: scripts/ai/verify_release.sh v22-strict-provenance
             expected_tag: ntpro-rust-only-v0.22.0
           - stage: release-v221-release-gates
             command: scripts/ai/verify_release.sh v22.1-release-gates
+            expected_tag: ntpro-rust-only-v0.22.1
           - stage: release-v221-strict-provenance
             command: scripts/ai/verify_release.sh v22.1-strict-provenance
             expected_tag: ntpro-rust-only-v0.22.1
           - stage: release-v23-release-gates
             command: scripts/ai/verify_release.sh v23-release-gates
+            expected_tag: ntpro-rust-only-v0.23.0
           - stage: release-v23-strict-provenance
             command: scripts/ai/verify_release.sh v23-strict-provenance
             expected_tag: ntpro-rust-only-v0.23.0
@@ -198,11 +205,11 @@ jobs:
         run: |
           if [[ -n "${NTPRO_EXPECTED_RELEASE_TAG}" ]]; then
             if [[ "${GITHUB_REF_TYPE:-}" != "tag" ]]; then
-              echo "release strict provenance skipped: stage=${NTPRO_RELEASE_STAGE} expected_tag=${NTPRO_EXPECTED_RELEASE_TAG} ref_type=${GITHUB_REF_TYPE:-unknown}"
+              echo "release tag-scoped stage skipped: stage=${NTPRO_RELEASE_STAGE} expected_tag=${NTPRO_EXPECTED_RELEASE_TAG} ref_type=${GITHUB_REF_TYPE:-unknown}"
               exit 0
             fi
             if [[ "${GITHUB_REF_NAME:-}" != "${NTPRO_EXPECTED_RELEASE_TAG}" ]]; then
-              echo "release strict provenance skipped: stage=${NTPRO_RELEASE_STAGE} expected_tag=${NTPRO_EXPECTED_RELEASE_TAG} actual_tag=${GITHUB_REF_NAME:-unknown}"
+              echo "release tag-scoped stage skipped: stage=${NTPRO_RELEASE_STAGE} expected_tag=${NTPRO_EXPECTED_RELEASE_TAG} actual_tag=${GITHUB_REF_NAME:-unknown}"
               exit 0
             fi
           fi
