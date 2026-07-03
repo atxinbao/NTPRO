@@ -14,6 +14,7 @@ scripts/ai/verify_release.sh v22.1-release-gates = PASS, v221_evidence=complete,
 scripts/ai/verify_release.sh v22.1-strict-provenance = PASS, pre-tag mode tag_exists=false, source_dirty=true, strict manifest generated under target/ntpro-v221/
 scripts/ai/verify_fast.sh = PASS, fast smoke only
 git diff --check = PASS
+hosted Rust Cutover Release Gate run 28645848573 = failed/cancelled before publication; release-v22-strict-provenance treated the historical v0.22.0 tag as required at the v0.22.1 tag HEAD
 ```
 
 ## Result
@@ -22,6 +23,8 @@ V221-006 is locally verified. The v0.22.1 release package records release
 notes, readiness report, manifest, release gates, strict provenance, hosted
 gate-before-publish wiring, V211/V221 read-model replay compatibility, and
 retrying GitHub dependency proof for the `ntpro-rust-only-v0.22.1` release.
+The post-merge tag-gate fix keeps historical v22 strict provenance active
+without requiring the old v0.22.0 tag to equal the v0.22.1 tag HEAD.
 
 # V220-003 Verification
 

@@ -59,7 +59,16 @@ if git rev-parse -q --verify "${RELEASE_TAG}^{commit}" >/dev/null; then
   release_tag_commit="$(git rev-list -n 1 "$RELEASE_TAG")"
   release_tag_tree="$(git rev-parse "$RELEASE_TAG^{tree}")"
 fi
-if [[ "${NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG:-0}" == "1" || "${NTPRO_RELEASE_GATE:-0}" == "1" ]]; then
+require_head_tag="${NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG:-0}"
+if [[ "${NTPRO_RELEASE_GATE:-0}" == "1" ]]; then
+  gate_ref_name="${GITHUB_REF_NAME:-}"
+  if [[ -z "$gate_ref_name" || "$gate_ref_name" == "$RELEASE_TAG" ]]; then
+    require_head_tag="1"
+  else
+    echo "v22_strict_provenance historical_stage_head_tag_check=skipped gate_ref=$gate_ref_name expected_release_tag=$RELEASE_TAG"
+  fi
+fi
+if [[ "$require_head_tag" == "1" ]]; then
   [[ "$release_tag_exists" == "true" ]] || fail "missing required local release tag: $RELEASE_TAG"
   [[ "$source_commit" == "$release_tag_commit" ]] || fail "HEAD $source_commit does not match $RELEASE_TAG commit $release_tag_commit"
 fi
