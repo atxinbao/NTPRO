@@ -10,11 +10,11 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.22.0` 是当前正式公开发布点；它是 Trader Terminal Workbench 发布线，用来把
-v0.21.1 canonical Unified Read Model runtime 展示为 read-only first 工作台，并固化
-account、position、order、fill、risk、alerts、audit、provenance、gated manual
-operation-entry、runtime degradation tests、release gates 和 strict provenance。它不是
-产品级实盘交易终端，不是新增 submit 能力，不是生产订单 mutation，不是无门禁
+`v0.22.1` 是当前正式公开发布点；它是 Trader Terminal Workbench 的 hardening patch，
+在 v0.22.0 read-only first 工作台基础上固化 required-false runtime boundary、
+executable read-model replay promotion、Workbench render smoke、gate-before-publish
+governance 和 strict provenance。它不是产品级实盘交易终端，不是完整 executable
+read-model runtime，不是新增 submit 能力，不是生产订单 mutation，不是无门禁
 submit/cancel/retry/replace/amend/flatten，不是隐式 retry，不是自动撤单，不是自动补救，
 不是策略实盘，不是多账户多交易所执行，也没有 Dashboard 下单/审批/撤单/重试/submit/
 replace/amend/flatten/order-ticket 控件。`v0.23.0` 是下一能力轨。
@@ -45,6 +45,7 @@ ntpro-rust-only-v0.20.1
 ntpro-rust-only-v0.21.0
 ntpro-rust-only-v0.21.1
 ntpro-rust-only-v0.22.0
+ntpro-rust-only-v0.22.1
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -57,17 +58,17 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.22.0
+ntpro-rust-only-v0.22.1
 ```
 
 The active patch track is:
 
 ```text
-v0.22.1
+v0.22.2
 ```
 
-v0.22.1 is reserved for future patch hardening only. It must not expand beyond
-the v0.22.0 read-only-first workbench boundary unless a later scoped
+v0.22.2 is reserved for future patch hardening only. It must not expand beyond
+the v0.22.1 read-only-first workbench hardening boundary unless a later scoped
 release issue explicitly changes that contract.
 
 The next capability track is:
@@ -76,14 +77,13 @@ The next capability track is:
 v0.23.0
 ```
 
-v0.23.0 must stay blocked until the v0.22.0 Trader Terminal workbench boundary
-is published and reviewed as read-only first. The v0.22 release line only
-authorizes the Trader Terminal workbench, gated manual operation-entry design,
-runtime degradation tests, release gates, and strict provenance; it does not
-authorize production submit, production order mutation, implicit retry,
-automatic cancel, automatic remediation, strategy-driven production execution,
-multi-account or multi-venue
-expansion, or Dashboard operation controls.
+v0.23.0 start gate is satisfied only by the published v0.22.1 release evidence:
+all V221 issues closed, `ntpro-rust-only-v0.22.1` published, hosted release gate
+successful, and strict provenance recorded. The v0.23.0 line may now proceed
+through its scoped GitHub issues, but it still does not inherit production
+submit, production order mutation, implicit retry, automatic cancel, automatic
+remediation, strategy-driven production execution, multi-account or multi-venue
+execution, or Dashboard operation controls from v0.22.1.
 
 ## Cargo Workspace Version
 

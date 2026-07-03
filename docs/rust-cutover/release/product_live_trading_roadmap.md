@@ -230,7 +230,7 @@ Scope:
 v0.21.0 start gate was satisfied on 2026-06-30 by the v0.20.1 closeout and release evidence.
 v0.22.0 start gate was satisfied on 2026-07-01 by the v0.21.1 closeout and release evidence.
 V220 work completed through V220-007 and the v0.22.0 release gates/strict provenance evidence.
-v0.23.0 must remain blocked until the published Trader Terminal workbench has a stable read-only/operator boundary.
+v0.23.0 start gate was satisfied on 2026-07-03 by the published v0.22.1 hardening patch, closed V221 issue set, successful hosted release gate, and strict provenance evidence. Implementation must still proceed only through the scoped V230 issues.
 v0.24.0 must remain blocked until account/strategy/venue isolation exists.
 v0.25.0 must remain blocked until order control semantics are explicit and gated.
 v0.26.0+ must not be used to excuse missing monitoring, alerting, audit, or rollback evidence in earlier versions.

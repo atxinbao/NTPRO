@@ -6,36 +6,37 @@ NautilusTrader.
 The current source-tree milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.22.0
-Latest formal release: ntpro-rust-only-v0.22.0
-Current source-tree readiness: ntpro-rust-only-v0.22.0 released
-Current capability: Trader Terminal Workbench
-Next patch: v0.22.1 Reserved Hardening Patch
-Next capability: v0.23.0 Reserved Capability Track
-Boundary: v0.22.0 is a read-only first Trader Terminal workbench for account, position, order, fill, risk, alerts, audit, provenance, and gated manual operation-entry evidence. It does not include product-grade live trading, new production submit capability, production order mutation, ungated submit/cancel/retry/replace/amend/flatten, implicit retry, automatic cancel, automatic remediation, strategy-driven production execution, multi-account or multi-venue execution, real-funds proof in CI, or Dashboard order/approval/cancel/retry/submit/replace/amend/flatten/order-ticket controls.
+Current source tag: ntpro-rust-only-v0.22.1
+Latest formal release: ntpro-rust-only-v0.22.1
+Current source-tree readiness: ntpro-rust-only-v0.22.1 released
+Current capability: Trader Terminal Workbench Hardening Patch
+Next patch: v0.22.2 Reserved Patch Track
+Next capability: v0.23.0 Multi-Account / Multi-Strategy / Multi-Venue Node Isolation
+Boundary: v0.22.1 is a read-only first Trader Terminal workbench hardening patch for required-false operation boundaries, executable read-model replay promotion, Workbench render smoke, gate-before-publish governance, and strict provenance. It does not include product-grade live trading, complete executable read-model runtime coverage, new production submit capability, production order mutation, ungated submit/cancel/retry/replace/amend/flatten, implicit retry, automatic cancel, automatic remediation, strategy-driven production execution, multi-account or multi-venue execution, real-funds proof in CI, or Dashboard order/approval/cancel/retry/submit/replace/amend/flatten/order-ticket controls.
 ```
 
-`ntpro-rust-only-v0.22.0` is the latest formal GitHub Release. It is the Trader
-Terminal Workbench release over the v0.21.1 canonical Unified Read Model
-runtime bridge. It preserves the no-submit/no-Dashboard-controls boundary while
-closing V220 release gate, strict provenance, runtime degradation, and
-workbench evidence.
+`ntpro-rust-only-v0.22.1` is the latest formal GitHub Release. It is the Trader
+Terminal Workbench hardening patch over the v0.22.0 read-only Workbench/runtime
+bridge. It preserves the no-submit/no-Dashboard-controls boundary while closing
+required-false runtime boundary, expanded read-model replay, render smoke,
+gate-before-publish, and strict provenance evidence.
 
-The latest formal release is published as a GitHub Release for the v0.22.0
+The latest formal release is published as a GitHub Release for the v0.22.1
 tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.22.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.22.1
 ```
 
-`v0.22.0` is the current formal Trader Terminal Workbench release. It remains
-read-only first and gated-operation-boundary only, not a product-grade live
-trading terminal or general production trading platform claim. It does not add
-production submit, order mutation, ungated cancel/retry/replace/amend/flatten,
-implicit retry, automatic cancel, automatic remediation, bulk order execution,
-strategy-driven production execution, or Dashboard operation controls.
+`v0.22.1` is the current formal Trader Terminal Workbench hardening patch. It
+remains read-only first and gated-operation-boundary only, not a product-grade
+live trading terminal or general production trading platform claim. It does not
+add production submit, order mutation, ungated cancel/retry/replace/amend/
+flatten, implicit retry, automatic cancel, automatic remediation, bulk order
+execution, strategy-driven production execution, or Dashboard operation
+controls.
 
-The next patch track is `v0.22.1`. The next capability track is `v0.23.0`.
+The next patch track is `v0.22.2`. The next capability track is `v0.23.0`.
 
 ## Current Status
 
@@ -111,8 +112,8 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.22.0 is the current formal release line. It is the Trader Terminal Workbench
-release and builds on the earlier foundation layers:
+v0.22.1 is the current formal release line. It is the Trader Terminal Workbench
+hardening patch and builds on the earlier foundation layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
 - `v0.5.0`: local Binance sandbox workflow artifacts;
