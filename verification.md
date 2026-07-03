@@ -1,3 +1,25 @@
+# V230-001 Verification
+
+Date: 2026-07-03
+Executor: Codex
+Task: `V230-001` / GitHub issue `#712`
+
+## Commands
+
+```text
+jq . docs/rust-cutover/release/v0_23_0_isolation_contract_manifest.json = PASS
+rg -n "account_key|strategy_key|venue_node_key|isolation_scope_key|owner-approved|#713|#714|#715|#716|#717|#718" docs/rust-cutover/release/v0_23_0_multi_node_isolation_contract.md docs/rust-cutover/release/v0_23_0_isolation_contract_manifest.json docs/rust-cutover/scope/v0_23_0_multi_node_isolation_scope.md docs/rust-cutover/evidence/V230-001.md = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V230-001 is locally verified. The v0.23.0 isolation contract and manifest define
+the identity keys, read/control boundaries, downstream #713-#718 traceability,
+and no-runtime/no-submit/no-dashboard-operation boundary before implementation
+starts.
+
 # V230-000 Verification
 
 Date: 2026-07-03
