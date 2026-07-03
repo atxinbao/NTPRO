@@ -687,6 +687,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   for strategy supervisor identity and isolation. It records executable replay
   cases for isolated strategies, cross-strategy mismatch fail-closed behavior,
   and unknown strategy identity fail-closed behavior.
+- `v0_23_0_multi_venue_node_lifecycle_boundary.md` - V230-004 release note for
+  venue node registry and lifecycle isolation. It records the registry contract
+  shape and executable replay cases for isolated nodes, cross-node mismatch
+  fail-closed behavior, and unknown venue node identity fail-closed behavior.
 - `../scope/v0_22_0_trader_terminal_workbench_scope.md` - V220-000 scope
   decision for the v0.22.0 Trader Terminal workbench line. It records the
   v0.21.1 closeout dependency, read-only-first workbench boundary, gated manual

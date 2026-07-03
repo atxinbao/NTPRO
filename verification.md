@@ -1,3 +1,31 @@
+# V230-004 Verification
+
+Date: 2026-07-03
+Executor: Codex
+Task: `V230-004` / GitHub issue `#715`
+
+## Commands
+
+```text
+cargo test -p nautilus-cli --test golden_trace_read_model_projection -- --nocapture = PASS, 4 tests passed
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/read_model_venue_node_lifecycle_schema.jsonl").read_text().splitlines() if line.strip()]' = PASS
+jq . docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 92 cases, 87 executable replay, 5 schema-only scoped
+rg -n "read_model.venue_node_lifecycle|venue_node_key|adapter_instance_id|cross_node_component_mismatch|missing_venue_node_key|rust_cli_read_model_projection_replays_v230_venue_node_lifecycle_paths" tests/golden/read_model_venue_node_lifecycle_schema.jsonl crates/cli/tests/golden_trace_read_model_projection.rs docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json docs/rust-cutover/evidence/V230-004.md = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V230-004 is locally verified. The Rust read-model projection harness now
+replays V230 venue node lifecycle fixtures for isolated nodes, cross-node
+mismatch fail-closed behavior, and unknown venue node identity fail-closed
+behavior. The node registry contract shape requires `venue_node_key`,
+`adapter_instance_id`, and `source_provenance`; the boundary does not add
+credential handling expansion, production submit, order mutation, cross-node
+orchestration, or Dashboard operation controls.
+
 # V230-003 Verification
 
 Date: 2026-07-03
