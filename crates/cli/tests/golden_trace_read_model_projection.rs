@@ -185,6 +185,14 @@ const ACCOUNT_PARTITION_COMPONENTS: &[&str] = &[
     "audit",
     "provenance",
 ];
+const STRATEGY_SUPERVISOR_COMPONENTS: &[&str] = &[
+    "supervisor_state",
+    "runtime_state",
+    "risk_state",
+    "events",
+    "audit",
+    "provenance",
+];
 const V230_ACCOUNT_PARTITION_CASES: &[ReplayCase] = &[
     ReplayCase {
         trace: "read_model_account_partition_schema.jsonl",
@@ -200,6 +208,23 @@ const V230_ACCOUNT_PARTITION_CASES: &[ReplayCase] = &[
         trace: "read_model_account_partition_schema.jsonl",
         case_id: "read_model.account_partition.missing_account_key.001",
         family: "account_partition",
+    },
+];
+const V230_STRATEGY_SUPERVISOR_CASES: &[ReplayCase] = &[
+    ReplayCase {
+        trace: "read_model_strategy_supervisor_schema.jsonl",
+        case_id: "read_model.strategy_supervisor.isolated_strategies.001",
+        family: "strategy_supervisor",
+    },
+    ReplayCase {
+        trace: "read_model_strategy_supervisor_schema.jsonl",
+        case_id: "read_model.strategy_supervisor.cross_strategy_mismatch.001",
+        family: "strategy_supervisor",
+    },
+    ReplayCase {
+        trace: "read_model_strategy_supervisor_schema.jsonl",
+        case_id: "read_model.strategy_supervisor.missing_strategy_key.001",
+        family: "strategy_supervisor",
     },
 ];
 
@@ -291,6 +316,47 @@ fn rust_cli_read_model_projection_replays_v230_account_partition_paths()
     Ok(())
 }
 
+#[test]
+fn rust_cli_read_model_projection_replays_v230_strategy_supervisor_paths()
+-> Result<(), Box<dyn Error>> {
+    let mut covered_families = BTreeSet::new();
+    let mut covered_cases = BTreeSet::new();
+
+    for replay_case in V230_STRATEGY_SUPERVISOR_CASES {
+        let case = load_case(replay_case.trace, replay_case.case_id)?;
+        let input_event = single_event(&case, "input", replay_case.case_id)?;
+        let expected_event = single_event(&case, "expected", replay_case.case_id)?;
+        let actual_event = project_read_model_event(replay_case.case_id, input_event)?;
+
+        if actual_event != *expected_event {
+            return Err(format!(
+                "{} Rust strategy-supervisor projection replay mismatch\nexpected={}\nactual={}",
+                replay_case.case_id, expected_event, actual_event
+            )
+            .into());
+        }
+
+        covered_families.insert(replay_case.family);
+        covered_cases.insert(replay_case.case_id);
+    }
+
+    if covered_cases.len() != V230_STRATEGY_SUPERVISOR_CASES.len() {
+        return Err(format!(
+            "V230-003 must keep {} strategy-supervisor projection cases, got {}",
+            V230_STRATEGY_SUPERVISOR_CASES.len(),
+            covered_cases.len()
+        )
+        .into());
+    }
+    assert_contains_all(
+        &covered_families,
+        &["strategy_supervisor"],
+        "read_model strategy supervisor family",
+    )?;
+
+    Ok(())
+}
+
 fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value, Box<dyn Error>> {
     let mut event = Map::new();
     let event_type = string_field(input_event, "event_type")?.replace(".input", ".validated");
@@ -311,7 +377,9 @@ fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value,
 
     let input_payload = payload(input_event)?;
     let snapshot = object_field(input_payload, "snapshot")?;
-    let projected_payload = if case_id.starts_with("read_model.account_partition.") {
+    let projected_payload = if case_id.starts_with("read_model.strategy_supervisor.") {
+        project_strategy_supervisor_payload(case_id, snapshot)?
+    } else if case_id.starts_with("read_model.account_partition.") {
         project_account_partition_payload(case_id, snapshot)?
     } else if case_id.starts_with("read_model.account_snapshot.") {
         project_account_payload(case_id, snapshot)?
@@ -331,6 +399,182 @@ fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value,
     event.insert("payload".to_string(), projected_payload);
 
     Ok(Value::Object(event))
+}
+
+fn project_strategy_supervisor_payload(
+    case_id: &str,
+    snapshot: &Value,
+) -> Result<Value, Box<dyn Error>> {
+    let partitions = array_field(snapshot, "strategy_partitions")?;
+    let boundary = object_field(snapshot, "control_boundary")?;
+    let mut account_keys = BTreeSet::new();
+    let mut strategy_keys = BTreeSet::new();
+    let mut venue_node_keys = BTreeSet::new();
+    let mut isolation_scope_keys = BTreeSet::new();
+    let mut blocking_reasons = string_array(snapshot, "blocking_reasons")?;
+    let mut identity_keys_present = true;
+    let mut cross_strategy_contamination_detected = false;
+    let mut read_path_preserves_provenance = true;
+
+    for (partition_index, partition) in partitions.iter().enumerate() {
+        let account_key = optional_non_empty_string(partition, "account_key");
+        let strategy_key = optional_non_empty_string(partition, "strategy_key");
+        let venue_node_key = optional_non_empty_string(partition, "venue_node_key");
+        let isolation_scope_key = optional_non_empty_string(partition, "isolation_scope_key");
+
+        match account_key {
+            Some(key) => {
+                account_keys.insert(key.to_string());
+            }
+            None => {
+                identity_keys_present = false;
+                read_path_preserves_provenance = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_account_key:partition:{partition_index}"),
+                );
+            }
+        }
+        match strategy_key {
+            Some(key) => {
+                strategy_keys.insert(key.to_string());
+            }
+            None => {
+                identity_keys_present = false;
+                read_path_preserves_provenance = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_strategy_key:partition:{partition_index}"),
+                );
+            }
+        }
+        match venue_node_key {
+            Some(key) => {
+                venue_node_keys.insert(key.to_string());
+            }
+            None => {
+                identity_keys_present = false;
+                read_path_preserves_provenance = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_venue_node_key:partition:{partition_index}"),
+                );
+            }
+        }
+        match isolation_scope_key {
+            Some(key) => {
+                isolation_scope_keys.insert(key.to_string());
+            }
+            None => {
+                identity_keys_present = false;
+                read_path_preserves_provenance = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_isolation_scope_key:partition:{partition_index}"),
+                );
+            }
+        }
+
+        let Some(partition_strategy_key) = strategy_key else {
+            continue;
+        };
+        let components = object_field(partition, "components")?;
+        for component_name in STRATEGY_SUPERVISOR_COMPONENTS {
+            let component = object_field(components, component_name)?;
+            match optional_non_empty_string(component, "strategy_key") {
+                Some(component_strategy_key)
+                    if component_strategy_key == partition_strategy_key => {}
+                Some(_) => {
+                    cross_strategy_contamination_detected = true;
+                    push_reason(
+                        &mut blocking_reasons,
+                        format!("cross_strategy_component_mismatch:{component_name}"),
+                    );
+                }
+                None => {
+                    identity_keys_present = false;
+                    read_path_preserves_provenance = false;
+                    push_reason(
+                        &mut blocking_reasons,
+                        format!("missing_component_strategy_key:{component_name}"),
+                    );
+                }
+            }
+
+            if optional_non_empty_string(component, "source_provenance").is_none() {
+                read_path_preserves_provenance = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_component_source_provenance:{component_name}"),
+                );
+            }
+        }
+    }
+
+    let missing_strategy_key_fail_closed = !identity_keys_present;
+    let strategy_supervisor_status =
+        if cross_strategy_contamination_detected || missing_strategy_key_fail_closed {
+            "fail_closed"
+        } else {
+            "isolated"
+        };
+
+    let mut payload = base_payload(case_id, snapshot);
+    insert_string(
+        &mut payload,
+        "strategy_supervisor_status",
+        strategy_supervisor_status,
+    );
+    payload.insert(
+        "strategy_partition_count".to_string(),
+        json!(partitions.len()),
+    );
+    payload.insert("account_keys".to_string(), string_set_value(account_keys));
+    payload.insert("strategy_keys".to_string(), string_set_value(strategy_keys));
+    payload.insert(
+        "venue_node_keys".to_string(),
+        string_set_value(venue_node_keys),
+    );
+    payload.insert(
+        "isolation_scope_keys".to_string(),
+        string_set_value(isolation_scope_keys),
+    );
+    payload.insert(
+        "identity_keys_present".to_string(),
+        Value::Bool(identity_keys_present),
+    );
+    payload.insert(
+        "cross_strategy_contamination_detected".to_string(),
+        Value::Bool(cross_strategy_contamination_detected),
+    );
+    payload.insert(
+        "missing_strategy_key_fail_closed".to_string(),
+        Value::Bool(missing_strategy_key_fail_closed),
+    );
+    payload.insert(
+        "read_path_preserves_provenance".to_string(),
+        Value::Bool(read_path_preserves_provenance),
+    );
+    for key in [
+        "owner_approval_gate_required",
+        "approval_consumption_single_scope_only",
+        "strategy_driven_production_execution_allowed",
+        "dashboard_operation_controls_enabled",
+        "production_order_submission_allowed",
+    ] {
+        payload.insert(key.to_string(), Value::Bool(bool_field(boundary, key)?));
+    }
+    payload.insert(
+        "blocking_reasons".to_string(),
+        Value::Array(
+            blocking_reasons
+                .into_iter()
+                .map(Value::String)
+                .collect::<Vec<_>>(),
+        ),
+    );
+
+    Ok(Value::Object(payload))
 }
 
 fn project_account_partition_payload(

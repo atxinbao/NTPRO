@@ -1,3 +1,30 @@
+# V230-003 Verification
+
+Date: 2026-07-03
+Executor: Codex
+Task: `V230-003` / GitHub issue `#714`
+
+## Commands
+
+```text
+cargo test -p nautilus-cli --test golden_trace_read_model_projection -- --nocapture = PASS, 3 tests passed
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/read_model_strategy_supervisor_schema.jsonl").read_text().splitlines() if line.strip()]' = PASS
+jq . docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 89 cases, 84 executable replay, 5 schema-only scoped
+rg -n "read_model.strategy_supervisor|strategy_key|isolation_scope_key|cross_strategy_component_mismatch|missing_strategy_key|rust_cli_read_model_projection_replays_v230_strategy_supervisor_paths" tests/golden/read_model_strategy_supervisor_schema.jsonl crates/cli/tests/golden_trace_read_model_projection.rs docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json docs/rust-cutover/evidence/V230-003.md = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V230-003 is locally verified. The Rust read-model projection harness now
+replays V230 strategy supervisor fixtures for isolated strategies,
+cross-strategy mismatch fail-closed behavior, and unknown strategy identity
+fail-closed behavior. The boundary remains read-only evidence only: no
+production submit, strategy-driven production execution, venue node lifecycle,
+or Dashboard operation controls are added.
+
 # V230-002 Verification
 
 Date: 2026-07-03
