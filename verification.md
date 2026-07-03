@@ -1,3 +1,28 @@
+# V221-006 Verification
+
+Date: 2026-07-03
+Executor: Codex
+Task: `V221-006` / GitHub issue `#710`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v21_1_read_model_projection_replay.sh scripts/ai/verify_v22_1_release_gates.sh scripts/ai/verify_v22_1_strict_provenance.sh scripts/ai/verify_release.sh scripts/ai/verify_fast.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_22_1_release_manifest.json >/dev/null = PASS
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml")' = PASS
+scripts/ai/verify_release.sh v22.1-release-gates = PASS, v221_evidence=complete, workbench_render_smoke=required, gate_before_publish=required, current_issue_state=OPEN
+scripts/ai/verify_release.sh v22.1-strict-provenance = PASS, pre-tag mode tag_exists=false, source_dirty=true, strict manifest generated under target/ntpro-v221/
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V221-006 is locally verified. The v0.22.1 release package records release
+notes, readiness report, manifest, release gates, strict provenance, hosted
+gate-before-publish wiring, V211/V221 read-model replay compatibility, and
+retrying GitHub dependency proof for the `ntpro-rust-only-v0.22.1` release.
+
 # V220-003 Verification
 
 Date: 2026-07-02

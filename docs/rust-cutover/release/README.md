@@ -655,6 +655,18 @@ Final release checks, benchmark summaries, and audit reports live here.
   preparation is allowed before the hosted release gate, but public GitHub
   Release publication requires a successful `Rust Cutover Release Gate` run for
   the same tag commit.
+- `v0_22_1_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.22.1` hardening patch. It records required-false runtime
+  boundary hardening, expanded executable replay evidence, Workbench render
+  smoke, gate-before-publish governance, and strict provenance.
+- `v0_22_1_readiness_report.md` - readiness report for the formal
+  `ntpro-rust-only-v0.22.1` hardening patch. It records V221 evidence,
+  v22.1 release gates, strict provenance, publication-order requirements, and
+  the continued hard block on `v0.23.0`.
+- `v0_22_1_release_manifest.json` - machine-readable v0.22.1 patch release
+  manifest for the V221 gate. It fixes the V221 evidence set, v0.22.0 base
+  release dependency, planned patch tag, boundary flags, read-model replay
+  counts, publication governance, and v0.23.0 dependency sources.
 - `../scope/v0_22_0_trader_terminal_workbench_scope.md` - V220-000 scope
   decision for the v0.22.0 Trader Terminal workbench line. It records the
   v0.21.1 closeout dependency, read-only-first workbench boundary, gated manual
@@ -717,6 +729,16 @@ Final release checks, benchmark summaries, and audit reports live here.
   evidence for GitHub issue #707. It records promoted position, fill, order,
   risk, and dashboard forbidden-controls rows plus the remaining schema-only
   read-model rows.
+- `../evidence/V221-004.md` - V221-004 gate-before-publish release governance
+  evidence for GitHub issue #708. It records the release publication entrypoint
+  and the hosted gate proof required before public release publication.
+- `../evidence/V221-005.md` - V221-005 Workbench render smoke and read-only
+  regression evidence for GitHub issue #709. It records the deterministic
+  `read_model_runtime` fixture, Dashboard renderer smoke, and absent operation
+  surface assertions.
+- `../evidence/V221-006.md` - V221-006 release gate, strict provenance, and
+  v0.22.1 publication evidence ledger for GitHub issue #710 and the
+  `ntpro-rust-only-v0.22.1` GitHub Release.
 - `../evidence/V211-006.md` - V211-006 release gate, strict provenance, and
   dependency proof evidence for the `ntpro-rust-only-v0.21.1` GitHub Release.
 - `../evidence/V211-001.md` - V211-001 release closeout and milestone evidence

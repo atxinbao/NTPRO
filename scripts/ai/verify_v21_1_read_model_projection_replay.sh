@@ -50,11 +50,7 @@ PROMOTED_CASES = {
     "read_model.dashboard.readonly_complete.001",
     "read_model.dashboard.missing_evidence_degraded.001",
 }
-FOLLOW_UP_CASES = {
-    "read_model.contract.healthy_minimal.001",
-    "read_model.contract.fail_closed_missing_lineage_source_freshness.001",
-    "read_model.account_snapshot.missing_provenance.001",
-    "read_model.account_snapshot.redaction_breach.001",
+V221_PROMOTED_CASES = {
     "read_model.position.long.001",
     "read_model.position.short.001",
     "read_model.position.flat.001",
@@ -75,6 +71,12 @@ FOLLOW_UP_CASES = {
     "read_model.risk_state.halted.001",
     "read_model.risk_state.stale.001",
     "read_model.dashboard.forbidden_controls_blocked.001",
+}
+REMAINING_SCHEMA_ONLY_CASES = {
+    "read_model.contract.healthy_minimal.001",
+    "read_model.contract.fail_closed_missing_lineage_source_freshness.001",
+    "read_model.account_snapshot.missing_provenance.001",
+    "read_model.account_snapshot.redaction_breach.001",
 }
 HARNESS = "cargo test -p nautilus-cli --test golden_trace_read_model_projection"
 ENTRYPOINT = "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v211_required_paths"
@@ -100,9 +102,8 @@ read_model_schema_only = [
 ]
 
 require(len(read_model_entries) == 32, "read_model scope count must remain 32")
-require(len(read_model_exec) == 8, "V211-003 must promote exactly 8 read_model cases")
-require(len(read_model_schema_only) == 24, "remaining read_model schema-only count must be 24")
-require({case["case_id"] for case in read_model_exec} == PROMOTED_CASES, "promoted read_model case set mismatch")
+require(len(read_model_exec) >= len(PROMOTED_CASES), "V211-003 promoted read_model cases regressed")
+require({case["case_id"] for case in read_model_exec}.issuperset(PROMOTED_CASES), "V211 promoted read_model case set mismatch")
 
 for case_id in PROMOTED_CASES:
     entry = entries.get(case_id)
@@ -113,9 +114,20 @@ for case_id in PROMOTED_CASES:
     require(entry.get("rust_entrypoint") == ENTRYPOINT, f"{case_id}: rust entrypoint mismatch")
     require(entry.get("release_decision") == "included_in_final_replay_scope", f"{case_id}: release decision mismatch")
 
-for case_id in FOLLOW_UP_CASES:
+for case_id in V221_PROMOTED_CASES:
     entry = entries.get(case_id)
-    require(entry is not None, f"missing follow-up entry {case_id}")
+    require(entry is not None, f"missing V221 promoted entry {case_id}")
+    require(entry.get("status") == "executable_replay", f"{case_id}: V221 promotion must be executable_replay")
+    require(entry.get("evidence_id") == "V221-003", f"{case_id}: V221 evidence_id mismatch")
+    require(entry.get("harness") == HARNESS, f"{case_id}: harness mismatch")
+    require(entry.get("rust_entrypoint") == ENTRYPOINT, f"{case_id}: rust entrypoint mismatch")
+    require(entry.get("release_decision") == "included_in_final_replay_scope", f"{case_id}: release decision mismatch")
+
+schema_only_ids = {case["case_id"] for case in read_model_schema_only}
+require(schema_only_ids == REMAINING_SCHEMA_ONLY_CASES, "remaining read_model schema-only set mismatch")
+for case_id in REMAINING_SCHEMA_ONLY_CASES:
+    entry = entries.get(case_id)
+    require(entry is not None, f"missing schema-only entry {case_id}")
     require(entry.get("status") == "schema_only_scoped", f"{case_id}: must remain schema_only_scoped")
     require("V211" in entry.get("follow_up", ""), f"{case_id}: follow-up must name V211 work")
     forbidden = {"evidence_id", "harness", "rust_entrypoint"} & set(entry)
@@ -131,5 +143,11 @@ for marker in (
     require(marker in notes, f"release notes missing marker {marker}")
     require(marker in evidence, f"evidence missing marker {marker}")
 
-print("v211_read_model_projection_replay status=ok promoted_read_model_cases=8 remaining_schema_only=24 harness=cargo_test")
+print(
+    "v211_read_model_projection_replay status=ok "
+    f"v211_promoted_read_model_cases={len(PROMOTED_CASES)} "
+    f"v221_promoted_read_model_cases={len(V221_PROMOTED_CASES)} "
+    f"remaining_schema_only={len(REMAINING_SCHEMA_ONLY_CASES)} "
+    "harness=cargo_test"
+)
 PY
