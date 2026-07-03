@@ -957,6 +957,46 @@
       "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_orchestration_control_plane_paths"
     },
     {
+      "case_id": "read_model.dashboard_observability.multi_scope_readonly.001",
+      "trace": "tests/golden/read_model_dashboard_observability_schema.jsonl",
+      "category": "read_model",
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V230-006",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_dashboard_observability_paths"
+    },
+    {
+      "case_id": "read_model.dashboard_observability.filtered_drilldown_isolated.001",
+      "trace": "tests/golden/read_model_dashboard_observability_schema.jsonl",
+      "category": "read_model",
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V230-006",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_dashboard_observability_paths"
+    },
+    {
+      "case_id": "read_model.dashboard_observability.cross_scope_label_mismatch.001",
+      "trace": "tests/golden/read_model_dashboard_observability_schema.jsonl",
+      "category": "read_model",
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V230-006",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_dashboard_observability_paths"
+    },
+    {
+      "case_id": "read_model.dashboard_observability.missing_identity_degraded.001",
+      "trace": "tests/golden/read_model_dashboard_observability_schema.jsonl",
+      "category": "read_model",
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V230-006",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_dashboard_observability_paths"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",
