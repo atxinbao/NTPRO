@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.22.1}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.23.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
@@ -458,6 +458,41 @@ case "$CURRENT_RELEASE_VERSION" in
       "multi-venue production execution expansion"
       "Dashboard order, approval, cancel, retry, submit, replace, amend, flatten"
       "v0.23.0"
+    )
+    ;;
+  v0.23.0)
+    required_fields=(
+      "Status: RELEASED"
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Multi-Account / Multi-Strategy / Multi-Venue Node Isolation"
+      "This release does not add submit capability"
+      "This release is not a product-grade live trading terminal"
+      "V230-000"
+      "V230-007"
+      "multi_account_isolation = true"
+      "multi_strategy_isolation = true"
+      "multi_venue_node_isolation = true"
+      "read_only_dashboard_observability = true"
+      "gate_before_publish = required"
+      "strict provenance = required"
+      "scripts/ai/verify_release.sh v23-release-gates"
+      "scripts/ai/verify_release.sh v23-strict-provenance"
+      "scripts/ai/verify_v23_strict_provenance.sh"
+      "product-grade live trading terminal"
+      "new production submit capability"
+      "production order mutation"
+      "strategy-driven production execution"
+      "automatic cancel"
+      "automatic remediation"
+      "cross-account implicit operation"
+      "cross-strategy implicit operation"
+      "cross-venue implicit operation"
+      "shared approval consumption"
+      "Dashboard operation controls"
+      "complete executable read-model runtime coverage"
+      "v0.24.0"
     )
     ;;
   *)

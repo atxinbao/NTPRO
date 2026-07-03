@@ -142,6 +142,10 @@ jobs:
             command: scripts/ai/verify_release.sh v22.1-release-gates
           - stage: release-v221-strict-provenance
             command: scripts/ai/verify_release.sh v22.1-strict-provenance
+          - stage: release-v23-release-gates
+            command: scripts/ai/verify_release.sh v23-release-gates
+          - stage: release-v23-strict-provenance
+            command: scripts/ai/verify_release.sh v23-strict-provenance
           - stage: release-surface-current-guard
             command: scripts/ai/verify_release.sh release-surface-current-guard
           - stage: release-publication-guard
@@ -152,7 +156,7 @@ jobs:
       CARGO_BUILD_JOBS: "1"
       CARGO_INCREMENTAL: "0"
       NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
-      NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
+      NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE: ${{ (github.event_name == 'workflow_dispatch' || github.ref_type == 'tag') && '1' || '0' }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

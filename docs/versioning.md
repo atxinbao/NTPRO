@@ -10,14 +10,14 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.22.1` 是当前正式公开发布点；它是 Trader Terminal Workbench 的 hardening patch，
-在 v0.22.0 read-only first 工作台基础上固化 required-false runtime boundary、
-executable read-model replay promotion、Workbench render smoke、gate-before-publish
-governance 和 strict provenance。它不是产品级实盘交易终端，不是完整 executable
-read-model runtime，不是新增 submit 能力，不是生产订单 mutation，不是无门禁
-submit/cancel/retry/replace/amend/flatten，不是隐式 retry，不是自动撤单，不是自动补救，
-不是策略实盘，不是多账户多交易所执行，也没有 Dashboard 下单/审批/撤单/重试/submit/
-replace/amend/flatten/order-ticket 控件。`v0.23.0` 是下一能力轨。
+`v0.23.0` 是当前正式公开发布点；它是 Multi-Account / Multi-Strategy /
+Multi-Venue Node Isolation 发布线，在 v0.22.1 read-only first 工作台硬化基础上固化
+account、strategy、venue node、isolation scope、provenance、control-plane gate 和
+Dashboard / Workbench read-only observability 证据。它不是产品级实盘交易终端，不是
+完整 executable read-model runtime，不是新增 submit 能力，不是生产订单 mutation，不是
+无门禁 submit/cancel/retry/replace/amend/flatten，不是隐式 retry，不是自动撤单，不是
+自动补救，不是策略实盘，也没有 Dashboard 下单/审批/撤单/重试/submit/replace/amend/
+flatten/order-ticket 控件。`v0.24.0` 是下一能力轨占位。
 
 ## Release Tags
 
@@ -46,6 +46,7 @@ ntpro-rust-only-v0.21.0
 ntpro-rust-only-v0.21.1
 ntpro-rust-only-v0.22.0
 ntpro-rust-only-v0.22.1
+ntpro-rust-only-v0.23.0
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -58,32 +59,29 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.22.1
+ntpro-rust-only-v0.23.0
 ```
 
 The active patch track is:
 
 ```text
-v0.22.2
+v0.23.1
 ```
 
-v0.22.2 is reserved for future patch hardening only. It must not expand beyond
-the v0.22.1 read-only-first workbench hardening boundary unless a later scoped
-release issue explicitly changes that contract.
+v0.23.1 is reserved for future patch hardening only. It must not expand beyond
+the v0.23.0 multi-node isolation and read-only observability boundary unless a
+later scoped release issue explicitly changes that contract.
 
 The next capability track is:
 
 ```text
-v0.23.0
+v0.24.0
 ```
 
-v0.23.0 start gate is satisfied only by the published v0.22.1 release evidence:
-all V221 issues closed, `ntpro-rust-only-v0.22.1` published, hosted release gate
-successful, and strict provenance recorded. The v0.23.0 line may now proceed
-through its scoped GitHub issues, but it still does not inherit production
-submit, production order mutation, implicit retry, automatic cancel, automatic
-remediation, strategy-driven production execution, multi-account or multi-venue
-execution, or Dashboard operation controls from v0.22.1.
+v0.24.0 is a placeholder for a future capability track. It does not inherit
+production submit, production order mutation, implicit retry, automatic cancel,
+automatic remediation, strategy-driven production execution, shared approval
+consumption, or Dashboard operation controls from v0.23.0.
 
 ## Cargo Workspace Version
 

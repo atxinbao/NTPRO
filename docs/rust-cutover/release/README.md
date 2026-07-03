@@ -704,6 +704,21 @@ Final release checks, benchmark summaries, and audit reports live here.
   and forbidden operation controls.
 - `../evidence/V230-006.md` - V230-006 Dashboard observability evidence for
   GitHub issue #717.
+- `v0_23_0_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.23.0` GitHub Release. It records multi-account,
+  multi-strategy, and multi-venue node isolation, read-only observability,
+  release gates, strict provenance, and the no-submit/no-Dashboard-controls
+  boundary.
+- `v0_23_0_readiness_report.md` - released readiness report for the formal
+  `ntpro-rust-only-v0.23.0` release. It records V230 evidence, v23 release
+  gates, strict provenance, publication-order requirements, and next-track
+  boundaries.
+- `v0_23_0_release_manifest.json` - machine-readable v0.23.0 release manifest
+  for V230 release gates. It fixes the evidence chain, release gate commands,
+  read-model replay counts, boundary flags, and strict provenance target.
+- `../evidence/V230-007.md` - V230-007 release gate, strict provenance, and
+  v0.23.0 publication evidence ledger for GitHub issue #718 and the
+  `ntpro-rust-only-v0.23.0` GitHub Release.
 - `../scope/v0_22_0_trader_terminal_workbench_scope.md` - V220-000 scope
   decision for the v0.22.0 Trader Terminal workbench line. It records the
   v0.21.1 closeout dependency, read-only-first workbench boundary, gated manual

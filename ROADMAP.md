@@ -4,22 +4,22 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.22.1`, the Trader Terminal Workbench Hardening Patch release.
-The next patch track is `v0.22.2`.
-The next capability track is `v0.23.0`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.23.0`, the Multi-Account / Multi-Strategy / Multi-Venue Node Isolation release.
+The next patch track is `v0.23.1`.
+The next capability track is `v0.24.0`.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.22.1
+ntpro-rust-only-v0.23.0
 ```
 
 Current capability boundary:
 
 ```text
-Trader Terminal Workbench Hardening Patch
+Multi-Account / Multi-Strategy / Multi-Venue Node Isolation
 v0.20.1 production order lifecycle hardening baseline
 v0.21.0 unified read model foundation closeout baseline
 v0.21.1 unified read model hardening baseline
@@ -44,32 +44,34 @@ ungated submit / cancel / retry / replace / amend / flatten not included
 no strategy-driven production execution
 no listenKey lifecycle
 no real-funds proof in CI
-no multi-account or multi-venue execution
+multi-account identity and read-model partitioning evidence
+multi-strategy supervisor identity and isolation evidence
+multi-venue node registry and lifecycle boundary evidence
+orchestration/control-plane gating evidence
+Dashboard / Workbench read-only observability evidence
 no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no product-grade live trading terminal claim
 ```
 
-`v0.22.1` publishes the Trader Terminal Workbench hardening patch with
-required-false runtime boundary enforcement, expanded executable read-model
-replay, Workbench render smoke, gate-before-publish governance, and strict
-provenance. It does not create a product-grade live trading terminal, ungated
-operation controls, multi-account execution, multi-venue execution, or
-automatic execution.
+`v0.23.0` publishes the Multi-Account / Multi-Strategy / Multi-Venue Node
+Isolation release with scoped identity, fail-closed mismatch behavior,
+owner-approved control-plane contract evidence, read-only Dashboard
+observability, gate-before-publish governance, and strict provenance. It does
+not create a product-grade live trading terminal, ungated operation controls,
+production order mutation, shared approval consumption, or automatic execution.
 
-## Published Capability Track: v0.22.1
+## Published Capability Track: v0.23.0
 
-`v0.22.1` is the current published Trader Terminal Workbench Hardening Patch
-line. It keeps the v0.22.0 Workbench read-only boundary and adds
-required-false operation boundary enforcement, expanded executable read-model
-replay, Workbench render smoke, gate-before-publish governance, release gates,
-and strict provenance.
+`v0.23.0` is the current published Multi-Account / Multi-Strategy /
+Multi-Venue Node Isolation line. It keeps the v0.22.1 read-only Workbench
+boundary and adds scoped account, strategy, venue node, orchestration, and
+Dashboard observability evidence.
 
-`v0.22.1` explicitly does not include product-grade live trading terminal
+`v0.23.0` explicitly does not include product-grade live trading terminal
 readiness, complete executable read-model runtime coverage, new production
 submit capability, production order mutation, ungated operation controls,
-automatic cancel/remediation, strategy-driven production execution,
-multi-account execution, multi-venue execution, or Dashboard operation
-controls.
+automatic cancel/remediation, strategy-driven production execution, shared
+approval consumption, or Dashboard operation controls.
 
 ## Published Hardening Patch: v0.7.1
 
