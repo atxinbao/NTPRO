@@ -679,6 +679,10 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_23_0_isolation_contract_manifest.json` - machine-checkable V230-001
   manifest that maps #713-#718 to required contract sections and validation
   markers.
+- `v0_23_0_multi_account_read_model_partitioning.md` - V230-002 release note
+  for account identity and read-model partitioning. It records executable
+  replay cases for isolated accounts, cross-account mismatch fail-closed
+  behavior, and unknown account identity fail-closed behavior.
 - `../scope/v0_22_0_trader_terminal_workbench_scope.md` - V220-000 scope
   decision for the v0.22.0 Trader Terminal workbench line. It records the
   v0.21.1 closeout dependency, read-only-first workbench boundary, gated manual

@@ -827,6 +827,36 @@
       "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v211_required_paths"
     },
     {
+      "case_id": "read_model.account_partition.isolated_accounts.001",
+      "trace": "tests/golden/read_model_account_partition_schema.jsonl",
+      "category": "read_model",
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V230-002",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_account_partition_paths"
+    },
+    {
+      "case_id": "read_model.account_partition.cross_account_mismatch.001",
+      "trace": "tests/golden/read_model_account_partition_schema.jsonl",
+      "category": "read_model",
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V230-002",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_account_partition_paths"
+    },
+    {
+      "case_id": "read_model.account_partition.missing_account_key.001",
+      "trace": "tests/golden/read_model_account_partition_schema.jsonl",
+      "category": "read_model",
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "V230-002",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_account_partition_paths"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",

@@ -175,6 +175,33 @@ const VISIBLE_PANELS: &[&str] = &[
 const DISABLED_CONTROLS: &[&str] = &[
     "submit", "approval", "cancel", "retry", "replace", "amend", "flatten",
 ];
+const ACCOUNT_PARTITION_COMPONENTS: &[&str] = &[
+    "account",
+    "positions",
+    "orders",
+    "fills",
+    "risk",
+    "alerts",
+    "audit",
+    "provenance",
+];
+const V230_ACCOUNT_PARTITION_CASES: &[ReplayCase] = &[
+    ReplayCase {
+        trace: "read_model_account_partition_schema.jsonl",
+        case_id: "read_model.account_partition.isolated_accounts.001",
+        family: "account_partition",
+    },
+    ReplayCase {
+        trace: "read_model_account_partition_schema.jsonl",
+        case_id: "read_model.account_partition.cross_account_mismatch.001",
+        family: "account_partition",
+    },
+    ReplayCase {
+        trace: "read_model_account_partition_schema.jsonl",
+        case_id: "read_model.account_partition.missing_account_key.001",
+        family: "account_partition",
+    },
+];
 
 #[derive(Clone, Copy)]
 struct ReplayCase {
@@ -223,6 +250,47 @@ fn rust_cli_read_model_projection_replays_v211_required_paths() -> Result<(), Bo
     Ok(())
 }
 
+#[test]
+fn rust_cli_read_model_projection_replays_v230_account_partition_paths()
+-> Result<(), Box<dyn Error>> {
+    let mut covered_families = BTreeSet::new();
+    let mut covered_cases = BTreeSet::new();
+
+    for replay_case in V230_ACCOUNT_PARTITION_CASES {
+        let case = load_case(replay_case.trace, replay_case.case_id)?;
+        let input_event = single_event(&case, "input", replay_case.case_id)?;
+        let expected_event = single_event(&case, "expected", replay_case.case_id)?;
+        let actual_event = project_read_model_event(replay_case.case_id, input_event)?;
+
+        if actual_event != *expected_event {
+            return Err(format!(
+                "{} Rust account-partition projection replay mismatch\nexpected={}\nactual={}",
+                replay_case.case_id, expected_event, actual_event
+            )
+            .into());
+        }
+
+        covered_families.insert(replay_case.family);
+        covered_cases.insert(replay_case.case_id);
+    }
+
+    if covered_cases.len() != V230_ACCOUNT_PARTITION_CASES.len() {
+        return Err(format!(
+            "V230-002 must keep {} account-partition projection cases, got {}",
+            V230_ACCOUNT_PARTITION_CASES.len(),
+            covered_cases.len()
+        )
+        .into());
+    }
+    assert_contains_all(
+        &covered_families,
+        &["account_partition"],
+        "read_model account partition family",
+    )?;
+
+    Ok(())
+}
+
 fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value, Box<dyn Error>> {
     let mut event = Map::new();
     let event_type = string_field(input_event, "event_type")?.replace(".input", ".validated");
@@ -243,7 +311,9 @@ fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value,
 
     let input_payload = payload(input_event)?;
     let snapshot = object_field(input_payload, "snapshot")?;
-    let projected_payload = if case_id.starts_with("read_model.account_snapshot.") {
+    let projected_payload = if case_id.starts_with("read_model.account_partition.") {
+        project_account_partition_payload(case_id, snapshot)?
+    } else if case_id.starts_with("read_model.account_snapshot.") {
         project_account_payload(case_id, snapshot)?
     } else if case_id.starts_with("read_model.position.") {
         project_position_payload(case_id, snapshot)?
@@ -261,6 +331,149 @@ fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value,
     event.insert("payload".to_string(), projected_payload);
 
     Ok(Value::Object(event))
+}
+
+fn project_account_partition_payload(
+    case_id: &str,
+    snapshot: &Value,
+) -> Result<Value, Box<dyn Error>> {
+    let partitions = array_field(snapshot, "account_partitions")?;
+    let boundary = object_field(snapshot, "capability_boundary")?;
+    let mut account_keys = BTreeSet::new();
+    let mut isolation_scope_keys = BTreeSet::new();
+    let mut blocking_reasons = string_array(snapshot, "blocking_reasons")?;
+    let mut identity_keys_present = true;
+    let mut cross_account_contamination_detected = false;
+    let mut read_path_preserves_provenance = true;
+
+    for (partition_index, partition) in partitions.iter().enumerate() {
+        let account_key = optional_non_empty_string(partition, "account_key");
+        let isolation_scope_key = optional_non_empty_string(partition, "isolation_scope_key");
+
+        match account_key {
+            Some(key) => {
+                account_keys.insert(key.to_string());
+            }
+            None => {
+                identity_keys_present = false;
+                read_path_preserves_provenance = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_account_key:partition:{partition_index}"),
+                );
+            }
+        }
+
+        match isolation_scope_key {
+            Some(key) => {
+                isolation_scope_keys.insert(key.to_string());
+            }
+            None => {
+                identity_keys_present = false;
+                read_path_preserves_provenance = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_isolation_scope_key:partition:{partition_index}"),
+                );
+            }
+        }
+
+        let Some(partition_account_key) = account_key else {
+            continue;
+        };
+        let components = object_field(partition, "components")?;
+        for component_name in ACCOUNT_PARTITION_COMPONENTS {
+            let component = object_field(components, component_name)?;
+            match optional_non_empty_string(component, "account_key") {
+                Some(component_account_key) if component_account_key == partition_account_key => {}
+                Some(_) => {
+                    cross_account_contamination_detected = true;
+                    push_reason(
+                        &mut blocking_reasons,
+                        format!("cross_account_component_mismatch:{component_name}"),
+                    );
+                }
+                None => {
+                    identity_keys_present = false;
+                    read_path_preserves_provenance = false;
+                    push_reason(
+                        &mut blocking_reasons,
+                        format!("missing_component_account_key:{component_name}"),
+                    );
+                }
+            }
+
+            if optional_non_empty_string(component, "source_provenance").is_none() {
+                read_path_preserves_provenance = false;
+                push_reason(
+                    &mut blocking_reasons,
+                    format!("missing_component_source_provenance:{component_name}"),
+                );
+            }
+        }
+    }
+
+    let missing_account_key_fail_closed = !identity_keys_present;
+    let account_partition_status =
+        if cross_account_contamination_detected || missing_account_key_fail_closed {
+            "fail_closed"
+        } else {
+            "isolated"
+        };
+
+    let mut payload = base_payload(case_id, snapshot);
+    insert_string(
+        &mut payload,
+        "account_partition_status",
+        account_partition_status,
+    );
+    payload.insert(
+        "account_partition_count".to_string(),
+        json!(partitions.len()),
+    );
+    payload.insert("account_keys".to_string(), string_set_value(account_keys));
+    payload.insert(
+        "isolation_scope_keys".to_string(),
+        string_set_value(isolation_scope_keys),
+    );
+    payload.insert(
+        "identity_keys_present".to_string(),
+        Value::Bool(identity_keys_present),
+    );
+    payload.insert(
+        "cross_account_contamination_detected".to_string(),
+        Value::Bool(cross_account_contamination_detected),
+    );
+    payload.insert(
+        "missing_account_key_fail_closed".to_string(),
+        Value::Bool(missing_account_key_fail_closed),
+    );
+    payload.insert(
+        "read_path_preserves_provenance".to_string(),
+        Value::Bool(read_path_preserves_provenance),
+    );
+    payload.insert(
+        "dashboard_operation_controls_enabled".to_string(),
+        Value::Bool(bool_field(
+            boundary,
+            "dashboard_operation_controls_enabled",
+        )?),
+    );
+    payload.insert(
+        "production_order_submission_allowed".to_string(),
+        Value::Bool(bool_field(boundary, "production_order_submission_allowed")?),
+    );
+    payload.insert(
+        "blocking_reasons".to_string(),
+        Value::Array(
+            blocking_reasons
+                .into_iter()
+                .map(Value::String)
+                .collect::<Vec<_>>(),
+        ),
+    );
+
+    Ok(Value::Object(payload))
 }
 
 fn project_account_payload(case_id: &str, snapshot: &Value) -> Result<Value, Box<dyn Error>> {
@@ -586,11 +799,40 @@ fn object_field<'a>(value: &'a Value, key: &str) -> Result<&'a Value, Box<dyn Er
         .ok_or_else(|| format!("missing object field {key}").into())
 }
 
+fn array_field<'a>(value: &'a Value, key: &str) -> Result<&'a Vec<Value>, Box<dyn Error>> {
+    value
+        .get(key)
+        .and_then(Value::as_array)
+        .ok_or_else(|| format!("missing array field {key}").into())
+}
+
 fn string_field<'a>(value: &'a Value, key: &str) -> Result<&'a str, Box<dyn Error>> {
     value
         .get(key)
         .and_then(Value::as_str)
         .ok_or_else(|| format!("missing string field {key}").into())
+}
+
+fn optional_non_empty_string<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
+    value.get(key).and_then(Value::as_str).and_then(|field| {
+        let trimmed = field.trim();
+        (!trimmed.is_empty() && trimmed != "unknown" && trimmed != "unavailable").then_some(field)
+    })
+}
+
+fn string_array(value: &Value, key: &str) -> Result<Vec<String>, Box<dyn Error>> {
+    let values = value
+        .get(key)
+        .and_then(Value::as_array)
+        .ok_or_else(|| format!("missing array field {key}"))?;
+    values
+        .iter()
+        .map(|item| {
+            item.as_str()
+                .map(str::to_string)
+                .ok_or_else(|| format!("{key} must contain only strings").into())
+        })
+        .collect()
 }
 
 fn bool_field(value: &Value, key: &str) -> Result<bool, Box<dyn Error>> {
@@ -609,6 +851,16 @@ fn clone_field(value: &Value, key: &str) -> Result<Value, Box<dyn Error>> {
 
 fn insert_string(payload: &mut Map<String, Value>, key: &str, value: &str) {
     payload.insert(key.to_string(), Value::String(value.to_string()));
+}
+
+fn push_reason(blocking_reasons: &mut Vec<String>, reason: String) {
+    if !blocking_reasons.iter().any(|existing| existing == &reason) {
+        blocking_reasons.push(reason);
+    }
+}
+
+fn string_set_value(values: BTreeSet<String>) -> Value {
+    Value::Array(values.into_iter().map(Value::String).collect::<Vec<_>>())
 }
 
 fn assert_contains_all(

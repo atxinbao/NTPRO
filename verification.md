@@ -1,3 +1,31 @@
+# V230-002 Verification
+
+Date: 2026-07-03
+Executor: Codex
+Task: `V230-002` / GitHub issue `#713`
+
+## Commands
+
+```text
+cargo test -p nautilus-cli --test golden_trace_read_model_projection -- --nocapture = PASS, 2 tests passed
+jq . docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 86 cases, 81 executable replay, 5 schema-only scoped
+rg -n "read_model.account_partition|account_key|isolation_scope_key|cross_account_component_mismatch|missing_account_key|rust_cli_read_model_projection_replays_v230_account_partition_paths" tests/golden/read_model_account_partition_schema.jsonl crates/cli/tests/golden_trace_read_model_projection.rs docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json docs/rust-cutover/evidence/V230-002.md = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V230-002 is locally verified. The Rust read-model projection harness now
+replays V230 account partition fixtures for isolated accounts, cross-account
+mismatch fail-closed behavior, and unknown account identity fail-closed
+behavior. Hosted smoke run `28653916499` initially failed in
+`v19-release-gates` because the new executable replay rows used a
+release_decision value outside the existing release-scope validator enum. The
+rows now use `included_in_final_replay_scope`, matching the validator while
+preserving the V230 case IDs, evidence ID, harness, and Rust entrypoint.
+
 # V230-001 Verification
 
 Date: 2026-07-03
