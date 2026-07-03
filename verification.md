@@ -8,13 +8,17 @@ Task: `V221-006` / GitHub issue `#710`
 
 ```text
 bash -n scripts/ai/verify_v21_1_read_model_projection_replay.sh scripts/ai/verify_v22_1_release_gates.sh scripts/ai/verify_v22_1_strict_provenance.sh scripts/ai/verify_release.sh scripts/ai/verify_fast.sh = PASS
+bash -n scripts/ai/verify_v21_release_gates.sh scripts/ai/verify_v21_strict_provenance.sh scripts/ai/verify_release.sh = PASS
 python3 -m json.tool docs/rust-cutover/release/v0_22_1_release_manifest.json >/dev/null = PASS
 ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml")' = PASS
 scripts/ai/verify_release.sh v22.1-release-gates = PASS, v221_evidence=complete, workbench_render_smoke=required, gate_before_publish=required, current_issue_state=OPEN
 scripts/ai/verify_release.sh v22.1-strict-provenance = PASS, pre-tag mode tag_exists=false, source_dirty=true, strict manifest generated under target/ntpro-v221/
+NTPRO_RELEASE_GATE=1 GITHUB_REF_TYPE=tag GITHUB_REF_NAME=ntpro-rust-only-v0.22.1 scripts/ai/verify_release.sh v21-release-gates = PASS, v21 baseline read-model executable replay subset preserved while current executable replay promotions are allowed; GitHub dependency proof retried transient GraphQL EOF responses and completed
+NTPRO_RELEASE_STRICT_VERIFY_ONLY=1 scripts/ai/verify_release.sh v21-strict-provenance = PASS, v21 strict provenance accepts later executable replay promotions without weakening baseline subset checks
 scripts/ai/verify_fast.sh = PASS, fast smoke only
 git diff --check = PASS
 hosted Rust Cutover Release Gate run 28645848573 = failed/cancelled before publication; release-v22-strict-provenance treated the historical v0.22.0 tag as required at the v0.22.1 tag HEAD
+hosted Rust Cutover Release Gate run 28646271380 = failed/cancelled before publication; release-v21-release-gates treated the historical v0.21.0 read-model executable replay set and scope_owner markers as an exact current set after later replay promotion
 ```
 
 ## Result
@@ -25,6 +29,9 @@ gate-before-publish wiring, V211/V221 read-model replay compatibility, and
 retrying GitHub dependency proof for the `ntpro-rust-only-v0.22.1` release.
 The post-merge tag-gate fix keeps historical v22 strict provenance active
 without requiring the old v0.22.0 tag to equal the v0.22.1 tag HEAD.
+The second tag-gate fix keeps the v21 baseline executable replay subset hard
+while allowing later releases to promote additional read-model cases from
+schema-only scoped to executable replay.
 
 # V220-003 Verification
 

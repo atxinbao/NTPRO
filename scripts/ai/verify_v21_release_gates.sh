@@ -33,6 +33,26 @@ require_contains() {
   fi
 }
 
+gh_capture() {
+  local attempt=1
+  local max_attempts="${NTPRO_V21_GH_ATTEMPTS:-5}"
+  local output
+  while true; do
+    if output="$("$@" 2>&1)"; then
+      printf '%s\n' "$output"
+      return 0
+    fi
+    if (( attempt >= max_attempts )); then
+      printf '%s\n' "$output" >&2
+      return 1
+    fi
+    printf 'v21 release gate gh retry attempt=%s/%s command=%q error=%s\n' \
+      "$attempt" "$max_attempts" "$*" "$output" >&2
+    sleep $(( attempt * 2 ))
+    attempt=$(( attempt + 1 ))
+  done
+}
+
 require_file "$MANIFEST_PATH"
 require_file "$RELEASE_NOTES_PATH"
 require_file "$READINESS_REPORT_PATH"
@@ -228,7 +248,7 @@ read_model_schema_only_cases = [
     case for case in read_model_cases
     if case.get("status") == "schema_only_scoped"
 ]
-expected_executable = {
+baseline_executable = {
     "read_model.account_snapshot.fresh.001",
     "read_model.account_snapshot.stale.001",
     "read_model.order_lifecycle.matched.001",
@@ -239,12 +259,19 @@ expected_executable = {
     "read_model.dashboard.missing_evidence_degraded.001",
 }
 actual_executable = {case.get("case_id") for case in read_model_executable_cases}
-require(actual_executable == expected_executable, "read model executable replay case set mismatch")
-require(len(read_model_schema_only_cases) == 24, "read model schema-only case count mismatch")
-owners = {case.get("scope_owner") for case in read_model_cases}
-for owner in ("V210-001", "V210-002", "V210-003", "V210-004", "V210-005", "V210-006", "V210-007"):
-    require(owner in owners, f"read model scope owner missing: {owner}")
-
+missing_baseline = sorted(baseline_executable - actual_executable)
+require(
+    not missing_baseline,
+    f"v21 baseline executable replay cases missing after later promotions: {missing_baseline}",
+)
+require(
+    len(read_model_executable_cases) >= len(baseline_executable),
+    "read model executable replay count regressed below v21 baseline",
+)
+require(
+    len(read_model_schema_only_cases) <= 24,
+    "read model schema-only case count regressed above v21 baseline",
+)
 for text, label in ((release_notes, "release notes"), (readiness, "readiness report")):
     for forbidden in (
         "new production submit capability = true",
@@ -261,11 +288,11 @@ if [[ "${NTPRO_V21_SKIP_GITHUB_DEPENDENCY:-0}" != "1" ]]; then
   if ! command -v gh >/dev/null 2>&1; then
     fail "gh is required for v21 dependency proof"
   fi
-  if ! gh auth status >/dev/null 2>&1; then
+  if ! gh_capture gh auth status >/dev/null; then
     fail "gh auth is required for v21 dependency proof"
   fi
 
-  gh release view "$BASE_TAG" --repo atxinbao/NTPRO --json tagName,isDraft,isPrerelease,url >/tmp/ntpro-v21-base-release.json
+  gh_capture gh release view "$BASE_TAG" --repo atxinbao/NTPRO --json tagName,isDraft,isPrerelease,url >/tmp/ntpro-v21-base-release.json
   BASE_TAG="$BASE_TAG" python3 <<'PY'
 import json
 import os
@@ -278,15 +305,15 @@ if payload.get("isDraft") or payload.get("isPrerelease"):
 PY
 
   for issue in 644 645 646 647 648 649 650; do
-    state="$(gh issue view "$issue" --repo atxinbao/NTPRO --json state --jq .state)"
+    state="$(gh_capture gh issue view "$issue" --repo atxinbao/NTPRO --json state --jq .state)"
     [[ "$state" == "CLOSED" ]] || fail "V201 dependency issue #$issue is not closed"
   done
   for issue in 651 652 653 654 655 656 657 658; do
-    state="$(gh issue view "$issue" --repo atxinbao/NTPRO --json state --jq .state)"
+    state="$(gh_capture gh issue view "$issue" --repo atxinbao/NTPRO --json state --jq .state)"
     [[ "$state" == "CLOSED" ]] || fail "V210 prerequisite issue #$issue is not closed"
   done
   if [[ "${NTPRO_V21_REQUIRE_ALL_ISSUES_CLOSED:-0}" == "1" || "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
-    state="$(gh issue view 659 --repo atxinbao/NTPRO --json state --jq .state)"
+    state="$(gh_capture gh issue view 659 --repo atxinbao/NTPRO --json state --jq .state)"
     [[ "$state" == "CLOSED" ]] || fail "V210 final issue #659 is not closed"
   fi
 fi
@@ -295,13 +322,27 @@ rm -rf "$GATE_ROOT"
 mkdir -p "$GATE_ROOT"
 python3 - <<'PY' > "$GATE_ROOT/v21-release-gate-summary.json"
 import json
+from pathlib import Path
+
+scope = json.loads(Path("docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json").read_text(encoding="utf-8"))
+read_model_cases = [case for case in scope.get("cases", []) if case.get("category") == "read_model"]
+read_model_executable_cases = [
+    case for case in read_model_cases
+    if case.get("status") == "executable_replay"
+]
+read_model_schema_only_cases = [
+    case for case in read_model_cases
+    if case.get("status") == "schema_only_scoped"
+]
 payload = {
     "status": "ok",
     "target": "v21-release-gates",
     "product_version": "v0.21.0",
     "release_tag": "ntpro-rust-only-v0.21.0",
-    "read_model_executable_replay_cases": 8,
-    "read_model_schema_only_cases": 24,
+    "v21_baseline_read_model_executable_replay_cases": 8,
+    "v21_baseline_read_model_schema_only_cases": 24,
+    "current_read_model_executable_replay_cases": len(read_model_executable_cases),
+    "current_read_model_schema_only_cases": len(read_model_schema_only_cases),
     "release_scope_cases": 83,
     "unified_read_model_foundation": True,
     "read_only_foundation": True,

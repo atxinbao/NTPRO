@@ -201,7 +201,7 @@ read_model_schema_only_cases = [
     case for case in read_model_cases
     if case.get("status") == "schema_only_scoped"
 ]
-expected_executable = {
+baseline_executable = {
     "read_model.account_snapshot.fresh.001",
     "read_model.account_snapshot.stale.001",
     "read_model.order_lifecycle.matched.001",
@@ -212,8 +212,19 @@ expected_executable = {
     "read_model.dashboard.missing_evidence_degraded.001",
 }
 actual_executable = {case.get("case_id") for case in read_model_executable_cases}
-require(actual_executable == expected_executable, "read model executable replay case set mismatch")
-require(len(read_model_schema_only_cases) == 24, "read model schema-only case count mismatch")
+missing_baseline = sorted(baseline_executable - actual_executable)
+require(
+    not missing_baseline,
+    f"v21 baseline executable replay cases missing after later promotions: {missing_baseline}",
+)
+require(
+    len(read_model_executable_cases) >= len(baseline_executable),
+    "read model executable replay count regressed below v21 baseline",
+)
+require(
+    len(read_model_schema_only_cases) <= 24,
+    "read model schema-only case count regressed above v21 baseline",
+)
 PY
 
 if [[ "$VERIFY_ONLY" != "1" && "${NTPRO_RELEASE_STRICT_SKIP_BUILD:-0}" != "1" ]]; then
