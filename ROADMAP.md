@@ -4,8 +4,8 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.22.0`, the Trader Terminal Workbench release.
-The next patch track is `v0.22.1`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.22.1`, the Trader Terminal Workbench Hardening Patch release.
+The next patch track is `v0.22.2`.
 The next capability track is `v0.23.0`.
 
 ## Current Release Surface
@@ -13,13 +13,13 @@ The next capability track is `v0.23.0`.
 Current published release:
 
 ```text
-ntpro-rust-only-v0.22.0
+ntpro-rust-only-v0.22.1
 ```
 
 Current capability boundary:
 
 ```text
-Trader Terminal Workbench
+Trader Terminal Workbench Hardening Patch
 v0.20.1 production order lifecycle hardening baseline
 v0.21.0 unified read model foundation closeout baseline
 v0.21.1 unified read model hardening baseline
@@ -49,11 +49,27 @@ no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no product-grade live trading terminal claim
 ```
 
-`v0.22.0` publishes the Trader Terminal workbench line with read-only first
-account, position, order, fill, risk, alerts, audit, provenance, gated manual
-operation-entry evidence, runtime degradation tests, release gates, and strict
+`v0.22.1` publishes the Trader Terminal Workbench hardening patch with
+required-false runtime boundary enforcement, expanded executable read-model
+replay, Workbench render smoke, gate-before-publish governance, and strict
 provenance. It does not create a product-grade live trading terminal, ungated
-operation controls, or automatic execution.
+operation controls, multi-account execution, multi-venue execution, or
+automatic execution.
+
+## Published Capability Track: v0.22.1
+
+`v0.22.1` is the current published Trader Terminal Workbench Hardening Patch
+line. It keeps the v0.22.0 Workbench read-only boundary and adds
+required-false operation boundary enforcement, expanded executable read-model
+replay, Workbench render smoke, gate-before-publish governance, release gates,
+and strict provenance.
+
+`v0.22.1` explicitly does not include product-grade live trading terminal
+readiness, complete executable read-model runtime coverage, new production
+submit capability, production order mutation, ungated operation controls,
+automatic cancel/remediation, strategy-driven production execution,
+multi-account execution, multi-venue execution, or Dashboard operation
+controls.
 
 ## Published Hardening Patch: v0.7.1
 

@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.22.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.22.1}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
@@ -424,6 +424,40 @@ case "$CURRENT_RELEASE_VERSION" in
       "multi-venue production execution expansion"
       "Dashboard order, approval, cancel, retry, submit, replace, amend, flatten, or order-ticket controls"
       "manual operation entry that can mutate live state without owner approval, risk gate, and audit gate"
+    )
+    ;;
+  v0.22.1)
+    required_fields=(
+      "Status: RELEASED"
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Trader Terminal Workbench hardening patch"
+      "This release is read-only first"
+      "This release is not a product-grade live trading terminal"
+      "This release does not add submit capability"
+      "V221-001"
+      "V221-006"
+      "required_false_runtime_boundary"
+      "read_model executable_replay rows = 28"
+      "workbench render smoke = required"
+      "gate_before_publish = required"
+      "scripts/ai/verify_release.sh v22.1-release-gates"
+      "scripts/ai/verify_release.sh v22.1-strict-provenance"
+      "scripts/ai/verify_v22_1_strict_provenance.sh"
+      "product-grade live trading terminal readiness"
+      "complete executable read-model runtime coverage"
+      "new production submit capability"
+      "production order mutation"
+      "manual operation entry that can mutate live state"
+      "automatic cancel"
+      "automatic cancel, repair, alert, audit, provenance, risk, or operation action"
+      "strategy-driven production execution"
+      "multi-account production execution expansion"
+      "multi-strategy production execution expansion"
+      "multi-venue production execution expansion"
+      "Dashboard order, approval, cancel, retry, submit, replace, amend, flatten"
+      "v0.23.0"
     )
     ;;
   *)

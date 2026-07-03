@@ -1,3 +1,32 @@
+# V230-000 Verification
+
+Date: 2026-07-03
+Executor: Codex
+Task: `V230-000` / GitHub issue `#711`
+
+## Commands
+
+```text
+bash -n scripts/ai/check_release_surface_current.sh scripts/ai/check_github_release_published.sh = PASS
+scripts/ai/check_release_surface_current.sh = PASS, current_release_version=v0.22.1 and current release tag ntpro-rust-only-v0.22.1
+scripts/ai/check_github_release_published.sh = PASS, release publication guard validates ntpro-rust-only-v0.22.1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+gh issue view 711 --repo atxinbao/NTPRO --json number,title,state,milestone,url = PASS
+gh issue view 710 --repo atxinbao/NTPRO --json number,state,closedAt,url = PASS
+gh issue list --repo atxinbao/NTPRO --state open --milestone v0.23.0 = PASS, #711-#718 open before #711 closeout
+gh pr list --repo atxinbao/NTPRO --state open = PASS, []
+gh release view ntpro-rust-only-v0.22.1 --repo atxinbao/NTPRO = PASS
+gh run view 28647486521 --repo atxinbao/NTPRO = PASS
+gh api 'repos/atxinbao/NTPRO/milestones?state=all' = PASS, v0.22.1 closed and v0.23.0 start gate satisfied
+git diff --check = PASS
+```
+
+## Result
+
+V230-000 is locally verified. The source-tree current release surface now points
+at `ntpro-rust-only-v0.22.1`, the v0.23.0 milestone records that the start gate
+is satisfied, and v0.23.0 remains scoped to the #712-#718 implementation queue.
+
 # V221-006 Verification
 
 Date: 2026-07-03

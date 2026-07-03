@@ -659,7 +659,7 @@ Final release checks, benchmark summaries, and audit reports live here.
   `ntpro-rust-only-v0.22.1` hardening patch. It records required-false runtime
   boundary hardening, expanded executable replay evidence, Workbench render
   smoke, gate-before-publish governance, and strict provenance.
-- `v0_22_1_readiness_report.md` - readiness report for the formal
+- `v0_22_1_readiness_report.md` - released readiness report for the formal
   `ntpro-rust-only-v0.22.1` hardening patch. It records V221 evidence,
   v22.1 release gates, strict provenance, publication-order requirements, and
   the continued hard block on `v0.23.0`.
@@ -667,6 +667,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   manifest for the V221 gate. It fixes the V221 evidence set, v0.22.0 base
   release dependency, planned patch tag, boundary flags, read-model replay
   counts, publication governance, and v0.23.0 dependency sources.
+- `../scope/v0_23_0_multi_node_isolation_scope.md` - V230-000 intake scope
+  gate for v0.23.0. It records the v0.22.1 release evidence that satisfies the
+  hard blocker, the #711-#718 issue order, and the no-submit/no-operation
+  boundary before any multi-node implementation begins.
 - `../scope/v0_22_0_trader_terminal_workbench_scope.md` - V220-000 scope
   decision for the v0.22.0 Trader Terminal workbench line. It records the
   v0.21.1 closeout dependency, read-only-first workbench boundary, gated manual
