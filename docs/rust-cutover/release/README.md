@@ -671,6 +671,14 @@ Final release checks, benchmark summaries, and audit reports live here.
   gate for v0.23.0. It records the v0.22.1 release evidence that satisfies the
   hard blocker, the #711-#718 issue order, and the no-submit/no-operation
   boundary before any multi-node implementation begins.
+- `v0_23_0_multi_node_isolation_contract.md` - V230-001 contract for v0.23.0
+  multi-account, multi-strategy, and multi-venue node isolation. It defines
+  `account_key`, `strategy_key`, `venue_node_key`, `isolation_scope_key`, read
+  paths, future owner-approved control paths, evidence requirements, and
+  forbidden release claims before implementation begins.
+- `v0_23_0_isolation_contract_manifest.json` - machine-checkable V230-001
+  manifest that maps #713-#718 to required contract sections and validation
+  markers.
 - `../scope/v0_22_0_trader_terminal_workbench_scope.md` - V220-000 scope
   decision for the v0.22.0 Trader Terminal workbench line. It records the
   v0.21.1 closeout dependency, read-only-first workbench boundary, gated manual

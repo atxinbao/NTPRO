@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "release": "v0.23.0",
+  "task": "V230-001",
+  "github_issue": 712,
+  "status": "contract_defined",
+  "date": "2026-07-03",
+  "executor": "Codex",
+  "contract_document": "docs/rust-cutover/release/v0_23_0_multi_node_isolation_contract.md",
+  "dependency_gate": {
+    "v0_22_1_release_tag": "ntpro-rust-only-v0.22.1",
+    "v0_22_1_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.22.1",
+    "v0_22_1_release_published_at": "2026-07-03T09:40:04Z",
+    "v0_22_1_release_gate_run": 28647486521,
+    "v0_22_1_release_gate_conclusion": "success",
+    "v230_000_issue": 711,
+    "v230_000_state": "closed"
+  },
+  "identity_keys": [
+    "account_key",
+    "strategy_key",
+    "venue_node_key",
+    "isolation_scope_key"
+  ],
+  "required_boundary_rules": [
+    "missing_key_behavior=fail_closed_or_degraded_unavailable",
+    "mismatched_key_behavior=fail_closed",
+    "default_account_fallback=forbidden",
+    "default_strategy_fallback=forbidden",
+    "default_venue_node_fallback=forbidden",
+    "approval_consumption=single_scope_only",
+    "dashboard_operation_controls=forbidden"
+  ],
+  "allowed_read_paths": [
+    "single_account_read",
+    "single_strategy_read",
+    "single_venue_node_read",
+    "cross_node_read_model_aggregation_with_per_row_isolation_scope_key",
+    "operator_dashboard_read_with_identity_labels",
+    "release_evidence_read_with_issue_and_identity_traceability"
+  ],
+  "future_control_path_minimum_gates": [
+    "owner_approval_gate_per_isolation_scope_key",
+    "risk_gate_per_isolation_scope_key",
+    "audit_gate_per_isolation_scope_key",
+    "single_use_approval_consumption",
+    "failure_on_missing_or_mismatched_keys"
+  ],
+  "downstream_traceability": [
+    {
+      "issue": 713,
+      "task": "V230-002",
+      "title": "multi-account runtime identity and read-model partitioning",
+      "required_contract_sections": [
+        "Identity Model",
+        "Account Boundary",
+        "Allowed Read Paths",
+        "Logs And Evidence Boundary"
+      ]
+    },
+    {
+      "issue": 714,
+      "task": "V230-003",
+      "title": "multi-strategy supervisor identity and isolation",
+      "required_contract_sections": [
+        "Identity Model",
+        "Strategy Boundary",
+        "Future Owner-Approved Control Paths",
+        "Logs And Evidence Boundary"
+      ]
+    },
+    {
+      "issue": 715,
+      "task": "V230-004",
+      "title": "multi-venue node registry and lifecycle boundary",
+      "required_contract_sections": [
+        "Identity Model",
+        "Venue Node Boundary",
+        "Adapter Boundary",
+        "Logs And Evidence Boundary"
+      ]
+    },
+    {
+      "issue": 716,
+      "task": "V230-005",
+      "title": "multi-node orchestration and control-plane gating",
+      "required_contract_sections": [
+        "Identity Model",
+        "Future Owner-Approved Control Paths",
+        "Isolation Boundaries",
+        "Logs And Evidence Boundary"
+      ]
+    },
+    {
+      "issue": 717,
+      "task": "V230-006",
+      "title": "multi-account strategy venue dashboard and observability surface",
+      "required_contract_sections": [
+        "Dashboard Boundary",
+        "Allowed Read Paths",
+        "Logs And Evidence Boundary"
+      ]
+    },
+    {
+      "issue": 718,
+      "task": "V230-007",
+      "title": "v0.23.0 release gates and strict provenance",
+      "required_contract_sections": [
+        "Entry Gate",
+        "Downstream Traceability",
+        "Validation Requirements",
+        "Release Claims"
+      ]
+    }
+  ],
+  "required_validation_markers": [
+    "identity_keys_present",
+    "isolation_scope_key_present_when_crossing_boundaries",
+    "missing_key_fail_closed_or_degraded_unavailable",
+    "mismatched_key_fail_closed",
+    "no_default_account_fallback",
+    "no_default_strategy_fallback",
+    "no_default_venue_node_fallback",
+    "read_path_preserves_provenance",
+    "approval_consumption_single_scope_only",
+    "dashboard_has_no_operation_controls",
+    "adapter_behavior_change_has_fixture_or_scope_note",
+    "release_claims_do_not_exceed_contract"
+  ],
+  "forbidden_release_claims": [
+    "product-grade live trading terminal",
+    "unattended production trading platform",
+    "new production submit capability",
+    "production order mutation expansion",
+    "strategy-driven production execution",
+    "automatic cancel",
+    "automatic remediation",
+    "cross-account implicit operation",
+    "cross-strategy implicit operation",
+    "cross-venue implicit operation",
+    "shared approval consumption across isolated nodes",
+    "Dashboard operation controls",
+    "complete executable read-model runtime coverage unless separately proven"
+  ]
+}

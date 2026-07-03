@@ -50,6 +50,22 @@ v0.22.1 tag commit = d150f7a685835eba508a5e2d9b4f832ead4d26f9
 
 `#711` only opens the intake gate. It does not implement any runtime capability.
 
+## Contract Anchor
+
+`#712` / `V230-001` defines the required v0.23.0 multi-node isolation contract
+before any concrete implementation begins.
+
+```text
+contract document = docs/rust-cutover/release/v0_23_0_multi_node_isolation_contract.md
+contract manifest = docs/rust-cutover/release/v0_23_0_isolation_contract_manifest.json
+contract status = required before #713, #714, #715, #716, #717, and #718
+```
+
+Every downstream V230 task must cite the contract sections it satisfies and must
+preserve explicit `account_key`, `strategy_key`, `venue_node_key`, and
+`isolation_scope_key` evidence when data crosses account, strategy, venue, node,
+Dashboard, log, or release evidence boundaries.
+
 ## Capability Boundary
 
 Allowed planning direction for v0.23.0:
