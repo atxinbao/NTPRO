@@ -70,6 +70,7 @@
     "closeout_evidence_path": "docs/rust-cutover/release/v0_23_0_release_closeout_evidence.md",
     "contract_path": "docs/rust-cutover/release/v0_23_0_multi_node_isolation_contract.md",
     "contract_manifest_path": "docs/rust-cutover/release/v0_23_0_isolation_contract_manifest.json",
+    "gate_phase_split_path": "docs/rust-cutover/release/v0_23_0_gate_phase_split.md",
     "golden_trace_manifest_path": "docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json",
     "dashboard_observability_smoke_path": "scripts/ai/verify_v23_dashboard_observability_smoke.sh"
   },
@@ -88,6 +89,7 @@
     {"name": "v23-strict-provenance", "command": "scripts/ai/verify_release.sh v23-strict-provenance", "required": true},
     {"name": "v23-release-gate-script", "command": "scripts/ai/verify_v23_release_gates.sh", "required": true},
     {"name": "v23-strict-provenance-script", "command": "scripts/ai/verify_v23_strict_provenance.sh", "required": true},
+    {"name": "v23.1-gate-phase-split", "command": "scripts/ai/verify_release.sh v23.1-gate-phase-split", "required": true},
     {"name": "v23-dashboard-observability-smoke", "command": "scripts/ai/verify_v23_dashboard_observability_smoke.sh", "required": true},
     {"name": "release-publish-after-gate", "command": "scripts/ai/verify_release.sh release-publish-after-gate", "required": true}
   ],
