@@ -2675,3 +2675,30 @@ The four V240-002 trace rows are registered as schema-only scoped because this
 task does not add runtime adapter replay. No runtime trading behavior, public
 API, submit path, production order mutation, Dashboard operation control, or
 product-grade live terminal claim is added.
+
+# V240-003 Verification
+
+Date: 2026-07-04
+Executor: Codex
+Task: `V240-003` / GitHub issue `#746`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v24_rate_limit_throttle_gate.sh = PASS
+python3 scripts/ai/golden_trace_runner.py tests/golden/v240_rate_limit_throttle_gate.jsonl --mode validate-only = PASS, rows=6
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, cases=110, executable=95, schema_only=15
+scripts/ai/verify_release.sh v24-rate-limit-throttle-gate = PASS, golden_trace_cases=6, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V240-003 defines the v0.24.0 rate-limit and throttle gate preview contract. It
+adds golden trace coverage for allowed preview, burst exceeded, window
+exceeded, venue cap exceeded, missing limit policy, and scope mismatch cases.
+The six V240-003 trace rows are registered as schema-only scoped because this
+task does not add runtime throttle execution. No runtime trading behavior,
+public API, submit path, production order mutation, Dashboard operation
+control, or product-grade live terminal claim is added.
