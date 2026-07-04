@@ -20,6 +20,7 @@ Current capability boundary:
 
 ```text
 Multi-Account / Multi-Strategy / Multi-Venue Node Isolation
+capability class evidence / replay / readonly observability only
 v0.20.1 production order lifecycle hardening baseline
 v0.21.0 unified read model foundation closeout baseline
 v0.21.1 unified read model hardening baseline
@@ -49,6 +50,8 @@ multi-strategy supervisor identity and isolation evidence
 multi-venue node registry and lifecycle boundary evidence
 orchestration/control-plane gating evidence
 Dashboard / Workbench read-only observability evidence
+production multi-node runtime implementation not included
+v0.24.0 future contract and gated implementation only
 no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no product-grade live trading terminal claim
 ```
@@ -66,6 +69,8 @@ production order mutation, shared approval consumption, or automatic execution.
 Multi-Venue Node Isolation line. It keeps the v0.22.1 read-only Workbench
 boundary and adds scoped account, strategy, venue node, orchestration, and
 Dashboard observability evidence.
+It is an evidence/replay-only release surface, not a production multi-node
+runtime implementation.
 
 `v0.23.0` explicitly does not include product-grade live trading terminal
 readiness, complete executable read-model runtime coverage, new production

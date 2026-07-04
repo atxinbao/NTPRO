@@ -10,8 +10,10 @@ Current source tag: ntpro-rust-only-v0.23.0
 Latest formal release: ntpro-rust-only-v0.23.0
 Current source-tree readiness: ntpro-rust-only-v0.23.0 released
 Current capability: Multi-Account / Multi-Strategy / Multi-Venue Node Isolation
+Capability class: evidence / replay / readonly observability only
 Next patch: v0.23.1 Reserved Patch Track
 Next capability: v0.24.0 Reserved Capability Track
+v0.24.0 entry: future contract and gated implementation only; no runtime capability is inherited automatically from v0.23.0
 Boundary: v0.23.0 provides multi-account, multi-strategy, and multi-venue node isolation boundaries plus read-only Dashboard / Workbench observability evidence. It does not include product-grade live trading, complete executable read-model runtime coverage, new production submit capability, production order mutation, ungated submit/cancel/retry/replace/amend/flatten, implicit retry, automatic cancel, automatic remediation, strategy-driven production execution, shared approval consumption, real-funds proof in CI, or Dashboard order/approval/cancel/retry/submit/replace/amend/flatten/order-ticket controls.
 ```
 
@@ -20,6 +22,8 @@ Multi-Account / Multi-Strategy / Multi-Venue Node Isolation release over the
 v0.22.1 Workbench hardening patch. It preserves the no-submit/no-Dashboard-
 controls boundary while adding scoped identity, isolation, provenance, replay,
 control-plane gate, and read-only observability evidence.
+It is an evidence/replay-only release surface, not a production multi-node
+runtime implementation.
 
 The latest formal release is published as a GitHub Release for the v0.23.0
 tagged source tree:
@@ -38,6 +42,8 @@ strategy-driven production execution, shared approval consumption, or Dashboard
 operation controls.
 
 The next patch track is `v0.23.1`. The next capability track is `v0.24.0`.
+`v0.24.0` starts from a future contract and gated implementation path; it does
+not automatically inherit runtime capability from `v0.23.0`.
 
 ## Current Status
 

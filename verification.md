@@ -2507,3 +2507,30 @@ and hardens the v23/v23.1 gates that reject stale candidate, pending, and
 corrective in-progress release markers. No submit capability, production order
 mutation, Dashboard operation controls, public API change, or product-grade
 live terminal claim is added.
+
+# V231-004 Verification
+
+Date: 2026-07-04
+Executor: Codex
+Task: `V231-004` / GitHub issue `#740`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v23_release_gates.sh scripts/ai/verify_v23_1_evidence_replay_only_boundary.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_23_0_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_release.sh v23.1-evidence-replay-only-boundary = PASS, files=9, negative_selftest=1
+scripts/ai/verify_release.sh v23-release-gates = PASS, new evidence replay only boundary gate included, current_issue_state=CLOSED
+scripts/ai/verify_release.sh v23-strict-provenance = PASS, tag_exists=true source_dirty=true
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V231-004 hardens the v0.23.x evidence/replay-only release boundary in docs,
+manifest metadata, and release gates. The new gate rejects forbidden overclaims
+about production multi-node runtime, runtime-integrated execution, product-grade
+terminal readiness, or v0.24.0 runtime capability inheritance. No submit
+capability, production order mutation, Dashboard operation controls, public API
+change, or product-grade live terminal claim is added.

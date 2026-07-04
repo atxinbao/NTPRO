@@ -716,6 +716,9 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_23_0_release_manifest.json` - machine-readable v0.23.0 release manifest
   for V230 release gates. It fixes the evidence chain, release gate commands,
   read-model replay counts, boundary flags, and strict provenance target.
+- `v0_23_0_evidence_replay_only_boundary.md` - V231-004 boundary note that
+  keeps v0.23.x framed as evidence/replay/read-only observability only, not as
+  a production multi-node runtime or product-grade terminal implementation.
 - `../evidence/V230-007.md` - V230-007 release gate, strict provenance, and
   v0.23.0 publication evidence ledger for GitHub issue #718 and the
   `ntpro-rust-only-v0.23.0` GitHub Release.
