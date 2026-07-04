@@ -523,6 +523,10 @@ PY
 fi
 
 echo "release_publication_guard=pass"
+echo "publication_evidence_strategy=source_tree_plus_github_remote"
+echo "local_evidence_path_is_generated_artifact=true"
+echo "local_evidence_path_required_in_source_tree=false"
+echo "remote_reconstruction_required=true"
 echo "tag_sha=$tag_sha"
 echo "origin_main_sha=$origin_main_sha"
 echo "target_commitish=$target_commitish"

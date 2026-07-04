@@ -40,6 +40,10 @@ hosted release gate conclusion = success
 hosted release gate jobs = 66/66 success
 release publication after gate = pass
 release publication evidence status = published_after_gate
+publication evidence strategy = source_tree_plus_github_remote
+publication evidence audit path = docs/rust-cutover/release/v0_23_0_publication_evidence_audit_path.md
+local generated publication evidence required in source tree = false
+release-publication-evidence/ntpro-rust-only-v0.23.0.json = generated artifact, not sole proof
 ```
 
 ## Corrective Gate History
@@ -113,6 +117,7 @@ GitHub issue #718 closeout comment
 GitHub milestone #11 live state
 GitHub Release ntpro-rust-only-v0.23.0
 GitHub Actions run 28673868094
+docs/rust-cutover/release/v0_23_0_publication_evidence_audit_path.md
 PR #734
 PR #735
 PR #736

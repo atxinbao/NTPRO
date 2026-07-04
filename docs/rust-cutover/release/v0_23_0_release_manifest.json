@@ -49,7 +49,13 @@
     "publication_evidence": {
       "status": "published_after_gate",
       "release_publication_after_gate": "pass",
-      "evidence_path": "release-publication-evidence/ntpro-rust-only-v0.23.0.json"
+      "evidence_path": "release-publication-evidence/ntpro-rust-only-v0.23.0.json",
+      "audit_source": "source_tree_plus_github_remote",
+      "tracked_audit_path": "docs/rust-cutover/release/v0_23_0_publication_evidence_audit_path.md",
+      "local_generated_evidence_path": "release-publication-evidence/ntpro-rust-only-v0.23.0.json",
+      "local_generated_evidence_required_in_source_tree": false,
+      "remote_reconstruction_required": true,
+      "secret_material_allowed": false
     },
     "issue_closeout": {
       "closed_issues": [711, 712, 713, 714, 715, 716, 717, 718],
@@ -72,6 +78,7 @@
     "contract_path": "docs/rust-cutover/release/v0_23_0_multi_node_isolation_contract.md",
     "contract_manifest_path": "docs/rust-cutover/release/v0_23_0_isolation_contract_manifest.json",
     "gate_phase_split_path": "docs/rust-cutover/release/v0_23_0_gate_phase_split.md",
+    "publication_evidence_audit_path": "docs/rust-cutover/release/v0_23_0_publication_evidence_audit_path.md",
     "golden_trace_manifest_path": "docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json",
     "dashboard_observability_smoke_path": "scripts/ai/verify_v23_dashboard_observability_smoke.sh"
   },
@@ -92,6 +99,7 @@
     {"name": "v23-strict-provenance-script", "command": "scripts/ai/verify_v23_strict_provenance.sh", "required": true},
     {"name": "v23.1-gate-phase-split", "command": "scripts/ai/verify_release.sh v23.1-gate-phase-split", "required": true},
     {"name": "v23.1-evidence-replay-only-boundary", "command": "scripts/ai/verify_release.sh v23.1-evidence-replay-only-boundary", "required": true},
+    {"name": "v23.1-publication-evidence-audit-path", "command": "scripts/ai/verify_release.sh v23.1-publication-evidence-audit-path", "required": true},
     {"name": "v23-dashboard-observability-smoke", "command": "scripts/ai/verify_v23_dashboard_observability_smoke.sh", "required": true},
     {"name": "release-publish-after-gate", "command": "scripts/ai/verify_release.sh release-publish-after-gate", "required": true}
   ],

@@ -160,6 +160,13 @@ Path(evidence_path).write_text(json.dumps(payload, indent=2, sort_keys=True) + "
 PY
 }
 
+emit_evidence_policy() {
+  echo "publication_evidence_strategy=source_tree_plus_github_remote"
+  echo "local_evidence_path_is_generated_artifact=true"
+  echo "local_evidence_path_required_in_source_tree=false"
+  echo "remote_reconstruction_required=true"
+}
+
 require_value "$TAG_NAME" "NTPRO_RELEASE_TAG"
 require_value "$GATE_RUN_ID" "NTPRO_RELEASE_GATE_RUN_ID"
 
@@ -214,6 +221,7 @@ if [[ -n "$release_json" ]]; then
     echo "release_url=$release_url"
     echo "published_at=$published_at"
     echo "evidence_path=$EVIDENCE_PATH"
+    emit_evidence_policy
     exit 0
   fi
 
@@ -226,6 +234,7 @@ if [[ -n "$release_json" ]]; then
     echo "release_publication_after_gate=pass status=dry_run_publish_draft_after_gate"
     echo "release_url=$release_url"
     echo "evidence_path=$EVIDENCE_PATH"
+    emit_evidence_policy
     exit 0
   fi
 
@@ -235,6 +244,7 @@ else
     write_evidence "dry_run_create_public_release_after_gate" "$run_url" "$run_completed_at" "" "" "$tag_sha"
     echo "release_publication_after_gate=pass status=dry_run_create_public_release_after_gate"
     echo "evidence_path=$EVIDENCE_PATH"
+    emit_evidence_policy
     exit 0
   fi
 
@@ -261,3 +271,4 @@ echo "release_publication_after_gate=pass status=published_after_gate"
 echo "release_url=$published_url"
 echo "published_at=$published_at"
 echo "evidence_path=$EVIDENCE_PATH"
+emit_evidence_policy

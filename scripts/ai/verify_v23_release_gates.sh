@@ -92,6 +92,7 @@ for marker in \
   "scripts/ai/verify_release.sh v23-strict-provenance" \
   "scripts/ai/verify_release.sh v23.1-gate-phase-split" \
   "scripts/ai/verify_release.sh v23.1-evidence-replay-only-boundary" \
+  "scripts/ai/verify_release.sh v23.1-publication-evidence-audit-path" \
   "scripts/ai/verify_v23_release_gates.sh" \
   "scripts/ai/verify_v23_strict_provenance.sh" \
   "scripts/ai/publish_ntpro_release_after_gate.sh"; do
@@ -107,6 +108,7 @@ for marker in \
   "v23 strict provenance = required" \
   "v23.1 gate phase split = required" \
   "v23.1 evidence replay only boundary = required" \
+  "v23.1 publication evidence audit path = required" \
   "release publish after gate = required" \
   "#718 V230-007 = closed after tag, hosted gate, public release, and publication evidence were recorded" \
   "release closeout evidence = docs/rust-cutover/release/v0_23_0_release_closeout_evidence.md"; do
@@ -119,6 +121,7 @@ scripts/ai/verify_v23_dashboard_observability_smoke.sh
 scripts/ai/verify_release.sh release-publish-after-gate
 scripts/ai/verify_v23_1_gate_phase_split.sh post-release-live
 scripts/ai/verify_v23_1_evidence_replay_only_boundary.sh
+scripts/ai/verify_v23_1_publication_evidence_audit_path.sh
 
 if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   for issue in 705 706 707 708 709 710 711 712 713 714 715 716 717; do
@@ -215,6 +218,7 @@ for key in (
     "contract_path",
     "contract_manifest_path",
     "gate_phase_split_path",
+    "publication_evidence_audit_path",
     "golden_trace_manifest_path",
     "dashboard_observability_smoke_path",
     "closeout_evidence_path",
@@ -232,6 +236,7 @@ for command in (
     "scripts/ai/verify_release.sh v23-strict-provenance",
     "scripts/ai/verify_release.sh v23.1-gate-phase-split",
     "scripts/ai/verify_release.sh v23.1-evidence-replay-only-boundary",
+    "scripts/ai/verify_release.sh v23.1-publication-evidence-audit-path",
     "scripts/ai/verify_v23_release_gates.sh",
     "scripts/ai/verify_v23_strict_provenance.sh",
     "scripts/ai/verify_v23_dashboard_observability_smoke.sh",
@@ -316,6 +321,17 @@ require(
     "next v0.24.0 capability entry mismatch",
 )
 require(next_tracks.get("inherits_runtime_capability") is False, "v0.24.0 runtime inheritance must be false")
+
+publication_evidence = (manifest.get("post_release_closeout") or {}).get("publication_evidence") or {}
+require(publication_evidence.get("audit_source") == "source_tree_plus_github_remote", "publication audit source mismatch")
+require(
+    publication_evidence.get("tracked_audit_path")
+    == "docs/rust-cutover/release/v0_23_0_publication_evidence_audit_path.md",
+    "tracked publication audit path mismatch",
+)
+require(publication_evidence.get("local_generated_evidence_required_in_source_tree") is False, "local generated evidence must not be required in source tree")
+require(publication_evidence.get("remote_reconstruction_required") is True, "publication remote reconstruction must be required")
+require(publication_evidence.get("secret_material_allowed") is False, "publication evidence must not allow secret material")
 
 scope_cases = golden_trace_manifest.get("cases") or []
 status_counts = Counter(item.get("status") for item in scope_cases)

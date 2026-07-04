@@ -23,6 +23,7 @@ MANIFEST_PATH="${NTPRO_V231_CLOSEOUT_MANIFEST:-docs/rust-cutover/release/v0_23_0
 READINESS_PATH="${NTPRO_V231_CLOSEOUT_READINESS:-docs/rust-cutover/release/v0_23_0_readiness_report.md}"
 V230_EVIDENCE_PATH="${NTPRO_V231_CLOSEOUT_V230_EVIDENCE:-docs/rust-cutover/evidence/V230-007.md}"
 CLOSEOUT_EVIDENCE_PATH="${NTPRO_V231_CLOSEOUT_EVIDENCE:-docs/rust-cutover/release/v0_23_0_release_closeout_evidence.md}"
+PUBLICATION_AUDIT_PATH="${NTPRO_V231_CLOSEOUT_PUBLICATION_AUDIT:-docs/rust-cutover/release/v0_23_0_publication_evidence_audit_path.md}"
 V231_EVIDENCE_PATH="${NTPRO_V231_EVIDENCE:-docs/rust-cutover/evidence/V231-001.md}"
 V231_TASK_PATH="${NTPRO_V231_TASK:-docs/rust-cutover/tasks/V231-001.md}"
 
@@ -72,6 +73,7 @@ for path in \
   "$READINESS_PATH" \
   "$V230_EVIDENCE_PATH" \
   "$CLOSEOUT_EVIDENCE_PATH" \
+  "$PUBLICATION_AUDIT_PATH" \
   "$V231_EVIDENCE_PATH" \
   "$V231_TASK_PATH"; do
   require_file "$path"
@@ -86,6 +88,9 @@ for marker in \
   "$GATE_URL" \
   "$GATE_COMPLETED_AT" \
   "hosted release gate jobs = ${GATE_JOBS_SUCCESS}/${GATE_JOBS_TOTAL} success" \
+  "publication evidence strategy = source_tree_plus_github_remote" \
+  "publication evidence audit path = $PUBLICATION_AUDIT_PATH" \
+  "local generated publication evidence required in source tree = false" \
   "V230 issue set = 8/8 closed" \
   "v0.23.0 milestone state = closed" \
   "v0.24.0 start rule = blocked until all V231 issues are closed and v0.23.1 release evidence is published"; do
@@ -183,6 +188,11 @@ require(str(gate.get("jobs_success")) == os.environ["GATE_JOBS_SUCCESS"], "gate 
 publication = closeout.get("publication_evidence") or {}
 require(publication.get("status") == "published_after_gate", "publication status mismatch")
 require(publication.get("release_publication_after_gate") == "pass", "publication after gate mismatch")
+require(publication.get("audit_source") == "source_tree_plus_github_remote", "publication audit source mismatch")
+require(publication.get("tracked_audit_path") == "docs/rust-cutover/release/v0_23_0_publication_evidence_audit_path.md", "publication audit path mismatch")
+require(publication.get("local_generated_evidence_required_in_source_tree") is False, "local generated evidence must not be required in source tree")
+require(publication.get("remote_reconstruction_required") is True, "remote reconstruction must be required")
+require(publication.get("secret_material_allowed") is False, "publication evidence must not allow secret material")
 
 issues = closeout.get("issue_closeout") or {}
 require(issues.get("closed_issues") == [711, 712, 713, 714, 715, 716, 717, 718], "closed issue set mismatch")

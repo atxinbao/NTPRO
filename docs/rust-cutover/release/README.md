@@ -719,6 +719,9 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_23_0_evidence_replay_only_boundary.md` - V231-004 boundary note that
   keeps v0.23.x framed as evidence/replay/read-only observability only, not as
   a production multi-node runtime or product-grade terminal implementation.
+- `v0_23_0_publication_evidence_audit_path.md` - V231-005 source-tree plus
+  GitHub remote reconstruction path for v0.23.0 publication evidence. It keeps
+  generated local publication JSON from being the sole audit source.
 - `../evidence/V230-007.md` - V230-007 release gate, strict provenance, and
   v0.23.0 publication evidence ledger for GitHub issue #718 and the
   `ntpro-rust-only-v0.23.0` GitHub Release.

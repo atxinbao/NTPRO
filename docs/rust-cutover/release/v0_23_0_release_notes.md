@@ -78,7 +78,14 @@ Post-release closeout cleanup is verified by:
 scripts/ai/verify_release.sh v23.1-stale-provenance-cleanup
 scripts/ai/verify_release.sh v23.1-gate-phase-split
 scripts/ai/verify_release.sh v23.1-evidence-replay-only-boundary
+scripts/ai/verify_release.sh v23.1-publication-evidence-audit-path
 ```
+
+Publication evidence can be reconstructed from source tree records plus GitHub
+remote facts using
+`docs/rust-cutover/release/v0_23_0_publication_evidence_audit_path.md`; the
+local `release-publication-evidence/ntpro-rust-only-v0.23.0.json` file is a
+generated artifact, not the sole proof.
 
 The strict provenance gate writes:
 
