@@ -32,7 +32,8 @@ v0.23.1 hosted release gate URL = https://github.com/atxinbao/NTPRO/actions/runs
 v0.23.1 hosted release gate jobs = 68/68 success
 v0.23.1 release gate completed_at = 2026-07-04T18:31:43Z
 v0.23.1 release published_at = 2026-07-04T18:35:51Z
-v0.23.1 tag/main SHA = 11133f216503d4d5b13485acb53787413799c8d0
+v0.23.1 tag SHA = 11133f216503d4d5b13485acb53787413799c8d0
+v0.23.1 tag is ancestor of origin/main = true
 publication evidence strategy = source_tree_plus_github_remote
 ```
 

@@ -2606,7 +2606,7 @@ Task: `V240-000` / GitHub issue `#743`
 
 ```text
 bash -n scripts/ai/verify_release.sh scripts/ai/verify_v24_intake_gate.sh = PASS
-scripts/ai/verify_release.sh v24-intake-gate = PASS, V231 issues=6/6, release_tag=ntpro-rust-only-v0.23.1, hosted_gate_jobs=68/68, negative_selftest=1
+scripts/ai/verify_release.sh v24-intake-gate = PASS, V231 issues=6/6, release_tag=ntpro-rust-only-v0.23.1, hosted_gate_jobs=68/68, tag_is_ancestor_of_origin_main=true, negative_selftest=1
 scripts/ai/verify_release.sh release-publication-guard = PASS, release_tag=ntpro-rust-only-v0.23.1, tag_sha=11133f216503d4d5b13485acb53787413799c8d0
 scripts/ai/verify_fast.sh = PASS, fast smoke only
 git diff --check = PASS
@@ -2615,8 +2615,36 @@ git diff --check = PASS
 ## Result
 
 V240-000 proves that the v0.24.0 intake gate is satisfied: V231 issues are
-closed, the v0.23.1 milestone is closed, `ntpro-rust-only-v0.23.1` points at
-`origin/main`, the hosted release gate succeeded, and the public GitHub Release
-was published after that gate. No runtime trading behavior, public API, submit
-path, production order mutation, Dashboard operation control, or product-grade
-live terminal claim is added.
+closed, the v0.23.1 milestone is closed, `ntpro-rust-only-v0.23.1` is an
+ancestor of `origin/main`, the hosted release gate succeeded, and the public
+GitHub Release was published after that gate. No runtime trading behavior,
+public API, submit path, production order mutation, Dashboard operation control,
+or product-grade live terminal claim is added.
+
+# V240-001 Verification
+
+Date: 2026-07-04
+Executor: Codex
+Task: `V240-001` / GitHub issue `#744`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v24_intake_gate.sh scripts/ai/verify_v24_order_control_contract.sh = PASS
+scripts/ai/verify_release.sh v24-order-control-contract = PASS, contract_id=ntpro.v240_execution_order_control_contract.v1, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V240-001 defines the v0.24.0 execution and order-control contract. It records
+preview-only limit/market boundaries, required rate-limit/throttle/slicing
+follow-ups, cancel/replace/amend preview boundaries, default no-retry policy,
+minimum owner/policy/risk/audit gates, isolation-scope fail-closed identity
+rules, and read-only Dashboard / Workbench preview constraints. The v0.24.0
+intake proof now treats the historical v0.23.1 release tag as an ancestor of
+`origin/main`, so later merged issue work does not invalidate the start gate.
+No runtime trading behavior, public API, submit path, production order
+mutation, Dashboard operation control, or product-grade live terminal claim is
+added.
