@@ -1097,6 +1097,66 @@
       "release_decision": "schema_only_scope_recorded"
     },
     {
+      "case_id": "execution.v240_order_slicing.valid_plan.001",
+      "trace": "tests/golden/v240_order_slicing_preview.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-004",
+      "reason": "V240-004 defines deterministic read-only order slicing preview evidence before runtime child-order scheduling exists.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_order_slicing.invalid_size.001",
+      "trace": "tests/golden/v240_order_slicing_preview.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-004",
+      "reason": "V240-004 records fail-closed invalid parent quantity or max child size evidence before runtime child-order scheduling exists.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_order_slicing.precision_mismatch.001",
+      "trace": "tests/golden/v240_order_slicing_preview.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-004",
+      "reason": "V240-004 records fail-closed precision mismatch evidence before runtime child-order scheduling exists.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_order_slicing.scope_mismatch.001",
+      "trace": "tests/golden/v240_order_slicing_preview.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-004",
+      "reason": "V240-004 records fail-closed slicing policy scope mismatch evidence before runtime child-order scheduling exists.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_order_slicing.policy_missing.001",
+      "trace": "tests/golden/v240_order_slicing_preview.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-004",
+      "reason": "V240-004 records fail-closed missing slicing policy or risk policy refs evidence before runtime child-order scheduling exists.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_order_slicing.forbidden_market_limit_combo.001",
+      "trace": "tests/golden/v240_order_slicing_preview.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-004",
+      "reason": "V240-004 records fail-closed forbidden market/limit combination evidence before runtime child-order scheduling exists.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",
