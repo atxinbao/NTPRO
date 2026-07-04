@@ -66,12 +66,13 @@ rows = 2
 required_false_operation_boundary_fields = 21
 renderer_path = crates/cli/src/dashboard.rs DASHBOARD_JS renderTraderTerminalWorkbench + renderReadModelRuntime
 forbidden_action_surfaces = button/form/input/fetch/dashboard-action/workbench-action/control-api/submit/cancel/replace/amend/flatten
+release_provenance = ntpro-rust-only-v0.23.0
 ```
 
 ## Non-Goals Confirmed
 
 ```text
-release_publication = false
+release_publication = recorded_by_v0_23_0_release_closeout
 production_submit_enabled = false
 production_order_mutation_enabled = false
 manual_operation_enabled = false

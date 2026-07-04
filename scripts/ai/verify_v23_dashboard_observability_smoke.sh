@@ -22,6 +22,8 @@ const vm = require("node:vm");
 
 const snapshotPath = process.argv[2];
 const snapshot = JSON.parse(fs.readFileSync(snapshotPath, "utf8"));
+const expectedReleaseTag = "ntpro-rust-only-v0.23.0";
+const staleReleaseTags = ["ntpro-rust-only-v0.23.0-candidate"];
 const dashboardSource = fs.readFileSync("crates/cli/src/dashboard.rs", "utf8");
 const jsMatch = dashboardSource.match(/const DASHBOARD_JS: &str = r#"(.*?)"#;/s);
 if (!jsMatch) {
@@ -70,6 +72,21 @@ for (const [index, runtime] of runtimes.entries()) {
       throw new Error(`${field} must be explicitly available false for row ${index} in ${snapshotPath}`);
     }
   }
+  const releaseProvenance = runtime.audit_release_provenance;
+  if (
+    !releaseProvenance ||
+    releaseProvenance.availability !== "available" ||
+    releaseProvenance.value !== expectedReleaseTag
+  ) {
+    throw new Error(
+      `audit_release_provenance must be ${expectedReleaseTag} for row ${index} in ${snapshotPath}`,
+    );
+  }
+  for (const staleTag of staleReleaseTags) {
+    if (JSON.stringify(runtime).includes(staleTag)) {
+      throw new Error(`dashboard observability fixture contains stale release provenance: ${staleTag}`);
+    }
+  }
 }
 
 const elements = {};
@@ -109,13 +126,18 @@ const requiredHtmlMarkers = [
   "所有操作控件禁用",
   "2 个节点",
   "tests/golden/read_model_dashboard_observability_schema.jsonl",
-  "ntpro-rust-only-v0.23.0-candidate",
+  expectedReleaseTag,
   "dashboard_operation_controls_forbidden",
 ];
 
 for (const marker of requiredHtmlMarkers) {
   if (!html.includes(marker)) {
     throw new Error(`rendered dashboard observability HTML missing marker: ${marker}`);
+  }
+}
+for (const staleTag of staleReleaseTags) {
+  if (html.includes(staleTag)) {
+    throw new Error(`rendered dashboard observability HTML contains stale release provenance: ${staleTag}`);
   }
 }
 
