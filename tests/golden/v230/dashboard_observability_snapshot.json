@@ -123,7 +123,7 @@
       },
       "audit_release_provenance": {
         "availability": "available",
-        "value": "ntpro-rust-only-v0.23.0-candidate"
+        "value": "ntpro-rust-only-v0.23.0"
       },
       "audit_artifact_digest": {
         "availability": "available",
@@ -339,7 +339,7 @@
       },
       "audit_release_provenance": {
         "availability": "available",
-        "value": "ntpro-rust-only-v0.23.0-candidate"
+        "value": "ntpro-rust-only-v0.23.0"
       },
       "audit_artifact_digest": {
         "availability": "available",

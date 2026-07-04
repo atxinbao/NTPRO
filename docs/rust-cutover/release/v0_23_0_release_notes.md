@@ -68,6 +68,12 @@ scripts/ai/verify_v23_dashboard_observability_smoke.sh
 scripts/ai/verify_release.sh release-publish-after-gate
 ```
 
+Post-release closeout cleanup is verified by:
+
+```text
+scripts/ai/verify_release.sh v23.1-stale-provenance-cleanup
+```
+
 The strict provenance gate writes:
 
 ```text

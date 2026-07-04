@@ -136,9 +136,21 @@ for needle in (
     "Status: RELEASED",
     "v23 strict provenance = required",
     "V230-007 evidence",
-    "#718 V230-007 = stays open until tag, hosted gate, public release, and publication evidence are recorded",
+    "#718 V230-007 = closed after tag, hosted gate, public release, and publication evidence were recorded",
 ):
     require(needle in readiness, f"readiness report missing required marker: {needle}")
+
+for stale in (
+    "ntpro-rust-only-v0.23.0-candidate",
+    "#718 V230-007 = stays open until tag, hosted gate, public release, and publication evidence are recorded",
+    "public release publication = pending",
+    "tag gate run = pending",
+    "tag gate result = pending",
+    "RELEASE GATE CORRECTIVE FIX IN PROGRESS",
+    "corrective fix in progress",
+):
+    require(stale not in readiness, f"readiness report contains stale marker: {stale}")
+    require(stale not in release_notes, f"release notes contain stale marker: {stale}")
 
 require(release_manifest.get("schema_version") == "ntpro.v230_release_manifest.v1", "release manifest schema mismatch")
 require(release_manifest.get("task_id") == "V230-007", "release manifest task mismatch")

@@ -2449,3 +2449,31 @@ the local manifest/evidence/readiness files and live GitHub release, tag, hosted
 gate, issue, and milestone state. No submit capability, production order
 mutation, Dashboard operation controls, public API change, or product-grade
 live terminal claim is added.
+
+# V231-002 Verification
+
+Date: 2026-07-04
+Executor: Codex
+Task: `V231-002` / GitHub issue `#738`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v23_strict_provenance.sh scripts/ai/verify_v23_dashboard_observability_smoke.sh scripts/ai/verify_v23_1_stale_provenance_cleanup.sh = PASS
+python3 -m json.tool tests/golden/v230/dashboard_observability_snapshot.json >/dev/null = PASS
+scripts/ai/verify_v23_dashboard_observability_smoke.sh = PASS, rows=2 readonly_boundary=locked false_fields=21
+scripts/ai/verify_release.sh v23.1-stale-provenance-cleanup = PASS, release_tag=ntpro-rust-only-v0.23.0, stale_candidate_selftest=1
+scripts/ai/verify_release.sh v23-strict-provenance = PASS, tag_exists=true source_dirty=true
+rg -n "ntpro-rust-only-v0\\.23\\.0-candidate|#718 V230-007 = stays open until tag|public release publication = pending|tag gate run = pending|tag gate result = pending|RELEASE GATE CORRECTIVE FIX IN PROGRESS|corrective fix in progress" tests/golden/v230/dashboard_observability_snapshot.json docs/rust-cutover/release/v0_23_0_release_notes.md docs/rust-cutover/release/v0_23_0_readiness_report.md docs/rust-cutover/release/v0_23_0_dashboard_observability_surface.md docs/rust-cutover/evidence/V230-006.md = PASS, no matches
+scripts/ai/verify_release.sh v23-release-gates = PASS, current_issue_state=CLOSED, 100 release cases / 95 executable replay / 5 schema-only scoped, 6 golden_trace_read_model_projection tests passed, Dashboard smoke passed
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V231-002 cleans stale v0.23.0 candidate provenance from Dashboard observability
+and hardens the v23/v23.1 gates that reject stale candidate, pending, and
+corrective in-progress release markers. No submit capability, production order
+mutation, Dashboard operation controls, public API change, or product-grade
+live terminal claim is added.

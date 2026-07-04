@@ -53,6 +53,7 @@ Dashboard observability render smoke = required
 golden trace release scope validation = required
 release publish after gate = required
 release publication before hosted gate success = forbidden
+v23.1 stale provenance cleanup = required
 ```
 
 ## Issue Closeout
