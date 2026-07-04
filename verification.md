@@ -2758,3 +2758,32 @@ scoped because this task does not add runtime cancel/replace/amend send or
 adapter replay. No runtime trading behavior, public API, real cancel/replace
 /amend send path, production order mutation, flatten capability, Dashboard
 operation control, or product-grade live terminal claim is added.
+
+# V240-006 Verification
+
+Date: 2026-07-04
+Executor: Codex
+Task: `V240-006` / GitHub issue `#749`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v24_retry_policy_ledger.sh = PASS
+python3 scripts/ai/golden_trace_runner.py tests/golden/v240_retry_policy_ledger.jsonl --mode validate-only = PASS, rows=8
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, cases=131, executable=95, schema_only=36
+scripts/ai/verify_release.sh v24-retry-policy-ledger = PASS, golden_trace_cases=8, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V240-006 defines the v0.24.0 retry / no-retry policy ledger. It adds golden
+trace coverage for explicit transport and timeout retry preview decisions,
+terminal business and risk rejection no-retry decisions, duplicate retry,
+missing prior attempt, unknown-state retry blocking, and policy mismatch
+blocking. The eight V240-006 trace rows are registered as schema-only scoped
+because this task does not add runtime retry scheduling or adapter replay. No
+runtime trading behavior, public API, real retry path, retry scheduler,
+production order mutation, Dashboard operation control, or product-grade live
+terminal claim is added.
