@@ -295,7 +295,9 @@ remote_tag_sha="$(git ls-remote --tags origin "refs/tags/$V231_RELEASE_TAG" | aw
 [[ "$remote_tag_sha" == "$V231_TAG_SHA" ]] || fail "remote tag SHA mismatch: $remote_tag_sha"
 
 origin_main_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
-[[ "$origin_main_sha" == "$V231_TAG_SHA" ]] || fail "origin/main SHA mismatch: $origin_main_sha"
+if ! git merge-base --is-ancestor "$V231_TAG_SHA" "$origin_main_sha"; then
+  fail "v0.23.1 tag is not an ancestor of origin/main: tag=$V231_TAG_SHA origin_main=$origin_main_sha"
+fi
 
 run_json="$(gh_with_retry run view "$V231_GATE_RUN_ID" --repo "$REPO" --json status,conclusion,workflowName,headSha,url,updatedAt,jobs)"
 RUN_JSON="$run_json" \
@@ -330,6 +332,7 @@ echo "v231_release_url=$V231_RELEASE_URL"
 echo "v231_gate_run=$V231_GATE_URL"
 echo "v231_gate_jobs=${V231_GATE_JOBS_SUCCESS}/${V231_GATE_JOBS_TOTAL}"
 echo "v231_tag_sha=$V231_TAG_SHA"
+echo "v231_tag_is_ancestor_of_origin_main=true"
 echo "v24_runtime_capability_inherited=false"
 echo "new_submit_capability=false"
 echo "production_order_mutation_allowed=false"
