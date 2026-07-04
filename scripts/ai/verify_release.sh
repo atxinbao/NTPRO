@@ -498,6 +498,11 @@ run_v24_order_intent_policy() {
   scripts/ai/verify_v24_order_intent_policy.sh
 }
 
+run_v24_rate_limit_throttle_gate() {
+  echo "== verify_release: v0.24.0 rate-limit and throttle gate preview =="
+  scripts/ai/verify_v24_rate_limit_throttle_gate.sh
+}
+
 run_v171_release_hardening() {
   echo "== verify_release: v0.17.1 release hardening =="
   scripts/ai/verify_v171_release_hardening.sh
@@ -607,6 +612,7 @@ run_stage() {
       run_v24_intake_gate
       run_v24_order_control_contract
       run_v24_order_intent_policy
+      run_v24_rate_limit_throttle_gate
       run_release_surface_current_guard
       run_release_publication_guard
       run_release_publish_after_gate
@@ -797,6 +803,9 @@ run_stage() {
     v24-order-intent-policy)
       run_v24_order_intent_policy
       ;;
+    v24-rate-limit-throttle-gate)
+      run_v24_rate_limit_throttle_gate
+      ;;
     v171-release-hardening)
       run_v171_release_hardening
       ;;
@@ -820,7 +829,7 @@ run_stage() {
       ;;
     *)
       echo "unknown verify_release stage: $stage" >&2
-      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate, v08-authenticated-readonly-preflight, v09-strategy-runtime-smoke, v09-shadow-mode-no-order-gate, v091-strategy-supervisor-dashboard-integration, v10-offline-release-gates, v10-manual-order-proof-preflight, v11-offline-release-gates, v12-offline-release-gates, v12-manual-online-preflight, v13-no-production-mutation-gate, v14-release-gates, v15-release-gates, v151-release-gates, v16-release-gates, v17-release-gates, v18-release-gates, v19-release-gates, v20-release-gates, v20.1-release-gates, v21-read-model-contract, v21-account-snapshot-read-model, v21-position-read-model, v21-order-lifecycle-read-model, v21-fill-execution-read-model, v21-risk-state-projection, v21-trader-terminal-readonly-dashboard, v21-release-gates, v21-strict-provenance, v21.1-health-status-semantics, v21.1-read-model-projection-replay, v21.1-read-model-schema-boundary, v21.1-trader-terminal-read-model-bridge, v21.1-release-gates, v21.1-strict-provenance, v22-runtime-boundary-tests, v22-release-gates, v22-strict-provenance, v22.1-release-gates, v22.1-strict-provenance, v23-release-gates, v23-strict-provenance, v23.1-release-closeout-evidence, v23.1-stale-provenance-cleanup, v23.1-gate-phase-split, v23.1-evidence-replay-only-boundary, v23.1-publication-evidence-audit-path, v23.1-release-gates, v23.1-strict-provenance, v24-intake-gate, v24-order-control-contract, v24-order-intent-policy, v171-release-hardening, v18-strict-provenance, v19-strict-provenance, v20-strict-provenance, release-surface-current-guard, release-publication-guard, release-publish-after-gate" >&2
+      echo "valid stages: all, full, release-build-product-surface, rust-only-gates, v02-supervisor-smoke, v03-supervisor-control-smoke, v03-dashboard-smoke, v05-workflow-artifacts-smoke, v06-binance-testnet-dry-run-smoke, v07-default-offline-gate, v07-manual-online-preflight, v08-default-offline-gate, v08-authenticated-readonly-preflight, v09-strategy-runtime-smoke, v09-shadow-mode-no-order-gate, v091-strategy-supervisor-dashboard-integration, v10-offline-release-gates, v10-manual-order-proof-preflight, v11-offline-release-gates, v12-offline-release-gates, v12-manual-online-preflight, v13-no-production-mutation-gate, v14-release-gates, v15-release-gates, v151-release-gates, v16-release-gates, v17-release-gates, v18-release-gates, v19-release-gates, v20-release-gates, v20.1-release-gates, v21-read-model-contract, v21-account-snapshot-read-model, v21-position-read-model, v21-order-lifecycle-read-model, v21-fill-execution-read-model, v21-risk-state-projection, v21-trader-terminal-readonly-dashboard, v21-release-gates, v21-strict-provenance, v21.1-health-status-semantics, v21.1-read-model-projection-replay, v21.1-read-model-schema-boundary, v21.1-trader-terminal-read-model-bridge, v21.1-release-gates, v21.1-strict-provenance, v22-runtime-boundary-tests, v22-release-gates, v22-strict-provenance, v22.1-release-gates, v22.1-strict-provenance, v23-release-gates, v23-strict-provenance, v23.1-release-closeout-evidence, v23.1-stale-provenance-cleanup, v23.1-gate-phase-split, v23.1-evidence-replay-only-boundary, v23.1-publication-evidence-audit-path, v23.1-release-gates, v23.1-strict-provenance, v24-intake-gate, v24-order-control-contract, v24-order-intent-policy, v24-rate-limit-throttle-gate, v171-release-hardening, v18-strict-provenance, v19-strict-provenance, v20-strict-provenance, release-surface-current-guard, release-publication-guard, release-publish-after-gate" >&2
       exit 2
       ;;
   esac
