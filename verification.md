@@ -2787,3 +2787,32 @@ because this task does not add runtime retry scheduling or adapter replay. No
 runtime trading behavior, public API, real retry path, retry scheduler,
 production order mutation, Dashboard operation control, or product-grade live
 terminal claim is added.
+
+# V240-007 Verification
+
+Date: 2026-07-04
+Executor: Codex
+Task: `V240-007` / GitHub issue `#750`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v24_readback_audit_evidence.sh = PASS
+python3 scripts/ai/golden_trace_runner.py tests/golden/v240_readback_audit_evidence.jsonl --mode validate-only = PASS, rows=8
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, cases=139, executable=95, schema_only=44
+scripts/ai/verify_release.sh v24-readback-audit-evidence = PASS, golden_trace_cases=8, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V240-007 defines the v0.24.0 order-control preview readback/audit evidence
+closeout. It adds golden trace coverage for ready preview, missing readback,
+missing audit, missing provenance, stale source, redaction breach, cross-scope
+mismatch, and degraded unavailable cases. The eight V240-007 trace rows are
+registered as schema-only scoped because this task does not add runtime
+exchange readback or adapter replay. No runtime trading behavior, public API,
+real order state read expansion, exchange truth claim, production order
+mutation, Dashboard operation control, or product-grade live terminal claim is
+added.
