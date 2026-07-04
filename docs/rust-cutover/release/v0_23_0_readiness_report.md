@@ -56,6 +56,9 @@ release publication before hosted gate success = forbidden
 v23.1 stale provenance cleanup = required
 v23.1 gate phase split = required
 v23.1 evidence replay only boundary = required
+v23.1 publication evidence audit path = required
+publication evidence strategy = source_tree_plus_github_remote
+publication evidence audit path = docs/rust-cutover/release/v0_23_0_publication_evidence_audit_path.md
 ```
 
 ## Issue Closeout

@@ -2534,3 +2534,31 @@ about production multi-node runtime, runtime-integrated execution, product-grade
 terminal readiness, or v0.24.0 runtime capability inheritance. No submit
 capability, production order mutation, Dashboard operation controls, public API
 change, or product-grade live terminal claim is added.
+
+# V231-005 Verification
+
+Date: 2026-07-04
+Executor: Codex
+Task: `V231-005` / GitHub issue `#741`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v23_release_gates.sh scripts/ai/verify_v23_1_publication_evidence_audit_path.sh scripts/ai/publish_ntpro_release_after_gate.sh scripts/ai/check_github_release_published.sh scripts/ai/verify_v23_1_release_closeout_evidence.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_23_0_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_release.sh v23.1-publication-evidence-audit-path = PASS, release_tag=ntpro-rust-only-v0.23.0, gate_run=28673868094, negative_selftest=1
+scripts/ai/verify_release.sh v23-release-gates = PASS, publication audit gate included, current_issue_state=CLOSED
+scripts/ai/verify_release.sh v23.1-release-closeout-evidence = PASS, release_tag=ntpro-rust-only-v0.23.0, jobs=66/66, milestone=v0.23.0:closed, issues=8/8
+scripts/ai/verify_release.sh v23-strict-provenance = PASS, tag_exists=true source_dirty=true
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V231-005 makes v0.23.0 publication evidence auditable from source-tree records
+plus GitHub remote state. The generated local
+`release-publication-evidence/ntpro-rust-only-v0.23.0.json` artifact remains
+optional and is not the sole proof. No release permission model, runtime trading
+behavior, public API, submit path, production order mutation, or Dashboard
+operation control is changed.
