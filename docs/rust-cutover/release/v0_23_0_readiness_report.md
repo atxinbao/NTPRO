@@ -58,14 +58,23 @@ release publication before hosted gate success = forbidden
 ## Issue Closeout
 
 ```text
-#711 V230-000 = required closed before release
-#712 V230-001 = required closed before release
-#713 V230-002 = required closed before release
-#714 V230-003 = required closed before release
-#715 V230-004 = required closed before release
-#716 V230-005 = required closed before release
-#717 V230-006 = required closed before release
-#718 V230-007 = stays open until tag, hosted gate, public release, and publication evidence are recorded
+#711 V230-000 = closed
+#712 V230-001 = closed
+#713 V230-002 = closed
+#714 V230-003 = closed
+#715 V230-004 = closed
+#716 V230-005 = closed
+#717 V230-006 = closed
+#718 V230-007 = closed after tag, hosted gate, public release, and publication evidence were recorded
+V230 issue set = 8/8 closed
+v0.23.0 milestone = closed
+release closeout evidence = docs/rust-cutover/release/v0_23_0_release_closeout_evidence.md
+hosted release gate = https://github.com/atxinbao/NTPRO/actions/runs/28673868094
+hosted release gate result = success
+hosted release gate jobs = 66/66 success
+public release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.23.0
+public release published at = 2026-07-03T18:34:39Z
+tag SHA = 783b024621116d50feaf418f12cb95fb95f87575
 ```
 
 ## Boundary
