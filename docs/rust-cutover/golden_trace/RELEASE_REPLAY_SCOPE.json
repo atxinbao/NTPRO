@@ -1157,6 +1157,76 @@
       "release_decision": "schema_only_scope_recorded"
     },
     {
+      "case_id": "execution.v240_cancel_replace_amend.cancel_preview.001",
+      "trace": "tests/golden/v240_cancel_replace_amend_preview.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-005",
+      "reason": "V240-005 defines deterministic read-only cancel preview evidence before runtime cancel send exists.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_cancel_replace_amend.replace_preview.001",
+      "trace": "tests/golden/v240_cancel_replace_amend_preview.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-005",
+      "reason": "V240-005 defines deterministic read-only replace preview evidence before runtime replace send exists.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_cancel_replace_amend.amend_preview.001",
+      "trace": "tests/golden/v240_cancel_replace_amend_preview.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-005",
+      "reason": "V240-005 defines deterministic read-only amend preview evidence before runtime amend send exists.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_cancel_replace_amend.missing_lineage.001",
+      "trace": "tests/golden/v240_cancel_replace_amend_preview.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-005",
+      "reason": "V240-005 records missing original order lineage fail-closed evidence before runtime cancel/replace/amend send exists.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_cancel_replace_amend.scope_mismatch.001",
+      "trace": "tests/golden/v240_cancel_replace_amend_preview.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-005",
+      "reason": "V240-005 records cross-scope original order reference blocking evidence before runtime cancel/replace/amend send exists.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_cancel_replace_amend.expired_approval.001",
+      "trace": "tests/golden/v240_cancel_replace_amend_preview.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-005",
+      "reason": "V240-005 records expired approval fail-closed evidence before runtime cancel/replace/amend send exists.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_cancel_replace_amend.forbidden_operation.001",
+      "trace": "tests/golden/v240_cancel_replace_amend_preview.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-005",
+      "reason": "V240-005 records forbidden replace/amend/flatten blocking evidence before runtime cancel/replace/amend send exists.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",

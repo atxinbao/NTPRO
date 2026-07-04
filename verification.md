@@ -2730,3 +2730,31 @@ scoped because this task does not add runtime child-order scheduling or adapter
 replay. No runtime trading behavior, public API, submit path, child-order
 scheduler, production order mutation, Dashboard operation control, or
 product-grade live terminal claim is added.
+
+# V240-005 Verification
+
+Date: 2026-07-04
+Executor: Codex
+Task: `V240-005` / GitHub issue `#748`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v24_cancel_replace_amend_preview.sh = PASS
+python3 scripts/ai/golden_trace_runner.py tests/golden/v240_cancel_replace_amend_preview.jsonl --mode validate-only = PASS, rows=7
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, cases=123, executable=95, schema_only=28
+scripts/ai/verify_release.sh v24-cancel-replace-amend-preview = PASS, golden_trace_cases=7, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V240-005 defines the v0.24.0 cancel / replace / amend preview contract. It adds
+golden trace coverage for cancel, replace, and amend no-send previews, plus
+missing lineage, cross-scope order reference, expired approval, and forbidden
+flatten cases. The seven V240-005 trace rows are registered as schema-only
+scoped because this task does not add runtime cancel/replace/amend send or
+adapter replay. No runtime trading behavior, public API, real cancel/replace
+/amend send path, production order mutation, flatten capability, Dashboard
+operation control, or product-grade live terminal claim is added.
