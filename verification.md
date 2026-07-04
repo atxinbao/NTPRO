@@ -2595,3 +2595,28 @@ boundary hardening, publication evidence audit path, release surface current
 guard, and publish-after-gate proof. No runtime trading behavior, public API,
 submit path, production order mutation, Dashboard operation control, or
 v0.24.0 implementation is added.
+
+# V240-000 Verification
+
+Date: 2026-07-04
+Executor: Codex
+Task: `V240-000` / GitHub issue `#743`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v24_intake_gate.sh = PASS
+scripts/ai/verify_release.sh v24-intake-gate = PASS, V231 issues=6/6, release_tag=ntpro-rust-only-v0.23.1, hosted_gate_jobs=68/68, negative_selftest=1
+scripts/ai/verify_release.sh release-publication-guard = PASS, release_tag=ntpro-rust-only-v0.23.1, tag_sha=11133f216503d4d5b13485acb53787413799c8d0
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V240-000 proves that the v0.24.0 intake gate is satisfied: V231 issues are
+closed, the v0.23.1 milestone is closed, `ntpro-rust-only-v0.23.1` points at
+`origin/main`, the hosted release gate succeeded, and the public GitHub Release
+was published after that gate. No runtime trading behavior, public API, submit
+path, production order mutation, Dashboard operation control, or product-grade
+live terminal claim is added.
