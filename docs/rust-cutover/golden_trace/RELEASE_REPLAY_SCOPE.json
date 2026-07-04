@@ -997,6 +997,46 @@
       "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v230_dashboard_observability_paths"
     },
     {
+      "case_id": "execution.v240_order_intent_policy.valid_intent.001",
+      "trace": "tests/golden/v240_order_intent_execution_policy.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-002",
+      "reason": "V240-002 defines a preview-only artifact schema and expected fail-closed decision envelope; no runtime adapter replay exists in this task.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_order_intent_policy.missing_scope.001",
+      "trace": "tests/golden/v240_order_intent_execution_policy.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-002",
+      "reason": "V240-002 records the fail-closed identity boundary for missing isolation scope before any runtime adapter replay exists.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_order_intent_policy.policy_mismatch.001",
+      "trace": "tests/golden/v240_order_intent_execution_policy.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-002",
+      "reason": "V240-002 records the fail-closed policy/intent scope mismatch contract before any runtime adapter replay exists.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_order_intent_policy.forbidden_operation.001",
+      "trace": "tests/golden/v240_order_intent_execution_policy.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-002",
+      "reason": "V240-002 records the forbidden submit/adapter-call boundary for the artifact model; live operation replay is explicitly out of scope.",
+      "follow_up": "V240-007 readback/audit evidence and V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",

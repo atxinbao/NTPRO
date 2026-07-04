@@ -2648,3 +2648,30 @@ intake proof now treats the historical v0.23.1 release tag as an ancestor of
 No runtime trading behavior, public API, submit path, production order
 mutation, Dashboard operation control, or product-grade live terminal claim is
 added.
+
+# V240-002 Verification
+
+Date: 2026-07-04
+Executor: Codex
+Task: `V240-002` / GitHub issue `#745`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v24_order_intent_policy.sh = PASS
+python3 scripts/ai/golden_trace_runner.py tests/golden/v240_order_intent_execution_policy.jsonl --mode validate-only = PASS, rows=4
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, cases=104, executable=95, schema_only=9
+scripts/ai/verify_release.sh v24-order-intent-policy = PASS, golden_trace_cases=4, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V240-002 defines the v0.24.0 order intent and execution policy artifact model.
+It adds golden trace coverage for valid intent, missing scope, policy mismatch,
+and forbidden operation cases, all bound to a fail-closed preview-only contract.
+The four V240-002 trace rows are registered as schema-only scoped because this
+task does not add runtime adapter replay. No runtime trading behavior, public
+API, submit path, production order mutation, Dashboard operation control, or
+product-grade live terminal claim is added.
