@@ -20,10 +20,54 @@
     "draft": false,
     "prerelease": false
   },
+  "post_release_closeout": {
+    "closeout_evidence_path": "docs/rust-cutover/release/v0_23_0_release_closeout_evidence.md",
+    "github_release": {
+      "tag": "ntpro-rust-only-v0.23.0",
+      "name": "NTPRO Rust-only v0.23.0",
+      "url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.23.0",
+      "published_at": "2026-07-03T18:34:39Z",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main"
+    },
+    "tag": {
+      "sha": "783b024621116d50feaf418f12cb95fb95f87575",
+      "tree": "1d40d9c962d7500a8b7cbcdf42a47ec30ea8a5f9",
+      "matches_origin_main": true
+    },
+    "hosted_release_gate": {
+      "run_id": 28673868094,
+      "url": "https://github.com/atxinbao/NTPRO/actions/runs/28673868094",
+      "created_at": "2026-07-03T16:57:33Z",
+      "completed_at": "2026-07-03T18:29:30Z",
+      "conclusion": "success",
+      "jobs_total": 66,
+      "jobs_success": 66
+    },
+    "publication_evidence": {
+      "status": "published_after_gate",
+      "release_publication_after_gate": "pass",
+      "evidence_path": "release-publication-evidence/ntpro-rust-only-v0.23.0.json"
+    },
+    "issue_closeout": {
+      "closed_issues": [711, 712, 713, 714, 715, 716, 717, 718],
+      "closed_count": 8,
+      "open_count": 0
+    },
+    "milestone_closeout": {
+      "number": 11,
+      "title": "v0.23.0",
+      "state": "closed",
+      "open_issues": 0,
+      "closed_issues": 8
+    }
+  },
   "release_inputs": {
     "release_notes_path": "docs/rust-cutover/release/v0_23_0_release_notes.md",
     "readiness_report_path": "docs/rust-cutover/release/v0_23_0_readiness_report.md",
     "release_manifest_path": "docs/rust-cutover/release/v0_23_0_release_manifest.json",
+    "closeout_evidence_path": "docs/rust-cutover/release/v0_23_0_release_closeout_evidence.md",
     "contract_path": "docs/rust-cutover/release/v0_23_0_multi_node_isolation_contract.md",
     "contract_manifest_path": "docs/rust-cutover/release/v0_23_0_isolation_contract_manifest.json",
     "golden_trace_manifest_path": "docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json",

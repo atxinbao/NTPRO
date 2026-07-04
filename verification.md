@@ -2423,3 +2423,29 @@ current strict provenance matching-tag simulation = PASS, release-v23-strict-pro
 scripts/ai/verify_fast.sh = PASS, fast smoke only
 git diff --check = PASS
 ```
+
+# V231-001 Verification
+
+Date: 2026-07-04
+Executor: Codex
+Task: `V231-001` / GitHub issue `#737`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v23_release_gates.sh scripts/ai/verify_v23_1_release_closeout_evidence.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_23_0_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_release.sh v23.1-release-closeout-evidence = PASS, release_tag=ntpro-rust-only-v0.23.0, tag_sha=783b024621116d50feaf418f12cb95fb95f87575, release_gate_run=28673868094, jobs=66/66, milestone=v0.23.0:closed, issues=8/8
+scripts/ai/verify_release.sh v23-release-gates = PASS, current_issue_state=CLOSED, 100 release cases / 95 executable replay / 5 schema-only scoped, 6 golden_trace_read_model_projection tests passed, Dashboard smoke passed
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V231-001 now records the completed `v0.23.0` publication closeout in
+source-tree evidence and adds a v0.23.1 closeout verifier. The verifier checks
+the local manifest/evidence/readiness files and live GitHub release, tag, hosted
+gate, issue, and milestone state. No submit capability, production order
+mutation, Dashboard operation controls, public API change, or product-grade
+live terminal claim is added.

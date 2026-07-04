@@ -104,7 +104,8 @@ for marker in \
   "v23 release gates = required" \
   "v23 strict provenance = required" \
   "release publish after gate = required" \
-  "#718 V230-007 = stays open until tag, hosted gate, public release, and publication evidence are recorded"; do
+  "#718 V230-007 = closed after tag, hosted gate, public release, and publication evidence were recorded" \
+  "release closeout evidence = docs/rust-cutover/release/v0_23_0_release_closeout_evidence.md"; do
   require_contains "$READINESS_REPORT_PATH" "$marker"
 done
 
@@ -208,6 +209,7 @@ for key in (
     "contract_manifest_path",
     "golden_trace_manifest_path",
     "dashboard_observability_smoke_path",
+    "closeout_evidence_path",
 ):
     path = Path(required_inputs.get(key, ""))
     require(path.is_file(), f"release input missing: {key} -> {path}")
