@@ -54,14 +54,14 @@ for marker in \
 done
 
 for marker in \
-  "Capability class: evidence / replay / readonly observability only" \
-  "It is an evidence/replay-only release surface, not a production multi-node" \
+  "Capability class: patch closeout / evidence / replay / readonly observability only" \
+  "not a production multi-node runtime implementation" \
   "v0.24.0 entry: future contract and gated implementation only"; do
   require_contains README.md "$marker"
 done
 
 for marker in \
-  "capability class evidence / replay / readonly observability only" \
+  "capability class patch closeout / evidence / replay / readonly observability only" \
   "production multi-node runtime implementation not included" \
   "v0.24.0 future contract and gated implementation only"; do
   require_contains ROADMAP.md "$marker"
