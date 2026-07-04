@@ -90,6 +90,7 @@ for marker in \
   "V230-007" \
   "scripts/ai/verify_release.sh v23-release-gates" \
   "scripts/ai/verify_release.sh v23-strict-provenance" \
+  "scripts/ai/verify_release.sh v23.1-gate-phase-split" \
   "scripts/ai/verify_v23_release_gates.sh" \
   "scripts/ai/verify_v23_strict_provenance.sh" \
   "scripts/ai/publish_ntpro_release_after_gate.sh"; do
@@ -103,6 +104,7 @@ for marker in \
   "V230-007 evidence" \
   "v23 release gates = required" \
   "v23 strict provenance = required" \
+  "v23.1 gate phase split = required" \
   "release publish after gate = required" \
   "#718 V230-007 = closed after tag, hosted gate, public release, and publication evidence were recorded" \
   "release closeout evidence = docs/rust-cutover/release/v0_23_0_release_closeout_evidence.md"; do
@@ -113,6 +115,7 @@ python3 scripts/ai/validate_golden_trace_release_scope.py
 cargo test -p nautilus-cli --test golden_trace_read_model_projection -- --nocapture
 scripts/ai/verify_v23_dashboard_observability_smoke.sh
 scripts/ai/verify_release.sh release-publish-after-gate
+scripts/ai/verify_v23_1_gate_phase_split.sh post-release-live
 
 if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   for issue in 705 706 707 708 709 710 711 712 713 714 715 716 717; do
@@ -207,6 +210,7 @@ for key in (
     "release_manifest_path",
     "contract_path",
     "contract_manifest_path",
+    "gate_phase_split_path",
     "golden_trace_manifest_path",
     "dashboard_observability_smoke_path",
     "closeout_evidence_path",
@@ -222,6 +226,7 @@ commands = {
 for command in (
     "scripts/ai/verify_release.sh v23-release-gates",
     "scripts/ai/verify_release.sh v23-strict-provenance",
+    "scripts/ai/verify_release.sh v23.1-gate-phase-split",
     "scripts/ai/verify_v23_release_gates.sh",
     "scripts/ai/verify_v23_strict_provenance.sh",
     "scripts/ai/verify_v23_dashboard_observability_smoke.sh",

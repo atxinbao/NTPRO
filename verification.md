@@ -2450,6 +2450,36 @@ gate, issue, and milestone state. No submit capability, production order
 mutation, Dashboard operation controls, public API change, or product-grade
 live terminal claim is added.
 
+# V231-003 Verification
+
+Date: 2026-07-04
+Executor: Codex
+Task: `V231-003` / GitHub issue `#739`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v23_release_gates.sh scripts/ai/verify_v23_1_gate_phase_split.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_23_0_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_v23_1_gate_phase_split.sh pre-release-contract = PASS
+scripts/ai/verify_v23_1_gate_phase_split.sh post-release-live = PASS, release_tag=ntpro-rust-only-v0.23.0, gate_run=28673868094, issue_718=closed, milestone=v0.23.0:closed
+scripts/ai/verify_release.sh v23.1-gate-phase-split = PASS, negative_selftest=1
+scripts/ai/verify_release.sh v23-release-gates = PASS, post-release live gate included, current_issue_state=CLOSED
+scripts/ai/verify_release.sh v23-strict-provenance = PASS, tag_exists=true source_dirty=true
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V231-003 adds explicit pre-release and post-release v23 gate phases and wires
+the post-release live closeout verifier into v23 release gates. The new verifier
+checks GitHub Release, hosted run, #711-#718 issue closeout, and v0.23.0
+milestone closeout, with negative self-tests for missing release, failed hosted
+run, open #718, and open milestone. No submit capability, production order
+mutation, Dashboard operation controls, public API change, or product-grade
+live terminal claim is added.
+
 # V231-002 Verification
 
 Date: 2026-07-04

@@ -64,6 +64,7 @@ scripts/ai/verify_release.sh v23-release-gates
 scripts/ai/verify_release.sh v23-strict-provenance
 scripts/ai/verify_v23_release_gates.sh
 scripts/ai/verify_v23_strict_provenance.sh
+scripts/ai/verify_release.sh v23.1-gate-phase-split
 scripts/ai/verify_v23_dashboard_observability_smoke.sh
 scripts/ai/verify_release.sh release-publish-after-gate
 ```
@@ -72,6 +73,7 @@ Post-release closeout cleanup is verified by:
 
 ```text
 scripts/ai/verify_release.sh v23.1-stale-provenance-cleanup
+scripts/ai/verify_release.sh v23.1-gate-phase-split
 ```
 
 The strict provenance gate writes:
