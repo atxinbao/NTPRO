@@ -53,6 +53,9 @@ read_model schema_only_scoped rows = 4
 release manifest cases = 100
 release executable_replay cases = 95
 release schema_only_scoped cases = 5
+capability class = evidence / replay / readonly observability only
+production multi-node runtime implementation = not included
+v0.24.0 entry = future contract and gated implementation only
 ```
 
 ## Release Gates And Strict Provenance
@@ -74,6 +77,7 @@ Post-release closeout cleanup is verified by:
 ```text
 scripts/ai/verify_release.sh v23.1-stale-provenance-cleanup
 scripts/ai/verify_release.sh v23.1-gate-phase-split
+scripts/ai/verify_release.sh v23.1-evidence-replay-only-boundary
 ```
 
 The strict provenance gate writes:

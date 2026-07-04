@@ -150,8 +150,8 @@ risk/alert/audit/provenance automatic action controls = not included
 
 ### v0.23.0 - Multi-Account / Multi-Strategy / Multi-Venue Node Isolation
 
-Goal: make live-trading state usable in normal production topology without
-mixing accounts, strategies, venues, or permissions.
+Goal: make evidence and replay for normal production topology isolation
+auditable without mixing accounts, strategies, venues, or permissions.
 
 Scope:
 
@@ -160,19 +160,25 @@ Scope:
 - Venue isolation.
 - Node-level identity, permission, and evidence partitioning.
 - Cross-node read-model aggregation with explicit provenance.
+- Evidence/replay-only claim language.
 
 Boundary:
 
 ```text
+v0.23.0 capability class = evidence / replay / readonly observability only
+production multi-node runtime = not included
+runtime integrated multi-node execution = not included
 cross-account implicit operation = not included
 cross-venue implicit operation = not included
 shared approval consumption across isolated nodes = not included
+product-grade live trading terminal = not included
 ```
 
 ### v0.24.0 - Execution Algorithms And Order Control
 
-Goal: introduce controlled execution and order-control capability only after
-the read model and isolation layers are established.
+Goal: introduce controlled execution and order-control capability only through
+a future contract and gated implementation after the read model and isolation
+evidence layers are established.
 
 Scope candidates:
 
@@ -188,6 +194,8 @@ Required boundary:
 ```text
 all execution algorithms must be explicitly risk-gated
 all retry/replace/amend behavior must be owner-approved or policy-approved
+v0.24.0 capability = future contract and gated implementation only
+no v0.24.0 runtime capability is inherited automatically from v0.23.0
 all order-control behavior must be auditable
 ```
 

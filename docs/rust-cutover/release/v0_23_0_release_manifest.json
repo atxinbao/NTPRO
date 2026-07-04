@@ -4,6 +4,7 @@
   "product_version": "v0.23.0",
   "release_status": "released",
   "release_scope": "multi_node_isolation_and_readonly_observability",
+  "capability_class": "evidence_replay_readonly_observability_only",
   "previous_release": {
     "version": "v0.22.1",
     "tag": "ntpro-rust-only-v0.22.1",
@@ -90,6 +91,7 @@
     {"name": "v23-release-gate-script", "command": "scripts/ai/verify_v23_release_gates.sh", "required": true},
     {"name": "v23-strict-provenance-script", "command": "scripts/ai/verify_v23_strict_provenance.sh", "required": true},
     {"name": "v23.1-gate-phase-split", "command": "scripts/ai/verify_release.sh v23.1-gate-phase-split", "required": true},
+    {"name": "v23.1-evidence-replay-only-boundary", "command": "scripts/ai/verify_release.sh v23.1-evidence-replay-only-boundary", "required": true},
     {"name": "v23-dashboard-observability-smoke", "command": "scripts/ai/verify_v23_dashboard_observability_smoke.sh", "required": true},
     {"name": "release-publish-after-gate", "command": "scripts/ai/verify_release.sh release-publish-after-gate", "required": true}
   ],
@@ -172,8 +174,17 @@
   "next_tracks": {
     "patch": "v0.23.1",
     "capability": "v0.24.0",
+    "capability_entry": "future_contract_and_gated_implementation_only",
+    "inherits_runtime_capability": false,
     "inherits_production_submit": false,
     "inherits_dashboard_operation_controls": false
+  },
+  "runtime_claims": {
+    "production_multi_node_runtime": false,
+    "runtime_integrated_multi_node_execution": false,
+    "runtime_implementation_complete": false,
+    "product_grade_terminal_ready": false,
+    "v24_inherits_runtime_capability_from_v23": false
   },
   "validation_artifacts": {
     "strict_release_provenance_manifest_path": "target/ntpro-v230/v0_23_0_strict_release_manifest.json"

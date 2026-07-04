@@ -55,6 +55,7 @@ release publish after gate = required
 release publication before hosted gate success = forbidden
 v23.1 stale provenance cleanup = required
 v23.1 gate phase split = required
+v23.1 evidence replay only boundary = required
 ```
 
 ## Issue Closeout
@@ -88,6 +89,9 @@ multi_venue_node_isolation = true
 read_only_dashboard_observability = true
 owner_approved_control_contract_defined = true
 product_grade_trading_terminal_claim = false
+capability_class = evidence / replay / readonly observability only
+production_multi_node_runtime_implementation = false
+v0.24.0_runtime_capability_inherited_from_v0.23.0 = false
 new_submit_capability = false
 production_order_submission_allowed = false
 production_order_mutation_allowed = false

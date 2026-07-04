@@ -91,6 +91,7 @@ for marker in \
   "scripts/ai/verify_release.sh v23-release-gates" \
   "scripts/ai/verify_release.sh v23-strict-provenance" \
   "scripts/ai/verify_release.sh v23.1-gate-phase-split" \
+  "scripts/ai/verify_release.sh v23.1-evidence-replay-only-boundary" \
   "scripts/ai/verify_v23_release_gates.sh" \
   "scripts/ai/verify_v23_strict_provenance.sh" \
   "scripts/ai/publish_ntpro_release_after_gate.sh"; do
@@ -105,6 +106,7 @@ for marker in \
   "v23 release gates = required" \
   "v23 strict provenance = required" \
   "v23.1 gate phase split = required" \
+  "v23.1 evidence replay only boundary = required" \
   "release publish after gate = required" \
   "#718 V230-007 = closed after tag, hosted gate, public release, and publication evidence were recorded" \
   "release closeout evidence = docs/rust-cutover/release/v0_23_0_release_closeout_evidence.md"; do
@@ -116,6 +118,7 @@ cargo test -p nautilus-cli --test golden_trace_read_model_projection -- --nocapt
 scripts/ai/verify_v23_dashboard_observability_smoke.sh
 scripts/ai/verify_release.sh release-publish-after-gate
 scripts/ai/verify_v23_1_gate_phase_split.sh post-release-live
+scripts/ai/verify_v23_1_evidence_replay_only_boundary.sh
 
 if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   for issue in 705 706 707 708 709 710 711 712 713 714 715 716 717; do
@@ -169,6 +172,7 @@ require(manifest.get("task_id") == "V230-007", "manifest task_id mismatch")
 require(manifest.get("product_version") == os.environ["RELEASE_VERSION"], "manifest product version mismatch")
 require(manifest.get("release_status") == "released", "manifest release status mismatch")
 require(manifest.get("release_scope") == "multi_node_isolation_and_readonly_observability", "manifest release scope mismatch")
+require(manifest.get("capability_class") == "evidence_replay_readonly_observability_only", "manifest capability class mismatch")
 
 previous = manifest.get("previous_release") or {}
 require(previous.get("tag") == os.environ["PREVIOUS_TAG"], "previous release tag mismatch")
@@ -227,6 +231,7 @@ for command in (
     "scripts/ai/verify_release.sh v23-release-gates",
     "scripts/ai/verify_release.sh v23-strict-provenance",
     "scripts/ai/verify_release.sh v23.1-gate-phase-split",
+    "scripts/ai/verify_release.sh v23.1-evidence-replay-only-boundary",
     "scripts/ai/verify_v23_release_gates.sh",
     "scripts/ai/verify_v23_strict_provenance.sh",
     "scripts/ai/verify_v23_dashboard_observability_smoke.sh",
@@ -294,6 +299,23 @@ for key in (
     "product_grade_trading_terminal_claim",
 ):
     require_false(manifest.get("boundary_flags") or {}, key)
+
+runtime_claims = manifest.get("runtime_claims") or {}
+for key in (
+    "production_multi_node_runtime",
+    "runtime_integrated_multi_node_execution",
+    "runtime_implementation_complete",
+    "product_grade_terminal_ready",
+    "v24_inherits_runtime_capability_from_v23",
+):
+    require_false(runtime_claims, key)
+
+next_tracks = manifest.get("next_tracks") or {}
+require(
+    next_tracks.get("capability_entry") == "future_contract_and_gated_implementation_only",
+    "next v0.24.0 capability entry mismatch",
+)
+require(next_tracks.get("inherits_runtime_capability") is False, "v0.24.0 runtime inheritance must be false")
 
 scope_cases = golden_trace_manifest.get("cases") or []
 status_counts = Counter(item.get("status") for item in scope_cases)
