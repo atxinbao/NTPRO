@@ -4,8 +4,8 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.23.0`, the Multi-Account / Multi-Strategy / Multi-Venue Node Isolation release.
-The next patch track is `v0.23.1`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.23.1`, the v0.23.1 Patch Closeout Governance release.
+The next patch track is `v0.23.2`.
 The next capability track is `v0.24.0`.
 
 ## Current Release Surface
@@ -13,14 +13,14 @@ The next capability track is `v0.24.0`.
 Current published release:
 
 ```text
-ntpro-rust-only-v0.23.0
+ntpro-rust-only-v0.23.1
 ```
 
 Current capability boundary:
 
 ```text
-Multi-Account / Multi-Strategy / Multi-Venue Node Isolation
-capability class evidence / replay / readonly observability only
+v0.23.1 Patch Closeout Governance
+capability class patch closeout / evidence / replay / readonly observability only
 v0.20.1 production order lifecycle hardening baseline
 v0.21.0 unified read model foundation closeout baseline
 v0.21.1 unified read model hardening baseline
@@ -56,23 +56,23 @@ no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no product-grade live trading terminal claim
 ```
 
-`v0.23.0` publishes the Multi-Account / Multi-Strategy / Multi-Venue Node
-Isolation release with scoped identity, fail-closed mismatch behavior,
-owner-approved control-plane contract evidence, read-only Dashboard
-observability, gate-before-publish governance, and strict provenance. It does
-not create a product-grade live trading terminal, ungated operation controls,
-production order mutation, shared approval consumption, or automatic execution.
+`v0.23.1` publishes the patch closeout over the Multi-Account /
+Multi-Strategy / Multi-Venue Node Isolation release line with closeout evidence,
+stale provenance cleanup, gate phase split semantics, evidence/replay-only
+boundary hardening, publication evidence audit path, gate-before-publish
+governance, and strict provenance. It does not create a product-grade live
+trading terminal, ungated operation controls, production order mutation, shared
+approval consumption, or automatic execution.
 
-## Published Capability Track: v0.23.0
+## Published Capability Track: v0.23.1
 
-`v0.23.0` is the current published Multi-Account / Multi-Strategy /
-Multi-Venue Node Isolation line. It keeps the v0.22.1 read-only Workbench
-boundary and adds scoped account, strategy, venue node, orchestration, and
-Dashboard observability evidence.
-It is an evidence/replay-only release surface, not a production multi-node
-runtime implementation.
+`v0.23.1` is the current published patch closeout line. It preserves the
+read-only Workbench boundary and the v0.23.0 scoped account, strategy, venue
+node, orchestration, and Dashboard observability evidence while hardening
+release governance and provenance. It is an evidence/replay-only release
+surface, not a production multi-node runtime implementation.
 
-`v0.23.0` explicitly does not include product-grade live trading terminal
+`v0.23.1` explicitly does not include product-grade live trading terminal
 readiness, complete executable read-model runtime coverage, new production
 submit capability, production order mutation, ungated operation controls,
 automatic cancel/remediation, strategy-driven production execution, shared

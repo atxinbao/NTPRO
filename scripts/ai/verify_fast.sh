@@ -20,7 +20,7 @@ echo "does not replace workspace cargo check, clippy, golden traces, release gat
 echo "compile/lint check: use VERIFY_FAST_CARGO_CHECK=1 VERIFY_FAST_CLIPPY=1 scripts/ai/verify_fast.sh"
 echo "full test check: use scripts/ai/verify_full.sh"
 echo "release gate: use scripts/ai/verify_release.sh"
-echo "strict provenance gate: use scripts/ai/verify_release_strict.sh v18, v19, v20, v21, or v22, plus scripts/ai/verify_release.sh v21.1-strict-provenance, v22.1-strict-provenance, or v23-strict-provenance for later release lines"
+echo "strict provenance gate: use scripts/ai/verify_release_strict.sh v18, v19, v20, v21, or v22, plus scripts/ai/verify_release.sh v21.1-strict-provenance, v22.1-strict-provenance, v23-strict-provenance, or v23.1-strict-provenance for later release lines"
 
 echo "== verify_fast: rust fmt =="
 cargo fmt --check

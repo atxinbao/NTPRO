@@ -2562,3 +2562,36 @@ plus GitHub remote state. The generated local
 optional and is not the sole proof. No release permission model, runtime trading
 behavior, public API, submit path, production order mutation, or Dashboard
 operation control is changed.
+
+# V231-006 Verification
+
+Date: 2026-07-04
+Executor: Codex
+Task: `V231-006` / GitHub issue `#742`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v23_1_release_gates.sh scripts/ai/verify_v23_1_strict_provenance.sh scripts/ai/verify_v23_1_evidence_replay_only_boundary.sh scripts/ai/check_release_surface_current.sh scripts/ai/check_github_release_published.sh scripts/ai/publish_ntpro_release_after_gate.sh scripts/ai/verify_fast.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_23_1_release_manifest.json >/dev/null = PASS
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); YAML.load_file(".github/workflows/release-publish.yml")' = PASS
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/verify_release.sh release-surface-current-guard = PASS, pre_tag_mode missing_tag=ntpro-rust-only-v0.23.1
+scripts/ai/verify_release.sh v23.1-strict-provenance = PASS, tag_exists=false, source_dirty=true, manifest=target/ntpro-v231/v0_23_1_strict_release_manifest.json
+scripts/ai/verify_release.sh v23.1-evidence-replay-only-boundary = PASS, files=9, negative_selftest=1
+scripts/ai/verify_release.sh v23.1-release-gates = PASS, release_tag=ntpro-rust-only-v0.23.1, base_release=ntpro-rust-only-v0.23.0, current_issue_state=OPEN, negative_selftest=1
+NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE=1 scripts/ai/verify_release.sh release-publication-guard = PASS, offline_skip reason=missing_local_git_tag:ntpro-rust-only-v0.23.1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V231-006 adds the v0.23.1 patch release notes, readiness report, manifest,
+aggregate release gate, strict provenance gate, hosted tag stages, current
+release surface guard updates, and publication guard support. The v0.23.1
+gate requires V231-001 through V231-006 evidence, v0.23.0 closeout proof,
+stale provenance cleanup, phase-split publication semantics, evidence/replay
+boundary hardening, publication evidence audit path, release surface current
+guard, and publish-after-gate proof. No runtime trading behavior, public API,
+submit path, production order mutation, Dashboard operation control, or
+v0.24.0 implementation is added.
