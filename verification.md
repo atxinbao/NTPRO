@@ -3222,3 +3222,36 @@ valid five-category matrix plus missing required fields, redaction/secret leak,
 and automatic-action boundary failures. Routing remains evidence/manual-review
 only; there is no external paging integration, automatic remediation, production
 order action, adapter send, live exchange request, or order lifecycle change.
+
+# V250-003 Verification
+
+Date: 2026-07-05
+Executor: Codex
+Task: `V250-003` / GitHub issue `#780`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_incident_lifecycle_acknowledgement.sh = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v250_incident_lifecycle_acknowledgement.jsonl").read_text().splitlines() if line.strip()]' = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+scripts/ai/verify_release.sh v25-incident-lifecycle-acknowledgement = PASS, cases=7, states=6, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 155 cases, 95 executable replay, 55 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v25-alert-taxonomy-routing = PASS, cases=4, valid_categories=5, negative_selftest=1
+scripts/ai/verify_release.sh v25-monitoring-observability-contract = PASS, cases=5, components_checked=25, negative_selftest=1
+scripts/ai/verify_release.sh v25-intake-gate = PASS, V241 issues=7/7, release_tag=ntpro-rust-only-v0.24.1, hosted_gate_jobs=72/72, tag_is_ancestor_of_origin_main=true, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V250-003 defines incident lifecycle states, allowed transitions, owner/assignee
+assignment, source alert linkage, operator acknowledgement, source provenance,
+lineage, audit trace, freshness, redaction, and read-only operation boundary
+evidence. The verifier covers a full valid lifecycle plus invalid transition,
+missing owner/source alert, resolved without acknowledgement, stale incident,
+redaction/secret leak, and automatic-action boundary failures. Incident
+evidence remains manual/read-only only; there is no external ticket integration,
+automatic strategy stop, production order action, adapter send, live exchange
+request, Dashboard trading control, or runtime trading behavior change.
