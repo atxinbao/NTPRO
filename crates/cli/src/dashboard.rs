@@ -232,7 +232,19 @@ const TRADER_TERMINAL_READ_MODEL_ARTIFACT_RELATIVE_PATH: &str =
 const UNIFIED_READ_MODEL_CONTRACT_VERSION: &str = "ntpro.v210.unified_read_model.v1";
 const UNIFIED_READ_MODEL_SCHEMA_VERSION: &str = "ntpro.v210.unified_read_model.schema.v1";
 const V24_ORDER_CONTROL_PREVIEW_COMPONENT: &str = "v24_order_control_preview";
-const TRADER_TERMINAL_READ_MODEL_REQUIRED_COMPONENTS: [&str; 7] = [
+const V25_MONITORING_OBSERVABILITY_COMPONENT: &str = "v25_monitoring_observability";
+const V25_ALERT_TAXONOMY_COMPONENT: &str = "v25_alert_taxonomy_routing";
+const V25_INCIDENT_LIFECYCLE_COMPONENT: &str = "v25_incident_lifecycle";
+const V25_RUNBOOK_AUDIT_COMPONENT: &str = "v25_runbook_audit";
+const V25_DR_PREVIEW_COMPONENT: &str = "v25_dr_preview_drill";
+const V25_DASHBOARD_SURFACE_COMPONENTS: [&str; 5] = [
+    V25_MONITORING_OBSERVABILITY_COMPONENT,
+    V25_ALERT_TAXONOMY_COMPONENT,
+    V25_INCIDENT_LIFECYCLE_COMPONENT,
+    V25_RUNBOOK_AUDIT_COMPONENT,
+    V25_DR_PREVIEW_COMPONENT,
+];
+const TRADER_TERMINAL_READ_MODEL_REQUIRED_COMPONENTS: [&str; 12] = [
     "account",
     "positions",
     "orders",
@@ -240,6 +252,11 @@ const TRADER_TERMINAL_READ_MODEL_REQUIRED_COMPONENTS: [&str; 7] = [
     "risk",
     "lifecycle_status",
     "operation_entry",
+    V25_MONITORING_OBSERVABILITY_COMPONENT,
+    V25_ALERT_TAXONOMY_COMPONENT,
+    V25_INCIDENT_LIFECYCLE_COMPONENT,
+    V25_RUNBOOK_AUDIT_COMPONENT,
+    V25_DR_PREVIEW_COMPONENT,
 ];
 
 const DASHBOARD_HTML: &str = r#"<!doctype html>
@@ -1131,6 +1148,7 @@ function renderTraderTerminalWorkbench(readModels) {
     ["workbench-tab-audit-provenance", "workbench-panel-audit-provenance", "审计 / Provenance", panelStatus("lifecycle_status"), "V220-004"],
     ["workbench-tab-operation-entry", "workbench-panel-operation-entry", "操作入口", snapshotValue(primary.operation_entry_status) || panelStatus("operation_entry_status"), "V220-005"],
     ["workbench-tab-v24-order-control-preview", "workbench-panel-v24-order-control-preview", "v24 Order-control preview", panelStatus("v24_order_control_preview_status"), "V240-008"],
+    ["workbench-tab-v25-monitoring-surface", "workbench-panel-v25-monitoring-surface", "v25 Monitoring / Incident / DR", panelStatus("v25_dashboard_surface_status"), "V250-006"],
   ];
   const controlsDisabled = [
     "new_submit_capability",
@@ -1348,6 +1366,39 @@ function renderTraderTerminalWorkbench(readModels) {
     panelRow("Manual entry", boundaryValue("manual_operation_entry_enabled")),
     panelRow("Automatic action", boundaryValue("automatic_operation_action_allowed")),
   ];
+  const v25MonitoringSurfaceRows = [
+    panelRow("Surface status", snapshotValue(primary.v25_dashboard_surface_status)),
+    panelRow("Monitoring status", snapshotValue(primary.v25_monitoring_status)),
+    panelRow("Runtime health", snapshotValue(primary.v25_monitoring_runtime_health)),
+    panelRow("Effective status", snapshotValue(primary.v25_monitoring_effective_status)),
+    panelRow("Monitoring freshness", snapshotValue(primary.v25_monitoring_freshness_status)),
+    panelRow("Monitoring source", snapshotValue(primary.v25_monitoring_source_ref)),
+    panelRow("Monitoring redaction", snapshotValue(primary.v25_monitoring_redaction_state)),
+    panelRow("Alert status", snapshotValue(primary.v25_alert_status)),
+    panelRow("Alert severity", snapshotValue(primary.v25_alert_highest_severity)),
+    panelRow("Alert route", snapshotValue(primary.v25_alert_route_status)),
+    panelRow("Alert dedupe", snapshotValue(primary.v25_alert_dedupe_key)),
+    panelRow("Incident status", snapshotValue(primary.v25_incident_status)),
+    panelRow("Incident state", snapshotValue(primary.v25_incident_current_state)),
+    panelRow("Ack status", snapshotValue(primary.v25_incident_ack_status)),
+    panelRow("Incident owner", snapshotValue(primary.v25_incident_owner)),
+    panelRow("Runbook status", snapshotValue(primary.v25_runbook_status)),
+    panelRow("Runbook decision", snapshotValue(primary.v25_runbook_decision_type)),
+    panelRow("Runbook evidence", snapshotValue(primary.v25_runbook_evidence_ref)),
+    panelRow("DR preview status", snapshotValue(primary.v25_dr_preview_status)),
+    panelRow("DR scenario", snapshotValue(primary.v25_dr_scenario)),
+    panelRow("Recovery point", snapshotValue(primary.v25_dr_recovery_point)),
+    panelRow("Operator approval", snapshotValue(primary.v25_dr_operator_approval_status)),
+    panelRow("Snapshot lineage", snapshotValue(primary.v25_dr_snapshot_lineage)),
+    panelRow("Blocking reasons", snapshotValue(primary.v25_surface_blocking_reasons)),
+    panelRow("Submit control", boundaryValue("dashboard_submit_controls_enabled")),
+    panelRow("Cancel control", boundaryValue("dashboard_cancel_controls_enabled")),
+    panelRow("Retry control", boundaryValue("dashboard_retry_controls_enabled")),
+    panelRow("Replace control", boundaryValue("dashboard_replace_controls_enabled")),
+    panelRow("Amend control", boundaryValue("dashboard_amend_controls_enabled")),
+    panelRow("Flatten control", boundaryValue("dashboard_flatten_controls_enabled")),
+    panelRow("Order ticket", boundaryValue("trader_terminal_order_ticket_enabled")),
+  ];
   const panelRows = {
     "workbench-panel-account": accountRows,
     "workbench-panel-positions": positionRows,
@@ -1358,6 +1409,7 @@ function renderTraderTerminalWorkbench(readModels) {
     "workbench-panel-audit-provenance": auditProvenanceRows,
     "workbench-panel-operation-entry": operationEntryRows,
     "workbench-panel-v24-order-control-preview": v24OrderControlPreviewRows,
+    "workbench-panel-v25-monitoring-surface": v25MonitoringSurfaceRows,
   };
 
   document.getElementById("trader-terminal-workbench").innerHTML = `
@@ -1439,9 +1491,9 @@ function renderReadModelRuntime(readModels) {
             <td data-label="节点"><strong>${text(item.node_id)}</strong></td>
             <td data-label="当前结论"><span class="status-${safe(item.health)}">${displayText(item.health)}</span><div class="muted">${displayText(snapshotValue(item.readiness_status))}</div><div class="muted">${displayText(snapshotValue(item.diagnostic))}</div>${panelRow("阻塞原因", snapshotValue(item.blocking_reasons))}${panelRow("缺失组件", snapshotValue(item.missing_components))}${panelRow("组件诊断", snapshotValue(item.component_diagnostics))}</td>
             <td data-label="Snapshot">${panelRow("Contract", snapshotValue(item.contract_version))}${panelRow("Schema", snapshotValue(item.schema_version))}${panelRow("ID", snapshotValue(item.snapshot_id))}${panelRow("Kind", snapshotValue(item.snapshot_kind))}${panelRow("Health", snapshotValue(item.snapshot_health_status))}${panelRow("Freshness", snapshotValue(item.freshness_status))}${panelRow("Source", `${snapshotValue(item.source_type)} ${snapshotValue(item.source_ref)}`)}${panelRow("Redaction", snapshotValue(item.redaction_state))}</td>
-            <td data-label="组件状态">${panelRow("Account", snapshotValue(item.account_status))}${panelRow("Positions", snapshotValue(item.positions_status))}${panelRow("Orders", snapshotValue(item.orders_status))}${panelRow("Fills", snapshotValue(item.fills_status))}${panelRow("Risk", snapshotValue(item.risk_status))}${panelRow("Lifecycle", snapshotValue(item.lifecycle_status))}</td>
+            <td data-label="组件状态">${panelRow("Account", snapshotValue(item.account_status))}${panelRow("Positions", snapshotValue(item.positions_status))}${panelRow("Orders", snapshotValue(item.orders_status))}${panelRow("Fills", snapshotValue(item.fills_status))}${panelRow("Risk", snapshotValue(item.risk_status))}${panelRow("Lifecycle", snapshotValue(item.lifecycle_status))}${panelRow("v25 Surface", snapshotValue(item.v25_dashboard_surface_status))}${panelRow("Monitoring", snapshotValue(item.v25_monitoring_status))}${panelRow("Incident", snapshotValue(item.v25_incident_status))}${panelRow("Runbook", snapshotValue(item.v25_runbook_status))}${panelRow("DR Preview", snapshotValue(item.v25_dr_preview_status))}</td>
             <td data-label="基础状态">${panelRow("Account", snapshotValue(item.account_summary))}${panelRow("Positions", snapshotValue(item.positions_summary))}${panelRow("Orders", snapshotValue(item.orders_summary))}${panelRow("Fills", snapshotValue(item.fills_summary))}${panelRow("Risk", snapshotValue(item.risk_summary))}${panelRow("Lifecycle", snapshotValue(item.lifecycle_summary))}</td>
-            <td data-label="只读边界">${panelRow("新增 Submit 能力", snapshotValue(item.new_submit_capability))}${panelRow("下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("审批控件", snapshotValue(item.dashboard_approval_controls_enabled))}${panelRow("撤单控件", snapshotValue(item.dashboard_cancel_controls_enabled))}${panelRow("重试控件", snapshotValue(item.dashboard_retry_controls_enabled))}${panelRow("Submit", snapshotValue(item.dashboard_submit_controls_enabled))}${panelRow("Replace", snapshotValue(item.dashboard_replace_controls_enabled))}${panelRow("Amend", snapshotValue(item.dashboard_amend_controls_enabled))}${panelRow("Flatten", snapshotValue(item.dashboard_flatten_controls_enabled))}${panelRow("订单票据", snapshotValue(item.trader_terminal_order_ticket_enabled))}${panelRow("实盘终端声明", snapshotValue(item.trader_terminal_live_trading_claim))}${panelRow("产品级声明", snapshotValue(item.product_grade_trading_terminal_claim))}${panelRow("v24 preview", snapshotValue(item.v24_order_control_preview_status))}${panelRow("v24 scope", snapshotValue(item.v24_scope_key))}${panelRow("v24 source", snapshotValue(item.v24_source_provenance))}${panelRow("v24 redaction", snapshotValue(item.v24_redaction_state))}${panelRow("v24 missing evidence", snapshotValue(item.v24_missing_preview_evidence))}</td>
+            <td data-label="只读边界">${panelRow("新增 Submit 能力", snapshotValue(item.new_submit_capability))}${panelRow("下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("审批控件", snapshotValue(item.dashboard_approval_controls_enabled))}${panelRow("撤单控件", snapshotValue(item.dashboard_cancel_controls_enabled))}${panelRow("重试控件", snapshotValue(item.dashboard_retry_controls_enabled))}${panelRow("Submit", snapshotValue(item.dashboard_submit_controls_enabled))}${panelRow("Replace", snapshotValue(item.dashboard_replace_controls_enabled))}${panelRow("Amend", snapshotValue(item.dashboard_amend_controls_enabled))}${panelRow("Flatten", snapshotValue(item.dashboard_flatten_controls_enabled))}${panelRow("订单票据", snapshotValue(item.trader_terminal_order_ticket_enabled))}${panelRow("实盘终端声明", snapshotValue(item.trader_terminal_live_trading_claim))}${panelRow("产品级声明", snapshotValue(item.product_grade_trading_terminal_claim))}${panelRow("v24 preview", snapshotValue(item.v24_order_control_preview_status))}${panelRow("v24 scope", snapshotValue(item.v24_scope_key))}${panelRow("v24 source", snapshotValue(item.v24_source_provenance))}${panelRow("v24 redaction", snapshotValue(item.v24_redaction_state))}${panelRow("v24 missing evidence", snapshotValue(item.v24_missing_preview_evidence))}${panelRow("v25 blockers", snapshotValue(item.v25_surface_blocking_reasons))}</td>
             <td data-label="工件" class="path">${displayText(snapshotValue(item.artifact_path))}</td>
           </tr>
         `).join("")}
@@ -4080,6 +4132,31 @@ pub struct TraderTerminalReadModelStatus {
     pub v24_missing_preview_evidence: DashboardValue<String>,
     pub v24_forbidden_control_detected: DashboardValue<String>,
     pub v24_render_smoke_case: DashboardValue<String>,
+    pub v25_dashboard_surface_status: DashboardValue<String>,
+    pub v25_monitoring_status: DashboardValue<String>,
+    pub v25_monitoring_runtime_health: DashboardValue<String>,
+    pub v25_monitoring_effective_status: DashboardValue<String>,
+    pub v25_monitoring_freshness_status: DashboardValue<String>,
+    pub v25_monitoring_source_ref: DashboardValue<String>,
+    pub v25_monitoring_redaction_state: DashboardValue<String>,
+    pub v25_alert_status: DashboardValue<String>,
+    pub v25_alert_highest_severity: DashboardValue<String>,
+    pub v25_alert_route_status: DashboardValue<String>,
+    pub v25_alert_dedupe_key: DashboardValue<String>,
+    pub v25_incident_status: DashboardValue<String>,
+    pub v25_incident_current_state: DashboardValue<String>,
+    pub v25_incident_ack_status: DashboardValue<String>,
+    pub v25_incident_owner: DashboardValue<String>,
+    pub v25_runbook_status: DashboardValue<String>,
+    pub v25_runbook_decision_type: DashboardValue<String>,
+    pub v25_runbook_decision_status: DashboardValue<String>,
+    pub v25_runbook_evidence_ref: DashboardValue<String>,
+    pub v25_dr_preview_status: DashboardValue<String>,
+    pub v25_dr_scenario: DashboardValue<String>,
+    pub v25_dr_recovery_point: DashboardValue<String>,
+    pub v25_dr_operator_approval_status: DashboardValue<String>,
+    pub v25_dr_snapshot_lineage: DashboardValue<String>,
+    pub v25_surface_blocking_reasons: DashboardValue<String>,
     pub orders_summary: DashboardValue<String>,
     pub fills_summary: DashboardValue<String>,
     pub risk_summary: DashboardValue<String>,
@@ -4943,6 +5020,31 @@ fn degraded_trader_terminal_read_model_status(
         v24_missing_preview_evidence: DashboardValue::unknown(),
         v24_forbidden_control_detected: DashboardValue::unknown(),
         v24_render_smoke_case: DashboardValue::unknown(),
+        v25_dashboard_surface_status: DashboardValue::unknown(),
+        v25_monitoring_status: DashboardValue::unknown(),
+        v25_monitoring_runtime_health: DashboardValue::unknown(),
+        v25_monitoring_effective_status: DashboardValue::unknown(),
+        v25_monitoring_freshness_status: DashboardValue::unknown(),
+        v25_monitoring_source_ref: DashboardValue::unknown(),
+        v25_monitoring_redaction_state: DashboardValue::unknown(),
+        v25_alert_status: DashboardValue::unknown(),
+        v25_alert_highest_severity: DashboardValue::unknown(),
+        v25_alert_route_status: DashboardValue::unknown(),
+        v25_alert_dedupe_key: DashboardValue::unknown(),
+        v25_incident_status: DashboardValue::unknown(),
+        v25_incident_current_state: DashboardValue::unknown(),
+        v25_incident_ack_status: DashboardValue::unknown(),
+        v25_incident_owner: DashboardValue::unknown(),
+        v25_runbook_status: DashboardValue::unknown(),
+        v25_runbook_decision_type: DashboardValue::unknown(),
+        v25_runbook_decision_status: DashboardValue::unknown(),
+        v25_runbook_evidence_ref: DashboardValue::unknown(),
+        v25_dr_preview_status: DashboardValue::unknown(),
+        v25_dr_scenario: DashboardValue::unknown(),
+        v25_dr_recovery_point: DashboardValue::unknown(),
+        v25_dr_operator_approval_status: DashboardValue::unknown(),
+        v25_dr_snapshot_lineage: DashboardValue::unknown(),
+        v25_surface_blocking_reasons: DashboardValue::unknown(),
         orders_summary: DashboardValue::unknown(),
         fills_summary: DashboardValue::unknown(),
         risk_summary: DashboardValue::unknown(),
@@ -5643,6 +5745,89 @@ fn trader_terminal_read_model_status_from_value(
         }
     }
 
+    let mut v25_surface_diagnostics = Vec::new();
+    for component in V25_DASHBOARD_SURFACE_COMPONENTS {
+        validate_v25_dashboard_surface_component(
+            value,
+            component,
+            &mut component_diagnostics,
+            &mut v25_surface_diagnostics,
+            &mut health,
+        );
+    }
+    let v25_dashboard_surface_status =
+        v25_dashboard_surface_status(&v25_surface_diagnostics, health);
+    let v25_surface_blocking_reasons = diagnostic_value(&v25_surface_diagnostics);
+
+    let v25_monitoring_status = component_statuses
+        .get(V25_MONITORING_OBSERVABILITY_COMPONENT)
+        .cloned()
+        .unwrap_or_else(DashboardValue::unknown);
+    let v25_monitoring_runtime_health = read_model_component_data_scalar(
+        value,
+        V25_MONITORING_OBSERVABILITY_COMPONENT,
+        "runtime_health_status",
+    );
+    let v25_monitoring_effective_status = read_model_component_data_scalar(
+        value,
+        V25_MONITORING_OBSERVABILITY_COMPONENT,
+        "effective_monitoring_status",
+    );
+    let v25_monitoring_freshness_status =
+        read_model_component_freshness_status(value, V25_MONITORING_OBSERVABILITY_COMPONENT);
+    let v25_monitoring_source_ref = read_model_component_source_field(
+        value,
+        V25_MONITORING_OBSERVABILITY_COMPONENT,
+        "source_ref",
+    );
+    let v25_monitoring_redaction_state =
+        read_model_component_redaction_status(value, V25_MONITORING_OBSERVABILITY_COMPONENT);
+    let v25_alert_status = component_statuses
+        .get(V25_ALERT_TAXONOMY_COMPONENT)
+        .cloned()
+        .unwrap_or_else(DashboardValue::unknown);
+    let v25_alert_highest_severity =
+        read_model_component_data_scalar(value, V25_ALERT_TAXONOMY_COMPONENT, "highest_severity");
+    let v25_alert_route_status =
+        read_model_component_data_scalar(value, V25_ALERT_TAXONOMY_COMPONENT, "route_status");
+    let v25_alert_dedupe_key =
+        read_model_component_data_scalar(value, V25_ALERT_TAXONOMY_COMPONENT, "dedupe_key");
+    let v25_incident_status = component_statuses
+        .get(V25_INCIDENT_LIFECYCLE_COMPONENT)
+        .cloned()
+        .unwrap_or_else(DashboardValue::unknown);
+    let v25_incident_current_state =
+        read_model_component_data_scalar(value, V25_INCIDENT_LIFECYCLE_COMPONENT, "current_state");
+    let v25_incident_ack_status =
+        read_model_component_data_scalar(value, V25_INCIDENT_LIFECYCLE_COMPONENT, "ack_status");
+    let v25_incident_owner =
+        read_model_component_data_scalar(value, V25_INCIDENT_LIFECYCLE_COMPONENT, "owner");
+    let v25_runbook_status = component_statuses
+        .get(V25_RUNBOOK_AUDIT_COMPONENT)
+        .cloned()
+        .unwrap_or_else(DashboardValue::unknown);
+    let v25_runbook_decision_type =
+        read_model_component_data_scalar(value, V25_RUNBOOK_AUDIT_COMPONENT, "decision_type");
+    let v25_runbook_decision_status =
+        read_model_component_data_scalar(value, V25_RUNBOOK_AUDIT_COMPONENT, "decision_status");
+    let v25_runbook_evidence_ref =
+        read_model_component_data_scalar(value, V25_RUNBOOK_AUDIT_COMPONENT, "evidence_ref");
+    let v25_dr_preview_status = component_statuses
+        .get(V25_DR_PREVIEW_COMPONENT)
+        .cloned()
+        .unwrap_or_else(DashboardValue::unknown);
+    let v25_dr_scenario =
+        read_model_component_data_scalar(value, V25_DR_PREVIEW_COMPONENT, "scenario");
+    let v25_dr_recovery_point =
+        read_model_component_data_scalar(value, V25_DR_PREVIEW_COMPONENT, "recovery_point");
+    let v25_dr_operator_approval_status = read_model_component_data_scalar(
+        value,
+        V25_DR_PREVIEW_COMPONENT,
+        "operator_approval_status",
+    );
+    let v25_dr_snapshot_lineage =
+        read_model_component_data_scalar(value, V25_DR_PREVIEW_COMPONENT, "snapshot_lineage");
+
     let boundary = value.get("capability_boundary").unwrap_or(&Value::Null);
     let new_submit_capability = required_read_model_boundary_bool(
         boundary,
@@ -6242,6 +6427,31 @@ fn trader_terminal_read_model_status_from_value(
         v24_missing_preview_evidence,
         v24_forbidden_control_detected,
         v24_render_smoke_case,
+        v25_dashboard_surface_status,
+        v25_monitoring_status,
+        v25_monitoring_runtime_health,
+        v25_monitoring_effective_status,
+        v25_monitoring_freshness_status,
+        v25_monitoring_source_ref,
+        v25_monitoring_redaction_state,
+        v25_alert_status,
+        v25_alert_highest_severity,
+        v25_alert_route_status,
+        v25_alert_dedupe_key,
+        v25_incident_status,
+        v25_incident_current_state,
+        v25_incident_ack_status,
+        v25_incident_owner,
+        v25_runbook_status,
+        v25_runbook_decision_type,
+        v25_runbook_decision_status,
+        v25_runbook_evidence_ref,
+        v25_dr_preview_status,
+        v25_dr_scenario,
+        v25_dr_recovery_point,
+        v25_dr_operator_approval_status,
+        v25_dr_snapshot_lineage,
+        v25_surface_blocking_reasons,
         orders_summary: read_model_component_data_summary(value, "orders"),
         fills_summary: read_model_component_data_summary(value, "fills"),
         risk_summary: read_model_component_data_summary(value, "risk"),
@@ -6384,6 +6594,184 @@ fn required_read_model_boundary_bool(
             DashboardValue::unknown()
         }
     }
+}
+
+fn validate_v25_dashboard_surface_component(
+    snapshot: &Value,
+    component: &str,
+    component_diagnostics: &mut Vec<String>,
+    v25_surface_diagnostics: &mut Vec<String>,
+    health: &mut HealthStatus,
+) {
+    let Some(component_value) = snapshot
+        .get("components")
+        .and_then(|components| components.get(component))
+    else {
+        let diagnostic = format!("{component}:component_missing");
+        component_diagnostics.push(diagnostic.clone());
+        v25_surface_diagnostics.push(diagnostic);
+        *health = strongest_health(*health, HealthStatus::Degraded);
+        return;
+    };
+
+    match component_value
+        .get("component_status")
+        .and_then(Value::as_str)
+    {
+        Some("healthy") => {}
+        Some("degraded" | "partial" | "unavailable") => {
+            let diagnostic = format!("{component}:component_degraded");
+            component_diagnostics.push(diagnostic.clone());
+            v25_surface_diagnostics.push(diagnostic);
+            *health = strongest_health(*health, HealthStatus::Degraded);
+        }
+        Some("stale") => {
+            let diagnostic = format!("{component}:component_stale");
+            component_diagnostics.push(diagnostic.clone());
+            v25_surface_diagnostics.push(diagnostic);
+            *health = strongest_health(*health, HealthStatus::Stale);
+        }
+        Some("fail_closed" | "error") => {
+            let diagnostic = format!("{component}:component_fail_closed");
+            component_diagnostics.push(diagnostic.clone());
+            v25_surface_diagnostics.push(diagnostic);
+            *health = strongest_health(*health, HealthStatus::Error);
+        }
+        Some(other) => {
+            let diagnostic = format!("{component}:component_status_unexpected:{other}");
+            component_diagnostics.push(diagnostic.clone());
+            v25_surface_diagnostics.push(diagnostic);
+            *health = strongest_health(*health, HealthStatus::Error);
+        }
+        None => {
+            let diagnostic = format!("{component}:component_status_missing");
+            component_diagnostics.push(diagnostic.clone());
+            v25_surface_diagnostics.push(diagnostic);
+            *health = strongest_health(*health, HealthStatus::Error);
+        }
+    }
+
+    match component_value
+        .get("freshness")
+        .and_then(|freshness| freshness.get("status"))
+        .and_then(Value::as_str)
+    {
+        Some("fresh") => {}
+        Some("stale") => {
+            let diagnostic = format!("{component}:freshness_stale");
+            component_diagnostics.push(diagnostic.clone());
+            v25_surface_diagnostics.push(diagnostic);
+            *health = strongest_health(*health, HealthStatus::Stale);
+        }
+        Some(other) => {
+            let diagnostic = format!("{component}:freshness_{other}");
+            component_diagnostics.push(diagnostic.clone());
+            v25_surface_diagnostics.push(diagnostic);
+            *health = strongest_health(*health, HealthStatus::Degraded);
+        }
+        None => {
+            let diagnostic = format!("{component}:freshness_missing");
+            component_diagnostics.push(diagnostic.clone());
+            v25_surface_diagnostics.push(diagnostic);
+            *health = strongest_health(*health, HealthStatus::Error);
+        }
+    }
+
+    let source = component_value.get("source_provenance");
+    let source_type_missing = source
+        .and_then(|source| source.get("source_type"))
+        .and_then(read_model_scalar_string)
+        .is_none_or(|value| value.is_empty());
+    let source_ref_missing = source
+        .and_then(|source| source.get("source_ref"))
+        .and_then(read_model_scalar_string)
+        .is_none_or(|value| value.is_empty());
+    if source_type_missing || source_ref_missing {
+        let diagnostic = format!("{component}:source_provenance_missing");
+        component_diagnostics.push(diagnostic.clone());
+        v25_surface_diagnostics.push(diagnostic);
+        *health = strongest_health(*health, HealthStatus::Error);
+    }
+
+    if component_value
+        .get("redaction")
+        .and_then(|redaction| redaction.get("status"))
+        .and_then(Value::as_str)
+        != Some("redacted")
+    {
+        let diagnostic = format!("{component}:redaction_state_not_ready");
+        component_diagnostics.push(diagnostic.clone());
+        v25_surface_diagnostics.push(diagnostic);
+        *health = strongest_health(*health, HealthStatus::Error);
+    }
+
+    let Some(data) = component_value.get("data") else {
+        let diagnostic = format!("{component}:data_missing");
+        component_diagnostics.push(diagnostic.clone());
+        v25_surface_diagnostics.push(diagnostic);
+        *health = strongest_health(*health, HealthStatus::Error);
+        return;
+    };
+
+    for field in [
+        "forbidden_control_detected",
+        "dashboard_trading_control_allowed",
+        "submit_order_allowed",
+        "cancel_order_allowed",
+        "retry_order_allowed",
+        "replace_order_allowed",
+        "amend_order_allowed",
+        "flatten_position_allowed",
+        "order_ticket_enabled",
+        "live_exchange_request_allowed",
+        "adapter_send_allowed",
+        "automatic_remediation_allowed",
+        "automatic_actions_allowed",
+    ] {
+        if data.get(field).and_then(Value::as_bool) == Some(true) {
+            let diagnostic = format!("{component}:boundary_true:{field}");
+            component_diagnostics.push(diagnostic.clone());
+            v25_surface_diagnostics.push(diagnostic);
+            *health = strongest_health(*health, HealthStatus::Error);
+        }
+    }
+
+    if data
+        .get("operation_boundary_readonly")
+        .and_then(Value::as_bool)
+        == Some(false)
+    {
+        let diagnostic = format!("{component}:operation_boundary_not_readonly");
+        component_diagnostics.push(diagnostic.clone());
+        v25_surface_diagnostics.push(diagnostic);
+        *health = strongest_health(*health, HealthStatus::Error);
+    }
+}
+
+fn v25_dashboard_surface_status(
+    v25_surface_diagnostics: &[String],
+    health: HealthStatus,
+) -> DashboardValue<String> {
+    let status = if v25_surface_diagnostics.is_empty() && health == HealthStatus::Healthy {
+        "ready_readonly_surface"
+    } else if v25_surface_diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.contains("component_missing"))
+    {
+        "degraded_missing_surface_artifact"
+    } else if v25_surface_diagnostics.iter().any(|diagnostic| {
+        diagnostic.contains("boundary_true")
+            || diagnostic.contains("forbidden_control")
+            || diagnostic.contains("operation_boundary_not_readonly")
+    }) || health == HealthStatus::Error
+    {
+        "fail_closed_surface_artifact"
+    } else if health == HealthStatus::Stale {
+        "stale_surface_artifact"
+    } else {
+        "degraded_surface_artifact"
+    };
+    DashboardValue::available(status.to_string())
 }
 
 fn trader_terminal_read_model_readiness(
@@ -14112,6 +14500,7 @@ mod tests {
             "workbench-panel-risk",
             "workbench-panel-alerts",
             "workbench-panel-audit-provenance",
+            "workbench-panel-v25-monitoring-surface",
             "foundation-boundary",
             "read-only-boundary",
             "gated-operation-boundary",
@@ -14145,6 +14534,14 @@ mod tests {
             "Release provenance",
             "Artifact digest",
             "Provenance repair",
+            "v25 Monitoring / Incident / DR",
+            "Surface status",
+            "Monitoring status",
+            "Incident status",
+            "Ack status",
+            "Runbook evidence",
+            "DR preview status",
+            "Snapshot lineage",
         ] {
             assert!(
                 DASHBOARD_HTML.contains(required_marker) || DASHBOARD_JS.contains(required_marker),
@@ -15797,6 +16194,42 @@ mod tests {
             Some(false)
         );
         assert_eq!(
+            runtime.v25_dashboard_surface_status.value.as_deref(),
+            Some("ready_readonly_surface")
+        );
+        assert_eq!(
+            runtime.v25_monitoring_status.value.as_deref(),
+            Some("healthy")
+        );
+        assert_eq!(
+            runtime.v25_monitoring_effective_status.value.as_deref(),
+            Some("healthy")
+        );
+        assert_eq!(
+            runtime.v25_alert_highest_severity.value.as_deref(),
+            Some("warning")
+        );
+        assert_eq!(
+            runtime.v25_incident_ack_status.value.as_deref(),
+            Some("acknowledged")
+        );
+        assert_eq!(
+            runtime.v25_runbook_evidence_ref.value.as_deref(),
+            Some("audit:v250-runbook:acknowledged")
+        );
+        assert_eq!(
+            runtime.v25_dr_preview_status.value.as_deref(),
+            Some("healthy")
+        );
+        assert_eq!(
+            runtime.v25_dr_operator_approval_status.value.as_deref(),
+            Some("blocked_preview")
+        );
+        assert_eq!(
+            runtime.v25_surface_blocking_reasons.availability,
+            DashboardAvailability::Unknown
+        );
+        assert_eq!(
             runtime.production_order_submission_allowed.value,
             Some(false)
         );
@@ -17202,6 +17635,158 @@ mod tests {
                 "v24 dashboard renderer must stay read-only and not contain {forbidden}"
             );
         }
+    }
+
+    #[test]
+    fn dashboard_v25_monitoring_surface_renderer_stays_readonly() {
+        let workbench_renderer = dashboard_js_function_body("renderTraderTerminalWorkbench");
+        let runtime_renderer = dashboard_js_function_body("renderReadModelRuntime");
+        let renderer = format!("{workbench_renderer}\n{runtime_renderer}");
+
+        for required in [
+            "v25 Monitoring / Incident / DR",
+            "v25_dashboard_surface_status",
+            "v25_monitoring_effective_status",
+            "v25_incident_ack_status",
+            "v25_runbook_evidence_ref",
+            "v25_dr_operator_approval_status",
+            "v25_surface_blocking_reasons",
+            "Submit control",
+            "Cancel control",
+            "Retry control",
+            "Replace control",
+            "Amend control",
+            "Flatten control",
+            "Order ticket",
+        ] {
+            assert!(
+                renderer.contains(required),
+                "v25 dashboard renderer must contain {required}"
+            );
+        }
+
+        for forbidden in [
+            "<button",
+            "<form",
+            "<input",
+            "fetch(",
+            "data-workbench-action",
+            "/api/order",
+            "/api/orders",
+            "/actions/submit",
+            "/actions/cancel",
+            "/actions/retry",
+            "/actions/replace",
+            "/actions/amend",
+            "/actions/flatten",
+            "submit_order",
+            "cancel_order",
+            "replace_order",
+            "amend_order",
+            "flatten_position_action",
+        ] {
+            assert!(
+                !renderer.contains(forbidden),
+                "v25 dashboard renderer must stay read-only and not contain {forbidden}"
+            );
+        }
+    }
+
+    #[test]
+    fn dashboard_v25_monitoring_surface_missing_component_degrades() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "v25-surface-missing-dr",
+            |artifact| {
+                artifact["components"]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove(V25_DR_PREVIEW_COMPONENT);
+            },
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Error);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("component_missing")
+        );
+        assert_eq!(
+            runtime.v25_dashboard_surface_status.value.as_deref(),
+            Some("degraded_missing_surface_artifact")
+        );
+        assert!(
+            runtime
+                .missing_components
+                .value
+                .as_deref()
+                .is_some_and(|missing| missing.contains(V25_DR_PREVIEW_COMPONENT))
+        );
+        assert_v220_operation_controls_disabled(&runtime, "v25-surface-missing-dr");
+    }
+
+    #[test]
+    fn dashboard_v25_monitoring_surface_missing_provenance_fails_closed() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "v25-surface-missing-provenance",
+            |artifact| {
+                artifact["components"][V25_MONITORING_OBSERVABILITY_COMPONENT]["source_provenance"] =
+                    json!({});
+            },
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Error);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("fail_closed")
+        );
+        assert_eq!(
+            runtime.v25_dashboard_surface_status.value.as_deref(),
+            Some("fail_closed_surface_artifact")
+        );
+        assert!(
+            runtime
+                .diagnostic
+                .value
+                .as_deref()
+                .is_some_and(|diagnostic| diagnostic
+                    .contains("v25_monitoring_observability:source_provenance_missing"))
+        );
+        assert_v220_operation_controls_disabled(&runtime, "v25-surface-missing-provenance");
+    }
+
+    #[test]
+    fn dashboard_v25_monitoring_surface_forbidden_control_fails_closed() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "v25-surface-forbidden-control",
+            |artifact| {
+                artifact["components"][V25_INCIDENT_LIFECYCLE_COMPONENT]["data"]["dashboard_trading_control_allowed"] =
+                    json!(true);
+            },
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Error);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("fail_closed")
+        );
+        assert_eq!(
+            runtime.v25_dashboard_surface_status.value.as_deref(),
+            Some("fail_closed_surface_artifact")
+        );
+        assert!(
+            runtime
+                .v25_surface_blocking_reasons
+                .value
+                .as_deref()
+                .is_some_and(|reasons| reasons.contains(
+                    "v25_incident_lifecycle:boundary_true:dashboard_trading_control_allowed"
+                ))
+        );
+        assert_eq!(runtime.dashboard_submit_controls_enabled.value, Some(false));
+        assert_eq!(runtime.dashboard_cancel_controls_enabled.value, Some(false));
+        assert_eq!(
+            runtime.trader_terminal_order_ticket_enabled.value,
+            Some(false)
+        );
     }
 
     #[test]
@@ -21926,6 +22511,64 @@ mod tests {
                 "production_order_submission_allowed": false,
                 "production_order_mutation_allowed": false,
                 "automatic_operation_action_allowed": false
+            })),
+            "v25_monitoring_observability": read_model_component("healthy", &json!({
+                "runtime_health_status": "healthy",
+                "effective_monitoring_status": "healthy",
+                "monitoring_truth_scope": "runtime_monitoring_evidence_only",
+                "component_count": 5,
+                "operation_boundary_readonly": true,
+                "forbidden_control_detected": false,
+                "dashboard_trading_control_allowed": false,
+                "live_exchange_request_allowed": false,
+                "adapter_send_allowed": false,
+                "automatic_remediation_allowed": false
+            })),
+            "v25_alert_taxonomy_routing": read_model_component("healthy", &json!({
+                "alert_status": "routed_readonly",
+                "highest_severity": "warning",
+                "route_status": "manual_observation_only",
+                "dedupe_key": "v250:risk_fail_closed:acct-redacted-001",
+                "operation_boundary_readonly": true,
+                "forbidden_control_detected": false,
+                "dashboard_trading_control_allowed": false,
+                "automatic_actions_allowed": false
+            })),
+            "v25_incident_lifecycle": read_model_component("healthy", &json!({
+                "incident_lifecycle_status": "acknowledged_readonly",
+                "current_state": "acknowledged",
+                "ack_status": "acknowledged",
+                "owner": "ops-owner-redacted",
+                "incident_count": 1,
+                "audit_trace": "audit:v250-incident:acknowledged",
+                "operation_boundary_readonly": true,
+                "forbidden_control_detected": false,
+                "dashboard_trading_control_allowed": false,
+                "automatic_actions_allowed": false
+            })),
+            "v25_runbook_audit": read_model_component("healthy", &json!({
+                "runbook_status": "manual_evidence_ready",
+                "decision_type": "manual_acknowledgement",
+                "decision_status": "owner_approved",
+                "evidence_ref": "audit:v250-runbook:acknowledged",
+                "audit_trace": "audit:v250-runbook:trace",
+                "operation_boundary_readonly": true,
+                "forbidden_control_detected": false,
+                "dashboard_trading_control_allowed": false,
+                "automatic_actions_allowed": false
+            })),
+            "v25_dr_preview_drill": read_model_component("healthy", &json!({
+                "dr_preview_status": "preview_ready",
+                "scenario": "read_model_rebuild_preview",
+                "recovery_point": "rpo:v250:read-model-rebuild",
+                "operator_approval_status": "blocked_preview",
+                "snapshot_lineage": "snapshot:v250:read-model-rebuild",
+                "operation_boundary_readonly": true,
+                "forbidden_control_detected": false,
+                "dashboard_trading_control_allowed": false,
+                "live_exchange_request_allowed": false,
+                "adapter_send_allowed": false,
+                "automatic_remediation_allowed": false
             }))
         });
         let capability_boundary = json!({
