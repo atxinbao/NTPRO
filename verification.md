@@ -3255,3 +3255,38 @@ redaction/secret leak, and automatic-action boundary failures. Incident
 evidence remains manual/read-only only; there is no external ticket integration,
 automatic strategy stop, production order action, adapter send, live exchange
 request, Dashboard trading control, or runtime trading behavior change.
+
+# V250-004 Verification
+
+Date: 2026-07-05
+Executor: Codex
+Task: `V250-004` / GitHub issue `#781`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_runbook_audit_evidence.sh = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v250_runbook_audit_evidence.jsonl").read_text().splitlines() if line.strip()]' = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+scripts/ai/verify_release.sh v25-runbook-audit-evidence = PASS, cases=7, decision_types=4, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 162 cases, 95 executable replay, 62 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v25-incident-lifecycle-acknowledgement = PASS, cases=7, states=6, negative_selftest=1
+scripts/ai/verify_release.sh v25-alert-taxonomy-routing = PASS, cases=4, valid_categories=5, negative_selftest=1
+scripts/ai/verify_release.sh v25-monitoring-observability-contract = PASS, cases=5, components_checked=25, negative_selftest=1
+scripts/ai/verify_release.sh v25-intake-gate = PASS, V241 issues=7/7, release_tag=ntpro-rust-only-v0.24.1, hosted_gate_jobs=72/72, tag_is_ancestor_of_origin_main=true, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V250-004 defines runbook id/version/step/owner, versioned source, input
+evidence, decision output, audit trace, provenance, lineage, freshness,
+redaction, and execution boundary evidence. The verifier covers a valid manual
+matrix for observation, acknowledgement, escalation, and rollback
+recommendation, plus stale runbook, missing version, missing audit trace,
+unapproved action, redaction/secret leak, and automatic execution boundary
+failures. Runbook/audit evidence remains read-only/manual only; there is no
+shell automation, permission-system extension, automatic cancel/retry/
+remediation, adapter send, live exchange request, Dashboard trading control, or
+runtime trading behavior change.
