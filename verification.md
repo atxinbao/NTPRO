@@ -3362,3 +3362,44 @@ components cannot render healthy, missing provenance fails closed, and forbidden
 Dashboard trading control markers fail closed. The implementation does not add
 submit/cancel/retry/replace/amend/flatten/order-ticket controls, live control
 API, adapter send, live exchange request, or production order mutation.
+
+# V250-007 Verification
+
+Date: 2026-07-05
+Executor: Codex
+Task: `V250-007` / GitHub issue `#784`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_slo_freshness_diagnostics_gate.sh = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v250_slo_freshness_diagnostics_gate.jsonl").read_text().splitlines() if line.strip()]' = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+scripts/ai/verify_release.sh v25-slo-freshness-diagnostics-gate = PASS, cases=7, components=5, negative_selftest=1
+cargo test -p nautilus-cli dashboard_v25_slo --lib -j 1 = PASS, 1 test passed
+cargo test -p nautilus-cli dashboard_v25 --lib -j 1 = PASS, 9 tests passed
+cargo test -p nautilus-cli trader_terminal_read_model_artifact_populates_runtime_bridge --lib -j 1 = PASS, 1 test passed
+cargo test -p nautilus-cli trader_terminal_read_model --lib -j 1 = PASS, 6 tests passed
+cargo test -p nautilus-cli dashboard --lib -j 1 = PASS, 124 tests passed
+scripts/ai/verify_release.sh v25-dashboard-monitoring-surface = PASS, cases=5, components=5, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 181 cases, 95 executable replay, 81 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v25-dr-preview-drill-evidence = PASS, cases=7, scenarios=4, negative_selftest=1
+scripts/ai/verify_release.sh v25-runbook-audit-evidence = PASS, cases=7, decision_types=4, negative_selftest=1
+scripts/ai/verify_release.sh v25-incident-lifecycle-acknowledgement = PASS, cases=7, states=6, negative_selftest=1
+scripts/ai/verify_release.sh v25-alert-taxonomy-routing = PASS, cases=4, valid_categories=5, negative_selftest=1
+scripts/ai/verify_release.sh v25-monitoring-observability-contract = PASS, cases=5, components_checked=25, negative_selftest=1
+scripts/ai/verify_release.sh v25-intake-gate = PASS, V241 issues=7/7, release_tag=ntpro-rust-only-v0.24.1, hosted_gate_jobs=72/72, tag_is_ancestor_of_origin_main=true, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V250-007 adds a v25 SLO freshness diagnostics gate for monitoring, alert,
+incident, runbook/audit, and DR preview evidence. The gate records freshness
+threshold status, staleness reasons, diagnostic severity, artifact-only source
+truth, release provenance, and no-remediation/no-trading action boundaries.
+Missing components and release provenance drift fail closed, stale sources and
+partial projections cannot display healthy, unknown adapter truth cannot claim
+exchange truth, and diagnostics evidence cannot enable trading or remediation
+actions.
