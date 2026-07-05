@@ -4,26 +4,27 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.23.1`, the v0.23.1 Patch Closeout Governance release.
-The next patch track is `v0.23.2`.
-The next capability track is `v0.24.0`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.24.0`, the v0.24.0 Execution Algorithms And Order Control Foundation release.
+The next patch track is `v0.24.1`.
+The next capability track is `v0.25.0`.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.23.1
+ntpro-rust-only-v0.24.0
 ```
 
 Current capability boundary:
 
 ```text
-v0.23.1 Patch Closeout Governance
-capability class patch closeout / evidence / replay / readonly observability only
+v0.24.0 Execution Algorithms And Order Control Foundation
+capability class preview / evidence / replay / readonly order-control foundation only
 v0.20.1 production order lifecycle hardening baseline
 v0.21.0 unified read model foundation closeout baseline
 v0.21.1 unified read model hardening baseline
+v0.23.1 publication governance baseline
 account read model evidence required
 position read model evidence required
 order lifecycle read model evidence required
@@ -35,9 +36,19 @@ runtime degradation and boundary tests required
 read model golden trace coverage
 strict release provenance required
 default local/PR/release execution fail-closed
+order intent and policy artifact evidence required
+rate-limit and throttle preview evidence required
+order slicing preview evidence required
+cancel / replace / amend preview evidence required
+retry / no-retry policy ledger evidence required
+readback and audit evidence required
+Dashboard / Workbench read-only order-control preview evidence required
 new submit capability not included
 production order mutation not included
+execution adapter send not included
+live exchange request not included
 implicit retry not included
+retry scheduler not included
 automatic cancel not included
 automatic remediation not included
 retry / replace / amend / flatten not included
@@ -51,32 +62,34 @@ multi-venue node registry and lifecycle boundary evidence
 orchestration/control-plane gating evidence
 Dashboard / Workbench read-only observability evidence
 production multi-node runtime implementation not included
-v0.24.0 future contract and gated implementation only
+v0.25.0 monitoring / incident / disaster-recovery track hard-blocked by v0.24.0 release evidence
 no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no product-grade live trading terminal claim
 ```
 
-`v0.23.1` publishes the patch closeout over the Multi-Account /
-Multi-Strategy / Multi-Venue Node Isolation release line with closeout evidence,
-stale provenance cleanup, gate phase split semantics, evidence/replay-only
-boundary hardening, publication evidence audit path, gate-before-publish
-governance, and strict provenance. It does not create a product-grade live
-trading terminal, ungated operation controls, production order mutation, shared
-approval consumption, or automatic execution.
+`v0.24.0` publishes the preview-only order-control foundation over the
+Multi-Account / Multi-Strategy / Multi-Venue Node Isolation release line with
+order intent/policy artifacts, rate-limit/throttle preview, slicing preview,
+cancel/replace/amend preview, retry/no-retry ledger, readback/audit evidence,
+Dashboard Workbench read-only preview, gate-before-publish governance, and
+strict provenance. It does not create a product-grade live trading terminal,
+ungated operation controls, production order mutation, adapter send, retry
+scheduler, shared approval consumption, or automatic execution.
 
-## Published Capability Track: v0.23.1
+## Published Capability Track: v0.24.0
 
-`v0.23.1` is the current published patch closeout line. It preserves the
-read-only Workbench boundary and the v0.23.0 scoped account, strategy, venue
-node, orchestration, and Dashboard observability evidence while hardening
-release governance and provenance. It is an evidence/replay-only release
-surface, not a production multi-node runtime implementation.
+`v0.24.0` is the current published preview/evidence order-control foundation
+line. It preserves the read-only Workbench boundary and the v0.23.x governance
+baseline while adding release-blocked preview evidence for order-control
+contracts and artifacts. It is an evidence/replay-only release surface, not a
+production order-control runtime implementation.
 
-`v0.23.1` explicitly does not include product-grade live trading terminal
-readiness, complete executable read-model runtime coverage, new production
-submit capability, production order mutation, ungated operation controls,
-automatic cancel/remediation, strategy-driven production execution, shared
-approval consumption, or Dashboard operation controls.
+`v0.24.0` explicitly does not include product-grade live trading terminal
+readiness, complete executable order-control runtime coverage, new production
+submit capability, production order mutation, execution adapter send, live
+exchange request, retry scheduler, ungated operation controls, automatic
+cancel/remediation, strategy-driven production execution, shared approval
+consumption, or Dashboard operation controls.
 
 ## Published Hardening Patch: v0.7.1
 

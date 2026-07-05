@@ -728,6 +728,18 @@ Final release checks, benchmark summaries, and audit reports live here.
   for V231 release gates. It fixes V231 evidence paths, release gate commands,
   boundary flags, publication governance, current release surface guard fields,
   and the v0.24.0 start gate.
+- `v0_24_0_readiness_report.md` - released readiness report for the formal
+  `ntpro-rust-only-v0.24.0` release. It records V240 evidence, v24 release
+  gates, strict provenance, publication governance, and the v0.25.0 start
+  boundary.
+- `v0_24_0_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.24.0` GitHub Release. It records the preview-only
+  order-control foundation, V240 evidence, no-submit/no-Dashboard-controls
+  boundary, and strict provenance.
+- `v0_24_0_release_manifest.json` - machine-readable v0.24.0 release manifest
+  for V240 release gates. It fixes V240 evidence paths, release gate commands,
+  boundary flags, publication governance, current release surface guard fields,
+  and the v0.25.0 start boundary.
 - `v0_23_0_evidence_replay_only_boundary.md` - V231-004 boundary note that
   keeps v0.23.x framed as evidence/replay/read-only observability only, not as
   a production multi-node runtime or product-grade terminal implementation.

@@ -1,3 +1,33 @@
+# V240-009 Verification
+
+Date: 2026-07-05
+Executor: Codex
+Task: `V240-009` / GitHub issue `#752`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_fast.sh scripts/ai/verify_release.sh scripts/ai/verify_v24_release_gates.sh scripts/ai/verify_v24_strict_provenance.sh scripts/ai/check_release_surface_current.sh scripts/ai/check_github_release_published.sh scripts/ai/publish_ntpro_release_after_gate.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_24_0_release_manifest.json >/dev/null = PASS
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); YAML.load_file(".github/workflows/release-publish.yml")' = PASS
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/verify_release.sh release-surface-current-guard = PASS
+NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE=1 scripts/ai/verify_release.sh release-publication-guard = PASS, offline_skip missing_local_git_tag:ntpro-rust-only-v0.24.0
+scripts/ai/verify_release.sh v24-strict-provenance = PASS, tag_exists=false, source_dirty=true
+scripts/ai/verify_release.sh v24-release-gates = PASS, current_issue_state=OPEN, negative_selftest=1
+scripts/ai/verify_release.sh v24-release-gates = RETRIED after transient GitHub TLS failure, second run PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V240-009 local release validation passed. The release gate aggregates V240-000
+through V240-008 evidence, v24 golden traces, Dashboard Workbench read-only
+preview smoke, release-surface guard, publication guard policy, issue closeout
+proof, and strict provenance wiring. The v0.24.0 tag is intentionally absent at
+PR time; tag-triggered release gates must prove HEAD/tag consistency before
+publication.
+
 # V240-008 Verification
 
 Date: 2026-07-04

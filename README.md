@@ -6,44 +6,44 @@ NautilusTrader.
 The current source-tree milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.23.1
-Latest formal release: ntpro-rust-only-v0.23.1
-Current source-tree readiness: ntpro-rust-only-v0.23.1 released
-Current capability: v0.23.1 Patch Closeout Governance
-Capability class: patch closeout / evidence / replay / readonly observability only
-Next patch: v0.23.2 Reserved Patch Track
-Next capability: v0.24.0 Reserved Capability Track
-v0.24.0 entry: future contract and gated implementation only; no runtime capability is inherited automatically from v0.23.1
-Boundary: v0.23.1 is a patch closeout over the v0.23.0 multi-account, multi-strategy, and multi-venue node isolation boundaries plus read-only Dashboard / Workbench observability evidence. It does not include product-grade live trading, complete executable read-model runtime coverage, new production submit capability, production order mutation, ungated submit/cancel/retry/replace/amend/flatten, implicit retry, automatic cancel, automatic remediation, strategy-driven production execution, shared approval consumption, real-funds proof in CI, or Dashboard order/approval/cancel/retry/submit/replace/amend/flatten/order-ticket controls.
+Current source tag: ntpro-rust-only-v0.24.0
+Latest formal release: ntpro-rust-only-v0.24.0
+Current source-tree readiness: ntpro-rust-only-v0.24.0 released
+Current capability: v0.24.0 Execution Algorithms And Order Control Foundation
+Capability class: preview / evidence / replay / readonly order-control foundation only
+Next patch: v0.24.1 Reserved Patch Track
+Next capability: v0.25.0 Reserved Capability Track
+v0.25.0 entry: monitoring / incident / disaster-recovery track only after v0.24.0 release evidence is published
+Boundary: v0.24.0 publishes preview-only order-control evidence for intake, order-control contracts, order intent and policy artifacts, rate-limit/throttle gates, slicing preview, cancel/replace/amend preview, retry/no-retry ledger, readback/audit evidence, Dashboard Workbench read-only preview, release gates, and strict provenance. It does not include product-grade live trading, complete executable order-control runtime coverage, new production submit capability, production order mutation, execution adapter send, live exchange request, implicit retry, retry scheduler, automatic cancel, automatic remediation, strategy-driven production execution, shared approval consumption, real-funds proof in CI, or Dashboard order/approval/cancel/retry/submit/replace/amend/flatten/order-ticket controls.
 ```
 
-`ntpro-rust-only-v0.23.1` is the latest formal GitHub Release. It is the patch
-closeout release over the v0.23.0 Multi-Account / Multi-Strategy /
-Multi-Venue Node Isolation line. It preserves the no-submit/no-Dashboard-
-controls boundary while hardening closeout evidence, stale provenance cleanup,
-gate phase split semantics, evidence/replay-only boundary statements, and the
-publication evidence audit path. It is a governance/evidence release surface,
-not a production multi-node runtime implementation.
+`ntpro-rust-only-v0.24.0` is the latest formal GitHub Release. It is the
+Execution Algorithms And Order Control Foundation release. It preserves the
+no-submit/no-Dashboard-controls boundary while adding preview-only evidence for
+order intent, policy, rate-limit, slicing, cancel/replace/amend, retry/no-
+retry, readback/audit, Dashboard Workbench preview, release gates, and strict
+provenance. It is a preview/evidence release surface, not a production
+order-control runtime implementation.
 
-The latest formal release is published as a GitHub Release for the v0.23.1
+The latest formal release is published as a GitHub Release for the v0.24.0
 tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.23.1
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.24.0
 ```
 
-`v0.23.1` is the current formal patch closeout release. It remains read-only
-first for Dashboard / Workbench observability and owner-approved control-plane
-contract evidence only, not a product-grade live trading terminal or general
+`v0.24.0` is the current formal order-control foundation release. It remains
+preview/evidence only, not a product-grade live trading terminal or general
 production trading platform claim. It does not add production submit, order
-mutation, ungated cancel/retry/replace/amend/flatten, implicit retry,
-automatic cancel, automatic remediation, bulk order execution, strategy-driven
-production execution, shared approval consumption, or Dashboard operation
-controls.
+mutation, execution adapter send, live exchange request, ungated
+cancel/retry/replace/amend/flatten, implicit retry, retry scheduler, automatic
+cancel, automatic remediation, bulk order execution, strategy-driven production
+execution, shared approval consumption, or Dashboard operation controls.
 
-The next patch track is `v0.23.2`. The next capability track is `v0.24.0`.
-`v0.24.0` starts from a future contract and gated implementation path; it does
-not automatically inherit runtime capability from `v0.23.1`.
+The next patch track is `v0.24.1`. The next capability track is `v0.25.0`.
+`v0.25.0` starts from monitoring / incident / disaster-recovery planning and
+does not automatically inherit production submit, mutation, retry scheduler, or
+Dashboard operation controls from `v0.24.0`.
 
 ## Current Status
 
@@ -119,9 +119,9 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.23.1 is the current formal release line. It is the patch closeout governance
-release over the Multi-Account / Multi-Strategy / Multi-Venue Node Isolation
-line and builds on the earlier foundation layers:
+v0.24.0 is the current formal release line. It is the preview/evidence
+order-control foundation over the Multi-Account / Multi-Strategy /
+Multi-Venue Node Isolation line and builds on the earlier foundation layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
 - `v0.5.0`: local Binance sandbox workflow artifacts;
