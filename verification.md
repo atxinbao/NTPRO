@@ -3324,3 +3324,41 @@ execution claim, and redaction/secret leak failures. DR preview evidence remains
 read-only only; there is no service restart, data restore execution, production
 order mutation, exchange state mutation, adapter send, live exchange request,
 Dashboard trading control, or runtime trading behavior change.
+
+# V250-006 Verification
+
+Date: 2026-07-05
+Executor: Codex
+Task: `V250-006` / GitHub issue `#783`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_dashboard_monitoring_surface.sh = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v250_dashboard_monitoring_surface.jsonl").read_text().splitlines() if line.strip()]' = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+cargo test -p nautilus-cli dashboard_v25_monitoring_surface --lib -j 1 = PASS, 4 tests passed
+cargo test -p nautilus-cli trader_terminal_read_model_artifact_populates_runtime_bridge --lib -j 1 = PASS, 1 test passed
+cargo test -p nautilus-cli trader_terminal_read_model --lib -j 1 = PASS, 6 tests passed
+cargo test -p nautilus-cli dashboard --lib -j 1 = PASS, 119 tests passed
+scripts/ai/verify_release.sh v25-dashboard-monitoring-surface = PASS, cases=5, components=5, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 174 cases, 95 executable replay, 74 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v25-dr-preview-drill-evidence = PASS, cases=7, scenarios=4, negative_selftest=1
+scripts/ai/verify_release.sh v25-runbook-audit-evidence = PASS, cases=7, decision_types=4, negative_selftest=1
+scripts/ai/verify_release.sh v25-incident-lifecycle-acknowledgement = PASS, cases=7, states=6, negative_selftest=1
+scripts/ai/verify_release.sh v25-alert-taxonomy-routing = PASS, cases=4, valid_categories=5, negative_selftest=1
+scripts/ai/verify_release.sh v25-monitoring-observability-contract = PASS, cases=5, components_checked=25, negative_selftest=1
+scripts/ai/verify_release.sh v25-intake-gate = PASS, V241 issues=7/7, release_tag=ntpro-rust-only-v0.24.1, hosted_gate_jobs=72/72, tag_is_ancestor_of_origin_main=true, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V250-006 adds a v25 Dashboard / Trader Terminal read-only surface for
+monitoring, alert, incident, runbook/audit, and DR preview evidence. The
+targeted Rust tests prove the renderer stays display-only, missing surface
+components cannot render healthy, missing provenance fails closed, and forbidden
+Dashboard trading control markers fail closed. The implementation does not add
+submit/cancel/retry/replace/amend/flatten/order-ticket controls, live control
+API, adapter send, live exchange request, or production order mutation.
