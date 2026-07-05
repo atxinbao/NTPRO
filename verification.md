@@ -2875,3 +2875,29 @@ exchange readback or adapter replay. No runtime trading behavior, public API,
 real order state read expansion, exchange truth claim, production order
 mutation, Dashboard operation control, or product-grade live terminal claim is
 added.
+
+# V241-001 Verification
+
+Date: 2026-07-05
+Executor: Codex
+Task: `V241-001` / GitHub issue `#770`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v24_1_release_closeout_evidence.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_24_0_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_release.sh v24.1-release-closeout-evidence = PASS, release_tag=ntpro-rust-only-v0.24.0, tag_sha=fff22c4e36b85098b4b32a35762a873f93d16587, release_gate_run=28727113589, jobs=70/70, milestone=v0.24.0:closed, issues=10/10
+scripts/ai/verify_release.sh release-publication-guard = PASS, tag_sha=fff22c4e36b85098b4b32a35762a873f93d16587, origin_main_sha=f590023fd8e62323f3a3a5f08e970e5376ba73cb
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V241-001 backfills v0.24.0 release closeout evidence into the source tree and
+adds the `v24.1-release-closeout-evidence` verifier. The verifier checks the
+tracked ledger and manifest against live GitHub Release, tag, release-gate run,
+issue closeout, and milestone state. No runtime trading behavior, public API,
+production order mutation, execution adapter send, retry scheduler, Dashboard
+trading control, or product-grade live terminal claim is added.
