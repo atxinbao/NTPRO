@@ -4,8 +4,8 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.24.0`, the v0.24.0 Execution Algorithms And Order Control Foundation release.
-The next patch track is `v0.24.1`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.24.1`, the v0.24.1 Execution Algorithms And Order Control Foundation Hardening Patch release.
+The next patch track is `v0.24.2`.
 The next capability track is `v0.25.0`.
 
 ## Current Release Surface
@@ -13,13 +13,13 @@ The next capability track is `v0.25.0`.
 Current published release:
 
 ```text
-ntpro-rust-only-v0.24.0
+ntpro-rust-only-v0.24.1
 ```
 
 Current capability boundary:
 
 ```text
-v0.24.0 Execution Algorithms And Order Control Foundation
+v0.24.1 Execution Algorithms And Order Control Foundation Hardening Patch
 capability class preview / evidence / replay / readonly order-control foundation only
 v0.20.1 production order lifecycle hardening baseline
 v0.21.0 unified read model foundation closeout baseline
@@ -62,29 +62,31 @@ multi-venue node registry and lifecycle boundary evidence
 orchestration/control-plane gating evidence
 Dashboard / Workbench read-only observability evidence
 production multi-node runtime implementation not included
-v0.25.0 monitoring / incident / disaster-recovery track hard-blocked by v0.24.0 release evidence
+v0.25.0 monitoring / incident / disaster-recovery track hard-blocked by v0.24.1 release evidence
 no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no product-grade live trading terminal claim
 ```
 
-`v0.24.0` publishes the preview-only order-control foundation over the
-Multi-Account / Multi-Strategy / Multi-Venue Node Isolation release line with
-order intent/policy artifacts, rate-limit/throttle preview, slicing preview,
-cancel/replace/amend preview, retry/no-retry ledger, readback/audit evidence,
-Dashboard Workbench read-only preview, gate-before-publish governance, and
-strict provenance. It does not create a product-grade live trading terminal,
-ungated operation controls, production order mutation, adapter send, retry
-scheduler, shared approval consumption, or automatic execution.
+`v0.24.1` publishes the v0.24.0 post-release governance and Dashboard evidence
+hardening patch over the Multi-Account / Multi-Strategy / Multi-Venue Node
+Isolation release line with release closeout, provenance reconciliation, stale
+evidence cleanup, schema replay classification, Dashboard artifact ingestion,
+fixture reference integrity, gate-before-publish governance, and strict
+provenance. It does not create a product-grade live trading terminal, ungated
+operation controls, production order mutation, adapter send, retry scheduler,
+shared approval consumption, or automatic execution.
 
-## Published Capability Track: v0.24.0
+## Published Capability Track: v0.24.1
 
-`v0.24.0` is the current published preview/evidence order-control foundation
-line. It preserves the read-only Workbench boundary and the v0.23.x governance
-baseline while adding release-blocked preview evidence for order-control
-contracts and artifacts. It is an evidence/replay-only release surface, not a
-production order-control runtime implementation.
+`v0.24.1` is the current published preview/evidence order-control foundation
+hardening line. It preserves the read-only Workbench boundary and the v0.24.0
+foundation while adding release-blocked governance and Dashboard evidence
+hardening for release closeout, provenance, schema classification, artifact
+ingestion, fixture references, release gates, and strict provenance. It is an
+evidence/replay-only release surface, not a production order-control runtime
+implementation.
 
-`v0.24.0` explicitly does not include product-grade live trading terminal
+`v0.24.1` explicitly does not include product-grade live trading terminal
 readiness, complete executable order-control runtime coverage, new production
 submit capability, production order mutation, execution adapter send, live
 exchange request, retry scheduler, ungated operation controls, automatic

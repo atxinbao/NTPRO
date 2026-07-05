@@ -3070,3 +3070,36 @@ status classes. The 39 v240 decision-envelope rows are now
 it is not Rust runtime replay, adapter integration, exchange truth, production
 order mutation, Dashboard operation control, or a product-grade live trading
 terminal claim.
+
+# V241-006 Verification
+
+Date: 2026-07-05
+Executor: Codex
+Task: `V241-006` / GitHub issue `#775`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/check_release_surface_current.sh scripts/ai/check_github_release_published.sh scripts/ai/verify_v24_1_release_gates.sh scripts/ai/verify_v24_1_strict_provenance.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_24_1_release_manifest.json >/tmp/ntpro-v241-manifest.json = PASS
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/verify_release.sh release-surface-current-guard = PASS, current_release_tag=ntpro-rust-only-v0.24.1, pre_tag_mode missing_tag=ntpro-rust-only-v0.24.1
+NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE=1 scripts/ai/verify_release.sh release-publication-guard = PASS, offline_skip missing_local_git_tag:ntpro-rust-only-v0.24.1
+scripts/ai/verify_release.sh v24.1-strict-provenance = PASS, release_tag=ntpro-rust-only-v0.24.1, tag_exists=false, source_dirty=true, manifest=target/ntpro-v241/v0_24_1_strict_release_manifest.json
+scripts/ai/verify_release.sh v24.1-release-gates = PASS, release_tag=ntpro-rust-only-v0.24.1, base_release=ntpro-rust-only-v0.24.0, current_issue_state=OPEN, negative_selftest=1
+cargo fmt --all -- --check = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V241-006 adds the v0.24.1 release gate and strict provenance gate. The gate
+requires all V241 task/evidence files, v0.24.0 post-release closeout,
+provenance reconciliation, stale pre-tag cleanup, v24 schema replay
+classification, Dashboard artifact ingestion, fixture reference integrity,
+release surface guard, publication guard, and publish-after-gate smoke. PR mode
+allows issue #775 and milestone v0.24.1 to remain open; `NTPRO_RELEASE_GATE=1`
+requires the v0.24.1 tag to match `HEAD`, issue #775 to be closed, and the
+v0.24.1 milestone to be closed. No runtime trading behavior, public API,
+production submit, production order mutation, adapter send, retry scheduler,
+Dashboard operation control, or product-grade live terminal claim is added.
