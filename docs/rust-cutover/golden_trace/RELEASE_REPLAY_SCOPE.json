@@ -1307,6 +1307,86 @@
       "release_decision": "schema_only_scope_recorded"
     },
     {
+      "case_id": "execution.v240_readback_audit.ready_preview.001",
+      "trace": "tests/golden/v240_readback_audit_evidence.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-007",
+      "reason": "V240-007 defines complete readback/audit closeout evidence before runtime exchange readback exists.",
+      "follow_up": "V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_readback_audit.missing_readback.001",
+      "trace": "tests/golden/v240_readback_audit_evidence.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-007",
+      "reason": "V240-007 records missing readback fail-closed evidence before runtime exchange readback exists.",
+      "follow_up": "V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_readback_audit.missing_audit.001",
+      "trace": "tests/golden/v240_readback_audit_evidence.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-007",
+      "reason": "V240-007 records missing audit fail-closed evidence before Dashboard audit consumption exists.",
+      "follow_up": "V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_readback_audit.missing_provenance.001",
+      "trace": "tests/golden/v240_readback_audit_evidence.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-007",
+      "reason": "V240-007 records missing provenance fail-closed evidence for preview readback/audit closeout.",
+      "follow_up": "V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_readback_audit.stale_source.001",
+      "trace": "tests/golden/v240_readback_audit_evidence.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-007",
+      "reason": "V240-007 records stale source provenance fail-closed evidence for preview readback/audit closeout.",
+      "follow_up": "V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_readback_audit.redaction_breach.001",
+      "trace": "tests/golden/v240_readback_audit_evidence.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-007",
+      "reason": "V240-007 records redaction breach fail-closed evidence before Dashboard audit consumption exists.",
+      "follow_up": "V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_readback_audit.cross_scope_mismatch.001",
+      "trace": "tests/golden/v240_readback_audit_evidence.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-007",
+      "reason": "V240-007 records cross-scope readback/audit blocking evidence before runtime exchange readback exists.",
+      "follow_up": "V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
+      "case_id": "execution.v240_readback_audit.degraded_unavailable.001",
+      "trace": "tests/golden/v240_readback_audit_evidence.jsonl",
+      "category": "execution",
+      "status": "schema_only_scoped",
+      "scope_owner": "V240-007",
+      "reason": "V240-007 records degraded unavailable readback evidence without exchange truth claim.",
+      "follow_up": "V240-009 release gates must decide whether to promote this scope to executable Rust replay.",
+      "release_decision": "schema_only_scope_recorded"
+    },
+    {
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",
