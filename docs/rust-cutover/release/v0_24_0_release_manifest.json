@@ -144,6 +144,9 @@
       "sha": "fff22c4e36b85098b4b32a35762a873f93d16587",
       "tree": "287adca8a02aaada2bc78d49277568751a4bbe46",
       "post_release_origin_main_sha": "f590023fd8e62323f3a3a5f08e970e5376ba73cb",
+      "post_release_origin_main_role": "pr_769_release_body_sync_source",
+      "current_origin_main_exact_match_required": false,
+      "current_origin_main_rule": "post_release_origin_main_sha_must_remain_ancestor",
       "ancestor_of_origin_main": true,
       "exactly_matches_origin_main_after_closeout": false
     },
@@ -199,6 +202,69 @@
       "retry_scheduler_enabled": false,
       "dashboard_operation_controls_enabled": false,
       "dashboard_trading_controls_enabled": false
+    }
+  },
+  "post_release_provenance_reconciliation": {
+    "task_id": "V241-002",
+    "issue": 771,
+    "report_path": "docs/rust-cutover/release/v0_24_0_provenance_reconciliation.md",
+    "evidence_path": "docs/rust-cutover/evidence/V241-002.md",
+    "task_path": "docs/rust-cutover/tasks/V241-002.md",
+    "strategy": "patch_closeout_record_not_retag",
+    "retag_required": false,
+    "retag_performed": false,
+    "retag_escalation_required": true,
+    "tag_source": {
+      "tag": "ntpro-rust-only-v0.24.0",
+      "commit": "fff22c4e36b85098b4b32a35762a873f93d16587",
+      "tree": "287adca8a02aaada2bc78d49277568751a4bbe46",
+      "release_notes_path": "docs/rust-cutover/release/v0_24_0_release_notes.md",
+      "release_notes_sha256": "92cb335a5d7a071cde4be738f3d632a3b64ed56e8812f001704ae64bdd4756ca",
+      "release_notes_bytes": 5263
+    },
+    "main_source": {
+      "pr_769": 769,
+      "pr_769_head_commit": "7f33daaee9071792541e7152af3ecdd0124fb4d5",
+      "pr_769_merge_commit": "f590023fd8e62323f3a3a5f08e970e5376ba73cb",
+      "pr_769_merged_at": "2026-07-05T04:03:58Z",
+      "pr_769_changed_files": [
+        "docs/rust-cutover/release/v0_24_0_release_notes.md"
+      ],
+      "pr_769_additions": 1,
+      "pr_769_deletions": 2,
+      "pr_769_release_notes_sha256": "53c7c59d2585c7b8e710c59b0707156e6c9f3107eeb9e0decf8cbc0a3c4a5570",
+      "v241_001_closeout_pr": 786,
+      "v241_001_closeout_head_commit": "57966f5c44d1a10a6a43f2f0c7ecd70c352736fc",
+      "v241_001_closeout_merge_commit": "581d5775a3f3589e16dfbb2758432869b78a1212",
+      "v241_001_closeout_merged_at": "2026-07-05T10:24:49Z",
+      "v241_001_closeout_evidence_path": "docs/rust-cutover/release/v0_24_0_release_closeout_evidence.md",
+      "release_notes_changed_after_pr_769": false
+    },
+    "release_body_source": {
+      "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.24.0",
+      "published_at": "2026-07-05T03:59:29Z",
+      "body_sha256": "53c7c59d2585c7b8e710c59b0707156e6c9f3107eeb9e0decf8cbc0a3c4a5570",
+      "body_bytes": 5261,
+      "matches_pr_769_release_notes": true,
+      "matches_current_source_tree_release_notes": true
+    },
+    "drift_classification": {
+      "tag_to_pr_769": "explained_doc_only_release_body_sync",
+      "pr_769_to_v241_001": "explained_closeout_evidence_only",
+      "runtime_behavior_changed": false,
+      "trading_behavior_changed": false,
+      "public_api_changed": false
+    },
+    "boundary": {
+      "new_submit_capability": false,
+      "production_order_submission_allowed": false,
+      "production_order_mutation_allowed": false,
+      "execution_adapter_call_allowed": false,
+      "live_exchange_request_allowed": false,
+      "retry_scheduler_enabled": false,
+      "dashboard_operation_controls_enabled": false,
+      "dashboard_trading_controls_enabled": false,
+      "product_grade_live_trading_terminal": false
     }
   },
   "release_surface_current_guard": {

@@ -32,7 +32,9 @@ published at = 2026-07-05T03:59:29Z
 target commitish = main
 lightweight tag commit = fff22c4e36b85098b4b32a35762a873f93d16587
 lightweight tag tree = 287adca8a02aaada2bc78d49277568751a4bbe46
-origin/main post-release closeout commit = f590023fd8e62323f3a3a5f08e970e5376ba73cb
+origin/main post-release release-body sync source = f590023fd8e62323f3a3a5f08e970e5376ba73cb
+current origin/main exact match required = false
+current origin/main rule = f590023fd8e62323f3a3a5f08e970e5376ba73cb must remain an ancestor after V241 closeout commits
 tag is ancestor of origin/main = true
 hosted release gate = https://github.com/atxinbao/NTPRO/actions/runs/28727113589
 hosted release gate created at = 2026-07-05T02:35:35Z
@@ -54,6 +56,8 @@ tag/main exact equality after publication = false
 reason = PR #769 updated release notes line wrapping and GitHub Release body after tag publication so publication guard could verify a continuous key field
 post-release source tree reconciliation PR = #769
 post-release source tree merge commit = f590023fd8e62323f3a3a5f08e970e5376ba73cb
+post-release closeout evidence PR = #786
+post-release closeout evidence merge commit = 581d5775a3f3589e16dfbb2758432869b78a1212
 v0.24.0 tag remains unchanged = true
 ```
 

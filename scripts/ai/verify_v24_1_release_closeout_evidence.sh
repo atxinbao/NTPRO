@@ -259,7 +259,8 @@ remote_tag_sha="$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" | awk '{p
 [[ "$remote_tag_sha" == "$TAG_SHA" ]] || fail "remote tag SHA mismatch: $remote_tag_sha"
 
 origin_main_sha="$(git rev-parse origin/main)"
-[[ "$origin_main_sha" == "$POST_RELEASE_MAIN_SHA" ]] || fail "origin/main SHA mismatch: $origin_main_sha"
+git merge-base --is-ancestor "$TAG_SHA" "$POST_RELEASE_MAIN_SHA" || fail "release tag is not ancestor of recorded post-release main source"
+git merge-base --is-ancestor "$POST_RELEASE_MAIN_SHA" "$origin_main_sha" || fail "recorded post-release main source is not ancestor of origin/main: $origin_main_sha"
 git merge-base --is-ancestor "$TAG_SHA" "$origin_main_sha" || fail "release tag is not ancestor of origin/main"
 
 run_json="$(gh_with_retry run view "$GATE_RUN_ID" --repo "$REPO" --json status,conclusion,updatedAt,url,headSha,workflowName)"
