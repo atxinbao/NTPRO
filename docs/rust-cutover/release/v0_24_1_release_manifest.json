@@ -1,0 +1,240 @@
+{
+  "schema_version": "ntpro.v241_patch_release_manifest.v1",
+  "task_id": "V241-006",
+  "product_version": "v0.24.1",
+  "release_status": "released",
+  "patch_scope": "v240_post_release_governance_and_dashboard_hardening_patch",
+  "base_release": {
+    "version": "v0.24.0",
+    "tag": "ntpro-rust-only-v0.24.0",
+    "name": "NTPRO Rust-only v0.24.0",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.24.0",
+    "release_manifest_path": "docs/rust-cutover/release/v0_24_0_release_manifest.json",
+    "closeout_evidence_path": "docs/rust-cutover/release/v0_24_0_release_closeout_evidence.md"
+  },
+  "planned_release": {
+    "tag": "ntpro-rust-only-v0.24.1",
+    "name": "NTPRO Rust-only v0.24.1",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.24.1",
+    "target_commitish": "main",
+    "draft": false,
+    "prerelease": false
+  },
+  "release_inputs": {
+    "release_notes_path": "docs/rust-cutover/release/v0_24_1_release_notes.md",
+    "readiness_report_path": "docs/rust-cutover/release/v0_24_1_readiness_report.md",
+    "release_manifest_path": "docs/rust-cutover/release/v0_24_1_release_manifest.json",
+    "base_release_manifest_path": "docs/rust-cutover/release/v0_24_0_release_manifest.json",
+    "base_release_closeout_evidence_path": "docs/rust-cutover/release/v0_24_0_release_closeout_evidence.md",
+    "provenance_reconciliation_path": "docs/rust-cutover/release/v0_24_0_provenance_reconciliation.md",
+    "schema_replay_classification_path": "docs/rust-cutover/release/v0_24_1_schema_replay_classification.md",
+    "dashboard_artifact_ingestion_path": "docs/rust-cutover/release/v0_24_1_dashboard_artifact_ingestion.md",
+    "dashboard_fixture_ref_integrity_path": "docs/rust-cutover/release/v0_24_1_dashboard_fixture_ref_integrity.md",
+    "golden_trace_manifest_path": "docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json",
+    "dashboard_artifact_fixture_path": "tests/golden/v241_dashboard_order_control_artifact_ingestion.json",
+    "v241_release_gates_path": "scripts/ai/verify_v24_1_release_gates.sh",
+    "v241_strict_provenance_path": "scripts/ai/verify_v24_1_strict_provenance.sh"
+  },
+  "v241_evidence": [
+    {
+      "task_id": "V241-001",
+      "issue": 770,
+      "path": "docs/rust-cutover/evidence/V241-001.md"
+    },
+    {
+      "task_id": "V241-002",
+      "issue": 771,
+      "path": "docs/rust-cutover/evidence/V241-002.md"
+    },
+    {
+      "task_id": "V241-003",
+      "issue": 772,
+      "path": "docs/rust-cutover/evidence/V241-003.md"
+    },
+    {
+      "task_id": "V241-004",
+      "issue": 773,
+      "path": "docs/rust-cutover/evidence/V241-004.md"
+    },
+    {
+      "task_id": "V241-005",
+      "issue": 774,
+      "path": "docs/rust-cutover/evidence/V241-005.md"
+    },
+    {
+      "task_id": "V241-006",
+      "issue": 775,
+      "path": "docs/rust-cutover/evidence/V241-006.md"
+    },
+    {
+      "task_id": "V241-007",
+      "issue": 776,
+      "path": "docs/rust-cutover/evidence/V241-007.md"
+    }
+  ],
+  "release_gates": [
+    {
+      "name": "v24.1-release-closeout-evidence",
+      "command": "scripts/ai/verify_release.sh v24.1-release-closeout-evidence",
+      "required": true
+    },
+    {
+      "name": "v24.1-provenance-reconciliation",
+      "command": "scripts/ai/verify_release.sh v24.1-provenance-reconciliation",
+      "required": true
+    },
+    {
+      "name": "v24.1-stale-pretag-cleanup",
+      "command": "scripts/ai/verify_release.sh v24.1-stale-pretag-cleanup",
+      "required": true
+    },
+    {
+      "name": "v24.1-schema-replay-classification",
+      "command": "scripts/ai/verify_release.sh v24.1-schema-replay-classification",
+      "required": true
+    },
+    {
+      "name": "v24.1-dashboard-artifact-ingestion",
+      "command": "scripts/ai/verify_release.sh v24.1-dashboard-artifact-ingestion",
+      "required": true
+    },
+    {
+      "name": "v24.1-dashboard-fixture-ref-integrity",
+      "command": "scripts/ai/verify_release.sh v24.1-dashboard-fixture-ref-integrity",
+      "required": true
+    },
+    {
+      "name": "v24.1-release-gates",
+      "command": "scripts/ai/verify_release.sh v24.1-release-gates",
+      "required": true
+    },
+    {
+      "name": "v24.1-strict-provenance",
+      "command": "scripts/ai/verify_release.sh v24.1-strict-provenance",
+      "required": true
+    },
+    {
+      "name": "release-surface-current-guard",
+      "command": "scripts/ai/verify_release.sh release-surface-current-guard",
+      "required": true
+    },
+    {
+      "name": "release-publication-guard",
+      "command": "scripts/ai/verify_release.sh release-publication-guard",
+      "required": true
+    },
+    {
+      "name": "release-publish-after-gate",
+      "command": "scripts/ai/verify_release.sh release-publish-after-gate",
+      "required": true
+    },
+    {
+      "name": "v24.1-release-gate-script",
+      "command": "scripts/ai/verify_v24_1_release_gates.sh",
+      "required": true
+    },
+    {
+      "name": "v24.1-strict-provenance-script",
+      "command": "scripts/ai/verify_v24_1_strict_provenance.sh",
+      "required": true
+    }
+  ],
+  "capability": {
+    "name": "v0.24.1 Execution Algorithms And Order Control Foundation Hardening Patch",
+    "patch_hardening_only": true,
+    "release_governance_hardening": true,
+    "strict_provenance": true,
+    "schema_replay_classification_hardening": true,
+    "dashboard_artifact_ingestion_hardening": true,
+    "dashboard_fixture_ref_integrity_hardening": true,
+    "gate_before_publish": true,
+    "v0_25_start_gate_defined": true,
+    "v0_25_implementation_started": false,
+    "product_grade_live_trading_terminal": false,
+    "complete_executable_order_control_runtime": false,
+    "new_submit_capability": false,
+    "production_order_mutation_expansion": false,
+    "dashboard_operation_controls": false
+  },
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "implicit_retry_allowed": false,
+    "retry_scheduler_enabled": false,
+    "automatic_cancel_allowed": false,
+    "automatic_retry_allowed": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "strategy_driven_production_execution_allowed": false,
+    "shared_approval_consumption_allowed": false,
+    "cancel_replace_amend_send_allowed": false,
+    "flatten_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_order_controls_enabled": false,
+    "dashboard_approval_controls_enabled": false,
+    "dashboard_cancel_controls_enabled": false,
+    "dashboard_retry_controls_enabled": false,
+    "dashboard_submit_controls_enabled": false,
+    "dashboard_replace_controls_enabled": false,
+    "dashboard_amend_controls_enabled": false,
+    "dashboard_flatten_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "trader_terminal_live_trading_claim": false,
+    "manual_operation_entry_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "manual_operation_cancel_allowed": false,
+    "manual_operation_retry_allowed": false,
+    "manual_operation_replace_allowed": false,
+    "manual_operation_amend_allowed": false,
+    "manual_operation_flatten_allowed": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "publication_governance": {
+    "gate_before_publish": true,
+    "release_gate_workflow_name": "Rust Cutover Release Gate",
+    "publish_workflow_name": "Rust Cutover Publish Release",
+    "publish_script": "scripts/ai/publish_ntpro_release_after_gate.sh",
+    "public_release_requires_successful_hosted_gate_for_same_tag_commit": true,
+    "release_gate_success_before_publication_required": true,
+    "publication_evidence_strategy": "source_tree_plus_github_remote",
+    "local_generated_evidence_required_in_source_tree": false,
+    "remote_reconstruction_required": true
+  },
+  "release_surface_current_guard": {
+    "current_release_version": "v0.24.1",
+    "current_release_tag": "ntpro-rust-only-v0.24.1",
+    "current_release_capability": "v0.24.1 Execution Algorithms And Order Control Foundation Hardening Patch",
+    "next_patch_version": "v0.24.2",
+    "next_capability_version": "v0.25.0"
+  },
+  "next_tracks": {
+    "patch": "v0.24.2",
+    "capability": "v0.25.0",
+    "capability_entry": "monitoring_incident_disaster_recovery_track",
+    "start_gate": "blocked_until_v241_release_evidence_published",
+    "implementation_started": false,
+    "inherits_production_submit": false,
+    "inherits_production_mutation": false,
+    "inherits_retry_scheduler": false,
+    "inherits_dashboard_operation_controls": false
+  },
+  "post_publication_requirements": {
+    "release_tag": "ntpro-rust-only-v0.24.1",
+    "release_name": "NTPRO Rust-only v0.24.1",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.24.1",
+    "milestone_number": 15,
+    "milestone_title": "v0.24.1",
+    "all_v241_issues_closed_required": true,
+    "github_release_published_required": true,
+    "hosted_release_gate_success_required": true,
+    "strict_release_body_match_required": true,
+    "v0_25_start_gate_fails_without_v241_release_evidence": true
+  },
+  "validation_artifacts": {
+    "strict_release_provenance_manifest_path": "target/ntpro-v241/v0_24_1_strict_release_manifest.json"
+  }
+}
