@@ -3194,3 +3194,31 @@ controls, or product-grade live terminal readiness.
 The V250 intake dependency proof was also aligned with the established V24
 model: after V250 work starts, the v0.24.1 release tag must be an ancestor of
 current `origin/main`, not an exact match.
+
+# V250-002 Verification
+
+Date: 2026-07-05
+Executor: Codex
+Task: `V250-002` / GitHub issue `#779`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_alert_taxonomy_routing.sh = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v250_alert_taxonomy_routing.jsonl").read_text().splitlines() if line.strip()]' = PASS
+scripts/ai/verify_release.sh v25-alert-taxonomy-routing = PASS, cases=4, valid_categories=5, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 148 cases, 95 executable replay, 48 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v25-monitoring-observability-contract = PASS, cases=5, components_checked=25, negative_selftest=1
+scripts/ai/verify_release.sh v25-intake-gate = PASS, V241 issues=7/7, release_tag=ntpro-rust-only-v0.24.1, hosted_gate_jobs=72/72, tag_is_ancestor_of_origin_main=true, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V250-002 defines alert severity/category/source/scope/dedupe/freshness/ack/
+provenance/routing target evidence and adds validator executable replay for a
+valid five-category matrix plus missing required fields, redaction/secret leak,
+and automatic-action boundary failures. Routing remains evidence/manual-review
+only; there is no external paging integration, automatic remediation, production
+order action, adapter send, live exchange request, or order lifecycle change.
