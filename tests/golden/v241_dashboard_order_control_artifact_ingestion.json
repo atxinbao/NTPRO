@@ -1,0 +1,325 @@
+{
+  "schema_version": "ntpro.v241_dashboard_order_control_artifact_ingestion.v1",
+  "snapshot_id": "v241-dashboard-order-control-artifact-ingestion",
+  "generated_at": "2026-07-05T20:30:00+08:00",
+  "artifact_template": {
+    "contract_version": "ntpro.v210.unified_read_model.v1",
+    "schema_version": "ntpro.v210.unified_read_model.schema.v1",
+    "snapshot_id": "read_model.dashboard.v241.artifact-ingestion",
+    "snapshot_kind": "unified_snapshot",
+    "snapshot_identity": {
+      "account_id": "acct-redacted-001",
+      "venue": "BINANCE",
+      "instrument_ids": ["BTCUSDT.BINANCE"],
+      "created_at_unix_ns": "1782918000000000000"
+    },
+    "as_of_unix_ns": "1782917999000000000",
+    "health_status": "healthy",
+    "freshness": {
+      "status": "fresh",
+      "observed_age_ms": 100,
+      "max_age_ms": 60000,
+      "as_of_unix_ns": "1782917999000000000",
+      "checked_at_unix_ns": "1782918000000000000"
+    },
+    "source_provenance": {
+      "source_type": "artifact",
+      "source_ref": "artifact://v0_21/unified_read_model_snapshot.json",
+      "captured_at_unix_ns": "1782917999000000000",
+      "redaction_state": "redacted",
+      "exchange_truth": false,
+      "adapter_runtime_integrated": false
+    },
+    "redaction": {
+      "status": "redacted",
+      "raw_secret_persisted": false,
+      "raw_exchange_response_persisted": false,
+      "raw_account_payload_persisted": false
+    },
+    "components": {
+      "v24_order_control_preview": {
+        "component_status": "healthy",
+        "source_provenance": {
+          "source_type": "artifact",
+          "source_ref": "tests/golden/v240_readback_audit_evidence.jsonl#ready_preview",
+          "captured_at_unix_ns": "1782917999000000000",
+          "redaction_state": "redacted",
+          "exchange_truth": false,
+          "adapter_runtime_integrated": false
+        },
+        "lineage": {
+          "input_refs": [
+            "tests/golden/v240_order_intent_execution_policy.jsonl#ready",
+            "tests/golden/v240_readback_audit_evidence.jsonl#ready_preview"
+          ],
+          "transform": "ntpro.v241.dashboard_artifact_ingestion.v1",
+          "parent_snapshot_ids": [],
+          "lossy_fields": ["raw_exchange_response", "account_object"]
+        },
+        "freshness": {
+          "status": "fresh",
+          "observed_age_ms": 100,
+          "max_age_ms": 60000,
+          "as_of_unix_ns": "1782917999000000000",
+          "checked_at_unix_ns": "1782918000000000000"
+        },
+        "redaction": {
+          "status": "redacted",
+          "raw_account_payload_persisted": false,
+          "credential_material_persisted": false
+        },
+        "data": {
+          "preview_status": "ready_preview",
+          "order_intent_status": "ready_preview",
+          "execution_policy_status": "ready_preview",
+          "rate_limit_status": "ready_preview",
+          "slicing_status": "ready_preview",
+          "cancel_replace_amend_status": "ready_preview",
+          "retry_policy_status": "ready_preview",
+          "readback_audit_status": "ready_preview",
+          "blocked_reasons": [],
+          "scope_key": "acct-redacted-001|strategy:strategy-redacted-alpha|venue:venue-node-binance-a",
+          "source_provenance": "tests/golden/v240_readback_audit_evidence.jsonl#ready_preview",
+          "redaction_state": "redacted",
+          "order_intent_ref": "tests/golden/v240_order_intent_execution_policy.jsonl#ready",
+          "policy_ref": "docs/rust-cutover/release/v0_24_0_order_intent_policy.md",
+          "rate_limit_ref": "tests/golden/v240_rate_limit_throttle_gate.jsonl#accepted",
+          "slicing_ref": "tests/golden/v240_order_slicing_preview.jsonl#single_slice",
+          "cancel_replace_amend_ref": "tests/golden/v240_cancel_replace_amend_preview.jsonl#cancel_preview",
+          "retry_policy_ref": "tests/golden/v240_retry_policy_ledger.jsonl#no_retry_terminal",
+          "readback_ref": "tests/golden/v240_readback_audit_evidence.jsonl#readback",
+          "audit_ref": "tests/golden/v240_readback_audit_evidence.jsonl#audit",
+          "provenance_ref": "tests/golden/v240_readback_audit_evidence.jsonl#provenance",
+          "dashboard_redacted_ref": "docs/rust-cutover/evidence/V241-005.md#dashboard-artifact-ingestion",
+          "preview_evidence_present": true,
+          "missing_preview_evidence": [],
+          "forbidden_control_detected": false,
+          "render_smoke_case": "v241-dashboard-ingestion-ready"
+        },
+        "diagnostics": []
+      }
+    },
+    "blocking_reasons": [],
+    "capability_boundary": {
+      "new_submit_capability": false,
+      "dashboard_order_controls_enabled": false,
+      "dashboard_approval_controls_enabled": false,
+      "dashboard_cancel_controls_enabled": false,
+      "dashboard_retry_controls_enabled": false,
+      "dashboard_submit_controls_enabled": false,
+      "dashboard_replace_controls_enabled": false,
+      "dashboard_amend_controls_enabled": false,
+      "dashboard_flatten_controls_enabled": false,
+      "dashboard_fill_controls_enabled": false,
+      "trader_terminal_order_ticket_enabled": false,
+      "trader_terminal_live_trading_claim": false,
+      "manual_operation_entry_enabled": false,
+      "manual_operation_submit_allowed": false,
+      "manual_operation_cancel_allowed": false,
+      "manual_operation_retry_allowed": false,
+      "manual_operation_replace_allowed": false,
+      "manual_operation_amend_allowed": false,
+      "manual_operation_flatten_allowed": false,
+      "automatic_operation_action_allowed": false,
+      "production_order_submission_allowed": false,
+      "production_order_mutation_allowed": false,
+      "product_grade_trading_terminal_claim": false
+    }
+  },
+  "cases": [
+    {
+      "case_id": "v241-dashboard-ingest-ready",
+      "expected_health": "healthy",
+      "expected_readiness_status": "ready_readonly_artifact",
+      "expected_ready": true,
+      "expected_diagnostics": [],
+      "mutations": []
+    },
+    {
+      "case_id": "v241-dashboard-ingest-forbidden-true-controls",
+      "expected_health": "error",
+      "expected_readiness_status": "fail_closed",
+      "expected_ready": false,
+      "expected_diagnostics": [
+        "dashboard_submit_controls_enabled_true",
+        "trader_terminal_order_ticket_enabled_true",
+        "manual_operation_submit_allowed_true"
+      ],
+      "mutations": [
+        {
+          "path": ["capability_boundary", "dashboard_submit_controls_enabled"],
+          "value": true
+        },
+        {
+          "path": ["capability_boundary", "trader_terminal_order_ticket_enabled"],
+          "value": true
+        },
+        {
+          "path": ["capability_boundary", "manual_operation_submit_allowed"],
+          "value": true
+        }
+      ]
+    },
+    {
+      "case_id": "v241-dashboard-ingest-stale-artifact",
+      "expected_health": "stale",
+      "expected_readiness_status": "stale_artifact",
+      "expected_ready": false,
+      "expected_diagnostics": ["v24_order_control_preview:freshness_stale"],
+      "mutations": [
+        {
+          "path": [
+            "components",
+            "v24_order_control_preview",
+            "freshness",
+            "status"
+          ],
+          "value": "stale"
+        }
+      ]
+    },
+    {
+      "case_id": "v241-dashboard-ingest-malformed-provenance",
+      "expected_health": "error",
+      "expected_readiness_status": "fail_closed",
+      "expected_ready": false,
+      "expected_diagnostics": [
+        "v24_order_control_preview:source_provenance_missing"
+      ],
+      "mutations": [
+        {
+          "path": [
+            "components",
+            "v24_order_control_preview",
+            "source_provenance",
+            "source_ref"
+          ],
+          "value": ""
+        }
+      ]
+    },
+    {
+      "case_id": "v241-dashboard-ingest-missing-provenance",
+      "expected_health": "degraded",
+      "expected_readiness_status": "degraded_artifact",
+      "expected_ready": false,
+      "expected_diagnostics": [
+        "v24_order_control_preview:degraded_unavailable",
+        "v24_order_control_preview:preview_evidence_missing"
+      ],
+      "mutations": [
+        {
+          "path": [
+            "components",
+            "v24_order_control_preview",
+            "data",
+            "preview_status"
+          ],
+          "value": "degraded_unavailable"
+        },
+        {
+          "path": [
+            "components",
+            "v24_order_control_preview",
+            "data",
+            "readback_audit_status"
+          ],
+          "value": "degraded_unavailable"
+        },
+        {
+          "path": [
+            "components",
+            "v24_order_control_preview",
+            "data",
+            "source_provenance"
+          ],
+          "value": "missing_provenance"
+        },
+        {
+          "path": [
+            "components",
+            "v24_order_control_preview",
+            "data",
+            "provenance_ref"
+          ],
+          "value": ""
+        },
+        {
+          "path": [
+            "components",
+            "v24_order_control_preview",
+            "data",
+            "preview_evidence_present"
+          ],
+          "value": false
+        },
+        {
+          "path": [
+            "components",
+            "v24_order_control_preview",
+            "data",
+            "missing_preview_evidence"
+          ],
+          "value": ["provenance_ref"]
+        },
+        {
+          "path": [
+            "components",
+            "v24_order_control_preview",
+            "data",
+            "blocked_reasons"
+          ],
+          "value": ["missing_provenance"]
+        }
+      ]
+    },
+    {
+      "case_id": "v241-dashboard-ingest-scope-mismatch",
+      "expected_health": "error",
+      "expected_readiness_status": "fail_closed",
+      "expected_ready": false,
+      "expected_diagnostics": ["v24_order_control_preview:scope_mismatch"],
+      "mutations": [
+        {
+          "path": [
+            "components",
+            "v24_order_control_preview",
+            "data",
+            "scope_key"
+          ],
+          "value": "acct-redacted-other|strategy:strategy-redacted-alpha|venue:venue-node-binance-a"
+        }
+      ]
+    },
+    {
+      "case_id": "v241-dashboard-ingest-missing-redaction",
+      "expected_health": "error",
+      "expected_readiness_status": "fail_closed",
+      "expected_ready": false,
+      "expected_diagnostics": [
+        "v24_order_control_preview:redaction_state_not_ready",
+        "v24_order_control_preview:data_redaction_state_not_ready"
+      ],
+      "mutations": [
+        {
+          "path": [
+            "components",
+            "v24_order_control_preview",
+            "redaction",
+            "status"
+          ],
+          "value": "unknown"
+        },
+        {
+          "path": [
+            "components",
+            "v24_order_control_preview",
+            "data",
+            "redaction_state"
+          ],
+          "value": "unredacted"
+        }
+      ]
+    }
+  ]
+}

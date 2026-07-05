@@ -5375,6 +5375,17 @@ fn trader_terminal_read_model_status_from_value(
     let v24_preview_component_present = components
         .and_then(|items| items.get(V24_ORDER_CONTROL_PREVIEW_COMPONENT))
         .is_some();
+    let v24_component_freshness =
+        read_model_component_freshness_status(value, V24_ORDER_CONTROL_PREVIEW_COMPONENT);
+    let v24_component_source_type = read_model_component_source_field(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "source_type",
+    );
+    let v24_component_source_ref =
+        read_model_component_source_field(value, V24_ORDER_CONTROL_PREVIEW_COMPONENT, "source_ref");
+    let v24_component_redaction =
+        read_model_component_redaction_status(value, V24_ORDER_CONTROL_PREVIEW_COMPONENT);
     let v24_order_control_preview_status = read_model_component_data_scalar(
         value,
         V24_ORDER_CONTROL_PREVIEW_COMPONENT,
@@ -5493,7 +5504,55 @@ fn trader_terminal_read_model_status_from_value(
         V24_ORDER_CONTROL_PREVIEW_COMPONENT,
         "render_smoke_case",
     );
+    let snapshot_identity_venue = nested_json_string_field(value, "snapshot_identity", "venue");
     if v24_preview_component_present {
+        match v24_component_freshness.value.as_deref() {
+            Some("fresh") => {}
+            Some("stale") => {
+                component_diagnostics.push(format!(
+                    "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:freshness_stale"
+                ));
+                health = strongest_health(health, HealthStatus::Stale);
+            }
+            Some(other) => {
+                component_diagnostics.push(format!(
+                    "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:freshness_{other}"
+                ));
+                health = strongest_health(health, HealthStatus::Degraded);
+            }
+            None => {
+                component_diagnostics.push(format!(
+                    "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:freshness_missing"
+                ));
+                health = strongest_health(health, HealthStatus::Error);
+            }
+        }
+        if v24_component_source_type
+            .value
+            .as_deref()
+            .is_none_or(str::is_empty)
+            || v24_component_source_ref
+                .value
+                .as_deref()
+                .is_none_or(str::is_empty)
+        {
+            component_diagnostics.push(format!(
+                "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:source_provenance_missing"
+            ));
+            health = strongest_health(health, HealthStatus::Error);
+        }
+        if v24_component_redaction.value.as_deref() != Some("redacted") {
+            component_diagnostics.push(format!(
+                "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:redaction_state_not_ready"
+            ));
+            health = strongest_health(health, HealthStatus::Error);
+        }
+        if v24_redaction_state.value.as_deref() != Some("redacted") {
+            component_diagnostics.push(format!(
+                "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:data_redaction_state_not_ready"
+            ));
+            health = strongest_health(health, HealthStatus::Error);
+        }
         match v24_order_control_preview_status.value.as_deref() {
             Some("ready_preview") => {}
             Some("blocked" | "degraded_unavailable") => {
@@ -5542,6 +5601,39 @@ fn trader_terminal_read_model_status_from_value(
                 "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:ready_with_missing_preview_evidence"
             ));
             health = strongest_health(health, HealthStatus::Error);
+        }
+        if v24_preview_evidence_present.value.as_deref() == Some("true")
+            && v24_provenance_ref
+                .value
+                .as_deref()
+                .is_none_or(str::is_empty)
+        {
+            component_diagnostics.push(format!(
+                "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:preview_provenance_missing"
+            ));
+            health = strongest_health(health, HealthStatus::Error);
+        }
+        if let (Some(scope_key), Some(account_id)) =
+            (v24_scope_key.value.as_deref(), account_id.value.as_deref())
+            && !scope_key.contains(account_id)
+        {
+            component_diagnostics.push(format!(
+                "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:scope_mismatch"
+            ));
+            health = strongest_health(health, HealthStatus::Error);
+        }
+        if let (Some(scope_key), Some(venue)) = (
+            v24_scope_key.value.as_deref(),
+            snapshot_identity_venue.value.as_deref(),
+        ) {
+            let scope_key = scope_key.to_ascii_lowercase();
+            let venue = venue.to_ascii_lowercase();
+            if !scope_key.contains(&venue) {
+                component_diagnostics.push(format!(
+                    "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:scope_mismatch"
+                ));
+                health = strongest_health(health, HealthStatus::Error);
+            }
         }
         if v24_forbidden_control_detected.value.as_deref() == Some("true") {
             component_diagnostics.push(format!(
@@ -17183,6 +17275,211 @@ mod tests {
                 })
         );
         assert_v220_operation_controls_disabled(&runtime, "v24-preview-missing-evidence");
+    }
+
+    #[test]
+    fn dashboard_v24_order_control_preview_forbidden_true_controls_fail_closed_from_artifact() {
+        for field in [
+            "dashboard_submit_controls_enabled",
+            "trader_terminal_order_ticket_enabled",
+            "manual_operation_submit_allowed",
+        ] {
+            let runtime = trader_terminal_read_model_runtime_with_mutation(
+                &format!("v24-preview-forbidden-{field}"),
+                |artifact| {
+                    artifact["components"][V24_ORDER_CONTROL_PREVIEW_COMPONENT] =
+                        read_model_component("healthy", &v24_order_control_preview_ready_data());
+                    artifact["capability_boundary"][field] = json!(true);
+                },
+            );
+
+            assert_eq!(runtime.health, HealthStatus::Error, "{field}");
+            assert_eq!(
+                runtime.readiness_status.value.as_deref(),
+                Some("fail_closed"),
+                "{field}"
+            );
+            assert!(
+                runtime
+                    .diagnostic
+                    .value
+                    .as_deref()
+                    .is_some_and(|diagnostic| diagnostic.contains(&format!("{field}_true"))),
+                "{field}"
+            );
+        }
+    }
+
+    #[test]
+    fn dashboard_v24_order_control_preview_stale_component_is_not_ready() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "v24-preview-stale-component",
+            |artifact| {
+                artifact["components"][V24_ORDER_CONTROL_PREVIEW_COMPONENT] =
+                    read_model_component("healthy", &v24_order_control_preview_ready_data());
+                artifact["components"][V24_ORDER_CONTROL_PREVIEW_COMPONENT]["freshness"] =
+                    read_model_freshness("stale");
+            },
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Stale);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("stale_artifact")
+        );
+        assert!(
+            runtime.diagnostic.value.as_deref().is_some_and(
+                |diagnostic| diagnostic.contains("v24_order_control_preview:freshness_stale")
+            )
+        );
+        assert_v220_operation_controls_disabled(&runtime, "v24-preview-stale-component");
+    }
+
+    #[test]
+    fn dashboard_v24_order_control_preview_malformed_provenance_fails_closed() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "v24-preview-malformed-provenance",
+            |artifact| {
+                let mut data = v24_order_control_preview_ready_data();
+                data["provenance_ref"] = json!("");
+                artifact["components"][V24_ORDER_CONTROL_PREVIEW_COMPONENT] =
+                    read_model_component("healthy", &data);
+            },
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Error);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("fail_closed")
+        );
+        assert!(
+            runtime
+                .diagnostic
+                .value
+                .as_deref()
+                .is_some_and(|diagnostic| diagnostic
+                    .contains("v24_order_control_preview:preview_provenance_missing"))
+        );
+        assert_v220_operation_controls_disabled(&runtime, "v24-preview-malformed-provenance");
+    }
+
+    #[test]
+    fn dashboard_v24_order_control_preview_source_provenance_fails_closed_when_missing() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "v24-preview-missing-source-provenance",
+            |artifact| {
+                artifact["components"][V24_ORDER_CONTROL_PREVIEW_COMPONENT] =
+                    read_model_component("healthy", &v24_order_control_preview_ready_data());
+                artifact["components"][V24_ORDER_CONTROL_PREVIEW_COMPONENT]["source_provenance"] =
+                    json!({});
+            },
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Error);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("fail_closed")
+        );
+        assert!(
+            runtime
+                .diagnostic
+                .value
+                .as_deref()
+                .is_some_and(|diagnostic| diagnostic
+                    .contains("v24_order_control_preview:source_provenance_missing"))
+        );
+        assert_v220_operation_controls_disabled(&runtime, "v24-preview-missing-source-provenance");
+    }
+
+    #[test]
+    fn dashboard_v24_order_control_preview_scope_mismatch_fails_closed() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "v24-preview-scope-mismatch",
+            |artifact| {
+                let mut data = v24_order_control_preview_ready_data();
+                data["scope_key"] = json!(
+                    "acct-redacted-other|strategy:strategy-redacted-alpha|venue:venue-node-binance-a"
+                );
+                artifact["components"][V24_ORDER_CONTROL_PREVIEW_COMPONENT] =
+                    read_model_component("healthy", &data);
+            },
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Error);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("fail_closed")
+        );
+        assert!(
+            runtime.diagnostic.value.as_deref().is_some_and(
+                |diagnostic| diagnostic.contains("v24_order_control_preview:scope_mismatch")
+            )
+        );
+        assert_v220_operation_controls_disabled(&runtime, "v24-preview-scope-mismatch");
+    }
+
+    #[test]
+    fn dashboard_v24_order_control_preview_missing_redaction_fails_closed() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "v24-preview-missing-redaction",
+            |artifact| {
+                let mut data = v24_order_control_preview_ready_data();
+                data["redaction_state"] = json!("unredacted");
+                artifact["components"][V24_ORDER_CONTROL_PREVIEW_COMPONENT] =
+                    read_model_component("healthy", &data);
+                artifact["components"][V24_ORDER_CONTROL_PREVIEW_COMPONENT]["redaction"] =
+                    json!({});
+            },
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Error);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("fail_closed")
+        );
+        assert!(
+            runtime
+                .diagnostic
+                .value
+                .as_deref()
+                .is_some_and(|diagnostic| {
+                    diagnostic.contains("v24_order_control_preview:redaction_state_not_ready")
+                        && diagnostic
+                            .contains("v24_order_control_preview:data_redaction_state_not_ready")
+                })
+        );
+        assert_v220_operation_controls_disabled(&runtime, "v24-preview-missing-redaction");
+    }
+
+    fn v24_order_control_preview_ready_data() -> Value {
+        json!({
+            "preview_status": "ready_preview",
+            "order_intent_status": "ready_preview",
+            "execution_policy_status": "ready_preview",
+            "rate_limit_status": "ready_preview",
+            "slicing_status": "ready_preview",
+            "cancel_replace_amend_status": "ready_preview",
+            "retry_policy_status": "ready_preview",
+            "readback_audit_status": "ready_preview",
+            "blocked_reasons": [],
+            "scope_key": "acct-redacted-001|strategy:strategy-redacted-alpha|venue:venue-node-binance-a",
+            "source_provenance": "tests/golden/v240_readback_audit_evidence.jsonl#ready_preview",
+            "redaction_state": "redacted",
+            "order_intent_ref": "tests/golden/v240_order_intent_execution_policy.jsonl#ready",
+            "policy_ref": "docs/rust-cutover/release/v0_24_0_order_intent_policy.md",
+            "rate_limit_ref": "tests/golden/v240_rate_limit_throttle_gate.jsonl#accepted",
+            "slicing_ref": "tests/golden/v240_order_slicing_preview.jsonl#single_slice",
+            "cancel_replace_amend_ref": "tests/golden/v240_cancel_replace_amend_preview.jsonl#cancel_preview",
+            "retry_policy_ref": "tests/golden/v240_retry_policy_ledger.jsonl#no_retry_terminal",
+            "readback_ref": "tests/golden/v240_readback_audit_evidence.jsonl#readback",
+            "audit_ref": "tests/golden/v240_readback_audit_evidence.jsonl#audit",
+            "provenance_ref": "tests/golden/v240_readback_audit_evidence.jsonl#provenance",
+            "dashboard_redacted_ref": "docs/rust-cutover/evidence/V241-005.md#dashboard-artifact-ingestion",
+            "preview_evidence_present": true,
+            "missing_preview_evidence": [],
+            "forbidden_control_detected": false,
+            "render_smoke_case": "v241-dashboard-artifact-ingestion-ready"
+        })
     }
 
     #[test]

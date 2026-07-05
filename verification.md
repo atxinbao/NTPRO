@@ -1,3 +1,41 @@
+# V241-005 Verification
+
+Date: 2026-07-05
+Executor: Codex
+Task: `V241-005` / GitHub issue `#774`
+Milestone: `v0.24.1`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v24_1_dashboard_artifact_ingestion.sh = PASS
+python3 -m json.tool tests/golden/v241_dashboard_order_control_artifact_ingestion.json >/dev/null = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_24_0_release_manifest.json >/dev/null = PASS
+cargo test -p nautilus-cli dashboard_v24_order_control_preview --lib -- --nocapture = PASS, 8 tests
+scripts/ai/verify_release.sh v24.1-dashboard-artifact-ingestion = PASS, cases=7, fail_closed_cases=4, not_ready_cases=6, malicious_selftest=1, renderer=readonly
+scripts/ai/verify_release.sh v24-dashboard-workbench-preview = PASS, cases=4, readonly_boundary=locked, false_fields=21
+cargo fmt --all -- --check = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V241-005 hardens Dashboard v24 order-control preview artifact ingestion. The
+runtime now diagnoses stale v24 preview components, missing component source
+provenance, missing component/data redaction, ready previews missing provenance,
+and account/venue scope mismatches before rendering Dashboard status.
+
+The new gate renders the real Dashboard Workbench/read-model JS from raw
+artifact-derived runtime values and proves malicious `dashboard_submit_controls_enabled=true`,
+`trader_terminal_order_ticket_enabled=true`, and `manual_operation_submit_allowed=true`
+fail closed. Stale, missing-provenance, scope-mismatch, and missing-redaction
+artifacts do not render as ready.
+
+No Dashboard operation button, live control API, adapter send path, production
+order submission/mutation, retry scheduler, or product-grade live trading
+terminal claim is added.
+
 # V241-003 Verification
 
 Date: 2026-07-05

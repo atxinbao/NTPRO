@@ -444,5 +444,43 @@
       "dashboard_operation_controls_enabled": false,
       "product_grade_live_trading_terminal": false
     }
+  },
+  "post_release_dashboard_artifact_ingestion": {
+    "task_id": "V241-005",
+    "issue": 774,
+    "task_path": "docs/rust-cutover/tasks/V241-005.md",
+    "evidence_path": "docs/rust-cutover/evidence/V241-005.md",
+    "report_path": "docs/rust-cutover/release/v0_24_1_dashboard_artifact_ingestion.md",
+    "gate": "scripts/ai/verify_release.sh v24.1-dashboard-artifact-ingestion",
+    "fixture_path": "tests/golden/v241_dashboard_order_control_artifact_ingestion.json",
+    "artifact_source": "v0_21/unified_read_model_snapshot.json",
+    "renderer_paths": [
+      "crates/cli/src/dashboard.rs::renderTraderTerminalWorkbench",
+      "crates/cli/src/dashboard.rs::renderReadModelRuntime"
+    ],
+    "negative_cases": [
+      "forbidden_true_controls",
+      "stale_artifact",
+      "malformed_provenance",
+      "missing_provenance",
+      "scope_mismatch",
+      "missing_redaction"
+    ],
+    "runtime_artifact_ingestion_tests": true,
+    "renderer_smoke_from_artifact_runtime": true,
+    "retag_required": false,
+    "boundary": {
+      "new_submit_capability": false,
+      "production_order_submission_allowed": false,
+      "production_order_mutation_allowed": false,
+      "execution_adapter_call_allowed": false,
+      "live_exchange_request_allowed": false,
+      "retry_scheduler_enabled": false,
+      "dashboard_operation_controls_enabled": false,
+      "dashboard_trading_controls_enabled": false,
+      "trader_terminal_order_ticket_enabled": false,
+      "manual_operation_submit_allowed": false,
+      "product_grade_live_trading_terminal": false
+    }
   }
 }
