@@ -129,6 +129,78 @@
     "local_generated_evidence_required_in_source_tree": false,
     "remote_reconstruction_required": true
   },
+  "post_release_closeout": {
+    "closeout_evidence_path": "docs/rust-cutover/release/v0_24_0_release_closeout_evidence.md",
+    "github_release": {
+      "tag": "ntpro-rust-only-v0.24.0",
+      "name": "NTPRO Rust-only v0.24.0",
+      "url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.24.0",
+      "published_at": "2026-07-05T03:59:29Z",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main"
+    },
+    "tag": {
+      "sha": "fff22c4e36b85098b4b32a35762a873f93d16587",
+      "tree": "287adca8a02aaada2bc78d49277568751a4bbe46",
+      "post_release_origin_main_sha": "f590023fd8e62323f3a3a5f08e970e5376ba73cb",
+      "ancestor_of_origin_main": true,
+      "exactly_matches_origin_main_after_closeout": false
+    },
+    "hosted_release_gate": {
+      "run_id": 28727113589,
+      "url": "https://github.com/atxinbao/NTPRO/actions/runs/28727113589",
+      "completed_at": "2026-07-05T03:56:00Z",
+      "conclusion": "success",
+      "jobs_total": 70,
+      "jobs_success": 70
+    },
+    "publication_evidence": {
+      "status": "published_after_gate",
+      "release_publication_after_gate": "pass",
+      "audit_source": "source_tree_plus_github_remote",
+      "local_generated_evidence_required_in_source_tree": false,
+      "remote_reconstruction_required": true,
+      "secret_material_allowed": false
+    },
+    "issue_closeout": {
+      "closed_issues": [
+        743,
+        744,
+        745,
+        746,
+        747,
+        748,
+        749,
+        750,
+        751,
+        752
+      ],
+      "closed_count": 10,
+      "open_count": 0
+    },
+    "milestone_closeout": {
+      "number": 14,
+      "title": "v0.24.0",
+      "state": "closed",
+      "open_issues": 0,
+      "closed_issues": 10
+    },
+    "boundary": {
+      "order_control_foundation_preview_only": true,
+      "preview_evidence_only": true,
+      "complete_executable_order_control_runtime": false,
+      "product_grade_live_trading_terminal": false,
+      "new_submit_capability": false,
+      "production_order_submission_allowed": false,
+      "production_order_mutation_allowed": false,
+      "execution_adapter_call_allowed": false,
+      "live_exchange_request_allowed": false,
+      "retry_scheduler_enabled": false,
+      "dashboard_operation_controls_enabled": false,
+      "dashboard_trading_controls_enabled": false
+    }
+  },
   "release_surface_current_guard": {
     "current_release_version": "v0.24.0",
     "current_release_tag": "ntpro-rust-only-v0.24.0",

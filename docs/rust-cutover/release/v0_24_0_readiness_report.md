@@ -41,16 +41,22 @@ release publish after gate = required
 ## Issue Closeout
 
 ```text
-#743 V240-000 = closed before final v0.24.0 release closeout
-#744 V240-001 = closed before final v0.24.0 release closeout
-#745 V240-002 = closed before final v0.24.0 release closeout
-#746 V240-003 = closed before final v0.24.0 release closeout
-#747 V240-004 = closed before final v0.24.0 release closeout
-#748 V240-005 = closed before final v0.24.0 release closeout
-#749 V240-006 = closed before final v0.24.0 release closeout
-#750 V240-007 = closed before final v0.24.0 release closeout
-#751 V240-008 = closed before final v0.24.0 release closeout
-#752 V240-009 = stays open until tag, hosted gate, public release, strict provenance, and publication evidence are recorded
+#743 V240-000 = closed
+#744 V240-001 = closed
+#745 V240-002 = closed
+#746 V240-003 = closed
+#747 V240-004 = closed
+#748 V240-005 = closed
+#749 V240-006 = closed
+#750 V240-007 = closed
+#751 V240-008 = closed
+#752 V240-009 = closed after tag, hosted gate, public release, strict provenance, and publication evidence were recorded
+V240 issue set = 10/10 closed
+v0.24.0 milestone = closed
+release closeout evidence = docs/rust-cutover/release/v0_24_0_release_closeout_evidence.md
+hosted release gate jobs = 70/70 success
+tag SHA = fff22c4e36b85098b4b32a35762a873f93d16587
+published at = 2026-07-05T03:59:29Z
 ```
 
 ## Boundary
