@@ -482,5 +482,46 @@
       "manual_operation_submit_allowed": false,
       "product_grade_live_trading_terminal": false
     }
+  },
+  "post_release_dashboard_fixture_ref_integrity": {
+    "task_id": "V241-007",
+    "issue": 776,
+    "task_path": "docs/rust-cutover/tasks/V241-007.md",
+    "evidence_path": "docs/rust-cutover/evidence/V241-007.md",
+    "report_path": "docs/rust-cutover/release/v0_24_1_dashboard_fixture_ref_integrity.md",
+    "gate": "scripts/ai/verify_release.sh v24.1-dashboard-fixture-ref-integrity",
+    "fixtures": [
+      "tests/golden/v240_dashboard_workbench_order_control_preview.json",
+      "tests/golden/v241_dashboard_order_control_artifact_ingestion.json"
+    ],
+    "fixed_policy_ref": "docs/rust-cutover/release/v0_24_0_order_intent_execution_policy.md",
+    "ref_fields_checked": [
+      "order_intent_ref",
+      "policy_ref",
+      "rate_limit_ref",
+      "slicing_ref",
+      "cancel_replace_amend_ref",
+      "retry_policy_ref",
+      "readback_ref",
+      "audit_ref",
+      "provenance_ref",
+      "dashboard_redacted_ref"
+    ],
+    "negative_selftests": [
+      "bad_path_selftest",
+      "bad_jsonl_anchor_selftest",
+      "bad_markdown_anchor_selftest"
+    ],
+    "retag_required": false,
+    "boundary": {
+      "production_order_submission_allowed": false,
+      "production_order_mutation_allowed": false,
+      "execution_adapter_call_allowed": false,
+      "live_exchange_request_allowed": false,
+      "retry_scheduler_enabled": false,
+      "dashboard_operation_controls_enabled": false,
+      "dashboard_trading_controls_enabled": false,
+      "product_grade_live_trading_terminal": false
+    }
   }
 }
