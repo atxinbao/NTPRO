@@ -1,3 +1,37 @@
+# V241-007 Verification
+
+Date: 2026-07-05
+Executor: Codex
+Task: `V241-007` / GitHub issue `#776`
+Milestone: `v0.24.1`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v24_1_dashboard_fixture_ref_integrity.sh = PASS
+python3 -m json.tool tests/golden/v240_dashboard_workbench_order_control_preview.json >/dev/null = PASS
+python3 -m json.tool tests/golden/v241_dashboard_order_control_artifact_ingestion.json >/dev/null = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_24_0_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_release.sh v24.1-dashboard-fixture-ref-integrity = PASS, v240_resolved=39, v240_skipped_missing=1, v241_resolved=10, bad_path_selftest=1, bad_jsonl_anchor_selftest=1, bad_markdown_anchor_selftest=1
+scripts/ai/verify_release.sh v24-dashboard-workbench-preview = PASS
+scripts/ai/verify_release.sh v24.1-dashboard-artifact-ingestion = PASS
+cargo fmt --all -- --check = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V241-007 fixes the stale Dashboard `policy_ref` path to
+`docs/rust-cutover/release/v0_24_0_order_intent_execution_policy.md` and adds a
+v24.1 fixture ref integrity gate. The gate validates Dashboard fixture refs
+against existing paths, JSONL semantic anchors, and Markdown anchors, while
+allowing only the explicit missing-provenance degraded case to omit
+`provenance_ref`.
+
+No Dashboard operation controls, live control API, adapter send path, production
+order mutation, retry scheduler, or order-control runtime is added.
+
 # V241-005 Verification
 
 Date: 2026-07-05
