@@ -231,6 +231,7 @@ const TRADER_TERMINAL_READ_MODEL_ARTIFACT_RELATIVE_PATH: &str =
     "v0_21/unified_read_model_snapshot.json";
 const UNIFIED_READ_MODEL_CONTRACT_VERSION: &str = "ntpro.v210.unified_read_model.v1";
 const UNIFIED_READ_MODEL_SCHEMA_VERSION: &str = "ntpro.v210.unified_read_model.schema.v1";
+const V24_ORDER_CONTROL_PREVIEW_COMPONENT: &str = "v24_order_control_preview";
 const TRADER_TERMINAL_READ_MODEL_REQUIRED_COMPONENTS: [&str; 7] = [
     "account",
     "positions",
@@ -1129,6 +1130,7 @@ function renderTraderTerminalWorkbench(readModels) {
     ["workbench-tab-alerts", "workbench-panel-alerts", "告警", snapshotValue(primary.risk_alert_severity) || panelStatus("risk_status"), "V220-004"],
     ["workbench-tab-audit-provenance", "workbench-panel-audit-provenance", "审计 / Provenance", panelStatus("lifecycle_status"), "V220-004"],
     ["workbench-tab-operation-entry", "workbench-panel-operation-entry", "操作入口", snapshotValue(primary.operation_entry_status) || panelStatus("operation_entry_status"), "V220-005"],
+    ["workbench-tab-v24-order-control-preview", "workbench-panel-v24-order-control-preview", "v24 Order-control preview", panelStatus("v24_order_control_preview_status"), "V240-008"],
   ];
   const controlsDisabled = [
     "new_submit_capability",
@@ -1310,6 +1312,42 @@ function renderTraderTerminalWorkbench(readModels) {
     panelRow("Flatten", boundaryValue("manual_operation_flatten_allowed")),
     panelRow("Automatic action", boundaryValue("automatic_operation_action_allowed")),
   ];
+  const v24OrderControlPreviewRows = [
+    panelRow("Preview status", snapshotValue(primary.v24_order_control_preview_status)),
+    panelRow("Order intent", snapshotValue(primary.v24_order_intent_status)),
+    panelRow("Execution policy", snapshotValue(primary.v24_execution_policy_status)),
+    panelRow("Rate limit", snapshotValue(primary.v24_rate_limit_status)),
+    panelRow("Slicing", snapshotValue(primary.v24_slicing_status)),
+    panelRow("Cancel / replace / amend", snapshotValue(primary.v24_cancel_replace_amend_status)),
+    panelRow("Retry policy", snapshotValue(primary.v24_retry_policy_status)),
+    panelRow("Readback / audit", snapshotValue(primary.v24_readback_audit_status)),
+    panelRow("Blocked reasons", snapshotValue(primary.v24_blocked_reasons)),
+    panelRow("Scope key", snapshotValue(primary.v24_scope_key)),
+    panelRow("Source provenance", snapshotValue(primary.v24_source_provenance)),
+    panelRow("Redaction", snapshotValue(primary.v24_redaction_state)),
+    panelRow("Order intent ref", snapshotValue(primary.v24_order_intent_ref)),
+    panelRow("Policy ref", snapshotValue(primary.v24_policy_ref)),
+    panelRow("Rate-limit ref", snapshotValue(primary.v24_rate_limit_ref)),
+    panelRow("Slicing ref", snapshotValue(primary.v24_slicing_ref)),
+    panelRow("Cancel/replace/amend ref", snapshotValue(primary.v24_cancel_replace_amend_ref)),
+    panelRow("Retry policy ref", snapshotValue(primary.v24_retry_policy_ref)),
+    panelRow("Readback ref", snapshotValue(primary.v24_readback_ref)),
+    panelRow("Audit ref", snapshotValue(primary.v24_audit_ref)),
+    panelRow("Provenance ref", snapshotValue(primary.v24_provenance_ref)),
+    panelRow("Dashboard redacted ref", snapshotValue(primary.v24_dashboard_redacted_ref)),
+    panelRow("Preview evidence present", snapshotValue(primary.v24_preview_evidence_present)),
+    panelRow("Missing preview evidence", snapshotValue(primary.v24_missing_preview_evidence)),
+    panelRow("Forbidden control detected", snapshotValue(primary.v24_forbidden_control_detected)),
+    panelRow("Render smoke case", snapshotValue(primary.v24_render_smoke_case)),
+    panelRow("Submit control", boundaryValue("dashboard_submit_controls_enabled")),
+    panelRow("Cancel control", boundaryValue("dashboard_cancel_controls_enabled")),
+    panelRow("Replace control", boundaryValue("dashboard_replace_controls_enabled")),
+    panelRow("Amend control", boundaryValue("dashboard_amend_controls_enabled")),
+    panelRow("Flatten control", boundaryValue("dashboard_flatten_controls_enabled")),
+    panelRow("Order ticket", boundaryValue("trader_terminal_order_ticket_enabled")),
+    panelRow("Manual entry", boundaryValue("manual_operation_entry_enabled")),
+    panelRow("Automatic action", boundaryValue("automatic_operation_action_allowed")),
+  ];
   const panelRows = {
     "workbench-panel-account": accountRows,
     "workbench-panel-positions": positionRows,
@@ -1319,6 +1357,7 @@ function renderTraderTerminalWorkbench(readModels) {
     "workbench-panel-alerts": alertRows,
     "workbench-panel-audit-provenance": auditProvenanceRows,
     "workbench-panel-operation-entry": operationEntryRows,
+    "workbench-panel-v24-order-control-preview": v24OrderControlPreviewRows,
   };
 
   document.getElementById("trader-terminal-workbench").innerHTML = `
@@ -1402,7 +1441,7 @@ function renderReadModelRuntime(readModels) {
             <td data-label="Snapshot">${panelRow("Contract", snapshotValue(item.contract_version))}${panelRow("Schema", snapshotValue(item.schema_version))}${panelRow("ID", snapshotValue(item.snapshot_id))}${panelRow("Kind", snapshotValue(item.snapshot_kind))}${panelRow("Health", snapshotValue(item.snapshot_health_status))}${panelRow("Freshness", snapshotValue(item.freshness_status))}${panelRow("Source", `${snapshotValue(item.source_type)} ${snapshotValue(item.source_ref)}`)}${panelRow("Redaction", snapshotValue(item.redaction_state))}</td>
             <td data-label="组件状态">${panelRow("Account", snapshotValue(item.account_status))}${panelRow("Positions", snapshotValue(item.positions_status))}${panelRow("Orders", snapshotValue(item.orders_status))}${panelRow("Fills", snapshotValue(item.fills_status))}${panelRow("Risk", snapshotValue(item.risk_status))}${panelRow("Lifecycle", snapshotValue(item.lifecycle_status))}</td>
             <td data-label="基础状态">${panelRow("Account", snapshotValue(item.account_summary))}${panelRow("Positions", snapshotValue(item.positions_summary))}${panelRow("Orders", snapshotValue(item.orders_summary))}${panelRow("Fills", snapshotValue(item.fills_summary))}${panelRow("Risk", snapshotValue(item.risk_summary))}${panelRow("Lifecycle", snapshotValue(item.lifecycle_summary))}</td>
-            <td data-label="只读边界">${panelRow("新增 Submit 能力", snapshotValue(item.new_submit_capability))}${panelRow("下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("审批控件", snapshotValue(item.dashboard_approval_controls_enabled))}${panelRow("撤单控件", snapshotValue(item.dashboard_cancel_controls_enabled))}${panelRow("重试控件", snapshotValue(item.dashboard_retry_controls_enabled))}${panelRow("Submit", snapshotValue(item.dashboard_submit_controls_enabled))}${panelRow("Replace", snapshotValue(item.dashboard_replace_controls_enabled))}${panelRow("Amend", snapshotValue(item.dashboard_amend_controls_enabled))}${panelRow("Flatten", snapshotValue(item.dashboard_flatten_controls_enabled))}${panelRow("订单票据", snapshotValue(item.trader_terminal_order_ticket_enabled))}${panelRow("实盘终端声明", snapshotValue(item.trader_terminal_live_trading_claim))}${panelRow("产品级声明", snapshotValue(item.product_grade_trading_terminal_claim))}</td>
+            <td data-label="只读边界">${panelRow("新增 Submit 能力", snapshotValue(item.new_submit_capability))}${panelRow("下单控件", snapshotValue(item.dashboard_order_controls_enabled))}${panelRow("审批控件", snapshotValue(item.dashboard_approval_controls_enabled))}${panelRow("撤单控件", snapshotValue(item.dashboard_cancel_controls_enabled))}${panelRow("重试控件", snapshotValue(item.dashboard_retry_controls_enabled))}${panelRow("Submit", snapshotValue(item.dashboard_submit_controls_enabled))}${panelRow("Replace", snapshotValue(item.dashboard_replace_controls_enabled))}${panelRow("Amend", snapshotValue(item.dashboard_amend_controls_enabled))}${panelRow("Flatten", snapshotValue(item.dashboard_flatten_controls_enabled))}${panelRow("订单票据", snapshotValue(item.trader_terminal_order_ticket_enabled))}${panelRow("实盘终端声明", snapshotValue(item.trader_terminal_live_trading_claim))}${panelRow("产品级声明", snapshotValue(item.product_grade_trading_terminal_claim))}${panelRow("v24 preview", snapshotValue(item.v24_order_control_preview_status))}${panelRow("v24 scope", snapshotValue(item.v24_scope_key))}${panelRow("v24 source", snapshotValue(item.v24_source_provenance))}${panelRow("v24 redaction", snapshotValue(item.v24_redaction_state))}${panelRow("v24 missing evidence", snapshotValue(item.v24_missing_preview_evidence))}</td>
             <td data-label="工件" class="path">${displayText(snapshotValue(item.artifact_path))}</td>
           </tr>
         `).join("")}
@@ -4015,6 +4054,32 @@ pub struct TraderTerminalReadModelStatus {
     pub operation_ungated_attempted: DashboardValue<String>,
     pub operation_attempt_status: DashboardValue<String>,
     pub operation_ungated_attempt_fail_closed: DashboardValue<String>,
+    pub v24_order_control_preview_status: DashboardValue<String>,
+    pub v24_order_intent_status: DashboardValue<String>,
+    pub v24_execution_policy_status: DashboardValue<String>,
+    pub v24_rate_limit_status: DashboardValue<String>,
+    pub v24_slicing_status: DashboardValue<String>,
+    pub v24_cancel_replace_amend_status: DashboardValue<String>,
+    pub v24_retry_policy_status: DashboardValue<String>,
+    pub v24_readback_audit_status: DashboardValue<String>,
+    pub v24_blocked_reasons: DashboardValue<String>,
+    pub v24_scope_key: DashboardValue<String>,
+    pub v24_source_provenance: DashboardValue<String>,
+    pub v24_redaction_state: DashboardValue<String>,
+    pub v24_order_intent_ref: DashboardValue<String>,
+    pub v24_policy_ref: DashboardValue<String>,
+    pub v24_rate_limit_ref: DashboardValue<String>,
+    pub v24_slicing_ref: DashboardValue<String>,
+    pub v24_cancel_replace_amend_ref: DashboardValue<String>,
+    pub v24_retry_policy_ref: DashboardValue<String>,
+    pub v24_readback_ref: DashboardValue<String>,
+    pub v24_audit_ref: DashboardValue<String>,
+    pub v24_provenance_ref: DashboardValue<String>,
+    pub v24_dashboard_redacted_ref: DashboardValue<String>,
+    pub v24_preview_evidence_present: DashboardValue<String>,
+    pub v24_missing_preview_evidence: DashboardValue<String>,
+    pub v24_forbidden_control_detected: DashboardValue<String>,
+    pub v24_render_smoke_case: DashboardValue<String>,
     pub orders_summary: DashboardValue<String>,
     pub fills_summary: DashboardValue<String>,
     pub risk_summary: DashboardValue<String>,
@@ -4852,6 +4917,32 @@ fn degraded_trader_terminal_read_model_status(
             "fail_closed_without_contract".to_string(),
         ),
         operation_ungated_attempt_fail_closed: DashboardValue::available("true".to_string()),
+        v24_order_control_preview_status: DashboardValue::unknown(),
+        v24_order_intent_status: DashboardValue::unknown(),
+        v24_execution_policy_status: DashboardValue::unknown(),
+        v24_rate_limit_status: DashboardValue::unknown(),
+        v24_slicing_status: DashboardValue::unknown(),
+        v24_cancel_replace_amend_status: DashboardValue::unknown(),
+        v24_retry_policy_status: DashboardValue::unknown(),
+        v24_readback_audit_status: DashboardValue::unknown(),
+        v24_blocked_reasons: DashboardValue::unknown(),
+        v24_scope_key: DashboardValue::unknown(),
+        v24_source_provenance: DashboardValue::unknown(),
+        v24_redaction_state: DashboardValue::unknown(),
+        v24_order_intent_ref: DashboardValue::unknown(),
+        v24_policy_ref: DashboardValue::unknown(),
+        v24_rate_limit_ref: DashboardValue::unknown(),
+        v24_slicing_ref: DashboardValue::unknown(),
+        v24_cancel_replace_amend_ref: DashboardValue::unknown(),
+        v24_retry_policy_ref: DashboardValue::unknown(),
+        v24_readback_ref: DashboardValue::unknown(),
+        v24_audit_ref: DashboardValue::unknown(),
+        v24_provenance_ref: DashboardValue::unknown(),
+        v24_dashboard_redacted_ref: DashboardValue::unknown(),
+        v24_preview_evidence_present: DashboardValue::unknown(),
+        v24_missing_preview_evidence: DashboardValue::unknown(),
+        v24_forbidden_control_detected: DashboardValue::unknown(),
+        v24_render_smoke_case: DashboardValue::unknown(),
         orders_summary: DashboardValue::unknown(),
         fills_summary: DashboardValue::unknown(),
         risk_summary: DashboardValue::unknown(),
@@ -5280,6 +5371,185 @@ fn trader_terminal_read_model_status_from_value(
         disabled: operation_entry_disabled_flag,
     };
     let operation_entry_status = read_model_operation_entry_status(operation_entry_state);
+
+    let v24_preview_component_present = components
+        .and_then(|items| items.get(V24_ORDER_CONTROL_PREVIEW_COMPONENT))
+        .is_some();
+    let v24_order_control_preview_status = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "preview_status",
+    );
+    let v24_order_intent_status = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "order_intent_status",
+    );
+    let v24_execution_policy_status = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "execution_policy_status",
+    );
+    let v24_rate_limit_status = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "rate_limit_status",
+    );
+    let v24_slicing_status = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "slicing_status",
+    );
+    let v24_cancel_replace_amend_status = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "cancel_replace_amend_status",
+    );
+    let v24_retry_policy_status = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "retry_policy_status",
+    );
+    let v24_readback_audit_status = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "readback_audit_status",
+    );
+    let v24_blocked_reasons = read_model_component_data_array_field(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "blocked_reasons",
+    );
+    let v24_scope_key =
+        read_model_component_data_scalar(value, V24_ORDER_CONTROL_PREVIEW_COMPONENT, "scope_key");
+    let v24_source_provenance = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "source_provenance",
+    );
+    let v24_redaction_state = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "redaction_state",
+    );
+    let v24_order_intent_ref = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "order_intent_ref",
+    );
+    let v24_policy_ref =
+        read_model_component_data_scalar(value, V24_ORDER_CONTROL_PREVIEW_COMPONENT, "policy_ref");
+    let v24_rate_limit_ref = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "rate_limit_ref",
+    );
+    let v24_slicing_ref =
+        read_model_component_data_scalar(value, V24_ORDER_CONTROL_PREVIEW_COMPONENT, "slicing_ref");
+    let v24_cancel_replace_amend_ref = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "cancel_replace_amend_ref",
+    );
+    let v24_retry_policy_ref = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "retry_policy_ref",
+    );
+    let v24_readback_ref = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "readback_ref",
+    );
+    let v24_audit_ref =
+        read_model_component_data_scalar(value, V24_ORDER_CONTROL_PREVIEW_COMPONENT, "audit_ref");
+    let v24_provenance_ref = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "provenance_ref",
+    );
+    let v24_dashboard_redacted_ref = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "dashboard_redacted_ref",
+    );
+    let v24_preview_evidence_present = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "preview_evidence_present",
+    );
+    let v24_missing_preview_evidence = read_model_component_data_array_field(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "missing_preview_evidence",
+    );
+    let v24_forbidden_control_detected = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "forbidden_control_detected",
+    );
+    let v24_render_smoke_case = read_model_component_data_scalar(
+        value,
+        V24_ORDER_CONTROL_PREVIEW_COMPONENT,
+        "render_smoke_case",
+    );
+    if v24_preview_component_present {
+        match v24_order_control_preview_status.value.as_deref() {
+            Some("ready_preview") => {}
+            Some("blocked" | "degraded_unavailable") => {
+                component_diagnostics.push(format!(
+                    "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:{}",
+                    v24_order_control_preview_status
+                        .value
+                        .as_deref()
+                        .unwrap_or("unknown")
+                ));
+                health = strongest_health(health, HealthStatus::Degraded);
+            }
+            Some("fail_closed" | "forbidden_control_detected") => {
+                component_diagnostics.push(format!(
+                    "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:{}",
+                    v24_order_control_preview_status
+                        .value
+                        .as_deref()
+                        .unwrap_or("unknown")
+                ));
+                health = strongest_health(health, HealthStatus::Error);
+            }
+            Some(other) => {
+                component_diagnostics.push(format!(
+                    "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:preview_status_unexpected:{other}"
+                ));
+                health = strongest_health(health, HealthStatus::Error);
+            }
+            None => {
+                component_diagnostics.push(format!(
+                    "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:preview_status_missing"
+                ));
+                health = strongest_health(health, HealthStatus::Degraded);
+            }
+        }
+        if v24_preview_evidence_present.value.as_deref() != Some("true") {
+            component_diagnostics.push(format!(
+                "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:preview_evidence_missing"
+            ));
+            health = strongest_health(health, HealthStatus::Degraded);
+        }
+        if v24_order_control_preview_status.value.as_deref() == Some("ready_preview")
+            && v24_missing_preview_evidence.availability == DashboardAvailability::Available
+        {
+            component_diagnostics.push(format!(
+                "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:ready_with_missing_preview_evidence"
+            ));
+            health = strongest_health(health, HealthStatus::Error);
+        }
+        if v24_forbidden_control_detected.value.as_deref() == Some("true") {
+            component_diagnostics.push(format!(
+                "{V24_ORDER_CONTROL_PREVIEW_COMPONENT}:forbidden_control_detected"
+            ));
+            health = strongest_health(health, HealthStatus::Error);
+        }
+    }
 
     let boundary = value.get("capability_boundary").unwrap_or(&Value::Null);
     let new_submit_capability = required_read_model_boundary_bool(
@@ -5854,6 +6124,32 @@ fn trader_terminal_read_model_status_from_value(
         operation_ungated_attempt_fail_closed: dashboard_bool_string(
             operation_ungated_attempt_fail_closed_flag,
         ),
+        v24_order_control_preview_status,
+        v24_order_intent_status,
+        v24_execution_policy_status,
+        v24_rate_limit_status,
+        v24_slicing_status,
+        v24_cancel_replace_amend_status,
+        v24_retry_policy_status,
+        v24_readback_audit_status,
+        v24_blocked_reasons,
+        v24_scope_key,
+        v24_source_provenance,
+        v24_redaction_state,
+        v24_order_intent_ref,
+        v24_policy_ref,
+        v24_rate_limit_ref,
+        v24_slicing_ref,
+        v24_cancel_replace_amend_ref,
+        v24_retry_policy_ref,
+        v24_readback_ref,
+        v24_audit_ref,
+        v24_provenance_ref,
+        v24_dashboard_redacted_ref,
+        v24_preview_evidence_present,
+        v24_missing_preview_evidence,
+        v24_forbidden_control_detected,
+        v24_render_smoke_case,
         orders_summary: read_model_component_data_summary(value, "orders"),
         fills_summary: read_model_component_data_summary(value, "fills"),
         risk_summary: read_model_component_data_summary(value, "risk"),
@@ -16762,6 +17058,131 @@ mod tests {
                 "{field}"
             );
         }
+    }
+
+    #[test]
+    fn dashboard_v24_order_control_preview_renderer_stays_readonly() {
+        let workbench_renderer = dashboard_js_function_body("renderTraderTerminalWorkbench");
+        let runtime_renderer = dashboard_js_function_body("renderReadModelRuntime");
+        let renderer = format!("{workbench_renderer}\n{runtime_renderer}");
+
+        for required in [
+            "v24 Order-control preview",
+            "v24_order_control_preview_status",
+            "v24_missing_preview_evidence",
+            "v24_forbidden_control_detected",
+            "Submit control",
+            "Cancel control",
+            "Replace control",
+            "Amend control",
+            "Flatten control",
+            "Order ticket",
+        ] {
+            assert!(
+                renderer.contains(required),
+                "v24 dashboard renderer must contain {required}"
+            );
+        }
+
+        for forbidden in [
+            "<button",
+            "<form",
+            "<input",
+            "fetch(",
+            "data-dashboard-action",
+            "data-workbench-action",
+            "/api/control",
+            "/api/order",
+            "/api/orders",
+            "/actions/submit",
+            "/actions/cancel",
+            "/actions/replace",
+            "/actions/amend",
+            "/actions/flatten",
+            "submit_order",
+            "cancel_order",
+            "replace_order",
+            "amend_order",
+            "flatten_position_action",
+        ] {
+            assert!(
+                !renderer.contains(forbidden),
+                "v24 dashboard renderer must stay read-only and not contain {forbidden}"
+            );
+        }
+    }
+
+    #[test]
+    fn dashboard_v24_order_control_preview_missing_evidence_degrades() {
+        let runtime = trader_terminal_read_model_runtime_with_mutation(
+            "v24-preview-missing-evidence",
+            |artifact| {
+                artifact["components"][V24_ORDER_CONTROL_PREVIEW_COMPONENT] = read_model_component(
+                    "degraded",
+                    &json!({
+                        "preview_status": "degraded_unavailable",
+                        "order_intent_status": "ready_preview",
+                        "execution_policy_status": "ready_preview",
+                        "rate_limit_status": "ready_preview",
+                        "slicing_status": "ready_preview",
+                        "cancel_replace_amend_status": "ready_preview",
+                        "retry_policy_status": "ready_preview",
+                        "readback_audit_status": "degraded_unavailable",
+                        "blocked_reasons": ["missing_provenance"],
+                        "scope_key": "acct-redacted-001|strategy:strategy-redacted-alpha|venue:venue-node-binance-a",
+                        "source_provenance": "missing_provenance",
+                        "redaction_state": "redacted",
+                        "order_intent_ref": "tests/golden/v240_order_intent_execution_policy.jsonl#ready",
+                        "policy_ref": "docs/rust-cutover/release/v0_24_0_order_intent_policy.md",
+                        "rate_limit_ref": "tests/golden/v240_rate_limit_throttle_gate.jsonl#accepted",
+                        "slicing_ref": "tests/golden/v240_order_slicing_preview.jsonl#single_slice",
+                        "cancel_replace_amend_ref": "tests/golden/v240_cancel_replace_amend_preview.jsonl#replace_preview",
+                        "retry_policy_ref": "tests/golden/v240_retry_policy_ledger.jsonl#transport_retry_allowed",
+                        "readback_ref": "tests/golden/v240_readback_audit_evidence.jsonl#degraded_unavailable",
+                        "audit_ref": "tests/golden/v240_readback_audit_evidence.jsonl#audit_degraded",
+                        "provenance_ref": "",
+                        "dashboard_redacted_ref": "docs/rust-cutover/evidence/V240-008.md#dashboard-redacted-degraded",
+                        "preview_evidence_present": false,
+                        "missing_preview_evidence": ["provenance_ref"],
+                        "forbidden_control_detected": false,
+                        "render_smoke_case": "v240-dashboard-case-missing-provenance"
+                    }),
+                );
+            },
+        );
+
+        assert_eq!(runtime.health, HealthStatus::Degraded);
+        assert_eq!(
+            runtime.readiness_status.value.as_deref(),
+            Some("degraded_artifact")
+        );
+        assert_eq!(
+            runtime.v24_order_control_preview_status.value.as_deref(),
+            Some("degraded_unavailable")
+        );
+        assert_eq!(
+            runtime.v24_preview_evidence_present.value.as_deref(),
+            Some("false")
+        );
+        assert_eq!(
+            runtime.v24_missing_preview_evidence.value.as_deref(),
+            Some("provenance_ref")
+        );
+        assert_eq!(
+            runtime.v24_forbidden_control_detected.value.as_deref(),
+            Some("false")
+        );
+        assert!(
+            runtime
+                .diagnostic
+                .value
+                .as_deref()
+                .is_some_and(|diagnostic| {
+                    diagnostic.contains("v24_order_control_preview:degraded_unavailable")
+                        && diagnostic.contains("v24_order_control_preview:preview_evidence_missing")
+                })
+        );
+        assert_v220_operation_controls_disabled(&runtime, "v24-preview-missing-evidence");
     }
 
     #[test]
