@@ -1,3 +1,29 @@
+# V241-002 Verification
+
+Date: 2026-07-05
+Executor: Codex
+Task: `V241-002` / GitHub issue `#771`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v24_1_provenance_reconciliation.sh scripts/ai/verify_v24_1_release_closeout_evidence.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_24_0_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_release.sh v24.1-provenance-reconciliation = PASS, tag_sha=fff22c4e36b85098b4b32a35762a873f93d16587, tag_notes_sha256=92cb335a5d7a071cde4be738f3d632a3b64ed56e8812f001704ae64bdd4756ca, pr769_merge=f590023fd8e62323f3a3a5f08e970e5376ba73cb, release_body_sha256=53c7c59d2585c7b8e710c59b0707156e6c9f3107eeb9e0decf8cbc0a3c4a5570, v241001_merge=581d5775a3f3589e16dfbb2758432869b78a1212
+scripts/ai/verify_release.sh v24.1-release-closeout-evidence = PASS, release_tag=ntpro-rust-only-v0.24.0, tag_sha=fff22c4e36b85098b4b32a35762a873f93d16587, release_gate_run=28727113589, jobs=70/70, milestone=v0.24.0:closed, issues=10/10
+scripts/ai/verify_release.sh release-publication-guard = PASS, tag_sha=fff22c4e36b85098b4b32a35762a873f93d16587, origin_main_sha=581d5775a3f3589e16dfbb2758432869b78a1212
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V241-002 local validation passed. The source tree now records the exact
+`v0.24.0` tag source, PR #769 release notes/body sync, V241-001 closeout source,
+and GitHub Release body hash. The new gate rejects unexplained
+tag/main/release-body drift and keeps the strategy as patch closeout evidence
+instead of retag.
+
 # V240-009 Verification
 
 Date: 2026-07-05
