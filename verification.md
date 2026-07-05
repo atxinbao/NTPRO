@@ -1,3 +1,33 @@
+# V250-000 Verification
+
+Date: 2026-07-05
+Executor: Codex
+Task: `V250-000` / GitHub issue `#777`
+Milestone: `v0.25.0`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_intake_gate.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_24_1_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_release.sh v25-intake-gate = PASS, V241 issues=7/7, release_tag=ntpro-rust-only-v0.24.1, hosted_gate_jobs=72/72, tag_matches_origin_main=true, negative_selftest=1
+NTPRO_V241_RELEASE_REQUIRE_PUBLICATION=1 scripts/ai/verify_release.sh v24.1-release-gates = PASS
+NTPRO_V241_STRICT_REQUIRE_PUBLICATION=1 scripts/ai/verify_release.sh v24.1-strict-provenance = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V250-000 records the v0.25.0 intake gate and proves the v0.24.1 dependency is
+closed with live GitHub state. The gate requires V241 issues closed, v0.24.1
+milestone closed, v0.24.1 tag matching origin/main, hosted release gate success,
+public GitHub Release, publication-after-gate ordering, strict provenance, and
+explicit v24 replay classification. This does not add runtime trading behavior,
+public API, submit path, production order mutation, adapter send, live exchange
+request, retry scheduler, Dashboard operation control, or product-grade live
+terminal claim.
+
 # V241-007 Verification
 
 Date: 2026-07-05
