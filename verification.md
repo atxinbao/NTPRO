@@ -2963,3 +2963,38 @@ tracked ledger and manifest against live GitHub Release, tag, release-gate run,
 issue closeout, and milestone state. No runtime trading behavior, public API,
 production order mutation, execution adapter send, retry scheduler, Dashboard
 trading control, or product-grade live terminal claim is added.
+
+# V241-004 Verification
+
+Date: 2026-07-05
+Executor: Codex
+Task: `V241-004` / GitHub issue `#773`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v24_1_schema_replay_classification.sh scripts/ai/verify_v24_order_intent_policy.sh scripts/ai/verify_v24_rate_limit_throttle_gate.sh scripts/ai/verify_v24_order_slicing_preview.sh scripts/ai/verify_v24_cancel_replace_amend_preview.sh scripts/ai/verify_v24_retry_policy_ledger.sh scripts/ai/verify_v24_readback_audit_evidence.sh = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_24_0_release_manifest.json >/dev/null = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl' = PASS, cases=139, executable=95, validator_executable=39, schema_only=5
+scripts/ai/verify_release.sh v24-order-intent-policy = PASS
+scripts/ai/verify_release.sh v24-rate-limit-throttle-gate = PASS
+scripts/ai/verify_release.sh v24-order-slicing-preview = PASS
+scripts/ai/verify_release.sh v24-cancel-replace-amend-preview = PASS
+scripts/ai/verify_release.sh v24-retry-policy-ledger = PASS
+scripts/ai/verify_release.sh v24-readback-audit-evidence = PASS
+scripts/ai/verify_release.sh v24.1-schema-replay-classification = PASS, v240_total=39, validator_executable_replay=39, schema_only_scoped=0, runtime_adapter_integration=false, selftest=1
+scripts/ai/verify_release.sh v24.1-stale-pretag-cleanup = PASS, release_tag=ntpro-rust-only-v0.24.0, issue_752=closed, milestone=v0.24.0:closed, stale_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V241-004 classifies the v24 order-control golden traces into explicit replay
+status classes. The 39 v240 decision-envelope rows are now
+`validator_executable_replay`, with `schema_only_scoped v240 rows = 0` and
+`runtime adapter integration = 0`. This is executable validator evidence only;
+it is not Rust runtime replay, adapter integration, exchange truth, production
+order mutation, Dashboard operation control, or a product-grade live trading
+terminal claim.
