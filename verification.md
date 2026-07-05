@@ -1,3 +1,32 @@
+# V240-008 Verification
+
+Date: 2026-07-04
+Executor: Codex
+Task: `V240-008` / GitHub issue `#751`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v24_dashboard_workbench_order_control_preview.sh = PASS
+python3 -m json.tool tests/golden/v240_dashboard_workbench_order_control_preview.json = PASS
+scripts/ai/verify_release.sh v24-dashboard-workbench-preview = PASS, cases=4, readonly_boundary=locked, false_fields=21
+git diff --check = PASS
+cargo test -p nautilus-cli dashboard_v24_order_control_preview --lib = INTERRUPTED, rustc made no progress after extended wait
+cargo check -p nautilus-cli --lib = INTERRUPTED, rustc made no progress after extended wait
+cargo check -p nautilus-cli --lib --no-default-features = INTERRUPTED, rustc made no progress after extended wait
+scripts/ai/verify_fast.sh = NOT RUN, same Rust compile path stalled locally
+```
+
+## Result
+
+V240-008 render validation passed locally. The Dashboard Workbench now exposes
+the v24 order-control preview as read-only evidence covering normal, blocked,
+missing provenance/degraded-unavailable, and forbidden-control states. The
+renderer gate confirms no button, form, input, action endpoint, or order action
+marker is present in the relevant Workbench/runtime renderer bodies. Rust
+compile/test commands stalled in local `rustc`; PR checks must cover the Rust
+compile path before merge.
+
 # V230-004 Verification
 
 Date: 2026-07-03
