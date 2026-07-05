@@ -3162,3 +3162,35 @@ The second corrective normalizes the live `gh pr view --json files` payload for
 PR #769 to the contract fields `path`, `additions`, and `deletions` before
 comparison. This preserves the same one-file release-notes proof while avoiding
 hosted GitHub CLI payload-shape drift from extra fields.
+
+# V250-001 Verification
+
+Date: 2026-07-05
+Executor: Codex
+Task: `V250-001` / GitHub issue `#778`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_monitoring_observability_contract.sh = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v250_monitoring_observability_contract.jsonl").read_text().splitlines() if line.strip()]' = PASS
+scripts/ai/verify_release.sh v25-monitoring-observability-contract = PASS, cases=5, components_checked=25, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 144 cases, 95 executable replay, 44 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v25-intake-gate = PASS, V241 issues=7/7, release_tag=ntpro-rust-only-v0.24.1, hosted_gate_jobs=72/72, tag_is_ancestor_of_origin_main=true, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V250-001 defines the v0.25.0 monitoring / observability contract and adds
+validator executable replay for healthy, missing provenance, stale/partial,
+redaction breach, and truth/side-effect boundary violations. Monitoring remains
+read-only evidence only; it does not add production submit, order mutation,
+adapter send, live exchange requests, automatic remediation, Dashboard trading
+controls, or product-grade live terminal readiness.
+
+The V250 intake dependency proof was also aligned with the established V24
+model: after V250 work starts, the v0.24.1 release tag must be an ancestor of
+current `origin/main`, not an exact match.

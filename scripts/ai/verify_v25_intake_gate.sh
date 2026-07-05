@@ -302,7 +302,9 @@ remote_tag_sha="$(git ls-remote --tags origin "refs/tags/$V241_RELEASE_TAG" | aw
 [[ "$remote_tag_sha" == "$V241_TAG_SHA" ]] || fail "remote tag SHA mismatch: $remote_tag_sha"
 
 origin_main_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
-[[ "$origin_main_sha" == "$V241_TAG_SHA" ]] || fail "v0.24.1 tag must match origin/main: tag=$V241_TAG_SHA origin_main=$origin_main_sha"
+if ! git merge-base --is-ancestor "$V241_TAG_SHA" "$origin_main_sha"; then
+  fail "v0.24.1 tag is not an ancestor of origin/main: tag=$V241_TAG_SHA origin_main=$origin_main_sha"
+fi
 
 gh_with_retry run view "$V241_GATE_RUN_ID" --repo "$REPO" --json status,conclusion,workflowName,headSha,url,updatedAt,jobs >"$run_json_path"
 RUN_JSON_PATH="$run_json_path" \
@@ -338,7 +340,7 @@ echo "v241_release_url=$V241_RELEASE_URL"
 echo "v241_gate_run=$V241_GATE_URL"
 echo "v241_gate_jobs=${V241_GATE_JOBS_SUCCESS}/${V241_GATE_JOBS_TOTAL}"
 echo "v241_tag_sha=$V241_TAG_SHA"
-echo "v241_tag_matches_origin_main=true"
+echo "v241_tag_is_ancestor_of_origin_main=true"
 echo "v25_capability_track=monitoring_incident_disaster_recovery_foundation_only"
 echo "v25_runtime_capability_inherited=false"
 echo "new_submit_capability=false"
