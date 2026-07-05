@@ -252,7 +252,15 @@ require(pr769["mergedAt"] == os.environ["PR769_MERGED_AT"], "PR #769 mergedAt mi
 require(pr769["changedFiles"] == 1, "PR #769 changed file count mismatch")
 require(pr769["additions"] == 1, "PR #769 addition count mismatch")
 require(pr769["deletions"] == 2, "PR #769 deletion count mismatch")
-require(pr769["files"] == [{"path": release_notes_path, "additions": 1, "deletions": 2}], "PR #769 file list mismatch")
+pr769_files = [
+    {
+        "path": file.get("path"),
+        "additions": file.get("additions"),
+        "deletions": file.get("deletions"),
+    }
+    for file in pr769["files"]
+]
+require(pr769_files == [{"path": release_notes_path, "additions": 1, "deletions": 2}], "PR #769 file list mismatch")
 
 require(pr786["number"] == int(os.environ.get("PR786_NUMBER", "786")), "PR #786 number mismatch")
 require(pr786["state"] == "MERGED", "PR #786 must be merged")
