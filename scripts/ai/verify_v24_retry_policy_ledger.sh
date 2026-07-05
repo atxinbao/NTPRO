@@ -224,12 +224,25 @@ for case_id in required:
     entry = scope_cases.get(case_id)
     if entry is None:
         fail(f"{case_id}: missing replay scope entry")
-    if entry.get("status") != "schema_only_scoped":
-        fail(f"{case_id}: V240-006 scope must be schema_only_scoped")
-    if entry.get("release_decision") != "schema_only_scope_recorded":
-        fail(f"{case_id}: release_decision mismatch")
-    if "harness" in entry or "rust_entrypoint" in entry:
-        fail(f"{case_id}: schema-only scope must not claim executable replay fields")
+    status = entry.get("status")
+    if status == "schema_only_scoped":
+        if entry.get("release_decision") != "schema_only_scope_recorded":
+            fail(f"{case_id}: release_decision mismatch")
+        if "harness" in entry or "rust_entrypoint" in entry:
+            fail(f"{case_id}: schema-only scope must not claim executable replay fields")
+    elif status == "validator_executable_replay":
+        if entry.get("release_decision") != "validator_executable_scope_recorded":
+            fail(f"{case_id}: validator release_decision mismatch")
+        if entry.get("evidence_id") != "V241-004":
+            fail(f"{case_id}: validator evidence must be V241-004")
+        if "rust_entrypoint" in entry:
+            fail(f"{case_id}: validator replay must not claim rust_entrypoint")
+        if entry.get("runtime_adapter_integration") is not False:
+            fail(f"{case_id}: validator replay must not claim runtime adapter integration")
+        if entry.get("complete_executable_order_control_runtime") is not False:
+            fail(f"{case_id}: validator replay must not claim complete order-control runtime")
+    else:
+        fail(f"{case_id}: unsupported V240-006 replay scope status {status!r}")
 
 print("v24 retry policy ledger trace ok: 8 cases, no implicit retry boundary clean")
 PY

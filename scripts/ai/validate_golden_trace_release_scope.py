@@ -7,8 +7,9 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-VALID_STATUSES = {"executable_replay", "schema_only_scoped"}
+VALID_STATUSES = {"executable_replay", "validator_executable_replay", "schema_only_scoped"}
 EXECUTABLE_DECISION = "included_in_final_replay_scope"
+VALIDATOR_EXECUTABLE_DECISION = "validator_executable_scope_recorded"
 SCHEMA_ONLY_DECISION = "schema_only_scope_recorded"
 
 
@@ -106,6 +107,8 @@ def validate_manifest(manifest: dict[str, Any], trace_cases: dict[str, dict[str,
 
         if status == "executable_replay":
             validate_executable(entry, case_id, errors)
+        elif status == "validator_executable_replay":
+            validate_validator_executable(entry, case_id, errors)
         elif status == "schema_only_scoped":
             validate_schema_only(entry, case_id, errors)
 
@@ -127,6 +130,22 @@ def validate_executable(entry: dict[str, Any], case_id: str, errors: list[str]) 
             errors.append(f"{case_id}.{key} is required for executable_replay")
     if entry.get("release_decision") != EXECUTABLE_DECISION:
         errors.append(f"{case_id}.release_decision must be {EXECUTABLE_DECISION}")
+
+
+def validate_validator_executable(entry: dict[str, Any], case_id: str, errors: list[str]) -> None:
+    for key in ("evidence_id", "harness", "validator_entrypoint"):
+        if not require_non_empty(entry.get(key)):
+            errors.append(f"{case_id}.{key} is required for validator_executable_replay")
+    if "rust_entrypoint" in entry:
+        errors.append(
+            f"{case_id}: validator_executable_replay must not claim rust_entrypoint"
+        )
+    if entry.get("release_decision") != VALIDATOR_EXECUTABLE_DECISION:
+        errors.append(f"{case_id}.release_decision must be {VALIDATOR_EXECUTABLE_DECISION}")
+    if entry.get("runtime_adapter_integration") is not False:
+        errors.append(
+            f"{case_id}.runtime_adapter_integration must be false for validator_executable_replay"
+        )
 
 
 def validate_schema_only(entry: dict[str, Any], case_id: str, errors: list[str]) -> None:
@@ -170,6 +189,7 @@ def main() -> None:
         "golden trace release scope ok: "
         f"{total} cases, "
         f"{status_counts['executable_replay']} executable replay, "
+        f"{status_counts['validator_executable_replay']} validator executable replay, "
         f"{status_counts['schema_only_scoped']} schema-only scoped"
     )
 

@@ -31,34 +31,138 @@
     "v24_strict_provenance_path": "scripts/ai/verify_v24_strict_provenance.sh"
   },
   "v240_evidence": [
-    {"task_id": "V240-000", "issue": 743, "path": "docs/rust-cutover/evidence/V240-000.md"},
-    {"task_id": "V240-001", "issue": 744, "path": "docs/rust-cutover/evidence/V240-001.md"},
-    {"task_id": "V240-002", "issue": 745, "path": "docs/rust-cutover/evidence/V240-002.md"},
-    {"task_id": "V240-003", "issue": 746, "path": "docs/rust-cutover/evidence/V240-003.md"},
-    {"task_id": "V240-004", "issue": 747, "path": "docs/rust-cutover/evidence/V240-004.md"},
-    {"task_id": "V240-005", "issue": 748, "path": "docs/rust-cutover/evidence/V240-005.md"},
-    {"task_id": "V240-006", "issue": 749, "path": "docs/rust-cutover/evidence/V240-006.md"},
-    {"task_id": "V240-007", "issue": 750, "path": "docs/rust-cutover/evidence/V240-007.md"},
-    {"task_id": "V240-008", "issue": 751, "path": "docs/rust-cutover/evidence/V240-008.md"},
-    {"task_id": "V240-009", "issue": 752, "path": "docs/rust-cutover/evidence/V240-009.md"}
+    {
+      "task_id": "V240-000",
+      "issue": 743,
+      "path": "docs/rust-cutover/evidence/V240-000.md"
+    },
+    {
+      "task_id": "V240-001",
+      "issue": 744,
+      "path": "docs/rust-cutover/evidence/V240-001.md"
+    },
+    {
+      "task_id": "V240-002",
+      "issue": 745,
+      "path": "docs/rust-cutover/evidence/V240-002.md"
+    },
+    {
+      "task_id": "V240-003",
+      "issue": 746,
+      "path": "docs/rust-cutover/evidence/V240-003.md"
+    },
+    {
+      "task_id": "V240-004",
+      "issue": 747,
+      "path": "docs/rust-cutover/evidence/V240-004.md"
+    },
+    {
+      "task_id": "V240-005",
+      "issue": 748,
+      "path": "docs/rust-cutover/evidence/V240-005.md"
+    },
+    {
+      "task_id": "V240-006",
+      "issue": 749,
+      "path": "docs/rust-cutover/evidence/V240-006.md"
+    },
+    {
+      "task_id": "V240-007",
+      "issue": 750,
+      "path": "docs/rust-cutover/evidence/V240-007.md"
+    },
+    {
+      "task_id": "V240-008",
+      "issue": 751,
+      "path": "docs/rust-cutover/evidence/V240-008.md"
+    },
+    {
+      "task_id": "V240-009",
+      "issue": 752,
+      "path": "docs/rust-cutover/evidence/V240-009.md"
+    }
   ],
   "release_gates": [
-    {"name": "v24-intake-gate", "command": "scripts/ai/verify_release.sh v24-intake-gate", "required": true},
-    {"name": "v24-order-control-contract", "command": "scripts/ai/verify_release.sh v24-order-control-contract", "required": true},
-    {"name": "v24-order-intent-policy", "command": "scripts/ai/verify_release.sh v24-order-intent-policy", "required": true},
-    {"name": "v24-rate-limit-throttle-gate", "command": "scripts/ai/verify_release.sh v24-rate-limit-throttle-gate", "required": true},
-    {"name": "v24-order-slicing-preview", "command": "scripts/ai/verify_release.sh v24-order-slicing-preview", "required": true},
-    {"name": "v24-cancel-replace-amend-preview", "command": "scripts/ai/verify_release.sh v24-cancel-replace-amend-preview", "required": true},
-    {"name": "v24-retry-policy-ledger", "command": "scripts/ai/verify_release.sh v24-retry-policy-ledger", "required": true},
-    {"name": "v24-readback-audit-evidence", "command": "scripts/ai/verify_release.sh v24-readback-audit-evidence", "required": true},
-    {"name": "v24-dashboard-workbench-preview", "command": "scripts/ai/verify_release.sh v24-dashboard-workbench-preview", "required": true},
-    {"name": "v24-release-gates", "command": "scripts/ai/verify_release.sh v24-release-gates", "required": true},
-    {"name": "v24-strict-provenance", "command": "scripts/ai/verify_release.sh v24-strict-provenance", "required": true},
-    {"name": "release-surface-current-guard", "command": "scripts/ai/verify_release.sh release-surface-current-guard", "required": true},
-    {"name": "release-publication-guard", "command": "scripts/ai/verify_release.sh release-publication-guard", "required": true},
-    {"name": "release-publish-after-gate", "command": "scripts/ai/verify_release.sh release-publish-after-gate", "required": true},
-    {"name": "v24-release-gate-script", "command": "scripts/ai/verify_v24_release_gates.sh", "required": true},
-    {"name": "v24-strict-provenance-script", "command": "scripts/ai/verify_v24_strict_provenance.sh", "required": true}
+    {
+      "name": "v24-intake-gate",
+      "command": "scripts/ai/verify_release.sh v24-intake-gate",
+      "required": true
+    },
+    {
+      "name": "v24-order-control-contract",
+      "command": "scripts/ai/verify_release.sh v24-order-control-contract",
+      "required": true
+    },
+    {
+      "name": "v24-order-intent-policy",
+      "command": "scripts/ai/verify_release.sh v24-order-intent-policy",
+      "required": true
+    },
+    {
+      "name": "v24-rate-limit-throttle-gate",
+      "command": "scripts/ai/verify_release.sh v24-rate-limit-throttle-gate",
+      "required": true
+    },
+    {
+      "name": "v24-order-slicing-preview",
+      "command": "scripts/ai/verify_release.sh v24-order-slicing-preview",
+      "required": true
+    },
+    {
+      "name": "v24-cancel-replace-amend-preview",
+      "command": "scripts/ai/verify_release.sh v24-cancel-replace-amend-preview",
+      "required": true
+    },
+    {
+      "name": "v24-retry-policy-ledger",
+      "command": "scripts/ai/verify_release.sh v24-retry-policy-ledger",
+      "required": true
+    },
+    {
+      "name": "v24-readback-audit-evidence",
+      "command": "scripts/ai/verify_release.sh v24-readback-audit-evidence",
+      "required": true
+    },
+    {
+      "name": "v24-dashboard-workbench-preview",
+      "command": "scripts/ai/verify_release.sh v24-dashboard-workbench-preview",
+      "required": true
+    },
+    {
+      "name": "v24-release-gates",
+      "command": "scripts/ai/verify_release.sh v24-release-gates",
+      "required": true
+    },
+    {
+      "name": "v24-strict-provenance",
+      "command": "scripts/ai/verify_release.sh v24-strict-provenance",
+      "required": true
+    },
+    {
+      "name": "release-surface-current-guard",
+      "command": "scripts/ai/verify_release.sh release-surface-current-guard",
+      "required": true
+    },
+    {
+      "name": "release-publication-guard",
+      "command": "scripts/ai/verify_release.sh release-publication-guard",
+      "required": true
+    },
+    {
+      "name": "release-publish-after-gate",
+      "command": "scripts/ai/verify_release.sh release-publish-after-gate",
+      "required": true
+    },
+    {
+      "name": "v24-release-gate-script",
+      "command": "scripts/ai/verify_v24_release_gates.sh",
+      "required": true
+    },
+    {
+      "name": "v24-strict-provenance-script",
+      "command": "scripts/ai/verify_v24_strict_provenance.sh",
+      "required": true
+    }
   ],
   "capability": {
     "name": "v0.24.0 Execution Algorithms And Order Control Foundation",
@@ -302,5 +406,43 @@
   },
   "validation_artifacts": {
     "strict_release_provenance_manifest_path": "target/ntpro-v240/v0_24_0_strict_release_manifest.json"
+  },
+  "post_release_schema_replay_classification": {
+    "task_id": "V241-004",
+    "issue": 773,
+    "task_path": "docs/rust-cutover/tasks/V241-004.md",
+    "evidence_path": "docs/rust-cutover/evidence/V241-004.md",
+    "classification_report_path": "docs/rust-cutover/release/v0_24_1_schema_replay_classification.md",
+    "gate": "scripts/ai/verify_release.sh v24.1-schema-replay-classification",
+    "golden_trace_scope_path": "docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json",
+    "v240_total_cases": 39,
+    "v240_validator_executable_replay_cases": 39,
+    "v240_schema_only_scoped_cases": 0,
+    "runtime_adapter_integration": false,
+    "complete_executable_order_control_runtime": false,
+    "retag_required": false,
+    "status_taxonomy": {
+      "schema_only_scoped": "Schema and contract presence only; it is not executable replay and cannot be described as order-control runtime evidence.",
+      "validator_executable_replay": "Executable deterministic validator over golden trace decision envelopes and fail-closed boundary flags; it is not Rust projection replay and not adapter integration.",
+      "executable_replay": "Rust harness replay through a crate or CLI test entrypoint.",
+      "runtime_adapter_integration": "Future runtime adapter proof that would require live/sandbox adapter readback or send-path integration evidence; not present in v0.24.1."
+    },
+    "promoted_trace_files": [
+      "tests/golden/v240_order_intent_execution_policy.jsonl",
+      "tests/golden/v240_rate_limit_throttle_gate.jsonl",
+      "tests/golden/v240_order_slicing_preview.jsonl",
+      "tests/golden/v240_cancel_replace_amend_preview.jsonl",
+      "tests/golden/v240_retry_policy_ledger.jsonl",
+      "tests/golden/v240_readback_audit_evidence.jsonl"
+    ],
+    "boundary": {
+      "production_order_submission_allowed": false,
+      "production_order_mutation_allowed": false,
+      "execution_adapter_call_allowed": false,
+      "live_exchange_request_allowed": false,
+      "retry_scheduler_enabled": false,
+      "dashboard_operation_controls_enabled": false,
+      "product_grade_live_trading_terminal": false
+    }
   }
 }
