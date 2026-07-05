@@ -3117,3 +3117,18 @@ The corrective changes `verify_v24_1_release_closeout_evidence.sh` to pass the
 large GitHub Actions jobs payload through a temporary file instead of an
 environment variable, avoiding hosted `ARG_MAX` failure while preserving the
 same 70/70 jobs assertion.
+
+## Hosted Gate Corrective 2
+
+```text
+hosted release gate run 28746288090 = FAILED/CANCELLED, release-v241-release-gates failed on PR #769 file list mismatch in scripts/ai/verify_v24_1_provenance_reconciliation.sh
+bash -n scripts/ai/verify_v24_1_provenance_reconciliation.sh = PASS
+scripts/ai/verify_release.sh v24.1-provenance-reconciliation = PASS, pr769_merge=f590023fd8e62323f3a3a5f08e970e5376ba73cb
+scripts/ai/verify_release.sh v24.1-release-gates = PASS, current_issue_state=OPEN, negative_selftest=1
+git diff --check = PASS
+```
+
+The second corrective normalizes the live `gh pr view --json files` payload for
+PR #769 to the contract fields `path`, `additions`, and `deletions` before
+comparison. This preserves the same one-file release-notes proof while avoiding
+hosted GitHub CLI payload-shape drift from extra fields.
