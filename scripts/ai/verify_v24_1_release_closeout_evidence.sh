@@ -282,18 +282,22 @@ assert run["headSha"] == os.environ["TAG_SHA"], run
 PY
 
 jobs_json="$(gh_with_retry api "/repos/$REPO/actions/runs/$GATE_RUN_ID/jobs" --method GET -f per_page=100)"
-JOBS_JSON="$jobs_json" \
+jobs_json_path="$(mktemp "${TMPDIR:-/tmp}/ntpro-v241-closeout-jobs.XXXXXX.json")"
+printf '%s' "$jobs_json" >"$jobs_json_path"
+JOBS_JSON_PATH="$jobs_json_path" \
 GATE_JOBS_TOTAL="$GATE_JOBS_TOTAL" \
 GATE_JOBS_SUCCESS="$GATE_JOBS_SUCCESS" \
 python3 <<'PY'
 import json
 import os
+from pathlib import Path
 
-jobs = json.loads(os.environ["JOBS_JSON"]).get("jobs") or []
+jobs = json.loads(Path(os.environ["JOBS_JSON_PATH"]).read_text(encoding="utf-8")).get("jobs") or []
 assert len(jobs) == int(os.environ["GATE_JOBS_TOTAL"]), len(jobs)
 assert sum(1 for job in jobs if job.get("conclusion") == "success") == int(os.environ["GATE_JOBS_SUCCESS"]), jobs
 assert not [job for job in jobs if job.get("conclusion") not in {"success"}], jobs
 PY
+rm -f "$jobs_json_path"
 
 for issue in 743 744 745 746 747 748 749 750 751 752; do
   state="$(gh_with_retry issue view "$issue" --repo "$REPO" --json state --jq .state)" || fail "could not read issue #$issue"

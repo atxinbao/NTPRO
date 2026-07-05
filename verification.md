@@ -3103,3 +3103,17 @@ requires the v0.24.1 tag to match `HEAD`, issue #775 to be closed, and the
 v0.24.1 milestone to be closed. No runtime trading behavior, public API,
 production submit, production order mutation, adapter send, retry scheduler,
 Dashboard operation control, or product-grade live terminal claim is added.
+
+## Hosted Gate Corrective
+
+```text
+hosted release gate run 28744625321 = FAILED/CANCELLED, release-v241-release-gates failed on /usr/bin/python3: Argument list too long in scripts/ai/verify_v24_1_release_closeout_evidence.sh
+bash -n scripts/ai/verify_v24_1_release_closeout_evidence.sh = PASS
+scripts/ai/verify_release.sh v24.1-release-closeout-evidence = PASS, jobs=70/70
+scripts/ai/verify_release.sh v24.1-release-gates = PASS, current_issue_state=OPEN, negative_selftest=1
+```
+
+The corrective changes `verify_v24_1_release_closeout_evidence.sh` to pass the
+large GitHub Actions jobs payload through a temporary file instead of an
+environment variable, avoiding hosted `ARG_MAX` failure while preserving the
+same 70/70 jobs assertion.
