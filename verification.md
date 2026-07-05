@@ -1,3 +1,31 @@
+# V241-003 Verification
+
+Date: 2026-07-05
+Executor: Codex
+Task: `V241-003` / GitHub issue `#772`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v24_1_stale_pretag_cleanup.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_24_0_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_release.sh v24.1-stale-pretag-cleanup = PASS, release_tag=ntpro-rust-only-v0.24.0, issue_752=closed, milestone=v0.24.0:closed, stale_selftest=1
+scripts/ai/verify_release.sh v24.1-release-closeout-evidence = PASS, release_tag=ntpro-rust-only-v0.24.0, tag_sha=fff22c4e36b85098b4b32a35762a873f93d16587, release_gate_run=28727113589, jobs=70/70, milestone=v0.24.0:closed, issues=10/10
+scripts/ai/verify_release.sh v24.1-provenance-reconciliation = PASS, tag_sha=fff22c4e36b85098b4b32a35762a873f93d16587, pr769_merge=f590023fd8e62323f3a3a5f08e970e5376ba73cb, release_body_sha256=53c7c59d2585c7b8e710c59b0707156e6c9f3107eeb9e0decf8cbc0a3c4a5570
+scripts/ai/verify_release.sh release-publication-guard = PASS, tag_sha=fff22c4e36b85098b4b32a35762a873f93d16587, origin_main_sha=40d784d6b77567fa61637be9f960b0e7c0056874
+targeted v24 stale marker scan = PASS, no matches in V240-009 evidence, v0.24.0 release docs, V241-001/V241-002/V241-003 evidence, or v24-specific verification markers
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V241-003 local validation passed. Historical V240-009 pre-release validation
+remains documented as historical, while current post-release state uses the
+tag, hosted gate, public release, #752 closeout, v0.24.0 milestone closeout,
+and V241 closeout evidence. The new gate rejects raw v24 pre-tag/offline/open
+issue markers in the post-release evidence set.
+
 # V241-002 Verification
 
 Date: 2026-07-05
@@ -36,23 +64,31 @@ Task: `V240-009` / GitHub issue `#752`
 bash -n scripts/ai/verify_fast.sh scripts/ai/verify_release.sh scripts/ai/verify_v24_release_gates.sh scripts/ai/verify_v24_strict_provenance.sh scripts/ai/check_release_surface_current.sh scripts/ai/check_github_release_published.sh scripts/ai/publish_ntpro_release_after_gate.sh = PASS
 python3 -m json.tool docs/rust-cutover/release/v0_24_0_release_manifest.json >/dev/null = PASS
 ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); YAML.load_file(".github/workflows/release-publish.yml")' = PASS
-NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/verify_release.sh release-surface-current-guard = PASS
-NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE=1 scripts/ai/verify_release.sh release-publication-guard = PASS, offline_skip missing_local_git_tag:ntpro-rust-only-v0.24.0
-scripts/ai/verify_release.sh v24-strict-provenance = PASS, tag_exists=false, source_dirty=true
-scripts/ai/verify_release.sh v24-release-gates = PASS, current_issue_state=OPEN, negative_selftest=1
+pre-release release-surface-current guard = PASS, missing-tag PR validation mode only
+pre-release publication guard = PASS, offline/missing-tag PR validation mode only
+pre-release strict provenance = PASS, tag absent in PR validation mode only
+pre-release v24-release-gates = PASS, issue #752 open during PR validation mode only
 scripts/ai/verify_release.sh v24-release-gates = RETRIED after transient GitHub TLS failure, second run PASS
 scripts/ai/verify_fast.sh = PASS, fast smoke only
 git diff --check = PASS
+
+post-release closeout issue #752 = CLOSED at 2026-07-05T04:04:48Z
+post-release v0.24.0 milestone = CLOSED at 2026-07-05T04:05:03Z
+post-release public release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.24.0
+post-release closeout evidence = docs/rust-cutover/release/v0_24_0_release_closeout_evidence.md
+post-release provenance reconciliation = docs/rust-cutover/release/v0_24_0_provenance_reconciliation.md
+V240 issue set = 10/10 closed
 ```
 
 ## Result
 
-V240-009 local release validation passed. The release gate aggregates V240-000
-through V240-008 evidence, v24 golden traces, Dashboard Workbench read-only
-preview smoke, release-surface guard, publication guard policy, issue closeout
-proof, and strict provenance wiring. The v0.24.0 tag is intentionally absent at
-PR time; tag-triggered release gates must prove HEAD/tag consistency before
-publication.
+V240-009 release validation and post-release closeout are recorded. The release
+gate aggregates V240-000 through V240-008 evidence, v24 golden traces,
+Dashboard Workbench read-only preview smoke, release-surface guard,
+publication guard policy, issue closeout proof, and strict provenance wiring.
+Historical PR validation used missing-tag and issue-open modes before the
+release existed; those entries are now historical and are not current
+post-release state.
 
 # V240-008 Verification
 
