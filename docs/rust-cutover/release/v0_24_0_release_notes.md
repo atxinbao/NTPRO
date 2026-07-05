@@ -116,8 +116,7 @@ product_grade_trading_terminal_claim = false
   or operation action;
 - strategy-driven production execution;
 - shared approval consumption;
-- Dashboard order, approval, cancel, retry, submit, replace, amend, flatten, or
-  order-ticket controls;
+- Dashboard order, approval, cancel, retry, submit, replace, amend, flatten, or order-ticket controls;
 - v0.25.0 monitoring / incident / disaster-recovery implementation.
 
 ## Next Boundary
