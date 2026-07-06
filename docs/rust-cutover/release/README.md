@@ -790,6 +790,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   v0.26.0 product hardening foundation scope. It records allowed hardening
   areas, required-false trading boundary flags, fail-closed rules, and the
   non-goal of product-grade live trading terminal readiness.
+- `v0_26_0_operator_permission_model.md` - V260-002 operator permission model
+  and role boundary evidence for viewer, operator, release gatekeeper,
+  incident owner, and auditor roles. It keeps permission evidence read-only and
+  does not add SSO/IAM integration or live operation authorization.
 - `v0_23_0_evidence_replay_only_boundary.md` - V231-004 boundary note that
   keeps v0.23.x framed as evidence/replay/read-only observability only, not as
   a production multi-node runtime or product-grade terminal implementation.
