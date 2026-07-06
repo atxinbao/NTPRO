@@ -4,8 +4,8 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.25.0`, the v0.25.0 Monitoring, Incident, and Disaster-Recovery Foundation release.
-The next patch track is `v0.25.1`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.25.1`, the v0.25.1 Monitoring Incident DR Foundation Hardening Patch release.
+The next patch track is `v0.25.2`.
 The next capability track is `v0.26.0`.
 
 ## Current Release Surface
@@ -14,18 +14,20 @@ Current published release:
 
 ```text
 ntpro-rust-only-v0.25.0
+ntpro-rust-only-v0.25.1
 ```
 
 Current capability boundary:
 
 ```text
-v0.25.0 Monitoring, Incident, and Disaster-Recovery Foundation
-capability class monitoring / incident / disaster-recovery foundation only
+v0.25.1 Monitoring Incident DR Foundation Hardening Patch
+capability class monitoring / incident / disaster-recovery foundation hardening patch only
 v0.20.1 production order lifecycle hardening baseline
 v0.21.0 unified read model foundation closeout baseline
 v0.21.1 unified read model hardening baseline
 v0.23.1 publication governance baseline
 v0.24.1 execution algorithms and order-control hardening baseline
+v0.25.0 monitoring / incident / disaster-recovery foundation baseline
 account read model evidence required
 position read model evidence required
 order lifecycle read model evidence required
@@ -71,24 +73,38 @@ multi-venue node registry and lifecycle boundary evidence
 orchestration/control-plane gating evidence
 Dashboard / Workbench read-only observability evidence
 production multi-node runtime implementation not included
-v0.26.0 next capability track hard-blocked by v0.25.0 release evidence
+v0.26.0 next capability track hard-blocked by v0.25.1 release evidence
 no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no product-grade live trading terminal claim
 ```
 
-`v0.25.0` publishes the monitoring / incident / disaster-recovery foundation
-over the read-only Workbench and order-control foundation line with intake,
-monitoring observability, alert taxonomy/routing, incident lifecycle,
-runbook/audit evidence, DR preview drills, read-only Dashboard monitoring,
-SLO/freshness diagnostics, gate-before-publish governance, and strict
-provenance. It does not create a product-grade live trading terminal, ungated
+`v0.25.1` publishes the monitoring / incident / disaster-recovery foundation
+hardening patch over the read-only Workbench and order-control foundation line.
+It closes post-release governance, corrective scope, stale pre-tag, Dashboard
+source reference, post-release gate split, release gate, and strict provenance
+gaps. It does not create a product-grade live trading terminal, ungated
 operation controls, production order mutation, adapter send, retry scheduler,
 shared approval consumption, or automatic execution/remediation.
 
+## Published Capability Track: v0.25.1
+
+`v0.25.1` is the current published monitoring / incident / disaster-recovery
+foundation hardening patch. It preserves the read-only Workbench boundary and
+adds v0.25.0 closeout evidence, corrective release-scope linkage, stale
+pre-tag cleanup, Dashboard source reference integrity, post-release gate split,
+release gates, and strict provenance. It is a monitoring governance hardening
+surface, not a production execution runtime implementation.
+
+`v0.25.1` explicitly does not include product-grade live trading terminal
+readiness, new production submit capability, production order mutation,
+execution adapter send, live exchange request, retry scheduler,
+automatic remediation/recovery, strategy-driven production execution, shared
+approval consumption, or Dashboard operation/trading controls.
+
 ## Published Capability Track: v0.25.0
 
-`v0.25.0` is the current published monitoring / incident / disaster-recovery
-foundation line. It preserves the read-only Workbench boundary and adds
+`v0.25.0` is the published monitoring / incident / disaster-recovery foundation
+line. It preserves the read-only Workbench boundary and adds
 monitoring observability contracts, alert taxonomy/routing evidence, incident
 lifecycle and acknowledgement evidence, runbook/audit evidence, DR preview
 drill evidence, read-only Dashboard monitoring surface, SLO/freshness

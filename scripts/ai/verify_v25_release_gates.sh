@@ -175,13 +175,17 @@ scripts/ai/verify_release.sh v25-runbook-audit-evidence
 scripts/ai/verify_release.sh v25-dr-preview-drill-evidence
 scripts/ai/verify_release.sh v25-dashboard-monitoring-surface
 scripts/ai/verify_release.sh v25-slo-freshness-diagnostics-gate
-NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
-  NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
-  NTPRO_NEXT_PATCH_VERSION="v0.25.1" \
-  NTPRO_NEXT_CAPABILITY_VERSION="v0.26.0" \
-  NTPRO_CURRENT_RELEASE_CAPABILITY="v0.25.0 Monitoring, Incident, and Disaster-Recovery Foundation" \
-  NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 \
-  scripts/ai/verify_release.sh release-surface-current-guard
+if [[ "${NTPRO_V250_RELEASE_SKIP_CURRENT_SURFACE_GUARD:-0}" == "1" ]]; then
+  echo "v25_release_gates historical_current_surface_guard=skipped reason=current_release_surface_superseded"
+else
+  NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
+    NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
+    NTPRO_NEXT_PATCH_VERSION="v0.25.1" \
+    NTPRO_NEXT_CAPABILITY_VERSION="v0.26.0" \
+    NTPRO_CURRENT_RELEASE_CAPABILITY="v0.25.0 Monitoring, Incident, and Disaster-Recovery Foundation" \
+    NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 \
+    scripts/ai/verify_release.sh release-surface-current-guard
+fi
 NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
   NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
   NTPRO_CURRENT_RELEASE_NAME="$RELEASE_NAME" \

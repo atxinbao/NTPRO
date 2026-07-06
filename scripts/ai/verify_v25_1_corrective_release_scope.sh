@@ -30,8 +30,12 @@ for path in \
   require_file "$path"
 done
 
-scripts/ai/verify_release.sh v25-release-gates
-scripts/ai/verify_release.sh v25-strict-provenance
+NTPRO_RELEASE_GATE=0 \
+  NTPRO_V250_RELEASE_REQUIRE_CLOSEOUT=1 \
+  NTPRO_V250_RELEASE_SKIP_CURRENT_SURFACE_GUARD=1 \
+  scripts/ai/verify_release.sh v25-release-gates
+NTPRO_RELEASE_GATE=0 \
+  scripts/ai/verify_release.sh v25-strict-provenance
 
 require_file "$STRICT_MANIFEST"
 
