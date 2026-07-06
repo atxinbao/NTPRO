@@ -8,13 +8,15 @@ Status: RELEASED
 ## Summary
 
 The v0.25.0 Monitoring, Incident, and Disaster-Recovery Foundation is ready only
-when V250-000 through V250-008 evidence, v0.24.1 release publication proof,
-release gates, strict provenance, hosted tag gate, GitHub Release publication,
-and issue closeout are consistent for the same source tree.
+when V250-000 through V250-008 milestone evidence, V250-009 corrective tag-gate
+evidence, v0.24.1 release publication proof, release gates, strict provenance,
+hosted tag gate, GitHub Release publication, and issue closeout are consistent
+for the same source tree.
 
-Plain Chinese summary: v0.25.0 的完成条件不是“文档存在”，而是 V250 全部 issue、
-v0.24.1 依赖证据、tag、hosted gate、GitHub Release、manifest、strict provenance、
-发布边界和 milestone 都能互相对上。缺任一项都不能称为 v0.25.0 完成。
+Plain Chinese summary: v0.25.0 的完成条件不是“文档存在”，而是 V250 milestone
+issue 加 V250-009 corrective issue、v0.24.1 依赖证据、tag、hosted gate、
+GitHub Release、manifest、strict provenance、发布边界和 milestone 都能互相对上。
+缺任一项都不能称为 v0.25.0 完成。
 
 ## Required Evidence
 
@@ -28,6 +30,7 @@ V250-005 evidence = docs/rust-cutover/evidence/V250-005.md
 V250-006 evidence = docs/rust-cutover/evidence/V250-006.md
 V250-007 evidence = docs/rust-cutover/evidence/V250-007.md
 V250-008 evidence = docs/rust-cutover/evidence/V250-008.md
+V250-009 corrective evidence = docs/rust-cutover/evidence/V250-009.md
 release notes = docs/rust-cutover/release/v0_25_0_release_notes.md
 release manifest = docs/rust-cutover/release/v0_25_0_release_manifest.json
 release closeout evidence = docs/rust-cutover/release/v0_25_0_release_closeout_evidence.md
@@ -63,7 +66,12 @@ release closeout evidence = docs/rust-cutover/release/v0_25_0_release_closeout_e
 PR #805 corrective release scope = merged into v0.25.0 tag commit
 PR #805 merged at = 2026-07-06T02:36:12Z
 PR #805 merge commit = eedcdab1d3ca85d6f51b368b5f36208a7b591026
+failed release gate run = https://github.com/atxinbao/NTPRO/actions/runs/28762387835
+final success release gate run = https://github.com/atxinbao/NTPRO/actions/runs/28764231552
 corrective release scope included in release tag = true
+corrective release scope expands capability = false
+corrective release scope changes runtime behavior = false
+corrective release scope changes trading behavior = false
 ```
 
 ## Issue Closeout
@@ -79,6 +87,9 @@ corrective release scope included in release tag = true
 #784 V250-007 = closed
 #785 V250-008 = closed
 V250 issue set = 9/9 closed before publication
+V250 corrective issue set = #804 closed before final publication
+V250 final release scope issue count = 10
+V250 final release scope evidence count = 10
 v0.25.0 milestone = closed before publication
 ```
 
