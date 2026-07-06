@@ -30,11 +30,40 @@ V250-007 evidence = docs/rust-cutover/evidence/V250-007.md
 V250-008 evidence = docs/rust-cutover/evidence/V250-008.md
 release notes = docs/rust-cutover/release/v0_25_0_release_notes.md
 release manifest = docs/rust-cutover/release/v0_25_0_release_manifest.json
+release closeout evidence = docs/rust-cutover/release/v0_25_0_release_closeout_evidence.md
 v25 release gates = required
 v25 strict provenance = required
 release surface current guard = required
 release publication guard = required
 release publish after gate = required
+```
+
+## Post-Release Closeout
+
+```text
+release tag = ntpro-rust-only-v0.25.0
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.25.0
+published at = 2026-07-06T04:02:02Z
+tag SHA = eedcdab1d3ca85d6f51b368b5f36208a7b591026
+tag tree = c9f908d502aa83c80869bdee37c705f718ae2ced
+hosted release gate = https://github.com/atxinbao/NTPRO/actions/runs/28764231552
+hosted release gate completed at = 2026-07-06T04:00:17Z
+hosted release gate jobs = 74/74 success
+publish workflow = https://github.com/atxinbao/NTPRO/actions/runs/28766874471
+publish workflow completed at = 2026-07-06T04:02:07Z
+release publication evidence status = already_published_after_gate
+release closeout evidence = docs/rust-cutover/release/v0_25_0_release_closeout_evidence.md
+```
+
+## Corrective Release Scope
+
+```text
+#804 V250-009 corrective issue = closed
+#804 closed at = 2026-07-06T02:36:13Z
+PR #805 corrective release scope = merged into v0.25.0 tag commit
+PR #805 merged at = 2026-07-06T02:36:12Z
+PR #805 merge commit = eedcdab1d3ca85d6f51b368b5f36208a7b591026
+corrective release scope included in release tag = true
 ```
 
 ## Issue Closeout
@@ -48,7 +77,7 @@ release publish after gate = required
 #782 V250-005 = closed
 #783 V250-006 = closed
 #784 V250-007 = closed
-#785 V250-008 = must be closed before v0.25.0 tag gate is accepted
+#785 V250-008 = closed
 V250 issue set = 9/9 closed before publication
 v0.25.0 milestone = closed before publication
 ```
@@ -77,7 +106,8 @@ product_grade_trading_terminal_claim = false
 
 ## v0.26.0 Start Boundary
 
-No V260 implementation starts until all V250 issues are closed and v0.25.0 release evidence is published.
+No V260 implementation starts until all V251 issues are closed and v0.25.1
+release evidence is published.
 `v0.26.0` is reserved for the next capability track and inherits no production
 submit, mutation, adapter send, live exchange request, retry scheduler,
 automatic remediation, or Dashboard trading controls from v0.25.0.
@@ -93,3 +123,5 @@ The release gate recommendation is `PASS` only when:
 - the public GitHub Release is published after that hosted gate for the same
   tag commit;
 - issue `#785` and milestone `v0.25.0` are closed with release evidence.
+- V251 closeout evidence records `#804` / PR `#805` as included in the final
+  v0.25.0 tag commit.

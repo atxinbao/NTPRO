@@ -1,3 +1,33 @@
+# V251-001 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V251-001` / GitHub issue `#806`
+Milestone: `v0.25.1`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_1_release_closeout_evidence.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_25_0_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_release.sh v25.1-release-closeout-evidence = PASS, release_tag=ntpro-rust-only-v0.25.0, tag_sha=eedcdab1d3ca85d6f51b368b5f36208a7b591026, release_gate_run=28764231552, jobs=74/74, milestone=v0.25.0:closed, issues=9/9, corrective_issue=804:closed, corrective_pr=805:merged
+NTPRO_CURRENT_RELEASE_VERSION=v0.25.0 NTPRO_CURRENT_RELEASE_TAG=ntpro-rust-only-v0.25.0 NTPRO_CURRENT_RELEASE_NAME="NTPRO Rust-only v0.25.0" NTPRO_RELEASE_PUBLICATION_STRICT_BODY=1 scripts/ai/check_github_release_published.sh = PASS, tag_sha=eedcdab1d3ca85d6f51b368b5f36208a7b591026, origin_main_sha=eedcdab1d3ca85d6f51b368b5f36208a7b591026
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V251-001 records v0.25.0 release closeout facts in source-tree evidence and
+adds a v25.1 release-closeout verifier. The gate checks tracked evidence
+against the live GitHub Release, release tag, hosted release gate jobs, publish
+workflow, V250 issue closeout, #804 corrective issue, PR #805 merge commit, and
+v0.25.0 milestone closeout.
+
+No runtime trading behavior, public API, production order mutation, submit
+path, execution adapter send, retry scheduler, automatic remediation, or
+Dashboard operation control changes are included.
+
 # V250-000 Verification
 
 Date: 2026-07-05
