@@ -10,16 +10,16 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.24.1` 是当前正式公开发布点；它是 Execution Algorithms And Order Control
-Foundation hardening patch 发布线。它建立在 v0.24.0 基础上，收口 release
-closeout、tag/main/release-body provenance reconciliation、stale evidence
-cleanup、schema replay classification、Dashboard artifact ingestion、fixture ref
-integrity、release gates 和 strict provenance。
-它不是产品级实盘交易终端，不是完整 executable order-control runtime，不是新增
-submit 能力，不是生产订单 mutation，不调用 execution adapter 或 live exchange request，
-不是隐式 retry，不启用 retry scheduler，不是自动撤单，不是自动补救，不是策略实盘，
-也没有 Dashboard 下单/审批/撤单/重试/submit/replace/amend/flatten/order-ticket 控件。
-`v0.25.0` 是下一能力轨占位。
+`v0.25.0` 是当前正式公开发布点；它是 Monitoring, Incident, and
+Disaster-Recovery Foundation 发布线。它建立在 v0.24.1 基础上，收口 intake、
+monitoring observability、alert taxonomy/routing、incident lifecycle、
+runbook/audit、DR preview、read-only Dashboard monitoring、SLO/freshness、
+release gates 和 strict provenance。
+它不是产品级实盘交易终端，不是新增 submit 能力，不是生产订单 mutation，不调用
+execution adapter、adapter send 或 live exchange request，不是隐式 retry，不启用
+retry scheduler，不是自动补救或自动恢复，不是策略实盘，也没有 Dashboard
+下单/审批/撤单/重试/submit/replace/amend/flatten/remediation/order-ticket 控件。
+`v0.26.0` 是下一能力轨占位。
 
 ## Release Tags
 
@@ -52,6 +52,7 @@ ntpro-rust-only-v0.23.0
 ntpro-rust-only-v0.23.1
 ntpro-rust-only-v0.24.0
 ntpro-rust-only-v0.24.1
+ntpro-rust-only-v0.25.0
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -64,30 +65,30 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.24.1
+ntpro-rust-only-v0.25.0
 ```
 
 The active patch track is:
 
 ```text
-v0.24.2
+v0.25.1
 ```
 
-v0.24.2 is reserved for future patch hardening only. It must not expand beyond
-the v0.24.1 preview/evidence order-control foundation boundary unless a later
+v0.25.1 is reserved for future patch hardening only. It must not expand beyond
+the v0.25.0 monitoring / incident / DR foundation boundary unless a later
 scoped release issue explicitly changes that contract.
 
 The next capability track is:
 
 ```text
-v0.25.0
+v0.26.0
 ```
 
-v0.25.0 is a placeholder for the monitoring / incident / disaster-recovery
-track. It does not inherit production submit, production order mutation,
-execution adapter send, live exchange request, implicit retry, retry scheduler,
-automatic cancel, automatic remediation, strategy-driven production execution,
-shared approval consumption, or Dashboard operation controls from v0.24.1.
+v0.26.0 is a placeholder for the next capability track. It does not inherit
+production submit, production order mutation, execution adapter send, adapter
+send, live exchange request, implicit retry, retry scheduler, automatic
+remediation/recovery, strategy-driven production execution, shared approval
+consumption, or Dashboard operation controls from v0.25.0.
 
 ## Cargo Workspace Version
 

@@ -3403,3 +3403,38 @@ Missing components and release provenance drift fail closed, stale sources and
 partial projections cannot display healthy, unknown adapter truth cannot claim
 exchange truth, and diagnostics evidence cannot enable trading or remediation
 actions.
+
+# V250-008 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V250-008` / GitHub issue `#785`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_release_gates.sh scripts/ai/verify_v25_strict_provenance.sh scripts/ai/check_release_surface_current.sh scripts/ai/check_github_release_published.sh scripts/ai/verify_fast.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_25_0_release_manifest.json >/dev/null = PASS
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); puts "release-tag-yaml=ok"' = PASS
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/verify_release.sh release-surface-current-guard = PASS, current_release_tag=ntpro-rust-only-v0.25.0, next_patch=v0.25.1, next_capability=v0.26.0
+scripts/ai/verify_release.sh v25-release-gates = PASS, V250 prerequisite gates passed, release publication guard offline pre-tag skip, current_issue_state=OPEN, negative_selftest=1
+scripts/ai/verify_release.sh v25-strict-provenance = PASS, tag_exists=false, source_dirty=true, manifest=target/ntpro-v250/v0_25_0_strict_release_manifest.json
+scripts/ai/verify_release.sh v25-slo-freshness-diagnostics-gate = PASS, cases=7, components=5, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 181 cases, 95 executable replay, 81 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V250-008 adds the v0.25.0 release gate and strict provenance package. The gate
+requires V250-000 through V250-008 task/evidence files, v0.24.1 release
+publication dependency proof, V250 prerequisite gates, release surface current
+guard, publication guard, and gate-before-publish proof. The manifest and
+negative self-tests fail closed if V250 evidence is missing or if forbidden
+submit/mutation/adapter send/live exchange/retry scheduler/Dashboard trading
+controls/product-grade terminal flags open.
+
+The work changes release governance and documentation only. It does not add
+runtime trading behavior, production order mutation, adapter send, live exchange
+request, retry scheduler, automatic remediation, or Dashboard trading controls.

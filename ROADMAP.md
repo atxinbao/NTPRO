@@ -4,27 +4,28 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.24.1`, the v0.24.1 Execution Algorithms And Order Control Foundation Hardening Patch release.
-The next patch track is `v0.24.2`.
-The next capability track is `v0.25.0`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.25.0`, the v0.25.0 Monitoring, Incident, and Disaster-Recovery Foundation release.
+The next patch track is `v0.25.1`.
+The next capability track is `v0.26.0`.
 
 ## Current Release Surface
 
 Current published release:
 
 ```text
-ntpro-rust-only-v0.24.1
+ntpro-rust-only-v0.25.0
 ```
 
 Current capability boundary:
 
 ```text
-v0.24.1 Execution Algorithms And Order Control Foundation Hardening Patch
-capability class preview / evidence / replay / readonly order-control foundation only
+v0.25.0 Monitoring, Incident, and Disaster-Recovery Foundation
+capability class monitoring / incident / disaster-recovery foundation only
 v0.20.1 production order lifecycle hardening baseline
 v0.21.0 unified read model foundation closeout baseline
 v0.21.1 unified read model hardening baseline
 v0.23.1 publication governance baseline
+v0.24.1 execution algorithms and order-control hardening baseline
 account read model evidence required
 position read model evidence required
 order lifecycle read model evidence required
@@ -43,9 +44,17 @@ cancel / replace / amend preview evidence required
 retry / no-retry policy ledger evidence required
 readback and audit evidence required
 Dashboard / Workbench read-only order-control preview evidence required
+monitoring observability contract evidence required
+alert taxonomy and routing evidence required
+incident lifecycle and acknowledgement evidence required
+runbook audit evidence required
+DR preview drill evidence required
+Dashboard monitoring / incident / DR read-only surface evidence required
+SLO freshness diagnostics evidence required
 new submit capability not included
 production order mutation not included
 execution adapter send not included
+adapter send not included
 live exchange request not included
 implicit retry not included
 retry scheduler not included
@@ -62,24 +71,40 @@ multi-venue node registry and lifecycle boundary evidence
 orchestration/control-plane gating evidence
 Dashboard / Workbench read-only observability evidence
 production multi-node runtime implementation not included
-v0.25.0 monitoring / incident / disaster-recovery track hard-blocked by v0.24.1 release evidence
+v0.26.0 next capability track hard-blocked by v0.25.0 release evidence
 no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no product-grade live trading terminal claim
 ```
 
-`v0.24.1` publishes the v0.24.0 post-release governance and Dashboard evidence
-hardening patch over the Multi-Account / Multi-Strategy / Multi-Venue Node
-Isolation release line with release closeout, provenance reconciliation, stale
-evidence cleanup, schema replay classification, Dashboard artifact ingestion,
-fixture reference integrity, gate-before-publish governance, and strict
+`v0.25.0` publishes the monitoring / incident / disaster-recovery foundation
+over the read-only Workbench and order-control foundation line with intake,
+monitoring observability, alert taxonomy/routing, incident lifecycle,
+runbook/audit evidence, DR preview drills, read-only Dashboard monitoring,
+SLO/freshness diagnostics, gate-before-publish governance, and strict
 provenance. It does not create a product-grade live trading terminal, ungated
 operation controls, production order mutation, adapter send, retry scheduler,
-shared approval consumption, or automatic execution.
+shared approval consumption, or automatic execution/remediation.
+
+## Published Capability Track: v0.25.0
+
+`v0.25.0` is the current published monitoring / incident / disaster-recovery
+foundation line. It preserves the read-only Workbench boundary and adds
+monitoring observability contracts, alert taxonomy/routing evidence, incident
+lifecycle and acknowledgement evidence, runbook/audit evidence, DR preview
+drill evidence, read-only Dashboard monitoring surface, SLO/freshness
+diagnostics, release gates, and strict provenance. It is a monitoring and
+governance release surface, not a production execution runtime implementation.
+
+`v0.25.0` explicitly does not include product-grade live trading terminal
+readiness, new production submit capability, production order mutation,
+execution adapter send, live exchange request, retry scheduler,
+automatic remediation/recovery, strategy-driven production execution, shared
+approval consumption, or Dashboard operation/trading controls.
 
 ## Published Capability Track: v0.24.1
 
-`v0.24.1` is the current published preview/evidence order-control foundation
-hardening line. It preserves the read-only Workbench boundary and the v0.24.0
+`v0.24.1` is the published preview/evidence order-control foundation
+hardening line that precedes v0.25.0. It preserves the read-only Workbench boundary and the v0.24.0
 foundation while adding release-blocked governance and Dashboard evidence
 hardening for release closeout, provenance, schema classification, artifact
 ingestion, fixture references, release gates, and strict provenance. It is an

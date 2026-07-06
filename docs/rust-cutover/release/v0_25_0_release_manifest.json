@@ -1,0 +1,272 @@
+{
+  "schema_version": "ntpro.v250_release_manifest.v1",
+  "task_id": "V250-008",
+  "product_version": "v0.25.0",
+  "release_status": "released",
+  "capability_scope": "monitoring_incident_disaster_recovery_foundation",
+  "base_release": {
+    "version": "v0.24.1",
+    "tag": "ntpro-rust-only-v0.24.1",
+    "name": "NTPRO Rust-only v0.24.1",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.24.1",
+    "release_manifest_path": "docs/rust-cutover/release/v0_24_1_release_manifest.json",
+    "readiness_report_path": "docs/rust-cutover/release/v0_24_1_readiness_report.md"
+  },
+  "planned_release": {
+    "tag": "ntpro-rust-only-v0.25.0",
+    "name": "NTPRO Rust-only v0.25.0",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.25.0",
+    "target_commitish": "main",
+    "draft": false,
+    "prerelease": false
+  },
+  "release_inputs": {
+    "release_notes_path": "docs/rust-cutover/release/v0_25_0_release_notes.md",
+    "readiness_report_path": "docs/rust-cutover/release/v0_25_0_readiness_report.md",
+    "release_manifest_path": "docs/rust-cutover/release/v0_25_0_release_manifest.json",
+    "base_release_manifest_path": "docs/rust-cutover/release/v0_24_1_release_manifest.json",
+    "base_readiness_report_path": "docs/rust-cutover/release/v0_24_1_readiness_report.md",
+    "golden_trace_manifest_path": "docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json",
+    "v25_intake_path": "docs/rust-cutover/release/v0_25_0_intake_gate.md",
+    "v25_monitoring_path": "docs/rust-cutover/release/v0_25_0_monitoring_observability_contract.md",
+    "v25_alert_path": "docs/rust-cutover/release/v0_25_0_alert_taxonomy_routing.md",
+    "v25_incident_path": "docs/rust-cutover/release/v0_25_0_incident_lifecycle_acknowledgement.md",
+    "v25_runbook_path": "docs/rust-cutover/release/v0_25_0_runbook_audit_evidence.md",
+    "v25_dr_preview_path": "docs/rust-cutover/release/v0_25_0_dr_preview_drill_evidence.md",
+    "v25_dashboard_path": "docs/rust-cutover/release/v0_25_0_dashboard_monitoring_surface.md",
+    "v25_slo_path": "docs/rust-cutover/release/v0_25_0_slo_freshness_diagnostics_gate.md",
+    "v250_release_gates_path": "scripts/ai/verify_v25_release_gates.sh",
+    "v250_strict_provenance_path": "scripts/ai/verify_v25_strict_provenance.sh"
+  },
+  "v250_evidence": [
+    {
+      "task_id": "V250-000",
+      "issue": 777,
+      "path": "docs/rust-cutover/evidence/V250-000.md"
+    },
+    {
+      "task_id": "V250-001",
+      "issue": 778,
+      "path": "docs/rust-cutover/evidence/V250-001.md"
+    },
+    {
+      "task_id": "V250-002",
+      "issue": 779,
+      "path": "docs/rust-cutover/evidence/V250-002.md"
+    },
+    {
+      "task_id": "V250-003",
+      "issue": 780,
+      "path": "docs/rust-cutover/evidence/V250-003.md"
+    },
+    {
+      "task_id": "V250-004",
+      "issue": 781,
+      "path": "docs/rust-cutover/evidence/V250-004.md"
+    },
+    {
+      "task_id": "V250-005",
+      "issue": 782,
+      "path": "docs/rust-cutover/evidence/V250-005.md"
+    },
+    {
+      "task_id": "V250-006",
+      "issue": 783,
+      "path": "docs/rust-cutover/evidence/V250-006.md"
+    },
+    {
+      "task_id": "V250-007",
+      "issue": 784,
+      "path": "docs/rust-cutover/evidence/V250-007.md"
+    },
+    {
+      "task_id": "V250-008",
+      "issue": 785,
+      "path": "docs/rust-cutover/evidence/V250-008.md"
+    }
+  ],
+  "release_gates": [
+    {
+      "name": "v25-intake-gate",
+      "command": "scripts/ai/verify_release.sh v25-intake-gate",
+      "required": true
+    },
+    {
+      "name": "v25-monitoring-observability-contract",
+      "command": "scripts/ai/verify_release.sh v25-monitoring-observability-contract",
+      "required": true
+    },
+    {
+      "name": "v25-alert-taxonomy-routing",
+      "command": "scripts/ai/verify_release.sh v25-alert-taxonomy-routing",
+      "required": true
+    },
+    {
+      "name": "v25-incident-lifecycle-acknowledgement",
+      "command": "scripts/ai/verify_release.sh v25-incident-lifecycle-acknowledgement",
+      "required": true
+    },
+    {
+      "name": "v25-runbook-audit-evidence",
+      "command": "scripts/ai/verify_release.sh v25-runbook-audit-evidence",
+      "required": true
+    },
+    {
+      "name": "v25-dr-preview-drill-evidence",
+      "command": "scripts/ai/verify_release.sh v25-dr-preview-drill-evidence",
+      "required": true
+    },
+    {
+      "name": "v25-dashboard-monitoring-surface",
+      "command": "scripts/ai/verify_release.sh v25-dashboard-monitoring-surface",
+      "required": true
+    },
+    {
+      "name": "v25-slo-freshness-diagnostics-gate",
+      "command": "scripts/ai/verify_release.sh v25-slo-freshness-diagnostics-gate",
+      "required": true
+    },
+    {
+      "name": "v25-release-gates",
+      "command": "scripts/ai/verify_release.sh v25-release-gates",
+      "required": true
+    },
+    {
+      "name": "v25-strict-provenance",
+      "command": "scripts/ai/verify_release.sh v25-strict-provenance",
+      "required": true
+    },
+    {
+      "name": "release-surface-current-guard",
+      "command": "scripts/ai/verify_release.sh release-surface-current-guard",
+      "required": true
+    },
+    {
+      "name": "release-publication-guard",
+      "command": "scripts/ai/verify_release.sh release-publication-guard",
+      "required": true
+    },
+    {
+      "name": "release-publish-after-gate",
+      "command": "scripts/ai/verify_release.sh release-publish-after-gate",
+      "required": true
+    },
+    {
+      "name": "v25-release-gate-script",
+      "command": "scripts/ai/verify_v25_release_gates.sh",
+      "required": true
+    },
+    {
+      "name": "v25-strict-provenance-script",
+      "command": "scripts/ai/verify_v25_strict_provenance.sh",
+      "required": true
+    }
+  ],
+  "capability": {
+    "name": "v0.25.0 Monitoring, Incident, and Disaster-Recovery Foundation",
+    "monitoring_incident_dr_foundation": true,
+    "release_governance": true,
+    "strict_provenance": true,
+    "monitoring_observability_contract": true,
+    "alert_taxonomy_routing": true,
+    "incident_lifecycle_acknowledgement": true,
+    "runbook_audit_evidence": true,
+    "dr_preview_drill_evidence": true,
+    "dashboard_monitoring_readonly_surface": true,
+    "slo_freshness_diagnostics_gate": true,
+    "gate_before_publish": true,
+    "product_grade_live_trading_terminal": false,
+    "new_submit_capability": false,
+    "production_order_mutation_expansion": false,
+    "dashboard_trading_controls": false,
+    "automatic_remediation_runtime": false
+  },
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "implicit_retry_allowed": false,
+    "retry_scheduler_enabled": false,
+    "automatic_cancel_allowed": false,
+    "automatic_retry_allowed": false,
+    "automatic_remediation_allowed": false,
+    "automatic_recovery_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "strategy_driven_production_execution_allowed": false,
+    "shared_approval_consumption_allowed": false,
+    "cancel_replace_amend_send_allowed": false,
+    "flatten_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "dashboard_order_controls_enabled": false,
+    "dashboard_approval_controls_enabled": false,
+    "dashboard_cancel_controls_enabled": false,
+    "dashboard_retry_controls_enabled": false,
+    "dashboard_submit_controls_enabled": false,
+    "dashboard_replace_controls_enabled": false,
+    "dashboard_amend_controls_enabled": false,
+    "dashboard_flatten_controls_enabled": false,
+    "dashboard_remediation_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "trader_terminal_live_trading_claim": false,
+    "manual_operation_entry_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "manual_operation_cancel_allowed": false,
+    "manual_operation_retry_allowed": false,
+    "manual_operation_replace_allowed": false,
+    "manual_operation_amend_allowed": false,
+    "manual_operation_flatten_allowed": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "publication_governance": {
+    "gate_before_publish": true,
+    "release_gate_workflow_name": "Rust Cutover Release Gate",
+    "publish_workflow_name": "Rust Cutover Publish Release",
+    "publish_script": "scripts/ai/publish_ntpro_release_after_gate.sh",
+    "public_release_requires_successful_hosted_gate_for_same_tag_commit": true,
+    "release_gate_success_before_publication_required": true,
+    "publication_evidence_strategy": "source_tree_plus_github_remote",
+    "local_generated_evidence_required_in_source_tree": false,
+    "remote_reconstruction_required": true
+  },
+  "release_surface_current_guard": {
+    "current_release_version": "v0.25.0",
+    "current_release_tag": "ntpro-rust-only-v0.25.0",
+    "current_release_capability": "v0.25.0 Monitoring, Incident, and Disaster-Recovery Foundation",
+    "next_patch_version": "v0.25.1",
+    "next_capability_version": "v0.26.0"
+  },
+  "next_tracks": {
+    "patch": "v0.25.1",
+    "capability": "v0.26.0",
+    "capability_entry": "reserved_next_capability_track",
+    "start_gate": "blocked_until_v250_release_evidence_published",
+    "implementation_started": false,
+    "inherits_production_submit": false,
+    "inherits_production_mutation": false,
+    "inherits_adapter_send": false,
+    "inherits_live_exchange_request": false,
+    "inherits_retry_scheduler": false,
+    "inherits_automatic_remediation": false,
+    "inherits_dashboard_trading_controls": false
+  },
+  "post_publication_requirements": {
+    "release_tag": "ntpro-rust-only-v0.25.0",
+    "release_name": "NTPRO Rust-only v0.25.0",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.25.0",
+    "milestone_number": 16,
+    "milestone_title": "v0.25.0",
+    "all_v250_issues_closed_required": true,
+    "github_release_published_required": true,
+    "hosted_release_gate_success_required": true,
+    "strict_release_body_match_required": true,
+    "v0_26_start_gate_fails_without_v250_release_evidence": true
+  },
+  "validation_artifacts": {
+    "strict_release_provenance_manifest_path": "target/ntpro-v250/v0_25_0_strict_release_manifest.json"
+  }
+}
