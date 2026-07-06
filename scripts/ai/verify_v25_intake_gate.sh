@@ -253,7 +253,12 @@ else:
 PY
 
 scripts/ai/verify_release.sh v24.1-schema-replay-classification
-NTPRO_V241_STRICT_REQUIRE_PUBLICATION=1 scripts/ai/verify_release.sh v24.1-strict-provenance
+# v25 tag gate 会单独校验当前 tag 的 HEAD；这里仅验证 v24.1 已发布基线，
+# 避免把当前 v25 tag gate 的 HEAD 约束传递给历史 v24.1 strict provenance。
+NTPRO_RELEASE_GATE=0 \
+NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG=0 \
+NTPRO_V241_STRICT_REQUIRE_PUBLICATION=1 \
+  scripts/ai/verify_release.sh v24.1-strict-provenance
 
 if ! command -v gh >/dev/null 2>&1; then
   fail "gh is required for live intake proof"
