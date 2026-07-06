@@ -59,7 +59,7 @@ input_paths=(
   "$ROOT_DIR/scripts/ai/verify_v25_slo_freshness_diagnostics_gate.sh"
 )
 
-for task_id in V250-000 V250-001 V250-002 V250-003 V250-004 V250-005 V250-006 V250-007 V250-008; do
+for task_id in V250-000 V250-001 V250-002 V250-003 V250-004 V250-005 V250-006 V250-007 V250-008 V250-009; do
   input_paths+=("$ROOT_DIR/docs/rust-cutover/evidence/${task_id}.md")
   input_paths+=("$ROOT_DIR/docs/rust-cutover/tasks/${task_id}.md")
 done
@@ -124,6 +124,10 @@ for needle in (
     "v0.25.0 publishes the Monitoring, Incident, and Disaster-Recovery Foundation",
     "This release does not add submit capability",
     "This release is not a product-grade live trading terminal",
+    "V250-009",
+    "V250 final release scope issue count = 10",
+    "V250-009 failed release gate run = https://github.com/atxinbao/NTPRO/actions/runs/28762387835",
+    "V250-009 final success release gate run = https://github.com/atxinbao/NTPRO/actions/runs/28764231552",
     "scripts/ai/verify_v25_release_gates.sh",
     "scripts/ai/verify_v25_strict_provenance.sh",
 ):
@@ -133,9 +137,11 @@ for needle in (
     "Milestone: `ntpro-rust-only-v0.25.0`",
     "Status: RELEASED",
     "V250-008 evidence",
+    "V250-009 corrective evidence",
     "v25 strict provenance = required",
     "release surface current guard = required",
-    "No V260 implementation starts until all V250 issues are closed and v0.25.0 release evidence is published",
+    "V250 final release scope issue count = 10",
+    "No V260 implementation starts until all V251 issues are closed and v0.25.1",
 ):
     require(needle in readiness, f"readiness report missing required marker: {needle}")
 
@@ -143,6 +149,22 @@ require(release_manifest.get("schema_version") == "ntpro.v250_release_manifest.v
 require(release_manifest.get("task_id") == "V250-008", "release manifest task mismatch")
 require(release_manifest.get("product_version") == os.environ["PRODUCT_VERSION"], "release manifest product version mismatch")
 require(release_manifest.get("release_status") == "released", "release manifest status mismatch")
+evidence = release_manifest.get("v250_evidence") or []
+require(any(item.get("task_id") == "V250-009" and item.get("issue") == 804 for item in evidence), "V250-009 evidence missing from release manifest")
+scope = release_manifest.get("release_scope") or {}
+require(scope.get("milestone_issue_count") == 9, "milestone issue count mismatch")
+require(scope.get("corrective_issue_count") == 1, "corrective issue count mismatch")
+require(scope.get("final_release_scope_issue_count") == 10, "final release scope issue count mismatch")
+require(scope.get("final_release_scope_evidence_count") == 10, "final release scope evidence count mismatch")
+require(scope.get("corrective_scope_expands_capability") is False, "corrective scope must not expand capability")
+corrective = release_manifest.get("corrective_release_scope") or {}
+require(corrective.get("task_id") == "V250-009", "corrective task mismatch")
+require(corrective.get("issue") == 804, "corrective issue mismatch")
+require(corrective.get("pull_request") == 805, "corrective PR mismatch")
+require(corrective.get("failed_release_gate_run") == 28762387835, "corrective failed run mismatch")
+require(corrective.get("final_success_release_gate_run") == 28764231552, "corrective final run mismatch")
+require(corrective.get("included_in_release_tag") is True, "corrective scope must be included in release tag")
+require(corrective.get("capability_expansion") is False, "corrective scope must not expand capability")
 planned = release_manifest.get("planned_release") or {}
 require(planned.get("tag") == os.environ["RELEASE_TAG"], "planned release tag mismatch")
 require(planned.get("draft") is False, "planned draft flag mismatch")
@@ -231,6 +253,8 @@ manifest = {
     },
     "release_inputs": release_inputs,
     "v250_evidence": release_manifest.get("v250_evidence"),
+    "release_scope": release_manifest.get("release_scope"),
+    "corrective_release_scope": release_manifest.get("corrective_release_scope"),
     "capability": release_manifest.get("capability"),
     "boundary_flags": release_manifest.get("boundary_flags"),
     "publication_governance": release_manifest.get("publication_governance"),
@@ -241,7 +265,8 @@ manifest = {
         "dirty_worktree": "NTPRO_RELEASE_GATE=1 fails if tracked files are dirty",
         "missing_tag": "NTPRO_RELEASE_GATE=1 or NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG=1 fails without the v0.25.0 release tag",
         "tag_mismatch": "NTPRO_RELEASE_GATE=1 or NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG=1 fails when HEAD differs from the release tag",
-        "missing_v250_evidence": "v0.25.0 release gate fails if any V250 evidence path is missing",
+        "missing_v250_evidence": "v0.25.0 release gate fails if any V250 milestone or corrective evidence path is missing",
+        "missing_corrective_scope": "v0.25.0 release gate fails if V250-009 corrective task/evidence, #804 closeout, or PR #805 merge proof is missing",
         "open_operation_boundary": "v0.25.0 release gate fails if submit, mutation, adapter send, live exchange, retry scheduler, Dashboard trading, remediation, or order-ticket boundary opens",
         "open_v250_issue_or_milestone": "NTPRO_RELEASE_GATE=1 fails unless V250 issues are closed and the v0.25.0 milestone is closed",
         "pre_gate_publication": "public GitHub Release publication must use the gate-before-publish entrypoint after hosted gate success",

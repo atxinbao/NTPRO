@@ -40,6 +40,26 @@ Workbench 声称为产品级实盘交易终端。
 - `V250-006` - Dashboard monitoring / incident / DR read-only surface.
 - `V250-007` - SLO freshness and fail-closed diagnostics gate.
 - `V250-008` - v25 release gates and strict provenance.
+- `V250-009` - corrective v25 tag-gate base provenance scoping fix for
+  `#804` / PR `#805`; this is release governance only and does not expand v25
+  capability.
+
+## Corrective Release Scope
+
+```text
+V250 milestone issue scope = #777-#785
+V250 milestone issue count = 9
+V250 corrective issue scope = #804 / V250-009
+V250 final release scope issue count = 10
+V250 final release scope evidence count = 10
+V250-009 failed release gate run = https://github.com/atxinbao/NTPRO/actions/runs/28762387835
+V250-009 final success release gate run = https://github.com/atxinbao/NTPRO/actions/runs/28764231552
+V250-009 PR = #805
+V250-009 merge commit = eedcdab1d3ca85d6f51b368b5f36208a7b591026
+V250-009 capability expansion = false
+V250-009 runtime behavior change = false
+V250-009 trading behavior change = false
+```
 
 ## Release Gates
 

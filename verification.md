@@ -1,3 +1,35 @@
+# V251-002 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V251-002` / GitHub issue `#807`
+Milestone: `v0.25.1`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_release_gates.sh scripts/ai/verify_v25_strict_provenance.sh scripts/ai/verify_v25_1_corrective_release_scope.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_25_0_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_release.sh v25-release-gates = PASS, current_issue_state=CLOSED, corrective_issue_state=CLOSED, corrective_pr=805:merged, final_scope_issues=10
+scripts/ai/verify_release.sh v25-strict-provenance = PASS, manifest=target/ntpro-v250/v0_25_0_strict_release_manifest.json
+scripts/ai/verify_release.sh v25.1-corrective-release-scope = PASS, final_scope_issues=10, corrective_issue=804, corrective_pr=805
+strict manifest V250-009 spot check = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V251-002 integrates V250-009/#804/#805 into the final v0.25.0 release scope,
+release notes, readiness report, release manifest, v25 release gates, and v25
+strict provenance inputs. The generated strict provenance manifest contains
+both `docs/rust-cutover/tasks/V250-009.md` and
+`docs/rust-cutover/evidence/V250-009.md`.
+
+No runtime trading behavior, public API, production order mutation, submit
+path, execution adapter send, retry scheduler, automatic remediation, or
+Dashboard operation control changes are included.
+
 # V251-001 Verification
 
 Date: 2026-07-06

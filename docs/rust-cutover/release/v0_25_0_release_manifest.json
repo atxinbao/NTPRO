@@ -83,8 +83,47 @@
       "task_id": "V250-008",
       "issue": 785,
       "path": "docs/rust-cutover/evidence/V250-008.md"
+    },
+    {
+      "task_id": "V250-009",
+      "issue": 804,
+      "path": "docs/rust-cutover/evidence/V250-009.md",
+      "scope": "corrective_tag_gate_fix",
+      "capability_expansion": false,
+      "milestone_issue": false
     }
   ],
+  "release_scope": {
+    "milestone_issue_set": "V250-000..V250-008",
+    "milestone_issue_count": 9,
+    "corrective_issue_set": "V250-009",
+    "corrective_issue_count": 1,
+    "final_release_scope_issue_count": 10,
+    "final_release_scope_evidence_count": 10,
+    "corrective_issue": 804,
+    "corrective_pull_request": 805,
+    "corrective_failed_run_id": 28762387835,
+    "final_success_run_id": 28764231552,
+    "corrective_scope_expands_capability": false,
+    "corrective_scope_changes_runtime_behavior": false,
+    "corrective_scope_changes_trading_behavior": false
+  },
+  "corrective_release_scope": {
+    "task_id": "V250-009",
+    "issue": 804,
+    "task_path": "docs/rust-cutover/tasks/V250-009.md",
+    "evidence_path": "docs/rust-cutover/evidence/V250-009.md",
+    "pull_request": 805,
+    "failed_release_gate_run": 28762387835,
+    "failed_release_gate_url": "https://github.com/atxinbao/NTPRO/actions/runs/28762387835",
+    "final_success_release_gate_run": 28764231552,
+    "final_success_release_gate_url": "https://github.com/atxinbao/NTPRO/actions/runs/28764231552",
+    "merge_commit": "eedcdab1d3ca85d6f51b368b5f36208a7b591026",
+    "included_in_release_tag": true,
+    "capability_expansion": false,
+    "runtime_behavior_changed": false,
+    "trading_behavior_changed": false
+  },
   "release_gates": [
     {
       "name": "v25-intake-gate",
@@ -354,7 +393,12 @@
     "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.25.0",
     "milestone_number": 16,
     "milestone_title": "v0.25.0",
-    "all_v250_issues_closed_required": true,
+    "all_v250_milestone_issues_closed_required": true,
+    "v250_milestone_issue_count": 9,
+    "corrective_release_scope_closed_required": true,
+    "corrective_issue": 804,
+    "corrective_pull_request": 805,
+    "final_release_scope_issue_count": 10,
     "github_release_published_required": true,
     "hosted_release_gate_success_required": true,
     "strict_release_body_match_required": true,

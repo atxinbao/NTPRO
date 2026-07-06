@@ -77,7 +77,7 @@ for path in \
   require_file "$path"
 done
 
-for task_id in V250-000 V250-001 V250-002 V250-003 V250-004 V250-005 V250-006 V250-007 V250-008; do
+for task_id in V250-000 V250-001 V250-002 V250-003 V250-004 V250-005 V250-006 V250-007 V250-008 V250-009; do
   require_file "docs/rust-cutover/evidence/${task_id}.md"
   require_contains "docs/rust-cutover/evidence/${task_id}.md" "$task_id"
   require_file "docs/rust-cutover/tasks/${task_id}.md"
@@ -95,6 +95,12 @@ for marker in \
   "This release is not a product-grade live trading terminal" \
   "V250-000" \
   "V250-008" \
+  "V250-009" \
+  "V250 final release scope issue count = 10" \
+  "V250 final release scope evidence count = 10" \
+  "V250-009 failed release gate run = https://github.com/atxinbao/NTPRO/actions/runs/28762387835" \
+  "V250-009 final success release gate run = https://github.com/atxinbao/NTPRO/actions/runs/28764231552" \
+  "V250-009 capability expansion = false" \
   "v25 release gates = required" \
   "v25 strict provenance = required" \
   "release surface current guard = required" \
@@ -126,13 +132,19 @@ for marker in \
   "Status: RELEASED" \
   "V250-000 evidence" \
   "V250-008 evidence" \
+  "V250-009 corrective evidence" \
   "v25 release gates = required" \
   "v25 strict provenance = required" \
   "release surface current guard = required" \
   "release publication guard = required" \
   "release publish after gate = required" \
-  "#785 V250-008 = must be closed before v0.25.0 tag gate is accepted" \
-  "No V260 implementation starts until all V250 issues are closed and v0.25.0 release evidence is published"; do
+  "#785 V250-008 = closed" \
+  "#804 V250-009 corrective issue = closed" \
+  "failed release gate run = https://github.com/atxinbao/NTPRO/actions/runs/28762387835" \
+  "final success release gate run = https://github.com/atxinbao/NTPRO/actions/runs/28764231552" \
+  "V250 corrective issue set = #804 closed before final publication" \
+  "V250 final release scope issue count = 10" \
+  "No V260 implementation starts until all V251 issues are closed and v0.25.1"; do
   require_contains "$READINESS_REPORT_PATH" "$marker"
 done
 
@@ -240,6 +252,7 @@ def validate(candidate: dict) -> None:
         "V250-006": 783,
         "V250-007": 784,
         "V250-008": 785,
+        "V250-009": 804,
     }
     evidence = candidate.get("v250_evidence") or []
     require(len(evidence) == len(expected_evidence), "V250 evidence count mismatch")
@@ -249,6 +262,33 @@ def validate(candidate: dict) -> None:
         path = Path(item.get("path", ""))
         require(path.is_file(), f"V250 evidence file missing: {path}")
         require(task_id in path.read_text(encoding="utf-8"), f"V250 evidence task marker missing: {path}")
+
+    release_scope = candidate.get("release_scope") or {}
+    require(release_scope.get("milestone_issue_count") == 9, "milestone issue count mismatch")
+    require(release_scope.get("corrective_issue_count") == 1, "corrective issue count mismatch")
+    require(release_scope.get("final_release_scope_issue_count") == 10, "final release scope issue count mismatch")
+    require(release_scope.get("final_release_scope_evidence_count") == 10, "final release scope evidence count mismatch")
+    require(release_scope.get("corrective_issue") == 804, "corrective issue mismatch")
+    require(release_scope.get("corrective_pull_request") == 805, "corrective pull request mismatch")
+    require(release_scope.get("corrective_failed_run_id") == 28762387835, "corrective failed run mismatch")
+    require(release_scope.get("final_success_run_id") == 28764231552, "final success run mismatch")
+    require(release_scope.get("corrective_scope_expands_capability") is False, "corrective scope must not expand capability")
+    require(release_scope.get("corrective_scope_changes_runtime_behavior") is False, "corrective scope must not change runtime behavior")
+    require(release_scope.get("corrective_scope_changes_trading_behavior") is False, "corrective scope must not change trading behavior")
+
+    corrective = candidate.get("corrective_release_scope") or {}
+    require(corrective.get("task_id") == "V250-009", "corrective task mismatch")
+    require(corrective.get("issue") == 804, "corrective issue mismatch")
+    require(corrective.get("task_path") == "docs/rust-cutover/tasks/V250-009.md", "corrective task path mismatch")
+    require(corrective.get("evidence_path") == "docs/rust-cutover/evidence/V250-009.md", "corrective evidence path mismatch")
+    require(corrective.get("pull_request") == 805, "corrective PR mismatch")
+    require(corrective.get("failed_release_gate_run") == 28762387835, "corrective failed release run mismatch")
+    require(corrective.get("final_success_release_gate_run") == 28764231552, "corrective final success run mismatch")
+    require(corrective.get("merge_commit") == "eedcdab1d3ca85d6f51b368b5f36208a7b591026", "corrective merge commit mismatch")
+    require(corrective.get("included_in_release_tag") is True, "corrective scope must be included in release tag")
+    require(corrective.get("capability_expansion") is False, "corrective scope must not expand capability")
+    require(corrective.get("runtime_behavior_changed") is False, "corrective scope must not change runtime behavior")
+    require(corrective.get("trading_behavior_changed") is False, "corrective scope must not change trading behavior")
 
     inputs = candidate.get("release_inputs") or {}
     for key in (
@@ -397,7 +437,12 @@ def validate(candidate: dict) -> None:
     requirements = candidate.get("post_publication_requirements") or {}
     require(requirements.get("release_tag") == os.environ["RELEASE_TAG"], "post-publication release tag mismatch")
     require(requirements.get("milestone_number") == 16, "post-publication milestone number mismatch")
-    require(requirements.get("all_v250_issues_closed_required") is True, "issue closeout requirement missing")
+    require(requirements.get("all_v250_milestone_issues_closed_required") is True, "milestone issue closeout requirement missing")
+    require(requirements.get("v250_milestone_issue_count") == 9, "milestone issue count requirement mismatch")
+    require(requirements.get("corrective_release_scope_closed_required") is True, "corrective release scope closeout requirement missing")
+    require(requirements.get("corrective_issue") == 804, "corrective issue requirement mismatch")
+    require(requirements.get("corrective_pull_request") == 805, "corrective PR requirement mismatch")
+    require(requirements.get("final_release_scope_issue_count") == 10, "final release scope issue count requirement mismatch")
     require(requirements.get("github_release_published_required") is True, "GitHub release publication requirement missing")
     require(requirements.get("hosted_release_gate_success_required") is True, "hosted gate requirement missing")
     require(requirements.get("strict_release_body_match_required") is True, "strict release body requirement missing")
@@ -438,6 +483,23 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
     [[ "$current_state" == "OPEN" || "$current_state" == "CLOSED" ]] || fail "unexpected current release issue state: $current_state"
   fi
 
+  corrective_state="$(gh_with_retry issue view 804 --repo "$REPO" --json state --jq .state)" || fail "could not read GitHub issue #804"
+  [[ "$corrective_state" == "CLOSED" ]] || fail "GitHub issue #804 must be CLOSED for the corrective release scope, got $corrective_state"
+
+  corrective_pr_json="$(gh_with_retry api "/repos/$REPO/pulls/805")" || fail "could not read GitHub PR #805"
+  CORRECTIVE_PR_JSON="$corrective_pr_json" python3 <<'PY'
+import json
+import os
+
+pr = json.loads(os.environ["CORRECTIVE_PR_JSON"])
+if pr["number"] != 805 or pr["state"] != "closed":
+    raise SystemExit(pr)
+if pr["merged_at"] != "2026-07-06T02:36:12Z":
+    raise SystemExit(pr)
+if pr["merge_commit_sha"] != "eedcdab1d3ca85d6f51b368b5f36208a7b591026":
+    raise SystemExit(pr)
+PY
+
   milestone_json="$(gh_with_retry api "/repos/$REPO/milestones/$MILESTONE_NUMBER")" || fail "could not read GitHub milestone #$MILESTONE_NUMBER"
   MILESTONE_JSON="$milestone_json" \
   RELEASE_GATE="${NTPRO_RELEASE_GATE:-0}" \
@@ -468,4 +530,4 @@ if [[ "${NTPRO_V250_RELEASE_REQUIRE_PUBLICATION:-0}" == "1" ]]; then
     scripts/ai/check_github_release_published.sh
 fi
 
-echo "v25_release_gates status=ok release_tag=$RELEASE_TAG base_release=$BASE_RELEASE_TAG current_issue_state=$current_state negative_selftest=${NTPRO_V250_RELEASE_SELFTEST:-1}"
+echo "v25_release_gates status=ok release_tag=$RELEASE_TAG base_release=$BASE_RELEASE_TAG current_issue_state=$current_state corrective_issue_state=$corrective_state corrective_pr=805:merged final_scope_issues=10 negative_selftest=${NTPRO_V250_RELEASE_SELFTEST:-1}"
