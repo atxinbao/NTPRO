@@ -94,6 +94,21 @@ gh_with_retry() {
   done
 }
 
+git_ls_remote_with_retry() {
+  local attempt=1
+  local max_attempts=4
+  while true; do
+    if git ls-remote "$@"; then
+      return 0
+    fi
+    if (( attempt >= max_attempts )); then
+      return 1
+    fi
+    sleep "$((attempt * 2))"
+    attempt=$((attempt + 1))
+  done
+}
+
 run_json_path="$(mktemp "${TMPDIR:-/tmp}/ntpro-v25-intake-run.XXXXXX.json")"
 trap 'rm -f "$run_json_path"' EXIT
 
@@ -303,10 +318,10 @@ assert release["isPrerelease"] is False, release
 assert release["targetCommitish"] == "main", release
 PY
 
-remote_tag_sha="$(git ls-remote --tags origin "refs/tags/$V241_RELEASE_TAG" | awk '{print $1}')"
+remote_tag_sha="$(git_ls_remote_with_retry --tags origin "refs/tags/$V241_RELEASE_TAG" | awk '{print $1}')"
 [[ "$remote_tag_sha" == "$V241_TAG_SHA" ]] || fail "remote tag SHA mismatch: $remote_tag_sha"
 
-origin_main_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+origin_main_sha="$(git_ls_remote_with_retry origin refs/heads/main | awk '{print $1}')"
 if ! git merge-base --is-ancestor "$V241_TAG_SHA" "$origin_main_sha"; then
   fail "v0.24.1 tag is not an ancestor of origin/main: tag=$V241_TAG_SHA origin_main=$origin_main_sha"
 fi

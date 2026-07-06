@@ -67,6 +67,21 @@ gh_with_retry() {
   done
 }
 
+git_ls_remote_with_retry() {
+  local attempt=1
+  local max_attempts=4
+  while true; do
+    if git ls-remote "$@"; then
+      return 0
+    fi
+    if (( attempt >= max_attempts )); then
+      return 1
+    fi
+    sleep "$((attempt * 2))"
+    attempt=$((attempt + 1))
+  done
+}
+
 for path in "$CONTRACT_PATH" "$MANIFEST_PATH" "$READINESS_PATH" "$CLOSEOUT_PATH" "$TASK_PATH" "$EVIDENCE_PATH"; do
   require_file "$path"
 done
@@ -128,7 +143,7 @@ collect_live_state() {
   gate_run_json="$(gh_with_retry run view "$GATE_RUN_ID" --repo "$REPO" --json status,conclusion,updatedAt,url,headSha,workflowName)"
   publish_run_json="$(gh_with_retry run view "$PUBLISH_RUN_ID" --repo "$REPO" --json status,conclusion,updatedAt,url,headSha,workflowName)"
   milestone_json="$(gh_with_retry api "/repos/$REPO/milestones/$MILESTONE_NUMBER")"
-  remote_tag_sha="$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" | awk '{print $1}')"
+  remote_tag_sha="$(git_ls_remote_with_retry --tags origin "refs/tags/$RELEASE_TAG" | awk '{print $1}')"
   origin_main_sha="$(git rev-parse origin/main)"
   if git merge-base --is-ancestor "$TAG_SHA" "$origin_main_sha"; then
     tag_ancestor_of_origin_main="true"

@@ -673,6 +673,44 @@ case "$CURRENT_RELEASE_VERSION" in
       "v0.26.0"
     )
     ;;
+  v0.25.1)
+    required_fields=(
+      "Status: RELEASED"
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "v0.25.1 is a patch governance and evidence hardening release"
+      "V251-001"
+      "V251-006"
+      "v25.1 release gates = required"
+      "v25.1 strict provenance = required"
+      "release surface current guard = required"
+      "release publication guard = required"
+      "release publish after gate = required"
+      "publication evidence strategy = source_tree_plus_github_remote"
+      "local generated publication evidence required in source tree = false"
+      "remote reconstruction required = true"
+      "new_submit_capability = false"
+      "production_order_submission_allowed = false"
+      "production_order_mutation_allowed = false"
+      "execution_adapter_call_allowed = false"
+      "adapter_send_allowed = false"
+      "live_exchange_request_allowed = false"
+      "retry_scheduler_enabled = false"
+      "automatic_remediation_allowed = false"
+      "dashboard_operation_controls_enabled = false"
+      "dashboard_trading_controls_enabled = false"
+      "trader_terminal_order_ticket_enabled = false"
+      "manual_operation_submit_allowed = false"
+      "product_grade_trading_terminal_claim = false"
+      "scripts/ai/verify_release.sh v25.1-release-gates"
+      "scripts/ai/verify_release.sh v25.1-strict-provenance"
+      "scripts/ai/verify_v25_1_release_gates.sh"
+      "scripts/ai/verify_v25_1_strict_provenance.sh"
+      "scripts/ai/publish_ntpro_release_after_gate.sh"
+      "v0.26.0"
+    )
+    ;;
   *)
     fail "unsupported release publication guard version: $CURRENT_RELEASE_VERSION"
     ;;

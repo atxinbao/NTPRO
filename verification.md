@@ -3647,3 +3647,31 @@ or product-grade live trading claim.
 Tag-gate corrective: `verify_v25_1_post_release_gate_split.sh` no longer
 requires a live open V251 issue after #811 closes for tag publication. It still
 requires v0.25.1 release evidence before v0.26.0 can start.
+
+# V260-000 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V260-000` / GitHub issue `#812`
+
+## Commands
+
+```text
+bash -n scripts/ai/check_github_release_published.sh scripts/ai/verify_release.sh scripts/ai/verify_v25_intake_gate.sh scripts/ai/verify_v25_1_release_closeout_evidence.sh scripts/ai/verify_v25_1_post_release_gate_split.sh scripts/ai/verify_v26_intake_gate.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_25_1_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_release.sh v26-intake-gate = PASS, V251 issues=6/6, release_tag=ntpro-rust-only-v0.25.1, hosted_gate_jobs=76/76, tag_is_ancestor_of_origin_main=true, negative_selftest=1
+NTPRO_V251_RELEASE_REQUIRE_CLOSEOUT=1 scripts/ai/verify_release.sh v25.1-release-gates = PASS
+NTPRO_CURRENT_RELEASE_VERSION=v0.25.1 NTPRO_CURRENT_RELEASE_TAG=ntpro-rust-only-v0.25.1 NTPRO_CURRENT_RELEASE_NAME='NTPRO Rust-only v0.25.1' NTPRO_RELEASE_PUBLICATION_STRICT_BODY=1 scripts/ai/verify_release.sh release-publication-guard = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+V260-000 records the v0.26.0 intake gate and proves the v0.25.1 dependency is
+complete. All V251 issues are closed, the v0.25.1 milestone is closed, the
+public release is published after hosted gate success, and the release body
+strictly matches the source release notes. This changes release validation and
+evidence only; it does not add submit, production mutation, adapter send, live
+exchange request, retry scheduler, automatic remediation, Dashboard operation
+controls, Dashboard trading controls, or product-grade live terminal claims.
