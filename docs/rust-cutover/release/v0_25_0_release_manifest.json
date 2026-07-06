@@ -366,6 +366,23 @@
       "manual_operation_submit_allowed": false
     }
   },
+  "post_release_stale_pretag_cleanup": {
+    "task_id": "V251-003",
+    "issue": 808,
+    "task_path": "docs/rust-cutover/tasks/V251-003.md",
+    "evidence_path": "docs/rust-cutover/evidence/V251-003.md",
+    "gate": "scripts/ai/verify_release.sh v25.1-stale-pretag-cleanup",
+    "v250_evidence_path": "docs/rust-cutover/evidence/V250-008.md",
+    "release_tag": "ntpro-rust-only-v0.25.0",
+    "issue_785_state": "closed",
+    "issue_804_state": "closed",
+    "pr_805_state": "merged",
+    "v0_25_0_milestone_state": "closed",
+    "pre_release_validation_snapshot": "historical_not_post_release_state",
+    "retag_required": false,
+    "runtime_behavior_changed": false,
+    "trading_behavior_changed": false
+  },
   "release_surface_current_guard": {
     "current_release_version": "v0.25.0",
     "current_release_tag": "ntpro-rust-only-v0.25.0",
