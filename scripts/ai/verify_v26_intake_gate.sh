@@ -102,6 +102,21 @@ gh_with_retry() {
   done
 }
 
+gh_auth_status_with_retry() {
+  local attempt=1
+  local max_attempts=4
+  while true; do
+    if gh auth status >/dev/null 2>&1; then
+      return 0
+    fi
+    if (( attempt >= max_attempts )); then
+      return 1
+    fi
+    sleep "$((attempt * 2))"
+    attempt=$((attempt + 1))
+  done
+}
+
 git_ls_remote_with_retry() {
   local attempt=1
   local max_attempts=4
@@ -328,7 +343,7 @@ NTPRO_CURRENT_RELEASE_VERSION="$V251_RELEASE_VERSION" \
 if ! command -v gh >/dev/null 2>&1; then
   fail "gh is required for live intake proof"
 fi
-gh auth status >/dev/null 2>&1 || fail "gh authentication is required for live intake proof"
+gh_auth_status_with_retry || fail "gh authentication is required for live intake proof"
 
 for issue in 806 807 808 809 810 811; do
   issue_json="$(gh_with_retry issue view "$issue" --repo "$REPO" --json state,title,url)"

@@ -786,6 +786,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   closed, the `ntpro-rust-only-v0.25.1` GitHub Release was published after
   hosted gate success, and v0.26.0 starts only as a gated product hardening
   foundation track with no inherited operation controls.
+- `v0_26_0_product_hardening_boundary_contract.md` - V260-001 contract for the
+  v0.26.0 product hardening foundation scope. It records allowed hardening
+  areas, required-false trading boundary flags, fail-closed rules, and the
+  non-goal of product-grade live trading terminal readiness.
 - `v0_23_0_evidence_replay_only_boundary.md` - V231-004 boundary note that
   keeps v0.23.x framed as evidence/replay/read-only observability only, not as
   a production multi-node runtime or product-grade terminal implementation.

@@ -3675,3 +3675,32 @@ strictly matches the source release notes. This changes release validation and
 evidence only; it does not add submit, production mutation, adapter send, live
 exchange request, retry scheduler, automatic remediation, Dashboard operation
 controls, Dashboard trading controls, or product-grade live terminal claims.
+
+# V260-001 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V260-001` / GitHub issue `#813`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_1_release_closeout_evidence.sh scripts/ai/verify_v25_intake_gate.sh scripts/ai/verify_v26_intake_gate.sh scripts/ai/verify_v26_product_hardening_boundary_contract.sh = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v260_product_hardening_boundary_contract.jsonl").read_text().splitlines() if line.strip()]' = PASS
+scripts/ai/verify_release.sh v26-product-hardening-boundary-contract = PASS, cases=8, required_false_flags=17, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 189 cases, 95 executable replay, 89 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v26-intake-gate = PASS, V251 issues=6/6, release_tag=ntpro-rust-only-v0.25.1, hosted_gate_jobs=76/76, tag_is_ancestor_of_origin_main=true, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V260-001 defines the v0.26.0 product hardening boundary contract and adds
+validator executable replay coverage for foundation scope and forbidden trading
+boundary flags. It is contract, trace, and release-gate evidence only; it does
+not add real trading execution, production order mutation, adapter send, live
+exchange request, retry scheduler, automatic remediation, Dashboard trading
+controls, product-grade live terminal claims, or external identity-provider
+integration.
