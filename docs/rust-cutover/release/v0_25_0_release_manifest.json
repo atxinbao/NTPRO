@@ -383,6 +383,38 @@
     "runtime_behavior_changed": false,
     "trading_behavior_changed": false
   },
+  "post_release_dashboard_source_ref_integrity": {
+    "task_id": "V251-004",
+    "issue": 809,
+    "task_path": "docs/rust-cutover/tasks/V251-004.md",
+    "evidence_path": "docs/rust-cutover/evidence/V251-004.md",
+    "gate": "scripts/ai/verify_release.sh v25.1-dashboard-source-ref-integrity",
+    "dashboard_surface_gate": "scripts/ai/verify_release.sh v25-dashboard-monitoring-surface",
+    "dashboard_surface_trace": "tests/golden/v250_dashboard_monitoring_surface.jsonl",
+    "dashboard_surface_doc": "docs/rust-cutover/release/v0_25_0_dashboard_monitoring_surface.md",
+    "components_checked": [
+      "monitoring",
+      "alert",
+      "incident",
+      "runbook",
+      "dr_preview"
+    ],
+    "source_refs_resolved": 24,
+    "release_contract_refs_resolved": 5,
+    "fail_closed_selftests": [
+      "bad_path_selftest",
+      "bad_jsonl_anchor_selftest",
+      "bad_markdown_anchor_selftest",
+      "empty_source_ref_selftest",
+      "cross_version_ref_selftest",
+      "forbidden_control_selftest"
+    ],
+    "runtime_behavior_changed": false,
+    "trading_behavior_changed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false
+  },
   "release_surface_current_guard": {
     "current_release_version": "v0.25.0",
     "current_release_tag": "ntpro-rust-only-v0.25.0",
