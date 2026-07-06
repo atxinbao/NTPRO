@@ -415,6 +415,74 @@
     "dashboard_trading_controls_enabled": false,
     "trader_terminal_order_ticket_enabled": false
   },
+  "post_release_gate_split": {
+    "task_id": "V251-005",
+    "issue": 810,
+    "contract_path": "docs/rust-cutover/release/v0_25_0_post_release_gate_split.md",
+    "task_path": "docs/rust-cutover/tasks/V251-005.md",
+    "evidence_path": "docs/rust-cutover/evidence/V251-005.md",
+    "gate": "scripts/ai/verify_release.sh v25.1-post-release-gate-split",
+    "pre_release_gate": {
+      "phase": "v25_pre_release_pr_gate",
+      "missing_tag_allowed": true,
+      "current_issue_open_allowed": true,
+      "offline_publication_allowed_with_explicit_pr_mode": true,
+      "closeout_evidence": false
+    },
+    "tag_release_gate": {
+      "phase": "v25_tag_release_gate",
+      "ntpro_release_gate_required": true,
+      "tag_exists_required": true,
+      "head_tag_match_required": true,
+      "github_release_published_required": true,
+      "hosted_run_success_required": true,
+      "current_issue_closed_required": true,
+      "corrective_issue_804_closed_required": true,
+      "milestone_closed_required": true
+    },
+    "post_release_closeout_gate": {
+      "phase": "v25_post_release_closeout_gate",
+      "missing_tag_fail_closed": true,
+      "offline_publication_fail_closed": true,
+      "pre_publication_state_fail_closed": true,
+      "current_issue_open_fail_closed": true,
+      "corrective_issue_804_open_fail_closed": true,
+      "milestone_open_fail_closed": true
+    },
+    "fail_closed_selftests": [
+      "missing_tag",
+      "head_tag_mismatch",
+      "offline_publication",
+      "pre_publication_state",
+      "open_current_issue",
+      "open_corrective_issue",
+      "open_milestone",
+      "failed_hosted_run",
+      "draft_release",
+      "v0_26_start_allowed_without_v25_1_release_evidence"
+    ],
+    "runtime_behavior_changed": false,
+    "trading_behavior_changed": false
+  },
+  "v0_26_start_gate": {
+    "task_id": "V251-005",
+    "status": "blocked_until_v25_1_release_evidence_published",
+    "blocked_by_milestone": "v0.25.1",
+    "requires_all_v251_issues_closed": true,
+    "required_v251_issues": [
+      806,
+      807,
+      808,
+      809,
+      810,
+      811
+    ],
+    "requires_v25_1_release_evidence_published": true,
+    "v25_1_release_evidence_published": false,
+    "v0_26_start_allowed": false,
+    "fail_closed_when_release_evidence_missing": true,
+    "next_capability_milestone": "v0.26.0"
+  },
   "release_surface_current_guard": {
     "current_release_version": "v0.25.0",
     "current_release_tag": "ntpro-rust-only-v0.25.0",

@@ -3585,3 +3585,31 @@ cross-version ref, and forbidden Dashboard trading control self-tests all fail
 closed. This changes release validation only; Dashboard remains read-only and
 does not add trading controls, live control API, adapter send, live exchange
 request, automatic remediation, or production order mutation.
+
+# V251-005 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V251-005` / GitHub issue `#810`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_1_post_release_gate_split.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_25_0_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_release.sh v25.1-post-release-gate-split = PASS, current_issue=785:CLOSED, corrective_issue=804:CLOSED, v260_start=blocked
+scripts/ai/verify_release.sh v25.1-release-closeout-evidence = PASS, release_tag=ntpro-rust-only-v0.25.0, jobs=74/74, milestone=v0.25.0:closed, issues=9/9, corrective_issue=804:closed, corrective_pr=805:merged
+scripts/ai/verify_release.sh v25.1-dashboard-source-ref-integrity = PASS, source_refs_resolved=24, release_contract_refs=5, negative_selftest=6
+NTPRO_V250_RELEASE_REQUIRE_CLOSEOUT=1 scripts/ai/verify_release.sh v25-release-gates = PASS, current_issue_state=CLOSED, corrective_issue_state=CLOSED, corrective_pr=805:merged, final_scope_issues=10
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V251-005 separates pre-release PR validation from tag/release and post-release
+closeout gates. Missing tag, HEAD/tag mismatch, offline publication proof,
+pre-publication state, open current issue, open corrective issue, open
+milestone, failed hosted run, draft release, and v0.26 start allowed without
+v0.25.1 release evidence all fail closed. This changes release governance only;
+there is no runtime trading behavior change.
