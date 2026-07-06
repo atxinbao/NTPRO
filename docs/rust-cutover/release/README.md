@@ -799,6 +799,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   gate action, permission denial, and rollback recommendation events. It keeps
   audit evidence read-only and does not execute operation intents or add a live
   control API.
+- `v0_26_0_deployment_provenance_model.md` - V260-004 deployment topology and
+  environment provenance model for local/dev/staging/prod-like evidence. It
+  records artifact digest, config source, release tag, node scope, and runtime
+  boundary without production deploy automation or real production trading
+  readiness claims.
 - `v0_23_0_evidence_replay_only_boundary.md` - V231-004 boundary note that
   keeps v0.23.x framed as evidence/replay/read-only observability only, not as
   a production multi-node runtime or product-grade terminal implementation.

@@ -3762,3 +3762,32 @@ and fail-closed for missing actor/lineage/hash, sequence gaps, hash mismatch,
 unredacted payloads, and forbidden trading actions. This task does not
 implement an external audit database, execute operation intents, add a live
 control API, trigger automatic remediation, or add Dashboard trading controls.
+
+# V260-004 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V260-004` / GitHub issue `#816`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v26_deployment_provenance_model.sh = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v260_deployment_provenance_model.jsonl").read_text().splitlines() if line.strip()]' = PASS
+scripts/ai/verify_release.sh v26-deployment-provenance-model = PASS, cases=6, environments=4, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 208 cases, 95 executable replay, 108 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v26-product-hardening-boundary-contract = PASS, cases=8, required_false_flags=17, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V260-004 defines the v0.26.0 deployment topology and environment provenance
+model for local, dev, staging, and prod-like evidence. Deployment provenance
+remains evidence-only and fail-closed for missing digest/config provenance/
+release tag, unredacted config, unknown environment truth, tag mismatch, and
+cross-node scope mismatch. This task does not deploy production environments,
+add Kubernetes/Terraform or other deployment systems, open adapter send/live
+exchange request, or prove real-funds production readiness.
