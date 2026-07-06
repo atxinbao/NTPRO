@@ -3732,3 +3732,33 @@ roles. Permission evidence remains read-only and audit-oriented. This task does
 not add SSO/IAM integration, live operation authorization, production trading
 authorization, Dashboard trading controls, or owner approval lifecycle runtime
 changes.
+
+# V260-003 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V260-003` / GitHub issue `#815`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v26_operation_audit_trail.sh = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v260_operation_audit_trail.jsonl").read_text().splitlines() if line.strip()]' = PASS
+scripts/ai/verify_release.sh v26-operation-audit-trail = PASS, cases=6, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 202 cases, 95 executable replay, 102 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v26-operator-permission-model = PASS, cases=7, roles=5, negative_selftest=1
+scripts/ai/verify_release.sh v26-product-hardening-boundary-contract = PASS, cases=8, required_false_flags=17, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V260-003 defines the v0.26.0 operation audit trail and immutable action evidence
+model for operator ack, runbook decision, release gate action, permission
+denial, and rollback recommendation events. Audit evidence remains read-only
+and fail-closed for missing actor/lineage/hash, sequence gaps, hash mismatch,
+unredacted payloads, and forbidden trading actions. This task does not
+implement an external audit database, execute operation intents, add a live
+control API, trigger automatic remediation, or add Dashboard trading controls.

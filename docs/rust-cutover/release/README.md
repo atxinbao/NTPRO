@@ -794,6 +794,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   and role boundary evidence for viewer, operator, release gatekeeper,
   incident owner, and auditor roles. It keeps permission evidence read-only and
   does not add SSO/IAM integration or live operation authorization.
+- `v0_26_0_operation_audit_trail.md` - V260-003 operation audit trail and
+  immutable action evidence model for operator ack, runbook decision, release
+  gate action, permission denial, and rollback recommendation events. It keeps
+  audit evidence read-only and does not execute operation intents or add a live
+  control API.
 - `v0_23_0_evidence_replay_only_boundary.md` - V231-004 boundary note that
   keeps v0.23.x framed as evidence/replay/read-only observability only, not as
   a production multi-node runtime or product-grade terminal implementation.
