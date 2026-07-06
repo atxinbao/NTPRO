@@ -782,6 +782,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   for V251 release gates. It fixes V251 evidence paths, release gate commands,
   boundary flags, publication governance, current release surface guard fields,
   and the v0.26.0 start boundary.
+- `v0_26_0_intake_gate.md` - V260-000 intake proof that all V251 issues are
+  closed, the `ntpro-rust-only-v0.25.1` GitHub Release was published after
+  hosted gate success, and v0.26.0 starts only as a gated product hardening
+  foundation track with no inherited operation controls.
 - `v0_23_0_evidence_replay_only_boundary.md` - V231-004 boundary note that
   keeps v0.23.x framed as evidence/replay/read-only observability only, not as
   a production multi-node runtime or product-grade terminal implementation.

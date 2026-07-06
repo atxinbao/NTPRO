@@ -71,6 +71,21 @@ gh_with_retry() {
   done
 }
 
+git_ls_remote_with_retry() {
+  local attempt=1
+  local max_attempts=4
+  while true; do
+    if git ls-remote "$@"; then
+      return 0
+    fi
+    if (( attempt >= max_attempts )); then
+      return 1
+    fi
+    sleep "$((attempt * 2))"
+    attempt=$((attempt + 1))
+  done
+}
+
 timestamp_ge() {
   python3 - "$1" "$2" <<'PY'
 from datetime import datetime, timezone
@@ -296,7 +311,7 @@ PY
 
 timestamp_ge "$PUBLISHED_AT" "$GATE_COMPLETED_AT" || fail "release was not published after hosted gate success"
 
-remote_tag_sha="$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" | awk '{print $1}')"
+remote_tag_sha="$(git_ls_remote_with_retry --tags origin "refs/tags/$RELEASE_TAG" | awk '{print $1}')"
 [[ "$remote_tag_sha" == "$TAG_SHA" ]] || fail "remote tag SHA mismatch: $remote_tag_sha"
 
 origin_main_sha="$(git rev-parse origin/main)"
