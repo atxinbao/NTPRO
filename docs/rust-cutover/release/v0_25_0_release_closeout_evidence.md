@@ -95,6 +95,17 @@ v0.26.0 state = open
 v0.26.0 start rule = blocked until all V251 issues are closed and v0.25.1 release evidence is published
 ```
 
+## Post-Release Gate Split
+
+```text
+post-release gate split = required
+scripts/ai/verify_release.sh v25.1-post-release-gate-split
+pre-release validation = historical PR-stage only, not release closeout evidence
+tag release gate = requires NTPRO_RELEASE_GATE=1, tag exists, HEAD/tag match, published GitHub Release, hosted release gate success, #785 closed, #804 closed, PR #805 merged, and v0.25.0 milestone closed
+post-release closeout gate = missing tag / offline publication proof / pre-publication state / current_issue_state OPEN / #804 open / milestone open all fail closed
+v0.26.0 start gate = blocked until all V251 issues are closed and v0.25.1 release evidence is published
+```
+
 ## Boundary Statement
 
 ```text

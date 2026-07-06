@@ -119,6 +119,19 @@ product_grade_trading_terminal_claim = false
 
 No V260 implementation starts until all V251 issues are closed and v0.25.1
 release evidence is published.
+
+## V251-005 Post-Release Gate Split
+
+post-release gate split = required
+scripts/ai/verify_release.sh v25.1-post-release-gate-split
+pre-release validation = historical PR-stage only, not release closeout evidence
+tag release gate = requires NTPRO_RELEASE_GATE=1, tag exists, HEAD/tag match,
+published GitHub Release, hosted release gate success, #785 closed, #804 closed,
+PR #805 merged, and v0.25.0 milestone closed
+post-release closeout gate = missing tag / offline publication proof /
+pre-publication state / current issue open / #804 open / milestone open
+all fail closed
+v0.26.0 start gate = blocked until all V251 issues are closed and v0.25.1 release evidence is published
 `v0.26.0` is reserved for the next capability track and inherits no production
 submit, mutation, adapter send, live exchange request, retry scheduler,
 automatic remediation, or Dashboard trading controls from v0.25.0.
