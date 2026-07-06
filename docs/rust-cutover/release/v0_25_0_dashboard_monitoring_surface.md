@@ -70,3 +70,30 @@ Excluded:
 `scripts/ai/verify_release.sh v25-dashboard-monitoring-surface` validates the
 golden trace decision envelope and checks the Dashboard source keeps the v25
 surface markers while not exposing forbidden workbench/order actions.
+
+## Post-Release Source Ref Integrity
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V251-004` / GitHub issue `#809`
+
+`scripts/ai/verify_release.sh v25.1-dashboard-source-ref-integrity` hardens the
+same v25 Dashboard surface gate by resolving component `source_ref` values.
+The gate validates repository-relative paths, JSONL case anchors, Markdown
+heading anchors, and v25 release contract refs for monitoring, alert, incident,
+runbook, and DR preview components.
+
+```text
+source_refs_resolved = 24
+release_contract_refs = 5
+bad_path_selftest = fail_closed
+bad_jsonl_anchor_selftest = fail_closed
+bad_markdown_anchor_selftest = fail_closed
+empty_source_ref_selftest = fail_closed
+cross_version_ref_selftest = fail_closed
+```
+
+This post-release hardening changes validation only. Dashboard remains
+read-only and still has no submit, cancel, retry, replace, amend, flatten,
+order-ticket, adapter send, live exchange request, automatic remediation, or
+production order mutation path.

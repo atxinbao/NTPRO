@@ -3556,3 +3556,32 @@ and strict provenance inputs, but it no longer passes the current v25
 `NTPRO_RELEASE_GATE=1` HEAD/tag constraint into the historical v0.24.1 strict
 provenance check. The v25 release gate keeps its own same-tag HEAD check for
 `ntpro-rust-only-v0.25.0`.
+
+# V251-004 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V251-004` / GitHub issue `#809`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_dashboard_monitoring_surface.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_25_0_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_release.sh v25.1-dashboard-source-ref-integrity = PASS, source_refs_resolved=24, release_contract_refs=5, negative_selftest=6
+scripts/ai/verify_release.sh v25-dashboard-monitoring-surface = PASS, source_refs_resolved=24, release_contract_refs=5, negative_selftest=6
+scripts/ai/verify_release.sh v25.1-stale-pretag-cleanup = PASS, release_tag=ntpro-rust-only-v0.25.0, issue_785=closed, issue_804=closed, pr_805=merged
+scripts/ai/verify_release.sh v25-strict-provenance = PASS, release_tag=ntpro-rust-only-v0.25.0, source_dirty=true, manifest=target/ntpro-v250/v0_25_0_strict_release_manifest.json
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V251-004 hardens the v25 Dashboard monitoring surface source-ref gate. Component
+`source_ref` values must resolve to repository artifacts and JSONL or Markdown
+anchors. Bad path, bad JSONL anchor, bad Markdown anchor, empty `source_ref`,
+cross-version ref, and forbidden Dashboard trading control self-tests all fail
+closed. This changes release validation only; Dashboard remains read-only and
+does not add trading controls, live control API, adapter send, live exchange
+request, automatic remediation, or production order mutation.
