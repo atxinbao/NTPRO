@@ -3613,3 +3613,32 @@ pre-publication state, open current issue, open corrective issue, open
 milestone, failed hosted run, draft release, and v0.26 start allowed without
 v0.25.1 release evidence all fail closed. This changes release governance only;
 there is no runtime trading behavior change.
+
+# V251-006 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V251-006` / GitHub issue `#811`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_1_release_gates.sh scripts/ai/verify_v25_1_strict_provenance.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_25_1_release_manifest.json >/dev/null = PASS
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/verify_release.sh release-surface-current-guard = PASS
+NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE=1 scripts/ai/verify_release.sh release-publication-guard = PASS
+scripts/ai/verify_release.sh v25.1-corrective-release-scope = PASS
+scripts/ai/verify_release.sh v25.1-release-gates = PASS
+scripts/ai/verify_release.sh v25.1-strict-provenance = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V251-006 adds v25.1 patch release gates, strict provenance, hosted tag workflow
+coverage, release notes, readiness report, manifest metadata, and current
+release surface defaults for v0.25.1. The release scope remains
+governance/evidence hardening only: no submit, production mutation, adapter
+send, live exchange request, automatic remediation, Dashboard trading controls,
+or product-grade live trading claim.
