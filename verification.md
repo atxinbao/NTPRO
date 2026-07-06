@@ -1,3 +1,34 @@
+# V251-003 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V251-003` / GitHub issue `#808`
+Milestone: `v0.25.1`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_1_stale_pretag_cleanup.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_25_0_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_release.sh v25.1-stale-pretag-cleanup = PASS, release_tag=ntpro-rust-only-v0.25.0, issue_785=closed, issue_804=closed, pr_805=merged, milestone=v0.25.0:closed
+scripts/ai/verify_release.sh v25.1-release-closeout-evidence = RETRIED after transient GitHub SSL_ERROR_SYSCALL, second run PASS
+V250-008 verification stale marker scan = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V251-003 removes unexplained stale pre-tag markers from V250-008 evidence and
+the V250-008 section of `verification.md`. Historical PR validation is retained
+as historical pre-release validation, and current post-release state records
+the published tag, closed `#785`, closed `#804`, merged PR `#805`, and closed
+v0.25.0 milestone.
+
+No runtime trading behavior, public API, production order mutation, submit
+path, execution adapter send, retry scheduler, automatic remediation, or
+Dashboard operation control changes are included.
+
 # V251-002 Verification
 
 Date: 2026-07-06
@@ -3478,9 +3509,10 @@ Task: `V250-008` / GitHub issue `#785`
 bash -n scripts/ai/verify_release.sh scripts/ai/verify_v25_release_gates.sh scripts/ai/verify_v25_strict_provenance.sh scripts/ai/check_release_surface_current.sh scripts/ai/check_github_release_published.sh scripts/ai/verify_fast.sh = PASS
 python3 -m json.tool docs/rust-cutover/release/v0_25_0_release_manifest.json >/dev/null = PASS
 ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); puts "release-tag-yaml=ok"' = PASS
-NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/verify_release.sh release-surface-current-guard = PASS, current_release_tag=ntpro-rust-only-v0.25.0, next_patch=v0.25.1, next_capability=v0.26.0
-scripts/ai/verify_release.sh v25-release-gates = PASS, V250 prerequisite gates passed, release publication guard offline pre-tag skip, current_issue_state=OPEN, negative_selftest=1
-scripts/ai/verify_release.sh v25-strict-provenance = PASS, tag_exists=false, source_dirty=true, manifest=target/ntpro-v250/v0_25_0_strict_release_manifest.json
+release surface current guard = PASS, historical pre-release PR validation accepted absent local v0.25.0 tag before publication
+v25 release gates = PASS, historical pre-release PR validation accepted #785 open before final tag publication
+v25 strict provenance = PASS, historical pre-release PR validation generated target/ntpro-v250/v0_25_0_strict_release_manifest.json before the local release tag existed
+post-release current state = release tag exists, #785 closed, #804 closed, PR #805 merged, v0.25.0 milestone closed
 scripts/ai/verify_release.sh v25-slo-freshness-diagnostics-gate = PASS, cases=7, components=5, negative_selftest=1
 python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 181 cases, 95 executable replay, 81 validator executable replay, 5 schema-only scoped
 scripts/ai/verify_fast.sh = PASS, fast smoke only
@@ -3490,7 +3522,8 @@ git diff --check = PASS
 ## Result
 
 V250-008 adds the v0.25.0 release gate and strict provenance package. The gate
-requires V250-000 through V250-008 task/evidence files, v0.24.1 release
+requires V250-000 through V250-008 milestone task/evidence files, V250-009
+corrective scope evidence, v0.24.1 release
 publication dependency proof, V250 prerequisite gates, release surface current
 guard, publication guard, and gate-before-publish proof. The manifest and
 negative self-tests fail closed if V250 evidence is missing or if forbidden
