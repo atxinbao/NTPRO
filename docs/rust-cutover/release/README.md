@@ -815,6 +815,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   and release drift. It is release-gate and Dashboard read-only evidence only;
   it does not execute automatic recovery, restart, strategy stop, cancel, order
   submit, trading recovery, or remediation.
+- `v0_26_0_dashboard_admin_boundary_surface.md` - V260-007 Dashboard / Trader
+  Terminal product hardening read-only admin surface for permission boundary,
+  operation audit, deployment provenance, upgrade/rollback preview, and
+  stability/SLO evidence. It adds provenance drill-down and degraded/fail-closed
+  diagnostics without operation buttons, live control API, trading controls, or
+  automatic remediation.
 - `v0_23_0_evidence_replay_only_boundary.md` - V231-004 boundary note that
   keeps v0.23.x framed as evidence/replay/read-only observability only, not as
   a production multi-node runtime or product-grade terminal implementation.
