@@ -3791,3 +3791,32 @@ release tag, unredacted config, unknown environment truth, tag mismatch, and
 cross-node scope mismatch. This task does not deploy production environments,
 add Kubernetes/Terraform or other deployment systems, open adapter send/live
 exchange request, or prove real-funds production readiness.
+
+# V260-005 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V260-005` / GitHub issue `#817`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v26_upgrade_rollback_runbook_evidence.sh = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v260_upgrade_rollback_runbook_evidence.jsonl").read_text().splitlines() if line.strip()]' = PASS
+scripts/ai/verify_release.sh v26-upgrade-rollback-runbook-evidence = PASS, cases=6, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 214 cases, 95 executable replay, 114 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v26-operation-audit-trail = PASS, cases=6, negative_selftest=1
+scripts/ai/verify_release.sh v26-deployment-provenance-model = PASS, cases=6, environments=4, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V260-005 defines upgrade, rollback, and release operation runbook evidence for
+ready preview, blocked preview, tag/source mismatch, failed preflight, rollback
+recommendation, and stale environment evidence. Runbooks remain preview-only
+and audit-linked to V260-003/V260-004. This task does not execute real
+deployment or rollback, integrate a CD system, change release publication
+workflow, trigger trading operations, or trigger automatic remediation.
