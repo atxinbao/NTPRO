@@ -809,6 +809,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   recommendation, preflight, approval, post-check, audit lineage, release gate,
   and Dashboard read-only evidence. It does not execute deployment, rollback,
   release publication, trading operation, or automatic remediation.
+- `v0_26_0_slo_runbook_stability_evidence.md` - V260-006 SLO, runbook, and
+  long-run stability evidence for sample provenance, freshness, redaction,
+  component coverage, error budget, restart recommendation, runbook staleness,
+  and release drift. It is release-gate and Dashboard read-only evidence only;
+  it does not execute automatic recovery, restart, strategy stop, cancel, order
+  submit, trading recovery, or remediation.
 - `v0_23_0_evidence_replay_only_boundary.md` - V231-004 boundary note that
   keeps v0.23.x framed as evidence/replay/read-only observability only, not as
   a production multi-node runtime or product-grade terminal implementation.

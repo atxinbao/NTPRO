@@ -1,3 +1,36 @@
+# V260-006 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V260-006` / GitHub issue `#818`
+Milestone: `v0.26.0`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v26_slo_runbook_stability_evidence.sh = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v260_slo_runbook_stability_evidence.jsonl").read_text().splitlines() if line.strip()]' = PASS
+scripts/ai/verify_release.sh v26-slo-runbook-stability-evidence = PASS, cases=6, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 220 cases, 95 executable replay, 120 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v26-product-hardening-boundary-contract = PASS, cases=8, required_false_flags=17, negative_selftest=1
+scripts/ai/verify_release.sh v26-upgrade-rollback-runbook-evidence = PASS, cases=6, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V260-006 records SLO, runbook, and long-run stability evidence as validator
+executable replay. Missing sample provenance, stale freshness, unredacted
+samples, missing component coverage, stale runbooks, exhausted error budget, and
+release drift no longer classify as healthy. Restart recommendations remain
+preview-only evidence.
+
+No real soak infrastructure, automatic recovery, restart execution, strategy
+stop, cancel, order submit, rollback execution, live exchange request, automatic
+remediation, Dashboard execution control, or public API change is included.
+
 # V251-003 Verification
 
 Date: 2026-07-06
