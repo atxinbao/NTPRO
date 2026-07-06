@@ -804,6 +804,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   records artifact digest, config source, release tag, node scope, and runtime
   boundary without production deploy automation or real production trading
   readiness claims.
+- `v0_26_0_upgrade_rollback_runbook_evidence.md` - V260-005 upgrade, rollback,
+  and release operation runbook evidence for preview, blocked preview, rollback
+  recommendation, preflight, approval, post-check, audit lineage, release gate,
+  and Dashboard read-only evidence. It does not execute deployment, rollback,
+  release publication, trading operation, or automatic remediation.
 - `v0_23_0_evidence_replay_only_boundary.md` - V231-004 boundary note that
   keeps v0.23.x framed as evidence/replay/read-only observability only, not as
   a production multi-node runtime or product-grade terminal implementation.
