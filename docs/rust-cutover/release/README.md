@@ -756,6 +756,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   `ntpro-rust-only-v0.25.0` release. It records V250 evidence, v25 release
   gates, strict provenance, publication governance, and the v0.26.0 start
   boundary.
+- `v0_25_0_release_closeout_evidence.md` - post-release closeout evidence for
+  the formal `ntpro-rust-only-v0.25.0` GitHub Release. It records the release
+  URL, published timestamp, tag SHA, hosted release gate, publish workflow,
+  V250 issue closeout, corrective #804/#805 scope, milestone closeout, and
+  no-submit/no-Dashboard-controls boundary.
 - `v0_25_0_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.25.0` GitHub Release. It records the monitoring /
   incident / DR foundation, V250 evidence, no-submit/no-Dashboard-controls

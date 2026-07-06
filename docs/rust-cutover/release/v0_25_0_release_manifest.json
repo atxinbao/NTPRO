@@ -233,6 +233,100 @@
     "local_generated_evidence_required_in_source_tree": false,
     "remote_reconstruction_required": true
   },
+  "post_release_closeout": {
+    "closeout_evidence_path": "docs/rust-cutover/release/v0_25_0_release_closeout_evidence.md",
+    "github_release": {
+      "tag": "ntpro-rust-only-v0.25.0",
+      "name": "NTPRO Rust-only v0.25.0",
+      "url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.25.0",
+      "published_at": "2026-07-06T04:02:02Z",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main"
+    },
+    "tag": {
+      "sha": "eedcdab1d3ca85d6f51b368b5f36208a7b591026",
+      "tree": "c9f908d502aa83c80869bdee37c705f718ae2ced",
+      "post_release_origin_main_sha": "eedcdab1d3ca85d6f51b368b5f36208a7b591026",
+      "post_release_origin_main_role": "v250_final_tag_and_release_source",
+      "current_origin_main_exact_match_required": false,
+      "current_origin_main_rule": "post_release_origin_main_sha_must_remain_ancestor",
+      "ancestor_of_origin_main": true,
+      "exactly_matches_origin_main_after_closeout": false
+    },
+    "hosted_release_gate": {
+      "run_id": 28764231552,
+      "url": "https://github.com/atxinbao/NTPRO/actions/runs/28764231552",
+      "completed_at": "2026-07-06T04:00:17Z",
+      "conclusion": "success",
+      "jobs_total": 74,
+      "jobs_success": 74
+    },
+    "publish_workflow": {
+      "run_id": 28766874471,
+      "url": "https://github.com/atxinbao/NTPRO/actions/runs/28766874471",
+      "completed_at": "2026-07-06T04:02:07Z",
+      "conclusion": "success",
+      "head_sha": "eedcdab1d3ca85d6f51b368b5f36208a7b591026"
+    },
+    "publication_evidence": {
+      "status": "already_published_after_gate",
+      "release_publication_after_gate": "pass",
+      "audit_source": "source_tree_plus_github_remote",
+      "local_generated_evidence_required_in_source_tree": false,
+      "remote_reconstruction_required": true,
+      "secret_material_allowed": false
+    },
+    "issue_closeout": {
+      "closed_issues": [
+        777,
+        778,
+        779,
+        780,
+        781,
+        782,
+        783,
+        784,
+        785
+      ],
+      "closed_count": 9,
+      "open_count": 0
+    },
+    "corrective_release_scope": {
+      "issue": 804,
+      "issue_state": "closed",
+      "issue_closed_at": "2026-07-06T02:36:13Z",
+      "pull_request": 805,
+      "pull_request_state": "merged",
+      "merged_at": "2026-07-06T02:36:12Z",
+      "merge_commit": "eedcdab1d3ca85d6f51b368b5f36208a7b591026",
+      "included_in_release_tag": true
+    },
+    "milestone_closeout": {
+      "number": 16,
+      "title": "v0.25.0",
+      "state": "closed",
+      "open_issues": 0,
+      "closed_issues": 9
+    },
+    "boundary": {
+      "monitoring_incident_dr_foundation": true,
+      "automatic_recovery_runtime": false,
+      "product_grade_live_trading_terminal": false,
+      "new_submit_capability": false,
+      "production_order_submission_allowed": false,
+      "production_order_mutation_allowed": false,
+      "execution_adapter_call_allowed": false,
+      "live_exchange_request_allowed": false,
+      "retry_scheduler_enabled": false,
+      "automatic_remediation_allowed": false,
+      "automatic_operation_action_allowed": false,
+      "dashboard_operation_controls_enabled": false,
+      "dashboard_trading_controls_enabled": false,
+      "trader_terminal_order_ticket_enabled": false,
+      "manual_operation_submit_allowed": false
+    }
+  },
   "release_surface_current_guard": {
     "current_release_version": "v0.25.0",
     "current_release_tag": "ntpro-rust-only-v0.25.0",
