@@ -3438,3 +3438,26 @@ controls/product-grade terminal flags open.
 The work changes release governance and documentation only. It does not add
 runtime trading behavior, production order mutation, adapter send, live exchange
 request, retry scheduler, automatic remediation, or Dashboard trading controls.
+
+# V250-009 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V250-009` / GitHub issue `#804`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v25_intake_gate.sh = PASS
+scripts/ai/verify_release.sh v24.1-strict-provenance = PASS, tag_exists=true, source_dirty=true, manifest=target/ntpro-v241/v0_24_1_strict_release_manifest.json
+NTPRO_RELEASE_GATE=1 scripts/ai/verify_release.sh v25-release-gates = PASS, v24.1 publication guard passed, current_issue_state=CLOSED, negative_selftest=1
+```
+
+## Result
+
+V250-009 fixes the v25 tag gate scoping failure seen in hosted run
+`28762387835`. The v25 intake gate still verifies v0.24.1 release publication
+and strict provenance inputs, but it no longer passes the current v25
+`NTPRO_RELEASE_GATE=1` HEAD/tag constraint into the historical v0.24.1 strict
+provenance check. The v25 release gate keeps its own same-tag HEAD check for
+`ntpro-rust-only-v0.25.0`.
