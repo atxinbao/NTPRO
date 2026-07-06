@@ -3630,6 +3630,7 @@ NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE=1 scripts/ai/verify_release.sh release-p
 scripts/ai/verify_release.sh v25.1-corrective-release-scope = PASS
 scripts/ai/verify_release.sh v25.1-release-gates = PASS
 scripts/ai/verify_release.sh v25.1-strict-provenance = PASS
+scripts/ai/verify_release.sh v25.1-post-release-gate-split = PASS, tag-gate fix for all V251 issues closed
 scripts/ai/verify_fast.sh = PASS, fast smoke only
 git diff --check = PASS
 ```
@@ -3642,3 +3643,7 @@ release surface defaults for v0.25.1. The release scope remains
 governance/evidence hardening only: no submit, production mutation, adapter
 send, live exchange request, automatic remediation, Dashboard trading controls,
 or product-grade live trading claim.
+
+Tag-gate corrective: `verify_v25_1_post_release_gate_split.sh` no longer
+requires a live open V251 issue after #811 closes for tag publication. It still
+requires v0.25.1 release evidence before v0.26.0 can start.

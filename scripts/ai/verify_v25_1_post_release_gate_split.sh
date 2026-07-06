@@ -253,7 +253,11 @@ def validate_v260_start_gate(manifest: dict, v251_issues: list[dict]) -> None:
     require(gate.get("blocked_by_milestone") == "v0.25.1", "v0.26 start gate milestone mismatch")
     require(gate.get("required_v251_issues") == [806, 807, 808, 809, 810, 811], "required V251 issue set mismatch")
     live_open = sorted(item["number"] for item in v251_issues if item.get("state") != "CLOSED")
-    require(live_open, "live V251 issue set should still block v0.26 before #811")
+    if live_open:
+        require(
+            811 in live_open,
+            f"only the current V251 release-gate issue may remain open before v0.25.1 publication: {live_open}",
+        )
 
 
 manifest = json.loads(Path(os.environ["MANIFEST_PATH"]).read_text(encoding="utf-8"))
