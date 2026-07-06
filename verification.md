@@ -3704,3 +3704,31 @@ not add real trading execution, production order mutation, adapter send, live
 exchange request, retry scheduler, automatic remediation, Dashboard trading
 controls, product-grade live terminal claims, or external identity-provider
 integration.
+
+# V260-002 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V260-002` / GitHub issue `#814`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v26_operator_permission_model.sh = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v260_operator_permission_model.jsonl").read_text().splitlines() if line.strip()]' = PASS
+scripts/ai/verify_release.sh v26-operator-permission-model = PASS, cases=7, roles=5, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 196 cases, 95 executable replay, 96 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v26-product-hardening-boundary-contract = PASS, cases=8, required_false_flags=17, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V260-002 defines the v0.26.0 operator permission model and role boundary
+evidence for viewer, operator, release gatekeeper, incident owner, and auditor
+roles. Permission evidence remains read-only and audit-oriented. This task does
+not add SSO/IAM integration, live operation authorization, production trading
+authorization, Dashboard trading controls, or owner approval lifecycle runtime
+changes.
