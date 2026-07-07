@@ -1,3 +1,33 @@
+# V261-005 Verification
+
+Date: 2026-07-07
+Executor: Codex
+Task: `V261-005` / GitHub issue `#851`
+Milestone: `v0.26.1`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v26_1_post_publication_strict_gate.sh scripts/ai/verify_v26_release_gates.sh scripts/ai/verify_v26_strict_provenance.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_26_0_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_v26_1_post_publication_strict_gate.sh = PASS, release_body_sha256=ab2ed2be9b10371e4aabea74c7314c1ebae791ffd4e3d129d0f4c208b15a985e, tag_commit=b09ec3a9f96ac718d6660b345a74cb4b7790f19a, gate_run=28853960135, publish_run=28867689146, milestone=18:closed, negative_selftest=1
+scripts/ai/verify_release.sh v26-release-gates = PASS, current_issue_state=CLOSED, final_scope_issues=14, corrective_scope=5, negative_selftest=1
+scripts/ai/verify_release.sh v26-strict-provenance = PASS, manifest=target/ntpro-v260/v0_26_0_strict_release_manifest.json
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V261-005 adds a post-publication strict gate that binds remote GitHub Release
+body, release tag, hosted release gate, hosted publish workflow, milestone
+closeout, tracked release notes, tracked closeout evidence, and manifest proof
+fields into one source-controlled release proof. The GitHub Release body was
+reconciled through hosted publish workflow run `28867689146`; no tag rewrite,
+manual release edit, runtime, adapter, Dashboard, order, public API, submit,
+mutation, live exchange, retry, remediation, or product-grade trading terminal
+behavior changed.
+
 # V261-004 Verification
 
 Date: 2026-07-07
@@ -50,10 +80,12 @@ git diff --check = PASS
 
 V261-003 removes stale V260 pre-publication evidence wording from the final
 v0.26.0 release evidence path and adds a post-publication stale-wording gate.
-The final release facts remain hosted gate run `28853960135`, publish run
-`28858791493`, final scope `14`, and corrective scope `5`. No runtime, adapter,
-Dashboard, order, public API, submit, mutation, live exchange, retry,
-remediation, or product-grade trading terminal behavior changed.
+At V261-003 validation time, the release proof used hosted gate run
+`28853960135`, publish run `28858791493`, final scope `14`, and corrective
+scope `5`; V261-005 later supersedes the current publish workflow proof with
+run `28867689146`. No runtime, adapter, Dashboard, order, public API, submit,
+mutation, live exchange, retry, remediation, or product-grade trading terminal
+behavior changed.
 
 # V261-002 Verification
 

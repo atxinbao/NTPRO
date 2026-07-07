@@ -29,6 +29,7 @@ release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.
 GitHub Release draft = false
 GitHub Release prerelease = false
 published at = 2026-07-07T05:29:16Z
+GitHub Release updated at = 2026-07-07T12:54:42Z
 target commitish = main
 annotated tag object = 394bb70358766fb18919c888b0075b071ce72d33
 annotated tag peeled commit = b09ec3a9f96ac718d6660b345a74cb4b7790f19a
@@ -38,12 +39,12 @@ hosted release gate status = completed
 hosted release gate conclusion = success
 hosted release gate head SHA = b09ec3a9f96ac718d6660b345a74cb4b7790f19a
 hosted release gate updated at = 2026-07-07T10:16:03Z
-publish workflow = https://github.com/atxinbao/NTPRO/actions/runs/28858791493
+publish workflow = https://github.com/atxinbao/NTPRO/actions/runs/28867689146
 publish workflow name = Rust Cutover Publish Release
 publish workflow status = completed
 publish workflow conclusion = success
-publish workflow head SHA = b09ec3a9f96ac718d6660b345a74cb4b7790f19a
-publish workflow updated at = 2026-07-07T10:17:21Z
+publish workflow head SHA = a7f5de3086ae1624d9b4870cfda5ce47f5f4dd5c
+publish workflow updated at = 2026-07-07T12:54:47Z
 publication evidence strategy = source_tree_plus_github_remote
 local generated publication evidence required in source tree = false
 remote reconstruction required = true
@@ -53,11 +54,11 @@ release-publication-evidence/ = generated artifact, not sole proof
 ## Release Body Hash
 
 ```text
-release body sha256 = a105aa0fdee4e247daba4083833cb29e413cdb25ad9b745e6967b9a5b22a0047
-tracked release notes sha256 = a105aa0fdee4e247daba4083833cb29e413cdb25ad9b745e6967b9a5b22a0047
+release body sha256 = ab2ed2be9b10371e4aabea74c7314c1ebae791ffd4e3d129d0f4c208b15a985e
+tracked release notes sha256 = ab2ed2be9b10371e4aabea74c7314c1ebae791ffd4e3d129d0f4c208b15a985e
 release body matches tracked release notes = true
-release body normalized line count = 136
-tracked release notes normalized line count = 136
+release body normalized line count = 152
+tracked release notes normalized line count = 152
 strict release body match required = true
 ```
 
@@ -161,7 +162,7 @@ product_grade_trading_terminal_claim = false
 ```text
 gh release view ntpro-rust-only-v0.26.0 --repo atxinbao/NTPRO --json tagName,name,isDraft,isPrerelease,publishedAt,targetCommitish,url
 gh run view 28853960135 --repo atxinbao/NTPRO --json status,conclusion,headSha,url,updatedAt,workflowName
-gh run view 28858791493 --repo atxinbao/NTPRO --json status,conclusion,headSha,url,updatedAt,workflowName
+gh run view 28867689146 --repo atxinbao/NTPRO --json status,conclusion,headSha,url,updatedAt,workflowName
 gh api repos/atxinbao/NTPRO/milestones/18 --jq '{number,title,state,open_issues,closed_issues,closed_at}'
 gh issue list --repo atxinbao/NTPRO --milestone v0.26.0 --state closed --limit 30 --json number,title,state
 git rev-parse ntpro-rust-only-v0.26.0^{}
@@ -176,7 +177,7 @@ GitHub issue #847 body
 GitHub milestone #18 live state
 GitHub Release ntpro-rust-only-v0.26.0
 GitHub Actions run 28853960135
-GitHub Actions run 28858791493
+GitHub Actions run 28867689146
 docs/rust-cutover/release/v0_26_0_release_notes.md
 docs/rust-cutover/release/v0_26_0_readiness_report.md
 docs/rust-cutover/release/v0_26_0_release_manifest.json

@@ -80,7 +80,8 @@ for path in \
   scripts/ai/verify_v26_release_gates.sh \
   scripts/ai/verify_v26_strict_provenance.sh \
   scripts/ai/verify_v26_1_final_scope_integration.sh \
-  scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh; do
+  scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh \
+  scripts/ai/verify_v26_1_post_publication_strict_gate.sh; do
   require_file "$path"
 done
 
@@ -429,6 +430,7 @@ def validate_manifest(
         "scripts/ai/verify_v26_strict_provenance.sh",
         "scripts/ai/verify_v26_1_final_scope_integration.sh",
         "scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh",
+        "scripts/ai/verify_v26_1_post_publication_strict_gate.sh",
     ):
         require(command in commands, f"required release gate missing: {command}")
 
@@ -671,6 +673,7 @@ for required in (
     require(required in inputs, f"strict provenance missing source input: {required}")
 PY
 
+scripts/ai/verify_v26_1_post_publication_strict_gate.sh
 scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh
 
 echo "v26_release_gates status=ok release_tag=$RELEASE_TAG base_release=$BASE_RELEASE_TAG current_issue_state=$current_state final_scope_issues=14 corrective_scope=5 negative_selftest=${NTPRO_V260_RELEASE_SELFTEST:-1}"

@@ -120,9 +120,9 @@ GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-
 GitHub Release published at = 2026-07-07T05:29:16Z
 hosted release gate = https://github.com/atxinbao/NTPRO/actions/runs/28853960135
 hosted release gate conclusion = success
-publish workflow = https://github.com/atxinbao/NTPRO/actions/runs/28858791493
+publish workflow = https://github.com/atxinbao/NTPRO/actions/runs/28867689146
 publish workflow conclusion = success
-release body sha256 = a105aa0fdee4e247daba4083833cb29e413cdb25ad9b745e6967b9a5b22a0047
+release body sha256 = ab2ed2be9b10371e4aabea74c7314c1ebae791ffd4e3d129d0f4c208b15a985e
 release body matches tracked release notes = true
 v0.26.0 milestone = #18 closed, 14 closed issues, 0 open issues
 ```

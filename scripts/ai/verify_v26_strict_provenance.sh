@@ -50,10 +50,13 @@ input_paths=(
   "$ROOT_DIR/scripts/ai/verify_v26_strict_provenance.sh"
   "$ROOT_DIR/scripts/ai/verify_v26_1_final_scope_integration.sh"
   "$ROOT_DIR/scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh"
+  "$ROOT_DIR/scripts/ai/verify_v26_1_post_publication_strict_gate.sh"
   "$ROOT_DIR/docs/rust-cutover/tasks/V261-003.md"
   "$ROOT_DIR/docs/rust-cutover/evidence/V261-003.md"
   "$ROOT_DIR/docs/rust-cutover/tasks/V261-004.md"
   "$ROOT_DIR/docs/rust-cutover/evidence/V261-004.md"
+  "$ROOT_DIR/docs/rust-cutover/tasks/V261-005.md"
+  "$ROOT_DIR/docs/rust-cutover/evidence/V261-005.md"
   "$ROOT_DIR/.github/workflows/release-tag.yml"
   "$ROOT_DIR/.github/workflows/release-publish.yml"
 )
@@ -148,6 +151,16 @@ require(scope.get("corrective_scope_changes_trading_behavior") is False, "correc
 corrective = release_manifest.get("corrective_release_scope") or []
 require(len(corrective) == 5, "corrective release scope count must be 5")
 require({item.get("task_id") for item in corrective} == {"V260-009", "V260-010", "V260-011", "V260-012", "V260-013"}, "corrective release scope task mismatch")
+proof = release_manifest.get("post_publication_strict_proof") or {}
+require(proof.get("source_closeout_path") == "docs/rust-cutover/release/v0_26_0_release_closeout_evidence.md", "post-publication proof source closeout mismatch")
+require(proof.get("release_tag") == os.environ["RELEASE_TAG"], "post-publication proof release tag mismatch")
+require(proof.get("tag_commit") == "b09ec3a9f96ac718d6660b345a74cb4b7790f19a", "post-publication proof tag commit mismatch")
+require(proof.get("release_body_sha256") == "ab2ed2be9b10371e4aabea74c7314c1ebae791ffd4e3d129d0f4c208b15a985e", "post-publication proof release body hash mismatch")
+require(proof.get("tracked_release_notes_sha256") == "ab2ed2be9b10371e4aabea74c7314c1ebae791ffd4e3d129d0f4c208b15a985e", "post-publication proof notes hash mismatch")
+require(proof.get("release_body_matches_tracked_release_notes") is True, "post-publication proof strict body match missing")
+require(proof.get("hosted_release_gate_run_id") == 28853960135, "post-publication proof hosted gate run mismatch")
+require(proof.get("publish_workflow_run_id") == 28867689146, "post-publication proof publish run mismatch")
+require(proof.get("generated_publication_evidence_authoritative") is False, "generated publication evidence must not be authoritative")
 for key in [
     "new_submit_capability",
     "production_order_submission_allowed",
@@ -210,6 +223,7 @@ payload = {
     "next_tracks": release_manifest.get("next_tracks"),
     "release_gates": release_manifest.get("release_gates"),
     "post_publication_requirements": release_manifest.get("post_publication_requirements"),
+    "post_publication_strict_proof": release_manifest.get("post_publication_strict_proof"),
     "corrective_release_scope": release_manifest.get("corrective_release_scope"),
     "failure_paths": {
         "dirty_worktree": "NTPRO_RELEASE_GATE=1 fails if tracked files are dirty",
@@ -223,6 +237,7 @@ payload = {
         "corrective_scope_mismatch": "v0.26.0 release gate fails if V260-009..V260-013 corrective issue, PR, task, or evidence scope is missing",
         "stale_v260_evidence": "v0.26.0 post-publication gates fail if stale open issue, scope-9, pending hosted gate, or offline publication wording returns",
         "final_scope_mismatch": "v0.26.0 release gate fails if final scope remains 9 after V260-009..V260-013 corrective tasks are present",
+        "post_publication_strict_proof_mismatch": "v0.26.0 post-publication gate fails if release body, tag, hosted gate, publish run, milestone, or source closeout facts drift",
     },
     "generated_at": os.environ["GENERATED_AT"],
 }
