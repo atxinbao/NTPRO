@@ -1,3 +1,34 @@
+# V260-009 Verification
+
+Date: 2026-07-07
+Executor: Codex
+Task: `V260-009` / GitHub issue `#837`
+Milestone: `v0.26.0`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v26_release_gates.sh scripts/ai/verify_v26_strict_provenance.sh scripts/ai/verify_full.sh = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_26_0_release_manifest.json >/dev/null = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 232 cases, 95 executable replay, 132 validator executable replay, 5 schema-only scoped
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v260/release_gates_strict_provenance.jsonl").read_text().splitlines() if line.strip()]' = PASS
+scripts/ai/verify_full.sh golden-traces-files = PASS
+scripts/ai/verify_release.sh v26-strict-provenance = PASS, manifest=target/ntpro-v260/v0_26_0_strict_release_manifest.json
+scripts/ai/verify_release.sh v26-release-gates = PASS, current_issue_state=CLOSED, final_scope_issues=9, negative_selftest=1
+```
+
+## Result
+
+V260-009 fixes the v0.26.0 tag-gate failure in `full-golden-traces-files`.
+The v26 release-provenance JSONL fixture now lives under `tests/golden/v260/`,
+while the release-scope validator also reads trace paths explicitly declared in
+`RELEASE_REPLAY_SCOPE.json`.
+
+No runtime, adapter, Dashboard, order, public API, submit, mutation, live
+exchange, retry, remediation, or product-grade trading terminal behavior
+changed.
+
 # V260-008 Verification
 
 Date: 2026-07-06
@@ -11,7 +42,7 @@ Milestone: `v0.26.0`
 bash -n scripts/ai/verify_release.sh scripts/ai/verify_v26_release_gates.sh scripts/ai/verify_v26_strict_provenance.sh scripts/ai/check_release_surface_current.sh scripts/ai/check_github_release_published.sh = PASS
 python3 -m json.tool docs/rust-cutover/release/v0_26_0_release_manifest.json >/dev/null = PASS
 python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
-python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v260_release_gates_strict_provenance.jsonl").read_text().splitlines() if line.strip()]' = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v260/release_gates_strict_provenance.jsonl").read_text().splitlines() if line.strip()]' = PASS
 NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/verify_release.sh release-surface-current-guard = PASS
 scripts/ai/verify_release.sh v26-release-gates = PASS, current_issue_state=OPEN, final_scope_issues=9, negative_selftest=1
 scripts/ai/verify_release.sh v26-strict-provenance = PASS, manifest=target/ntpro-v260/v0_26_0_strict_release_manifest.json

@@ -28,7 +28,7 @@
     "base_release_manifest_path": "docs/rust-cutover/release/v0_25_1_release_manifest.json",
     "base_readiness_report_path": "docs/rust-cutover/release/v0_25_1_readiness_report.md",
     "golden_trace_manifest_path": "docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json",
-    "v26_release_trace_path": "tests/golden/v260_release_gates_strict_provenance.jsonl",
+    "v26_release_trace_path": "tests/golden/v260/release_gates_strict_provenance.jsonl",
     "v26_intake_path": "docs/rust-cutover/release/v0_26_0_intake_gate.md",
     "v26_boundary_path": "docs/rust-cutover/release/v0_26_0_product_hardening_boundary_contract.md",
     "v26_operator_permission_path": "docs/rust-cutover/release/v0_26_0_operator_permission_model.md",

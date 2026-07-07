@@ -34,7 +34,7 @@ input_paths=(
   "$ROOT_DIR/docs/rust-cutover/release/v0_26_0_upgrade_rollback_runbook_evidence.md"
   "$ROOT_DIR/docs/rust-cutover/release/v0_26_0_slo_runbook_stability_evidence.md"
   "$ROOT_DIR/docs/rust-cutover/release/v0_26_0_dashboard_admin_boundary_surface.md"
-  "$ROOT_DIR/tests/golden/v260_release_gates_strict_provenance.jsonl"
+  "$ROOT_DIR/tests/golden/v260/release_gates_strict_provenance.jsonl"
   "$ROOT_DIR/docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json"
   "$ROOT_DIR/README.md"
   "$ROOT_DIR/ROADMAP.md"
