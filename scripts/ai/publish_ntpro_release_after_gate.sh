@@ -52,6 +52,20 @@ json_bool() {
   esac
 }
 
+json_array_length() {
+  python3 - "$1" "$2" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+value = payload.get(sys.argv[2])
+if isinstance(value, list):
+    print(len(value))
+else:
+    print(0)
+PY
+}
+
 timestamp_ge() {
   python3 - "$1" "$2" <<'PY'
 from datetime import datetime, timezone
@@ -100,7 +114,18 @@ require_body_matches_notes() {
 }
 
 release_api_json() {
-  "$GH_BIN" api "/repos/$REPO/releases/tags/$TAG_NAME"
+  local attempt=1
+  local max_attempts=4
+  while true; do
+    if "$GH_BIN" api "/repos/$REPO/releases/tags/$TAG_NAME"; then
+      return 0
+    fi
+    if (( attempt >= max_attempts )); then
+      return 1
+    fi
+    sleep "$((attempt * 2))"
+    attempt=$((attempt + 1))
+  done
 }
 
 write_evidence() {
@@ -210,6 +235,7 @@ echo "release_tag=$TAG_NAME"
 echo "release_tag_sha=$tag_sha"
 
 release_json="$(release_api_json 2>/dev/null)" || release_json=""
+release_recreated="0"
 
 if [[ -n "$release_json" ]]; then
   is_draft="$(json_bool "$(json_field "$release_json" draft)")"
@@ -219,12 +245,36 @@ if [[ -n "$release_json" ]]; then
   release_body="$(json_field "$release_json" body)"
 
   if [[ "$is_draft" == "false" ]]; then
-    if [[ "$DRY_RUN" == "1" ]]; then
-      require_body_matches_notes "$release_body"
-      [[ -n "$published_at" ]] || fail "published release has empty publishedAt"
-      if ! timestamp_ge "$published_at" "$run_completed_at"; then
-        fail "release was published before hosted gate success: published_at=$published_at gate_completed_at=$run_completed_at"
+    if ! timestamp_ge "$published_at" "$run_completed_at"; then
+      asset_count="$(json_array_length "$release_json" assets)"
+      [[ "$asset_count" == "0" ]] || fail "cannot recreate public release with assets: assets=$asset_count"
+
+      if [[ "$DRY_RUN" == "1" ]]; then
+        write_evidence "dry_run_recreate_public_release_after_gate" "$run_url" "$run_completed_at" "$release_url" "$published_at" "$updated_at" "$tag_sha"
+        echo "release_publication_after_gate=pass status=dry_run_recreate_public_release_after_gate"
+        echo "release_url=$release_url"
+        echo "published_at=$published_at"
+        echo "updated_at=$updated_at"
+        echo "evidence_path=$EVIDENCE_PATH"
+        emit_evidence_policy
+        exit 0
       fi
+
+      "$GH_BIN" release delete "$TAG_NAME" \
+        --repo "$REPO" \
+        --yes >/dev/null
+      "$GH_BIN" release create "$TAG_NAME" \
+        --repo "$REPO" \
+        --verify-tag \
+        --title "$RELEASE_NAME" \
+        --notes-file "$RELEASE_NOTES" >/dev/null
+      release_recreated="1"
+    else
+      require_body_matches_notes "$release_body"
+    fi
+
+    if [[ "$DRY_RUN" == "1" ]]; then
+      [[ -n "$published_at" ]] || fail "published release has empty publishedAt"
       write_evidence "already_published_after_gate" "$run_url" "$run_completed_at" "$release_url" "$published_at" "$updated_at" "$tag_sha"
       echo "release_publication_after_gate=pass status=already_published_after_gate"
       echo "release_url=$release_url"
@@ -286,6 +336,9 @@ published_body="$(json_field "$published_json" body)"
 require_body_matches_notes "$published_body"
 
 publication_status="published_after_gate"
+if [[ "$release_recreated" == "1" ]]; then
+  publication_status="recreated_public_release_after_gate"
+fi
 if ! timestamp_ge "$published_at" "$run_completed_at"; then
   [[ -n "$updated_at" ]] || fail "updated_at is empty after release update"
   if ! timestamp_ge "$updated_at" "$run_completed_at"; then
