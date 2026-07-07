@@ -48,6 +48,21 @@ Corrective release-publication tasks:
 - `V260-012` - prepublish publication guard split.
 - `V260-013` - existing public Release body update after gate.
 
+## Final Release Scope
+
+```text
+V260 milestone issue scope = V260-000..V260-013
+V260 milestone issue count = 14
+V260 corrective release-publication scope = V260-009..V260-013
+V260 corrective issue scope = #837, #839, #841, #843, #845
+V260 corrective PR scope = #838, #840, #842, #844, #846
+V260 final release scope issue count = 14
+V260 final release scope evidence count = 14
+corrective scope expands capability = false
+corrective scope changes runtime behavior = false
+corrective scope changes trading behavior = false
+```
+
 ## Release Gates
 
 ```text
@@ -85,6 +100,7 @@ scripts/ai/verify_release.sh v26-release-gates
 scripts/ai/verify_release.sh v26-strict-provenance
 scripts/ai/verify_v26_release_gates.sh
 scripts/ai/verify_v26_strict_provenance.sh
+scripts/ai/verify_v26_1_final_scope_integration.sh
 scripts/ai/publish_ntpro_release_after_gate.sh
 ```
 

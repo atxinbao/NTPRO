@@ -34,6 +34,7 @@ input_paths=(
   "$ROOT_DIR/docs/rust-cutover/release/v0_26_0_upgrade_rollback_runbook_evidence.md"
   "$ROOT_DIR/docs/rust-cutover/release/v0_26_0_slo_runbook_stability_evidence.md"
   "$ROOT_DIR/docs/rust-cutover/release/v0_26_0_dashboard_admin_boundary_surface.md"
+  "$ROOT_DIR/docs/rust-cutover/release/v0_26_0_release_closeout_evidence.md"
   "$ROOT_DIR/tests/golden/v260/release_gates_strict_provenance.jsonl"
   "$ROOT_DIR/docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json"
   "$ROOT_DIR/README.md"
@@ -47,11 +48,12 @@ input_paths=(
   "$ROOT_DIR/scripts/ai/verify_release.sh"
   "$ROOT_DIR/scripts/ai/verify_v26_release_gates.sh"
   "$ROOT_DIR/scripts/ai/verify_v26_strict_provenance.sh"
+  "$ROOT_DIR/scripts/ai/verify_v26_1_final_scope_integration.sh"
   "$ROOT_DIR/.github/workflows/release-tag.yml"
   "$ROOT_DIR/.github/workflows/release-publish.yml"
 )
 
-for task_id in V260-000 V260-001 V260-002 V260-003 V260-004 V260-005 V260-006 V260-007 V260-008; do
+for task_id in V260-000 V260-001 V260-002 V260-003 V260-004 V260-005 V260-006 V260-007 V260-008 V260-009 V260-010 V260-011 V260-012 V260-013; do
   input_paths+=("$ROOT_DIR/docs/rust-cutover/evidence/${task_id}.md")
   input_paths+=("$ROOT_DIR/docs/rust-cutover/tasks/${task_id}.md")
 done
@@ -131,6 +133,16 @@ require("v26 release gates = required" in release_notes, "release notes v26 gate
 require("v26 strict provenance = required" in readiness, "readiness strict provenance marker missing")
 require(release_manifest["publication_governance"]["release_gate_success_before_publication_required"] is True, "publication ordering requirement missing")
 require(release_manifest["post_publication_requirements"]["all_v260_issues_closed_required"] is True, "issue closeout requirement missing")
+require(len(release_manifest.get("v260_evidence") or []) == 14, "v260 final evidence count must be 14")
+scope = release_manifest.get("release_scope") or {}
+require(scope.get("final_release_scope_issue_count") == 14, "final release scope issue count must be 14")
+require(scope.get("final_release_scope_evidence_count") == 14, "final release scope evidence count must be 14")
+require(scope.get("corrective_issue_count") == 5, "corrective issue count must be 5")
+require(scope.get("corrective_scope_changes_runtime_behavior") is False, "corrective scope must not change runtime behavior")
+require(scope.get("corrective_scope_changes_trading_behavior") is False, "corrective scope must not change trading behavior")
+corrective = release_manifest.get("corrective_release_scope") or []
+require(len(corrective) == 5, "corrective release scope count must be 5")
+require({item.get("task_id") for item in corrective} == {"V260-009", "V260-010", "V260-011", "V260-012", "V260-013"}, "corrective release scope task mismatch")
 for key in [
     "new_submit_capability",
     "production_order_submission_allowed",
@@ -193,6 +205,7 @@ payload = {
     "next_tracks": release_manifest.get("next_tracks"),
     "release_gates": release_manifest.get("release_gates"),
     "post_publication_requirements": release_manifest.get("post_publication_requirements"),
+    "corrective_release_scope": release_manifest.get("corrective_release_scope"),
     "failure_paths": {
         "dirty_worktree": "NTPRO_RELEASE_GATE=1 fails if tracked files are dirty",
         "missing_tag": "NTPRO_RELEASE_GATE=1 or NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG=1 fails without the v0.26.0 release tag",
@@ -202,6 +215,7 @@ payload = {
         "missing_dashboard_smoke": "v0.26.0 release gate fails without Dashboard v26 admin surface render smoke evidence",
         "pre_gate_publication": "public GitHub Release publication must use the gate-before-publish entrypoint after hosted gate success",
         "open_v260_issue_or_milestone": "NTPRO_RELEASE_GATE=1 fails unless V260 issues are closed and the v0.26.0 milestone is closed",
+        "corrective_scope_mismatch": "v0.26.0 release gate fails if V260-009..V260-013 corrective issue, PR, task, or evidence scope is missing",
     },
     "generated_at": os.environ["GENERATED_AT"],
 }

@@ -37,8 +37,10 @@
     "v26_upgrade_rollback_path": "docs/rust-cutover/release/v0_26_0_upgrade_rollback_runbook_evidence.md",
     "v26_slo_stability_path": "docs/rust-cutover/release/v0_26_0_slo_runbook_stability_evidence.md",
     "v26_dashboard_admin_path": "docs/rust-cutover/release/v0_26_0_dashboard_admin_boundary_surface.md",
+    "v26_closeout_path": "docs/rust-cutover/release/v0_26_0_release_closeout_evidence.md",
     "v260_release_gates_path": "scripts/ai/verify_v26_release_gates.sh",
-    "v260_strict_provenance_path": "scripts/ai/verify_v26_strict_provenance.sh"
+    "v260_strict_provenance_path": "scripts/ai/verify_v26_strict_provenance.sh",
+    "v261_final_scope_integration_path": "scripts/ai/verify_v26_1_final_scope_integration.sh"
   },
   "v260_evidence": [
     {"task_id": "V260-000", "issue": 812, "path": "docs/rust-cutover/evidence/V260-000.md"},
@@ -49,19 +51,98 @@
     {"task_id": "V260-005", "issue": 817, "path": "docs/rust-cutover/evidence/V260-005.md"},
     {"task_id": "V260-006", "issue": 818, "path": "docs/rust-cutover/evidence/V260-006.md"},
     {"task_id": "V260-007", "issue": 819, "path": "docs/rust-cutover/evidence/V260-007.md"},
-    {"task_id": "V260-008", "issue": 820, "path": "docs/rust-cutover/evidence/V260-008.md"}
+    {"task_id": "V260-008", "issue": 820, "path": "docs/rust-cutover/evidence/V260-008.md"},
+    {"task_id": "V260-009", "issue": 837, "path": "docs/rust-cutover/evidence/V260-009.md", "scope": "corrective_release_publication_governance", "pull_request": 838, "capability_expansion": false, "runtime_behavior_changed": false, "trading_behavior_changed": false},
+    {"task_id": "V260-010", "issue": 839, "path": "docs/rust-cutover/evidence/V260-010.md", "scope": "corrective_release_publication_governance", "pull_request": 840, "capability_expansion": false, "runtime_behavior_changed": false, "trading_behavior_changed": false},
+    {"task_id": "V260-011", "issue": 841, "path": "docs/rust-cutover/evidence/V260-011.md", "scope": "corrective_release_publication_governance", "pull_request": 842, "capability_expansion": false, "runtime_behavior_changed": false, "trading_behavior_changed": false},
+    {"task_id": "V260-012", "issue": 843, "path": "docs/rust-cutover/evidence/V260-012.md", "scope": "corrective_release_publication_governance", "pull_request": 844, "capability_expansion": false, "runtime_behavior_changed": false, "trading_behavior_changed": false},
+    {"task_id": "V260-013", "issue": 845, "path": "docs/rust-cutover/evidence/V260-013.md", "scope": "corrective_release_publication_governance", "pull_request": 846, "capability_expansion": false, "runtime_behavior_changed": false, "trading_behavior_changed": false}
   ],
   "release_scope": {
-    "milestone_issue_set": "V260-000..V260-008",
-    "milestone_issue_count": 9,
-    "final_release_scope_issue_count": 9,
-    "final_release_scope_evidence_count": 9,
+    "milestone_issue_set": "V260-000..V260-013",
+    "milestone_issue_count": 14,
+    "corrective_issue_set": "V260-009..V260-013",
+    "corrective_issue_count": 5,
+    "corrective_issue_numbers": [837, 839, 841, 843, 845],
+    "corrective_pull_requests": [838, 840, 842, 844, 846],
+    "final_release_scope_issue_count": 14,
+    "final_release_scope_evidence_count": 14,
     "v25_1_dependency_proven": true,
     "v25_1_release_evidence_published": true,
+    "corrective_scope_expands_capability": false,
+    "corrective_scope_changes_runtime_behavior": false,
+    "corrective_scope_changes_trading_behavior": false,
     "capability_scope_expands_trading": false,
     "runtime_behavior_changed_by_release_gate": false,
     "trading_behavior_changed_by_release_gate": false
   },
+  "corrective_release_scope": [
+    {
+      "task_id": "V260-009",
+      "issue": 837,
+      "task_path": "docs/rust-cutover/tasks/V260-009.md",
+      "evidence_path": "docs/rust-cutover/evidence/V260-009.md",
+      "pull_request": 838,
+      "pull_request_url": "https://github.com/atxinbao/NTPRO/pull/838",
+      "merge_commit": "70892e473ef0fd63618fd2bb968e8b8fb61cf4f0",
+      "included_in_release_tag": true,
+      "capability_expansion": false,
+      "runtime_behavior_changed": false,
+      "trading_behavior_changed": false
+    },
+    {
+      "task_id": "V260-010",
+      "issue": 839,
+      "task_path": "docs/rust-cutover/tasks/V260-010.md",
+      "evidence_path": "docs/rust-cutover/evidence/V260-010.md",
+      "pull_request": 840,
+      "pull_request_url": "https://github.com/atxinbao/NTPRO/pull/840",
+      "merge_commit": "eff3e7045e14a5ae9ffba537799fb8b6a7132c00",
+      "included_in_release_tag": true,
+      "capability_expansion": false,
+      "runtime_behavior_changed": false,
+      "trading_behavior_changed": false
+    },
+    {
+      "task_id": "V260-011",
+      "issue": 841,
+      "task_path": "docs/rust-cutover/tasks/V260-011.md",
+      "evidence_path": "docs/rust-cutover/evidence/V260-011.md",
+      "pull_request": 842,
+      "pull_request_url": "https://github.com/atxinbao/NTPRO/pull/842",
+      "merge_commit": "7147a5e18a8527730cfb91944eada52eaa9e041c",
+      "included_in_release_tag": true,
+      "capability_expansion": false,
+      "runtime_behavior_changed": false,
+      "trading_behavior_changed": false
+    },
+    {
+      "task_id": "V260-012",
+      "issue": 843,
+      "task_path": "docs/rust-cutover/tasks/V260-012.md",
+      "evidence_path": "docs/rust-cutover/evidence/V260-012.md",
+      "pull_request": 844,
+      "pull_request_url": "https://github.com/atxinbao/NTPRO/pull/844",
+      "merge_commit": "959bc488ee430d76a8eb44ea0716f22b232e39d4",
+      "included_in_release_tag": true,
+      "capability_expansion": false,
+      "runtime_behavior_changed": false,
+      "trading_behavior_changed": false
+    },
+    {
+      "task_id": "V260-013",
+      "issue": 845,
+      "task_path": "docs/rust-cutover/tasks/V260-013.md",
+      "evidence_path": "docs/rust-cutover/evidence/V260-013.md",
+      "pull_request": 846,
+      "pull_request_url": "https://github.com/atxinbao/NTPRO/pull/846",
+      "merge_commit": "b09ec3a9f96ac718d6660b345a74cb4b7790f19a",
+      "included_in_release_tag": true,
+      "capability_expansion": false,
+      "runtime_behavior_changed": false,
+      "trading_behavior_changed": false
+    }
+  ],
   "release_gates": [
     {"name": "v26-intake-gate", "command": "scripts/ai/verify_release.sh v26-intake-gate", "required": true},
     {"name": "v26-product-hardening-boundary-contract", "command": "scripts/ai/verify_release.sh v26-product-hardening-boundary-contract", "required": true},
@@ -77,7 +158,8 @@
     {"name": "release-publication-guard", "command": "scripts/ai/verify_release.sh release-publication-guard", "required": true},
     {"name": "release-publish-after-gate", "command": "scripts/ai/verify_release.sh release-publish-after-gate", "required": true},
     {"name": "v26-release-gate-script", "command": "scripts/ai/verify_v26_release_gates.sh", "required": true},
-    {"name": "v26-strict-provenance-script", "command": "scripts/ai/verify_v26_strict_provenance.sh", "required": true}
+    {"name": "v26-strict-provenance-script", "command": "scripts/ai/verify_v26_strict_provenance.sh", "required": true},
+    {"name": "v26.1-final-scope-integration-script", "command": "scripts/ai/verify_v26_1_final_scope_integration.sh", "required": true}
   ],
   "capability": {
     "name": "v0.26.0 Product Hardening Foundation",
@@ -175,7 +257,10 @@
     "milestone_number": 18,
     "milestone_title": "v0.26.0",
     "all_v260_issues_closed_required": true,
-    "v260_milestone_issue_count": 9,
+    "v260_milestone_issue_count": 14,
+    "final_release_scope_issue_count": 14,
+    "corrective_issue_count": 5,
+    "corrective_release_scope_closed_required": true,
     "github_release_published_required": true,
     "hosted_release_gate_success_required": true,
     "strict_release_body_match_required": true,

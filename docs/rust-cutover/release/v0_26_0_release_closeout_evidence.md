@@ -78,7 +78,17 @@ strict release body match required = true
 #841 V260-011 release publication guard notes line = CLOSED
 #843 V260-012 prepublish publication guard split = CLOSED
 #845 V260-013 update existing release body after gate = CLOSED
+PR #838 V260-009 merge commit = 70892e473ef0fd63618fd2bb968e8b8fb61cf4f0
+PR #840 V260-010 merge commit = eff3e7045e14a5ae9ffba537799fb8b6a7132c00
+PR #842 V260-011 merge commit = 7147a5e18a8527730cfb91944eada52eaa9e041c
+PR #844 V260-012 merge commit = 959bc488ee430d76a8eb44ea0716f22b232e39d4
+PR #846 V260-013 merge commit = b09ec3a9f96ac718d6660b345a74cb4b7790f19a
 V260 final release issue set = 14/14 closed
+V260 final release PR set = 5/5 corrective release-publication PRs merged
+V260 final release scope issue count = 14
+V260 final release scope evidence count = 14
+corrective release-publication scope changes runtime behavior = false
+corrective release-publication scope changes trading behavior = false
 ```
 
 ## Milestone Closeout
