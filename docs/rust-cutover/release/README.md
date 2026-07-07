@@ -816,6 +816,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   published after hosted gate success, and v0.27.0 starts only as a gated
   Product Operations Runtime Integration Foundation track with no inherited
   operation controls.
+- `v0_27_0_product_operations_runtime_integration_boundary_contract.md` -
+  V270-001 contract for the v0.27.0 Product Operations Runtime Integration
+  Foundation scope. It separates allowed read/admin integration surfaces from
+  forbidden trading controls, requires provenance/freshness/redaction/lineage
+  semantics, and blocks production execution runtime or product-grade live
+  trading terminal claims.
 - `v0_26_0_product_hardening_boundary_contract.md` - V260-001 contract for the
   v0.26.0 product hardening foundation scope. It records allowed hardening
   areas, required-false trading boundary flags, fail-closed rules, and the
