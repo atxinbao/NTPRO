@@ -794,6 +794,19 @@ Final release checks, benchmark summaries, and audit reports live here.
   for V260 release gates. It records V260 evidence paths, release gate
   commands, boundary flags, publication governance, current release surface
   guard fields, and the v0.27.0 start boundary.
+- `v0_26_1_readiness_report.md` - released readiness report for the formal
+  `ntpro-rust-only-v0.26.1` closeout patch. It records V261 evidence, v26.1
+  release gates, strict provenance, publication governance, and the v0.27.0
+  hard-block until v0.26.1 publication evidence exists.
+- `v0_26_1_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.26.1` GitHub Release. It records the v0.26.0
+  post-publication governance and evidence hardening patch, no-submit /
+  no-Dashboard-controls boundary, gate-before-publish governance, and strict
+  provenance.
+- `v0_26_1_release_manifest.json` - machine-readable v0.26.1 release manifest
+  for V261 release gates. It records V261 evidence paths, release gate
+  commands, boundary flags, publication governance, current release surface
+  guard fields, and the v0.27.0 start boundary.
 - `v0_26_0_intake_gate.md` - V260-000 intake proof that all V251 issues are
   closed, the `ntpro-rust-only-v0.25.1` GitHub Release was published after
   hosted gate success, and v0.26.0 starts only as a gated product hardening
