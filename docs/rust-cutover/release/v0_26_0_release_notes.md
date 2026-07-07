@@ -40,6 +40,12 @@ controls.
 - `V260-007` - Dashboard product hardening read-only admin boundary surface.
 - `V260-008` - v26 release gates and strict provenance.
 
+Corrective release-publication tasks:
+
+- `V260-009` - release golden trace file gate correction.
+- `V260-010` - nested historical release gate correction.
+- `V260-011` - release publication guard notes line correction.
+
 ## Release Gates
 
 ```text
@@ -116,8 +122,7 @@ product_grade_trading_terminal_claim = false
   provenance action, or risk action;
 - strategy-driven production execution;
 - shared approval consumption;
-- Dashboard order, approval, cancel, retry, submit, replace, amend, flatten,
-  remediation, or order-ticket controls.
+- Dashboard order, approval, cancel, retry, submit, replace, amend, flatten, remediation, or order-ticket controls.
 
 ## Next Boundary
 
