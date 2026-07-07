@@ -9,6 +9,7 @@ CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELE
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
 GH_BIN="${NTPRO_RELEASE_PUBLICATION_GH_BIN:-gh}"
+PREPUBLISH_TAG_GATE="${NTPRO_RELEASE_PUBLICATION_PREPUBLISH_TAG_GATE:-0}"
 
 CURRENT_RELEASE_STEM="v${CURRENT_RELEASE_VERSION#v}"
 CURRENT_RELEASE_STEM="${CURRENT_RELEASE_STEM//./_}"
@@ -85,6 +86,7 @@ echo "current_release_tag=$CURRENT_RELEASE_TAG"
 echo "release_name=$RELEASE_NAME"
 echo "release_url=$RELEASE_URL"
 echo "release_notes=$CURRENT_RELEASE_NOTES"
+echo "prepublish_tag_gate=$PREPUBLISH_TAG_GATE"
 
 require_file "$CURRENT_RELEASE_NOTES"
 
@@ -113,24 +115,42 @@ if ! git merge-base --is-ancestor "$tag_sha" "$origin_main_sha"; then
   fail "release tag $CURRENT_RELEASE_TAG is not reachable from origin/main"
 fi
 
-release_json="$("$GH_BIN" release view "$CURRENT_RELEASE_TAG" --json tagName,name,isDraft,isPrerelease,url,body,publishedAt,targetCommitish 2>/dev/null)" \
-  || offline_skip "github_release_unavailable"
+release_json=""
+if [[ "$PREPUBLISH_TAG_GATE" == "1" ]]; then
+  release_json="$("$GH_BIN" release view "$CURRENT_RELEASE_TAG" --json tagName,name,isDraft,isPrerelease,url,body,publishedAt,targetCommitish 2>/dev/null || true)"
+else
+  release_json="$("$GH_BIN" release view "$CURRENT_RELEASE_TAG" --json tagName,name,isDraft,isPrerelease,url,body,publishedAt,targetCommitish 2>/dev/null)" \
+    || offline_skip "github_release_unavailable"
+fi
 
-tag_name="$(extract_json_field "$release_json" tagName)"
-name="$(extract_json_field "$release_json" name)"
-is_draft="$(extract_json_field "$release_json" isDraft)"
-is_prerelease="$(extract_json_field "$release_json" isPrerelease)"
-url="$(extract_json_field "$release_json" url)"
-published_at="$(extract_json_field "$release_json" publishedAt)"
-target_commitish="$(extract_json_field "$release_json" targetCommitish)"
-body="$(extract_json_field "$release_json" body)"
+tag_name=""
+name=""
+is_draft=""
+is_prerelease=""
+url=""
+published_at=""
+target_commitish=""
+body=""
 
-[[ "$tag_name" == "$CURRENT_RELEASE_TAG" ]] || fail "release tag mismatch: $tag_name"
-[[ "$name" == "$RELEASE_NAME" ]] || fail "release name mismatch: $name"
-[[ "$is_draft" == "False" || "$is_draft" == "false" ]] || fail "release is draft"
-[[ "$is_prerelease" == "False" || "$is_prerelease" == "false" ]] || fail "release is prerelease"
-[[ "$url" == "$RELEASE_URL" ]] || fail "release URL mismatch: $url"
-[[ -n "$published_at" ]] || fail "release publishedAt is empty"
+if [[ -n "$release_json" ]]; then
+  tag_name="$(extract_json_field "$release_json" tagName)"
+  name="$(extract_json_field "$release_json" name)"
+  is_draft="$(extract_json_field "$release_json" isDraft)"
+  is_prerelease="$(extract_json_field "$release_json" isPrerelease)"
+  url="$(extract_json_field "$release_json" url)"
+  published_at="$(extract_json_field "$release_json" publishedAt)"
+  target_commitish="$(extract_json_field "$release_json" targetCommitish)"
+  body="$(extract_json_field "$release_json" body)"
+
+  [[ "$tag_name" == "$CURRENT_RELEASE_TAG" ]] || fail "release tag mismatch: $tag_name"
+  [[ "$name" == "$RELEASE_NAME" ]] || fail "release name mismatch: $name"
+  [[ "$is_draft" == "False" || "$is_draft" == "false" ]] || fail "release is draft"
+  [[ "$is_prerelease" == "False" || "$is_prerelease" == "false" ]] || fail "release is prerelease"
+  [[ "$url" == "$RELEASE_URL" ]] || fail "release URL mismatch: $url"
+  [[ -n "$published_at" ]] || fail "release publishedAt is empty"
+elif [[ "$PREPUBLISH_TAG_GATE" != "1" ]]; then
+  fail "GitHub Release is unavailable"
+fi
 
 case "$CURRENT_RELEASE_VERSION" in
   v0.14.0)
@@ -768,6 +788,21 @@ esac
 
 for field in "${required_fields[@]}"; do
   require_file_contains "$CURRENT_RELEASE_NOTES" "$field" "release notes key field"
+done
+
+if [[ "$PREPUBLISH_TAG_GATE" == "1" ]]; then
+  echo "release_publication_guard=prepublish_tag_gate"
+  echo "publication_evidence_strategy=source_tree_plus_github_remote"
+  echo "local_evidence_path_is_generated_artifact=true"
+  echo "local_evidence_path_required_in_source_tree=false"
+  echo "remote_reconstruction_required=true"
+  echo "tag_sha=$tag_sha"
+  echo "origin_main_sha=$origin_main_sha"
+  echo "existing_release_seen=$([[ -n "$release_json" ]] && echo true || echo false)"
+  exit 0
+fi
+
+for field in "${required_fields[@]}"; do
   require_contains_text "$body" "$field" "GitHub Release body key field"
 done
 

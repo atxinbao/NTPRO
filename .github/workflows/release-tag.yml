@@ -249,6 +249,9 @@ jobs:
               exit 0
             fi
           fi
+          if [[ "${NTPRO_RELEASE_STAGE}" == "release-publication-guard" && "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            export NTPRO_RELEASE_PUBLICATION_PREPUBLISH_TAG_GATE=1
+          fi
           ${{ matrix.command }}
 
   verify-release:
