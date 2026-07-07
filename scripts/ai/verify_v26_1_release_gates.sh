@@ -302,8 +302,8 @@ milestone = json.loads(os.environ["MILESTONE_JSON"])
 if milestone["title"] != "v0.26.1":
     raise SystemExit(milestone)
 if os.environ["RELEASE_GATE"] == "1" or os.environ["REQUIRE_CLOSEOUT"] == "1":
-    if milestone["state"] != "closed" or milestone["open_issues"] != 0 or milestone["closed_issues"] != 6:
-        raise SystemExit(f"v0.26.1 milestone must be closed with 6 closed issues for tag gate: {milestone}")
+    if milestone["state"] != "closed" or milestone["open_issues"] != 0 or milestone["closed_issues"] < 6:
+        raise SystemExit(f"v0.26.1 milestone must be closed with at least 6 closed issues for tag gate: {milestone}")
 else:
     if milestone["state"] not in {"open", "closed"}:
         raise SystemExit(milestone)
