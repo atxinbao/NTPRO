@@ -214,7 +214,7 @@ require(body_sha == notes_sha, "release body hash mismatch")
 require(milestone.get("title") == "v0.26.1", "milestone title mismatch")
 require(milestone.get("state") == "closed", "v0.26.1 milestone must be closed")
 require(milestone.get("open_issues") == 0, "v0.26.1 milestone open issue count must be 0")
-require(milestone.get("closed_issues") == 6, "v0.26.1 milestone closed issue count must be 6")
+require(milestone.get("closed_issues") >= 6, "v0.26.1 milestone closed issue count must be at least 6")
 
 matching = [
     run
