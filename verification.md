@@ -1,3 +1,35 @@
+# V261-006 Verification
+
+Date: 2026-07-07
+Executor: Codex
+Task: `V261-006` / GitHub issue `#852`
+Milestone: `v0.26.1`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v26_1_release_gates.sh scripts/ai/verify_v26_1_strict_provenance.sh scripts/ai/verify_v27_intake_gate.sh scripts/ai/verify_release.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_26_1_release_manifest.json >/dev/null = PASS
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/check_release_surface_current.sh = PASS, pre_tag_mode missing_tag=ntpro-rust-only-v0.26.1
+scripts/ai/verify_release.sh v26.1-release-gates = PASS, current_issue_state=OPEN, v261_issues=5/6_closed_or_current, final_scope_issues=6, negative_selftest=1
+scripts/ai/verify_release.sh v26.1-strict-provenance = PASS, manifest=target/ntpro-v261/v0_26_1_strict_release_manifest.json
+NTPRO_V27_INTAKE_ALLOW_UNPUBLISHED=1 scripts/ai/verify_release.sh v27-intake-gate = PASS, blocked_until_v26_1_publication, source_gate=ok
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V261-006 adds the v0.26.1 release notes, readiness, manifest, release gates,
+strict provenance, release-tag workflow stages, and a v27 intake gate that is
+hard-blocked until v0.26.1 publication evidence exists. It also advances the
+current release surface to the v0.26.1 closeout patch for tag-gate publication.
+In PR mode the v26.1 release gate permits the current issue #852 to remain
+open; tag-gate mode requires #852 closed and milestone #19 closed with all six
+V261 issues closed. No runtime, adapter, Dashboard, order, public API, submit,
+mutation, live exchange, retry, remediation, or product-grade trading terminal
+behavior changed.
+
 # V261-005 Verification
 
 Date: 2026-07-07

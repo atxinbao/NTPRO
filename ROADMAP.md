@@ -4,8 +4,8 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.26.0`, the v0.26.0 Product Hardening Foundation release.
-The next patch track is `v0.26.1`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.26.1`, the v0.26.1 Product Hardening Foundation Closeout Patch release.
+The next patch track is `v0.26.2`.
 The next capability track is `v0.27.0`.
 
 ## Current Release Surface
@@ -16,12 +16,14 @@ Current published release:
 ntpro-rust-only-v0.25.0
 ntpro-rust-only-v0.25.1
 ntpro-rust-only-v0.26.0
+ntpro-rust-only-v0.26.1
 ```
 
 Current capability boundary:
 
 ```text
-v0.26.0 Product Hardening Foundation
+v0.26.1 Product Hardening Foundation Closeout Patch
+v0.26.0 Product Hardening Foundation baseline
 capability class product hardening foundation only
 v0.20.1 production order lifecycle hardening baseline
 v0.21.0 unified read model foundation closeout baseline
@@ -74,7 +76,7 @@ multi-venue node registry and lifecycle boundary evidence
 orchestration/control-plane gating evidence
 Dashboard / Workbench read-only observability evidence
 production multi-node runtime implementation not included
-v0.27.0 next capability track hard-blocked by v0.26.0 release evidence
+v0.27.0 next capability track hard-blocked by v0.26.1 release evidence
 no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no product-grade live trading terminal claim
 ```
@@ -88,9 +90,23 @@ provenance. It does not create a product-grade live trading terminal, ungated
 operation controls, production order mutation, adapter send, retry scheduler,
 shared approval consumption, or automatic execution/remediation.
 
+## Published Capability Track: v0.26.1
+
+`v0.26.1` is the current published Product Hardening Foundation closeout patch.
+It preserves the read-only Workbench boundary and adds v0.26.0 closeout
+evidence, final scope integration, stale evidence cleanup, post-publication
+strict gate proof, v26.1 release gates, v27 intake hard-block evidence, and
+strict provenance. It is not a production execution runtime implementation.
+
+`v0.26.1` explicitly does not include product-grade live trading terminal
+readiness, new production submit capability, production order mutation,
+execution adapter send, live exchange request, retry scheduler,
+automatic remediation/recovery, strategy-driven production execution, shared
+approval consumption, or Dashboard operation/trading controls.
+
 ## Published Capability Track: v0.26.0
 
-`v0.26.0` is the current published Product Hardening Foundation. It preserves
+`v0.26.0` is the published Product Hardening Foundation baseline. It preserves
 the read-only Workbench boundary and adds release-gated product hardening
 evidence for permissions, audit, deployment provenance, upgrade/rollback,
 stability/SLO, Dashboard admin display, release gates, and strict provenance.

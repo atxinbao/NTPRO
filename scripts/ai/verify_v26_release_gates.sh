@@ -185,13 +185,17 @@ scripts/ai/verify_release.sh v26-deployment-provenance-model
 scripts/ai/verify_release.sh v26-upgrade-rollback-runbook-evidence
 scripts/ai/verify_release.sh v26-slo-runbook-stability-evidence
 scripts/ai/verify_release.sh v26-dashboard-admin-boundary-surface
-NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
-  NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
-  NTPRO_NEXT_PATCH_VERSION="v0.26.1" \
-  NTPRO_NEXT_CAPABILITY_VERSION="v0.27.0" \
-  NTPRO_CURRENT_RELEASE_CAPABILITY="v0.26.0 Product Hardening Foundation" \
-  NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 \
-  scripts/ai/verify_release.sh release-surface-current-guard
+if [[ "${NTPRO_V260_RELEASE_SKIP_CURRENT_SURFACE_GUARD:-1}" == "1" ]]; then
+  echo "v26_release_gates historical_current_surface_guard=skipped reason=current_release_surface_superseded"
+else
+  NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
+    NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
+    NTPRO_NEXT_PATCH_VERSION="v0.26.1" \
+    NTPRO_NEXT_CAPABILITY_VERSION="v0.27.0" \
+    NTPRO_CURRENT_RELEASE_CAPABILITY="v0.26.0 Product Hardening Foundation" \
+    NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 \
+    scripts/ai/verify_release.sh release-surface-current-guard
+fi
 NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
   NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
   NTPRO_CURRENT_RELEASE_NAME="$RELEASE_NAME" \
