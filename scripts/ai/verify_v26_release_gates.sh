@@ -13,7 +13,9 @@ BASE_RELEASE_TAG="${NTPRO_V260_BASE_RELEASE_TAG:-ntpro-rust-only-v0.25.1}"
 MANIFEST_PATH="${NTPRO_V260_RELEASE_MANIFEST:-docs/rust-cutover/release/v0_26_0_release_manifest.json}"
 RELEASE_NOTES_PATH="${NTPRO_V260_RELEASE_NOTES:-docs/rust-cutover/release/v0_26_0_release_notes.md}"
 READINESS_REPORT_PATH="${NTPRO_V260_READINESS_REPORT:-docs/rust-cutover/release/v0_26_0_readiness_report.md}"
+CLOSEOUT_PATH="${NTPRO_V260_CLOSEOUT:-docs/rust-cutover/release/v0_26_0_release_closeout_evidence.md}"
 TRACE_PATH="${NTPRO_V260_RELEASE_TRACE:-tests/golden/v260/release_gates_strict_provenance.jsonl}"
+STRICT_MANIFEST_PATH="${NTPRO_V260_STRICT_MANIFEST:-$ROOT/target/ntpro-v260/v0_26_0_strict_release_manifest.json}"
 CURRENT_ISSUE="${NTPRO_V260_CURRENT_ISSUE:-820}"
 MILESTONE_NUMBER="${NTPRO_V260_MILESTONE_NUMBER:-18}"
 
@@ -73,7 +75,7 @@ for path in \
   docs/rust-cutover/release/v0_26_0_upgrade_rollback_runbook_evidence.md \
   docs/rust-cutover/release/v0_26_0_slo_runbook_stability_evidence.md \
   docs/rust-cutover/release/v0_26_0_dashboard_admin_boundary_surface.md \
-  docs/rust-cutover/release/v0_26_0_release_closeout_evidence.md \
+  "$CLOSEOUT_PATH" \
   docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json \
   scripts/ai/verify_v26_release_gates.sh \
   scripts/ai/verify_v26_strict_provenance.sh \
@@ -208,6 +210,9 @@ RELEASE_VERSION="$RELEASE_VERSION" \
 RELEASE_TAG="$RELEASE_TAG" \
 RELEASE_NAME="$RELEASE_NAME" \
 MANIFEST_PATH="$MANIFEST_PATH" \
+RELEASE_NOTES_PATH="$RELEASE_NOTES_PATH" \
+READINESS_REPORT_PATH="$READINESS_REPORT_PATH" \
+CLOSEOUT_PATH="$CLOSEOUT_PATH" \
 TRACE_PATH="$TRACE_PATH" \
 python3 <<'PY'
 import copy
@@ -216,6 +221,9 @@ import os
 from pathlib import Path
 
 manifest = json.loads(Path(os.environ["MANIFEST_PATH"]).read_text(encoding="utf-8"))
+release_notes = Path(os.environ["RELEASE_NOTES_PATH"]).read_text(encoding="utf-8")
+readiness = Path(os.environ["READINESS_REPORT_PATH"]).read_text(encoding="utf-8")
+closeout = Path(os.environ["CLOSEOUT_PATH"]).read_text(encoding="utf-8")
 rows = [
     json.loads(line)
     for line in Path(os.environ["TRACE_PATH"]).read_text(encoding="utf-8").splitlines()
@@ -243,6 +251,14 @@ required_false_flags = (
     "manual_operation_submit_allowed",
     "product_grade_trading_terminal_claim",
 )
+
+corrective_prs = {
+    "V260-009": {"issue": 837, "pr": 838},
+    "V260-010": {"issue": 839, "pr": 840},
+    "V260-011": {"issue": 841, "pr": 842},
+    "V260-012": {"issue": 843, "pr": 844},
+    "V260-013": {"issue": 845, "pr": 846},
+}
 
 
 def classify(row: dict) -> str:
@@ -279,7 +295,29 @@ def validate_trace(candidate_rows: list[dict]) -> None:
         require(actual == row.get("expected_status"), f"{case_id} expected {row.get('expected_status')} got {actual}")
 
 
-def validate_manifest(candidate: dict) -> None:
+def validate_release_texts(notes_text: str, readiness_text: str, closeout_text: str) -> None:
+    for label, text in (
+        ("release notes", notes_text),
+        ("readiness", readiness_text),
+        ("closeout", closeout_text),
+    ):
+        require("V260 final release scope issue count = 14" in text, f"{label} missing final scope issue count 14")
+        require("V260 final release scope evidence count = 14" in text, f"{label} missing final scope evidence count 14")
+        require("runtime behavior" in text, f"{label} missing runtime behavior boundary")
+        require("trading behavior" in text, f"{label} missing trading behavior boundary")
+        for task_id, facts in corrective_prs.items():
+            require(task_id in text, f"{label} missing corrective task {task_id}")
+            require(f"#{facts['issue']}" in text, f"{label} missing corrective issue #{facts['issue']}")
+            require(f"#{facts['pr']}" in text, f"{label} missing corrective PR #{facts['pr']}")
+
+
+def validate_manifest(
+    candidate: dict,
+    notes_text: str = release_notes,
+    readiness_text: str = readiness,
+    closeout_text: str = closeout,
+) -> None:
+    validate_release_texts(notes_text, readiness_text, closeout_text)
     require(candidate.get("schema_version") == "ntpro.v260_release_manifest.v1", "manifest schema mismatch")
     require(candidate.get("task_id") == "V260-008", "manifest task mismatch")
     require(candidate.get("product_version") == os.environ["RELEASE_VERSION"], "manifest product version mismatch")
@@ -320,13 +358,6 @@ def validate_manifest(candidate: dict) -> None:
     }
     evidence = candidate.get("v260_evidence") or []
     require(len(evidence) == len(expected), "V260 evidence count mismatch")
-    corrective_prs = {
-        "V260-009": 838,
-        "V260-010": 840,
-        "V260-011": 842,
-        "V260-012": 844,
-        "V260-013": 846,
-    }
     for item in evidence:
         task_id = item.get("task_id")
         require(expected.get(task_id) == item.get("issue"), f"V260 evidence issue mismatch: {task_id}")
@@ -334,7 +365,7 @@ def validate_manifest(candidate: dict) -> None:
         require(path.is_file(), f"V260 evidence file missing: {path}")
         require(task_id in path.read_text(encoding="utf-8"), f"V260 evidence marker missing: {path}")
         if task_id in corrective_prs:
-            require(item.get("pull_request") == corrective_prs[task_id], f"V260 corrective PR mismatch: {task_id}")
+            require(item.get("pull_request") == corrective_prs[task_id]["pr"], f"V260 corrective PR mismatch: {task_id}")
             require(item.get("scope") == "corrective_release_publication_governance", f"V260 corrective scope mismatch: {task_id}")
             require(item.get("capability_expansion") is False, f"V260 corrective capability expansion must be false: {task_id}")
             require(item.get("runtime_behavior_changed") is False, f"V260 corrective runtime change must be false: {task_id}")
@@ -365,10 +396,10 @@ def validate_manifest(candidate: dict) -> None:
         "V260-012": "959bc488ee430d76a8eb44ea0716f22b232e39d4",
         "V260-013": "b09ec3a9f96ac718d6660b345a74cb4b7790f19a",
     }
-    for task_id, pull_request in corrective_prs.items():
+    for task_id, facts in corrective_prs.items():
         item = corrective_by_task[task_id]
         require(item.get("issue") == expected[task_id], f"corrective issue mismatch: {task_id}")
-        require(item.get("pull_request") == pull_request, f"corrective PR mismatch: {task_id}")
+        require(item.get("pull_request") == facts["pr"], f"corrective PR mismatch: {task_id}")
         require(item.get("merge_commit") == merge_commits[task_id], f"corrective merge commit mismatch: {task_id}")
         require(item.get("included_in_release_tag") is True, f"corrective scope must be included in tag: {task_id}")
         require(item.get("capability_expansion") is False, f"corrective capability expansion must be false: {task_id}")
@@ -525,6 +556,60 @@ if os.environ.get("NTPRO_V260_RELEASE_SELFTEST", "1") == "1":
         pass
     else:
         raise SystemExit("negative self-test unexpectedly passed: missing dashboard smoke")
+
+    scope9 = copy.deepcopy(manifest)
+    scope9["release_scope"]["final_release_scope_issue_count"] = 9
+    scope9["release_scope"]["final_release_scope_evidence_count"] = 9
+    scope9["post_publication_requirements"]["final_release_scope_issue_count"] = 9
+    try:
+        validate_manifest(scope9)
+    except SystemExit:
+        pass
+    else:
+        raise SystemExit("negative self-test unexpectedly passed: final scope remained 9")
+
+    stale_readiness = readiness.replace(
+        "V260 final release scope issue count = 14",
+        "V260 final release scope issue count = 9",
+        1,
+    )
+    try:
+        validate_manifest(manifest, release_notes, stale_readiness, closeout)
+    except SystemExit:
+        pass
+    else:
+        raise SystemExit("negative self-test unexpectedly passed: readiness final scope remained 9")
+
+    corrective_missing_from_manifest = copy.deepcopy(manifest)
+    corrective_missing_from_manifest["v260_evidence"] = [
+        item
+        for item in corrective_missing_from_manifest["v260_evidence"]
+        if item.get("task_id") not in corrective_prs
+    ]
+    corrective_missing_from_manifest["corrective_release_scope"] = []
+    corrective_missing_from_manifest["release_scope"]["milestone_issue_set"] = "V260-000..V260-008"
+    corrective_missing_from_manifest["release_scope"]["milestone_issue_count"] = 9
+    corrective_missing_from_manifest["release_scope"]["corrective_issue_set"] = ""
+    corrective_missing_from_manifest["release_scope"]["corrective_issue_count"] = 0
+    corrective_missing_from_manifest["release_scope"]["corrective_issue_numbers"] = []
+    corrective_missing_from_manifest["release_scope"]["corrective_pull_requests"] = []
+    corrective_missing_from_manifest["release_scope"]["final_release_scope_issue_count"] = 9
+    corrective_missing_from_manifest["release_scope"]["final_release_scope_evidence_count"] = 9
+    corrective_missing_from_manifest["release_gates"] = [
+        gate
+        for gate in corrective_missing_from_manifest["release_gates"]
+        if gate.get("command")
+        not in {
+            "scripts/ai/verify_v26_1_final_scope_integration.sh",
+            "scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh",
+        }
+    ]
+    try:
+        validate_manifest(corrective_missing_from_manifest)
+    except SystemExit:
+        pass
+    else:
+        raise SystemExit("negative self-test unexpectedly passed: corrective tasks present in release notes but absent from manifest/gates")
 PY
 
 if command -v gh >/dev/null 2>&1 && gh_with_retry auth status >/dev/null 2>&1; then
@@ -541,8 +626,6 @@ if command -v gh >/dev/null 2>&1 && gh_with_retry auth status >/dev/null 2>&1; t
 
   milestone_json="$(gh_with_retry api "/repos/$REPO/milestones/$MILESTONE_NUMBER")" || fail "could not read GitHub milestone #$MILESTONE_NUMBER"
   MILESTONE_JSON="$milestone_json" \
-  RELEASE_GATE="${NTPRO_RELEASE_GATE:-0}" \
-  REQUIRE_CLOSEOUT="${NTPRO_V260_RELEASE_REQUIRE_CLOSEOUT:-0}" \
   python3 <<'PY'
 import json
 import os
@@ -550,16 +633,43 @@ import os
 milestone = json.loads(os.environ["MILESTONE_JSON"])
 if milestone["title"] != "v0.26.0":
     raise SystemExit(milestone)
-if os.environ["RELEASE_GATE"] == "1" or os.environ["REQUIRE_CLOSEOUT"] == "1":
-    if milestone["state"] != "closed" or milestone["open_issues"] != 0 or milestone["closed_issues"] < 14:
-        raise SystemExit(f"v0.26.0 milestone must be closed with at least 14 closed issues for release gate: {milestone}")
-else:
-    if milestone["state"] not in {"open", "closed"}:
-        raise SystemExit(milestone)
+if milestone["state"] != "closed" or milestone["open_issues"] != 0 or milestone["closed_issues"] < 14:
+    raise SystemExit(f"v0.26.0 milestone must be closed with at least 14 closed issues for post-publication release gate: {milestone}")
 PY
 else
   fail "gh authentication is required for v26 release gate issue proof"
 fi
+
+NTPRO_V260_STRICT_MANIFEST="$STRICT_MANIFEST_PATH" scripts/ai/verify_v26_strict_provenance.sh
+STRICT_MANIFEST_PATH="$STRICT_MANIFEST_PATH" python3 <<'PY'
+import json
+import os
+from pathlib import Path
+
+path = Path(os.environ["STRICT_MANIFEST_PATH"])
+strict = json.loads(path.read_text(encoding="utf-8"))
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise SystemExit(message)
+
+
+scope = strict.get("release_scope") or {}
+require(scope.get("final_release_scope_issue_count") == 14, "strict provenance final scope issue count must be 14")
+require(scope.get("final_release_scope_evidence_count") == 14, "strict provenance final scope evidence count must be 14")
+require(scope.get("corrective_issue_count") == 5, "strict provenance corrective issue count must be 5")
+inputs = {item.get("path") for item in strict.get("source_inputs") or []}
+for required in (
+    "docs/rust-cutover/release/v0_26_0_release_manifest.json",
+    "docs/rust-cutover/release/v0_26_0_release_notes.md",
+    "docs/rust-cutover/release/v0_26_0_readiness_report.md",
+    "docs/rust-cutover/release/v0_26_0_release_closeout_evidence.md",
+    "scripts/ai/verify_v26_release_gates.sh",
+    "scripts/ai/verify_v26_strict_provenance.sh",
+):
+    require(required in inputs, f"strict provenance missing source input: {required}")
+PY
 
 scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh
 
