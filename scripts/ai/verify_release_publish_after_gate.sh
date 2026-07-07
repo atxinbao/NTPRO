@@ -51,8 +51,9 @@ release_payload() {
   local draft="$3"
   local published_at="$4"
   local updated_at="$5"
+  local assets="${6:-[]}"
   cat <<JSON
-{"tag_name":"ntpro-rust-only-v0.22.1","name":"NTPRO Rust-only v0.22.1","draft":$draft,"prerelease":false,"html_url":"https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.22.1","published_at":"$published_at","updated_at":"$updated_at","body":$release_body,"mode":"$release_mode"}
+{"tag_name":"ntpro-rust-only-v0.22.1","name":"NTPRO Rust-only v0.22.1","draft":$draft,"prerelease":false,"html_url":"https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.22.1","published_at":"$published_at","updated_at":"$updated_at","body":$release_body,"mode":"$release_mode","assets":$assets}
 JSON
 }
 
@@ -74,12 +75,21 @@ JSON
 fi
 
 if [[ "$1" == "api" ]]; then
+  current_state="$(cat "$state_file" 2>/dev/null || true)"
+  if grep -F "release create" "${NTPRO_FAKE_GH_CALL_LOG:?}" >/dev/null 2>&1; then
+    release_payload "$mode" "$body" false "2026-07-02T10:05:00Z" "2026-07-02T10:05:00Z"
+    exit 0
+  fi
+  if [[ "$current_state" == "create" ]]; then
+    release_payload "$mode" "$body" false "2026-07-02T10:05:00Z" "2026-07-02T10:05:00Z"
+    exit 0
+  fi
   case "$mode" in
     missing)
       exit 1
       ;;
     draft)
-      if [[ -s "$state_file" ]]; then
+      if [[ "$current_state" == "edit" ]]; then
         release_payload "$mode" "$body" false "2026-07-02T10:05:00Z" "2026-07-02T10:05:00Z"
       else
         release_payload "$mode" "$body" true "" "2026-07-02T09:50:00Z"
@@ -91,8 +101,11 @@ if [[ "$1" == "api" ]]; then
     published_before)
       release_payload "$mode" "$body" false "2026-07-02T09:55:00Z" "2026-07-02T09:55:00Z"
       ;;
+    published_before_with_assets)
+      release_payload "$mode" "$body" false "2026-07-02T09:55:00Z" "2026-07-02T09:55:00Z" '[{"name":"artifact.tar.gz"}]'
+      ;;
     published_stale_before)
-      if [[ -s "$state_file" ]]; then
+      if [[ "$current_state" == "edit" ]]; then
         release_payload "$mode" "$body" false "2026-07-02T09:55:00Z" "2026-07-02T10:06:00Z"
       else
         release_payload "$mode" "$stale_body" false "2026-07-02T09:55:00Z" "2026-07-02T09:55:00Z"
@@ -106,7 +119,7 @@ if [[ "$1" == "api" ]]; then
   exit 0
 fi
 
-if [[ "$1" == "release" && ( "$2" == "edit" || "$2" == "create" ) ]]; then
+if [[ "$1" == "release" && ( "$2" == "edit" || "$2" == "create" || "$2" == "delete" ) ]]; then
   echo "$*" >> "${NTPRO_FAKE_GH_CALL_LOG:?}"
   echo "$2" > "$state_file"
   exit 0
@@ -157,12 +170,13 @@ NTPRO_FAKE_RELEASE_MODE=published_after run_publish_script scripts/ai/publish_nt
   | tee "$tmp_dir/published-after.out"
 grep -F "release_publication_after_gate=pass status=already_published_after_gate" "$tmp_dir/published-after.out" >/dev/null
 
-echo "== verify release publish after gate: existing stale public release is updated after gate =="
+echo "== verify release publish after gate: existing stale public release is recreated after gate =="
 NTPRO_RELEASE_PUBLICATION_DRY_RUN=0 NTPRO_FAKE_RELEASE_MODE=published_stale_before \
   run_publish_script scripts/ai/publish_ntpro_release_after_gate.sh \
   | tee "$tmp_dir/published-stale.out"
-grep -F "release_publication_after_gate=pass status=updated_public_release_after_gate" "$tmp_dir/published-stale.out" >/dev/null
-grep -F "release edit" "$tmp_dir/gh-calls.log" >/dev/null
+grep -F "release_publication_after_gate=pass status=recreated_public_release_after_gate" "$tmp_dir/published-stale.out" >/dev/null
+grep -F "release delete" "$tmp_dir/gh-calls.log" >/dev/null
+grep -F "release create" "$tmp_dir/gh-calls.log" >/dev/null
 
 echo "== verify release publish after gate: failed gate blocks publication =="
 if NTPRO_FAKE_RELEASE_MODE=draft NTPRO_FAKE_GATE_CONCLUSION=failure \
@@ -172,12 +186,18 @@ if NTPRO_FAKE_RELEASE_MODE=draft NTPRO_FAKE_GATE_CONCLUSION=failure \
 fi
 grep -F "release gate run did not succeed: failure" "$tmp_dir/failed-gate.out" >/dev/null
 
-echo "== verify release publish after gate: public before gate is rejected =="
-if NTPRO_FAKE_RELEASE_MODE=published_before \
-  run_publish_script scripts/ai/publish_ntpro_release_after_gate.sh >"$tmp_dir/published-before.out" 2>&1; then
-  echo "expected pre-gate publication to fail" >&2
+echo "== verify release publish after gate: public before gate dry-run plans recreation =="
+NTPRO_FAKE_RELEASE_MODE=published_before \
+  run_publish_script scripts/ai/publish_ntpro_release_after_gate.sh \
+  | tee "$tmp_dir/published-before.out"
+grep -F "release_publication_after_gate=pass status=dry_run_recreate_public_release_after_gate" "$tmp_dir/published-before.out" >/dev/null
+
+echo "== verify release publish after gate: public before gate with assets is rejected =="
+if NTPRO_FAKE_RELEASE_MODE=published_before_with_assets \
+  run_publish_script scripts/ai/publish_ntpro_release_after_gate.sh >"$tmp_dir/published-before-assets.out" 2>&1; then
+  echo "expected pre-gate publication with assets to fail" >&2
   exit 1
 fi
-grep -F "release was published before hosted gate success" "$tmp_dir/published-before.out" >/dev/null
+grep -F "cannot recreate public release with assets: assets=1" "$tmp_dir/published-before-assets.out" >/dev/null
 
 echo "release_publish_after_gate=pass"
