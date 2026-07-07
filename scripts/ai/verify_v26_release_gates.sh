@@ -106,7 +106,7 @@ for marker in \
   "V260 corrective PR scope = #838, #840, #842, #844, #846" \
   "v26 release gates = required" \
   "v26 strict provenance = required" \
-  "scripts/ai/verify_release.sh v26.1-final-scope-integration" \
+  "scripts/ai/verify_v26_1_final_scope_integration.sh" \
   "release surface current guard = required" \
   "release publication guard = required" \
   "release publish after gate = required" \
@@ -395,7 +395,6 @@ def validate_manifest(candidate: dict) -> None:
         "scripts/ai/verify_release.sh release-publish-after-gate",
         "scripts/ai/verify_v26_release_gates.sh",
         "scripts/ai/verify_v26_strict_provenance.sh",
-        "scripts/ai/verify_release.sh v26.1-final-scope-integration",
         "scripts/ai/verify_v26_1_final_scope_integration.sh",
     ):
         require(command in commands, f"required release gate missing: {command}")

@@ -159,7 +159,6 @@
     {"name": "release-publish-after-gate", "command": "scripts/ai/verify_release.sh release-publish-after-gate", "required": true},
     {"name": "v26-release-gate-script", "command": "scripts/ai/verify_v26_release_gates.sh", "required": true},
     {"name": "v26-strict-provenance-script", "command": "scripts/ai/verify_v26_strict_provenance.sh", "required": true},
-    {"name": "v26.1-final-scope-integration", "command": "scripts/ai/verify_release.sh v26.1-final-scope-integration", "required": true},
     {"name": "v26.1-final-scope-integration-script", "command": "scripts/ai/verify_v26_1_final_scope_integration.sh", "required": true}
   ],
   "capability": {

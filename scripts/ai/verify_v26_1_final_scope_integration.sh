@@ -134,7 +134,6 @@ def validate(candidate: dict, notes_text: str, readiness_text: str, closeout_tex
         for gate in candidate.get("release_gates", [])
         if gate.get("required") is True
     }
-    require("scripts/ai/verify_release.sh v26.1-final-scope-integration" in commands, "release gate missing v26.1 final scope stage")
     require("scripts/ai/verify_v26_1_final_scope_integration.sh" in commands, "release gate missing final scope script")
 
     requirements = candidate.get("post_publication_requirements") or {}

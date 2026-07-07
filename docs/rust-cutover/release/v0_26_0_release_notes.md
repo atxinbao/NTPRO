@@ -98,7 +98,6 @@ scripts/ai/verify_release.sh v26-slo-runbook-stability-evidence
 scripts/ai/verify_release.sh v26-dashboard-admin-boundary-surface
 scripts/ai/verify_release.sh v26-release-gates
 scripts/ai/verify_release.sh v26-strict-provenance
-scripts/ai/verify_release.sh v26.1-final-scope-integration
 scripts/ai/verify_v26_release_gates.sh
 scripts/ai/verify_v26_strict_provenance.sh
 scripts/ai/verify_v26_1_final_scope_integration.sh
