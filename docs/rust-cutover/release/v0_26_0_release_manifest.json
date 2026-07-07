@@ -40,7 +40,8 @@
     "v26_closeout_path": "docs/rust-cutover/release/v0_26_0_release_closeout_evidence.md",
     "v260_release_gates_path": "scripts/ai/verify_v26_release_gates.sh",
     "v260_strict_provenance_path": "scripts/ai/verify_v26_strict_provenance.sh",
-    "v261_final_scope_integration_path": "scripts/ai/verify_v26_1_final_scope_integration.sh"
+    "v261_final_scope_integration_path": "scripts/ai/verify_v26_1_final_scope_integration.sh",
+    "v261_stale_v260_evidence_cleanup_path": "scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh"
   },
   "v260_evidence": [
     {"task_id": "V260-000", "issue": 812, "path": "docs/rust-cutover/evidence/V260-000.md"},
@@ -159,7 +160,8 @@
     {"name": "release-publish-after-gate", "command": "scripts/ai/verify_release.sh release-publish-after-gate", "required": true},
     {"name": "v26-release-gate-script", "command": "scripts/ai/verify_v26_release_gates.sh", "required": true},
     {"name": "v26-strict-provenance-script", "command": "scripts/ai/verify_v26_strict_provenance.sh", "required": true},
-    {"name": "v26.1-final-scope-integration-script", "command": "scripts/ai/verify_v26_1_final_scope_integration.sh", "required": true}
+    {"name": "v26.1-final-scope-integration-script", "command": "scripts/ai/verify_v26_1_final_scope_integration.sh", "required": true},
+    {"name": "v26.1-stale-v260-evidence-cleanup-script", "command": "scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh", "required": true}
   ],
   "capability": {
     "name": "v0.26.0 Product Hardening Foundation",

@@ -77,7 +77,8 @@ for path in \
   docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json \
   scripts/ai/verify_v26_release_gates.sh \
   scripts/ai/verify_v26_strict_provenance.sh \
-  scripts/ai/verify_v26_1_final_scope_integration.sh; do
+  scripts/ai/verify_v26_1_final_scope_integration.sh \
+  scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh; do
   require_file "$path"
 done
 
@@ -396,6 +397,7 @@ def validate_manifest(candidate: dict) -> None:
         "scripts/ai/verify_v26_release_gates.sh",
         "scripts/ai/verify_v26_strict_provenance.sh",
         "scripts/ai/verify_v26_1_final_scope_integration.sh",
+        "scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh",
     ):
         require(command in commands, f"required release gate missing: {command}")
 
@@ -558,5 +560,7 @@ PY
 else
   fail "gh authentication is required for v26 release gate issue proof"
 fi
+
+scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh
 
 echo "v26_release_gates status=ok release_tag=$RELEASE_TAG base_release=$BASE_RELEASE_TAG current_issue_state=$current_state final_scope_issues=14 corrective_scope=5 negative_selftest=${NTPRO_V260_RELEASE_SELFTEST:-1}"
