@@ -41,7 +41,8 @@
     "v260_release_gates_path": "scripts/ai/verify_v26_release_gates.sh",
     "v260_strict_provenance_path": "scripts/ai/verify_v26_strict_provenance.sh",
     "v261_final_scope_integration_path": "scripts/ai/verify_v26_1_final_scope_integration.sh",
-    "v261_stale_v260_evidence_cleanup_path": "scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh"
+    "v261_stale_v260_evidence_cleanup_path": "scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh",
+    "v261_post_publication_strict_gate_path": "scripts/ai/verify_v26_1_post_publication_strict_gate.sh"
   },
   "v260_evidence": [
     {"task_id": "V260-000", "issue": 812, "path": "docs/rust-cutover/evidence/V260-000.md"},
@@ -161,7 +162,8 @@
     {"name": "v26-release-gate-script", "command": "scripts/ai/verify_v26_release_gates.sh", "required": true},
     {"name": "v26-strict-provenance-script", "command": "scripts/ai/verify_v26_strict_provenance.sh", "required": true},
     {"name": "v26.1-final-scope-integration-script", "command": "scripts/ai/verify_v26_1_final_scope_integration.sh", "required": true},
-    {"name": "v26.1-stale-v260-evidence-cleanup-script", "command": "scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh", "required": true}
+    {"name": "v26.1-stale-v260-evidence-cleanup-script", "command": "scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh", "required": true},
+    {"name": "v26.1-post-publication-strict-gate-script", "command": "scripts/ai/verify_v26_1_post_publication_strict_gate.sh", "required": true}
   ],
   "capability": {
     "name": "v0.26.0 Product Hardening Foundation",
@@ -267,6 +269,35 @@
     "hosted_release_gate_success_required": true,
     "strict_release_body_match_required": true,
     "publication_after_hosted_gate_required": true
+  },
+  "post_publication_strict_proof": {
+    "source_closeout_path": "docs/rust-cutover/release/v0_26_0_release_closeout_evidence.md",
+    "release_tag": "ntpro-rust-only-v0.26.0",
+    "release_name": "NTPRO Rust-only v0.26.0",
+    "release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.26.0",
+    "release_published_at": "2026-07-07T05:29:16Z",
+    "release_updated_at": "2026-07-07T12:54:42Z",
+    "target_commitish": "main",
+    "remote_tag_object": "394bb70358766fb18919c888b0075b071ce72d33",
+    "remote_tag_commit": "b09ec3a9f96ac718d6660b345a74cb4b7790f19a",
+    "tag_commit": "b09ec3a9f96ac718d6660b345a74cb4b7790f19a",
+    "release_body_sha256": "ab2ed2be9b10371e4aabea74c7314c1ebae791ffd4e3d129d0f4c208b15a985e",
+    "tracked_release_notes_sha256": "ab2ed2be9b10371e4aabea74c7314c1ebae791ffd4e3d129d0f4c208b15a985e",
+    "release_body_matches_tracked_release_notes": true,
+    "hosted_release_gate_run_id": 28853960135,
+    "hosted_release_gate_workflow": "Rust Cutover Release Gate",
+    "hosted_release_gate_head_sha": "b09ec3a9f96ac718d6660b345a74cb4b7790f19a",
+    "hosted_release_gate_updated_at": "2026-07-07T10:16:03Z",
+    "publish_workflow_run_id": 28867689146,
+    "publish_workflow_name": "Rust Cutover Publish Release",
+    "publish_workflow_head_sha": "a7f5de3086ae1624d9b4870cfda5ce47f5f4dd5c",
+    "publish_workflow_updated_at": "2026-07-07T12:54:47Z",
+    "milestone_number": 18,
+    "milestone_state": "closed",
+    "milestone_open_issues": 0,
+    "milestone_closed_issues": 14,
+    "generated_publication_evidence_authoritative": false,
+    "publication_evidence_strategy": "source_tree_plus_github_remote"
   },
   "validation_artifacts": {
     "strict_release_provenance_manifest_path": "target/ntpro-v260/v0_26_0_strict_release_manifest.json"
