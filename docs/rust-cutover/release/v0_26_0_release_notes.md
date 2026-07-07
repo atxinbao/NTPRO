@@ -45,6 +45,7 @@ Corrective release-publication tasks:
 - `V260-009` - release golden trace file gate correction.
 - `V260-010` - nested historical release gate correction.
 - `V260-011` - release publication guard notes line correction.
+- `V260-012` - prepublish publication guard split.
 
 ## Release Gates
 
