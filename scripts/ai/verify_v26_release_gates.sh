@@ -13,7 +13,7 @@ BASE_RELEASE_TAG="${NTPRO_V260_BASE_RELEASE_TAG:-ntpro-rust-only-v0.25.1}"
 MANIFEST_PATH="${NTPRO_V260_RELEASE_MANIFEST:-docs/rust-cutover/release/v0_26_0_release_manifest.json}"
 RELEASE_NOTES_PATH="${NTPRO_V260_RELEASE_NOTES:-docs/rust-cutover/release/v0_26_0_release_notes.md}"
 READINESS_REPORT_PATH="${NTPRO_V260_READINESS_REPORT:-docs/rust-cutover/release/v0_26_0_readiness_report.md}"
-TRACE_PATH="${NTPRO_V260_RELEASE_TRACE:-tests/golden/v260_release_gates_strict_provenance.jsonl}"
+TRACE_PATH="${NTPRO_V260_RELEASE_TRACE:-tests/golden/v260/release_gates_strict_provenance.jsonl}"
 CURRENT_ISSUE="${NTPRO_V260_CURRENT_ISSUE:-820}"
 MILESTONE_NUMBER="${NTPRO_V260_MILESTONE_NUMBER:-18}"
 

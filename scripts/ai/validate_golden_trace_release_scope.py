@@ -40,13 +40,37 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def collect_trace_cases(trace_glob: str) -> dict[str, dict[str, str]]:
+def collect_manifest_trace_paths(manifest: dict[str, Any]) -> list[Path]:
+    entries = manifest.get("cases")
+    if not isinstance(entries, list):
+        return []
+
+    traces: list[Path] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        trace = entry.get("trace")
+        if isinstance(trace, str) and trace.strip():
+            traces.append(Path(trace))
+    return traces
+
+
+def collect_trace_cases(
+    trace_glob: str,
+    manifest_trace_paths: list[Path] | None = None,
+) -> dict[str, dict[str, str]]:
     cases: dict[str, dict[str, str]] = {}
-    traces = sorted(Path().glob(trace_glob))
+    traces_by_path = {trace.as_posix(): trace for trace in sorted(Path().glob(trace_glob))}
+    for trace in manifest_trace_paths or []:
+        traces_by_path.setdefault(trace.as_posix(), trace)
+
+    traces = [traces_by_path[key] for key in sorted(traces_by_path)]
     if not traces:
         raise SystemExit(f"no golden trace files found for TRACE_GLOB={trace_glob}")
 
     for trace in traces:
+        if not trace.exists():
+            raise SystemExit(f"{trace}: trace file referenced by release scope does not exist")
         for row in load_jsonl(trace):
             case_id = require_string(row, "case_id", str(trace))
             category = require_string(row, "category", case_id)
@@ -182,8 +206,9 @@ def main() -> None:
     parser.add_argument("--trace-glob", default="tests/golden/*.jsonl")
     args = parser.parse_args()
 
-    trace_cases = collect_trace_cases(args.trace_glob)
-    status_counts = validate_manifest(load_json(args.manifest), trace_cases)
+    manifest = load_json(args.manifest)
+    trace_cases = collect_trace_cases(args.trace_glob, collect_manifest_trace_paths(manifest))
+    status_counts = validate_manifest(manifest, trace_cases)
     total = sum(status_counts.values())
     print(
         "golden trace release scope ok: "

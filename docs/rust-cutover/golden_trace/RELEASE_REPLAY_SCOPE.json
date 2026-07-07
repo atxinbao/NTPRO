@@ -3929,7 +3929,7 @@
     },
     {
       "case_id": "release.v26_release_gates.ready.001",
-      "trace": "tests/golden/v260_release_gates_strict_provenance.jsonl",
+      "trace": "tests/golden/v260/release_gates_strict_provenance.jsonl",
       "category": "release",
       "status": "validator_executable_replay",
       "evidence_id": "V260-008",
@@ -3954,7 +3954,7 @@
     },
     {
       "case_id": "release.v26_release_gates.missing_v260_evidence_fail_closed.001",
-      "trace": "tests/golden/v260_release_gates_strict_provenance.jsonl",
+      "trace": "tests/golden/v260/release_gates_strict_provenance.jsonl",
       "category": "release",
       "status": "validator_executable_replay",
       "evidence_id": "V260-008",
@@ -3979,7 +3979,7 @@
     },
     {
       "case_id": "release.v26_release_gates.forbidden_boundary_true_fail_closed.001",
-      "trace": "tests/golden/v260_release_gates_strict_provenance.jsonl",
+      "trace": "tests/golden/v260/release_gates_strict_provenance.jsonl",
       "category": "release",
       "status": "validator_executable_replay",
       "evidence_id": "V260-008",
@@ -4004,7 +4004,7 @@
     },
     {
       "case_id": "release.v26_release_gates.dashboard_smoke_missing_fail_closed.001",
-      "trace": "tests/golden/v260_release_gates_strict_provenance.jsonl",
+      "trace": "tests/golden/v260/release_gates_strict_provenance.jsonl",
       "category": "release",
       "status": "validator_executable_replay",
       "evidence_id": "V260-008",
@@ -4029,7 +4029,7 @@
     },
     {
       "case_id": "release.v26_release_gates.publication_before_gate_fail_closed.001",
-      "trace": "tests/golden/v260_release_gates_strict_provenance.jsonl",
+      "trace": "tests/golden/v260/release_gates_strict_provenance.jsonl",
       "category": "release",
       "status": "validator_executable_replay",
       "evidence_id": "V260-008",
@@ -4054,7 +4054,7 @@
     },
     {
       "case_id": "release.v26_release_gates.product_grade_claim_fail_closed.001",
-      "trace": "tests/golden/v260_release_gates_strict_provenance.jsonl",
+      "trace": "tests/golden/v260/release_gates_strict_provenance.jsonl",
       "category": "release",
       "status": "validator_executable_replay",
       "evidence_id": "V260-008",
