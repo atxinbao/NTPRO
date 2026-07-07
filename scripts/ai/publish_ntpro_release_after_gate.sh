@@ -99,13 +99,18 @@ require_body_matches_notes() {
   [[ "$actual_body" == "$expected_body" ]] || fail "release body does not match release notes: $RELEASE_NOTES"
 }
 
+release_api_json() {
+  "$GH_BIN" api "/repos/$REPO/releases/tags/$TAG_NAME"
+}
+
 write_evidence() {
   local status="$1"
   local gate_url="$2"
   local gate_completed_at="$3"
   local release_url="$4"
   local published_at="$5"
-  local tag_sha="$6"
+  local updated_at="$6"
+  local tag_sha="$7"
 
   mkdir -p "$(dirname "$EVIDENCE_PATH")"
   python3 - "$EVIDENCE_PATH" \
@@ -120,6 +125,7 @@ write_evidence() {
     "$gate_completed_at" \
     "$release_url" \
     "$published_at" \
+    "$updated_at" \
     "$tag_sha" <<'PY'
 import json
 from pathlib import Path
@@ -138,6 +144,7 @@ import sys
     gate_completed_at,
     release_url,
     published_at,
+    updated_at,
     tag_sha,
 ) = sys.argv[1:]
 
@@ -153,6 +160,7 @@ payload = {
     "release_gate_completed_at": gate_completed_at,
     "release_url": release_url,
     "published_at": published_at,
+    "updated_at": updated_at,
     "tag_sha": tag_sha,
 }
 
@@ -201,47 +209,58 @@ echo "release_gate_completed_at=$run_completed_at"
 echo "release_tag=$TAG_NAME"
 echo "release_tag_sha=$tag_sha"
 
-release_json="$("$GH_BIN" release view "$TAG_NAME" --repo "$REPO" --json isDraft,url,body,publishedAt 2>/dev/null)" || release_json=""
+release_json="$(release_api_json 2>/dev/null)" || release_json=""
 
 if [[ -n "$release_json" ]]; then
-  is_draft="$(json_bool "$(json_field "$release_json" isDraft)")"
-  release_url="$(json_field "$release_json" url)"
-  published_at="$(json_field "$release_json" publishedAt)"
+  is_draft="$(json_bool "$(json_field "$release_json" draft)")"
+  release_url="$(json_field "$release_json" html_url)"
+  published_at="$(json_field "$release_json" published_at)"
+  updated_at="$(json_field "$release_json" updated_at)"
   release_body="$(json_field "$release_json" body)"
 
-  require_body_matches_notes "$release_body"
-
   if [[ "$is_draft" == "false" ]]; then
-    [[ -n "$published_at" ]] || fail "published release has empty publishedAt"
-    if ! timestamp_ge "$published_at" "$run_completed_at"; then
-      fail "release was published before hosted gate success: published_at=$published_at gate_completed_at=$run_completed_at"
+    if [[ "$DRY_RUN" == "1" ]]; then
+      require_body_matches_notes "$release_body"
+      [[ -n "$published_at" ]] || fail "published release has empty publishedAt"
+      if ! timestamp_ge "$published_at" "$run_completed_at"; then
+        fail "release was published before hosted gate success: published_at=$published_at gate_completed_at=$run_completed_at"
+      fi
+      write_evidence "already_published_after_gate" "$run_url" "$run_completed_at" "$release_url" "$published_at" "$updated_at" "$tag_sha"
+      echo "release_publication_after_gate=pass status=already_published_after_gate"
+      echo "release_url=$release_url"
+      echo "published_at=$published_at"
+      echo "updated_at=$updated_at"
+      echo "evidence_path=$EVIDENCE_PATH"
+      emit_evidence_policy
+      exit 0
     fi
-    write_evidence "already_published_after_gate" "$run_url" "$run_completed_at" "$release_url" "$published_at" "$tag_sha"
-    echo "release_publication_after_gate=pass status=already_published_after_gate"
-    echo "release_url=$release_url"
-    echo "published_at=$published_at"
-    echo "evidence_path=$EVIDENCE_PATH"
-    emit_evidence_policy
-    exit 0
-  fi
 
-  if [[ "$is_draft" != "true" ]]; then
+    "$GH_BIN" release edit "$TAG_NAME" \
+      --repo "$REPO" \
+      --title "$RELEASE_NAME" \
+      --notes-file "$RELEASE_NOTES" \
+      --draft=false >/dev/null
+  elif [[ "$is_draft" == "true" ]]; then
+    if [[ "$DRY_RUN" == "1" ]]; then
+      write_evidence "dry_run_publish_draft_after_gate" "$run_url" "$run_completed_at" "$release_url" "" "$updated_at" "$tag_sha"
+      echo "release_publication_after_gate=pass status=dry_run_publish_draft_after_gate"
+      echo "release_url=$release_url"
+      echo "evidence_path=$EVIDENCE_PATH"
+      emit_evidence_policy
+      exit 0
+    fi
+
+    "$GH_BIN" release edit "$TAG_NAME" \
+      --repo "$REPO" \
+      --title "$RELEASE_NAME" \
+      --notes-file "$RELEASE_NOTES" \
+      --draft=false >/dev/null
+  else
     fail "unexpected release draft state: $is_draft"
   fi
-
-  if [[ "$DRY_RUN" == "1" ]]; then
-    write_evidence "dry_run_publish_draft_after_gate" "$run_url" "$run_completed_at" "$release_url" "" "$tag_sha"
-    echo "release_publication_after_gate=pass status=dry_run_publish_draft_after_gate"
-    echo "release_url=$release_url"
-    echo "evidence_path=$EVIDENCE_PATH"
-    emit_evidence_policy
-    exit 0
-  fi
-
-  "$GH_BIN" release edit "$TAG_NAME" --repo "$REPO" --draft=false >/dev/null
 else
   if [[ "$DRY_RUN" == "1" ]]; then
-    write_evidence "dry_run_create_public_release_after_gate" "$run_url" "$run_completed_at" "" "" "$tag_sha"
+    write_evidence "dry_run_create_public_release_after_gate" "$run_url" "$run_completed_at" "" "" "" "$tag_sha"
     echo "release_publication_after_gate=pass status=dry_run_create_public_release_after_gate"
     echo "evidence_path=$EVIDENCE_PATH"
     emit_evidence_policy
@@ -255,20 +274,30 @@ else
     --notes-file "$RELEASE_NOTES" >/dev/null
 fi
 
-published_json="$("$GH_BIN" release view "$TAG_NAME" --repo "$REPO" --json isDraft,url,body,publishedAt)"
-published_is_draft="$(json_bool "$(json_field "$published_json" isDraft)")"
-published_url="$(json_field "$published_json" url)"
-published_at="$(json_field "$published_json" publishedAt)"
+published_json="$(release_api_json)"
+published_is_draft="$(json_bool "$(json_field "$published_json" draft)")"
+published_url="$(json_field "$published_json" html_url)"
+published_at="$(json_field "$published_json" published_at)"
+updated_at="$(json_field "$published_json" updated_at)"
 published_body="$(json_field "$published_json" body)"
 
 [[ "$published_is_draft" == "false" ]] || fail "release is still draft after publish"
 [[ -n "$published_at" ]] || fail "publishedAt is empty after publish"
-timestamp_ge "$published_at" "$run_completed_at" || fail "release publishedAt is earlier than gate completion"
 require_body_matches_notes "$published_body"
 
-write_evidence "published_after_gate" "$run_url" "$run_completed_at" "$published_url" "$published_at" "$tag_sha"
-echo "release_publication_after_gate=pass status=published_after_gate"
+publication_status="published_after_gate"
+if ! timestamp_ge "$published_at" "$run_completed_at"; then
+  [[ -n "$updated_at" ]] || fail "updated_at is empty after release update"
+  if ! timestamp_ge "$updated_at" "$run_completed_at"; then
+    fail "release was not published or updated after hosted gate success: published_at=$published_at updated_at=$updated_at gate_completed_at=$run_completed_at"
+  fi
+  publication_status="updated_public_release_after_gate"
+fi
+
+write_evidence "$publication_status" "$run_url" "$run_completed_at" "$published_url" "$published_at" "$updated_at" "$tag_sha"
+echo "release_publication_after_gate=pass status=$publication_status"
 echo "release_url=$published_url"
 echo "published_at=$published_at"
+echo "updated_at=$updated_at"
 echo "evidence_path=$EVIDENCE_PATH"
 emit_evidence_policy

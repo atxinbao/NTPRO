@@ -37,6 +37,24 @@ import sys
 print(json.dumps(Path(sys.argv[1]).read_text(encoding="utf-8")))
 PY
 )"
+stale_body="$(python3 - <<'PY'
+import json
+
+print(json.dumps("# stale release body\n"))
+PY
+)"
+state_file="${NTPRO_FAKE_RELEASE_STATE:?}"
+
+release_payload() {
+  local release_mode="$1"
+  local release_body="$2"
+  local draft="$3"
+  local published_at="$4"
+  local updated_at="$5"
+  cat <<JSON
+{"tag_name":"ntpro-rust-only-v0.22.1","name":"NTPRO Rust-only v0.22.1","draft":$draft,"prerelease":false,"html_url":"https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.22.1","published_at":"$published_at","updated_at":"$updated_at","body":$release_body,"mode":"$release_mode"}
+JSON
+}
 
 if [[ "$1" == "auth" && "$2" == "status" ]]; then
   exit 0
@@ -55,25 +73,30 @@ JSON
   exit 0
 fi
 
-if [[ "$1" == "release" && "$2" == "view" ]]; then
+if [[ "$1" == "api" ]]; then
   case "$mode" in
     missing)
       exit 1
       ;;
     draft)
-      cat <<JSON
-{"isDraft":true,"url":"https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.22.1","publishedAt":"","body":$body}
-JSON
+      if [[ -s "$state_file" ]]; then
+        release_payload "$mode" "$body" false "2026-07-02T10:05:00Z" "2026-07-02T10:05:00Z"
+      else
+        release_payload "$mode" "$body" true "" "2026-07-02T09:50:00Z"
+      fi
       ;;
     published_after)
-      cat <<JSON
-{"isDraft":false,"url":"https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.22.1","publishedAt":"2026-07-02T10:05:00Z","body":$body}
-JSON
+      release_payload "$mode" "$body" false "2026-07-02T10:05:00Z" "2026-07-02T10:05:00Z"
       ;;
     published_before)
-      cat <<JSON
-{"isDraft":false,"url":"https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.22.1","publishedAt":"2026-07-02T09:55:00Z","body":$body}
-JSON
+      release_payload "$mode" "$body" false "2026-07-02T09:55:00Z" "2026-07-02T09:55:00Z"
+      ;;
+    published_stale_before)
+      if [[ -s "$state_file" ]]; then
+        release_payload "$mode" "$body" false "2026-07-02T09:55:00Z" "2026-07-02T10:06:00Z"
+      else
+        release_payload "$mode" "$stale_body" false "2026-07-02T09:55:00Z" "2026-07-02T09:55:00Z"
+      fi
       ;;
     *)
       echo "unknown fake release mode: $mode" >&2
@@ -85,6 +108,7 @@ fi
 
 if [[ "$1" == "release" && ( "$2" == "edit" || "$2" == "create" ) ]]; then
   echo "$*" >> "${NTPRO_FAKE_GH_CALL_LOG:?}"
+  echo "$2" > "$state_file"
   exit 0
 fi
 
@@ -94,10 +118,12 @@ EOF
 chmod +x "$fake_gh"
 
 run_publish_script() {
+  : > "$tmp_dir/gh-calls.log"
+  : > "$tmp_dir/release-state"
   NTPRO_RELEASE_PUBLICATION_GH_BIN="$fake_gh" \
     NTPRO_RELEASE_PUBLICATION_TEST_MODE=1 \
     NTPRO_RELEASE_PUBLICATION_TEST_TAG_SHA="$tag_sha" \
-    NTPRO_RELEASE_PUBLICATION_DRY_RUN=1 \
+    NTPRO_RELEASE_PUBLICATION_DRY_RUN="${NTPRO_RELEASE_PUBLICATION_DRY_RUN:-1}" \
     NTPRO_RELEASE_GATE_RUN_ID=1 \
     NTPRO_RELEASE_VERSION=v0.22.1 \
     NTPRO_RELEASE_TAG=ntpro-rust-only-v0.22.1 \
@@ -105,6 +131,7 @@ run_publish_script() {
     NTPRO_RELEASE_NOTES="$notes_file" \
     NTPRO_RELEASE_PUBLICATION_EVIDENCE_PATH="$evidence_path" \
     NTPRO_FAKE_RELEASE_NOTES="$notes_file" \
+    NTPRO_FAKE_RELEASE_STATE="$tmp_dir/release-state" \
     NTPRO_FAKE_GH_CALL_LOG="$tmp_dir/gh-calls.log" \
     NTPRO_FAKE_RELEASE_MODE="${NTPRO_FAKE_RELEASE_MODE:-draft}" \
     NTPRO_FAKE_GATE_CONCLUSION="${NTPRO_FAKE_GATE_CONCLUSION:-success}" \
@@ -129,6 +156,13 @@ echo "== verify release publish after gate: existing public after gate passes ==
 NTPRO_FAKE_RELEASE_MODE=published_after run_publish_script scripts/ai/publish_ntpro_release_after_gate.sh \
   | tee "$tmp_dir/published-after.out"
 grep -F "release_publication_after_gate=pass status=already_published_after_gate" "$tmp_dir/published-after.out" >/dev/null
+
+echo "== verify release publish after gate: existing stale public release is updated after gate =="
+NTPRO_RELEASE_PUBLICATION_DRY_RUN=0 NTPRO_FAKE_RELEASE_MODE=published_stale_before \
+  run_publish_script scripts/ai/publish_ntpro_release_after_gate.sh \
+  | tee "$tmp_dir/published-stale.out"
+grep -F "release_publication_after_gate=pass status=updated_public_release_after_gate" "$tmp_dir/published-stale.out" >/dev/null
+grep -F "release edit" "$tmp_dir/gh-calls.log" >/dev/null
 
 echo "== verify release publish after gate: failed gate blocks publication =="
 if NTPRO_FAKE_RELEASE_MODE=draft NTPRO_FAKE_GATE_CONCLUSION=failure \
