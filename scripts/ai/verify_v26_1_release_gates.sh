@@ -138,8 +138,10 @@ for path in "$RELEASE_NOTES_PATH" "$READINESS_REPORT_PATH" "$MANIFEST_PATH"; do
   done
 done
 
-scripts/ai/verify_release.sh v26-release-gates
-scripts/ai/verify_release.sh v26-strict-provenance
+# v26.0 is a historical prerequisite for the v26.1 tag gate. Do not let the
+# current tag workflow's release-gate mode force v26.0 HEAD/tag equality checks.
+NTPRO_RELEASE_GATE=0 scripts/ai/verify_release.sh v26-release-gates
+NTPRO_RELEASE_GATE=0 NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG=0 scripts/ai/verify_release.sh v26-strict-provenance
 scripts/ai/verify_v26_1_final_scope_integration.sh
 scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh
 scripts/ai/verify_v26_1_post_publication_strict_gate.sh
