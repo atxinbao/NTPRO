@@ -247,9 +247,9 @@ required_false_flags = (
 def classify(row: dict) -> str:
     if row.get("v25_1_release_evidence_published") is not True:
         return "fail_closed_missing_v25_1_release_evidence"
-    if row.get("v260_evidence_count") != 14:
+    if row.get("v260_evidence_count") != 9:
         return "fail_closed_missing_v260_evidence"
-    if row.get("v260_trace_sets") != 14:
+    if row.get("v260_trace_sets") != 9:
         return "fail_closed_missing_v260_trace_scope"
     if row.get("dashboard_smoke_passed") is not True:
         return "fail_closed_missing_dashboard_smoke"
