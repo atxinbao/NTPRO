@@ -4163,3 +4163,34 @@ recommendation, and stale environment evidence. Runbooks remain preview-only
 and audit-linked to V260-003/V260-004. This task does not execute real
 deployment or rollback, integrate a CD system, change release publication
 workflow, trigger trading operations, or trigger automatic remediation.
+
+# V270-000 Verification
+
+Date: 2026-07-07
+Executor: Codex
+Task: `V270-000` / GitHub issue `#853`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v27_intake_gate.sh scripts/ai/verify_release.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_26_1_release_manifest.json >/dev/null = PASS
+git diff --check = PASS
+scripts/ai/verify_release.sh v27-intake-gate = PASS, gate_run=28898171868, tag_sha=bc90355158a7897c7ca78ed31e638d6cf8120da1, v261_issues_closed=6/6, negative_selftest=1
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=0 scripts/ai/check_release_surface_current.sh = PASS
+NTPRO_CURRENT_RELEASE_VERSION=v0.26.1 NTPRO_CURRENT_RELEASE_TAG=ntpro-rust-only-v0.26.1 NTPRO_CURRENT_RELEASE_NAME='NTPRO Rust-only v0.26.1' NTPRO_RELEASE_PUBLICATION_STRICT_BODY=1 scripts/ai/verify_release.sh release-publication-guard = PASS
+scripts/ai/verify_release.sh release-publish-after-gate = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+```
+
+## Result
+
+V270-000 records the v0.27.0 intake gate and v0.26.1 dependency proof. The
+gate proves the v0.26.1 release tag, hosted release gate, public GitHub
+Release, strict release body, post-gate publication ordering, milestone
+closeout, V261 source evidence, and no-inherited-operation-control boundary.
+This task does not add default submit, production order submission or mutation,
+execution adapter calls, adapter send, live exchange requests, retry scheduler,
+automatic remediation, Dashboard operation or trading controls, Trader
+Terminal order tickets, manual operation submit, or product-grade live terminal
+claims.

@@ -13,6 +13,7 @@ V261_RELEASE_URL="${NTPRO_V27_INTAKE_V261_RELEASE_URL:-https://github.com/atxinb
 V261_MANIFEST_PATH="${NTPRO_V27_INTAKE_V261_MANIFEST:-docs/rust-cutover/release/v0_26_1_release_manifest.json}"
 V261_READINESS_PATH="${NTPRO_V27_INTAKE_V261_READINESS:-docs/rust-cutover/release/v0_26_1_readiness_report.md}"
 V261_RELEASE_NOTES_PATH="${NTPRO_V27_INTAKE_V261_NOTES:-docs/rust-cutover/release/v0_26_1_release_notes.md}"
+V270_INTAKE_PATH="${NTPRO_V27_INTAKE_REPORT:-docs/rust-cutover/release/v0_27_0_intake_gate.md}"
 V261_MILESTONE_NUMBER="${NTPRO_V27_INTAKE_V261_MILESTONE_NUMBER:-19}"
 
 fail() {
@@ -70,7 +71,7 @@ git_ls_remote_with_retry() {
   done
 }
 
-for path in "$V261_MANIFEST_PATH" "$V261_READINESS_PATH" "$V261_RELEASE_NOTES_PATH"; do
+for path in "$V261_MANIFEST_PATH" "$V261_READINESS_PATH" "$V261_RELEASE_NOTES_PATH" "$V270_INTAKE_PATH"; do
   require_file "$path"
 done
 
@@ -85,6 +86,7 @@ V261_RELEASE_NAME="$V261_RELEASE_NAME" \
 V261_RELEASE_URL="$V261_RELEASE_URL" \
 V261_MANIFEST_PATH="$V261_MANIFEST_PATH" \
 V261_READINESS_PATH="$V261_READINESS_PATH" \
+V270_INTAKE_PATH="$V270_INTAKE_PATH" \
 python3 <<'PY'
 import json
 import os
@@ -92,6 +94,7 @@ from pathlib import Path
 
 manifest = json.loads(Path(os.environ["V261_MANIFEST_PATH"]).read_text(encoding="utf-8"))
 readiness = Path(os.environ["V261_READINESS_PATH"]).read_text(encoding="utf-8")
+intake = Path(os.environ["V270_INTAKE_PATH"]).read_text(encoding="utf-8")
 
 
 def require(condition: bool, message: str) -> None:
@@ -120,6 +123,17 @@ require(next_tracks.get("capability") == "v0.27.0", "next capability mismatch")
 require(next_tracks.get("start_gate") == "blocked_until_v261_release_evidence_published", "next start gate mismatch")
 require(next_tracks.get("implementation_started") is False, "v27 implementation must not start")
 require("No V270 implementation starts until all V261 issues are closed and v0.26.1" in readiness, "readiness hard-block marker missing")
+for marker in (
+    "start_gate_status = satisfied",
+    "V261 issues closed = 6/6",
+    "v0.26.1 milestone = closed",
+    "v0.26.1 release evidence = published",
+    "v0.26.1 hosted release gate = success",
+    "v0.26.1 GitHub Release published after hosted gate = true",
+    "v0.27.0 capability track = product_operations_runtime_integration_foundation_only",
+    "v0.27.0 runtime capability inherited from v0.26.1 = false",
+):
+    require(marker in intake, f"missing v27 intake marker: {marker}")
 for key in (
     "new_submit_capability",
     "production_order_submission_allowed",
@@ -136,6 +150,7 @@ for key in (
     "product_grade_trading_terminal_claim",
 ):
     require((manifest.get("boundary_flags") or {}).get(key) is False, f"boundary must remain false: {key}")
+    require(f"{key} = false" in intake, f"missing v27 intake boundary marker: {key}")
 PY
 
 if [[ "${NTPRO_V27_INTAKE_ALLOW_UNPUBLISHED:-0}" == "1" ]]; then

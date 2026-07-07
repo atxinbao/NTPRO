@@ -811,6 +811,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   closed, the `ntpro-rust-only-v0.25.1` GitHub Release was published after
   hosted gate success, and v0.26.0 starts only as a gated product hardening
   foundation track with no inherited operation controls.
+- `v0_27_0_intake_gate.md` - V270-000 intake proof that all V261 contractual
+  issues are closed, the `ntpro-rust-only-v0.26.1` GitHub Release was
+  published after hosted gate success, and v0.27.0 starts only as a gated
+  Product Operations Runtime Integration Foundation track with no inherited
+  operation controls.
 - `v0_26_0_product_hardening_boundary_contract.md` - V260-001 contract for the
   v0.26.0 product hardening foundation scope. It records allowed hardening
   areas, required-false trading boundary flags, fail-closed rules, and the
