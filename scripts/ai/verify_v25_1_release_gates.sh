@@ -135,13 +135,17 @@ scripts/ai/verify_release.sh v25.1-corrective-release-scope
 scripts/ai/verify_release.sh v25.1-stale-pretag-cleanup
 scripts/ai/verify_release.sh v25.1-dashboard-source-ref-integrity
 scripts/ai/verify_release.sh v25.1-post-release-gate-split
-NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
-  NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
-  NTPRO_NEXT_PATCH_VERSION="v0.25.2" \
-  NTPRO_NEXT_CAPABILITY_VERSION="v0.26.0" \
-  NTPRO_CURRENT_RELEASE_CAPABILITY="v0.25.1 Monitoring Incident DR Foundation Hardening Patch" \
-  NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 \
-  scripts/ai/verify_release.sh release-surface-current-guard
+if [[ "${NTPRO_V251_RELEASE_SKIP_CURRENT_SURFACE_GUARD:-0}" == "1" ]]; then
+  echo "v25_1_release_gates historical_current_surface_guard=skipped reason=current_release_surface_superseded"
+else
+  NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
+    NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
+    NTPRO_NEXT_PATCH_VERSION="v0.25.2" \
+    NTPRO_NEXT_CAPABILITY_VERSION="v0.26.0" \
+    NTPRO_CURRENT_RELEASE_CAPABILITY="v0.25.1 Monitoring Incident DR Foundation Hardening Patch" \
+    NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 \
+    scripts/ai/verify_release.sh release-surface-current-guard
+fi
 NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
   NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
   NTPRO_CURRENT_RELEASE_NAME="$RELEASE_NAME" \

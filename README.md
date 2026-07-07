@@ -6,44 +6,43 @@ NautilusTrader.
 The current source-tree milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.25.1
-Latest formal release: ntpro-rust-only-v0.25.1
-Current source-tree readiness: ntpro-rust-only-v0.25.1 released
-Current capability: v0.25.1 Monitoring Incident DR Foundation Hardening Patch
-Capability class: monitoring / incident / disaster-recovery foundation hardening patch only
-Next patch: v0.25.2 Reserved Patch Track
-Next capability: v0.26.0 Reserved Capability Track
-v0.26.0 entry: reserved next capability track only after v0.25.1 release evidence is published
-Boundary: v0.25.1 is a governance and evidence hardening patch over the v0.25.0 monitoring, incident, runbook/audit, disaster-recovery preview, read-only Dashboard monitoring, SLO/freshness diagnostics, release gates, and strict provenance foundation. It does not include product-grade live trading, new production submit capability, production order mutation, execution adapter send, live exchange request, implicit retry, retry scheduler, automatic remediation, automatic recovery, strategy-driven production execution, shared approval consumption, real-funds proof in CI, or Dashboard order/approval/cancel/retry/submit/replace/amend/flatten/remediation/order-ticket controls.
+Current source tag: ntpro-rust-only-v0.26.0
+Latest formal release: ntpro-rust-only-v0.26.0
+Current source-tree readiness: ntpro-rust-only-v0.26.0 released
+Current capability: v0.26.0 Product Hardening Foundation
+Capability class: product hardening foundation only
+Next patch: v0.26.1 Reserved Patch Track
+Next capability: v0.27.0 Reserved Capability Track
+v0.27.0 entry: reserved next capability track only after v0.26.0 release evidence is published
+Boundary: v0.26.0 is a product hardening foundation over the v0.25.1 monitoring / incident / disaster-recovery governance line. It covers product hardening boundary evidence, operator permission evidence, operation audit evidence, deployment provenance, upgrade/rollback runbook evidence, SLO/runbook stability evidence, read-only admin Dashboard evidence, release gates, and strict provenance. It does not include product-grade live trading, new production submit capability, production order mutation, execution adapter send, live exchange request, implicit retry, retry scheduler, automatic remediation, automatic recovery, strategy-driven production execution, shared approval consumption, real-funds proof in CI, or Dashboard order/approval/cancel/retry/submit/replace/amend/flatten/remediation/order-ticket controls.
 ```
 
-`ntpro-rust-only-v0.25.1` is the latest formal GitHub Release. It is the
-Monitoring Incident DR Foundation Hardening Patch release. It preserves the
-no-submit/no-Dashboard-controls boundary while closing the v0.25.0 post-release
-governance, corrective scope, stale pre-tag, Dashboard source reference, and
-post-release gate split gaps. It is a monitoring governance hardening patch, not
-a product-grade live trading terminal or production execution runtime.
+`ntpro-rust-only-v0.26.0` is the latest formal GitHub Release. It is the Product
+Hardening Foundation release. It preserves the no-submit/no-Dashboard-controls
+boundary while adding product hardening governance evidence, read-only admin
+Dashboard evidence, release gates, and strict provenance. It is not a
+product-grade live trading terminal or production execution runtime.
 
-The latest formal release is published as a GitHub Release for the v0.25.1
+The latest formal release is published as a GitHub Release for the v0.26.0
 tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.25.1
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.26.0
 ```
 
-`v0.25.1` is the current formal monitoring / incident / DR foundation hardening
-patch. It remains evidence and governance only, not a product-grade live trading
-terminal or general production trading platform claim. It does not add
-production submit, order mutation, execution adapter send, live exchange
-request, ungated cancel/retry/replace/amend/flatten, implicit retry, retry
-scheduler, automatic remediation, automatic recovery, bulk order execution,
-strategy-driven production execution, shared approval consumption, or Dashboard
-operation controls.
+`v0.26.0` is the current formal product hardening foundation. It remains
+evidence and governance only, not a product-grade live trading terminal or
+general production trading platform claim. It does not add production submit,
+order mutation, execution adapter send, live exchange request, ungated
+cancel/retry/replace/amend/flatten, implicit retry, retry scheduler, automatic
+remediation, automatic recovery, bulk order execution, strategy-driven
+production execution, shared approval consumption, or Dashboard operation
+controls.
 
-The next patch track is `v0.25.2`. The next capability track is `v0.26.0`.
-`v0.26.0` does not automatically inherit production submit, mutation, adapter
+The next patch track is `v0.26.1`. The next capability track is `v0.27.0`.
+`v0.27.0` does not automatically inherit production submit, mutation, adapter
 send, live exchange request, retry scheduler, automatic remediation, or
-Dashboard operation controls from `v0.25.1`.
+Dashboard operation controls from `v0.26.0`.
 
 ## Current Status
 
@@ -119,9 +118,10 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.25.1 is the current formal release line. It is the monitoring / incident /
-disaster-recovery foundation hardening patch over the read-only Workbench and
-order-control foundation line and builds on the earlier foundation layers:
+v0.26.0 is the current formal release line. It is the product hardening
+foundation over the monitoring / incident / disaster-recovery foundation and
+read-only Workbench/order-control foundation line and builds on the earlier
+foundation layers:
 
 - `v0.4.x`: Binance sandbox product foundation;
 - `v0.5.0`: local Binance sandbox workflow artifacts;
