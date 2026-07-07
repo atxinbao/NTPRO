@@ -4,9 +4,9 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.25.1`, the v0.25.1 Monitoring Incident DR Foundation Hardening Patch release.
-The next patch track is `v0.25.2`.
-The next capability track is `v0.26.0`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.26.0`, the v0.26.0 Product Hardening Foundation release.
+The next patch track is `v0.26.1`.
+The next capability track is `v0.27.0`.
 
 ## Current Release Surface
 
@@ -15,13 +15,14 @@ Current published release:
 ```text
 ntpro-rust-only-v0.25.0
 ntpro-rust-only-v0.25.1
+ntpro-rust-only-v0.26.0
 ```
 
 Current capability boundary:
 
 ```text
-v0.25.1 Monitoring Incident DR Foundation Hardening Patch
-capability class monitoring / incident / disaster-recovery foundation hardening patch only
+v0.26.0 Product Hardening Foundation
+capability class product hardening foundation only
 v0.20.1 production order lifecycle hardening baseline
 v0.21.0 unified read model foundation closeout baseline
 v0.21.1 unified read model hardening baseline
@@ -73,27 +74,42 @@ multi-venue node registry and lifecycle boundary evidence
 orchestration/control-plane gating evidence
 Dashboard / Workbench read-only observability evidence
 production multi-node runtime implementation not included
-v0.26.0 next capability track hard-blocked by v0.25.1 release evidence
+v0.27.0 next capability track hard-blocked by v0.26.0 release evidence
 no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no product-grade live trading terminal claim
 ```
 
-`v0.25.1` publishes the monitoring / incident / disaster-recovery foundation
-hardening patch over the read-only Workbench and order-control foundation line.
-It closes post-release governance, corrective scope, stale pre-tag, Dashboard
-source reference, post-release gate split, release gate, and strict provenance
-gaps. It does not create a product-grade live trading terminal, ungated
+`v0.26.0` publishes the product hardening foundation over the monitoring /
+incident / disaster-recovery foundation line. It closes product hardening
+boundary evidence, operator permission evidence, operation audit evidence,
+deployment provenance, upgrade/rollback runbook evidence, SLO/runbook stability
+evidence, read-only admin Dashboard evidence, release gates, and strict
+provenance. It does not create a product-grade live trading terminal, ungated
 operation controls, production order mutation, adapter send, retry scheduler,
 shared approval consumption, or automatic execution/remediation.
 
+## Published Capability Track: v0.26.0
+
+`v0.26.0` is the current published Product Hardening Foundation. It preserves
+the read-only Workbench boundary and adds release-gated product hardening
+evidence for permissions, audit, deployment provenance, upgrade/rollback,
+stability/SLO, Dashboard admin display, release gates, and strict provenance.
+It is not a production execution runtime implementation.
+
+`v0.26.0` explicitly does not include product-grade live trading terminal
+readiness, new production submit capability, production order mutation,
+execution adapter send, live exchange request, retry scheduler,
+automatic remediation/recovery, strategy-driven production execution, shared
+approval consumption, or Dashboard operation/trading controls.
+
 ## Published Capability Track: v0.25.1
 
-`v0.25.1` is the current published monitoring / incident / disaster-recovery
-foundation hardening patch. It preserves the read-only Workbench boundary and
-adds v0.25.0 closeout evidence, corrective release-scope linkage, stale
-pre-tag cleanup, Dashboard source reference integrity, post-release gate split,
-release gates, and strict provenance. It is a monitoring governance hardening
-surface, not a production execution runtime implementation.
+`v0.25.1` is the published monitoring / incident / disaster-recovery foundation
+hardening patch that precedes v0.26.0. It preserves the read-only Workbench
+boundary and adds v0.25.0 closeout evidence, corrective release-scope linkage,
+stale pre-tag cleanup, Dashboard source reference integrity, post-release gate
+split, release gates, and strict provenance. It is a monitoring governance
+hardening surface, not a production execution runtime implementation.
 
 `v0.25.1` explicitly does not include product-grade live trading terminal
 readiness, new production submit capability, production order mutation,

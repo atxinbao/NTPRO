@@ -331,7 +331,9 @@ else:
     raise SystemExit("negative selftest failed: V260 start gate accepted missing V251 release evidence")
 PY
 
-NTPRO_V251_RELEASE_REQUIRE_CLOSEOUT=1 scripts/ai/verify_release.sh v25.1-release-gates
+NTPRO_V251_RELEASE_REQUIRE_CLOSEOUT=1 \
+NTPRO_V251_RELEASE_SKIP_CURRENT_SURFACE_GUARD=1 \
+  scripts/ai/verify_release.sh v25.1-release-gates
 NTPRO_CURRENT_RELEASE_VERSION="$V251_RELEASE_VERSION" \
   NTPRO_CURRENT_RELEASE_TAG="$V251_RELEASE_TAG" \
   NTPRO_CURRENT_RELEASE_NAME="$V251_RELEASE_NAME" \

@@ -1,3 +1,37 @@
+# V260-008 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V260-008` / GitHub issue `#820`
+Milestone: `v0.26.0`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v26_release_gates.sh scripts/ai/verify_v26_strict_provenance.sh scripts/ai/check_release_surface_current.sh scripts/ai/check_github_release_published.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_26_0_release_manifest.json >/dev/null = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v260_release_gates_strict_provenance.jsonl").read_text().splitlines() if line.strip()]' = PASS
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/verify_release.sh release-surface-current-guard = PASS
+scripts/ai/verify_release.sh v26-release-gates = PASS, current_issue_state=OPEN, final_scope_issues=9, negative_selftest=1
+scripts/ai/verify_release.sh v26-strict-provenance = PASS, manifest=target/ntpro-v260/v0_26_0_strict_release_manifest.json
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 232 cases, 95 executable replay, 132 validator executable replay, 5 schema-only scoped
+cargo test -p nautilus-cli dashboard_v26_admin_surface --lib -j 1 = PASS, 3 tests
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V260-008 adds v0.26.0 release gates and strict provenance for the Product
+Hardening Foundation. The gate aggregates V260-000 through V260-007 evidence,
+v26 validator traces, Dashboard render smoke, artifact ingestion tests, release
+surface current guard, publication guard, and gate-before-publish governance.
+
+No submit, cancel, retry, replace, amend, flatten, order-ticket, adapter send,
+live exchange request, retry scheduler, automatic remediation, Dashboard
+trading controls, or product-grade live trading terminal claim is included.
+
 # V260-007 Verification
 
 Date: 2026-07-06
