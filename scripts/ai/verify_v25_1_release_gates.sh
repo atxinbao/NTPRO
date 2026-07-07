@@ -153,11 +153,13 @@ NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
   scripts/ai/verify_release.sh release-publication-guard
 scripts/ai/verify_release.sh release-publish-after-gate
 
-if [[ "${NTPRO_RELEASE_GATE:-0}" == "1" ]]; then
+if [[ "${NTPRO_RELEASE_GATE:-0}" == "1" && "${NTPRO_V251_RELEASE_HISTORICAL_PREREQ:-0}" != "1" ]]; then
   git rev-parse -q --verify "${RELEASE_TAG}^{commit}" >/dev/null || fail "missing local release tag: $RELEASE_TAG"
   tag_commit="$(git rev-list -n 1 "$RELEASE_TAG")"
   head_commit="$(git rev-parse HEAD)"
   [[ "$head_commit" == "$tag_commit" ]] || fail "HEAD $head_commit does not match $RELEASE_TAG commit $tag_commit"
+elif [[ "${NTPRO_RELEASE_GATE:-0}" == "1" ]]; then
+  echo "v25_1_release_gates tag_head_guard=skipped reason=historical_prerequisite"
 fi
 
 RELEASE_VERSION="$RELEASE_VERSION" RELEASE_TAG="$RELEASE_TAG" RELEASE_NAME="$RELEASE_NAME" MANIFEST_PATH="$MANIFEST_PATH" python3 <<'PY'
