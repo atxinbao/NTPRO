@@ -49,6 +49,9 @@ input_paths=(
   "$ROOT_DIR/scripts/ai/verify_v26_release_gates.sh"
   "$ROOT_DIR/scripts/ai/verify_v26_strict_provenance.sh"
   "$ROOT_DIR/scripts/ai/verify_v26_1_final_scope_integration.sh"
+  "$ROOT_DIR/scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh"
+  "$ROOT_DIR/docs/rust-cutover/tasks/V261-003.md"
+  "$ROOT_DIR/docs/rust-cutover/evidence/V261-003.md"
   "$ROOT_DIR/.github/workflows/release-tag.yml"
   "$ROOT_DIR/.github/workflows/release-publish.yml"
 )
@@ -216,6 +219,7 @@ payload = {
         "pre_gate_publication": "public GitHub Release publication must use the gate-before-publish entrypoint after hosted gate success",
         "open_v260_issue_or_milestone": "NTPRO_RELEASE_GATE=1 fails unless V260 issues are closed and the v0.26.0 milestone is closed",
         "corrective_scope_mismatch": "v0.26.0 release gate fails if V260-009..V260-013 corrective issue, PR, task, or evidence scope is missing",
+        "stale_v260_evidence": "v0.26.0 post-publication gates fail if stale open issue, scope-9, pending hosted gate, or offline publication wording returns",
     },
     "generated_at": os.environ["GENERATED_AT"],
 }
