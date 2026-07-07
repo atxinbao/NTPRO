@@ -1,3 +1,32 @@
+# V261-004 Verification
+
+Date: 2026-07-07
+Executor: Codex
+Task: `V261-004` / GitHub issue `#850`
+Milestone: `v0.26.1`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v26_release_gates.sh scripts/ai/verify_v26_strict_provenance.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_26_0_release_manifest.json >/dev/null = PASS
+scripts/ai/verify_release.sh v26-release-gates = PASS, current_issue_state=CLOSED, final_scope_issues=14, corrective_scope=5, negative_selftest=1
+scripts/ai/verify_release.sh v26-strict-provenance = PASS, manifest=target/ntpro-v260/v0_26_0_strict_release_manifest.json
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V261-004 hardens `scripts/ai/verify_v26_release_gates.sh` so final v0.26.0
+scope cannot remain `9` after corrective tasks `V260-009..V260-013` are present
+in release notes/readiness/closeout. The gate now cross-checks release notes,
+readiness, closeout evidence, manifest, release gates, and strict provenance
+for final scope `14` and corrective scope `5`, with negative self-tests for
+scope drift and missing manifest/gate corrective scope. No runtime, adapter,
+Dashboard, order, public API, submit, mutation, live exchange, retry,
+remediation, or product-grade trading terminal behavior changed.
+
 # V261-003 Verification
 
 Date: 2026-07-07
