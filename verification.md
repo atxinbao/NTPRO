@@ -1,3 +1,44 @@
+# V260-007 Verification
+
+Date: 2026-07-06
+Executor: Codex
+Task: `V260-007` / GitHub issue `#819`
+Milestone: `v0.26.0`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v26_dashboard_admin_boundary_surface.sh = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v260_dashboard_admin_boundary_surface.jsonl").read_text().splitlines() if line.strip()]' = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+cargo test -p nautilus-cli dashboard_v26_admin_surface --lib -j 1 = PASS, 3 tests
+cargo test -p nautilus-cli trader_terminal_read_model_artifact_populates_runtime_bridge --lib -j 1 = PASS, 1 test
+cargo test -p nautilus-cli dashboard_v25_monitoring_surface --lib -j 1 = PASS, 4 tests
+scripts/ai/verify_release.sh v26-dashboard-admin-boundary-surface = PASS, cases=6, components=5, negative_selftest=3
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 226 cases, 95 executable replay, 126 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v26-product-hardening-boundary-contract = PASS, cases=8, required_false_flags=17, negative_selftest=1
+scripts/ai/verify_release.sh v26-operator-permission-model = PASS, cases=7, roles=5, negative_selftest=1
+scripts/ai/verify_release.sh v26-operation-audit-trail = PASS, cases=6, negative_selftest=1
+scripts/ai/verify_release.sh v26-deployment-provenance-model = PASS, cases=6, environments=4, negative_selftest=1
+scripts/ai/verify_release.sh v26-upgrade-rollback-runbook-evidence = PASS, cases=6, negative_selftest=1
+scripts/ai/verify_release.sh v26-slo-runbook-stability-evidence = PASS, cases=6, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V260-007 adds the v0.26.0 Dashboard / Trader Terminal product hardening
+read-only admin surface for permission, operation audit, deployment provenance,
+upgrade/rollback, and stability/SLO evidence. Render smoke and artifact
+ingestion tests cover the v26 surface, including malformed source refs,
+forbidden controls, unredacted evidence, stale artifacts, and missing
+components.
+
+No operation button, live control API, submit/cancel/retry/replace/amend/flatten
+control, order ticket, adapter send, live exchange request, automatic
+remediation, or product-grade live trading terminal claim is included.
+
 # V260-006 Verification
 
 Date: 2026-07-06
