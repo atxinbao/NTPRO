@@ -1,3 +1,32 @@
+# V261-002 Verification
+
+Date: 2026-07-07
+Executor: Codex
+Task: `V261-002` / GitHub issue `#848`
+Milestone: `v0.26.1`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v26_release_gates.sh scripts/ai/verify_v26_strict_provenance.sh scripts/ai/verify_v26_1_final_scope_integration.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_26_0_release_manifest.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v260/release_gates_strict_provenance.jsonl").read_text().splitlines() if line.strip()]' = PASS
+scripts/ai/verify_release.sh v26.1-final-scope-integration = PASS, final_scope_issues=14, corrective_scope=5, negative_selftest=1
+scripts/ai/verify_release.sh v26-release-gates = PASS, final_scope_issues=14, corrective_scope=5, negative_selftest=1
+scripts/ai/verify_release.sh v26-strict-provenance = PASS, manifest=target/ntpro-v260/v0_26_0_strict_release_manifest.json
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V261-002 integrates V260-009..V260-013 corrective release-publication tasks
+into the formal final v0.26.0 release scope. The source scope now records 14
+issues/evidence entries and corrective PRs #838/#840/#842/#844/#846. No
+runtime, adapter, Dashboard, order, public API, submit, mutation, live
+exchange, retry, remediation, or product-grade trading terminal behavior
+changed.
+
 # V261-001 Verification
 
 Date: 2026-07-07
