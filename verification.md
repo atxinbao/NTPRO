@@ -4194,3 +4194,33 @@ execution adapter calls, adapter send, live exchange requests, retry scheduler,
 automatic remediation, Dashboard operation or trading controls, Trader
 Terminal order tickets, manual operation submit, or product-grade live terminal
 claims.
+
+# V270-001 Verification
+
+Date: 2026-07-07
+Executor: Codex
+Task: `V270-001` / GitHub issue `#854`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v27_intake_gate.sh scripts/ai/verify_v27_product_operations_runtime_integration_boundary_contract.sh = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v270_product_operations_runtime_integration_boundary_contract.jsonl").read_text().splitlines() if line.strip()]' = PASS
+scripts/ai/verify_release.sh v27-product-operations-boundary-contract = PASS, cases=7, required_false_flags=17, provenance_flags=5, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 239 cases, 95 executable replay, 139 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v27-intake-gate = PASS, gate_run=28898171868, tag_sha=bc90355158a7897c7ca78ed31e638d6cf8120da1, v261_issues_closed=6/6, negative_selftest=1
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+```
+
+## Result
+
+V270-001 defines the v0.27.0 Product Operations Runtime Integration Foundation
+boundary contract. The contract allows only read/admin integration foundation
+surfaces for identity, audit, deployment orchestration, telemetry ingestion,
+and admin workbench state, while requiring source provenance, freshness,
+redaction, lineage, and fail-closed semantics. It keeps every trading,
+execution, adapter-send, live-exchange, retry, automatic-remediation,
+Dashboard trading-control, manual-submit, and product-grade terminal claim
+explicitly false.
