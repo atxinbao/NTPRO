@@ -1,3 +1,32 @@
+# V260-010 Verification
+
+Date: 2026-07-07
+Executor: Codex
+Task: `V260-010` / GitHub issue `#839`
+Milestone: `v0.26.0`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_v25_1_release_gates.sh scripts/ai/verify_v26_intake_gate.sh scripts/ai/verify_v26_release_gates.sh = PASS
+scripts/ai/verify_release.sh v26-strict-provenance = PASS, manifest=target/ntpro-v260/v0_26_0_strict_release_manifest.json
+NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE=1 scripts/ai/verify_release.sh v26-release-gates = PASS, current_issue_state=CLOSED, final_scope_issues=9, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+## Result
+
+V260-010 fixes v26 release gate nested historical prerequisite behavior. The
+direct v25.1 tag-stage gate still checks `HEAD == ntpro-rust-only-v0.25.1`;
+the v26 intake gate now marks its v25.1 prerequisite call with
+`NTPRO_V251_RELEASE_HISTORICAL_PREREQ=1`, which skips only that tag-head check
+while keeping v25.1 evidence, publication, issue, and milestone validation.
+
+No runtime, adapter, Dashboard, order, public API, submit, mutation, live
+exchange, retry, remediation, or product-grade trading terminal behavior
+changed.
+
 # V260-009 Verification
 
 Date: 2026-07-07
