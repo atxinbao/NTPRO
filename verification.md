@@ -1,3 +1,28 @@
+# V261-001 Verification
+
+Date: 2026-07-07
+Executor: Codex
+Task: `V261-001` / GitHub issue `#847`
+Milestone: `v0.26.1`
+
+## Commands
+
+```text
+python3 -m json.tool docs/rust-cutover/release/v0_26_0_release_manifest.json >/dev/null = PASS
+NTPRO_CURRENT_RELEASE_VERSION=v0.26.0 NTPRO_CURRENT_RELEASE_TAG=ntpro-rust-only-v0.26.0 NTPRO_CURRENT_RELEASE_NAME="NTPRO Rust-only v0.26.0" NTPRO_RELEASE_PUBLICATION_STRICT_BODY=1 scripts/ai/check_github_release_published.sh = PASS, release_publication_guard=pass, tag_sha=b09ec3a9f96ac718d6660b345a74cb4b7790f19a, origin_main_sha=b09ec3a9f96ac718d6660b345a74cb4b7790f19a, published_at=2026-07-07T05:29:16Z
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V261-001 backfills final v0.26.0 release closeout evidence into tracked source
+files, including release URL, published timestamp, tag object SHA, peeled
+commit SHA, hosted release gate, publish workflow, release body hash, issue
+closeout, and milestone closeout. No runtime, adapter, Dashboard, order, public
+API, submit, mutation, live exchange, retry, remediation, or product-grade
+trading terminal behavior changed.
+
 # V260-010 Verification
 
 Date: 2026-07-07
