@@ -93,6 +93,25 @@ The release gate recommendation is `PASS` only when:
   automatic remediation, Dashboard trading controls, or product-grade live
   trading terminal claim is opened.
 
+## Release Closeout
+
+Final post-publication closeout evidence is recorded in
+`docs/rust-cutover/release/v0_26_0_release_closeout_evidence.md`.
+
+```text
+release tag = ntpro-rust-only-v0.26.0
+tag peeled commit = b09ec3a9f96ac718d6660b345a74cb4b7790f19a
+GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.26.0
+GitHub Release published at = 2026-07-07T05:29:16Z
+hosted release gate = https://github.com/atxinbao/NTPRO/actions/runs/28853960135
+hosted release gate conclusion = success
+publish workflow = https://github.com/atxinbao/NTPRO/actions/runs/28858791493
+publish workflow conclusion = success
+release body sha256 = a105aa0fdee4e247daba4083833cb29e413cdb25ad9b745e6967b9a5b22a0047
+release body matches tracked release notes = true
+v0.26.0 milestone = #18 closed, 14 closed issues, 0 open issues
+```
+
 ## Next Track
 
 The next patch track is `v0.26.1`.
