@@ -86,11 +86,11 @@ The next capability track is:
 v0.27.0
 ```
 
-v0.27.0 is a placeholder for the next capability track. It does not inherit
-production submit, production order mutation, execution adapter send, adapter
-send, live exchange request, implicit retry, retry scheduler, automatic
-remediation/recovery, strategy-driven production execution, shared approval
-consumption, or Dashboard operation controls from v0.26.1.
+v0.27.0 is the next gated capability track after the V270 intake proof. It does
+not inherit production submit, production order mutation, execution adapter
+send, adapter send, live exchange request, implicit retry, retry scheduler,
+automatic remediation/recovery, strategy-driven production execution, shared
+approval consumption, or Dashboard operation controls from v0.26.1.
 
 ## Cargo Workspace Version
 
