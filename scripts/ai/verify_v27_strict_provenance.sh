@@ -181,6 +181,11 @@ require(len(release_manifest.get("v270_evidence") or []) == 11, "v270 evidence c
 scope = release_manifest.get("release_scope") or {}
 require(scope.get("final_release_scope_issue_count") == 11, "final release scope issue count must be 11")
 require(scope.get("final_release_scope_evidence_count") == 11, "final release scope evidence count must be 11")
+require(scope.get("exact_milestone_issue_numbers") == [853, 854, 855, 856, 857, 858, 859, 860, 861, 883, 885], "exact milestone issue numbers mismatch")
+require(scope.get("exact_milestone_issue_set") == "#853-#861,#883,#885", "exact milestone issue set mismatch")
+require(scope.get("registered_corrective_scope_exception_count") == 0, "registered corrective exception count mismatch")
+require(scope.get("unregistered_corrective_milestone_issues_fail_closed") is True, "unregistered corrective fail-closed rule missing")
+require(scope.get("future_release_gates_must_register_corrective_issues") is True, "future corrective registration rule missing")
 require(scope.get("v26_1_dependency_proven") is True, "v26.1 dependency proof missing")
 require(scope.get("v26_1_release_evidence_published") is True, "v26.1 release evidence missing")
 require(scope.get("capability_scope_expands_trading") is False, "release gate must not expand trading")

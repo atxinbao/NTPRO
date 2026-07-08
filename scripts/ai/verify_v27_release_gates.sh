@@ -17,6 +17,7 @@ TRACE_PATH="${NTPRO_V270_RELEASE_TRACE:-tests/golden/v270_release_gates_strict_p
 REPLAY_SCOPE_PATH="${NTPRO_V270_REPLAY_SCOPE:-docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json}"
 CURRENT_ISSUE="${NTPRO_V270_CURRENT_ISSUE:-885}"
 MILESTONE_NUMBER="${NTPRO_V270_MILESTONE_NUMBER:-20}"
+MILESTONE_TITLE="${NTPRO_V270_MILESTONE_TITLE:-v0.27.0}"
 
 fail() {
   echo "v27 release gate failed: $*" >&2
@@ -179,6 +180,10 @@ for marker in \
   "#885 V270-010 = closed before v0.27.0 tag gate was accepted" \
   "V270 final release scope issue count = 11" \
   "V270 final release scope evidence count = 11" \
+  "V270 exact milestone issue set = #853-#861,#883,#885" \
+  "V270 registered corrective-scope exception count = 0" \
+  "registered corrective-scope exceptions required = true" \
+  "unregistered corrective milestone issues fail closed = true" \
   "v0.27.0 milestone = closed before public publication"; do
   require_contains "$READINESS_REPORT_PATH" "$marker"
 done
@@ -314,6 +319,11 @@ def validate(candidate: dict) -> None:
     scope = candidate.get("release_scope") or {}
     require(scope.get("final_release_scope_issue_count") == 11, "final release scope issue count mismatch")
     require(scope.get("final_release_scope_evidence_count") == 11, "final release scope evidence count mismatch")
+    require(scope.get("exact_milestone_issue_numbers") == [853, 854, 855, 856, 857, 858, 859, 860, 861, 883, 885], "exact milestone issue numbers mismatch")
+    require(scope.get("exact_milestone_issue_set") == "#853-#861,#883,#885", "exact milestone issue set mismatch")
+    require(scope.get("registered_corrective_scope_exception_count") == 0, "registered corrective exception count mismatch")
+    require(scope.get("unregistered_corrective_milestone_issues_fail_closed") is True, "unregistered corrective fail-closed rule missing")
+    require(scope.get("future_release_gates_must_register_corrective_issues") is True, "future corrective registration rule missing")
     require(scope.get("v26_1_dependency_proven") is True, "v26.1 dependency proof missing")
     require(scope.get("v26_1_release_evidence_published") is True, "v26.1 release evidence missing")
     require(scope.get("capability_scope_expands_trading") is False, "release gate must not expand trading")
@@ -434,6 +444,14 @@ if os.environ.get("NTPRO_V270_RELEASE_SELFTEST", "1") == "1":
         pass
     else:
         raise SystemExit("negative self-test unexpectedly passed: missing v26.1 dependency proof")
+    extra_issue = copy.deepcopy(manifest)
+    extra_issue["release_scope"]["exact_milestone_issue_numbers"] = extra_issue["release_scope"]["exact_milestone_issue_numbers"] + [999]
+    try:
+        validate(extra_issue)
+    except SystemExit:
+        pass
+    else:
+        raise SystemExit("negative self-test unexpectedly passed: unregistered extra milestone issue")
 PY
 
 python3 scripts/ai/validate_golden_trace_release_scope.py >/dev/null
@@ -452,22 +470,31 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   if [[ "$current_state" == "CLOSED" ]]; then
     v270_issue_summary="11/11_closed"
   else
-    v270_issue_summary="10/11_closed_or_current"
+    fail "GitHub issue #$CURRENT_ISSUE must be CLOSED for exact v27 scope, got $current_state"
   fi
   milestone_json="$(gh_with_retry api "/repos/$REPO/milestones/$MILESTONE_NUMBER")" || fail "could not read GitHub milestone #$MILESTONE_NUMBER"
-  MILESTONE_JSON="$milestone_json" RELEASE_GATE="${NTPRO_RELEASE_GATE:-0}" REQUIRE_CLOSEOUT="${NTPRO_V270_RELEASE_REQUIRE_CLOSEOUT:-0}" python3 <<'PY'
+  milestone_issues_json="$(gh_with_retry issue list --repo "$REPO" --milestone "$MILESTONE_TITLE" --state all --limit 100 --json number,state,title)" || fail "could not read GitHub milestone issues for $MILESTONE_TITLE"
+  MILESTONE_JSON="$milestone_json" MILESTONE_ISSUES_JSON="$milestone_issues_json" RELEASE_GATE="${NTPRO_RELEASE_GATE:-0}" REQUIRE_CLOSEOUT="${NTPRO_V270_RELEASE_REQUIRE_CLOSEOUT:-0}" python3 <<'PY'
 import json
 import os
 
 milestone = json.loads(os.environ["MILESTONE_JSON"])
+milestone_issues = json.loads(os.environ["MILESTONE_ISSUES_JSON"])
+expected = {853, 854, 855, 856, 857, 858, 859, 860, 861, 883, 885}
 if milestone["title"] != "v0.27.0":
     raise SystemExit(milestone)
 if os.environ["RELEASE_GATE"] == "1" or os.environ["REQUIRE_CLOSEOUT"] == "1":
-    if milestone["state"] != "closed" or milestone["open_issues"] != 0 or milestone["closed_issues"] < 11:
-        raise SystemExit(f"v0.27.0 milestone must be closed with at least 11 closed issues for tag gate: {milestone}")
+    if milestone["state"] != "closed" or milestone["open_issues"] != 0 or milestone["closed_issues"] != len(expected):
+        raise SystemExit(f"v0.27.0 milestone must be closed with exactly registered issue scope for tag gate: {milestone}")
 else:
     if milestone["state"] not in {"open", "closed"}:
         raise SystemExit(milestone)
+numbers = {issue.get("number") for issue in milestone_issues}
+if numbers != expected:
+    raise SystemExit(f"v0.27.0 milestone issue set mismatch: {sorted(numbers)}")
+for issue in milestone_issues:
+    if issue.get("state") != "CLOSED":
+        raise SystemExit(f"v0.27.0 milestone issue must be closed: #{issue.get('number')}")
 PY
 else
   fail "gh authentication is required for v27 release gate issue proof"

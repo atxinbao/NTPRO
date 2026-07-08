@@ -821,7 +821,8 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_27_0_release_manifest.json` - machine-readable v0.27.0 release manifest
   for V270 release gates. It records V270 evidence paths, release gate
   commands, boundary flags, publication governance, current release surface
-  guard fields, and the v0.28.0 start boundary.
+  guard fields, exact milestone issue-set checks, and the v0.28.0 start
+  boundary.
 - `v0_27_0_release_closeout_evidence.md` - post-publication closeout evidence
   for the formal `ntpro-rust-only-v0.27.0` release. It records the public
   GitHub Release, hosted release gate run `28921344889`, tag commit,
@@ -841,6 +842,9 @@ Final release checks, benchmark summaries, and audit reports live here.
   ledger. It records #868 / V261-007 as a registered corrective-scope
   exception and the v27 intake fail-closed rule for unregistered corrective
   milestone issues.
+- `../evidence/V271-005.md` - exact release scope gate hardening ledger. It
+  records the v27 milestone issue-set exact match rule and the fail-closed
+  behavior for unregistered corrective milestone issues.
 - `v0_26_0_intake_gate.md` - V260-000 intake proof that all V251 issues are
   closed, the `ntpro-rust-only-v0.25.1` GitHub Release was published after
   hosted gate success, and v0.26.0 starts only as a gated product hardening

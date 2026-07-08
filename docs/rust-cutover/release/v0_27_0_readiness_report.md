@@ -69,6 +69,10 @@ scripts/ai/verify_release.sh release-publish-after-gate
 ```text
 V270 final release scope issue count = 11
 V270 final release scope evidence count = 11
+V270 exact milestone issue set = #853-#861,#883,#885
+V270 registered corrective-scope exception count = 0
+registered corrective-scope exceptions required = true
+unregistered corrective milestone issues fail closed = true
 v0.26.1 dependency proof = required
 v0.26.1 release evidence = published
 v0.27.0 milestone = closed before public publication
