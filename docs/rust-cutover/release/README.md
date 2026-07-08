@@ -832,6 +832,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   records audit sink provenance, sequence/hash lineage, redaction, retention
   metadata, and store/source reconciliation without operation execution,
   remediation, adapter send, live exchange request, or Dashboard controls.
+- `v0_27_0_deployment_orchestration_foundation.md` - V270-004 contract for
+  preview-first deployment, upgrade, rollback, and post-check orchestration
+  state. It requires owner approval, release gate evidence, fresh environment
+  provenance, and rollback plan lineage without automatic deploy, rollback,
+  remediation, adapter send, live exchange request, or Dashboard controls.
 - `v0_26_0_product_hardening_boundary_contract.md` - V260-001 contract for the
   v0.26.0 product hardening foundation scope. It records allowed hardening
   areas, required-false trading boundary flags, fail-closed rules, and the

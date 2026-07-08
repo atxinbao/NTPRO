@@ -4288,3 +4288,35 @@ unredacted payloads, store/source drift, and forbidden operation triggers fail
 closed. This task does not implement a database, execute audit actions, trigger
 remediation, send to adapters, call live exchanges, or expose Dashboard
 controls.
+
+# V270-004 Verification
+
+Date: 2026-07-08
+Executor: Codex
+Task: `V270-004` / GitHub issue `#857`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v27_deployment_orchestration_foundation.sh = PASS
+scripts/ai/verify_release.sh v27-deployment-orchestration-foundation = PASS, cases=7, states=4, boundary_flags=13, negative_selftest=1
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v270_deployment_orchestration_foundation.jsonl").read_text().splitlines() if line.strip()]' = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 260 cases, 95 executable replay, 160 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v27-persistent-audit-storage-foundation = PASS, cases=7, records=2, boundary_flags=9, negative_selftest=1
+scripts/ai/verify_release.sh v26-deployment-provenance-model = PASS, cases=6, environments=4, negative_selftest=1
+scripts/ai/verify_release.sh v26-upgrade-rollback-runbook-evidence = PASS, cases=6, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V270-004 defines the v0.27.0 deployment, upgrade, rollback, and post-check
+runtime orchestration foundation. The contract validates preview-first gated
+states backed by fresh environment provenance, owner approval, release gate
+evidence, and rollback plan lineage. Stale environment provenance, missing
+approval, tag/source mismatch, failed preflight, unsafe automation requests,
+and forbidden operation boundaries fail closed. This task does not execute
+deploy, rollback, remediation, adapter send, live exchange requests, Dashboard
+controls, or trading operations.
