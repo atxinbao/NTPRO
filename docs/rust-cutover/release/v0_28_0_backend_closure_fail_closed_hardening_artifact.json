@@ -1,0 +1,290 @@
+{
+  "schema_version": "ntpro.v280.backend_closure_fail_closed_hardening_artifact.v1",
+  "contract_version": "ntpro.v280.backend_closure_fail_closed_hardening.v1",
+  "task_id": "V280-008",
+  "github_issue": 901,
+  "milestone": "v0.28.0",
+  "backend_module": "backend_closure_fail_closed_hardening",
+  "backend_module_status": "runtime_closed",
+  "release_scope": "backend_closure_product_operations_runtime_finalization_only",
+  "dependency_contracts": [
+    "V280-001",
+    "V280-002",
+    "V280-003",
+    "V280-004",
+    "V280-005",
+    "V280-006",
+    "V280-007",
+    "V270-007",
+    "V271-006"
+  ],
+  "hardening_mode": "deterministic_backend_closure_fail_closed_replay",
+  "claim_boundary": {
+    "runtime_closure_health_separate_from_trading_readiness": true,
+    "backend_complete_claim_allowed": false,
+    "frontend_product_claim_allowed": false,
+    "production_execution_runtime_claim_allowed": false,
+    "partial_backend_closure_product_ready_allowed": false,
+    "product_grade_trading_ready_allowed": false,
+    "product_grade_terminal_claim_allowed": false,
+    "trading_readiness_status": "not_ready",
+    "backend_closure_health_values": [
+      "ready",
+      "degraded",
+      "blocked",
+      "stale",
+      "fail_closed"
+    ]
+  },
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "default_submit_allowed": false,
+    "submit_order_allowed": false,
+    "cancel_order_allowed": false,
+    "retry_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "order_ticket_enabled": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "trader_terminal_submit_controls_enabled": false,
+    "manual_operation_entry_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_complete_claim": false,
+    "frontend_product_work_complete_claim": false,
+    "product_grade_trading_terminal_claim": false,
+    "product_grade_trading_ready": false,
+    "display_product_ready_badge": false
+  },
+  "component_integrations": {
+    "backend_closure_boundary_contract": {
+      "component_status": "ready",
+      "source_ref": "docs/rust-cutover/release/v0_28_0_backend_closure_readiness_matrix.json",
+      "evidence_path": "docs/rust-cutover/evidence/V280-001.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-backend-closure-boundary-contract",
+      "provenance_status": "verified",
+      "freshness_status": "fresh",
+      "redaction_status": "redacted",
+      "source_drift_status": "aligned",
+      "runtime_state_aligned": true,
+      "read_only": true,
+      "operation_controls_enabled": false,
+      "trading_controls_enabled": false,
+      "product_ready_claim_allowed": false,
+      "trading_readiness_claim_allowed": false,
+      "degradation_reasons": []
+    },
+    "identity_permission_runtime_closure": {
+      "component_status": "ready",
+      "source_ref": "docs/rust-cutover/release/v0_28_0_identity_permission_runtime_artifact.json",
+      "evidence_path": "docs/rust-cutover/evidence/V280-002.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-identity-permission-runtime-closure",
+      "provenance_status": "verified",
+      "freshness_status": "fresh",
+      "redaction_status": "redacted",
+      "source_drift_status": "aligned",
+      "runtime_state_aligned": true,
+      "read_only": true,
+      "operation_controls_enabled": false,
+      "trading_controls_enabled": false,
+      "product_ready_claim_allowed": false,
+      "trading_readiness_claim_allowed": false,
+      "degradation_reasons": []
+    },
+    "persistent_audit_storage_runtime_closure": {
+      "component_status": "ready",
+      "source_ref": "docs/rust-cutover/release/v0_28_0_persistent_audit_storage_runtime_artifact.json",
+      "evidence_path": "docs/rust-cutover/evidence/V280-003.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-persistent-audit-storage-runtime-closure",
+      "provenance_status": "verified",
+      "freshness_status": "fresh",
+      "redaction_status": "redacted",
+      "source_drift_status": "aligned",
+      "runtime_state_aligned": true,
+      "read_only": true,
+      "operation_controls_enabled": false,
+      "trading_controls_enabled": false,
+      "product_ready_claim_allowed": false,
+      "trading_readiness_claim_allowed": false,
+      "degradation_reasons": []
+    },
+    "deployment_upgrade_rollback_orchestration_runtime_closure": {
+      "component_status": "ready",
+      "source_ref": "docs/rust-cutover/release/v0_28_0_deployment_orchestration_runtime_artifact.json",
+      "evidence_path": "docs/rust-cutover/evidence/V280-004.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-deployment-orchestration-runtime-closure",
+      "provenance_status": "verified",
+      "freshness_status": "fresh",
+      "redaction_status": "redacted",
+      "source_drift_status": "aligned",
+      "runtime_state_aligned": true,
+      "read_only": true,
+      "operation_controls_enabled": false,
+      "trading_controls_enabled": false,
+      "product_ready_claim_allowed": false,
+      "trading_readiness_claim_allowed": false,
+      "degradation_reasons": []
+    },
+    "telemetry_slo_ingestion_runtime_closure": {
+      "component_status": "ready",
+      "source_ref": "docs/rust-cutover/release/v0_28_0_telemetry_slo_ingestion_runtime_artifact.json",
+      "evidence_path": "docs/rust-cutover/evidence/V280-005.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-telemetry-slo-ingestion-runtime-closure",
+      "provenance_status": "verified",
+      "freshness_status": "fresh",
+      "redaction_status": "redacted",
+      "source_drift_status": "aligned",
+      "runtime_state_aligned": true,
+      "read_only": true,
+      "operation_controls_enabled": false,
+      "trading_controls_enabled": false,
+      "product_ready_claim_allowed": false,
+      "trading_readiness_claim_allowed": false,
+      "degradation_reasons": []
+    },
+    "admin_workbench_backend_state_bridge_closure": {
+      "component_status": "ready",
+      "source_ref": "docs/rust-cutover/release/v0_28_0_admin_workbench_backend_state_bridge_artifact.json",
+      "evidence_path": "docs/rust-cutover/evidence/V280-006.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-admin-workbench-backend-state-bridge-closure",
+      "provenance_status": "verified",
+      "freshness_status": "fresh",
+      "redaction_status": "redacted",
+      "source_drift_status": "aligned",
+      "runtime_state_aligned": true,
+      "read_only": true,
+      "operation_controls_enabled": false,
+      "trading_controls_enabled": false,
+      "product_ready_claim_allowed": false,
+      "trading_readiness_claim_allowed": false,
+      "degradation_reasons": []
+    },
+    "trader_terminal_backend_api_contract_handoff": {
+      "component_status": "ready",
+      "source_ref": "docs/rust-cutover/release/v0_28_0_trader_terminal_backend_api_contract_artifact.json",
+      "evidence_path": "docs/rust-cutover/evidence/V280-007.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-trader-terminal-backend-api-contract-handoff",
+      "provenance_status": "verified",
+      "freshness_status": "fresh",
+      "redaction_status": "redacted",
+      "source_drift_status": "aligned",
+      "runtime_state_aligned": true,
+      "read_only": true,
+      "operation_controls_enabled": false,
+      "trading_controls_enabled": false,
+      "product_ready_claim_allowed": false,
+      "trading_readiness_claim_allowed": false,
+      "degradation_reasons": []
+    }
+  },
+  "hardening_replay_cases": [
+    {
+      "case_id": "backend_closure_fail_closed_hardening.ready.allowed.001",
+      "expected_status": "backend_closure_runtime_ready_trading_not_ready"
+    },
+    {
+      "case_id": "backend_closure_fail_closed_hardening.partial.degraded.001",
+      "component_overrides": {
+        "identity_permission_runtime_closure": {
+          "component_status": "degraded",
+          "degradation_reasons": [
+            "permission_source_temporarily_degraded"
+          ]
+        }
+      },
+      "expected_status": "degraded_partial_backend_closure"
+    },
+    {
+      "case_id": "backend_closure_fail_closed_hardening.stale.degraded.001",
+      "component_overrides": {
+        "telemetry_slo_ingestion_runtime_closure": {
+          "component_status": "stale",
+          "freshness_status": "stale",
+          "degradation_reasons": [
+            "telemetry_source_freshness_expired"
+          ]
+        }
+      },
+      "expected_status": "degraded_stale_backend_closure"
+    },
+    {
+      "case_id": "backend_closure_fail_closed_hardening.missing_component.fail_closed.001",
+      "component_overrides": {
+        "persistent_audit_storage_runtime_closure": {
+          "component_status": "missing",
+          "source_ref": "",
+          "evidence_path": "",
+          "verification_command": "",
+          "degradation_reasons": [
+            "audit_storage_component_missing"
+          ]
+        }
+      },
+      "expected_status": "fail_closed_missing_required_component"
+    },
+    {
+      "case_id": "backend_closure_fail_closed_hardening.malformed_evidence.fail_closed.001",
+      "component_overrides": {
+        "admin_workbench_backend_state_bridge_closure": {
+          "provenance_status": "unverified",
+          "redaction_status": "unredacted",
+          "runtime_state_aligned": false
+        }
+      },
+      "expected_status": "fail_closed_malformed_component_evidence"
+    },
+    {
+      "case_id": "backend_closure_fail_closed_hardening.source_drift.fail_closed.001",
+      "component_overrides": {
+        "deployment_upgrade_rollback_orchestration_runtime_closure": {
+          "source_drift_status": "drifted",
+          "runtime_state_aligned": false
+        }
+      },
+      "expected_status": "fail_closed_source_drift"
+    },
+    {
+      "case_id": "backend_closure_fail_closed_hardening.product_ready_claim.fail_closed.001",
+      "claim_boundary_override": {
+        "product_grade_trading_ready_allowed": true,
+        "trading_readiness_status": "ready"
+      },
+      "boundary_flags_override": {
+        "product_grade_trading_ready": true
+      },
+      "expected_status": "fail_closed_product_ready_claim"
+    },
+    {
+      "case_id": "backend_closure_fail_closed_hardening.forbidden_control.fail_closed.001",
+      "boundary_flags_override": {
+        "adapter_send_allowed": true
+      },
+      "component_overrides": {
+        "trader_terminal_backend_api_contract_handoff": {
+          "operation_controls_enabled": true
+        }
+      },
+      "expected_status": "fail_closed_forbidden_control"
+    },
+    {
+      "case_id": "backend_closure_fail_closed_hardening.missing_required_false.fail_closed.001",
+      "drop_boundary_flags": [
+        "manual_operation_submit_allowed"
+      ],
+      "expected_status": "fail_closed_missing_required_false_boundary"
+    }
+  ]
+}

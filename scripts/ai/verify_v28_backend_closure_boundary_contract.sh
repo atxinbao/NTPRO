@@ -97,12 +97,10 @@ EXPECTED_CLASSIFICATIONS = {
     "telemetry_slo_ingestion_runtime_closure": "runtime-closed",
     "admin_workbench_backend_state_bridge_closure": "runtime-closed",
     "trader_terminal_backend_api_contract_handoff": "runtime-closed",
-    "backend_closure_fail_closed_hardening": "blocked",
+    "backend_closure_fail_closed_hardening": "runtime-closed",
     "v28_release_gates_strict_provenance_handoff": "deferred",
 }
-EXPECTED_BLOCKERS = {
-    "backend_closure_fail_closed_hardening": 901,
-}
+EXPECTED_BLOCKERS = {}
 EXPECTED_DEFERRED = {"v28_release_gates_strict_provenance_handoff": 902}
 BOUNDARY_FALSE_FLAGS = [
     "new_submit_capability",
@@ -127,7 +125,7 @@ BOUNDARY_FALSE_FLAGS = [
     "manual_operation_submit_allowed",
     "product_grade_trading_terminal_claim",
 ]
-EXPECTED_COUNTS = {"runtime-closed": 8, "evidence-only": 2, "blocked": 1, "deferred": 1}
+EXPECTED_COUNTS = {"runtime-closed": 9, "evidence-only": 2, "blocked": 0, "deferred": 1}
 
 
 def fail(message: str) -> None:
@@ -304,9 +302,9 @@ result = classify(matrix)
 if result != {
     "effective_backend_closure_status": "boundary_ready",
     "readiness_matrix_complete": True,
-    "runtime_closed_count": 8,
+    "runtime_closed_count": 9,
     "evidence_only_count": 2,
-    "blocked_count": 1,
+    "blocked_count": 0,
     "deferred_count": 1,
     "backend_complete_claim_allowed": False,
     "frontend_product_claim_allowed": False,
@@ -325,13 +323,13 @@ if selftest:
     if not classify(opened_boundary)["fail_closed"]:
         fail("negative self-test unexpectedly allowed adapter_send_allowed")
 
-    blocked_claim = copy.deepcopy(matrix)
-    for item in blocked_claim["module_readiness"]:
-        if item["module_id"] == "backend_closure_fail_closed_hardening":
+    deferred_claim = copy.deepcopy(matrix)
+    for item in deferred_claim["module_readiness"]:
+        if item["module_id"] == "v28_release_gates_strict_provenance_handoff":
             item["closure_claim_allowed"] = True
             break
-    if not classify(blocked_claim)["fail_closed"]:
-        fail("negative self-test unexpectedly allowed blocked module closure claim")
+    if not classify(deferred_claim)["fail_closed"]:
+        fail("negative self-test unexpectedly allowed deferred module closure claim")
 
     missing_evidence = copy.deepcopy(matrix)
     for item in missing_evidence["module_readiness"]:
@@ -343,7 +341,7 @@ if selftest:
 
 print(
     "v28_backend_closure_boundary_contract=pass "
-    "modules=12 runtime_closed=8 evidence_only=2 blocked=1 deferred=1 "
+    "modules=12 runtime_closed=9 evidence_only=2 blocked=0 deferred=1 "
     f"required_false_flags={len(BOUNDARY_FALSE_FLAGS)} negative_selftest={int(selftest)}"
 )
 PY
