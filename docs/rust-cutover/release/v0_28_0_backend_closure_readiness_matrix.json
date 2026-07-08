@@ -143,17 +143,18 @@
     },
     {
       "module_id": "v28_release_gates_strict_provenance_handoff",
-      "classification": "deferred",
+      "classification": "runtime-closed",
       "issue": 902,
-      "closure_claim_allowed": false,
-      "deferred_until_issue": 902,
-      "claim": "deferred until V280-009 release gates and handoff"
+      "closure_claim_allowed": true,
+      "evidence_path": "docs/rust-cutover/evidence/V280-009.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-release-gates",
+      "claim": "v0.28.0 release gates, strict provenance, and backend closure handoff are release-gated"
     }
   ],
   "expected_counts": {
-    "runtime-closed": 9,
+    "runtime-closed": 10,
     "evidence-only": 2,
     "blocked": 0,
-    "deferred": 1
+    "deferred": 0
   }
 }
