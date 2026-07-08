@@ -15,7 +15,7 @@ RELEASE_NOTES_PATH="${NTPRO_V270_RELEASE_NOTES:-docs/rust-cutover/release/v0_27_
 READINESS_REPORT_PATH="${NTPRO_V270_READINESS_REPORT:-docs/rust-cutover/release/v0_27_0_readiness_report.md}"
 TRACE_PATH="${NTPRO_V270_RELEASE_TRACE:-tests/golden/v270_release_gates_strict_provenance.jsonl}"
 REPLAY_SCOPE_PATH="${NTPRO_V270_REPLAY_SCOPE:-docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json}"
-CURRENT_ISSUE="${NTPRO_V270_CURRENT_ISSUE:-883}"
+CURRENT_ISSUE="${NTPRO_V270_CURRENT_ISSUE:-885}"
 MILESTONE_NUMBER="${NTPRO_V270_MILESTONE_NUMBER:-20}"
 
 fail() {
@@ -91,7 +91,7 @@ for path in \
   require_file "$path"
 done
 
-for task_id in V270-000 V270-001 V270-002 V270-003 V270-004 V270-005 V270-006 V270-007 V270-008 V270-009; do
+for task_id in V270-000 V270-001 V270-002 V270-003 V270-004 V270-005 V270-006 V270-007 V270-008 V270-009 V270-010; do
   require_file "docs/rust-cutover/evidence/${task_id}.md"
   require_contains "docs/rust-cutover/evidence/${task_id}.md" "$task_id"
   require_file "docs/rust-cutover/tasks/${task_id}.md"
@@ -106,9 +106,9 @@ for marker in \
   "Base release: \`$BASE_RELEASE_TAG\`" \
   "v0.27.0 publishes the Product Operations Runtime Integration Foundation" \
   "V270-000" \
-  "V270-009" \
-  "V270 final release scope issue count = 10" \
-  "V270 final release scope evidence count = 10" \
+  "V270-010" \
+  "V270 final release scope issue count = 11" \
+  "V270 final release scope evidence count = 11" \
   "v27 release gates = required" \
   "v27 strict provenance = required" \
   "release surface current guard = required" \
@@ -138,6 +138,7 @@ for marker in \
   "scripts/ai/verify_v27_release_gates.sh" \
   "scripts/ai/verify_v27_strict_provenance.sh" \
   "scripts/ai/check_github_release_published.sh" \
+  "scripts/ai/golden_trace_runner.py" \
   "scripts/ai/publish_ntpro_release_after_gate.sh"; do
   require_contains "$RELEASE_NOTES_PATH" "$marker"
 done
@@ -146,12 +147,12 @@ for marker in \
   "Milestone: \`$RELEASE_TAG\`" \
   "Status: RELEASED" \
   "V270-000 evidence" \
-  "V270-009 evidence" \
+  "V270-010 evidence" \
   "v27 release gates = required" \
   "v27 strict provenance = required" \
-  "#883 V270-009 = must be closed before v0.27.0 tag gate is accepted" \
-  "V270 final release scope issue count = 10" \
-  "V270 final release scope evidence count = 10" \
+  "#885 V270-010 = must be closed before v0.27.0 tag gate is accepted" \
+  "V270 final release scope issue count = 11" \
+  "V270 final release scope evidence count = 11" \
   "v0.27.0 milestone = must be closed before public publication"; do
   require_contains "$READINESS_REPORT_PATH" "$marker"
 done
@@ -276,16 +277,17 @@ def validate(candidate: dict) -> None:
         "V270-007": 860,
         "V270-008": 861,
         "V270-009": 883,
+        "V270-010": 885,
     }
-    require(len(evidence) == 10, "V270 evidence count mismatch")
+    require(len(evidence) == 11, "V270 evidence count mismatch")
     for item in evidence:
         task_id = item.get("task_id")
         require(expected.get(task_id) == item.get("issue"), f"V270 issue mismatch: {task_id}")
         path = Path(item.get("path", ""))
         require(path.is_file(), f"missing V270 evidence file: {path}")
     scope = candidate.get("release_scope") or {}
-    require(scope.get("final_release_scope_issue_count") == 10, "final release scope issue count mismatch")
-    require(scope.get("final_release_scope_evidence_count") == 10, "final release scope evidence count mismatch")
+    require(scope.get("final_release_scope_issue_count") == 11, "final release scope issue count mismatch")
+    require(scope.get("final_release_scope_evidence_count") == 11, "final release scope evidence count mismatch")
     require(scope.get("v26_1_dependency_proven") is True, "v26.1 dependency proof missing")
     require(scope.get("v26_1_release_evidence_published") is True, "v26.1 release evidence missing")
     require(scope.get("capability_scope_expands_trading") is False, "release gate must not expand trading")
@@ -411,7 +413,7 @@ PY
 python3 scripts/ai/validate_golden_trace_release_scope.py >/dev/null
 
 if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-  for issue in 853 854 855 856 857 858 859 860 861; do
+  for issue in 853 854 855 856 857 858 859 860 861 883; do
     state="$(gh_with_retry issue view "$issue" --repo "$REPO" --json state --jq .state)" || fail "could not read GitHub issue #$issue"
     [[ "$state" == "CLOSED" ]] || fail "GitHub issue #$issue must be CLOSED before $RELEASE_VERSION release gates, got $state"
   done
@@ -430,8 +432,8 @@ milestone = json.loads(os.environ["MILESTONE_JSON"])
 if milestone["title"] != "v0.27.0":
     raise SystemExit(milestone)
 if os.environ["RELEASE_GATE"] == "1" or os.environ["REQUIRE_CLOSEOUT"] == "1":
-    if milestone["state"] != "closed" or milestone["open_issues"] != 0 or milestone["closed_issues"] < 10:
-        raise SystemExit(f"v0.27.0 milestone must be closed with at least 10 closed issues for tag gate: {milestone}")
+    if milestone["state"] != "closed" or milestone["open_issues"] != 0 or milestone["closed_issues"] < 11:
+        raise SystemExit(f"v0.27.0 milestone must be closed with at least 11 closed issues for tag gate: {milestone}")
 else:
     if milestone["state"] not in {"open", "closed"}:
         raise SystemExit(milestone)
@@ -440,4 +442,4 @@ else
   fail "gh authentication is required for v27 release gate issue proof"
 fi
 
-echo "v27_release_gates status=ok release_tag=$RELEASE_TAG base_release=$BASE_RELEASE_TAG current_issue_state=$current_state v270_issues=9/10_closed_or_current final_scope_issues=10 negative_selftest=${NTPRO_V270_RELEASE_SELFTEST:-1}"
+echo "v27_release_gates status=ok release_tag=$RELEASE_TAG base_release=$BASE_RELEASE_TAG current_issue_state=$current_state v270_issues=10/11_closed_or_current final_scope_issues=11 negative_selftest=${NTPRO_V270_RELEASE_SELFTEST:-1}"

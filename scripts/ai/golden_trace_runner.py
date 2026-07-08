@@ -32,6 +32,7 @@ VALID_CATEGORIES = {
     "cache_msgbus",
     "backtest_live",
     "adapter_payload",
+    "release_governance",
 }
 
 

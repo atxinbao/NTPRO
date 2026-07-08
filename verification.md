@@ -4480,3 +4480,34 @@ matrix and passes. This task only changes release governance checks and
 evidence counts. It does not add trading, adapter send, live exchange request,
 retry scheduling, automatic remediation, Dashboard/Admin trading controls, or
 product-grade terminal readiness.
+
+# V270-010 Verification
+
+Date: 2026-07-08
+Executor: Codex
+Task: `V270-010` / GitHub issue `#885`
+
+## Commands
+
+```text
+python3 -m py_compile scripts/ai/golden_trace_runner.py = PASS
+bash -n scripts/ai/check_github_release_published.sh scripts/ai/verify_v27_release_gates.sh scripts/ai/verify_v27_strict_provenance.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_27_0_release_manifest.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v270_release_gates_strict_provenance.jsonl").read_text().splitlines() if line.strip()]' = PASS
+scripts/ai/verify_full.sh golden-traces-files = PASS
+cargo test -p nautilus-testkit --test golden_trace_schema = PASS
+scripts/ai/verify_release.sh v27-release-gates = PASS, current_issue_state=OPEN, v270_issues=10/11_closed_or_current, final_scope_issues=11, negative_selftest=1
+scripts/ai/verify_release.sh v27-strict-provenance = PASS, manifest=target/ntpro-v270/v0_27_0_strict_release_manifest.json, tag_exists=false, source_dirty=true
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 286 cases, 95 executable replay, 186 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V270-010 adds `release_governance` to both golden trace schema validators and
+extends the V270 release scope to V270-000..V270-010. The failed
+`full-golden-traces-files` release gate path is locally reproduced and fixed.
+This task does not add trading, adapter send, live exchange request, retry
+scheduling, automatic remediation, Dashboard/Admin trading controls, or
+product-grade terminal readiness.
