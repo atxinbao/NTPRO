@@ -116,11 +116,12 @@
     },
     {
       "module_id": "admin_workbench_backend_state_bridge_closure",
-      "classification": "blocked",
+      "classification": "runtime-closed",
       "issue": 899,
-      "closure_claim_allowed": false,
-      "blocked_by_issue": 899,
-      "claim": "blocked until V280-006 closes Admin Workbench backend state bridge"
+      "closure_claim_allowed": true,
+      "evidence_path": "docs/rust-cutover/evidence/V280-006.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-admin-workbench-backend-state-bridge-closure",
+      "claim": "Admin Workbench backend state bridge closes through deterministic backend state API handoff replay"
     },
     {
       "module_id": "trader_terminal_backend_api_contract_handoff",
@@ -148,9 +149,9 @@
     }
   ],
   "expected_counts": {
-    "runtime-closed": 6,
+    "runtime-closed": 7,
     "evidence-only": 2,
-    "blocked": 3,
+    "blocked": 2,
     "deferred": 1
   }
 }

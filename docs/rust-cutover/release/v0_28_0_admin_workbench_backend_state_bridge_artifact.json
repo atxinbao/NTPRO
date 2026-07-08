@@ -1,0 +1,223 @@
+{
+  "schema_version": "ntpro.v280.admin_workbench_backend_state_bridge_artifact.v1",
+  "contract_version": "ntpro.v280.admin_workbench_backend_state_bridge_closure.v1",
+  "task_id": "V280-006",
+  "github_issue": 899,
+  "milestone": "v0.28.0",
+  "backend_module": "admin_workbench_backend_state_bridge_closure",
+  "backend_module_status": "runtime_closed",
+  "release_scope": "backend_closure_product_operations_runtime_finalization_only",
+  "dependency_contracts": [
+    "V280-001",
+    "V280-002",
+    "V280-003",
+    "V280-004",
+    "V280-005",
+    "V270-006",
+    "V271-006"
+  ],
+  "bridge_mode": "deterministic_backend_state_api_handoff",
+  "api_surface": {
+    "surface_id": "admin-workbench-backend-state-v280",
+    "surface_kind": "source_controlled_backend_state_artifact",
+    "consumer_scope": "admin_workbench_frontend_followup",
+    "read_only": true,
+    "admin_only": true,
+    "ad_hoc_evidence_file_inspection_required": false,
+    "product_grade_terminal_claim_allowed": false
+  },
+  "component_states": {
+    "identity_permission_runtime_closure": {
+      "component_status": "ready",
+      "source_ref": "docs/rust-cutover/release/v0_28_0_identity_permission_runtime_artifact.json",
+      "evidence_path": "docs/rust-cutover/evidence/V280-002.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-identity-permission-runtime-closure",
+      "provenance_status": "verified",
+      "freshness_status": "fresh",
+      "redaction_status": "redacted",
+      "runtime_state_aligned": true,
+      "read_only": true,
+      "operation_controls_enabled": false,
+      "trading_controls_enabled": false,
+      "degradation_reasons": []
+    },
+    "persistent_audit_storage_runtime_closure": {
+      "component_status": "ready",
+      "source_ref": "docs/rust-cutover/release/v0_28_0_persistent_audit_storage_runtime_artifact.json",
+      "evidence_path": "docs/rust-cutover/evidence/V280-003.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-persistent-audit-storage-runtime-closure",
+      "provenance_status": "verified",
+      "freshness_status": "fresh",
+      "redaction_status": "redacted",
+      "runtime_state_aligned": true,
+      "read_only": true,
+      "operation_controls_enabled": false,
+      "trading_controls_enabled": false,
+      "degradation_reasons": []
+    },
+    "deployment_upgrade_rollback_orchestration_runtime_closure": {
+      "component_status": "ready",
+      "source_ref": "docs/rust-cutover/release/v0_28_0_deployment_orchestration_runtime_artifact.json",
+      "evidence_path": "docs/rust-cutover/evidence/V280-004.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-deployment-orchestration-runtime-closure",
+      "provenance_status": "verified",
+      "freshness_status": "fresh",
+      "redaction_status": "redacted",
+      "runtime_state_aligned": true,
+      "read_only": true,
+      "operation_controls_enabled": false,
+      "trading_controls_enabled": false,
+      "degradation_reasons": []
+    },
+    "telemetry_slo_ingestion_runtime_closure": {
+      "component_status": "ready",
+      "source_ref": "docs/rust-cutover/release/v0_28_0_telemetry_slo_ingestion_runtime_artifact.json",
+      "evidence_path": "docs/rust-cutover/evidence/V280-005.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-telemetry-slo-ingestion-runtime-closure",
+      "provenance_status": "verified",
+      "freshness_status": "fresh",
+      "redaction_status": "redacted",
+      "runtime_state_aligned": true,
+      "read_only": true,
+      "operation_controls_enabled": false,
+      "trading_controls_enabled": false,
+      "degradation_reasons": []
+    },
+    "backend_closure_boundary_contract": {
+      "component_status": "ready",
+      "source_ref": "docs/rust-cutover/release/v0_28_0_backend_closure_readiness_matrix.json",
+      "evidence_path": "docs/rust-cutover/evidence/V280-001.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-backend-closure-boundary-contract",
+      "provenance_status": "verified",
+      "freshness_status": "fresh",
+      "redaction_status": "redacted",
+      "runtime_state_aligned": true,
+      "read_only": true,
+      "operation_controls_enabled": false,
+      "trading_controls_enabled": false,
+      "degradation_reasons": []
+    }
+  },
+  "surfaces": {
+    "admin_workbench": {
+      "read_only": true,
+      "admin_only": true,
+      "display_only": true,
+      "operation_controls_enabled": false,
+      "trading_controls_enabled": false,
+      "submit_controls_enabled": false,
+      "product_grade_terminal_claim_allowed": false
+    },
+    "dashboard": {
+      "read_only": true,
+      "admin_only": false,
+      "display_only": true,
+      "operation_controls_enabled": false,
+      "trading_controls_enabled": false,
+      "submit_controls_enabled": false,
+      "product_grade_terminal_claim_allowed": false
+    }
+  },
+  "boundary_flags": {
+    "default_submit_allowed": false,
+    "submit_order_allowed": false,
+    "cancel_order_allowed": false,
+    "retry_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "order_ticket_enabled": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "automatic_remediation_allowed": false,
+    "retry_scheduler_enabled": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "manual_operation_submit_allowed": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "admin_bridge_replay_cases": [
+    {
+      "case_id": "admin_workbench_backend_bridge.ready.allowed.001",
+      "expected_status": "admin_workbench_bridge_ready"
+    },
+    {
+      "case_id": "admin_workbench_backend_bridge.degraded.readonly.001",
+      "component_overrides": {
+        "telemetry_slo_ingestion_runtime_closure": {
+          "component_status": "degraded",
+          "degradation_reasons": [
+            "slo_breach_observed"
+          ]
+        }
+      },
+      "expected_status": "degraded_read_only_surface"
+    },
+    {
+      "case_id": "admin_workbench_backend_bridge.blocked.readonly.001",
+      "component_overrides": {
+        "deployment_upgrade_rollback_orchestration_runtime_closure": {
+          "component_status": "blocked",
+          "degradation_reasons": [
+            "owner_approval_required"
+          ]
+        }
+      },
+      "expected_status": "blocked_read_only_surface"
+    },
+    {
+      "case_id": "admin_workbench_backend_bridge.stale.degraded.001",
+      "component_overrides": {
+        "identity_permission_runtime_closure": {
+          "component_status": "stale",
+          "freshness_status": "stale",
+          "degradation_reasons": [
+            "source_freshness_expired"
+          ]
+        }
+      },
+      "expected_status": "degraded_stale_component"
+    },
+    {
+      "case_id": "admin_workbench_backend_bridge.missing_component.fail_closed.001",
+      "component_overrides": {
+        "persistent_audit_storage_runtime_closure": {
+          "component_status": "missing",
+          "source_ref": "",
+          "evidence_path": "",
+          "degradation_reasons": [
+            "component_missing"
+          ]
+        }
+      },
+      "expected_status": "fail_closed_missing_component"
+    },
+    {
+      "case_id": "admin_workbench_backend_bridge.malformed_component.fail_closed.001",
+      "component_overrides": {
+        "backend_closure_boundary_contract": {
+          "source_ref": "",
+          "provenance_status": "malformed",
+          "runtime_state_aligned": false
+        }
+      },
+      "expected_status": "fail_closed_malformed_component_state"
+    },
+    {
+      "case_id": "admin_workbench_backend_bridge.forbidden_controls.fail_closed.001",
+      "boundary_flags_override": {
+        "admin_workbench_trading_controls_enabled": true
+      },
+      "surface_overrides": {
+        "admin_workbench": {
+          "trading_controls_enabled": true
+        }
+      },
+      "expected_status": "fail_closed_forbidden_controls"
+    }
+  ]
+}
