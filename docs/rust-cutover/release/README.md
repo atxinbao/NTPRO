@@ -2,6 +2,20 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
+- `v0_28_0_readiness_report.md` - released readiness report for the formal
+  `ntpro-rust-only-v0.28.0` GitHub Release. It records the V280 exact release
+  scope, v0.27.1 dependency proof, backend closure matrix counts, v28 gate and
+  strict provenance requirements, and the v0.29.0 next-capability boundary.
+- `v0_28_0_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.28.0` GitHub Release. It publishes Backend Closure /
+  Product Operations Runtime Finalization evidence and does not open submit,
+  mutation, adapter send, live exchange, retry scheduler, remediation,
+  Dashboard/Admin/Trader Terminal trading controls, or product-grade terminal
+  claims.
+- `v0_28_0_release_manifest.json` - strict release manifest for the formal
+  `ntpro-rust-only-v0.28.0` GitHub Release.
+- `../evidence/V280-009.md` - V280-009 release gates, strict provenance, exact
+  issue-scope, publication guard, and backend closure handoff evidence ledger.
 - `v0_28_0_backend_closure_fail_closed_hardening.md` - V280-008 contract that
   hardens backend closure integration so partial or stale closure cannot be
   reported as product-ready trading runtime.
