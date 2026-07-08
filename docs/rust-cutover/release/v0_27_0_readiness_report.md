@@ -73,6 +73,7 @@ v0.26.1 dependency proof = required
 v0.26.1 release evidence = published
 v0.27.0 milestone = must be closed before public publication
 release body source = docs/rust-cutover/release/v0_27_0_release_notes.md
+release closeout evidence = docs/rust-cutover/release/v0_27_0_release_closeout_evidence.md
 strict provenance manifest = target/ntpro-v270/v0_27_0_strict_release_manifest.json
 release governance trace = tests/golden/v270_release_gates_strict_provenance.jsonl
 ```
@@ -95,6 +96,24 @@ admin_workbench_trading_controls_enabled = false
 trader_terminal_order_ticket_enabled = false
 manual_operation_submit_allowed = false
 product_grade_trading_terminal_claim = false
+```
+
+## Release Closeout
+
+Final post-publication closeout evidence is recorded in
+`docs/rust-cutover/release/v0_27_0_release_closeout_evidence.md`.
+
+```text
+release tag = ntpro-rust-only-v0.27.0
+tag peeled commit = 67db6d2c4d2f5b922f9e52e7d20588cb41f972f3
+GitHub Release = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.27.0
+GitHub Release published at = 2026-07-08T07:31:08Z
+hosted release gate = https://github.com/atxinbao/NTPRO/actions/runs/28921344889
+hosted release gate conclusion = success
+hosted release gate jobs = 82/82 success
+release body sha256 = 91184074bab30a50f69147697aecf19d91977d615ad313eef96fbcb2c470138b
+release body matches tracked release notes = true
+v0.27.0 milestone = #20 closed, 11 closed issues, 0 open issues
 ```
 
 ## Next Track

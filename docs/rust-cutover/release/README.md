@@ -820,6 +820,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   for V270 release gates. It records V270 evidence paths, release gate
   commands, boundary flags, publication governance, current release surface
   guard fields, and the v0.28.0 start boundary.
+- `v0_27_0_release_closeout_evidence.md` - post-publication closeout evidence
+  for the formal `ntpro-rust-only-v0.27.0` release. It records the public
+  GitHub Release, hosted release gate run `28921344889`, tag commit,
+  release body/source hash match, generated publication evidence policy,
+  `v0.27.0` milestone closeout, and the v0.28.0 hard-block until v0.27.1
+  publication evidence exists.
 - `v0_26_0_intake_gate.md` - V260-000 intake proof that all V251 issues are
   closed, the `ntpro-rust-only-v0.25.1` GitHub Release was published after
   hosted gate success, and v0.26.0 starts only as a gated product hardening
