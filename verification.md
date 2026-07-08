@@ -4320,3 +4320,36 @@ approval, tag/source mismatch, failed preflight, unsafe automation requests,
 and forbidden operation boundaries fail closed. This task does not execute
 deploy, rollback, remediation, adapter send, live exchange requests, Dashboard
 controls, or trading operations.
+
+# V270-005 Verification
+
+Date: 2026-07-08
+Executor: Codex
+Task: `V270-005` / GitHub issue `#858`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v27_long_run_telemetry_slo_runtime_evidence.sh = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v270_long_run_telemetry_slo_runtime_evidence.jsonl").read_text().splitlines() if line.strip()]' = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+scripts/ai/verify_release.sh v27-long-run-telemetry-slo-runtime-evidence = PASS, cases=7, statuses=7, boundary_flags=17, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 267 cases, 95 executable replay, 167 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v27-product-operations-boundary-contract = PASS, cases=7, required_false_flags=17, provenance_flags=5, negative_selftest=1
+scripts/ai/verify_release.sh v26-slo-runbook-stability-evidence = PASS, cases=6, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V270-005 defines the v0.27.0 long-run telemetry ingestion and SLO runtime
+evidence foundation. The contract validates telemetry source contracts,
+freshness, redaction, sampling windows, gaps, SLO rollups, release/source
+drift, and read-only Admin Workbench / Dashboard degradation reasons. Missing
+source contracts, redaction breaches, release/source drift, and forbidden
+operation boundaries fail closed; stale sources and sampling gaps degrade with
+explicit reasons. This task does not implement telemetry transport, automatic
+remediation, retry scheduling, adapter send, live exchange requests, order
+submission/mutation, Dashboard/Admin trading controls, or product-grade live
+trading terminal claims.

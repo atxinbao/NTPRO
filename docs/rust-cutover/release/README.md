@@ -837,6 +837,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   state. It requires owner approval, release gate evidence, fresh environment
   provenance, and rollback plan lineage without automatic deploy, rollback,
   remediation, adapter send, live exchange request, or Dashboard controls.
+- `v0_27_0_long_run_telemetry_slo_runtime_evidence.md` - V270-005 contract for
+  long-run telemetry ingestion and SLO runtime evidence. It validates source
+  contracts, freshness, redaction, sampling windows, gaps, SLO rollups, and
+  read-only Admin Workbench / Dashboard degradation reasons without automatic
+  remediation, retry scheduling, adapter send, live exchange request, or
+  trading controls.
 - `v0_26_0_product_hardening_boundary_contract.md` - V260-001 contract for the
   v0.26.0 product hardening foundation scope. It records allowed hardening
   areas, required-false trading boundary flags, fail-closed rules, and the
