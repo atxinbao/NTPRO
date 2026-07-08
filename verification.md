@@ -4449,3 +4449,34 @@ publication ordering, and required-false operation boundaries. This task does
 not add trading, adapter send, live exchange request, retry scheduling,
 automatic remediation, Dashboard/Admin trading controls, or product-grade
 terminal readiness.
+
+# V270-009 Verification
+
+Date: 2026-07-08
+Executor: Codex
+Task: `V270-009` / GitHub issue `#883`
+
+## Commands
+
+```text
+bash -n scripts/ai/check_github_release_published.sh scripts/ai/verify_v27_release_gates.sh scripts/ai/verify_v27_strict_provenance.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_27_0_release_manifest.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v270_release_gates_strict_provenance.jsonl").read_text().splitlines() if line.strip()]' = PASS
+NTPRO_CURRENT_RELEASE_VERSION=v0.27.0 NTPRO_CURRENT_RELEASE_TAG=ntpro-rust-only-v0.27.0 NTPRO_CURRENT_RELEASE_NAME='NTPRO Rust-only v0.27.0' NTPRO_RELEASE_PUBLICATION_PREPUBLISH_TAG_GATE=1 scripts/ai/verify_release.sh release-publication-guard = PASS, release_publication_guard=prepublish_tag_gate, existing_release_seen=false
+scripts/ai/verify_release.sh v27-release-gates = PASS, current_issue_state=OPEN, v270_issues=9/10_closed_or_current, final_scope_issues=10, negative_selftest=1
+scripts/ai/verify_release.sh v27-strict-provenance = PASS, manifest=target/ntpro-v270/v0_27_0_strict_release_manifest.json, tag_exists=true, source_dirty=true
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 286 cases, 95 executable replay, 186 validator executable replay, 5 schema-only scoped
+git diff --check = PASS
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+```
+
+## Result
+
+V270-009 adds explicit v0.27.0 support to the GitHub Release publication guard
+and extends the V270 release scope to V270-000..V270-009. The formal tag-gate
+path no longer fails with `unsupported release publication guard version:
+v0.27.0`; prepublish publication guard validation reaches the v27 release-note
+matrix and passes. This task only changes release governance checks and
+evidence counts. It does not add trading, adapter send, live exchange request,
+retry scheduling, automatic remediation, Dashboard/Admin trading controls, or
+product-grade terminal readiness.

@@ -67,7 +67,7 @@ input_paths=(
   "$ROOT_DIR/.github/workflows/release-publish.yml"
 )
 
-for task_id in V270-000 V270-001 V270-002 V270-003 V270-004 V270-005 V270-006 V270-007 V270-008; do
+for task_id in V270-000 V270-001 V270-002 V270-003 V270-004 V270-005 V270-006 V270-007 V270-008 V270-009; do
   input_paths+=("$ROOT_DIR/docs/rust-cutover/evidence/${task_id}.md")
   input_paths+=("$ROOT_DIR/docs/rust-cutover/tasks/${task_id}.md")
 done
@@ -147,10 +147,10 @@ require("v27 release gates = required" in release_notes, "release notes v27 gate
 require("v27 strict provenance = required" in readiness, "readiness strict provenance marker missing")
 require(release_manifest["publication_governance"]["release_gate_success_before_publication_required"] is True, "publication ordering requirement missing")
 require(release_manifest["post_publication_requirements"]["all_v270_issues_closed_required"] is True, "issue closeout requirement missing")
-require(len(release_manifest.get("v270_evidence") or []) == 9, "v270 evidence count must be 9")
+require(len(release_manifest.get("v270_evidence") or []) == 10, "v270 evidence count must be 10")
 scope = release_manifest.get("release_scope") or {}
-require(scope.get("final_release_scope_issue_count") == 9, "final release scope issue count must be 9")
-require(scope.get("final_release_scope_evidence_count") == 9, "final release scope evidence count must be 9")
+require(scope.get("final_release_scope_issue_count") == 10, "final release scope issue count must be 10")
+require(scope.get("final_release_scope_evidence_count") == 10, "final release scope evidence count must be 10")
 require(scope.get("v26_1_dependency_proven") is True, "v26.1 dependency proof missing")
 require(scope.get("v26_1_release_evidence_published") is True, "v26.1 release evidence missing")
 require(scope.get("capability_scope_expands_trading") is False, "release gate must not expand trading")
