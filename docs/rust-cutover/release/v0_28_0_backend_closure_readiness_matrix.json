@@ -125,11 +125,12 @@
     },
     {
       "module_id": "trader_terminal_backend_api_contract_handoff",
-      "classification": "blocked",
+      "classification": "runtime-closed",
       "issue": 900,
-      "closure_claim_allowed": false,
-      "blocked_by_issue": 900,
-      "claim": "blocked until V280-007 defines backend API handoff for Trader Terminal"
+      "closure_claim_allowed": true,
+      "evidence_path": "docs/rust-cutover/evidence/V280-007.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-trader-terminal-backend-api-contract-handoff",
+      "claim": "Trader Terminal backend API contract handoff closes through deterministic read-only response contract replay"
     },
     {
       "module_id": "backend_closure_fail_closed_hardening",
@@ -149,9 +150,9 @@
     }
   ],
   "expected_counts": {
-    "runtime-closed": 7,
+    "runtime-closed": 8,
     "evidence-only": 2,
-    "blocked": 2,
+    "blocked": 1,
     "deferred": 1
   }
 }
