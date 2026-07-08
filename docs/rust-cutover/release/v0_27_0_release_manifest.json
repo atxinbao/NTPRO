@@ -41,7 +41,9 @@
     "v27_fail_closed_hardening_path": "docs/rust-cutover/release/v0_27_0_runtime_integration_fail_closed_hardening.md",
     "v270_release_gates_path": "scripts/ai/verify_v27_release_gates.sh",
     "v270_strict_provenance_path": "scripts/ai/verify_v27_strict_provenance.sh",
-    "release_publication_guard_path": "scripts/ai/check_github_release_published.sh"
+    "release_publication_guard_path": "scripts/ai/check_github_release_published.sh",
+    "golden_trace_runner_path": "scripts/ai/golden_trace_runner.py",
+    "golden_trace_schema_test_path": "crates/testkit/tests/golden_trace_schema.rs"
   },
   "v270_evidence": [
     {"task_id": "V270-000", "issue": 853, "path": "docs/rust-cutover/evidence/V270-000.md"},
@@ -53,13 +55,14 @@
     {"task_id": "V270-006", "issue": 859, "path": "docs/rust-cutover/evidence/V270-006.md"},
     {"task_id": "V270-007", "issue": 860, "path": "docs/rust-cutover/evidence/V270-007.md"},
     {"task_id": "V270-008", "issue": 861, "path": "docs/rust-cutover/evidence/V270-008.md"},
-    {"task_id": "V270-009", "issue": 883, "path": "docs/rust-cutover/evidence/V270-009.md"}
+    {"task_id": "V270-009", "issue": 883, "path": "docs/rust-cutover/evidence/V270-009.md"},
+    {"task_id": "V270-010", "issue": 885, "path": "docs/rust-cutover/evidence/V270-010.md"}
   ],
   "release_scope": {
-    "milestone_issue_set": "V270-000..V270-009",
-    "milestone_issue_count": 10,
-    "final_release_scope_issue_count": 10,
-    "final_release_scope_evidence_count": 10,
+    "milestone_issue_set": "V270-000..V270-010",
+    "milestone_issue_count": 11,
+    "final_release_scope_issue_count": 11,
+    "final_release_scope_evidence_count": 11,
     "v26_1_dependency_proven": true,
     "v26_1_release_evidence_published": true,
     "capability_scope_expands_trading": false,

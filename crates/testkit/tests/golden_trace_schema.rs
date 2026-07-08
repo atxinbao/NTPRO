@@ -43,6 +43,7 @@ const VALID_CATEGORIES: &[&str] = &[
     "backtest_live",
     "adapter_payload",
     "read_model",
+    "release_governance",
 ];
 
 #[test]

@@ -7,14 +7,14 @@ Status: RELEASED
 
 ## Summary
 
-v0.27.0 is ready for release gate execution when V270-000 through V270-009
-evidence is present, V270-000 through V270-008 issues are closed, the current
-V270-009 issue is closed for tag-gate mode, v27 release gates and strict
+v0.27.0 is ready for release gate execution when V270-000 through V270-010
+evidence is present, V270-000 through V270-009 issues are closed, the current
+V270-010 issue is closed for tag-gate mode, v27 release gates and strict
 provenance pass, and the public release is published after a successful hosted
 release gate for the same tag commit.
 
 Plain Chinese summary: v0.27.0 的范围是 Product Operations Runtime Integration
-Foundation，不是实盘交易控制台。它要求 V270-000 到 V270-009 全部闭环，v0.26.1
+Foundation，不是实盘交易控制台。它要求 V270-000 到 V270-010 全部闭环，v0.26.1
 发布依赖可重建，hosted release gate 成功后再公开 GitHub Release，并继续保持
 no-submit、no-mutation、no-adapter-send、no-live-exchange、no-retry-scheduler、
 no-automatic-remediation、no-Dashboard/Admin-trading-controls 边界。
@@ -31,6 +31,7 @@ V270-006 evidence = docs/rust-cutover/evidence/V270-006.md
 V270-007 evidence = docs/rust-cutover/evidence/V270-007.md
 V270-008 evidence = docs/rust-cutover/evidence/V270-008.md
 V270-009 evidence = docs/rust-cutover/evidence/V270-009.md
+V270-010 evidence = docs/rust-cutover/evidence/V270-010.md
 
 ## Gates
 
@@ -60,13 +61,14 @@ scripts/ai/verify_release.sh release-publish-after-gate
 #859 V270-006 = closed
 #860 V270-007 = closed
 #861 V270-008 = closed
-#883 V270-009 = must be closed before v0.27.0 tag gate is accepted
+#883 V270-009 = closed
+#885 V270-010 = must be closed before v0.27.0 tag gate is accepted
 
 ## Release Scope
 
 ```text
-V270 final release scope issue count = 10
-V270 final release scope evidence count = 10
+V270 final release scope issue count = 11
+V270 final release scope evidence count = 11
 v0.26.1 dependency proof = required
 v0.26.1 release evidence = published
 v0.27.0 milestone = must be closed before public publication
