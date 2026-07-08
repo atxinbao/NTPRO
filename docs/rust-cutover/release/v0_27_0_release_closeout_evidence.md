@@ -51,6 +51,26 @@ remote reconstruction required = true
 release-publication-evidence/ntpro-rust-only-v0.27.0.json = generated artifact, not sole proof
 ```
 
+## Publication Entry Provenance
+
+```text
+publication entry provenance = docs/rust-cutover/release/v0_27_0_publication_entry_provenance.md
+publication path = local_publish_script_after_hosted_gate
+publication entrypoint = scripts/ai/publish_ntpro_release_after_gate.sh
+publication entrypoint mode = local Codex shell with authenticated gh
+GitHub Release API author login = atxinbao
+GitHub Release API author type = User
+GitHub Release API release id = 350764398
+GitHub Release API created_at = 2026-07-08T06:03:41Z
+GitHub Release API published_at = 2026-07-08T07:31:08Z
+hosted release-publish workflow used for v0.27.0 = false
+v0.27.0 matching hosted release-publish workflow run = none
+bounded non-workflow publication path = true
+public publication after hosted release gate success = true
+created_at is public publication proof = false
+published_at is public publication proof = true
+```
+
 ## Release Body Hash
 
 ```text
@@ -174,6 +194,7 @@ GitHub issue #887 body
 GitHub milestone #20 live state
 GitHub Release ntpro-rust-only-v0.27.0
 GitHub Actions run 28921344889
+docs/rust-cutover/release/v0_27_0_publication_entry_provenance.md
 docs/rust-cutover/release/v0_27_0_release_notes.md
 docs/rust-cutover/release/v0_27_0_readiness_report.md
 docs/rust-cutover/release/v0_27_0_release_manifest.json

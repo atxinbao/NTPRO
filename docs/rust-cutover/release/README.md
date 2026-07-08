@@ -826,6 +826,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   release body/source hash match, generated publication evidence policy,
   `v0.27.0` milestone closeout, and the v0.28.0 hard-block until v0.27.1
   publication evidence exists.
+- `v0_27_0_publication_entry_provenance.md` - publication entry provenance for
+  the formal `ntpro-rust-only-v0.27.0` release. It records that v0.27.0 was
+  published by the guarded local `publish_ntpro_release_after_gate.sh`
+  entrypoint after hosted release gate success, not by a hosted
+  `release-publish.yml` run.
 - `v0_26_0_intake_gate.md` - V260-000 intake proof that all V251 issues are
   closed, the `ntpro-rust-only-v0.25.1` GitHub Release was published after
   hosted gate success, and v0.26.0 starts only as a gated product hardening
