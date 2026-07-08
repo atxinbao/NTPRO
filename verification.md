@@ -4353,3 +4353,33 @@ explicit reasons. This task does not implement telemetry transport, automatic
 remediation, retry scheduling, adapter send, live exchange requests, order
 submission/mutation, Dashboard/Admin trading controls, or product-grade live
 trading terminal claims.
+
+# V270-006 Verification
+
+Date: 2026-07-08
+Executor: Codex
+Task: `V270-006` / GitHub issue `#859`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v27_admin_workbench_runtime_state_bridge.sh = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v270_admin_workbench_runtime_state_bridge.jsonl").read_text().splitlines() if line.strip()]' = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+scripts/ai/verify_release.sh v27-admin-workbench-runtime-state-bridge = PASS, cases=7, statuses=7, components=5, boundary_flags=17, negative_selftest=1
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 274 cases, 95 executable replay, 174 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v27-long-run-telemetry-slo-runtime-evidence = PASS, cases=7, statuses=7, boundary_flags=17, negative_selftest=1
+scripts/ai/verify_release.sh v27-deployment-orchestration-foundation = PASS, cases=7, states=4, boundary_flags=13, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V270-006 defines the v0.27.0 Admin Workbench runtime state bridge read-only
+surface. The bridge displays identity/permission, audit storage, deployment
+orchestration, telemetry/SLO, and runtime boundary state for Admin Workbench and
+Dashboard without operation, trading, remediation, retry, adapter, or live
+exchange controls. Stale artifacts degrade with explicit reasons; missing
+components, malformed provenance, redaction breaches, runtime/source drift, and
+forbidden controls fail closed.

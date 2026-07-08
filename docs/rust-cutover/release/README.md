@@ -843,6 +843,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   read-only Admin Workbench / Dashboard degradation reasons without automatic
   remediation, retry scheduling, adapter send, live exchange request, or
   trading controls.
+- `v0_27_0_admin_workbench_runtime_state_bridge.md` - V270-006 contract for
+  the Admin Workbench / Dashboard runtime state bridge. It renders identity,
+  audit storage, deployment orchestration, telemetry/SLO, and runtime boundary
+  evidence as a read-only/admin surface while malformed, stale, missing,
+  unredacted, drifted, or control-enabled artifacts degrade or fail closed.
 - `v0_26_0_product_hardening_boundary_contract.md` - V260-001 contract for the
   v0.26.0 product hardening foundation scope. It records allowed hardening
   areas, required-false trading boundary flags, fail-closed rules, and the
