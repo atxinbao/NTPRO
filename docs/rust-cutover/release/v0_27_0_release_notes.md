@@ -31,11 +31,12 @@ scheduler，不执行 automatic remediation，不开放 Dashboard/Admin 交易�
 - `V270-006` - Admin Workbench runtime state bridge read-only surface.
 - `V270-007` - runtime integration fail-closed and no-trading-control hardening.
 - `V270-008` - v27 release gates and strict provenance.
+- `V270-009` - v27 release publication guard version support.
 
 ## Release Gates
 
-V270 final release scope issue count = 9
-V270 final release scope evidence count = 9
+V270 final release scope issue count = 10
+V270 final release scope evidence count = 10
 v27 release gates = required
 v27 strict provenance = required
 release surface current guard = required
@@ -45,12 +46,14 @@ hosted release gate success before public GitHub Release = required
 publication evidence strategy = source_tree_plus_github_remote
 local generated publication evidence required in source tree = false
 remote reconstruction required = true
+release publication guard v0.27.0 support = required
 
 ```text
 scripts/ai/verify_release.sh v27-release-gates
 scripts/ai/verify_release.sh v27-strict-provenance
 scripts/ai/verify_v27_release_gates.sh
 scripts/ai/verify_v27_strict_provenance.sh
+scripts/ai/check_github_release_published.sh
 scripts/ai/publish_ntpro_release_after_gate.sh
 ```
 
