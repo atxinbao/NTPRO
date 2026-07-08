@@ -4415,3 +4415,37 @@ submit/mutation/adapter/remediation/control fields, missing required-false
 boundaries, and product-ready claims fail closed. This task does not add
 trading, adapter, live exchange, retry, automatic remediation, Dashboard/Admin
 trading controls, or product-grade terminal readiness.
+
+# V270-008 Verification
+
+Date: 2026-07-08
+Executor: Codex
+Task: `V270-008` / GitHub issue `#861`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v27_release_gates.sh scripts/ai/verify_v27_strict_provenance.sh = PASS
+python3 -m json.tool docs/rust-cutover/release/v0_27_0_release_manifest.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v270_release_gates_strict_provenance.jsonl").read_text().splitlines() if line.strip()]' = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+scripts/ai/verify_release.sh v27-release-gates = PASS, current_issue_state=OPEN, v270_issues=8/9_closed_or_current, final_scope_issues=9, negative_selftest=1
+scripts/ai/verify_release.sh v27-strict-provenance = PASS, manifest=target/ntpro-v270/v0_27_0_strict_release_manifest.json, tag_exists=false, source_dirty=true
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 286 cases, 95 executable replay, 186 validator executable replay, 5 schema-only scoped
+NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/verify_release.sh release-surface-current-guard = PASS, pre_tag_mode missing_tag=ntpro-rust-only-v0.27.0
+NTPRO_CURRENT_RELEASE_VERSION=v0.27.0 NTPRO_CURRENT_RELEASE_TAG=ntpro-rust-only-v0.27.0 NTPRO_CURRENT_RELEASE_NAME='NTPRO Rust-only v0.27.0' NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE=1 scripts/ai/verify_release.sh release-publication-guard = PASS, offline_skip missing local tag
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V270-008 defines the v0.27.0 release gate and strict provenance layer. It binds
+release notes, readiness, manifest, release governance traces, replay scope,
+gate scripts, issue closeout, hosted release gate, and publish evidence to the
+same source tree. The gate requires V270-000..V270-008 evidence, v0.26.1
+dependency publication proof, v27 component gates, release surface governance,
+publication ordering, and required-false operation boundaries. This task does
+not add trading, adapter send, live exchange request, retry scheduling,
+automatic remediation, Dashboard/Admin trading controls, or product-grade
+terminal readiness.
