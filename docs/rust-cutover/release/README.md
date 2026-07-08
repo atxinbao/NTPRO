@@ -2,6 +2,16 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
+- `v0_28_0_trader_terminal_backend_api_contract_handoff.md` - V280-007
+  contract that defines the read-only backend API handoff for later Trader
+  Terminal/frontend product work.
+- `v0_28_0_trader_terminal_backend_api_contract_artifact.json` -
+  source-controlled V280-007 backend artifact for backend closure status,
+  provenance drill-down, audit entries, telemetry health, permissions,
+  deployment state, redaction, freshness, failure semantics, and forbidden
+  control replay cases.
+- `../evidence/V280-007.md` - V280-007 Trader Terminal backend API contract
+  handoff evidence for GitHub issue #900.
 - `v0_28_0_admin_workbench_backend_state_bridge_closure.md` - V280-006
   contract that closes the Admin Workbench backend state bridge through a
   deterministic read-only/admin-only backend state API handoff.
