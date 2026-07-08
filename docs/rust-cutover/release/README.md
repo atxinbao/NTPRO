@@ -2,6 +2,16 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
+- `v0_28_0_persistent_audit_storage_runtime_closure.md` - V280-003 contract
+  that closes persistent audit storage through deterministic append-only
+  write/read replay, retention/freshness, idempotency, redaction, and lineage
+  checks without enabling operation execution.
+- `v0_28_0_persistent_audit_storage_runtime_artifact.json` -
+  source-controlled V280-003 backend artifact for persistent audit storage
+  write/read replay and fail-closed missing storage, stale source, broken
+  lineage, unredacted payload, and forbidden operation trigger cases.
+- `../evidence/V280-003.md` - V280-003 persistent audit storage runtime closure
+  evidence for GitHub issue #896.
 - `v0_28_0_identity_permission_runtime_closure.md` - V280-002 contract that
   closes the identity/permission backend module through deterministic read/admin
   permission replay while leaving live IdP/SSO authorization and trading

@@ -89,11 +89,12 @@
     },
     {
       "module_id": "persistent_audit_storage_runtime_closure",
-      "classification": "blocked",
+      "classification": "runtime-closed",
       "issue": 896,
-      "closure_claim_allowed": false,
-      "blocked_by_issue": 896,
-      "claim": "blocked until V280-003 closes persistent audit storage runtime"
+      "closure_claim_allowed": true,
+      "evidence_path": "docs/rust-cutover/evidence/V280-003.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-persistent-audit-storage-runtime-closure",
+      "claim": "persistent audit storage runtime closes through deterministic append-only write/read replay"
     },
     {
       "module_id": "deployment_upgrade_rollback_orchestration_runtime_closure",
@@ -145,9 +146,9 @@
     }
   ],
   "expected_counts": {
-    "runtime-closed": 3,
+    "runtime-closed": 4,
     "evidence-only": 2,
-    "blocked": 6,
+    "blocked": 5,
     "deferred": 1
   }
 }
