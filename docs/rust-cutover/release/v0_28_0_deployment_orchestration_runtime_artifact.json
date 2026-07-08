@@ -1,0 +1,244 @@
+{
+  "schema_version": "ntpro.v280.deployment_orchestration_runtime_artifact.v1",
+  "contract_version": "ntpro.v280.deployment_orchestration_runtime_closure.v1",
+  "task_id": "V280-004",
+  "github_issue": 897,
+  "milestone": "v0.28.0",
+  "backend_module": "deployment_upgrade_rollback_orchestration_runtime_closure",
+  "backend_module_status": "runtime_closed",
+  "release_scope": "backend_closure_product_operations_runtime_finalization_only",
+  "dependency_contracts": [
+    "V280-001",
+    "V280-002",
+    "V280-003",
+    "V270-004",
+    "V260-004",
+    "V260-005",
+    "V271-006"
+  ],
+  "dependency_release_tag": "ntpro-rust-only-v0.27.1",
+  "source_ref": "main@7d6529fc55609448623d1fd9732a0db1d4583bea",
+  "operation_preview_policy": {
+    "orchestration_mode": "deterministic_preview_replay",
+    "owner_approval_required": true,
+    "runbook_provenance_required": true,
+    "source_provenance_required": true,
+    "deterministic_replay_required": true,
+    "production_execution_allowed": false
+  },
+  "owner_approval": {
+    "required": true,
+    "status": "approved",
+    "approval_ref": "github-issue-897-approved-preview-boundary",
+    "approver_role": "Release Gatekeeper",
+    "approved_at": "2026-07-08T15:40:00Z"
+  },
+  "runbook_provenance": {
+    "required": true,
+    "freshness_status": "fresh",
+    "lineage_status": "linked",
+    "runbook_ref": "docs/rust-cutover/release/v0_26_0_upgrade_rollback_runbook_evidence.md",
+    "lineage_ref": "docs/rust-cutover/evidence/V260-005.md",
+    "runbook_digest": "ntpro-v260-upgrade-rollback-runbook-preview-digest",
+    "last_verified_at": "2026-07-08T15:40:00Z",
+    "release_tag": "ntpro-rust-only-v0.27.1"
+  },
+  "source_provenance": {
+    "required": true,
+    "drift_status": "no_drift",
+    "source_ref": "main@7d6529fc55609448623d1fd9732a0db1d4583bea",
+    "source_digest": "ntpro-v280-deployment-orchestration-runtime-source-digest",
+    "v27_foundation_ref": "docs/rust-cutover/release/v0_27_0_deployment_orchestration_foundation.md",
+    "v27_foundation_digest": "ntpro-v270-deployment-orchestration-foundation-digest"
+  },
+  "release_gate_evidence": {
+    "required": true,
+    "status": "passed",
+    "release_tag": "ntpro-rust-only-v0.27.1",
+    "gate_run_id": "28940442369",
+    "gate_updated_at": "2026-07-08T13:17:36Z"
+  },
+  "boundary_flags": {
+    "production_deployment_execution_allowed": false,
+    "deployment_execution_allowed": false,
+    "production_rollback_execution_allowed": false,
+    "rollback_execution_allowed": false,
+    "production_order_mutation_allowed": false,
+    "default_submit_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trading_operation_allowed": false,
+    "manual_operation_submit_allowed": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "orchestration_plan": {
+    "plan_id": "v280-deployment-orchestration-runtime-replay",
+    "mode": "deterministic_preview_replay",
+    "approval_ref": "github-issue-897-approved-preview-boundary",
+    "runbook_ref": "docs/rust-cutover/release/v0_26_0_upgrade_rollback_runbook_evidence.md",
+    "source_ref": "main@7d6529fc55609448623d1fd9732a0db1d4583bea",
+    "state_transitions": [
+      {
+        "transition_id": "deploy-preview-validated",
+        "operation": "deploy",
+        "from_status": "intake_ready",
+        "to_status": "deploy_preview_ready",
+        "preview_only": true,
+        "requires_owner_approval": true,
+        "requires_runbook_provenance": true,
+        "requires_source_provenance": true,
+        "execution_triggered": false,
+        "automatic_remediation_triggered": false,
+        "trading_operation_triggered": false,
+        "adapter_send_requested": false,
+        "live_exchange_request_requested": false,
+        "retry_scheduled": false,
+        "operation_effect": "validated_only"
+      },
+      {
+        "transition_id": "upgrade-preview-validated",
+        "operation": "upgrade",
+        "from_status": "deploy_preview_ready",
+        "to_status": "upgrade_preview_ready",
+        "preview_only": true,
+        "requires_owner_approval": true,
+        "requires_runbook_provenance": true,
+        "requires_source_provenance": true,
+        "execution_triggered": false,
+        "automatic_remediation_triggered": false,
+        "trading_operation_triggered": false,
+        "adapter_send_requested": false,
+        "live_exchange_request_requested": false,
+        "retry_scheduled": false,
+        "operation_effect": "validated_only"
+      },
+      {
+        "transition_id": "rollback-preview-validated",
+        "operation": "rollback",
+        "from_status": "upgrade_preview_ready",
+        "to_status": "rollback_preview_ready",
+        "preview_only": true,
+        "requires_owner_approval": true,
+        "requires_runbook_provenance": true,
+        "requires_source_provenance": true,
+        "execution_triggered": false,
+        "automatic_remediation_triggered": false,
+        "trading_operation_triggered": false,
+        "adapter_send_requested": false,
+        "live_exchange_request_requested": false,
+        "retry_scheduled": false,
+        "operation_effect": "validated_only"
+      },
+      {
+        "transition_id": "blocked-preview-validated",
+        "operation": "blocked",
+        "from_status": "rollback_preview_ready",
+        "to_status": "blocked_preview_ready",
+        "preview_only": true,
+        "requires_owner_approval": true,
+        "requires_runbook_provenance": true,
+        "requires_source_provenance": true,
+        "execution_triggered": false,
+        "automatic_remediation_triggered": false,
+        "trading_operation_triggered": false,
+        "adapter_send_requested": false,
+        "live_exchange_request_requested": false,
+        "retry_scheduled": false,
+        "operation_effect": "validated_only"
+      },
+      {
+        "transition_id": "degraded-preview-validated",
+        "operation": "degraded",
+        "from_status": "blocked_preview_ready",
+        "to_status": "degraded_preview_ready",
+        "preview_only": true,
+        "requires_owner_approval": true,
+        "requires_runbook_provenance": true,
+        "requires_source_provenance": true,
+        "execution_triggered": false,
+        "automatic_remediation_triggered": false,
+        "trading_operation_triggered": false,
+        "adapter_send_requested": false,
+        "live_exchange_request_requested": false,
+        "retry_scheduled": false,
+        "operation_effect": "validated_only"
+      },
+      {
+        "transition_id": "closed-preview-validated",
+        "operation": "closed",
+        "from_status": "degraded_preview_ready",
+        "to_status": "closed_preview_complete",
+        "preview_only": true,
+        "requires_owner_approval": true,
+        "requires_runbook_provenance": true,
+        "requires_source_provenance": true,
+        "execution_triggered": false,
+        "automatic_remediation_triggered": false,
+        "trading_operation_triggered": false,
+        "adapter_send_requested": false,
+        "live_exchange_request_requested": false,
+        "retry_scheduled": false,
+        "operation_effect": "validated_only"
+      }
+    ]
+  },
+  "orchestration_replay_cases": [
+    {
+      "case_id": "deployment_orchestration.plan.allowed.001",
+      "expected_status": "orchestration_plan_replay_ready"
+    },
+    {
+      "case_id": "deployment_orchestration.missing_approval.fail_closed.001",
+      "owner_approval_override": {
+        "status": "missing",
+        "approval_ref": ""
+      },
+      "expected_status": "fail_closed_missing_approval"
+    },
+    {
+      "case_id": "deployment_orchestration.stale_runbook.fail_closed.001",
+      "runbook_provenance_override": {
+        "freshness_status": "stale",
+        "last_verified_at": "2026-06-30T00:00:00Z"
+      },
+      "expected_status": "fail_closed_stale_runbook"
+    },
+    {
+      "case_id": "deployment_orchestration.source_drift.fail_closed.001",
+      "source_provenance_override": {
+        "drift_status": "drifted",
+        "source_ref": "main@drifted"
+      },
+      "expected_status": "fail_closed_source_drift"
+    },
+    {
+      "case_id": "deployment_orchestration.automatic_remediation.fail_closed.001",
+      "transition_overrides": {
+        "degraded-preview-validated": {
+          "automatic_remediation_triggered": true,
+          "operation_effect": "automatic_remediation_triggered"
+        }
+      },
+      "expected_status": "fail_closed_forbidden_automatic_remediation"
+    },
+    {
+      "case_id": "deployment_orchestration.production_execution.fail_closed.001",
+      "boundary_flags_override": {
+        "production_deployment_execution_allowed": true
+      },
+      "transition_overrides": {
+        "deploy-preview-validated": {
+          "execution_triggered": true,
+          "operation_effect": "executed"
+        }
+      },
+      "expected_status": "fail_closed_forbidden_production_execution"
+    }
+  ]
+}

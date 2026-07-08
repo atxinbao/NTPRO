@@ -2,6 +2,17 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
+- `v0_28_0_deployment_orchestration_runtime_closure.md` - V280-004 contract
+  that closes deployment / upgrade / rollback orchestration through
+  deterministic preview state replay, owner approval, runbook provenance,
+  source drift checks, and required-false operation boundaries.
+- `v0_28_0_deployment_orchestration_runtime_artifact.json` -
+  source-controlled V280-004 backend artifact for deploy, upgrade, rollback,
+  blocked, degraded, and closed state replay plus fail-closed missing approval,
+  stale runbook, source drift, automatic remediation, and production execution
+  cases.
+- `../evidence/V280-004.md` - V280-004 deployment orchestration runtime
+  closure evidence for GitHub issue #897.
 - `v0_28_0_persistent_audit_storage_runtime_closure.md` - V280-003 contract
   that closes persistent audit storage through deterministic append-only
   write/read replay, retention/freshness, idempotency, redaction, and lineage
