@@ -98,11 +98,12 @@
     },
     {
       "module_id": "deployment_upgrade_rollback_orchestration_runtime_closure",
-      "classification": "blocked",
+      "classification": "runtime-closed",
       "issue": 897,
-      "closure_claim_allowed": false,
-      "blocked_by_issue": 897,
-      "claim": "blocked until V280-004 closes deployment upgrade rollback orchestration runtime"
+      "closure_claim_allowed": true,
+      "evidence_path": "docs/rust-cutover/evidence/V280-004.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-deployment-orchestration-runtime-closure",
+      "claim": "deployment upgrade rollback orchestration runtime closes through deterministic preview state replay"
     },
     {
       "module_id": "telemetry_slo_ingestion_runtime_closure",
@@ -146,9 +147,9 @@
     }
   ],
   "expected_counts": {
-    "runtime-closed": 4,
+    "runtime-closed": 5,
     "evidence-only": 2,
-    "blocked": 5,
+    "blocked": 4,
     "deferred": 1
   }
 }
