@@ -2,6 +2,13 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
+- `v0_28_0_intake_gate.md` - V280-000 intake proof that all V271 issues are
+  closed, the `ntpro-rust-only-v0.27.1` GitHub Release was published after
+  hosted gate success, and v0.28.0 starts only as a gated Backend Closure /
+  Product Operations Runtime Finalization track with no inherited trading
+  controls.
+- `../evidence/V280-000.md` - V280-000 v0.28.0 intake gate and v0.27.1
+  dependency proof evidence for GitHub issue #893.
 - `v0_27_1_readiness_report.md` - released readiness report for the formal
   `ntpro-rust-only-v0.27.1` GitHub Release. It records the V271 exact release
   scope, v0.27.0 dependency proof, v27.1 gate/provenance requirements, and the
