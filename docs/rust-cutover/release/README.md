@@ -2,6 +2,16 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
+- `v0_28_0_telemetry_slo_ingestion_runtime_closure.md` - V280-005 contract
+  that closes telemetry/SLO ingestion through deterministic observability
+  replay, source freshness, lineage, sampling, SLO transition audit, redaction,
+  and required-false operation boundaries.
+- `v0_28_0_telemetry_slo_ingestion_runtime_artifact.json` -
+  source-controlled V280-005 backend artifact for healthy ingestion, audited
+  SLO breach degradation, stale telemetry, missing provenance, malformed
+  metrics, unredacted payload, and forbidden operation trigger cases.
+- `../evidence/V280-005.md` - V280-005 telemetry/SLO ingestion runtime closure
+  evidence for GitHub issue #898.
 - `v0_28_0_deployment_orchestration_runtime_closure.md` - V280-004 contract
   that closes deployment / upgrade / rollback orchestration through
   deterministic preview state replay, owner approval, runbook provenance,

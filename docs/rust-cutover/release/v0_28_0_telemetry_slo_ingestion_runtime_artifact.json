@@ -1,0 +1,207 @@
+{
+  "schema_version": "ntpro.v280.telemetry_slo_ingestion_runtime_artifact.v1",
+  "contract_version": "ntpro.v280.telemetry_slo_ingestion_runtime_closure.v1",
+  "task_id": "V280-005",
+  "github_issue": 898,
+  "milestone": "v0.28.0",
+  "backend_module": "telemetry_slo_ingestion_runtime_closure",
+  "backend_module_status": "runtime_closed",
+  "release_scope": "backend_closure_product_operations_runtime_finalization_only",
+  "dependency_contracts": [
+    "V280-001",
+    "V280-003",
+    "V270-005",
+    "V260-006",
+    "V271-006"
+  ],
+  "dependency_release_tag": "ntpro-rust-only-v0.27.1",
+  "ingestion_mode": "deterministic_observability_replay",
+  "telemetry_source": {
+    "source_id": "v280-telemetry-slo-runtime-source",
+    "source_type": "local_runtime_telemetry_artifact",
+    "source_ref": "tests/golden/v270_long_run_telemetry_slo_runtime_evidence.jsonl",
+    "source_digest": "ntpro-v270-long-run-telemetry-slo-runtime-digest",
+    "source_snapshot_id": "v280-telemetry-slo-ingestion-snapshot-001",
+    "release_tag": "ntpro-rust-only-v0.27.1",
+    "expected_release_tag": "ntpro-rust-only-v0.27.1",
+    "freshness_status": "fresh",
+    "observed_age_ms": 30000,
+    "max_age_ms": 60000,
+    "lineage_status": "linked",
+    "schema_name": "ntpro.telemetry_slo.long_run.v1",
+    "schema_version": "1"
+  },
+  "sampling_window": {
+    "window_id": "v280-telemetry-slo-window-1440m",
+    "duration_minutes": 1440,
+    "min_duration_minutes": 1440,
+    "sample_count": 1440,
+    "expected_sample_count": 1440,
+    "gap_count": 0,
+    "max_gap_ms": 60000,
+    "allowed_gap_ms": 120000,
+    "malformed_sample_count": 0
+  },
+  "slo_rollup": {
+    "slo_id": "v280-product-operations-runtime-slo",
+    "status": "healthy",
+    "observed_availability": 0.9995,
+    "availability_target": 0.999,
+    "error_budget_remaining": 0.5,
+    "breach_count": 0,
+    "transition_audit_required": true
+  },
+  "payload_policy": {
+    "redaction_status": "redacted",
+    "raw_secret_persisted": false,
+    "raw_exchange_response_persisted": false,
+    "unredacted_payload_count": 0
+  },
+  "audit_lineage": {
+    "lineage_status": "linked",
+    "audit_sink_ref": "docs/rust-cutover/release/v0_28_0_persistent_audit_storage_runtime_artifact.json",
+    "transition_ledger_ref": "docs/rust-cutover/evidence/V280-005.md",
+    "source_event_hash": "ntpro-v280-telemetry-slo-source-event-hash",
+    "store_record_hash": "ntpro-v280-telemetry-slo-store-record-hash"
+  },
+  "boundary_flags": {
+    "default_submit_allowed": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "automatic_remediation_allowed": false,
+    "retry_scheduler_enabled": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trading_operation_allowed": false,
+    "telemetry_event_triggers_remediation": false,
+    "telemetry_event_triggers_retry": false,
+    "telemetry_event_triggers_adapter_send": false,
+    "telemetry_event_triggers_trading_control": false,
+    "manual_operation_submit_allowed": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "slo_status_transitions": [
+    {
+      "transition_id": "healthy-ingestion-audited",
+      "from_status": "pending",
+      "to_status": "healthy",
+      "transition_auditable": true,
+      "operation_effect": "observability_only",
+      "remediation_triggered": false,
+      "retry_scheduled": false,
+      "adapter_send_requested": false,
+      "live_exchange_request_requested": false,
+      "trading_operation_triggered": false
+    },
+    {
+      "transition_id": "degraded-slo-breach-audited",
+      "from_status": "healthy",
+      "to_status": "degraded",
+      "transition_auditable": true,
+      "operation_effect": "observability_only",
+      "remediation_triggered": false,
+      "retry_scheduled": false,
+      "adapter_send_requested": false,
+      "live_exchange_request_requested": false,
+      "trading_operation_triggered": false
+    },
+    {
+      "transition_id": "breached-slo-audited",
+      "from_status": "degraded",
+      "to_status": "breached",
+      "transition_auditable": true,
+      "operation_effect": "observability_only",
+      "remediation_triggered": false,
+      "retry_scheduled": false,
+      "adapter_send_requested": false,
+      "live_exchange_request_requested": false,
+      "trading_operation_triggered": false
+    },
+    {
+      "transition_id": "fail-closed-integrity-audited",
+      "from_status": "breached",
+      "to_status": "fail_closed",
+      "transition_auditable": true,
+      "operation_effect": "observability_only",
+      "remediation_triggered": false,
+      "retry_scheduled": false,
+      "adapter_send_requested": false,
+      "live_exchange_request_requested": false,
+      "trading_operation_triggered": false
+    }
+  ],
+  "telemetry_replay_cases": [
+    {
+      "case_id": "telemetry_slo_ingestion.healthy.allowed.001",
+      "expected_status": "telemetry_slo_ingestion_replay_ready"
+    },
+    {
+      "case_id": "telemetry_slo_ingestion.slo_breach.degraded.001",
+      "slo_rollup_override": {
+        "status": "breached",
+        "observed_availability": 0.995,
+        "breach_count": 1,
+        "error_budget_remaining": -0.1
+      },
+      "expected_status": "degraded_slo_breach"
+    },
+    {
+      "case_id": "telemetry_slo_ingestion.stale_telemetry.fail_closed.001",
+      "telemetry_source_override": {
+        "freshness_status": "stale",
+        "observed_age_ms": 120000
+      },
+      "expected_status": "fail_closed_stale_telemetry"
+    },
+    {
+      "case_id": "telemetry_slo_ingestion.missing_provenance.fail_closed.001",
+      "telemetry_source_override": {
+        "source_ref": "",
+        "source_digest": "",
+        "lineage_status": "missing"
+      },
+      "audit_lineage_override": {
+        "lineage_status": "missing",
+        "source_event_hash": ""
+      },
+      "expected_status": "fail_closed_missing_provenance"
+    },
+    {
+      "case_id": "telemetry_slo_ingestion.malformed_metrics.fail_closed.001",
+      "sampling_window_override": {
+        "sample_count": 1439,
+        "expected_sample_count": 1440,
+        "gap_count": 1,
+        "max_gap_ms": 180000,
+        "malformed_sample_count": 1
+      },
+      "expected_status": "fail_closed_malformed_metrics"
+    },
+    {
+      "case_id": "telemetry_slo_ingestion.unredacted_payload.fail_closed.001",
+      "payload_policy_override": {
+        "redaction_status": "unredacted",
+        "raw_secret_persisted": true,
+        "unredacted_payload_count": 1
+      },
+      "expected_status": "fail_closed_unredacted_payload"
+    },
+    {
+      "case_id": "telemetry_slo_ingestion.forbidden_operation.fail_closed.001",
+      "boundary_flags_override": {
+        "automatic_remediation_allowed": true
+      },
+      "transition_overrides": {
+        "degraded-slo-breach-audited": {
+          "remediation_triggered": true,
+          "operation_effect": "automatic_remediation_triggered"
+        }
+      },
+      "expected_status": "fail_closed_forbidden_operation_trigger"
+    }
+  ]
+}
