@@ -46,6 +46,31 @@
     {"task_id": "V261-005", "issue": 851, "path": "docs/rust-cutover/evidence/V261-005.md"},
     {"task_id": "V261-006", "issue": 852, "path": "docs/rust-cutover/evidence/V261-006.md"}
   ],
+  "v261_corrective_scope": {
+    "classification": "corrective_scope_exception",
+    "decision": "#868 / V261-007 is a post-release tag-gate corrective exception, not part of the public v0.26.1 release body final scope.",
+    "final_release_scope_issue_count": 6,
+    "final_release_scope_evidence_count": 6,
+    "corrective_scope_exception_count": 1,
+    "registered_corrective_scope_exceptions_closed_required": true,
+    "unregistered_corrective_milestone_issue_fail_closed": true,
+    "v27_intake_reconstructs_corrective_scope_exceptions": true,
+    "exceptions": [
+      {
+        "task_id": "V261-007",
+        "issue": 868,
+        "title": "fix historical v26 gate inheritance in v26.1 tag release",
+        "classification": "corrective_scope_exception",
+        "source_task_file_required": false,
+        "source_evidence_file_required": false,
+        "remote_reconstruction_required": true,
+        "required_for_v27_intake": true,
+        "capability_expansion": false,
+        "runtime_behavior_change": false,
+        "trading_behavior_change": false
+      }
+    ]
+  },
   "release_gates": [
     {"name": "v26-release-gates", "command": "scripts/ai/verify_release.sh v26-release-gates", "required": true},
     {"name": "v26-strict-provenance", "command": "scripts/ai/verify_release.sh v26-strict-provenance", "required": true},
@@ -129,6 +154,10 @@
     "milestone_number": 19,
     "milestone_title": "v0.26.1",
     "all_v261_issues_closed_required": true,
+    "all_v261_release_scope_issues_closed_required": true,
+    "registered_corrective_scope_exceptions_closed_required": true,
+    "unregistered_corrective_milestone_issues_fail_closed": true,
+    "v0_27_intake_reconstructs_corrective_scope_exceptions": true,
     "github_release_published_required": true,
     "hosted_release_gate_success_required": true,
     "strict_release_body_match_required": true,

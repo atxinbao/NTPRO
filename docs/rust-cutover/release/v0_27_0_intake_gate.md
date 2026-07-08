@@ -9,8 +9,12 @@ Milestone: `v0.27.0`
 
 ```text
 start_gate_status = satisfied
-V261 issues closed = 6/6
+V261 release scope issues closed = 6/6
+V261 corrective-scope exceptions closed = 1/1
 V261 milestone closed issues = 7
+V261 milestone issue set = #847-#852,#868
+registered corrective-scope exceptions required = true
+unregistered corrective milestone issues fail closed = true
 v0.26.1 milestone = closed
 v0.26.1 milestone open issues = 0
 v0.26.1 release evidence = published
@@ -37,7 +41,7 @@ v0.26.1 GitHub Release body sha256 = 818cf255527a674b1bc2689752eaec18c0c7224166e
 #850 V261-004 = closed
 #851 V261-005 = closed
 #852 V261-006 = closed
-#868 V261-007 corrective release blocker = closed
+#868 V261-007 corrective-scope exception = closed
 ```
 
 ## Source Reconstruction
@@ -48,6 +52,8 @@ v0.26.1 readiness report = docs/rust-cutover/release/v0_26_1_readiness_report.md
 v0.26.1 release notes = docs/rust-cutover/release/v0_26_1_release_notes.md
 V261 task files = docs/rust-cutover/tasks/V261-001.md..V261-006.md
 V261 evidence files = docs/rust-cutover/evidence/V261-001.md..V261-006.md
+V261 corrective-scope exception #868 = remote issue reconstruction only
+V261 corrective-scope rule = docs/rust-cutover/release/v0_26_1_release_manifest.json
 publication evidence strategy = source_tree_plus_github_remote
 local generated publication evidence required in source tree = false
 remote reconstruction required = true

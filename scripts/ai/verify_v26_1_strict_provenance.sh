@@ -112,6 +112,21 @@ require(release_manifest["planned_release"]["tag"] == os.environ["RELEASE_TAG"],
 require("v26.1 release gates = required" in release_notes, "release notes gate marker missing")
 require("v26.1 strict provenance = required" in readiness, "readiness strict provenance marker missing")
 require(release_manifest["post_publication_requirements"]["v0_27_start_gate_fails_without_v261_release_evidence"] is True, "v0.27 start gate requirement missing")
+corrective = release_manifest.get("v261_corrective_scope") or {}
+require(corrective.get("classification") == "corrective_scope_exception", "corrective scope classification missing")
+require(corrective.get("final_release_scope_issue_count") == 6, "corrective final release scope issue count mismatch")
+require(corrective.get("final_release_scope_evidence_count") == 6, "corrective final release scope evidence count mismatch")
+require(corrective.get("corrective_scope_exception_count") == 1, "corrective exception count mismatch")
+require(corrective.get("registered_corrective_scope_exceptions_closed_required") is True, "corrective closeout rule missing")
+require(corrective.get("unregistered_corrective_milestone_issue_fail_closed") is True, "unregistered corrective fail-closed rule missing")
+require(corrective.get("v27_intake_reconstructs_corrective_scope_exceptions") is True, "v27 corrective reconstruction rule missing")
+exceptions = corrective.get("exceptions") or []
+require(len(exceptions) == 1, "corrective exception list mismatch")
+exception = exceptions[0]
+require(exception.get("task_id") == "V261-007", "corrective task mismatch")
+require(exception.get("issue") == 868, "corrective issue mismatch")
+require(exception.get("remote_reconstruction_required") is True, "corrective remote reconstruction missing")
+require(exception.get("required_for_v27_intake") is True, "corrective v27 intake requirement missing")
 for key in [
     "new_submit_capability",
     "production_order_submission_allowed",
@@ -162,6 +177,7 @@ payload = {
     "release_body_sha256": hashlib.sha256(release_notes.encode("utf-8")).hexdigest(),
     "source_inputs": source_inputs,
     "v261_issue_scope": [847, 848, 849, 850, 851, 852],
+    "v261_corrective_scope": release_manifest.get("v261_corrective_scope"),
     "next_intake_gate": {
         "version": "v0.27.0",
         "command": "scripts/ai/verify_release.sh v27-intake-gate",
