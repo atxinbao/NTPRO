@@ -74,6 +74,7 @@ v0.26.1 release evidence = published
 v0.27.0 milestone = must be closed before public publication
 release body source = docs/rust-cutover/release/v0_27_0_release_notes.md
 release closeout evidence = docs/rust-cutover/release/v0_27_0_release_closeout_evidence.md
+publication entry provenance = docs/rust-cutover/release/v0_27_0_publication_entry_provenance.md
 strict provenance manifest = target/ntpro-v270/v0_27_0_strict_release_manifest.json
 release governance trace = tests/golden/v270_release_gates_strict_provenance.jsonl
 ```
@@ -113,6 +114,9 @@ hosted release gate conclusion = success
 hosted release gate jobs = 82/82 success
 release body sha256 = 91184074bab30a50f69147697aecf19d91977d615ad313eef96fbcb2c470138b
 release body matches tracked release notes = true
+publication entrypoint = scripts/ai/publish_ntpro_release_after_gate.sh
+hosted release-publish workflow used = false
+publication actor = atxinbao
 v0.27.0 milestone = #20 closed, 11 closed issues, 0 open issues
 ```
 
