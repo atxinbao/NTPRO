@@ -1,0 +1,152 @@
+{
+  "schema_version": "ntpro.v280.backend_closure_readiness_matrix.v1",
+  "contract_version": "ntpro.v280.backend_closure_boundary.v1",
+  "task_id": "V280-001",
+  "github_issue": 894,
+  "milestone": "v0.28.0",
+  "release_scope": "backend_closure_product_operations_runtime_finalization_only",
+  "release_claim": "backend_closure_boundary_and_readiness_matrix",
+  "dependency_start_gate": "satisfied",
+  "claim_rules": {
+    "backend_complete_claim": false,
+    "frontend_product_work_complete_claim": false,
+    "production_execution_runtime_claim": false,
+    "product_grade_live_trading_terminal_claim": false,
+    "blocked_module_closure_claim_allowed": false,
+    "deferred_module_closure_claim_allowed": false,
+    "evidence_only_module_runtime_closure_claim_allowed": false,
+    "runtime_closed_module_requires_evidence_path": true,
+    "runtime_closed_module_requires_verification_command": true
+  },
+  "required_false_boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "module_readiness": [
+    {
+      "module_id": "v271_release_publication_dependency",
+      "classification": "runtime-closed",
+      "issue": 893,
+      "closure_claim_allowed": true,
+      "evidence_path": "docs/rust-cutover/evidence/V280-000.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-intake-gate",
+      "claim": "v0.27.1 publication dependency proof is closed and source-reconstructable"
+    },
+    {
+      "module_id": "v280_backend_closure_boundary_contract",
+      "classification": "runtime-closed",
+      "issue": 894,
+      "closure_claim_allowed": true,
+      "evidence_path": "docs/rust-cutover/evidence/V280-001.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-backend-closure-boundary-contract",
+      "claim": "v0.28.0 backend closure boundary contract and readiness matrix are release-gated"
+    },
+    {
+      "module_id": "v270_operations_runtime_foundation_evidence",
+      "classification": "evidence-only",
+      "issue": 854,
+      "closure_claim_allowed": false,
+      "evidence_path": "docs/rust-cutover/evidence/V270-001.md",
+      "verification_command": "scripts/ai/verify_release.sh v27-product-operations-boundary-contract",
+      "claim": "historical v27 foundation evidence only; not a v28 backend closure"
+    },
+    {
+      "module_id": "v271_release_governance_patch_evidence",
+      "classification": "evidence-only",
+      "issue": 892,
+      "closure_claim_allowed": false,
+      "evidence_path": "docs/rust-cutover/evidence/V271-006.md",
+      "verification_command": "scripts/ai/verify_release.sh v27.1-release-gates",
+      "claim": "historical v27.1 release governance evidence only; not a v28 backend closure"
+    },
+    {
+      "module_id": "identity_permission_runtime_closure",
+      "classification": "blocked",
+      "issue": 895,
+      "closure_claim_allowed": false,
+      "blocked_by_issue": 895,
+      "claim": "blocked until V280-002 closes identity and permission runtime"
+    },
+    {
+      "module_id": "persistent_audit_storage_runtime_closure",
+      "classification": "blocked",
+      "issue": 896,
+      "closure_claim_allowed": false,
+      "blocked_by_issue": 896,
+      "claim": "blocked until V280-003 closes persistent audit storage runtime"
+    },
+    {
+      "module_id": "deployment_upgrade_rollback_orchestration_runtime_closure",
+      "classification": "blocked",
+      "issue": 897,
+      "closure_claim_allowed": false,
+      "blocked_by_issue": 897,
+      "claim": "blocked until V280-004 closes deployment upgrade rollback orchestration runtime"
+    },
+    {
+      "module_id": "telemetry_slo_ingestion_runtime_closure",
+      "classification": "blocked",
+      "issue": 898,
+      "closure_claim_allowed": false,
+      "blocked_by_issue": 898,
+      "claim": "blocked until V280-005 closes telemetry SLO ingestion runtime"
+    },
+    {
+      "module_id": "admin_workbench_backend_state_bridge_closure",
+      "classification": "blocked",
+      "issue": 899,
+      "closure_claim_allowed": false,
+      "blocked_by_issue": 899,
+      "claim": "blocked until V280-006 closes Admin Workbench backend state bridge"
+    },
+    {
+      "module_id": "trader_terminal_backend_api_contract_handoff",
+      "classification": "blocked",
+      "issue": 900,
+      "closure_claim_allowed": false,
+      "blocked_by_issue": 900,
+      "claim": "blocked until V280-007 defines backend API handoff for Trader Terminal"
+    },
+    {
+      "module_id": "backend_closure_fail_closed_hardening",
+      "classification": "blocked",
+      "issue": 901,
+      "closure_claim_allowed": false,
+      "blocked_by_issue": 901,
+      "claim": "blocked until V280-008 closes backend fail-closed hardening"
+    },
+    {
+      "module_id": "v28_release_gates_strict_provenance_handoff",
+      "classification": "deferred",
+      "issue": 902,
+      "closure_claim_allowed": false,
+      "deferred_until_issue": 902,
+      "claim": "deferred until V280-009 release gates and handoff"
+    }
+  ],
+  "expected_counts": {
+    "runtime-closed": 2,
+    "evidence-only": 2,
+    "blocked": 7,
+    "deferred": 1
+  }
+}
