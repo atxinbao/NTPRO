@@ -822,6 +822,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   forbidden trading controls, requires provenance/freshness/redaction/lineage
   semantics, and blocks production execution runtime or product-grade live
   trading terminal claims.
+- `v0_27_0_external_identity_permission_foundation.md` - V270-002 contract for
+  external identity-provider evidence and permission mapping foundation. It
+  records IdP provenance, role mapping freshness/redaction/lineage, v26
+  permission-boundary alignment, and required-false trading permissions without
+  opening runtime SSO/IAM authorization or trading controls.
 - `v0_26_0_product_hardening_boundary_contract.md` - V260-001 contract for the
   v0.26.0 product hardening foundation scope. It records allowed hardening
   areas, required-false trading boundary flags, fail-closed rules, and the

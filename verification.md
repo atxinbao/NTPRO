@@ -4224,3 +4224,35 @@ redaction, lineage, and fail-closed semantics. It keeps every trading,
 execution, adapter-send, live-exchange, retry, automatic-remediation,
 Dashboard trading-control, manual-submit, and product-grade terminal claim
 explicitly false.
+
+# V270-002 Verification
+
+Date: 2026-07-07
+Executor: Codex
+Task: `V270-002` / GitHub issue `#855`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v27_external_identity_permission_foundation.sh = PASS
+scripts/ai/verify_release.sh v27-external-identity-permission-foundation = PASS, cases=7, roles=4, required_false_permissions=12, boundary_flags=14, negative_selftest=1
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v270_external_identity_permission_foundation.jsonl").read_text().splitlines() if line.strip()]' = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 246 cases, 95 executable replay, 146 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v27-product-operations-boundary-contract = PASS, cases=7, required_false_flags=17, provenance_flags=5, negative_selftest=1
+scripts/ai/verify_release.sh v26-operator-permission-model = PASS, cases=7, roles=5, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V270-002 defines the v0.27.0 external identity and permission integration
+foundation. External IdP evidence and role mappings must carry provenance,
+freshness, redaction, and lineage, and must align with the v26 read/admin
+permission boundary for operator, admin, auditor, and release-gatekeeper
+roles. Missing IdP provenance, stale mapping, unknown role, cross-scope action,
+v26 boundary mismatch, and any trading permission fail closed. This task does
+not add runtime SSO/IAM authorization, submit/cancel/retry/replace/amend/
+flatten permission, adapter send, live exchange request, Dashboard trading
+controls, or product-grade terminal claims.
