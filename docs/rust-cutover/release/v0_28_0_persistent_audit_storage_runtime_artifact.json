@@ -1,0 +1,154 @@
+{
+  "schema_version": "ntpro.v280.persistent_audit_storage_runtime_artifact.v1",
+  "contract_version": "ntpro.v280.persistent_audit_storage_runtime_closure.v1",
+  "task_id": "V280-003",
+  "github_issue": 896,
+  "milestone": "v0.28.0",
+  "release_scope": "backend_closure_product_operations_runtime_finalization_only",
+  "backend_module": "persistent_audit_storage_runtime_closure",
+  "backend_module_status": "runtime_closed",
+  "dependency_contracts": ["V280-001", "V280-002", "V270-003", "V260-003"],
+  "audit_sink": {
+    "sink_id": "v280-local-audit-replay-sink",
+    "sink_type": "persistent_operation_audit_sink",
+    "storage_backend_claim": "deterministic_local_replay_artifact",
+    "segment_id": "audit-segment-v280-003",
+    "append_only": true,
+    "immutable_segments": true,
+    "mutable_updates_allowed": false,
+    "delete_before_retention_allowed": false,
+    "idempotency_key_required": true,
+    "read_after_write_required": true,
+    "freshness_status": "fresh"
+  },
+  "storage_provenance": {
+    "source_type": "local_runtime_replay_artifact",
+    "store_id": "audit-store-v280-003",
+    "backend_class": "jsonl_append_only_replay",
+    "collected_at": "2026-07-08T15:05:00Z",
+    "config_digest": "sha256:6c9d06ccf1ee5f2be7cf72e066c4142e19bc5d3f53814f33e46a2f4135d70eaa",
+    "lineage_status": "linked"
+  },
+  "boundary_flags": {
+    "operation_execution_allowed": false,
+    "automatic_remediation_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "retry_scheduler_enabled": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "persistent_records": [
+    {
+      "record_id": "audit-v280-003-000001",
+      "sequence": 1,
+      "actor": {
+        "id": "operator-redacted",
+        "role": "operator",
+        "scope": "account:read-model",
+        "provenance_ref": "permission-map-v280-002"
+      },
+      "audit_event_type": "operation_preview_read",
+      "source_event_hash": "source-event-v280-003-000001",
+      "payload_digest": "payload-digest-v280-003-000001",
+      "previous_store_hash": "GENESIS",
+      "store_record_hash": "ntpro-audit-runtime:000001:source-event-v280-003-000001:payload-digest-v280-003-000001",
+      "idempotency_key": "idempotency-v280-003-000001",
+      "readback_record_hash": "ntpro-audit-runtime:000001:source-event-v280-003-000001:payload-digest-v280-003-000001",
+      "redaction_status": "redacted",
+      "retention": {
+        "policy_id": "audit-retention-v28",
+        "expires_at": "2027-07-08T00:00:00Z",
+        "mode": "immutable_until_expiry"
+      },
+      "lineage": {
+        "source_ref": "identity_permission_runtime.operator_dashboard_read.allowed.001",
+        "store_ref": "audit-store-v280-003",
+        "lineage_status": "linked"
+      },
+      "operation_effect": "none"
+    },
+    {
+      "record_id": "audit-v280-003-000002",
+      "sequence": 2,
+      "actor": {
+        "id": "admin-redacted",
+        "role": "admin",
+        "scope": "admin:audit",
+        "provenance_ref": "permission-map-v280-002"
+      },
+      "audit_event_type": "audit_read",
+      "source_event_hash": "source-event-v280-003-000002",
+      "payload_digest": "payload-digest-v280-003-000002",
+      "previous_store_hash": "ntpro-audit-runtime:000001:source-event-v280-003-000001:payload-digest-v280-003-000001",
+      "store_record_hash": "ntpro-audit-runtime:000002:source-event-v280-003-000002:payload-digest-v280-003-000002",
+      "idempotency_key": "idempotency-v280-003-000002",
+      "readback_record_hash": "ntpro-audit-runtime:000002:source-event-v280-003-000002:payload-digest-v280-003-000002",
+      "redaction_status": "redacted",
+      "retention": {
+        "policy_id": "audit-retention-v28",
+        "expires_at": "2027-07-08T00:00:00Z",
+        "mode": "immutable_until_expiry"
+      },
+      "lineage": {
+        "source_ref": "identity_permission_runtime.admin_audit_read.allowed.001",
+        "store_ref": "audit-store-v280-003",
+        "lineage_status": "linked"
+      },
+      "operation_effect": "none"
+    }
+  ],
+  "audit_replay_cases": [
+    {
+      "case_id": "persistent_audit_storage.write_read.allowed.001",
+      "expected_status": "audit_write_read_replay_ready"
+    },
+    {
+      "case_id": "persistent_audit_storage.missing_storage.fail_closed.001",
+      "audit_sink_override": {
+        "sink_id": ""
+      },
+      "expected_status": "fail_closed_missing_storage"
+    },
+    {
+      "case_id": "persistent_audit_storage.stale_source.fail_closed.001",
+      "audit_sink_override": {
+        "freshness_status": "stale"
+      },
+      "expected_status": "fail_closed_stale_audit_source"
+    },
+    {
+      "case_id": "persistent_audit_storage.broken_lineage.fail_closed.001",
+      "record_overrides": {
+        "audit-v280-003-000002": {
+          "previous_store_hash": "broken"
+        }
+      },
+      "expected_status": "fail_closed_broken_lineage"
+    },
+    {
+      "case_id": "persistent_audit_storage.unredacted_payload.fail_closed.001",
+      "record_overrides": {
+        "audit-v280-003-000001": {
+          "redaction_status": "unredacted"
+        }
+      },
+      "expected_status": "fail_closed_unredacted_payload"
+    },
+    {
+      "case_id": "persistent_audit_storage.forbidden_operation.fail_closed.001",
+      "boundary_flags_override": {
+        "automatic_remediation_allowed": true
+      },
+      "record_overrides": {
+        "audit-v280-003-000002": {
+          "operation_effect": "automatic_remediation_triggered"
+        }
+      },
+      "expected_status": "fail_closed_forbidden_operation_trigger"
+    }
+  ]
+}
