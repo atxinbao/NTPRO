@@ -76,6 +76,36 @@ for path in "${input_paths[@]}"; do
   [[ -f "$path" ]] || fail "missing strict provenance input: $path"
 done
 
+if [[ "${NTPRO_V270_ALLOW_STALE_EVIDENCE:-0}" != "1" ]]; then
+  for marker in \
+    "current_issue_state=OPEN" \
+    "v270_issues=8/9_closed_or_current" \
+    "v270_issues=10/11_closed_or_current" \
+    "final_scope_issues=9" \
+    "final_scope_issues=10" \
+    "tag_exists=false" \
+    "source_dirty=true" \
+    "offline_skip missing local tag" \
+    "pre_tag_mode missing_tag" \
+    "Pending final validation"; do
+    for path in \
+      "$ROOT_DIR/docs/rust-cutover/evidence/V270-008.md" \
+      "$ROOT_DIR/docs/rust-cutover/evidence/V270-009.md" \
+      "$ROOT_DIR/docs/rust-cutover/evidence/V270-010.md"; do
+      if grep -F -- "$marker" "$path" >/dev/null; then
+        fail "stale V270 evidence marker in ${path#$ROOT_DIR/}: $marker"
+      fi
+    done
+  done
+  for marker in \
+    "#885 V270-010 = must be closed before v0.27.0 tag gate is accepted" \
+    "v0.27.0 milestone = must be closed before public publication"; do
+    if grep -F -- "$marker" "$READINESS_REPORT_PATH" >/dev/null; then
+      fail "stale V270 readiness marker in ${READINESS_REPORT_PATH#$ROOT_DIR/}: $marker"
+    fi
+  done
+fi
+
 source_commit="$(git rev-parse HEAD)"
 source_tree="$(git rev-parse HEAD^{tree})"
 tracked_status="$(git status --porcelain --untracked-files=no)"
