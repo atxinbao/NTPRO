@@ -2,6 +2,19 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
+- `v0_27_1_readiness_report.md` - released readiness report for the formal
+  `ntpro-rust-only-v0.27.1` GitHub Release. It records the V271 exact release
+  scope, v0.27.0 dependency proof, v27.1 gate/provenance requirements, and the
+  v0.28.0 hard-block until v0.27.1 publication evidence is reconstructable.
+- `v0_27_1_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.27.1` GitHub Release. It is a release-governance and
+  evidence-hardening patch and does not open submit, mutation, adapter send,
+  live exchange, retry scheduler, remediation, Dashboard/Admin trading
+  controls, or product-grade terminal claims.
+- `v0_27_1_release_manifest.json` - strict release manifest for the formal
+  `ntpro-rust-only-v0.27.1` GitHub Release.
+- `../evidence/V271-006.md` - v27.1 release gate, strict provenance, exact
+  issue-scope, publication guard, and v0.28.0 hard-block evidence ledger.
 - `product_live_trading_roadmap.md` - planning baseline for the path from
   v0.20 production order lifecycle evidence through v0.21 unified read model
   and toward v0.22-v0.26+ product-grade live trading readiness. It is the
