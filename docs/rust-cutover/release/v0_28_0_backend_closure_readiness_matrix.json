@@ -107,11 +107,12 @@
     },
     {
       "module_id": "telemetry_slo_ingestion_runtime_closure",
-      "classification": "blocked",
+      "classification": "runtime-closed",
       "issue": 898,
-      "closure_claim_allowed": false,
-      "blocked_by_issue": 898,
-      "claim": "blocked until V280-005 closes telemetry SLO ingestion runtime"
+      "closure_claim_allowed": true,
+      "evidence_path": "docs/rust-cutover/evidence/V280-005.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-telemetry-slo-ingestion-runtime-closure",
+      "claim": "telemetry SLO ingestion runtime closes through deterministic observability replay"
     },
     {
       "module_id": "admin_workbench_backend_state_bridge_closure",
@@ -147,9 +148,9 @@
     }
   ],
   "expected_counts": {
-    "runtime-closed": 5,
+    "runtime-closed": 6,
     "evidence-only": 2,
-    "blocked": 4,
+    "blocked": 3,
     "deferred": 1
   }
 }
