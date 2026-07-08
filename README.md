@@ -6,34 +6,33 @@ NautilusTrader.
 The current source-tree milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.27.0
-Latest formal release: ntpro-rust-only-v0.27.0
-Current source-tree readiness: ntpro-rust-only-v0.27.0 released
-Current capability: v0.27.0 Product Operations Runtime Integration Foundation
-Capability class: product operations runtime integration foundation only
-Next patch: v0.27.1 Reserved Patch Track
+Current source tag: ntpro-rust-only-v0.27.1
+Latest formal release: ntpro-rust-only-v0.27.1
+Current source-tree readiness: ntpro-rust-only-v0.27.1 released
+Current capability: v0.27.1 Product Operations Runtime Integration Closeout Patch
+Capability class: product operations runtime integration closeout patch only
+Next patch: v0.27.2 Reserved Patch Track
 Next capability: v0.28.0 Reserved Capability Track
-v0.28.0 entry: reserved next capability track only after v0.27.0 release evidence is published
-Boundary: v0.27.0 is a Product Operations Runtime Integration Foundation over the v0.26.1 closeout patch line. It covers v0.26.1 dependency proof, product operations boundary, external identity/permission foundation, persistent audit storage foundation, deployment/upgrade/rollback orchestration foundation, long-run telemetry/SLO evidence, Admin Workbench runtime state bridge, runtime integration fail-closed hardening, v27 release gates, and strict provenance. It does not include product-grade live trading, new production submit capability, production order mutation, execution adapter send, live exchange request, implicit retry, retry scheduler, automatic remediation, automatic recovery, strategy-driven production execution, shared approval consumption, real-funds proof in CI, or Dashboard/Admin order/approval/cancel/retry/submit/replace/amend/flatten/remediation/order-ticket controls.
+v0.28.0 entry: reserved next capability track only after v0.27.1 release evidence is published
+Boundary: v0.27.1 is a Product Operations Runtime Integration closeout patch over the v0.27.0 foundation line. It covers v0.27.0 release closeout evidence, publication entry provenance, stale V270 evidence cleanup, v0.26.1 dependency reconciliation, exact release-scope gate hardening, v27.1 release gates, and strict provenance. It does not include product-grade live trading, new production submit capability, production order mutation, execution adapter send, live exchange request, implicit retry, retry scheduler, automatic remediation, automatic recovery, strategy-driven production execution, shared approval consumption, real-funds proof in CI, or Dashboard/Admin order/approval/cancel/retry/submit/replace/amend/flatten/remediation/order-ticket controls.
 ```
 
-`ntpro-rust-only-v0.27.0` is the latest formal GitHub Release. It is the
-Product Operations Runtime Integration Foundation. It preserves the no-submit /
-no-Dashboard/Admin-trading-controls boundary while adding runtime integration
-contracts, external identity and audit foundations, deployment orchestration,
-telemetry/SLO evidence, Admin Workbench bridge evidence, fail-closed hardening,
-release gates, and strict provenance. It is not a product-grade live trading
-terminal or production execution runtime.
+`ntpro-rust-only-v0.27.1` is the latest formal GitHub Release. It is the
+Product Operations Runtime Integration closeout patch. It preserves the
+no-submit / no-Dashboard/Admin-trading-controls boundary while closing v0.27.0
+release evidence, publication provenance, exact-scope gates, v27.1 release
+gates, and strict provenance. It is not a product-grade live trading terminal
+or production execution runtime.
 
-The latest formal release is published as a GitHub Release for the v0.27.0
+The latest formal release is published as a GitHub Release for the v0.27.1
 tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.27.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.27.1
 ```
 
-`v0.27.0` is the current formal Product Operations Runtime Integration
-Foundation. It remains read-only/admin integration evidence, not a product-grade
+`v0.27.1` is the current formal Product Operations Runtime Integration closeout
+patch. It remains release governance and evidence hardening, not a product-grade
 live trading terminal or general production trading platform claim. It does not
 add production submit, order mutation, execution adapter send, live exchange
 request, ungated cancel/retry/replace/amend/flatten, implicit retry, retry
@@ -41,10 +40,10 @@ scheduler, automatic remediation, automatic recovery, bulk order execution,
 strategy-driven production execution, shared approval consumption, or Dashboard
 / Admin operation controls.
 
-The next patch track is `v0.27.1`. The next capability track is `v0.28.0`.
+The next patch track is `v0.27.2`. The next capability track is `v0.28.0`.
 `v0.28.0` does not automatically inherit production submit, mutation, adapter
 send, live exchange request, retry scheduler, automatic remediation, or
-Dashboard / Admin operation controls from `v0.27.0`.
+Dashboard / Admin operation controls from `v0.27.1`.
 
 ## Current Status
 
@@ -120,8 +119,8 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.27.0 is the current formal release line. It is the Product Operations
-Runtime Integration Foundation over the v0.26.1 closeout patch, v0.26.0
+v0.27.1 is the current formal release line. It is the Product Operations
+Runtime Integration closeout patch over the v0.27.0 foundation, v0.26.1 closeout patch, v0.26.0
 product hardening foundation, monitoring / incident / disaster-recovery
 foundation, and read-only Workbench/order-control foundation line and builds on
 the earlier foundation layers:

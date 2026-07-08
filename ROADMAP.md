@@ -4,8 +4,8 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.27.0`, the v0.27.0 Product Operations Runtime Integration Foundation release.
-The next patch track is `v0.27.1`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.27.1`, the v0.27.1 Product Operations Runtime Integration Closeout Patch release.
+The next patch track is `v0.27.2`.
 The next capability track is `v0.28.0`.
 
 ## Current Release Surface
@@ -18,15 +18,17 @@ ntpro-rust-only-v0.25.1
 ntpro-rust-only-v0.26.0
 ntpro-rust-only-v0.26.1
 ntpro-rust-only-v0.27.0
+ntpro-rust-only-v0.27.1
 ```
 
 Current capability boundary:
 
 ```text
-v0.27.0 Product Operations Runtime Integration Foundation
+v0.27.1 Product Operations Runtime Integration Closeout Patch
+v0.27.0 Product Operations Runtime Integration Foundation baseline
 v0.26.1 Product Hardening Foundation Closeout Patch
 v0.26.0 Product Hardening Foundation baseline
-capability class product operations runtime integration foundation only
+capability class product operations runtime integration closeout patch only
 v0.20.1 production order lifecycle hardening baseline
 v0.21.0 unified read model foundation closeout baseline
 v0.21.1 unified read model hardening baseline
@@ -85,35 +87,40 @@ deployment / upgrade / rollback orchestration evidence
 long-run telemetry and SLO runtime evidence
 Admin Workbench runtime state bridge evidence
 runtime integration fail-closed evidence
-v0.28.0 next capability track reserved after v0.27.0 release evidence
+v0.28.0 next capability track reserved after v0.27.1 release evidence
 no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no Admin Workbench operation/trading controls
 no product-grade live trading terminal claim
 ```
 
-`v0.27.0` publishes the Product Operations Runtime Integration Foundation over
-the v0.26.1 closeout patch. It closes v0.26.1 dependency proof, product
-operations boundary evidence, external identity/permission foundation,
-persistent audit storage foundation, deployment orchestration foundation,
-long-run telemetry/SLO evidence, Admin Workbench runtime state bridge,
-fail-closed runtime integration hardening, release gates, and strict
-provenance. It does not create a product-grade live trading terminal, ungated
-operation controls, production order mutation, adapter send, retry scheduler,
-shared approval consumption, or automatic execution/remediation.
+`v0.27.1` publishes the Product Operations Runtime Integration closeout patch
+over the v0.27.0 foundation. It closes v0.27.0 release closeout evidence,
+publication entry provenance, stale V270 evidence cleanup, v0.26.1 dependency
+reconciliation, exact release-scope gate hardening, v27.1 release gates, and
+strict provenance. It does not create a product-grade live trading terminal,
+ungated operation controls, production order mutation, adapter send, retry
+scheduler, shared approval consumption, or automatic execution/remediation.
 
-## Published Capability Track: v0.27.0
+## Published Capability Track: v0.27.1
 
-`v0.27.0` is the current published Product Operations Runtime Integration
-Foundation. It preserves the read-only Workbench boundary and adds source-
-provenanced runtime integration evidence for identity, audit, orchestration,
-telemetry/SLO, Admin Workbench state, fail-closed hardening, release gates, and
-strict provenance. It is not a production execution runtime implementation.
+`v0.27.1` is the current published Product Operations Runtime Integration
+closeout patch. It preserves the read-only Workbench boundary and hardens
+release governance/provenance for the v0.27.0 foundation. It is not a
+production execution runtime implementation.
 
-`v0.27.0` explicitly does not include product-grade live trading terminal
+`v0.27.1` explicitly does not include product-grade live trading terminal
 readiness, new production submit capability, production order mutation,
 execution adapter send, live exchange request, retry scheduler,
 automatic remediation/recovery, strategy-driven production execution, shared
 approval consumption, or Dashboard/Admin operation/trading controls.
+
+## Published Capability Track: v0.27.0
+
+`v0.27.0` is the published Product Operations Runtime Integration Foundation.
+It preserves the read-only Workbench boundary and adds source-provenanced
+runtime integration evidence for identity, audit, orchestration, telemetry/SLO,
+Admin Workbench state, fail-closed hardening, release gates, and strict
+provenance. It is not a production execution runtime implementation.
 
 `v0.26.0` publishes the product hardening foundation over the monitoring /
 incident / disaster-recovery foundation line. It closes product hardening

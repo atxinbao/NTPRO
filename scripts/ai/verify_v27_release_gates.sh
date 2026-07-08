@@ -218,13 +218,17 @@ scripts/ai/verify_release.sh v27-long-run-telemetry-slo-runtime-evidence
 scripts/ai/verify_release.sh v27-admin-workbench-runtime-state-bridge
 scripts/ai/verify_release.sh v27-runtime-integration-fail-closed-hardening
 
-NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
-  NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
-  NTPRO_NEXT_PATCH_VERSION="v0.27.1" \
-  NTPRO_NEXT_CAPABILITY_VERSION="v0.28.0" \
-  NTPRO_CURRENT_RELEASE_CAPABILITY="v0.27.0 Product Operations Runtime Integration Foundation" \
-  NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 \
-  scripts/ai/verify_release.sh release-surface-current-guard
+if [[ "${NTPRO_V270_RELEASE_SKIP_CURRENT_SURFACE_GUARD:-0}" == "1" ]]; then
+  echo "v27_release_gates current_surface_guard=skipped reason=current_release_surface_superseded"
+else
+  NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
+    NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
+    NTPRO_NEXT_PATCH_VERSION="v0.27.1" \
+    NTPRO_NEXT_CAPABILITY_VERSION="v0.28.0" \
+    NTPRO_CURRENT_RELEASE_CAPABILITY="v0.27.0 Product Operations Runtime Integration Foundation" \
+    NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 \
+    scripts/ai/verify_release.sh release-surface-current-guard
+fi
 
 NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
   NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
