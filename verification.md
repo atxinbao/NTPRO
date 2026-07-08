@@ -4383,3 +4383,35 @@ Dashboard without operation, trading, remediation, retry, adapter, or live
 exchange controls. Stale artifacts degrade with explicit reasons; missing
 components, malformed provenance, redaction breaches, runtime/source drift, and
 forbidden controls fail closed.
+
+# V270-007 Verification
+
+Date: 2026-07-08
+Executor: Codex
+Task: `V270-007` / GitHub issue `#860`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v27_runtime_integration_fail_closed_hardening.sh = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v270_runtime_integration_fail_closed_hardening.jsonl").read_text().splitlines() if line.strip()]' = PASS
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+scripts/ai/verify_release.sh v27-runtime-integration-fail-closed-hardening = PASS, cases=8, artifacts=5, boundary_flags=22, negative_selftest=4
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 282 cases, 95 executable replay, 182 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v27-admin-workbench-runtime-state-bridge = PASS, cases=7, statuses=7, components=5, boundary_flags=17, negative_selftest=1
+scripts/ai/verify_release.sh v27-long-run-telemetry-slo-runtime-evidence = PASS, cases=7, statuses=7, boundary_flags=17, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V270-007 defines the v0.27.0 runtime integration fail-closed hardening layer.
+It applies shared downgrade and fail-closed rules across identity/permission,
+audit storage, deployment orchestration, telemetry/SLO, and Admin Workbench
+bridge artifacts. Partial or stale integration can only degrade read-only
+surfaces; missing artifacts, malformed provenance, redaction breaches, forbidden
+submit/mutation/adapter/remediation/control fields, missing required-false
+boundaries, and product-ready claims fail closed. This task does not add
+trading, adapter, live exchange, retry, automatic remediation, Dashboard/Admin
+trading controls, or product-grade terminal readiness.

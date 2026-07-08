@@ -848,6 +848,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   audit storage, deployment orchestration, telemetry/SLO, and runtime boundary
   evidence as a read-only/admin surface while malformed, stale, missing,
   unredacted, drifted, or control-enabled artifacts degrade or fail closed.
+- `v0_27_0_runtime_integration_fail_closed_hardening.md` - V270-007 contract
+  for shared runtime integration fail-closed/no-trading-control hardening. It
+  validates downgrade vs fail-closed rules across identity, audit,
+  orchestration, telemetry, and Admin Workbench bridge artifacts, and blocks
+  forbidden controls, missing required-false boundaries, and product-ready
+  claims.
 - `v0_26_0_product_hardening_boundary_contract.md` - V260-001 contract for the
   v0.26.0 product hardening foundation scope. It records allowed hardening
   areas, required-false trading boundary flags, fail-closed rules, and the
