@@ -827,6 +827,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   records IdP provenance, role mapping freshness/redaction/lineage, v26
   permission-boundary alignment, and required-false trading permissions without
   opening runtime SSO/IAM authorization or trading controls.
+- `v0_27_0_persistent_operation_audit_storage_foundation.md` - V270-003
+  contract for append-only persistent operation audit storage foundation. It
+  records audit sink provenance, sequence/hash lineage, redaction, retention
+  metadata, and store/source reconciliation without operation execution,
+  remediation, adapter send, live exchange request, or Dashboard controls.
 - `v0_26_0_product_hardening_boundary_contract.md` - V260-001 contract for the
   v0.26.0 product hardening foundation scope. It records allowed hardening
   areas, required-false trading boundary flags, fail-closed rules, and the

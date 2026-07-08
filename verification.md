@@ -4256,3 +4256,35 @@ v26 boundary mismatch, and any trading permission fail closed. This task does
 not add runtime SSO/IAM authorization, submit/cancel/retry/replace/amend/
 flatten permission, adapter send, live exchange request, Dashboard trading
 controls, or product-grade terminal claims.
+
+# V270-003 Verification
+
+Date: 2026-07-08
+Executor: Codex
+Task: `V270-003` / GitHub issue `#856`
+
+## Commands
+
+```text
+bash -n scripts/ai/verify_release.sh scripts/ai/verify_v27_persistent_audit_storage_foundation.sh = PASS
+scripts/ai/verify_release.sh v27-persistent-audit-storage-foundation = PASS, cases=7, records=2, boundary_flags=9, negative_selftest=1
+python3 -m json.tool docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json >/dev/null = PASS
+python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("tests/golden/v270_persistent_audit_storage_foundation.jsonl").read_text().splitlines() if line.strip()]' = PASS
+python3 scripts/ai/validate_golden_trace_release_scope.py = PASS, 253 cases, 95 executable replay, 153 validator executable replay, 5 schema-only scoped
+scripts/ai/verify_release.sh v27-product-operations-boundary-contract = PASS, cases=7, required_false_flags=17, provenance_flags=5, negative_selftest=1
+scripts/ai/verify_release.sh v27-external-identity-permission-foundation = PASS, cases=7, roles=4, required_false_permissions=12, boundary_flags=14, negative_selftest=1
+scripts/ai/verify_release.sh v26-operation-audit-trail = PASS, cases=6, negative_selftest=1
+scripts/ai/verify_fast.sh = PASS, fast smoke only
+git diff --check = PASS
+```
+
+## Result
+
+V270-003 defines the v0.27.0 persistent operation audit storage foundation. The
+contract validates append-only audit sink provenance, actor/role/scope
+metadata, sequence/hash lineage, redaction, retention metadata, and store/source
+reconciliation. Missing lineage, mutable storage claims, missing retention,
+unredacted payloads, store/source drift, and forbidden operation triggers fail
+closed. This task does not implement a database, execute audit actions, trigger
+remediation, send to adapters, call live exchanges, or expose Dashboard
+controls.
