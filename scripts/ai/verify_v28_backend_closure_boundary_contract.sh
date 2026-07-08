@@ -95,13 +95,12 @@ EXPECTED_CLASSIFICATIONS = {
     "persistent_audit_storage_runtime_closure": "runtime-closed",
     "deployment_upgrade_rollback_orchestration_runtime_closure": "runtime-closed",
     "telemetry_slo_ingestion_runtime_closure": "runtime-closed",
-    "admin_workbench_backend_state_bridge_closure": "blocked",
+    "admin_workbench_backend_state_bridge_closure": "runtime-closed",
     "trader_terminal_backend_api_contract_handoff": "blocked",
     "backend_closure_fail_closed_hardening": "blocked",
     "v28_release_gates_strict_provenance_handoff": "deferred",
 }
 EXPECTED_BLOCKERS = {
-    "admin_workbench_backend_state_bridge_closure": 899,
     "trader_terminal_backend_api_contract_handoff": 900,
     "backend_closure_fail_closed_hardening": 901,
 }
@@ -129,7 +128,7 @@ BOUNDARY_FALSE_FLAGS = [
     "manual_operation_submit_allowed",
     "product_grade_trading_terminal_claim",
 ]
-EXPECTED_COUNTS = {"runtime-closed": 6, "evidence-only": 2, "blocked": 3, "deferred": 1}
+EXPECTED_COUNTS = {"runtime-closed": 7, "evidence-only": 2, "blocked": 2, "deferred": 1}
 
 
 def fail(message: str) -> None:
@@ -306,9 +305,9 @@ result = classify(matrix)
 if result != {
     "effective_backend_closure_status": "boundary_ready",
     "readiness_matrix_complete": True,
-    "runtime_closed_count": 6,
+    "runtime_closed_count": 7,
     "evidence_only_count": 2,
-    "blocked_count": 3,
+    "blocked_count": 2,
     "deferred_count": 1,
     "backend_complete_claim_allowed": False,
     "frontend_product_claim_allowed": False,
@@ -329,7 +328,7 @@ if selftest:
 
     blocked_claim = copy.deepcopy(matrix)
     for item in blocked_claim["module_readiness"]:
-        if item["module_id"] == "admin_workbench_backend_state_bridge_closure":
+        if item["module_id"] == "trader_terminal_backend_api_contract_handoff":
             item["closure_claim_allowed"] = True
             break
     if not classify(blocked_claim)["fail_closed"]:
@@ -345,7 +344,7 @@ if selftest:
 
 print(
     "v28_backend_closure_boundary_contract=pass "
-    "modules=12 runtime_closed=6 evidence_only=2 blocked=3 deferred=1 "
+    "modules=12 runtime_closed=7 evidence_only=2 blocked=2 deferred=1 "
     f"required_false_flags={len(BOUNDARY_FALSE_FLAGS)} negative_selftest={int(selftest)}"
 )
 PY

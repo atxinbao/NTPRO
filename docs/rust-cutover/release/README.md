@@ -2,6 +2,15 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
+- `v0_28_0_admin_workbench_backend_state_bridge_closure.md` - V280-006
+  contract that closes the Admin Workbench backend state bridge through a
+  deterministic read-only/admin-only backend state API handoff.
+- `v0_28_0_admin_workbench_backend_state_bridge_artifact.json` -
+  source-controlled V280-006 backend artifact for identity, audit, deployment,
+  telemetry, and boundary component states plus ready, degraded, blocked,
+  stale, missing, malformed, and forbidden-control replay cases.
+- `../evidence/V280-006.md` - V280-006 Admin Workbench backend state bridge
+  closure evidence for GitHub issue #899.
 - `v0_28_0_telemetry_slo_ingestion_runtime_closure.md` - V280-005 contract
   that closes telemetry/SLO ingestion through deterministic observability
   replay, source freshness, lineage, sampling, SLO transition audit, redaction,
