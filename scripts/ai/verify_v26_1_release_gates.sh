@@ -15,6 +15,7 @@ RELEASE_NOTES_PATH="${NTPRO_V261_RELEASE_NOTES:-docs/rust-cutover/release/v0_26_
 READINESS_REPORT_PATH="${NTPRO_V261_READINESS_REPORT:-docs/rust-cutover/release/v0_26_1_readiness_report.md}"
 CURRENT_ISSUE="${NTPRO_V261_CURRENT_ISSUE:-852}"
 MILESTONE_NUMBER="${NTPRO_V261_MILESTONE_NUMBER:-19}"
+MILESTONE_TITLE="${NTPRO_V261_MILESTONE_TITLE:-v0.26.1}"
 
 fail() {
   echo "v26.1 release gate failed: $*" >&2
@@ -114,7 +115,12 @@ for marker in \
   "V261-006 evidence" \
   "v26.1 release gates = required" \
   "v26.1 strict provenance = required" \
-  "#852 V261-006 = must be closed before v0.26.1 tag gate is accepted" \
+  "#852 V261-006 = closed before v0.26.1 tag gate was accepted" \
+  "#868 V261-007 corrective-scope exception = closed" \
+  "V261 corrective-scope exception = #868 / V261-007" \
+  "V261 final release scope issue count = 6" \
+  "V261 corrective-scope exception count = 1" \
+  "unregistered corrective milestone issues fail closed = true" \
   "No V270 implementation starts until all V261 issues are closed and v0.26.1"; do
   require_contains "$READINESS_REPORT_PATH" "$marker"
 done
@@ -205,6 +211,27 @@ def validate(candidate: dict) -> None:
         require(expected.get(task_id) == item.get("issue"), f"V261 issue mismatch: {task_id}")
         path = Path(item.get("path", ""))
         require(path.is_file(), f"missing V261 evidence file: {path}")
+    corrective = candidate.get("v261_corrective_scope") or {}
+    require(corrective.get("classification") == "corrective_scope_exception", "corrective scope classification missing")
+    require(corrective.get("final_release_scope_issue_count") == 6, "final release scope issue count mismatch")
+    require(corrective.get("final_release_scope_evidence_count") == 6, "final release scope evidence count mismatch")
+    require(corrective.get("corrective_scope_exception_count") == 1, "corrective exception count mismatch")
+    require(corrective.get("registered_corrective_scope_exceptions_closed_required") is True, "registered corrective closeout rule missing")
+    require(corrective.get("unregistered_corrective_milestone_issue_fail_closed") is True, "unregistered corrective fail-closed rule missing")
+    require(corrective.get("v27_intake_reconstructs_corrective_scope_exceptions") is True, "v27 corrective reconstruction rule missing")
+    exceptions = corrective.get("exceptions") or []
+    require(len(exceptions) == 1, "corrective exception list mismatch")
+    exception = exceptions[0]
+    require(exception.get("task_id") == "V261-007", "corrective task mismatch")
+    require(exception.get("issue") == 868, "corrective issue mismatch")
+    require(exception.get("classification") == "corrective_scope_exception", "corrective classification mismatch")
+    require(exception.get("source_task_file_required") is False, "corrective task file rule mismatch")
+    require(exception.get("source_evidence_file_required") is False, "corrective evidence file rule mismatch")
+    require(exception.get("remote_reconstruction_required") is True, "corrective remote reconstruction rule missing")
+    require(exception.get("required_for_v27_intake") is True, "corrective v27 intake rule missing")
+    require(exception.get("capability_expansion") is False, "corrective capability must not expand")
+    require(exception.get("runtime_behavior_change") is False, "corrective runtime behavior must remain unchanged")
+    require(exception.get("trading_behavior_change") is False, "corrective trading behavior must remain unchanged")
     commands = {gate.get("command") for gate in candidate.get("release_gates", []) if gate.get("required") is True}
     for command in (
         "scripts/ai/verify_release.sh v26-release-gates",
@@ -251,6 +278,10 @@ def validate(candidate: dict) -> None:
     require(next_tracks.get("implementation_started") is False, "v0.27 must not start")
     requirements = candidate.get("post_publication_requirements") or {}
     require(requirements.get("all_v261_issues_closed_required") is True, "V261 closeout requirement missing")
+    require(requirements.get("all_v261_release_scope_issues_closed_required") is True, "V261 release-scope closeout requirement missing")
+    require(requirements.get("registered_corrective_scope_exceptions_closed_required") is True, "corrective exception closeout requirement missing")
+    require(requirements.get("unregistered_corrective_milestone_issues_fail_closed") is True, "unregistered corrective fail-closed requirement missing")
+    require(requirements.get("v0_27_intake_reconstructs_corrective_scope_exceptions") is True, "v27 corrective reconstruction requirement missing")
     require(requirements.get("v0_27_start_gate_fails_without_v261_release_evidence") is True, "v27 hard block requirement missing")
 
 
@@ -280,6 +311,14 @@ if os.environ.get("NTPRO_V261_RELEASE_SELFTEST", "1") == "1":
         pass
     else:
         raise SystemExit("negative self-test unexpectedly passed: missing v27 hard block")
+    missing_corrective = copy.deepcopy(manifest)
+    missing_corrective["v261_corrective_scope"]["exceptions"] = []
+    try:
+        validate(missing_corrective)
+    except SystemExit:
+        pass
+    else:
+        raise SystemExit("negative self-test unexpectedly passed: missing corrective exception")
 PY
 
 if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
@@ -293,23 +332,34 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   else
     [[ "$current_state" == "OPEN" || "$current_state" == "CLOSED" ]] || fail "unexpected current issue state: $current_state"
   fi
+  corrective_state="$(gh_with_retry issue view 868 --repo "$REPO" --json state --jq .state)" || fail "could not read GitHub issue #868"
+  [[ "$corrective_state" == "CLOSED" ]] || fail "GitHub issue #868 must be CLOSED before $RELEASE_VERSION release gates, got $corrective_state"
   milestone_json="$(gh_with_retry api "/repos/$REPO/milestones/$MILESTONE_NUMBER")" || fail "could not read GitHub milestone #$MILESTONE_NUMBER"
-  MILESTONE_JSON="$milestone_json" RELEASE_GATE="${NTPRO_RELEASE_GATE:-0}" REQUIRE_CLOSEOUT="${NTPRO_V261_RELEASE_REQUIRE_CLOSEOUT:-0}" python3 <<'PY'
+  milestone_issues_json="$(gh_with_retry issue list --repo "$REPO" --milestone "$MILESTONE_TITLE" --state all --limit 100 --json number,state,title)" || fail "could not read GitHub milestone issues for $MILESTONE_TITLE"
+  MILESTONE_JSON="$milestone_json" MILESTONE_ISSUES_JSON="$milestone_issues_json" RELEASE_GATE="${NTPRO_RELEASE_GATE:-0}" REQUIRE_CLOSEOUT="${NTPRO_V261_RELEASE_REQUIRE_CLOSEOUT:-0}" python3 <<'PY'
 import json
 import os
 
 milestone = json.loads(os.environ["MILESTONE_JSON"])
+milestone_issues = json.loads(os.environ["MILESTONE_ISSUES_JSON"])
+expected = {847, 848, 849, 850, 851, 852, 868}
 if milestone["title"] != "v0.26.1":
     raise SystemExit(milestone)
 if os.environ["RELEASE_GATE"] == "1" or os.environ["REQUIRE_CLOSEOUT"] == "1":
-    if milestone["state"] != "closed" or milestone["open_issues"] != 0 or milestone["closed_issues"] < 6:
-        raise SystemExit(f"v0.26.1 milestone must be closed with at least 6 closed issues for tag gate: {milestone}")
+    if milestone["state"] != "closed" or milestone["open_issues"] != 0 or milestone["closed_issues"] != len(expected):
+        raise SystemExit(f"v0.26.1 milestone must be closed with exactly registered release scope plus corrective exceptions for tag gate: {milestone}")
 else:
     if milestone["state"] not in {"open", "closed"}:
         raise SystemExit(milestone)
+numbers = {issue.get("number") for issue in milestone_issues}
+if numbers != expected:
+    raise SystemExit(f"v0.26.1 milestone issue set mismatch: {sorted(numbers)}")
+for issue in milestone_issues:
+    if issue.get("state") != "CLOSED":
+        raise SystemExit(f"v0.26.1 milestone issue must be closed: #{issue.get('number')}")
 PY
 else
   fail "gh authentication is required for v26.1 release gate issue proof"
 fi
 
-echo "v26_1_release_gates status=ok release_tag=$RELEASE_TAG base_release=$BASE_RELEASE_TAG current_issue_state=$current_state v261_issues=5/6_closed_or_current final_scope_issues=6 negative_selftest=${NTPRO_V261_RELEASE_SELFTEST:-1}"
+echo "v26_1_release_gates status=ok release_tag=$RELEASE_TAG base_release=$BASE_RELEASE_TAG current_issue_state=$current_state v261_release_scope_issues=6/6_closed v261_corrective_scope_exceptions=1/1_closed final_scope_issues=6 negative_selftest=${NTPRO_V261_RELEASE_SELFTEST:-1}"
