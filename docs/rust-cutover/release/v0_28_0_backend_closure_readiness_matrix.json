@@ -80,11 +80,12 @@
     },
     {
       "module_id": "identity_permission_runtime_closure",
-      "classification": "blocked",
+      "classification": "runtime-closed",
       "issue": 895,
-      "closure_claim_allowed": false,
-      "blocked_by_issue": 895,
-      "claim": "blocked until V280-002 closes identity and permission runtime"
+      "closure_claim_allowed": true,
+      "evidence_path": "docs/rust-cutover/evidence/V280-002.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-identity-permission-runtime-closure",
+      "claim": "identity and permission runtime closes through deterministic read/admin backend artifact replay"
     },
     {
       "module_id": "persistent_audit_storage_runtime_closure",
@@ -144,9 +145,9 @@
     }
   ],
   "expected_counts": {
-    "runtime-closed": 2,
+    "runtime-closed": 3,
     "evidence-only": 2,
-    "blocked": 7,
+    "blocked": 6,
     "deferred": 1
   }
 }

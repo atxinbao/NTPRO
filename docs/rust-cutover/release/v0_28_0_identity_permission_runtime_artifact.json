@@ -1,0 +1,128 @@
+{
+  "schema_version": "ntpro.v280.identity_permission_runtime_artifact.v1",
+  "contract_version": "ntpro.v280.identity_permission_runtime_closure.v1",
+  "task_id": "V280-002",
+  "github_issue": 895,
+  "milestone": "v0.28.0",
+  "release_scope": "backend_closure_product_operations_runtime_finalization_only",
+  "backend_module": "identity_permission_runtime_closure",
+  "backend_module_status": "runtime_closed",
+  "operation_authorization_surface": "read_admin_only",
+  "dependency_contracts": ["V280-001", "V280-000", "V270-002", "V260-002"],
+  "live_operation_authorization": false,
+  "production_trading_authorization": false,
+  "external_idp_sso_runtime_integration": false,
+  "identity_source": {
+    "source_type": "external_identity_provider_snapshot",
+    "provider": "ntpro-static-idp-replay",
+    "tenant_id_redacted": "tenant_redacted",
+    "issuer": "https://idp.example.invalid/ntpro",
+    "jwks_fingerprint_sha256": "c23593f2f2b26f9bbd4f11d88c67e6b1e4f7dba2f30bfe5c5805f4c9f05f7718",
+    "collected_at": "2026-07-08T14:30:00Z",
+    "freshness_status": "fresh",
+    "provenance_id": "idp-source-v280-002",
+    "redaction_status": "redacted",
+    "lineage_status": "linked"
+  },
+  "permission_mapping": {
+    "mapping_id": "v280-read-admin-permission-map",
+    "provenance_id": "permission-map-v280-002",
+    "freshness_status": "fresh",
+    "redaction_status": "redacted",
+    "lineage_status": "linked",
+    "roles": {
+      "operator": {
+        "scope_prefix": "account:",
+        "allowed_permissions": ["dashboard_read", "operation_preview_read", "runbook_read"]
+      },
+      "admin": {
+        "scope_prefix": "admin:",
+        "allowed_permissions": ["dashboard_read", "operation_preview_read", "runbook_read", "audit_read", "provenance_read"]
+      },
+      "auditor": {
+        "scope_prefix": "audit:",
+        "allowed_permissions": ["dashboard_read", "audit_read", "provenance_read"]
+      },
+      "release_gatekeeper": {
+        "scope_prefix": "release:",
+        "allowed_permissions": ["dashboard_read", "release_gate_read", "release_manifest_read"]
+      }
+    }
+  },
+  "required_false_permissions": {
+    "submit_order": false,
+    "cancel_order": false,
+    "replace_order": false,
+    "amend_order": false,
+    "flatten_position": false,
+    "retry_scheduler": false,
+    "automatic_remediation": false,
+    "adapter_send": false,
+    "live_exchange_request": false,
+    "dashboard_trading_controls": false,
+    "admin_workbench_trading_controls": false,
+    "manual_operation_submit": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "unsupported_external_idp_sso_behavior": {
+    "live_sso_token_verification": false,
+    "oauth_authorization_code_flow": false,
+    "saml_assertion_validation": false,
+    "external_idp_network_call": false,
+    "dynamic_group_sync": false,
+    "live_operation_authorization_from_idp": false
+  },
+  "permission_replay_cases": [
+    {
+      "case_id": "identity_permission_runtime.operator_dashboard_read.allowed.001",
+      "role": "operator",
+      "scope": "account:read-model",
+      "permission": "dashboard_read",
+      "expected_status": "allowed_read_admin_permission"
+    },
+    {
+      "case_id": "identity_permission_runtime.admin_audit_read.allowed.001",
+      "role": "admin",
+      "scope": "admin:audit",
+      "permission": "audit_read",
+      "expected_status": "allowed_read_admin_permission"
+    },
+    {
+      "case_id": "identity_permission_runtime.missing_provenance.fail_closed.001",
+      "role": "operator",
+      "scope": "account:read-model",
+      "permission": "dashboard_read",
+      "identity_source_override": {
+        "provenance_id": ""
+      },
+      "expected_status": "fail_closed_missing_provenance"
+    },
+    {
+      "case_id": "identity_permission_runtime.stale_source.fail_closed.001",
+      "role": "admin",
+      "scope": "admin:audit",
+      "permission": "audit_read",
+      "permission_mapping_override": {
+        "freshness_status": "stale"
+      },
+      "expected_status": "fail_closed_stale_source"
+    },
+    {
+      "case_id": "identity_permission_runtime.permission_drift.fail_closed.001",
+      "role": "operator",
+      "scope": "admin:audit",
+      "permission": "audit_read",
+      "expected_status": "fail_closed_permission_drift"
+    },
+    {
+      "case_id": "identity_permission_runtime.forbidden_trading_permission.fail_closed.001",
+      "role": "admin",
+      "scope": "admin:orders",
+      "permission": "submit_order",
+      "required_false_permissions_override": {
+        "submit_order": true
+      },
+      "expected_status": "fail_closed_forbidden_trading_permission"
+    }
+  ]
+}

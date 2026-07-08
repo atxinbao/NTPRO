@@ -2,6 +2,16 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
+- `v0_28_0_identity_permission_runtime_closure.md` - V280-002 contract that
+  closes the identity/permission backend module through deterministic read/admin
+  permission replay while leaving live IdP/SSO authorization and trading
+  permissions out of scope.
+- `v0_28_0_identity_permission_runtime_artifact.json` - source-controlled
+  V280-002 backend artifact for identity source ingestion, permission mapping,
+  allowed read/admin replay, and fail-closed missing provenance, stale source,
+  permission drift, and forbidden trading permission cases.
+- `../evidence/V280-002.md` - V280-002 identity and permission runtime closure
+  evidence for GitHub issue #895.
 - `v0_28_0_backend_closure_boundary_contract.md` - V280-001 contract that
   defines the v0.28.0 Backend Closure / Product Operations Runtime
   Finalization boundary, backend/frontend claim limits, and fail-closed
