@@ -98,6 +98,32 @@ for task_id in V270-000 V270-001 V270-002 V270-003 V270-004 V270-005 V270-006 V2
   require_contains "docs/rust-cutover/tasks/${task_id}.md" "$task_id"
 done
 
+if [[ "${NTPRO_V270_ALLOW_STALE_EVIDENCE:-0}" != "1" ]]; then
+  for marker in \
+    "current_issue_state=OPEN" \
+    "v270_issues=8/9_closed_or_current" \
+    "v270_issues=10/11_closed_or_current" \
+    "final_scope_issues=9" \
+    "final_scope_issues=10" \
+    "tag_exists=false" \
+    "source_dirty=true" \
+    "offline_skip missing local tag" \
+    "pre_tag_mode missing_tag" \
+    "Pending final validation"; do
+    require_not_contains "docs/rust-cutover/evidence/V270-008.md" "$marker"
+    require_not_contains "docs/rust-cutover/evidence/V270-009.md" "$marker"
+    require_not_contains "docs/rust-cutover/evidence/V270-010.md" "$marker"
+  done
+  require_contains "docs/rust-cutover/evidence/V270-008.md" "final_scope_issues=11"
+  require_contains "docs/rust-cutover/evidence/V270-009.md" "final_scope_issues=11"
+  require_contains "docs/rust-cutover/evidence/V270-010.md" "final_scope_issues=11"
+  for marker in \
+    "#885 V270-010 = must be closed before v0.27.0 tag gate is accepted" \
+    "v0.27.0 milestone = must be closed before public publication"; do
+    require_not_contains "$READINESS_REPORT_PATH" "$marker"
+  done
+fi
+
 for marker in \
   "Status: RELEASED" \
   "Tag: \`$RELEASE_TAG\`" \
@@ -150,10 +176,10 @@ for marker in \
   "V270-010 evidence" \
   "v27 release gates = required" \
   "v27 strict provenance = required" \
-  "#885 V270-010 = must be closed before v0.27.0 tag gate is accepted" \
+  "#885 V270-010 = closed before v0.27.0 tag gate was accepted" \
   "V270 final release scope issue count = 11" \
   "V270 final release scope evidence count = 11" \
-  "v0.27.0 milestone = must be closed before public publication"; do
+  "v0.27.0 milestone = closed before public publication"; do
   require_contains "$READINESS_REPORT_PATH" "$marker"
 done
 
@@ -423,6 +449,11 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   else
     [[ "$current_state" == "OPEN" || "$current_state" == "CLOSED" ]] || fail "unexpected current issue state: $current_state"
   fi
+  if [[ "$current_state" == "CLOSED" ]]; then
+    v270_issue_summary="11/11_closed"
+  else
+    v270_issue_summary="10/11_closed_or_current"
+  fi
   milestone_json="$(gh_with_retry api "/repos/$REPO/milestones/$MILESTONE_NUMBER")" || fail "could not read GitHub milestone #$MILESTONE_NUMBER"
   MILESTONE_JSON="$milestone_json" RELEASE_GATE="${NTPRO_RELEASE_GATE:-0}" REQUIRE_CLOSEOUT="${NTPRO_V270_RELEASE_REQUIRE_CLOSEOUT:-0}" python3 <<'PY'
 import json
@@ -442,4 +473,4 @@ else
   fail "gh authentication is required for v27 release gate issue proof"
 fi
 
-echo "v27_release_gates status=ok release_tag=$RELEASE_TAG base_release=$BASE_RELEASE_TAG current_issue_state=$current_state v270_issues=10/11_closed_or_current final_scope_issues=11 negative_selftest=${NTPRO_V270_RELEASE_SELFTEST:-1}"
+echo "v27_release_gates status=ok release_tag=$RELEASE_TAG base_release=$BASE_RELEASE_TAG current_issue_state=$current_state v270_issues=$v270_issue_summary final_scope_issues=11 negative_selftest=${NTPRO_V270_RELEASE_SELFTEST:-1}"

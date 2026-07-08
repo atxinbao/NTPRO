@@ -831,6 +831,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   published by the guarded local `publish_ntpro_release_after_gate.sh`
   entrypoint after hosted release gate success, not by a hosted
   `release-publish.yml` run.
+- `../evidence/V271-003.md` - stale V270 evidence cleanup ledger. It records
+  the cleanup of final-scope 9/10, open-issue, missing-tag, source-dirty,
+  offline-prepublication, and pending-validation wording from V270-008,
+  V270-009, and V270-010 evidence.
 - `v0_26_0_intake_gate.md` - V260-000 intake proof that all V251 issues are
   closed, the `ntpro-rust-only-v0.25.1` GitHub Release was published after
   hosted gate success, and v0.26.0 starts only as a gated product hardening

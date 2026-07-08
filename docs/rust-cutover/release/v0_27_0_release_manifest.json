@@ -27,6 +27,7 @@
     "readiness_report_path": "docs/rust-cutover/release/v0_27_0_readiness_report.md",
     "release_closeout_evidence_path": "docs/rust-cutover/release/v0_27_0_release_closeout_evidence.md",
     "publication_entry_provenance_path": "docs/rust-cutover/release/v0_27_0_publication_entry_provenance.md",
+    "stale_v270_evidence_cleanup_path": "docs/rust-cutover/evidence/V271-003.md",
     "release_manifest_path": "docs/rust-cutover/release/v0_27_0_release_manifest.json",
     "base_release_manifest_path": "docs/rust-cutover/release/v0_26_1_release_manifest.json",
     "base_readiness_report_path": "docs/rust-cutover/release/v0_26_1_readiness_report.md",
@@ -237,6 +238,33 @@
     "publication_evidence_strategy": "source_tree_plus_github_remote",
     "generated_publication_evidence_authoritative": false,
     "publication_entry_provenance_path": "docs/rust-cutover/release/v0_27_0_publication_entry_provenance.md"
+  },
+  "stale_v270_evidence_cleanup": {
+    "task_id": "V271-003",
+    "issue": 889,
+    "status": "recorded",
+    "cleanup_scope": [
+      "docs/rust-cutover/evidence/V270-008.md",
+      "docs/rust-cutover/evidence/V270-009.md",
+      "docs/rust-cutover/evidence/V270-010.md"
+    ],
+    "final_v270_issue_count": 11,
+    "final_v270_evidence_count": 11,
+    "stale_markers_rejected_by_release_gate": [
+      "current_issue_state=OPEN",
+      "v270_issues=8/9_closed_or_current",
+      "v270_issues=10/11_closed_or_current",
+      "final_scope_issues=9",
+      "final_scope_issues=10",
+      "tag_exists=false",
+      "source_dirty=true",
+      "offline_skip missing local tag",
+      "pre_tag_mode missing_tag",
+      "Pending final validation"
+    ],
+    "release_gate_guard": "scripts/ai/verify_v27_release_gates.sh",
+    "strict_provenance_guard": "scripts/ai/verify_v27_strict_provenance.sh",
+    "no_capability_boundary_change": true
   },
   "validation_artifacts": {
     "strict_release_provenance_manifest_path": "target/ntpro-v270/v0_27_0_strict_release_manifest.json",

@@ -62,7 +62,7 @@ scripts/ai/verify_release.sh release-publish-after-gate
 #860 V270-007 = closed
 #861 V270-008 = closed
 #883 V270-009 = closed
-#885 V270-010 = must be closed before v0.27.0 tag gate is accepted
+#885 V270-010 = closed before v0.27.0 tag gate was accepted
 
 ## Release Scope
 
@@ -71,10 +71,11 @@ V270 final release scope issue count = 11
 V270 final release scope evidence count = 11
 v0.26.1 dependency proof = required
 v0.26.1 release evidence = published
-v0.27.0 milestone = must be closed before public publication
+v0.27.0 milestone = closed before public publication
 release body source = docs/rust-cutover/release/v0_27_0_release_notes.md
 release closeout evidence = docs/rust-cutover/release/v0_27_0_release_closeout_evidence.md
 publication entry provenance = docs/rust-cutover/release/v0_27_0_publication_entry_provenance.md
+stale V270 evidence cleanup = docs/rust-cutover/evidence/V271-003.md
 strict provenance manifest = target/ntpro-v270/v0_27_0_strict_release_manifest.json
 release governance trace = tests/golden/v270_release_gates_strict_provenance.jsonl
 ```
