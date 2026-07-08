@@ -91,7 +91,7 @@ EXPECTED_CLASSIFICATIONS = {
     "v280_backend_closure_boundary_contract": "runtime-closed",
     "v270_operations_runtime_foundation_evidence": "evidence-only",
     "v271_release_governance_patch_evidence": "evidence-only",
-    "identity_permission_runtime_closure": "blocked",
+    "identity_permission_runtime_closure": "runtime-closed",
     "persistent_audit_storage_runtime_closure": "blocked",
     "deployment_upgrade_rollback_orchestration_runtime_closure": "blocked",
     "telemetry_slo_ingestion_runtime_closure": "blocked",
@@ -101,7 +101,6 @@ EXPECTED_CLASSIFICATIONS = {
     "v28_release_gates_strict_provenance_handoff": "deferred",
 }
 EXPECTED_BLOCKERS = {
-    "identity_permission_runtime_closure": 895,
     "persistent_audit_storage_runtime_closure": 896,
     "deployment_upgrade_rollback_orchestration_runtime_closure": 897,
     "telemetry_slo_ingestion_runtime_closure": 898,
@@ -133,7 +132,7 @@ BOUNDARY_FALSE_FLAGS = [
     "manual_operation_submit_allowed",
     "product_grade_trading_terminal_claim",
 ]
-EXPECTED_COUNTS = {"runtime-closed": 2, "evidence-only": 2, "blocked": 7, "deferred": 1}
+EXPECTED_COUNTS = {"runtime-closed": 3, "evidence-only": 2, "blocked": 6, "deferred": 1}
 
 
 def fail(message: str) -> None:
@@ -310,9 +309,9 @@ result = classify(matrix)
 if result != {
     "effective_backend_closure_status": "boundary_ready",
     "readiness_matrix_complete": True,
-    "runtime_closed_count": 2,
+    "runtime_closed_count": 3,
     "evidence_only_count": 2,
-    "blocked_count": 7,
+    "blocked_count": 6,
     "deferred_count": 1,
     "backend_complete_claim_allowed": False,
     "frontend_product_claim_allowed": False,
@@ -333,7 +332,7 @@ if selftest:
 
     blocked_claim = copy.deepcopy(matrix)
     for item in blocked_claim["module_readiness"]:
-        if item["module_id"] == "identity_permission_runtime_closure":
+        if item["module_id"] == "persistent_audit_storage_runtime_closure":
             item["closure_claim_allowed"] = True
             break
     if not classify(blocked_claim)["fail_closed"]:
@@ -349,7 +348,7 @@ if selftest:
 
 print(
     "v28_backend_closure_boundary_contract=pass "
-    "modules=12 runtime_closed=2 evidence_only=2 blocked=7 deferred=1 "
+    "modules=12 runtime_closed=3 evidence_only=2 blocked=6 deferred=1 "
     f"required_false_flags={len(BOUNDARY_FALSE_FLAGS)} negative_selftest={int(selftest)}"
 )
 PY
