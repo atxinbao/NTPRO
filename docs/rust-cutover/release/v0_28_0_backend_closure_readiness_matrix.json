@@ -134,11 +134,12 @@
     },
     {
       "module_id": "backend_closure_fail_closed_hardening",
-      "classification": "blocked",
+      "classification": "runtime-closed",
       "issue": 901,
-      "closure_claim_allowed": false,
-      "blocked_by_issue": 901,
-      "claim": "blocked until V280-008 closes backend fail-closed hardening"
+      "closure_claim_allowed": true,
+      "evidence_path": "docs/rust-cutover/evidence/V280-008.md",
+      "verification_command": "scripts/ai/verify_release.sh v28-backend-closure-fail-closed-hardening",
+      "claim": "backend closure fail-closed hardening closes through deterministic required-component and forbidden-control replay"
     },
     {
       "module_id": "v28_release_gates_strict_provenance_handoff",
@@ -150,9 +151,9 @@
     }
   ],
   "expected_counts": {
-    "runtime-closed": 8,
+    "runtime-closed": 9,
     "evidence-only": 2,
-    "blocked": 1,
+    "blocked": 0,
     "deferred": 1
   }
 }

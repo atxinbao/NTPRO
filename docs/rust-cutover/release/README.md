@@ -2,6 +2,15 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
+- `v0_28_0_backend_closure_fail_closed_hardening.md` - V280-008 contract that
+  hardens backend closure integration so partial or stale closure cannot be
+  reported as product-ready trading runtime.
+- `v0_28_0_backend_closure_fail_closed_hardening_artifact.json` -
+  source-controlled V280-008 backend artifact for required component replay,
+  source drift checks, product-ready claim rejection, forbidden controls, and
+  missing required-false boundary cases.
+- `../evidence/V280-008.md` - V280-008 backend closure fail-closed hardening
+  evidence for GitHub issue #901.
 - `v0_28_0_trader_terminal_backend_api_contract_handoff.md` - V280-007
   contract that defines the read-only backend API handoff for later Trader
   Terminal/frontend product work.
