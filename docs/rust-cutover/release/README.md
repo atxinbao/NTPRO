@@ -2,6 +2,15 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
+- `v0_28_0_backend_closure_boundary_contract.md` - V280-001 contract that
+  defines the v0.28.0 Backend Closure / Product Operations Runtime
+  Finalization boundary, backend/frontend claim limits, and fail-closed
+  required-false trading/control flags.
+- `v0_28_0_backend_closure_readiness_matrix.json` - source-controlled V280-001
+  readiness matrix classifying v28 modules as runtime-closed, evidence-only,
+  blocked, or deferred with evidence and verification command mappings.
+- `../evidence/V280-001.md` - V280-001 backend closure boundary contract and
+  readiness matrix evidence for GitHub issue #894.
 - `v0_28_0_intake_gate.md` - V280-000 intake proof that all V271 issues are
   closed, the `ntpro-rust-only-v0.27.1` GitHub Release was published after
   hosted gate success, and v0.28.0 starts only as a gated Backend Closure /
