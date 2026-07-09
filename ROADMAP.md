@@ -4,8 +4,8 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.28.0`, the v0.28.0 Backend Closure / Product Operations Runtime Finalization release.
-The next patch track is `v0.28.1`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.28.1`, the v0.28.1 Backend Closure Governance Closeout Patch release.
+The next patch track is `v0.28.2`.
 The next capability track is `v0.29.0`.
 
 ## Current Release Surface
@@ -20,11 +20,13 @@ ntpro-rust-only-v0.26.1
 ntpro-rust-only-v0.27.0
 ntpro-rust-only-v0.27.1
 ntpro-rust-only-v0.28.0
+ntpro-rust-only-v0.28.1
 ```
 
 Current capability boundary:
 
 ```text
+v0.28.1 Backend Closure Governance Closeout Patch
 v0.28.0 Backend Closure / Product Operations Runtime Finalization
 v0.27.1 Product Operations Runtime Integration Closeout Patch
 v0.27.0 Product Operations Runtime Integration Foundation baseline
@@ -90,8 +92,9 @@ long-run telemetry and SLO runtime evidence
 Admin Workbench runtime state bridge evidence
 runtime integration fail-closed evidence
 v0.28.0 backend closure finalization evidence
-v0.28.1 next patch track reserved after v0.28.0 release evidence
-v0.29.0 next capability track reserved after v0.28.0 release evidence
+v0.28.1 release governance closeout patch evidence
+v0.28.2 next patch track reserved after v0.28.1 release evidence
+v0.29.0 next capability track reserved after v0.28.1 release evidence
 no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no Admin Workbench operation/trading controls
 no Trader Terminal order-ticket/trading controls
@@ -108,9 +111,25 @@ a product-grade live trading terminal, ungated operation controls, production
 order mutation, adapter send, retry scheduler, shared approval consumption, or
 automatic execution/remediation.
 
+## Published Capability Track: v0.28.1
+
+`v0.28.1` is the current Backend Closure Governance Closeout Patch release
+surface. It records v0.28.0 release closeout, stale evidence cleanup, release
+body hash normalization, runtime-closed terminology hardening,
+release-publish-after-gate current-release binding, v28.1 release gates, strict
+provenance, and the v29 intake dependency target. It is not a production
+execution runtime implementation.
+
+`v0.28.1` explicitly does not include frontend product completion,
+product-grade live trading terminal readiness, new production submit capability,
+production order mutation, execution adapter send, live exchange request, retry
+scheduler, automatic remediation/recovery, strategy-driven production
+execution, shared approval consumption, or Dashboard/Admin/Trader Terminal
+operation/trading controls.
+
 ## Published Capability Track: v0.28.0
 
-`v0.28.0` is the current published Backend Closure / Product Operations Runtime
+`v0.28.0` is the prior Backend Closure / Product Operations Runtime
 Finalization release. It preserves the no-submit and no trading-control
 boundary while closing source-controlled backend evidence and release
 governance for the v28 line. It is not a production execution runtime
