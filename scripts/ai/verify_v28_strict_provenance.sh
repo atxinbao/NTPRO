@@ -134,6 +134,7 @@ root = Path(os.environ["ROOT_DIR"])
 release_manifest = json.loads(Path(os.environ["RELEASE_MANIFEST_PATH"]).read_text(encoding="utf-8"))
 release_notes = Path(os.environ["RELEASE_NOTES_PATH"]).read_text(encoding="utf-8")
 readiness = Path(os.environ["READINESS_REPORT_PATH"]).read_text(encoding="utf-8")
+v280_009_evidence = (root / "docs/rust-cutover/evidence/V280-009.md").read_text(encoding="utf-8")
 
 
 def require(condition: bool, message: str) -> None:
@@ -166,6 +167,21 @@ require(requirements.get("hosted_release_gate_success_required") is True, "hoste
 require(requirements.get("strict_release_body_match_required") is True, "strict body match requirement missing")
 require(requirements.get("publication_after_hosted_gate_required") is True, "publication after gate requirement missing")
 require(requirements.get("next_track_does_not_inherit_trading_controls") is True, "next track boundary requirement missing")
+require("Status: PUBLISHED CLOSEOUT RECORDED" in v280_009_evidence, "V280-009 evidence must record published closeout status")
+require("release_publication_guard=pass" in v280_009_evidence, "V280-009 evidence must record final publication guard pass")
+require("v280_issue_scope=final_closeout closed=10/10 current_issue_state=CLOSED" in v280_009_evidence, "V280-009 evidence must record final closed issue scope")
+require("strict_provenance_final_tag_state=tag_exists=true source_dirty=false" in v280_009_evidence, "V280-009 evidence must record final strict provenance tag state")
+require("hosted release gate jobs = 84/84 success" in v280_009_evidence, "V280-009 evidence must record final hosted gate job count")
+stale_v280_markers = [
+    "Status: LOCAL VALIDATION PASSED",
+    "missing_local_git_tag:ntpro-rust-only-v0.28.0",
+    "release_publication_guard=offline_skip",
+    "current_issue_state=OPEN",
+    "tag_exists=false",
+    "source_dirty=true",
+]
+for marker in stale_v280_markers:
+    require(marker not in v280_009_evidence, f"stale V280-009 closeout marker must not be present: {marker}")
 for key in [
     "new_submit_capability",
     "production_order_submission_allowed",
