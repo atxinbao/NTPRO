@@ -34,6 +34,8 @@ validator = scripts/ai/verify_v28_identity_permission_runtime_closure.sh
 release stage = scripts/ai/verify_release.sh v28-identity-permission-runtime-closure
 matrix module = identity_permission_runtime_closure
 matrix classification = runtime-closed
+closure_mode = deterministic_artifact_replay
+runtime_closed_label = runtime-closed (artifact replay)
 ```
 
 The artifact is a deterministic backend replay artifact. It is not a live IdP

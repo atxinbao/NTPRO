@@ -43,6 +43,8 @@ validator = scripts/ai/verify_v28_trader_terminal_backend_api_contract_handoff.s
 release stage = scripts/ai/verify_release.sh v28-trader-terminal-backend-api-contract-handoff
 matrix module = trader_terminal_backend_api_contract_handoff
 matrix classification = runtime-closed
+closure_mode = deterministic_artifact_replay
+runtime_closed_label = runtime-closed (artifact replay)
 ```
 
 ## Handoff API Contracts

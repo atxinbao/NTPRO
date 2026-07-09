@@ -37,6 +37,8 @@ validator = scripts/ai/verify_v28_backend_closure_fail_closed_hardening.sh
 release stage = scripts/ai/verify_release.sh v28-backend-closure-fail-closed-hardening
 matrix module = backend_closure_fail_closed_hardening
 matrix classification = runtime-closed
+closure_mode = deterministic_artifact_replay
+runtime_closed_label = runtime-closed (artifact replay)
 ```
 
 ## Required Components

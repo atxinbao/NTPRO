@@ -6,6 +6,7 @@ cd "$ROOT"
 
 MATRIX_PATH="${NTPRO_V280_BACKEND_CLOSURE_MATRIX:-docs/rust-cutover/release/v0_28_0_backend_closure_readiness_matrix.json}"
 CONTRACT_PATH="${NTPRO_V280_BACKEND_CLOSURE_CONTRACT:-docs/rust-cutover/release/v0_28_0_backend_closure_boundary_contract.md}"
+TERMINOLOGY_PATH="${NTPRO_V281_RUNTIME_CLOSED_TERMINOLOGY:-docs/rust-cutover/release/v0_28_1_runtime_closed_terminology.md}"
 TASK_PATH="${NTPRO_V280_BACKEND_CLOSURE_TASK:-docs/rust-cutover/tasks/V280-001.md}"
 EVIDENCE_PATH="${NTPRO_V280_BACKEND_CLOSURE_EVIDENCE:-docs/rust-cutover/evidence/V280-001.md}"
 INTAKE_PATH="${NTPRO_V280_BACKEND_CLOSURE_INTAKE:-docs/rust-cutover/release/v0_28_0_intake_gate.md}"
@@ -29,7 +30,7 @@ require_contains() {
   fi
 }
 
-for path in "$MATRIX_PATH" "$CONTRACT_PATH" "$TASK_PATH" "$EVIDENCE_PATH" "$INTAKE_PATH"; do
+for path in "$MATRIX_PATH" "$CONTRACT_PATH" "$TERMINOLOGY_PATH" "$TASK_PATH" "$EVIDENCE_PATH" "$INTAKE_PATH"; do
   require_file "$path"
 done
 
@@ -40,10 +41,21 @@ require_contains "$EVIDENCE_PATH" "Task: \`V280-001\` / GitHub issue \`#894\`"
 require_contains "$CONTRACT_PATH" "contract_version = ntpro.v280.backend_closure_boundary.v1"
 require_contains "$CONTRACT_PATH" "schema_version = ntpro.v280.backend_closure_readiness_matrix.v1"
 require_contains "$CONTRACT_PATH" "release_scope = backend_closure_product_operations_runtime_finalization_only"
+require_contains "$CONTRACT_PATH" "runtime_closed_terminology = deterministic_artifact_replay_closure_only"
 require_contains "$CONTRACT_PATH" "backend_complete_claim = false"
 require_contains "$CONTRACT_PATH" "frontend_product_work_complete_claim = false"
+require_contains "$CONTRACT_PATH" "backend_service_runtime_claim = false"
+require_contains "$CONTRACT_PATH" "live_external_integration_claim = false"
 require_contains "$CONTRACT_PATH" "product_grade_live_trading_terminal_claim = false"
 require_contains "$CONTRACT_PATH" "release stage = scripts/ai/verify_release.sh v28-backend-closure-boundary-contract"
+require_contains "$CONTRACT_PATH" "v28.1 terminology stage = scripts/ai/verify_release.sh v28.1-runtime-closed-terminology"
+require_contains "$CONTRACT_PATH" "runtime-closed (artifact replay)"
+require_contains "$CONTRACT_PATH" "runtime-closed live-service/product-ready positive claim => fail_closed_boundary_violation"
+require_contains "$TERMINOLOGY_PATH" "runtime_closed_terminology = deterministic_artifact_replay_closure_only"
+require_contains "$TERMINOLOGY_PATH" "deterministic_artifact_replay_closure = source-controlled artifacts plus local deterministic replay and release-gate validation"
+require_contains "$TERMINOLOGY_PATH" "backend_service_runtime = running backend service/process/API integration that owns live operational state"
+require_contains "$TERMINOLOGY_PATH" "live_external_integration = real external provider, IdP/SSO, deployment platform, adapter, exchange, or network dependency"
+require_contains "$TERMINOLOGY_PATH" "production_execution_runtime = production environment where submit, mutation, adapter send, exchange request, or trading controls can affect live state"
 
 for marker in \
   "new_submit_capability = false" \
@@ -125,6 +137,21 @@ BOUNDARY_FALSE_FLAGS = [
     "manual_operation_submit_allowed",
     "product_grade_trading_terminal_claim",
 ]
+REQUIRED_FALSE_TERMINOLOGY_FLAGS = [
+    "backend_service_runtime_claim_allowed",
+    "live_external_integration_claim_allowed",
+    "production_execution_runtime_claim_allowed",
+    "product_ready_claim_allowed",
+]
+FORBIDDEN_POSITIVE_RUNTIME_CLOSED_CLAIM_PHRASES = [
+    "live external idp",
+    "live deployment execution",
+    "live adapter send",
+    "production trading runtime",
+    "product-ready live trading",
+    "backend service runtime integration",
+]
+RUNTIME_CLOSED_CLOSURE_MODE = "deterministic_artifact_replay"
 EXPECTED_COUNTS = {"runtime-closed": 10, "evidence-only": 2, "blocked": 0, "deferred": 0}
 
 
@@ -154,6 +181,33 @@ def classify(snapshot: dict[str, Any]) -> dict[str, Any]:
         push_reason(reasons, "release_claim_mismatch")
     if snapshot.get("dependency_start_gate") != "satisfied":
         push_reason(reasons, "dependency_start_gate_not_satisfied")
+
+    terminology = snapshot.get("terminology")
+    if not isinstance(terminology, dict):
+        fail("terminology must be an object")
+    if terminology.get("runtime_closed_meaning") != "deterministic_artifact_replay_closure":
+        push_reason(reasons, "runtime_closed_meaning_mismatch")
+    if terminology.get("runtime_closed_label") != "runtime-closed (artifact replay)":
+        push_reason(reasons, "runtime_closed_label_mismatch")
+    does_not_mean = terminology.get("runtime_closed_does_not_mean")
+    if not isinstance(does_not_mean, list):
+        fail("runtime_closed_does_not_mean must be a list")
+    for value in (
+        "backend_service_runtime",
+        "live_external_integration",
+        "production_execution_runtime",
+        "product_ready_live_trading_runtime",
+    ):
+        if value not in does_not_mean:
+            missing.append(f"terminology.runtime_closed_does_not_mean.{value}")
+            push_reason(reasons, f"runtime_closed_does_not_mean_missing:{value}")
+    for key in REQUIRED_FALSE_TERMINOLOGY_FLAGS:
+        if key not in terminology:
+            missing.append(f"terminology.{key}")
+            push_reason(reasons, f"missing_required_false_terminology:{key}")
+        elif terminology.get(key) is not False:
+            opened.append(f"terminology.{key}")
+            push_reason(reasons, f"forbidden_terminology_claim:{key}")
 
     claim_rules = snapshot.get("claim_rules")
     if not isinstance(claim_rules, dict):
@@ -234,6 +288,26 @@ def classify(snapshot: dict[str, Any]) -> dict[str, Any]:
         evidence_path = item.get("evidence_path")
         verification_command = item.get("verification_command")
         if classification == "runtime-closed":
+            if item.get("closure_mode") != RUNTIME_CLOSED_CLOSURE_MODE:
+                missing.append(f"module_readiness.{module_id}.closure_mode")
+                push_reason(reasons, f"runtime_closed_closure_mode_mismatch:{module_id}")
+            for key in REQUIRED_FALSE_TERMINOLOGY_FLAGS:
+                if key not in item:
+                    missing.append(f"module_readiness.{module_id}.{key}")
+                    push_reason(reasons, f"runtime_closed_missing_required_false_terminology:{module_id}:{key}")
+                elif item.get(key) is not False:
+                    opened.append(f"module_readiness.{module_id}.{key}")
+                    push_reason(reasons, f"runtime_closed_forbidden_terminology_claim:{module_id}:{key}")
+            claim = item.get("claim")
+            if not isinstance(claim, str) or not claim:
+                missing.append(f"module_readiness.{module_id}.claim")
+                push_reason(reasons, f"runtime_closed_missing_claim:{module_id}")
+            else:
+                lowered_claim = claim.lower()
+                for phrase in FORBIDDEN_POSITIVE_RUNTIME_CLOSED_CLAIM_PHRASES:
+                    if phrase in lowered_claim:
+                        opened.append(f"module_readiness.{module_id}.claim")
+                        push_reason(reasons, f"runtime_closed_forbidden_positive_claim:{module_id}:{phrase}")
             if closure_claim_allowed is not True:
                 missing.append(f"module_readiness.{module_id}.closure_claim_allowed")
                 push_reason(reasons, f"runtime_closed_claim_not_allowed:{module_id}")
@@ -338,6 +412,23 @@ if selftest:
             break
     if not classify(missing_evidence)["fail_closed"]:
         fail("negative self-test unexpectedly allowed missing runtime-closed evidence")
+
+    missing_closure_mode = copy.deepcopy(matrix)
+    for item in missing_closure_mode["module_readiness"]:
+        if item["module_id"] == "identity_permission_runtime_closure":
+            item.pop("closure_mode", None)
+            break
+    if not classify(missing_closure_mode)["fail_closed"]:
+        fail("negative self-test unexpectedly allowed missing runtime-closed closure mode")
+
+    for phrase in FORBIDDEN_POSITIVE_RUNTIME_CLOSED_CLAIM_PHRASES:
+        forbidden_claim = copy.deepcopy(matrix)
+        for item in forbidden_claim["module_readiness"]:
+            if item["module_id"] == "identity_permission_runtime_closure":
+                item["claim"] = f"{phrase} is complete"
+                break
+        if not classify(forbidden_claim)["fail_closed"]:
+            fail(f"negative self-test unexpectedly allowed forbidden runtime-closed claim: {phrase}")
 
 print(
     "v28_backend_closure_boundary_contract=pass "

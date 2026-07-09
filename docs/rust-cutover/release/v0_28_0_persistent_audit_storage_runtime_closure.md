@@ -35,6 +35,8 @@ validator = scripts/ai/verify_v28_persistent_audit_storage_runtime_closure.sh
 release stage = scripts/ai/verify_release.sh v28-persistent-audit-storage-runtime-closure
 matrix module = persistent_audit_storage_runtime_closure
 matrix classification = runtime-closed
+closure_mode = deterministic_artifact_replay
+runtime_closed_label = runtime-closed (artifact replay)
 ```
 
 ## Storage Sink Requirements
