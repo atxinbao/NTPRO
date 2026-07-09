@@ -1,0 +1,207 @@
+{
+  "schema_version": "ntpro.v290.permission_source_production_readiness_artifact.v1",
+  "contract_version": "ntpro.v290.permission_source_production_readiness.v1",
+  "task_id": "V290-004",
+  "github_issue": 930,
+  "milestone": "v0.29.0",
+  "release_scope": "backend_production_readiness_foundation_only",
+  "backend_module": "permission_source_production_readiness",
+  "backend_module_status": "production_ready_evidence",
+  "readiness_mode": "deterministic_readiness_replay",
+  "operation_authorization_surface": "read_admin_only",
+  "permission_source_claim": "source_controlled_sandbox_fixture",
+  "dependency_contracts": [
+    "V290-000",
+    "V290-001",
+    "V290-002",
+    "V280-002",
+    "v0.28.1-release-evidence"
+  ],
+  "live_operation_authorization": false,
+  "production_trading_authorization": false,
+  "external_idp_sso_runtime_integration": false,
+  "permission_source": {
+    "source_id": "v290-permission-source-readiness",
+    "source_type": "production_readiness_sandbox_permission_fixture",
+    "source_ref": "docs/rust-cutover/release/v0_28_0_identity_permission_runtime_artifact.json",
+    "provider": "ntpro-static-idp-readiness",
+    "tenant_id_redacted": "tenant_redacted",
+    "issuer": "https://idp.example.invalid/ntpro-readiness",
+    "jwks_fingerprint_sha256": "7b6b623ed0fcae2d91b1f28d86f0b6f2e0220c41b39f2d488d7c0e0a02ec3f1a",
+    "config_digest": "sha256:50a255f9e4b0b18f7d2d0b6174d7214a3bb538f548e45d80afaa5d20ea17c5a0",
+    "collected_at": "2026-07-09T23:05:00Z",
+    "freshness_status": "fresh",
+    "provenance_status": "linked",
+    "redaction_status": "redacted",
+    "lineage_status": "linked"
+  },
+  "permission_mapping": {
+    "mapping_id": "v290-read-admin-permission-map",
+    "provenance_id": "permission-map-v290-004",
+    "freshness_status": "fresh",
+    "provenance_status": "linked",
+    "redaction_status": "redacted",
+    "lineage_status": "linked",
+    "revocation_status": "enforced",
+    "roles": {
+      "operator": {
+        "scope_prefix": "account:",
+        "allowed_permissions": [
+          "dashboard_read",
+          "operation_preview_read",
+          "runbook_read"
+        ]
+      },
+      "admin": {
+        "scope_prefix": "admin:",
+        "allowed_permissions": [
+          "dashboard_read",
+          "operation_preview_read",
+          "runbook_read",
+          "audit_read",
+          "provenance_read"
+        ]
+      },
+      "auditor": {
+        "scope_prefix": "audit:",
+        "allowed_permissions": [
+          "dashboard_read",
+          "audit_read",
+          "provenance_read"
+        ]
+      },
+      "release_gatekeeper": {
+        "scope_prefix": "release:",
+        "allowed_permissions": [
+          "dashboard_read",
+          "release_gate_read",
+          "release_manifest_read"
+        ]
+      }
+    }
+  },
+  "revocation_ledger": {
+    "ledger_id": "v290-permission-revocation-ledger",
+    "freshness_status": "fresh",
+    "provenance_status": "linked",
+    "revoked_subjects": [
+      "operator-revoked-redacted"
+    ]
+  },
+  "required_false_permissions": {
+    "submit_order": false,
+    "cancel_order": false,
+    "replace_order": false,
+    "amend_order": false,
+    "flatten_position": false,
+    "retry_scheduler": false,
+    "automatic_remediation": false,
+    "adapter_send": false,
+    "live_exchange_request": false,
+    "dashboard_trading_controls": false,
+    "admin_workbench_trading_controls": false,
+    "trader_terminal_order_ticket": false,
+    "manual_operation_submit": false,
+    "backend_go_live_claim": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "unsupported_external_idp_sso_behavior": {
+    "live_sso_token_verification": false,
+    "oauth_authorization_code_flow": false,
+    "saml_assertion_validation": false,
+    "external_idp_network_call": false,
+    "dynamic_group_sync": false,
+    "live_operation_authorization_from_idp": false
+  },
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "permission_readiness_cases": [
+    {
+      "case_id": "permission_source.production_readiness.operator_dashboard_read.allowed.001",
+      "subject_id": "operator-redacted",
+      "role": "operator",
+      "scope": "account:read-model",
+      "permission": "dashboard_read",
+      "expected_status": "allowed_read_admin_permission"
+    },
+    {
+      "case_id": "permission_source.production_readiness.admin_audit_read.allowed.001",
+      "subject_id": "admin-redacted",
+      "role": "admin",
+      "scope": "admin:audit",
+      "permission": "audit_read",
+      "expected_status": "allowed_read_admin_permission"
+    },
+    {
+      "case_id": "permission_source.production_readiness.missing_provenance.fail_closed.001",
+      "subject_id": "operator-redacted",
+      "role": "operator",
+      "scope": "account:read-model",
+      "permission": "dashboard_read",
+      "permission_source_override": {
+        "provenance_status": "missing"
+      },
+      "expected_status": "fail_closed_missing_provenance"
+    },
+    {
+      "case_id": "permission_source.production_readiness.stale_source.fail_closed.001",
+      "subject_id": "admin-redacted",
+      "role": "admin",
+      "scope": "admin:audit",
+      "permission": "audit_read",
+      "permission_mapping_override": {
+        "freshness_status": "stale"
+      },
+      "expected_status": "fail_closed_stale_source"
+    },
+    {
+      "case_id": "permission_source.production_readiness.revoked_subject.fail_closed.001",
+      "subject_id": "operator-revoked-redacted",
+      "role": "operator",
+      "scope": "account:read-model",
+      "permission": "dashboard_read",
+      "expected_status": "fail_closed_permission_revoked"
+    },
+    {
+      "case_id": "permission_source.production_readiness.permission_drift.fail_closed.001",
+      "subject_id": "operator-redacted",
+      "role": "operator",
+      "scope": "admin:audit",
+      "permission": "audit_read",
+      "expected_status": "fail_closed_permission_drift"
+    },
+    {
+      "case_id": "permission_source.production_readiness.forbidden_trading_permission.fail_closed.001",
+      "subject_id": "admin-redacted",
+      "role": "admin",
+      "scope": "admin:orders",
+      "permission": "submit_order",
+      "required_false_permissions_override": {
+        "submit_order": true
+      },
+      "expected_status": "fail_closed_forbidden_trading_permission"
+    }
+  ]
+}

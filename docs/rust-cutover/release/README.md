@@ -56,6 +56,16 @@ Final release checks, benchmark summaries, and audit reports live here.
   unredacted payload, and forbidden operation/control cases.
 - `../evidence/V290-003.md` - V290-003 telemetry SLO ingestion production
   readiness evidence for GitHub issue #929.
+- `v0_29_0_permission_source_production_readiness.md` - V290-004 contract that
+  promotes permission sources to backend production readiness evidence through
+  source config, role mapping, freshness, revocation, provenance, redaction,
+  and read/admin permission replay.
+- `v0_29_0_permission_source_production_readiness_artifact.json` -
+  source-controlled V290-004 backend artifact for allowed read/admin checks and
+  fail-closed missing provenance, stale source, revoked subject, permission
+  drift, and forbidden trading permission cases.
+- `../evidence/V290-004.md` - V290-004 permission source production readiness
+  evidence for GitHub issue #930.
 - `../evidence/V281-010.md` - V281-010 v28.1 nested base-gate tag-scope
   isolation evidence for GitHub issue #948.
 - `../evidence/V281-009.md` - V281-009 v28.1 prepublish live-current require
