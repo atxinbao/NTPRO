@@ -22,6 +22,12 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `release_body_hash_semantics.md` - release audit contract that defines
   normalized SHA-256 as the release body acceptance rule and raw SHA-256 as a
   diagnostic value only.
+- `v0_28_1_runtime_closed_terminology.md` - v0.28.1 terminology contract that
+  defines `runtime-closed (artifact replay)` as deterministic artifact replay
+  closure only, not backend service runtime integration, live external
+  integration, production execution runtime, or product-ready live trading.
+- `../evidence/V281-005.md` - V281-005 runtime-closed terminology hardening
+  evidence for GitHub issue #923.
 - `../evidence/V281-004.md` - V281-004 release body hash normalization
   contract evidence for GitHub issue #922.
 - `../evidence/V281-001.md` - V281-001 v0.28.0 release closeout evidence
@@ -103,7 +109,8 @@ Final release checks, benchmark summaries, and audit reports live here.
   required-false trading/control flags.
 - `v0_28_0_backend_closure_readiness_matrix.json` - source-controlled V280-001
   readiness matrix classifying v28 modules as runtime-closed, evidence-only,
-  blocked, or deferred with evidence and verification command mappings.
+  blocked, or deferred with evidence, verification command mappings, and
+  explicit deterministic artifact replay terminology flags.
 - `../evidence/V280-001.md` - V280-001 backend closure boundary contract and
   readiness matrix evidence for GitHub issue #894.
 - `v0_28_0_intake_gate.md` - V280-000 intake proof that all V271 issues are

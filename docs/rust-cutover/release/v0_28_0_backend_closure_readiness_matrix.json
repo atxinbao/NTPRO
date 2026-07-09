@@ -7,6 +7,20 @@
   "release_scope": "backend_closure_product_operations_runtime_finalization_only",
   "release_claim": "backend_closure_boundary_and_readiness_matrix",
   "dependency_start_gate": "satisfied",
+  "terminology": {
+    "runtime_closed_meaning": "deterministic_artifact_replay_closure",
+    "runtime_closed_label": "runtime-closed (artifact replay)",
+    "runtime_closed_does_not_mean": [
+      "backend_service_runtime",
+      "live_external_integration",
+      "production_execution_runtime",
+      "product_ready_live_trading_runtime"
+    ],
+    "backend_service_runtime_claim_allowed": false,
+    "live_external_integration_claim_allowed": false,
+    "production_execution_runtime_claim_allowed": false,
+    "product_ready_claim_allowed": false
+  },
   "claim_rules": {
     "backend_complete_claim": false,
     "frontend_product_work_complete_claim": false,
@@ -46,19 +60,29 @@
       "module_id": "v271_release_publication_dependency",
       "classification": "runtime-closed",
       "issue": 893,
+      "closure_mode": "deterministic_artifact_replay",
+      "backend_service_runtime_claim_allowed": false,
+      "live_external_integration_claim_allowed": false,
+      "production_execution_runtime_claim_allowed": false,
+      "product_ready_claim_allowed": false,
       "closure_claim_allowed": true,
       "evidence_path": "docs/rust-cutover/evidence/V280-000.md",
       "verification_command": "scripts/ai/verify_release.sh v28-intake-gate",
-      "claim": "v0.27.1 publication dependency proof is closed and source-reconstructable"
+      "claim": "v0.27.1 publication dependency proof closes through deterministic release artifact reconstruction"
     },
     {
       "module_id": "v280_backend_closure_boundary_contract",
       "classification": "runtime-closed",
       "issue": 894,
+      "closure_mode": "deterministic_artifact_replay",
+      "backend_service_runtime_claim_allowed": false,
+      "live_external_integration_claim_allowed": false,
+      "production_execution_runtime_claim_allowed": false,
+      "product_ready_claim_allowed": false,
       "closure_claim_allowed": true,
       "evidence_path": "docs/rust-cutover/evidence/V280-001.md",
       "verification_command": "scripts/ai/verify_release.sh v28-backend-closure-boundary-contract",
-      "claim": "v0.28.0 backend closure boundary contract and readiness matrix are release-gated"
+      "claim": "v0.28.0 backend closure boundary contract and readiness matrix close deterministic artifact replay terminology"
     },
     {
       "module_id": "v270_operations_runtime_foundation_evidence",
@@ -82,73 +106,113 @@
       "module_id": "identity_permission_runtime_closure",
       "classification": "runtime-closed",
       "issue": 895,
+      "closure_mode": "deterministic_artifact_replay",
+      "backend_service_runtime_claim_allowed": false,
+      "live_external_integration_claim_allowed": false,
+      "production_execution_runtime_claim_allowed": false,
+      "product_ready_claim_allowed": false,
       "closure_claim_allowed": true,
       "evidence_path": "docs/rust-cutover/evidence/V280-002.md",
       "verification_command": "scripts/ai/verify_release.sh v28-identity-permission-runtime-closure",
-      "claim": "identity and permission runtime closes through deterministic read/admin backend artifact replay"
+      "claim": "identity and permission backend behavior closes through deterministic read/admin artifact replay"
     },
     {
       "module_id": "persistent_audit_storage_runtime_closure",
       "classification": "runtime-closed",
       "issue": 896,
+      "closure_mode": "deterministic_artifact_replay",
+      "backend_service_runtime_claim_allowed": false,
+      "live_external_integration_claim_allowed": false,
+      "production_execution_runtime_claim_allowed": false,
+      "product_ready_claim_allowed": false,
       "closure_claim_allowed": true,
       "evidence_path": "docs/rust-cutover/evidence/V280-003.md",
       "verification_command": "scripts/ai/verify_release.sh v28-persistent-audit-storage-runtime-closure",
-      "claim": "persistent audit storage runtime closes through deterministic append-only write/read replay"
+      "claim": "persistent audit storage backend behavior closes through deterministic append-only write/read artifact replay"
     },
     {
       "module_id": "deployment_upgrade_rollback_orchestration_runtime_closure",
       "classification": "runtime-closed",
       "issue": 897,
+      "closure_mode": "deterministic_artifact_replay",
+      "backend_service_runtime_claim_allowed": false,
+      "live_external_integration_claim_allowed": false,
+      "production_execution_runtime_claim_allowed": false,
+      "product_ready_claim_allowed": false,
       "closure_claim_allowed": true,
       "evidence_path": "docs/rust-cutover/evidence/V280-004.md",
       "verification_command": "scripts/ai/verify_release.sh v28-deployment-orchestration-runtime-closure",
-      "claim": "deployment upgrade rollback orchestration runtime closes through deterministic preview state replay"
+      "claim": "deployment upgrade rollback orchestration backend behavior closes through deterministic preview-state artifact replay"
     },
     {
       "module_id": "telemetry_slo_ingestion_runtime_closure",
       "classification": "runtime-closed",
       "issue": 898,
+      "closure_mode": "deterministic_artifact_replay",
+      "backend_service_runtime_claim_allowed": false,
+      "live_external_integration_claim_allowed": false,
+      "production_execution_runtime_claim_allowed": false,
+      "product_ready_claim_allowed": false,
       "closure_claim_allowed": true,
       "evidence_path": "docs/rust-cutover/evidence/V280-005.md",
       "verification_command": "scripts/ai/verify_release.sh v28-telemetry-slo-ingestion-runtime-closure",
-      "claim": "telemetry SLO ingestion runtime closes through deterministic observability replay"
+      "claim": "telemetry SLO ingestion backend behavior closes through deterministic observability artifact replay"
     },
     {
       "module_id": "admin_workbench_backend_state_bridge_closure",
       "classification": "runtime-closed",
       "issue": 899,
+      "closure_mode": "deterministic_artifact_replay",
+      "backend_service_runtime_claim_allowed": false,
+      "live_external_integration_claim_allowed": false,
+      "production_execution_runtime_claim_allowed": false,
+      "product_ready_claim_allowed": false,
       "closure_claim_allowed": true,
       "evidence_path": "docs/rust-cutover/evidence/V280-006.md",
       "verification_command": "scripts/ai/verify_release.sh v28-admin-workbench-backend-state-bridge-closure",
-      "claim": "Admin Workbench backend state bridge closes through deterministic backend state API handoff replay"
+      "claim": "Admin Workbench backend state bridge closes through deterministic state handoff artifact replay"
     },
     {
       "module_id": "trader_terminal_backend_api_contract_handoff",
       "classification": "runtime-closed",
       "issue": 900,
+      "closure_mode": "deterministic_artifact_replay",
+      "backend_service_runtime_claim_allowed": false,
+      "live_external_integration_claim_allowed": false,
+      "production_execution_runtime_claim_allowed": false,
+      "product_ready_claim_allowed": false,
       "closure_claim_allowed": true,
       "evidence_path": "docs/rust-cutover/evidence/V280-007.md",
       "verification_command": "scripts/ai/verify_release.sh v28-trader-terminal-backend-api-contract-handoff",
-      "claim": "Trader Terminal backend API contract handoff closes through deterministic read-only response contract replay"
+      "claim": "Trader Terminal backend API contract handoff closes through deterministic read-only response artifact replay"
     },
     {
       "module_id": "backend_closure_fail_closed_hardening",
       "classification": "runtime-closed",
       "issue": 901,
+      "closure_mode": "deterministic_artifact_replay",
+      "backend_service_runtime_claim_allowed": false,
+      "live_external_integration_claim_allowed": false,
+      "production_execution_runtime_claim_allowed": false,
+      "product_ready_claim_allowed": false,
       "closure_claim_allowed": true,
       "evidence_path": "docs/rust-cutover/evidence/V280-008.md",
       "verification_command": "scripts/ai/verify_release.sh v28-backend-closure-fail-closed-hardening",
-      "claim": "backend closure fail-closed hardening closes through deterministic required-component and forbidden-control replay"
+      "claim": "backend closure fail-closed hardening closes through deterministic required-component and forbidden-control artifact replay"
     },
     {
       "module_id": "v28_release_gates_strict_provenance_handoff",
       "classification": "runtime-closed",
       "issue": 902,
+      "closure_mode": "deterministic_artifact_replay",
+      "backend_service_runtime_claim_allowed": false,
+      "live_external_integration_claim_allowed": false,
+      "production_execution_runtime_claim_allowed": false,
+      "product_ready_claim_allowed": false,
       "closure_claim_allowed": true,
       "evidence_path": "docs/rust-cutover/evidence/V280-009.md",
       "verification_command": "scripts/ai/verify_release.sh v28-release-gates",
-      "claim": "v0.28.0 release gates, strict provenance, and backend closure handoff are release-gated"
+      "claim": "v0.28.0 release gates, strict provenance, and backend closure handoff close through deterministic release artifact replay"
     }
   ],
   "expected_counts": {

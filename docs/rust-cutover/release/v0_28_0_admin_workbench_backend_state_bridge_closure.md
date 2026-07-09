@@ -38,6 +38,8 @@ validator = scripts/ai/verify_v28_admin_workbench_backend_state_bridge_closure.s
 release stage = scripts/ai/verify_release.sh v28-admin-workbench-backend-state-bridge-closure
 matrix module = admin_workbench_backend_state_bridge_closure
 matrix classification = runtime-closed
+closure_mode = deterministic_artifact_replay
+runtime_closed_label = runtime-closed (artifact replay)
 ```
 
 ## Backend State Components

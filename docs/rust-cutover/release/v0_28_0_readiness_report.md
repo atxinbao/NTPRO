@@ -18,6 +18,21 @@ Plain Chinese summary: v0.28.0 可以作为 backend closure 发布。它证明�
 发布治理已经收口，但前端产品体验、实盘下单、订单 mutation、adapter send、live exchange、自动补救和
 交易控件仍不在本版本范围内。
 
+## Runtime-Closed Terminology
+
+```text
+runtime_closed_terminology = deterministic_artifact_replay_closure_only
+runtime_closed_label = runtime-closed (artifact replay)
+backend_service_runtime_claim_allowed = false
+live_external_integration_claim_allowed = false
+production_execution_runtime_claim_allowed = false
+product_ready_claim_allowed = false
+```
+
+For v0.28.x, `runtime-closed` means deterministic artifact replay closure only.
+It does not mean a running backend service runtime, live external integration,
+production execution runtime, or product-ready live trading terminal.
+
 ## Release Scope
 
 ```text

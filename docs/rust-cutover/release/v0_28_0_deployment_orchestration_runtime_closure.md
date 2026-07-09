@@ -39,6 +39,8 @@ validator = scripts/ai/verify_v28_deployment_orchestration_runtime_closure.sh
 release stage = scripts/ai/verify_release.sh v28-deployment-orchestration-runtime-closure
 matrix module = deployment_upgrade_rollback_orchestration_runtime_closure
 matrix classification = runtime-closed
+closure_mode = deterministic_artifact_replay
+runtime_closed_label = runtime-closed (artifact replay)
 ```
 
 ## State Transition Requirements
