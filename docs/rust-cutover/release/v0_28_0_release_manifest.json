@@ -164,6 +164,8 @@
     "publish_script": "scripts/ai/publish_ntpro_release_after_gate.sh",
     "public_release_requires_successful_hosted_gate_for_same_tag_commit": true,
     "release_gate_success_before_publication_required": true,
+    "current_release_publish_after_gate_binding_required": true,
+    "historical_fixture_only_current_release_proof_allowed": false,
     "publication_evidence_strategy": "source_tree_plus_github_remote",
     "local_generated_evidence_required_in_source_tree": false,
     "remote_reconstruction_required": true
@@ -173,6 +175,7 @@
     "task_id": "V281-001",
     "issue": 919,
     "publication_status": "published_after_gate",
+    "current_release_publish_after_gate_binding": "pass",
     "published_after_hosted_gate": true,
     "release_gate_run_id": 28969059200,
     "release_gate_url": "https://github.com/atxinbao/NTPRO/actions/runs/28969059200",

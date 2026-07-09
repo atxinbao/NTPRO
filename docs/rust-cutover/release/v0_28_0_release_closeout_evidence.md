@@ -48,6 +48,10 @@ hosted release gate created at = 2026-07-08T19:14:51Z
 hosted release gate completed at = 2026-07-08T20:38:03Z
 hosted release gate jobs = 84/84 success
 release publication after gate = pass
+release publish after gate current-release binding = pass
+release_gate_run_id = 28969059200
+published_at >= release_gate_completed_at = true
+historical fixture-only current-release proof allowed = false
 release publication evidence status = published_after_gate
 publication evidence strategy = source_tree_plus_github_remote
 local generated publication evidence required in source tree = false

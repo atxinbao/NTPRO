@@ -26,6 +26,8 @@ Final release checks, benchmark summaries, and audit reports live here.
   defines `runtime-closed (artifact replay)` as deterministic artifact replay
   closure only, not backend service runtime integration, live external
   integration, production execution runtime, or product-ready live trading.
+- `../evidence/V281-006.md` - V281-006 release-publish-after-gate
+  current-release binding evidence for GitHub issue #924.
 - `../evidence/V281-005.md` - V281-005 runtime-closed terminology hardening
   evidence for GitHub issue #923.
 - `../evidence/V281-004.md` - V281-004 release body hash normalization
