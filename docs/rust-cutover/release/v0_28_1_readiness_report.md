@@ -7,13 +7,13 @@ Status: RELEASE GATE READY
 
 ## Summary
 
-v0.28.1 is ready for tag-gate execution when V281-001 through V281-007 evidence
+v0.28.1 is ready for tag-gate execution when V281-001 through V281-008 evidence
 is present, all V281 issues are closed, v28.1 release gates pass, strict
 provenance passes, and the release is published only after the hosted release
 gate succeeds for the same tag commit.
 
 Plain Chinese summary: v0.28.1 的范围是发布治理和证据硬化，不是 v0.29.0 功能。它
-要求 V281-001 到 V281-007 全部闭环，hosted release gate 成功后再公开 GitHub Release。
+要求 V281-001 到 V281-008 全部闭环，hosted release gate 成功后再公开 GitHub Release。
 v0.29.0 在 v0.28.1 发布证据和 source-controlled closeout 证据存在前保持 hard-blocked。
 
 ## Evidence
@@ -25,6 +25,7 @@ V281-004 evidence = docs/rust-cutover/evidence/V281-004.md
 V281-005 evidence = docs/rust-cutover/evidence/V281-005.md
 V281-006 evidence = docs/rust-cutover/evidence/V281-006.md
 V281-007 evidence = docs/rust-cutover/evidence/V281-007.md
+V281-008 evidence = docs/rust-cutover/evidence/V281-008.md
 
 ## Gates
 
@@ -55,14 +56,15 @@ NTPRO_V29_INTAKE_ALLOW_UNPUBLISHED=1 scripts/ai/verify_release.sh v29-intake-gat
 #923 V281-005 = must be closed before v0.28.1 tag gate is accepted
 #924 V281-006 = must be closed before v0.28.1 tag gate is accepted
 #925 V281-007 = must be closed before v0.28.1 tag gate is accepted
+#944 V281-008 = corrective release-gate blocker, must be closed before v0.28.1 tag gate is accepted
 
 ## Release Scope
 
 ```text
-V281 final release scope issue count = 7
-V281 final release scope evidence count = 7
-V281 exact milestone issue set = #919-#925
-V281 registered corrective-scope exception count = 0
+V281 final release scope issue count = 8
+V281 final release scope evidence count = 8
+V281 exact milestone issue set = #919-#925, #944
+V281 registered corrective-scope exception count = 1
 registered corrective-scope exceptions required = true
 unregistered corrective milestone issues fail closed = true
 v0.28.0 dependency proof = required

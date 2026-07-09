@@ -276,6 +276,9 @@ jobs:
           if [[ "${NTPRO_RELEASE_STAGE}" == "release-publication-guard" && "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
             export NTPRO_RELEASE_PUBLICATION_PREPUBLISH_TAG_GATE=1
           fi
+          if [[ "${NTPRO_RELEASE_STAGE}" == "release-publish-after-gate" && "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            export NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_CURRENT=0
+          fi
           ${{ matrix.command }}
 
   verify-release:

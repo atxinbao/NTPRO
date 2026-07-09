@@ -51,7 +51,7 @@ for path in \
   require_file "$path"
 done
 
-for task_id in V281-001 V281-002 V281-003 V281-004 V281-005 V281-006 V281-007; do
+for task_id in V281-001 V281-002 V281-003 V281-004 V281-005 V281-006 V281-007 V281-008; do
   require_file "docs/rust-cutover/evidence/${task_id}.md"
   require_file "docs/rust-cutover/tasks/${task_id}.md"
 done
@@ -81,6 +81,7 @@ expected = {
     "V281-005": 923,
     "V281-006": 924,
     "V281-007": 925,
+    "V281-008": 944,
 }
 
 def require(condition: bool, message: str) -> None:
@@ -88,21 +89,21 @@ def require(condition: bool, message: str) -> None:
         raise SystemExit(message)
 
 require(manifest.get("schema_version") == "ntpro.v281_patch_release_manifest.v1", "manifest schema mismatch")
-require(manifest.get("task_id") == "V281-007", "manifest task mismatch")
+require(manifest.get("task_id") == "V281-008", "manifest task mismatch")
 require(manifest.get("product_version") == os.environ["V281_RELEASE_VERSION"], "manifest product version mismatch")
 planned = manifest.get("planned_release") or {}
 require(planned.get("tag") == os.environ["V281_RELEASE_TAG"], "planned release tag mismatch")
 require(planned.get("name") == os.environ["V281_RELEASE_NAME"], "planned release name mismatch")
 require(planned.get("github_release_url") == os.environ["V281_RELEASE_URL"], "planned release URL mismatch")
 evidence = manifest.get("v281_evidence") or []
-require(len(evidence) == 7, "V281 evidence count mismatch")
+require(len(evidence) == 8, "V281 evidence count mismatch")
 for item in evidence:
     task_id = item.get("task_id")
     require(expected.get(task_id) == item.get("issue"), f"V281 issue mismatch: {task_id}")
     require(Path(item.get("path", "")).is_file(), f"missing V281 evidence: {item}")
 scope = manifest.get("release_scope") or {}
-require(scope.get("final_release_scope_issue_count") == 7, "V281 final issue count mismatch")
-require(scope.get("final_release_scope_evidence_count") == 7, "V281 final evidence count mismatch")
+require(scope.get("final_release_scope_issue_count") == 8, "V281 final issue count mismatch")
+require(scope.get("final_release_scope_evidence_count") == 8, "V281 final evidence count mismatch")
 require(scope.get("exact_milestone_issue_numbers") == list(expected.values()), "V281 exact issue numbers mismatch")
 requirements = manifest.get("post_publication_requirements") or {}
 require(requirements.get("github_release_published_required") is True, "GitHub release requirement missing")
