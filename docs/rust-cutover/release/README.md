@@ -36,6 +36,16 @@ Final release checks, benchmark summaries, and audit reports live here.
   readiness-preview, blocked, or deferred.
 - `../evidence/V290-001.md` - V290-001 backend production readiness boundary
   contract evidence for GitHub issue #927.
+- `v0_29_0_persistent_audit_storage_production_readiness.md` - V290-002
+  contract that promotes persistent audit storage to backend production
+  readiness evidence through sandboxed append-only storage config,
+  schema/migration, retention, redaction, idempotency, and lineage replay.
+- `v0_29_0_persistent_audit_storage_production_readiness_artifact.json` -
+  source-controlled V290-002 backend artifact for audit write/read readiness
+  and fail-closed missing config, stale source, schema drift, broken lineage,
+  unredacted payload, and forbidden operation/control cases.
+- `../evidence/V290-002.md` - V290-002 persistent audit storage production
+  readiness evidence for GitHub issue #928.
 - `../evidence/V281-010.md` - V281-010 v28.1 nested base-gate tag-scope
   isolation evidence for GitHub issue #948.
 - `../evidence/V281-009.md` - V281-009 v28.1 prepublish live-current require
