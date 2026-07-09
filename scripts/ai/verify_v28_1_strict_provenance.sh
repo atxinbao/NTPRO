@@ -49,7 +49,7 @@ input_paths=(
   "$ROOT_DIR/.github/workflows/release-publish.yml"
 )
 
-for task_id in V281-001 V281-002 V281-003 V281-004 V281-005 V281-006 V281-007 V281-008 V281-009; do
+for task_id in V281-001 V281-002 V281-003 V281-004 V281-005 V281-006 V281-007 V281-008 V281-009 V281-010; do
   input_paths+=("$ROOT_DIR/docs/rust-cutover/evidence/${task_id}.md")
   input_paths+=("$ROOT_DIR/docs/rust-cutover/tasks/${task_id}.md")
 done
@@ -121,16 +121,16 @@ def require(condition: bool, message: str) -> None:
         raise SystemExit(message)
 
 require(release_manifest["schema_version"] == "ntpro.v281_patch_release_manifest.v1", "manifest schema mismatch")
-require(release_manifest["task_id"] == "V281-009", "manifest task mismatch")
+require(release_manifest["task_id"] == "V281-010", "manifest task mismatch")
 require(release_manifest["product_version"] == os.environ["PRODUCT_VERSION"], "manifest product version mismatch")
 require(release_manifest["planned_release"]["tag"] == os.environ["RELEASE_TAG"], "planned tag mismatch")
 require("v28.1 release gates = required" in release_notes, "release notes v28.1 gate marker missing")
 require("v28.1 strict provenance = required" in readiness, "readiness strict provenance marker missing")
 scope = release_manifest.get("release_scope") or {}
-require(scope.get("exact_milestone_issue_numbers") == [919, 920, 921, 922, 923, 924, 925, 944, 946], "exact milestone issue numbers mismatch")
-require(scope.get("exact_milestone_issue_set") == "#919-#925, #944, #946", "exact milestone issue set mismatch")
-require(scope.get("final_release_scope_issue_count") == 9, "final release scope issue count mismatch")
-require(scope.get("final_release_scope_evidence_count") == 9, "final release scope evidence count mismatch")
+require(scope.get("exact_milestone_issue_numbers") == [919, 920, 921, 922, 923, 924, 925, 944, 946, 948], "exact milestone issue numbers mismatch")
+require(scope.get("exact_milestone_issue_set") == "#919-#925, #944, #946, #948", "exact milestone issue set mismatch")
+require(scope.get("final_release_scope_issue_count") == 10, "final release scope issue count mismatch")
+require(scope.get("final_release_scope_evidence_count") == 10, "final release scope evidence count mismatch")
 requirements = release_manifest.get("post_publication_requirements") or {}
 require(requirements.get("source_controlled_closeout_evidence_required") is True, "source closeout requirement missing")
 require(requirements.get("generated_publication_evidence_sole_proof_allowed") is False, "generated-only proof must be false")
@@ -169,7 +169,7 @@ for raw_path in os.environ["INPUT_PATHS"].splitlines():
 
 payload = {
     "schema_version": "ntpro.v281_strict_release_provenance.v1",
-    "task_id": "V281-009",
+    "task_id": "V281-010",
     "target": "v28.1",
     "product_version": os.environ["PRODUCT_VERSION"],
     "release_tag": os.environ["RELEASE_TAG"],
@@ -193,7 +193,7 @@ payload = {
     "readiness_report_source": str(Path(os.environ["READINESS_REPORT_PATH"]).relative_to(root)),
     "readiness_report_sha256": "sha256:" + hashlib.sha256(readiness.encode("utf-8")).hexdigest(),
     "source_inputs": source_inputs,
-    "v281_issue_scope": [919, 920, 921, 922, 923, 924, 925, 944, 946],
+    "v281_issue_scope": [919, 920, 921, 922, 923, 924, 925, 944, 946, 948],
     "v281_evidence": release_manifest.get("v281_evidence"),
     "release_scope": release_manifest.get("release_scope"),
     "capability": release_manifest.get("capability"),
@@ -208,7 +208,7 @@ payload = {
         "dirty_worktree": "NTPRO_RELEASE_GATE=1 fails if tracked files are dirty",
         "missing_tag": "NTPRO_RELEASE_GATE=1 or NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG=1 fails without the v0.28.1 release tag",
         "tag_mismatch": "NTPRO_RELEASE_GATE=1 or NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG=1 fails when HEAD differs from the release tag",
-        "open_v281_issue": "NTPRO_RELEASE_GATE=1 fails unless V281 issues #919-#925, #944, and #946 are closed",
+        "open_v281_issue": "NTPRO_RELEASE_GATE=1 fails unless V281 issues #919-#925, #944, #946, and #948 are closed",
         "missing_source_closeout": "v29 intake fails unless v0.28.1 publication closeout is source controlled",
         "open_operation_boundary": "v0.28.1 provenance fails if submit, mutation, adapter send, live exchange, retry scheduler, Dashboard/Admin/Trader Terminal trading, remediation, or order-ticket boundary opens",
     },

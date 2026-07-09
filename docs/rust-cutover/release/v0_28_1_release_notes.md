@@ -29,6 +29,12 @@ dependency target，但不新增 submit，不改变 runtime，不开放 Dashboar
 - `V281-007` - v28.1 release gates and post-publication strict provenance.
 - `V281-008` - v28.1 release tag gate prepublication publish-after-gate fix.
 - `V281-009` - v28.1 prepublish live-current require semantics.
+- `V281-010` - v28.1 nested base-gate tag-scope isolation.
+
+V281 final release scope issue count = 10
+V281 final release scope evidence count = 10
+V281 exact milestone issue set = #919-#925, #944, #946, #948
+V281 registered corrective-scope exception count = 3
 
 ## Release Gates
 

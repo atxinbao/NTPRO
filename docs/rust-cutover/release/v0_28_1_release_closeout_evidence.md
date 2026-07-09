@@ -2,7 +2,7 @@
 
 Date: 2026-07-09
 Executor: Codex
-Task: `V281-009` / GitHub issue `#946`
+Task: `V281-010` / GitHub issue `#948`
 Milestone: `v0.28.1`
 Status: PENDING PUBLICATION
 
