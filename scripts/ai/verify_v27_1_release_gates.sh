@@ -62,6 +62,7 @@ for path in \
   "$MANIFEST_PATH" \
   "$RELEASE_NOTES_PATH" \
   "$READINESS_REPORT_PATH" \
+  docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md \
   docs/rust-cutover/release/v0_27_0_release_manifest.json \
   docs/rust-cutover/release/v0_27_0_readiness_report.md \
   docs/rust-cutover/release/v0_27_0_release_notes.md \
@@ -124,7 +125,7 @@ for marker in \
   "V271-006 evidence" \
   "v27.1 release gates = required" \
   "v27.1 strict provenance = required" \
-  "#892 V271-006 = must be closed before v0.27.1 tag gate is accepted" \
+  "#892 V271-006 = closed" \
   "V271 final release scope issue count = 6" \
   "V271 final release scope evidence count = 6" \
   "V271 exact milestone issue set = #887-#892" \
@@ -168,13 +169,18 @@ NTPRO_RELEASE_GATE=0 \
   NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG=0 \
   scripts/ai/verify_release.sh v27-strict-provenance
 
-NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
-  NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
-  NTPRO_NEXT_PATCH_VERSION="v0.27.2" \
-  NTPRO_NEXT_CAPABILITY_VERSION="v0.28.0" \
-  NTPRO_CURRENT_RELEASE_CAPABILITY="v0.27.1 Product Operations Runtime Integration Closeout Patch" \
-  NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 \
-  scripts/ai/verify_release.sh release-surface-current-guard
+if [[ "${NTPRO_V271_RELEASE_SKIP_CURRENT_SURFACE_GUARD:-0}" == "1" ]] || \
+  grep -F "Current source tag: ntpro-rust-only-v0.28.0" README.md >/dev/null; then
+  echo "v27_1_release_gates current_surface_guard=skipped reason=current_release_surface_superseded"
+else
+  NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
+    NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
+    NTPRO_NEXT_PATCH_VERSION="v0.27.2" \
+    NTPRO_NEXT_CAPABILITY_VERSION="v0.28.0" \
+    NTPRO_CURRENT_RELEASE_CAPABILITY="v0.27.1 Product Operations Runtime Integration Closeout Patch" \
+    NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 \
+    scripts/ai/verify_release.sh release-surface-current-guard
+fi
 
 NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
   NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
@@ -229,13 +235,27 @@ def validate(candidate: dict) -> None:
     require(candidate.get("schema_version") == "ntpro.v271_patch_release_manifest.v1", "manifest schema mismatch")
     require(candidate.get("task_id") == "V271-006", "manifest task mismatch")
     require(candidate.get("product_version") == os.environ["RELEASE_VERSION"], "manifest version mismatch")
-    require(candidate.get("release_status") in {"release_gate_ready", "released"}, "manifest release status mismatch")
+    require(candidate.get("release_status") == "released", "manifest release status mismatch")
     planned = candidate.get("planned_release") or {}
     require(planned.get("tag") == os.environ["RELEASE_TAG"], "planned tag mismatch")
     require(planned.get("name") == os.environ["RELEASE_NAME"], "planned name mismatch")
     require(planned.get("draft") is False and planned.get("prerelease") is False, "planned release flags mismatch")
     base = candidate.get("base_release") or {}
     require(base.get("tag") == "ntpro-rust-only-v0.27.0", "base release tag mismatch")
+    release_inputs = candidate.get("release_inputs") or {}
+    require(
+        release_inputs.get("release_closeout_evidence_path")
+        == "docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md",
+        "release closeout evidence path missing",
+    )
+    published = candidate.get("published_release") or {}
+    require(published.get("tag") == os.environ["RELEASE_TAG"], "published release tag mismatch")
+    require(published.get("draft") is False and published.get("prerelease") is False, "published release flags mismatch")
+    require(published.get("tag_sha") == "0fdc11dc983bbfb9fe124a3f171a58fb1e7ccf19", "published tag SHA mismatch")
+    require(
+        published.get("release_body_matches_tracked_release_notes") is True,
+        "published release body/source match missing",
+    )
     evidence = candidate.get("v271_evidence") or []
     expected = {
         "V271-001": 887,
@@ -318,7 +338,21 @@ def validate(candidate: dict) -> None:
     require(requirements.get("hosted_release_gate_success_required") is True, "hosted gate requirement missing")
     require(requirements.get("strict_release_body_match_required") is True, "strict body match requirement missing")
     require(requirements.get("publication_after_hosted_gate_required") is True, "publication ordering requirement missing")
+    require(requirements.get("source_controlled_closeout_evidence_required") is True, "source closeout requirement missing")
     require(requirements.get("v0_28_start_gate_fails_without_v271_release_evidence") is True, "v28 hard-block requirement missing")
+    closeout = candidate.get("post_publication_closeout") or {}
+    require(closeout.get("task_id") == "V281-003", "post-publication closeout task mismatch")
+    require(closeout.get("issue") == 921, "post-publication closeout issue mismatch")
+    require(closeout.get("source_controlled_closeout_evidence") is True, "source-controlled closeout proof missing")
+    require(
+        closeout.get("source_controlled_closeout_evidence_path")
+        == "docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md",
+        "source-controlled closeout path mismatch",
+    )
+    gate = closeout.get("hosted_release_gate") or {}
+    require(gate.get("run_id") == 28940442369, "closeout hosted gate run mismatch")
+    require(gate.get("conclusion") == "success", "closeout hosted gate conclusion mismatch")
+    require(gate.get("jobs_success") == 82 and gate.get("jobs_failed") == 0, "closeout hosted gate job count mismatch")
 
 
 validate(manifest)

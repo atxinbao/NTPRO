@@ -2,7 +2,7 @@
   "schema_version": "ntpro.v271_patch_release_manifest.v1",
   "task_id": "V271-006",
   "product_version": "v0.27.1",
-  "release_status": "release_gate_ready",
+  "release_status": "released",
   "patch_scope": "v270_post_release_governance_and_strict_closeout_patch",
   "base_release": {
     "version": "v0.27.0",
@@ -21,10 +21,35 @@
     "draft": false,
     "prerelease": false
   },
+  "published_release": {
+    "tag": "ntpro-rust-only-v0.27.1",
+    "name": "NTPRO Rust-only v0.27.1",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.27.1",
+    "target_commitish": "main",
+    "draft": false,
+    "prerelease": false,
+    "github_release_id": 350940808,
+    "github_release_node_id": "RE_kwDOSox1D84U6u6I",
+    "github_release_author_login": "atxinbao",
+    "github_release_author_id": 254527493,
+    "github_release_author_type": "User",
+    "created_at": "2026-07-08T11:50:26Z",
+    "published_at": "2026-07-08T13:18:35Z",
+    "updated_at": "2026-07-08T13:18:35Z",
+    "annotated_tag_object": "ab379be6725243ea1b8a9ffd9631409842361344",
+    "tag_sha": "0fdc11dc983bbfb9fe124a3f171a58fb1e7ccf19",
+    "release_body_sha256": "74bbc4d42d8e6f70d93a63fa4b42ae684cba4ccf0ce7c06e60490d4ad3a0f3f0",
+    "tracked_release_notes_sha256": "74bbc4d42d8e6f70d93a63fa4b42ae684cba4ccf0ce7c06e60490d4ad3a0f3f0",
+    "release_body_matches_tracked_release_notes": true,
+    "release_body_normalized_line_count": 73,
+    "tracked_release_notes_normalized_line_count": 73,
+    "strict_release_body_match_required": true
+  },
   "release_inputs": {
     "release_notes_path": "docs/rust-cutover/release/v0_27_1_release_notes.md",
     "readiness_report_path": "docs/rust-cutover/release/v0_27_1_readiness_report.md",
     "release_manifest_path": "docs/rust-cutover/release/v0_27_1_release_manifest.json",
+    "release_closeout_evidence_path": "docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md",
     "base_release_manifest_path": "docs/rust-cutover/release/v0_27_0_release_manifest.json",
     "base_readiness_report_path": "docs/rust-cutover/release/v0_27_0_readiness_report.md",
     "base_release_notes_path": "docs/rust-cutover/release/v0_27_0_release_notes.md",
@@ -154,7 +179,50 @@
     "hosted_release_gate_success_required": true,
     "strict_release_body_match_required": true,
     "publication_after_hosted_gate_required": true,
+    "source_controlled_closeout_evidence_required": true,
     "v0_28_start_gate_fails_without_v271_release_evidence": true
+  },
+  "post_publication_closeout": {
+    "task_id": "V281-003",
+    "issue": 921,
+    "source_controlled_closeout_evidence": true,
+    "source_controlled_closeout_evidence_path": "docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md",
+    "publication_status": "published_after_gate",
+    "release_tag": "ntpro-rust-only-v0.27.1",
+    "release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.27.1",
+    "published_at": "2026-07-08T13:18:35Z",
+    "annotated_tag_object": "ab379be6725243ea1b8a9ffd9631409842361344",
+    "tag_sha": "0fdc11dc983bbfb9fe124a3f171a58fb1e7ccf19",
+    "hosted_release_gate": {
+      "run_id": 28940442369,
+      "url": "https://github.com/atxinbao/NTPRO/actions/runs/28940442369",
+      "workflow": "Rust Cutover Release Gate",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "0fdc11dc983bbfb9fe124a3f171a58fb1e7ccf19",
+      "created_at": "2026-07-08T11:52:05Z",
+      "completed_at": "2026-07-08T13:17:36Z",
+      "jobs_total": 82,
+      "jobs_success": 82,
+      "jobs_failed": 0
+    },
+    "release_body": {
+      "release_body_sha256": "74bbc4d42d8e6f70d93a63fa4b42ae684cba4ccf0ce7c06e60490d4ad3a0f3f0",
+      "tracked_release_notes_sha256": "74bbc4d42d8e6f70d93a63fa4b42ae684cba4ccf0ce7c06e60490d4ad3a0f3f0",
+      "matches_tracked_release_notes": true,
+      "normalized_line_count": 73
+    },
+    "milestone": {
+      "number": 21,
+      "title": "v0.27.1",
+      "url": "https://github.com/atxinbao/NTPRO/milestone/21",
+      "state": "closed",
+      "open_issues": 0,
+      "closed_issues": 6,
+      "closed_at": "2026-07-08T11:48:57Z"
+    },
+    "generated_evidence_path": "release-publication-evidence/ntpro-rust-only-v0.27.1.json",
+    "generated_evidence_is_sole_proof": false
   },
   "validation_artifacts": {
     "strict_release_provenance_manifest_path": "target/ntpro-v271/v0_27_1_strict_release_manifest.json"

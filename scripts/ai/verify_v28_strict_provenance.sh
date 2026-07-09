@@ -27,6 +27,7 @@ input_paths=(
   "$ROOT_DIR/docs/rust-cutover/release/v0_27_1_release_manifest.json"
   "$ROOT_DIR/docs/rust-cutover/release/v0_27_1_readiness_report.md"
   "$ROOT_DIR/docs/rust-cutover/release/v0_27_1_release_notes.md"
+  "$ROOT_DIR/docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md"
   "$ROOT_DIR/docs/rust-cutover/release/v0_28_0_intake_gate.md"
   "$ROOT_DIR/docs/rust-cutover/release/v0_28_0_backend_closure_boundary_contract.md"
   "$ROOT_DIR/docs/rust-cutover/release/v0_28_0_backend_closure_readiness_matrix.json"
@@ -157,6 +158,17 @@ require(scope.get("registered_corrective_scope_exception_count") == 0, "register
 require(scope.get("unregistered_corrective_milestone_issues_fail_closed") is True, "unregistered corrective fail-closed rule missing")
 require(scope.get("v27_1_dependency_proven") is True, "v27.1 dependency proof missing")
 require(scope.get("v27_1_release_evidence_published") is True, "v27.1 release proof missing")
+base = release_manifest.get("base_release") or {}
+require(
+    base.get("release_closeout_evidence_path") == "docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md",
+    "v27.1 base closeout evidence path missing",
+)
+release_inputs = release_manifest.get("release_inputs") or {}
+require(
+    release_inputs.get("base_release_closeout_evidence_path")
+    == "docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md",
+    "v27.1 base closeout release input missing",
+)
 require(scope.get("backend_closure_runtime_closed_count") == 10, "runtime closed count mismatch")
 require(scope.get("backend_closure_evidence_only_count") == 2, "evidence-only count mismatch")
 require(scope.get("backend_closure_blocked_count") == 0, "blocked count mismatch")

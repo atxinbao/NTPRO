@@ -67,6 +67,7 @@ for path in \
   docs/rust-cutover/release/v0_27_1_release_manifest.json \
   docs/rust-cutover/release/v0_27_1_readiness_report.md \
   docs/rust-cutover/release/v0_27_1_release_notes.md \
+  docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md \
   docs/rust-cutover/release/v0_28_0_intake_gate.md \
   docs/rust-cutover/release/v0_28_0_backend_closure_boundary_contract.md \
   docs/rust-cutover/release/v0_28_0_identity_permission_runtime_closure.md \
@@ -279,6 +280,16 @@ def validate(candidate: dict) -> None:
     require(planned.get("draft") is False and planned.get("prerelease") is False, "planned release flags mismatch")
     base = candidate.get("base_release") or {}
     require(base.get("tag") == "ntpro-rust-only-v0.27.1", "base release tag mismatch")
+    require(
+        base.get("release_closeout_evidence_path") == "docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md",
+        "base release closeout evidence path missing",
+    )
+    release_inputs = candidate.get("release_inputs") or {}
+    require(
+        release_inputs.get("base_release_closeout_evidence_path")
+        == "docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md",
+        "base release closeout input missing",
+    )
     evidence = candidate.get("v280_evidence") or []
     require(len(evidence) == 10, "V280 evidence count mismatch")
     for item in evidence:

@@ -45,6 +45,7 @@ v0.27.1 GitHub Release body sha256 = 74bbc4d42d8e6f70d93a63fa4b42ae684cba4ccf0ce
 v0.27.1 release manifest = docs/rust-cutover/release/v0_27_1_release_manifest.json
 v0.27.1 readiness report = docs/rust-cutover/release/v0_27_1_readiness_report.md
 v0.27.1 release notes = docs/rust-cutover/release/v0_27_1_release_notes.md
+v0.27.1 release closeout evidence = docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md
 V271 task files = docs/rust-cutover/tasks/V271-001.md..V271-006.md
 V271 evidence files = docs/rust-cutover/evidence/V271-001.md..V271-006.md
 v27.1 release gates = scripts/ai/verify_release.sh v27.1-release-gates

@@ -11,7 +11,8 @@
     "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.27.1",
     "release_manifest_path": "docs/rust-cutover/release/v0_27_1_release_manifest.json",
     "readiness_report_path": "docs/rust-cutover/release/v0_27_1_readiness_report.md",
-    "release_notes_path": "docs/rust-cutover/release/v0_27_1_release_notes.md"
+    "release_notes_path": "docs/rust-cutover/release/v0_27_1_release_notes.md",
+    "release_closeout_evidence_path": "docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md"
   },
   "planned_release": {
     "tag": "ntpro-rust-only-v0.28.0",
@@ -54,6 +55,7 @@
     "base_release_manifest_path": "docs/rust-cutover/release/v0_27_1_release_manifest.json",
     "base_readiness_report_path": "docs/rust-cutover/release/v0_27_1_readiness_report.md",
     "base_release_notes_path": "docs/rust-cutover/release/v0_27_1_release_notes.md",
+    "base_release_closeout_evidence_path": "docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md",
     "readme_path": "README.md",
     "roadmap_path": "ROADMAP.md",
     "versioning_path": "docs/versioning.md",

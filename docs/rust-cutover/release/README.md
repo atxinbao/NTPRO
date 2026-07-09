@@ -119,6 +119,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   controls, or product-grade terminal claims.
 - `v0_27_1_release_manifest.json` - strict release manifest for the formal
   `ntpro-rust-only-v0.27.1` GitHub Release.
+- `v0_27_1_release_closeout_evidence.md` - source-controlled closeout ledger
+  for the public `ntpro-rust-only-v0.27.1` GitHub Release, including the tag
+  object, peeled commit, publication timestamp, hosted gate `82/82` success,
+  release body hash/source match, milestone #21 closeout, and generated
+  publication-evidence policy.
+- `../evidence/V281-003.md` - V281-003 v0.27.1 base release closeout
+  reconciliation evidence for GitHub issue #921.
 - `../evidence/V271-006.md` - v27.1 release gate, strict provenance, exact
   issue-scope, publication guard, and v0.28.0 hard-block evidence ledger.
 - `product_live_trading_roadmap.md` - planning baseline for the path from

@@ -13,6 +13,7 @@ V271_RELEASE_URL="${NTPRO_V28_INTAKE_V271_RELEASE_URL:-https://github.com/atxinb
 V271_MANIFEST_PATH="${NTPRO_V28_INTAKE_V271_MANIFEST:-docs/rust-cutover/release/v0_27_1_release_manifest.json}"
 V271_READINESS_PATH="${NTPRO_V28_INTAKE_V271_READINESS:-docs/rust-cutover/release/v0_27_1_readiness_report.md}"
 V271_RELEASE_NOTES_PATH="${NTPRO_V28_INTAKE_V271_NOTES:-docs/rust-cutover/release/v0_27_1_release_notes.md}"
+V271_CLOSEOUT_PATH="${NTPRO_V28_INTAKE_V271_CLOSEOUT:-docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md}"
 V280_INTAKE_PATH="${NTPRO_V28_INTAKE_REPORT:-docs/rust-cutover/release/v0_28_0_intake_gate.md}"
 V271_MILESTONE_NUMBER="${NTPRO_V28_INTAKE_V271_MILESTONE_NUMBER:-21}"
 V271_MILESTONE_TITLE="${NTPRO_V28_INTAKE_V271_MILESTONE_TITLE:-v0.27.1}"
@@ -77,6 +78,7 @@ for path in \
   "$V271_MANIFEST_PATH" \
   "$V271_READINESS_PATH" \
   "$V271_RELEASE_NOTES_PATH" \
+  "$V271_CLOSEOUT_PATH" \
   "$V280_INTAKE_PATH" \
   scripts/ai/verify_v27_1_release_gates.sh \
   scripts/ai/verify_v27_1_strict_provenance.sh; do
@@ -95,6 +97,7 @@ V271_RELEASE_URL="$V271_RELEASE_URL" \
 V271_MANIFEST_PATH="$V271_MANIFEST_PATH" \
 V271_READINESS_PATH="$V271_READINESS_PATH" \
 V271_RELEASE_NOTES_PATH="$V271_RELEASE_NOTES_PATH" \
+V271_CLOSEOUT_PATH="$V271_CLOSEOUT_PATH" \
 V280_INTAKE_PATH="$V280_INTAKE_PATH" \
 python3 <<'PY'
 import json
@@ -104,6 +107,7 @@ from pathlib import Path
 manifest = json.loads(Path(os.environ["V271_MANIFEST_PATH"]).read_text(encoding="utf-8"))
 readiness = Path(os.environ["V271_READINESS_PATH"]).read_text(encoding="utf-8")
 notes = Path(os.environ["V271_RELEASE_NOTES_PATH"]).read_text(encoding="utf-8")
+closeout_evidence = Path(os.environ["V271_CLOSEOUT_PATH"]).read_text(encoding="utf-8")
 intake = Path(os.environ["V280_INTAKE_PATH"]).read_text(encoding="utf-8")
 EXPECTED_V271 = {
     "V271-001": 887,
@@ -123,10 +127,17 @@ def require(condition: bool, message: str) -> None:
 require(manifest.get("schema_version") == "ntpro.v271_patch_release_manifest.v1", "manifest schema mismatch")
 require(manifest.get("task_id") == "V271-006", "manifest task mismatch")
 require(manifest.get("product_version") == os.environ["V271_RELEASE_VERSION"], "manifest product version mismatch")
+require(manifest.get("release_status") == "released", "manifest release status must be released")
 planned = manifest.get("planned_release") or {}
 require(planned.get("tag") == os.environ["V271_RELEASE_TAG"], "planned release tag mismatch")
 require(planned.get("name") == os.environ["V271_RELEASE_NAME"], "planned release name mismatch")
 require(planned.get("github_release_url") == os.environ["V271_RELEASE_URL"], "planned release URL mismatch")
+release_inputs = manifest.get("release_inputs") or {}
+require(release_inputs.get("release_closeout_evidence_path") == os.environ["V271_CLOSEOUT_PATH"], "closeout evidence input missing")
+published = manifest.get("published_release") or {}
+require(published.get("tag") == os.environ["V271_RELEASE_TAG"], "published release tag mismatch")
+require(published.get("tag_sha") == "0fdc11dc983bbfb9fe124a3f171a58fb1e7ccf19", "published release tag SHA mismatch")
+require(published.get("release_body_matches_tracked_release_notes") is True, "published release body/source match missing")
 evidence = manifest.get("v271_evidence") or []
 require(len(evidence) == 6, "V271 evidence count mismatch")
 for item in evidence:
@@ -147,7 +158,14 @@ require(requirements.get("github_release_published_required") is True, "GitHub r
 require(requirements.get("hosted_release_gate_success_required") is True, "hosted gate requirement missing")
 require(requirements.get("strict_release_body_match_required") is True, "strict release body requirement missing")
 require(requirements.get("publication_after_hosted_gate_required") is True, "publication ordering requirement missing")
+require(requirements.get("source_controlled_closeout_evidence_required") is True, "source closeout requirement missing")
 require(requirements.get("v0_28_start_gate_fails_without_v271_release_evidence") is True, "v28 hard-block requirement missing")
+closeout = manifest.get("post_publication_closeout") or {}
+require(closeout.get("source_controlled_closeout_evidence") is True, "source-controlled closeout proof missing")
+require(closeout.get("source_controlled_closeout_evidence_path") == os.environ["V271_CLOSEOUT_PATH"], "source-controlled closeout path mismatch")
+gate = closeout.get("hosted_release_gate") or {}
+require(gate.get("run_id") == 28940442369, "closeout hosted gate run mismatch")
+require(gate.get("jobs_success") == 82 and gate.get("jobs_failed") == 0, "closeout hosted gate jobs mismatch")
 next_tracks = manifest.get("next_tracks") or {}
 require(next_tracks.get("capability") == "v0.28.0", "next capability mismatch")
 require(next_tracks.get("start_gate") == "blocked_until_v271_release_evidence_published", "next start gate mismatch")
@@ -171,6 +189,7 @@ for marker in (
     "v0.27.1 hosted release gate = success",
     "v0.27.1 hosted release gate jobs = 82/82 success",
     "v0.27.1 release tag = ntpro-rust-only-v0.27.1",
+    "v0.27.1 release closeout evidence = docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md",
     "v0.27.1 release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.27.1",
     "v0.27.1 hosted release gate URL = https://github.com/atxinbao/NTPRO/actions/runs/28940442369",
     "v0.27.1 tag SHA = 0fdc11dc983bbfb9fe124a3f171a58fb1e7ccf19",
@@ -186,6 +205,13 @@ for marker in (
     "v0.28.0 milestone issue set = #893-#902",
 ):
     require(marker in intake, f"missing v28 intake marker: {marker}")
+for marker in (
+    "release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.27.1",
+    "hosted release gate jobs = 82/82 success",
+    "release body matches tracked release notes = true",
+    "source-controlled closeout evidence = docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md",
+):
+    require(marker in closeout_evidence, f"missing v27.1 closeout marker: {marker}")
 for key in (
     "new_submit_capability",
     "production_order_submission_allowed",
