@@ -27,6 +27,15 @@ Final release checks, benchmark summaries, and audit reports live here.
   Readiness Foundation track with no inherited trading controls.
 - `../evidence/V290-000.md` - V290-000 v0.29.0 intake gate and v0.28.1
   dependency proof evidence for GitHub issue #926.
+- `v0_29_0_backend_production_readiness_boundary_contract.md` - V290-001
+  boundary contract that defines backend production-readiness terminology,
+  no-go-live claim rules, required-false trading/control flags, and
+  fail-closed semantics.
+- `v0_29_0_backend_production_readiness_matrix.json` - source-controlled
+  V290-001 readiness matrix classifying v29 subsystems as production-ready,
+  readiness-preview, blocked, or deferred.
+- `../evidence/V290-001.md` - V290-001 backend production readiness boundary
+  contract evidence for GitHub issue #927.
 - `../evidence/V281-010.md` - V281-010 v28.1 nested base-gate tag-scope
   isolation evidence for GitHub issue #948.
 - `../evidence/V281-009.md` - V281-009 v28.1 prepublish live-current require
