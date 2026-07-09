@@ -27,6 +27,7 @@ dependency target，但不新增 submit，不改变 runtime，不开放 Dashboar
 - `V281-005` - runtime-closed terminology hardening.
 - `V281-006` - release-publish-after-gate current-release binding.
 - `V281-007` - v28.1 release gates and post-publication strict provenance.
+- `V281-008` - v28.1 release tag gate prepublication publish-after-gate fix.
 
 ## Release Gates
 
