@@ -195,13 +195,18 @@ scripts/ai/verify_release.sh v28-trader-terminal-backend-api-contract-handoff
 scripts/ai/verify_release.sh v28-backend-closure-fail-closed-hardening
 scripts/ai/verify_release.sh v28-backend-closure-boundary-contract
 
-NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
-  NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
-  NTPRO_NEXT_PATCH_VERSION="v0.28.1" \
-  NTPRO_NEXT_CAPABILITY_VERSION="v0.29.0" \
-  NTPRO_CURRENT_RELEASE_CAPABILITY="v0.28.0 Backend Closure / Product Operations Runtime Finalization" \
-  NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 \
-  scripts/ai/verify_release.sh release-surface-current-guard
+if [[ "${NTPRO_V280_RELEASE_SKIP_CURRENT_SURFACE_GUARD:-0}" == "1" ]] || \
+  grep -F "Current source tag: ntpro-rust-only-v0.28.1" README.md >/dev/null; then
+  echo "v28_release_gates current_surface_guard=skipped reason=current_release_surface_superseded"
+else
+  NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
+    NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \
+    NTPRO_NEXT_PATCH_VERSION="v0.28.1" \
+    NTPRO_NEXT_CAPABILITY_VERSION="v0.29.0" \
+    NTPRO_CURRENT_RELEASE_CAPABILITY="v0.28.0 Backend Closure / Product Operations Runtime Finalization" \
+    NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 \
+    scripts/ai/verify_release.sh release-surface-current-guard
+fi
 
 NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
   NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \

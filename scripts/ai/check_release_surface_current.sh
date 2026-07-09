@@ -4,11 +4,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.28.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.28.1}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
-NEXT_PATCH_VERSION="${NTPRO_NEXT_PATCH_VERSION:-v0.28.1}"
+NEXT_PATCH_VERSION="${NTPRO_NEXT_PATCH_VERSION:-v0.28.2}"
 NEXT_CAPABILITY_VERSION="${NTPRO_NEXT_CAPABILITY_VERSION:-v0.29.0}"
-CURRENT_RELEASE_CAPABILITY="${NTPRO_CURRENT_RELEASE_CAPABILITY:-v0.28.0 Backend Closure / Product Operations Runtime Finalization}"
+CURRENT_RELEASE_CAPABILITY="${NTPRO_CURRENT_RELEASE_CAPABILITY:-v0.28.1 Backend Closure Governance Closeout Patch}"
 
 CURRENT_RELEASE_STEM="v${CURRENT_RELEASE_VERSION#v}"
 CURRENT_RELEASE_STEM="${CURRENT_RELEASE_STEM//./_}"
@@ -94,6 +94,7 @@ echo "current_release_capability=$CURRENT_RELEASE_CAPABILITY"
 echo "next_patch_version=$NEXT_PATCH_VERSION"
 echo "next_capability_version=$NEXT_CAPABILITY_VERSION"
 
+pre_tag_mode=0
 require_file README.md
 require_file ROADMAP.md
 require_file docs/versioning.md
@@ -105,6 +106,7 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   if ! git rev-parse -q --verify "${CURRENT_RELEASE_TAG}^{commit}" >/dev/null; then
     if [[ "${NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG:-0}" == "1" ]]; then
       echo "release_surface_current_guard=pre_tag_mode missing_tag=$CURRENT_RELEASE_TAG"
+      pre_tag_mode=1
     else
       fail "missing local git tag: $CURRENT_RELEASE_TAG"
     fi
@@ -150,9 +152,15 @@ require_contains docs/versioning.md \
   "$NEXT_CAPABILITY_VERSION" \
   "versioning next capability track"
 
-require_contains docs/rust-cutover/release/README.md \
-  "\`$(basename "$CURRENT_READINESS_REPORT")\` - released readiness report for the formal" \
-  "release index current readiness report"
+current_readiness_basename="$(basename "$CURRENT_READINESS_REPORT")"
+if ! grep -F -- "\`$current_readiness_basename\` - released readiness report for the formal" docs/rust-cutover/release/README.md >/dev/null \
+  && ! grep -F -- "\`$current_readiness_basename\` - release gate readiness report for the formal" docs/rust-cutover/release/README.md >/dev/null; then
+  echo "expected: release index current readiness report" >&2
+  echo "file: docs/rust-cutover/release/README.md" >&2
+  echo "needle: \`$current_readiness_basename\` - released readiness report for the formal" >&2
+  echo "needle: \`$current_readiness_basename\` - release gate readiness report for the formal" >&2
+  fail "missing release index current readiness report"
+fi
 require_contains docs/rust-cutover/release/README.md \
   "\`$(basename "$CURRENT_RELEASE_NOTES")\` - release notes for the formal" \
   "release index current release notes"
@@ -160,9 +168,12 @@ require_contains docs/rust-cutover/release/README.md \
   "\`$CURRENT_RELEASE_TAG\` GitHub Release" \
   "release index current tag"
 
-require_contains "$CURRENT_RELEASE_NOTES" \
-  "Status: RELEASED" \
-  "release notes released status"
+if ! grep -F -- "Status: RELEASE GATE READY" "$CURRENT_RELEASE_NOTES" >/dev/null \
+  && ! grep -F -- "Status: RELEASED" "$CURRENT_RELEASE_NOTES" >/dev/null; then
+  echo "expected: release notes RELEASE GATE READY or RELEASED status" >&2
+  echo "file: $CURRENT_RELEASE_NOTES" >&2
+  fail "missing current release notes status"
+fi
 require_contains "$CURRENT_RELEASE_NOTES" \
   "Tag: \`$CURRENT_RELEASE_TAG\`" \
   "release notes tag"
@@ -174,8 +185,9 @@ require_contains "$CURRENT_READINESS_REPORT" \
   "Milestone: \`$CURRENT_RELEASE_TAG\`" \
   "readiness report milestone"
 if ! grep -F -- "Status: PASS" "$CURRENT_READINESS_REPORT" >/dev/null \
-  && ! grep -F -- "Status: RELEASED" "$CURRENT_READINESS_REPORT" >/dev/null; then
-  echo "expected: readiness report PASS or RELEASED status" >&2
+  && ! grep -F -- "Status: RELEASED" "$CURRENT_READINESS_REPORT" >/dev/null \
+  && ! grep -F -- "Status: RELEASE GATE READY" "$CURRENT_READINESS_REPORT" >/dev/null; then
+  echo "expected: readiness report PASS, RELEASED, or RELEASE GATE READY status" >&2
   echo "file: $CURRENT_READINESS_REPORT" >&2
   fail "missing current readiness report release status"
 fi

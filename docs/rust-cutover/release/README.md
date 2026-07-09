@@ -2,6 +2,26 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
+- `v0_28_1_readiness_report.md` - release gate readiness report for the formal
+  `ntpro-rust-only-v0.28.1` GitHub Release. It records the V281 exact release
+  scope, v0.28.0 dependency proof, v28.1 gate and strict provenance
+  requirements, post-publication closeout target, and the v0.29.0
+  next-capability hard block.
+- `v0_28_1_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.28.1` GitHub Release. It publishes backend closure
+  governance hardening, release-publish-after-gate current binding, v28.1
+  release gates, strict provenance, and the v29 intake dependency target
+  without opening submit, mutation, adapter send, live exchange, retry
+  scheduler, remediation, Dashboard/Admin/Trader Terminal trading controls, or
+  product-grade terminal claims.
+- `v0_28_1_release_manifest.json` - strict release manifest for the formal
+  `ntpro-rust-only-v0.28.1` GitHub Release tag gate.
+- `v0_28_1_release_closeout_evidence.md` - source-controlled closeout target
+  for the public `ntpro-rust-only-v0.28.1` GitHub Release. It starts as
+  pending publication and must be updated after publication so v0.29.0 intake
+  never depends only on generated `release-publication-evidence/*` output.
+- `../evidence/V281-007.md` - V281-007 v28.1 release gates and
+  post-publication strict provenance evidence for GitHub issue #925.
 - `v0_28_0_readiness_report.md` - released readiness report for the formal
   `ntpro-rust-only-v0.28.0` GitHub Release. It records the V280 exact release
   scope, v0.27.1 dependency proof, backend closure matrix counts, v28 gate and
