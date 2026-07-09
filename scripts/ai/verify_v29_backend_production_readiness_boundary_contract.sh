@@ -98,7 +98,7 @@ EXPECTED_CLASSIFICATIONS = {
     "persistent_audit_storage_production_readiness": "production-ready",
     "telemetry_slo_ingestion_production_readiness": "production-ready",
     "permission_source_production_readiness": "production-ready",
-    "read_only_backend_api_production_readiness": "blocked",
+    "read_only_backend_api_production_readiness": "production-ready",
     "deployment_config_runbook_production_readiness": "blocked",
     "monitoring_alert_incident_production_readiness": "blocked",
     "canary_rollback_dr_preflight_readiness": "blocked",
@@ -136,9 +136,9 @@ REQUIRED_FALSE_TERMINOLOGY_FLAGS = [
     "default_submit_claim_allowed",
 ]
 EXPECTED_COUNTS = {
-    "production-ready": 5,
+    "production-ready": 6,
     "readiness-preview": 2,
-    "blocked": 5,
+    "blocked": 4,
     "deferred": 1,
 }
 
@@ -310,7 +310,7 @@ if selftest:
         fail("negative self-test allowed adapter_send_allowed")
 
     bad_ready = copy.deepcopy(matrix)
-    bad_ready["module_readiness"][7]["production_ready_claim_allowed"] = True
+    bad_ready["module_readiness"][8]["production_ready_claim_allowed"] = True
     if classify(bad_ready)["ok"]:
         fail("negative self-test allowed blocked module production-ready claim")
 
