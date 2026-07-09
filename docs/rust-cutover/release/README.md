@@ -17,8 +17,13 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_28_0_release_closeout_evidence.md` - source-controlled closeout ledger
   for the public `ntpro-rust-only-v0.28.0` GitHub Release, including the tag
   object, peeled commit, publication timestamp, hosted gate `84/84` success,
-  release body hash/source match, milestone #22 closeout, and generated
-  publication-evidence policy.
+  normalized release body hash/source match, raw hash diagnostics, milestone
+  #22 closeout, and generated publication-evidence policy.
+- `release_body_hash_semantics.md` - release audit contract that defines
+  normalized SHA-256 as the release body acceptance rule and raw SHA-256 as a
+  diagnostic value only.
+- `../evidence/V281-004.md` - V281-004 release body hash normalization
+  contract evidence for GitHub issue #922.
 - `../evidence/V281-001.md` - V281-001 v0.28.0 release closeout evidence
   backfill for GitHub issue #919.
 - `../evidence/V280-009.md` - V280-009 release gates, strict provenance, exact

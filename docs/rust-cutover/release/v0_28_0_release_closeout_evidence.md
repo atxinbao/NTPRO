@@ -72,12 +72,20 @@ published_at is public publication proof = true
 ## Release Body Hash
 
 ```text
-release body sha256 = a0586ed49c0154ab1bae4ceff46dcf582139a1b0324efc379662f96a092ee219
-tracked release notes sha256 = a0586ed49c0154ab1bae4ceff46dcf582139a1b0324efc379662f96a092ee219
-release body matches tracked release notes = true
+release body hash semantics = normalized_sha256
+release body normalization = line_rstrip_and_outer_strip
+release body normalized sha256 = a0586ed49c0154ab1bae4ceff46dcf582139a1b0324efc379662f96a092ee219
+tracked release notes normalized sha256 = a0586ed49c0154ab1bae4ceff46dcf582139a1b0324efc379662f96a092ee219
+normalized release body matches tracked release notes = true
 release body normalized line count = 115
 tracked release notes normalized line count = 115
-strict release body match required = true
+release body raw sha256 = fb4ee2773151b5685a6b89fd75da53d4c496116fdd3bf315f532525fc1ce6b00
+tracked release notes raw sha256 = fb4ee2773151b5685a6b89fd75da53d4c496116fdd3bf315f532525fc1ce6b00
+raw release body matches tracked release notes = true
+raw hash equality is diagnostic, not the acceptance rule
+strict release body match required = normalized-exact
+accepted trailing-newline-only drift = true
+accepted content drift beyond normalization = false
 ```
 
 ## Final Release Scope
