@@ -46,6 +46,16 @@ Final release checks, benchmark summaries, and audit reports live here.
   unredacted payload, and forbidden operation/control cases.
 - `../evidence/V290-002.md` - V290-002 persistent audit storage production
   readiness evidence for GitHub issue #928.
+- `v0_29_0_telemetry_slo_ingestion_production_readiness.md` - V290-003
+  contract that promotes telemetry/SLO ingestion to backend production
+  readiness evidence through source, sampling, freshness, retention, redaction,
+  SLO breach, and alert handoff replay.
+- `v0_29_0_telemetry_slo_ingestion_production_readiness_artifact.json` -
+  source-controlled V290-003 backend artifact for healthy ingestion, degraded
+  SLO breach audit, stale telemetry, missing provenance, malformed metrics,
+  unredacted payload, and forbidden operation/control cases.
+- `../evidence/V290-003.md` - V290-003 telemetry SLO ingestion production
+  readiness evidence for GitHub issue #929.
 - `../evidence/V281-010.md` - V281-010 v28.1 nested base-gate tag-scope
   isolation evidence for GitHub issue #948.
 - `../evidence/V281-009.md` - V281-009 v28.1 prepublish live-current require

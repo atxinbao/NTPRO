@@ -119,11 +119,17 @@
     },
     {
       "module_id": "telemetry_slo_ingestion_production_readiness",
-      "classification": "blocked",
+      "classification": "production-ready",
       "issue": 929,
-      "production_ready_claim_allowed": false,
-      "blocker_issue": 929,
-      "claim": "blocked until V290-003 lands source-controlled production-readiness evidence"
+      "readiness_mode": "deterministic_readiness_replay",
+      "backend_production_go_live_claim_allowed": false,
+      "product_grade_live_trading_terminal_claim_allowed": false,
+      "production_execution_runtime_claim_allowed": false,
+      "default_submit_claim_allowed": false,
+      "production_ready_claim_allowed": true,
+      "evidence_path": "docs/rust-cutover/evidence/V290-003.md",
+      "verification_command": "scripts/ai/verify_release.sh v29-telemetry-slo-ingestion-production-readiness",
+      "claim": "telemetry SLO ingestion production-readiness evidence closes through deterministic sandbox fixture replay and observability-only alert handoff"
     },
     {
       "module_id": "permission_source_production_readiness",
@@ -183,9 +189,9 @@
     }
   ],
   "expected_counts": {
-    "production-ready": 3,
+    "production-ready": 4,
     "readiness-preview": 2,
-    "blocked": 7,
+    "blocked": 6,
     "deferred": 1
   }
 }
