@@ -17,9 +17,16 @@ Final release checks, benchmark summaries, and audit reports live here.
 - `v0_28_1_release_manifest.json` - strict release manifest for the formal
   `ntpro-rust-only-v0.28.1` GitHub Release tag gate.
 - `v0_28_1_release_closeout_evidence.md` - source-controlled closeout target
-  for the public `ntpro-rust-only-v0.28.1` GitHub Release. It starts as
-  pending publication and must be updated after publication so v0.29.0 intake
-  never depends only on generated `release-publication-evidence/*` output.
+  for the public `ntpro-rust-only-v0.28.1` GitHub Release, including the tag
+  object, peeled commit, publication timestamp, hosted gate `86/86` success,
+  normalized release body hash/source match, milestone #23 closeout, and
+  generated publication-evidence policy.
+- `v0_29_0_intake_gate.md` - V290-000 intake proof that all V281 issues are
+  closed, the `ntpro-rust-only-v0.28.1` GitHub Release was published after
+  hosted gate success, and v0.29.0 starts only as a gated Backend Production
+  Readiness Foundation track with no inherited trading controls.
+- `../evidence/V290-000.md` - V290-000 v0.29.0 intake gate and v0.28.1
+  dependency proof evidence for GitHub issue #926.
 - `../evidence/V281-010.md` - V281-010 v28.1 nested base-gate tag-scope
   isolation evidence for GitHub issue #948.
 - `../evidence/V281-009.md` - V281-009 v28.1 prepublish live-current require
