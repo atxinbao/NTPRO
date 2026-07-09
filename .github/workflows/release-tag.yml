@@ -278,6 +278,7 @@ jobs:
           fi
           if [[ "${NTPRO_RELEASE_STAGE}" == "release-publish-after-gate" && "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
             export NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_CURRENT=0
+            export NTPRO_RELEASE_PUBLISH_AFTER_GATE_REQUIRE_LIVE_CURRENT=0
           fi
           ${{ matrix.command }}
 
