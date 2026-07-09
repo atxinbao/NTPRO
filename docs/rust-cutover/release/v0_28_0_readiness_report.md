@@ -56,6 +56,30 @@ local generated publication evidence required in source tree = false
 remote reconstruction required = true
 ```
 
+## Publication Closeout
+
+```text
+release closeout evidence = docs/rust-cutover/release/v0_28_0_release_closeout_evidence.md
+release tag = ntpro-rust-only-v0.28.0
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.28.0
+GitHub Release draft = false
+GitHub Release prerelease = false
+published at = 2026-07-08T20:39:19Z
+annotated tag object = e511d7e1ed4945beb7331060c6850fc04eebff0d
+annotated tag peeled commit = 41ef23417a4f21226cbc069de8cc31d0fa5e696e
+hosted release gate = https://github.com/atxinbao/NTPRO/actions/runs/28969059200
+hosted release gate conclusion = success
+hosted release gate jobs = 84/84 success
+hosted release gate completed at = 2026-07-08T20:38:03Z
+release body sha256 = a0586ed49c0154ab1bae4ceff46dcf582139a1b0324efc379662f96a092ee219
+tracked release notes sha256 = a0586ed49c0154ab1bae4ceff46dcf582139a1b0324efc379662f96a092ee219
+release body matches tracked release notes = true
+v0.28.0 milestone #22 = closed
+v0.28.0 issues = 10/10 closed
+local generated publication evidence required in source tree = false
+release-publication-evidence/ntpro-rust-only-v0.28.0.json = generated artifact, not sole proof
+```
+
 ## Backend Closure Matrix
 
 ```text
