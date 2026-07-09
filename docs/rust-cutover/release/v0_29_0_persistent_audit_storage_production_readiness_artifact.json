@@ -1,0 +1,208 @@
+{
+  "schema_version": "ntpro.v290.persistent_audit_storage_production_readiness_artifact.v1",
+  "contract_version": "ntpro.v290.persistent_audit_storage_production_readiness.v1",
+  "task_id": "V290-002",
+  "github_issue": 928,
+  "milestone": "v0.29.0",
+  "release_scope": "backend_production_readiness_foundation_only",
+  "backend_module": "persistent_audit_storage_production_readiness",
+  "backend_module_status": "production_ready_evidence",
+  "readiness_mode": "deterministic_readiness_replay",
+  "dependency_contracts": [
+    "V290-000",
+    "V290-001",
+    "V280-003",
+    "v0.28.1-release-evidence"
+  ],
+  "storage_config": {
+    "config_id": "audit-storage-v290-readiness-sandbox",
+    "config_source": "source_controlled_readiness_artifact",
+    "environment": "production_readiness_sandbox",
+    "backend_class": "append_only_audit_store_fixture",
+    "storage_namespace": "ntpro/v29/audit/readiness",
+    "segment_prefix": "audit-v290-readiness",
+    "kms_key_ref": "redacted-readiness-key-ref",
+    "config_digest": "sha256:4a57d7da7f145e8a9f1fb3f1e210849879d6c8ff78e217d7a76b4c4c47f93029",
+    "mutation_scope": "non_production_fixture_only",
+    "append_only": true,
+    "immutable_segments": true,
+    "mutable_updates_allowed": false,
+    "delete_before_retention_allowed": false,
+    "production_storage_mutation_required": false,
+    "external_network_required": false,
+    "config_status": "fresh",
+    "source_freshness_status": "fresh"
+  },
+  "schema_migration_policy": {
+    "current_schema": "ntpro.audit.storage.v29.production_readiness.v1",
+    "previous_schema": "ntpro.v280.persistent_audit_storage_runtime_artifact.v1",
+    "migration_policy": "forward_only",
+    "destructive_migration_allowed": false,
+    "schema_drift_status": "aligned",
+    "migration_digest": "sha256:f930293ee5ad27b0d50d332d8cd459607178f7bd598871afcab878f677917441"
+  },
+  "retention_policy": {
+    "retention_policy_id": "audit-retention-v29-production-readiness",
+    "mode": "immutable_until_expiry",
+    "min_days": 365,
+    "delete_before_retention_allowed": false,
+    "legal_hold_supported": true
+  },
+  "redaction_policy": {
+    "redaction_status": "redacted",
+    "raw_secret_material_allowed": false,
+    "unredacted_payload_allowed": false,
+    "required_redaction_fields": [
+      "api_key",
+      "secret",
+      "account_id",
+      "order_payload",
+      "exchange_response"
+    ]
+  },
+  "idempotency_policy": {
+    "idempotency_required": true,
+    "key_strategy": "actor_scope_event_digest_sequence",
+    "duplicate_write_policy": "same_key_same_hash_readback_only"
+  },
+  "lineage_policy": {
+    "source_chain_required": true,
+    "source_artifact": "docs/rust-cutover/release/v0_28_0_persistent_audit_storage_runtime_artifact.json",
+    "storage_lineage_status": "linked",
+    "config_lineage_status": "linked",
+    "store_source_drift_allowed": false
+  },
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "readiness_records": [
+    {
+      "record_id": "audit-v290-002-000001",
+      "sequence": 1,
+      "schema_version": "ntpro.audit.storage.v29.production_readiness.v1",
+      "config_digest": "sha256:4a57d7da7f145e8a9f1fb3f1e210849879d6c8ff78e217d7a76b4c4c47f93029",
+      "source_event_hash": "source-event-v290-002-000001",
+      "payload_digest": "payload-digest-v290-002-000001",
+      "previous_store_hash": "GENESIS",
+      "store_record_hash": "ntpro-audit-prod-ready:000001:source-event-v290-002-000001:payload-digest-v290-002-000001",
+      "readback_record_hash": "ntpro-audit-prod-ready:000001:source-event-v290-002-000001:payload-digest-v290-002-000001",
+      "idempotency_key": "idempotency-v290-002-000001",
+      "redaction_status": "redacted",
+      "storage_write_scope": "sandboxed_fixture",
+      "retention": {
+        "policy_id": "audit-retention-v29-production-readiness",
+        "expires_at": "2027-07-09T00:00:00Z",
+        "mode": "immutable_until_expiry"
+      },
+      "lineage": {
+        "source_ref": "persistent_audit_storage.write_read.allowed.001",
+        "store_ref": "audit-storage-v290-readiness-sandbox",
+        "lineage_status": "linked"
+      },
+      "operation_effect": "none"
+    },
+    {
+      "record_id": "audit-v290-002-000002",
+      "sequence": 2,
+      "schema_version": "ntpro.audit.storage.v29.production_readiness.v1",
+      "config_digest": "sha256:4a57d7da7f145e8a9f1fb3f1e210849879d6c8ff78e217d7a76b4c4c47f93029",
+      "source_event_hash": "source-event-v290-002-000002",
+      "payload_digest": "payload-digest-v290-002-000002",
+      "previous_store_hash": "ntpro-audit-prod-ready:000001:source-event-v290-002-000001:payload-digest-v290-002-000001",
+      "store_record_hash": "ntpro-audit-prod-ready:000002:source-event-v290-002-000002:payload-digest-v290-002-000002",
+      "readback_record_hash": "ntpro-audit-prod-ready:000002:source-event-v290-002-000002:payload-digest-v290-002-000002",
+      "idempotency_key": "idempotency-v290-002-000002",
+      "redaction_status": "redacted",
+      "storage_write_scope": "sandboxed_fixture",
+      "retention": {
+        "policy_id": "audit-retention-v29-production-readiness",
+        "expires_at": "2027-07-09T00:00:00Z",
+        "mode": "immutable_until_expiry"
+      },
+      "lineage": {
+        "source_ref": "identity_permission_runtime.admin_audit_read.allowed.001",
+        "store_ref": "audit-storage-v290-readiness-sandbox",
+        "lineage_status": "linked"
+      },
+      "operation_effect": "none"
+    }
+  ],
+  "readiness_cases": [
+    {
+      "case_id": "persistent_audit_storage.production_readiness.write_read.allowed.001",
+      "expected_status": "audit_storage_production_readiness_ready"
+    },
+    {
+      "case_id": "persistent_audit_storage.production_readiness.missing_config.fail_closed.001",
+      "storage_config_override": {
+        "config_id": ""
+      },
+      "expected_status": "fail_closed_missing_storage_config"
+    },
+    {
+      "case_id": "persistent_audit_storage.production_readiness.stale_source.fail_closed.001",
+      "storage_config_override": {
+        "source_freshness_status": "stale"
+      },
+      "expected_status": "fail_closed_stale_audit_source"
+    },
+    {
+      "case_id": "persistent_audit_storage.production_readiness.schema_drift.fail_closed.001",
+      "schema_migration_policy_override": {
+        "schema_drift_status": "drifted"
+      },
+      "expected_status": "fail_closed_schema_drift"
+    },
+    {
+      "case_id": "persistent_audit_storage.production_readiness.broken_lineage.fail_closed.001",
+      "record_overrides": {
+        "audit-v290-002-000002": {
+          "previous_store_hash": "broken"
+        }
+      },
+      "expected_status": "fail_closed_broken_lineage"
+    },
+    {
+      "case_id": "persistent_audit_storage.production_readiness.unredacted_payload.fail_closed.001",
+      "record_overrides": {
+        "audit-v290-002-000001": {
+          "redaction_status": "unredacted"
+        }
+      },
+      "expected_status": "fail_closed_unredacted_payload"
+    },
+    {
+      "case_id": "persistent_audit_storage.production_readiness.forbidden_operation.fail_closed.001",
+      "boundary_flags_override": {
+        "automatic_remediation_allowed": true
+      },
+      "record_overrides": {
+        "audit-v290-002-000002": {
+          "operation_effect": "automatic_remediation_triggered"
+        }
+      },
+      "expected_status": "fail_closed_forbidden_operation_boundary"
+    }
+  ]
+}
