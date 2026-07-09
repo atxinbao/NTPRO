@@ -7,15 +7,16 @@ Status: RELEASED
 
 ## Summary
 
-v0.27.1 is ready for release gate execution when V271-001 through V271-006
-evidence is present, V271-001 through V271-005 issues are closed, the current
-V271-006 issue is closed for tag-gate mode, v27.1 release gates and strict
-provenance pass, and the public release is published after a successful hosted
-release gate for the same tag commit.
+v0.27.1 has completed release gate execution and public GitHub Release
+publication. V271-001 through V271-006 evidence is present, all V271 issues are
+closed, the v0.27.1 milestone is closed, v27.1 release gates and strict
+provenance passed, and the public release was published after a successful
+hosted release gate for the same tag commit.
 
 Plain Chinese summary: v0.27.1 的范围是发布治理和证据硬化，不是 v0.28.0 功能。它
 要求 V271-001 到 V271-006 全部闭环，hosted release gate 成功后再公开 GitHub Release。
-v0.28.0 在 v0.27.1 发布证据存在前保持 hard-blocked。
+当前发布后 closeout 已记录，v0.28.0 只能依赖这些可重建发布证据进入后续 Backend
+Closure / Product Operations Runtime Finalization 范围。
 
 ## Evidence
 
@@ -50,7 +51,33 @@ scripts/ai/verify_release.sh release-publish-after-gate
 #889 V271-003 = closed
 #890 V271-004 = closed
 #891 V271-005 = closed
-#892 V271-006 = must be closed before v0.27.1 tag gate is accepted
+#892 V271-006 = closed
+
+## Publication Closeout
+
+```text
+release tag = ntpro-rust-only-v0.27.1
+release name = NTPRO Rust-only v0.27.1
+release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.27.1
+published at = 2026-07-08T13:18:35Z
+GitHub Release draft = false
+GitHub Release prerelease = false
+annotated tag object = ab379be6725243ea1b8a9ffd9631409842361344
+annotated tag peeled commit = 0fdc11dc983bbfb9fe124a3f171a58fb1e7ccf19
+hosted release gate = https://github.com/atxinbao/NTPRO/actions/runs/28940442369
+hosted release gate conclusion = success
+hosted release gate jobs = 82/82 success
+hosted release gate completed at = 2026-07-08T13:17:36Z
+release publication after gate = pass
+release body sha256 = 74bbc4d42d8e6f70d93a63fa4b42ae684cba4ccf0ce7c06e60490d4ad3a0f3f0
+tracked release notes sha256 = 74bbc4d42d8e6f70d93a63fa4b42ae684cba4ccf0ce7c06e60490d4ad3a0f3f0
+release body matches tracked release notes = true
+v0.27.1 milestone = closed
+v0.27.1 milestone open issues = 0
+v0.27.1 milestone closed issues = 6
+source-controlled closeout evidence = docs/rust-cutover/release/v0_27_1_release_closeout_evidence.md
+release-publication-evidence/ntpro-rust-only-v0.27.1.json = generated artifact, not sole proof
+```
 
 ## Release Scope
 
