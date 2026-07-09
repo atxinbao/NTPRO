@@ -14,6 +14,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   claims.
 - `v0_28_0_release_manifest.json` - strict release manifest for the formal
   `ntpro-rust-only-v0.28.0` GitHub Release.
+- `v0_28_0_release_closeout_evidence.md` - source-controlled closeout ledger
+  for the public `ntpro-rust-only-v0.28.0` GitHub Release, including the tag
+  object, peeled commit, publication timestamp, hosted gate `84/84` success,
+  release body hash/source match, milestone #22 closeout, and generated
+  publication-evidence policy.
+- `../evidence/V281-001.md` - V281-001 v0.28.0 release closeout evidence
+  backfill for GitHub issue #919.
 - `../evidence/V280-009.md` - V280-009 release gates, strict provenance, exact
   issue-scope, publication guard, and backend closure handoff evidence ledger.
 - `v0_28_0_backend_closure_fail_closed_hardening.md` - V280-008 contract that
