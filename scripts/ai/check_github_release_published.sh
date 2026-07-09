@@ -985,24 +985,55 @@ for field in "${required_fields[@]}"; do
   require_contains_text "$body" "$field" "GitHub Release body key field"
 done
 
-if [[ "${NTPRO_RELEASE_PUBLICATION_STRICT_BODY:-0}" == "1" ]]; then
-  normalized_notes="$(python3 - "$CURRENT_RELEASE_NOTES" <<'PY'
+body_hash_report="$(python3 - "$release_json" "$CURRENT_RELEASE_NOTES" <<'PY'
+import hashlib
+import json
+import sys
 from pathlib import Path
-import sys
 
-print("\n".join(line.rstrip() for line in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()).strip())
+release = json.loads(sys.argv[1])
+notes = Path(sys.argv[2]).read_text(encoding="utf-8")
+body = release.get("body") or ""
+
+
+def normalize(value: str) -> str:
+    return "\n".join(line.rstrip() for line in value.splitlines()).strip()
+
+
+def sha256(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+normalized_body = normalize(body)
+normalized_notes = normalize(notes)
+raw_match = body == notes
+normalized_match = normalized_body == normalized_notes
+
+
+def flag(value: bool) -> str:
+    return "true" if value else "false"
+
+
+print("release_body_hash_semantics=normalized_sha256")
+print("release_body_normalization=line_rstrip_and_outer_strip")
+print(f"release_body_normalized_sha256={sha256(normalized_body)}")
+print(f"tracked_release_notes_normalized_sha256={sha256(normalized_notes)}")
+print(f"release_body_normalized_sha256_matches_tracked_release_notes={flag(normalized_match)}")
+print(f"release_body_raw_sha256={sha256(body)}")
+print(f"tracked_release_notes_raw_sha256={sha256(notes)}")
+print(f"release_body_raw_sha256_matches_tracked_release_notes={flag(raw_match)}")
+print("release_body_raw_sha256_is_acceptance_rule=false")
 PY
 )"
-  normalized_body="$(python3 - <<'PY' "$body"
-import sys
 
-print("\n".join(line.rstrip() for line in sys.argv[1].splitlines()).strip())
-PY
-)"
-  [[ "$normalized_body" == "$normalized_notes" ]] || fail "release body does not strictly match release notes"
+if [[ "${NTPRO_RELEASE_PUBLICATION_STRICT_BODY:-0}" == "1" ]]; then
+  if ! grep -F "release_body_normalized_sha256_matches_tracked_release_notes=true" <<<"$body_hash_report" >/dev/null; then
+    fail "release body does not match release notes under normalized_sha256 semantics"
+  fi
 fi
 
 echo "release_publication_guard=pass"
+printf '%s\n' "$body_hash_report"
 echo "publication_evidence_strategy=source_tree_plus_github_remote"
 echo "local_evidence_path_is_generated_artifact=true"
 echo "local_evidence_path_required_in_source_tree=false"
