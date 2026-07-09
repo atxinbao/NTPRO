@@ -20,6 +20,8 @@ Final release checks, benchmark summaries, and audit reports live here.
   for the public `ntpro-rust-only-v0.28.1` GitHub Release. It starts as
   pending publication and must be updated after publication so v0.29.0 intake
   never depends only on generated `release-publication-evidence/*` output.
+- `../evidence/V281-010.md` - V281-010 v28.1 nested base-gate tag-scope
+  isolation evidence for GitHub issue #948.
 - `../evidence/V281-009.md` - V281-009 v28.1 prepublish live-current require
   semantics evidence for GitHub issue #946.
 - `../evidence/V281-008.md` - V281-008 v28.1 release tag gate
