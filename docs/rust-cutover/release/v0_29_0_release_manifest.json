@@ -2,7 +2,7 @@
   "schema_version": "ntpro.v290_release_manifest.v1",
   "task_id": "V290-011",
   "product_version": "v0.29.0",
-  "release_status": "release_gate_ready",
+  "release_status": "released",
   "release_scope_name": "backend_production_readiness_foundation_only",
   "base_release": {
     "version": "v0.28.1",
@@ -26,6 +26,7 @@
     "release_notes_path": "docs/rust-cutover/release/v0_29_0_release_notes.md",
     "readiness_report_path": "docs/rust-cutover/release/v0_29_0_readiness_report.md",
     "release_manifest_path": "docs/rust-cutover/release/v0_29_0_release_manifest.json",
+    "release_closeout_evidence_path": "docs/rust-cutover/release/v0_29_0_release_closeout_evidence.md",
     "handoff_path": "docs/rust-cutover/release/v0_29_0_v30_go_live_candidate_handoff.md",
     "readiness_matrix_path": "docs/rust-cutover/release/v0_29_0_backend_production_readiness_matrix.json",
     "base_release_manifest_path": "docs/rust-cutover/release/v0_28_1_release_manifest.json",
@@ -183,6 +184,73 @@
     "generated_publication_evidence_sole_proof_allowed": false,
     "v0_30_start_gate_fails_without_v290_release_evidence": true,
     "next_track_does_not_inherit_trading_controls": true
+  },
+  "post_release_closeout": {
+    "closeout_evidence_path": "docs/rust-cutover/release/v0_29_0_release_closeout_evidence.md",
+    "github_release": {
+      "tag": "ntpro-rust-only-v0.29.0",
+      "name": "NTPRO Rust-only v0.29.0",
+      "url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.29.0",
+      "id": 352121462,
+      "node_id": "RE_kwDOSox1D84U_PJ2",
+      "draft": false,
+      "prerelease": false,
+      "created_at": "2026-07-10T12:10:49Z",
+      "published_at": "2026-07-10T13:44:23Z",
+      "updated_at": "2026-07-10T13:44:23Z",
+      "target_commitish": "main"
+    },
+    "tag": {
+      "object": "25cccef7a99c6f231dac7f915f24abe882ad7f2c",
+      "peeled_commit": "85110d29867763f8d3b6395f4ff8154378b475b9",
+      "tree": "8c6529cba8366e191ee5b301254b1acdc7dab74a",
+      "origin_main_release_source": "85110d29867763f8d3b6395f4ff8154378b475b9",
+      "head_release_source": "85110d29867763f8d3b6395f4ff8154378b475b9",
+      "remote_tag_object": "25cccef7a99c6f231dac7f915f24abe882ad7f2c",
+      "remote_tag_peeled_commit": "85110d29867763f8d3b6395f4ff8154378b475b9"
+    },
+    "hosted_release_gate": {
+      "run_id": 29091765148,
+      "url": "https://github.com/atxinbao/NTPRO/actions/runs/29091765148",
+      "workflow": "Rust Cutover Release Gate",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "85110d29867763f8d3b6395f4ff8154378b475b9",
+      "created_at": "2026-07-10T12:11:26Z",
+      "completed_at": "2026-07-10T13:43:15Z",
+      "jobs_total": 88,
+      "jobs_success": 88
+    },
+    "release_body": {
+      "source_path": "docs/rust-cutover/release/v0_29_0_release_notes.md",
+      "hash_semantics": "normalized_sha256",
+      "normalization": "line_rstrip_and_outer_strip",
+      "normalized_sha256": "7812d750cb4f5fe3d4a71b041c6cf9e4c652a938cf4a654dfc70e1e22776ef43",
+      "tracked_notes_normalized_sha256": "7812d750cb4f5fe3d4a71b041c6cf9e4c652a938cf4a654dfc70e1e22776ef43",
+      "raw_sha256": "ccd4811acfc48cbca4514aa936e4f225428e0fd129db1371c88738ad8ec5c356",
+      "tracked_notes_raw_sha256": "ccd4811acfc48cbca4514aa936e4f225428e0fd129db1371c88738ad8ec5c356",
+      "normalized_line_count": 101,
+      "tracked_notes_normalized_line_count": 101
+    },
+    "milestone_closeout": {
+      "number": 24,
+      "title": "v0.29.0",
+      "state": "closed",
+      "open_issues": 0,
+      "closed_issues": 12,
+      "closed_at": "2026-07-10T13:45:02Z",
+      "exact_issue_numbers": [926, 927, 928, 929, 930, 931, 932, 933, 934, 935, 936, 961],
+      "exact_issue_set": "#926-#936, #961"
+    },
+    "publication_evidence": {
+      "status": "published_after_gate",
+      "release_publication_after_gate": "pass",
+      "generated_evidence_path": "release-publication-evidence/ntpro-rust-only-v0.29.0.json",
+      "generated_publication_evidence_sole_proof_allowed": false,
+      "local_generated_evidence_required_in_source_tree": false,
+      "remote_reconstruction_required": true,
+      "audit_source": "source_tree_plus_github_remote"
+    }
   },
   "validation_artifacts": {
     "strict_release_provenance_manifest_path": "target/ntpro-v290/v0_29_0_strict_release_manifest.json"

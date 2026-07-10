@@ -15,6 +15,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   claims.
 - `v0_29_0_release_manifest.json` - strict release manifest for the formal
   `ntpro-rust-only-v0.29.0` GitHub Release tag gate.
+- `v0_29_0_release_closeout_evidence.md` - source-controlled closeout ledger
+  for the public `ntpro-rust-only-v0.29.0` GitHub Release, including tag
+  object, peeled commit, publication timestamp, hosted gate `88/88` success,
+  normalized/raw release body hash/source match, milestone #24 closeout, and
+  generated publication-evidence policy.
 - `v0_29_0_v30_go_live_candidate_handoff.md` - V290-010 handoff document that
   defines `v0.30.0` as a backend production go-live candidate track without
   inherited default trading controls or backend go-live claims.

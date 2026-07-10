@@ -285,7 +285,7 @@ def validate(candidate: dict) -> None:
     require(candidate.get("schema_version") == "ntpro.v290_release_manifest.v1", "manifest schema mismatch")
     require(candidate.get("task_id") == "V290-011", "manifest task mismatch")
     require(candidate.get("product_version") == os.environ["RELEASE_VERSION"], "manifest version mismatch")
-    require(candidate.get("release_status") == "release_gate_ready", "manifest release status mismatch")
+    require(candidate.get("release_status") in {"release_gate_ready", "released"}, "manifest release status mismatch")
     planned = candidate.get("planned_release") or {}
     require(planned.get("tag") == os.environ["RELEASE_TAG"], "planned tag mismatch")
     require(planned.get("name") == os.environ["RELEASE_NAME"], "planned name mismatch")
