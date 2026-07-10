@@ -112,6 +112,17 @@ Final release checks, benchmark summaries, and audit reports live here.
   execution, and forbidden operation/control cases.
 - `../evidence/V290-008.md` - V290-008 canary rollback DR preflight readiness
   evidence for GitHub issue #934.
+- `v0_29_0_backend_production_readiness_fail_closed_hardening.md` - V290-009
+  contract that hardens backend production readiness by keeping readiness
+  health separate from backend go-live and trading readiness while rejecting
+  missing, stale, partial, source-drifted, ambiguous go-live, ambiguous live
+  trading, forbidden control, and missing boundary states.
+- `v0_29_0_backend_production_readiness_fail_closed_hardening_artifact.json` -
+  source-controlled V290-009 backend artifact for fail-closed readiness replay
+  across audit, telemetry, permission, read API, deployment config, runbook,
+  monitoring, canary, rollback, and DR components.
+- `../evidence/V290-009.md` - V290-009 backend production readiness
+  fail-closed hardening evidence for GitHub issue #935.
 - `../evidence/V281-010.md` - V281-010 v28.1 nested base-gate tag-scope
   isolation evidence for GitHub issue #948.
 - `../evidence/V281-009.md` - V281-009 v28.1 prepublish live-current require

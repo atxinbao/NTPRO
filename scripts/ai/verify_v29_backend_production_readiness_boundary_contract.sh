@@ -102,7 +102,7 @@ EXPECTED_CLASSIFICATIONS = {
     "deployment_config_runbook_production_readiness": "production-ready",
     "monitoring_alert_incident_production_readiness": "production-ready",
     "canary_rollback_dr_preflight_readiness": "production-ready",
-    "backend_production_readiness_fail_closed_hardening": "blocked",
+    "backend_production_readiness_fail_closed_hardening": "production-ready",
     "v29_release_gates_v30_handoff": "deferred",
 }
 BOUNDARY_FALSE_FLAGS = [
@@ -136,9 +136,9 @@ REQUIRED_FALSE_TERMINOLOGY_FLAGS = [
     "default_submit_claim_allowed",
 ]
 EXPECTED_COUNTS = {
-    "production-ready": 9,
+    "production-ready": 10,
     "readiness-preview": 2,
-    "blocked": 1,
+    "blocked": 0,
     "deferred": 1,
 }
 
@@ -310,9 +310,9 @@ if selftest:
         fail("negative self-test allowed adapter_send_allowed")
 
     bad_ready = copy.deepcopy(matrix)
-    bad_ready["module_readiness"][11]["production_ready_claim_allowed"] = True
+    bad_ready["module_readiness"][12]["production_ready_claim_allowed"] = True
     if classify(bad_ready)["ok"]:
-        fail("negative self-test allowed blocked module production-ready claim")
+        fail("negative self-test allowed non-ready module production-ready claim")
 
     missing_evidence = copy.deepcopy(matrix)
     missing_evidence["module_readiness"][1].pop("evidence_path", None)
