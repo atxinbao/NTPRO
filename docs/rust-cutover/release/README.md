@@ -66,6 +66,16 @@ Final release checks, benchmark summaries, and audit reports live here.
   drift, and forbidden trading permission cases.
 - `../evidence/V290-004.md` - V290-004 permission source production readiness
   evidence for GitHub issue #930.
+- `v0_29_0_read_only_backend_api_production_readiness.md` - V290-005 contract
+  that promotes the Admin/Trader read-only backend API handoff to backend
+  production readiness evidence for readiness, provenance, audit, telemetry,
+  permission, deployment, and runbook consumers.
+- `v0_29_0_read_only_backend_api_production_readiness_artifact.json` -
+  source-controlled V290-005 backend artifact for stable read-only response
+  contracts and fail-closed unauthorized, missing source, malformed,
+  unredacted, and forbidden-control cases.
+- `../evidence/V290-005.md` - V290-005 read-only backend API production
+  readiness evidence for GitHub issue #931.
 - `../evidence/V281-010.md` - V281-010 v28.1 nested base-gate tag-scope
   isolation evidence for GitHub issue #948.
 - `../evidence/V281-009.md` - V281-009 v28.1 prepublish live-current require
