@@ -2,6 +2,24 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
+- `v0_29_0_readiness_report.md` - release gate readiness report for the formal
+  `ntpro-rust-only-v0.29.0` GitHub Release. It records the V290 exact release
+  scope, v0.28.1 dependency proof, final backend production readiness matrix
+  counts, v29 gate and strict provenance requirements, and the v0.30.0 backend
+  production go-live candidate handoff boundary.
+- `v0_29_0_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.29.0` GitHub Release. It publishes Backend Production
+  Readiness Foundation evidence and does not open submit, mutation, adapter
+  send, live exchange request, retry scheduler, remediation, backend go-live,
+  Dashboard/Admin/Trader Terminal trading controls, or product-grade terminal
+  claims.
+- `v0_29_0_release_manifest.json` - strict release manifest for the formal
+  `ntpro-rust-only-v0.29.0` GitHub Release tag gate.
+- `v0_29_0_v30_go_live_candidate_handoff.md` - V290-010 handoff document that
+  defines `v0.30.0` as a backend production go-live candidate track without
+  inherited default trading controls or backend go-live claims.
+- `../evidence/V290-010.md` - V290-010 v29 release gates, strict provenance,
+  release manifest, and v30 handoff evidence for GitHub issue #936.
 - `v0_28_1_readiness_report.md` - release gate readiness report for the formal
   `ntpro-rust-only-v0.28.1` GitHub Release. It records the V281 exact release
   scope, v0.28.0 dependency proof, v28.1 gate and strict provenance

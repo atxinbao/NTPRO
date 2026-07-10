@@ -217,17 +217,23 @@
     },
     {
       "module_id": "v29_release_gates_v30_handoff",
-      "classification": "deferred",
+      "classification": "production-ready",
       "issue": 936,
-      "production_ready_claim_allowed": false,
-      "deferred_issue": 936,
-      "claim": "deferred until V290-010 release gates and v30 handoff close the line"
+      "readiness_mode": "deterministic_readiness_replay",
+      "backend_production_go_live_claim_allowed": false,
+      "product_grade_live_trading_terminal_claim_allowed": false,
+      "production_execution_runtime_claim_allowed": false,
+      "default_submit_claim_allowed": false,
+      "production_ready_claim_allowed": true,
+      "evidence_path": "docs/rust-cutover/evidence/V290-010.md",
+      "verification_command": "scripts/ai/verify_release.sh v29-release-gates",
+      "claim": "v0.29.0 release gates and v0.30.0 backend go-live candidate handoff close through deterministic release artifact reconstruction without opening go-live or trading controls"
     }
   ],
   "expected_counts": {
-    "production-ready": 10,
+    "production-ready": 11,
     "readiness-preview": 2,
     "blocked": 0,
-    "deferred": 1
+    "deferred": 0
   }
 }

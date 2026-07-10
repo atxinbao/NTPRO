@@ -10,17 +10,17 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.28.1` 是当前正式公开发布点；它是 Backend Closure Governance Closeout
-Patch。
-它建立在 v0.28.0 基础上，收口 v0.28.0 release closeout、stale V280/V271 evidence
-cleanup、release body hash normalization、runtime-closed terminology hardening、
-release-publish-after-gate current-release binding、v28.1 release gates、strict
-provenance 和 v29 intake dependency target。
-它不是产品级实盘交易终端，不是前端产品完成，不是新增 submit 能力，不是生产订单 mutation，不调用
-execution adapter、adapter send 或 live exchange request，不是隐式 retry，不启用
-retry scheduler，不是自动补救或自动恢复，不是策略实盘，也没有 Dashboard
-或 Admin 或 Trader Terminal 下单/审批/撤单/重试/submit/replace/amend/flatten/remediation/order-ticket 控件。
-`v0.29.0` 是下一能力轨占位，必须等待 v0.28.1 发布证据写回源码后才能启动。
+`v0.29.0` 是当前正式公开发布点；它是 Backend Production Readiness Foundation。
+它建立在 v0.28.1 基础上，收口 v0.28.1 dependency proof、backend readiness
+boundary contract、audit storage、telemetry/SLO、permission source、read-only
+backend API、deployment config/runbook、monitoring/alert/incident、
+canary/rollback/DR preflight、fail-closed hardening、v29 release gates、strict
+provenance 和 v30 go-live candidate handoff。
+它不是 backend go-live，不是产品级实盘交易终端，不是前端产品完成，不是新增 submit
+能力，不是生产订单 mutation，不调用 execution adapter、adapter send 或 live exchange
+request，不是隐式 retry，不启用 retry scheduler，不是自动补救或自动恢复，不是策略实盘，
+也没有 Dashboard 或 Admin 或 Trader Terminal 下单/审批/撤单/重试/submit/replace/amend/flatten/remediation/order-ticket 控件。
+`v0.30.0` 是下一 backend go-live candidate 能力轨，必须等待 v0.29.0 发布证据可重建后才能启动。
 
 ## Release Tags
 
@@ -61,6 +61,7 @@ ntpro-rust-only-v0.27.0
 ntpro-rust-only-v0.27.1
 ntpro-rust-only-v0.28.0
 ntpro-rust-only-v0.28.1
+ntpro-rust-only-v0.29.0
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -73,31 +74,31 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.28.1
+ntpro-rust-only-v0.29.0
 ```
 
 The active patch track is:
 
 ```text
-v0.28.2
+v0.29.1
 ```
 
-v0.28.2 is reserved for future patch hardening only. It must not expand beyond
-the v0.28.1 backend closure governance boundary unless a later
+v0.29.1 is reserved for future patch hardening only. It must not expand beyond
+the v0.29.0 backend production readiness foundation boundary unless a later
 scoped release issue explicitly changes that contract.
 
 The next capability track is:
 
 ```text
-v0.29.0
+v0.30.0
 ```
 
-v0.29.0 is the next gated capability track after the V281 release proof. It does
-not inherit production submit, production order mutation, execution adapter
-send, adapter send, live exchange request, implicit retry, retry scheduler,
-automatic remediation/recovery, strategy-driven production execution, shared
-approval consumption, or Dashboard/Admin/Trader Terminal operation controls from
-v0.28.1.
+v0.30.0 is the next gated backend production go-live candidate track after the
+V290 release proof. It does not inherit backend go-live, production submit,
+production order mutation, execution adapter send, adapter send, live exchange
+request, implicit retry, retry scheduler, automatic remediation/recovery,
+strategy-driven production execution, shared approval consumption, or
+Dashboard/Admin/Trader Terminal operation controls from v0.29.0.
 
 ## Cargo Workspace Version
 
