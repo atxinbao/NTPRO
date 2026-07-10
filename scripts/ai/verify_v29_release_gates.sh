@@ -112,7 +112,7 @@ for task_id in V290-000 V290-001 V290-002 V290-003 V290-004 V290-005 V290-006 V2
 done
 
 for marker in \
-  "Status: RELEASE GATE READY" \
+  "Status: RELEASED" \
   "Tag: \`$RELEASE_TAG\`" \
   "Release name: \`$RELEASE_NAME\`" \
   "Release URL: \`https://github.com/atxinbao/NTPRO/releases/tag/$RELEASE_TAG\`" \
@@ -132,14 +132,22 @@ for marker in \
   "release surface current guard = required" \
   "release publication guard = required" \
   "release publish after gate = required" \
+  "post-publication closeout gate = required" \
   "hosted release gate success before public GitHub Release = required" \
   "publication evidence strategy = source_tree_plus_github_remote" \
   "local generated publication evidence required in source tree = false" \
   "remote reconstruction required = true" \
+  "generated publication evidence sole proof allowed = false" \
+  "published release closeout evidence = docs/rust-cutover/release/v0_29_0_release_closeout_evidence.md" \
+  "published release status = published_after_gate" \
+  "hosted release gate run = 29091765148" \
+  "release body hash semantics = normalized_sha256" \
   "scripts/ai/verify_release.sh v29-release-gates" \
   "scripts/ai/verify_release.sh v29-strict-provenance" \
+  "scripts/ai/verify_release.sh v29.1-post-publication-closeout-gate" \
   "scripts/ai/verify_v29_release_gates.sh" \
   "scripts/ai/verify_v29_strict_provenance.sh" \
+  "scripts/ai/verify_v29_1_post_publication_closeout_gate.sh" \
   "v0.30.0 backend production go-live candidate = next track" \
   "The next patch track is \`v0.29.1\`" \
   "The next capability track is \`v0.30.0\`"; do
@@ -148,7 +156,7 @@ done
 
 for marker in \
   "Milestone: \`$RELEASE_TAG\`" \
-  "Status: RELEASE GATE READY" \
+  "Status: RELEASED" \
   "V290-000 evidence" \
   "V290-010 evidence" \
   "V290-011 evidence" \
@@ -164,6 +172,15 @@ for marker in \
   "readiness_preview_count = 2" \
   "blocked_count = 0" \
   "deferred_count = 0" \
+  "post-publication closeout gate = required" \
+  "publication evidence strategy = source_tree_plus_github_remote" \
+  "generated publication evidence sole proof allowed = false" \
+  "published release closeout evidence = docs/rust-cutover/release/v0_29_0_release_closeout_evidence.md" \
+  "published release status = published_after_gate" \
+  "hosted release gate run = 29091765148" \
+  "release body hash semantics = normalized_sha256" \
+  "scripts/ai/verify_release.sh v29.1-post-publication-closeout-gate" \
+  "scripts/ai/verify_v29_1_post_publication_closeout_gate.sh" \
   "v0.30.0 go-live candidate start = blocked until v0.29.0 publication evidence exists"; do
   require_contains "$READINESS_REPORT_PATH" "$marker"
 done
@@ -325,7 +342,7 @@ def validate(candidate: dict) -> None:
     require(candidate.get("schema_version") == "ntpro.v290_release_manifest.v1", "manifest schema mismatch")
     require(candidate.get("task_id") == "V290-011", "manifest task mismatch")
     require(candidate.get("product_version") == os.environ["RELEASE_VERSION"], "manifest version mismatch")
-    require(candidate.get("release_status") in {"release_gate_ready", "released"}, "manifest release status mismatch")
+    require(candidate.get("release_status") == "released", "manifest release status mismatch")
     planned = candidate.get("planned_release") or {}
     require(planned.get("tag") == os.environ["RELEASE_TAG"], "planned tag mismatch")
     require(planned.get("name") == os.environ["RELEASE_NAME"], "planned name mismatch")
@@ -356,6 +373,18 @@ def validate(candidate: dict) -> None:
     require(requirements.get("hosted_release_gate_success_required") is True, "hosted gate requirement missing")
     require(requirements.get("publication_after_hosted_gate_required") is True, "publication after gate requirement missing")
     require(requirements.get("remote_reconstruction_required") is True, "remote reconstruction requirement missing")
+    post_closeout = candidate.get("post_release_closeout") or {}
+    require(post_closeout.get("closeout_evidence_path") == "docs/rust-cutover/release/v0_29_0_release_closeout_evidence.md", "post-release closeout evidence missing")
+    publication = post_closeout.get("publication_evidence") or {}
+    require(publication.get("status") == "published_after_gate", "publication evidence status mismatch")
+    require(publication.get("audit_source") == "source_tree_plus_github_remote", "publication audit source mismatch")
+    require(publication.get("generated_publication_evidence_sole_proof_allowed") is False, "generated-only proof must be disallowed")
+    closeout_gate = candidate.get("post_publication_closeout_gate") or {}
+    require(closeout_gate.get("task_id") == "V291-004", "post-publication closeout gate task mismatch")
+    require(closeout_gate.get("issue") == 966, "post-publication closeout gate issue mismatch")
+    require(closeout_gate.get("rejects_release_gate_ready_only") is True, "release_gate_ready rejection missing")
+    require(closeout_gate.get("requires_source_tree_plus_github_remote") is True, "source_tree_plus_github_remote requirement missing")
+    require(closeout_gate.get("generated_evidence_only_allowed") is False, "generated-only proof must be rejected")
     next_tracks = candidate.get("next_tracks") or {}
     require(next_tracks.get("capability") == "v0.30.0", "next capability mismatch")
     require(next_tracks.get("capability_entry") == "backend_production_go_live_candidate_after_v290_release_evidence", "next capability entry mismatch")
@@ -385,6 +414,16 @@ except SystemExit:
     pass
 else:
     raise SystemExit("negative self-test unexpectedly allowed missing V290 evidence")
+
+gate_ready_only = copy.deepcopy(manifest)
+gate_ready_only["release_status"] = "release_gate_ready"
+gate_ready_only.pop("post_release_closeout", None)
+try:
+    validate(gate_ready_only)
+except SystemExit:
+    pass
+else:
+    raise SystemExit("negative self-test unexpectedly allowed release_gate_ready-only manifest")
 PY
 
 if command -v gh >/dev/null 2>&1 && gh_with_retry auth status >/dev/null 2>&1; then

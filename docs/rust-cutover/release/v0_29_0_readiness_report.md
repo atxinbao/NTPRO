@@ -3,7 +3,7 @@
 Date: 2026-07-10
 Executor: Codex
 Milestone: `ntpro-rust-only-v0.29.0`
-Status: RELEASE GATE READY
+Status: RELEASED
 
 ## Summary
 
@@ -63,7 +63,20 @@ backend production readiness fail-closed hardening = required
 release surface current guard = required
 release publication guard = required
 release publish after gate = required
+post-publication closeout gate = required
 hosted release gate success before public GitHub Release = required
+publication evidence strategy = source_tree_plus_github_remote
+generated publication evidence sole proof allowed = false
+published release closeout evidence = docs/rust-cutover/release/v0_29_0_release_closeout_evidence.md
+published release status = published_after_gate
+published at = 2026-07-10T13:44:23Z
+hosted release gate run = 29091765148
+hosted release gate conclusion = success
+hosted release gate jobs = 88/88 success
+tag commit = 85110d29867763f8d3b6395f4ff8154378b475b9
+release body hash semantics = normalized_sha256
+scripts/ai/verify_release.sh v29.1-post-publication-closeout-gate
+scripts/ai/verify_v29_1_post_publication_closeout_gate.sh
 ```
 
 ## Boundary

@@ -51,6 +51,12 @@ hosted release gate completed at = 2026-07-10T13:43:15Z
 hosted release gate jobs = 88/88 success
 release publication after gate = pass
 release publish after gate current-release binding = pass
+post-publication closeout gate = required
+post-publication closeout gate stage = scripts/ai/verify_release.sh v29.1-post-publication-closeout-gate
+release_gate_ready-only artifacts after publication accepted = false
+source_tree_plus_github_remote reconstruction accepted = true
+generated-evidence-only proof accepted = false
+release body hash semantics = normalized_sha256
 publication status = published_after_gate
 published after hosted gate = true
 release_gate_run_id = 29091765148
@@ -69,13 +75,13 @@ v0.30.0 intake requires this source-controlled closeout evidence = true
 ```text
 release body hash semantics = normalized_sha256
 release body normalization = line_rstrip_and_outer_strip
-release body normalized sha256 = 7812d750cb4f5fe3d4a71b041c6cf9e4c652a938cf4a654dfc70e1e22776ef43
-tracked release notes normalized sha256 = 7812d750cb4f5fe3d4a71b041c6cf9e4c652a938cf4a654dfc70e1e22776ef43
+release body normalized sha256 = 8ae80fbd084abf698cee78d7a59d415148ad8b0eb6d23f4e93c281794e58fb1f
+tracked release notes normalized sha256 = 8ae80fbd084abf698cee78d7a59d415148ad8b0eb6d23f4e93c281794e58fb1f
 normalized release body matches tracked release notes = true
-release body normalized line count = 101
-tracked release notes normalized line count = 101
-release body raw sha256 = ccd4811acfc48cbca4514aa936e4f225428e0fd129db1371c88738ad8ec5c356
-tracked release notes raw sha256 = ccd4811acfc48cbca4514aa936e4f225428e0fd129db1371c88738ad8ec5c356
+release body normalized line count = 113
+tracked release notes normalized line count = 113
+release body raw sha256 = 522f4a7000fe0839f8cb65c2393528a58491f89a9203d6bd1738dedaa35ba110
+tracked release notes raw sha256 = 522f4a7000fe0839f8cb65c2393528a58491f89a9203d6bd1738dedaa35ba110
 raw release body matches tracked release notes = true
 raw hash equality is diagnostic, not the acceptance rule
 ```
@@ -161,6 +167,7 @@ git ls-remote --tags origin refs/tags/ntpro-rust-only-v0.29.0 'refs/tags/ntpro-r
 NTPRO_CURRENT_RELEASE_VERSION=v0.29.0 NTPRO_CURRENT_RELEASE_TAG=ntpro-rust-only-v0.29.0 NTPRO_CURRENT_RELEASE_NAME="NTPRO Rust-only v0.29.0" scripts/ai/verify_release.sh release-publication-guard
 scripts/ai/verify_v29_1_release_closeout_evidence.sh
 scripts/ai/verify_v29_1_release_publish_after_gate_current_binding.sh
+scripts/ai/verify_v29_1_post_publication_closeout_gate.sh source
 ```
 
 ## Next Step
