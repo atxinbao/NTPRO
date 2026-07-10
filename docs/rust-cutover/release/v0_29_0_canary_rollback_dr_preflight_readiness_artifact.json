@@ -1,0 +1,175 @@
+{
+  "schema_version": "ntpro.v290.canary_rollback_dr_preflight_readiness_artifact.v1",
+  "contract_version": "ntpro.v290.canary_rollback_dr_preflight_readiness.v1",
+  "task_id": "V290-008",
+  "github_issue": 934,
+  "milestone": "v0.29.0",
+  "release_scope": "backend_production_readiness_foundation_only",
+  "backend_module": "canary_rollback_dr_preflight_readiness",
+  "backend_module_status": "production_ready_evidence",
+  "readiness_mode": "deterministic_readiness_replay",
+  "preflight_mode": "source_controlled_preflight_only",
+  "dependency_contracts": [
+    "V290-000",
+    "V290-001",
+    "V290-006",
+    "V290-007",
+    "V280-004",
+    "V260-005",
+    "V250-005",
+    "v0.28.1-release-evidence"
+  ],
+  "canary_plan": {
+    "plan_id": "v290-canary-preflight",
+    "source_ref": "docs/rust-cutover/release/v0_29_0_monitoring_alert_incident_production_readiness_artifact.json",
+    "eligibility_status": "eligible",
+    "blast_radius_percent": 5,
+    "max_blast_radius_percent": 5,
+    "owner_approval_status": "owner_approved",
+    "approval_ref": "docs/rust-cutover/evidence/V290-008.md#canary-approval",
+    "source_provenance_status": "linked",
+    "freshness_status": "fresh",
+    "backend_go_live_claim_allowed": false,
+    "canary_execution_allowed": false
+  },
+  "rollback_plan": {
+    "plan_id": "v290-rollback-preflight",
+    "source_ref": "docs/rust-cutover/release/v0_28_0_deployment_orchestration_runtime_artifact.json",
+    "runbook_ref": "docs/rust-cutover/release/v0_29_0_deployment_config_runbook_production_readiness_artifact.json",
+    "trigger_catalog_status": "documented",
+    "owner_approval_status": "owner_approved",
+    "approval_ref": "docs/rust-cutover/evidence/V290-008.md#rollback-approval",
+    "source_provenance_status": "linked",
+    "freshness_status": "fresh",
+    "unsafe_rollback_plan_allowed": false,
+    "rollback_execution_allowed": false,
+    "ambiguous_go_live_claim_allowed": false
+  },
+  "dr_drill": {
+    "drill_id": "v290-dr-preflight",
+    "source_ref": "docs/rust-cutover/release/v0_25_0_dr_preview_drill_evidence.md",
+    "scenario_matrix_status": "covered",
+    "freshness_status": "fresh",
+    "source_provenance_status": "linked",
+    "snapshot_lineage_status": "linked",
+    "recovery_point_status": "fresh",
+    "owner_approval_status": "owner_approved",
+    "approval_ref": "docs/rust-cutover/evidence/V290-008.md#dr-approval",
+    "dr_execution_allowed": false,
+    "data_restore_execution_allowed": false,
+    "service_restart_execution_allowed": false
+  },
+  "preflight_checks": [
+    {
+      "check_id": "canary-eligibility",
+      "status": "pass",
+      "preview_only": true,
+      "execution_triggered": false,
+      "operation_effect": "validated_only"
+    },
+    {
+      "check_id": "rollback-trigger-catalog",
+      "status": "pass",
+      "preview_only": true,
+      "execution_triggered": false,
+      "operation_effect": "validated_only"
+    },
+    {
+      "check_id": "dr-drill-evidence",
+      "status": "pass",
+      "preview_only": true,
+      "execution_triggered": false,
+      "operation_effect": "validated_only"
+    }
+  ],
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "product_grade_trading_terminal_claim": false,
+    "canary_execution_allowed": false,
+    "production_canary_execution_allowed": false,
+    "rollback_execution_allowed": false,
+    "production_rollback_execution_allowed": false,
+    "dr_execution_allowed": false,
+    "data_restore_execution_allowed": false,
+    "service_restart_execution_allowed": false,
+    "ambiguous_go_live_claim_allowed": false
+  },
+  "readiness_cases": [
+    {
+      "case_id": "canary_rollback_dr.preflight.ready.allowed.001",
+      "expected_status": "canary_rollback_dr_preflight_ready"
+    },
+    {
+      "case_id": "canary_rollback_dr.preflight.missing_canary_eligibility.fail_closed.001",
+      "canary_plan_override": {
+        "eligibility_status": "missing"
+      },
+      "expected_status": "fail_closed_missing_canary_eligibility"
+    },
+    {
+      "case_id": "canary_rollback_dr.preflight.missing_owner_approval.fail_closed.001",
+      "rollback_plan_override": {
+        "owner_approval_status": "missing"
+      },
+      "expected_status": "fail_closed_missing_owner_approval"
+    },
+    {
+      "case_id": "canary_rollback_dr.preflight.stale_dr_evidence.fail_closed.001",
+      "dr_drill_override": {
+        "freshness_status": "stale"
+      },
+      "expected_status": "fail_closed_stale_dr_evidence"
+    },
+    {
+      "case_id": "canary_rollback_dr.preflight.unsafe_rollback.fail_closed.001",
+      "rollback_plan_override": {
+        "unsafe_rollback_plan_allowed": true
+      },
+      "expected_status": "fail_closed_unsafe_rollback_plan"
+    },
+    {
+      "case_id": "canary_rollback_dr.preflight.ambiguous_go_live.fail_closed.001",
+      "canary_plan_override": {
+        "backend_go_live_claim_allowed": true
+      },
+      "expected_status": "fail_closed_ambiguous_go_live_claim"
+    },
+    {
+      "case_id": "canary_rollback_dr.preflight.forbidden_execution.fail_closed.001",
+      "preflight_check_overrides": {
+        "rollback-trigger-catalog": {
+          "execution_triggered": true,
+          "operation_effect": "rollback_executed"
+        }
+      },
+      "expected_status": "fail_closed_forbidden_execution"
+    },
+    {
+      "case_id": "canary_rollback_dr.preflight.forbidden_boundary.fail_closed.001",
+      "boundary_flags_override": {
+        "dr_execution_allowed": true
+      },
+      "expected_status": "fail_closed_forbidden_operation_boundary"
+    }
+  ]
+}

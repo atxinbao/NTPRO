@@ -100,6 +100,18 @@ Final release checks, benchmark summaries, and audit reports live here.
   operation/control cases.
 - `../evidence/V290-007.md` - V290-007 monitoring alert incident production
   readiness evidence for GitHub issue #933.
+- `v0_29_0_canary_rollback_dr_preflight_readiness.md` - V290-008 contract
+  that promotes canary, rollback, and disaster-recovery preflight readiness to
+  backend production readiness evidence through canary eligibility, rollback
+  triggers, DR drill evidence, freshness, provenance, owner approvals, and
+  preview-only preflight checks.
+- `v0_29_0_canary_rollback_dr_preflight_readiness_artifact.json` -
+  source-controlled V290-008 backend artifact for canary/rollback/DR preflight
+  readiness and fail-closed missing canary eligibility, missing owner approval,
+  stale DR evidence, unsafe rollback plan, ambiguous go-live claim, forbidden
+  execution, and forbidden operation/control cases.
+- `../evidence/V290-008.md` - V290-008 canary rollback DR preflight readiness
+  evidence for GitHub issue #934.
 - `../evidence/V281-010.md` - V281-010 v28.1 nested base-gate tag-scope
   isolation evidence for GitHub issue #948.
 - `../evidence/V281-009.md` - V281-009 v28.1 prepublish live-current require
