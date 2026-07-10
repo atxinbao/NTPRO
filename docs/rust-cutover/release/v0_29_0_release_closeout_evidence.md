@@ -52,7 +52,7 @@ hosted release gate jobs = 88/88 success
 release publication after gate = pass
 release publish after gate current-release binding = pass
 post-publication closeout gate = required
-post-publication closeout gate stage = scripts/ai/verify_release.sh v29.1-post-publication-closeout-gate
+post-publication closeout gate stage = scripts/ai/verify_v29_1_post_publication_closeout_gate.sh source
 release_gate_ready-only artifacts after publication accepted = false
 source_tree_plus_github_remote reconstruction accepted = true
 generated-evidence-only proof accepted = false
@@ -75,13 +75,13 @@ v0.30.0 intake requires this source-controlled closeout evidence = true
 ```text
 release body hash semantics = normalized_sha256
 release body normalization = line_rstrip_and_outer_strip
-release body normalized sha256 = 8ae80fbd084abf698cee78d7a59d415148ad8b0eb6d23f4e93c281794e58fb1f
-tracked release notes normalized sha256 = 8ae80fbd084abf698cee78d7a59d415148ad8b0eb6d23f4e93c281794e58fb1f
+release body normalized sha256 = 842d84a144a0b6b704c43f6004175262c34bcc57e559e433f987e4934ff20d33
+tracked release notes normalized sha256 = 842d84a144a0b6b704c43f6004175262c34bcc57e559e433f987e4934ff20d33
 normalized release body matches tracked release notes = true
-release body normalized line count = 113
-tracked release notes normalized line count = 113
-release body raw sha256 = 522f4a7000fe0839f8cb65c2393528a58491f89a9203d6bd1738dedaa35ba110
-tracked release notes raw sha256 = 522f4a7000fe0839f8cb65c2393528a58491f89a9203d6bd1738dedaa35ba110
+release body normalized line count = 112
+tracked release notes normalized line count = 112
+release body raw sha256 = 660bd36e6fd16329bc3fb842bdaf5da25434beffae2eb9edc246bf28281f93fb
+tracked release notes raw sha256 = 660bd36e6fd16329bc3fb842bdaf5da25434beffae2eb9edc246bf28281f93fb
 raw release body matches tracked release notes = true
 raw hash equality is diagnostic, not the acceptance rule
 ```

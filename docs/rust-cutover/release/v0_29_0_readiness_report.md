@@ -75,7 +75,6 @@ hosted release gate conclusion = success
 hosted release gate jobs = 88/88 success
 tag commit = 85110d29867763f8d3b6395f4ff8154378b475b9
 release body hash semantics = normalized_sha256
-scripts/ai/verify_release.sh v29.1-post-publication-closeout-gate
 scripts/ai/verify_v29_1_post_publication_closeout_gate.sh
 ```
 

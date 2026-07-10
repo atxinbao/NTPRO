@@ -144,7 +144,6 @@ for marker in \
   "release body hash semantics = normalized_sha256" \
   "scripts/ai/verify_release.sh v29-release-gates" \
   "scripts/ai/verify_release.sh v29-strict-provenance" \
-  "scripts/ai/verify_release.sh v29.1-post-publication-closeout-gate" \
   "scripts/ai/verify_v29_release_gates.sh" \
   "scripts/ai/verify_v29_strict_provenance.sh" \
   "scripts/ai/verify_v29_1_post_publication_closeout_gate.sh" \
@@ -179,7 +178,6 @@ for marker in \
   "published release status = published_after_gate" \
   "hosted release gate run = 29091765148" \
   "release body hash semantics = normalized_sha256" \
-  "scripts/ai/verify_release.sh v29.1-post-publication-closeout-gate" \
   "scripts/ai/verify_v29_1_post_publication_closeout_gate.sh" \
   "v0.30.0 go-live candidate start = blocked until v0.29.0 publication evidence exists"; do
   require_contains "$READINESS_REPORT_PATH" "$marker"

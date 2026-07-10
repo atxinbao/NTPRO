@@ -1076,7 +1076,6 @@ case "$CURRENT_RELEASE_VERSION" in
       "product_grade_trading_terminal_claim = false"
       "scripts/ai/verify_release.sh v29-release-gates"
       "scripts/ai/verify_release.sh v29-strict-provenance"
-      "scripts/ai/verify_release.sh v29.1-post-publication-closeout-gate"
       "scripts/ai/verify_v29_release_gates.sh"
       "scripts/ai/verify_v29_strict_provenance.sh"
       "scripts/ai/verify_v29_1_post_publication_closeout_gate.sh"

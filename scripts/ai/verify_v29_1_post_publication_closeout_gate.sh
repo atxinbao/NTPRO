@@ -215,7 +215,7 @@ def validate(candidate: dict, notes_text: str, readiness_text: str, closeout: st
     closeout_gate = candidate.get("post_publication_closeout_gate") or {}
     require(closeout_gate.get("task_id") == "V291-004", "post-publication gate task mismatch")
     require(closeout_gate.get("issue") == 966, "post-publication gate issue mismatch")
-    require(closeout_gate.get("gate") == "scripts/ai/verify_release.sh v29.1-post-publication-closeout-gate", "gate command mismatch")
+    require(closeout_gate.get("gate") == "scripts/ai/verify_v29_1_post_publication_closeout_gate.sh source", "gate command mismatch")
     require(closeout_gate.get("required_release_status") == "released", "required release status mismatch")
     require(closeout_gate.get("rejects_release_gate_ready_only") is True, "release_gate_ready rejection missing")
     require(closeout_gate.get("requires_source_tree_plus_github_remote") is True, "source_tree_plus_github_remote requirement missing")
@@ -252,7 +252,7 @@ for marker in [
 
 for marker in [
     "Task: `V291-004` / GitHub issue `#966`",
-    "Status: LOCAL SOURCE VALIDATION PASS",
+    "Status: LOCAL AND LIVE VALIDATION PASS",
     "release_gate_ready-only artifacts rejected = true",
     "generated-evidence-only proof rejected = true",
     "source_tree_plus_github_remote reconstruction required = true",
