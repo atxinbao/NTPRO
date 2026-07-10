@@ -152,8 +152,8 @@
   "next_tracks": {
     "patch": "v0.29.1",
     "capability": "v0.30.0",
-    "capability_entry": "backend_production_go_live_candidate_after_v290_release_evidence",
-    "start_gate": "blocked_until_v290_release_evidence_published",
+    "capability_entry": "backend_production_go_live_candidate_after_v291_release_evidence",
+    "start_gate": "blocked_until_v291_release_evidence_published",
     "implementation_started": false,
     "inherits_backend_go_live_claim": false,
     "inherits_production_submit": false,
@@ -184,7 +184,25 @@
     "remote_reconstruction_required": true,
     "generated_publication_evidence_sole_proof_allowed": false,
     "v0_30_start_gate_fails_without_v290_release_evidence": true,
+    "v0_30_start_gate_fails_without_v291_release_evidence": true,
+    "v0_29_0_publication_evidence_alone_unlocks_v0_30": false,
     "next_track_does_not_inherit_trading_controls": true
+  },
+  "v291_v30_start_gate": {
+    "task_id": "V291-005",
+    "issue": 967,
+    "requirements_path": "docs/rust-cutover/release/v0_29_1_v30_start_gate_requirements.json",
+    "gate": "scripts/ai/verify_v29_1_v30_start_gate.sh",
+    "required_v291_issue_set": "#963-#968",
+    "required_v291_issue_numbers": [963, 964, 965, 966, 967, 968],
+    "v29_0_publication_evidence_alone_unlocks_v30": false,
+    "v29_1_release_evidence_required": true,
+    "v29_1_release_closeout_proof_required": true,
+    "v30_intake_fails_if_any_v291_issue_open": true,
+    "v30_intake_fails_if_v291_release_evidence_missing": true,
+    "v30_default_trading_and_mutation_controls_disabled": true,
+    "runtime_behavior_changed": false,
+    "trading_behavior_changed": false
   },
   "post_release_closeout": {
     "closeout_evidence_path": "docs/rust-cutover/release/v0_29_0_release_closeout_evidence.md",

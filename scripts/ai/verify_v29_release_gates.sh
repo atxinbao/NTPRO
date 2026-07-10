@@ -78,6 +78,8 @@ for path in \
   "$READINESS_REPORT_PATH" \
   "$HANDOFF_PATH" \
   "$MATRIX_PATH" \
+  docs/rust-cutover/release/v0_29_1_v30_start_gate.md \
+  docs/rust-cutover/release/v0_29_1_v30_start_gate_requirements.json \
   docs/rust-cutover/release/v0_28_1_release_manifest.json \
   docs/rust-cutover/release/v0_28_1_release_closeout_evidence.md \
   README.md \
@@ -100,6 +102,7 @@ for path in \
   scripts/ai/verify_v29_backend_production_readiness_fail_closed_hardening.sh \
   scripts/ai/verify_v29_release_gates.sh \
   scripts/ai/verify_v29_strict_provenance.sh \
+  scripts/ai/verify_v29_1_v30_start_gate.sh \
   scripts/ai/verify_release.sh; do
   require_file "$path"
 done
@@ -179,7 +182,10 @@ for marker in \
   "hosted release gate run = 29091765148" \
   "release body hash semantics = normalized_sha256" \
   "scripts/ai/verify_v29_1_post_publication_closeout_gate.sh" \
-  "v0.30.0 go-live candidate start = blocked until v0.29.0 publication evidence exists"; do
+  "v0.30.0 go-live candidate start = blocked until v0.29.1 release evidence exists" \
+  "v0.29.0 publication evidence alone unlocks v0.30.0 = false" \
+  "v0.29.1 exact issue set required before v0.30.0 intake = #963-#968" \
+  "v0.29.1 release closeout proof required before v0.30.0 intake = true"; do
   require_contains "$READINESS_REPORT_PATH" "$marker"
 done
 
@@ -187,7 +193,11 @@ for marker in \
   "v0.30.0 backend production go-live candidate = next track" \
   "v0.30.0 default trading controls = false" \
   "v0.30.0 backend go-live claim inherited from v0.29.0 = false" \
-  "v0.30.0 requires new scoped issues before any production enablement = true"; do
+  "v0.30.0 requires new scoped issues before any production enablement = true" \
+  "v0.30.0 start gate = blocked_until_v291_release_evidence_published" \
+  "v0.29.0 publication evidence alone unlocks v0.30.0 = false" \
+  "v0.29.1 exact issue set required before v0.30.0 intake = #963-#968" \
+  "v0.29.1 release evidence required before v0.30.0 intake = true"; do
   require_contains "$HANDOFF_PATH" "$marker"
 done
 
@@ -385,10 +395,21 @@ def validate(candidate: dict) -> None:
     require(closeout_gate.get("generated_evidence_only_allowed") is False, "generated-only proof must be rejected")
     next_tracks = candidate.get("next_tracks") or {}
     require(next_tracks.get("capability") == "v0.30.0", "next capability mismatch")
-    require(next_tracks.get("capability_entry") == "backend_production_go_live_candidate_after_v290_release_evidence", "next capability entry mismatch")
-    require(next_tracks.get("start_gate") == "blocked_until_v290_release_evidence_published", "next start gate mismatch")
+    require(next_tracks.get("capability_entry") == "backend_production_go_live_candidate_after_v291_release_evidence", "next capability entry mismatch")
+    require(next_tracks.get("start_gate") == "blocked_until_v291_release_evidence_published", "next start gate mismatch")
     require(next_tracks.get("implementation_started") is False, "v30 implementation must not start")
     require(next_tracks.get("inherits_backend_go_live_claim") is False, "v30 must not inherit backend go-live claim")
+    requirements = candidate.get("post_publication_requirements") or {}
+    require(requirements.get("v0_30_start_gate_fails_without_v291_release_evidence") is True, "v291 start gate blocker missing")
+    require(requirements.get("v0_29_0_publication_evidence_alone_unlocks_v0_30") is False, "v29.0-only unlock flag mismatch")
+    gate = candidate.get("v291_v30_start_gate") or {}
+    require(gate.get("task_id") == "V291-005", "v291 v30 start gate task mismatch")
+    require(gate.get("issue") == 967, "v291 v30 start gate issue mismatch")
+    require(gate.get("required_v291_issue_numbers") == [963, 964, 965, 966, 967, 968], "v291 issue scope mismatch")
+    require(gate.get("v29_0_publication_evidence_alone_unlocks_v30") is False, "v29.0-only v30 unlock must be false")
+    require(gate.get("v29_1_release_evidence_required") is True, "v29.1 release evidence requirement missing")
+    require(gate.get("v30_intake_fails_if_any_v291_issue_open") is True, "open V291 issue blocker missing")
+    require(gate.get("v30_intake_fails_if_v291_release_evidence_missing") is True, "missing V291 release blocker missing")
     for key in false_flags:
         require((candidate.get("boundary_flags") or {}).get(key) is False, f"boundary must remain false: {key}")
 

@@ -1,0 +1,97 @@
+{
+  "schema_version": "ntpro.v291_v30_start_gate_requirements.v1",
+  "task_id": "V291-005",
+  "issue": 967,
+  "milestone": "v0.29.1",
+  "blocked_capability": "v0.30.0",
+  "status": "blocked_until_v291_release_evidence_published",
+  "required_prior_release": {
+    "version": "v0.29.1",
+    "tag": "ntpro-rust-only-v0.29.1",
+    "name": "NTPRO Rust-only v0.29.1",
+    "release_manifest_path": "docs/rust-cutover/release/v0_29_1_release_manifest.json",
+    "release_notes_path": "docs/rust-cutover/release/v0_29_1_release_notes.md",
+    "release_closeout_evidence_path": "docs/rust-cutover/release/v0_29_1_release_closeout_evidence.md",
+    "github_release_published_required": true,
+    "hosted_release_gate_success_required": true,
+    "publication_after_hosted_gate_required": true,
+    "strict_provenance_required": true,
+    "source_controlled_closeout_evidence_required": true,
+    "generated_publication_evidence_sole_proof_allowed": false
+  },
+  "required_v291_issue_scope": {
+    "exact_issue_numbers": [963, 964, 965, 966, 967, 968],
+    "exact_issue_set": "#963-#968",
+    "all_closed_before_v30_start": true,
+    "open_issue_blocks_v30_start": true,
+    "unregistered_milestone_issue_blocks_v30_start": true
+  },
+  "required_dependencies": {
+    "V291-001": {
+      "issue": 963,
+      "evidence": "docs/rust-cutover/evidence/V291-001.md",
+      "required": true
+    },
+    "V291-002": {
+      "issue": 964,
+      "evidence": "docs/rust-cutover/evidence/V291-002.md",
+      "required": true
+    },
+    "V291-003": {
+      "issue": 965,
+      "evidence": "docs/rust-cutover/evidence/V291-003.md",
+      "required": true
+    },
+    "V291-004": {
+      "issue": 966,
+      "evidence": "docs/rust-cutover/evidence/V291-004.md",
+      "required": true
+    },
+    "V291-005": {
+      "issue": 967,
+      "evidence": "docs/rust-cutover/evidence/V291-005.md",
+      "required": true
+    },
+    "V291-006": {
+      "issue": 968,
+      "evidence": "docs/rust-cutover/evidence/V291-006.md",
+      "required": true,
+      "release_gate_task": true
+    }
+  },
+  "v30_start_requirements": {
+    "v29_0_publication_evidence_alone_unlocks_v30": false,
+    "v29_1_release_evidence_required": true,
+    "v29_post_publication_closeout_gate_required": true,
+    "v29_publish_after_gate_current_binding_required": true,
+    "v290_stale_evidence_cleanup_required": true,
+    "v30_intake_fails_if_any_v291_issue_open": true,
+    "v30_intake_fails_if_v291_release_evidence_missing": true,
+    "v30_intake_requires_exact_v291_issue_scope": true,
+    "v30_intake_requires_v291_release_closeout_proof": true
+  },
+  "v30_default_boundary": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "product_grade_trading_terminal_claim": false
+  }
+}
