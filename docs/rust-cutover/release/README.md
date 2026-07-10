@@ -76,6 +76,18 @@ Final release checks, benchmark summaries, and audit reports live here.
   unredacted, and forbidden-control cases.
 - `../evidence/V290-005.md` - V290-005 read-only backend API production
   readiness evidence for GitHub issue #931.
+- `v0_29_0_deployment_config_runbook_production_readiness.md` - V290-006
+  contract that promotes deployment config and operator runbook readiness to
+  backend production readiness evidence through source-controlled config,
+  provenance, redaction, rotation expectations, validation commands, operator
+  handoff, rollback criteria, and escalation paths.
+- `v0_29_0_deployment_config_runbook_production_readiness_artifact.json` -
+  source-controlled V290-006 backend artifact for deploy/upgrade/rollback
+  preview readiness and fail-closed missing config, unsafe defaults, stale
+  runbook, ambiguous production claim, forbidden execution, and forbidden
+  operation/control cases.
+- `../evidence/V290-006.md` - V290-006 deployment config and runbook
+  production readiness evidence for GitHub issue #932.
 - `../evidence/V281-010.md` - V281-010 v28.1 nested base-gate tag-scope
   isolation evidence for GitHub issue #948.
 - `../evidence/V281-009.md` - V281-009 v28.1 prepublish live-current require
