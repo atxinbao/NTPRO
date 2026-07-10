@@ -30,6 +30,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   context only, while final proof is hosted gate `29091765148`, `12/12` closed
   issue scope, strict provenance `tag_exists=true source_dirty=false`, and the
   public v0.29.0 closeout ledger.
+- `../evidence/V291-004.md` - V291-004 post-publication closeout gate
+  hardening for GitHub issue #966. It rejects v0.29.0 release-gate-ready-only
+  and generated-evidence-only states after publication, requires
+  source-tree-plus-GitHub reconstruction, and preserves normalized release body
+  hash semantics.
 - `v0_29_0_v30_go_live_candidate_handoff.md` - V290-010 handoff document that
   defines `v0.30.0` as a backend production go-live candidate track without
   inherited default trading controls or backend go-live claims.
