@@ -68,6 +68,9 @@ release-publication-evidence/ntpro-rust-only-v0.29.0.json = generated artifact, 
 generated publication evidence sole proof allowed = false
 historical fixture-only current-release proof allowed = false
 v0.30.0 intake requires this source-controlled closeout evidence = true
+v0.29.0 publication evidence alone unlocks v0.30.0 = false
+v0.30.0 start gate = blocked_until_v291_release_evidence_published
+v0.29.1 release evidence required before v0.30.0 intake = true
 ```
 
 ## Release Body Hash

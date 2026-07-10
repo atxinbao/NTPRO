@@ -35,9 +35,20 @@ Final release checks, benchmark summaries, and audit reports live here.
   and generated-evidence-only states after publication, requires
   source-tree-plus-GitHub reconstruction, and preserves normalized release body
   hash semantics.
+- `v0_29_1_v30_start_gate.md` and
+  `v0_29_1_v30_start_gate_requirements.json` - V291-005 v30 start-gate
+  hardening for GitHub issue #967. They require exact V291 issue scope
+  `#963-#968`, v0.29.1 release evidence, and v0.29.1 closeout proof before
+  v0.30.0 intake can proceed; v0.29.0 publication evidence alone is not
+  sufficient.
+- `../evidence/V291-005.md` - V291-005 evidence that v0.30.0 intake remains
+  fail-closed while any V291 issue is open or v0.29.1 release evidence is
+  missing.
 - `v0_29_0_v30_go_live_candidate_handoff.md` - V290-010 handoff document that
   defines `v0.30.0` as a backend production go-live candidate track without
-  inherited default trading controls or backend go-live claims.
+  inherited default trading controls or backend go-live claims. V291-005
+  hardens this handoff so v0.29.1 release evidence is also required before
+  v0.30.0 intake.
 - `../evidence/V290-010.md` - V290-010 v29 release gates, strict provenance,
   release manifest, and v30 handoff evidence for GitHub issue #936. Its
   original PR-mode/pre-tag output is retained as historical context, with final

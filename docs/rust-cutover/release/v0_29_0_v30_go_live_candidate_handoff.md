@@ -4,7 +4,7 @@ Date: 2026-07-10
 Executor: Codex
 Task: `V290-010` / GitHub issue `#936`
 Milestone: `v0.29.0`
-Status: RELEASE GATE READY
+Status: POST-PUBLICATION HARDENED BY V291-005
 
 ## Handoff Contract
 
@@ -13,12 +13,20 @@ v0.30.0 backend production go-live candidate = next track
 v0.30.0 default trading controls = false
 v0.30.0 backend go-live claim inherited from v0.29.0 = false
 v0.30.0 requires new scoped issues before any production enablement = true
-v0.30.0 start gate = blocked_until_v290_release_evidence_published
+v0.30.0 start gate = blocked_until_v291_release_evidence_published
+v0.29.0 publication evidence alone unlocks v0.30.0 = false
+v0.29.1 exact issue set required before v0.30.0 intake = #963-#968
+v0.29.1 release evidence required before v0.30.0 intake = true
 ```
 
 v0.29.0 proves backend production readiness evidence. It does not authorize a
 backend production deployment, live external request, order mutation, automatic
 remediation, or user-facing live trading terminal.
+
+V291-005 hardens this handoff after v0.29.0 publication: v0.29.0 publication
+evidence remains required, but it is not sufficient to start the v0.30.0
+go-live candidate track. v0.30.0 intake must also prove the full v0.29.1 issue
+set and v0.29.1 release closeout evidence.
 
 ## Required v0.30.0 Inputs
 
@@ -32,6 +40,10 @@ operator approval model = required
 rollback and DR execution boundary = required
 incident escalation and freeze criteria = required
 trading controls default disabled = required
+v0.29.1 release closeout proof = required
+v0.29.1 release gates and strict provenance = required
+v0.29.1 publication after hosted gate = required
+v0.29.1 generated-evidence-only proof accepted = false
 ```
 
 ## Boundary

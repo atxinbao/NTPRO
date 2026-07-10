@@ -26,6 +26,8 @@ input_paths=(
   "$RELEASE_NOTES_PATH"
   "$READINESS_REPORT_PATH"
   "$HANDOFF_PATH"
+  "$ROOT_DIR/docs/rust-cutover/release/v0_29_1_v30_start_gate.md"
+  "$ROOT_DIR/docs/rust-cutover/release/v0_29_1_v30_start_gate_requirements.json"
   "$ROOT_DIR/docs/rust-cutover/release/v0_29_0_backend_production_readiness_matrix.json"
   "$ROOT_DIR/docs/rust-cutover/release/v0_29_0_intake_gate.md"
   "$ROOT_DIR/docs/rust-cutover/release/v0_29_0_backend_production_readiness_boundary_contract.md"
@@ -68,6 +70,7 @@ input_paths=(
   "$ROOT_DIR/scripts/ai/verify_v29_backend_production_readiness_fail_closed_hardening.sh"
   "$ROOT_DIR/scripts/ai/verify_v29_release_gates.sh"
   "$ROOT_DIR/scripts/ai/verify_v29_strict_provenance.sh"
+  "$ROOT_DIR/scripts/ai/verify_v29_1_v30_start_gate.sh"
   "$ROOT_DIR/.github/workflows/release-tag.yml"
   "$ROOT_DIR/.github/workflows/release-publish.yml"
 )
@@ -171,7 +174,20 @@ require(requirements.get("all_v290_issues_closed_required") is True, "V290 close
 require(requirements.get("hosted_release_gate_success_required") is True, "hosted gate requirement missing")
 require(requirements.get("strict_release_body_match_required") is True, "strict body requirement missing")
 require(requirements.get("publication_after_hosted_gate_required") is True, "publication after gate requirement missing")
-require(requirements.get("v0_30_start_gate_fails_without_v290_release_evidence") is True, "v30 hard-block requirement missing")
+require(requirements.get("v0_30_start_gate_fails_without_v290_release_evidence") is True, "v30 v290 hard-block requirement missing")
+require(requirements.get("v0_30_start_gate_fails_without_v291_release_evidence") is True, "v30 v291 hard-block requirement missing")
+require(requirements.get("v0_29_0_publication_evidence_alone_unlocks_v0_30") is False, "v29.0-only unlock flag mismatch")
+next_tracks = release_manifest.get("next_tracks") or {}
+require(next_tracks.get("start_gate") == "blocked_until_v291_release_evidence_published", "v30 start gate mismatch")
+require(next_tracks.get("capability_entry") == "backend_production_go_live_candidate_after_v291_release_evidence", "v30 capability entry mismatch")
+v291_gate = release_manifest.get("v291_v30_start_gate") or {}
+require(v291_gate.get("task_id") == "V291-005", "v291 start gate task mismatch")
+require(v291_gate.get("issue") == 967, "v291 start gate issue mismatch")
+require(v291_gate.get("required_v291_issue_numbers") == [963, 964, 965, 966, 967, 968], "v291 issue scope mismatch")
+require(v291_gate.get("v29_0_publication_evidence_alone_unlocks_v30") is False, "v29.0-only v30 unlock must be false")
+require(v291_gate.get("v29_1_release_evidence_required") is True, "v291 release evidence requirement missing")
+require(v291_gate.get("v30_intake_fails_if_any_v291_issue_open") is True, "v291 open issue blocker missing")
+require(v291_gate.get("v30_intake_fails_if_v291_release_evidence_missing") is True, "v291 missing release blocker missing")
 for key in [
     "new_submit_capability",
     "production_order_submission_allowed",

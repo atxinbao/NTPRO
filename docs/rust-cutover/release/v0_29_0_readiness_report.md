@@ -108,8 +108,11 @@ product_grade_trading_terminal_claim = false
 ## Handoff
 
 ```text
-v0.30.0 go-live candidate start = blocked until v0.29.0 publication evidence exists
+v0.30.0 go-live candidate start = blocked until v0.29.1 release evidence exists
 v0.30.0 backend production go-live candidate = next track
 v0.30.0 default trading controls = false
 v0.30.0 requires new scoped issues before any production enablement = true
+v0.29.0 publication evidence alone unlocks v0.30.0 = false
+v0.29.1 exact issue set required before v0.30.0 intake = #963-#968
+v0.29.1 release closeout proof required before v0.30.0 intake = true
 ```
