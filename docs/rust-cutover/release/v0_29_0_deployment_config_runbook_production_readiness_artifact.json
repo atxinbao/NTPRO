@@ -1,0 +1,86 @@
+{
+  "schema_version": "ntpro.v290.deployment_config_runbook_production_readiness_artifact.v1",
+  "contract_version": "ntpro.v290.deployment_config_runbook_production_readiness.v1",
+  "task_id": "V290-006",
+  "github_issue": 932,
+  "milestone": "v0.29.0",
+  "release_scope": "backend_production_readiness_foundation_only",
+  "backend_module": "deployment_config_runbook_production_readiness",
+  "backend_module_status": "production_ready_evidence",
+  "readiness_mode": "deterministic_readiness_replay",
+  "deployment_mode": "config_readiness_preview_only",
+  "dependency_contracts": [
+    "V290-000",
+    "V290-001",
+    "V290-005",
+    "V280-004",
+    "v0.28.1-release-evidence"
+  ],
+  "deployment_config": {
+    "config_id": "v290-deployment-config-readiness",
+    "source_ref": "docs/rust-cutover/release/v0_28_0_deployment_orchestration_runtime_artifact.json",
+    "environment": "production_readiness_sandbox",
+    "config_digest": "sha256:3d9e1e4b2a27d81d21f809040174ca2f3ca0b530802a2f857bd3de56545bd113",
+    "required_inputs_present": true,
+    "environment_provenance_status": "linked",
+    "redaction_status": "redacted",
+    "secret_rotation_expectation": "documented",
+    "unsafe_defaults_allowed": false,
+    "production_execution_claim_allowed": false,
+    "validation_commands": [
+      "scripts/ai/verify_release.sh v29-deployment-config-runbook-production-readiness",
+      "scripts/ai/verify_release.sh v29-backend-production-readiness-boundary-contract"
+    ]
+  },
+  "runbook": {
+    "runbook_id": "v290-deployment-runbook-readiness",
+    "source_ref": "docs/rust-cutover/evidence/V290-006.md",
+    "freshness_status": "fresh",
+    "provenance_status": "linked",
+    "operator_handoff_status": "documented",
+    "rollback_criteria_status": "documented",
+    "escalation_paths_status": "documented",
+    "owner_approval_required": true,
+    "ambiguous_production_claim_allowed": false
+  },
+  "preview_transitions": [
+    {"transition_id": "deploy-preview", "preview_only": true, "owner_approval_present": true, "execution_triggered": false, "operation_effect": "validated_only"},
+    {"transition_id": "upgrade-preview", "preview_only": true, "owner_approval_present": true, "execution_triggered": false, "operation_effect": "validated_only"},
+    {"transition_id": "rollback-preview", "preview_only": true, "owner_approval_present": true, "execution_triggered": false, "operation_effect": "validated_only"}
+  ],
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "product_grade_trading_terminal_claim": false,
+    "production_deployment_execution_allowed": false,
+    "rollback_execution_allowed": false
+  },
+  "readiness_cases": [
+    {"case_id": "deployment_config_runbook.production_readiness.preview.allowed.001", "expected_status": "deployment_config_runbook_readiness_ready"},
+    {"case_id": "deployment_config_runbook.production_readiness.missing_config.fail_closed.001", "deployment_config_override": {"required_inputs_present": false}, "expected_status": "fail_closed_missing_config"},
+    {"case_id": "deployment_config_runbook.production_readiness.unsafe_defaults.fail_closed.001", "deployment_config_override": {"unsafe_defaults_allowed": true}, "expected_status": "fail_closed_unsafe_defaults"},
+    {"case_id": "deployment_config_runbook.production_readiness.stale_runbook.fail_closed.001", "runbook_override": {"freshness_status": "stale"}, "expected_status": "fail_closed_stale_runbook"},
+    {"case_id": "deployment_config_runbook.production_readiness.ambiguous_claim.fail_closed.001", "runbook_override": {"ambiguous_production_claim_allowed": true}, "expected_status": "fail_closed_ambiguous_production_claim"},
+    {"case_id": "deployment_config_runbook.production_readiness.forbidden_execution.fail_closed.001", "transition_overrides": {"deploy-preview": {"execution_triggered": true, "operation_effect": "production_deploy_executed"}}, "expected_status": "fail_closed_forbidden_execution"},
+    {"case_id": "deployment_config_runbook.production_readiness.forbidden_boundary.fail_closed.001", "boundary_flags_override": {"automatic_remediation_allowed": true}, "expected_status": "fail_closed_forbidden_operation_boundary"}
+  ]
+}
