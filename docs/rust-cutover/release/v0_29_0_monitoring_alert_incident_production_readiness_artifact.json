@@ -1,0 +1,233 @@
+{
+  "schema_version": "ntpro.v290.monitoring_alert_incident_production_readiness_artifact.v1",
+  "contract_version": "ntpro.v290.monitoring_alert_incident_production_readiness.v1",
+  "task_id": "V290-007",
+  "github_issue": 933,
+  "milestone": "v0.29.0",
+  "release_scope": "backend_production_readiness_foundation_only",
+  "backend_module": "monitoring_alert_incident_production_readiness",
+  "backend_module_status": "production_ready_evidence",
+  "readiness_mode": "deterministic_readiness_replay",
+  "incident_mode": "manual_read_only_handoff",
+  "dependency_contracts": [
+    "V290-000",
+    "V290-001",
+    "V290-002",
+    "V290-003",
+    "V290-006",
+    "V250-001",
+    "V250-002",
+    "V250-003",
+    "v0.28.1-release-evidence"
+  ],
+  "monitoring_source": {
+    "source_id": "v290-monitoring-alert-incident-readiness",
+    "source_refs": [
+      "docs/rust-cutover/release/v0_25_0_monitoring_observability_contract.md",
+      "docs/rust-cutover/release/v0_25_0_alert_taxonomy_routing.md",
+      "docs/rust-cutover/release/v0_25_0_incident_lifecycle_acknowledgement.md",
+      "docs/rust-cutover/release/v0_29_0_telemetry_slo_ingestion_production_readiness_artifact.json"
+    ],
+    "freshness_status": "fresh",
+    "source_provenance_status": "linked",
+    "redaction_status": "redacted",
+    "slo_status": "within_target",
+    "slo_breach_handling": "manual_audit_only",
+    "operator_handoff_ref": "docs/rust-cutover/release/v0_29_0_deployment_config_runbook_production_readiness_artifact.json"
+  },
+  "alert_taxonomy": {
+    "severity_order": [
+      "info",
+      "warning",
+      "critical",
+      "halt"
+    ],
+    "categories": [
+      "stale_data",
+      "missing_provenance",
+      "risk_fail_closed",
+      "order_control_preview_blocked",
+      "release_gate_drift",
+      "production_readiness_slo_breach"
+    ],
+    "owner_routing_status": "routed",
+    "acknowledgement_semantics": "documented",
+    "audit_requirement": "required",
+    "escalation_paths_status": "documented",
+    "stale_source_allowed": false,
+    "external_paging_service_connected": false,
+    "automatic_remediation_allowed": false
+  },
+  "incident_lifecycle": {
+    "states": [
+      "opened",
+      "triaged",
+      "acknowledged",
+      "mitigated",
+      "resolved",
+      "postmortem"
+    ],
+    "allowed_transitions": [
+      "none->opened",
+      "opened->triaged",
+      "triaged->acknowledged",
+      "acknowledged->mitigated",
+      "mitigated->resolved",
+      "resolved->postmortem"
+    ],
+    "owner_required": true,
+    "assignee_required": true,
+    "source_alert_required": true,
+    "acknowledgement_required_before_resolved": true,
+    "audit_trace_required": true,
+    "manual_handoff_only": true,
+    "external_ticket_mutation_allowed": false,
+    "automatic_incident_generation_allowed": false,
+    "automatic_strategy_stop_allowed": false
+  },
+  "incident_transitions": [
+    {
+      "transition_id": "none->opened",
+      "manual_operator_action": true,
+      "owner_route_present": true,
+      "acknowledgement_present": false,
+      "audit_trace_status": "linked",
+      "operation_effect": "evidence_only",
+      "automatic_action_triggered": false
+    },
+    {
+      "transition_id": "opened->triaged",
+      "manual_operator_action": true,
+      "owner_route_present": true,
+      "acknowledgement_present": false,
+      "audit_trace_status": "linked",
+      "operation_effect": "evidence_only",
+      "automatic_action_triggered": false
+    },
+    {
+      "transition_id": "triaged->acknowledged",
+      "manual_operator_action": true,
+      "owner_route_present": true,
+      "acknowledgement_present": true,
+      "audit_trace_status": "linked",
+      "operation_effect": "evidence_only",
+      "automatic_action_triggered": false
+    },
+    {
+      "transition_id": "acknowledged->mitigated",
+      "manual_operator_action": true,
+      "owner_route_present": true,
+      "acknowledgement_present": true,
+      "audit_trace_status": "linked",
+      "operation_effect": "evidence_only",
+      "automatic_action_triggered": false
+    },
+    {
+      "transition_id": "mitigated->resolved",
+      "manual_operator_action": true,
+      "owner_route_present": true,
+      "acknowledgement_present": true,
+      "audit_trace_status": "linked",
+      "operation_effect": "evidence_only",
+      "automatic_action_triggered": false
+    },
+    {
+      "transition_id": "resolved->postmortem",
+      "manual_operator_action": true,
+      "owner_route_present": true,
+      "acknowledgement_present": true,
+      "audit_trace_status": "linked",
+      "operation_effect": "evidence_only",
+      "automatic_action_triggered": false
+    }
+  ],
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "product_grade_trading_terminal_claim": false,
+    "external_paging_service_connected": false,
+    "automatic_paging_allowed": false,
+    "external_ticket_mutation_allowed": false,
+    "automatic_incident_generation_allowed": false,
+    "automatic_strategy_stop_allowed": false,
+    "incident_state_triggers_remediation": false,
+    "slo_breach_triggers_trading_control": false
+  },
+  "readiness_cases": [
+    {
+      "case_id": "monitoring_alert_incident.production_readiness.ready.allowed.001",
+      "expected_status": "monitoring_alert_incident_readiness_ready"
+    },
+    {
+      "case_id": "monitoring_alert_incident.production_readiness.slo_breach.degraded.001",
+      "monitoring_source_override": {
+        "slo_status": "breach"
+      },
+      "expected_status": "degraded_slo_breach_manual_handoff"
+    },
+    {
+      "case_id": "monitoring_alert_incident.production_readiness.stale_alert_source.fail_closed.001",
+      "monitoring_source_override": {
+        "freshness_status": "stale"
+      },
+      "expected_status": "fail_closed_stale_alert_source"
+    },
+    {
+      "case_id": "monitoring_alert_incident.production_readiness.missing_owner_routing.fail_closed.001",
+      "alert_taxonomy_override": {
+        "owner_routing_status": "missing"
+      },
+      "expected_status": "fail_closed_missing_owner_routing"
+    },
+    {
+      "case_id": "monitoring_alert_incident.production_readiness.missing_acknowledgement.fail_closed.001",
+      "alert_taxonomy_override": {
+        "acknowledgement_semantics": "missing"
+      },
+      "incident_lifecycle_override": {
+        "acknowledgement_required_before_resolved": false
+      },
+      "expected_status": "fail_closed_missing_acknowledgement_semantics"
+    },
+    {
+      "case_id": "monitoring_alert_incident.production_readiness.missing_audit.fail_closed.001",
+      "alert_taxonomy_override": {
+        "audit_requirement": "missing"
+      },
+      "expected_status": "fail_closed_missing_audit_requirements"
+    },
+    {
+      "case_id": "monitoring_alert_incident.production_readiness.unsafe_auto_remediation.fail_closed.001",
+      "alert_taxonomy_override": {
+        "automatic_remediation_allowed": true
+      },
+      "expected_status": "fail_closed_unsafe_auto_remediation"
+    },
+    {
+      "case_id": "monitoring_alert_incident.production_readiness.forbidden_boundary.fail_closed.001",
+      "boundary_flags_override": {
+        "adapter_send_allowed": true
+      },
+      "expected_status": "fail_closed_forbidden_operation_boundary"
+    }
+  ]
+}
