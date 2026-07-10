@@ -50,14 +50,17 @@ hosted release gate created at = 2026-07-10T12:11:26Z
 hosted release gate completed at = 2026-07-10T13:43:15Z
 hosted release gate jobs = 88/88 success
 release publication after gate = pass
+release publish after gate current-release binding = pass
 publication status = published_after_gate
 published after hosted gate = true
 release_gate_run_id = 29091765148
+published_at is public publication proof = true
 published_at >= release_gate_completed_at = true
 release body matches tracked release notes = true
 source-controlled closeout evidence = docs/rust-cutover/release/v0_29_0_release_closeout_evidence.md
 release-publication-evidence/ntpro-rust-only-v0.29.0.json = generated artifact, not sole proof
 generated publication evidence sole proof allowed = false
+historical fixture-only current-release proof allowed = false
 v0.30.0 intake requires this source-controlled closeout evidence = true
 ```
 
@@ -156,7 +159,8 @@ git rev-parse ntpro-rust-only-v0.29.0
 git rev-parse 'ntpro-rust-only-v0.29.0^{}'
 git ls-remote --tags origin refs/tags/ntpro-rust-only-v0.29.0 'refs/tags/ntpro-rust-only-v0.29.0^{}'
 NTPRO_CURRENT_RELEASE_VERSION=v0.29.0 NTPRO_CURRENT_RELEASE_TAG=ntpro-rust-only-v0.29.0 NTPRO_CURRENT_RELEASE_NAME="NTPRO Rust-only v0.29.0" scripts/ai/verify_release.sh release-publication-guard
-scripts/ai/verify_release.sh v29.1-release-closeout-evidence
+scripts/ai/verify_v29_1_release_closeout_evidence.sh
+scripts/ai/verify_v29_1_release_publish_after_gate_current_binding.sh
 ```
 
 ## Next Step
