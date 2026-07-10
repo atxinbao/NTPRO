@@ -203,11 +203,17 @@
     },
     {
       "module_id": "backend_production_readiness_fail_closed_hardening",
-      "classification": "blocked",
+      "classification": "production-ready",
       "issue": 935,
-      "production_ready_claim_allowed": false,
-      "blocker_issue": 935,
-      "claim": "blocked until V290-009 lands fail-closed production-readiness hardening evidence"
+      "readiness_mode": "deterministic_readiness_replay",
+      "backend_production_go_live_claim_allowed": false,
+      "product_grade_live_trading_terminal_claim_allowed": false,
+      "production_execution_runtime_claim_allowed": false,
+      "default_submit_claim_allowed": false,
+      "production_ready_claim_allowed": true,
+      "evidence_path": "docs/rust-cutover/evidence/V290-009.md",
+      "verification_command": "scripts/ai/verify_release.sh v29-backend-production-readiness-fail-closed-hardening",
+      "claim": "backend production readiness fail-closed hardening evidence closes through deterministic replay that keeps go-live and trading readiness not-ready"
     },
     {
       "module_id": "v29_release_gates_v30_handoff",
@@ -219,9 +225,9 @@
     }
   ],
   "expected_counts": {
-    "production-ready": 9,
+    "production-ready": 10,
     "readiness-preview": 2,
-    "blocked": 1,
+    "blocked": 0,
     "deferred": 1
   }
 }
