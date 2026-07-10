@@ -150,6 +150,7 @@ def require(condition: bool, message: str) -> None:
 require(release_manifest["schema_version"] == "ntpro.v290_release_manifest.v1", "manifest schema mismatch")
 require(release_manifest["task_id"] == "V290-011", "manifest task mismatch")
 require(release_manifest["product_version"] == os.environ["PRODUCT_VERSION"], "manifest product version mismatch")
+require(release_manifest["release_status"] in {"release_gate_ready", "released"}, "manifest release status mismatch")
 require(release_manifest["planned_release"]["tag"] == os.environ["RELEASE_TAG"], "planned tag mismatch")
 require("v29 release gates = required" in release_notes, "release notes v29 gate marker missing")
 require("v29 strict provenance = required" in readiness, "readiness strict provenance marker missing")
