@@ -4,9 +4,9 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.28.1`, the v0.28.1 Backend Closure Governance Closeout Patch release.
-The next patch track is `v0.28.2`.
-The next capability track is `v0.29.0`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.29.0`, the v0.29.0 Backend Production Readiness Foundation release.
+The next patch track is `v0.29.1`.
+The next capability track is `v0.30.0`.
 
 ## Current Release Surface
 
@@ -21,11 +21,13 @@ ntpro-rust-only-v0.27.0
 ntpro-rust-only-v0.27.1
 ntpro-rust-only-v0.28.0
 ntpro-rust-only-v0.28.1
+ntpro-rust-only-v0.29.0
 ```
 
 Current capability boundary:
 
 ```text
+v0.29.0 Backend Production Readiness Foundation
 v0.28.1 Backend Closure Governance Closeout Patch
 v0.28.0 Backend Closure / Product Operations Runtime Finalization
 v0.27.1 Product Operations Runtime Integration Closeout Patch
@@ -93,13 +95,31 @@ Admin Workbench runtime state bridge evidence
 runtime integration fail-closed evidence
 v0.28.0 backend closure finalization evidence
 v0.28.1 release governance closeout patch evidence
-v0.28.2 next patch track reserved after v0.28.1 release evidence
-v0.29.0 next capability track reserved after v0.28.1 release evidence
+v0.29.0 backend production readiness foundation evidence
+v0.29.1 next patch track reserved after v0.29.0 release evidence
+v0.30.0 next capability track reserved after v0.29.0 release evidence
 no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no Admin Workbench operation/trading controls
 no Trader Terminal order-ticket/trading controls
 no product-grade live trading terminal claim
 ```
+
+## Published Capability Track: v0.29.0
+
+`v0.29.0` is the current Backend Production Readiness Foundation release
+surface. It records the v0.28.1 dependency proof, backend readiness boundary
+contract, persistent audit storage readiness, telemetry/SLO readiness,
+permission source readiness, read-only backend API readiness, deployment
+config/runbook readiness, monitoring/alert/incident readiness,
+canary/rollback/DR preflight readiness, fail-closed hardening, v29 release
+gates, strict provenance, and the v30 go-live candidate handoff.
+
+`v0.29.0` explicitly does not include backend go-live, frontend product
+completion, product-grade live trading terminal readiness, new production
+submit capability, production order mutation, execution adapter send, live
+exchange request, retry scheduler, automatic remediation/recovery,
+strategy-driven production execution, shared approval consumption, or
+Dashboard/Admin/Trader Terminal operation/trading controls.
 
 `v0.28.0` publishes the Backend Closure / Product Operations Runtime
 Finalization release over the v0.27.1 closeout line. It closes v0.27.1
@@ -113,7 +133,7 @@ automatic execution/remediation.
 
 ## Published Capability Track: v0.28.1
 
-`v0.28.1` is the current Backend Closure Governance Closeout Patch release
+`v0.28.1` is the prior Backend Closure Governance Closeout Patch release
 surface. It records v0.28.0 release closeout, stale evidence cleanup, release
 body hash normalization, runtime-closed terminology hardening,
 release-publish-after-gate current-release binding, v28.1 release gates, strict

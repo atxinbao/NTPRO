@@ -103,7 +103,7 @@ EXPECTED_CLASSIFICATIONS = {
     "monitoring_alert_incident_production_readiness": "production-ready",
     "canary_rollback_dr_preflight_readiness": "production-ready",
     "backend_production_readiness_fail_closed_hardening": "production-ready",
-    "v29_release_gates_v30_handoff": "deferred",
+    "v29_release_gates_v30_handoff": "production-ready",
 }
 BOUNDARY_FALSE_FLAGS = [
     "new_submit_capability",
@@ -136,10 +136,10 @@ REQUIRED_FALSE_TERMINOLOGY_FLAGS = [
     "default_submit_claim_allowed",
 ]
 EXPECTED_COUNTS = {
-    "production-ready": 10,
+    "production-ready": 11,
     "readiness-preview": 2,
     "blocked": 0,
-    "deferred": 1,
+    "deferred": 0,
 }
 
 
@@ -310,7 +310,7 @@ if selftest:
         fail("negative self-test allowed adapter_send_allowed")
 
     bad_ready = copy.deepcopy(matrix)
-    bad_ready["module_readiness"][12]["production_ready_claim_allowed"] = True
+    bad_ready["module_readiness"][2]["production_ready_claim_allowed"] = True
     if classify(bad_ready)["ok"]:
         fail("negative self-test allowed non-ready module production-ready claim")
 

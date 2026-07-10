@@ -219,6 +219,12 @@ jobs:
           - stage: release-v281-strict-provenance
             command: scripts/ai/verify_release.sh v28.1-strict-provenance
             expected_tag: ntpro-rust-only-v0.28.1
+          - stage: release-v29-release-gates
+            command: scripts/ai/verify_release.sh v29-release-gates
+            expected_tag: ntpro-rust-only-v0.29.0
+          - stage: release-v29-strict-provenance
+            command: scripts/ai/verify_release.sh v29-strict-provenance
+            expected_tag: ntpro-rust-only-v0.29.0
           - stage: release-surface-current-guard
             command: scripts/ai/verify_release.sh release-surface-current-guard
           - stage: release-publication-guard

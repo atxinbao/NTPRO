@@ -48,7 +48,7 @@ Every v0.29.0 backend subsystem must be classified as exactly one of:
 production-ready = readiness evidence is source-controlled, deterministic, release-gated, and keeps all go-live/trading controls closed
 readiness-preview = dependency or historical evidence that informs readiness but is not a v29 production-readiness closure
 blocked = scoped follow-up issue must land before the subsystem can be production-ready
-deferred = intentionally waits for later v29 release/handoff work
+deferred = intentionally waits for later scoped work; v0.29.0 final gate must have zero deferred V290 modules
 ```
 
 The source-controlled readiness matrix is
@@ -69,10 +69,10 @@ production_ready_module_requires_verification_command = true
 production_ready_module_requires_readiness_mode = deterministic_readiness_replay
 ```
 
-The only claim opened by V290-001 is that the boundary contract and readiness
-matrix are defined, source-controlled, and release-gated. Later V290 issues may
-turn blocked modules into `production-ready` only by changing the matrix and
-adding corresponding evidence and verification commands.
+The only claim opened by V290-001 was that the boundary contract and readiness
+matrix are defined, source-controlled, and release-gated. By V290-010, every
+V290 production-readiness module is production-ready as readiness evidence, and
+the historical v28/v28.1 dependencies remain `readiness-preview` only.
 
 ## Required-False Boundary Flags
 
@@ -130,6 +130,10 @@ validator = scripts/ai/verify_v29_backend_production_readiness_boundary_contract
 release stage = scripts/ai/verify_release.sh v29-backend-production-readiness-boundary-contract
 v29 intake stage = scripts/ai/verify_release.sh v29-intake-gate
 release replay scope status = validator_executable_matrix_classification
+V290 production-ready modules = 11
+historical readiness-preview modules = 2
+blocked modules = 0
+deferred modules = 0
 ```
 
 ## Boundary Statement
