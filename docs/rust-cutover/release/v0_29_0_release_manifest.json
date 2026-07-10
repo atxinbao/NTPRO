@@ -255,6 +255,29 @@
       "audit_source": "source_tree_plus_github_remote"
     }
   },
+  "post_release_stale_v290_evidence_cleanup": {
+    "task_id": "V291-003",
+    "issue": 965,
+    "release_tag": "ntpro-rust-only-v0.29.0",
+    "target_evidence": [
+      "docs/rust-cutover/evidence/V290-010.md",
+      "docs/rust-cutover/evidence/V290-011.md"
+    ],
+    "pre_tag_outputs_retained_as_historical": true,
+    "failed_hosted_gate_29086590411_historical_only": true,
+    "final_hosted_tag_gate_run_id": 29091765148,
+    "final_hosted_tag_gate_conclusion": "success",
+    "final_hosted_tag_gate_jobs": "88/88 success",
+    "final_hosted_tag_gate_head_sha": "85110d29867763f8d3b6395f4ff8154378b475b9",
+    "final_strict_provenance": {
+      "tag_exists": true,
+      "source_dirty": false
+    },
+    "published_release_closeout_evidence_path": "docs/rust-cutover/release/v0_29_0_release_closeout_evidence.md",
+    "release_publish_after_gate_current_binding": "pass",
+    "runtime_behavior_changed": false,
+    "trading_behavior_changed": false
+  },
   "validation_artifacts": {
     "strict_release_provenance_manifest_path": "target/ntpro-v290/v0_29_0_strict_release_manifest.json"
   }

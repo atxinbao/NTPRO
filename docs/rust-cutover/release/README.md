@@ -25,14 +25,22 @@ Final release checks, benchmark summaries, and audit reports live here.
   binding, hosted gate run `29091765148`, tag commit
   `85110d29867763f8d3b6395f4ff8154378b475b9`, v0.28.0 fallback rejection, and
   live-current proof.
+- `../evidence/V291-003.md` - V291-003 stale V290 evidence cleanup for GitHub
+  issue #965. It records that V290-010/V290-011 pre-tag outputs are historical
+  context only, while final proof is hosted gate `29091765148`, `12/12` closed
+  issue scope, strict provenance `tag_exists=true source_dirty=false`, and the
+  public v0.29.0 closeout ledger.
 - `v0_29_0_v30_go_live_candidate_handoff.md` - V290-010 handoff document that
   defines `v0.30.0` as a backend production go-live candidate track without
   inherited default trading controls or backend go-live claims.
 - `../evidence/V290-010.md` - V290-010 v29 release gates, strict provenance,
-  release manifest, and v30 handoff evidence for GitHub issue #936.
+  release manifest, and v30 handoff evidence for GitHub issue #936. Its
+  original PR-mode/pre-tag output is retained as historical context, with final
+  published-release proof now pointing to hosted gate `29091765148`.
 - `../evidence/V290-011.md` - V290-011 hosted release gate JSON payload fix
   evidence for GitHub issue #961, registered as the v0.29.0 corrective
-  release-gate blocker.
+  release-gate blocker. Its failed hosted gate `29086590411` is historical
+  corrective context only, not final v0.29.0 release state.
 - `v0_28_1_readiness_report.md` - release gate readiness report for the formal
   `ntpro-rust-only-v0.28.1` GitHub Release. It records the V281 exact release
   scope, v0.28.0 dependency proof, v28.1 gate and strict provenance
