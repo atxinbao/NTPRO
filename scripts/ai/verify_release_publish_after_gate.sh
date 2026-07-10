@@ -12,13 +12,14 @@ fake_gh="$tmp_dir/gh"
 evidence_path="$tmp_dir/evidence/publication.json"
 tag_sha="0123456789abcdef0123456789abcdef01234567"
 
-CURRENT_RELEASE_VERSION="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_VERSION:-v0.28.0}"
-CURRENT_RELEASE_TAG="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_TAG:-ntpro-rust-only-v0.28.0}"
-CURRENT_RELEASE_NAME="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NAME:-NTPRO Rust-only v0.28.0}"
-CURRENT_RELEASE_NOTES="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NOTES:-docs/rust-cutover/release/v0_28_0_release_notes.md}"
-CURRENT_RELEASE_MANIFEST="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_MANIFEST:-docs/rust-cutover/release/v0_28_0_release_manifest.json}"
-CURRENT_RELEASE_CLOSEOUT="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_CLOSEOUT:-docs/rust-cutover/release/v0_28_0_release_closeout_evidence.md}"
-CURRENT_RELEASE_GATE_RUN_ID="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_GATE_RUN_ID:-28969059200}"
+CURRENT_RELEASE_VERSION="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_VERSION:-v0.29.0}"
+CURRENT_RELEASE_TAG="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_TAG:-ntpro-rust-only-v0.29.0}"
+CURRENT_RELEASE_NAME="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NAME:-NTPRO Rust-only v0.29.0}"
+CURRENT_RELEASE_NOTES="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NOTES:-docs/rust-cutover/release/v0_29_0_release_notes.md}"
+CURRENT_RELEASE_MANIFEST="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_MANIFEST:-docs/rust-cutover/release/v0_29_0_release_manifest.json}"
+CURRENT_RELEASE_CLOSEOUT="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_CLOSEOUT:-docs/rust-cutover/release/v0_29_0_release_closeout_evidence.md}"
+CURRENT_RELEASE_GATE_RUN_ID="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_GATE_RUN_ID:-29091765148}"
+CURRENT_RELEASE_TAG_SHA="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_TAG_SHA:-85110d29867763f8d3b6395f4ff8154378b475b9}"
 REQUIRE_LIVE_CURRENT="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_REQUIRE_LIVE_CURRENT:-${NTPRO_RELEASE_GATE:-0}}"
 LIVE_CURRENT_MODE="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_CURRENT:-auto}"
 LIVE_CURRENT_TIMEOUT="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_TIMEOUT:-90s}"
@@ -179,6 +180,7 @@ CURRENT_RELEASE_NAME="$CURRENT_RELEASE_NAME" \
 CURRENT_RELEASE_MANIFEST="$CURRENT_RELEASE_MANIFEST" \
 CURRENT_RELEASE_CLOSEOUT="$CURRENT_RELEASE_CLOSEOUT" \
 CURRENT_RELEASE_GATE_RUN_ID="$CURRENT_RELEASE_GATE_RUN_ID" \
+CURRENT_RELEASE_TAG_SHA="$CURRENT_RELEASE_TAG_SHA" \
 python3 <<'PY'
 from __future__ import annotations
 
@@ -207,18 +209,74 @@ def parse_ts(value: str) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
+def canonical_release_sections(manifest: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    planned = manifest.get("planned_release") or {}
+    published = manifest.get("published_release") or {}
+    closeout = manifest.get("post_publication_closeout") or {}
+    if published or closeout:
+        return planned, published, closeout
+
+    release_closeout = manifest.get("post_release_closeout") or {}
+    github_release = release_closeout.get("github_release") or {}
+    tag = release_closeout.get("tag") or {}
+    hosted_gate = release_closeout.get("hosted_release_gate") or {}
+    publication_evidence = release_closeout.get("publication_evidence") or {}
+
+    published = {
+        "tag": github_release.get("tag"),
+        "name": github_release.get("name"),
+        "github_release_url": github_release.get("url"),
+        "target_commitish": github_release.get("target_commitish"),
+        "draft": github_release.get("draft"),
+        "prerelease": github_release.get("prerelease"),
+        "tag_sha": tag.get("peeled_commit"),
+        "published_at": github_release.get("published_at"),
+    }
+    closeout = {
+        "release_gate_run_id": hosted_gate.get("run_id"),
+        "release_gate_status": hosted_gate.get("status"),
+        "release_gate_conclusion": hosted_gate.get("conclusion"),
+        "release_gate_workflow_name": hosted_gate.get("workflow"),
+        "release_gate_head_sha": hosted_gate.get("head_sha"),
+        "release_gate_completed_at": hosted_gate.get("completed_at"),
+        "published_after_hosted_gate": publication_evidence.get("status") == "published_after_gate",
+        "generated_evidence_is_sole_proof": publication_evidence.get("generated_publication_evidence_sole_proof_allowed"),
+        "source_controlled_closeout_evidence": bool(release_closeout.get("closeout_evidence_path")),
+        "current_release_publish_after_gate_binding": publication_evidence.get("current_release_publish_after_gate_binding"),
+    }
+    return planned, published, closeout
+
+
+def remove_closeout(candidate: dict[str, Any]) -> None:
+    candidate.pop("post_publication_closeout", None)
+    candidate.pop("post_release_closeout", None)
+
+
+def set_published_at(candidate: dict[str, Any], value: str) -> None:
+    if "published_release" in candidate:
+        candidate["published_release"]["published_at"] = value
+        return
+    candidate["post_release_closeout"]["github_release"]["published_at"] = value
+
+
+def set_gate_head_sha(candidate: dict[str, Any], value: str) -> None:
+    if "post_publication_closeout" in candidate:
+        candidate["post_publication_closeout"]["release_gate_head_sha"] = value
+        return
+    candidate["post_release_closeout"]["hosted_release_gate"]["head_sha"] = value
+
+
 def validate(manifest: dict[str, Any], closeout_text: str) -> dict[str, Any]:
     expected_version = os.environ["CURRENT_RELEASE_VERSION"]
     expected_tag = os.environ["CURRENT_RELEASE_TAG"]
     expected_name = os.environ["CURRENT_RELEASE_NAME"]
     expected_gate_run_id = int(os.environ["CURRENT_RELEASE_GATE_RUN_ID"])
+    expected_tag_sha = os.environ["CURRENT_RELEASE_TAG_SHA"]
 
     require(manifest.get("product_version") == expected_version, "product version mismatch")
 
-    planned = manifest.get("planned_release") or {}
-    published = manifest.get("published_release") or {}
+    planned, published, closeout = canonical_release_sections(manifest)
     governance = manifest.get("publication_governance") or {}
-    closeout = manifest.get("post_publication_closeout") or {}
     requirements = manifest.get("post_publication_requirements") or {}
 
     require(planned.get("tag") == expected_tag, "planned tag mismatch")
@@ -228,6 +286,7 @@ def validate(manifest: dict[str, Any], closeout_text: str) -> dict[str, Any]:
     require(published.get("draft") is False, "published release must not be draft")
     require(published.get("prerelease") is False, "published release must not be prerelease")
     require(isinstance(published.get("tag_sha"), str) and published["tag_sha"], "published tag_sha missing")
+    require(published.get("tag_sha") == expected_tag_sha, "published tag sha mismatch")
     require(isinstance(published.get("published_at"), str) and published["published_at"], "published_at missing")
 
     require(governance.get("publication_evidence_strategy") == "source_tree_plus_github_remote", "publication evidence strategy mismatch")
@@ -287,14 +346,14 @@ closeout_text = closeout_path.read_text(encoding="utf-8")
 result = validate(manifest, closeout_text)
 
 for label, mutator in (
-    ("missing current closeout proof", lambda candidate: candidate.pop("post_publication_closeout", None)),
+    ("missing current closeout proof", remove_closeout),
     (
         "stale publication timestamp",
-        lambda candidate: candidate["published_release"].update({"published_at": "2026-07-08T20:00:00Z"}),
+        lambda candidate: set_published_at(candidate, "2026-07-08T20:00:00Z"),
     ),
     (
         "gate sha mismatch",
-        lambda candidate: candidate["post_publication_closeout"].update({"release_gate_head_sha": "deadbeef"}),
+        lambda candidate: set_gate_head_sha(candidate, "deadbeef"),
     ),
     (
         "fixture-only proof",
@@ -342,10 +401,10 @@ if [[ -z "$live_skip_reason" ]]; then
     NTPRO_RELEASE_NOTES="$CURRENT_RELEASE_NOTES" \
     NTPRO_RELEASE_PUBLICATION_DRY_RUN=1 \
     NTPRO_RELEASE_GATE_RUN_ID="$CURRENT_RELEASE_GATE_RUN_ID" \
-    NTPRO_RELEASE_PUBLICATION_EVIDENCE_PATH="$tmp_dir/current-release-publication.json" \
-    run_with_optional_timeout scripts/ai/publish_ntpro_release_after_gate.sh | tee "$tmp_dir/current-release.out"
+  NTPRO_RELEASE_PUBLICATION_EVIDENCE_PATH="$tmp_dir/current-release-publication.json" \
+  run_with_optional_timeout scripts/ai/publish_ntpro_release_after_gate.sh | tee "$tmp_dir/current-release.out"
   grep -F "release_publication_after_gate=pass status=already_published_after_gate" "$tmp_dir/current-release.out" >/dev/null
-  grep -F "release_tag_sha=41ef23417a4f21226cbc069de8cc31d0fa5e696e" "$tmp_dir/current-release.out" >/dev/null
+  grep -F "release_tag_sha=$CURRENT_RELEASE_TAG_SHA" "$tmp_dir/current-release.out" >/dev/null
   echo "release_publish_after_gate_current_live=pass release_tag=$CURRENT_RELEASE_TAG release_gate_run_id=$CURRENT_RELEASE_GATE_RUN_ID"
 elif [[ "$REQUIRE_LIVE_CURRENT" == "1" ]]; then
   echo "current release live publish-after-gate proof is required but unavailable: $live_skip_reason" >&2

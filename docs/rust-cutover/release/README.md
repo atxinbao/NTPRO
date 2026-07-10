@@ -20,6 +20,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   object, peeled commit, publication timestamp, hosted gate `88/88` success,
   normalized/raw release body hash/source match, milestone #24 closeout, and
   generated publication-evidence policy.
+- `../evidence/V291-002.md` - V291-002 v29 publish-after-gate current-release
+  binding evidence for GitHub issue #964. It records the v0.29.0 current
+  binding, hosted gate run `29091765148`, tag commit
+  `85110d29867763f8d3b6395f4ff8154378b475b9`, v0.28.0 fallback rejection, and
+  live-current proof.
 - `v0_29_0_v30_go_live_candidate_handoff.md` - V290-010 handoff document that
   defines `v0.30.0` as a backend production go-live candidate track without
   inherited default trading controls or backend go-live claims.

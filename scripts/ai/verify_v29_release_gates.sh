@@ -18,6 +18,11 @@ MATRIX_PATH="${NTPRO_V290_BACKEND_READINESS_MATRIX:-docs/rust-cutover/release/v0
 CURRENT_ISSUE="${NTPRO_V290_CURRENT_ISSUE:-961}"
 MILESTONE_NUMBER="${NTPRO_V290_MILESTONE_NUMBER:-24}"
 MILESTONE_TITLE="${NTPRO_V290_MILESTONE_TITLE:-v0.29.0}"
+RELEASE_GATE_RUN_ID="${NTPRO_V290_RELEASE_GATE_RUN_ID:-29091765148}"
+RELEASE_TAG_SHA="${NTPRO_V290_RELEASE_TAG_SHA:-85110d29867763f8d3b6395f4ff8154378b475b9}"
+RELEASE_CLOSEOUT_PATH="${NTPRO_V290_RELEASE_CLOSEOUT:-docs/rust-cutover/release/v0_29_0_release_closeout_evidence.md}"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
 
 fail() {
   echo "v29 release gate failed: $*" >&2
@@ -43,6 +48,13 @@ require_not_contains() {
   if grep -F -- "$marker" "$path" >/dev/null; then
     fail "forbidden marker in $path: $marker"
   fi
+}
+
+publish_after_gate_has_v29_binding() {
+  local output="$1"
+  grep -F "release_publish_after_gate_current_binding=pass release_tag=$RELEASE_TAG release_gate_run_id=$RELEASE_GATE_RUN_ID tag_sha=$RELEASE_TAG_SHA" "$output" >/dev/null &&
+    ! grep -F "release_tag=ntpro-rust-only-v0.28.0" "$output" >/dev/null &&
+    ! grep -F "release_gate_run_id=28969059200" "$output" >/dev/null
 }
 
 gh_with_retry() {
@@ -214,9 +226,37 @@ NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
   NTPRO_RELEASE_PUBLICATION_PREPUBLISH_TAG_GATE="${NTPRO_RELEASE_GATE:-0}" \
   scripts/ai/verify_release.sh release-publication-guard
 
-NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_CURRENT=0 \
+NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_VERSION="$RELEASE_VERSION" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_TAG="$RELEASE_TAG" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NAME="$RELEASE_NAME" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NOTES="$RELEASE_NOTES_PATH" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_MANIFEST="$MANIFEST_PATH" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_CLOSEOUT="$RELEASE_CLOSEOUT_PATH" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_GATE_RUN_ID="$RELEASE_GATE_RUN_ID" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_TAG_SHA="$RELEASE_TAG_SHA" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_CURRENT=0 \
   NTPRO_RELEASE_PUBLISH_AFTER_GATE_REQUIRE_LIVE_CURRENT=0 \
-  scripts/ai/verify_release.sh release-publish-after-gate
+  scripts/ai/verify_release.sh release-publish-after-gate | tee "$tmp_dir/v29-publish-after-gate.out"
+if ! publish_after_gate_has_v29_binding "$tmp_dir/v29-publish-after-gate.out"; then
+  fail "v29 publish-after-gate output did not prove $RELEASE_TAG run $RELEASE_GATE_RUN_ID"
+fi
+
+if NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_VERSION="v0.28.0" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_TAG="ntpro-rust-only-v0.28.0" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NAME="NTPRO Rust-only v0.28.0" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NOTES="docs/rust-cutover/release/v0_28_0_release_notes.md" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_MANIFEST="docs/rust-cutover/release/v0_28_0_release_manifest.json" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_CLOSEOUT="docs/rust-cutover/release/v0_28_0_release_closeout_evidence.md" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_GATE_RUN_ID="28969059200" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_TAG_SHA="41ef23417a4f21226cbc069de8cc31d0fa5e696e" \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_CURRENT=0 \
+  NTPRO_RELEASE_PUBLISH_AFTER_GATE_REQUIRE_LIVE_CURRENT=0 \
+  scripts/ai/verify_release.sh release-publish-after-gate >"$tmp_dir/v28-publish-after-gate.out" 2>&1; then
+  if publish_after_gate_has_v29_binding "$tmp_dir/v28-publish-after-gate.out"; then
+    fail "negative self-test unexpectedly accepted v0.28.0 publish-after-gate output as v29 current binding"
+  fi
+fi
+echo "v29_publish_after_gate_current_binding=pass release_tag=$RELEASE_TAG release_gate_run_id=$RELEASE_GATE_RUN_ID tag_sha=$RELEASE_TAG_SHA historical_v28_fallback_rejected=true"
 
 if [[ "${NTPRO_RELEASE_GATE:-0}" == "1" ]]; then
   git rev-parse -q --verify "${RELEASE_TAG}^{commit}" >/dev/null || fail "missing local release tag: $RELEASE_TAG"
@@ -391,4 +431,4 @@ else
   echo "v290_issue_scope=offline_skip reason=gh_unavailable_or_unauthenticated"
 fi
 
-echo "v29_release_gates=pass release_tag=$RELEASE_TAG final_scope_issues=12 final_scope_evidence=12 negative_selftest=1"
+echo "v29_release_gates=pass release_tag=$RELEASE_TAG release_gate_run_id=$RELEASE_GATE_RUN_ID publish_after_gate_current_binding=pass final_scope_issues=12 final_scope_evidence=12 negative_selftest=1"
