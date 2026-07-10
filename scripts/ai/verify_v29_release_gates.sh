@@ -15,7 +15,7 @@ RELEASE_NOTES_PATH="${NTPRO_V290_RELEASE_NOTES:-docs/rust-cutover/release/v0_29_
 READINESS_REPORT_PATH="${NTPRO_V290_READINESS_REPORT:-docs/rust-cutover/release/v0_29_0_readiness_report.md}"
 HANDOFF_PATH="${NTPRO_V290_HANDOFF:-docs/rust-cutover/release/v0_29_0_v30_go_live_candidate_handoff.md}"
 MATRIX_PATH="${NTPRO_V290_BACKEND_READINESS_MATRIX:-docs/rust-cutover/release/v0_29_0_backend_production_readiness_matrix.json}"
-CURRENT_ISSUE="${NTPRO_V290_CURRENT_ISSUE:-936}"
+CURRENT_ISSUE="${NTPRO_V290_CURRENT_ISSUE:-961}"
 MILESTONE_NUMBER="${NTPRO_V290_MILESTONE_NUMBER:-24}"
 MILESTONE_TITLE="${NTPRO_V290_MILESTONE_TITLE:-v0.29.0}"
 
@@ -92,7 +92,7 @@ for path in \
   require_file "$path"
 done
 
-for task_id in V290-000 V290-001 V290-002 V290-003 V290-004 V290-005 V290-006 V290-007 V290-008 V290-009 V290-010; do
+for task_id in V290-000 V290-001 V290-002 V290-003 V290-004 V290-005 V290-006 V290-007 V290-008 V290-009 V290-010 V290-011; do
   require_file "docs/rust-cutover/evidence/${task_id}.md"
   require_contains "docs/rust-cutover/evidence/${task_id}.md" "$task_id"
   require_file "docs/rust-cutover/tasks/${task_id}.md"
@@ -108,10 +108,11 @@ for marker in \
   "v0.29.0 publishes the Backend Production Readiness Foundation track" \
   "V290-000" \
   "V290-010" \
-  "V290 final release scope issue count = 11" \
-  "V290 final release scope evidence count = 11" \
-  "V290 exact milestone issue set = #926-#936" \
-  "V290 registered corrective-scope exception count = 0" \
+  "V290-011" \
+  "V290 final release scope issue count = 12" \
+  "V290 final release scope evidence count = 12" \
+  "V290 exact milestone issue set = #926-#936, #961" \
+  "V290 registered corrective-scope exception count = 1" \
   "v29 release gates = required" \
   "v29 strict provenance = required" \
   "backend production readiness boundary contract = required" \
@@ -138,13 +139,15 @@ for marker in \
   "Status: RELEASE GATE READY" \
   "V290-000 evidence" \
   "V290-010 evidence" \
+  "V290-011 evidence" \
   "v29 release gates = required" \
   "v29 strict provenance = required" \
   "#936 V290-010 = must be closed before v0.29.0 tag gate is accepted" \
-  "V290 final release scope issue count = 11" \
-  "V290 final release scope evidence count = 11" \
-  "V290 exact milestone issue set = #926-#936" \
-  "V290 registered corrective-scope exception count = 0" \
+  "#961 V290-011 = corrective release-gate blocker, must be closed before v0.29.0 tag gate is accepted" \
+  "V290 final release scope issue count = 12" \
+  "V290 final release scope evidence count = 12" \
+  "V290 exact milestone issue set = #926-#936, #961" \
+  "V290 registered corrective-scope exception count = 1" \
   "production_ready_count = 11" \
   "readiness_preview_count = 2" \
   "blocked_count = 0" \
@@ -245,6 +248,7 @@ expected = {
     "V290-008": 934,
     "V290-009": 935,
     "V290-010": 936,
+    "V290-011": 961,
 }
 false_flags = [
     "new_submit_capability",
@@ -279,7 +283,7 @@ def require(condition: bool, message: str) -> None:
 
 def validate(candidate: dict) -> None:
     require(candidate.get("schema_version") == "ntpro.v290_release_manifest.v1", "manifest schema mismatch")
-    require(candidate.get("task_id") == "V290-010", "manifest task mismatch")
+    require(candidate.get("task_id") == "V290-011", "manifest task mismatch")
     require(candidate.get("product_version") == os.environ["RELEASE_VERSION"], "manifest version mismatch")
     require(candidate.get("release_status") == "release_gate_ready", "manifest release status mismatch")
     planned = candidate.get("planned_release") or {}
@@ -290,17 +294,18 @@ def validate(candidate: dict) -> None:
     require(base.get("tag") == "ntpro-rust-only-v0.28.1", "base release tag mismatch")
     require(base.get("release_closeout_evidence_path") == "docs/rust-cutover/release/v0_28_1_release_closeout_evidence.md", "base closeout path missing")
     evidence = candidate.get("v290_evidence") or []
-    require(len(evidence) == 11, "V290 evidence count mismatch")
+    require(len(evidence) == 12, "V290 evidence count mismatch")
     for item in evidence:
         task_id = item.get("task_id")
         require(expected.get(task_id) == item.get("issue"), f"V290 issue mismatch: {task_id}")
         require(Path(item.get("path", "")).is_file(), f"missing V290 evidence file: {item}")
     scope = candidate.get("release_scope") or {}
     require(scope.get("exact_milestone_issue_numbers") == list(expected.values()), "exact issue numbers mismatch")
-    require(scope.get("exact_milestone_issue_set") == "#926-#936", "exact issue set mismatch")
-    require(scope.get("final_release_scope_issue_count") == 11, "final issue count mismatch")
-    require(scope.get("final_release_scope_evidence_count") == 11, "final evidence count mismatch")
-    require(scope.get("registered_corrective_scope_exception_count") == 0, "corrective exception count mismatch")
+    require(scope.get("exact_milestone_issue_set") == "#926-#936, #961", "exact issue set mismatch")
+    require(scope.get("final_release_scope_issue_count") == 12, "final issue count mismatch")
+    require(scope.get("final_release_scope_evidence_count") == 12, "final evidence count mismatch")
+    require(scope.get("registered_corrective_scope_exception_count") == 1, "corrective exception count mismatch")
+    require(scope.get("registered_corrective_scope_exception_issue_numbers") == [961], "corrective exception issue numbers mismatch")
     require(scope.get("unregistered_corrective_milestone_issues_fail_closed") is True, "unregistered corrective fail-closed rule missing")
     require(scope.get("production_ready_count") == 11, "production-ready count mismatch")
     require(scope.get("readiness_preview_count") == 2, "readiness-preview count mismatch")
@@ -350,7 +355,7 @@ import os
 
 issues = json.loads(os.environ["ISSUE_JSON"])
 states = {int(item["number"]): item["state"] for item in issues}
-expected = set(range(926, 937))
+expected = set(range(926, 937)) | {961}
 current_issue = int(os.environ["CURRENT_ISSUE"])
 tag_gate = os.environ.get("TAG_GATE") == "1"
 if set(states) != expected:
@@ -364,7 +369,7 @@ for number in sorted(expected):
         raise SystemExit(f"unexpected current issue state: #{number} state={state}")
 closed = sum(1 for state in states.values() if state == "CLOSED")
 mode = "tag_gate" if tag_gate else "pr_mode"
-print(f"v290_issue_scope={mode} closed={closed}/11 current_issue_state={states[current_issue]}")
+print(f"v290_issue_scope={mode} closed={closed}/12 current_issue_state={states[current_issue]}")
 PY
   if [[ "${NTPRO_RELEASE_GATE:-0}" == "1" ]]; then
     milestone_json="$(gh_with_retry api "repos/$REPO/milestones/$MILESTONE_NUMBER")"
@@ -386,4 +391,4 @@ else
   echo "v290_issue_scope=offline_skip reason=gh_unavailable_or_unauthenticated"
 fi
 
-echo "v29_release_gates=pass release_tag=$RELEASE_TAG final_scope_issues=11 final_scope_evidence=11 negative_selftest=1"
+echo "v29_release_gates=pass release_tag=$RELEASE_TAG final_scope_issues=12 final_scope_evidence=12 negative_selftest=1"

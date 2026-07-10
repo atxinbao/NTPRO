@@ -13,8 +13,8 @@ gates. It is not a backend go-live release and does not create a product-grade
 live trading terminal.
 
 Plain Chinese summary: v0.29.0 完成的是 backend production readiness foundation
-证据闭环，不是生产上线。#926-#936 全部属于同一个精确 milestone scope；发布前必须
-通过 v29 release gates 和 strict provenance。v0.30.0 只是下一条 backend go-live
+证据闭环，不是生产上线。#926-#936 加 corrective #961 属于同一个精确 milestone
+scope；发布前必须通过 v29 release gates 和 strict provenance。v0.30.0 只是下一条 backend go-live
 candidate 轨道，不能从 v0.29.0 自动继承任何下单或交易控件。
 
 ## Evidence Scope
@@ -31,11 +31,13 @@ V290-007 evidence = docs/rust-cutover/evidence/V290-007.md
 V290-008 evidence = docs/rust-cutover/evidence/V290-008.md
 V290-009 evidence = docs/rust-cutover/evidence/V290-009.md
 V290-010 evidence = docs/rust-cutover/evidence/V290-010.md
+V290-011 evidence = docs/rust-cutover/evidence/V290-011.md
 #936 V290-010 = must be closed before v0.29.0 tag gate is accepted
-V290 final release scope issue count = 11
-V290 final release scope evidence count = 11
-V290 exact milestone issue set = #926-#936
-V290 registered corrective-scope exception count = 0
+#961 V290-011 = corrective release-gate blocker, must be closed before v0.29.0 tag gate is accepted
+V290 final release scope issue count = 12
+V290 final release scope evidence count = 12
+V290 exact milestone issue set = #926-#936, #961
+V290 registered corrective-scope exception count = 1
 ```
 
 ## Matrix Closeout

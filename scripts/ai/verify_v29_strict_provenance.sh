@@ -72,7 +72,7 @@ input_paths=(
   "$ROOT_DIR/.github/workflows/release-publish.yml"
 )
 
-for task_id in V290-000 V290-001 V290-002 V290-003 V290-004 V290-005 V290-006 V290-007 V290-008 V290-009 V290-010; do
+for task_id in V290-000 V290-001 V290-002 V290-003 V290-004 V290-005 V290-006 V290-007 V290-008 V290-009 V290-010 V290-011; do
   input_paths+=("$ROOT_DIR/docs/rust-cutover/evidence/${task_id}.md")
   input_paths+=("$ROOT_DIR/docs/rust-cutover/tasks/${task_id}.md")
 done
@@ -148,18 +148,19 @@ def require(condition: bool, message: str) -> None:
 
 
 require(release_manifest["schema_version"] == "ntpro.v290_release_manifest.v1", "manifest schema mismatch")
-require(release_manifest["task_id"] == "V290-010", "manifest task mismatch")
+require(release_manifest["task_id"] == "V290-011", "manifest task mismatch")
 require(release_manifest["product_version"] == os.environ["PRODUCT_VERSION"], "manifest product version mismatch")
 require(release_manifest["planned_release"]["tag"] == os.environ["RELEASE_TAG"], "planned tag mismatch")
 require("v29 release gates = required" in release_notes, "release notes v29 gate marker missing")
 require("v29 strict provenance = required" in readiness, "readiness strict provenance marker missing")
 require("v0.30.0 backend production go-live candidate = next track" in handoff, "handoff next-track marker missing")
 scope = release_manifest.get("release_scope") or {}
-require(scope.get("exact_milestone_issue_numbers") == [926, 927, 928, 929, 930, 931, 932, 933, 934, 935, 936], "exact milestone issue numbers mismatch")
-require(scope.get("exact_milestone_issue_set") == "#926-#936", "exact milestone issue set mismatch")
-require(scope.get("final_release_scope_issue_count") == 11, "final release scope issue count mismatch")
-require(scope.get("final_release_scope_evidence_count") == 11, "final release scope evidence count mismatch")
-require(scope.get("registered_corrective_scope_exception_count") == 0, "registered corrective exception count mismatch")
+require(scope.get("exact_milestone_issue_numbers") == [926, 927, 928, 929, 930, 931, 932, 933, 934, 935, 936, 961], "exact milestone issue numbers mismatch")
+require(scope.get("exact_milestone_issue_set") == "#926-#936, #961", "exact milestone issue set mismatch")
+require(scope.get("final_release_scope_issue_count") == 12, "final release scope issue count mismatch")
+require(scope.get("final_release_scope_evidence_count") == 12, "final release scope evidence count mismatch")
+require(scope.get("registered_corrective_scope_exception_count") == 1, "registered corrective exception count mismatch")
+require(scope.get("registered_corrective_scope_exception_issue_numbers") == [961], "registered corrective exception issue numbers mismatch")
 require(scope.get("production_ready_count") == 11, "production-ready count mismatch")
 require(scope.get("readiness_preview_count") == 2, "readiness-preview count mismatch")
 require(scope.get("blocked_count") == 0, "blocked count mismatch")
@@ -209,7 +210,7 @@ for raw_path in os.environ["INPUT_PATHS"].splitlines():
 
 payload = {
     "schema_version": "ntpro.v290_strict_release_provenance.v1",
-    "task_id": "V290-010",
+    "task_id": "V290-011",
     "target": "v29",
     "product_version": os.environ["PRODUCT_VERSION"],
     "release_tag": os.environ["RELEASE_TAG"],
@@ -235,7 +236,7 @@ payload = {
     "handoff_source": str(Path(os.environ["HANDOFF_PATH"]).relative_to(root)),
     "handoff_sha256": "sha256:" + hashlib.sha256(handoff.encode("utf-8")).hexdigest(),
     "source_inputs": source_inputs,
-    "v290_issue_scope": [926, 927, 928, 929, 930, 931, 932, 933, 934, 935, 936],
+    "v290_issue_scope": [926, 927, 928, 929, 930, 931, 932, 933, 934, 935, 936, 961],
     "v290_evidence": release_manifest.get("v290_evidence"),
     "release_scope": release_manifest.get("release_scope"),
     "capability": release_manifest.get("capability"),
@@ -249,7 +250,7 @@ payload = {
         "dirty_worktree": "NTPRO_RELEASE_GATE=1 fails if tracked files are dirty",
         "missing_tag": "NTPRO_RELEASE_GATE=1 or NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG=1 fails without the v0.29.0 release tag",
         "tag_mismatch": "NTPRO_RELEASE_GATE=1 or NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG=1 fails when HEAD differs from the release tag",
-        "open_v290_issue": "NTPRO_RELEASE_GATE=1 fails unless V290 issues #926-#936 are closed",
+        "open_v290_issue": "NTPRO_RELEASE_GATE=1 fails unless V290 issues #926-#936 and #961 are closed",
         "open_operation_boundary": "v0.29.0 provenance fails if submit, mutation, adapter send, live exchange, retry scheduler, automatic remediation, Dashboard/Admin/Trader Terminal trading, backend go-live, or order-ticket boundary opens",
         "missing_v30_handoff": "v0.30.0 go-live candidate intake fails unless v0.29.0 handoff is source controlled",
     },

@@ -20,6 +20,9 @@ Final release checks, benchmark summaries, and audit reports live here.
   inherited default trading controls or backend go-live claims.
 - `../evidence/V290-010.md` - V290-010 v29 release gates, strict provenance,
   release manifest, and v30 handoff evidence for GitHub issue #936.
+- `../evidence/V290-011.md` - V290-011 hosted release gate JSON payload fix
+  evidence for GitHub issue #961, registered as the v0.29.0 corrective
+  release-gate blocker.
 - `v0_28_1_readiness_report.md` - release gate readiness report for the formal
   `ntpro-rust-only-v0.28.1` GitHub Release. It records the V281 exact release
   scope, v0.28.0 dependency proof, v28.1 gate and strict provenance

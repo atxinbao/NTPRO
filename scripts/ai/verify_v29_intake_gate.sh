@@ -178,8 +178,9 @@ for marker in (
     "v0.28.1 hosted release gate completed at = 2026-07-09T20:53:43Z",
     "v0.28.1 GitHub Release published after hosted gate = true",
     "v0.28.1 GitHub Release body normalized sha256 = 7817ff5c9d448f608cb7352cbe34d337ddad5c5538b1a2ec7298e5a6e846c3bf",
-    "v0.29.0 milestone issue set = #926-#936",
-    "V290 issue count = 11",
+    "v0.29.0 milestone issue set = #926-#936, #961",
+    "V290 issue count = 12",
+    "V290 registered corrective-scope exception count = 1",
     "v0.29.0 capability track = backend_production_readiness_foundation_only",
     "v0.29.0 runtime capability inherited from v0.28.1 = false",
     "v0.29.0 trading controls inherited from v0.28.0 = false",
@@ -240,11 +241,19 @@ milestone_issues_json="$(gh_with_retry issue list --repo "$REPO" --milestone "$V
 v290_milestone_issues_json="$(gh_with_retry issue list --repo "$REPO" --milestone "$V290_MILESTONE_TITLE" --state all --limit 100 --json number,state,title)" || fail "could not read v0.29.0 milestone issues"
 run_json="$(gh_with_retry run view "$V281_RELEASE_GATE_RUN_ID" --repo "$REPO" --json status,conclusion,headSha,url,updatedAt,workflowName,jobs)" || fail "could not read v0.28.1 hosted release gate run"
 
-RELEASE_JSON="$release_json" \
-MILESTONE_JSON="$milestone_json" \
-MILESTONE_ISSUES_JSON="$milestone_issues_json" \
-V290_MILESTONE_ISSUES_JSON="$v290_milestone_issues_json" \
-RUN_JSON="$run_json" \
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+printf '%s' "$release_json" >"$tmp_dir/release.json"
+printf '%s' "$milestone_json" >"$tmp_dir/milestone.json"
+printf '%s' "$milestone_issues_json" >"$tmp_dir/milestone_issues.json"
+printf '%s' "$v290_milestone_issues_json" >"$tmp_dir/v290_milestone_issues.json"
+printf '%s' "$run_json" >"$tmp_dir/run.json"
+
+RELEASE_JSON_PATH="$tmp_dir/release.json" \
+MILESTONE_JSON_PATH="$tmp_dir/milestone.json" \
+MILESTONE_ISSUES_JSON_PATH="$tmp_dir/milestone_issues.json" \
+V290_MILESTONE_ISSUES_JSON_PATH="$tmp_dir/v290_milestone_issues.json" \
+RUN_JSON_PATH="$tmp_dir/run.json" \
 REMOTE_TAG_COMMIT="$remote_tag_commit" \
 V281_RELEASE_TAG="$V281_RELEASE_TAG" \
 V281_RELEASE_NAME="$V281_RELEASE_NAME" \
@@ -258,11 +267,11 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-release = json.loads(os.environ["RELEASE_JSON"])
-milestone = json.loads(os.environ["MILESTONE_JSON"])
-milestone_issues = json.loads(os.environ["MILESTONE_ISSUES_JSON"])
-v290_issues = json.loads(os.environ["V290_MILESTONE_ISSUES_JSON"])
-run = json.loads(os.environ["RUN_JSON"])
+release = json.loads(Path(os.environ["RELEASE_JSON_PATH"]).read_text(encoding="utf-8"))
+milestone = json.loads(Path(os.environ["MILESTONE_JSON_PATH"]).read_text(encoding="utf-8"))
+milestone_issues = json.loads(Path(os.environ["MILESTONE_ISSUES_JSON_PATH"]).read_text(encoding="utf-8"))
+v290_issues = json.loads(Path(os.environ["V290_MILESTONE_ISSUES_JSON_PATH"]).read_text(encoding="utf-8"))
+run = json.loads(Path(os.environ["RUN_JSON_PATH"]).read_text(encoding="utf-8"))
 
 def parse_ts(value: str) -> datetime:
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -299,7 +308,7 @@ if set(states) != expected_v281:
     raise SystemExit(f"V281 issue set mismatch: {sorted(states)}")
 if any(state != "CLOSED" for state in states.values()):
     raise SystemExit(f"V281 issue not closed: {states}")
-expected_v290 = set(range(926, 937))
+expected_v290 = set(range(926, 937)) | {961}
 v290_states = {int(item["number"]): item["state"] for item in v290_issues}
 if set(v290_states) != expected_v290:
     raise SystemExit(f"V290 issue set mismatch: {sorted(v290_states)}")
