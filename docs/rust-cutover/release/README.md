@@ -88,6 +88,18 @@ Final release checks, benchmark summaries, and audit reports live here.
   operation/control cases.
 - `../evidence/V290-006.md` - V290-006 deployment config and runbook
   production readiness evidence for GitHub issue #932.
+- `v0_29_0_monitoring_alert_incident_production_readiness.md` - V290-007
+  contract that promotes monitoring, alerting, and incident readiness to
+  backend production readiness evidence through alert taxonomy, severity, owner
+  routing, acknowledgement semantics, SLO breach handling, audit requirements,
+  escalation paths, and manual incident state transitions.
+- `v0_29_0_monitoring_alert_incident_production_readiness_artifact.json` -
+  source-controlled V290-007 backend artifact for monitoring/alert/incident
+  readiness and fail-closed stale alert source, missing owner routing, missing
+  acknowledgement, missing audit, unsafe auto-remediation, and forbidden
+  operation/control cases.
+- `../evidence/V290-007.md` - V290-007 monitoring alert incident production
+  readiness evidence for GitHub issue #933.
 - `../evidence/V281-010.md` - V281-010 v28.1 nested base-gate tag-scope
   isolation evidence for GitHub issue #948.
 - `../evidence/V281-009.md` - V281-009 v28.1 prepublish live-current require
