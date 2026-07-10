@@ -64,8 +64,9 @@ remote reconstruction required = true
 
 ```text
 v0.29.0 milestone = open
-v0.29.0 milestone issue set = #926-#936
-V290 issue count = 11
+v0.29.0 milestone issue set = #926-#936, #961
+V290 issue count = 12
+V290 registered corrective-scope exception count = 1
 V290-000 intake gate and v0.28.1 dependency proof = #926
 V290-001 backend production readiness boundary contract = #927
 V290-002 persistent audit storage production readiness = #928
@@ -77,6 +78,7 @@ V290-007 monitoring alert incident production readiness = #933
 V290-008 canary rollback DR preflight readiness = #934
 V290-009 backend production readiness fail-closed hardening = #935
 V290-010 release gates and v30 go-live candidate handoff = #936
+V290-011 hosted release gate JSON payload fix = #961
 ```
 
 ## Boundary Classification

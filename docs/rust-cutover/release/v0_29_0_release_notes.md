@@ -28,10 +28,11 @@ V290-007 monitoring alert incident production readiness
 V290-008 canary rollback DR preflight readiness
 V290-009 backend production readiness fail-closed hardening
 V290-010 v29 release gates and v30 go-live candidate handoff
-V290 final release scope issue count = 11
-V290 final release scope evidence count = 11
-V290 exact milestone issue set = #926-#936
-V290 registered corrective-scope exception count = 0
+V290-011 v29 hosted release gate JSON payload fix
+V290 final release scope issue count = 12
+V290 final release scope evidence count = 12
+V290 exact milestone issue set = #926-#936, #961
+V290 registered corrective-scope exception count = 1
 ```
 
 ## Release Gates
