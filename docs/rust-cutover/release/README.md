@@ -2,6 +2,20 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
+- `v0_29_1_release_notes.md` - release notes for the planned
+  `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
+  governance closeout and v0.30.0 start-gate hardening without opening backend
+  go-live, submit, mutation, adapter send, live exchange request, retry,
+  automatic remediation, or trading controls.
+- `v0_29_1_readiness_report.md` - release gate readiness report for
+  `ntpro-rust-only-v0.29.1`, including exact V291 issue scope `#963-#968`,
+  v29.1 release gates, strict provenance, and the v30 hard block.
+- `v0_29_1_release_manifest.json` - strict release manifest for the v0.29.1
+  tag gate.
+- `v0_29_1_release_closeout_evidence.md` - source-controlled closeout target
+  for the public `ntpro-rust-only-v0.29.1` GitHub Release.
+- `../evidence/V291-006.md` - V291-006 release gate and strict provenance
+  evidence for GitHub issue #968.
 - `v0_29_0_readiness_report.md` - release gate readiness report for the formal
   `ntpro-rust-only-v0.29.0` GitHub Release. It records the V290 exact release
   scope, v0.28.1 dependency proof, final backend production readiness matrix
