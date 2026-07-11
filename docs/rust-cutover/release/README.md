@@ -2,18 +2,29 @@
 
 Final release checks, benchmark summaries, and audit reports live here.
 
-- `v0_29_1_release_notes.md` - release notes for the planned
+- `v0_30_0_intake_gate.md` - V300-000 intake proof that all V291 issues are
+  closed, the `ntpro-rust-only-v0.29.1` GitHub Release was published after
+  hosted gate success, and v0.30.0 starts only as a gated Backend Production
+  Go-Live Candidate Foundation track with no inherited submit, mutation,
+  adapter send, live exchange, automatic remediation, backend go-live, or
+  trading controls.
+- `../evidence/V300-000.md` - V300-000 v0.30.0 intake gate and v0.29.1
+  dependency proof evidence for GitHub issue #969.
+- `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
   go-live, submit, mutation, adapter send, live exchange request, retry,
   automatic remediation, or trading controls.
-- `v0_29_1_readiness_report.md` - release gate readiness report for
+- `v0_29_1_readiness_report.md` - release gate readiness report for the formal
   `ntpro-rust-only-v0.29.1`, including exact V291 issue scope `#963-#968`,
   v29.1 release gates, strict provenance, and the v30 hard block.
 - `v0_29_1_release_manifest.json` - strict release manifest for the v0.29.1
   tag gate.
-- `v0_29_1_release_closeout_evidence.md` - source-controlled closeout target
-  for the public `ntpro-rust-only-v0.29.1` GitHub Release.
+- `v0_29_1_release_closeout_evidence.md` - source-controlled closeout ledger
+  for the public `ntpro-rust-only-v0.29.1` GitHub Release, including tag
+  object, peeled commit, publication timestamp, hosted gate `90/90` success,
+  normalized/raw release body hash/source match, milestone #25 closeout, and
+  generated publication-evidence policy.
 - `../evidence/V291-006.md` - V291-006 release gate and strict provenance
   evidence for GitHub issue #968.
 - `v0_29_0_readiness_report.md` - release gate readiness report for the formal
