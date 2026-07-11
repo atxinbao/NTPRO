@@ -888,6 +888,56 @@ run_v30_production_deployment_plan_environment_readiness() {
   scripts/ai/verify_v30_production_deployment_plan_environment_readiness.sh
 }
 
+run_v30_runtime_enablement_boundary_controlled_feature_flags() {
+  echo "== verify_release: v0.30.0 runtime enablement boundary controlled feature flags =="
+  scripts/ai/verify_v30_runtime_enablement_boundary_controlled_feature_flags.sh
+}
+
+run_v30_operator_approval_freeze_change_window_lifecycle() {
+  echo "== verify_release: v0.30.0 operator approval freeze change window lifecycle =="
+  scripts/ai/verify_v30_operator_approval_freeze_change_window_lifecycle.sh
+}
+
+run_v30_canary_execution_preflight_no_default_execution_gate() {
+  echo "== verify_release: v0.30.0 canary execution preflight no-default-execution gate =="
+  scripts/ai/verify_v30_canary_execution_preflight_no_default_execution_gate.sh
+}
+
+run_v30_rollback_disaster_recovery_execution_boundary() {
+  echo "== verify_release: v0.30.0 rollback disaster recovery execution boundary =="
+  scripts/ai/verify_v30_rollback_disaster_recovery_execution_boundary.sh
+}
+
+run_v30_production_config_provenance_venue_connectivity_readiness() {
+  echo "== verify_release: v0.30.0 production config provenance venue connectivity readiness =="
+  scripts/ai/verify_v30_production_config_provenance_venue_connectivity_readiness.sh
+}
+
+run_v30_telemetry_slo_gate_incident_freeze_integration() {
+  echo "== verify_release: v0.30.0 telemetry SLO gate incident freeze integration =="
+  scripts/ai/verify_v30_telemetry_slo_gate_incident_freeze_integration.sh
+}
+
+run_v30_audit_retention_evidence_export_readiness() {
+  echo "== verify_release: v0.30.0 audit retention evidence export readiness =="
+  scripts/ai/verify_v30_audit_retention_evidence_export_readiness.sh
+}
+
+run_v30_go_no_go_runbook_live_readiness_decision_record() {
+  echo "== verify_release: v0.30.0 go/no-go runbook live readiness decision record =="
+  scripts/ai/verify_v30_go_no_go_runbook_live_readiness_decision_record.sh
+}
+
+run_v30_release_gates() {
+  echo "== verify_release: v0.30.0 release gates =="
+  scripts/ai/verify_v30_release_gates.sh
+}
+
+run_v30_strict_provenance() {
+  echo "== verify_release: v0.30.0 strict provenance =="
+  scripts/ai/verify_v30_strict_provenance.sh
+}
+
 run_v25_intake_gate() {
   echo "== verify_release: v0.25.0 intake gate =="
   scripts/ai/verify_v25_intake_gate.sh
@@ -1515,6 +1565,36 @@ run_stage() {
       ;;
     v30-production-deployment-plan-environment-readiness)
       run_v30_production_deployment_plan_environment_readiness
+      ;;
+    v30-runtime-enablement-boundary-controlled-feature-flags)
+      run_v30_runtime_enablement_boundary_controlled_feature_flags
+      ;;
+    v30-operator-approval-freeze-change-window-lifecycle)
+      run_v30_operator_approval_freeze_change_window_lifecycle
+      ;;
+    v30-canary-execution-preflight-no-default-execution-gate)
+      run_v30_canary_execution_preflight_no_default_execution_gate
+      ;;
+    v30-rollback-disaster-recovery-execution-boundary)
+      run_v30_rollback_disaster_recovery_execution_boundary
+      ;;
+    v30-production-config-provenance-venue-connectivity-readiness)
+      run_v30_production_config_provenance_venue_connectivity_readiness
+      ;;
+    v30-telemetry-slo-gate-incident-freeze-integration)
+      run_v30_telemetry_slo_gate_incident_freeze_integration
+      ;;
+    v30-audit-retention-evidence-export-readiness)
+      run_v30_audit_retention_evidence_export_readiness
+      ;;
+    v30-go-no-go-runbook-live-readiness-decision-record)
+      run_v30_go_no_go_runbook_live_readiness_decision_record
+      ;;
+    v30-release-gates)
+      run_v30_release_gates
+      ;;
+    v30-strict-provenance)
+      run_v30_strict_provenance
       ;;
     v25-intake-gate)
       run_v25_intake_gate

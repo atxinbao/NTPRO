@@ -1,0 +1,127 @@
+{
+  "schema_version": "ntpro.v300.v31_production_enablement_handoff.v1",
+  "contract_version": "ntpro.v300.v31_production_enablement_handoff.v1",
+  "task_id": "V300-011",
+  "github_issue": 980,
+  "milestone": "v0.30.0",
+  "source_release": "ntpro-rust-only-v0.30.0",
+  "next_capability_track": "v0.31.0",
+  "handoff_status": "hard_blocked_until_v30_release_evidence_and_explicit_scoped_approval",
+  "required_future_inputs": [
+    "v30_release_closeout",
+    "explicit_scoped_enablement_issue",
+    "owner_operator_approval",
+    "risk_gate",
+    "audit_gate",
+    "release_gate",
+    "rollback_readiness",
+    "telemetry_slo_gate",
+    "no_default_trading_boundary"
+  ],
+  "non_inheritance_boundary": {
+    "submit_inherited": false,
+    "mutation_inherited": false,
+    "adapter_send_inherited": false,
+    "live_exchange_request_inherited": false,
+    "automatic_remediation_inherited": false,
+    "retry_scheduler_inherited": false,
+    "dashboard_trading_controls_inherited": false,
+    "admin_workbench_trading_controls_inherited": false,
+    "trader_terminal_order_ticket_inherited": false,
+    "actual_backend_go_live_inherited": false,
+    "product_grade_live_trading_claim_inherited": false
+  },
+  "future_enablement_gates": [
+    {
+      "gate_id": "v30_release_evidence",
+      "required": true,
+      "current_satisfied": false,
+      "bypass_allowed": false
+    },
+    {
+      "gate_id": "explicit_scoped_issue",
+      "required": true,
+      "current_satisfied": false,
+      "bypass_allowed": false
+    },
+    {
+      "gate_id": "owner_operator_approval",
+      "required": true,
+      "current_satisfied": false,
+      "bypass_allowed": false
+    },
+    {
+      "gate_id": "risk_gate",
+      "required": true,
+      "current_satisfied": false,
+      "bypass_allowed": false
+    },
+    {
+      "gate_id": "audit_gate",
+      "required": true,
+      "current_satisfied": false,
+      "bypass_allowed": false
+    },
+    {
+      "gate_id": "release_gate",
+      "required": true,
+      "current_satisfied": false,
+      "bypass_allowed": false
+    }
+  ],
+  "boundary_flags": {
+    "inherits_submit": false,
+    "inherits_mutation": false,
+    "inherits_adapter_send": false,
+    "inherits_live_exchange_request": false,
+    "inherits_automatic_remediation": false,
+    "inherits_trading_controls": false,
+    "actual_backend_production_go_live_allowed": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "automatic_remediation_allowed": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false
+  },
+  "readiness_cases": [
+    {
+      "case_id": "v31_handoff.blocked.allowed.001",
+      "expected_status": "v31_handoff_hard_blocked"
+    },
+    {
+      "case_id": "v31_handoff.missing_v30_release_evidence.fail_closed.001",
+      "gate_overrides": {
+        "v30_release_evidence": {
+          "required": false
+        }
+      },
+      "expected_status": "fail_closed_missing_v30_release_evidence"
+    },
+    {
+      "case_id": "v31_handoff.missing_scoped_approval.fail_closed.001",
+      "gate_overrides": {
+        "explicit_scoped_issue": {
+          "required": false
+        }
+      },
+      "expected_status": "fail_closed_missing_scoped_approval"
+    },
+    {
+      "case_id": "v31_handoff.inherited_execution.fail_closed.001",
+      "boundary_flags_override": {
+        "inherits_adapter_send": true
+      },
+      "expected_status": "fail_closed_inherited_execution"
+    },
+    {
+      "case_id": "v31_handoff.forbidden_boundary.fail_closed.001",
+      "boundary_flags_override": {
+        "production_order_submission_allowed": true
+      },
+      "expected_status": "fail_closed_forbidden_boundary"
+    }
+  ]
+}

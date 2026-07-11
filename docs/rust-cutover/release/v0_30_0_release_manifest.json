@@ -1,0 +1,360 @@
+{
+  "schema_version": "ntpro.v300_backend_go_live_candidate_release_manifest.v1",
+  "task_id": "V300-011",
+  "product_version": "v0.30.0",
+  "release_status": "release_gate_ready",
+  "release_scope": "backend_production_go_live_candidate_foundation_only",
+  "base_release": {
+    "version": "v0.29.1",
+    "tag": "ntpro-rust-only-v0.29.1",
+    "name": "NTPRO Rust-only v0.29.1",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.29.1",
+    "release_manifest_path": "docs/rust-cutover/release/v0_29_1_release_manifest.json",
+    "release_closeout_evidence_path": "docs/rust-cutover/release/v0_29_1_release_closeout_evidence.md"
+  },
+  "planned_release": {
+    "tag": "ntpro-rust-only-v0.30.0",
+    "name": "NTPRO Rust-only v0.30.0",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.30.0",
+    "target_commitish": "main",
+    "draft": false,
+    "prerelease": false
+  },
+  "release_inputs": {
+    "release_notes_path": "docs/rust-cutover/release/v0_30_0_release_notes.md",
+    "readiness_report_path": "docs/rust-cutover/release/v0_30_0_readiness_report.md",
+    "release_manifest_path": "docs/rust-cutover/release/v0_30_0_release_manifest.json",
+    "release_closeout_evidence_path": "docs/rust-cutover/release/v0_30_0_release_closeout_evidence.md",
+    "v31_handoff_path": "docs/rust-cutover/release/v0_30_0_v31_production_enablement_handoff.md",
+    "v31_handoff_requirements_path": "docs/rust-cutover/release/v0_30_0_v31_production_enablement_handoff.json",
+    "release_index_path": "docs/rust-cutover/release/README.md",
+    "release_publication_guard_path": "scripts/ai/check_github_release_published.sh",
+    "release_surface_current_guard_path": "scripts/ai/check_release_surface_current.sh",
+    "v300_release_gates_path": "scripts/ai/verify_v30_release_gates.sh",
+    "v300_strict_provenance_path": "scripts/ai/verify_v30_strict_provenance.sh"
+  },
+  "v300_evidence": [
+    {
+      "task_id": "V300-000",
+      "issue": 969,
+      "path": "docs/rust-cutover/evidence/V300-000.md"
+    },
+    {
+      "task_id": "V300-001",
+      "issue": 970,
+      "path": "docs/rust-cutover/evidence/V300-001.md"
+    },
+    {
+      "task_id": "V300-002",
+      "issue": 971,
+      "path": "docs/rust-cutover/evidence/V300-002.md"
+    },
+    {
+      "task_id": "V300-003",
+      "issue": 972,
+      "path": "docs/rust-cutover/evidence/V300-003.md"
+    },
+    {
+      "task_id": "V300-004",
+      "issue": 973,
+      "path": "docs/rust-cutover/evidence/V300-004.md"
+    },
+    {
+      "task_id": "V300-005",
+      "issue": 974,
+      "path": "docs/rust-cutover/evidence/V300-005.md"
+    },
+    {
+      "task_id": "V300-006",
+      "issue": 975,
+      "path": "docs/rust-cutover/evidence/V300-006.md"
+    },
+    {
+      "task_id": "V300-007",
+      "issue": 976,
+      "path": "docs/rust-cutover/evidence/V300-007.md"
+    },
+    {
+      "task_id": "V300-008",
+      "issue": 977,
+      "path": "docs/rust-cutover/evidence/V300-008.md"
+    },
+    {
+      "task_id": "V300-009",
+      "issue": 978,
+      "path": "docs/rust-cutover/evidence/V300-009.md"
+    },
+    {
+      "task_id": "V300-010",
+      "issue": 979,
+      "path": "docs/rust-cutover/evidence/V300-010.md"
+    },
+    {
+      "task_id": "V300-011",
+      "issue": 980,
+      "path": "docs/rust-cutover/evidence/V300-011.md"
+    }
+  ],
+  "release_scope_facts": {
+    "milestone_issue_set": "V300-000..V300-011",
+    "milestone_issue_count": 12,
+    "exact_milestone_issue_numbers": [
+      969,
+      970,
+      971,
+      972,
+      973,
+      974,
+      975,
+      976,
+      977,
+      978,
+      979,
+      980
+    ],
+    "exact_milestone_issue_set": "#969-#980",
+    "final_release_scope_issue_count": 12,
+    "final_release_scope_evidence_count": 12,
+    "registered_corrective_scope_exception_count": 0,
+    "registered_corrective_scope_exception_issue_numbers": [],
+    "unregistered_corrective_milestone_issues_fail_closed": true,
+    "v29_1_dependency_proven": true,
+    "v29_1_release_evidence_published": true,
+    "backend_go_live_candidate_foundation": true,
+    "actual_backend_production_go_live": false,
+    "capability_scope_expands_trading": false,
+    "runtime_behavior_changed_by_release_gate": false,
+    "trading_behavior_changed_by_release_gate": false
+  },
+  "release_gates": [
+    {
+      "name": "v30-intake-gate",
+      "command": "scripts/ai/verify_v30_intake_gate.sh",
+      "required": true
+    },
+    {
+      "name": "v30-backend-go-live-candidate-boundary-contract",
+      "command": "scripts/ai/verify_v30_backend_go_live_candidate_boundary_contract.sh",
+      "required": true
+    },
+    {
+      "name": "v30-production-deployment-plan-environment-readiness",
+      "command": "scripts/ai/verify_v30_production_deployment_plan_environment_readiness.sh",
+      "required": true
+    },
+    {
+      "name": "v30-runtime-enable-boundary-feature-flags",
+      "command": "scripts/ai/verify_v30_runtime_enablement_boundary_controlled_feature_flags.sh",
+      "required": true
+    },
+    {
+      "name": "v30-operator-approval-freeze-window",
+      "command": "scripts/ai/verify_v30_operator_approval_freeze_change_window_lifecycle.sh",
+      "required": true
+    },
+    {
+      "name": "v30-canary-preflight-no-default-execution",
+      "command": "scripts/ai/verify_v30_canary_execution_preflight_no_default_execution_gate.sh",
+      "required": true
+    },
+    {
+      "name": "v30-rollback-dr-boundary",
+      "command": "scripts/ai/verify_v30_rollback_disaster_recovery_execution_boundary.sh",
+      "required": true
+    },
+    {
+      "name": "v30-config-venue-readiness",
+      "command": "scripts/ai/verify_v30_production_config_provenance_venue_connectivity_readiness.sh",
+      "required": true
+    },
+    {
+      "name": "v30-telemetry-slo-freeze",
+      "command": "scripts/ai/verify_v30_telemetry_slo_gate_incident_freeze_integration.sh",
+      "required": true
+    },
+    {
+      "name": "v30-audit-retention-export",
+      "command": "scripts/ai/verify_v30_audit_retention_evidence_export_readiness.sh",
+      "required": true
+    },
+    {
+      "name": "v30-go-no-go-runbook",
+      "command": "scripts/ai/verify_v30_go_no_go_runbook_live_readiness_decision_record.sh",
+      "required": true
+    },
+    {
+      "name": "v30-release-gates",
+      "command": "scripts/ai/verify_v30_release_gates.sh",
+      "required": true
+    },
+    {
+      "name": "v30-strict-provenance",
+      "command": "scripts/ai/verify_v30_strict_provenance.sh",
+      "required": true
+    },
+    {
+      "name": "release-surface-current-guard",
+      "command": "scripts/ai/check_release_surface_current.sh",
+      "required": true
+    },
+    {
+      "name": "release-publication-guard",
+      "command": "scripts/ai/check_github_release_published.sh",
+      "required": true
+    },
+    {
+      "name": "release-publish-after-gate",
+      "command": "scripts/ai/publish_ntpro_release_after_gate.sh",
+      "required": true
+    }
+  ],
+  "capability": {
+    "name": "v0.30.0 Backend Production Go-Live Candidate Foundation",
+    "backend_production_go_live_candidate_foundation": true,
+    "actual_backend_production_go_live": false,
+    "product_grade_live_trading_terminal": false,
+    "new_submit_capability": false,
+    "production_order_mutation_expansion": false,
+    "dashboard_operation_controls": false,
+    "automatic_remediation_runtime": false
+  },
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "ambiguous_backend_go_live_claim": false,
+    "actual_backend_production_go_live_allowed": false,
+    "production_runtime_enablement_allowed": false,
+    "product_grade_trading_terminal_claim": false,
+    "product_grade_live_trading_terminal_claim": false,
+    "default_production_execution_allowed": false,
+    "candidate_artifact_runtime_effect_allowed": false,
+    "production_feature_flags_default_enabled": false,
+    "shared_approval_consumption_allowed": false,
+    "production_deployment_execution_allowed": false,
+    "production_deployment_executed": false,
+    "live_environment_mutation_allowed": false,
+    "runtime_switch_enablement_allowed": false,
+    "candidate_operation_execution_allowed": false,
+    "approval_lifecycle_authorizes_trading_operations": false,
+    "canary_execution_allowed": false,
+    "default_canary_execution_allowed": false,
+    "production_canary_action_executed": false,
+    "live_exchange_side_effect_allowed": false,
+    "rollback_execution_allowed": false,
+    "production_rollback_execution_allowed": false,
+    "dr_restore_execution_allowed": false,
+    "data_restore_execution_allowed": false,
+    "service_restart_execution_allowed": false,
+    "ambiguous_rollback_execution_claim_allowed": false,
+    "unredacted_sensitive_fields_present": false,
+    "credential_material_present": false,
+    "adapter_send_attempted": false,
+    "live_exchange_request_attempted": false,
+    "order_send_permission_allowed": false,
+    "connectivity_probe_network_attempted": false,
+    "telemetry_action_triggered": false,
+    "automatic_remediation_attempted": false,
+    "retry_scheduler_attempted": false,
+    "incident_freeze_active": false,
+    "critical_incident_active": false,
+    "production_storage_mutation_allowed": false,
+    "evidence_export_mutation_allowed": false,
+    "evidence_export_runtime_effect_allowed": false,
+    "audit_export_operation_action_allowed": false,
+    "audit_export_network_attempted": false,
+    "audit_export_trading_control_allowed": false,
+    "go_no_go_decision_action_allowed": false,
+    "evidence_export_adapter_send_allowed": false,
+    "go_no_go_record_enables_execution": false,
+    "decision_record_backend_go_live_allowed": false,
+    "runtime_enablement_from_go_no_go_allowed": false,
+    "operator_approval_reused_for_execution_allowed": false,
+    "production_enablement_handoff_allowed": false
+  },
+  "publication_governance": {
+    "gate_before_publish": true,
+    "release_gate_workflow_name": "Rust Cutover Release Gate",
+    "publish_workflow_name": "Rust Cutover Publish Release",
+    "publish_script": "scripts/ai/publish_ntpro_release_after_gate.sh",
+    "public_release_requires_successful_hosted_gate_for_same_tag_commit": true,
+    "release_gate_success_before_publication_required": true,
+    "current_release_publish_after_gate_binding_required": true,
+    "historical_fixture_only_current_release_proof_allowed": false,
+    "publication_evidence_strategy": "source_tree_plus_github_remote",
+    "local_generated_evidence_required_in_source_tree": false,
+    "remote_reconstruction_required": true
+  },
+  "release_surface_current_guard": {
+    "current_release_version": "v0.30.0",
+    "current_release_tag": "ntpro-rust-only-v0.30.0",
+    "current_release_capability": "v0.30.0 Backend Production Go-Live Candidate Foundation",
+    "next_patch_version": "v0.30.1",
+    "next_capability_version": "v0.31.0"
+  },
+  "next_tracks": {
+    "patch": "v0.30.1",
+    "capability": "v0.31.0",
+    "capability_entry": "production_enablement_after_v30_release_evidence_and_explicit_scoped_approval",
+    "start_gate": "hard_blocked_until_v30_release_evidence_and_explicit_scoped_approval",
+    "requires_scoped_issue": true,
+    "inherits_backend_go_live_claim": false,
+    "inherits_production_submit": false,
+    "inherits_production_mutation": false,
+    "inherits_adapter_send": false,
+    "inherits_live_exchange_request": false,
+    "inherits_retry_scheduler": false,
+    "inherits_automatic_remediation": false,
+    "inherits_dashboard_trading_controls": false,
+    "inherits_admin_workbench_trading_controls": false,
+    "inherits_trader_terminal_order_ticket": false
+  },
+  "post_publication_requirements": {
+    "release_tag": "ntpro-rust-only-v0.30.0",
+    "release_name": "NTPRO Rust-only v0.30.0",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.30.0",
+    "milestone_number": 26,
+    "milestone_title": "v0.30.0",
+    "all_v300_issues_closed_required": true,
+    "exact_milestone_issue_set_required": true,
+    "registered_corrective_scope_exceptions_required": true,
+    "unregistered_corrective_milestone_issues_fail_closed": true,
+    "github_release_published_required": true,
+    "hosted_release_gate_success_required": true,
+    "strict_release_body_match_required": true,
+    "publication_after_hosted_gate_required": true,
+    "source_controlled_closeout_evidence_required": true,
+    "generated_publication_evidence_sole_proof_allowed": false,
+    "v31_handoff_fails_without_v300_release_evidence": true,
+    "next_track_does_not_inherit_trading_controls": true
+  },
+  "post_publication_closeout": {
+    "status": "pending_publication",
+    "source_controlled_closeout_evidence": true,
+    "source_controlled_closeout_evidence_path": "docs/rust-cutover/release/v0_30_0_release_closeout_evidence.md",
+    "generated_evidence_path": "release-publication-evidence/ntpro-rust-only-v0.30.0.json",
+    "generated_evidence_is_sole_proof": false,
+    "v31_handoff_requires_source_controlled_closeout": true
+  },
+  "validation_artifacts": {
+    "strict_release_provenance_manifest_path": "target/ntpro-v300/v0_30_0_strict_release_manifest.json"
+  }
+}
