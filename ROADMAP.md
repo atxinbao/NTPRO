@@ -4,9 +4,9 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.29.1`, the v0.29.1 Release Governance and v30 Start-Gate Hardening Patch release.
-The next patch track is `v0.29.2`.
-The next capability track is `v0.30.0`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.30.0`, the v0.30.0 Backend Production Go-Live Candidate Foundation release.
+The next patch track is `v0.30.1`.
+The next capability track is `v0.31.0`.
 
 ## Current Release Surface
 
@@ -23,11 +23,13 @@ ntpro-rust-only-v0.28.0
 ntpro-rust-only-v0.28.1
 ntpro-rust-only-v0.29.0
 ntpro-rust-only-v0.29.1
+ntpro-rust-only-v0.30.0
 ```
 
 Current capability boundary:
 
 ```text
+v0.30.0 Backend Production Go-Live Candidate Foundation
 v0.29.1 Release Governance and v30 Start-Gate Hardening Patch
 v0.29.0 Backend Production Readiness Foundation
 v0.28.1 Backend Closure Governance Closeout Patch
@@ -99,17 +101,35 @@ v0.28.0 backend closure finalization evidence
 v0.28.1 release governance closeout patch evidence
 v0.29.0 backend production readiness foundation evidence
 v0.29.1 release governance and v30 start-gate hardening evidence
-v0.29.2 next patch track reserved after v0.29.1 release evidence
-v0.30.0 next capability track reserved after v0.29.1 release evidence
+v0.30.0 backend production go-live candidate foundation evidence
+v0.30.1 next patch track reserved after v0.30.0 release evidence
+v0.31.0 next capability track reserved after v0.30.0 release evidence and explicit scoped approval
 no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no Admin Workbench operation/trading controls
 no Trader Terminal order-ticket/trading controls
 no product-grade live trading terminal claim
 ```
 
+## Published Capability Track: v0.30.0
+
+`v0.30.0` is the current Backend Production Go-Live Candidate Foundation
+release surface. It records v0.29.1 dependency proof, backend go-live candidate
+boundary, deployment plan, runtime enablement boundary, operator approval and
+freeze lifecycle, canary preflight, rollback/DR boundary, config/venue
+readiness, telemetry/SLO and incident freeze gate, audit retention/export,
+go/no-go runbook, release gates, strict provenance, and v31 production
+enablement handoff.
+
+`v0.30.0` explicitly does not include actual backend production go-live,
+frontend product completion, product-grade live trading terminal readiness,
+new production submit capability, production order mutation, execution adapter
+send, live exchange request, retry scheduler, automatic remediation/recovery,
+strategy-driven production execution, shared approval consumption, or
+Dashboard/Admin/Trader Terminal operation/trading controls.
+
 ## Published Capability Track: v0.29.1
 
-`v0.29.1` is the current Release Governance and v30 Start-Gate Hardening Patch
+`v0.29.1` is the prior Release Governance and v30 Start-Gate Hardening Patch
 release surface. It records v0.29.0 publication closeout, v29
 publish-after-gate current binding, stale V290 evidence cleanup,
 post-publication closeout gate hardening, v30 start-gate hardening, v29.1

@@ -105,6 +105,30 @@ Final release checks, benchmark summaries, and audit reports live here.
   candidate-ready only, not actual backend production go-live.
 - `../evidence/V300-010.md` - V300-010 go/no-go runbook and live readiness
   decision record evidence for GitHub issue #979.
+- `v0_30_0_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.30.0` GitHub Release. It publishes Backend Production
+  Go-Live Candidate Foundation evidence and does not open backend go-live,
+  submit, mutation, adapter send, live exchange request, retry scheduler,
+  automatic remediation, Dashboard/Admin/Trader Terminal trading controls, or
+  product-grade live trading claims.
+- `v0_30_0_readiness_report.md` - release gate readiness report for the formal
+  `ntpro-rust-only-v0.30.0`, including exact V300 issue scope `#969-#980`,
+  v30 release gates, strict provenance, and the v31 production enablement
+  hard block.
+- `v0_30_0_release_manifest.json` - strict release manifest for the formal
+  `ntpro-rust-only-v0.30.0` tag gate.
+- `v0_30_0_release_closeout_evidence.md` - source-controlled closeout target
+  for the public `ntpro-rust-only-v0.30.0` GitHub Release, including hosted
+  gate, release body, milestone #26 closeout, and generated-publication-
+  evidence policy placeholders.
+- `v0_30_0_v31_production_enablement_handoff.md` and
+  `v0_30_0_v31_production_enablement_handoff.json` - V300-011 v31 production
+  enablement handoff. They hard-block v31 on v30 release evidence plus
+  explicit scoped approval and prevent inheritance of submit, mutation,
+  adapter send, live exchange requests, automatic remediation, or trading
+  controls.
+- `../evidence/V300-011.md` - V300-011 release gates and v31 handoff evidence
+  for GitHub issue #980.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
