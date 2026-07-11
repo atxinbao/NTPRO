@@ -58,6 +58,16 @@ Final release checks, benchmark summaries, and audit reports live here.
   fail closed.
 - `../evidence/V300-005.md` - V300-005 canary execution preflight and
   no-default-execution gate evidence for GitHub issue #974.
+- `v0_30_0_rollback_disaster_recovery_execution_boundary.md` and
+  `v0_30_0_rollback_disaster_recovery_execution_boundary.json` - V300-006
+  rollback and disaster recovery execution boundary evidence for GitHub issue
+  #975. They separate rollback/DR preview readiness from execution evidence,
+  validate rollback plans, DR restore boundaries, data safety checkpoints,
+  manual approval, incident freeze triggers, stale restore-point rejection, and
+  deployment provenance consistency while keeping rollback, restore, data
+  restore, and service restart execution blocked.
+- `../evidence/V300-006.md` - V300-006 rollback and disaster recovery
+  execution boundary evidence for GitHub issue #975.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend

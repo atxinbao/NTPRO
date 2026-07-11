@@ -1,0 +1,296 @@
+{
+  "schema_version": "ntpro.v300.rollback_disaster_recovery_execution_boundary.v1",
+  "contract_version": "ntpro.v300.rollback_disaster_recovery_execution_boundary.v1",
+  "task_id": "V300-006",
+  "github_issue": 975,
+  "milestone": "v0.30.0",
+  "release_scope": "backend_production_go_live_candidate_foundation_only",
+  "candidate_claim": "rollback_disaster_recovery_execution_boundary",
+  "rollback_readiness_mode": "source_controlled_preview_only",
+  "execution_evidence_present": false,
+  "rollback_execution_allowed": false,
+  "dr_restore_execution_allowed": false,
+  "data_restore_execution_allowed": false,
+  "service_restart_execution_allowed": false,
+  "dependency_contracts": [
+    "V300-002",
+    "V300-004",
+    "V300-005",
+    "v0.29.1-release-evidence"
+  ],
+  "manual_approval": {
+    "approval_status": "approved_for_preview_only",
+    "operator_lifecycle_ref": "docs/rust-cutover/release/v0_30_0_operator_approval_freeze_change_window_lifecycle.json",
+    "identity_provenance_status": "linked",
+    "immutable_audit_trail_ref_present": true,
+    "authorizes_execution": false,
+    "authorizes_trading_operations": false
+  },
+  "rollback_plans": [
+    {
+      "plan_id": "artifact_revert_plan",
+      "status": "preview_ready",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_production_deployment_plan_environment_readiness.json",
+      "deployment_provenance_status": "matched",
+      "freshness_status": "fresh",
+      "operator_approval_required": true,
+      "execution_allowed": false,
+      "ambiguous_execution_claim_allowed": false
+    },
+    {
+      "plan_id": "config_revert_plan",
+      "status": "preview_ready",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_production_deployment_plan_environment_readiness.json",
+      "deployment_provenance_status": "matched",
+      "freshness_status": "fresh",
+      "operator_approval_required": true,
+      "execution_allowed": false,
+      "ambiguous_execution_claim_allowed": false
+    },
+    {
+      "plan_id": "schema_rollback_preview_plan",
+      "status": "preview_ready",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_production_deployment_plan_environment_readiness.json",
+      "deployment_provenance_status": "matched",
+      "freshness_status": "fresh",
+      "operator_approval_required": true,
+      "execution_allowed": false,
+      "ambiguous_execution_claim_allowed": false
+    },
+    {
+      "plan_id": "traffic_revert_plan",
+      "status": "preview_ready",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_canary_execution_preflight_no_default_execution_gate.json",
+      "deployment_provenance_status": "matched",
+      "freshness_status": "fresh",
+      "operator_approval_required": true,
+      "execution_allowed": false,
+      "ambiguous_execution_claim_allowed": false
+    }
+  ],
+  "dr_restore_boundaries": [
+    {
+      "boundary_id": "snapshot_lineage_checkpoint",
+      "status": "linked",
+      "restore_point_freshness_status": "fresh",
+      "source_ref": "docs/rust-cutover/release/v0_29_0_canary_rollback_dr_preflight_readiness_artifact.json",
+      "restore_execution_allowed": false,
+      "data_restore_execution_allowed": false,
+      "service_restart_execution_allowed": false
+    },
+    {
+      "boundary_id": "recovery_point_checkpoint",
+      "status": "linked",
+      "restore_point_freshness_status": "fresh",
+      "source_ref": "docs/rust-cutover/release/v0_29_0_canary_rollback_dr_preflight_readiness_artifact.json",
+      "restore_execution_allowed": false,
+      "data_restore_execution_allowed": false,
+      "service_restart_execution_allowed": false
+    },
+    {
+      "boundary_id": "restore_sandbox_preview",
+      "status": "preview_ready",
+      "restore_point_freshness_status": "fresh",
+      "source_ref": "docs/rust-cutover/release/v0_29_0_canary_rollback_dr_preflight_readiness_artifact.json",
+      "restore_execution_allowed": false,
+      "data_restore_execution_allowed": false,
+      "service_restart_execution_allowed": false
+    },
+    {
+      "boundary_id": "service_restart_preview",
+      "status": "preview_ready",
+      "restore_point_freshness_status": "fresh",
+      "source_ref": "docs/rust-cutover/release/v0_29_0_canary_rollback_dr_preflight_readiness_artifact.json",
+      "restore_execution_allowed": false,
+      "data_restore_execution_allowed": false,
+      "service_restart_execution_allowed": false
+    }
+  ],
+  "data_safety_checkpoints": [
+    {
+      "checkpoint_id": "pre_deploy_snapshot",
+      "status": "fresh",
+      "deployment_provenance_status": "matched",
+      "execution_allowed": false
+    },
+    {
+      "checkpoint_id": "audit_retention_snapshot",
+      "status": "fresh",
+      "deployment_provenance_status": "matched",
+      "execution_allowed": false
+    },
+    {
+      "checkpoint_id": "config_digest_checkpoint",
+      "status": "matched",
+      "deployment_provenance_status": "matched",
+      "execution_allowed": false
+    },
+    {
+      "checkpoint_id": "idempotency_replay_checkpoint",
+      "status": "fresh",
+      "deployment_provenance_status": "matched",
+      "execution_allowed": false
+    }
+  ],
+  "incident_freeze_triggers": [
+    {
+      "trigger_id": "telemetry_slo_breach",
+      "status": "documented",
+      "manual_approval_required": true,
+      "automatic_remediation_allowed": false,
+      "execution_allowed": false
+    },
+    {
+      "trigger_id": "operator_emergency_stop",
+      "status": "documented",
+      "manual_approval_required": true,
+      "automatic_remediation_allowed": false,
+      "execution_allowed": false
+    },
+    {
+      "trigger_id": "rollback_plan_mismatch",
+      "status": "documented",
+      "manual_approval_required": true,
+      "automatic_remediation_allowed": false,
+      "execution_allowed": false
+    },
+    {
+      "trigger_id": "restore_point_stale",
+      "status": "documented",
+      "manual_approval_required": true,
+      "automatic_remediation_allowed": false,
+      "execution_allowed": false
+    }
+  ],
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "ambiguous_backend_go_live_claim": false,
+    "actual_backend_production_go_live_allowed": false,
+    "production_runtime_enablement_allowed": false,
+    "product_grade_trading_terminal_claim": false,
+    "product_grade_live_trading_terminal_claim": false,
+    "default_production_execution_allowed": false,
+    "candidate_artifact_runtime_effect_allowed": false,
+    "production_feature_flags_default_enabled": false,
+    "shared_approval_consumption_allowed": false,
+    "production_deployment_execution_allowed": false,
+    "production_deployment_executed": false,
+    "live_environment_mutation_allowed": false,
+    "runtime_switch_enablement_allowed": false,
+    "candidate_operation_execution_allowed": false,
+    "approval_lifecycle_authorizes_trading_operations": false,
+    "canary_execution_allowed": false,
+    "default_canary_execution_allowed": false,
+    "production_canary_action_executed": false,
+    "live_exchange_side_effect_allowed": false,
+    "rollback_execution_allowed": false,
+    "production_rollback_execution_allowed": false,
+    "dr_restore_execution_allowed": false,
+    "data_restore_execution_allowed": false,
+    "service_restart_execution_allowed": false,
+    "ambiguous_rollback_execution_claim_allowed": false
+  },
+  "readiness_cases": [
+    {
+      "case_id": "rollback_dr_boundary.preview.allowed.001",
+      "expected_status": "rollback_disaster_recovery_execution_boundary_ready"
+    },
+    {
+      "case_id": "rollback_dr_boundary.ambiguous_execution.fail_closed.001",
+      "rollback_plan_overrides": {
+        "artifact_revert_plan": {
+          "ambiguous_execution_claim_allowed": true
+        }
+      },
+      "expected_status": "fail_closed_ambiguous_rollback_execution"
+    },
+    {
+      "case_id": "rollback_dr_boundary.missing_operator_approval.fail_closed.001",
+      "manual_approval_override": {
+        "approval_status": "missing"
+      },
+      "expected_status": "fail_closed_missing_operator_approval"
+    },
+    {
+      "case_id": "rollback_dr_boundary.stale_restore_point.fail_closed.001",
+      "dr_restore_boundary_overrides": {
+        "recovery_point_checkpoint": {
+          "restore_point_freshness_status": "stale"
+        }
+      },
+      "expected_status": "fail_closed_stale_restore_point"
+    },
+    {
+      "case_id": "rollback_dr_boundary.inconsistent_deployment_provenance.fail_closed.001",
+      "rollback_plan_overrides": {
+        "config_revert_plan": {
+          "deployment_provenance_status": "mismatched"
+        }
+      },
+      "expected_status": "fail_closed_inconsistent_deployment_provenance"
+    },
+    {
+      "case_id": "rollback_dr_boundary.missing_data_safety.fail_closed.001",
+      "data_safety_checkpoint_overrides": {
+        "config_digest_checkpoint": {
+          "status": "missing"
+        }
+      },
+      "expected_status": "fail_closed_missing_data_safety_checkpoint"
+    },
+    {
+      "case_id": "rollback_dr_boundary.missing_incident_trigger.fail_closed.001",
+      "incident_freeze_trigger_overrides": {
+        "operator_emergency_stop": {
+          "status": "missing"
+        }
+      },
+      "expected_status": "fail_closed_missing_incident_freeze_trigger"
+    },
+    {
+      "case_id": "rollback_dr_boundary.execution_true.fail_closed.001",
+      "rollback_plan_overrides": {
+        "traffic_revert_plan": {
+          "execution_allowed": true
+        }
+      },
+      "expected_status": "fail_closed_forbidden_execution"
+    },
+    {
+      "case_id": "rollback_dr_boundary.restore_execution_true.fail_closed.001",
+      "dr_restore_boundary_overrides": {
+        "restore_sandbox_preview": {
+          "restore_execution_allowed": true
+        }
+      },
+      "expected_status": "fail_closed_forbidden_execution"
+    },
+    {
+      "case_id": "rollback_dr_boundary.forbidden_boundary.fail_closed.001",
+      "boundary_flags_override": {
+        "rollback_execution_allowed": true
+      },
+      "expected_status": "fail_closed_forbidden_boundary"
+    }
+  ]
+}
