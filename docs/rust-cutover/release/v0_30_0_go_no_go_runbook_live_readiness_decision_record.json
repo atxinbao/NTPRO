@@ -1,0 +1,507 @@
+{
+  "schema_version": "ntpro.v300.go_no_go_runbook_live_readiness_decision_record.v1",
+  "contract_version": "ntpro.v300.go_no_go_runbook_live_readiness_decision_record.v1",
+  "task_id": "V300-010",
+  "github_issue": 979,
+  "milestone": "v0.30.0",
+  "release_scope": "backend_production_go_live_candidate_foundation_only",
+  "candidate_claim": "go_no_go_runbook_live_readiness_decision_record",
+  "decision_record_mode": "candidate_ready_only_no_production_enablement",
+  "runbook_mode": "manual_owner_operator_release_review",
+  "ready_outcome_meaning": "candidate_ready_only",
+  "actual_backend_production_go_live_allowed": false,
+  "decision_record_runtime_effect_allowed": false,
+  "production_execution_enabled_by_decision": false,
+  "dependency_contracts": [
+    "V300-001",
+    "V300-002",
+    "V300-003",
+    "V300-004",
+    "V300-005",
+    "V300-006",
+    "V300-007",
+    "V300-008",
+    "V300-009",
+    "v0.29.1-release-evidence"
+  ],
+  "required_inputs": [
+    {
+      "input_id": "backend_go_live_candidate_boundary",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_backend_go_live_candidate_boundary_contract.json",
+      "presence_status": "present",
+      "freshness_status": "fresh",
+      "gate_status": "pass",
+      "reference_status": "verified",
+      "release_blocking": true,
+      "runtime_effect_allowed": false
+    },
+    {
+      "input_id": "deployment_readiness",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_production_deployment_plan_environment_readiness.json",
+      "presence_status": "present",
+      "freshness_status": "fresh",
+      "gate_status": "pass",
+      "reference_status": "verified",
+      "release_blocking": true,
+      "runtime_effect_allowed": false
+    },
+    {
+      "input_id": "runtime_feature_flags",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_runtime_enablement_boundary_controlled_feature_flags.json",
+      "presence_status": "present",
+      "freshness_status": "fresh",
+      "gate_status": "pass",
+      "reference_status": "verified",
+      "release_blocking": true,
+      "runtime_effect_allowed": false
+    },
+    {
+      "input_id": "operator_approval_freeze_window",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_operator_approval_freeze_change_window_lifecycle.json",
+      "presence_status": "present",
+      "freshness_status": "fresh",
+      "gate_status": "pass",
+      "reference_status": "verified",
+      "release_blocking": true,
+      "runtime_effect_allowed": false
+    },
+    {
+      "input_id": "canary_preflight",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_canary_execution_preflight_no_default_execution_gate.json",
+      "presence_status": "present",
+      "freshness_status": "fresh",
+      "gate_status": "pass",
+      "reference_status": "verified",
+      "release_blocking": true,
+      "runtime_effect_allowed": false
+    },
+    {
+      "input_id": "rollback_dr_boundary",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_rollback_disaster_recovery_execution_boundary.json",
+      "presence_status": "present",
+      "freshness_status": "fresh",
+      "gate_status": "pass",
+      "reference_status": "verified",
+      "release_blocking": true,
+      "runtime_effect_allowed": false
+    },
+    {
+      "input_id": "config_venue_readiness",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_production_config_provenance_venue_connectivity_readiness.json",
+      "presence_status": "present",
+      "freshness_status": "fresh",
+      "gate_status": "pass",
+      "reference_status": "verified",
+      "release_blocking": true,
+      "runtime_effect_allowed": false
+    },
+    {
+      "input_id": "telemetry_slo_incident_freeze",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_telemetry_slo_gate_incident_freeze_integration.json",
+      "presence_status": "present",
+      "freshness_status": "fresh",
+      "gate_status": "pass",
+      "reference_status": "verified",
+      "release_blocking": true,
+      "runtime_effect_allowed": false
+    },
+    {
+      "input_id": "audit_retention_export",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_audit_retention_evidence_export_readiness.json",
+      "presence_status": "present",
+      "freshness_status": "fresh",
+      "gate_status": "pass",
+      "reference_status": "verified",
+      "release_blocking": true,
+      "runtime_effect_allowed": false
+    },
+    {
+      "input_id": "v291_release_evidence",
+      "source_ref": "docs/rust-cutover/release/v0_29_1_release_closeout_evidence.md",
+      "presence_status": "present",
+      "freshness_status": "fresh",
+      "gate_status": "pass",
+      "reference_status": "verified",
+      "release_blocking": true,
+      "runtime_effect_allowed": false
+    }
+  ],
+  "decision_owners": [
+    {
+      "owner_id": "release_gatekeeper",
+      "acknowledgement_status": "acknowledged",
+      "approval_scope": "candidate_ready_only",
+      "production_go_live_authorized": false,
+      "bypass_allowed": false
+    },
+    {
+      "owner_id": "owner_operator",
+      "acknowledgement_status": "acknowledged",
+      "approval_scope": "candidate_ready_only",
+      "production_go_live_authorized": false,
+      "bypass_allowed": false
+    },
+    {
+      "owner_id": "control_scope",
+      "acknowledgement_status": "acknowledged",
+      "approval_scope": "candidate_ready_only",
+      "production_go_live_authorized": false,
+      "bypass_allowed": false
+    },
+    {
+      "owner_id": "runtime_owner",
+      "acknowledgement_status": "acknowledged",
+      "approval_scope": "candidate_ready_only",
+      "production_go_live_authorized": false,
+      "bypass_allowed": false
+    }
+  ],
+  "checklist_gates": [
+    {
+      "gate_id": "boundary_contract",
+      "input_id": "backend_go_live_candidate_boundary",
+      "gate_status": "pass",
+      "required": true,
+      "release_blocking": true,
+      "bypass_allowed": false
+    },
+    {
+      "gate_id": "deployment_environment_readiness",
+      "input_id": "deployment_readiness",
+      "gate_status": "pass",
+      "required": true,
+      "release_blocking": true,
+      "bypass_allowed": false
+    },
+    {
+      "gate_id": "runtime_flags_default_disabled",
+      "input_id": "runtime_feature_flags",
+      "gate_status": "pass",
+      "required": true,
+      "release_blocking": true,
+      "bypass_allowed": false
+    },
+    {
+      "gate_id": "operator_freeze_window",
+      "input_id": "operator_approval_freeze_window",
+      "gate_status": "pass",
+      "required": true,
+      "release_blocking": true,
+      "bypass_allowed": false
+    },
+    {
+      "gate_id": "canary_no_default_execution",
+      "input_id": "canary_preflight",
+      "gate_status": "pass",
+      "required": true,
+      "release_blocking": true,
+      "bypass_allowed": false
+    },
+    {
+      "gate_id": "rollback_dr_ready",
+      "input_id": "rollback_dr_boundary",
+      "gate_status": "pass",
+      "required": true,
+      "release_blocking": true,
+      "bypass_allowed": false
+    },
+    {
+      "gate_id": "config_venue_ready",
+      "input_id": "config_venue_readiness",
+      "gate_status": "pass",
+      "required": true,
+      "release_blocking": true,
+      "bypass_allowed": false
+    },
+    {
+      "gate_id": "telemetry_incident_freeze_ready",
+      "input_id": "telemetry_slo_incident_freeze",
+      "gate_status": "pass",
+      "required": true,
+      "release_blocking": true,
+      "bypass_allowed": false
+    },
+    {
+      "gate_id": "audit_retention_export_ready",
+      "input_id": "audit_retention_export",
+      "gate_status": "pass",
+      "required": true,
+      "release_blocking": true,
+      "bypass_allowed": false
+    },
+    {
+      "gate_id": "v291_release_evidence_ready",
+      "input_id": "v291_release_evidence",
+      "gate_status": "pass",
+      "required": true,
+      "release_blocking": true,
+      "bypass_allowed": false
+    }
+  ],
+  "freeze_abort_criteria": [
+    {
+      "criterion_id": "missing_required_gate",
+      "active": false,
+      "abort_required_when_active": true,
+      "automatic_remediation_allowed": false,
+      "execution_allowed": false
+    },
+    {
+      "criterion_id": "stale_required_gate",
+      "active": false,
+      "abort_required_when_active": true,
+      "automatic_remediation_allowed": false,
+      "execution_allowed": false
+    },
+    {
+      "criterion_id": "blocked_required_gate",
+      "active": false,
+      "abort_required_when_active": true,
+      "automatic_remediation_allowed": false,
+      "execution_allowed": false
+    },
+    {
+      "criterion_id": "active_operator_freeze",
+      "active": false,
+      "abort_required_when_active": true,
+      "automatic_remediation_allowed": false,
+      "execution_allowed": false
+    },
+    {
+      "criterion_id": "telemetry_slo_breach",
+      "active": false,
+      "abort_required_when_active": true,
+      "automatic_remediation_allowed": false,
+      "execution_allowed": false
+    },
+    {
+      "criterion_id": "rollback_not_ready",
+      "active": false,
+      "abort_required_when_active": true,
+      "automatic_remediation_allowed": false,
+      "execution_allowed": false
+    }
+  ],
+  "rollback_references": [
+    {
+      "reference_id": "rollback_dr_boundary",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_rollback_disaster_recovery_execution_boundary.json",
+      "reference_status": "linked",
+      "execution_allowed": false,
+      "live_mutation_allowed": false
+    },
+    {
+      "reference_id": "canary_abort_reference",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_canary_execution_preflight_no_default_execution_gate.json",
+      "reference_status": "linked",
+      "execution_allowed": false,
+      "live_mutation_allowed": false
+    },
+    {
+      "reference_id": "incident_freeze_reference",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_telemetry_slo_gate_incident_freeze_integration.json",
+      "reference_status": "linked",
+      "execution_allowed": false,
+      "live_mutation_allowed": false
+    }
+  ],
+  "decision_records": [
+    {
+      "decision_id": "ready_candidate",
+      "outcome": "ready",
+      "record_status": "deterministic",
+      "candidate_advancement_allowed": true,
+      "actual_backend_production_go_live_allowed": false,
+      "production_execution_enabled": false,
+      "requires_v31_scoped_enablement": true,
+      "operation_effect": "none"
+    },
+    {
+      "decision_id": "degraded_candidate",
+      "outcome": "degraded",
+      "record_status": "deterministic",
+      "candidate_advancement_allowed": false,
+      "actual_backend_production_go_live_allowed": false,
+      "production_execution_enabled": false,
+      "requires_v31_scoped_enablement": true,
+      "operation_effect": "none"
+    },
+    {
+      "decision_id": "blocked_candidate",
+      "outcome": "blocked",
+      "record_status": "deterministic",
+      "candidate_advancement_allowed": false,
+      "actual_backend_production_go_live_allowed": false,
+      "production_execution_enabled": false,
+      "requires_v31_scoped_enablement": true,
+      "operation_effect": "none"
+    },
+    {
+      "decision_id": "aborted_candidate",
+      "outcome": "aborted",
+      "record_status": "deterministic",
+      "candidate_advancement_allowed": false,
+      "actual_backend_production_go_live_allowed": false,
+      "production_execution_enabled": false,
+      "requires_v31_scoped_enablement": true,
+      "operation_effect": "none"
+    }
+  ],
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "ambiguous_backend_go_live_claim": false,
+    "actual_backend_production_go_live_allowed": false,
+    "production_runtime_enablement_allowed": false,
+    "product_grade_trading_terminal_claim": false,
+    "product_grade_live_trading_terminal_claim": false,
+    "default_production_execution_allowed": false,
+    "candidate_artifact_runtime_effect_allowed": false,
+    "production_feature_flags_default_enabled": false,
+    "shared_approval_consumption_allowed": false,
+    "production_deployment_execution_allowed": false,
+    "production_deployment_executed": false,
+    "live_environment_mutation_allowed": false,
+    "runtime_switch_enablement_allowed": false,
+    "candidate_operation_execution_allowed": false,
+    "approval_lifecycle_authorizes_trading_operations": false,
+    "canary_execution_allowed": false,
+    "default_canary_execution_allowed": false,
+    "production_canary_action_executed": false,
+    "live_exchange_side_effect_allowed": false,
+    "rollback_execution_allowed": false,
+    "production_rollback_execution_allowed": false,
+    "dr_restore_execution_allowed": false,
+    "data_restore_execution_allowed": false,
+    "service_restart_execution_allowed": false,
+    "ambiguous_rollback_execution_claim_allowed": false,
+    "unredacted_sensitive_fields_present": false,
+    "credential_material_present": false,
+    "adapter_send_attempted": false,
+    "live_exchange_request_attempted": false,
+    "order_send_permission_allowed": false,
+    "connectivity_probe_network_attempted": false,
+    "telemetry_action_triggered": false,
+    "automatic_remediation_attempted": false,
+    "retry_scheduler_attempted": false,
+    "incident_freeze_active": false,
+    "critical_incident_active": false,
+    "production_storage_mutation_allowed": false,
+    "evidence_export_mutation_allowed": false,
+    "evidence_export_runtime_effect_allowed": false,
+    "audit_export_operation_action_allowed": false,
+    "audit_export_network_attempted": false,
+    "audit_export_trading_control_allowed": false,
+    "go_no_go_decision_action_allowed": false,
+    "evidence_export_adapter_send_allowed": false,
+    "go_no_go_record_enables_execution": false,
+    "decision_record_backend_go_live_allowed": false,
+    "runtime_enablement_from_go_no_go_allowed": false,
+    "operator_approval_reused_for_execution_allowed": false,
+    "production_enablement_handoff_allowed": false
+  },
+  "readiness_cases": [
+    {
+      "case_id": "go_no_go_runbook.ready_candidate.allowed.001",
+      "expected_status": "go_no_go_candidate_ready_only"
+    },
+    {
+      "case_id": "go_no_go_runbook.missing_gate.fail_closed.001",
+      "input_overrides": {
+        "audit_retention_export": {
+          "presence_status": "missing"
+        }
+      },
+      "expected_status": "fail_closed_missing_required_gate"
+    },
+    {
+      "case_id": "go_no_go_runbook.stale_gate.fail_closed.001",
+      "input_overrides": {
+        "telemetry_slo_incident_freeze": {
+          "freshness_status": "stale"
+        }
+      },
+      "expected_status": "fail_closed_stale_required_gate"
+    },
+    {
+      "case_id": "go_no_go_runbook.blocked_gate.fail_closed.001",
+      "gate_overrides": {
+        "canary_no_default_execution": {
+          "gate_status": "blocked"
+        }
+      },
+      "expected_status": "fail_closed_blocked_required_gate"
+    },
+    {
+      "case_id": "go_no_go_runbook.active_freeze.fail_closed.001",
+      "freeze_abort_overrides": {
+        "active_operator_freeze": {
+          "active": true
+        }
+      },
+      "expected_status": "fail_closed_active_freeze_or_abort"
+    },
+    {
+      "case_id": "go_no_go_runbook.missing_owner.fail_closed.001",
+      "owner_overrides": {
+        "owner_operator": {
+          "acknowledgement_status": "missing"
+        }
+      },
+      "expected_status": "fail_closed_missing_decision_owner"
+    },
+    {
+      "case_id": "go_no_go_runbook.missing_rollback_reference.fail_closed.001",
+      "rollback_overrides": {
+        "rollback_dr_boundary": {
+          "reference_status": "missing"
+        }
+      },
+      "expected_status": "fail_closed_missing_rollback_reference"
+    },
+    {
+      "case_id": "go_no_go_runbook.actual_go_live_claim.fail_closed.001",
+      "decision_record_overrides": {
+        "ready_candidate": {
+          "actual_backend_production_go_live_allowed": true
+        }
+      },
+      "expected_status": "fail_closed_actual_backend_go_live_claim"
+    },
+    {
+      "case_id": "go_no_go_runbook.operational_action.fail_closed.001",
+      "decision_record_overrides": {
+        "ready_candidate": {
+          "production_execution_enabled": true
+        }
+      },
+      "expected_status": "fail_closed_forbidden_action"
+    },
+    {
+      "case_id": "go_no_go_runbook.forbidden_boundary.fail_closed.001",
+      "boundary_flags_override": {
+        "adapter_send_allowed": true
+      },
+      "expected_status": "fail_closed_forbidden_boundary"
+    }
+  ]
+}
