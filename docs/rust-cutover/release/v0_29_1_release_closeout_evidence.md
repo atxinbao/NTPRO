@@ -3,7 +3,7 @@
 Date: 2026-07-11
 Executor: Codex
 Release: `ntpro-rust-only-v0.29.1`
-Status: PENDING PUBLICATION
+Status: RELEASED
 
 ## Closeout Target
 
@@ -21,17 +21,43 @@ same tag commit hosted gate required = true
 v0.30.0 start rule = hard-blocked until v0.29.1 release evidence is published
 ```
 
+## Published Evidence
+
+```text
+tag object SHA = d3d398530835342dab4aafe355d1c842be0fdd47
+peeled tag commit = a831d802e4321f50ed6e10481aea35b15a74b01e
+origin/main at publication = a831d802e4321f50ed6e10481aea35b15a74b01e
+hosted release gate run = https://github.com/atxinbao/NTPRO/actions/runs/29130876713
+hosted release gate workflow = Rust Cutover Release Gate
+hosted release gate conclusion = success
+hosted release gate jobs = 90/90 success
+hosted release gate completed at = 2026-07-11T01:06:27Z
+GitHub Release published at = 2026-07-11T01:07:24Z
+published after hosted gate = true
+release body normalized sha256 = 2e11eaa92a91040fdf4e3903b97e58ebcfedeedcc9a1d45a24c56ea2f3a2eef8
+release body raw sha256 = ccd75fd4edb3bcd3a8353f2c466d30cec4b15d8074fce8beda5e8686cf035a02
+tracked release notes normalized sha256 = 2e11eaa92a91040fdf4e3903b97e58ebcfedeedcc9a1d45a24c56ea2f3a2eef8
+tracked release notes raw sha256 = ccd75fd4edb3bcd3a8353f2c466d30cec4b15d8074fce8beda5e8686cf035a02
+release body matches tracked release notes = true
+release body acceptance rule = normalized_sha256
+raw sha256 acceptance rule = false
+v0.29.1 milestone = closed
+v0.29.1 milestone open issues = 0
+v0.29.1 milestone closed issues = 6
+v0.30.0 start gate = ready
+```
+
 ## Issue Scope
 
 ```text
 V291 final release issue set = 6/6 required
 V291 exact milestone issue set = #963-#968
-#963 V291-001 = required closed
-#964 V291-002 = required closed
-#965 V291-003 = required closed
-#966 V291-004 = required closed
-#967 V291-005 = required closed
-#968 V291-006 = required closed
+#963 V291-001 = closed
+#964 V291-002 = closed
+#965 V291-003 = closed
+#966 V291-004 = closed
+#967 V291-005 = closed
+#968 V291-006 = closed
 ```
 
 ## Boundary
@@ -59,4 +85,12 @@ trader_terminal_order_ticket_enabled = false
 manual_operation_submit_allowed = false
 backend_go_live_claim = false
 product_grade_trading_terminal_claim = false
+```
+
+## Verification
+
+```text
+publication guard = pass
+v29.1 v30 start gate = ready
+v30 intake dependency proof = scripts/ai/verify_v30_intake_gate.sh
 ```

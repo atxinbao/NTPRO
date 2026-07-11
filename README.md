@@ -6,34 +6,33 @@ NautilusTrader.
 The current source-tree milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.29.0
-Latest formal release: ntpro-rust-only-v0.29.0
-Current source-tree readiness: ntpro-rust-only-v0.29.0 release gate ready
-Current capability: v0.29.0 Backend Production Readiness Foundation
-Capability class: backend production readiness foundation only
-Next patch: v0.29.1 Reserved Patch Track
+Current source tag: ntpro-rust-only-v0.29.1
+Latest formal release: ntpro-rust-only-v0.29.1
+Current source-tree readiness: ntpro-rust-only-v0.29.1 released
+Current capability: v0.29.1 Release Governance and v30 Start-Gate Hardening Patch
+Capability class: release governance and start-gate hardening patch only
+Next patch: v0.29.2 Reserved Patch Track
 Next capability: v0.30.0 Reserved Capability Track
-v0.30.0 entry: backend production go-live candidate only after v0.29.0 release evidence is published
-Boundary: v0.29.0 is a Backend Production Readiness Foundation.
-It is over the v0.28.1 release line and covers v0.28.1 dependency proof, backend production readiness boundary contract, persistent audit storage, telemetry/SLO ingestion, permission source, read-only backend API, deployment config/runbook, monitoring/alert/incident readiness, canary/rollback/DR preflight readiness, fail-closed hardening, v29 release gates, strict provenance, and the v30 go-live candidate handoff. It does not include backend go-live, frontend product completion, product-grade live trading, new production submit capability, production order mutation, execution adapter send, live exchange request, implicit retry, retry scheduler, automatic remediation, automatic recovery, strategy-driven production execution, shared approval consumption, real-funds proof in CI, or Dashboard/Admin/Trader Terminal order/approval/cancel/retry/submit/replace/amend/flatten/remediation/order-ticket controls.
+v0.30.0 entry: backend production go-live candidate only after v0.29.1 release evidence is published
+Boundary: v0.29.1 is a release governance and v30 start-gate hardening patch.
+It is over the prior release line and closes v29 publication evidence, strict provenance, publish-after-gate current binding, stale V290 evidence, post-publication closeout gate, and v30 start-gate hardening. It does not include backend go-live, frontend product completion, product-grade live trading, new production submit capability, production order mutation, execution adapter send, live exchange request, implicit retry, retry scheduler, automatic remediation, automatic recovery, strategy-driven production execution, shared approval consumption, real-funds proof in CI, or Dashboard/Admin/Trader Terminal order/approval/cancel/retry/submit/replace/amend/flatten/remediation/order-ticket controls.
 ```
 
-`ntpro-rust-only-v0.29.0` is the current source-tree release target. It is the
-Backend Production Readiness Foundation. It preserves the no-submit,
-no-backend-go-live, and no-Dashboard/Admin/Trader-Terminal-trading-controls
-boundary while adding v29 release gates, strict provenance, and the v30
-go-live candidate handoff. It is not a product-grade live trading terminal or
-production execution runtime.
+`ntpro-rust-only-v0.29.1` is the current source-tree release target. It is the
+Release Governance and v30 Start-Gate Hardening Patch. It preserves the
+no-submit, no-backend-go-live, and no-Dashboard/Admin/Trader-Terminal-trading
+controls boundary while proving v0.29.1 release evidence before v0.30.0 intake.
+It is not a product-grade live trading terminal or production execution runtime.
 
-The v0.29.0 release target is published through the GitHub Release path for the
-v0.29.0 tagged source tree:
+The v0.29.1 release target is published through the GitHub Release path for the
+v0.29.1 tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.29.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.29.1
 ```
 
-`v0.29.0` is the current Backend Production Readiness Foundation release
-surface. It remains backend readiness evidence and release governance closure,
+`v0.29.1` is the current Release Governance and v30 Start-Gate Hardening Patch
+release surface. It remains release evidence and start-gate governance closure,
 not backend go-live, a product-grade live trading terminal, or a general
 production trading platform claim. It does not add production submit, order
 mutation, execution adapter send, live exchange request, ungated
@@ -42,11 +41,11 @@ remediation, automatic recovery, bulk order execution, strategy-driven
 production execution, shared approval consumption, or Dashboard / Admin /
 Trader Terminal operation controls.
 
-The next patch track is `v0.29.1`. The next capability track is `v0.30.0`.
+The next patch track is `v0.29.2`. The next capability track is `v0.30.0`.
 `v0.30.0` does not automatically inherit backend go-live, production submit,
 mutation, adapter send, live exchange request, retry scheduler, automatic
 remediation, or Dashboard / Admin / Trader Terminal operation controls from
-`v0.29.0`.
+`v0.29.0` or `v0.29.1`.
 
 ## Current Status
 
@@ -122,10 +121,11 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.29.0 is the current formal release line. It is the Backend Production
-Readiness Foundation over the v0.28.1 Backend Closure Governance Closeout
-Patch, the v0.28.0 Backend Closure / Product Operations Runtime Finalization
-release, the v0.27.1 closeout patch, v0.27.0 foundation,
+v0.29.1 is the current formal release line. It is the Release Governance and
+v30 Start-Gate Hardening Patch over the v0.29.0 Backend Production Readiness
+Foundation, the v0.28.1 Backend Closure Governance Closeout Patch, the v0.28.0
+Backend Closure / Product Operations Runtime Finalization release, the v0.27.1
+closeout patch, v0.27.0 foundation,
 v0.26.1 closeout patch, v0.26.0 product hardening foundation, monitoring /
 incident / disaster-recovery foundation, and read-only Workbench/order-control
 foundation line and builds on the earlier foundation layers:
