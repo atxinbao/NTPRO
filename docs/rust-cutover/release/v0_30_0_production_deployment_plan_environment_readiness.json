@@ -1,0 +1,363 @@
+{
+  "schema_version": "ntpro.v300.production_deployment_plan_environment_readiness.v1",
+  "contract_version": "ntpro.v300.production_deployment_plan_environment_readiness.v1",
+  "task_id": "V300-002",
+  "github_issue": 971,
+  "milestone": "v0.30.0",
+  "release_scope": "backend_production_go_live_candidate_foundation_only",
+  "candidate_claim": "production_deployment_plan_environment_readiness",
+  "deployment_mode": "source_controlled_preview_only",
+  "environment_readiness_mode": "deterministic_readiness_replay",
+  "dry_run_or_preview_evidence_only": true,
+  "production_deployment_execution_allowed": false,
+  "production_deployment_executed": false,
+  "dependency_contracts": [
+    "V300-000",
+    "V300-001",
+    "v0.29.1-release-evidence"
+  ],
+  "deployment_targets": [
+    {
+      "target_id": "prod-control-plane",
+      "target_class": "backend_control_plane",
+      "environment_id": "prod-candidate-primary",
+      "artifact_ref": "artifact-v291-release",
+      "config_ref": "config-prod-primary",
+      "dry_run_or_preview_only": true,
+      "execution_allowed": false,
+      "owner_operator_approval_required_later": true,
+      "network_attempted": false,
+      "live_exchange_request_allowed": false
+    },
+    {
+      "target_id": "prod-read-api",
+      "target_class": "read_only_backend_api",
+      "environment_id": "prod-candidate-primary",
+      "artifact_ref": "artifact-v291-release",
+      "config_ref": "config-prod-primary",
+      "dry_run_or_preview_only": true,
+      "execution_allowed": false,
+      "owner_operator_approval_required_later": true,
+      "network_attempted": false,
+      "live_exchange_request_allowed": false
+    },
+    {
+      "target_id": "prod-audit-storage",
+      "target_class": "persistent_audit_storage",
+      "environment_id": "prod-candidate-primary",
+      "artifact_ref": "artifact-v291-release",
+      "config_ref": "config-prod-primary",
+      "dry_run_or_preview_only": true,
+      "execution_allowed": false,
+      "owner_operator_approval_required_later": true,
+      "network_attempted": false,
+      "live_exchange_request_allowed": false
+    },
+    {
+      "target_id": "prod-telemetry-slo",
+      "target_class": "telemetry_slo_pipeline",
+      "environment_id": "prod-candidate-primary",
+      "artifact_ref": "artifact-v291-release",
+      "config_ref": "config-prod-primary",
+      "dry_run_or_preview_only": true,
+      "execution_allowed": false,
+      "owner_operator_approval_required_later": true,
+      "network_attempted": false,
+      "live_exchange_request_allowed": false
+    },
+    {
+      "target_id": "prod-canary-sandbox",
+      "target_class": "canary_preview_lane",
+      "environment_id": "prod-candidate-canary",
+      "artifact_ref": "artifact-v291-release",
+      "config_ref": "config-prod-canary",
+      "dry_run_or_preview_only": true,
+      "execution_allowed": false,
+      "owner_operator_approval_required_later": true,
+      "network_attempted": false,
+      "live_exchange_request_allowed": false
+    },
+    {
+      "target_id": "prod-dr-preview",
+      "target_class": "disaster_recovery_preview_lane",
+      "environment_id": "prod-candidate-dr",
+      "artifact_ref": "artifact-v291-release",
+      "config_ref": "config-prod-dr",
+      "dry_run_or_preview_only": true,
+      "execution_allowed": false,
+      "owner_operator_approval_required_later": true,
+      "network_attempted": false,
+      "live_exchange_request_allowed": false
+    }
+  ],
+  "environment_inventory": [
+    {
+      "environment_id": "prod-candidate-primary",
+      "inventory_source": "source_controlled_manifest",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_production_deployment_plan_environment_readiness.json",
+      "required_evidence_present": true,
+      "freshness_status": "fresh",
+      "provenance_status": "linked",
+      "artifact_binding_status": "matched",
+      "config_binding_status": "matched",
+      "live_secret_material_present": false,
+      "deployment_execution_allowed": false
+    },
+    {
+      "environment_id": "prod-candidate-canary",
+      "inventory_source": "source_controlled_manifest",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_production_deployment_plan_environment_readiness.json",
+      "required_evidence_present": true,
+      "freshness_status": "fresh",
+      "provenance_status": "linked",
+      "artifact_binding_status": "matched",
+      "config_binding_status": "matched",
+      "live_secret_material_present": false,
+      "deployment_execution_allowed": false
+    },
+    {
+      "environment_id": "prod-candidate-dr",
+      "inventory_source": "source_controlled_manifest",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_production_deployment_plan_environment_readiness.json",
+      "required_evidence_present": true,
+      "freshness_status": "fresh",
+      "provenance_status": "linked",
+      "artifact_binding_status": "matched",
+      "config_binding_status": "matched",
+      "live_secret_material_present": false,
+      "deployment_execution_allowed": false
+    }
+  ],
+  "artifact_provenance": {
+    "artifact_id": "artifact-v291-release",
+    "release_tag": "ntpro-rust-only-v0.29.1",
+    "release_commit": "a831d802e4321f50ed6e10481aea35b15a74b01e",
+    "release_manifest": "docs/rust-cutover/release/v0_29_1_release_manifest.json",
+    "release_closeout": "docs/rust-cutover/release/v0_29_1_release_closeout_evidence.md",
+    "hosted_gate_run": "29130876713",
+    "boundary_contract": "docs/rust-cutover/release/v0_30_0_backend_go_live_candidate_boundary_contract.md",
+    "source_tree_reconstructable": true,
+    "artifact_digest_status": "matched",
+    "stale_artifact_allowed": false
+  },
+  "config_provenance": [
+    {
+      "config_id": "config-prod-primary",
+      "target_environment_id": "prod-candidate-primary",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_production_deployment_plan_environment_readiness.md",
+      "freshness_status": "fresh",
+      "provenance_status": "linked",
+      "digest_status": "matched",
+      "unsafe_defaults_allowed": false,
+      "production_secret_value_embedded": false,
+      "execution_allowed": false
+    },
+    {
+      "config_id": "config-prod-canary",
+      "target_environment_id": "prod-candidate-canary",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_production_deployment_plan_environment_readiness.md",
+      "freshness_status": "fresh",
+      "provenance_status": "linked",
+      "digest_status": "matched",
+      "unsafe_defaults_allowed": false,
+      "production_secret_value_embedded": false,
+      "execution_allowed": false
+    },
+    {
+      "config_id": "config-prod-dr",
+      "target_environment_id": "prod-candidate-dr",
+      "source_ref": "docs/rust-cutover/release/v0_30_0_production_deployment_plan_environment_readiness.md",
+      "freshness_status": "fresh",
+      "provenance_status": "linked",
+      "digest_status": "matched",
+      "unsafe_defaults_allowed": false,
+      "production_secret_value_embedded": false,
+      "execution_allowed": false
+    }
+  ],
+  "migration_upgrade_prerequisites": [
+    {
+      "id": "schema_migration_preview",
+      "status": "preview_ready",
+      "required_before_execution": true,
+      "execution_performed": false,
+      "blocking_if_missing": true
+    },
+    {
+      "id": "config_upgrade_preview",
+      "status": "preview_ready",
+      "required_before_execution": true,
+      "execution_performed": false,
+      "blocking_if_missing": true
+    },
+    {
+      "id": "artifact_compatibility_preview",
+      "status": "preview_ready",
+      "required_before_execution": true,
+      "execution_performed": false,
+      "blocking_if_missing": true
+    },
+    {
+      "id": "operator_handoff_preview",
+      "status": "preview_ready",
+      "required_before_execution": true,
+      "execution_performed": false,
+      "blocking_if_missing": true
+    }
+  ],
+  "rollback_checkpoints": [
+    {
+      "id": "pre_deploy_snapshot_checkpoint",
+      "status": "documented",
+      "dry_run_or_preview_only": true,
+      "execution_triggered": false,
+      "approval_required_later": true
+    },
+    {
+      "id": "artifact_revert_checkpoint",
+      "status": "documented",
+      "dry_run_or_preview_only": true,
+      "execution_triggered": false,
+      "approval_required_later": true
+    },
+    {
+      "id": "config_revert_checkpoint",
+      "status": "documented",
+      "dry_run_or_preview_only": true,
+      "execution_triggered": false,
+      "approval_required_later": true
+    },
+    {
+      "id": "schema_rollback_preview_checkpoint",
+      "status": "documented",
+      "dry_run_or_preview_only": true,
+      "execution_triggered": false,
+      "approval_required_later": true
+    },
+    {
+      "id": "traffic_revert_checkpoint",
+      "status": "documented",
+      "dry_run_or_preview_only": true,
+      "execution_triggered": false,
+      "approval_required_later": true
+    }
+  ],
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "ambiguous_backend_go_live_claim": false,
+    "actual_backend_production_go_live_allowed": false,
+    "production_runtime_enablement_allowed": false,
+    "product_grade_trading_terminal_claim": false,
+    "product_grade_live_trading_terminal_claim": false,
+    "default_production_execution_allowed": false,
+    "candidate_artifact_runtime_effect_allowed": false,
+    "production_feature_flags_default_enabled": false,
+    "shared_approval_consumption_allowed": false,
+    "production_deployment_execution_allowed": false,
+    "production_deployment_executed": false,
+    "live_environment_mutation_allowed": false
+  },
+  "readiness_cases": [
+    {
+      "case_id": "deployment_plan_environment_readiness.preview.allowed.001",
+      "expected_status": "production_deployment_plan_environment_readiness_ready"
+    },
+    {
+      "case_id": "deployment_plan_environment_readiness.missing_environment.fail_closed.001",
+      "environment_inventory_overrides": {
+        "prod-candidate-primary": {
+          "required_evidence_present": false
+        }
+      },
+      "expected_status": "fail_closed_missing_environment_evidence"
+    },
+    {
+      "case_id": "deployment_plan_environment_readiness.stale_environment.fail_closed.001",
+      "environment_inventory_overrides": {
+        "prod-candidate-canary": {
+          "freshness_status": "stale"
+        }
+      },
+      "expected_status": "fail_closed_stale_environment_evidence"
+    },
+    {
+      "case_id": "deployment_plan_environment_readiness.mismatched_environment.fail_closed.001",
+      "deployment_target_overrides": {
+        "prod-dr-preview": {
+          "environment_id": "prod-candidate-primary"
+        }
+      },
+      "expected_status": "fail_closed_mismatched_environment_evidence"
+    },
+    {
+      "case_id": "deployment_plan_environment_readiness.missing_artifact_provenance.fail_closed.001",
+      "artifact_provenance_override": {
+        "release_manifest": ""
+      },
+      "expected_status": "fail_closed_missing_artifact_provenance"
+    },
+    {
+      "case_id": "deployment_plan_environment_readiness.missing_config_provenance.fail_closed.001",
+      "config_provenance_overrides": {
+        "config-prod-primary": {
+          "provenance_status": "missing"
+        }
+      },
+      "expected_status": "fail_closed_missing_config_provenance"
+    },
+    {
+      "case_id": "deployment_plan_environment_readiness.missing_migration_prerequisite.fail_closed.001",
+      "migration_prerequisite_overrides": {
+        "schema_migration_preview": {
+          "status": "missing"
+        }
+      },
+      "expected_status": "fail_closed_missing_migration_prerequisite"
+    },
+    {
+      "case_id": "deployment_plan_environment_readiness.missing_rollback_checkpoint.fail_closed.001",
+      "rollback_checkpoint_overrides": {
+        "traffic_revert_checkpoint": {
+          "status": "missing"
+        }
+      },
+      "expected_status": "fail_closed_missing_rollback_checkpoint"
+    },
+    {
+      "case_id": "deployment_plan_environment_readiness.forbidden_execution.fail_closed.001",
+      "deployment_target_overrides": {
+        "prod-control-plane": {
+          "execution_allowed": true
+        }
+      },
+      "expected_status": "fail_closed_forbidden_execution"
+    },
+    {
+      "case_id": "deployment_plan_environment_readiness.forbidden_boundary.fail_closed.001",
+      "boundary_flags_override": {
+        "production_deployment_execution_allowed": true
+      },
+      "expected_status": "fail_closed_forbidden_boundary"
+    }
+  ]
+}

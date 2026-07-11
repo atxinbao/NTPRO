@@ -20,6 +20,16 @@ Final release checks, benchmark summaries, and audit reports live here.
   controls closed by default.
 - `../evidence/V300-001.md` - V300-001 backend go-live candidate boundary
   contract evidence for GitHub issue #970.
+- `v0_30_0_production_deployment_plan_environment_readiness.md` and
+  `v0_30_0_production_deployment_plan_environment_readiness.json` - V300-002
+  source-controlled production deployment plan and environment readiness
+  evidence for GitHub issue #971. They define preview-only deployment targets,
+  environment inventory, artifact provenance, config provenance,
+  migration/upgrade prerequisites, rollback checkpoints, and fail-closed
+  missing/stale/mismatched environment evidence without executing production
+  deployment or opening backend go-live.
+- `../evidence/V300-002.md` - V300-002 production deployment plan and
+  environment readiness evidence for GitHub issue #971.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
