@@ -87,6 +87,15 @@ Final release checks, benchmark summaries, and audit reports live here.
   criteria, and telemetry-triggered remediation/retry/adapter/trading actions.
 - `../evidence/V300-008.md` - V300-008 telemetry/SLO gate and incident freeze
   evidence for GitHub issue #977.
+- `v0_30_0_audit_retention_evidence_export_readiness.md` and
+  `v0_30_0_audit_retention_evidence_export_readiness.json` - V300-009 audit
+  retention and evidence export readiness for GitHub issue #978. They define
+  reconstructable audit records for approval, deployment, canary, rollback,
+  config, telemetry, incidents, and go/no-go decisions; read-only evidence
+  export/readback; retention, redaction, lineage, and unverifiable-reference
+  fail-closed boundaries; and required-false production mutation/action flags.
+- `../evidence/V300-009.md` - V300-009 audit retention and evidence export
+  readiness evidence for GitHub issue #978.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
