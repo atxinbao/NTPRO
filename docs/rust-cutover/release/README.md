@@ -68,6 +68,16 @@ Final release checks, benchmark summaries, and audit reports live here.
   restore, and service restart execution blocked.
 - `../evidence/V300-006.md` - V300-006 rollback and disaster recovery
   execution boundary evidence for GitHub issue #975.
+- `v0_30_0_production_config_provenance_venue_connectivity_readiness.md` and
+  `v0_30_0_production_config_provenance_venue_connectivity_readiness.json` -
+  V300-007 production config provenance and venue connectivity readiness
+  evidence for GitHub issue #976. They record redacted config source, digest,
+  environment binding, endpoint class, credential-material boundaries, and
+  read-only/probe-plan readiness while rejecting unredacted sensitive fields,
+  missing provenance, stale config, adapter sends, live-exchange requests, and
+  order-send permission.
+- `../evidence/V300-007.md` - V300-007 production config provenance and venue
+  connectivity readiness evidence for GitHub issue #976.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
