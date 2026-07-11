@@ -39,6 +39,15 @@ Final release checks, benchmark summaries, and audit reports live here.
   submit/mutation/adapter/live-exchange paths, and trading controls.
 - `../evidence/V300-003.md` - V300-003 runtime enablement boundary and
   controlled feature flag evidence for GitHub issue #972.
+- `v0_30_0_operator_approval_freeze_change_window_lifecycle.md` and
+  `v0_30_0_operator_approval_freeze_change_window_lifecycle.json` - V300-004
+  operator approval, freeze, emergency-stop, and change-window lifecycle
+  evidence for GitHub issue #973. They require approval plus an active preview
+  change window for candidate operations while keeping approval evidence
+  separate from submit/cancel/replace/amend/flatten, adapter send,
+  live-exchange requests, and automatic remediation authorization.
+- `../evidence/V300-004.md` - V300-004 operator approval freeze and
+  change-window lifecycle evidence for GitHub issue #973.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
