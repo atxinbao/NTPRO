@@ -30,6 +30,15 @@ Final release checks, benchmark summaries, and audit reports live here.
   deployment or opening backend go-live.
 - `../evidence/V300-002.md` - V300-002 production deployment plan and
   environment readiness evidence for GitHub issue #971.
+- `v0_30_0_runtime_enablement_boundary_controlled_feature_flags.md` and
+  `v0_30_0_runtime_enablement_boundary_controlled_feature_flags.json` -
+  V300-003 runtime enablement boundary and controlled feature flag inventory
+  for GitHub issue #972. They keep every runtime switch default-disabled,
+  require later approval/audit/scoped enablement evidence before preview can
+  move to enabled, and reject stale provenance, unsupported flag combinations,
+  submit/mutation/adapter/live-exchange paths, and trading controls.
+- `../evidence/V300-003.md` - V300-003 runtime enablement boundary and
+  controlled feature flag evidence for GitHub issue #972.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend

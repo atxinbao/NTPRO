@@ -1,0 +1,387 @@
+{
+  "schema_version": "ntpro.v300.runtime_enablement_boundary_controlled_feature_flags.v1",
+  "contract_version": "ntpro.v300.runtime_enablement_boundary_controlled_feature_flags.v1",
+  "task_id": "V300-003",
+  "github_issue": 972,
+  "milestone": "v0.30.0",
+  "release_scope": "backend_production_go_live_candidate_foundation_only",
+  "candidate_claim": "runtime_enablement_boundary_controlled_feature_flags",
+  "runtime_enablement_mode": "preview_inventory_only",
+  "controlled_feature_flag_mode": "default_disabled_inventory",
+  "runtime_enablement_allowed": false,
+  "production_feature_flags_default_enabled": false,
+  "dependency_contracts": [
+    "V300-001",
+    "V300-002",
+    "v0.29.1-release-evidence"
+  ],
+  "approval_gate": {
+    "owner_operator_approval_required_before_enablement": true,
+    "approval_evidence_present": false,
+    "approval_freshness_status": "not_applicable_until_enablement",
+    "approval_bypass_allowed": false,
+    "scoped_enablement_issue_required": true,
+    "scoped_enablement_issue_present": false
+  },
+  "audit_gate": {
+    "audit_evidence_required_before_enablement": true,
+    "audit_evidence_present": false,
+    "audit_freshness_status": "not_applicable_until_enablement",
+    "shared_approval_consumption_allowed": false,
+    "audit_bypass_allowed": false
+  },
+  "runtime_switches": [
+    {
+      "flag_id": "backend_read_api_runtime_bridge",
+      "flag_class": "candidate_preview_switch",
+      "current_state": "preview",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "audit_export_pipeline_preview",
+      "flag_class": "candidate_preview_switch",
+      "current_state": "preview",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "telemetry_slo_ingestion_runtime_bridge",
+      "flag_class": "candidate_preview_switch",
+      "current_state": "preview",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "config_provenance_runtime_bridge",
+      "flag_class": "candidate_preview_switch",
+      "current_state": "preview",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "canary_preflight_runtime_bridge",
+      "flag_class": "candidate_preview_switch",
+      "current_state": "preview",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "rollback_dr_runtime_bridge",
+      "flag_class": "candidate_preview_switch",
+      "current_state": "preview",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "operator_freeze_lifecycle_runtime_bridge",
+      "flag_class": "candidate_preview_switch",
+      "current_state": "preview",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "production_order_submit",
+      "flag_class": "forbidden_trading_switch",
+      "current_state": "disabled",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "production_order_mutation",
+      "flag_class": "forbidden_trading_switch",
+      "current_state": "disabled",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "execution_adapter_send",
+      "flag_class": "forbidden_adapter_switch",
+      "current_state": "disabled",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "live_exchange_request",
+      "flag_class": "forbidden_exchange_switch",
+      "current_state": "disabled",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "retry_scheduler_runtime",
+      "flag_class": "forbidden_automation_switch",
+      "current_state": "disabled",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "automatic_remediation_runtime",
+      "flag_class": "forbidden_automation_switch",
+      "current_state": "disabled",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "dashboard_trading_controls",
+      "flag_class": "forbidden_trading_control_switch",
+      "current_state": "disabled",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "admin_workbench_trading_controls",
+      "flag_class": "forbidden_trading_control_switch",
+      "current_state": "disabled",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "trader_terminal_order_ticket",
+      "flag_class": "forbidden_trading_control_switch",
+      "current_state": "disabled",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    },
+    {
+      "flag_id": "manual_operation_submit",
+      "flag_class": "forbidden_trading_control_switch",
+      "current_state": "disabled",
+      "default_enabled": false,
+      "enabled": false,
+      "runtime_effect_allowed": false,
+      "provenance_status": "fresh",
+      "requires_later_scoped_enablement_issue": true,
+      "requires_approval_before_enablement": true,
+      "requires_audit_before_enablement": true
+    }
+  ],
+  "unsupported_combinations": [
+    ["production_order_submit", "execution_adapter_send"],
+    ["production_order_submit", "live_exchange_request"],
+    ["production_order_mutation", "execution_adapter_send"],
+    ["production_order_mutation", "live_exchange_request"],
+    ["retry_scheduler_runtime", "automatic_remediation_runtime"],
+    ["dashboard_trading_controls", "trader_terminal_order_ticket"],
+    ["manual_operation_submit", "execution_adapter_send"]
+  ],
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "ambiguous_backend_go_live_claim": false,
+    "actual_backend_production_go_live_allowed": false,
+    "production_runtime_enablement_allowed": false,
+    "product_grade_trading_terminal_claim": false,
+    "product_grade_live_trading_terminal_claim": false,
+    "default_production_execution_allowed": false,
+    "candidate_artifact_runtime_effect_allowed": false,
+    "production_feature_flags_default_enabled": false,
+    "shared_approval_consumption_allowed": false,
+    "production_deployment_execution_allowed": false,
+    "production_deployment_executed": false,
+    "live_environment_mutation_allowed": false,
+    "runtime_switch_enablement_allowed": false
+  },
+  "readiness_cases": [
+    {
+      "case_id": "runtime_enablement_flags.preview_inventory.allowed.001",
+      "expected_status": "runtime_enablement_boundary_controlled_feature_flags_ready"
+    },
+    {
+      "case_id": "runtime_enablement_flags.default_enabled.fail_closed.001",
+      "runtime_switch_overrides": {
+        "backend_read_api_runtime_bridge": {
+          "default_enabled": true
+        }
+      },
+      "expected_status": "fail_closed_default_enabled"
+    },
+    {
+      "case_id": "runtime_enablement_flags.missing_approval.fail_closed.001",
+      "runtime_switch_overrides": {
+        "backend_read_api_runtime_bridge": {
+          "enabled": true
+        }
+      },
+      "expected_status": "fail_closed_missing_approval"
+    },
+    {
+      "case_id": "runtime_enablement_flags.missing_audit.fail_closed.001",
+      "approval_gate_override": {
+        "approval_evidence_present": true,
+        "scoped_enablement_issue_present": true
+      },
+      "runtime_switch_overrides": {
+        "audit_export_pipeline_preview": {
+          "enabled": true
+        }
+      },
+      "expected_status": "fail_closed_missing_audit_evidence"
+    },
+    {
+      "case_id": "runtime_enablement_flags.stale_provenance.fail_closed.001",
+      "runtime_switch_overrides": {
+        "telemetry_slo_ingestion_runtime_bridge": {
+          "provenance_status": "stale"
+        }
+      },
+      "expected_status": "fail_closed_stale_flag_provenance"
+    },
+    {
+      "case_id": "runtime_enablement_flags.unsupported_submit_adapter.fail_closed.001",
+      "approval_gate_override": {
+        "approval_evidence_present": true,
+        "scoped_enablement_issue_present": true
+      },
+      "audit_gate_override": {
+        "audit_evidence_present": true
+      },
+      "runtime_switch_overrides": {
+        "production_order_submit": {
+          "enabled": true
+        },
+        "execution_adapter_send": {
+          "enabled": true
+        }
+      },
+      "expected_status": "fail_closed_unsupported_flag_combination"
+    },
+    {
+      "case_id": "runtime_enablement_flags.forbidden_trading_flag.fail_closed.001",
+      "approval_gate_override": {
+        "approval_evidence_present": true,
+        "scoped_enablement_issue_present": true
+      },
+      "audit_gate_override": {
+        "audit_evidence_present": true
+      },
+      "runtime_switch_overrides": {
+        "live_exchange_request": {
+          "enabled": true
+        }
+      },
+      "expected_status": "fail_closed_forbidden_trading_flag"
+    },
+    {
+      "case_id": "runtime_enablement_flags.missing_scoped_issue.fail_closed.001",
+      "approval_gate_override": {
+        "approval_evidence_present": true
+      },
+      "audit_gate_override": {
+        "audit_evidence_present": true
+      },
+      "runtime_switch_overrides": {
+        "config_provenance_runtime_bridge": {
+          "enabled": true
+        }
+      },
+      "expected_status": "fail_closed_missing_scoped_enablement_issue"
+    },
+    {
+      "case_id": "runtime_enablement_flags.forbidden_boundary.fail_closed.001",
+      "boundary_flags_override": {
+        "runtime_switch_enablement_allowed": true
+      },
+      "expected_status": "fail_closed_forbidden_boundary"
+    }
+  ]
+}
