@@ -96,6 +96,15 @@ Final release checks, benchmark summaries, and audit reports live here.
   fail-closed boundaries; and required-false production mutation/action flags.
 - `../evidence/V300-009.md` - V300-009 audit retention and evidence export
   readiness evidence for GitHub issue #978.
+- `v0_30_0_go_no_go_runbook_live_readiness_decision_record.md` and
+  `v0_30_0_go_no_go_runbook_live_readiness_decision_record.json` - V300-010
+  go/no-go runbook and live readiness decision record for GitHub issue #979.
+  They define required inputs, decision owners, checklist gates, freeze/abort
+  criteria, rollback references, deterministic ready/degraded/blocked/aborted
+  decision records, and fail-closed rules while keeping ready limited to
+  candidate-ready only, not actual backend production go-live.
+- `../evidence/V300-010.md` - V300-010 go/no-go runbook and live readiness
+  decision record evidence for GitHub issue #979.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
