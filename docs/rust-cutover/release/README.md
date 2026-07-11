@@ -78,6 +78,15 @@ Final release checks, benchmark summaries, and audit reports live here.
   order-send permission.
 - `../evidence/V300-007.md` - V300-007 production config provenance and venue
   connectivity readiness evidence for GitHub issue #976.
+- `v0_30_0_telemetry_slo_gate_incident_freeze_integration.md` and
+  `v0_30_0_telemetry_slo_gate_incident_freeze_integration.json` - V300-008
+  telemetry/SLO gate and incident freeze integration evidence for GitHub issue
+  #977. They define telemetry freshness, SLO thresholds, alert routing,
+  incident freeze criteria, and release-blocking health states while rejecting
+  stale/missing telemetry, degraded SLOs, critical incidents, active freeze
+  criteria, and telemetry-triggered remediation/retry/adapter/trading actions.
+- `../evidence/V300-008.md` - V300-008 telemetry/SLO gate and incident freeze
+  evidence for GitHub issue #977.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
