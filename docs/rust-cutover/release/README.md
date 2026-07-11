@@ -10,6 +10,16 @@ Final release checks, benchmark summaries, and audit reports live here.
   trading controls.
 - `../evidence/V300-000.md` - V300-000 v0.30.0 intake gate and v0.29.1
   dependency proof evidence for GitHub issue #969.
+- `v0_30_0_backend_go_live_candidate_boundary_contract.md` and
+  `v0_30_0_backend_go_live_candidate_boundary_contract.json` - V300-001
+  boundary contract for GitHub issue #970. They separate backend production
+  readiness, backend go-live candidate evidence, and actual backend production
+  go-live; reject ambiguous `backend_go_live=true` claims; and keep all submit,
+  mutation, adapter send, live exchange, automatic remediation, backend
+  go-live, default production execution, product-grade terminal, and trading
+  controls closed by default.
+- `../evidence/V300-001.md` - V300-001 backend go-live candidate boundary
+  contract evidence for GitHub issue #970.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend

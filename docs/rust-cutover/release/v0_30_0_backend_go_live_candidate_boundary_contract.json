@@ -1,0 +1,273 @@
+{
+  "schema_version": "ntpro.v300.backend_go_live_candidate_boundary.v1",
+  "contract_version": "ntpro.v300.backend_go_live_candidate_boundary.v1",
+  "task_id": "V300-001",
+  "github_issue": 970,
+  "product_version": "v0.30.0",
+  "release_scope": "backend_production_go_live_candidate_foundation_only",
+  "candidate_claim": "backend_go_live_candidate_boundary_contract",
+  "dependency_start_gate": {
+    "v300_intake_gate": "satisfied",
+    "v291_release_evidence": "published",
+    "v291_milestone": "closed",
+    "v291_exact_issue_set": "#963-#968",
+    "v300_intake_issue": 969
+  },
+  "terminology": {
+    "backend_production_readiness": "source_controlled_readiness_evidence_only",
+    "backend_go_live_candidate": "source_controlled_candidate_evidence_for_later_go_no_go_review",
+    "actual_backend_production_go_live": "runtime_enablement_that_can_affect_live_operational_or_trading_state",
+    "product_grade_live_trading_terminal": "user_facing_live_trading_surface_with_submit_mutation_adapter_send_exchange_request_or_trading_controls",
+    "candidate_does_not_mean": [
+      "actual_backend_production_go_live",
+      "product_grade_live_trading_terminal",
+      "default_production_execution",
+      "production_order_submission",
+      "production_order_mutation",
+      "adapter_send",
+      "live_exchange_request",
+      "automatic_remediation",
+      "dashboard_admin_trader_terminal_trading_controls"
+    ]
+  },
+  "candidate_claim_rules": {
+    "backend_go_live_candidate_claim_allowed": true,
+    "candidate_claim_runtime_effect_allowed": false,
+    "backend_go_live_claim_allowed": false,
+    "ambiguous_backend_go_live_claim_allowed": false,
+    "actual_backend_production_go_live_allowed": false,
+    "product_grade_live_trading_terminal_claim_allowed": false,
+    "production_execution_runtime_claim_allowed": false,
+    "default_submit_claim_allowed": false,
+    "default_production_execution_allowed": false,
+    "candidate_artifact_requires_scoped_issue": true,
+    "candidate_artifact_requires_later_go_no_go_decision": true,
+    "candidate_artifact_requires_release_gate": true
+  },
+  "allowed_candidate_artifacts": [
+    {
+      "id": "production_deployment_plan",
+      "issue": 971,
+      "runtime_effect_allowed": false,
+      "default_enabled": false,
+      "requires_scoped_issue": true,
+      "requires_later_enablement_decision": true
+    },
+    {
+      "id": "environment_readiness_record",
+      "issue": 971,
+      "runtime_effect_allowed": false,
+      "default_enabled": false,
+      "requires_scoped_issue": true,
+      "requires_later_enablement_decision": true
+    },
+    {
+      "id": "runtime_enablement_boundary",
+      "issue": 972,
+      "runtime_effect_allowed": false,
+      "default_enabled": false,
+      "requires_scoped_issue": true,
+      "requires_later_enablement_decision": true
+    },
+    {
+      "id": "controlled_feature_flag_inventory",
+      "issue": 972,
+      "runtime_effect_allowed": false,
+      "default_enabled": false,
+      "requires_scoped_issue": true,
+      "requires_later_enablement_decision": true
+    },
+    {
+      "id": "operator_approval_freeze_record",
+      "issue": 973,
+      "runtime_effect_allowed": false,
+      "default_enabled": false,
+      "requires_scoped_issue": true,
+      "requires_later_enablement_decision": true
+    },
+    {
+      "id": "change_window_lifecycle_record",
+      "issue": 973,
+      "runtime_effect_allowed": false,
+      "default_enabled": false,
+      "requires_scoped_issue": true,
+      "requires_later_enablement_decision": true
+    },
+    {
+      "id": "canary_execution_preflight",
+      "issue": 974,
+      "runtime_effect_allowed": false,
+      "default_enabled": false,
+      "requires_scoped_issue": true,
+      "requires_later_enablement_decision": true
+    },
+    {
+      "id": "rollback_disaster_recovery_boundary",
+      "issue": 975,
+      "runtime_effect_allowed": false,
+      "default_enabled": false,
+      "requires_scoped_issue": true,
+      "requires_later_enablement_decision": true
+    },
+    {
+      "id": "production_config_provenance",
+      "issue": 976,
+      "runtime_effect_allowed": false,
+      "default_enabled": false,
+      "requires_scoped_issue": true,
+      "requires_later_enablement_decision": true
+    },
+    {
+      "id": "venue_connectivity_readiness",
+      "issue": 976,
+      "runtime_effect_allowed": false,
+      "default_enabled": false,
+      "requires_scoped_issue": true,
+      "requires_later_enablement_decision": true
+    },
+    {
+      "id": "telemetry_slo_incident_freeze_gate",
+      "issue": 977,
+      "runtime_effect_allowed": false,
+      "default_enabled": false,
+      "requires_scoped_issue": true,
+      "requires_later_enablement_decision": true
+    },
+    {
+      "id": "audit_retention_evidence_export_plan",
+      "issue": 978,
+      "runtime_effect_allowed": false,
+      "default_enabled": false,
+      "requires_scoped_issue": true,
+      "requires_later_enablement_decision": true
+    },
+    {
+      "id": "go_no_go_decision_record",
+      "issue": 979,
+      "runtime_effect_allowed": false,
+      "default_enabled": false,
+      "requires_scoped_issue": true,
+      "requires_later_enablement_decision": true
+    },
+    {
+      "id": "release_gate_v31_handoff",
+      "issue": 980,
+      "runtime_effect_allowed": false,
+      "default_enabled": false,
+      "requires_scoped_issue": true,
+      "requires_later_enablement_decision": true
+    }
+  ],
+  "required_later_enablement_prerequisites": [
+    {
+      "id": "owner_operator_approval",
+      "status": "required_later",
+      "current_satisfied": false,
+      "bypass_allowed": false
+    },
+    {
+      "id": "freeze_criteria",
+      "status": "required_later",
+      "current_satisfied": false,
+      "bypass_allowed": false
+    },
+    {
+      "id": "rollback_readiness",
+      "status": "required_later",
+      "current_satisfied": false,
+      "bypass_allowed": false
+    },
+    {
+      "id": "audit_retention",
+      "status": "required_later",
+      "current_satisfied": false,
+      "bypass_allowed": false
+    },
+    {
+      "id": "telemetry_slo_gate",
+      "status": "required_later",
+      "current_satisfied": false,
+      "bypass_allowed": false
+    },
+    {
+      "id": "risk_gate",
+      "status": "required_later",
+      "current_satisfied": false,
+      "bypass_allowed": false
+    },
+    {
+      "id": "release_gate",
+      "status": "required_later",
+      "current_satisfied": false,
+      "bypass_allowed": false
+    },
+    {
+      "id": "scoped_enablement_issue",
+      "status": "required_later",
+      "current_satisfied": false,
+      "bypass_allowed": false
+    }
+  ],
+  "required_false_boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "ambiguous_backend_go_live_claim": false,
+    "actual_backend_production_go_live_allowed": false,
+    "production_runtime_enablement_allowed": false,
+    "product_grade_trading_terminal_claim": false,
+    "product_grade_live_trading_terminal_claim": false,
+    "default_production_execution_allowed": false,
+    "candidate_artifact_runtime_effect_allowed": false,
+    "production_feature_flags_default_enabled": false,
+    "shared_approval_consumption_allowed": false
+  },
+  "ambiguous_claim_rejections": [
+    {
+      "claim": "backend_go_live=true",
+      "action": "fail_closed_ambiguous_go_live_claim"
+    },
+    {
+      "claim": "backend_production_go_live=true",
+      "action": "fail_closed_ambiguous_go_live_claim"
+    },
+    {
+      "claim": "production_go_live=true",
+      "action": "fail_closed_ambiguous_go_live_claim"
+    },
+    {
+      "claim": "go_live_candidate=production_enabled",
+      "action": "fail_closed_ambiguous_go_live_claim"
+    },
+    {
+      "claim": "backend_go_live_candidate=live_enabled",
+      "action": "fail_closed_ambiguous_go_live_claim"
+    },
+    {
+      "claim": "product_grade_live_trading_terminal=true",
+      "action": "fail_closed_product_grade_live_trading_claim"
+    },
+    {
+      "claim": "default_production_execution=true",
+      "action": "fail_closed_default_execution_claim"
+    }
+  ]
+}
