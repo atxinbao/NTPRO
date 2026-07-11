@@ -48,6 +48,16 @@ Final release checks, benchmark summaries, and audit reports live here.
   live-exchange requests, and automatic remediation authorization.
 - `../evidence/V300-004.md` - V300-004 operator approval freeze and
   change-window lifecycle evidence for GitHub issue #973.
+- `v0_30_0_canary_execution_preflight_no_default_execution_gate.md` and
+  `v0_30_0_canary_execution_preflight_no_default_execution_gate.json` -
+  V300-005 canary execution preflight and no-default-execution gate evidence
+  for GitHub issue #974. They validate canary eligibility, operator
+  acknowledgement, deployment/runtime/operator/telemetry/incident/rollback
+  links, stale-source rejection, and abort criteria without executing
+  production canary actions; `execution=true` and live-exchange side effects
+  fail closed.
+- `../evidence/V300-005.md` - V300-005 canary execution preflight and
+  no-default-execution gate evidence for GitHub issue #974.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
