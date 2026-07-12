@@ -155,6 +155,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   `v0_29_1_authoritative_closeout_contract` the single predecessor closeout
   contract consumed by v0.30.0 intake and removes contradictory final
   `release_gate_ready` semantics from the published v0.29.1 source tree.
+- `v0_30_1_v31_start_gate.md` and `v0_30_1_v31_start_gate.json` - V301-006
+  v31 start-gate contract for GitHub issue #1004. They require V301 issue
+  closeout plus `ntpro-rust-only-v0.30.1` release evidence before v0.31.0
+  capability work can begin and preserve non-inheritance of execution/trading
+  authority.
+- `../evidence/V301-006.md` - V301-006 v31 start gate hardening evidence for
+  GitHub issue #1004.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
