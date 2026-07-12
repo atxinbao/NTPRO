@@ -135,6 +135,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   backfill for GitHub issue #999. It records the public v0.30.0 release,
   hosted gate `29139384219`, `12/12` closed issue scope, strict body/source
   hash match, and generated-evidence-only proof rejection.
+- `../evidence/V301-002.md` - V301-002 v30 publish-after-gate current-release
+  binding for GitHub issue #1000. It binds `release-publish-after-gate` to the
+  published `ntpro-rust-only-v0.30.0` release, hosted gate `29139384219`, and
+  tag commit `0f0949156401fa6e6016c0160697e7090a6da788`, while rejecting the
+  historical v0.29.0 fallback as current proof.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
