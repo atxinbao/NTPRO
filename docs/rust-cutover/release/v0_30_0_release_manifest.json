@@ -488,5 +488,26 @@
     "preserves_raw_hash_as_diagnostic_only": true,
     "runtime_behavior_changed": false,
     "trading_behavior_changed": false
+  },
+  "post_release_stale_v300_evidence_cleanup": {
+    "task_id": "V301-004",
+    "issue": 1002,
+    "release_tag": "ntpro-rust-only-v0.30.0",
+    "final_hosted_tag_gate_run_id": 29139384219,
+    "final_hosted_tag_gate_conclusion": "success",
+    "final_hosted_tag_gate_jobs": "92/92 success",
+    "final_hosted_tag_gate_head_sha": "0f0949156401fa6e6016c0160697e7090a6da788",
+    "final_strict_provenance": {
+      "tag_exists": true,
+      "source_dirty": false
+    },
+    "pre_tag_outputs_retained_as_historical": true,
+    "pr_mode_open_issue_context_historical_only": true,
+    "missing_tag_or_offline_publication_guard_historical_only": true,
+    "published_release_closeout_evidence": "docs/rust-cutover/release/v0_30_0_release_closeout_evidence.md",
+    "strict_provenance_gate": "scripts/ai/verify_v30_strict_provenance.sh",
+    "cleanup_gate": "scripts/ai/verify_v30_1_stale_v300_evidence_cleanup.sh",
+    "runtime_behavior_changed": false,
+    "trading_behavior_changed": false
   }
 }

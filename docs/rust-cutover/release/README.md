@@ -145,6 +145,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   and readiness, requires `published_release` plus `post_publication_closeout`
   manifest fields, rejects release-gate-ready-only artifacts after publication,
   and keeps v0.31.0 hard-blocked until v0.30.1 release evidence is published.
+- `../evidence/V301-004.md` - V301-004 stale V300-011 pre-tag evidence cleanup
+  for GitHub issue #1002. It reclassifies V300-011 PR-mode open issue and
+  `tag_exists=false` outputs as historical pre-publication context while final
+  v0.30.0 proof points to hosted gate `29139384219`, strict provenance
+  `tag_exists=true source_dirty=false`, and the public release closeout ledger.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
