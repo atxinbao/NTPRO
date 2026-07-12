@@ -1258,7 +1258,12 @@ case "$CURRENT_RELEASE_VERSION" in
       "V301 registered corrective-scope exception count = 0"
       "v30.1 release gates = required"
       "v30.1 strict provenance = required"
-      "v31 start gate = hard-blocked until v0.30.1 publication evidence exists"
+      "published release status = published_after_gate"
+      "hosted release gate run = 29194173422"
+      "hosted release gate conclusion = success"
+      "hosted release gate jobs = 94/94 success"
+      "published after hosted gate = true"
+      "v31 intake gate = v0.30.1 publication evidence satisfied; explicit scoped approval still required"
       "release surface current guard = required"
       "release publication guard = required"
       "release publish after gate = required"
@@ -1294,7 +1299,7 @@ case "$CURRENT_RELEASE_VERSION" in
       "scripts/ai/verify_v30_1_strict_provenance.sh"
       "scripts/ai/verify_v30_1_v31_start_gate.sh"
       "scripts/ai/publish_ntpro_release_after_gate.sh"
-      "v0.31.0 start gate = blocked until v0.30.1 release gate passes"
+      "v0.31.0 intake gate = fail-closed without explicit scoped approval"
     )
     ;;
   *)

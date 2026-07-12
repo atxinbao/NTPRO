@@ -2,7 +2,7 @@
   "schema_version": "ntpro.v301_patch_release_manifest.v1",
   "task_id": "V301-007",
   "product_version": "v0.30.1",
-  "release_status": "release_gate_ready",
+  "release_status": "released",
   "patch_scope": "v300_post_publication_governance_and_v31_start_gate_patch",
   "base_release": {
     "version": "v0.30.0",
@@ -19,6 +19,34 @@
     "target_commitish": "main",
     "draft": false,
     "prerelease": false
+  },
+  "published_release": {
+    "tag": "ntpro-rust-only-v0.30.1",
+    "name": "NTPRO Rust-only v0.30.1",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.30.1",
+    "github_release_id": 352801301,
+    "github_release_node_id": "RE_kwDOSox1D84VB1IV",
+    "target_commitish": "main",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-07-12T17:07:13Z",
+    "updated_at": "2026-07-12T17:10:14Z",
+    "tag_object_sha": "17d2b48ed4df2b21f1a0b20bf739fd46f33659be",
+    "tag_sha": "5b66335a8f625062dbcdd4f7441cfacab57b5ede",
+    "tag_tree_sha": "21f31d20a0f1c316127b68e0f0dc797170b87cb2",
+    "release_gate_run_id": 29194173422,
+    "release_gate_url": "https://github.com/atxinbao/NTPRO/actions/runs/29194173422",
+    "release_gate_completed_at": "2026-07-12T14:53:56Z",
+    "release_gate_conclusion": "success",
+    "release_gate_jobs_success": 94,
+    "release_gate_jobs_total": 94,
+    "published_after_hosted_gate": true,
+    "release_body_hash_semantics": "normalized_sha256",
+    "release_body_normalized_sha256": "1a9a71278ca7716a681b17667f5f7ef9c174f9eebacae0683a3c5a91cc4de4f9",
+    "release_body_raw_sha256": "112045169e1cc733db164a19ceafe94406fb2fe93154a488e053a5b58c96e982",
+    "tracked_release_notes_normalized_sha256": "1a9a71278ca7716a681b17667f5f7ef9c174f9eebacae0683a3c5a91cc4de4f9",
+    "tracked_release_notes_raw_sha256": "112045169e1cc733db164a19ceafe94406fb2fe93154a488e053a5b58c96e982",
+    "release_body_matches_tracked_release_notes": true
   },
   "release_inputs": {
     "release_notes_path": "docs/rust-cutover/release/v0_30_1_release_notes.md",
@@ -226,5 +254,22 @@
     "generated_publication_evidence_sole_proof_allowed": false,
     "v0_31_start_gate_fails_without_v301_release_evidence": true,
     "next_track_does_not_inherit_trading_controls": true
+  },
+  "post_publication_closeout": {
+    "status": "source_controlled_closeout_recorded",
+    "release_gate_run_id": 29194173422,
+    "release_gate_conclusion": "success",
+    "release_gate_jobs_success": 94,
+    "release_gate_jobs_total": 94,
+    "published_after_hosted_gate": true,
+    "milestone_number": 27,
+    "milestone_state": "closed",
+    "milestone_open_issues": 0,
+    "milestone_closed_issues": 7,
+    "milestone_closed_at": "2026-07-12T17:08:50Z",
+    "release_body_normalized_sha256": "1a9a71278ca7716a681b17667f5f7ef9c174f9eebacae0683a3c5a91cc4de4f9",
+    "release_body_raw_sha256": "112045169e1cc733db164a19ceafe94406fb2fe93154a488e053a5b58c96e982",
+    "source_controlled_closeout_evidence": "docs/rust-cutover/release/v0_30_1_release_closeout_evidence.md",
+    "v31_intake_consumes_closeout": true
   }
 }
