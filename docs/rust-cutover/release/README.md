@@ -150,6 +150,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   `tag_exists=false` outputs as historical pre-publication context while final
   v0.30.0 proof points to hosted gate `29139384219`, strict provenance
   `tag_exists=true source_dirty=false`, and the public release closeout ledger.
+- `../evidence/V301-005.md` - V301-005 v0.29.1 post-publication
+  manifest/readiness reconciliation for GitHub issue #1003. It makes
+  `v0_29_1_authoritative_closeout_contract` the single predecessor closeout
+  contract consumed by v0.30.0 intake and removes contradictory final
+  `release_gate_ready` semantics from the published v0.29.1 source tree.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend

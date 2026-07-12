@@ -34,10 +34,10 @@ hosted release gate jobs = 90/90 success
 hosted release gate completed at = 2026-07-11T01:06:27Z
 GitHub Release published at = 2026-07-11T01:07:24Z
 published after hosted gate = true
-release body normalized sha256 = 2e11eaa92a91040fdf4e3903b97e58ebcfedeedcc9a1d45a24c56ea2f3a2eef8
-release body raw sha256 = ccd75fd4edb3bcd3a8353f2c466d30cec4b15d8074fce8beda5e8686cf035a02
-tracked release notes normalized sha256 = 2e11eaa92a91040fdf4e3903b97e58ebcfedeedcc9a1d45a24c56ea2f3a2eef8
-tracked release notes raw sha256 = ccd75fd4edb3bcd3a8353f2c466d30cec4b15d8074fce8beda5e8686cf035a02
+release body normalized sha256 = 611c6cfe89480054d5c3a4718215740701ee43536e3e92fa0ff458f7730b204b
+release body raw sha256 = 5d5b7c34ceb7bca1a389e8261d04cc7fd28cea0a9d1e48ffe609f449b22ef2d1
+tracked release notes normalized sha256 = 611c6cfe89480054d5c3a4718215740701ee43536e3e92fa0ff458f7730b204b
+tracked release notes raw sha256 = 5d5b7c34ceb7bca1a389e8261d04cc7fd28cea0a9d1e48ffe609f449b22ef2d1
 release body matches tracked release notes = true
 release body acceptance rule = normalized_sha256
 raw sha256 acceptance rule = false
@@ -45,6 +45,10 @@ v0.29.1 milestone = closed
 v0.29.1 milestone open issues = 0
 v0.29.1 milestone closed issues = 6
 v0.30.0 start gate = ready
+authoritative predecessor closeout contract = v0_29_1_authoritative_closeout_contract
+manifest release_status = released
+manifest published_release populated = true
+manifest post_publication_closeout populated = true
 ```
 
 ## Issue Scope

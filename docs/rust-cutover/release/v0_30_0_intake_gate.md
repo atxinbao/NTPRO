@@ -26,7 +26,8 @@ v0.29.1 tag is ancestor of origin/main = true
 v0.29.1 GitHub Release published at = 2026-07-11T01:07:24Z
 v0.29.1 hosted release gate completed at = 2026-07-11T01:06:27Z
 v0.29.1 GitHub Release published after hosted gate = true
-v0.29.1 GitHub Release body normalized sha256 = 2e11eaa92a91040fdf4e3903b97e58ebcfedeedcc9a1d45a24c56ea2f3a2eef8
+v0.29.1 GitHub Release body normalized sha256 = 611c6cfe89480054d5c3a4718215740701ee43536e3e92fa0ff458f7730b204b
+v0.29.1 authoritative predecessor closeout contract = v0_29_1_authoritative_closeout_contract
 v29 publish-after-gate current binding points at v0.29.0 = true
 v29 publish-after-gate current binding points at v0.28.0 = false
 ```
