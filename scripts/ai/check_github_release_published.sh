@@ -45,6 +45,17 @@ require_contains_text() {
   fi
 }
 
+require_not_contains_text() {
+  local haystack="$1"
+  local needle="$2"
+  local description="$3"
+  if [[ "$haystack" == *"$needle"* ]]; then
+    echo "forbidden: $description" >&2
+    echo "needle: $needle" >&2
+    fail "forbidden release body key field"
+  fi
+}
+
 require_file_contains() {
   local file="$1"
   local needle="$2"
@@ -55,6 +66,33 @@ require_file_contains() {
     echo "needle: $needle" >&2
     fail "missing release notes key field"
   fi
+}
+
+require_file_not_contains() {
+  local file="$1"
+  local needle="$2"
+  local description="$3"
+  if grep -F -- "$needle" "$file" >/dev/null; then
+    echo "forbidden: $description" >&2
+    echo "file: $file" >&2
+    echo "needle: $needle" >&2
+    fail "forbidden release notes key field"
+  fi
+}
+
+require_file_contains_any() {
+  local file="$1"
+  local description="$2"
+  shift 2
+  local needle
+  for needle in "$@"; do
+    if grep -F -- "$needle" "$file" >/dev/null; then
+      return 0
+    fi
+  done
+  echo "expected one of: $description" >&2
+  echo "file: $file" >&2
+  fail "missing release notes key field"
 }
 
 ensure_origin_main_ref() {
@@ -152,6 +190,7 @@ elif [[ "$PREPUBLISH_TAG_GATE" != "1" ]]; then
   fail "GitHub Release is unavailable"
 fi
 
+release_status_mode="default"
 case "$CURRENT_RELEASE_VERSION" in
   v0.14.0)
     required_fields=(
@@ -1140,8 +1179,8 @@ case "$CURRENT_RELEASE_VERSION" in
     )
     ;;
   v0.30.0)
+    release_status_mode="v30_post_publication"
     required_fields=(
-      "Status: RELEASE GATE READY"
       "Tag: \`$CURRENT_RELEASE_TAG\`"
       "Release name: \`$RELEASE_NAME\`"
       "Release URL: \`$RELEASE_URL\`"
@@ -1163,6 +1202,11 @@ case "$CURRENT_RELEASE_VERSION" in
       "remote reconstruction required = true"
       "generated publication evidence sole proof allowed = false"
       "post-publication closeout evidence path = docs/rust-cutover/release/v0_30_0_release_closeout_evidence.md"
+      "post-publication closeout gate = required"
+      "published release status = published_after_gate"
+      "hosted release gate run = 29139384219"
+      "published release closeout evidence = docs/rust-cutover/release/v0_30_0_release_closeout_evidence.md"
+      "release body hash semantics = normalized_sha256"
       "new_submit_capability = false"
       "production_order_submission_allowed = false"
       "production_order_mutation_allowed = false"
@@ -1201,6 +1245,18 @@ for field in "${required_fields[@]}"; do
   require_file_contains "$CURRENT_RELEASE_NOTES" "$field" "release notes key field"
 done
 
+if [[ "$release_status_mode" == "v30_post_publication" ]]; then
+  if [[ "$PREPUBLISH_TAG_GATE" == "1" ]]; then
+    require_file_contains_any "$CURRENT_RELEASE_NOTES" "v30 pre-publication or post-publication status" \
+      "Status: RELEASE GATE READY" \
+      "Status: RELEASED"
+  else
+    require_file_contains "$CURRENT_RELEASE_NOTES" "Status: RELEASED" "release notes post-publication status"
+    require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: RELEASE GATE READY" "release notes pre-publication status after publication"
+    require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: PENDING PUBLICATION" "release notes pending status after publication"
+  fi
+fi
+
 if [[ "$PREPUBLISH_TAG_GATE" == "1" ]]; then
   echo "release_publication_guard=prepublish_tag_gate"
   echo "publication_evidence_strategy=source_tree_plus_github_remote"
@@ -1216,6 +1272,12 @@ fi
 for field in "${required_fields[@]}"; do
   require_contains_text "$body" "$field" "GitHub Release body key field"
 done
+
+if [[ "$release_status_mode" == "v30_post_publication" ]]; then
+  require_contains_text "$body" "Status: RELEASED" "GitHub Release body post-publication status"
+  require_not_contains_text "$body" "Status: RELEASE GATE READY" "GitHub Release body pre-publication status after publication"
+  require_not_contains_text "$body" "Status: PENDING PUBLICATION" "GitHub Release body pending status after publication"
+fi
 
 body_hash_report="$(python3 - "$release_json" "$CURRENT_RELEASE_NOTES" <<'PY'
 import hashlib

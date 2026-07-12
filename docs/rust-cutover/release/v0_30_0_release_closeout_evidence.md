@@ -51,7 +51,7 @@ hosted release gate completed at = 2026-07-11T05:35:59Z
 hosted release gate jobs = 92/92 success
 release publication after gate = pass
 release publish after gate current-release binding = pass
-post-publication closeout gate = pending_v301_003
+post-publication closeout gate = required
 release_gate_ready-only artifacts after publication accepted = false
 source_tree_plus_github_remote reconstruction accepted = true
 generated-evidence-only proof accepted = false
@@ -66,6 +66,8 @@ source-controlled closeout evidence = docs/rust-cutover/release/v0_30_0_release_
 release-publication-evidence/ntpro-rust-only-v0.30.0.json = generated artifact, not sole proof
 generated publication evidence sole proof allowed = false
 historical fixture-only current-release proof allowed = false
+published_release manifest field populated = true
+post_publication_closeout manifest field populated = true
 v0.31.0 intake requires v0.30.1 release evidence = true
 v0.30.0 publication evidence alone unlocks v0.31.0 = false
 v0.31.0 start gate = blocked_until_v301_release_evidence_published
@@ -77,13 +79,13 @@ v0.30.1 release evidence required before v0.31.0 intake = true
 ```text
 release body hash semantics = normalized_sha256
 release body normalization = line_rstrip_and_outer_strip
-release body normalized sha256 = 494965d49626309be3d2e5452aa28722c41768f5ee872901dda0453b8fbb5382
-tracked release notes normalized sha256 = 494965d49626309be3d2e5452aa28722c41768f5ee872901dda0453b8fbb5382
+release body normalized sha256 = 5d0e93c8f56c71b19a7ca8d8eeaa328bcecd1d185305b07930de1e53f55564e4
+tracked release notes normalized sha256 = 5d0e93c8f56c71b19a7ca8d8eeaa328bcecd1d185305b07930de1e53f55564e4
 normalized release body matches tracked release notes = true
-release body normalized line count = 108
-tracked release notes normalized line count = 108
-release body raw sha256 = 0df4f86214c9fabb4bd437a6c24e6ea667f9088e34813110019436a275ac611e
-tracked release notes raw sha256 = 0df4f86214c9fabb4bd437a6c24e6ea667f9088e34813110019436a275ac611e
+release body normalized line count = 113
+tracked release notes normalized line count = 113
+release body raw sha256 = 41354e181696c095c383e1f8be07cf5383b563634f8002a437b7fdfc5e3d3e24
+tracked release notes raw sha256 = 41354e181696c095c383e1f8be07cf5383b563634f8002a437b7fdfc5e3d3e24
 raw release body matches tracked release notes = true
 raw hash equality is diagnostic, not the acceptance rule
 ```
@@ -171,12 +173,14 @@ git ls-remote --tags origin refs/tags/ntpro-rust-only-v0.30.0 'refs/tags/ntpro-r
 NTPRO_CURRENT_RELEASE_VERSION=v0.30.0 NTPRO_CURRENT_RELEASE_TAG=ntpro-rust-only-v0.30.0 NTPRO_CURRENT_RELEASE_NAME="NTPRO Rust-only v0.30.0" scripts/ai/verify_release.sh release-publication-guard
 scripts/ai/verify_v30_1_release_closeout_evidence.sh
 scripts/ai/verify_v30_1_release_publish_after_gate_current_binding.sh
+scripts/ai/verify_v30_1_post_publication_closeout_gate.sh source
+scripts/ai/verify_v30_1_post_publication_closeout_gate.sh live
 ```
 
 ## Next Step
 
-After the current-release binding is merged through issue `#1000`, proceed to
-`#1001` `V301-003 post-publication closeout gate for v30` on its own branch and
-PR. No later V301, V310, or v0.31.0 task may claim submit, adapter send, live
+After issue `#1001` is merged, proceed to `#1002`
+`V301-004 V300-011 stale pre-tag evidence cleanup` on its own branch and PR.
+No later V301, V310, or v0.31.0 task may claim submit, adapter send, live
 exchange request, backend go-live, or product-grade live trading readiness
 unless its own issue adds explicit release-gated evidence.

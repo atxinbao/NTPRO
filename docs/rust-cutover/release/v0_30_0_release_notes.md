@@ -1,6 +1,6 @@
 # NTPRO Rust-only v0.30.0
 
-Status: RELEASE GATE READY
+Status: RELEASED
 Tag: `ntpro-rust-only-v0.30.0`
 Release name: `NTPRO Rust-only v0.30.0`
 Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.30.0`
@@ -53,6 +53,11 @@ local generated publication evidence required in source tree = false
 remote reconstruction required = true
 generated publication evidence sole proof allowed = false
 post-publication closeout evidence path = docs/rust-cutover/release/v0_30_0_release_closeout_evidence.md
+post-publication closeout gate = required
+published release status = published_after_gate
+hosted release gate run = 29139384219
+published release closeout evidence = docs/rust-cutover/release/v0_30_0_release_closeout_evidence.md
+release body hash semantics = normalized_sha256
 
 ```text
 scripts/ai/verify_v30_release_gates.sh

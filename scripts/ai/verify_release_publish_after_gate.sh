@@ -260,6 +260,9 @@ def set_published_at(candidate: dict[str, Any], value: str) -> None:
 
 
 def set_gate_head_sha(candidate: dict[str, Any], value: str) -> None:
+    if "published_release" in candidate and "post_publication_closeout" in candidate:
+        candidate["post_publication_closeout"]["release_gate_head_sha"] = value
+        return
     if "post_release_closeout" in candidate:
         candidate["post_release_closeout"]["hosted_release_gate"]["head_sha"] = value
         return

@@ -46,6 +46,17 @@ require_not_contains() {
   fi
 }
 
+require_release_status_marker() {
+  local path="$1"
+  if grep -F -- "Status: RELEASE GATE READY" "$path" >/dev/null; then
+    return 0
+  fi
+  if grep -F -- "Status: RELEASED" "$path" >/dev/null; then
+    return 0
+  fi
+  fail "missing release status marker in $path"
+}
+
 gh_with_retry() {
   local attempt=1
   local max_attempts=4
@@ -103,8 +114,8 @@ for task_id in V300-000 V300-001 V300-002 V300-003 V300-004 V300-005 V300-006 V3
   require_contains "docs/rust-cutover/tasks/${task_id}.md" "$task_id"
 done
 
+require_release_status_marker "$RELEASE_NOTES_PATH"
 for marker in \
-  "Status: RELEASE GATE READY" \
   "Tag: \`$RELEASE_TAG\`" \
   "Release name: \`$RELEASE_NAME\`" \
   "Release URL: \`https://github.com/atxinbao/NTPRO/releases/tag/$RELEASE_TAG\`" \
@@ -127,8 +138,8 @@ for marker in \
   require_contains "$RELEASE_NOTES_PATH" "$marker"
 done
 
+require_release_status_marker "$READINESS_REPORT_PATH"
 for marker in \
-  "Status: RELEASE GATE READY" \
   "V300-000 evidence" \
   "V300-011 evidence" \
   "#980 V300-011 = must be closed before v0.30.0 tag gate is accepted" \
