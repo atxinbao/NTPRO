@@ -14,6 +14,9 @@ source_release = ntpro-rust-only-v0.30.0
 next_capability_track = v0.31.0
 handoff_status = hard_blocked_until_v30_release_evidence_and_explicit_scoped_approval
 v30_release_evidence_required = true
+v30_1_release_evidence_required = true
+v31_start_gate_status = blocked_until_v301_release_evidence_published
+v31_start_gate_contract = docs/rust-cutover/release/v0_30_1_v31_start_gate.json
 explicit_scoped_issue_required = true
 owner_operator_approval_required = true
 risk_gate_required = true
@@ -37,6 +40,7 @@ new scoped issue with explicit owner/operator approval and release evidence.
 
 ```text
 v30_release_closeout = required
+v30_1_release_closeout = required
 explicit_scoped_enablement_issue = required
 owner_operator_approval = required
 risk_gate = required
@@ -67,6 +71,7 @@ product_grade_live_trading_claim_inherited = false
 
 ```text
 missing_v30_release_evidence => fail_closed_missing_v30_release_evidence
+missing_v30_1_release_evidence => fail_closed_missing_v30_1_release_evidence
 missing_scoped_approval => fail_closed_missing_scoped_approval
 missing_risk_or_audit_gate => fail_closed_missing_risk_or_audit_gate
 attempted_inherited_execution => fail_closed_inherited_execution

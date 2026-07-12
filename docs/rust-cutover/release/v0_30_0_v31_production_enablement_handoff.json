@@ -7,8 +7,11 @@
   "source_release": "ntpro-rust-only-v0.30.0",
   "next_capability_track": "v0.31.0",
   "handoff_status": "hard_blocked_until_v30_release_evidence_and_explicit_scoped_approval",
+  "v31_start_gate_status": "blocked_until_v301_release_evidence_published",
+  "v31_start_gate_contract": "docs/rust-cutover/release/v0_30_1_v31_start_gate.json",
   "required_future_inputs": [
     "v30_release_closeout",
+    "v30_1_release_closeout",
     "explicit_scoped_enablement_issue",
     "owner_operator_approval",
     "risk_gate",
@@ -34,6 +37,12 @@
   "future_enablement_gates": [
     {
       "gate_id": "v30_release_evidence",
+      "required": true,
+      "current_satisfied": false,
+      "bypass_allowed": false
+    },
+    {
+      "gate_id": "v30_1_release_evidence",
       "required": true,
       "current_satisfied": false,
       "bypass_allowed": false
@@ -99,6 +108,15 @@
         }
       },
       "expected_status": "fail_closed_missing_v30_release_evidence"
+    },
+    {
+      "case_id": "v31_handoff.missing_v30_1_release_evidence.fail_closed.001",
+      "gate_overrides": {
+        "v30_1_release_evidence": {
+          "required": false
+        }
+      },
+      "expected_status": "fail_closed_missing_v30_1_release_evidence"
     },
     {
       "case_id": "v31_handoff.missing_scoped_approval.fail_closed.001",

@@ -311,6 +311,8 @@ def classify_handoff(candidate: dict) -> str:
     gates = {gate.get("gate_id"): gate for gate in candidate.get("future_enablement_gates") or []}
     if not gates.get("v30_release_evidence", {}).get("required"):
         return "fail_closed_missing_v30_release_evidence"
+    if not gates.get("v30_1_release_evidence", {}).get("required"):
+        return "fail_closed_missing_v30_1_release_evidence"
     if not gates.get("explicit_scoped_issue", {}).get("required"):
         return "fail_closed_missing_scoped_approval"
     if not gates.get("risk_gate", {}).get("required") or not gates.get("audit_gate", {}).get("required"):
@@ -351,7 +353,10 @@ def apply_gate_overrides(candidate: dict, overrides: dict) -> dict:
 
 def validate_handoff(candidate: dict) -> None:
     require(candidate.get("next_capability_track") == "v0.31.0", "handoff next track mismatch")
-    require(len(candidate.get("required_future_inputs") or []) == 9, "future input count mismatch")
+    require(candidate.get("v31_start_gate_status") == "blocked_until_v301_release_evidence_published", "v31 start gate status mismatch")
+    require(candidate.get("v31_start_gate_contract") == "docs/rust-cutover/release/v0_30_1_v31_start_gate.json", "v31 start gate contract mismatch")
+    require("v30_1_release_closeout" in (candidate.get("required_future_inputs") or []), "v30.1 closeout input missing")
+    require(len(candidate.get("required_future_inputs") or []) == 10, "future input count mismatch")
     require(classify_handoff(candidate) == "v31_handoff_hard_blocked", "handoff baseline mismatch")
     for case in candidate.get("readiness_cases") or []:
         scenario = copy.deepcopy(candidate)
