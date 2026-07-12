@@ -35,6 +35,9 @@ input_paths=(
   "$ROOT_DIR/scripts/ai/publish_ntpro_release_after_gate.sh"
   "$ROOT_DIR/scripts/ai/verify_v30_release_gates.sh"
   "$ROOT_DIR/scripts/ai/verify_v30_strict_provenance.sh"
+  "$ROOT_DIR/scripts/ai/verify_v30_1_stale_v300_evidence_cleanup.sh"
+  "$ROOT_DIR/docs/rust-cutover/tasks/V301-004.md"
+  "$ROOT_DIR/docs/rust-cutover/evidence/V301-004.md"
   "$ROOT_DIR/.github/workflows/release-tag.yml"
 )
 
@@ -119,6 +122,7 @@ root = Path(os.environ["ROOT_DIR"])
 release_manifest = json.loads(Path(os.environ["RELEASE_MANIFEST_PATH"]).read_text(encoding="utf-8"))
 release_notes = Path(os.environ["RELEASE_NOTES_PATH"]).read_text(encoding="utf-8")
 readiness = Path(os.environ["READINESS_REPORT_PATH"]).read_text(encoding="utf-8")
+v300_011 = (root / "docs/rust-cutover/evidence/V300-011.md").read_text(encoding="utf-8")
 
 def require(condition: bool, message: str) -> None:
     if not condition:
@@ -139,6 +143,25 @@ require(requirements.get("all_v300_issues_closed_required") is True, "V300 close
 require(requirements.get("v31_handoff_fails_without_v300_release_evidence") is True, "v31 blocker missing")
 next_tracks = release_manifest.get("next_tracks") or {}
 require(next_tracks.get("start_gate") == "hard_blocked_until_v30_release_evidence_and_explicit_scoped_approval", "next start gate mismatch")
+cleanup = release_manifest.get("post_release_stale_v300_evidence_cleanup") or {}
+require(cleanup.get("task_id") == "V301-004", "stale V300 cleanup task missing")
+require(cleanup.get("issue") == 1002, "stale V300 cleanup issue mismatch")
+require(cleanup.get("final_hosted_tag_gate_run_id") == 29139384219, "stale V300 cleanup gate run mismatch")
+require(cleanup.get("final_hosted_tag_gate_conclusion") == "success", "stale V300 cleanup gate conclusion mismatch")
+require(cleanup.get("final_hosted_tag_gate_head_sha") == "0f0949156401fa6e6016c0160697e7090a6da788", "stale V300 cleanup gate sha mismatch")
+require(cleanup.get("final_strict_provenance", {}).get("tag_exists") is True, "stale V300 cleanup final tag_exists mismatch")
+require(cleanup.get("final_strict_provenance", {}).get("source_dirty") is False, "stale V300 cleanup final source_dirty mismatch")
+require(cleanup.get("pre_tag_outputs_retained_as_historical") is True, "stale V300 cleanup historical flag missing")
+require(cleanup.get("pr_mode_open_issue_context_historical_only") is True, "stale V300 cleanup PR-mode flag missing")
+require(cleanup.get("missing_tag_or_offline_publication_guard_historical_only") is True, "stale V300 cleanup missing-tag flag missing")
+require("Status: PUBLISHED RELEASE CONTEXTUALIZED" in v300_011, "V300-011 must be contextualized after publication")
+require("Status: LOCAL VALIDATION PASSED" not in v300_011, "V300-011 stale local status still present")
+require("original validation phase = V300-011 PR-mode / pre-tag / pre-publication" in v300_011, "V300-011 original phase marker missing")
+require("original release gate current_issue_state=OPEN = historical current issue exception only" in v300_011, "V300-011 stale open issue not contextualized")
+require("original strict provenance tag_exists=false source_dirty=false = historical pre-tag output only" in v300_011, "V300-011 stale strict provenance not contextualized")
+require("final hosted tag gate run = 29139384219" in v300_011, "V300-011 final hosted gate missing")
+require("final strict provenance = tag_exists=true source_dirty=false" in v300_011, "V300-011 final strict provenance missing")
+require("published release closeout = docs/rust-cutover/release/v0_30_0_release_closeout_evidence.md" in v300_011, "V300-011 published closeout missing")
 for key in [
     "new_submit_capability",
     "production_order_submission_allowed",
