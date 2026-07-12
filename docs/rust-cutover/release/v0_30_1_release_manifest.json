@@ -1,0 +1,230 @@
+{
+  "schema_version": "ntpro.v301_patch_release_manifest.v1",
+  "task_id": "V301-007",
+  "product_version": "v0.30.1",
+  "release_status": "release_gate_ready",
+  "patch_scope": "v300_post_publication_governance_and_v31_start_gate_patch",
+  "base_release": {
+    "version": "v0.30.0",
+    "tag": "ntpro-rust-only-v0.30.0",
+    "name": "NTPRO Rust-only v0.30.0",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.30.0",
+    "release_manifest_path": "docs/rust-cutover/release/v0_30_0_release_manifest.json",
+    "release_closeout_evidence_path": "docs/rust-cutover/release/v0_30_0_release_closeout_evidence.md"
+  },
+  "planned_release": {
+    "tag": "ntpro-rust-only-v0.30.1",
+    "name": "NTPRO Rust-only v0.30.1",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.30.1",
+    "target_commitish": "main",
+    "draft": false,
+    "prerelease": false
+  },
+  "release_inputs": {
+    "release_notes_path": "docs/rust-cutover/release/v0_30_1_release_notes.md",
+    "readiness_report_path": "docs/rust-cutover/release/v0_30_1_readiness_report.md",
+    "release_manifest_path": "docs/rust-cutover/release/v0_30_1_release_manifest.json",
+    "release_closeout_evidence_path": "docs/rust-cutover/release/v0_30_1_release_closeout_evidence.md",
+    "v31_start_gate_path": "docs/rust-cutover/release/v0_30_1_v31_start_gate.md",
+    "v31_start_gate_contract_path": "docs/rust-cutover/release/v0_30_1_v31_start_gate.json",
+    "v30_release_manifest_path": "docs/rust-cutover/release/v0_30_0_release_manifest.json",
+    "v30_release_closeout_evidence_path": "docs/rust-cutover/release/v0_30_0_release_closeout_evidence.md",
+    "release_index_path": "docs/rust-cutover/release/README.md",
+    "release_publication_guard_path": "scripts/ai/check_github_release_published.sh",
+    "v301_release_gates_path": "scripts/ai/verify_v30_1_release_gates.sh",
+    "v301_strict_provenance_path": "scripts/ai/verify_v30_1_strict_provenance.sh",
+    "v31_start_gate_script_path": "scripts/ai/verify_v30_1_v31_start_gate.sh"
+  },
+  "v301_evidence": [
+    {
+      "task_id": "V301-001",
+      "issue": 999,
+      "path": "docs/rust-cutover/evidence/V301-001.md"
+    },
+    {
+      "task_id": "V301-002",
+      "issue": 1000,
+      "path": "docs/rust-cutover/evidence/V301-002.md"
+    },
+    {
+      "task_id": "V301-003",
+      "issue": 1001,
+      "path": "docs/rust-cutover/evidence/V301-003.md"
+    },
+    {
+      "task_id": "V301-004",
+      "issue": 1002,
+      "path": "docs/rust-cutover/evidence/V301-004.md"
+    },
+    {
+      "task_id": "V301-005",
+      "issue": 1003,
+      "path": "docs/rust-cutover/evidence/V301-005.md"
+    },
+    {
+      "task_id": "V301-006",
+      "issue": 1004,
+      "path": "docs/rust-cutover/evidence/V301-006.md"
+    },
+    {
+      "task_id": "V301-007",
+      "issue": 1005,
+      "path": "docs/rust-cutover/evidence/V301-007.md"
+    }
+  ],
+  "release_scope": {
+    "milestone_issue_set": "V301-001..V301-007",
+    "milestone_issue_count": 7,
+    "exact_milestone_issue_numbers": [
+      999,
+      1000,
+      1001,
+      1002,
+      1003,
+      1004,
+      1005
+    ],
+    "exact_milestone_issue_set": "#999-#1005",
+    "final_release_scope_issue_count": 7,
+    "final_release_scope_evidence_count": 7,
+    "registered_corrective_scope_exception_count": 0,
+    "registered_corrective_scope_exception_issue_numbers": [],
+    "unregistered_corrective_milestone_issues_fail_closed": true,
+    "v30_0_dependency_proven": true,
+    "v30_0_release_evidence_published": true,
+    "capability_scope_expands_trading": false,
+    "runtime_behavior_changed_by_release_gate": false,
+    "trading_behavior_changed_by_release_gate": false
+  },
+  "release_gates": [
+    {
+      "name": "v30-release-gates",
+      "command": "scripts/ai/verify_v30_release_gates.sh",
+      "required": true
+    },
+    {
+      "name": "v30-strict-provenance",
+      "command": "scripts/ai/verify_v30_strict_provenance.sh",
+      "required": true
+    },
+    {
+      "name": "v30.1-v31-start-gate",
+      "command": "scripts/ai/verify_v30_1_v31_start_gate.sh",
+      "required": true
+    },
+    {
+      "name": "v30.1-release-gates",
+      "command": "scripts/ai/verify_v30_1_release_gates.sh",
+      "required": true
+    },
+    {
+      "name": "v30.1-strict-provenance",
+      "command": "scripts/ai/verify_v30_1_strict_provenance.sh",
+      "required": true
+    },
+    {
+      "name": "release-publication-guard",
+      "command": "scripts/ai/check_github_release_published.sh",
+      "required": true
+    },
+    {
+      "name": "release-publish-after-gate",
+      "command": "scripts/ai/publish_ntpro_release_after_gate.sh",
+      "required": true
+    }
+  ],
+  "capability": {
+    "name": "v0.30.1 Release Governance and v31 Start-Gate Hardening Patch",
+    "patch_hardening_only": true,
+    "release_governance_hardening": true,
+    "strict_provenance": true,
+    "v0_31_start_gate_hardened": true,
+    "v0_31_implementation_started": false,
+    "backend_production_go_live": false,
+    "product_grade_live_trading_terminal": false,
+    "new_submit_capability": false,
+    "production_order_mutation_expansion": false,
+    "dashboard_operation_controls": false,
+    "automatic_remediation_runtime": false
+  },
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "publication_governance": {
+    "gate_before_publish": true,
+    "release_gate_workflow_name": "Rust Cutover Release Gate",
+    "publish_workflow_name": "Rust Cutover Publish Release",
+    "publish_script": "scripts/ai/publish_ntpro_release_after_gate.sh",
+    "public_release_requires_successful_hosted_gate_for_same_tag_commit": true,
+    "release_gate_success_before_publication_required": true,
+    "current_release_publish_after_gate_binding_required": true,
+    "historical_fixture_only_current_release_proof_allowed": false,
+    "publication_evidence_strategy": "source_tree_plus_github_remote",
+    "local_generated_evidence_required_in_source_tree": false,
+    "remote_reconstruction_required": true
+  },
+  "release_surface_current_guard": {
+    "current_release_version": "v0.30.1",
+    "current_release_tag": "ntpro-rust-only-v0.30.1",
+    "current_release_capability": "v0.30.1 Release Governance and v31 Start-Gate Hardening Patch",
+    "next_patch_version": "v0.30.2",
+    "next_capability_version": "v0.31.0"
+  },
+  "next_tracks": {
+    "patch": "v0.30.2",
+    "capability": "v0.31.0",
+    "capability_entry": "backend_production_enablement_scoped_intake_after_v301_release_evidence",
+    "start_gate": "blocked_until_v301_release_evidence_published",
+    "implementation_started": false,
+    "inherits_backend_go_live_claim": false,
+    "inherits_production_submit": false,
+    "inherits_production_mutation": false,
+    "inherits_adapter_send": false,
+    "inherits_live_exchange_request": false,
+    "inherits_retry_scheduler": false,
+    "inherits_automatic_remediation": false,
+    "inherits_dashboard_trading_controls": false,
+    "inherits_admin_workbench_trading_controls": false,
+    "inherits_trader_terminal_order_ticket": false
+  },
+  "post_publication_requirements": {
+    "release_tag": "ntpro-rust-only-v0.30.1",
+    "release_name": "NTPRO Rust-only v0.30.1",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.30.1",
+    "milestone_number": 27,
+    "milestone_title": "v0.30.1",
+    "all_v301_issues_closed_required": true,
+    "exact_milestone_issue_set_required": true,
+    "registered_corrective_scope_exceptions_required": true,
+    "unregistered_corrective_milestone_issues_fail_closed": true,
+    "github_release_published_required": true,
+    "hosted_release_gate_success_required": true,
+    "strict_release_body_match_required": true,
+    "publication_after_hosted_gate_required": true,
+    "source_controlled_closeout_evidence_required": true,
+    "generated_publication_evidence_sole_proof_allowed": false,
+    "v0_31_start_gate_fails_without_v301_release_evidence": true,
+    "next_track_does_not_inherit_trading_controls": true
+  }
+}

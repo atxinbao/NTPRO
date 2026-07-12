@@ -162,6 +162,20 @@ Final release checks, benchmark summaries, and audit reports live here.
   authority.
 - `../evidence/V301-006.md` - V301-006 v31 start gate hardening evidence for
   GitHub issue #1004.
+- `v0_30_1_release_notes.md` - release notes for the planned
+  `ntpro-rust-only-v0.30.1` GitHub Release. It publishes v0.30.1 governance,
+  strict provenance, and v31 start-gate hardening without opening backend
+  go-live, submit, mutation, adapter send, live exchange request, retry,
+  automatic remediation, or trading controls.
+- `v0_30_1_readiness_report.md` - release gate readiness report for
+  `ntpro-rust-only-v0.30.1`, including exact V301 issue scope `#999-#1005`,
+  v30.1 release gates, strict provenance, and the v31 hard block.
+- `v0_30_1_release_manifest.json` - strict release manifest for the v0.30.1
+  tag gate.
+- `v0_30_1_release_closeout_evidence.md` - source-controlled closeout target
+  for the public `ntpro-rust-only-v0.30.1` GitHub Release.
+- `../evidence/V301-007.md` - V301-007 release gate and strict provenance
+  evidence for GitHub issue #1005.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend

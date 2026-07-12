@@ -1242,6 +1242,61 @@ case "$CURRENT_RELEASE_VERSION" in
       "v31 production enablement track = hard-blocked until v0.30.0 release gate passes"
     )
     ;;
+  v0.30.1)
+    release_status_mode="v301_post_publication"
+    required_fields=(
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Base release: \`ntpro-rust-only-v0.30.0\`"
+      "v0.30.1 is a release governance and v0.31.0 start-gate hardening patch"
+      "V301-001"
+      "V301-007"
+      "V301 final release scope issue count = 7"
+      "V301 final release scope evidence count = 7"
+      "V301 exact milestone issue set = #999-#1005"
+      "V301 registered corrective-scope exception count = 0"
+      "v30.1 release gates = required"
+      "v30.1 strict provenance = required"
+      "v31 start gate = hard-blocked until v0.30.1 publication evidence exists"
+      "release surface current guard = required"
+      "release publication guard = required"
+      "release publish after gate = required"
+      "publication evidence strategy = source_tree_plus_github_remote"
+      "local generated publication evidence required in source tree = false"
+      "remote reconstruction required = true"
+      "generated publication evidence sole proof allowed = false"
+      "post-publication closeout evidence path = docs/rust-cutover/release/v0_30_1_release_closeout_evidence.md"
+      "v0.31.0 start gate contract = docs/rust-cutover/release/v0_30_1_v31_start_gate.json"
+      "new_submit_capability = false"
+      "production_order_submission_allowed = false"
+      "production_order_mutation_allowed = false"
+      "cancel_order_allowed = false"
+      "replace_order_allowed = false"
+      "amend_order_allowed = false"
+      "flatten_position_allowed = false"
+      "execution_adapter_call_allowed = false"
+      "adapter_send_allowed = false"
+      "live_exchange_request_allowed = false"
+      "network_attempted = false"
+      "retry_scheduler_enabled = false"
+      "automatic_remediation_allowed = false"
+      "automatic_operation_action_allowed = false"
+      "dashboard_operation_controls_enabled = false"
+      "dashboard_trading_controls_enabled = false"
+      "admin_workbench_operation_controls_enabled = false"
+      "admin_workbench_trading_controls_enabled = false"
+      "trader_terminal_order_ticket_enabled = false"
+      "manual_operation_submit_allowed = false"
+      "backend_go_live_claim = false"
+      "product_grade_trading_terminal_claim = false"
+      "scripts/ai/verify_v30_1_release_gates.sh"
+      "scripts/ai/verify_v30_1_strict_provenance.sh"
+      "scripts/ai/verify_v30_1_v31_start_gate.sh"
+      "scripts/ai/publish_ntpro_release_after_gate.sh"
+      "v0.31.0 start gate = blocked until v0.30.1 release gate passes"
+    )
+    ;;
   *)
     fail "unsupported release publication guard version: $CURRENT_RELEASE_VERSION"
     ;;
@@ -1271,6 +1326,16 @@ elif [[ "$release_status_mode" == "v30_post_publication" ]]; then
     require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: RELEASE GATE READY" "release notes pre-publication status after publication"
     require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: PENDING PUBLICATION" "release notes pending status after publication"
   fi
+elif [[ "$release_status_mode" == "v301_post_publication" ]]; then
+  if [[ "$PREPUBLISH_TAG_GATE" == "1" ]]; then
+    require_file_contains_any "$CURRENT_RELEASE_NOTES" "v30.1 pre-publication or post-publication status" \
+      "Status: RELEASE GATE READY" \
+      "Status: RELEASED"
+  else
+    require_file_contains "$CURRENT_RELEASE_NOTES" "Status: RELEASED" "release notes post-publication status"
+    require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: RELEASE GATE READY" "release notes pre-publication status after publication"
+    require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: PENDING PUBLICATION" "release notes pending status after publication"
+  fi
 fi
 
 if [[ "$PREPUBLISH_TAG_GATE" == "1" ]]; then
@@ -1289,7 +1354,7 @@ for field in "${required_fields[@]}"; do
   require_contains_text "$body" "$field" "GitHub Release body key field"
 done
 
-if [[ "$release_status_mode" == "v291_post_publication" || "$release_status_mode" == "v30_post_publication" ]]; then
+if [[ "$release_status_mode" == "v291_post_publication" || "$release_status_mode" == "v30_post_publication" || "$release_status_mode" == "v301_post_publication" ]]; then
   require_contains_text "$body" "Status: RELEASED" "GitHub Release body post-publication status"
   require_not_contains_text "$body" "Status: RELEASE GATE READY" "GitHub Release body pre-publication status after publication"
   require_not_contains_text "$body" "Status: PENDING PUBLICATION" "GitHub Release body pending status after publication"
