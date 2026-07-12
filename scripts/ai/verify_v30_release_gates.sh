@@ -254,7 +254,14 @@ def validate_manifest(candidate: dict) -> None:
     require(candidate.get("schema_version") == "ntpro.v300_backend_go_live_candidate_release_manifest.v1", "manifest schema mismatch")
     require(candidate.get("task_id") == "V300-011", "manifest task mismatch")
     require(candidate.get("product_version") == "v0.30.0", "manifest product version mismatch")
-    require(candidate.get("release_status") == "release_gate_ready", "manifest release status mismatch")
+    release_status = candidate.get("release_status")
+    require(release_status in {"release_gate_ready", "released"}, "manifest release status mismatch")
+    if release_status == "released":
+        post_closeout = candidate.get("post_release_closeout") or {}
+        require(post_closeout.get("closeout_evidence_path") == "docs/rust-cutover/release/v0_30_0_release_closeout_evidence.md", "release closeout path mismatch")
+        require((post_closeout.get("github_release") or {}).get("published_at") == "2026-07-11T05:37:06Z", "published release timestamp mismatch")
+        require((post_closeout.get("hosted_release_gate") or {}).get("run_id") == 29139384219, "release gate run mismatch")
+        require((post_closeout.get("milestone_closeout") or {}).get("exact_issue_set") == "#969-#980", "milestone closeout issue set mismatch")
     require(candidate.get("release_scope") == "backend_production_go_live_candidate_foundation_only", "release scope mismatch")
     planned = candidate.get("planned_release") or {}
     require(planned.get("tag") == "ntpro-rust-only-v0.30.0", "planned release tag mismatch")
