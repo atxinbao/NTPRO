@@ -12,14 +12,14 @@ fake_gh="$tmp_dir/gh"
 evidence_path="$tmp_dir/evidence/publication.json"
 tag_sha="0123456789abcdef0123456789abcdef01234567"
 
-CURRENT_RELEASE_VERSION="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_VERSION:-v0.29.0}"
-CURRENT_RELEASE_TAG="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_TAG:-ntpro-rust-only-v0.29.0}"
-CURRENT_RELEASE_NAME="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NAME:-NTPRO Rust-only v0.29.0}"
-CURRENT_RELEASE_NOTES="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NOTES:-docs/rust-cutover/release/v0_29_0_release_notes.md}"
-CURRENT_RELEASE_MANIFEST="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_MANIFEST:-docs/rust-cutover/release/v0_29_0_release_manifest.json}"
-CURRENT_RELEASE_CLOSEOUT="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_CLOSEOUT:-docs/rust-cutover/release/v0_29_0_release_closeout_evidence.md}"
-CURRENT_RELEASE_GATE_RUN_ID="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_GATE_RUN_ID:-29091765148}"
-CURRENT_RELEASE_TAG_SHA="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_TAG_SHA:-85110d29867763f8d3b6395f4ff8154378b475b9}"
+CURRENT_RELEASE_VERSION="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_VERSION:-v0.30.0}"
+CURRENT_RELEASE_TAG="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_TAG:-ntpro-rust-only-v0.30.0}"
+CURRENT_RELEASE_NAME="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NAME:-NTPRO Rust-only v0.30.0}"
+CURRENT_RELEASE_NOTES="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NOTES:-docs/rust-cutover/release/v0_30_0_release_notes.md}"
+CURRENT_RELEASE_MANIFEST="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_MANIFEST:-docs/rust-cutover/release/v0_30_0_release_manifest.json}"
+CURRENT_RELEASE_CLOSEOUT="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_CLOSEOUT:-docs/rust-cutover/release/v0_30_0_release_closeout_evidence.md}"
+CURRENT_RELEASE_GATE_RUN_ID="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_GATE_RUN_ID:-29139384219}"
+CURRENT_RELEASE_TAG_SHA="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_TAG_SHA:-0f0949156401fa6e6016c0160697e7090a6da788}"
 REQUIRE_LIVE_CURRENT="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_REQUIRE_LIVE_CURRENT:-${NTPRO_RELEASE_GATE:-0}}"
 LIVE_CURRENT_MODE="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_CURRENT:-auto}"
 LIVE_CURRENT_TIMEOUT="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_TIMEOUT:-90s}"
@@ -213,7 +213,7 @@ def canonical_release_sections(manifest: dict[str, Any]) -> tuple[dict[str, Any]
     planned = manifest.get("planned_release") or {}
     published = manifest.get("published_release") or {}
     closeout = manifest.get("post_publication_closeout") or {}
-    if published or closeout:
+    if published:
         return planned, published, closeout
 
     release_closeout = manifest.get("post_release_closeout") or {}
@@ -260,10 +260,10 @@ def set_published_at(candidate: dict[str, Any], value: str) -> None:
 
 
 def set_gate_head_sha(candidate: dict[str, Any], value: str) -> None:
-    if "post_publication_closeout" in candidate:
-        candidate["post_publication_closeout"]["release_gate_head_sha"] = value
+    if "post_release_closeout" in candidate:
+        candidate["post_release_closeout"]["hosted_release_gate"]["head_sha"] = value
         return
-    candidate["post_release_closeout"]["hosted_release_gate"]["head_sha"] = value
+    candidate["post_publication_closeout"]["release_gate_head_sha"] = value
 
 
 def validate(manifest: dict[str, Any], closeout_text: str) -> dict[str, Any]:

@@ -50,7 +50,7 @@ hosted release gate created at = 2026-07-11T04:17:58Z
 hosted release gate completed at = 2026-07-11T05:35:59Z
 hosted release gate jobs = 92/92 success
 release publication after gate = pass
-release publish after gate current-release binding = pending_v301_002
+release publish after gate current-release binding = pass
 post-publication closeout gate = pending_v301_003
 release_gate_ready-only artifacts after publication accepted = false
 source_tree_plus_github_remote reconstruction accepted = true
@@ -170,12 +170,13 @@ git rev-parse 'ntpro-rust-only-v0.30.0^{}'
 git ls-remote --tags origin refs/tags/ntpro-rust-only-v0.30.0 'refs/tags/ntpro-rust-only-v0.30.0^{}'
 NTPRO_CURRENT_RELEASE_VERSION=v0.30.0 NTPRO_CURRENT_RELEASE_TAG=ntpro-rust-only-v0.30.0 NTPRO_CURRENT_RELEASE_NAME="NTPRO Rust-only v0.30.0" scripts/ai/verify_release.sh release-publication-guard
 scripts/ai/verify_v30_1_release_closeout_evidence.sh
+scripts/ai/verify_v30_1_release_publish_after_gate_current_binding.sh
 ```
 
 ## Next Step
 
-After this evidence is merged through issue `#999`, proceed to `#1000`
-`V301-002 v30 publish-after-gate current-release binding` on its own branch and
+After the current-release binding is merged through issue `#1000`, proceed to
+`#1001` `V301-003 post-publication closeout gate for v30` on its own branch and
 PR. No later V301, V310, or v0.31.0 task may claim submit, adapter send, live
 exchange request, backend go-live, or product-grade live trading readiness
 unless its own issue adds explicit release-gated evidence.
