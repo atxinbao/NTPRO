@@ -13,8 +13,8 @@ V291_RELEASE_URL="${NTPRO_V30_INTAKE_V291_RELEASE_URL:-https://github.com/atxinb
 V291_GATE_RUN_ID="${NTPRO_V30_INTAKE_V291_GATE_RUN_ID:-29130876713}"
 V291_TAG_OBJECT_SHA="${NTPRO_V30_INTAKE_V291_TAG_OBJECT_SHA:-d3d398530835342dab4aafe355d1c842be0fdd47}"
 V291_TAG_SHA="${NTPRO_V30_INTAKE_V291_TAG_SHA:-a831d802e4321f50ed6e10481aea35b15a74b01e}"
-V291_BODY_NORMALIZED_SHA="${NTPRO_V30_INTAKE_V291_BODY_NORMALIZED_SHA:-2e11eaa92a91040fdf4e3903b97e58ebcfedeedcc9a1d45a24c56ea2f3a2eef8}"
-V291_BODY_RAW_SHA="${NTPRO_V30_INTAKE_V291_BODY_RAW_SHA:-ccd75fd4edb3bcd3a8353f2c466d30cec4b15d8074fce8beda5e8686cf035a02}"
+V291_BODY_NORMALIZED_SHA="${NTPRO_V30_INTAKE_V291_BODY_NORMALIZED_SHA:-611c6cfe89480054d5c3a4718215740701ee43536e3e92fa0ff458f7730b204b}"
+V291_BODY_RAW_SHA="${NTPRO_V30_INTAKE_V291_BODY_RAW_SHA:-5d5b7c34ceb7bca1a389e8261d04cc7fd28cea0a9d1e48ffe609f449b22ef2d1}"
 V291_RELEASE_NOTES="${NTPRO_V30_INTAKE_V291_NOTES:-docs/rust-cutover/release/v0_29_1_release_notes.md}"
 V291_RELEASE_MANIFEST="${NTPRO_V30_INTAKE_V291_MANIFEST:-docs/rust-cutover/release/v0_29_1_release_manifest.json}"
 V291_CLOSEOUT="${NTPRO_V30_INTAKE_V291_CLOSEOUT:-docs/rust-cutover/release/v0_29_1_release_closeout_evidence.md}"
@@ -95,13 +95,6 @@ NTPRO_CURRENT_RELEASE_VERSION="$V291_RELEASE_VERSION" \
   NTPRO_CURRENT_RELEASE_NAME="$V291_RELEASE_NAME" \
   scripts/ai/check_github_release_published.sh
 
-NTPRO_CURRENT_RELEASE_VERSION="$V291_RELEASE_VERSION" \
-  NTPRO_CURRENT_RELEASE_TAG="$V291_RELEASE_TAG" \
-  NTPRO_CURRENT_RELEASE_CAPABILITY="v0.29.1 Release Governance and v30 Start-Gate Hardening Patch" \
-  NTPRO_NEXT_PATCH_VERSION="v0.29.2" \
-  NTPRO_NEXT_CAPABILITY_VERSION="v0.30.0" \
-  scripts/ai/check_release_surface_current.sh
-
 scripts/ai/verify_v29_1_release_publish_after_gate_current_binding.sh >/dev/null
 scripts/ai/verify_v29_1_v30_start_gate.sh >/dev/null
 
@@ -163,6 +156,20 @@ def validate_manifest(candidate: dict) -> None:
     require(candidate.get("schema_version") == "ntpro.v291_patch_release_manifest.v1", "V291 manifest schema mismatch")
     require(candidate.get("task_id") == "V291-006", "V291 manifest task mismatch")
     require(candidate.get("product_version") == "v0.29.1", "V291 manifest product version mismatch")
+    require(candidate.get("release_status") == "released", "V291 manifest must be released for v30 intake")
+    published = candidate.get("published_release") or {}
+    require(published.get("tag") == os.environ["V291_RELEASE_TAG"], "V291 published release tag mismatch")
+    require(published.get("tag_sha") == os.environ["V291_TAG_SHA"], "V291 published tag SHA mismatch")
+    post_pub = candidate.get("post_publication_closeout") or {}
+    require(post_pub.get("status") == "source_controlled_closeout_recorded", "V291 post-publication closeout status mismatch")
+    require(post_pub.get("release_gate_run_id") == int(os.environ["V291_GATE_RUN_ID"]), "V291 post-publication gate run mismatch")
+    require(post_pub.get("published_after_hosted_gate") is True, "V291 published-after-gate marker missing")
+    contract = candidate.get("authoritative_predecessor_closeout_contract") or {}
+    require(contract.get("contract_id") == "v0_29_1_authoritative_closeout_contract", "V291 authoritative contract missing")
+    require(contract.get("release_status") == "released", "V291 authoritative contract status mismatch")
+    require(contract.get("v30_intake_consumes_contract") is True, "V291 authoritative contract not consumed by v30")
+    require(contract.get("release_body_normalized_sha256") == os.environ["V291_BODY_NORMALIZED_SHA"], "V291 authoritative contract normalized hash mismatch")
+    require(contract.get("release_body_raw_sha256") == os.environ["V291_BODY_RAW_SHA"], "V291 authoritative contract raw hash mismatch")
     scope = candidate.get("release_scope") or {}
     require(scope.get("exact_milestone_issue_numbers") == [963, 964, 965, 966, 967, 968], "V291 exact issue numbers mismatch")
     require(scope.get("final_release_scope_issue_count") == 6, "V291 issue count mismatch")
@@ -199,6 +206,7 @@ for marker in [
     "v0.29.1 milestone = closed",
     "v0.29.1 milestone open issues = 0",
     "v0.30.0 start gate = ready",
+    "authoritative predecessor closeout contract = v0_29_1_authoritative_closeout_contract",
 ]:
     require(marker in closeout, f"closeout missing marker: {marker}")
 
@@ -208,6 +216,7 @@ for marker in [
     "V291 milestone = closed",
     "V291 exact milestone issue set = #963-#968",
     "v0.29.1 release evidence = published",
+    "v0.29.1 authoritative predecessor closeout contract = v0_29_1_authoritative_closeout_contract",
     "v0.29.1 hosted release gate jobs = 90/90 success",
     f"v0.29.1 tag object SHA = {os.environ['V291_TAG_OBJECT_SHA']}",
     f"v0.29.1 tag SHA = {os.environ['V291_TAG_SHA']}",

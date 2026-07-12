@@ -2,7 +2,7 @@
   "schema_version": "ntpro.v291_patch_release_manifest.v1",
   "task_id": "V291-006",
   "product_version": "v0.29.1",
-  "release_status": "release_gate_ready",
+  "release_status": "released",
   "patch_scope": "v290_post_publication_governance_and_v30_start_gate_patch",
   "base_release": {
     "version": "v0.29.0",
@@ -34,17 +34,48 @@
     "v30_start_gate_script_path": "scripts/ai/verify_v29_1_v30_start_gate.sh"
   },
   "v291_evidence": [
-    {"task_id": "V291-001", "issue": 963, "path": "docs/rust-cutover/evidence/V291-001.md"},
-    {"task_id": "V291-002", "issue": 964, "path": "docs/rust-cutover/evidence/V291-002.md"},
-    {"task_id": "V291-003", "issue": 965, "path": "docs/rust-cutover/evidence/V291-003.md"},
-    {"task_id": "V291-004", "issue": 966, "path": "docs/rust-cutover/evidence/V291-004.md"},
-    {"task_id": "V291-005", "issue": 967, "path": "docs/rust-cutover/evidence/V291-005.md"},
-    {"task_id": "V291-006", "issue": 968, "path": "docs/rust-cutover/evidence/V291-006.md"}
+    {
+      "task_id": "V291-001",
+      "issue": 963,
+      "path": "docs/rust-cutover/evidence/V291-001.md"
+    },
+    {
+      "task_id": "V291-002",
+      "issue": 964,
+      "path": "docs/rust-cutover/evidence/V291-002.md"
+    },
+    {
+      "task_id": "V291-003",
+      "issue": 965,
+      "path": "docs/rust-cutover/evidence/V291-003.md"
+    },
+    {
+      "task_id": "V291-004",
+      "issue": 966,
+      "path": "docs/rust-cutover/evidence/V291-004.md"
+    },
+    {
+      "task_id": "V291-005",
+      "issue": 967,
+      "path": "docs/rust-cutover/evidence/V291-005.md"
+    },
+    {
+      "task_id": "V291-006",
+      "issue": 968,
+      "path": "docs/rust-cutover/evidence/V291-006.md"
+    }
   ],
   "release_scope": {
     "milestone_issue_set": "V291-001..V291-006",
     "milestone_issue_count": 6,
-    "exact_milestone_issue_numbers": [963, 964, 965, 966, 967, 968],
+    "exact_milestone_issue_numbers": [
+      963,
+      964,
+      965,
+      966,
+      967,
+      968
+    ],
     "exact_milestone_issue_set": "#963-#968",
     "final_release_scope_issue_count": 6,
     "final_release_scope_evidence_count": 6,
@@ -58,13 +89,41 @@
     "trading_behavior_changed_by_release_gate": false
   },
   "release_gates": [
-    {"name": "v29-release-gates", "command": "scripts/ai/verify_v29_release_gates.sh", "required": true},
-    {"name": "v29-strict-provenance", "command": "scripts/ai/verify_v29_strict_provenance.sh", "required": true},
-    {"name": "v29.1-v30-start-gate", "command": "scripts/ai/verify_v29_1_v30_start_gate.sh", "required": true},
-    {"name": "v29.1-release-gates", "command": "scripts/ai/verify_v29_1_release_gates.sh", "required": true},
-    {"name": "v29.1-strict-provenance", "command": "scripts/ai/verify_v29_1_strict_provenance.sh", "required": true},
-    {"name": "release-publication-guard", "command": "scripts/ai/check_github_release_published.sh", "required": true},
-    {"name": "release-publish-after-gate", "command": "scripts/ai/publish_ntpro_release_after_gate.sh", "required": true}
+    {
+      "name": "v29-release-gates",
+      "command": "scripts/ai/verify_v29_release_gates.sh",
+      "required": true
+    },
+    {
+      "name": "v29-strict-provenance",
+      "command": "scripts/ai/verify_v29_strict_provenance.sh",
+      "required": true
+    },
+    {
+      "name": "v29.1-v30-start-gate",
+      "command": "scripts/ai/verify_v29_1_v30_start_gate.sh",
+      "required": true
+    },
+    {
+      "name": "v29.1-release-gates",
+      "command": "scripts/ai/verify_v29_1_release_gates.sh",
+      "required": true
+    },
+    {
+      "name": "v29.1-strict-provenance",
+      "command": "scripts/ai/verify_v29_1_strict_provenance.sh",
+      "required": true
+    },
+    {
+      "name": "release-publication-guard",
+      "command": "scripts/ai/check_github_release_published.sh",
+      "required": true
+    },
+    {
+      "name": "release-publish-after-gate",
+      "command": "scripts/ai/publish_ntpro_release_after_gate.sh",
+      "required": true
+    }
   ],
   "capability": {
     "name": "v0.29.1 Release Governance and v30 Start-Gate Hardening Patch",
@@ -161,14 +220,59 @@
     "next_track_does_not_inherit_trading_controls": true
   },
   "post_publication_closeout": {
-    "status": "pending_publication",
+    "status": "source_controlled_closeout_recorded",
     "source_controlled_closeout_evidence": true,
     "source_controlled_closeout_evidence_path": "docs/rust-cutover/release/v0_29_1_release_closeout_evidence.md",
     "generated_evidence_path": "release-publication-evidence/ntpro-rust-only-v0.29.1.json",
     "generated_evidence_is_sole_proof": false,
-    "v30_intake_requires_source_controlled_closeout": true
+    "v30_intake_requires_source_controlled_closeout": true,
+    "release_gate_run_id": 29130876713,
+    "release_gate_status": "completed",
+    "release_gate_conclusion": "success",
+    "release_gate_workflow_name": "Rust Cutover Release Gate",
+    "release_gate_head_sha": "a831d802e4321f50ed6e10481aea35b15a74b01e",
+    "release_gate_completed_at": "2026-07-11T01:06:27Z",
+    "published_after_hosted_gate": true,
+    "current_release_publish_after_gate_binding": "pass",
+    "authoritative_predecessor_closeout_contract": "v0_29_1_authoritative_closeout_contract"
   },
   "validation_artifacts": {
     "strict_release_provenance_manifest_path": "target/ntpro-v291/v0_29_1_strict_release_manifest.json"
+  },
+  "published_release": {
+    "tag": "ntpro-rust-only-v0.29.1",
+    "name": "NTPRO Rust-only v0.29.1",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.29.1",
+    "target_commitish": "main",
+    "draft": false,
+    "prerelease": false,
+    "tag_object_sha": "d3d398530835342dab4aafe355d1c842be0fdd47",
+    "tag_sha": "a831d802e4321f50ed6e10481aea35b15a74b01e",
+    "published_at": "2026-07-11T01:07:24Z"
+  },
+  "authoritative_predecessor_closeout_contract": {
+    "contract_id": "v0_29_1_authoritative_closeout_contract",
+    "release_tag": "ntpro-rust-only-v0.29.1",
+    "source_of_truth": "source_controlled_closeout_evidence_plus_manifest_published_release",
+    "release_status": "released",
+    "published_release_required": true,
+    "post_publication_closeout_required": true,
+    "source_controlled_closeout_evidence_path": "docs/rust-cutover/release/v0_29_1_release_closeout_evidence.md",
+    "release_notes_path": "docs/rust-cutover/release/v0_29_1_release_notes.md",
+    "readiness_report_path": "docs/rust-cutover/release/v0_29_1_readiness_report.md",
+    "hosted_release_gate_run_id": 29130876713,
+    "tag_object_sha": "d3d398530835342dab4aafe355d1c842be0fdd47",
+    "tag_sha": "a831d802e4321f50ed6e10481aea35b15a74b01e",
+    "published_at": "2026-07-11T01:07:24Z",
+    "release_body_hash_semantics": "normalized_sha256",
+    "release_body_normalized_sha256": "611c6cfe89480054d5c3a4718215740701ee43536e3e92fa0ff458f7730b204b",
+    "release_body_raw_sha256": "5d5b7c34ceb7bca1a389e8261d04cc7fd28cea0a9d1e48ffe609f449b22ef2d1",
+    "tracked_notes_normalized_sha256": "611c6cfe89480054d5c3a4718215740701ee43536e3e92fa0ff458f7730b204b",
+    "tracked_notes_raw_sha256": "5d5b7c34ceb7bca1a389e8261d04cc7fd28cea0a9d1e48ffe609f449b22ef2d1",
+    "tracked_notes_normalized_line_count": 95,
+    "v30_intake_consumes_contract": true,
+    "contradictory_release_gate_ready_final_state_allowed": false,
+    "runtime_behavior_changed": false,
+    "trading_behavior_changed": false
   }
 }

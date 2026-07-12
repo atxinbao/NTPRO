@@ -1125,8 +1125,8 @@ case "$CURRENT_RELEASE_VERSION" in
     )
     ;;
   v0.29.1)
+    release_status_mode="v291_post_publication"
     required_fields=(
-      "Status: RELEASE GATE READY"
       "Tag: \`$CURRENT_RELEASE_TAG\`"
       "Release name: \`$RELEASE_NAME\`"
       "Release URL: \`$RELEASE_URL\`"
@@ -1149,6 +1149,12 @@ case "$CURRENT_RELEASE_VERSION" in
       "remote reconstruction required = true"
       "generated publication evidence sole proof allowed = false"
       "post-publication closeout evidence path = docs/rust-cutover/release/v0_29_1_release_closeout_evidence.md"
+      "post-publication predecessor closeout contract = authoritative"
+      "published release status = published_after_gate"
+      "hosted release gate run = 29130876713"
+      "published release closeout evidence = docs/rust-cutover/release/v0_29_1_release_closeout_evidence.md"
+      "release body hash semantics = normalized_sha256"
+      "v0.30.0 intake predecessor contract = v0_29_1_authoritative_closeout_contract"
       "new_submit_capability = false"
       "production_order_submission_allowed = false"
       "production_order_mutation_allowed = false"
@@ -1245,7 +1251,17 @@ for field in "${required_fields[@]}"; do
   require_file_contains "$CURRENT_RELEASE_NOTES" "$field" "release notes key field"
 done
 
-if [[ "$release_status_mode" == "v30_post_publication" ]]; then
+if [[ "$release_status_mode" == "v291_post_publication" ]]; then
+  if [[ "$PREPUBLISH_TAG_GATE" == "1" ]]; then
+    require_file_contains_any "$CURRENT_RELEASE_NOTES" "v29.1 pre-publication or post-publication status" \
+      "Status: RELEASE GATE READY" \
+      "Status: RELEASED"
+  else
+    require_file_contains "$CURRENT_RELEASE_NOTES" "Status: RELEASED" "release notes post-publication status"
+    require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: RELEASE GATE READY" "release notes pre-publication status after publication"
+    require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: PENDING PUBLICATION" "release notes pending status after publication"
+  fi
+elif [[ "$release_status_mode" == "v30_post_publication" ]]; then
   if [[ "$PREPUBLISH_TAG_GATE" == "1" ]]; then
     require_file_contains_any "$CURRENT_RELEASE_NOTES" "v30 pre-publication or post-publication status" \
       "Status: RELEASE GATE READY" \
@@ -1273,7 +1289,7 @@ for field in "${required_fields[@]}"; do
   require_contains_text "$body" "$field" "GitHub Release body key field"
 done
 
-if [[ "$release_status_mode" == "v30_post_publication" ]]; then
+if [[ "$release_status_mode" == "v291_post_publication" || "$release_status_mode" == "v30_post_publication" ]]; then
   require_contains_text "$body" "Status: RELEASED" "GitHub Release body post-publication status"
   require_not_contains_text "$body" "Status: RELEASE GATE READY" "GitHub Release body pre-publication status after publication"
   require_not_contains_text "$body" "Status: PENDING PUBLICATION" "GitHub Release body pending status after publication"

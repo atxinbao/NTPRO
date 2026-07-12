@@ -44,6 +44,17 @@ require_not_contains() {
   fi
 }
 
+require_release_status_marker() {
+  local path="$1"
+  if grep -F -- "Status: RELEASE GATE READY" "$path" >/dev/null; then
+    return 0
+  fi
+  if grep -F -- "Status: RELEASED" "$path" >/dev/null; then
+    return 0
+  fi
+  fail "missing release status marker in $path"
+}
+
 gh_with_retry() {
   local attempt=1
   local max_attempts=4
@@ -86,8 +97,8 @@ for task_id in V291-001 V291-002 V291-003 V291-004 V291-005 V291-006; do
   require_contains "docs/rust-cutover/tasks/${task_id}.md" "$task_id"
 done
 
+require_release_status_marker "$RELEASE_NOTES_PATH"
 for marker in \
-  "Status: RELEASE GATE READY" \
   "Tag: \`$RELEASE_TAG\`" \
   "Release name: \`$RELEASE_NAME\`" \
   "Release URL: \`https://github.com/atxinbao/NTPRO/releases/tag/$RELEASE_TAG\`" \
@@ -110,8 +121,8 @@ for marker in \
   require_contains "$RELEASE_NOTES_PATH" "$marker"
 done
 
+require_release_status_marker "$READINESS_REPORT_PATH"
 for marker in \
-  "Status: RELEASE GATE READY" \
   "V291-001 evidence" \
   "V291-006 evidence" \
   "#968 V291-006 = must be closed before v0.29.1 tag gate is accepted" \
@@ -147,7 +158,8 @@ for path in "$RELEASE_NOTES_PATH" "$READINESS_REPORT_PATH" "$MANIFEST_PATH" "$CL
   done
 done
 
-NTPRO_RELEASE_GATE=0 scripts/ai/verify_v29_release_gates.sh
+scripts/ai/verify_v29_1_release_closeout_evidence.sh >/dev/null
+scripts/ai/verify_v29_1_post_publication_closeout_gate.sh source >/dev/null
 NTPRO_RELEASE_GATE=0 NTPRO_RELEASE_STRICT_REQUIRE_HEAD_TAG=0 scripts/ai/verify_v29_strict_provenance.sh
 scripts/ai/verify_v29_1_v30_start_gate.sh
 
@@ -206,7 +218,18 @@ def validate(candidate: dict) -> None:
     require(candidate.get("schema_version") == "ntpro.v291_patch_release_manifest.v1", "manifest schema mismatch")
     require(candidate.get("task_id") == "V291-006", "manifest task mismatch")
     require(candidate.get("product_version") == "v0.29.1", "manifest product version mismatch")
-    require(candidate.get("release_status") == "release_gate_ready", "manifest release status mismatch")
+    require(candidate.get("release_status") in {"release_gate_ready", "released"}, "manifest release status mismatch")
+    if candidate.get("release_status") == "released":
+        published = candidate.get("published_release") or {}
+        post_pub = candidate.get("post_publication_closeout") or {}
+        contract = candidate.get("authoritative_predecessor_closeout_contract") or {}
+        require(published.get("tag") == "ntpro-rust-only-v0.29.1", "published release tag mismatch")
+        require(published.get("tag_sha") == "a831d802e4321f50ed6e10481aea35b15a74b01e", "published tag SHA mismatch")
+        require(post_pub.get("status") == "source_controlled_closeout_recorded", "post-publication closeout status mismatch")
+        require(post_pub.get("release_gate_run_id") == 29130876713, "post-publication release gate run mismatch")
+        require(post_pub.get("published_after_hosted_gate") is True, "post-publication ordering missing")
+        require(contract.get("contract_id") == "v0_29_1_authoritative_closeout_contract", "authoritative contract missing")
+        require(contract.get("v30_intake_consumes_contract") is True, "v30 intake contract marker missing")
     planned = candidate.get("planned_release") or {}
     require(planned.get("tag") == "ntpro-rust-only-v0.29.1", "planned release tag mismatch")
     evidence = candidate.get("v291_evidence") or []
