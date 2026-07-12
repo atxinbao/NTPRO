@@ -3,19 +3,20 @@
 Date: 2026-07-12
 Executor: Codex
 Milestone: `ntpro-rust-only-v0.30.1`
-Status: RELEASE GATE READY
+Status: RELEASED
 
 ## Summary
 
-v0.30.1 is ready for tag-gate execution when V301-001 through V301-007 evidence
-is present, all V301 issues are closed, v30.1 release gates pass, strict
-provenance passes, and the release is published only after the hosted release
-gate succeeds for the same tag commit.
+v0.30.1 has completed tag-gate execution and public GitHub Release
+publication. V301-001 through V301-007 evidence is present, all V301 issues are
+closed, v30.1 release gates passed, strict provenance passed, and the release
+was published only after the hosted release gate succeeded for the same tag
+commit.
 
 Plain Chinese summary: v0.30.1 的范围是发布治理和 v31 start gate 硬化，不是 v0.31.0
-功能。它要求 V301-001 到 V301-007 全部闭环，hosted release gate 成功后再公开 GitHub
-Release。v0.31.0 在 v0.30.1 发布证据和 source-controlled closeout 目标存在前保持
-hard-blocked。
+功能。V301-001 到 V301-007 已全部闭环，hosted release gate 已成功，GitHub Release
+已公开发布。v0.31.0 现在可以记录 v0.30.1 dependency proof，但仍必须在显式 scoped
+approval、risk gate、audit gate、rollback readiness 和 telemetry/SLO gate 之前 fail-closed。
 
 ## Evidence
 
@@ -33,7 +34,7 @@ v30.1 release gates = required
 v30.1 strict provenance = required
 v30 release gates = required
 v30 strict provenance = required
-v31 start gate = hard-blocked until v0.30.1 publication evidence exists
+v31 intake gate = v0.30.1 publication evidence satisfied; explicit scoped approval still required
 release surface current guard = required
 release publication guard = required
 release publish after gate = required
@@ -75,6 +76,23 @@ strict provenance manifest = target/ntpro-v301/v0_30_1_strict_release_manifest.j
 release tag = ntpro-rust-only-v0.30.1
 release name = NTPRO Rust-only v0.30.1
 release URL = https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.30.1
+published release status = published_after_gate
+GitHub Release published at = 2026-07-12T17:07:13Z
+GitHub Release updated at = 2026-07-12T17:10:14Z
+hosted release gate run = 29194173422
+hosted release gate conclusion = success
+hosted release gate jobs = 94/94 success
+hosted release gate completed at = 2026-07-12T14:53:56Z
+published after hosted gate = true
+annotated tag object = 17d2b48ed4df2b21f1a0b20bf739fd46f33659be
+peeled tag commit = 5b66335a8f625062dbcdd4f7441cfacab57b5ede
+release body normalized sha256 = 1a9a71278ca7716a681b17667f5f7ef9c174f9eebacae0683a3c5a91cc4de4f9
+tracked release notes normalized sha256 = 1a9a71278ca7716a681b17667f5f7ef9c174f9eebacae0683a3c5a91cc4de4f9
+release body matches tracked release notes = true
+v0.30.1 milestone = closed
+v0.30.1 milestone open issues = 0
+v0.30.1 milestone closed issues = 7
+v0.30.1 milestone closed at = 2026-07-12T17:08:50Z
 source-controlled closeout evidence = docs/rust-cutover/release/v0_30_1_release_closeout_evidence.md
 publication evidence strategy = source_tree_plus_github_remote
 local generated publication evidence required in source tree = false

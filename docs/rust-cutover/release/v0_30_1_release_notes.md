@@ -1,6 +1,6 @@
 # NTPRO Rust-only v0.30.1
 
-Status: RELEASE GATE READY
+Status: RELEASED
 Tag: `ntpro-rust-only-v0.30.1`
 Release name: `NTPRO Rust-only v0.30.1`
 Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.30.1`
@@ -16,6 +16,29 @@ publish-after-gate current binding、post-publication closeout、V300 stale
 evidence、v0.29.1 predecessor closeout、v31 start gate 和最终 v30.1 release gate。
 它不新增 submit，不改变 runtime，不开放 backend go-live，不开放 Dashboard/Admin/Trader
 Terminal 交易控件，也不把系统声明为产品级实盘交易终端。
+
+## Published Release Facts
+
+published release status = published_after_gate
+GitHub Release published at = 2026-07-12T17:07:13Z
+GitHub Release updated at = 2026-07-12T17:07:13Z
+GitHub Release id = 352801301
+GitHub Release node id = RE_kwDOSox1D84VB1IV
+hosted release gate run = 29194173422
+hosted release gate URL = https://github.com/atxinbao/NTPRO/actions/runs/29194173422
+hosted release gate conclusion = success
+hosted release gate jobs = 94/94 success
+hosted release gate completed at = 2026-07-12T14:53:56Z
+published after hosted gate = true
+annotated tag object = 17d2b48ed4df2b21f1a0b20bf739fd46f33659be
+peeled tag commit = 5b66335a8f625062dbcdd4f7441cfacab57b5ede
+release tag tree = 21f31d20a0f1c316127b68e0f0dc797170b87cb2
+v0.30.1 milestone = closed
+v0.30.1 milestone open issues = 0
+v0.30.1 milestone closed issues = 7
+v0.30.1 milestone closed at = 2026-07-12T17:08:50Z
+release body hash semantics = normalized_sha256
+source-controlled closeout evidence = docs/rust-cutover/release/v0_30_1_release_closeout_evidence.md
 
 ## Included Tasks
 
@@ -38,7 +61,7 @@ v30.1 release gates = required
 v30.1 strict provenance = required
 v30 release gates = required
 v30 strict provenance = required
-v31 start gate = hard-blocked until v0.30.1 publication evidence exists
+v31 intake gate = v0.30.1 publication evidence satisfied; explicit scoped approval still required
 release surface current guard = required
 release publication guard = required
 release publish after gate = required
@@ -85,8 +108,11 @@ product_grade_trading_terminal_claim = false
 
 ## Next Track
 
-v0.31.0 start gate = blocked until v0.30.1 release gate passes, all V301 issues
-are closed, the `ntpro-rust-only-v0.30.1` GitHub Release is published after the
-hosted release gate, and V31 intake evidence reconstructs the v0.30.1 tag,
-hosted gate, release body/source hash, source-controlled closeout target, and
-explicit scoped approval boundary.
+v0.31.0 intake gate = fail-closed without explicit scoped approval
+
+The `ntpro-rust-only-v0.30.1` GitHub Release has been published after the hosted
+release gate for the same tag commit. V31 intake may now record the dependency
+proof, but it still does not inherit submit, mutation, adapter send, live
+exchange request, retry scheduler, automatic remediation, Dashboard/Admin/Trader
+Terminal trading controls, backend go-live, or product-grade live trading
+claims.
