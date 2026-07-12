@@ -117,10 +117,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   hard block.
 - `v0_30_0_release_manifest.json` - strict release manifest for the formal
   `ntpro-rust-only-v0.30.0` tag gate.
-- `v0_30_0_release_closeout_evidence.md` - source-controlled closeout target
-  for the public `ntpro-rust-only-v0.30.0` GitHub Release, including hosted
-  gate, release body, milestone #26 closeout, and generated-publication-
-  evidence policy placeholders.
+- `v0_30_0_release_closeout_evidence.md` - source-controlled closeout ledger
+  for the public `ntpro-rust-only-v0.30.0` GitHub Release, including tag
+  object, peeled commit, publication timestamp, hosted gate `92/92` success,
+  normalized/raw release body hash/source match, milestone #26 closeout, and
+  generated publication-evidence policy. V301-001 records this evidence for
+  GitHub issue #999.
 - `v0_30_0_v31_production_enablement_handoff.md` and
   `v0_30_0_v31_production_enablement_handoff.json` - V300-011 v31 production
   enablement handoff. They hard-block v31 on v30 release evidence plus
@@ -129,6 +131,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   controls.
 - `../evidence/V300-011.md` - V300-011 release gates and v31 handoff evidence
   for GitHub issue #980.
+- `../evidence/V301-001.md` - V301-001 v0.30.0 release closeout evidence
+  backfill for GitHub issue #999. It records the public v0.30.0 release,
+  hosted gate `29139384219`, `12/12` closed issue scope, strict body/source
+  hash match, and generated-evidence-only proof rejection.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
