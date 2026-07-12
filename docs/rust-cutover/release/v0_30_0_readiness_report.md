@@ -3,7 +3,7 @@
 Date: 2026-07-11
 Executor: Codex
 Milestone: `ntpro-rust-only-v0.30.0`
-Status: RELEASE GATE READY
+Status: RELEASED
 
 ## Summary
 
@@ -90,6 +90,11 @@ source-controlled closeout evidence = docs/rust-cutover/release/v0_30_0_release_
 publication evidence strategy = source_tree_plus_github_remote
 local generated publication evidence required in source tree = false
 generated publication evidence sole proof allowed = false
+post-publication closeout gate = required
+published release status = published_after_gate
+hosted release gate run = 29139384219
+published release closeout evidence = docs/rust-cutover/release/v0_30_0_release_closeout_evidence.md
+release body hash semantics = normalized_sha256
 v31 handoff requires source-controlled v0.30.0 closeout = true
 ```
 

@@ -344,7 +344,8 @@
     "source_controlled_closeout_evidence_required": true,
     "generated_publication_evidence_sole_proof_allowed": false,
     "v31_handoff_fails_without_v300_release_evidence": true,
-    "next_track_does_not_inherit_trading_controls": true
+    "next_track_does_not_inherit_trading_controls": true,
+    "remote_reconstruction_required": true
   },
   "post_publication_closeout": {
     "status": "source_controlled_closeout_recorded",
@@ -353,9 +354,21 @@
     "generated_evidence_path": "release-publication-evidence/ntpro-rust-only-v0.30.0.json",
     "generated_evidence_is_sole_proof": false,
     "v31_handoff_requires_source_controlled_closeout": true,
+    "release_gate_run_id": 29139384219,
+    "release_gate_status": "completed",
+    "release_gate_conclusion": "success",
+    "release_gate_workflow_name": "Rust Cutover Release Gate",
+    "release_gate_head_sha": "0f0949156401fa6e6016c0160697e7090a6da788",
+    "release_gate_completed_at": "2026-07-11T05:35:59Z",
+    "published_after_hosted_gate": true,
+    "current_release_publish_after_gate_binding": "pass",
+    "published_release_manifest_field_required": true,
+    "post_publication_closeout_manifest_field_required": true,
     "v301_followup_required": [
-      "V301-002 publish-after-gate current-release binding",
-      "V301-003 post-publication closeout gate hardening"
+      "V301-004 stale V300-011 evidence cleanup",
+      "V301-005 v0.29.1 closeout reconciliation",
+      "V301-006 v31 start gate dependency proof",
+      "V301-007 v30.1 release gates and strict provenance"
     ]
   },
   "validation_artifacts": {
@@ -401,12 +414,12 @@
       "source_path": "docs/rust-cutover/release/v0_30_0_release_notes.md",
       "hash_semantics": "normalized_sha256",
       "normalization": "line_rstrip_and_outer_strip",
-      "normalized_sha256": "494965d49626309be3d2e5452aa28722c41768f5ee872901dda0453b8fbb5382",
-      "tracked_notes_normalized_sha256": "494965d49626309be3d2e5452aa28722c41768f5ee872901dda0453b8fbb5382",
-      "raw_sha256": "0df4f86214c9fabb4bd437a6c24e6ea667f9088e34813110019436a275ac611e",
-      "tracked_notes_raw_sha256": "0df4f86214c9fabb4bd437a6c24e6ea667f9088e34813110019436a275ac611e",
-      "normalized_line_count": 108,
-      "tracked_notes_normalized_line_count": 108
+      "normalized_sha256": "5d0e93c8f56c71b19a7ca8d8eeaa328bcecd1d185305b07930de1e53f55564e4",
+      "tracked_notes_normalized_sha256": "5d0e93c8f56c71b19a7ca8d8eeaa328bcecd1d185305b07930de1e53f55564e4",
+      "raw_sha256": "41354e181696c095c383e1f8be07cf5383b563634f8002a437b7fdfc5e3d3e24",
+      "tracked_notes_raw_sha256": "41354e181696c095c383e1f8be07cf5383b563634f8002a437b7fdfc5e3d3e24",
+      "normalized_line_count": 113,
+      "tracked_notes_normalized_line_count": 113
     },
     "milestone_closeout": {
       "number": 26,
@@ -442,5 +455,38 @@
       "remote_reconstruction_required": true,
       "audit_source": "source_tree_plus_github_remote"
     }
+  },
+  "published_release": {
+    "tag": "ntpro-rust-only-v0.30.0",
+    "name": "NTPRO Rust-only v0.30.0",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.30.0",
+    "target_commitish": "main",
+    "draft": false,
+    "prerelease": false,
+    "tag_sha": "0f0949156401fa6e6016c0160697e7090a6da788",
+    "published_at": "2026-07-11T05:37:06Z"
+  },
+  "post_publication_closeout_gate": {
+    "task_id": "V301-003",
+    "issue": 1001,
+    "gate": "scripts/ai/verify_v30_1_post_publication_closeout_gate.sh source",
+    "release_tag": "ntpro-rust-only-v0.30.0",
+    "required_release_status": "released",
+    "rejects_release_gate_ready_only": true,
+    "requires_published_github_release": true,
+    "requires_published_release_field": true,
+    "requires_post_publication_closeout_field": true,
+    "requires_source_tree_plus_github_remote": true,
+    "generated_evidence_only_allowed": false,
+    "requires_source_controlled_closeout_evidence": true,
+    "validates_milestone_closeout": true,
+    "validates_exact_issue_scope": true,
+    "validates_final_release_gate_run": 29139384219,
+    "validates_release_body_hash_semantics": "normalized_sha256",
+    "validates_tag_commit": "0f0949156401fa6e6016c0160697e7090a6da788",
+    "validates_publication_after_gate_ordering": true,
+    "preserves_raw_hash_as_diagnostic_only": true,
+    "runtime_behavior_changed": false,
+    "trading_behavior_changed": false
   }
 }
