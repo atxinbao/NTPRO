@@ -1,0 +1,130 @@
+{
+  "schema_version": "ntpro.v310_config_venue_readiness_gate.v1",
+  "task_id": "V310-005",
+  "github_issue": 1011,
+  "milestone": "v0.31.0",
+  "capability_track": "controlled_backend_production_enablement_candidate",
+  "depends_on": [
+    {
+      "task_id": "V310-003",
+      "github_issue": 1009,
+      "required_status": "closed"
+    },
+    {
+      "task_id": "V310-004",
+      "github_issue": 1010,
+      "required_status": "closed"
+    }
+  ],
+  "gate_status": "production_config_venue_readiness_required_no_adapter_send",
+  "production_config_evidence": {
+    "required": true,
+    "source_provenance_required": true,
+    "environment_provenance_required": true,
+    "redaction_required": true,
+    "sensitive_values_forbidden": true,
+    "release_tag_consistency_required": true,
+    "config_digest_required": true,
+    "freshness_required": true,
+    "stale_status": "fail_closed_stale_config",
+    "missing_redaction_status": "fail_closed_missing_redaction",
+    "unproven_environment_status": "fail_closed_unproven_environment_source",
+    "required_fields": [
+      "release_version",
+      "release_tag",
+      "build_commit",
+      "environment_id",
+      "config_source_ref",
+      "config_digest",
+      "redaction_digest",
+      "source_provenance",
+      "environment_provenance",
+      "collected_at"
+    ]
+  },
+  "venue_readiness_evidence": {
+    "required": true,
+    "source_provenance_required": true,
+    "venue_binding_required": true,
+    "environment_binding_required": true,
+    "venue_release_consistency_required": true,
+    "credential_material_redacted_required": true,
+    "endpoint_class": "read_only_or_probe_plan",
+    "mismatched_venue_status": "fail_closed_mismatched_venue",
+    "adapter_send_authorized": false,
+    "live_exchange_request_authorized": false,
+    "required_fields": [
+      "release_version",
+      "release_tag",
+      "build_commit",
+      "environment_id",
+      "venue_id",
+      "endpoint_class",
+      "readiness_source_ref",
+      "readiness_digest",
+      "credential_redaction_digest",
+      "source_provenance",
+      "collected_at"
+    ]
+  },
+  "decision_cases": [
+    {
+      "case_id": "v31_config.stale_config.fail_closed.001",
+      "config_freshness": "stale",
+      "venue_binding": "matched",
+      "redaction": "present",
+      "environment_source": "proven",
+      "expected_status": "fail_closed_stale_config"
+    },
+    {
+      "case_id": "v31_config.mismatched_venue.fail_closed.001",
+      "config_freshness": "fresh",
+      "venue_binding": "mismatched",
+      "redaction": "present",
+      "environment_source": "proven",
+      "expected_status": "fail_closed_mismatched_venue"
+    },
+    {
+      "case_id": "v31_config.missing_redaction.fail_closed.001",
+      "config_freshness": "fresh",
+      "venue_binding": "matched",
+      "redaction": "missing",
+      "environment_source": "proven",
+      "expected_status": "fail_closed_missing_redaction"
+    },
+    {
+      "case_id": "v31_config.unproven_environment.fail_closed.001",
+      "config_freshness": "fresh",
+      "venue_binding": "matched",
+      "redaction": "present",
+      "environment_source": "unproven",
+      "expected_status": "fail_closed_unproven_environment_source"
+    },
+    {
+      "case_id": "v31_config.ready.no_adapter_send.001",
+      "config_freshness": "fresh",
+      "venue_binding": "matched",
+      "redaction": "present",
+      "environment_source": "proven",
+      "expected_status": "config_venue_ready_no_adapter_send"
+    }
+  ],
+  "runtime_boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_recovery_allowed": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "backend_go_live_claim": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "runtime_behavior_changed": false,
+  "trading_behavior_changed": false
+}
