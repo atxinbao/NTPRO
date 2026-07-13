@@ -215,6 +215,14 @@ Final release checks, benchmark summaries, and audit reports live here.
   closed, and no automatic recovery is enabled.
 - `../evidence/V310-004.md` - V310-004 canary/rollback/DR boundary evidence
   for GitHub issue #1010.
+- `v0_31_0_production_config_venue_readiness_provenance_gate.md` and
+  `v0_31_0_production_config_venue_readiness_provenance_gate.json` - V310-005
+  production config provenance, venue readiness, environment source, and
+  redaction gate. Stale config, mismatched venue, missing redaction, and
+  unproven environment source fail closed without authorizing adapter sends or
+  live exchange requests.
+- `../evidence/V310-005.md` - V310-005 production config and venue readiness
+  evidence for GitHub issue #1011.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
