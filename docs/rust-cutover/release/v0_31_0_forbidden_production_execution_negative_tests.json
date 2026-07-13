@@ -1,0 +1,205 @@
+{
+  "schema_version": "ntpro.v310_forbidden_production_execution_negative_tests.v1",
+  "task_id": "V310-008",
+  "github_issue": 1014,
+  "milestone": "v0.31.0",
+  "capability_track": "controlled_backend_production_enablement_candidate",
+  "depends_on": [
+    {
+      "task_id": "V310-001",
+      "github_issue": 1007,
+      "required_status": "closed"
+    },
+    {
+      "task_id": "V310-002",
+      "github_issue": 1008,
+      "required_status": "closed"
+    },
+    {
+      "task_id": "V310-003",
+      "github_issue": 1009,
+      "required_status": "closed"
+    },
+    {
+      "task_id": "V310-004",
+      "github_issue": 1010,
+      "required_status": "closed"
+    },
+    {
+      "task_id": "V310-005",
+      "github_issue": 1011,
+      "required_status": "closed"
+    },
+    {
+      "task_id": "V310-006",
+      "github_issue": 1012,
+      "required_status": "closed"
+    },
+    {
+      "task_id": "V310-007",
+      "github_issue": 1013,
+      "required_status": "closed"
+    }
+  ],
+  "negative_suite_status": "deterministic_fail_closed_forbidden_execution",
+  "forbidden_execution_flags": [
+    {
+      "flag": "new_submit_capability",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "production_order_submission_allowed",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "production_order_mutation_allowed",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "cancel_order_allowed",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "replace_order_allowed",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "amend_order_allowed",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "flatten_position_allowed",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "execution_adapter_call_allowed",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "adapter_send_allowed",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "live_exchange_request_allowed",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "retry_scheduler_enabled",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "automatic_remediation_allowed",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "automatic_recovery_allowed",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "dashboard_trading_controls_enabled",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "admin_workbench_trading_controls_enabled",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "trader_terminal_order_ticket_enabled",
+      "opened_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "flag": "backend_go_live_claim",
+      "opened_status": "fail_closed_forbidden_live_trading_claim"
+    },
+    {
+      "flag": "product_grade_trading_terminal_claim",
+      "opened_status": "fail_closed_forbidden_live_trading_claim"
+    }
+  ],
+  "missing_gate_cases": [
+    {
+      "case_id": "v31_negative.missing_approval.fail_closed.001",
+      "missing_gate": "scoped_approval",
+      "expected_status": "fail_closed_missing_scoped_approval"
+    },
+    {
+      "case_id": "v31_negative.missing_risk_gate.fail_closed.001",
+      "missing_gate": "risk_gate",
+      "expected_status": "fail_closed_missing_risk_gate"
+    },
+    {
+      "case_id": "v31_negative.missing_audit_gate.fail_closed.001",
+      "missing_gate": "audit_gate",
+      "expected_status": "fail_closed_missing_audit_gate"
+    },
+    {
+      "case_id": "v31_negative.missing_rollback_readiness.fail_closed.001",
+      "missing_gate": "rollback_readiness",
+      "expected_status": "fail_closed_missing_rollback_path"
+    },
+    {
+      "case_id": "v31_negative.missing_telemetry_slo.fail_closed.001",
+      "missing_gate": "telemetry_slo_gate",
+      "expected_status": "fail_closed_missing_telemetry_slo_gate"
+    },
+    {
+      "case_id": "v31_negative.stale_config.fail_closed.001",
+      "missing_gate": "fresh_config",
+      "expected_status": "fail_closed_stale_config"
+    }
+  ],
+  "ingestion_surfaces": [
+    {
+      "surface": "source_artifact_schema_validator",
+      "forbidden_true_flags_fail_closed": true,
+      "expected_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "surface": "release_gate",
+      "forbidden_true_flags_fail_closed": true,
+      "expected_status": "fail_closed_forbidden_execution_boundary"
+    },
+    {
+      "surface": "dashboard_ingestion",
+      "forbidden_true_flags_fail_closed": true,
+      "expected_status": "fail_closed_forbidden_control"
+    },
+    {
+      "surface": "admin_workbench_ingestion",
+      "forbidden_true_flags_fail_closed": true,
+      "expected_status": "fail_closed_forbidden_control"
+    },
+    {
+      "surface": "read_model_ingestion",
+      "forbidden_true_flags_fail_closed": true,
+      "expected_status": "fail_closed_forbidden_control"
+    }
+  ],
+  "release_claim_guards": {
+    "v31_product_grade_live_trading_claim_allowed": false,
+    "v31_default_production_execution_claim_allowed": false,
+    "v31_backend_go_live_claim_allowed": false
+  },
+  "runtime_boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_recovery_allowed": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "backend_go_live_claim": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "runtime_behavior_changed": false,
+  "trading_behavior_changed": false
+}

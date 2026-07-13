@@ -237,6 +237,14 @@ Final release checks, benchmark summaries, and audit reports live here.
   retry/replace/amend/flatten/order-ticket controls remain disabled.
 - `../evidence/V310-007.md` - V310-007 backend enablement state read model and
   read-only admin bridge evidence for GitHub issue #1013.
+- `v0_31_0_forbidden_production_execution_negative_tests.md` and
+  `v0_31_0_forbidden_production_execution_negative_tests.json` - V310-008
+  fail-closed negative suite for forbidden production execution. It rejects
+  inherited submit, mutation, adapter send, live exchange, retry scheduler,
+  automatic remediation, trading controls, and product-grade live trading
+  claims across source artifacts, release gates, and ingestion surfaces.
+- `../evidence/V310-008.md` - V310-008 forbidden production execution negative
+  test evidence for GitHub issue #1014.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
