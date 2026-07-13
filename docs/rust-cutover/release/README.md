@@ -252,8 +252,9 @@ Final release checks, benchmark summaries, and audit reports live here.
   remediation, trading controls, backend go-live, or product-grade live trading
   claims.
 - `v0_31_0_readiness_report.md` - release gate readiness report for
-  `ntpro-rust-only-v0.31.0`, including exact V310 issue scope `#1006-#1015`,
-  v31 release gates, strict provenance, and the v32 hard block.
+  `ntpro-rust-only-v0.31.0`, including exact V310 issue scope
+  `#1006-#1015 plus #1033`, v31 release gates, strict provenance, and the v32
+  hard block.
 - `v0_31_0_release_manifest.json` - strict release manifest for the formal
   `ntpro-rust-only-v0.31.0` tag gate.
 - `v0_31_0_v32_backend_production_closeout_handoff.md` and
@@ -264,6 +265,8 @@ Final release checks, benchmark summaries, and audit reports live here.
   controls.
 - `../evidence/V310-009.md` - V310-009 v31 release gates, strict provenance,
   and v32 handoff evidence for GitHub issue #1015.
+- `../evidence/V310-010.md` - V310-010 hosted v31 release gate ARG_MAX
+  corrective blocker evidence for GitHub issue #1033.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend

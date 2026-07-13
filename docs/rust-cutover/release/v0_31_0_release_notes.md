@@ -32,11 +32,13 @@ remediation 或任何交易控件，也不能被描述为产品级实盘系统�
 - `V310-007` - backend enablement state read model and read-only admin bridge.
 - `V310-008` - fail-closed negative tests for forbidden production execution.
 - `V310-009` - v31 release gates, strict provenance, and v32 handoff.
+- `V310-010` - hosted v31 release gate ARG_MAX corrective blocker.
 
-V310 final release scope issue count = 10
-V310 final release scope evidence count = 10
-V310 exact milestone issue set = #1006-#1015
-V310 registered corrective-scope exception count = 0
+V310 final release scope issue count = 11
+V310 final release scope evidence count = 11
+V310 exact milestone issue set = #1006-#1015 plus #1033
+V310 registered corrective-scope exception count = 1
+V310 registered corrective-scope exception issues = #1033
 
 ## Release Gates
 
