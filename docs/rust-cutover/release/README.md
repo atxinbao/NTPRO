@@ -223,6 +223,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   live exchange requests.
 - `../evidence/V310-005.md` - V310-005 production config and venue readiness
   evidence for GitHub issue #1011.
+- `v0_31_0_telemetry_slo_incident_enablement_gate.md` and
+  `v0_31_0_telemetry_slo_incident_enablement_gate.json` - V310-006 telemetry
+  freshness, SLO health, alert routing, incident owner, and escalation
+  readiness gate. Missing/stale telemetry, degraded SLO, and incident-active
+  states fail closed without triggering automatic actions or trading controls.
+- `../evidence/V310-006.md` - V310-006 telemetry/SLO/incident enablement gate
+  evidence for GitHub issue #1012.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
