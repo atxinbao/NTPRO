@@ -948,6 +948,16 @@ run_v301_strict_provenance() {
   scripts/ai/verify_v30_1_strict_provenance.sh
 }
 
+run_v31_release_gates() {
+  echo "== verify_release: v0.31.0 release gates =="
+  scripts/ai/verify_v31_release_gates.sh
+}
+
+run_v31_strict_provenance() {
+  echo "== verify_release: v0.31.0 strict provenance =="
+  scripts/ai/verify_v31_strict_provenance.sh
+}
+
 run_v25_intake_gate() {
   echo "== verify_release: v0.25.0 intake gate =="
   scripts/ai/verify_v25_intake_gate.sh
@@ -1611,6 +1621,12 @@ run_stage() {
       ;;
     v30.1-strict-provenance)
       run_v301_strict_provenance
+      ;;
+    v31-release-gates)
+      run_v31_release_gates
+      ;;
+    v31-strict-provenance)
+      run_v31_strict_provenance
       ;;
     v25-intake-gate)
       run_v25_intake_gate

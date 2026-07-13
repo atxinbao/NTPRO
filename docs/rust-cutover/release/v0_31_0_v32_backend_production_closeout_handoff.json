@@ -1,0 +1,32 @@
+{
+  "schema_version": "ntpro.v310_v32_backend_production_closeout_handoff.v1",
+  "task_id": "V310-009",
+  "github_issue": 1015,
+  "milestone": "v0.31.0",
+  "source_release": {
+    "version": "v0.31.0",
+    "tag": "ntpro-rust-only-v0.31.0",
+    "release_manifest": "docs/rust-cutover/release/v0_31_0_release_manifest.json"
+  },
+  "next_track": {
+    "version": "v0.32.0",
+    "handoff_status": "hard_blocked_until_v31_release_evidence_and_explicit_scoped_approval",
+    "explicit_scoped_issue_required": true,
+    "owner_operator_approval_required": true,
+    "v31_release_evidence_required": true,
+    "hosted_v31_release_gate_success_required": true,
+    "publication_after_hosted_gate_required": true
+  },
+  "non_inheritance": {
+    "inherits_submit": false,
+    "inherits_mutation": false,
+    "inherits_adapter_send": false,
+    "inherits_live_exchange_request": false,
+    "inherits_retry_scheduler": false,
+    "inherits_automatic_remediation": false,
+    "inherits_operation_controls": false,
+    "inherits_trading_controls": false,
+    "inherits_backend_go_live_claim": false,
+    "inherits_product_grade_live_trading_claim": false
+  }
+}

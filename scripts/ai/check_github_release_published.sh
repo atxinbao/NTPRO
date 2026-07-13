@@ -1302,6 +1302,59 @@ case "$CURRENT_RELEASE_VERSION" in
       "v0.31.0 intake gate = fail-closed without explicit scoped approval"
     )
     ;;
+  v0.31.0)
+    release_status_mode="v31_post_publication"
+    required_fields=(
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Base release: \`ntpro-rust-only-v0.30.1\`"
+      "v0.31.0 publishes the Controlled Backend Production Enablement Candidate Foundation"
+      "V310-000"
+      "V310-009"
+      "V310 final release scope issue count = 10"
+      "V310 final release scope evidence count = 10"
+      "V310 exact milestone issue set = #1006-#1015"
+      "V310 registered corrective-scope exception count = 0"
+      "v31 release gates = required"
+      "v31 strict provenance = required"
+      "v31 intake gate = v0.30.1 publication evidence satisfied; explicit scoped approval still required"
+      "release surface current guard = required"
+      "release publication guard = required"
+      "release publish after gate = required"
+      "publication evidence strategy = source_tree_plus_github_remote"
+      "local generated publication evidence required in source tree = false"
+      "remote reconstruction required = true"
+      "generated publication evidence sole proof allowed = false"
+      "v32 handoff = hard-blocked until v0.31.0 release evidence and explicit scoped approval"
+      "new_submit_capability = false"
+      "production_order_submission_allowed = false"
+      "production_order_mutation_allowed = false"
+      "cancel_order_allowed = false"
+      "replace_order_allowed = false"
+      "amend_order_allowed = false"
+      "flatten_position_allowed = false"
+      "execution_adapter_call_allowed = false"
+      "adapter_send_allowed = false"
+      "live_exchange_request_allowed = false"
+      "network_attempted = false"
+      "retry_scheduler_enabled = false"
+      "automatic_remediation_allowed = false"
+      "automatic_operation_action_allowed = false"
+      "dashboard_operation_controls_enabled = false"
+      "dashboard_trading_controls_enabled = false"
+      "admin_workbench_operation_controls_enabled = false"
+      "admin_workbench_trading_controls_enabled = false"
+      "trader_terminal_order_ticket_enabled = false"
+      "manual_operation_submit_allowed = false"
+      "backend_go_live_claim = false"
+      "product_grade_trading_terminal_claim = false"
+      "scripts/ai/verify_v31_release_gates.sh"
+      "scripts/ai/verify_v31_strict_provenance.sh"
+      "scripts/ai/publish_ntpro_release_after_gate.sh"
+      "v0.32.0 start gate = blocked until v0.31.0 release evidence and explicit scoped approval"
+    )
+    ;;
   *)
     fail "unsupported release publication guard version: $CURRENT_RELEASE_VERSION"
     ;;
@@ -1334,6 +1387,16 @@ elif [[ "$release_status_mode" == "v30_post_publication" ]]; then
 elif [[ "$release_status_mode" == "v301_post_publication" ]]; then
   if [[ "$PREPUBLISH_TAG_GATE" == "1" ]]; then
     require_file_contains_any "$CURRENT_RELEASE_NOTES" "v30.1 pre-publication or post-publication status" \
+      "Status: RELEASE GATE READY" \
+      "Status: RELEASED"
+  else
+    require_file_contains "$CURRENT_RELEASE_NOTES" "Status: RELEASED" "release notes post-publication status"
+    require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: RELEASE GATE READY" "release notes pre-publication status after publication"
+    require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: PENDING PUBLICATION" "release notes pending status after publication"
+  fi
+elif [[ "$release_status_mode" == "v31_post_publication" ]]; then
+  if [[ "$PREPUBLISH_TAG_GATE" == "1" ]]; then
+    require_file_contains_any "$CURRENT_RELEASE_NOTES" "v31 pre-publication or post-publication status" \
       "Status: RELEASE GATE READY" \
       "Status: RELEASED"
   else
