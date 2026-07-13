@@ -1,0 +1,164 @@
+{
+  "schema_version": "ntpro.v310_production_enablement_boundary.v1",
+  "task_id": "V310-001",
+  "github_issue": 1007,
+  "milestone": "v0.31.0",
+  "capability_track": "controlled_backend_production_enablement_candidate",
+  "depends_on": {
+    "task_id": "V310-000",
+    "github_issue": 1006,
+    "intake_gate": "docs/rust-cutover/release/v0_31_0_intake_gate.json",
+    "required_status": "closed"
+  },
+  "boundary_status": "scoped_approval_required_no_execution_authority",
+  "definition": {
+    "backend_production_enablement_candidate": "A source-controlled readiness contract for a narrowly scoped backend production enablement decision. It may record dependency proof, approval requirements, and fail-closed decision cases, but it does not authorize runtime submit, mutation, adapter send, live exchange requests, automatic remediation, or trading controls.",
+    "default_runtime_authority": "none",
+    "approval_source_of_truth": "source_controlled_artifact",
+    "chat_approval_allowed": false,
+    "external_notes_approval_allowed": false,
+    "runtime_execution_authorized_by_this_contract": false
+  },
+  "explicit_scoped_approval_contract": {
+    "required": true,
+    "missing_approval_status": "fail_closed_missing_scoped_approval",
+    "approval_scope_must_include": [
+      "approval_id",
+      "approver",
+      "operator",
+      "github_issue",
+      "release_version",
+      "environment",
+      "venue_scope",
+      "account_scope",
+      "change_window_id",
+      "requested_capability",
+      "request_digest",
+      "boundary_digest",
+      "issued_at",
+      "expires_at"
+    ],
+    "allowed_requested_capabilities": [
+      "backend_production_enablement_candidate_readiness_evaluation"
+    ],
+    "forbidden_requested_capabilities": [
+      "submit_order",
+      "cancel_order",
+      "replace_order",
+      "amend_order",
+      "flatten_position",
+      "adapter_send",
+      "live_exchange_request",
+      "automatic_remediation",
+      "dashboard_trading_control",
+      "admin_workbench_trading_control",
+      "trader_terminal_order_ticket"
+    ],
+    "approval_alone_authorizes_execution": false,
+    "downstream_gates_still_required": [
+      "operator_freeze_change_window",
+      "risk_gate",
+      "audit_gate",
+      "go_no_go_record",
+      "canary_rollback_dr_boundary",
+      "config_venue_readiness",
+      "telemetry_slo_gate",
+      "fail_closed_negative_tests",
+      "v31_release_gates"
+    ]
+  },
+  "non_inheritance_boundary": {
+    "inherits_submit": false,
+    "inherits_mutation": false,
+    "inherits_adapter_send": false,
+    "inherits_live_exchange_request": false,
+    "inherits_retry_scheduler": false,
+    "inherits_automatic_remediation": false,
+    "inherits_dashboard_trading_controls": false,
+    "inherits_admin_workbench_trading_controls": false,
+    "inherits_trader_terminal_order_ticket": false,
+    "inherits_backend_go_live_claim": false,
+    "inherits_product_grade_live_trading_claim": false
+  },
+  "runtime_boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "decision_cases": [
+    {
+      "case_id": "v31_boundary.missing_scoped_approval.fail_closed.001",
+      "scoped_approval_present": false,
+      "inherited_execution_authority": false,
+      "expected_status": "fail_closed_missing_scoped_approval"
+    },
+    {
+      "case_id": "v31_boundary.inherited_submit.fail_closed.001",
+      "scoped_approval_present": true,
+      "inherited_execution_authority": true,
+      "boundary_flags_override": {
+        "production_order_submission_allowed": true
+      },
+      "expected_status": "fail_closed_inherited_execution_authority"
+    },
+    {
+      "case_id": "v31_boundary.inherited_adapter_send.fail_closed.001",
+      "scoped_approval_present": true,
+      "inherited_execution_authority": true,
+      "boundary_flags_override": {
+        "adapter_send_allowed": true
+      },
+      "expected_status": "fail_closed_inherited_execution_authority"
+    },
+    {
+      "case_id": "v31_boundary.inherited_trading_controls.fail_closed.001",
+      "scoped_approval_present": true,
+      "inherited_execution_authority": true,
+      "boundary_flags_override": {
+        "dashboard_trading_controls_enabled": true
+      },
+      "expected_status": "fail_closed_inherited_execution_authority"
+    },
+    {
+      "case_id": "v31_boundary.scoped_approval_no_execution.wait_downstream.001",
+      "scoped_approval_present": true,
+      "inherited_execution_authority": false,
+      "downstream_gates_complete": false,
+      "expected_status": "approval_recorded_execution_still_blocked_by_downstream_gates"
+    },
+    {
+      "case_id": "v31_boundary.contract_satisfied.no_runtime_execution.001",
+      "scoped_approval_present": true,
+      "inherited_execution_authority": false,
+      "downstream_gates_complete": true,
+      "expected_status": "boundary_contract_satisfied_no_runtime_execution"
+    }
+  ],
+  "auditability": {
+    "requires_source_controlled_contract": true,
+    "requires_source_controlled_evidence": true,
+    "chat_or_external_notes_sufficient": false,
+    "github_issue_required": true,
+    "deterministic_negative_cases_required": true
+  },
+  "runtime_behavior_changed": false,
+  "trading_behavior_changed": false
+}
