@@ -194,6 +194,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   scoped approval alone does not authorize runtime execution.
 - `../evidence/V310-001.md` - V310-001 production enablement boundary evidence
   for GitHub issue #1007.
+- `v0_31_0_operator_approval_freeze_change_window_lifecycle.md` and
+  `v0_31_0_operator_approval_freeze_change_window_lifecycle.json` - V310-002
+  operator approval, production freeze, and change-window lifecycle contract.
+  Expired approval, revoked approval, release mismatch, active freeze, and
+  outside-window attempts fail closed.
+- `../evidence/V310-002.md` - V310-002 operator approval lifecycle evidence for
+  GitHub issue #1008.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
