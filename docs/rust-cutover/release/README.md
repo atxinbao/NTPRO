@@ -245,6 +245,25 @@ Final release checks, benchmark summaries, and audit reports live here.
   claims across source artifacts, release gates, and ingestion surfaces.
 - `../evidence/V310-008.md` - V310-008 forbidden production execution negative
   test evidence for GitHub issue #1014.
+- `v0_31_0_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.31.0` GitHub Release. It publishes the Controlled Backend
+  Production Enablement Candidate Foundation without opening default submit,
+  mutation, adapter send, live exchange, retry scheduler, automatic
+  remediation, trading controls, backend go-live, or product-grade live trading
+  claims.
+- `v0_31_0_readiness_report.md` - release gate readiness report for
+  `ntpro-rust-only-v0.31.0`, including exact V310 issue scope `#1006-#1015`,
+  v31 release gates, strict provenance, and the v32 hard block.
+- `v0_31_0_release_manifest.json` - strict release manifest for the formal
+  `ntpro-rust-only-v0.31.0` tag gate.
+- `v0_31_0_v32_backend_production_closeout_handoff.md` and
+  `v0_31_0_v32_backend_production_closeout_handoff.json` - V310-009 v32
+  handoff. It keeps v32 hard-blocked until v31 release evidence and explicit
+  scoped approval, with no inherited submit, mutation, adapter send, live
+  exchange, retry, automatic remediation, operation controls, or trading
+  controls.
+- `../evidence/V310-009.md` - V310-009 v31 release gates, strict provenance,
+  and v32 handoff evidence for GitHub issue #1015.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
