@@ -208,6 +208,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   authorize runtime execution.
 - `../evidence/V310-003.md` - V310-003 risk/audit/go-no-go evidence for GitHub
   issue #1009.
+- `v0_31_0_canary_rollback_dr_execution_boundary.md` and
+  `v0_31_0_canary_rollback_dr_execution_boundary.json` - V310-004 canary
+  scope, blast-radius, rollback checkpoint, and disaster-recovery readiness
+  boundary. Missing rollback, stale DR evidence, and widened canary scope fail
+  closed, and no automatic recovery is enabled.
+- `../evidence/V310-004.md` - V310-004 canary/rollback/DR boundary evidence
+  for GitHub issue #1010.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
