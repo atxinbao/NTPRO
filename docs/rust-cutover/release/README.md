@@ -201,6 +201,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   outside-window attempts fail closed.
 - `../evidence/V310-002.md` - V310-002 operator approval lifecycle evidence for
   GitHub issue #1008.
+- `v0_31_0_risk_audit_go_no_go_control_contract.md` and
+  `v0_31_0_risk_audit_go_no_go_control_contract.json` - V310-003 risk gate,
+  audit gate, and go/no-go control contract. Missing/stale inputs fail closed,
+  degraded risk remains bounded, and approved candidate state does not
+  authorize runtime execution.
+- `../evidence/V310-003.md` - V310-003 risk/audit/go-no-go evidence for GitHub
+  issue #1009.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
