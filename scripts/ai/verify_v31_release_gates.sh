@@ -15,7 +15,7 @@ RELEASE_NOTES_PATH="${NTPRO_V310_RELEASE_NOTES:-docs/rust-cutover/release/v0_31_
 READINESS_REPORT_PATH="${NTPRO_V310_READINESS_REPORT:-docs/rust-cutover/release/v0_31_0_readiness_report.md}"
 V32_HANDOFF_PATH="${NTPRO_V310_V32_HANDOFF:-docs/rust-cutover/release/v0_31_0_v32_backend_production_closeout_handoff.md}"
 V32_HANDOFF_JSON="${NTPRO_V310_V32_HANDOFF_JSON:-docs/rust-cutover/release/v0_31_0_v32_backend_production_closeout_handoff.json}"
-CURRENT_ISSUE="${NTPRO_V310_CURRENT_ISSUE:-1015}"
+CURRENT_ISSUE="${NTPRO_V310_CURRENT_ISSUE:-1033}"
 MILESTONE_TITLE="${NTPRO_V310_MILESTONE_TITLE:-v0.31.0}"
 
 fail() {
@@ -90,7 +90,7 @@ for path in \
   require_file "$path"
 done
 
-for task_id in V310-000 V310-001 V310-002 V310-003 V310-004 V310-005 V310-006 V310-007 V310-008 V310-009; do
+for task_id in V310-000 V310-001 V310-002 V310-003 V310-004 V310-005 V310-006 V310-007 V310-008 V310-009 V310-010; do
   require_file "docs/rust-cutover/evidence/${task_id}.md"
   require_contains "docs/rust-cutover/evidence/${task_id}.md" "$task_id"
   require_file "docs/rust-cutover/tasks/${task_id}.md"
@@ -106,10 +106,11 @@ for marker in \
   "v0.31.0 publishes the Controlled Backend Production Enablement Candidate Foundation" \
   "V310-000" \
   "V310-009" \
-  "V310 final release scope issue count = 10" \
-  "V310 final release scope evidence count = 10" \
-  "V310 exact milestone issue set = #1006-#1015" \
-  "V310 registered corrective-scope exception count = 0" \
+  "V310-010" \
+  "V310 final release scope issue count = 11" \
+  "V310 final release scope evidence count = 11" \
+  "V310 exact milestone issue set = #1006-#1015 plus #1033" \
+  "V310 registered corrective-scope exception count = 1" \
   "v31 release gates = required" \
   "v31 strict provenance = required" \
   "v32 handoff = hard-blocked until v0.31.0 release evidence and explicit scoped approval" \
@@ -125,10 +126,12 @@ require_release_status_marker "$READINESS_REPORT_PATH"
 for marker in \
   "V310-000 evidence" \
   "V310-009 evidence" \
+  "V310-010 evidence" \
   "#1015 V310-009 = must be closed before v0.31.0 tag gate is accepted" \
-  "V310 final release scope issue count = 10" \
-  "V310 final release scope evidence count = 10" \
-  "V310 exact milestone issue set = #1006-#1015" \
+  "#1033 V310-010 = must be closed before corrected v0.31.0 tag gate is accepted" \
+  "V310 final release scope issue count = 11" \
+  "V310 final release scope evidence count = 11" \
+  "V310 exact milestone issue set = #1006-#1015 plus #1033" \
   "source-controlled release manifest = docs/rust-cutover/release/v0_31_0_release_manifest.json" \
   "source-controlled v32 handoff = docs/rust-cutover/release/v0_31_0_v32_backend_production_closeout_handoff.md"; do
   require_contains "$READINESS_REPORT_PATH" "$marker"
@@ -204,6 +207,7 @@ expected = {
     "V310-007": 1013,
     "V310-008": 1014,
     "V310-009": 1015,
+    "V310-010": 1033,
 }
 false_flags = [
     "new_submit_capability",
@@ -246,17 +250,18 @@ def validate(candidate: dict) -> None:
     planned = candidate.get("planned_release") or {}
     require(planned.get("tag") == "ntpro-rust-only-v0.31.0", "planned release tag mismatch")
     evidence = candidate.get("v310_evidence") or []
-    require(len(evidence) == 10, "V310 evidence count mismatch")
+    require(len(evidence) == 11, "V310 evidence count mismatch")
     for item in evidence:
         task_id = item.get("task_id")
         require(expected.get(task_id) == item.get("issue"), f"V310 issue mismatch: {task_id}")
         require(Path(item.get("path", "")).is_file(), f"missing V310 evidence: {item}")
     scope = candidate.get("release_scope") or {}
     require(scope.get("exact_milestone_issue_numbers") == list(expected.values()), "V310 exact issue numbers mismatch")
-    require(scope.get("exact_milestone_issue_set") == "#1006-#1015", "V310 exact issue set mismatch")
-    require(scope.get("final_release_scope_issue_count") == 10, "final issue count mismatch")
-    require(scope.get("final_release_scope_evidence_count") == 10, "final evidence count mismatch")
-    require(scope.get("registered_corrective_scope_exception_count") == 0, "corrective exception count mismatch")
+    require(scope.get("exact_milestone_issue_set") == "#1006-#1015 plus #1033", "V310 exact issue set mismatch")
+    require(scope.get("final_release_scope_issue_count") == 11, "final issue count mismatch")
+    require(scope.get("final_release_scope_evidence_count") == 11, "final evidence count mismatch")
+    require(scope.get("registered_corrective_scope_exception_count") == 1, "corrective exception count mismatch")
+    require(scope.get("registered_corrective_scope_exception_issue_numbers") == [1033], "corrective issue list mismatch")
     requirements = candidate.get("post_publication_requirements") or {}
     require(requirements.get("all_v310_issues_closed_required") is True, "V310 closeout requirement missing")
     require(requirements.get("hosted_release_gate_success_required") is True, "hosted gate requirement missing")
@@ -306,11 +311,11 @@ import os
 
 current = json.loads(os.environ["CURRENT_ISSUE_JSON"])
 milestone = json.loads(os.environ["MILESTONE_JSON"])
-if current.get("number") != 1015 or current.get("state") != "CLOSED":
-    raise SystemExit("V310-009 must be closed for release gate")
+if current.get("number") != 1033 or current.get("state") != "CLOSED":
+    raise SystemExit("V310-010 must be closed for release gate")
 if milestone.get("open_issues") != 0:
     raise SystemExit("v0.31.0 milestone must have zero open issues for release gate")
 PY
 fi
 
-echo "v31_release_gates=pass release_tag=$RELEASE_TAG final_scope_issues=10 final_scope_evidence=10 v32_handoff=hard_blocked negative_selftest=2"
+echo "v31_release_gates=pass release_tag=$RELEASE_TAG final_scope_issues=11 final_scope_evidence=11 corrective_scope_exceptions=1 v32_handoff=hard_blocked negative_selftest=2"

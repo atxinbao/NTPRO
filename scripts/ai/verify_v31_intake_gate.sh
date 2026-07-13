@@ -243,12 +243,21 @@ v301_issues_json="$(gh_with_retry issue list --repo "$REPO" --state all --milest
 v310_issues_json="$(gh_with_retry issue list --repo "$REPO" --state all --milestone "$V310_MILESTONE_TITLE" --limit 100 --json number,state,title)"
 current_issue_json="$(gh_with_retry issue view "$CURRENT_ISSUE" --repo "$REPO" --json number,state,title)"
 
-RELEASE_JSON="$release_json" \
-RUN_JSON="$run_json" \
-MILESTONE_JSON="$milestone_json" \
-V301_ISSUES_JSON="$v301_issues_json" \
-V310_ISSUES_JSON="$v310_issues_json" \
-CURRENT_ISSUE_JSON="$current_issue_json" \
+LIVE_JSON_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ntpro-v31-intake-live-json.XXXXXX")"
+trap 'rm -rf "$LIVE_JSON_DIR"' EXIT
+printf '%s' "$release_json" >"$LIVE_JSON_DIR/release.json"
+printf '%s' "$run_json" >"$LIVE_JSON_DIR/run.json"
+printf '%s' "$milestone_json" >"$LIVE_JSON_DIR/milestone.json"
+printf '%s' "$v301_issues_json" >"$LIVE_JSON_DIR/v301_issues.json"
+printf '%s' "$v310_issues_json" >"$LIVE_JSON_DIR/v310_issues.json"
+printf '%s' "$current_issue_json" >"$LIVE_JSON_DIR/current_issue.json"
+
+RELEASE_JSON_PATH="$LIVE_JSON_DIR/release.json" \
+RUN_JSON_PATH="$LIVE_JSON_DIR/run.json" \
+MILESTONE_JSON_PATH="$LIVE_JSON_DIR/milestone.json" \
+V301_ISSUES_JSON_PATH="$LIVE_JSON_DIR/v301_issues.json" \
+V310_ISSUES_JSON_PATH="$LIVE_JSON_DIR/v310_issues.json" \
+CURRENT_ISSUE_JSON_PATH="$LIVE_JSON_DIR/current_issue.json" \
 V301_RELEASE_TAG="$V301_RELEASE_TAG" \
 V301_RELEASE_NAME="$V301_RELEASE_NAME" \
 V301_GATE_RUN_ID="$V301_GATE_RUN_ID" \
@@ -256,6 +265,7 @@ V301_TAG_SHA="$V301_TAG_SHA" \
 python3 <<'PY'
 import json
 import os
+from pathlib import Path
 
 
 def require(condition: bool, message: str) -> None:
@@ -263,13 +273,13 @@ def require(condition: bool, message: str) -> None:
         raise SystemExit(message)
 
 
-release = json.loads(os.environ["RELEASE_JSON"])
+release = json.loads(Path(os.environ["RELEASE_JSON_PATH"]).read_text(encoding="utf-8"))
 require(release.get("tagName") == os.environ["V301_RELEASE_TAG"], "live release tag mismatch")
 require(release.get("name") == os.environ["V301_RELEASE_NAME"], "live release name mismatch")
 require(release.get("isDraft") is False, "live release must not be draft")
 require(release.get("isPrerelease") is False, "live release must not be prerelease")
 
-run = json.loads(os.environ["RUN_JSON"])
+run = json.loads(Path(os.environ["RUN_JSON_PATH"]).read_text(encoding="utf-8"))
 require(run.get("status") == "completed", "hosted gate must be completed")
 require(run.get("conclusion") == "success", "hosted gate must succeed")
 require(run.get("headSha") == os.environ["V301_TAG_SHA"], "hosted gate head SHA mismatch")
@@ -277,21 +287,22 @@ jobs = run.get("jobs") or []
 require(len(jobs) == 94, f"hosted gate job count mismatch: {len(jobs)}")
 require(all(job.get("conclusion") == "success" for job in jobs), "hosted gate contains non-success job")
 
-milestone = json.loads(os.environ["MILESTONE_JSON"])
+milestone = json.loads(Path(os.environ["MILESTONE_JSON_PATH"]).read_text(encoding="utf-8"))
 require(milestone.get("state") == "closed", "v0.30.1 milestone must be closed")
 require(milestone.get("open_issues") == 0, "v0.30.1 milestone open issues must be 0")
 require(milestone.get("closed_issues") == 7, "v0.30.1 milestone closed issue count mismatch")
 
-v301_issues = json.loads(os.environ["V301_ISSUES_JSON"])
+v301_issues = json.loads(Path(os.environ["V301_ISSUES_JSON_PATH"]).read_text(encoding="utf-8"))
 v301_map = {item["number"]: item for item in v301_issues}
 require(set(v301_map) == set(range(999, 1006)), f"V301 issue set mismatch: {sorted(v301_map)}")
 require(all(item["state"] == "CLOSED" for item in v301_map.values()), "not all V301 issues are closed")
 
-v310_issues = json.loads(os.environ["V310_ISSUES_JSON"])
+v310_issues = json.loads(Path(os.environ["V310_ISSUES_JSON_PATH"]).read_text(encoding="utf-8"))
 v310_numbers = {item["number"] for item in v310_issues}
-require(v310_numbers == set(range(1006, 1016)), f"V310 issue set mismatch: {sorted(v310_numbers)}")
+expected_v310 = set(range(1006, 1016)) | {1033}
+require(v310_numbers == expected_v310, f"V310 issue set mismatch: {sorted(v310_numbers)}")
 
-current = json.loads(os.environ["CURRENT_ISSUE_JSON"])
+current = json.loads(Path(os.environ["CURRENT_ISSUE_JSON_PATH"]).read_text(encoding="utf-8"))
 require(current.get("number") == 1006, "current issue number mismatch")
 
 print(
@@ -301,9 +312,9 @@ print(
     "v301_release_present=true "
     "release_gate_jobs=94/94 "
     f"current_issue_state={current.get('state')} "
-    "v310_issues=10 "
+    "v310_issues=11 "
     "intake_status=dependency_proof_satisfied_scoped_intake_only"
 )
 PY
 
-echo "v31_intake_gate=pass release_tag=$V301_RELEASE_TAG tag_sha=$V301_TAG_SHA v301_issues=7/7_closed v310_issues=10 no_inherited_execution=true"
+echo "v31_intake_gate=pass release_tag=$V301_RELEASE_TAG tag_sha=$V301_TAG_SHA v301_issues=7/7_closed v310_issues=11 no_inherited_execution=true"

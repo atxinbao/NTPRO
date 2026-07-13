@@ -18,10 +18,11 @@ backend production enablement candidate foundation，不是默认实盘执行版
 
 ## Scope
 
-V310 final release scope issue count = 10
-V310 final release scope evidence count = 10
-V310 exact milestone issue set = #1006-#1015
-V310 registered corrective-scope exception count = 0
+V310 final release scope issue count = 11
+V310 final release scope evidence count = 11
+V310 exact milestone issue set = #1006-#1015 plus #1033
+V310 registered corrective-scope exception count = 1
+V310 registered corrective-scope exception issues = #1033
 
 ## Evidence
 
@@ -35,8 +36,10 @@ V310 registered corrective-scope exception count = 0
 - V310-007 evidence = `docs/rust-cutover/evidence/V310-007.md`
 - V310-008 evidence = `docs/rust-cutover/evidence/V310-008.md`
 - V310-009 evidence = `docs/rust-cutover/evidence/V310-009.md`
+- V310-010 evidence = `docs/rust-cutover/evidence/V310-010.md`
 
 #1015 V310-009 = must be closed before v0.31.0 tag gate is accepted
+#1033 V310-010 = must be closed before corrected v0.31.0 tag gate is accepted
 
 ## Gates
 

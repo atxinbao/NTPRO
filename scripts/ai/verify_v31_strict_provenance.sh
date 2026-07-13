@@ -38,7 +38,7 @@ input_paths=(
   "$ROOT_DIR/.github/workflows/release-publish.yml"
 )
 
-for task_id in V310-000 V310-001 V310-002 V310-003 V310-004 V310-005 V310-006 V310-007 V310-008 V310-009; do
+for task_id in V310-000 V310-001 V310-002 V310-003 V310-004 V310-005 V310-006 V310-007 V310-008 V310-009 V310-010; do
   input_paths+=("$ROOT_DIR/docs/rust-cutover/evidence/${task_id}.md")
   input_paths+=("$ROOT_DIR/docs/rust-cutover/tasks/${task_id}.md")
 done
@@ -116,9 +116,12 @@ require(release_manifest["planned_release"]["tag"] == os.environ["RELEASE_TAG"],
 require("v31 release gates = required" in release_notes, "release notes v31 gate marker missing")
 require("v31 strict provenance = required" in readiness, "readiness strict marker missing")
 scope = release_manifest.get("release_scope") or {}
-require(scope.get("exact_milestone_issue_numbers") == [1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015], "exact issue numbers mismatch")
-require(scope.get("final_release_scope_issue_count") == 10, "final issue count mismatch")
-require(scope.get("final_release_scope_evidence_count") == 10, "final evidence count mismatch")
+require(scope.get("exact_milestone_issue_numbers") == [1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015, 1033], "exact issue numbers mismatch")
+require(scope.get("exact_milestone_issue_set") == "#1006-#1015 plus #1033", "exact issue set mismatch")
+require(scope.get("final_release_scope_issue_count") == 11, "final issue count mismatch")
+require(scope.get("final_release_scope_evidence_count") == 11, "final evidence count mismatch")
+require(scope.get("registered_corrective_scope_exception_count") == 1, "corrective exception count mismatch")
+require(scope.get("registered_corrective_scope_exception_issue_numbers") == [1033], "corrective issue list mismatch")
 requirements = release_manifest.get("post_publication_requirements") or {}
 require(requirements.get("all_v310_issues_closed_required") is True, "V310 closeout requirement missing")
 require(requirements.get("v0_32_start_gate_fails_without_v310_release_evidence") is True, "v32 blocker missing")

@@ -80,12 +80,17 @@
       "task_id": "V310-009",
       "issue": 1015,
       "path": "docs/rust-cutover/evidence/V310-009.md"
+    },
+    {
+      "task_id": "V310-010",
+      "issue": 1033,
+      "path": "docs/rust-cutover/evidence/V310-010.md"
     }
   ],
   "release_scope": {
     "milestone_title": "v0.31.0",
-    "milestone_issue_set": "V310-000..V310-009",
-    "milestone_issue_count": 10,
+    "milestone_issue_set": "V310-000..V310-010",
+    "milestone_issue_count": 11,
     "exact_milestone_issue_numbers": [
       1006,
       1007,
@@ -96,13 +101,16 @@
       1012,
       1013,
       1014,
-      1015
+      1015,
+      1033
     ],
-    "exact_milestone_issue_set": "#1006-#1015",
-    "final_release_scope_issue_count": 10,
-    "final_release_scope_evidence_count": 10,
-    "registered_corrective_scope_exception_count": 0,
-    "registered_corrective_scope_exception_issue_numbers": [],
+    "exact_milestone_issue_set": "#1006-#1015 plus #1033",
+    "final_release_scope_issue_count": 11,
+    "final_release_scope_evidence_count": 11,
+    "registered_corrective_scope_exception_count": 1,
+    "registered_corrective_scope_exception_issue_numbers": [
+      1033
+    ],
     "unregistered_corrective_milestone_issues_fail_closed": true
   },
   "post_publication_requirements": {
