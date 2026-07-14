@@ -271,6 +271,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   guard binding evidence for GitHub issue #1037. It moves README, ROADMAP,
   versioning, and `check_release_surface_current.sh` defaults to v0.31.0 /
   v0.31.1 / v0.32.0 while preserving the no-production-execution boundary.
+- `../evidence/V311-003.md` - V311-003 v31 publication guard released-state and
+  body-hash reconciliation evidence for GitHub issue #1038. It makes the v31
+  publication guard require a `RELEASED` GitHub Release body and normalized/raw
+  body hash equality with tracked v31 release notes.
 - `v0_31_0_v32_backend_production_closeout_handoff.md` and
   `v0_31_0_v32_backend_production_closeout_handoff.json` - V310-009 v32
   handoff. It keeps v32 hard-blocked until v31 release evidence and explicit

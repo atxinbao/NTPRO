@@ -94,6 +94,20 @@ raw hash equality is diagnostic, not the acceptance rule
 GitHub Release body released-state reconciliation issue = V311-003 / #1038
 ```
 
+## Current Body Reconciliation
+
+```text
+GitHub Release body released-state reconciliation = V311-003 / #1038
+GitHub Release body updated from tracked release notes = true
+current release body status = RELEASED
+current release body normalized sha256 = 2b951baf48c01209b10a9b3ec70b9d452739fa21fcf3685c098c90fdf00f0fcb
+current tracked release notes normalized sha256 = 2b951baf48c01209b10a9b3ec70b9d452739fa21fcf3685c098c90fdf00f0fcb
+current normalized release body matches tracked release notes = true
+current release body raw sha256 = c8c83713945d6d42b3421a72a423bc5ab19e148fcd1342f3629da71ef76763b0
+current tracked release notes raw sha256 = c8c83713945d6d42b3421a72a423bc5ab19e148fcd1342f3629da71ef76763b0
+current raw release body matches tracked release notes = true
+```
+
 ## Issue Scope
 
 ```text
