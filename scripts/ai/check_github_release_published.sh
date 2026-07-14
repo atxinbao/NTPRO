@@ -1356,6 +1356,61 @@ case "$CURRENT_RELEASE_VERSION" in
       "v0.32.0 start gate = blocked until v0.31.0 release evidence and explicit scoped approval"
     )
     ;;
+  v0.31.1)
+    release_status_mode="v311_post_publication"
+    required_fields=(
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Base release: \`ntpro-rust-only-v0.31.0\`"
+      "v0.31.1 is a release governance closeout patch"
+      "V311-001"
+      "V311-006"
+      "V311 final release scope issue count = 6"
+      "V311 final release scope evidence count = 6"
+      "V311 exact milestone issue set = #1036-#1041"
+      "V311 registered corrective-scope exception count = 0"
+      "v31.1 release gates = required"
+      "v31.1 strict provenance = required"
+      "v32 start gate = hard-blocked until v0.31.1 release evidence is published and scoped approval exists"
+      "release surface current guard = required"
+      "release publication guard = required"
+      "release publish after gate = required"
+      "publication evidence strategy = source_tree_plus_github_remote"
+      "local generated publication evidence required in source tree = false"
+      "remote reconstruction required = true"
+      "generated publication evidence sole proof allowed = false"
+      "v0.32.0 start gate contract = docs/rust-cutover/release/v0_31_1_v32_start_gate.json"
+      "new_submit_capability = false"
+      "production_order_submission_allowed = false"
+      "production_order_mutation_allowed = false"
+      "cancel_order_allowed = false"
+      "replace_order_allowed = false"
+      "amend_order_allowed = false"
+      "flatten_position_allowed = false"
+      "execution_adapter_call_allowed = false"
+      "adapter_send_allowed = false"
+      "live_exchange_request_allowed = false"
+      "network_attempted = false"
+      "retry_scheduler_enabled = false"
+      "automatic_remediation_allowed = false"
+      "automatic_operation_action_allowed = false"
+      "dashboard_operation_controls_enabled = false"
+      "dashboard_trading_controls_enabled = false"
+      "admin_workbench_operation_controls_enabled = false"
+      "admin_workbench_trading_controls_enabled = false"
+      "trader_terminal_order_ticket_enabled = false"
+      "manual_operation_submit_allowed = false"
+      "backend_go_live_claim = false"
+      "actual_backend_production_go_live_allowed = false"
+      "product_grade_trading_terminal_claim = false"
+      "scripts/ai/verify_v31_1_release_gates.sh"
+      "scripts/ai/verify_v31_1_strict_provenance.sh"
+      "scripts/ai/verify_v31_1_v32_start_gate.sh"
+      "scripts/ai/publish_ntpro_release_after_gate.sh"
+      "v0.32.0 backend closeout start gate = fail-closed without v0.31.1 publication"
+    )
+    ;;
   *)
     fail "unsupported release publication guard version: $CURRENT_RELEASE_VERSION"
     ;;
@@ -1398,6 +1453,16 @@ elif [[ "$release_status_mode" == "v301_post_publication" ]]; then
 elif [[ "$release_status_mode" == "v31_post_publication" ]]; then
   if [[ "$PREPUBLISH_TAG_GATE" == "1" ]]; then
     require_file_contains_any "$CURRENT_RELEASE_NOTES" "v31 pre-publication or post-publication status" \
+      "Status: RELEASE GATE READY" \
+      "Status: RELEASED"
+  else
+    require_file_contains "$CURRENT_RELEASE_NOTES" "Status: RELEASED" "release notes post-publication status"
+    require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: RELEASE GATE READY" "release notes pre-publication status after publication"
+    require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: PENDING PUBLICATION" "release notes pending status after publication"
+  fi
+elif [[ "$release_status_mode" == "v311_post_publication" ]]; then
+  if [[ "$PREPUBLISH_TAG_GATE" == "1" ]]; then
+    require_file_contains_any "$CURRENT_RELEASE_NOTES" "v31.1 pre-publication or post-publication status" \
       "Status: RELEASE GATE READY" \
       "Status: RELEASED"
   else

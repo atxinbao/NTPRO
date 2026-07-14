@@ -1,0 +1,95 @@
+{
+  "schema_version": "ntpro.v311.v32_backend_closeout_start_gate.v1",
+  "contract_version": "ntpro.v311.v32_backend_closeout_start_gate.v1",
+  "task_id": "V311-006",
+  "github_issue": 1041,
+  "milestone": "v0.31.1",
+  "source_patch_track": "v0.31.1",
+  "next_capability_track": "v0.32.0",
+  "v0_32_backend_closeout_version": true,
+  "start_gate_status": "blocked_until_v311_release_evidence_and_scoped_approval",
+  "required_patch_release": {
+    "version": "v0.31.1",
+    "tag": "ntpro-rust-only-v0.31.1",
+    "name": "NTPRO Rust-only v0.31.1",
+    "source_controlled_release_package_required": true,
+    "github_release_required": true,
+    "release_gate_success_required": true,
+    "publication_after_gate_required": true
+  },
+  "required_v311_issues": [
+    1036,
+    1037,
+    1038,
+    1039,
+    1040,
+    1041
+  ],
+  "required_v311_issue_count": 6,
+  "required_future_inputs": [
+    "v31_1_release_evidence",
+    "explicit_scoped_backend_closeout_issue",
+    "owner_operator_approval",
+    "risk_gate",
+    "audit_gate",
+    "release_gate",
+    "rollback_dr",
+    "telemetry_slo_gate",
+    "config_venue_provenance",
+    "backend_read_model_admin_bridge",
+    "fail_closed_negative_tests",
+    "no_default_trading_boundary"
+  ],
+  "non_inheritance_boundary": {
+    "inherits_submit": false,
+    "inherits_mutation": false,
+    "inherits_adapter_send": false,
+    "inherits_live_exchange_request": false,
+    "inherits_automatic_remediation": false,
+    "inherits_retry_scheduler": false,
+    "inherits_dashboard_trading_controls": false,
+    "inherits_admin_workbench_trading_controls": false,
+    "inherits_trader_terminal_order_ticket": false,
+    "inherits_backend_go_live_claim": false,
+    "inherits_frontend_completion_claim": false,
+    "inherits_product_grade_live_trading_claim": false
+  },
+  "readiness_cases": [
+    {
+      "case_id": "v32_start.missing_v31_1_release.fail_closed.001",
+      "v311_issues_closed": false,
+      "v31_1_release_evidence_present": false,
+      "expected_status": "fail_closed_missing_v31_1_release_evidence"
+    },
+    {
+      "case_id": "v32_start.missing_v311_closeout.fail_closed.001",
+      "v311_issues_closed": false,
+      "v31_1_release_evidence_present": true,
+      "expected_status": "fail_closed_missing_v311_closeout"
+    },
+    {
+      "case_id": "v32_start.missing_scoped_approval.fail_closed.001",
+      "v311_issues_closed": true,
+      "v31_1_release_evidence_present": true,
+      "explicit_scoped_approval": false,
+      "expected_status": "fail_closed_missing_scoped_approval"
+    },
+    {
+      "case_id": "v32_start.inherited_execution.fail_closed.001",
+      "boundary_flags_override": {
+        "inherits_adapter_send": true
+      },
+      "expected_status": "fail_closed_inherited_execution"
+    },
+    {
+      "case_id": "v32_start.ready_after_release_and_scoped_approval.001",
+      "v311_issues_closed": true,
+      "v31_1_release_evidence_present": true,
+      "explicit_scoped_approval": true,
+      "expected_status": "v32_backend_closeout_start_ready_for_scoped_intake"
+    }
+  ],
+  "current_expected_status": "blocked_until_v311_release_evidence_and_scoped_approval",
+  "runtime_behavior_changed": false,
+  "trading_behavior_changed": false
+}

@@ -297,6 +297,24 @@ Final release checks, benchmark summaries, and audit reports live here.
   and v32 handoff evidence for GitHub issue #1015.
 - `../evidence/V310-010.md` - V310-010 hosted v31 release gate ARG_MAX
   corrective blocker evidence for GitHub issue #1033.
+- `v0_31_1_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.31.1` GitHub Release. It publishes the v31 release
+  governance closeout patch without opening backend closeout implementation,
+  submit, mutation, adapter send, live exchange, retry scheduler, automatic
+  remediation, trading controls, frontend completion, or product-grade live
+  trading claims.
+- `v0_31_1_readiness_report.md` - release gate readiness report for the formal
+  `ntpro-rust-only-v0.31.1`, including exact V311 issue scope `#1036-#1041`,
+  v31.1 release gates, strict provenance, and the v32 backend closeout hard
+  block.
+- `v0_31_1_release_manifest.json` - strict release manifest for the v0.31.1
+  tag gate.
+- `v0_31_1_v32_start_gate.md` and `v0_31_1_v32_start_gate.json` - V311-006 v32
+  backend closeout start-gate contract. It makes v0.32.0 the backend closeout
+  version, but keeps it hard-blocked until v0.31.1 release evidence and scoped
+  approval are present.
+- `../evidence/V311-006.md` - V311-006 v31.1 release gates, strict provenance,
+  and v32 start-gate handoff evidence for GitHub issue #1041.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
