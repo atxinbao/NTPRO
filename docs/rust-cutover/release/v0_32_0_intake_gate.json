@@ -1,0 +1,153 @@
+{
+  "schema_version": "ntpro.v320_intake_gate.v1",
+  "task_id": "V320-000",
+  "github_issue": 1042,
+  "milestone": "v0.32.0",
+  "capability_track": "backend_production_closeout",
+  "intake_status": "dependency_proof_satisfied_backend_closeout_scoped_intake_only",
+  "predecessor_release": {
+    "version": "v0.31.1",
+    "tag": "ntpro-rust-only-v0.31.1",
+    "name": "NTPRO Rust-only v0.31.1",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.31.1",
+    "github_release_required": true,
+    "source_controlled_intake_proof_required": true,
+    "release_gate_success_required": true,
+    "publication_after_gate_required": true,
+    "publish_workflow_success_required": true,
+    "milestone_closed_required": true,
+    "release_gate_run_id": 29359951505,
+    "release_gate_jobs_success": 98,
+    "release_gate_jobs_total": 98,
+    "publish_run_id": 29365747453,
+    "published_at": "2026-07-14T20:27:49Z",
+    "release_gate_completed_at": "2026-07-14T20:22:39Z",
+    "published_after_hosted_gate": true,
+    "release_body_normalized_sha256": "7004cf49ae21e45fef12df009add4763af75e24cf153da3c6c383119ce449b5d",
+    "release_body_raw_sha256": "0d7fc609be3d50545e4c83f0dc8f98b2b3c4fc48592a1e9f5df25a42e214612b",
+    "tag_object_sha": "526d2403c7f7a64b55988a365d45f784e2c08808",
+    "tag_sha": "41c13405867b143d2db54b34909913157f19dbdd"
+  },
+  "required_v311_issues": [
+    1036,
+    1037,
+    1038,
+    1039,
+    1040,
+    1041
+  ],
+  "required_v311_issue_count": 6,
+  "required_v320_issues": [
+    1042,
+    1043,
+    1044,
+    1045,
+    1046,
+    1047,
+    1048,
+    1049,
+    1050,
+    1051
+  ],
+  "required_v320_issue_count": 10,
+  "source_reconstruction": {
+    "v31_1_release_notes": "docs/rust-cutover/release/v0_31_1_release_notes.md",
+    "v31_1_release_manifest": "docs/rust-cutover/release/v0_31_1_release_manifest.json",
+    "v31_1_readiness_report": "docs/rust-cutover/release/v0_31_1_readiness_report.md",
+    "v31_1_v32_start_gate": "docs/rust-cutover/release/v0_31_1_v32_start_gate.json",
+    "v32_intake_gate": "docs/rust-cutover/release/v0_32_0_intake_gate.json",
+    "v32_intake_report": "docs/rust-cutover/release/v0_32_0_intake_gate.md"
+  },
+  "required_future_inputs": [
+    "explicit_scoped_backend_closeout_issue",
+    "owner_operator_approval",
+    "risk_gate",
+    "audit_gate",
+    "go_no_go",
+    "rollback_dr",
+    "telemetry_slo_gate",
+    "config_venue_provenance",
+    "backend_read_model_admin_bridge",
+    "fail_closed_negative_tests",
+    "release_gate",
+    "strict_provenance",
+    "no_default_trading_boundary"
+  ],
+  "backend_closeout_scope": {
+    "v0_32_backend_closeout_version": true,
+    "scoped_backend_closeout_intake_open": true,
+    "explicit_scoped_approval_issue": 1043,
+    "explicit_scoped_approval_present": false,
+    "production_execution_capability_enabled": false,
+    "frontend_completion": false,
+    "product_grade_live_trading_terminal": false
+  },
+  "non_inheritance_boundary": {
+    "inherits_submit": false,
+    "inherits_mutation": false,
+    "inherits_adapter_send": false,
+    "inherits_live_exchange_request": false,
+    "inherits_automatic_remediation": false,
+    "inherits_retry_scheduler": false,
+    "inherits_dashboard_trading_controls": false,
+    "inherits_admin_workbench_trading_controls": false,
+    "inherits_trader_terminal_order_ticket": false,
+    "inherits_frontend_completion_claim": false,
+    "inherits_backend_go_live_claim": false,
+    "inherits_product_grade_live_trading_claim": false
+  },
+  "execution_enablement_status": {
+    "default_submit_allowed": false,
+    "default_mutation_allowed": false,
+    "default_adapter_send_allowed": false,
+    "default_live_exchange_request_allowed": false,
+    "default_retry_scheduler_allowed": false,
+    "default_automatic_remediation_allowed": false,
+    "default_operation_controls_allowed": false,
+    "default_trading_controls_allowed": false,
+    "default_backend_go_live_allowed": false,
+    "explicit_scoped_approval_required": true,
+    "owner_operator_approval_required": true,
+    "risk_gate_required": true,
+    "audit_gate_required": true,
+    "go_no_go_required": true,
+    "rollback_dr_required": true,
+    "telemetry_slo_gate_required": true,
+    "config_venue_provenance_required": true,
+    "backend_read_model_admin_bridge_required": true,
+    "fail_closed_negative_tests_required": true,
+    "release_gate_required": true,
+    "strict_provenance_required": true
+  },
+  "readiness_cases": [
+    {
+      "case_id": "v32_intake.missing_v31_1_release.fail_closed.001",
+      "v31_1_release_present": false,
+      "v31_1_milestone_closed": true,
+      "expected_status": "fail_closed_missing_v31_1_release_evidence"
+    },
+    {
+      "case_id": "v32_intake.missing_v31_1_milestone.fail_closed.001",
+      "v31_1_release_present": true,
+      "v31_1_milestone_closed": false,
+      "expected_status": "fail_closed_missing_v31_1_milestone_closeout"
+    },
+    {
+      "case_id": "v32_intake.inherited_execution.fail_closed.001",
+      "v31_1_release_present": true,
+      "v31_1_milestone_closed": true,
+      "boundary_flags_override": {
+        "inherits_adapter_send": true
+      },
+      "expected_status": "fail_closed_inherited_execution"
+    },
+    {
+      "case_id": "v32_intake.dependency_proof.scoped_only.001",
+      "v31_1_release_present": true,
+      "v31_1_milestone_closed": true,
+      "expected_status": "dependency_proof_satisfied_backend_closeout_scoped_intake_only"
+    }
+  ],
+  "runtime_behavior_changed": false,
+  "trading_behavior_changed": false
+}
