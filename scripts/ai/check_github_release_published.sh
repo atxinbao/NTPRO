@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.30.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.31.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
@@ -1423,7 +1423,7 @@ for field in "${required_fields[@]}"; do
   require_contains_text "$body" "$field" "GitHub Release body key field"
 done
 
-if [[ "$release_status_mode" == "v291_post_publication" || "$release_status_mode" == "v30_post_publication" || "$release_status_mode" == "v301_post_publication" ]]; then
+if [[ "$release_status_mode" == "v291_post_publication" || "$release_status_mode" == "v30_post_publication" || "$release_status_mode" == "v301_post_publication" || "$release_status_mode" == "v31_post_publication" ]]; then
   require_contains_text "$body" "Status: RELEASED" "GitHub Release body post-publication status"
   require_not_contains_text "$body" "Status: RELEASE GATE READY" "GitHub Release body pre-publication status after publication"
   require_not_contains_text "$body" "Status: PENDING PUBLICATION" "GitHub Release body pending status after publication"
@@ -1470,9 +1470,15 @@ print("release_body_raw_sha256_is_acceptance_rule=false")
 PY
 )"
 
-if [[ "${NTPRO_RELEASE_PUBLICATION_STRICT_BODY:-0}" == "1" ]]; then
+if [[ "${NTPRO_RELEASE_PUBLICATION_STRICT_BODY:-0}" == "1" || "$release_status_mode" == "v31_post_publication" ]]; then
   if ! grep -F "release_body_normalized_sha256_matches_tracked_release_notes=true" <<<"$body_hash_report" >/dev/null; then
     fail "release body does not match release notes under normalized_sha256 semantics"
+  fi
+fi
+
+if [[ "$release_status_mode" == "v31_post_publication" ]]; then
+  if ! grep -F "release_body_raw_sha256_matches_tracked_release_notes=true" <<<"$body_hash_report" >/dev/null; then
+    fail "v31 release body raw hash does not match tracked release notes"
   fi
 fi
 

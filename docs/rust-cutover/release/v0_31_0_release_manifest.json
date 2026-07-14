@@ -54,8 +54,13 @@
     "tracked_release_notes_raw_sha256_at_publication": "92bd2f48a42fc706173aa1971efe95c1f3559a86fa57e54f71b8d3692b922744",
     "release_body_matches_tracked_release_notes_at_publication": true,
     "release_body_raw_matches_tracked_release_notes_at_publication": true,
-    "current_release_body_reconciliation_required": true,
-    "current_release_body_reconciliation_issue": 1038
+    "current_release_body_reconciliation_required": false,
+    "current_release_body_reconciliation_issue": 1038,
+    "current_release_body_reconciled_by_task": "V311-003",
+    "current_release_body_normalized_sha256": "2b951baf48c01209b10a9b3ec70b9d452739fa21fcf3685c098c90fdf00f0fcb",
+    "current_release_body_raw_sha256": "c8c83713945d6d42b3421a72a423bc5ab19e148fcd1342f3629da71ef76763b0",
+    "current_release_body_matches_tracked_release_notes": true,
+    "current_release_body_raw_matches_tracked_release_notes": true
   },
   "release_inputs": {
     "release_notes_path": "docs/rust-cutover/release/v0_31_0_release_notes.md",
@@ -213,6 +218,12 @@
     "release_body_normalized_sha256": "1fed8bfaa9f73d24d4392ed203cbf12d6c90d0cdabcbc29ec9c87151041aa355",
     "release_body_raw_sha256": "92bd2f48a42fc706173aa1971efe95c1f3559a86fa57e54f71b8d3692b922744",
     "release_body_reconciliation_issue": 1038,
+    "current_release_body_reconciled_by_task": "V311-003",
+    "current_release_body_hash_semantics": "normalized_sha256",
+    "current_release_body_normalized_sha256": "2b951baf48c01209b10a9b3ec70b9d452739fa21fcf3685c098c90fdf00f0fcb",
+    "current_release_body_raw_sha256": "c8c83713945d6d42b3421a72a423bc5ab19e148fcd1342f3629da71ef76763b0",
+    "current_release_body_matches_tracked_release_notes": true,
+    "current_release_body_raw_matches_tracked_release_notes": true,
     "v31_1_closeout_patch": true,
     "v32_backend_closeout_blocked_until_v311_release_evidence": true
   },

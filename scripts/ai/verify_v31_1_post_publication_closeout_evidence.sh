@@ -194,8 +194,16 @@ require(published.get("tracked_release_notes_normalized_sha256_at_publication") 
 require(published.get("tracked_release_notes_raw_sha256_at_publication") == release_raw_hash, "publication notes raw hash mismatch")
 require(published.get("release_body_matches_tracked_release_notes_at_publication") is True, "publication body match marker missing")
 require(published.get("release_body_raw_matches_tracked_release_notes_at_publication") is True, "publication raw body match marker missing")
-require(published.get("current_release_body_reconciliation_required") is True, "body reconciliation marker missing")
 require(published.get("current_release_body_reconciliation_issue") == 1038, "body reconciliation issue mismatch")
+if published.get("current_release_body_reconciliation_required") is True:
+    pass
+else:
+    require(published.get("current_release_body_reconciliation_required") is False, "body reconciliation marker missing")
+    require(published.get("current_release_body_reconciled_by_task") == "V311-003", "body reconciliation task mismatch")
+    require(published.get("current_release_body_normalized_sha256") == "2b951baf48c01209b10a9b3ec70b9d452739fa21fcf3685c098c90fdf00f0fcb", "current body normalized hash mismatch")
+    require(published.get("current_release_body_raw_sha256") == "c8c83713945d6d42b3421a72a423bc5ab19e148fcd1342f3629da71ef76763b0", "current body raw hash mismatch")
+    require(published.get("current_release_body_matches_tracked_release_notes") is True, "current body normalized match missing")
+    require(published.get("current_release_body_raw_matches_tracked_release_notes") is True, "current body raw match missing")
 
 scope = manifest.get("release_scope") or {}
 require(scope.get("exact_milestone_issue_numbers") == expected_issues, "exact V310 issue set mismatch")
@@ -335,7 +343,12 @@ require(release["publishedAt"] == os.environ["PUBLISHED_AT"], "live publishedAt 
 require(release["targetCommitish"] == "main", "live target commitish mismatch")
 
 body_hash = hashlib.sha256(normalize(release.get("body") or "").encode("utf-8")).hexdigest()
-require(body_hash == manifest["published_release"]["release_body_normalized_sha256"], "live release body hash mismatch")
+published = manifest["published_release"]
+if published.get("current_release_body_reconciliation_required") is False:
+    expected_body_hash = published["current_release_body_normalized_sha256"]
+else:
+    expected_body_hash = published["release_body_normalized_sha256"]
+require(body_hash == expected_body_hash, "live release body hash mismatch")
 
 require(gate["workflowName"] == "Rust Cutover Release Gate", "live gate workflow mismatch")
 require(gate["status"] == "completed", "live gate status mismatch")
