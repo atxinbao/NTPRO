@@ -328,6 +328,14 @@ Final release checks, benchmark summaries, and audit reports live here.
   production execution path while preserving no runtime execution authority.
 - `../evidence/V320-001.md` - V320-001 backend production closeout boundary and
   scoped authorization evidence for GitHub issue #1043.
+- `v0_32_0_owner_operator_change_window_closeout.md` and
+  `v0_32_0_owner_operator_change_window_closeout.json` - V320-002
+  owner/operator approval, production freeze, and production change-window
+  closeout lifecycle. It verifies approval ownership, window/freeze
+  fail-closed behavior, provenance, rollback/audit/risk/telemetry references,
+  and forbidden approval reuse.
+- `../evidence/V320-002.md` - V320-002 owner/operator approval, freeze, and
+  production change-window closeout evidence for GitHub issue #1044.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
