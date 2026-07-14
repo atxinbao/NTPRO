@@ -350,6 +350,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   and fail-closed handling for stale, mismatched, or raw-sensitive evidence.
 - `../evidence/V320-004.md` - V320-004 production config, venue, credential,
   and environment provenance closeout evidence for GitHub issue #1046.
+- `v0_32_0_canary_rollback_dr_closeout.md` and
+  `v0_32_0_canary_rollback_dr_closeout.json` - V320-005 canary, rollback, and
+  disaster recovery execution closeout. It validates canary entry/exit and
+  abort triggers, rollback checkpoints, restoration evidence, DR
+  failover/failback boundaries, and no automatic recovery.
+- `../evidence/V320-005.md` - V320-005 canary, rollback, and disaster recovery
+  execution closeout evidence for GitHub issue #1047.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend

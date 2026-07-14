@@ -1,0 +1,196 @@
+{
+  "schema_version": "ntpro.v320_canary_rollback_dr_closeout.v1",
+  "task_id": "V320-005",
+  "github_issue": 1047,
+  "milestone": "v0.32.0",
+  "capability_track": "backend_production_closeout",
+  "depends_on": [
+    {
+      "task_id": "V320-004",
+      "github_issue": 1046,
+      "required_status": "closed"
+    }
+  ],
+  "boundary_status": "canary_rollback_dr_required_abortable_no_automatic_recovery",
+  "canary_scope": {
+    "required": true,
+    "entry_criteria_required": true,
+    "exit_criteria_required": true,
+    "abort_triggers_required": true,
+    "blast_radius_limit_required": true,
+    "allowed_scope": "single_release_single_environment_single_venue_single_account_strategy_candidate",
+    "widened_scope_status": "fail_closed_widened_canary_scope",
+    "failed_canary_status": "fail_closed_failed_canary",
+    "canary_bypasses_rollback": false,
+    "canary_bypasses_restore": false,
+    "canary_bypasses_dr": false
+  },
+  "rollback_checkpoints": {
+    "required": true,
+    "source_provenance_required": true,
+    "release_bound_required": true,
+    "missing_status": "fail_closed_missing_rollback_path",
+    "required_fields": [
+      "release_version",
+      "release_tag",
+      "build_commit",
+      "checkpoint_id",
+      "rollback_owner",
+      "rollback_steps_digest",
+      "expected_restore_point",
+      "source_provenance",
+      "collected_at"
+    ]
+  },
+  "restoration_evidence": {
+    "required": true,
+    "source_provenance_required": true,
+    "missing_status": "fail_closed_missing_restoration_evidence",
+    "required_fields": [
+      "restore_evidence_id",
+      "checkpoint_id",
+      "restore_digest",
+      "source_provenance",
+      "collected_at"
+    ]
+  },
+  "dr_readiness": {
+    "required": true,
+    "source_provenance_required": true,
+    "release_bound_required": true,
+    "freshness_required": true,
+    "failover_boundary_required": true,
+    "failback_boundary_required": true,
+    "stale_status": "fail_closed_stale_dr_evidence",
+    "unresolved_incident_freeze_status": "fail_closed_unresolved_incident_freeze",
+    "required_fields": [
+      "dr_plan_id",
+      "release_version",
+      "release_tag",
+      "build_commit",
+      "rto_target",
+      "rpo_target",
+      "restore_drill_digest",
+      "failover_boundary_digest",
+      "failback_boundary_digest",
+      "source_provenance",
+      "collected_at"
+    ]
+  },
+  "abort_control": {
+    "abort_state_requires_scoped_clear_decision": true,
+    "uncleared_abort_status": "fail_closed_uncleared_abort_state",
+    "automatic_retry_allowed": false,
+    "automatic_remediation_allowed": false,
+    "automatic_recovery_allowed": false
+  },
+  "decision_cases": [
+    {
+      "case_id": "v32_canary.missing_rollback.fail_closed.001",
+      "canary_scope": "bounded",
+      "canary_status": "pass",
+      "rollback_path": "missing",
+      "restoration_evidence": "present",
+      "dr_evidence": "fresh",
+      "incident_freeze": "none",
+      "abort_state": "clear",
+      "expected_status": "fail_closed_missing_rollback_path"
+    },
+    {
+      "case_id": "v32_canary.stale_dr.fail_closed.001",
+      "canary_scope": "bounded",
+      "canary_status": "pass",
+      "rollback_path": "present",
+      "restoration_evidence": "present",
+      "dr_evidence": "stale",
+      "incident_freeze": "none",
+      "abort_state": "clear",
+      "expected_status": "fail_closed_stale_dr_evidence"
+    },
+    {
+      "case_id": "v32_canary.failed_canary.fail_closed.001",
+      "canary_scope": "bounded",
+      "canary_status": "failed",
+      "rollback_path": "present",
+      "restoration_evidence": "present",
+      "dr_evidence": "fresh",
+      "incident_freeze": "none",
+      "abort_state": "clear",
+      "expected_status": "fail_closed_failed_canary"
+    },
+    {
+      "case_id": "v32_canary.unresolved_freeze.fail_closed.001",
+      "canary_scope": "bounded",
+      "canary_status": "pass",
+      "rollback_path": "present",
+      "restoration_evidence": "present",
+      "dr_evidence": "fresh",
+      "incident_freeze": "active",
+      "abort_state": "clear",
+      "expected_status": "fail_closed_unresolved_incident_freeze"
+    },
+    {
+      "case_id": "v32_canary.widened_scope.fail_closed.001",
+      "canary_scope": "widened",
+      "canary_status": "pass",
+      "rollback_path": "present",
+      "restoration_evidence": "present",
+      "dr_evidence": "fresh",
+      "incident_freeze": "none",
+      "abort_state": "clear",
+      "expected_status": "fail_closed_widened_canary_scope"
+    },
+    {
+      "case_id": "v32_canary.missing_restore.fail_closed.001",
+      "canary_scope": "bounded",
+      "canary_status": "pass",
+      "rollback_path": "present",
+      "restoration_evidence": "missing",
+      "dr_evidence": "fresh",
+      "incident_freeze": "none",
+      "abort_state": "clear",
+      "expected_status": "fail_closed_missing_restoration_evidence"
+    },
+    {
+      "case_id": "v32_canary.uncleared_abort.fail_closed.001",
+      "canary_scope": "bounded",
+      "canary_status": "pass",
+      "rollback_path": "present",
+      "restoration_evidence": "present",
+      "dr_evidence": "fresh",
+      "incident_freeze": "none",
+      "abort_state": "uncleared",
+      "expected_status": "fail_closed_uncleared_abort_state"
+    },
+    {
+      "case_id": "v32_canary.ready.no_automatic_recovery.001",
+      "canary_scope": "bounded",
+      "canary_status": "pass",
+      "rollback_path": "present",
+      "restoration_evidence": "present",
+      "dr_evidence": "fresh",
+      "incident_freeze": "none",
+      "abort_state": "clear",
+      "expected_status": "canary_rollback_dr_ready_no_automatic_recovery"
+    }
+  ],
+  "runtime_boundary_flags": {
+    "automatic_remediation_allowed": false,
+    "automatic_recovery_allowed": false,
+    "retry_scheduler_enabled": false,
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "frontend_completion_claim": false,
+    "backend_go_live_claim": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "runtime_behavior_changed": false,
+  "trading_behavior_changed": false
+}
