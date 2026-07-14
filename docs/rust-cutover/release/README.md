@@ -336,6 +336,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   and forbidden approval reuse.
 - `../evidence/V320-002.md` - V320-002 owner/operator approval, freeze, and
   production change-window closeout evidence for GitHub issue #1044.
+- `v0_32_0_risk_audit_go_no_go_closeout.md` and
+  `v0_32_0_risk_audit_go_no_go_closeout.json` - V320-003 risk gate, audit
+  gate, and go/no-go closeout contract. It validates stable risk/audit/decision
+  identifiers, immutable or remotely reconstructable evidence, stale/failed
+  gate fail-closed behavior, and no execution authority from go/no-go alone.
+- `../evidence/V320-003.md` - V320-003 risk gate, audit gate, and go/no-go
+  closeout evidence for GitHub issue #1045.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend

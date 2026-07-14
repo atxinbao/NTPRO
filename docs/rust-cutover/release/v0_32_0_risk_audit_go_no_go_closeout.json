@@ -1,0 +1,279 @@
+{
+  "schema_version": "ntpro.v320_risk_audit_go_no_go_closeout.v1",
+  "task_id": "V320-003",
+  "github_issue": 1045,
+  "milestone": "v0.32.0",
+  "capability_track": "backend_production_closeout",
+  "depends_on": [
+    {
+      "task_id": "V320-001",
+      "github_issue": 1043,
+      "required_status": "closed"
+    },
+    {
+      "task_id": "V320-002",
+      "github_issue": 1044,
+      "required_status": "closed"
+    }
+  ],
+  "control_status": "risk_audit_go_no_go_required_no_execution_authority",
+  "required_inputs": {
+    "risk_status": {
+      "required": true,
+      "freshness_required": true,
+      "stable_identifier_required": true,
+      "required_fields": [
+        "risk_decision_id",
+        "risk_status",
+        "risk_model_version",
+        "risk_policy_digest",
+        "risk_checked_at",
+        "risk_expires_at",
+        "risk_evidence_digest"
+      ],
+      "allowed_states": [
+        "pass",
+        "degraded"
+      ],
+      "blocking_states": [
+        "missing",
+        "stale",
+        "failed",
+        "blocked",
+        "unknown"
+      ]
+    },
+    "audit_readiness": {
+      "required": true,
+      "freshness_required": true,
+      "immutable_evidence_required": true,
+      "required_fields": [
+        "audit_record_id",
+        "audit_status",
+        "immutable_storage_ref",
+        "audit_evidence_digest",
+        "source_provenance",
+        "remote_reconstruction_ref",
+        "audit_checked_at",
+        "audit_expires_at"
+      ],
+      "allowed_states": [
+        "ready"
+      ],
+      "blocking_states": [
+        "missing",
+        "stale",
+        "failed",
+        "blocked",
+        "unknown"
+      ]
+    },
+    "release_identity": {
+      "required": true,
+      "required_fields": [
+        "release_version",
+        "release_tag",
+        "build_commit",
+        "workflow_run_id",
+        "release_body_hash",
+        "gate_run_id"
+      ]
+    },
+    "rollback_readiness": {
+      "required": true,
+      "allowed_states": [
+        "ready"
+      ],
+      "blocking_states": [
+        "missing",
+        "stale",
+        "failed",
+        "blocked",
+        "unknown"
+      ]
+    },
+    "operator_go_no_go": {
+      "required": true,
+      "freshness_required": true,
+      "stable_decision_digest_required": true,
+      "allowed_states": [
+        "go",
+        "no_go"
+      ],
+      "required_fields": [
+        "decision_id",
+        "approver",
+        "operator",
+        "decision",
+        "timestamp",
+        "release_version",
+        "release_tag",
+        "build_commit",
+        "workflow_run_id",
+        "release_body_hash",
+        "gate_run_id",
+        "rollback_ref",
+        "risk_decision_ref",
+        "audit_record_ref",
+        "decision_digest",
+        "contradictory_state"
+      ],
+      "go_alone_authorizes_execution": false,
+      "contradictory_decision_state_allowed": false
+    },
+    "evidence_reconstruction": {
+      "source_controlled_or_remote_reconstructable_required": true,
+      "stable_identifiers_required": true
+    }
+  },
+  "reason_codes": {
+    "missing_risk": "blocked_missing_risk_status",
+    "failed_risk": "blocked_failed_risk_status",
+    "stale_risk": "blocked_stale_risk_status",
+    "degraded_risk": "candidate_degraded_risk_status",
+    "missing_audit": "blocked_missing_audit_readiness",
+    "failed_audit": "blocked_failed_audit_readiness",
+    "stale_audit": "blocked_stale_audit_readiness",
+    "missing_go_no_go": "blocked_missing_operator_go_no_go",
+    "stale_go_no_go": "blocked_stale_operator_go_no_go",
+    "contradictory_decision_state": "blocked_contradictory_decision_state",
+    "release_mismatch": "blocked_release_identity_mismatch",
+    "operator_no_go": "blocked_operator_no_go",
+    "approved_closeout": "approved_closeout_no_execution_authority"
+  },
+  "decision_cases": [
+    {
+      "case_id": "v32_go_no_go.missing_risk.fail_closed.001",
+      "risk_status": "missing",
+      "audit_readiness": "ready",
+      "release_identity": "match",
+      "rollback_readiness": "ready",
+      "operator_go_no_go": "go",
+      "go_no_go_freshness": "fresh",
+      "contradictory_decision_state": false,
+      "expected_status": "blocked_missing_risk_status"
+    },
+    {
+      "case_id": "v32_go_no_go.failed_risk.fail_closed.001",
+      "risk_status": "failed",
+      "audit_readiness": "ready",
+      "release_identity": "match",
+      "rollback_readiness": "ready",
+      "operator_go_no_go": "go",
+      "go_no_go_freshness": "fresh",
+      "contradictory_decision_state": false,
+      "expected_status": "blocked_failed_risk_status"
+    },
+    {
+      "case_id": "v32_go_no_go.missing_audit.fail_closed.001",
+      "risk_status": "pass",
+      "audit_readiness": "missing",
+      "release_identity": "match",
+      "rollback_readiness": "ready",
+      "operator_go_no_go": "go",
+      "go_no_go_freshness": "fresh",
+      "contradictory_decision_state": false,
+      "expected_status": "blocked_missing_audit_readiness"
+    },
+    {
+      "case_id": "v32_go_no_go.stale_audit.fail_closed.001",
+      "risk_status": "pass",
+      "audit_readiness": "stale",
+      "release_identity": "match",
+      "rollback_readiness": "ready",
+      "operator_go_no_go": "go",
+      "go_no_go_freshness": "fresh",
+      "contradictory_decision_state": false,
+      "expected_status": "blocked_stale_audit_readiness"
+    },
+    {
+      "case_id": "v32_go_no_go.stale_decision.fail_closed.001",
+      "risk_status": "pass",
+      "audit_readiness": "ready",
+      "release_identity": "match",
+      "rollback_readiness": "ready",
+      "operator_go_no_go": "go",
+      "go_no_go_freshness": "stale",
+      "contradictory_decision_state": false,
+      "expected_status": "blocked_stale_operator_go_no_go"
+    },
+    {
+      "case_id": "v32_go_no_go.contradictory_decision.fail_closed.001",
+      "risk_status": "pass",
+      "audit_readiness": "ready",
+      "release_identity": "match",
+      "rollback_readiness": "ready",
+      "operator_go_no_go": "go",
+      "go_no_go_freshness": "fresh",
+      "contradictory_decision_state": true,
+      "expected_status": "blocked_contradictory_decision_state"
+    },
+    {
+      "case_id": "v32_go_no_go.release_mismatch.fail_closed.001",
+      "risk_status": "pass",
+      "audit_readiness": "ready",
+      "release_identity": "mismatch",
+      "rollback_readiness": "ready",
+      "operator_go_no_go": "go",
+      "go_no_go_freshness": "fresh",
+      "contradictory_decision_state": false,
+      "expected_status": "blocked_release_identity_mismatch"
+    },
+    {
+      "case_id": "v32_go_no_go.operator_no_go.fail_closed.001",
+      "risk_status": "pass",
+      "audit_readiness": "ready",
+      "release_identity": "match",
+      "rollback_readiness": "ready",
+      "operator_go_no_go": "no_go",
+      "go_no_go_freshness": "fresh",
+      "contradictory_decision_state": false,
+      "expected_status": "blocked_operator_no_go"
+    },
+    {
+      "case_id": "v32_go_no_go.degraded_risk.bounded_candidate.001",
+      "risk_status": "degraded",
+      "audit_readiness": "ready",
+      "release_identity": "match",
+      "rollback_readiness": "ready",
+      "operator_go_no_go": "go",
+      "go_no_go_freshness": "fresh",
+      "contradictory_decision_state": false,
+      "expected_status": "candidate_degraded_risk_status"
+    },
+    {
+      "case_id": "v32_go_no_go.approved_closeout.no_execution.001",
+      "risk_status": "pass",
+      "audit_readiness": "ready",
+      "release_identity": "match",
+      "rollback_readiness": "ready",
+      "operator_go_no_go": "go",
+      "go_no_go_freshness": "fresh",
+      "contradictory_decision_state": false,
+      "expected_status": "approved_closeout_no_execution_authority"
+    }
+  ],
+  "runtime_boundary_flags": {
+    "go_no_go_authorizes_submit": false,
+    "go_no_go_authorizes_mutation": false,
+    "go_no_go_authorizes_adapter_send": false,
+    "go_no_go_authorizes_live_exchange_request": false,
+    "go_no_go_authorizes_automatic_remediation": false,
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "frontend_completion_claim": false,
+    "backend_go_live_claim": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "runtime_behavior_changed": false,
+  "trading_behavior_changed": false
+}
