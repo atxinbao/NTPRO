@@ -275,6 +275,11 @@ Final release checks, benchmark summaries, and audit reports live here.
   body-hash reconciliation evidence for GitHub issue #1038. It makes the v31
   publication guard require a `RELEASED` GitHub Release body and normalized/raw
   body hash equality with tracked v31 release notes.
+- `../evidence/V311-004.md` - V311-004 v31 corrective scope wording and
+  provenance reconciliation evidence for GitHub issue #1039. It verifies the
+  final V310 issue set `#1006-#1015 plus #1033`, the single corrective-scope
+  exception `#1033`, and fail-closed handling for unregistered corrective
+  milestone issues.
 - `v0_31_0_v32_backend_production_closeout_handoff.md` and
   `v0_31_0_v32_backend_production_closeout_handoff.json` - V310-009 v32
   handoff. It keeps v32 hard-blocked until v31 release evidence and explicit
