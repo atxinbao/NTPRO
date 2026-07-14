@@ -379,6 +379,23 @@ Final release checks, benchmark summaries, and audit reports live here.
   execution authorization from negative tests alone.
 - `../evidence/V320-008.md` - V320-008 fail-closed negative-test evidence for
   GitHub issue #1050.
+- `v0_32_0_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.32.0` GitHub Release. It publishes Backend Production
+  Closeout evidence without frontend completion, product-grade live trading
+  terminal readiness, default submit, mutation, adapter send, live exchange,
+  retry scheduler, automatic remediation, or trading controls.
+- `v0_32_0_readiness_report.md` - released readiness report for the formal
+  `ntpro-rust-only-v0.32.0`, including exact V320 issue scope `#1042-#1051`,
+  v32 release gates, strict provenance, publication order, and v0.33.0
+  no-inheritance boundary.
+- `v0_32_0_release_manifest.json` - strict release manifest and publication
+  contract for the public `ntpro-rust-only-v0.32.0` GitHub Release.
+- `v0_32_0_release_closeout_evidence.md` - source-controlled closeout contract
+  for the public `ntpro-rust-only-v0.32.0` GitHub Release, including hosted
+  gate-before-publish, release body reconstruction, publication evidence
+  strategy, and milestone closeout expectations.
+- `../evidence/V320-009.md` - V320-009 v32 release gates, strict provenance,
+  publication, and source-controlled closeout evidence for GitHub issue #1051.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend

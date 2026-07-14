@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.31.0}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.32.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
 RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only ${CURRENT_RELEASE_VERSION}}"
 RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/${CURRENT_RELEASE_TAG}}"
@@ -1411,6 +1411,60 @@ case "$CURRENT_RELEASE_VERSION" in
       "v0.32.0 backend closeout start gate = fail-closed without v0.31.1 publication"
     )
     ;;
+  v0.32.0)
+    release_status_mode="v32_post_publication"
+    required_fields=(
+      "Tag: \`$CURRENT_RELEASE_TAG\`"
+      "Release name: \`$RELEASE_NAME\`"
+      "Release URL: \`$RELEASE_URL\`"
+      "Base release: \`ntpro-rust-only-v0.31.1\`"
+      "v0.32.0 publishes the Backend Production Closeout version"
+      "V320-000"
+      "V320-009"
+      "V320 final release scope issue count = 10"
+      "V320 final release scope evidence count = 10"
+      "V320 exact milestone issue set = #1042-#1051"
+      "V320 registered corrective-scope exception count = 0"
+      "v32 release gates = required"
+      "v32 strict provenance = required"
+      "release surface current guard = required"
+      "release publication guard = required"
+      "release publish after gate = required"
+      "publish after hosted gate success = required"
+      "publication evidence strategy = source_tree_plus_github_remote"
+      "local generated publication evidence required in source tree = false"
+      "remote reconstruction required = true"
+      "generated publication evidence sole proof allowed = false"
+      "v0.33.0 inheritance = separately scoped only"
+      "new_submit_capability = false"
+      "production_order_submission_allowed = false"
+      "production_order_mutation_allowed = false"
+      "cancel_order_allowed = false"
+      "replace_order_allowed = false"
+      "amend_order_allowed = false"
+      "flatten_position_allowed = false"
+      "execution_adapter_call_allowed = false"
+      "adapter_send_allowed = false"
+      "live_exchange_request_allowed = false"
+      "network_attempted = false"
+      "retry_scheduler_enabled = false"
+      "automatic_remediation_allowed = false"
+      "automatic_operation_action_allowed = false"
+      "dashboard_operation_controls_enabled = false"
+      "dashboard_trading_controls_enabled = false"
+      "admin_workbench_operation_controls_enabled = false"
+      "admin_workbench_trading_controls_enabled = false"
+      "trader_terminal_order_ticket_enabled = false"
+      "manual_operation_submit_allowed = false"
+      "backend_go_live_claim = false"
+      "actual_backend_production_go_live_allowed = false"
+      "frontend_completion_claim = false"
+      "product_grade_trading_terminal_claim = false"
+      "scripts/ai/verify_v32_release_gates.sh"
+      "scripts/ai/verify_v32_strict_provenance.sh"
+      "scripts/ai/publish_ntpro_release_after_gate.sh"
+    )
+    ;;
   *)
     fail "unsupported release publication guard version: $CURRENT_RELEASE_VERSION"
     ;;
@@ -1470,6 +1524,16 @@ elif [[ "$release_status_mode" == "v311_post_publication" ]]; then
     require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: RELEASE GATE READY" "release notes pre-publication status after publication"
     require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: PENDING PUBLICATION" "release notes pending status after publication"
   fi
+elif [[ "$release_status_mode" == "v32_post_publication" ]]; then
+  if [[ "$PREPUBLISH_TAG_GATE" == "1" ]]; then
+    require_file_contains_any "$CURRENT_RELEASE_NOTES" "v32 pre-publication or post-publication status" \
+      "Status: RELEASE GATE READY" \
+      "Status: RELEASED"
+  else
+    require_file_contains "$CURRENT_RELEASE_NOTES" "Status: RELEASED" "release notes post-publication status"
+    require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: RELEASE GATE READY" "release notes pre-publication status after publication"
+    require_file_not_contains "$CURRENT_RELEASE_NOTES" "Status: PENDING PUBLICATION" "release notes pending status after publication"
+  fi
 fi
 
 if [[ "$PREPUBLISH_TAG_GATE" == "1" ]]; then
@@ -1488,7 +1552,7 @@ for field in "${required_fields[@]}"; do
   require_contains_text "$body" "$field" "GitHub Release body key field"
 done
 
-if [[ "$release_status_mode" == "v291_post_publication" || "$release_status_mode" == "v30_post_publication" || "$release_status_mode" == "v301_post_publication" || "$release_status_mode" == "v31_post_publication" ]]; then
+if [[ "$release_status_mode" == "v291_post_publication" || "$release_status_mode" == "v30_post_publication" || "$release_status_mode" == "v301_post_publication" || "$release_status_mode" == "v31_post_publication" || "$release_status_mode" == "v32_post_publication" ]]; then
   require_contains_text "$body" "Status: RELEASED" "GitHub Release body post-publication status"
   require_not_contains_text "$body" "Status: RELEASE GATE READY" "GitHub Release body pre-publication status after publication"
   require_not_contains_text "$body" "Status: PENDING PUBLICATION" "GitHub Release body pending status after publication"
@@ -1535,7 +1599,7 @@ print("release_body_raw_sha256_is_acceptance_rule=false")
 PY
 )"
 
-if [[ "${NTPRO_RELEASE_PUBLICATION_STRICT_BODY:-0}" == "1" || "$release_status_mode" == "v31_post_publication" ]]; then
+if [[ "${NTPRO_RELEASE_PUBLICATION_STRICT_BODY:-0}" == "1" || "$release_status_mode" == "v31_post_publication" || "$release_status_mode" == "v32_post_publication" ]]; then
   if ! grep -F "release_body_normalized_sha256_matches_tracked_release_notes=true" <<<"$body_hash_report" >/dev/null; then
     fail "release body does not match release notes under normalized_sha256 semantics"
   fi

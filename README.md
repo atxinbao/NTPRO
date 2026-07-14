@@ -6,50 +6,47 @@ NautilusTrader.
 The current source-tree milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.31.0
-Latest formal release: ntpro-rust-only-v0.31.0
-Current source-tree readiness: ntpro-rust-only-v0.31.0 released
-Current capability: v0.31.0 Controlled Backend Production Enablement Candidate Foundation
-Capability class: controlled backend production enablement candidate foundation only
-Next patch: v0.31.1 Release Governance Closeout Patch
-Next capability: v0.32.0 Backend Production Closeout Track
-v0.32.0 entry: backend closeout only after v0.31.1 release evidence and explicit scoped approval
-Boundary: v0.31.0 is a Controlled Backend Production Enablement Candidate Foundation.
-It is over the prior release line and closes scoped enablement approval, operator freeze/change-window, risk/audit/go-no-go gates, canary/rollback/DR boundaries, config/venue readiness, telemetry/SLO/incident readiness, read-only admin visibility, forbidden execution negative gates, release gates, and v32 handoff evidence. It does not include actual backend go-live, frontend product completion, product-grade live trading, new production submit capability, production order mutation, execution adapter send, live exchange request, implicit retry, retry scheduler, automatic remediation, automatic recovery, strategy-driven production execution, shared approval consumption, real-funds proof in CI, or Dashboard/Admin/Trader Terminal order/approval/cancel/retry/submit/replace/amend/flatten/remediation/order-ticket controls.
+Current source tag: ntpro-rust-only-v0.32.0
+Latest formal release: ntpro-rust-only-v0.32.0
+Current source-tree readiness: ntpro-rust-only-v0.32.0 released
+Current capability: v0.32.0 Backend Production Closeout
+Capability class: backend production closeout only
+Next patch: v0.32.1 Release Governance Closeout Patch
+Next capability: v0.33.0 separately scoped capability track
+v0.33.0 entry: separately scoped only; no capability inheritance from v0.32.0
+Boundary: v0.32.0 is a Backend Production Closeout release.
+It is over the prior release line and closes backend closeout boundary, scoped owner/operator approval, freeze/change-window, risk/audit/go-no-go gates, config/venue/credential/environment provenance, canary/rollback/DR, telemetry/SLO/alert/incident readiness, read-only admin bridge visibility, fail-closed negative gates, release gates, strict provenance, and publication evidence. It does not include actual backend go-live, frontend product completion, product-grade live trading, new production submit capability, production order mutation, execution adapter send, live exchange request, implicit retry, retry scheduler, automatic remediation, automatic recovery, strategy-driven production execution, shared approval consumption, real-funds proof in CI, or Dashboard/Admin/Trader Terminal order/approval/cancel/retry/submit/replace/amend/flatten/remediation/order-ticket controls.
 ```
 
-`ntpro-rust-only-v0.31.0` is the current source-tree release target. It is the
-Controlled Backend Production Enablement Candidate Foundation. It preserves the
-no-submit, no-actual-backend-go-live, and no-Dashboard/Admin/Trader-Terminal
-trading-controls boundary while proving v31 scoped enablement evidence before
-any v32 backend closeout track. It is not a product-grade live trading terminal
-or production execution runtime.
+`ntpro-rust-only-v0.32.0` is the current source-tree release target. It is the
+Backend Production Closeout release. It preserves the no-submit,
+no-actual-backend-go-live, and no-Dashboard/Admin/Trader-Terminal
+trading-controls boundary while proving v32 backend closeout evidence. It is
+not a product-grade live trading terminal or production execution runtime.
 
 The v0.31.0 release target is published through the GitHub Release path for the
-v0.31.0 tagged source tree:
+v0.32.0 tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.31.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.32.0
 ```
 
-`v0.31.0` is the current Controlled Backend Production Enablement Candidate
-Foundation release surface. It remains scoped enablement evidence, release
-governance evidence, and read-only visibility evidence, not actual backend
-go-live, a product-grade live trading terminal, or a general production trading
-platform claim. It does not add production submit, order mutation, execution
-adapter send, live exchange request, ungated cancel/retry/replace/amend/flatten,
-implicit retry, retry scheduler, automatic remediation, automatic recovery,
-bulk order execution, strategy-driven production execution, shared approval
-consumption, or Dashboard / Admin / Trader Terminal operation controls.
+`v0.32.0` is the current Backend Production Closeout release surface. It remains
+backend closeout evidence, release governance evidence, and read-only
+visibility evidence, not actual backend go-live, a product-grade live trading
+terminal, or a general production trading platform claim. It does not add
+production submit, order mutation, execution adapter send, live exchange
+request, ungated cancel/retry/replace/amend/flatten, implicit retry, retry
+scheduler, automatic remediation, automatic recovery, bulk order execution,
+strategy-driven production execution, shared approval consumption, or Dashboard
+/ Admin / Trader Terminal operation controls.
 
-The next patch track is `v0.31.1`. The next capability track is `v0.32.0`.
-`v0.32.0` is the backend closeout track, but it remains hard-blocked until the
-full v0.31.1 closeout issue set is closed and `ntpro-rust-only-v0.31.1` release
-evidence is published. It does not automatically inherit backend go-live,
-production submit, mutation, adapter send, live exchange request, retry
-scheduler, automatic remediation, or Dashboard / Admin / Trader Terminal
-operation controls from `v0.29.0`, `v0.29.1`, `v0.30.0`, `v0.30.1`, or
-`v0.31.0`.
+The next patch track is `v0.32.1`. The next capability track is `v0.33.0`.
+`v0.33.0` must be separately scoped and does not inherit backend go-live,
+frontend completion, product-grade live trading terminal readiness, production
+submit, mutation, adapter send, live exchange request, retry scheduler,
+automatic remediation, or Dashboard / Admin / Trader Terminal operation
+controls from `v0.32.0`.
 
 ## Current Status
 
@@ -125,8 +122,9 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.31.0 is the current formal release line. It is the Controlled Backend
-Production Enablement Candidate Foundation over the v0.30.1 Release Governance
+v0.32.0 is the current formal release line. It is the Backend Production
+Closeout release over the v0.31.1 Release Governance Closeout Patch, the v0.31.0 Controlled Backend
+Production Enablement Candidate Foundation, the v0.30.1 Release Governance
 and v31 Start-Gate Hardening Patch, the v0.30.0 Backend Production Go-Live
 Candidate Foundation, the v0.29.1 Release Governance and v30 Start-Gate
 Hardening Patch, the v0.29.0 Backend Production Readiness Foundation, the
