@@ -4,9 +4,9 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.30.0`, the v0.30.0 Backend Production Go-Live Candidate Foundation release.
-The next patch track is `v0.30.1`.
-The next capability track is `v0.31.0`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.31.0`, the v0.31.0 Controlled Backend Production Enablement Candidate Foundation release.
+The next patch track is `v0.31.1`.
+The next capability track is `v0.32.0`.
 
 ## Current Release Surface
 
@@ -24,6 +24,8 @@ ntpro-rust-only-v0.28.1
 ntpro-rust-only-v0.29.0
 ntpro-rust-only-v0.29.1
 ntpro-rust-only-v0.30.0
+ntpro-rust-only-v0.30.1
+ntpro-rust-only-v0.31.0
 ```
 
 Current capability boundary:
@@ -101,18 +103,38 @@ v0.28.0 backend closure finalization evidence
 v0.28.1 release governance closeout patch evidence
 v0.29.0 backend production readiness foundation evidence
 v0.29.1 release governance and v30 start-gate hardening evidence
+v0.31.0 controlled backend production enablement candidate foundation evidence
+v0.31.1 next patch track reserved for release governance closeout before v0.32.0
+v0.32.0 next capability track reserved for backend closeout after v0.31.1 release evidence and explicit scoped approval
 v0.30.0 backend production go-live candidate foundation evidence
-v0.30.1 next patch track reserved after v0.30.0 release evidence
-v0.31.0 next capability track reserved after v0.30.0 release evidence and explicit scoped approval
 no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no Admin Workbench operation/trading controls
 no Trader Terminal order-ticket/trading controls
 no product-grade live trading terminal claim
 ```
 
+## Published Capability Track: v0.31.0
+
+`v0.31.0` is the current Controlled Backend Production Enablement Candidate
+Foundation release surface. It records v0.30.1 dependency proof, explicit
+scoped enablement approval, operator approval/freeze/change-window lifecycle,
+risk/audit/go-no-go gates, canary/rollback/DR boundaries, production config and
+venue readiness provenance, telemetry/SLO/incident gates, backend enablement
+state read model and read-only admin bridge, forbidden production execution
+negative tests, release gates, strict provenance, and v32 backend closeout
+handoff.
+
+`v0.31.0` explicitly does not include actual backend production go-live,
+frontend product completion, product-grade live trading terminal readiness,
+new production submit capability, production order mutation, execution adapter
+send, live exchange request, retry scheduler, automatic remediation/recovery,
+strategy-driven production execution, shared approval consumption, or
+Dashboard/Admin/Trader Terminal operation/trading controls. v0.32.0 remains
+hard-blocked until v0.31.1 release evidence is published.
+
 ## Published Capability Track: v0.30.0
 
-`v0.30.0` is the current Backend Production Go-Live Candidate Foundation
+`v0.30.0` is the prior Backend Production Go-Live Candidate Foundation
 release surface. It records v0.29.1 dependency proof, backend go-live candidate
 boundary, deployment plan, runtime enablement boundary, operator approval and
 freeze lifecycle, canary preflight, rollback/DR boundary, config/venue
