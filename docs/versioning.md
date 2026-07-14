@@ -10,18 +10,18 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.30.0` 是当前正式公开发布点；它是 Backend Production Go-Live Candidate
-Foundation。它建立在 v0.29.1 基础上，收口 deployment plan、runtime enablement
-boundary、operator approval/freeze、canary preflight、rollback/DR、config/venue
-readiness、telemetry/SLO gate、audit retention、go/no-go runbook、release gates、
-strict provenance 和 v31 handoff。
+`v0.31.0` 是当前正式公开发布点；它是 Controlled Backend Production Enablement
+Candidate Foundation。它建立在 v0.30.1 基础上，收口 scoped enablement approval、
+operator freeze/change-window、risk/audit/go-no-go、canary/rollback/DR、config/venue
+readiness、telemetry/SLO/incident、read-only admin visibility、forbidden execution
+negative gates、release gates、strict provenance 和 v32 handoff。
 它不是 actual backend production go-live，不是产品级实盘交易终端，不是前端产品完成，
 不是新增 submit 能力，不是生产订单 mutation，不调用 execution adapter、adapter send
 或 live exchange request，不是隐式 retry，不启用 retry scheduler，不是自动补救或自动恢复，
 不是策略实盘，也没有 Dashboard 或 Admin 或 Trader Terminal 下单/审批/撤单/重试/
 submit/replace/amend/flatten/remediation/order-ticket 控件。
-`v0.31.0` 是下一 production enablement 能力轨，必须等待 v0.30.0 发布证据和显式
-scoped approval。
+`v0.32.0` 是下一 backend closeout 能力轨，必须等待 v0.31.1 全部 closeout issues
+关闭并发布 `ntpro-rust-only-v0.31.1` 证据后才能执行。
 
 ## Release Tags
 
@@ -65,6 +65,8 @@ ntpro-rust-only-v0.28.1
 ntpro-rust-only-v0.29.0
 ntpro-rust-only-v0.29.1
 ntpro-rust-only-v0.30.0
+ntpro-rust-only-v0.30.1
+ntpro-rust-only-v0.31.0
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -77,32 +79,34 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.30.0
+ntpro-rust-only-v0.31.0
 ```
 
 The active patch track is:
 
 ```text
-v0.30.1
+v0.31.1
 ```
 
-v0.30.1 is reserved for future patch hardening only. It must not expand beyond
-the v0.30.0 backend production go-live candidate foundation boundary unless a
-later scoped release issue explicitly changes that contract.
+v0.31.1 is reserved for release governance closeout only. It must not expand
+beyond the v0.31.0 controlled backend production enablement candidate
+foundation boundary unless a later scoped release issue explicitly changes that
+contract.
 
 The next capability track is:
 
 ```text
-v0.31.0
+v0.32.0
 ```
 
-v0.31.0 is the next gated production enablement track after the V300 release
-proof and explicit scoped approval. It does not inherit backend go-live, production submit,
-production order mutation, execution adapter send, adapter send, live exchange
-request, implicit retry, retry scheduler, automatic remediation/recovery,
-strategy-driven production execution, shared approval consumption, or
-Dashboard/Admin/Trader Terminal operation controls from v0.29.0, v0.29.1, or
-v0.30.0.
+v0.32.0 is the backend closeout track after the V311 release governance
+closeout patch. It remains hard-blocked until all V311 issues close and
+`ntpro-rust-only-v0.31.1` release evidence is published. It does not inherit
+backend go-live, production submit, production order mutation, execution
+adapter send, adapter send, live exchange request, implicit retry, retry
+scheduler, automatic remediation/recovery, strategy-driven production
+execution, shared approval consumption, or Dashboard/Admin/Trader Terminal
+operation controls from v0.29.0, v0.29.1, v0.30.0, v0.30.1, or v0.31.0.
 
 ## Cargo Workspace Version
 

@@ -251,7 +251,7 @@ Final release checks, benchmark summaries, and audit reports live here.
   mutation, adapter send, live exchange, retry scheduler, automatic
   remediation, trading controls, backend go-live, or product-grade live trading
   claims.
-- `v0_31_0_readiness_report.md` - released readiness report for
+- `v0_31_0_readiness_report.md` - released readiness report for the formal
   `ntpro-rust-only-v0.31.0`, including exact V310 issue scope
   `#1006-#1015 plus #1033`, v31 release gates, strict provenance, and the v32
   hard block.
@@ -267,6 +267,10 @@ Final release checks, benchmark summaries, and audit reports live here.
   #1036.
 - `../evidence/V311-001.md` - V311-001 v31 post-publication closeout evidence
   and released manifest evidence for GitHub issue #1036.
+- `../evidence/V311-002.md` - V311-002 current release surface and default
+  guard binding evidence for GitHub issue #1037. It moves README, ROADMAP,
+  versioning, and `check_release_surface_current.sh` defaults to v0.31.0 /
+  v0.31.1 / v0.32.0 while preserving the no-production-execution boundary.
 - `v0_31_0_v32_backend_production_closeout_handoff.md` and
   `v0_31_0_v32_backend_production_closeout_handoff.json` - V310-009 v32
   handoff. It keeps v32 hard-blocked until v31 release evidence and explicit
