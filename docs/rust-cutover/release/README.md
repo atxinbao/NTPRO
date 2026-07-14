@@ -251,12 +251,22 @@ Final release checks, benchmark summaries, and audit reports live here.
   mutation, adapter send, live exchange, retry scheduler, automatic
   remediation, trading controls, backend go-live, or product-grade live trading
   claims.
-- `v0_31_0_readiness_report.md` - release gate readiness report for
+- `v0_31_0_readiness_report.md` - released readiness report for
   `ntpro-rust-only-v0.31.0`, including exact V310 issue scope
   `#1006-#1015 plus #1033`, v31 release gates, strict provenance, and the v32
   hard block.
-- `v0_31_0_release_manifest.json` - strict release manifest for the formal
-  `ntpro-rust-only-v0.31.0` tag gate.
+- `v0_31_0_release_manifest.json` - strict release manifest and
+  post-publication closeout record for the public `ntpro-rust-only-v0.31.0`
+  GitHub Release.
+- `v0_31_0_release_closeout_evidence.md` - source-controlled closeout ledger
+  for the public `ntpro-rust-only-v0.31.0` GitHub Release, including tag
+  object, peeled commit, publication timestamp, hosted gate `96/96` success,
+  publish workflow `1/1` success, normalized release body hash, milestone #28
+  closeout, exact V310 issue set `#1006-#1015 plus #1033`, and generated
+  publication-evidence policy. V311-001 records this evidence for GitHub issue
+  #1036.
+- `../evidence/V311-001.md` - V311-001 v31 post-publication closeout evidence
+  and released manifest evidence for GitHub issue #1036.
 - `v0_31_0_v32_backend_production_closeout_handoff.md` and
   `v0_31_0_v32_backend_production_closeout_handoff.json` - V310-009 v32
   handoff. It keeps v32 hard-blocked until v31 release evidence and explicit

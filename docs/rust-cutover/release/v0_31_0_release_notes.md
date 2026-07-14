@@ -1,6 +1,6 @@
 # NTPRO Rust-only v0.31.0
 
-Status: RELEASE GATE READY
+Status: RELEASED
 Tag: `ntpro-rust-only-v0.31.0`
 Release name: `NTPRO Rust-only v0.31.0`
 Release URL: `https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.31.0`
@@ -19,6 +19,22 @@ controlled enablement candidate 已具备审批、风控、审计、canary、rol
 config/venue、telemetry/SLO/incident 和只读 admin 可见性边界；它仍不开放默认
 production submit、mutation、adapter send、live exchange、retry scheduler、automatic
 remediation 或任何交易控件，也不能被描述为产品级实盘系统。
+
+## Published Closeout
+
+published release status = published_after_gate
+published release closeout evidence = docs/rust-cutover/release/v0_31_0_release_closeout_evidence.md
+hosted release gate run = 29285960500
+hosted release gate result = 96/96 success
+publish workflow run = 29290691138
+publish workflow result = 1/1 success
+published at = 2026-07-13T22:42:06Z
+tag peeled commit = 14e582868cb9c18b8b26a1fd50ab21cb56f8f1a1
+release body hash semantics = normalized_sha256
+release body normalized sha256 = 1fed8bfaa9f73d24d4392ed203cbf12d6c90d0cdabcbc29ec9c87151041aa355
+GitHub Release body released-state reconciliation = V311-003 / #1038
+generated publication evidence sole proof allowed = false
+v0.31.1 closeout patch = required before v0.32.0 execution
 
 ## Included Tasks
 

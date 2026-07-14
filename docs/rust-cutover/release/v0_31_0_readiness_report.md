@@ -3,16 +3,15 @@
 Date: 2026-07-14
 Executor: Codex
 Milestone: `ntpro-rust-only-v0.31.0`
-Status: RELEASE GATE READY
+Status: RELEASED
 
 ## Summary
 
-v0.31.0 is ready for the release tag gate as a Controlled Backend Production
-Enablement Candidate Foundation. It remains evidence/gate/read-model work only;
-actual backend production go-live and product-grade live trading remain out of
-scope.
+v0.31.0 is published as a Controlled Backend Production Enablement Candidate
+Foundation. It remains evidence/gate/read-model work only; actual backend
+production go-live and product-grade live trading remain out of scope.
 
-Plain Chinese summary: v0.31.0 已具备打 tag 前的 release gate 证据。它是 controlled
+Plain Chinese summary: v0.31.0 已公开发布并补齐源码内 closeout 证据。它是 controlled
 backend production enablement candidate foundation，不是默认实盘执行版本，也不是
 产品级交易终端。
 
@@ -50,6 +49,21 @@ source-controlled release manifest = docs/rust-cutover/release/v0_31_0_release_m
 source-controlled v32 handoff = docs/rust-cutover/release/v0_31_0_v32_backend_production_closeout_handoff.md
 publication evidence strategy = source_tree_plus_github_remote
 generated publication evidence sole proof allowed = false
+
+## Published Closeout
+
+published release status = published_after_gate
+published release closeout evidence = docs/rust-cutover/release/v0_31_0_release_closeout_evidence.md
+hosted release gate run = 29285960500
+hosted release gate result = 96/96 success
+publish workflow run = 29290691138
+publish workflow result = 1/1 success
+published at = 2026-07-13T22:42:06Z
+tag peeled commit = 14e582868cb9c18b8b26a1fd50ab21cb56f8f1a1
+release body hash semantics = normalized_sha256
+release body normalized sha256 = 1fed8bfaa9f73d24d4392ed203cbf12d6c90d0cdabcbc29ec9c87151041aa355
+GitHub Release body released-state reconciliation = V311-003 / #1038
+v0.31.1 closeout patch = required before v0.32.0 execution
 
 ## Boundary
 
