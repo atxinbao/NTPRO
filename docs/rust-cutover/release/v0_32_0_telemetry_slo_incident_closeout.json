@@ -1,0 +1,203 @@
+{
+  "schema_version": "ntpro.v320_telemetry_slo_incident_closeout.v1",
+  "task_id": "V320-006",
+  "github_issue": 1048,
+  "milestone": "v0.32.0",
+  "capability_track": "backend_production_closeout",
+  "depends_on": [
+    {
+      "task_id": "V320-005",
+      "github_issue": 1047,
+      "required_status": "closed"
+    }
+  ],
+  "gate_status": "telemetry_slo_alert_incident_ready_required_no_automatic_action",
+  "telemetry_evidence": {
+    "required": true,
+    "source_provenance_required": true,
+    "release_bound_required": true,
+    "environment_bound_required": true,
+    "rollback_plan_reference_required": true,
+    "freshness_required": true,
+    "max_age_seconds": 300,
+    "missing_status": "fail_closed_missing_telemetry",
+    "stale_status": "fail_closed_stale_telemetry",
+    "missing_rollback_reference_status": "fail_closed_missing_rollback_reference",
+    "required_sources": [
+      "telemetry_ingestion",
+      "slo_snapshot",
+      "incident_snapshot",
+      "alert_routing_snapshot",
+      "alert_acknowledgement_snapshot",
+      "rollback_plan_snapshot"
+    ]
+  },
+  "slo_evidence": {
+    "required": true,
+    "release_bound_required": true,
+    "threshold_pass_required": true,
+    "threshold_breach_status": "fail_closed_slo_breach",
+    "required_thresholds": [
+      "telemetry_ingestion_freshness",
+      "read_model_availability",
+      "audit_export_latency",
+      "config_venue_readiness",
+      "incident_response_acknowledgement",
+      "rollback_plan_availability"
+    ]
+  },
+  "incident_response_evidence": {
+    "required": true,
+    "incident_owner_required": true,
+    "escalation_route_required": true,
+    "alert_routing_required": true,
+    "alert_acknowledgement_required": true,
+    "incident_freeze_criteria_required": true,
+    "missing_alert_route_status": "fail_closed_missing_alert_route",
+    "unacknowledged_alert_status": "fail_closed_unacknowledged_alert",
+    "unresolved_incident_status": "fail_closed_unresolved_incident",
+    "automatic_incident_action_allowed": false
+  },
+  "candidate_states": [
+    {
+      "state": "healthy",
+      "candidate_readiness_allowed": true,
+      "runtime_execution_allowed": false,
+      "automatic_action_allowed": false
+    },
+    {
+      "state": "degraded",
+      "candidate_readiness_allowed": false,
+      "runtime_execution_allowed": false,
+      "automatic_action_allowed": false
+    },
+    {
+      "state": "stale",
+      "candidate_readiness_allowed": false,
+      "runtime_execution_allowed": false,
+      "automatic_action_allowed": false
+    },
+    {
+      "state": "missing",
+      "candidate_readiness_allowed": false,
+      "runtime_execution_allowed": false,
+      "automatic_action_allowed": false
+    },
+    {
+      "state": "incident_active",
+      "candidate_readiness_allowed": false,
+      "runtime_execution_allowed": false,
+      "automatic_action_allowed": false
+    },
+    {
+      "state": "alert_unacknowledged",
+      "candidate_readiness_allowed": false,
+      "runtime_execution_allowed": false,
+      "automatic_action_allowed": false
+    }
+  ],
+  "decision_cases": [
+    {
+      "case_id": "v32_telemetry.missing.fail_closed.001",
+      "telemetry": "missing",
+      "slo": "healthy",
+      "alert_route": "present",
+      "alert_ack": "acknowledged",
+      "incident": "resolved",
+      "rollback_ref": "present",
+      "expected_status": "fail_closed_missing_telemetry"
+    },
+    {
+      "case_id": "v32_telemetry.stale.fail_closed.001",
+      "telemetry": "stale",
+      "slo": "healthy",
+      "alert_route": "present",
+      "alert_ack": "acknowledged",
+      "incident": "resolved",
+      "rollback_ref": "present",
+      "expected_status": "fail_closed_stale_telemetry"
+    },
+    {
+      "case_id": "v32_telemetry.slo_breach.fail_closed.001",
+      "telemetry": "fresh",
+      "slo": "breach",
+      "alert_route": "present",
+      "alert_ack": "acknowledged",
+      "incident": "resolved",
+      "rollback_ref": "present",
+      "expected_status": "fail_closed_slo_breach"
+    },
+    {
+      "case_id": "v32_telemetry.missing_alert_route.fail_closed.001",
+      "telemetry": "fresh",
+      "slo": "healthy",
+      "alert_route": "missing",
+      "alert_ack": "acknowledged",
+      "incident": "resolved",
+      "rollback_ref": "present",
+      "expected_status": "fail_closed_missing_alert_route"
+    },
+    {
+      "case_id": "v32_telemetry.unacknowledged_alert.fail_closed.001",
+      "telemetry": "fresh",
+      "slo": "healthy",
+      "alert_route": "present",
+      "alert_ack": "missing",
+      "incident": "resolved",
+      "rollback_ref": "present",
+      "expected_status": "fail_closed_unacknowledged_alert"
+    },
+    {
+      "case_id": "v32_telemetry.unresolved_incident.fail_closed.001",
+      "telemetry": "fresh",
+      "slo": "healthy",
+      "alert_route": "present",
+      "alert_ack": "acknowledged",
+      "incident": "active",
+      "rollback_ref": "present",
+      "expected_status": "fail_closed_unresolved_incident"
+    },
+    {
+      "case_id": "v32_telemetry.missing_rollback_ref.fail_closed.001",
+      "telemetry": "fresh",
+      "slo": "healthy",
+      "alert_route": "present",
+      "alert_ack": "acknowledged",
+      "incident": "resolved",
+      "rollback_ref": "missing",
+      "expected_status": "fail_closed_missing_rollback_reference"
+    },
+    {
+      "case_id": "v32_telemetry.ready.no_automatic_action.001",
+      "telemetry": "fresh",
+      "slo": "healthy",
+      "alert_route": "present",
+      "alert_ack": "acknowledged",
+      "incident": "resolved",
+      "rollback_ref": "present",
+      "expected_status": "telemetry_slo_alert_incident_ready_no_automatic_action"
+    }
+  ],
+  "runtime_boundary_flags": {
+    "telemetry_action_effect_allowed": false,
+    "automatic_incident_action_allowed": false,
+    "autonomous_production_operation_allowed": false,
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_recovery_allowed": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "frontend_completion_claim": false,
+    "backend_go_live_claim": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "runtime_behavior_changed": false,
+  "trading_behavior_changed": false
+}

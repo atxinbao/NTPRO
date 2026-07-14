@@ -357,6 +357,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   failover/failback boundaries, and no automatic recovery.
 - `../evidence/V320-005.md` - V320-005 canary, rollback, and disaster recovery
   execution closeout evidence for GitHub issue #1047.
+- `v0_32_0_telemetry_slo_incident_closeout.md` and
+  `v0_32_0_telemetry_slo_incident_closeout.json` - V320-006 telemetry, SLO,
+  alerting, and incident closeout gate. It validates telemetry freshness, SLO
+  thresholds, alert routing and acknowledgement, incident owner/escalation,
+  rollback plan linkage, and no automatic action authority.
+- `../evidence/V320-006.md` - V320-006 telemetry, SLO, alerting, and incident
+  closeout evidence for GitHub issue #1048.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
