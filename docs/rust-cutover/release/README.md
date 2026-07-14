@@ -343,6 +343,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   gate fail-closed behavior, and no execution authority from go/no-go alone.
 - `../evidence/V320-003.md` - V320-003 risk gate, audit gate, and go/no-go
   closeout evidence for GitHub issue #1045.
+- `v0_32_0_config_venue_credential_provenance.md` and
+  `v0_32_0_config_venue_credential_provenance.json` - V320-004 production
+  config, venue, credential, and environment provenance closeout. It validates
+  environment/venue/account/strategy scope, credential scope digests, redaction,
+  and fail-closed handling for stale, mismatched, or raw-sensitive evidence.
+- `../evidence/V320-004.md` - V320-004 production config, venue, credential,
+  and environment provenance closeout evidence for GitHub issue #1046.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
