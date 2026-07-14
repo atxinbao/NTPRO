@@ -321,6 +321,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   v0.32.0 only as the Backend Production Closeout scoped-intake version.
 - `../evidence/V320-000.md` - V320-000 v32 intake gate and v31.1 dependency
   proof evidence for GitHub issue #1042.
+- `v0_32_0_backend_closeout_boundary_contract.md` and
+  `v0_32_0_backend_closeout_boundary_contract.json` - V320-001 backend
+  production closeout boundary and scoped authorization contract. It requires
+  source-controlled owner/operator scoped authorization for any later backend
+  production execution path while preserving no runtime execution authority.
+- `../evidence/V320-001.md` - V320-001 backend production closeout boundary and
+  scoped authorization evidence for GitHub issue #1043.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend

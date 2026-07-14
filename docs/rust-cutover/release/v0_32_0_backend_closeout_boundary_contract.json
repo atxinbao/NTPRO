@@ -1,0 +1,268 @@
+{
+  "schema_version": "ntpro.v320.backend_closeout_boundary.v1",
+  "contract_version": "ntpro.v320.backend_closeout_boundary.v1",
+  "task_id": "V320-001",
+  "github_issue": 1043,
+  "milestone": "v0.32.0",
+  "capability_track": "backend_production_closeout",
+  "release_scope": "backend_production_closeout_scoped_authorization_contract",
+  "depends_on": {
+    "task_id": "V320-000",
+    "github_issue": 1042,
+    "intake_gate": "docs/rust-cutover/release/v0_32_0_intake_gate.json",
+    "required_issue_state": "closed",
+    "required_intake_status": "dependency_proof_satisfied_backend_closeout_scoped_intake_only",
+    "required_predecessor_release": "ntpro-rust-only-v0.31.1"
+  },
+  "boundary_status": "scoped_authorization_required_no_execution_authority",
+  "definition": {
+    "backend_service_closeout": "source_controlled_backend_readiness_and_closeout_evidence_only",
+    "scoped_backend_production_authorization": "source_controlled_owner_operator_authorization_record_for_a_bounded_later_backend_production_execution_path",
+    "actual_backend_production_execution": "runtime_path_that_can_affect_live_operational_state_or_trading_state",
+    "product_grade_live_trading_terminal": "user_facing_live_trading_surface_with_submit_mutation_adapter_send_exchange_request_or_trading_controls",
+    "authorization_source_of_truth": "source_controlled_artifact",
+    "chat_approval_allowed": false,
+    "external_notes_approval_allowed": false,
+    "runtime_execution_authorized_by_this_contract": false,
+    "backend_closeout_does_not_mean": [
+      "frontend_completion",
+      "product_grade_live_trading_terminal",
+      "default_production_execution",
+      "production_order_submission",
+      "production_order_mutation",
+      "adapter_send",
+      "live_exchange_request",
+      "automatic_remediation",
+      "dashboard_admin_trader_terminal_trading_controls"
+    ]
+  },
+  "explicit_scoped_authorization_contract": {
+    "required": true,
+    "missing_authorization_status": "fail_closed_missing_scoped_authorization",
+    "authorization_scope_must_include": [
+      "approval_id",
+      "owner",
+      "operator",
+      "reviewer",
+      "github_issue",
+      "release_version",
+      "environment",
+      "venue_scope",
+      "account_scope",
+      "strategy_scope",
+      "change_window_id",
+      "requested_capability",
+      "risk_decision_ref",
+      "audit_evidence_ref",
+      "rollback_plan_ref",
+      "telemetry_slo_ref",
+      "request_digest",
+      "boundary_digest",
+      "issued_at",
+      "expires_at",
+      "revocation_conditions"
+    ],
+    "allowed_requested_capabilities": [
+      "backend_production_closeout_readiness_evaluation",
+      "backend_production_closeout_scoped_authorization_recording",
+      "backend_enablement_state_read_model_evidence"
+    ],
+    "forbidden_requested_capabilities": [
+      "submit_order",
+      "cancel_order",
+      "replace_order",
+      "amend_order",
+      "flatten_position",
+      "adapter_send",
+      "live_exchange_request",
+      "retry_scheduler",
+      "automatic_remediation",
+      "dashboard_trading_control",
+      "admin_workbench_trading_control",
+      "trader_terminal_order_ticket",
+      "broad_live_exchange_access",
+      "unbounded_production_execution",
+      "product_grade_live_trading_terminal",
+      "frontend_completion"
+    ],
+    "approval_alone_authorizes_execution": false,
+    "runtime_execution_authorized_by_this_contract": false,
+    "downstream_gates_still_required": [
+      {
+        "id": "owner_operator_approval_freeze_change_window",
+        "issue": 1044,
+        "status": "required_later",
+        "current_satisfied": false,
+        "bypass_allowed": false
+      },
+      {
+        "id": "risk_audit_go_no_go",
+        "issue": 1045,
+        "status": "required_later",
+        "current_satisfied": false,
+        "bypass_allowed": false
+      },
+      {
+        "id": "production_config_venue_credential_environment_provenance",
+        "issue": 1046,
+        "status": "required_later",
+        "current_satisfied": false,
+        "bypass_allowed": false
+      },
+      {
+        "id": "canary_rollback_disaster_recovery",
+        "issue": 1047,
+        "status": "required_later",
+        "current_satisfied": false,
+        "bypass_allowed": false
+      },
+      {
+        "id": "telemetry_slo_alerting_incident",
+        "issue": 1048,
+        "status": "required_later",
+        "current_satisfied": false,
+        "bypass_allowed": false
+      },
+      {
+        "id": "backend_enablement_state_read_model_admin_bridge",
+        "issue": 1049,
+        "status": "required_later",
+        "current_satisfied": false,
+        "bypass_allowed": false
+      },
+      {
+        "id": "fail_closed_negative_tests",
+        "issue": 1050,
+        "status": "required_later",
+        "current_satisfied": false,
+        "bypass_allowed": false
+      },
+      {
+        "id": "v32_release_gates_strict_provenance_publication",
+        "issue": 1051,
+        "status": "required_later",
+        "current_satisfied": false,
+        "bypass_allowed": false
+      }
+    ],
+    "revocation_conditions": [
+      "authorization_expired",
+      "authorization_explicitly_revoked",
+      "boundary_digest_mismatch",
+      "request_digest_mismatch",
+      "environment_scope_drift",
+      "venue_scope_drift",
+      "account_scope_drift",
+      "strategy_scope_drift",
+      "incident_freeze_active",
+      "risk_gate_not_green",
+      "audit_gate_not_green",
+      "rollback_dr_unavailable",
+      "telemetry_slo_gate_not_green",
+      "release_gate_not_successful"
+    ]
+  },
+  "non_inheritance_boundary": {
+    "inherits_submit": false,
+    "inherits_mutation": false,
+    "inherits_adapter_send": false,
+    "inherits_live_exchange_request": false,
+    "inherits_retry_scheduler": false,
+    "inherits_automatic_remediation": false,
+    "inherits_dashboard_trading_controls": false,
+    "inherits_admin_workbench_trading_controls": false,
+    "inherits_trader_terminal_order_ticket": false,
+    "inherits_frontend_completion_claim": false,
+    "inherits_backend_go_live_claim": false,
+    "inherits_product_grade_live_trading_claim": false
+  },
+  "runtime_boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "frontend_completion_claim": false,
+    "backend_go_live_claim": false,
+    "actual_backend_production_go_live_allowed": false,
+    "product_grade_trading_terminal_claim": false,
+    "product_grade_live_trading_terminal_claim": false,
+    "default_production_execution_allowed": false,
+    "unscoped_production_execution_allowed": false,
+    "scoped_authorization_alone_executes": false
+  },
+  "decision_cases": [
+    {
+      "case_id": "v32_boundary.missing_intake.fail_closed.001",
+      "v320_intake_proof_present": false,
+      "scoped_authorization_present": true,
+      "expected_status": "fail_closed_missing_v32_intake_dependency"
+    },
+    {
+      "case_id": "v32_boundary.missing_scoped_authorization.fail_closed.001",
+      "v320_intake_proof_present": true,
+      "scoped_authorization_present": false,
+      "expected_status": "fail_closed_missing_scoped_authorization"
+    },
+    {
+      "case_id": "v32_boundary.forbidden_requested_capability.fail_closed.001",
+      "v320_intake_proof_present": true,
+      "scoped_authorization_present": true,
+      "requested_capability": "adapter_send",
+      "expected_status": "fail_closed_forbidden_requested_capability"
+    },
+    {
+      "case_id": "v32_boundary.unscoped_default_execution.fail_closed.001",
+      "v320_intake_proof_present": true,
+      "scoped_authorization_present": true,
+      "unscoped_production_execution": true,
+      "expected_status": "fail_closed_unscoped_or_inherited_execution_authority"
+    },
+    {
+      "case_id": "v32_boundary.revoked_authorization.fail_closed.001",
+      "v320_intake_proof_present": true,
+      "scoped_authorization_present": true,
+      "authorization_revoked_or_expired": true,
+      "expected_status": "fail_closed_revoked_or_expired_authorization"
+    },
+    {
+      "case_id": "v32_boundary.scoped_authorization_no_execution.wait_downstream.001",
+      "v320_intake_proof_present": true,
+      "scoped_authorization_present": true,
+      "downstream_gates_complete": false,
+      "expected_status": "scoped_authorization_recorded_execution_still_blocked_by_downstream_gates"
+    },
+    {
+      "case_id": "v32_boundary.contract_satisfied.no_runtime_execution.001",
+      "v320_intake_proof_present": true,
+      "scoped_authorization_present": true,
+      "downstream_gates_complete": true,
+      "expected_status": "boundary_contract_satisfied_no_runtime_execution"
+    }
+  ],
+  "auditability": {
+    "requires_source_controlled_contract": true,
+    "requires_source_controlled_evidence": true,
+    "chat_or_external_notes_sufficient": false,
+    "github_issue_required": true,
+    "deterministic_negative_cases_required": true,
+    "live_dependency_check_required": true
+  },
+  "runtime_behavior_changed": false,
+  "trading_behavior_changed": false
+}
