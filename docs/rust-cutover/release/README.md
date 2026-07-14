@@ -280,6 +280,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   final V310 issue set `#1006-#1015 plus #1033`, the single corrective-scope
   exception `#1033`, and fail-closed handling for unregistered corrective
   milestone issues.
+- `../evidence/V311-005.md` - V311-005 v31 publication evidence reconstruction
+  and closeout audit path evidence for GitHub issue #1040. It adds
+  `scripts/ai/verify_v31_publication_evidence_reconstruction.sh`, which
+  reconstructs v31 publication facts from source-controlled closeout evidence,
+  the GitHub Release, tag, hosted gate, publish workflow, workflow artifact,
+  and milestone/issue state while preserving `source_tree_plus_github_remote`
+  publication-evidence policy.
 - `v0_31_0_v32_backend_production_closeout_handoff.md` and
   `v0_31_0_v32_backend_production_closeout_handoff.json` - V310-009 v32
   handoff. It keeps v32 hard-blocked until v31 release evidence and explicit
