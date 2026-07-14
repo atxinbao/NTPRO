@@ -371,6 +371,14 @@ Final release checks, benchmark summaries, and audit reports live here.
   visibility, render replay cases, and fail-closed forbidden controls.
 - `../evidence/V320-007.md` - V320-007 backend enablement state read model and
   admin bridge closeout evidence for GitHub issue #1049.
+- `v0_32_0_fail_closed_negative_tests.md` and
+  `v0_32_0_fail_closed_negative_tests.json` - V320-008 fail-closed negative
+  tests for unscoped production execution and controls. It validates missing
+  proof, stale/mismatched evidence, unresolved incident, forbidden execution
+  controls, explicit-false control boundaries, and no positive production
+  execution authorization from negative tests alone.
+- `../evidence/V320-008.md` - V320-008 fail-closed negative-test evidence for
+  GitHub issue #1050.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
