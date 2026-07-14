@@ -315,6 +315,12 @@ Final release checks, benchmark summaries, and audit reports live here.
   approval are present.
 - `../evidence/V311-006.md` - V311-006 v31.1 release gates, strict provenance,
   and v32 start-gate handoff evidence for GitHub issue #1041.
+- `v0_32_0_intake_gate.md` and `v0_32_0_intake_gate.json` - V320-000 v32 intake
+  proof. It verifies the public v0.31.1 release, hosted gate, published
+  release body hashes, closed milestone, exact V311 issue closeout, and opens
+  v0.32.0 only as the Backend Production Closeout scoped-intake version.
+- `../evidence/V320-000.md` - V320-000 v32 intake gate and v31.1 dependency
+  proof evidence for GitHub issue #1042.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
