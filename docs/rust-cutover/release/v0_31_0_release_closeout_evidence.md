@@ -75,6 +75,14 @@ published_at is public publication proof = true
 published_at >= release_gate_completed_at = true
 source_tree_plus_github_remote reconstruction accepted = true
 generated-evidence-only proof accepted = false
+publication evidence reconstruction verifier = scripts/ai/verify_v31_publication_evidence_reconstruction.sh
+release-publication-evidence artifact = release-publication-evidence-ntpro-rust-only-v0.31.0
+release-publication-evidence artifact file = ntpro-rust-only-v0.31.0.json
+workflow artifact evidence agrees with source closeout = true
+release-publish-after-gate ordering is reconstructable = true
+tag commit mismatch fails closed = true
+local generated publication artifact required in source tree = false
+generated publication artifact sole source of truth = false
 ```
 
 ## Release Body Hash
@@ -183,8 +191,11 @@ default_production_execution_allowed = false
 
 ```text
 v31.1 post-publication closeout evidence = scripts/ai/verify_v31_1_post_publication_closeout_evidence.sh
+v31 publication evidence reconstruction verifier = scripts/ai/verify_v31_publication_evidence_reconstruction.sh
 source mode = required
 live mode = required for V311-001 PR evidence
+reconstruction source mode = required in v31 release gates
+reconstruction live mode = required for V311-005 PR evidence
 ```
 
 ## Reconstruction Commands
@@ -200,4 +211,6 @@ git rev-parse 'ntpro-rust-only-v0.31.0^{}'
 git ls-remote --tags origin refs/tags/ntpro-rust-only-v0.31.0 'refs/tags/ntpro-rust-only-v0.31.0^{}'
 scripts/ai/verify_v31_1_post_publication_closeout_evidence.sh source
 scripts/ai/verify_v31_1_post_publication_closeout_evidence.sh live
+scripts/ai/verify_v31_publication_evidence_reconstruction.sh source
+scripts/ai/verify_v31_publication_evidence_reconstruction.sh live
 ```

@@ -82,6 +82,7 @@ for path in \
   docs/rust-cutover/release/README.md \
   scripts/ai/check_github_release_published.sh \
   scripts/ai/publish_ntpro_release_after_gate.sh \
+  scripts/ai/verify_v31_publication_evidence_reconstruction.sh \
   scripts/ai/verify_v31_forbidden_production_execution_negative_tests.sh \
   scripts/ai/verify_v31_release_gates.sh \
   scripts/ai/verify_v31_strict_provenance.sh \
@@ -180,6 +181,7 @@ for path in "$RELEASE_NOTES_PATH" "$READINESS_REPORT_PATH" "$MANIFEST_PATH" "$V3
 done
 
 scripts/ai/verify_v31_forbidden_production_execution_negative_tests.sh >/dev/null
+scripts/ai/verify_v31_publication_evidence_reconstruction.sh source >/dev/null
 
 NTPRO_CURRENT_RELEASE_VERSION="$RELEASE_VERSION" \
   NTPRO_CURRENT_RELEASE_TAG="$RELEASE_TAG" \

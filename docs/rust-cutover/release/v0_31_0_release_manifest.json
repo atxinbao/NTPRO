@@ -69,6 +69,8 @@
     "release_closeout_evidence_path": "docs/rust-cutover/release/v0_31_0_release_closeout_evidence.md",
     "v311_post_publication_closeout_evidence_path": "docs/rust-cutover/evidence/V311-001.md",
     "v311_post_publication_closeout_gate_path": "scripts/ai/verify_v31_1_post_publication_closeout_evidence.sh",
+    "v311_publication_reconstruction_evidence_path": "docs/rust-cutover/evidence/V311-005.md",
+    "v311_publication_reconstruction_gate_path": "scripts/ai/verify_v31_publication_evidence_reconstruction.sh",
     "v32_handoff_path": "docs/rust-cutover/release/v0_31_0_v32_backend_production_closeout_handoff.md",
     "v32_handoff_contract_path": "docs/rust-cutover/release/v0_31_0_v32_backend_production_closeout_handoff.json",
     "release_index_path": "docs/rust-cutover/release/README.md",
@@ -226,6 +228,34 @@
     "current_release_body_raw_matches_tracked_release_notes": true,
     "v31_1_closeout_patch": true,
     "v32_backend_closeout_blocked_until_v311_release_evidence": true
+  },
+  "publication_evidence_reconstruction": {
+    "task_id": "V311-005",
+    "issue": 1040,
+    "status": "source_tree_plus_github_remote_reconstructable",
+    "verifier_path": "scripts/ai/verify_v31_publication_evidence_reconstruction.sh",
+    "closeout_audit_path": "docs/rust-cutover/release/v0_31_0_release_closeout_evidence.md",
+    "source_controlled_closeout_evidence_required": true,
+    "github_remote_state_required": true,
+    "release_publish_workflow_artifact_name": "release-publication-evidence-ntpro-rust-only-v0.31.0",
+    "release_publish_workflow_artifact_file": "ntpro-rust-only-v0.31.0.json",
+    "release_publish_workflow_artifact_required_for_live_reconstruction": true,
+    "release_publish_workflow_artifact_sole_source_of_truth": false,
+    "local_generated_artifact_required_in_source_tree": false,
+    "local_generated_artifact_sole_source_of_truth": false,
+    "release_publish_after_gate_ordering_required": true,
+    "same_tag_commit_required": true,
+    "release_gate_head_sha_matches_tag": true,
+    "publish_workflow_head_sha_matches_tag": true,
+    "remote_tag_object_matches_manifest": true,
+    "remote_tag_peeled_commit_matches_manifest": true,
+    "closeout_audit_path_in_v31_release_gates": true,
+    "negative_selftest_cases": [
+      "publication_before_gate",
+      "release_gate_head_sha_mismatch",
+      "publish_workflow_head_sha_mismatch",
+      "generated_artifact_as_sole_proof"
+    ]
   },
   "next_tracks": {
     "capability": "v0.32.0",
