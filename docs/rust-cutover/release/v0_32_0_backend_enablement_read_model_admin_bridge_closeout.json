@@ -1,0 +1,189 @@
+{
+  "schema_version": "ntpro.v320_backend_enablement_read_model_admin_bridge_closeout.v1",
+  "task_id": "V320-007",
+  "github_issue": 1049,
+  "milestone": "v0.32.0",
+  "capability_track": "backend_production_closeout",
+  "depends_on": [
+    {
+      "task_id": "V320-006",
+      "github_issue": 1048,
+      "required_status": "closed"
+    }
+  ],
+  "gate_status": "backend_enablement_state_read_model_admin_bridge_ready_read_only_no_controls",
+  "read_model_projection": {
+    "required": true,
+    "provenance_required": true,
+    "release_bound_required": true,
+    "environment_bound_required": true,
+    "freshness_required": true,
+    "max_age_seconds": 300,
+    "missing_status": "fail_closed_missing_projection",
+    "stale_status": "fail_closed_stale_projection",
+    "required_inputs": [
+      "owner_operator_scoped_approval",
+      "risk_audit_go_no_go",
+      "config_venue_credential_environment",
+      "canary_rollback_dr",
+      "telemetry_slo_alert_incident",
+      "release_dependency_proof",
+      "provenance_references"
+    ],
+    "required_fields": [
+      "release_id",
+      "milestone",
+      "owner_operator_scope",
+      "approval_status",
+      "gate_statuses",
+      "config_venue_environment_status",
+      "canary_status",
+      "rollback_status",
+      "dr_status",
+      "telemetry_status",
+      "slo_status",
+      "alert_status",
+      "incident_status",
+      "go_no_go_status",
+      "provenance_refs"
+    ]
+  },
+  "admin_bridge": {
+    "required": true,
+    "read_only": true,
+    "operator_visibility_required": true,
+    "audit_visibility_required": true,
+    "mutation_route_status": "fail_closed_admin_mutation_control",
+    "allowed_actions": [
+      "read_backend_closeout_state",
+      "render_backend_closeout_state",
+      "read_provenance_refs",
+      "read_audit_refs"
+    ],
+    "forbidden_actions": [
+      "submit",
+      "cancel",
+      "replace",
+      "amend",
+      "flatten",
+      "remediate",
+      "adapter_send",
+      "live_exchange_request",
+      "retry_schedule",
+      "production_state_mutation"
+    ]
+  },
+  "render_replay_cases": [
+    {
+      "case_id": "v32_admin_bridge.ready.render.001",
+      "state": "ready",
+      "projection": "fresh",
+      "backend_gate": "pass",
+      "change_window": "open",
+      "rollback": "inactive",
+      "incident": "resolved",
+      "forbidden_control_present": false,
+      "expected_status": "backend_closeout_state_visible_read_only_no_controls"
+    },
+    {
+      "case_id": "v32_admin_bridge.blocked.render.001",
+      "state": "blocked",
+      "projection": "fresh",
+      "backend_gate": "blocked",
+      "change_window": "open",
+      "rollback": "inactive",
+      "incident": "resolved",
+      "forbidden_control_present": false,
+      "expected_status": "fail_closed_backend_gate_blocked"
+    },
+    {
+      "case_id": "v32_admin_bridge.frozen.render.001",
+      "state": "frozen",
+      "projection": "fresh",
+      "backend_gate": "pass",
+      "change_window": "frozen",
+      "rollback": "inactive",
+      "incident": "resolved",
+      "forbidden_control_present": false,
+      "expected_status": "fail_closed_change_window_frozen"
+    },
+    {
+      "case_id": "v32_admin_bridge.rollback.render.001",
+      "state": "rollback_active",
+      "projection": "fresh",
+      "backend_gate": "pass",
+      "change_window": "open",
+      "rollback": "active",
+      "incident": "resolved",
+      "forbidden_control_present": false,
+      "expected_status": "fail_closed_rollback_active"
+    },
+    {
+      "case_id": "v32_admin_bridge.incident.render.001",
+      "state": "incident_active",
+      "projection": "fresh",
+      "backend_gate": "pass",
+      "change_window": "open",
+      "rollback": "inactive",
+      "incident": "active",
+      "forbidden_control_present": false,
+      "expected_status": "fail_closed_incident_active"
+    },
+    {
+      "case_id": "v32_admin_bridge.forbidden_control.render.001",
+      "state": "ready",
+      "projection": "fresh",
+      "backend_gate": "pass",
+      "change_window": "open",
+      "rollback": "inactive",
+      "incident": "resolved",
+      "forbidden_control_present": true,
+      "expected_status": "fail_closed_forbidden_control"
+    },
+    {
+      "case_id": "v32_admin_bridge.missing_projection.render.001",
+      "state": "blocked",
+      "projection": "missing",
+      "backend_gate": "pass",
+      "change_window": "open",
+      "rollback": "inactive",
+      "incident": "resolved",
+      "forbidden_control_present": false,
+      "expected_status": "fail_closed_missing_projection"
+    },
+    {
+      "case_id": "v32_admin_bridge.stale_projection.render.001",
+      "state": "blocked",
+      "projection": "stale",
+      "backend_gate": "pass",
+      "change_window": "open",
+      "rollback": "inactive",
+      "incident": "resolved",
+      "forbidden_control_present": false,
+      "expected_status": "fail_closed_stale_projection"
+    }
+  ],
+  "surface_boundary_flags": {
+    "admin_bridge_mutation_allowed": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "submit_control_enabled": false,
+    "cancel_control_enabled": false,
+    "replace_control_enabled": false,
+    "amend_control_enabled": false,
+    "flatten_control_enabled": false,
+    "remediation_control_enabled": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_recovery_allowed": false,
+    "frontend_completion_claim": false,
+    "backend_go_live_claim": false,
+    "product_grade_trading_terminal_claim": false
+  },
+  "runtime_behavior_changed": false,
+  "trading_behavior_changed": false
+}

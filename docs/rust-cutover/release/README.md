@@ -364,6 +364,13 @@ Final release checks, benchmark summaries, and audit reports live here.
   rollback plan linkage, and no automatic action authority.
 - `../evidence/V320-006.md` - V320-006 telemetry, SLO, alerting, and incident
   closeout evidence for GitHub issue #1048.
+- `v0_32_0_backend_enablement_read_model_admin_bridge_closeout.md` and
+  `v0_32_0_backend_enablement_read_model_admin_bridge_closeout.json` -
+  V320-007 backend enablement state read model and read-only admin bridge
+  closeout. It validates closeout-state projection, read-only operator/audit
+  visibility, render replay cases, and fail-closed forbidden controls.
+- `../evidence/V320-007.md` - V320-007 backend enablement state read model and
+  admin bridge closeout evidence for GitHub issue #1049.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend
