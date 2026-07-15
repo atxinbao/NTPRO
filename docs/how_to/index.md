@@ -6,12 +6,6 @@ Nautilus concepts and focuses on achieving a specific outcome.
 New to Nautilus? Start with the [getting started](../getting_started/)
 path and the Rust guides below first.
 
-## Live trading
-
-| Guide                                                         | Description                                             |
-|:--------------------------------------------------------------|:--------------------------------------------------------|
-| [Configure a live trading node](configure_live_trading)       | Set up TradingNodeConfig, execution engine, and venues. |
-
 ## Rust
 
 | Guide                                                     | Description                                            |
@@ -20,3 +14,10 @@ path and the Rust guides below first.
 | [Write a Strategy (Rust)](write_rust_strategy)            | Build a strategy with order management.                |
 | [Run a Backtest (Rust)](run_rust_backtest)                | Use BacktestEngine or BacktestNode with a catalog.     |
 | [Run Live Trading (Rust)](run_rust_live_trading)          | Connect to a venue with LiveNode.                      |
+
+:::warning[Backend freeze boundary]
+The Rust live guide documents library construction, not production go-live
+authorization. The v0.32.0 backend baseline authorizes only the bounded
+[sandbox live-init example](../../examples/rust/live/README.md); external venue
+execution remains separately scoped.
+:::

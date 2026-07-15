@@ -476,8 +476,9 @@ exec_engine = LiveExecEngineConfig(
 A 60-minute buffer keeps recent activity available for reconciliation while still
 trimming long-tail growth. Tune these down for HFT sessions and up if you need longer
 historical lookbacks for analytics. See
-[Configure live trading: memory management](../how_to/configure_live_trading.md) for the
-full parameter reference.
+the [legacy Python guides retirement note](../rust-cutover/migration/legacy_python_guides_retired.md)
+for the removed upstream configuration route. A current Rust parameter
+reference must be added only with an owning runtime contract.
 
 :::note
 The instrument purge has no automatic loop because the right time to drop an instrument

@@ -19,9 +19,9 @@ without relying on Python, PyO3, or Cython.
 
 - **Backtesting** - start with [Run a Backtest (Rust)](../how_to/run_rust_backtest.md),
   then review the Rust tutorials for strategy pattern walkthroughs.
-- **Live trading** - see the
-  [Configure a live trading node](../how_to/configure_live_trading.md) how-to
-  and [Integrations](../integrations/) for supported venues.
+- **Live-node development** - start with the bounded
+  [Rust sandbox live-init example](../../examples/rust/live/README.md). The
+  v0.32.0 backend baseline does not authorize production venue execution.
 - **Data workflows** - see the [how-to guides](../how_to/) for loading
   external data and setting up the Parquet data catalog.
 - **Building adapters** - see the [Developer guide](../developer_guide/).

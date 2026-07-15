@@ -478,7 +478,8 @@ The likelihood of reconciliation race conditions increases when:
   provides time for WebSocket connections to stabilize before continuous reconciliation begins.
   Reducing this increases the chance of duplicate fills during the startup window.
 
-See [Continuous reconciliation](../how_to/configure_live_trading.md#continuous-reconciliation) for configuration details.
+See [Execution reconciliation](live.md#execution-reconciliation) for the
+current conceptual boundary.
 
 ### System behavior
 

@@ -12,9 +12,9 @@ between backtesting and live trading.**
 
 For how config structs handle defaults, `T` vs `Option<T>` semantics, and
 builder patterns, see the [Configuration](configuration.md) concept guide.
-For step-by-step setup of `TradingNodeConfig`, execution engine options, strategy
-configuration, and multi-venue wiring, see the
-[Configure a live trading node](../how_to/configure_live_trading.md) how-to guide.
+For the bounded post-freeze setup path, see the
+[Rust sandbox live-init example](../../examples/rust/live/README.md) and the
+[live/sandbox CLI contract](../rust-cutover/product/LIVE_SANDBOX_CLI_CONTRACT.md).
 
 ## Execution reconciliation
 
@@ -272,7 +272,7 @@ from fills and adjusts to reconstruct positions accurately.
 
 ## Related guides
 
-- [Configure a live trading node](../how_to/configure_live_trading.md) - Node and engine configuration.
+- [Run Live Trading (Rust)](../how_to/run_rust_live_trading.md) - Rust library construction; not production authorization.
 - [Adapters](adapters.md) - Venue connectivity.
 - [Execution](execution.md) - Order execution in live environments.
 - [Backtesting](backtesting.md) - Testing strategies before deployment.
