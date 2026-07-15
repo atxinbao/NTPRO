@@ -21,6 +21,7 @@ use std::{
 use clap::{Parser, Subcommand, ValueEnum};
 use ntpro_governance::{
     backend_freeze::{BackendFreezeConfig, validate_backend_freeze},
+    control_plane::validate_control_plane_retirement,
     docs_examples::validate_docs_examples,
     golden_trace::{replay_trace, validate_release_scope, validate_trace},
     read_model::validate_read_model_schema,
@@ -66,6 +67,8 @@ enum Command {
         #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         negative_selftest: bool,
     },
+    /// Validates retirement of legacy Python control-plane tooling.
+    ControlPlaneRetirement,
     /// Validates the retained Rust docs and examples governance surface.
     DocsExamples,
     /// Validates or replays one golden trace JSONL file.
@@ -190,6 +193,13 @@ fn run(cli: Cli) -> anyhow::Result<()> {
                     counts.negative_cases
                 );
             }
+        }
+        Command::ControlPlaneRetirement => {
+            let counts = validate_control_plane_retirement()?;
+            println!(
+                "control_plane_retirement=pass retired_tools={} authority_files={} inventory_rows={}",
+                counts.retired_tools, counts.authority_files, counts.inventory_rows
+            );
         }
         Command::DocsExamples => {
             let counts = validate_docs_examples()?;

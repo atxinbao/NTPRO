@@ -1,7 +1,7 @@
 # NTPRO Rust Cutover Pull Request
 
-NTPRO is a Rust-first cutover workspace. Keep every PR bound to one task, one
-lease, one branch, and one review gate.
+NTPRO is a Rust-first cutover workspace. Keep every PR bound to one GitHub
+issue, one branch, and one review gate.
 
 ## Task
 
@@ -11,7 +11,7 @@ lease, one branch, and one review gate.
 - Review role:
 - Risk level:
 - Branch:
-- Lease file:
+- GitHub issue:
 - Backend freeze classification:
 - Frozen backend boundary touched:
 - Forbidden capability request:
@@ -33,7 +33,7 @@ lease, one branch, and one review gate.
 ## Scope Checklist
 
 - [ ] This PR covers one task only.
-- [ ] Touched paths match the lease and task path scope.
+- [ ] Touched paths match the GitHub issue and task path scope.
 - [ ] No unrelated refactors or formatting churn.
 - [ ] No forbidden paths were modified.
 - [ ] Python, PyO3, or Cython surfaces were not removed unless an explicit scope

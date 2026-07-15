@@ -71,6 +71,11 @@ PTC-005 must either bind a still-required operation to Rust or documented
 standard `git`/`gh`/`jq` commands, or record formal retirement. Historical
 inventory reports remain retained.
 
+PTC-005 retirement outcome: GitHub issues, labels, branches, PRs, and hosted
+checks are the only active control authority. The five Python implementations
+are removed; no replacement custom dispatcher is added; the Cython CSV remains
+a byte-identical historical snapshot.
+
 ### Retire Historical Executables
 
 The 262 `scripts/ai/verify_v*.sh` files describe successive release lines;

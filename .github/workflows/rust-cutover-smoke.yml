@@ -183,6 +183,8 @@ jobs:
         run: scripts/ai/check_docs_examples_governance.sh
       - name: Current governance Rust-only gate
         run: scripts/ai/check_current_governance_rust_only.sh
+      - name: Legacy control-plane retirement gate
+        run: scripts/ai/check_control_plane_retired.sh
       - name: Workspace cargo check
         if: steps.changes.outputs.heavy_rust == 'true'
         run: cargo check --workspace --features "$NAUTILUS_RUST_FEATURES"
