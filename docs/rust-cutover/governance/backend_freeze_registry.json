@@ -1,0 +1,124 @@
+{
+  "schema_version": "ntpro.backend_freeze_registry.v1",
+  "task_id": "BFG-001",
+  "status": "active",
+  "recorded_on": "2026-07-15",
+  "baseline": {
+    "version": "v0.32.0",
+    "capability_class": "Backend Production Closeout",
+    "release_scope_name": "backend_production_closeout",
+    "release_status": "released_and_frozen",
+    "tag": {
+      "name": "ntpro-rust-only-v0.32.0",
+      "type": "annotated",
+      "object_sha": "b9a66f12ede051968723ace22b3f06a8e7ac5a09",
+      "peeled_commit_sha": "2b955cb8a989827e3351c08c3d82d9578253e1f6"
+    },
+    "source_branch_at_publication": "main"
+  },
+  "github_release": {
+    "name": "NTPRO Rust-only v0.32.0",
+    "url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.32.0",
+    "target_commitish": "main",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-07-14T23:36:13Z"
+  },
+  "hosted_release_gate": {
+    "workflow_name": "Rust Cutover Release Gate",
+    "run_id": 29371898609,
+    "url": "https://github.com/atxinbao/NTPRO/actions/runs/29371898609",
+    "head_sha": "2b955cb8a989827e3351c08c3d82d9578253e1f6",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-07-14T22:06:38Z",
+    "completed_at": "2026-07-14T23:34:29Z"
+  },
+  "release_scope": {
+    "milestone_number": 30,
+    "milestone_title": "v0.32.0",
+    "milestone_state": "closed",
+    "exact_issue_numbers": [1042, 1043, 1044, 1045, 1046, 1047, 1048, 1049, 1050, 1051],
+    "exact_issue_set": "#1042-#1051",
+    "issue_count": 10,
+    "all_issues_closed": true
+  },
+  "source_evidence": {
+    "audit_strategy": "source_tree_plus_github_remote",
+    "local_generated_evidence_required": false,
+    "generated_evidence_sole_proof_allowed": false,
+    "remote_reconstruction_required": true,
+    "files": [
+      {
+        "path": "docs/rust-cutover/release/v0_32_0_release_manifest.json",
+        "sha256": "6e132c6ba8fcb945738087a160fb8b6baee533e66ee5d8687f5fc81663fd4929"
+      },
+      {
+        "path": "docs/rust-cutover/release/v0_32_0_release_notes.md",
+        "sha256": "d91e75e7e9514deef2307cb52140c353032e8fd25bfde8559d06384e0c5dc744"
+      },
+      {
+        "path": "docs/rust-cutover/release/v0_32_0_release_closeout_evidence.md",
+        "sha256": "524e2d83e4ad20745de50aa3ea9e8c1cdcca31c51795e1aea9ad61dc0e04d479"
+      },
+      {
+        "path": "docs/rust-cutover/release/v0_32_0_readiness_report.md",
+        "sha256": "b4ba3bd09a6c27783e1ddf6e3833337eab04a0b1db31e66e9c0dcee41c56b5e6"
+      }
+    ]
+  },
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "automatic_recovery_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "actual_backend_production_go_live_allowed": false,
+    "frontend_completion_claim": false,
+    "product_grade_trading_terminal_claim": false,
+    "product_grade_live_trading_terminal_claim": false,
+    "default_production_execution_allowed": false
+  },
+  "next_track_contract": {
+    "default_patch_scheduled": false,
+    "default_patch_version": null,
+    "governance_track": "backend-freeze-governance",
+    "next_capability_track": "v0.33.0+",
+    "capability_entry": "separately_scoped_only",
+    "inherits_backend_go_live_claim": false,
+    "inherits_production_submit": false,
+    "inherits_production_mutation": false,
+    "inherits_adapter_send": false,
+    "inherits_live_exchange_request": false,
+    "inherits_retry_scheduler": false,
+    "inherits_automatic_remediation": false,
+    "inherits_dashboard_trading_controls": false,
+    "inherits_admin_workbench_trading_controls": false,
+    "inherits_trader_terminal_order_ticket": false
+  },
+  "immutability": {
+    "published_tag_rewrite_allowed": false,
+    "published_release_rewrite_allowed": false,
+    "baseline_release_package_routine_edit_allowed": false,
+    "documentary_correction_route": "post_baseline_errata",
+    "backend_patch_requires_proven_baseline_invalidity": true,
+    "backend_freeze_exception_issue_required": true
+  }
+}
