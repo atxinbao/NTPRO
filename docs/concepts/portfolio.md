@@ -1,5 +1,12 @@
 # Portfolio
 
+:::warning[Rust-only authority]
+Current NTPRO authority is the Rust source and bounded product contracts.
+Any Python snippet on this page is retained upstream lineage, not a runnable
+product entrypoint or production authorization. The v0.32.0 backend freeze
+continues to forbid inherited execution and trading-control capability.
+:::
+
 The Portfolio is the central hub for managing and tracking all positions across active strategies for the trading node or backtest.
 It consolidates position data from multiple instruments, providing a unified view of your holdings, risk exposure, and overall performance.
 
@@ -230,7 +237,8 @@ stat = WinRate()
 engine.portfolio.analyzer.register_statistic(stat)
 ```
 
-See the [`PortfolioAnalyzer` API Reference](/docs/python-api-latest/analysis.html#nautilus_trader.analysis.analyzer.PortfolioAnalyzer) for all available methods.
+See the [`PortfolioAnalyzer` Rust source](../../crates/analysis/src/analyzer.rs)
+for current methods.
 
 :::tip
 Your statistic should handle degenerate inputs such as `None`, empty series, or insufficient data.

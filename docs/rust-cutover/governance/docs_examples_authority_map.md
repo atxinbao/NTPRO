@@ -54,7 +54,7 @@ authority or silently delete examples referenced by product contracts.
 - Python legacy tutorials and affected tutorial indexes;
 - Python-specific how-to and developer-guide pages;
 - integration pages containing unqualified Python runtime instructions;
-- concept and public pages linking to `/docs/python-api-latest/`.
+- concept and public pages linking to the retired Python API URL family.
 
 DEXG-004 through DEXG-006 own these decisions. A page is rewritten when a
 current Rust/config/CLI authority exists; otherwise it is retired with an

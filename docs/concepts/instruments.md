@@ -1,11 +1,17 @@
 # Instruments
 
-An instrument represents the specification for any tradable asset or contract. All
-instrument types are implemented as Rust structs that implement the `Instrument`
-trait. In Python, these are exposed as Cython extension types (via
-`nautilus_trader.model.instruments`), with parallel PyO3 representations that are
-converted to Cython types at the boundary. Pure Rust systems use the Rust types
-directly. The platform supports a range of asset classes and instrument classes:
+:::warning[Rust-only authority]
+Current NTPRO authority is the Rust source and bounded product contracts.
+Any Python snippet on this page is retained upstream lineage, not a runnable
+product entrypoint or production authorization. The v0.32.0 backend freeze
+continues to forbid inherited execution and trading-control capability.
+:::
+
+An instrument represents the specification for any tradable asset or contract.
+Current instrument types are Rust structs that implement the `Instrument`
+trait. Historical Python, Cython, and PyO3 representations are lineage only and
+are not NTPRO product surfaces. The Rust model supports these asset and
+instrument classes:
 
 - `Equity`: Listed shares or ETFs traded on cash markets.
 - `CurrencyPair`: Spot FX or crypto pair in BASE/QUOTE format traded in cash markets.
@@ -86,7 +92,7 @@ let instrument = CurrencyPair::new(
 );
 ```
 
-See the full instrument [API Reference](/docs/python-api-latest/model/instruments.html).
+See the [Rust instrument module](../../crates/model/src/instruments/mod.rs).
 
 ## Live trading
 

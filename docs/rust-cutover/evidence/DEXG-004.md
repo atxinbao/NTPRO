@@ -27,7 +27,7 @@ active retired-route reference search = PASS (no matches)
 tutorial/how-to Python product-code search = PASS (no matches)
 tutorial asset reference comparison = PASS (20 files, 20 references)
 changed non-legacy Markdown link check = PASS (9 files)
-known /docs/python-api-latest/ dependency scan = 2 links, assigned to DEXG-006
+known retired Python API URL dependency scan = 2 links, assigned to DEXG-006
 scripts/ai/check_backend_freeze_baseline.sh = PASS
 backend freeze negative selftest = PASS (20 cases)
 scripts/ai/verify_fast.sh = PASS
@@ -35,11 +35,11 @@ frozen v0.32.0 release file diff = PASS (no changes)
 git diff --check = PASS
 ```
 
-The first broad changed-file link scan also reported the two pre-existing
-`/docs/python-api-latest/` links in `concepts/execution.md` and
-`concepts/live.md`. They are not links to a DEXG-004 retired page and remain in
-the explicit DEXG-006 scope. The scoped check fails on every other missing
-local target and passed without exclusions beyond that exact legacy prefix.
+The first broad changed-file link scan also reported two pre-existing retired
+Python API URLs in `concepts/execution.md` and `concepts/live.md`. They are not
+links to a DEXG-004 retired page and remain in the explicit DEXG-006 scope. The
+scoped check fails on every other missing local target and passed without
+exclusions beyond that exact legacy URL family.
 
 ## Behavior Impact
 

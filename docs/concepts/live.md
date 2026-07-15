@@ -1,5 +1,12 @@
 # Live Trading
 
+:::warning[Rust-only authority]
+Current NTPRO authority is the Rust source and bounded product contracts.
+Any Python snippet on this page is retained upstream lineage, not a runnable
+product entrypoint or production authorization. The v0.32.0 backend freeze
+continues to forbid inherited execution and trading-control capability.
+:::
+
 NautilusTrader deploys backtested strategies to live markets with no code changes.
 The same actors, strategies, and execution algorithms run against both the backtest
 engine and a live trading node.
@@ -118,7 +125,7 @@ To detect unclaimed external orders in your strategy, check `order.strategy_id.v
 These orders participate in portfolio calculations and position tracking like any other order.
 :::
 
-For all live trading options, see the `LiveExecEngineConfig` [API Reference](/docs/python-api-latest/config.html#nautilus_trader.live.config.LiveExecEngineConfig).
+For current engine fields, see the [`LiveExecEngineConfig` Rust source](../../crates/live/src/config.rs).
 
 ### Reconciliation procedure
 
