@@ -1,5 +1,13 @@
 # Hyperliquid
 
+:::warning[Rust-only authority]
+This page preserves venue protocol, symbology, capability, and adapter lineage.
+Any Python snippet is a retired upstream example, not a runnable NTPRO product
+path. Current implementation authority is the Rust adapter source, tests,
+fixtures, and bounded product contracts. Adapter status does not authorize
+production execution under the v0.32.0 backend freeze.
+:::
+
 [Hyperliquid](https://hyperliquid.gitbook.io/hyperliquid-docs) is a decentralized perpetual futures
 and spot exchange built on the Hyperliquid L1, a purpose-built blockchain optimized for trading.
 HyperCore provides a fully on-chain order book and matching engine. This integration supports

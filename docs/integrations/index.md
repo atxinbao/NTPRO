@@ -2,6 +2,14 @@
 
 NautilusTrader uses modular *adapters* to connect to trading venues and data providers, translating raw APIs into a unified interface and normalized domain model.
 
+:::warning[Backend freeze boundary]
+This index records Rust adapter implementation status and retained venue
+documentation. A stable adapter row is not production go-live authorization.
+The v0.32.0 backend baseline does not authorize inherited submit, mutation,
+adapter send, live exchange, retry, remediation, or trading-control capability.
+Python snippets in linked venue pages are retired upstream lineage only.
+:::
+
 The following integrations are currently supported:
 
 | Name                                                                         | ID                    | Type                    | Status                                                  | Docs                     |
@@ -30,7 +38,8 @@ The following integrations are currently supported:
 - `planned`: Planned for future development.
 - `building`: Under construction and likely not in a usable state.
 - `beta`: Completed to a minimally working state and in a 'beta' testing phase.
-- `stable`: Stabilized feature set and API, the integration has been tested by both developers and users to a reasonable level (some bugs may still remain).
+- `stable`: The Rust adapter implementation and fixture/test surface are
+  stabilized. This status does not authorize production execution.
 
 ## Implementation goals
 

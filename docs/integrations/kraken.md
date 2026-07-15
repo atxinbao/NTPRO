@@ -1,5 +1,13 @@
 # Kraken
 
+:::warning[Rust-only authority]
+This page preserves venue protocol, symbology, capability, and adapter lineage.
+Any Python snippet is a retired upstream example, not a runnable NTPRO product
+path. Current implementation authority is the Rust adapter source, tests,
+fixtures, and bounded product contracts. Adapter status does not authorize
+production execution under the v0.32.0 backend freeze.
+:::
+
 Kraken offers spot and derivatives trading across a wide range of digital
 assets. This integration connects to Kraken Pro and supports live market data
 ingest and order execution for Kraken Spot and Kraken Derivatives (Futures).
