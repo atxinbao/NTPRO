@@ -20,6 +20,8 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
       - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
         with:
           toolchain: 1.95.0
@@ -34,145 +36,16 @@ jobs:
         run: |
           set -euo pipefail
           git diff --name-only "$BASE_SHA" "$HEAD_SHA" | tee /tmp/changed-files.txt
-          if [ ! -s /tmp/changed-files.txt ]; then
-            echo "heavy_rust=true" >> "$GITHUB_OUTPUT"
-            echo "release_verify=false" >> "$GITHUB_OUTPUT"
-            echo "v06_smoke=false" >> "$GITHUB_OUTPUT"
-            echo "v07_smoke=false" >> "$GITHUB_OUTPUT"
-            echo "v08_smoke=false" >> "$GITHUB_OUTPUT"
-            echo "v09_smoke=false" >> "$GITHUB_OUTPUT"
-            echo "v10_smoke=false" >> "$GITHUB_OUTPUT"
-            echo "v11_smoke=false" >> "$GITHUB_OUTPUT"
-            echo "v12_smoke=false" >> "$GITHUB_OUTPUT"
-            echo "v13_smoke=false" >> "$GITHUB_OUTPUT"
-            echo "v14_smoke=false" >> "$GITHUB_OUTPUT"
-            echo "v15_smoke=false" >> "$GITHUB_OUTPUT"
-            echo "v151_smoke=false" >> "$GITHUB_OUTPUT"
-            echo "v16_smoke=false" >> "$GITHUB_OUTPUT"
-            echo "v17_smoke=false" >> "$GITHUB_OUTPUT"
-            echo "v18_smoke=false" >> "$GITHUB_OUTPUT"
-            echo "v19_smoke=false" >> "$GITHUB_OUTPUT"
-            echo "v20_smoke=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          heavy_rust=false
+          release_verify=false
+          if grep -E '^(Cargo\.(toml|lock)|crates/|tests/|examples/|configs/)' /tmp/changed-files.txt >/dev/null; then
+            heavy_rust=true
           fi
-          if grep -E '^(crates/cli/src/(workflow|dashboard|opt)\.rs|examples/rust/binance/testnet_dry_run\.toml|scripts/ai/verify_v06_binance_testnet_dry_run\.sh|docs/rust-cutover/product/V06_BINANCE_TESTNET_DRY_RUN_USER_GUIDE\.md)$' /tmp/changed-files.txt >/dev/null; then
-            echo "v06_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.6 Binance testnet dry-run smoke required by changed files"
-          else
-            echo "v06_smoke=false" >> "$GITHUB_OUTPUT"
+          if grep -E '^(\.github/(workflows|actions)/|scripts/ai/|docs/rust-cutover/(governance|release|golden_trace)/|tests/golden/|crates/governance/)' /tmp/changed-files.txt >/dev/null; then
+            release_verify=true
           fi
-          if grep -E '^(crates/cli/src/(workflow|workflow_contract|dashboard|opt)\.rs|examples/rust/binance/testnet_dry_run\.toml|scripts/ai/verify_v07_default_offline_gate\.sh|scripts/ai/verify_v07_manual_online_gate\.sh|docs/rust-cutover/release/v0_7_0_readonly_testnet_boundary\.md)$' /tmp/changed-files.txt >/dev/null; then
-            echo "v07_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.7 Binance testnet read-only gate smoke required by changed files"
-          else
-            echo "v07_smoke=false" >> "$GITHUB_OUTPUT"
-          fi
-          if grep -E '^(crates/cli/src/(workflow|workflow_contract|dashboard|opt)\.rs|examples/rust/binance/testnet_dry_run\.toml|scripts/ai/(scan_v08_synthetic_secret_leaks|verify_v08_default_offline_gate|verify_v08_authenticated_readonly_gate)\.sh|docs/rust-cutover/release/v0_8_0_authenticated_readonly_boundary\.md)$' /tmp/changed-files.txt >/dev/null; then
-            echo "v08_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.8 Binance testnet synthetic secret leak gate required by changed files"
-          else
-            echo "v08_smoke=false" >> "$GITHUB_OUTPUT"
-          fi
-          if grep -E '^(crates/cli/src/(live|strategy_session|supervisor|dashboard|opt)\.rs|configs/nodes/btc-ema-shadow\.toml|scripts/ai/verify_v09_(strategy_runtime_smoke|shadow_mode_no_order_gate)\.sh|scripts/ai/verify_v091_strategy_supervisor_dashboard_integration\.sh|docs/rust-cutover/release/v0_9_0_.*\.md)$' /tmp/changed-files.txt >/dev/null; then
-            echo "v09_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.9 Strategy Runtime smoke required by changed files"
-          else
-            echo "v09_smoke=false" >> "$GITHUB_OUTPUT"
-          fi
-          if grep -E '^(crates/cli/src/(live|dashboard|opt)\.rs|configs/nodes/btc-ema-shadow\.toml|scripts/ai/verify_v10_(offline_fail_closed|order_preflight|signed_order_request|order_test_preflight|execution_artifact_contract|reconciliation_fixture|offline_release_gates|manual_order_proof_gate)\.sh|docs/rust-cutover/release/v0_10_0_.*\.md)$' /tmp/changed-files.txt >/dev/null; then
-            echo "v10_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.10 Binance testnet order proof offline gates required by changed files"
-          else
-            echo "v10_smoke=false" >> "$GITHUB_OUTPUT"
-          fi
-          if grep -E '^(crates/cli/src/(dashboard|live|opt)\.rs|scripts/ai/(verify_v11_public_read_probe|verify_v11_authenticated_account_snapshot_contract|verify_v11_offline_release_gates)\.sh|docs/rust-cutover/release/v0_11_0_.*\.md)$' /tmp/changed-files.txt >/dev/null; then
-            echo "v11_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.11 production read-only/shadow offline gates required by changed files"
-          else
-            echo "v11_smoke=false" >> "$GITHUB_OUTPUT"
-          fi
-          if grep -E '^(crates/cli/src/(dashboard|live|opt)\.rs|scripts/ai/(verify_v12_public_online_read_probe|verify_v12_authenticated_account_snapshot_online_read|verify_v12_response_shape|verify_v12_shadow_portfolio_runtime|verify_v12_persistent_shadow_strategy_session|verify_v12_production_readonly_reconciliation|verify_v12_offline_release_gates|verify_v12_manual_online_preflight)\.sh|docs/rust-cutover/release/v0_12_0_.*\.md)$' /tmp/changed-files.txt >/dev/null; then
-            echo "v12_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.12 production online read-only/shadow offline gates required by changed files"
-          else
-            echo "v12_smoke=false" >> "$GITHUB_OUTPUT"
-          fi
-          if grep -E '^(crates/cli/src/(dashboard|live|opt)\.rs|scripts/ai/(verify_v13_shadow_preflight_session|verify_v13_online_readonly_proof_pack|verify_v13_kill_switch_approval_artifact|verify_v13_dashboard_control_boundary|verify_v13_decimal_amount_boundary|verify_v13_no_production_mutation_gate)\.sh|docs/rust-cutover/release/v0_13_0_.*\.md)$' /tmp/changed-files.txt >/dev/null; then
-            echo "v13_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.13 no-production-mutation gate required by changed files"
-          else
-            echo "v13_smoke=false" >> "$GITHUB_OUTPUT"
-          fi
-          if grep -E '^(crates/cli/src/(dashboard|live|opt|supervisor|strategy_session)\.rs|configs/nodes/btc-ema-shadow\.toml|scripts/ai/(verify_v14_order_state_readonly_proof|verify_v14_supervisor_shadow_runtime|verify_v14_live_alpha_dry_run_order_gate|verify_v14_live_alpha_risk_preflight|verify_v14_release_gates)\.sh|tests/golden/live_alpha_reconciliation_schema\.jsonl|crates/cli/tests/golden_trace_live_alpha_reconciliation\.rs|docs/rust-cutover/(release/v0_14_0_.*\.md|evidence/V140-.*\.md|tasks/V140-.*\.md|golden_trace/(RELEASE_REPLAY_SCOPE\.json|SCHEMA\.md)))$' /tmp/changed-files.txt >/dev/null; then
-            echo "v14_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.14 release gates required by changed files"
-          else
-            echo "v14_smoke=false" >> "$GITHUB_OUTPUT"
-          fi
-          if grep -E '^(crates/cli/src/dashboard\.rs|scripts/ai/(run_golden_traces|verify_full|verify_v15_live_order_request_dry_run_builder|verify_v15_manual_approval_lifecycle|verify_v15_execution_adapter_isolation|verify_v15_kill_switch_runtime_enforcement|verify_v15_incident_rollback_artifact|verify_v15_release_gates)\.sh|tests/golden/live_alpha_mutation_dry_run_schema\.jsonl|crates/cli/tests/golden_trace_live_alpha_mutation_dry_run\.rs|docs/rust-cutover/(release/v0_15_0_.*\.md|evidence/V150-.*\.md|tasks/V150-.*\.md|golden_trace/(RELEASE_REPLAY_SCOPE\.json|SCHEMA\.md)))$' /tmp/changed-files.txt >/dev/null; then
-            echo "v15_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.15 mutation dry-run golden trace smoke required by changed files"
-          else
-            echo "v15_smoke=false" >> "$GITHUB_OUTPUT"
-          fi
-          if grep -E '^(scripts/ai/verify_v151_release_gates\.sh|docs/rust-cutover/(release/v0_15_1_.*\.md|evidence/V151-.*\.md|tasks/V151-.*\.md))$' /tmp/changed-files.txt >/dev/null; then
-            echo "v151_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.15.1 aggregate release gates required by changed files"
-          else
-            echo "v151_smoke=false" >> "$GITHUB_OUTPUT"
-          fi
-          if grep -E '^(crates/cli/src/(dashboard|live|opt)\.rs|scripts/ai/verify_v16_[A-Za-z0-9_]+\.sh|docs/rust-cutover/(release/v0_16_0_.*\.md|evidence/V160-.*\.md|tasks/V160-.*\.md))$' /tmp/changed-files.txt >/dev/null; then
-            echo "v16_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.16 production mutation candidate release gates required by changed files"
-          else
-            echo "v16_smoke=false" >> "$GITHUB_OUTPUT"
-          fi
-          if grep -E '^(crates/cli/src/(dashboard|live|opt)\.rs|scripts/ai/verify_v17_[A-Za-z0-9_]+\.sh|docs/rust-cutover/(release/v0_17_0_.*\.md|scope/v0_17_.*\.md|evidence/V170-.*\.md|tasks/V170-.*\.md))$' /tmp/changed-files.txt >/dev/null; then
-            echo "v17_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.17 reconciliation/orphan recovery release gates required by changed files"
-          else
-            echo "v17_smoke=false" >> "$GITHUB_OUTPUT"
-          fi
-          if grep -E '^(crates/cli/src/(dashboard|live|opt)\.rs|scripts/ai/verify_v18_[A-Za-z0-9_]+\.sh|docs/rust-cutover/(release/v0_18_0_.*\.md|scope/v0_18_.*\.md|evidence/V180-.*\.md|tasks/V180-.*\.md))$' /tmp/changed-files.txt >/dev/null; then
-            echo "v18_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.18 cancel recovery preview release gates required by changed files"
-          else
-            echo "v18_smoke=false" >> "$GITHUB_OUTPUT"
-          fi
-          if grep -E '^(crates/cli/src/(dashboard|live|opt)\.rs|scripts/ai/verify_v19_[A-Za-z0-9_]+\.sh|tests/golden/actual_cancel_schema\.jsonl|crates/cli/tests/golden_trace_actual_cancel\.rs|docs/rust-cutover/(release/v0_19_0_.*\.md|evidence/V190-.*\.md|tasks/V190-.*\.md|golden_trace/(RELEASE_REPLAY_SCOPE\.json|SCHEMA\.md|GATE_EVIDENCE\.md)))$' /tmp/changed-files.txt >/dev/null; then
-            echo "v19_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.19 actual cancel release gates required by changed files"
-          else
-            echo "v19_smoke=false" >> "$GITHUB_OUTPUT"
-          fi
-          if grep -E '^(\.github/workflows/release-publish\.yml|crates/cli/src/(dashboard|live|opt)\.rs|scripts/ai/verify_v20_[A-Za-z0-9_]+\.sh|tests/golden/production_order_lifecycle_schema\.jsonl|crates/cli/tests/golden_trace_production_order_lifecycle\.rs|docs/rust-cutover/(release/v0_20_0_.*\.md|scope/v0_20_.*\.md|evidence/V200-.*\.md|tasks/V200-.*\.md|golden_trace/(RELEASE_REPLAY_SCOPE\.json|SCHEMA\.md|GATE_EVIDENCE\.md)))$' /tmp/changed-files.txt >/dev/null; then
-            echo "v20_smoke=true" >> "$GITHUB_OUTPUT"
-            echo "v0.20 production order lifecycle release gates required by changed files"
-          else
-            echo "v20_smoke=false" >> "$GITHUB_OUTPUT"
-          fi
-          if grep -Ev '^(README\.md|ROADMAP\.md|CHANGELOG.*|MIGRATION.*|verification\.md|uv\.lock|docs/|release/|\.agentflow/|\.cargo/audit\.toml|deny\.toml|osv-scanner\.toml|\.github/(ISSUE_TEMPLATE/|pull_request_template\.md|workflows/(release-tag|release-publish|rust-cutover-smoke)\.yml)|scripts/ai/(check_github_release_published|check_release_surface_current|publish_ntpro_release_after_gate|verify_release_publish_after_gate|verify_full|verify_release|verify_release_strict|v03_dashboard_smoke|verify_v05_workflow_artifacts|verify_v06_binance_testnet_dry_run|verify_v07_default_offline_gate|verify_v07_manual_online_gate|scan_v08_synthetic_secret_leaks|verify_v08_default_offline_gate|verify_v08_authenticated_readonly_gate|verify_v09_strategy_runtime_smoke|verify_v09_shadow_mode_no_order_gate|verify_v091_strategy_supervisor_dashboard_integration|verify_v10_offline_fail_closed|verify_v10_order_preflight|verify_v10_signed_order_request|verify_v10_order_test_preflight|verify_v10_execution_artifact_contract|verify_v10_reconciliation_fixture|verify_v10_offline_release_gates|verify_v10_manual_order_proof_gate|verify_v11_public_read_probe|verify_v11_authenticated_account_snapshot_contract|verify_v11_offline_release_gates|verify_v12_public_online_read_probe|verify_v12_authenticated_account_snapshot_online_read|verify_v12_response_shape|verify_v12_shadow_portfolio_runtime|verify_v12_persistent_shadow_strategy_session|verify_v12_production_readonly_reconciliation|verify_v12_offline_release_gates|verify_v12_manual_online_preflight|verify_v13_shadow_preflight_session|verify_v13_online_readonly_proof_pack|verify_v13_kill_switch_approval_artifact|verify_v13_dashboard_control_boundary|verify_v13_decimal_amount_boundary|verify_v13_no_production_mutation_gate|verify_v14_order_state_readonly_proof|verify_v14_supervisor_shadow_runtime|verify_v14_live_alpha_dry_run_order_gate|verify_v14_live_alpha_risk_preflight|verify_v14_release_gates|verify_v15_live_order_request_dry_run_builder|verify_v15_manual_approval_lifecycle|verify_v15_execution_adapter_isolation|verify_v15_kill_switch_runtime_enforcement|verify_v15_incident_rollback_artifact|verify_v15_release_gates|verify_v151_release_gates|verify_v16_[A-Za-z0-9_]+|verify_v17_[A-Za-z0-9_]+|verify_v18_[A-Za-z0-9_]+|verify_v19_[A-Za-z0-9_]+|verify_v20_[A-Za-z0-9_]+|verify_v21_[A-Za-z0-9_]+|verify_v22_[A-Za-z0-9_]+|verify_v23_[A-Za-z0-9_]+|verify_v24_[A-Za-z0-9_]+|verify_v25_[A-Za-z0-9_]+|verify_v26_[A-Za-z0-9_]+|verify_v27_[A-Za-z0-9_]+|verify_v28_[A-Za-z0-9_]+|verify_v29_[A-Za-z0-9_]+|verify_v30_[A-Za-z0-9_]+|verify_v31_[A-Za-z0-9_]+|verify_v32_[A-Za-z0-9_]+)\.sh|\.gitignore$)' /tmp/changed-files.txt >/tmp/heavy-files.txt; then
-            if grep -Ev '^scripts/ai/verify_v30_[A-Za-z0-9_]+\.sh$' /tmp/heavy-files.txt >/tmp/non-v30-heavy-files.txt; then
-              mv /tmp/non-v30-heavy-files.txt /tmp/heavy-files.txt
-              echo "heavy_rust=true" >> "$GITHUB_OUTPUT"
-              echo "release_verify=false" >> "$GITHUB_OUTPUT"
-              echo "heavy Rust checks required by:"
-              cat /tmp/heavy-files.txt
-            else
-              echo "heavy_rust=false" >> "$GITHUB_OUTPUT"
-              echo "release_verify=true" >> "$GITHUB_OUTPUT"
-              echo "heavy Rust checks skipped for v30 release verification script change set"
-            fi
-          else
-            echo "heavy_rust=false" >> "$GITHUB_OUTPUT"
-            if grep -E '^(\.cargo/audit\.toml|deny\.toml|osv-scanner\.toml|\.github/workflows/(release-tag|release-publish|rust-cutover-smoke)\.yml|scripts/ai/(check_github_release_published|check_release_surface_current|publish_ntpro_release_after_gate|verify_release_publish_after_gate|verify_full|verify_release|verify_release_strict|v03_dashboard_smoke|verify_v05_workflow_artifacts|verify_v06_binance_testnet_dry_run|verify_v07_default_offline_gate|verify_v07_manual_online_gate|scan_v08_synthetic_secret_leaks|verify_v08_default_offline_gate|verify_v08_authenticated_readonly_gate|verify_v09_strategy_runtime_smoke|verify_v09_shadow_mode_no_order_gate|verify_v091_strategy_supervisor_dashboard_integration|verify_v10_offline_fail_closed|verify_v10_order_preflight|verify_v10_signed_order_request|verify_v10_order_test_preflight|verify_v10_execution_artifact_contract|verify_v10_reconciliation_fixture|verify_v10_offline_release_gates|verify_v10_manual_order_proof_gate|verify_v11_public_read_probe|verify_v11_authenticated_account_snapshot_contract|verify_v11_offline_release_gates|verify_v12_public_online_read_probe|verify_v12_authenticated_account_snapshot_online_read|verify_v12_response_shape|verify_v12_shadow_portfolio_runtime|verify_v12_persistent_shadow_strategy_session|verify_v12_production_readonly_reconciliation|verify_v12_offline_release_gates|verify_v12_manual_online_preflight|verify_v13_shadow_preflight_session|verify_v13_online_readonly_proof_pack|verify_v13_kill_switch_approval_artifact|verify_v13_dashboard_control_boundary|verify_v13_decimal_amount_boundary|verify_v13_no_production_mutation_gate|verify_v14_order_state_readonly_proof|verify_v14_supervisor_shadow_runtime|verify_v14_live_alpha_dry_run_order_gate|verify_v14_live_alpha_risk_preflight|verify_v14_release_gates|verify_v15_live_order_request_dry_run_builder|verify_v15_manual_approval_lifecycle|verify_v15_execution_adapter_isolation|verify_v15_kill_switch_runtime_enforcement|verify_v15_incident_rollback_artifact|verify_v15_release_gates|verify_v151_release_gates|verify_v16_[A-Za-z0-9_]+|verify_v17_[A-Za-z0-9_]+|verify_v18_[A-Za-z0-9_]+|verify_v19_[A-Za-z0-9_]+|verify_v20_[A-Za-z0-9_]+|verify_v21_[A-Za-z0-9_]+|verify_v22_[A-Za-z0-9_]+|verify_v23_[A-Za-z0-9_]+|verify_v24_[A-Za-z0-9_]+|verify_v25_[A-Za-z0-9_]+|verify_v26_[A-Za-z0-9_]+|verify_v27_[A-Za-z0-9_]+|verify_v28_[A-Za-z0-9_]+|verify_v29_[A-Za-z0-9_]+|verify_v30_[A-Za-z0-9_]+|verify_v31_[A-Za-z0-9_]+|verify_v32_[A-Za-z0-9_]+)\.sh|docs/rust-cutover/evidence/GH-RELEASE-)' /tmp/changed-files.txt >/dev/null; then
-              echo "release_verify=true" >> "$GITHUB_OUTPUT"
-              echo "heavy Rust checks skipped for release verification script/workflow change set"
-            else
-              echo "release_verify=false" >> "$GITHUB_OUTPUT"
-              echo "heavy Rust checks skipped for docs/local-state-only change set"
-            fi
-          fi
+          echo "heavy_rust=$heavy_rust" >>"$GITHUB_OUTPUT"
+          echo "release_verify=$release_verify" >>"$GITHUB_OUTPUT"
       - name: Format and toolchain check
         run: scripts/ai/verify_fast.sh
       - name: Release surface current guard
@@ -185,6 +58,8 @@ jobs:
         run: scripts/ai/check_current_governance_rust_only.sh
       - name: Legacy control-plane retirement gate
         run: scripts/ai/check_control_plane_retired.sh
+      - name: Historical release executable retirement gate
+        run: scripts/ai/check_historical_release_retirement.sh
       - name: Workspace cargo check
         if: steps.changes.outputs.heavy_rust == 'true'
         run: cargo check --workspace --features "$NAUTILUS_RUST_FEATURES"
@@ -196,92 +71,27 @@ jobs:
         run: scripts/ai/check_product_path_lints.sh
       - name: Heavy Rust checks skipped
         if: steps.changes.outputs.heavy_rust != 'true'
-        run: echo "Skipping cargo check, clippy, CLI unit tests, and supervisor smoke for docs/local-state/release-verification-only changes."
-      - name: Release verification script checks
+        run: echo "Skipping workspace compile, clippy, CLI tests, and supervisor smoke."
+      - name: Current release verification scripts
         if: steps.changes.outputs.release_verify == 'true'
+        env:
+          NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_CURRENT: "0"
+          NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE: "1"
         run: |
-          bash -n scripts/ai/check_github_release_published.sh scripts/ai/check_release_surface_current.sh scripts/ai/publish_ntpro_release_after_gate.sh scripts/ai/verify_release_publish_after_gate.sh scripts/ai/verify_full.sh scripts/ai/verify_release.sh scripts/ai/verify_release_strict.sh scripts/ai/v03_dashboard_smoke.sh scripts/ai/verify_v05_workflow_artifacts.sh scripts/ai/verify_v06_binance_testnet_dry_run.sh scripts/ai/verify_v07_default_offline_gate.sh scripts/ai/verify_v07_manual_online_gate.sh scripts/ai/scan_v08_synthetic_secret_leaks.sh scripts/ai/verify_v08_default_offline_gate.sh scripts/ai/verify_v08_authenticated_readonly_gate.sh scripts/ai/verify_v09_strategy_runtime_smoke.sh scripts/ai/verify_v09_shadow_mode_no_order_gate.sh scripts/ai/verify_v091_strategy_supervisor_dashboard_integration.sh scripts/ai/verify_v10_offline_fail_closed.sh scripts/ai/verify_v10_order_preflight.sh scripts/ai/verify_v10_signed_order_request.sh scripts/ai/verify_v10_order_test_preflight.sh scripts/ai/verify_v10_execution_artifact_contract.sh scripts/ai/verify_v10_reconciliation_fixture.sh scripts/ai/verify_v10_offline_release_gates.sh scripts/ai/verify_v10_manual_order_proof_gate.sh scripts/ai/verify_v11_public_read_probe.sh scripts/ai/verify_v11_authenticated_account_snapshot_contract.sh scripts/ai/verify_v11_offline_release_gates.sh scripts/ai/verify_v12_public_online_read_probe.sh scripts/ai/verify_v12_authenticated_account_snapshot_online_read.sh scripts/ai/verify_v12_response_shape.sh scripts/ai/verify_v12_shadow_portfolio_runtime.sh scripts/ai/verify_v12_persistent_shadow_strategy_session.sh scripts/ai/verify_v12_production_readonly_reconciliation.sh scripts/ai/verify_v12_offline_release_gates.sh scripts/ai/verify_v12_manual_online_preflight.sh scripts/ai/verify_v13_shadow_preflight_session.sh scripts/ai/verify_v13_online_readonly_proof_pack.sh scripts/ai/verify_v13_kill_switch_approval_artifact.sh scripts/ai/verify_v13_dashboard_control_boundary.sh scripts/ai/verify_v13_decimal_amount_boundary.sh scripts/ai/verify_v13_no_production_mutation_gate.sh scripts/ai/verify_v14_order_state_readonly_proof.sh scripts/ai/verify_v14_supervisor_shadow_runtime.sh scripts/ai/verify_v14_live_alpha_dry_run_order_gate.sh scripts/ai/verify_v14_live_alpha_risk_preflight.sh scripts/ai/verify_v14_release_gates.sh scripts/ai/verify_v15_live_order_request_dry_run_builder.sh scripts/ai/verify_v15_manual_approval_lifecycle.sh scripts/ai/verify_v15_execution_adapter_isolation.sh scripts/ai/verify_v15_kill_switch_runtime_enforcement.sh scripts/ai/verify_v15_incident_rollback_artifact.sh scripts/ai/verify_v15_release_gates.sh scripts/ai/verify_v151_release_gates.sh scripts/ai/verify_v16_*.sh scripts/ai/verify_v17_*.sh scripts/ai/verify_v18_*.sh scripts/ai/verify_v19_*.sh scripts/ai/verify_v20_*.sh scripts/ai/verify_v21_*.sh scripts/ai/verify_v22_*.sh scripts/ai/verify_v23_*.sh scripts/ai/verify_v24_*.sh scripts/ai/verify_v25_*.sh scripts/ai/verify_v26_*.sh scripts/ai/verify_v27_*.sh scripts/ai/verify_v28_*.sh scripts/ai/verify_v29_*.sh
-          bash -n scripts/ai/verify_v30_*.sh scripts/ai/verify_v31_*.sh scripts/ai/verify_v32_*.sh
+          find scripts -type f \( -name '*.sh' -o -name '*.bash' \) -print0 | xargs -0 bash -n
+          scripts/ai/verify_release.sh current-governance backend-freeze-baseline
           scripts/ai/verify_release_publish_after_gate.sh
           ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); YAML.load_file(".github/workflows/release-publish.yml"); puts "release yaml ok"'
       - name: CLI unit tests
         if: steps.changes.outputs.heavy_rust == 'true'
         run: cargo test -p nautilus-cli --lib
-      - name: v06-binance-testnet-dry-run-smoke
-        if: steps.changes.outputs.v06_smoke == 'true'
-        run: scripts/ai/verify_v06_binance_testnet_dry_run.sh
-      - name: v07-default-offline-gate
-        if: steps.changes.outputs.v07_smoke == 'true'
-        run: scripts/ai/verify_v07_default_offline_gate.sh
-      - name: v07-manual-online-preflight
-        if: steps.changes.outputs.v07_smoke == 'true'
-        run: scripts/ai/verify_v07_manual_online_gate.sh
-      - name: v08-default-offline-gate
-        if: steps.changes.outputs.v08_smoke == 'true'
-        run: scripts/ai/verify_v08_default_offline_gate.sh
-      - name: v08-authenticated-readonly-preflight
-        if: steps.changes.outputs.v08_smoke == 'true'
-        run: scripts/ai/verify_v08_authenticated_readonly_gate.sh
-      - name: v09-strategy-runtime-smoke
-        if: steps.changes.outputs.v09_smoke == 'true'
-        run: scripts/ai/verify_v09_strategy_runtime_smoke.sh
-      - name: v09-shadow-mode-no-order-gate
-        if: steps.changes.outputs.v09_smoke == 'true'
-        run: scripts/ai/verify_v09_shadow_mode_no_order_gate.sh
-      - name: v091-strategy-supervisor-dashboard-integration
-        if: steps.changes.outputs.v09_smoke == 'true'
-        run: scripts/ai/verify_v091_strategy_supervisor_dashboard_integration.sh
-      - name: v10-offline-release-gates
-        if: steps.changes.outputs.v10_smoke == 'true'
-        run: scripts/ai/verify_v10_offline_release_gates.sh
-      - name: v10-manual-order-proof-preflight
-        if: steps.changes.outputs.v10_smoke == 'true'
-        run: scripts/ai/verify_v10_manual_order_proof_gate.sh
-      - name: v11-offline-release-gates
-        if: steps.changes.outputs.v11_smoke == 'true'
-        env:
-          NTPRO_V11_LIGHTWEIGHT: "1"
-        run: scripts/ai/verify_v11_offline_release_gates.sh
-      - name: v12-offline-release-gates
-        if: steps.changes.outputs.v12_smoke == 'true'
-        run: scripts/ai/verify_v12_offline_release_gates.sh
-      - name: v12-manual-online-preflight
-        if: steps.changes.outputs.v12_smoke == 'true'
-        run: scripts/ai/verify_v12_manual_online_preflight.sh
-      - name: v13-no-production-mutation-gate
-        if: steps.changes.outputs.v13_smoke == 'true'
-        run: scripts/ai/verify_v13_no_production_mutation_gate.sh
-      - name: v14-release-gates
-        if: steps.changes.outputs.v14_smoke == 'true'
-        run: scripts/ai/verify_v14_release_gates.sh
-      - name: v15-release-gates
-        if: steps.changes.outputs.v15_smoke == 'true'
-        run: scripts/ai/verify_v15_release_gates.sh
-      - name: v151-release-gates
-        if: steps.changes.outputs.v151_smoke == 'true'
-        run: scripts/ai/verify_v151_release_gates.sh
-      - name: v16-release-gates
-        if: steps.changes.outputs.v16_smoke == 'true'
-        run: scripts/ai/verify_v16_release_gates.sh
-      - name: v17-release-gates
-        if: steps.changes.outputs.v17_smoke == 'true'
-        run: scripts/ai/verify_v17_release_gates.sh
-      - name: v18-release-gates
-        if: steps.changes.outputs.v18_smoke == 'true'
-        run: scripts/ai/verify_v18_release_gates.sh
-      - name: v19-release-gates
-        if: steps.changes.outputs.v19_smoke == 'true'
-        run: scripts/ai/verify_v19_release_gates.sh
-      - name: v20-release-gates
-        if: steps.changes.outputs.v20_smoke == 'true'
-        run: scripts/ai/verify_v20_release_gates.sh
       - name: Golden trace schema smoke
         run: scripts/ai/ntpro_governance.sh golden-trace tests/golden/schema_smoke.jsonl --mode validate-only
       - name: Rust-only runtime gate
         run: scripts/ai/check_rust_only_runtime.sh
       - name: Cython removal gate
         run: scripts/ai/check_cython_removed.sh
-      - name: v0.2 two-node supervisor smoke
+      - name: Two-node supervisor smoke
         if: steps.changes.outputs.heavy_rust == 'true'
         env:
           NTPRO_V02_009_SKIP_BUILD: "0"

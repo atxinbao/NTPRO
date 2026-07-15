@@ -15,6 +15,7 @@ authority_files=(
   scripts/ai/check_rust_examples.sh
   scripts/ai/check_backend_freeze_baseline.sh
   scripts/ai/check_control_plane_retired.sh
+  scripts/ai/check_historical_release_retirement.sh
   scripts/ai/check_rust_only_runtime.sh
   scripts/ai/check_cython_removed.sh
   scripts/ai/check_github_release_published.sh

@@ -14,8 +14,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  baseline-scope:
+    name: frozen-backend-release-scope
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject unscoped backend release tags
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$REF_TYPE" == "tag" && "$REF_NAME" != "ntpro-rust-only-v0.32.0" ]]; then
+            echo "v0.32.0 is the frozen backend release baseline; a new backend tag requires separately scoped governance" >&2
+            exit 1
+          fi
+
   release-stage:
     name: verify-release (${{ matrix.stage }})
+    needs: baseline-scope
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
@@ -70,199 +86,10 @@ jobs:
             command: scripts/ai/verify_release.sh release-build-product-surface
           - stage: release-rust-only-gates
             command: scripts/ai/verify_release.sh rust-only-gates
-          - stage: release-v02-supervisor-smoke
-            command: scripts/ai/verify_release.sh v02-supervisor-smoke
-          - stage: release-v03-supervisor-control-smoke
-            command: scripts/ai/verify_release.sh v03-supervisor-control-smoke
-          - stage: release-v03-dashboard-smoke
-            command: scripts/ai/verify_release.sh v03-dashboard-smoke
-          - stage: release-v05-workflow-artifacts-smoke
-            command: scripts/ai/verify_release.sh v05-workflow-artifacts-smoke
-          - stage: release-v06-binance-testnet-dry-run-smoke
-            command: scripts/ai/verify_release.sh v06-binance-testnet-dry-run-smoke
-          - stage: release-v07-default-offline-gate
-            command: scripts/ai/verify_release.sh v07-default-offline-gate
-          - stage: release-v07-manual-online-preflight
-            command: scripts/ai/verify_release.sh v07-manual-online-preflight
-          - stage: release-v08-default-offline-gate
-            command: scripts/ai/verify_release.sh v08-default-offline-gate
-          - stage: release-v08-authenticated-readonly-preflight
-            command: scripts/ai/verify_release.sh v08-authenticated-readonly-preflight
-          - stage: release-v09-strategy-runtime-smoke
-            command: scripts/ai/verify_release.sh v09-strategy-runtime-smoke
-          - stage: release-v09-shadow-mode-no-order-gate
-            command: scripts/ai/verify_release.sh v09-shadow-mode-no-order-gate
-          - stage: release-v091-strategy-supervisor-dashboard-integration
-            command: scripts/ai/verify_release.sh v091-strategy-supervisor-dashboard-integration
-          - stage: release-v10-offline-release-gates
-            command: scripts/ai/verify_release.sh v10-offline-release-gates
-          - stage: release-v10-manual-order-proof-preflight
-            command: scripts/ai/verify_release.sh v10-manual-order-proof-preflight
-          - stage: release-v11-offline-release-gates
-            command: scripts/ai/verify_release.sh v11-offline-release-gates
-          - stage: release-v12-offline-release-gates
-            command: scripts/ai/verify_release.sh v12-offline-release-gates
-          - stage: release-v12-manual-online-preflight
-            command: scripts/ai/verify_release.sh v12-manual-online-preflight
-          - stage: release-v13-no-production-mutation-gate
-            command: scripts/ai/verify_release.sh v13-no-production-mutation-gate
-          - stage: release-v14-release-gates
-            command: scripts/ai/verify_release.sh v14-release-gates
-          - stage: release-v15-release-gates
-            command: scripts/ai/verify_release.sh v15-release-gates
-          - stage: release-v16-release-gates
-            command: scripts/ai/verify_release.sh v16-release-gates
-          - stage: release-v17-release-gates
-            command: scripts/ai/verify_release.sh v17-release-gates
-          - stage: release-v18-release-gates
-            command: scripts/ai/verify_release.sh v18-release-gates
-          - stage: release-v19-release-gates
-            command: scripts/ai/verify_release.sh v19-release-gates
-          - stage: release-v20-release-gates
-            command: scripts/ai/verify_release.sh v20-release-gates
-            expected_tag: ntpro-rust-only-v0.20.0
-          - stage: release-v20-strict-provenance
-            command: scripts/ai/verify_release.sh v20-strict-provenance
-            expected_tag: ntpro-rust-only-v0.20.0
-          - stage: release-v201-patch-release-gates
-            command: scripts/ai/verify_release.sh v20.1-release-gates
-            expected_tag: ntpro-rust-only-v0.20.1
-          - stage: release-v21-release-gates
-            command: scripts/ai/verify_release.sh v21-release-gates
-            expected_tag: ntpro-rust-only-v0.21.0
-          - stage: release-v21-strict-provenance
-            command: scripts/ai/verify_release.sh v21-strict-provenance
-            expected_tag: ntpro-rust-only-v0.21.0
-          - stage: release-v211-release-gates
-            command: scripts/ai/verify_release.sh v21.1-release-gates
-            expected_tag: ntpro-rust-only-v0.21.1
-          - stage: release-v211-strict-provenance
-            command: scripts/ai/verify_release.sh v21.1-strict-provenance
-            expected_tag: ntpro-rust-only-v0.21.1
-          - stage: release-v22-runtime-boundary-tests
-            command: scripts/ai/verify_release.sh v22-runtime-boundary-tests
-          - stage: release-v22-release-gates
-            command: scripts/ai/verify_release.sh v22-release-gates
-            expected_tag: ntpro-rust-only-v0.22.0
-          - stage: release-v22-strict-provenance
-            command: scripts/ai/verify_release.sh v22-strict-provenance
-            expected_tag: ntpro-rust-only-v0.22.0
-          - stage: release-v221-release-gates
-            command: scripts/ai/verify_release.sh v22.1-release-gates
-            expected_tag: ntpro-rust-only-v0.22.1
-          - stage: release-v221-strict-provenance
-            command: scripts/ai/verify_release.sh v22.1-strict-provenance
-            expected_tag: ntpro-rust-only-v0.22.1
-          - stage: release-v23-release-gates
-            command: scripts/ai/verify_release.sh v23-release-gates
-            expected_tag: ntpro-rust-only-v0.23.0
-          - stage: release-v23-strict-provenance
-            command: scripts/ai/verify_release.sh v23-strict-provenance
-            expected_tag: ntpro-rust-only-v0.23.0
-          - stage: release-v231-release-gates
-            command: scripts/ai/verify_release.sh v23.1-release-gates
-            expected_tag: ntpro-rust-only-v0.23.1
-          - stage: release-v231-strict-provenance
-            command: scripts/ai/verify_release.sh v23.1-strict-provenance
-            expected_tag: ntpro-rust-only-v0.23.1
-          - stage: release-v24-release-gates
-            command: scripts/ai/verify_release.sh v24-release-gates
-            expected_tag: ntpro-rust-only-v0.24.0
-          - stage: release-v24-strict-provenance
-            command: scripts/ai/verify_release.sh v24-strict-provenance
-            expected_tag: ntpro-rust-only-v0.24.0
-          - stage: release-v241-release-gates
-            command: scripts/ai/verify_release.sh v24.1-release-gates
-            expected_tag: ntpro-rust-only-v0.24.1
-          - stage: release-v241-strict-provenance
-            command: scripts/ai/verify_release.sh v24.1-strict-provenance
-            expected_tag: ntpro-rust-only-v0.24.1
-          - stage: release-v25-release-gates
-            command: scripts/ai/verify_release.sh v25-release-gates
-            expected_tag: ntpro-rust-only-v0.25.0
-          - stage: release-v25-strict-provenance
-            command: scripts/ai/verify_release.sh v25-strict-provenance
-            expected_tag: ntpro-rust-only-v0.25.0
-          - stage: release-v251-release-gates
-            command: scripts/ai/verify_release.sh v25.1-release-gates
-            expected_tag: ntpro-rust-only-v0.25.1
-          - stage: release-v251-strict-provenance
-            command: scripts/ai/verify_release.sh v25.1-strict-provenance
-            expected_tag: ntpro-rust-only-v0.25.1
-          - stage: release-v26-release-gates
-            command: scripts/ai/verify_release.sh v26-release-gates
-            expected_tag: ntpro-rust-only-v0.26.0
-          - stage: release-v26-strict-provenance
-            command: scripts/ai/verify_release.sh v26-strict-provenance
-            expected_tag: ntpro-rust-only-v0.26.0
-          - stage: release-v261-release-gates
-            command: scripts/ai/verify_release.sh v26.1-release-gates
-            expected_tag: ntpro-rust-only-v0.26.1
-          - stage: release-v261-strict-provenance
-            command: scripts/ai/verify_release.sh v26.1-strict-provenance
-            expected_tag: ntpro-rust-only-v0.26.1
-          - stage: release-v27-release-gates
-            command: scripts/ai/verify_release.sh v27-release-gates
-            expected_tag: ntpro-rust-only-v0.27.0
-          - stage: release-v27-strict-provenance
-            command: scripts/ai/verify_release.sh v27-strict-provenance
-            expected_tag: ntpro-rust-only-v0.27.0
-          - stage: release-v28-release-gates
-            command: scripts/ai/verify_release.sh v28-release-gates
-            expected_tag: ntpro-rust-only-v0.28.0
-          - stage: release-v28-strict-provenance
-            command: scripts/ai/verify_release.sh v28-strict-provenance
-            expected_tag: ntpro-rust-only-v0.28.0
-          - stage: release-v281-release-gates
-            command: scripts/ai/verify_release.sh v28.1-release-gates
-            expected_tag: ntpro-rust-only-v0.28.1
-          - stage: release-v281-strict-provenance
-            command: scripts/ai/verify_release.sh v28.1-strict-provenance
-            expected_tag: ntpro-rust-only-v0.28.1
-          - stage: release-v29-release-gates
-            command: scripts/ai/verify_release.sh v29-release-gates
-            expected_tag: ntpro-rust-only-v0.29.0
-          - stage: release-v29-strict-provenance
-            command: scripts/ai/verify_release.sh v29-strict-provenance
-            expected_tag: ntpro-rust-only-v0.29.0
-          - stage: release-v291-release-gates
-            command: scripts/ai/verify_v29_1_release_gates.sh
-            expected_tag: ntpro-rust-only-v0.29.1
-          - stage: release-v291-strict-provenance
-            command: scripts/ai/verify_v29_1_strict_provenance.sh
-            expected_tag: ntpro-rust-only-v0.29.1
-          - stage: release-v30-release-gates
-            command: scripts/ai/verify_v30_release_gates.sh
-            expected_tag: ntpro-rust-only-v0.30.0
-          - stage: release-v30-strict-provenance
-            command: scripts/ai/verify_v30_strict_provenance.sh
-            expected_tag: ntpro-rust-only-v0.30.0
-          - stage: release-v301-release-gates
-            command: scripts/ai/verify_v30_1_release_gates.sh
-            expected_tag: ntpro-rust-only-v0.30.1
-          - stage: release-v301-strict-provenance
-            command: scripts/ai/verify_v30_1_strict_provenance.sh
-            expected_tag: ntpro-rust-only-v0.30.1
-          - stage: release-v31-release-gates
-            command: scripts/ai/verify_v31_release_gates.sh
-            expected_tag: ntpro-rust-only-v0.31.0
-          - stage: release-v31-strict-provenance
-            command: scripts/ai/verify_v31_strict_provenance.sh
-            expected_tag: ntpro-rust-only-v0.31.0
-          - stage: release-v311-release-gates
-            command: scripts/ai/verify_v31_1_release_gates.sh
-            expected_tag: ntpro-rust-only-v0.31.1
-          - stage: release-v311-strict-provenance
-            command: scripts/ai/verify_v31_1_strict_provenance.sh
-            expected_tag: ntpro-rust-only-v0.31.1
-          - stage: release-v32-release-gates
-            command: scripts/ai/verify_v32_release_gates.sh
-            expected_tag: ntpro-rust-only-v0.32.0
-          - stage: release-v32-strict-provenance
-            command: scripts/ai/verify_v32_strict_provenance.sh
-            expected_tag: ntpro-rust-only-v0.32.0
-          - stage: release-surface-current-guard
-            command: scripts/ai/verify_release.sh release-surface-current-guard
+          - stage: release-current-governance
+            command: scripts/ai/verify_release.sh current-governance
+          - stage: release-backend-freeze
+            command: scripts/ai/verify_release.sh backend-freeze-baseline
           - stage: release-publication-guard
             command: scripts/ai/verify_release.sh release-publication-guard
           - stage: release-publish-after-gate
@@ -279,46 +106,26 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
-
       - name: Reclaim runner disk
         run: |
           df -h
-          sudo rm -rf \
-            /opt/ghc \
-            /opt/hostedtoolcache/CodeQL \
-            /usr/local/lib/android \
-            /usr/local/share/boost \
-            /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/lib/android /usr/local/share/boost /usr/share/dotnet || true
           df -h
-
       - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
         with:
           toolchain: 1.95.0
           components: rustfmt, clippy
           cache: true
           override: true
-
-      - name: Verify release gate stage
+      - name: Verify current release gate stage
         env:
           NTPRO_RELEASE_GATE: "1"
-          NTPRO_V02_009_SKIP_BUILD: "0"
           NTPRO_RELEASE_STAGE: ${{ matrix.stage }}
-          NTPRO_EXPECTED_RELEASE_TAG: ${{ matrix.expected_tag }}
         run: |
-          if [[ -n "${NTPRO_EXPECTED_RELEASE_TAG}" ]]; then
-            if [[ "${GITHUB_REF_TYPE:-}" != "tag" ]]; then
-              echo "release tag-scoped stage skipped: stage=${NTPRO_RELEASE_STAGE} expected_tag=${NTPRO_EXPECTED_RELEASE_TAG} ref_type=${GITHUB_REF_TYPE:-unknown}"
-              exit 0
-            fi
-            if [[ "${GITHUB_REF_NAME:-}" != "${NTPRO_EXPECTED_RELEASE_TAG}" ]]; then
-              echo "release tag-scoped stage skipped: stage=${NTPRO_RELEASE_STAGE} expected_tag=${NTPRO_EXPECTED_RELEASE_TAG} actual_tag=${GITHUB_REF_NAME:-unknown}"
-              exit 0
-            fi
-          fi
-          if [[ "${NTPRO_RELEASE_STAGE}" == "release-publication-guard" && "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+          if [[ "$NTPRO_RELEASE_STAGE" == "release-publication-guard" && "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
             export NTPRO_RELEASE_PUBLICATION_PREPUBLISH_TAG_GATE=1
           fi
-          if [[ "${NTPRO_RELEASE_STAGE}" == "release-publish-after-gate" && "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+          if [[ "$NTPRO_RELEASE_STAGE" == "release-publish-after-gate" ]]; then
             export NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_CURRENT=0
             export NTPRO_RELEASE_PUBLISH_AFTER_GATE_REQUIRE_LIVE_CURRENT=0
           fi
@@ -327,14 +134,15 @@ jobs:
   verify-release:
     name: verify-release
     runs-on: ubuntu-latest
-    needs:
-      - release-stage
+    needs: [baseline-scope, release-stage]
     if: always()
     steps:
       - name: Summarize release gate
+        env:
+          BASELINE_RESULT: ${{ needs.baseline-scope.result }}
+          STAGE_RESULT: ${{ needs.release-stage.result }}
         run: |
-          echo "release-stage result: ${{ needs.release-stage.result }}"
-          if [[ "${{ needs.release-stage.result }}" != "success" ]]; then
-            exit 1
-          fi
+          echo "baseline-scope result: $BASELINE_RESULT"
+          echo "release-stage result: $STAGE_RESULT"
+          [[ "$BASELINE_RESULT" == "success" && "$STAGE_RESULT" == "success" ]]
           echo "release gate status=ok"
