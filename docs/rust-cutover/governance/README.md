@@ -19,6 +19,9 @@ release gate 和已跟踪 release package 共同证明。
   post-freeze cleanup, and separately scoped v0.33+ work.
 - `v0_32_0_errata.md` - post-baseline clarification of stale current-route
   wording without changing the tagged release package.
+- `../../../scripts/ai/check_backend_freeze_baseline.sh` - deterministic guard
+  for tag, commit, source hashes, explicit-false boundaries, and v0.33+
+  non-inheritance, including fail-closed negative selftests.
 - `../release/v0_32_0_release_closeout_evidence.md` - source-controlled release
   closeout contract.
 

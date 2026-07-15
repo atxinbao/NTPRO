@@ -4553,3 +4553,24 @@ git diff --check = PASS
 The task changes current governance wording and its coupled documentation guard
 only. It does not change runtime behavior, trading semantics, public APIs, or
 the tagged v0.32.0 release package.
+
+# BFG-003 Verification
+
+Date: 2026-07-15
+Executor: Codex
+Task: `BFG-003` / GitHub issue `#1070`
+
+```text
+bash -n scripts/ai/check_backend_freeze_baseline.sh scripts/ai/verify_release.sh = PASS
+scripts/ai/check_backend_freeze_baseline.sh = PASS, boundaries=27, source_hashes=4
+backend freeze negative selftest = PASS, cases=20, expected-error matching required
+scripts/ai/verify_release.sh backend-freeze-baseline = PASS
+scripts/ai/verify_release.sh v32-release-gates = PASS
+scripts/ai/verify_release.sh v32-strict-provenance = PASS
+scripts/ai/check_github_release_published.sh = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+The guard is verification-only and does not open runtime, production, trading,
+retry, remediation, adapter-send, live-request, or UI control capabilities.
