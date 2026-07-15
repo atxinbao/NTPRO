@@ -4511,3 +4511,23 @@ extends the V270 release scope to V270-000..V270-010. The failed
 This task does not add trading, adapter send, live exchange request, retry
 scheduling, automatic remediation, Dashboard/Admin trading controls, or
 product-grade terminal readiness.
+
+# BFG-001 Verification
+
+Date: 2026-07-15
+Executor: Codex
+Task: `BFG-001` / GitHub issue `#1068`
+
+```text
+python3 -m json.tool docs/rust-cutover/governance/backend_freeze_registry.json = PASS
+registry/manifest boundary and issue-set comparison = PASS
+registered source evidence SHA-256 comparison = PASS
+scripts/ai/check_github_release_published.sh = PASS
+scripts/ai/verify_release.sh v32-release-gates = PASS
+scripts/ai/verify_release.sh v32-strict-provenance = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+The task is governance-only. It freezes the v0.32.0 backend identity and does
+not change runtime behavior, trading semantics, public APIs, or release facts.
