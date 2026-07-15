@@ -24,8 +24,8 @@ if [ ! -f "$SCHEMA_PATH" ]; then
   exit 1
 fi
 
-"$PYTHON_BIN" scripts/ai/golden_trace_runner.py tests/golden/read_model_contract_schema.jsonl --mode validate-only
-"$PYTHON_BIN" scripts/ai/golden_trace_runner.py tests/golden/v211/read_model_health_status_semantics_schema.jsonl --mode validate-only
+scripts/ai/ntpro_governance.sh golden-trace tests/golden/read_model_contract_schema.jsonl --mode validate-only
+scripts/ai/ntpro_governance.sh golden-trace tests/golden/v211/read_model_health_status_semantics_schema.jsonl --mode validate-only
 
 if "$PYTHON_BIN" - <<'PY' >/dev/null 2>&1
 import jsonschema

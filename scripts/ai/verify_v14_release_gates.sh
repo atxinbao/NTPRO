@@ -53,7 +53,7 @@ echo "== v14 release gates: live-alpha risk preflight =="
 scripts/ai/verify_v14_live_alpha_risk_preflight.sh
 
 echo "== v14 release gates: live-alpha reconciliation golden traces =="
-python3 scripts/ai/golden_trace_runner.py \
+scripts/ai/ntpro_governance.sh golden-trace \
   tests/golden/live_alpha_reconciliation_schema.jsonl \
   --mode validate-only
 cargo test -p nautilus-cli --test golden_trace_live_alpha_reconciliation

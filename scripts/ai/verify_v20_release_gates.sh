@@ -75,7 +75,7 @@ run_gate guarded-submit-candidate \
 run_gate order-lifecycle-golden-traces \
   scripts/ai/verify_v20_order_lifecycle_golden_traces.sh
 run_gate golden-trace-release-scope \
-  python3 scripts/ai/validate_golden_trace_release_scope.py \
+  scripts/ai/ntpro_governance.sh golden-trace-release-scope \
     --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json \
     --trace-glob 'tests/golden/*.jsonl'
 

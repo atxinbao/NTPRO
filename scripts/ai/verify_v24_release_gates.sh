@@ -138,7 +138,7 @@ for path in "$RELEASE_NOTES_PATH" "$READINESS_REPORT_PATH" "$MANIFEST_PATH"; do
   done
 done
 
-python3 scripts/ai/validate_golden_trace_release_scope.py --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl'
+scripts/ai/ntpro_governance.sh golden-trace-release-scope --manifest docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json --trace-glob 'tests/golden/*.jsonl'
 scripts/ai/verify_release.sh v24-intake-gate
 scripts/ai/verify_release.sh v24-order-control-contract
 scripts/ai/verify_release.sh v24-order-intent-policy

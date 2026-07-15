@@ -6602,6 +6602,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ntpro-governance"
+version = "0.58.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "glob",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "nu-ansi-term"
 version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

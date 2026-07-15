@@ -54,14 +54,14 @@ for path in \
   "$TASK_PATH" \
   "$EVIDENCE_PATH" \
   "$VERIFICATION_PATH" \
-  scripts/ai/validate_golden_trace_release_scope.py \
-  scripts/ai/golden_trace_runner.py; do
+  scripts/ai/ntpro_governance.sh \
+  crates/governance/src/golden_trace.rs; do
   require_file "$path"
 done
 
 for trace in "${TRACE_FILES[@]}"; do
   require_file "$trace"
-  python3 scripts/ai/golden_trace_runner.py "$trace" --mode validate-only >/dev/null
+  scripts/ai/ntpro_governance.sh golden-trace "$trace" --mode validate-only >/dev/null
 done
 
 for marker in \
@@ -91,7 +91,7 @@ for path in "$REPORT_PATH" "$EVIDENCE_PATH" "$TASK_PATH" "$VERIFICATION_PATH"; d
   done
 done
 
-python3 scripts/ai/validate_golden_trace_release_scope.py \
+scripts/ai/ntpro_governance.sh golden-trace-release-scope \
   --manifest "$SCOPE_PATH" \
   --trace-glob 'tests/golden/*.jsonl' >/tmp/ntpro-v241-schema-release-scope.log
 

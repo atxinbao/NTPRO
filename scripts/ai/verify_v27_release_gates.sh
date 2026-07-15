@@ -458,7 +458,7 @@ if os.environ.get("NTPRO_V270_RELEASE_SELFTEST", "1") == "1":
         raise SystemExit("negative self-test unexpectedly passed: unregistered extra milestone issue")
 PY
 
-python3 scripts/ai/validate_golden_trace_release_scope.py >/dev/null
+scripts/ai/ntpro_governance.sh golden-trace-release-scope >/dev/null
 
 if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   for issue in 853 854 855 856 857 858 859 860 861 883; do
