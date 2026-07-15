@@ -1,0 +1,87 @@
+{
+  "schema_version": "ntpro.python_tooling_closeout_baseline.v1",
+  "captured_at": "2026-07-15",
+  "executor": "Codex",
+  "baseline_commit": "20455c86be25c5b7d083ce0a67d4053a844352d2",
+  "milestone": {
+    "number": 33,
+    "title": "python-tooling-closeout",
+    "issue_set": [1096, 1097, 1098, 1099, 1100, 1101, 1102, 1103]
+  },
+  "counts": {
+    "tracked_python_files": 8,
+    "tracked_shell_files": 339,
+    "shell_python_execution_files": 263,
+    "versioned_verify_scripts": 262,
+    "versioned_python_execution_files": 236,
+    "inline_python_shell_files": 233,
+    "python_workflow_action_files": 18,
+    "python_tooling_invocation_lines": 695,
+    "uv_locked_packages": 55
+  },
+  "tracked_python_files": {
+    "rust_replacement_required": [
+      "scripts/ai/golden_trace_runner.py",
+      "scripts/ai/validate_golden_trace_release_scope.py",
+      "scripts/ai/validate_v21_read_model_schema.py"
+    ],
+    "control_surface_retire_or_replace": [
+      "scripts/ai/lease.py",
+      "scripts/ai/validate_agentflow_roles.py",
+      "scripts/control/dispatch_next.py",
+      "scripts/control/close_merged_pr.py"
+    ],
+    "historical_inventory_retire": [
+      "scripts/ai/inventory_cython.py"
+    ]
+  },
+  "python_workflow_action_files": [
+    ".github/actions/common-setup/action.yml",
+    ".github/actions/common-wheel-build/action.yml",
+    ".github/actions/publish-wheels/action.yml",
+    ".github/actions/upload-artifact-wheel/action.yml",
+    ".github/workflows/build-v2.yml",
+    ".github/workflows/build.yml",
+    ".github/workflows/cli-binaries.yml",
+    ".github/workflows/codeql-analysis.yml",
+    ".github/workflows/copilot-setup-steps.yml",
+    ".github/workflows/coverage.yml",
+    ".github/workflows/docker.yml",
+    ".github/workflows/dst.yml",
+    ".github/workflows/nightly-docs-features-check.yml",
+    ".github/workflows/nightly-miri.yml",
+    ".github/workflows/nightly-tests.yml",
+    ".github/workflows/performance.yml",
+    ".github/workflows/rust-cutover-smoke.yml",
+    ".github/workflows/security-audit.yml"
+  ],
+  "authority": {
+    "current_required": [
+      "Rust workspace build, test, clippy, docs, and integration tests",
+      "tests/golden fixtures and crates/cli Rust golden-trace tests",
+      "v0.32.0 backend freeze guard",
+      "docs/examples governance guard",
+      "release surface and hosted smoke proof"
+    ],
+    "historical_retained": [
+      "docs/rust-cutover",
+      "published tags and GitHub Releases",
+      "hosted workflow run references",
+      "tests/golden fixtures"
+    ],
+    "historical_executable_retirement_pattern": "scripts/ai/verify_v*.sh",
+    "forbidden_final_surface": [
+      "tracked Python, Cython, stub, or notebook source",
+      "pyproject.toml or uv.lock",
+      "Python package or wheel workflows/actions",
+      "Python, uv, pytest, Ruff, or pip execution in supported repository tooling"
+    ]
+  },
+  "reproduction_commands": {
+    "tracked_python_files": "git ls-files '*.py'",
+    "shell_python_execution_files": "rg -l '(python3?|uv run|pytest|ruff|pip-audit)' scripts -g '*.sh' -g '*.bash'",
+    "versioned_python_execution_files": "rg -l '(python3?|uv run|pytest|ruff|pip-audit)' scripts/ai -g 'verify_v*.sh'",
+    "inline_python_shell_files": "rg -l 'python3?([^[:alnum:]_]|$).*<<' scripts -g '*.sh' -g '*.bash'",
+    "python_workflow_action_files": "rg -l '(python3?|setup-python|uv run|pytest|ruff|pip-audit|wheel|maturin)' .github/workflows .github/actions -g '*.yml' -g '*.yaml'"
+  }
+}

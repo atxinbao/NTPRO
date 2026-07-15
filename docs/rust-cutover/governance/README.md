@@ -35,6 +35,10 @@ release gate 和已跟踪 release package 共同证明。
   for milestone #31 and its live GitHub reconstruction.
 - `docs_examples_governance_closeout.md` - source-controlled closeout contract
   for milestone #32 and its live GitHub reconstruction.
+- `python_tooling_baseline.json` - machine-readable corrected Python execution
+  baseline for milestone #33.
+- `python_tooling_authority_map.md` - replacement, retirement, retention, and
+  zero-Python closeout authority for repository tooling.
 - `../release/v0_32_0_release_closeout_evidence.md` - source-controlled release
   closeout contract.
 
@@ -71,3 +75,10 @@ release package or authorize a new backend version.
 The closeout contract is `docs_examples_governance_closeout.md`. Final merge,
 issue, workflow, main-branch, and milestone facts are reconstructed from live
 GitHub after the DEXG-008 PR merges.
+
+## Python Tooling Closeout
+
+The follow-up milestone is `python-tooling-closeout` (#33), with exact issue
+set `#1096-#1103`. It removes repository Python execution only after current
+validation authority is replaced in Rust. Historical `docs/rust-cutover/`
+evidence remains retained, and v0.32.0 remains the frozen backend baseline.
