@@ -22,6 +22,8 @@ release gate 和已跟踪 release package 共同证明。
 - `../../../scripts/ai/check_backend_freeze_baseline.sh` - deterministic guard
   for tag, commit, source hashes, explicit-false boundaries, and v0.33+
   non-inheritance, including fail-closed negative selftests.
+- `generated_artifact_policy.md` - tracked, remote-reconstructable, and
+  ephemeral-local artifact classification plus worktree hygiene rules.
 - `../release/v0_32_0_release_closeout_evidence.md` - source-controlled release
   closeout contract.
 

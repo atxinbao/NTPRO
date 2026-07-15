@@ -82,6 +82,11 @@ dist/
 env/
 .tmp-pre-commit/
 *.bak
+
+# NTPRO post-baseline generated audit and analysis outputs
+/release-publication-evidence/
+/graphify-out/
+
 *.sh
 !scripts/ai/*.sh
 !scripts/control/*.sh
