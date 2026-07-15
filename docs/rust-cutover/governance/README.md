@@ -26,6 +26,10 @@ release gate 和已跟踪 release package 共同证明。
   ephemeral-local artifact classification plus worktree hygiene rules.
 - `github_intake_policy.md` - required issue/PR declarations, label meanings,
   and fail-closed routing for post-freeze changes.
+- `v0_33_plus_intake_policy.md` - mandatory entry contract for separately
+  scoped frontend, UX, deployment, or new-module work.
+- `backend_freeze_governance_closeout.md` - source-controlled closeout contract
+  for milestone #31 and its live GitHub reconstruction.
 - `../release/v0_32_0_release_closeout_evidence.md` - source-controlled release
   closeout contract.
 

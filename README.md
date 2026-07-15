@@ -50,6 +50,12 @@ submit, mutation, adapter send, live exchange request, retry scheduler,
 automatic remediation, or Dashboard / Admin / Trader Terminal operation
 controls from `v0.32.0`.
 
+Post-baseline governance is indexed in
+[`docs/rust-cutover/governance/README.md`](docs/rust-cutover/governance/README.md).
+Any v0.33.0+ proposal must satisfy the separate intake contract in
+[`v0_33_plus_intake_policy.md`](docs/rust-cutover/governance/v0_33_plus_intake_policy.md)
+before a capability milestone or implementation issue is created.
+
 ## Current Status
 
 NTPRO is now treated as a Rust-only product surface.
