@@ -9,6 +9,11 @@ No backend patch is scheduled. The post-baseline governance track is
 `backend-freeze-governance`.
 The next capability family is `v0.33.0+`.
 
+The active governance contract is
+`docs/rust-cutover/governance/backend_freeze_policy.md`. Any v0.33.0+ proposal
+must pass `docs/rust-cutover/governance/v0_33_plus_intake_policy.md` before
+milestone creation or implementation.
+
 ## Current Release Surface
 
 Current published release:
