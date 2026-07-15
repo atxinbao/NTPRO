@@ -24,6 +24,7 @@ use ntpro_governance::{
     control_plane::validate_control_plane_retirement,
     docs_examples::validate_docs_examples,
     golden_trace::{replay_trace, validate_release_scope, validate_trace},
+    historical_release::validate_historical_release_retirement,
     read_model::validate_read_model_schema,
     release_publication::{
         ReleaseBindingConfig, release_body_hash_report, timestamp_ge, validate_release_binding,
@@ -88,6 +89,16 @@ enum Command {
         manifest: PathBuf,
         #[arg(long, default_value = "tests/golden/*.jsonl")]
         trace_glob: String,
+    },
+    /// Validates retirement and Git recovery of historical release executables.
+    HistoricalReleaseRetirement {
+        #[arg(
+            long,
+            default_value = "docs/rust-cutover/governance/historical_release_executable_retirement.json"
+        )]
+        manifest: PathBuf,
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        negative_selftest: bool,
     },
     /// Validates v0.21 read-model snapshots and fail-closed boundaries.
     ReadModelSchema {
@@ -246,6 +257,20 @@ fn run(cli: Cli) -> anyhow::Result<()> {
                 counts.executable_replay,
                 counts.validator_executable_replay,
                 counts.schema_only_scoped
+            );
+        }
+        Command::HistoricalReleaseRetirement {
+            manifest,
+            negative_selftest,
+        } => {
+            let counts = validate_historical_release_retirement(&manifest, negative_selftest)?;
+            println!(
+                "historical_release_retirement=pass retired={} python_tooling={} tags={} restored_blobs={} negative_cases={}",
+                counts.retired,
+                counts.tooling,
+                counts.tags,
+                counts.restored_blobs,
+                counts.negative_cases
             );
         }
         Command::ReadModelSchema { schema, trace_glob } => {

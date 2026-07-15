@@ -1,0 +1,2446 @@
+{
+  "schema_version": "ntpro.historical_release_executable_retirement.v1",
+  "task_id": "PTC-006",
+  "github_issue": 1101,
+  "status": "review_required",
+  "risk": "high",
+  "baseline": {
+    "backend_freeze_version": "v0.32.0",
+    "backend_freeze_tag": "ntpro-rust-only-v0.32.0",
+    "pre_retirement_source_commit": "15debbfb394b99f525be2bc8510aaa66b8f20360",
+    "history_authority": "immutable_release_tags_plus_git_history",
+    "release_tags": [
+      "ntpro-rust-only-v0.1.0",
+      "ntpro-rust-only-v0.2.0",
+      "ntpro-rust-only-v0.3.0",
+      "ntpro-rust-only-v0.3.1",
+      "ntpro-rust-only-v0.4.0",
+      "ntpro-rust-only-v0.4.1",
+      "ntpro-rust-only-v0.6.0",
+      "ntpro-rust-only-v0.7.0",
+      "ntpro-rust-only-v0.7.1",
+      "ntpro-rust-only-v0.7.2",
+      "ntpro-rust-only-v0.8.0",
+      "ntpro-rust-only-v0.9.0",
+      "ntpro-rust-only-v0.10.0",
+      "ntpro-rust-only-v0.11.0",
+      "ntpro-rust-only-v0.12.0",
+      "ntpro-rust-only-v0.12.1",
+      "ntpro-rust-only-v0.13.0",
+      "ntpro-rust-only-v0.14.0",
+      "ntpro-rust-only-v0.15.0",
+      "ntpro-rust-only-v0.16.0",
+      "ntpro-rust-only-v0.17.0",
+      "ntpro-rust-only-v0.18.0",
+      "ntpro-rust-only-v0.18.1",
+      "ntpro-rust-only-v0.19.0",
+      "ntpro-rust-only-v0.20.0",
+      "ntpro-rust-only-v0.20.1",
+      "ntpro-rust-only-v0.21.0",
+      "ntpro-rust-only-v0.21.1",
+      "ntpro-rust-only-v0.22.0",
+      "ntpro-rust-only-v0.22.1",
+      "ntpro-rust-only-v0.23.0",
+      "ntpro-rust-only-v0.23.1",
+      "ntpro-rust-only-v0.24.0",
+      "ntpro-rust-only-v0.24.1",
+      "ntpro-rust-only-v0.25.0",
+      "ntpro-rust-only-v0.25.1",
+      "ntpro-rust-only-v0.26.0",
+      "ntpro-rust-only-v0.26.1",
+      "ntpro-rust-only-v0.27.0",
+      "ntpro-rust-only-v0.27.1",
+      "ntpro-rust-only-v0.28.0",
+      "ntpro-rust-only-v0.28.1",
+      "ntpro-rust-only-v0.29.0",
+      "ntpro-rust-only-v0.29.1",
+      "ntpro-rust-only-v0.30.0",
+      "ntpro-rust-only-v0.30.1",
+      "ntpro-rust-only-v0.31.0",
+      "ntpro-rust-only-v0.31.1",
+      "ntpro-rust-only-v0.32.0"
+    ]
+  },
+  "retirement": {
+    "historical_executable_count": 263,
+    "restore_source_commit": "15debbfb394b99f525be2bc8510aaa66b8f20360",
+    "source_tree_required_after_retirement": false
+  },
+  "preserved_authority": [
+    "docs/rust-cutover/**",
+    "tests/golden/**",
+    "Rust integration tests",
+    "immutable Git tags",
+    "published GitHub Releases",
+    "hosted workflow run references"
+  ],
+  "retired_executables": [
+    {
+      "path": "scripts/ai/verify_release_strict.sh",
+      "sha256": "803607375a650940626acef6479d523755c4e9d1e0c06f79832ce9edfee49a57",
+      "git_blob_sha": "92eb0c8a2f844ee8789627de40310d30783fce73",
+      "last_change_commit": "5fe31c2b06c7d05bbf289865526a0cb599ecf021",
+      "bytes": 41065,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_release_strict.sh > scripts/ai/verify_release_strict.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v04_binance_sandbox.sh",
+      "sha256": "2d63c9f5ee3995ef318bf1f961b1681ffd3dec5656a3f82f97d72bb87b4476fa",
+      "git_blob_sha": "85105019c4e6f8c0226b49aa39fdbe55d6582073",
+      "last_change_commit": "866262e3ab15bc0e39760a9dadd108e764da859b",
+      "bytes": 1003,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v04_binance_sandbox.sh > scripts/ai/verify_v04_binance_sandbox.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v05_workflow_artifacts.sh",
+      "sha256": "beb7c46f64e9ae73bb8a295182c044a995413a7b6c489b930ad9280d7633439c",
+      "git_blob_sha": "0e91180ada8670dbc9fc976a144878adf20ac1ae",
+      "last_change_commit": "a3917579e829ee103ec0618cb8d72e78b71271fa",
+      "bytes": 5436,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v05_workflow_artifacts.sh > scripts/ai/verify_v05_workflow_artifacts.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v06_binance_testnet_dry_run.sh",
+      "sha256": "d647c28198fa7e753101a69839e75732d89be72f9b444d8b50a319ffc833f4b2",
+      "git_blob_sha": "8e4166236427f9909617d03843ca2684d3fbe29f",
+      "last_change_commit": "f8b8718e1c7e148fa6627a0bd224a838b5559719",
+      "bytes": 11728,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v06_binance_testnet_dry_run.sh > scripts/ai/verify_v06_binance_testnet_dry_run.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v07_default_offline_gate.sh",
+      "sha256": "9ccb2cdbde498324ca933bb0a58315c00140290cee4cfcdda2d95cfff499c9f5",
+      "git_blob_sha": "9561372b186dfb93b6941f4a0ae8d485180ec84c",
+      "last_change_commit": "f8b8718e1c7e148fa6627a0bd224a838b5559719",
+      "bytes": 9699,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v07_default_offline_gate.sh > scripts/ai/verify_v07_default_offline_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v07_manual_online_gate.sh",
+      "sha256": "37cadcc64d0318932a85efef93196316cda76b770353543d1d62f7b82a0a9338",
+      "git_blob_sha": "3c271ea10c0a3cfed9b20172f7e481f0d53e699e",
+      "last_change_commit": "f8b8718e1c7e148fa6627a0bd224a838b5559719",
+      "bytes": 11885,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v07_manual_online_gate.sh > scripts/ai/verify_v07_manual_online_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v08_authenticated_readonly_gate.sh",
+      "sha256": "8e9994141f1ab75d03af527e88e154e9cf2c8664ed5c2c73e7906c93b7895907",
+      "git_blob_sha": "9de91f275a821b5297d069cd74a3e7de3975a01b",
+      "last_change_commit": "b61540cf31845b997e76f8a2fcd1f385e46f0bb2",
+      "bytes": 10516,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v08_authenticated_readonly_gate.sh > scripts/ai/verify_v08_authenticated_readonly_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v08_default_offline_gate.sh",
+      "sha256": "c8436c3bc545f009dd97ec3c6e537e405194050ac6c3280dde66566de7d5e917",
+      "git_blob_sha": "70519faa514c31e0797b2c747024e7e610383314",
+      "last_change_commit": "ba77d8f218524d0ab4e23ad079c9599d3fa1fde1",
+      "bytes": 6380,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v08_default_offline_gate.sh > scripts/ai/verify_v08_default_offline_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v091_strategy_supervisor_dashboard_integration.sh",
+      "sha256": "23faa948a6cba2f3d4aeee6aa2c0101f490f5987c23d530d3b736dc216432b75",
+      "git_blob_sha": "ef023141017cbe8a3cacf0f8238e46c53110e52c",
+      "last_change_commit": "185ff3cfc8b748870bb7263d512b82f1b4ec191e",
+      "bytes": 10640,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v091_strategy_supervisor_dashboard_integration.sh > scripts/ai/verify_v091_strategy_supervisor_dashboard_integration.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v09_shadow_mode_no_order_gate.sh",
+      "sha256": "c5a620257430a35e2b392d21d71886935e9fe188c8a58f7d1d564ea451132487",
+      "git_blob_sha": "3f517af9c0b01b299a2595a66b7c9ae59eb965cc",
+      "last_change_commit": "cd427e09a53f142a9fa5e3b29a4bd313d4209807",
+      "bytes": 4823,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v09_shadow_mode_no_order_gate.sh > scripts/ai/verify_v09_shadow_mode_no_order_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v09_strategy_runtime_smoke.sh",
+      "sha256": "cc339ae38da8b5385503c6f9c6deb67fc085622dfa37b89404cd1035529b2926",
+      "git_blob_sha": "4673e360acbdb266848fb915660eea8782b38850",
+      "last_change_commit": "185ff3cfc8b748870bb7263d512b82f1b4ec191e",
+      "bytes": 9270,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v09_strategy_runtime_smoke.sh > scripts/ai/verify_v09_strategy_runtime_smoke.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v10_execution_artifact_contract.sh",
+      "sha256": "9f40e1c6952359437d21d262bf4c250deea2fe97206900b9c459b65b660de45b",
+      "git_blob_sha": "b5db447a3d4694fcb8612f3cf98c0ebea983c450",
+      "last_change_commit": "6e6ef039a46806b1dfba3b0d7d4efd62151d95a6",
+      "bytes": 5838,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v10_execution_artifact_contract.sh > scripts/ai/verify_v10_execution_artifact_contract.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v10_manual_order_proof_gate.sh",
+      "sha256": "05e5ee91c0f06208a5df01ed389716943818eead7f2604b2214eeaa49d67a09b",
+      "git_blob_sha": "5b7a0b26ae86ae805c0eced2df27a0ee34a1d0e6",
+      "last_change_commit": "2ab70b5ea5a547b94bfae65fdf2717c671d9dba7",
+      "bytes": 5291,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v10_manual_order_proof_gate.sh > scripts/ai/verify_v10_manual_order_proof_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v10_manual_tiny_submit_cancel.sh",
+      "sha256": "76256869dead0e72f9e78eec80e180beee9cc8c564f55bcc79a0d495b9d273fc",
+      "git_blob_sha": "9abad21e6ceb2a9e7366d99fd73d918c9dbed9e7",
+      "last_change_commit": "2ab70b5ea5a547b94bfae65fdf2717c671d9dba7",
+      "bytes": 21305,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v10_manual_tiny_submit_cancel.sh > scripts/ai/verify_v10_manual_tiny_submit_cancel.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v10_offline_fail_closed.sh",
+      "sha256": "d5239e06d22d4deadc42398d3d9bbd12fa7fa0081e70dc29cb478257abe85be2",
+      "git_blob_sha": "c4f02ef4aadd4553dcc1e510aff23b09d906daf7",
+      "last_change_commit": "2e985c9bbb167d7945eb14349e7382f32a6644bf",
+      "bytes": 3271,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v10_offline_fail_closed.sh > scripts/ai/verify_v10_offline_fail_closed.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v10_offline_release_gates.sh",
+      "sha256": "0be15672b3580f747e6c6787632d0f81b9fedae8b0804c6b191e0eccce228c90",
+      "git_blob_sha": "9182b8d7c06ca13e23d25a6590c1c6553d1e5dbd",
+      "last_change_commit": "47f10b14b1eda7fbbf622490f5c5a37bdb5c0335",
+      "bytes": 2363,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v10_offline_release_gates.sh > scripts/ai/verify_v10_offline_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v10_order_preflight.sh",
+      "sha256": "77ec14a79f7a2be84441b9acb0ff022ada45a3298af0abda86c275ab37edd19e",
+      "git_blob_sha": "f6f83aef44bc678fd4b204557826732d51dd6bf3",
+      "last_change_commit": "32d88533c035588e06b03fea2764f41a1437c0d1",
+      "bytes": 6246,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v10_order_preflight.sh > scripts/ai/verify_v10_order_preflight.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v10_order_test_preflight.sh",
+      "sha256": "34a9037a6a652956d6e5567d91d85155fe9b5cf54d062a4d056898478e43bf9b",
+      "git_blob_sha": "895df634644c360d5568dbff3b6dbb0c6fd660b2",
+      "last_change_commit": "ddfdbcfbc44ff2b2f83586f9a45538ec9ff492d0",
+      "bytes": 6680,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v10_order_test_preflight.sh > scripts/ai/verify_v10_order_test_preflight.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v10_reconciliation_fixture.sh",
+      "sha256": "17d783094431662ec1daba837f56b3d4e4fdf801d66ae847378d545f569bc493",
+      "git_blob_sha": "a8fd887380702b24bca7183bb4545fbee9cec1fb",
+      "last_change_commit": "ce9815b07abf8eca8b8aa39750fdcfde15063fb8",
+      "bytes": 3481,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v10_reconciliation_fixture.sh > scripts/ai/verify_v10_reconciliation_fixture.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v10_signed_order_request.sh",
+      "sha256": "d1339fbcc3d6d86a2bbee60673af456a3194ddeb5817d59ad9fff5e855bc5a79",
+      "git_blob_sha": "fcecf1c12dde343afcfe3d2899ad0e4af8bb7178",
+      "last_change_commit": "52af4cad3265233624e193f158e274407a5b8fb2",
+      "bytes": 8486,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v10_signed_order_request.sh > scripts/ai/verify_v10_signed_order_request.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v11_authenticated_account_snapshot_contract.sh",
+      "sha256": "fd95514e3ac2e2f72b48924c6af3b26590ddf45eb9c0d4278d6cc311b9b34978",
+      "git_blob_sha": "3eb1e54d8636b6bb44a656fef53ee55e68c386c3",
+      "last_change_commit": "319687e34b2388914daff1aa9f0bfdfcd024ffa7",
+      "bytes": 6855,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v11_authenticated_account_snapshot_contract.sh > scripts/ai/verify_v11_authenticated_account_snapshot_contract.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v11_offline_release_gates.sh",
+      "sha256": "e042eeca58399ed9371c7fb387faf4a69cfb71c1284f93df064d11b06253af2c",
+      "git_blob_sha": "724dbd2e65aef644acdb3662ad78810f68ce137c",
+      "last_change_commit": "2c299659175d54fbbe120cf2346b8310dc38bef8",
+      "bytes": 3972,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v11_offline_release_gates.sh > scripts/ai/verify_v11_offline_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v11_public_read_probe.sh",
+      "sha256": "0578f7d4a8c6136a4670e348720f56d98d7ee52438ec22433683c0ea8d05e1b4",
+      "git_blob_sha": "a2d19a703fbad913a755e371d4c110cc2c18cf72",
+      "last_change_commit": "319687e34b2388914daff1aa9f0bfdfcd024ffa7",
+      "bytes": 4032,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v11_public_read_probe.sh > scripts/ai/verify_v11_public_read_probe.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v12_authenticated_account_snapshot_online_read.sh",
+      "sha256": "3729f7119bcb2ad357f036f33a1dbbb0f4c0c731a335a275f8ca7e97cdbe0fd5",
+      "git_blob_sha": "243967f7e4074fcabe9b4c14b346396fe6e072d1",
+      "last_change_commit": "8843d505c35b491ef8f5886a095604da8a27d634",
+      "bytes": 11847,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v12_authenticated_account_snapshot_online_read.sh > scripts/ai/verify_v12_authenticated_account_snapshot_online_read.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v12_manual_online_preflight.sh",
+      "sha256": "598088d9899eeae0f48d33ad61070deeca54632db5e5059597d4e810ae193666",
+      "git_blob_sha": "e8b6cafbc0ab84de5be8fd9e8a37fbfdec14ddc5",
+      "last_change_commit": "839edf1d18f02e09821521a5f262ddec115502a5",
+      "bytes": 3863,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v12_manual_online_preflight.sh > scripts/ai/verify_v12_manual_online_preflight.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v12_offline_release_gates.sh",
+      "sha256": "f8b9af4b7dccd5998580ee21ee8ddfb5a520945e79752d6c7ce924bc19c557cf",
+      "git_blob_sha": "25ac2c22ef63148372a44ecf8b4522465b4cbde7",
+      "last_change_commit": "5bf4977462a125dc6c297102a6da299afc8d4c7e",
+      "bytes": 3513,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v12_offline_release_gates.sh > scripts/ai/verify_v12_offline_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v12_persistent_shadow_strategy_session.sh",
+      "sha256": "f49a8fa18ba239d4b8ac734110d822e9e98a95842abcdd1c51e005c4bf818ed8",
+      "git_blob_sha": "316dbdbd449df40b0a77ff04d2f4d440a5e9cdde",
+      "last_change_commit": "27a8f35cc3b6e16f366400716a65bc671a8911bc",
+      "bytes": 6341,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v12_persistent_shadow_strategy_session.sh > scripts/ai/verify_v12_persistent_shadow_strategy_session.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v12_production_readonly_reconciliation.sh",
+      "sha256": "149ad622e61e1ba77c470e6ec2b5d6b678df9a3bc9c9c26e8d95f269a5dbf440",
+      "git_blob_sha": "317e1b3b08a9296607d82513db0851611822e1d1",
+      "last_change_commit": "fe263dcac6c4217bf6b51d902dfbc82a0ada9b87",
+      "bytes": 7997,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v12_production_readonly_reconciliation.sh > scripts/ai/verify_v12_production_readonly_reconciliation.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v12_public_online_read_probe.sh",
+      "sha256": "59bc2067be5602de54db0374c44a326fd89a0c80b685e2ad1483729eb7f55101",
+      "git_blob_sha": "bad32172d9916f35d14e73ad69f6f92e27566e16",
+      "last_change_commit": "8843d505c35b491ef8f5886a095604da8a27d634",
+      "bytes": 9848,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v12_public_online_read_probe.sh > scripts/ai/verify_v12_public_online_read_probe.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v12_response_shape.sh",
+      "sha256": "2d1fdbba784e4b189c444e27299e9ff4fc4fa795e8401071ea49c38c15064134",
+      "git_blob_sha": "840d9a48bf4dbf740af6f9b68e96c9a2f8cb7630",
+      "last_change_commit": "a0d73b8fcef1c6f7fa7ab837e747b70f5da54bf6",
+      "bytes": 1775,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v12_response_shape.sh > scripts/ai/verify_v12_response_shape.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v12_shadow_portfolio_runtime.sh",
+      "sha256": "d65687726f6ed9e36b0b5198237a8f28f85c57c2bed10ae33d2af85db6b53ab0",
+      "git_blob_sha": "000ba6b7f9840decf10deeabdceb86076dd065a6",
+      "last_change_commit": "99edf86abdeee1df6f555c8f179882de7a134ca0",
+      "bytes": 6787,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v12_shadow_portfolio_runtime.sh > scripts/ai/verify_v12_shadow_portfolio_runtime.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v13_dashboard_control_boundary.sh",
+      "sha256": "be856638f69697f8089a6448940ec304954193a242a8ced3ca69f82abb5ce038",
+      "git_blob_sha": "85da7a5ba1160f31619ae6bc82e890bd4e0a4862",
+      "last_change_commit": "a5874617fd0e695ddf0ad3fb9f35be0973189b25",
+      "bytes": 2754,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v13_dashboard_control_boundary.sh > scripts/ai/verify_v13_dashboard_control_boundary.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v13_decimal_amount_boundary.sh",
+      "sha256": "648285377c0d06b45b8e28da15f35d72f9004e51df510fcec15630d17531cd65",
+      "git_blob_sha": "c19f57bf4197652983df7653fab30e3ac57f9fe2",
+      "last_change_commit": "3f69d1ad14688c5239e9b769bc9269d7003a547c",
+      "bytes": 2339,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v13_decimal_amount_boundary.sh > scripts/ai/verify_v13_decimal_amount_boundary.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v13_kill_switch_approval_artifact.sh",
+      "sha256": "4b949da38ca93b610bb748faffee2ab29e190b76959571dd37e369924d022128",
+      "git_blob_sha": "bdb9683ea6edf3ac885b3ba0d89919f333eb0f3e",
+      "last_change_commit": "ef80bc4da013cf5d98643f195195c3ed6b3a4a6c",
+      "bytes": 4861,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v13_kill_switch_approval_artifact.sh > scripts/ai/verify_v13_kill_switch_approval_artifact.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v13_no_production_mutation_gate.sh",
+      "sha256": "b2e54338bac33c714866156f210fbb9511841ffc07cf38742817b8dbe9ab496d",
+      "git_blob_sha": "f4f5354cf227f685f5a556581aa6c76dd310e353",
+      "last_change_commit": "a0508c133c61c430263c578a6bdd3d11e1da609f",
+      "bytes": 3738,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v13_no_production_mutation_gate.sh > scripts/ai/verify_v13_no_production_mutation_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v13_online_readonly_proof_pack.sh",
+      "sha256": "6efd4e905d4b45dacf289e8edc65add8a2b02f7718737dbff9fd05fbfcffdfce",
+      "git_blob_sha": "77477cfeba6364fb197e45ced5ce64334d1694ce",
+      "last_change_commit": "e62e6d8b910f5ab1b2b19a1dbd067993eaa0c9a6",
+      "bytes": 11756,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v13_online_readonly_proof_pack.sh > scripts/ai/verify_v13_online_readonly_proof_pack.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v13_shadow_preflight_session.sh",
+      "sha256": "6e048ce5cdffeb04e573b5483611b886fc3fc96107a4153770841e41394d2b5f",
+      "git_blob_sha": "f7bfa837fb20b0d3fa775c16aab137a0a52565b6",
+      "last_change_commit": "eecac55afcfabc68cbe7408f7df08c488357b23b",
+      "bytes": 6643,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v13_shadow_preflight_session.sh > scripts/ai/verify_v13_shadow_preflight_session.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v141_order_state_owner_evidence.sh",
+      "sha256": "24f3ffde4f050de0b132e5c7c4f3f7a4fbe24f9d92c92e0848570a35092b1abb",
+      "git_blob_sha": "9257663078f63c0e2bfee6c4d8d346b2143c33b2",
+      "last_change_commit": "8a011a0b97c13c2941eebee34820bd1819a41a07",
+      "bytes": 17913,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v141_order_state_owner_evidence.sh > scripts/ai/verify_v141_order_state_owner_evidence.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v14_live_alpha_dry_run_order_gate.sh",
+      "sha256": "41cee5027d7e5082e36b64b59f29c65d574c3c9db13ba667799695580dd6c5f9",
+      "git_blob_sha": "dd4d3a9eb857496917c7ff42e83eccbee2264466",
+      "last_change_commit": "1404ab46bbf21afecc55500c8b1c54066d6f5e61",
+      "bytes": 8106,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v14_live_alpha_dry_run_order_gate.sh > scripts/ai/verify_v14_live_alpha_dry_run_order_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v14_live_alpha_risk_preflight.sh",
+      "sha256": "45da4873c4202b9fc292bc72c41d887f816d65b005785ad072608660cd1c634f",
+      "git_blob_sha": "386f6b45097a63b921013bf4934c8edbcfeb9f32",
+      "last_change_commit": "1404ab46bbf21afecc55500c8b1c54066d6f5e61",
+      "bytes": 7557,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v14_live_alpha_risk_preflight.sh > scripts/ai/verify_v14_live_alpha_risk_preflight.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v14_order_state_readonly_proof.sh",
+      "sha256": "d121d59ca2aa40798f70aa89f71e46d5754bb8f1b0dd6e6ad5bbf9727506821b",
+      "git_blob_sha": "ce7987b2c32e4d3488c184477db546217471304c",
+      "last_change_commit": "8a011a0b97c13c2941eebee34820bd1819a41a07",
+      "bytes": 13078,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v14_order_state_readonly_proof.sh > scripts/ai/verify_v14_order_state_readonly_proof.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v14_release_gates.sh",
+      "sha256": "8cb8d8b95e2a92050cfeb15d447bbb3772bf48d4514ae326d860f5b574245c01",
+      "git_blob_sha": "9fd0666dc12dbadee4af2753069c6e10513165ff",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 4223,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v14_release_gates.sh > scripts/ai/verify_v14_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v14_supervisor_shadow_runtime.sh",
+      "sha256": "0bcf278896866498fef80ae40167c3fa500e20102b70615262e5b7d1634897a6",
+      "git_blob_sha": "d6371302e1562679b6dbbf75fecb9965813e42a4",
+      "last_change_commit": "2ce7ca2a84ddb4522e0441de0b0ef39867fc3f26",
+      "bytes": 11267,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v14_supervisor_shadow_runtime.sh > scripts/ai/verify_v14_supervisor_shadow_runtime.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v151_release_gates.sh",
+      "sha256": "ea377283e13b32a782be1ae0df2b005bb34f9402f72836535a6ed939411e7898",
+      "git_blob_sha": "da5bcc0040ddf74d9ac5961889ac97e35c328961",
+      "last_change_commit": "a28f62d43b43e2c8890e664c874b3035120b40a6",
+      "bytes": 4850,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v151_release_gates.sh > scripts/ai/verify_v151_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v15_execution_adapter_isolation.sh",
+      "sha256": "efe91b9af2b7c037b099f821bc9872773e431a1eb28402c7aeb9e0f28cefd36f",
+      "git_blob_sha": "4c5b23778c1301d04cbf04cf02c51f8ea135fffd",
+      "last_change_commit": "a6f61d48be983620ea085e5ebb2d2300db420bef",
+      "bytes": 15463,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v15_execution_adapter_isolation.sh > scripts/ai/verify_v15_execution_adapter_isolation.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v15_incident_rollback_artifact.sh",
+      "sha256": "1b9e37aec4bffc8734f65a8c5622c16a9ccc7545278b301eda1e061831c90c31",
+      "git_blob_sha": "e15855858cb622496d61cece8a4603dfb3e583fa",
+      "last_change_commit": "6a9f4bc6afde7c19152483bf243e8abd6cceb829",
+      "bytes": 10362,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v15_incident_rollback_artifact.sh > scripts/ai/verify_v15_incident_rollback_artifact.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v15_kill_switch_runtime_enforcement.sh",
+      "sha256": "a86075376ec91a247ce12e94c7cf1dc09ff8d436e2439e5e8dbcabbb8625e525",
+      "git_blob_sha": "f2619458df6c108b39bdfca4363b6f723a5a18c8",
+      "last_change_commit": "03ad50a9aeca848303deb87e3a3c29343411aeea",
+      "bytes": 15259,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v15_kill_switch_runtime_enforcement.sh > scripts/ai/verify_v15_kill_switch_runtime_enforcement.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v15_live_order_request_dry_run_builder.sh",
+      "sha256": "8a31bb886d87b4c3117bb7bae95986bc2635d280782a0f24fae898537e60debb",
+      "git_blob_sha": "0ce7798197ae321dd4b2c6446bc6a419d35e1dd4",
+      "last_change_commit": "50f3a0dc3b1f86264a5039eb40f21b7e0870181e",
+      "bytes": 17098,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v15_live_order_request_dry_run_builder.sh > scripts/ai/verify_v15_live_order_request_dry_run_builder.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v15_manual_approval_lifecycle.sh",
+      "sha256": "80bd39a79d29524a861c9b0d3fdc7f2593a948d67948c411a4ef5dd10c39c76c",
+      "git_blob_sha": "27ab5b2e972aef2e11287bf620b0dd311ca6c3a8",
+      "last_change_commit": "03ad50a9aeca848303deb87e3a3c29343411aeea",
+      "bytes": 9494,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v15_manual_approval_lifecycle.sh > scripts/ai/verify_v15_manual_approval_lifecycle.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v15_release_gates.sh",
+      "sha256": "cbcad25bf3075a305cc6e4421e95279c402eddc37a556e137221b0537bd8628c",
+      "git_blob_sha": "c10a3532946e461e4db56b4560cc30cf912c74b8",
+      "last_change_commit": "be7556af54a57bb7a00afa5f362f3ba5f3b5659f",
+      "bytes": 3739,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v15_release_gates.sh > scripts/ai/verify_v15_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v16_dashboard_readonly_evidence.sh",
+      "sha256": "175c03a575ddf827acfa6c65c4a99a3126b3db7241730507d7ca688f22db952f",
+      "git_blob_sha": "3969698860e9e8283ea3165416aee25867a87388",
+      "last_change_commit": "192788fe1e2973cbf64ae3d90e4fce8af05dd2c6",
+      "bytes": 1314,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v16_dashboard_readonly_evidence.sh > scripts/ai/verify_v16_dashboard_readonly_evidence.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v16_failure_no_retry_semantics.sh",
+      "sha256": "375953a14771c2957f41b645fce8df6f91ab9117794d6ccba436a5ff4239f25f",
+      "git_blob_sha": "4258377d09507f72c07ce9db4cec96edb700ab95",
+      "last_change_commit": "7696e34bf3b98cbe6e1c0d826a4199ce15748f1d",
+      "bytes": 6444,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v16_failure_no_retry_semantics.sh > scripts/ai/verify_v16_failure_no_retry_semantics.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v16_guarded_send_path.sh",
+      "sha256": "141310c0d1ce633e11daa2e05ebafb54cf150710c4f75b3693bc9e13aa916d5b",
+      "git_blob_sha": "b8b5afecbe31c1a06feb15c0b723453da4f7a76f",
+      "last_change_commit": "11d600aa9c5f6d4c183b1434b772e195546e85a0",
+      "bytes": 13914,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v16_guarded_send_path.sh > scripts/ai/verify_v16_guarded_send_path.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v16_kill_switch_around_send.sh",
+      "sha256": "120d3ae010a7aa2410d0c7b400a0f48e1afed9c6b63b4c398cd82df4c0a1aeb1",
+      "git_blob_sha": "993238a23f1b385f77931df5acf486828278f82b",
+      "last_change_commit": "fd9c06c06de8337ae9f2aad3e8a6e38615a97ac6",
+      "bytes": 3130,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v16_kill_switch_around_send.sh > scripts/ai/verify_v16_kill_switch_around_send.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v16_mutation_audit_trail.sh",
+      "sha256": "99be7b5b58630a061d9923c84abed46e61f21e9032fd820ebfe73a82c2383198",
+      "git_blob_sha": "cf8b1f101034f66ba5f80b8b41d12e4c534f1965",
+      "last_change_commit": "50fab95b58dabb9bb5044f5b8be6445dfe8571ce",
+      "bytes": 7588,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v16_mutation_audit_trail.sh > scripts/ai/verify_v16_mutation_audit_trail.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v16_order_state_readback.sh",
+      "sha256": "e2e9150cc2220f8144281bc32bb03363d380de4bd2329e78d2c88c1a0a110cfe",
+      "git_blob_sha": "d80dfc9a5ab3a7ebfecfc2b5fb0b8bae96746bd6",
+      "last_change_commit": "ef6266a176937c6f00c9b82b09816c899b06c620",
+      "bytes": 7291,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v16_order_state_readback.sh > scripts/ai/verify_v16_order_state_readback.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v16_release_gates.sh",
+      "sha256": "e8d6db2543b927b7505b2dd3b5d45c03e77abc4a47fd1c7a2f7faa903993174e",
+      "git_blob_sha": "8d70b4df99e7436972832ea4ff50d8ef198f0d83",
+      "last_change_commit": "1411688ebd3f63ce40af91743a6d433f25b84281",
+      "bytes": 6485,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v16_release_gates.sh > scripts/ai/verify_v16_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v16_request_builder.sh",
+      "sha256": "3ff49bce6509f4fff464b1f8e52ab57d26a46cd1630580d7fc6be852250cd30f",
+      "git_blob_sha": "d8735d4f57e1ea58dca981113c9e1f8070926468",
+      "last_change_commit": "8a92a3cc70e444f3930fdf0773ad489d3c30a115",
+      "bytes": 20341,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v16_request_builder.sh > scripts/ai/verify_v16_request_builder.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v16_response_redaction.sh",
+      "sha256": "d52d38527b1571bbc192f5176d18fbb0b390e6e41b3abb818b3bdf5e3b130613",
+      "git_blob_sha": "2b9101bd6b12c0c20bc9bf91fc8b906bba6d3078",
+      "last_change_commit": "5fd0a4052f398e6f2b683442fb95d9031ce35ecb",
+      "bytes": 10935,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v16_response_redaction.sh > scripts/ai/verify_v16_response_redaction.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v16_runtime_gates.sh",
+      "sha256": "e7f0248ddca68fcfd4463cd3f0dee6fd045d404da898ca79b2b02b1bceb3f7c2",
+      "git_blob_sha": "ba69a112ee60717724f156413b4611d49547376d",
+      "last_change_commit": "01ec8514f292218ceb8b935b37d73976c0137ca6",
+      "bytes": 15764,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v16_runtime_gates.sh > scripts/ai/verify_v16_runtime_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v16_signing_material_approval.sh",
+      "sha256": "d255f0ce4e5ef26cba6b339bb944722f697208b9768ffc90ae19e18a9ddc7b17",
+      "git_blob_sha": "600be15328af0edfc86476959c126483df1980a0",
+      "last_change_commit": "80e4efdd59594a308d1df3050885a3996ee22b9f",
+      "bytes": 15808,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v16_signing_material_approval.sh > scripts/ai/verify_v16_signing_material_approval.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v171_release_hardening.sh",
+      "sha256": "52096968a5d0f936b9f89f9d901bd4630c438c7d688db047776ca62ba799c4ab",
+      "git_blob_sha": "32f31f6dc1f67afd2a4dbc77a5eba80ea0dd8fb2",
+      "last_change_commit": "8c81444dbfffadcca3c04c9e7d05775645473679",
+      "bytes": 10720,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v171_release_hardening.sh > scripts/ai/verify_v171_release_hardening.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v17_dashboard_reconciliation_panel.sh",
+      "sha256": "0c98755d71771d3e93a943a7bcb2ee3163ccb82606c6cd65f39fe0c28d4c21c1",
+      "git_blob_sha": "2902277615b24d92027c1dcacea2cfebd186f207",
+      "last_change_commit": "6203ee952dbea17392736f45621395dc9463013b",
+      "bytes": 703,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v17_dashboard_reconciliation_panel.sh > scripts/ai/verify_v17_dashboard_reconciliation_panel.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v17_exchange_readback_mapper.sh",
+      "sha256": "c01d2d25525de5b849a5e0c5787b91832eb5278ffeefcaabf477a195a584f871",
+      "git_blob_sha": "6a22a71f93b82f2f172deea7e54a2cd1863af4c2",
+      "last_change_commit": "d0918d90e78af4da7243f9679b62af098d205228",
+      "bytes": 11604,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v17_exchange_readback_mapper.sh > scripts/ai/verify_v17_exchange_readback_mapper.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v17_failure_incident_integration.sh",
+      "sha256": "9481f06a8568bd2f8c615b15f93cbdaa2f7ca7e0a658b5f26aeb90e43e9952c7",
+      "git_blob_sha": "e9514550c7b5ae2edf3254ac1cbf66f2615e2338",
+      "last_change_commit": "482b863388cd9a6cb47aef3c6c7966da3e6fecc8",
+      "bytes": 801,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v17_failure_incident_integration.sh > scripts/ai/verify_v17_failure_incident_integration.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v17_local_order_ledger.sh",
+      "sha256": "4e8ac52b3520dffeb08ca6d3bb0ae2c0bcf5d8b589a37403f0b120dc4bd81816",
+      "git_blob_sha": "9dd1a6416cec726c4a37c3d15dabac1626a3b32b",
+      "last_change_commit": "d0918d90e78af4da7243f9679b62af098d205228",
+      "bytes": 9263,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v17_local_order_ledger.sh > scripts/ai/verify_v17_local_order_ledger.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v17_orphan_order_detection.sh",
+      "sha256": "29a133ff47da167c80870e7fed9795a8f481a4e08ae1cd1d00525e49871d8b99",
+      "git_blob_sha": "c018591bf23b1d53fe78defc908d4cdd779fd890",
+      "last_change_commit": "d0918d90e78af4da7243f9679b62af098d205228",
+      "bytes": 9513,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v17_orphan_order_detection.sh > scripts/ai/verify_v17_orphan_order_detection.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v17_reconciliation_classifier.sh",
+      "sha256": "97dcb86e3017e9853e8c9ffda5912402517ae0166ae9088930db2258005c674d",
+      "git_blob_sha": "a972f1680b50ddbc35b363440acea22b480dce44",
+      "last_change_commit": "d0918d90e78af4da7243f9679b62af098d205228",
+      "bytes": 10487,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v17_reconciliation_classifier.sh > scripts/ai/verify_v17_reconciliation_classifier.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v17_release_gates.sh",
+      "sha256": "5e967168b49b6f2da3f88c89b8419e7bed0635f5eacabb39040b960bb6a1d13d",
+      "git_blob_sha": "127e5736ab4c5ed9c579ca6087b6a2f5750ba2b2",
+      "last_change_commit": "24880dec0053b0a131f24d5b63c503d7977e1830",
+      "bytes": 6191,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v17_release_gates.sh > scripts/ai/verify_v17_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v17_restart_recovery.sh",
+      "sha256": "2760560f932ff233b982f0c28dce72b8ee6781ec61a3827d093c3ccda658153b",
+      "git_blob_sha": "caba9cf3650186b3a1974d0ad32ab909369c7cf1",
+      "last_change_commit": "24880dec0053b0a131f24d5b63c503d7977e1830",
+      "bytes": 9845,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v17_restart_recovery.sh > scripts/ai/verify_v17_restart_recovery.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v18_cancel_recovery_incident_audit_closeout.sh",
+      "sha256": "b31ff537ac3f8fadc51814013404eb1c1fbe656fc5badd0ad7ee35f6ed9e3e5f",
+      "git_blob_sha": "9a24ece5e9e9cc1182ce1df18b736faa6adec99a",
+      "last_change_commit": "844eeae20578783f25d5c7c7224cebef8a605856",
+      "bytes": 10092,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v18_cancel_recovery_incident_audit_closeout.sh > scripts/ai/verify_v18_cancel_recovery_incident_audit_closeout.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v18_cancel_request_preview.sh",
+      "sha256": "75e82d18e1b882b4afe21b84ecd1590412a73b05af76efe595d8baeab449c730",
+      "git_blob_sha": "32d34f2e18c6f8fc246b0024924adfea63c21a60",
+      "last_change_commit": "edcba303f9b708987e3c5a2d1c7c009ed467d03d",
+      "bytes": 11125,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v18_cancel_request_preview.sh > scripts/ai/verify_v18_cancel_request_preview.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v18_cancel_response_redaction.sh",
+      "sha256": "2dd35c70755a289208da76f5861e9e9d821e203a0411e3dcf45213ab3d8cb05a",
+      "git_blob_sha": "7c4f8cdba4ebf0ff778cc138f0a7250e709dfda5",
+      "last_change_commit": "c0578ef131ab8a39c683b0dface535b22c85daae",
+      "bytes": 8454,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v18_cancel_response_redaction.sh > scripts/ai/verify_v18_cancel_response_redaction.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v18_cancel_risk_gate.sh",
+      "sha256": "a1fcd1c608398fd881ea397f8254ff2f612b32901b9e1d251a3d7623345e6e63",
+      "git_blob_sha": "d3cfd007ea04a398af2a680f7fb4716c36e47dc9",
+      "last_change_commit": "21dcb3afe3229307348ea0ef04cf78fa4949084d",
+      "bytes": 12743,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v18_cancel_risk_gate.sh > scripts/ai/verify_v18_cancel_risk_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v18_dashboard_cancel_recovery_panel.sh",
+      "sha256": "b459f2a83ddcb8779885bb83887ac7f2ff229351fd623176aadabdbd8094f49f",
+      "git_blob_sha": "90d1fce35fe0c6378672c46e8ba3459444393cd6",
+      "last_change_commit": "c395e71960255fefbf4100654fd53ce2bf33a08f",
+      "bytes": 1059,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v18_dashboard_cancel_recovery_panel.sh > scripts/ai/verify_v18_dashboard_cancel_recovery_panel.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v18_manual_owner_approval_lifecycle.sh",
+      "sha256": "00d73f978f3181f859f78d40e81fb7b56cbde48b850dca254165dc4e24a2b08a",
+      "git_blob_sha": "df51045b94c35acaa0775d608d6df5ecd5ba52c3",
+      "last_change_commit": "a13d8e03d92ff830f279853127cfcccc402e5f58",
+      "bytes": 13817,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v18_manual_owner_approval_lifecycle.sh > scripts/ai/verify_v18_manual_owner_approval_lifecycle.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v18_post_cancel_readback.sh",
+      "sha256": "33d34f7d5fce24b6b60e1d75fccaf5b4c650ac2425120fda4a00bf1ec3661703",
+      "git_blob_sha": "5ec14cedc3680a4b3c6bf33c99687c866d1602c6",
+      "last_change_commit": "ea10d72496a0aa0300559c485c84dc936d98e7d9",
+      "bytes": 11227,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v18_post_cancel_readback.sh > scripts/ai/verify_v18_post_cancel_readback.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v18_release_gates.sh",
+      "sha256": "cf9a477cd0042a7480dfe89c92b0f0d487c81369da8d4550dd784af3fb7d1886",
+      "git_blob_sha": "bd28623a30980d5815a19f3e52de3a4652784f89",
+      "last_change_commit": "68c0df4985767fc879cc56858926abec9f4d68aa",
+      "bytes": 8510,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v18_release_gates.sh > scripts/ai/verify_v18_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v19_actual_cancel_failure_evidence.sh",
+      "sha256": "1cbab07d0c02bb0f3a1eed4584b312115b7015f279e35df82ae4cb02b9abddf4",
+      "git_blob_sha": "5f9f0fb3025c4b9fd6bb846c65af70209bfc4e61",
+      "last_change_commit": "766cede77b4253b90dc2f7e2145e9752f724fdfa",
+      "bytes": 20716,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v19_actual_cancel_failure_evidence.sh > scripts/ai/verify_v19_actual_cancel_failure_evidence.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v19_actual_cancel_golden_traces.sh",
+      "sha256": "e864333ab4c6922a6d403fd9bce946b063e5c093390050ab8ca41da28170f6a4",
+      "git_blob_sha": "86c2ae6aaf57e5d849694fb07bf1328ff153e7e9",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 2304,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v19_actual_cancel_golden_traces.sh > scripts/ai/verify_v19_actual_cancel_golden_traces.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v19_dashboard_actual_cancel_audit_view.sh",
+      "sha256": "d1abd5d5e0027df8b4d1fefecaff12b9232f7007599b4d9c3e9a26ef4061247a",
+      "git_blob_sha": "e23a26d753e2a0399b78648b6a292a40645228b8",
+      "last_change_commit": "b11af3e8abb354f2e9201681b208235dd7ab0ad1",
+      "bytes": 1711,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v19_dashboard_actual_cancel_audit_view.sh > scripts/ai/verify_v19_dashboard_actual_cancel_audit_view.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v19_post_cancel_readback_reconciliation.sh",
+      "sha256": "e6b01a1d7df9bed03046eb9197011a5f066597365a2cd3c092c371cff7221e75",
+      "git_blob_sha": "ec25d48be1df36c3037c65453043a2ff9e598318",
+      "last_change_commit": "ae0ad3bffd728e3e61410b52640b4bfdec4aff5d",
+      "bytes": 15449,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v19_post_cancel_readback_reconciliation.sh > scripts/ai/verify_v19_post_cancel_readback_reconciliation.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v19_release_gates.sh",
+      "sha256": "c590a88e5206d1e9426cfa2ee84e89973ba65a8648998d2436887674da56e703",
+      "git_blob_sha": "3bb1f768762dc1cc5545a055fb822cbd04fb0e1a",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 14517,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v19_release_gates.sh > scripts/ai/verify_v19_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v20_order_lifecycle_golden_traces.sh",
+      "sha256": "7ed6a0a429a826e0457e3800bbb832bc540f700ec7b25f96bb6877abdd6c7db8",
+      "git_blob_sha": "bbfaa2b71feecf8bc484b58c813c28e01d2ab3db",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 2114,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v20_order_lifecycle_golden_traces.sh > scripts/ai/verify_v20_order_lifecycle_golden_traces.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v20_patch_release_gates.sh",
+      "sha256": "27523a7dd0fdb3350d75102b31870a24f5694e0063d5cf745e582a5d94929735",
+      "git_blob_sha": "1f19d0af8a111c05d40d3021f888307be5d838e5",
+      "last_change_commit": "9b0a34d4978a411aed6e94764593c90345477adb",
+      "bytes": 11002,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v20_patch_release_gates.sh > scripts/ai/verify_v20_patch_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v20_release_gates.sh",
+      "sha256": "615a9761dedbf119bee3dcd985a38e603e846e0ff1dbc1fd709e8529052a2c88",
+      "git_blob_sha": "7089afe6772f1f9540324a3d46d7fca5b789ca0e",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 14016,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v20_release_gates.sh > scripts/ai/verify_v20_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v20_strict_provenance.sh",
+      "sha256": "89c17dd332e162965b6f5e75593d9b23024f08d45391f1749710cae266843fbb",
+      "git_blob_sha": "b2a3a84afb1d6bc0f7d86523bab7dfec00967b3f",
+      "last_change_commit": "456381683fad4349adb2f531943d000762ed6924",
+      "bytes": 20776,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v20_strict_provenance.sh > scripts/ai/verify_v20_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v211_health_status_semantics.sh",
+      "sha256": "e94fec87075a119bcc3b93d16fe88643534dff8f98d7877d79e148a047affcad",
+      "git_blob_sha": "0cbed8cb361883824a43078f2d587b331c4eb69e",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 11262,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v211_health_status_semantics.sh > scripts/ai/verify_v211_health_status_semantics.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v21_1_read_model_projection_replay.sh",
+      "sha256": "c2334c7ae36abaf4a76b384127b9730e0f1cc07bdb400a8df60b57a4fbdaf7bd",
+      "git_blob_sha": "ad80036d2cb716a8e7a2b41e6832830335ab37f9",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 6744,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v21_1_read_model_projection_replay.sh > scripts/ai/verify_v21_1_read_model_projection_replay.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v21_1_read_model_schema_boundary.sh",
+      "sha256": "27d14fa9ef191f86328719b127af929331d94055097b8c59d0d863076e7b0ecf",
+      "git_blob_sha": "ca0b25ba8eeffda86c63bf841901e2bbb70af333",
+      "last_change_commit": "699ce9336602390d75b704e8785e9406da9d0fce",
+      "bytes": 767,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v21_1_read_model_schema_boundary.sh > scripts/ai/verify_v21_1_read_model_schema_boundary.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v21_1_release_gates.sh",
+      "sha256": "0ffd472bd14051414fda57b13a483f1dc07f84f25cb47957cb582edcfda0685a",
+      "git_blob_sha": "8275cd01c15aaa42678f3174d96b7b2666a20cde",
+      "last_change_commit": "5ca22a6de08b2885437b8f79e32ecc64b884ff71",
+      "bytes": 13585,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v21_1_release_gates.sh > scripts/ai/verify_v21_1_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v21_1_strict_provenance.sh",
+      "sha256": "b1470bdda9e68c1c0aa75fa8265ecf1ca25e13036d852578388a15e1d0e4fb39",
+      "git_blob_sha": "d6faf8940b147fa379f7c55994cd1cd1b5a4116e",
+      "last_change_commit": "5ca22a6de08b2885437b8f79e32ecc64b884ff71",
+      "bytes": 15142,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v21_1_strict_provenance.sh > scripts/ai/verify_v21_1_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v21_1_trader_terminal_read_model_bridge.sh",
+      "sha256": "7cb70777f1073651e52e3867a0aa891a6c54ef8cd778c7380f4b0fb45a15559e",
+      "git_blob_sha": "a5d0b2b123cae4a4648ce9d7a7b29eb116657340",
+      "last_change_commit": "5238aa0bbcfd62a4a4bef3f2d060efc30538470c",
+      "bytes": 1628,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v21_1_trader_terminal_read_model_bridge.sh > scripts/ai/verify_v21_1_trader_terminal_read_model_bridge.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v21_account_snapshot_read_model.sh",
+      "sha256": "63b798f6323c588586694201d88797b6e620237f821228a6b709a492575c4f2d",
+      "git_blob_sha": "d9d991cbe5e46b2bb34b47952c965590ab1376f9",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 12415,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v21_account_snapshot_read_model.sh > scripts/ai/verify_v21_account_snapshot_read_model.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v21_fill_execution_read_model.sh",
+      "sha256": "bfadc4867402cb3ee7f4d77a2eb737fcadce39181023509fbab26f5046f7441a",
+      "git_blob_sha": "aaa9d48037ffbf2081c409bbab8cc33f5825a329",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 13668,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v21_fill_execution_read_model.sh > scripts/ai/verify_v21_fill_execution_read_model.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v21_order_lifecycle_read_model.sh",
+      "sha256": "c10b3336d7d8cbaa6b7a17e59c0bc1fb4e0b5c033160bf1a879ef1b82fe216f4",
+      "git_blob_sha": "13b5580ff6333971c2d3fb85866c246ba5068132",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 11125,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v21_order_lifecycle_read_model.sh > scripts/ai/verify_v21_order_lifecycle_read_model.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v21_position_read_model.sh",
+      "sha256": "32d15c28add0076f74d4582f591db271c975b34792675b794583bb2a21a11966",
+      "git_blob_sha": "bee6511f86025dfddfe9e600614c70bd6d88e941",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 11139,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v21_position_read_model.sh > scripts/ai/verify_v21_position_read_model.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v21_read_model_contract.sh",
+      "sha256": "a462c3501eae10457320e28d57dffa887bbe2375d2d25d4c398566e87209b5e8",
+      "git_blob_sha": "5df6f504a78c5ea3b7629c5006605afa4e309860",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 11042,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v21_read_model_contract.sh > scripts/ai/verify_v21_read_model_contract.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v21_release_gates.sh",
+      "sha256": "b241fa9272f95b47e970d90953e2b9ab516025e8897122c32314cce1988b0878",
+      "git_blob_sha": "ee2ce1f7c373faecc85b190daaa542c91d2b24f6",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 14713,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v21_release_gates.sh > scripts/ai/verify_v21_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v21_risk_state_projection.sh",
+      "sha256": "54d76efca8d295cacfc364fada226b1494a930ae1fff85be9c038e0b9a738cd2",
+      "git_blob_sha": "4f7f654fced49fd27e1f806192d181b65ba1ee62",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 13147,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v21_risk_state_projection.sh > scripts/ai/verify_v21_risk_state_projection.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v21_strict_provenance.sh",
+      "sha256": "98941499c64ec5216f1afba408545829b3cea82808b7169049ecf7d667b525a4",
+      "git_blob_sha": "e71c2c9a10550055288c51fb9ab8b2a200718bc0",
+      "last_change_commit": "d150f7a685835eba508a5e2d9b4f832ead4d26f9",
+      "bytes": 15116,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v21_strict_provenance.sh > scripts/ai/verify_v21_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v21_trader_terminal_readonly_dashboard.sh",
+      "sha256": "1752c89cefc4e251ca4aac8f445b86775c4ee0bc808d407bc83676b895c33220",
+      "git_blob_sha": "1d4d3b2e39579857c5cd0cc39c6b77ff1b4e8f62",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 11594,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v21_trader_terminal_readonly_dashboard.sh > scripts/ai/verify_v21_trader_terminal_readonly_dashboard.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v22_1_release_gates.sh",
+      "sha256": "3bc6a517f091f4334a6c4bb70db9724b1bce1a4c998035b54f60363b8ee942b0",
+      "git_blob_sha": "c0974d9839022451b565f835f147fa8c301fc9fe",
+      "last_change_commit": "b764d34618a6360c2d6406c535c4f482314e7ec1",
+      "bytes": 18525,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v22_1_release_gates.sh > scripts/ai/verify_v22_1_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v22_1_strict_provenance.sh",
+      "sha256": "979af5ce7df8b01579c1c84faf16f7d62c0d08264205d8aac681be7acf0b16c2",
+      "git_blob_sha": "50921abc015462ee1c4e24e558ed55751233ff50",
+      "last_change_commit": "b764d34618a6360c2d6406c535c4f482314e7ec1",
+      "bytes": 22159,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v22_1_strict_provenance.sh > scripts/ai/verify_v22_1_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v22_release_gates.sh",
+      "sha256": "96d6d0e5d9ac6a0a4b1d11c9fd2bc660a9993935c32a0dd30dd88bbd3ae105e8",
+      "git_blob_sha": "c03ac651ce0d47c7e82fc8933abdd9a095e948f8",
+      "last_change_commit": "5fe31c2b06c7d05bbf289865526a0cb599ecf021",
+      "bytes": 12619,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v22_release_gates.sh > scripts/ai/verify_v22_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v22_runtime_boundary_tests.sh",
+      "sha256": "b94d13c14f2d8223245dac1b9eff6f9016d358d7810a8a6354a523d0c7e0e982",
+      "git_blob_sha": "d2edf3954b4cf49588ab7815ec10877e5b264ede",
+      "last_change_commit": "57acef72f31349cf9ed68be51cc9521409a871e7",
+      "bytes": 1001,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v22_runtime_boundary_tests.sh > scripts/ai/verify_v22_runtime_boundary_tests.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v22_strict_provenance.sh",
+      "sha256": "aea08d78f917de6d2f46f1df137a9e26a2fb2c53a1e9360aba96cb5d8b44cc7c",
+      "git_blob_sha": "ab233a9668f76a1bd798787a90ae7977b038349d",
+      "last_change_commit": "c3b9e55ae73e7d2aa48c83723e6c68d825d8c189",
+      "bytes": 18733,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v22_strict_provenance.sh > scripts/ai/verify_v22_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v22_workbench_render_smoke.sh",
+      "sha256": "e008bcd6c9fd8868b53931a94cc0e346c65604fa7298d5d5f2bf1151188b05a6",
+      "git_blob_sha": "a63c16773214def3dd8131589e9295eaf2f0e09c",
+      "last_change_commit": "d862cbb84cf681f55ddf1786fb807c84215289c7",
+      "bytes": 4976,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v22_workbench_render_smoke.sh > scripts/ai/verify_v22_workbench_render_smoke.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v23_1_evidence_replay_only_boundary.sh",
+      "sha256": "b4d610cda61279a7c7ffbcfb144824dae08598de0dec820766fe3cdab2568922",
+      "git_blob_sha": "bd4189efb2fa9a27f3118778eab7f449694c03dc",
+      "last_change_commit": "11133f216503d4d5b13485acb53787413799c8d0",
+      "bytes": 6754,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v23_1_evidence_replay_only_boundary.sh > scripts/ai/verify_v23_1_evidence_replay_only_boundary.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v23_1_gate_phase_split.sh",
+      "sha256": "92c1ac766e52f4b98ecdb2c565e2e7d6c3cbbc5d737f70ad4d6e2869951424e3",
+      "git_blob_sha": "27ab5ee86c15542cd779419d699f955153f48d4a",
+      "last_change_commit": "bbd12eda306253609f70fd099e0b2fd18fff5782",
+      "bytes": 9703,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v23_1_gate_phase_split.sh > scripts/ai/verify_v23_1_gate_phase_split.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v23_1_publication_evidence_audit_path.sh",
+      "sha256": "74395d1c5d26fc8e4ed09779639e120a0a86d0b64435cc3e49b2f4c77a7f71be",
+      "git_blob_sha": "88f7d86cf526b67052d2755ecaaf69253581d708",
+      "last_change_commit": "007e36d51a9dbfb1d90d3a97770f523c2d385bf8",
+      "bytes": 11836,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v23_1_publication_evidence_audit_path.sh > scripts/ai/verify_v23_1_publication_evidence_audit_path.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v23_1_release_closeout_evidence.sh",
+      "sha256": "7e39847eb5a88ebc7c6cc231e81cf56960340be2d244dc6415c6ec38171d4be6",
+      "git_blob_sha": "f544a352ebf13d94f9484dcfbe03ab81eb0e9c86",
+      "last_change_commit": "007e36d51a9dbfb1d90d3a97770f523c2d385bf8",
+      "bytes": 11988,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v23_1_release_closeout_evidence.sh > scripts/ai/verify_v23_1_release_closeout_evidence.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v23_1_release_gates.sh",
+      "sha256": "f7e198b77433566464864420155f6825a681fa35f6a4702aedc0e56f9ddf8e25",
+      "git_blob_sha": "c924560f054312b9e70879a7b80de27459c0bfd4",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 14848,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v23_1_release_gates.sh > scripts/ai/verify_v23_1_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v23_1_stale_provenance_cleanup.sh",
+      "sha256": "a4deb3af5f822c9fed0d19c1384c0e375d92bc7dceb9aa37dc605dc72c0f296e",
+      "git_blob_sha": "f8736a744169b3173425eedad66fe3a962ef9a3d",
+      "last_change_commit": "693bb2a27daa65ad7c39b9d28b269e204b7ff0b0",
+      "bytes": 5380,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v23_1_stale_provenance_cleanup.sh > scripts/ai/verify_v23_1_stale_provenance_cleanup.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v23_1_strict_provenance.sh",
+      "sha256": "72dfef27b32f0de75485144b6444878883a21180d4b836c5abbf3848b8075c8b",
+      "git_blob_sha": "60d9720edad279e2cdac07830f9a88924e83367c",
+      "last_change_commit": "11133f216503d4d5b13485acb53787413799c8d0",
+      "bytes": 10293,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v23_1_strict_provenance.sh > scripts/ai/verify_v23_1_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v23_dashboard_observability_smoke.sh",
+      "sha256": "8fe865e7c1611d749c3feda94bd9811d72cb597640e3d9c3eb668bc7b2e3db58",
+      "git_blob_sha": "9a7daede9fcc1f5e2e51bbf6ce3fba2c78a6c4e7",
+      "last_change_commit": "693bb2a27daa65ad7c39b9d28b269e204b7ff0b0",
+      "bytes": 6472,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v23_dashboard_observability_smoke.sh > scripts/ai/verify_v23_dashboard_observability_smoke.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v23_release_gates.sh",
+      "sha256": "cb40f5cd1c50019bcaebae0708a2998ba0d8ac90889c5b8b66fd52c4fc56d7dc",
+      "git_blob_sha": "498391801652f5b57fed8882a1270814d1fd8ee4",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 16203,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v23_release_gates.sh > scripts/ai/verify_v23_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v23_strict_provenance.sh",
+      "sha256": "bbce2fb01b381dc04ae97cbfc17c90c255aed5fe747227c8dbfcc807eb742804",
+      "git_blob_sha": "be9b9ddd62de2e2314ce01732a12e0cd6b29b980",
+      "last_change_commit": "693bb2a27daa65ad7c39b9d28b269e204b7ff0b0",
+      "bytes": 17187,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v23_strict_provenance.sh > scripts/ai/verify_v23_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_1_dashboard_artifact_ingestion.sh",
+      "sha256": "47abbefbcd234cea19bfaf65a052eb9525bca82dad870ea8cf0dd4f7072bc1ab",
+      "git_blob_sha": "d0183ea8d9f78ed403b387f4cf28224b81c5ada5",
+      "last_change_commit": "15ff56e20df156edc8d153fb24aa802ddde4af28",
+      "bytes": 20337,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_1_dashboard_artifact_ingestion.sh > scripts/ai/verify_v24_1_dashboard_artifact_ingestion.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_1_dashboard_fixture_ref_integrity.sh",
+      "sha256": "65e86bd791619cf0caadd406afdf74c799c4312f0073f3266f30502c5e1eaa67",
+      "git_blob_sha": "6ec30bf7a1d2c083354d4e8d92c774f33840cf37",
+      "last_change_commit": "48ee4e72058d1b9d3452e8528894529b72169833",
+      "bytes": 10819,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_1_dashboard_fixture_ref_integrity.sh > scripts/ai/verify_v24_1_dashboard_fixture_ref_integrity.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_1_provenance_reconciliation.sh",
+      "sha256": "5de5da61eadf4f5fa3e663df8ddb0f783ba1f85b8027c918e4e3b1844933a82a",
+      "git_blob_sha": "f5fb2d23a47ed26c30382d6405f9548c9fa645a0",
+      "last_change_commit": "62078c1089260c106b2f8af13ecf95e38077e7af",
+      "bytes": 15737,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_1_provenance_reconciliation.sh > scripts/ai/verify_v24_1_provenance_reconciliation.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_1_release_closeout_evidence.sh",
+      "sha256": "05069282eda9f6433a3cef1547a93693b215b87ed7e1631dfb0b347164bb0589",
+      "git_blob_sha": "5d87c15d7096bad88839dd6ee7ef3c4832a1397b",
+      "last_change_commit": "e39eb8bdf66186ba9aca0e92df2a2dddf9c93a4f",
+      "bytes": 13771,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_1_release_closeout_evidence.sh > scripts/ai/verify_v24_1_release_closeout_evidence.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_1_release_gates.sh",
+      "sha256": "aa12db5b946ffda78c5553977c2dedd78c9d79dd443edbb9ed03889e19bdee4f",
+      "git_blob_sha": "9f550f19ae0c566c5c3b85a94670b249f8c6b8e1",
+      "last_change_commit": "d9b3d653377fe8af97703d31950fee2a126fd264",
+      "bytes": 18884,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_1_release_gates.sh > scripts/ai/verify_v24_1_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_1_schema_replay_classification.sh",
+      "sha256": "0dea52a0c89ae58f1b56b23e853d8248cae142128488406dcbff34f465dcdb1d",
+      "git_blob_sha": "1ace156cc69b45bfbf61e73c5937fd307b909b68",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 16123,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_1_schema_replay_classification.sh > scripts/ai/verify_v24_1_schema_replay_classification.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_1_stale_pretag_cleanup.sh",
+      "sha256": "245f2b915da95f37c3eaf21a792c51cf32fc60e65ca93c95cea2a3bbdfb7513d",
+      "git_blob_sha": "1f31dc01d1393da813e125fa75ef2bfd8529409d",
+      "last_change_commit": "7798ebb7e8a94cc273d5917a08ad62c3fc692efd",
+      "bytes": 7987,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_1_stale_pretag_cleanup.sh > scripts/ai/verify_v24_1_stale_pretag_cleanup.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_1_strict_provenance.sh",
+      "sha256": "de5d65be9585098fa43353d7c12408c2872b4f8010122f3c2c1d31b9ecff463e",
+      "git_blob_sha": "a64df6c5232ff013aca5d081140018e0f5ec22b6",
+      "last_change_commit": "d9b3d653377fe8af97703d31950fee2a126fd264",
+      "bytes": 11263,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_1_strict_provenance.sh > scripts/ai/verify_v24_1_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_cancel_replace_amend_preview.sh",
+      "sha256": "a8b9568cf13d07b650776b5a81a1da6a278c31cb71442b117f2397c625bd7070",
+      "git_blob_sha": "94e148720023b064856f8a7cfd5674457228bc7b",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 15934,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_cancel_replace_amend_preview.sh > scripts/ai/verify_v24_cancel_replace_amend_preview.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_dashboard_workbench_order_control_preview.sh",
+      "sha256": "d1bbd9b8659c1ca9d1ff854d3618b7f2db4a17ae58c7a75b5d6ca8b97e319312",
+      "git_blob_sha": "11b507e976c4197ab9a368ddf1b382747c94bbe6",
+      "last_change_commit": "e4516e7be18597a3148e9a939b156e3cd78a9833",
+      "bytes": 13369,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_dashboard_workbench_order_control_preview.sh > scripts/ai/verify_v24_dashboard_workbench_order_control_preview.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_intake_gate.sh",
+      "sha256": "1405cb87efd4c106de0212e929dcc60133283c9cd7a430fa07fdb95e364bcbfb",
+      "git_blob_sha": "30c2f196706035ad739ede17cd02f49e8b34c6e4",
+      "last_change_commit": "38639f591ef47be2302b39f676bdd6057bc3a7a4",
+      "bytes": 12787,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_intake_gate.sh > scripts/ai/verify_v24_intake_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_order_control_contract.sh",
+      "sha256": "950b3b62411ec5ec069248a30e9e904e6a85190c6b420d259b76900d1a62bc16",
+      "git_blob_sha": "1a881c8f5cf682eaaa65366c37bfb6dcb1770778",
+      "last_change_commit": "38639f591ef47be2302b39f676bdd6057bc3a7a4",
+      "bytes": 5121,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_order_control_contract.sh > scripts/ai/verify_v24_order_control_contract.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_order_intent_policy.sh",
+      "sha256": "655bff7241404f5398fe9d23017c0d8c720449cd26165eeb5000838c0c976d0d",
+      "git_blob_sha": "5367a7516b21db96598760baeefc705978241466",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 12273,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_order_intent_policy.sh > scripts/ai/verify_v24_order_intent_policy.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_order_slicing_preview.sh",
+      "sha256": "50af822350daa7c953bac9edf21b62e3891fc54bf326bcd5dd5704a2c838588d",
+      "git_blob_sha": "44cc9de0ff7bb7ef905bc20ff72ee5a797d8ffce",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 18655,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_order_slicing_preview.sh > scripts/ai/verify_v24_order_slicing_preview.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_rate_limit_throttle_gate.sh",
+      "sha256": "1d6648051a53c7b922029b3fe6afe763bb53078c9539c365989ea8bdf93f45a0",
+      "git_blob_sha": "cec48bd31221e26e316841d0abb5a2b04c5c5e63",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 10952,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_rate_limit_throttle_gate.sh > scripts/ai/verify_v24_rate_limit_throttle_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_readback_audit_evidence.sh",
+      "sha256": "5a9c2d248b0e7985656bc6e45cdf0d2f9df39581bb87615b2680ec46fe5f47e7",
+      "git_blob_sha": "fbd82a9e5a6683f55afd82e8989cb87f67e1bcdf",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 18704,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_readback_audit_evidence.sh > scripts/ai/verify_v24_readback_audit_evidence.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_release_gates.sh",
+      "sha256": "dd445730d1639ceebe0c1f06160345bb58072c74b3af04d8446cb70a7f528a8b",
+      "git_blob_sha": "51e0047da57304c37957dd53e21f1f144687e34a",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 16297,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_release_gates.sh > scripts/ai/verify_v24_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_retry_policy_ledger.sh",
+      "sha256": "ec4aa45049c0603dba2044a17bf2d4af624d3beee6d0e996d0996e2ba4293be0",
+      "git_blob_sha": "65ab4252860648755d9cd583b0c80893a87f1150",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 13992,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_retry_policy_ledger.sh > scripts/ai/verify_v24_retry_policy_ledger.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v24_strict_provenance.sh",
+      "sha256": "bd36b0b2aceab26df545aa52bf600eccd8516756c1d3c117f4e2fe151afe81a5",
+      "git_blob_sha": "c41370bc25d1fa09968cc90987f0dd632a4b03f6",
+      "last_change_commit": "7ef9e7f50963d0c4f3ede7f2c81889e26a6bd137",
+      "bytes": 10579,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v24_strict_provenance.sh > scripts/ai/verify_v24_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_1_corrective_release_scope.sh",
+      "sha256": "5c7f1e0a1e5c307d6df137d0f5b63896ec3a6724bfd4959793e7045dcaaf632b",
+      "git_blob_sha": "ef159dd3dfa54f91368675c6f4c1d2cc58a67aa5",
+      "last_change_commit": "f4e98af7221670deffeb514b12381b4f20dc9bda",
+      "bytes": 3445,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_1_corrective_release_scope.sh > scripts/ai/verify_v25_1_corrective_release_scope.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_1_post_release_gate_split.sh",
+      "sha256": "399b29dc6cba489780362a457184a40b2ab4b98717a04e4b9bc17b6f47af4ccb",
+      "git_blob_sha": "b039265f3792532b5d9b0775eaaa77f10ab18275",
+      "last_change_commit": "9b7f4e292078d227e2d9a84570d73a3935543a36",
+      "bytes": 16290,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_1_post_release_gate_split.sh > scripts/ai/verify_v25_1_post_release_gate_split.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_1_release_closeout_evidence.sh",
+      "sha256": "36ba6b006ba2f9502ad76942f88d7f5a791fffb563ea96a82f2f75b86a92527c",
+      "git_blob_sha": "7b3a08f79f778a0025ae5e4a757ed37b76a97e0c",
+      "last_change_commit": "4e2e52e696d17fefa2d93ae9165d8743f7dd1952",
+      "bytes": 18574,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_1_release_closeout_evidence.sh > scripts/ai/verify_v25_1_release_closeout_evidence.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_1_release_gates.sh",
+      "sha256": "b148ca1ee0b01a385d6de62e819926e6de6993e941698700dd5354df77de866c",
+      "git_blob_sha": "b26f07a716231984050e1004c89a8127657a4348",
+      "last_change_commit": "eff3e7045e14a5ae9ffba537799fb8b6a7132c00",
+      "bytes": 13151,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_1_release_gates.sh > scripts/ai/verify_v25_1_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_1_stale_pretag_cleanup.sh",
+      "sha256": "6fdd3b006926f3aa56c3ac9850c7ef436a3ee4156d5195a2fb86e4fcaaf01ed6",
+      "git_blob_sha": "8735ff98ed4dceb86724363a71fa3364234edf34",
+      "last_change_commit": "e994a19918db3568cceb87b2de0017fd174b8608",
+      "bytes": 6664,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_1_stale_pretag_cleanup.sh > scripts/ai/verify_v25_1_stale_pretag_cleanup.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_1_strict_provenance.sh",
+      "sha256": "4b87d9f45d022115fd7b9869be3624a5396174ffa7b0ccb58e3364205dd846e8",
+      "git_blob_sha": "29cce213e2578df905c1a9e7e35d00fa25d5b6b9",
+      "last_change_commit": "f4e98af7221670deffeb514b12381b4f20dc9bda",
+      "bytes": 7429,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_1_strict_provenance.sh > scripts/ai/verify_v25_1_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_alert_taxonomy_routing.sh",
+      "sha256": "b53c6a2e79bdd51e853291873cf02d02f3855698968bfe39898bb4079f5be6be",
+      "git_blob_sha": "a567c74136e3b172362e9a82b23b1f4e9c1039d0",
+      "last_change_commit": "da0ba5c5fcc66c64829722d6fe7d007ff0b23798",
+      "bytes": 13967,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_alert_taxonomy_routing.sh > scripts/ai/verify_v25_alert_taxonomy_routing.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_dashboard_monitoring_surface.sh",
+      "sha256": "4158d865cdcf2f5cf57830ba00086da6f174b623a14d10ad0eafe0d13fd13a89",
+      "git_blob_sha": "c1b0df15e7074bc2b1e1bf761456e02b698cd2ca",
+      "last_change_commit": "f3df11fbf04809fbf18a98c08ebe7d93d07444ee",
+      "bytes": 20649,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_dashboard_monitoring_surface.sh > scripts/ai/verify_v25_dashboard_monitoring_surface.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_dr_preview_drill_evidence.sh",
+      "sha256": "2cdebf725bd9b42ee9e5741c8209cb3524f48f9a05e7eb589f8cf530133fee33",
+      "git_blob_sha": "54bd9a3fb90ef6b7c4e5e2b60ccef0bcba60f3ec",
+      "last_change_commit": "cc8f024d087facf23ab87fe342ee8105e1eb7334",
+      "bytes": 17441,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_dr_preview_drill_evidence.sh > scripts/ai/verify_v25_dr_preview_drill_evidence.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_incident_lifecycle_acknowledgement.sh",
+      "sha256": "fe3721c12438a383ebe88c5a9cfa2025a6f47fc05bf969797903b5a07c3b1ec1",
+      "git_blob_sha": "8ca06922ac4891920d201f8b800125c826cf6cc9",
+      "last_change_commit": "5d77da218316e0b2170af6c4675cfb5db5cfe5f3",
+      "bytes": 19769,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_incident_lifecycle_acknowledgement.sh > scripts/ai/verify_v25_incident_lifecycle_acknowledgement.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_intake_gate.sh",
+      "sha256": "2cd0ba162a7cc70b11a5b45539a04083d96a884d393346275a458d59a8f5cf75",
+      "git_blob_sha": "e3ef4fb867f9f792e4fce92eb0946925fa0c96f2",
+      "last_change_commit": "4e2e52e696d17fefa2d93ae9165d8743f7dd1952",
+      "bytes": 14833,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_intake_gate.sh > scripts/ai/verify_v25_intake_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_monitoring_observability_contract.sh",
+      "sha256": "c29e8ffdda8deaa06ad14256cd87b1d05f1b210d2c7162fd7fbbeb9f71f30e6f",
+      "git_blob_sha": "dd45dfd3e54c602dcafe494a100bf5b58f3872c3",
+      "last_change_commit": "f069d5131e54b08d20a7763516e9f56915e40f2b",
+      "bytes": 12896,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_monitoring_observability_contract.sh > scripts/ai/verify_v25_monitoring_observability_contract.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_release_gates.sh",
+      "sha256": "9ad3353d6bfba354acea28d0a2114424e26248e30f22b2700ead1cc7983127f5",
+      "git_blob_sha": "18eee281235306c8c3b3a4121c37a8253dda2569",
+      "last_change_commit": "f4e98af7221670deffeb514b12381b4f20dc9bda",
+      "bytes": 25742,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_release_gates.sh > scripts/ai/verify_v25_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_runbook_audit_evidence.sh",
+      "sha256": "c80a2d6635d4e58e300b34ca067faf3c3ac892a5e1ee7e1e5a49fb505362404f",
+      "git_blob_sha": "f1cc10dee22a7e4f136bfddb60f2a408d068d0d3",
+      "last_change_commit": "7e6e09428194708afd6fba5d8a200fe1fec9e0ad",
+      "bytes": 16099,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_runbook_audit_evidence.sh > scripts/ai/verify_v25_runbook_audit_evidence.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_slo_freshness_diagnostics_gate.sh",
+      "sha256": "1bcb88d3865a78d02bb080964e223799cf1bc54b7f03120b6729667b6905ccb5",
+      "git_blob_sha": "8c89b4d496c645024f7459947e64d4988b47325c",
+      "last_change_commit": "d887c06510b35740ac256753e94e9370cf69d502",
+      "bytes": 14527,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_slo_freshness_diagnostics_gate.sh > scripts/ai/verify_v25_slo_freshness_diagnostics_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v25_strict_provenance.sh",
+      "sha256": "ad74bb994ee5f21930dcd7c32228431fd80cae6c81014d089b805308f0545d34",
+      "git_blob_sha": "ae82e886a1f0775555d21769cdfa4bd1d01c77b7",
+      "last_change_commit": "44b67c172c30b3bc2a06deb24ba84fb7ccee6c25",
+      "bytes": 14459,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v25_strict_provenance.sh > scripts/ai/verify_v25_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v26_1_final_scope_integration.sh",
+      "sha256": "e481f6dfce9734d239f8a3e5148dc55125ec2fbbd9b90b403133c548555d6a3d",
+      "git_blob_sha": "cddc32e426cce66cb8fad1b79de9d14ed0a2df2d",
+      "last_change_commit": "1f2a528236633a522b4f88f1a899c4ff5590da4a",
+      "bytes": 11018,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v26_1_final_scope_integration.sh > scripts/ai/verify_v26_1_final_scope_integration.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v26_1_post_publication_strict_gate.sh",
+      "sha256": "e95cc9cf41d1e0a861eaa4bf9cb6c02e55f919be5a51b73818e1af477c6b1b5a",
+      "git_blob_sha": "5f49185c8321cb90262c64195b0fdc589c0437ae",
+      "last_change_commit": "b7105151ec0212a39fc1ccad16a37373794b47ad",
+      "bytes": 16962,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v26_1_post_publication_strict_gate.sh > scripts/ai/verify_v26_1_post_publication_strict_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v26_1_release_gates.sh",
+      "sha256": "6cf0f5c7dcdaaf9652f6287c7a1d62c314dd7a2ae75a90261c0b2d928e5b4f70",
+      "git_blob_sha": "7468ec1eef9f2a69c742bf11194341ffa0f4a5c1",
+      "last_change_commit": "9b7a9dad20376f9f5fc6a370eec43cee87452f79",
+      "bytes": 19050,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v26_1_release_gates.sh > scripts/ai/verify_v26_1_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh",
+      "sha256": "0bb8e1cd891033f02602b1ad8fe5fb05977e8edabb98e7c02df5e76a50e9b9e3",
+      "git_blob_sha": "7a8658c47110bd32233ea7e4120741ebbf9f7ef5",
+      "last_change_commit": "b7097d4b5359faaeaf6061bcf2c400569768d0db",
+      "bytes": 8440,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh > scripts/ai/verify_v26_1_stale_v260_evidence_cleanup.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v26_1_strict_provenance.sh",
+      "sha256": "e65d648f732e1325144cb6c2c5349c9d0f590d81c72e2101d2ce4b6e1382c350",
+      "git_blob_sha": "e5ca089e78cb0767c666c7ac1a751d96dbf42a58",
+      "last_change_commit": "9b7a9dad20376f9f5fc6a370eec43cee87452f79",
+      "bytes": 9038,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v26_1_strict_provenance.sh > scripts/ai/verify_v26_1_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v26_dashboard_admin_boundary_surface.sh",
+      "sha256": "4e93c6ca608641ec3e58c3ea8cc64544303cf23d0621dc0f9c1a3980b037a08d",
+      "git_blob_sha": "ab314b327e5961aa2e3b4ee6ee9f8ed2d48d7b54",
+      "last_change_commit": "9378a77a3f49dbb9352f7b2841d66c93cd1ebe31",
+      "bytes": 19945,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v26_dashboard_admin_boundary_surface.sh > scripts/ai/verify_v26_dashboard_admin_boundary_surface.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v26_deployment_provenance_model.sh",
+      "sha256": "23ef9b86dd5ae407afe3c4435cfdbe8ec1815efd521c2d3a0aa641f8e2ad0ffa",
+      "git_blob_sha": "15946d1e94a4aba5d575e95210c3e7f11eb2b012",
+      "last_change_commit": "b67f5a6b339d67249464614811512924d1d3c996",
+      "bytes": 16934,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v26_deployment_provenance_model.sh > scripts/ai/verify_v26_deployment_provenance_model.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v26_intake_gate.sh",
+      "sha256": "1c51e078c5faa1c7fd7d4bfa5b42fab65ab76038b849218144b05a5608ca0fe2",
+      "git_blob_sha": "159c7c800218b49723653bc27051feab9cbdca66",
+      "last_change_commit": "eff3e7045e14a5ae9ffba537799fb8b6a7132c00",
+      "bytes": 17987,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v26_intake_gate.sh > scripts/ai/verify_v26_intake_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v26_operation_audit_trail.sh",
+      "sha256": "63cbeaff138f407ca56a46a92a0fd4e90f100da082a252b73252bafdbce8c057",
+      "git_blob_sha": "6d3b5a1a753eda6e473b522e6f977ae82dbb2963",
+      "last_change_commit": "c93cf30574f8e2f0af450dda6737d4ac9b36a722",
+      "bytes": 19058,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v26_operation_audit_trail.sh > scripts/ai/verify_v26_operation_audit_trail.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v26_operator_permission_model.sh",
+      "sha256": "70a072908af5c0a4d74ce611d19effd538697fb7a085afdd7a84817074f5459c",
+      "git_blob_sha": "a46eaa0d8ceb11854fda0623353a6581fafbace8",
+      "last_change_commit": "e20e7a0b831e312a3ede043a1b2c1a695bb6297d",
+      "bytes": 17874,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v26_operator_permission_model.sh > scripts/ai/verify_v26_operator_permission_model.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v26_product_hardening_boundary_contract.sh",
+      "sha256": "6e6b0942ad0c396998e02164ef8c271737238e6c952483e3a924c159c6c796be",
+      "git_blob_sha": "c28e81c991e2d4a4a573d32f5fa81c4b01f20d05",
+      "last_change_commit": "4e2e52e696d17fefa2d93ae9165d8743f7dd1952",
+      "bytes": 14826,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v26_product_hardening_boundary_contract.sh > scripts/ai/verify_v26_product_hardening_boundary_contract.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v26_release_gates.sh",
+      "sha256": "dec2c773d968cbf390ff6baf0186afc5fd4cea0d97bcaa59c72a1250321d405e",
+      "git_blob_sha": "7ae1394cb7efaded4790bf292b585cc5164526d7",
+      "last_change_commit": "14cb0e988822b8be74b62bedda52cecdba75153c",
+      "bytes": 32910,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v26_release_gates.sh > scripts/ai/verify_v26_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v26_slo_runbook_stability_evidence.sh",
+      "sha256": "1b1ea7c3ed13637e6b0d6761020bc5cc1f4fafcf4660b549087fc75c2d1195af",
+      "git_blob_sha": "a800a56a948296b40bf45452d89852a495d4aacc",
+      "last_change_commit": "b0b01eb1bc5d43017c3ec6e65926414399ff52c9",
+      "bytes": 19684,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v26_slo_runbook_stability_evidence.sh > scripts/ai/verify_v26_slo_runbook_stability_evidence.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v26_strict_provenance.sh",
+      "sha256": "aab33aabc71d35ca32711803f7a65ed6ac514f59c99e74c561315e2a60965f0d",
+      "git_blob_sha": "c862fe5a07c237d8b40877317e593031104fe6f2",
+      "last_change_commit": "b7105151ec0212a39fc1ccad16a37373794b47ad",
+      "bytes": 14296,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v26_strict_provenance.sh > scripts/ai/verify_v26_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v26_upgrade_rollback_runbook_evidence.sh",
+      "sha256": "47b235817ed9ea1f8664907f638a8771830122a5514cc4e0cf6f4816e41144d2",
+      "git_blob_sha": "3ca9a425e9e1728f279197cb8b4f4990446a6bfd",
+      "last_change_commit": "11cae2e745b9d616d88dcd59258da219a4df6cee",
+      "bytes": 16897,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v26_upgrade_rollback_runbook_evidence.sh > scripts/ai/verify_v26_upgrade_rollback_runbook_evidence.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v27_1_release_gates.sh",
+      "sha256": "5b9d49f4b1aafd682ef5544d26b2d61094a61eda2c92b2edc3f99a18793751ae",
+      "git_blob_sha": "877d35ff1cd5964e9b57804f45bf30906cbdcc46",
+      "last_change_commit": "1a421e35ece718d576e15dd4061891ac7000e676",
+      "bytes": 22428,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v27_1_release_gates.sh > scripts/ai/verify_v27_1_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v27_1_strict_provenance.sh",
+      "sha256": "ebace1085f6cc689232f106874b14e6ab7a5fbac9d88b2957aae4600444aaecd",
+      "git_blob_sha": "a7e45f2d275460cc31a49f81c441d7b50bfb60e2",
+      "last_change_commit": "1a421e35ece718d576e15dd4061891ac7000e676",
+      "bytes": 14965,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v27_1_strict_provenance.sh > scripts/ai/verify_v27_1_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v27_admin_workbench_runtime_state_bridge.sh",
+      "sha256": "95b6d84c3eeff61baa01c307048dcf7ede6ecd3a84ef6ffb127c741482ee19cb",
+      "git_blob_sha": "a0b92b70b936dc6239004a3ff82d85a479e8b2db",
+      "last_change_commit": "b8e278d1986aba30cac05cbd19b3769f16ba8eb2",
+      "bytes": 18755,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v27_admin_workbench_runtime_state_bridge.sh > scripts/ai/verify_v27_admin_workbench_runtime_state_bridge.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v27_deployment_orchestration_foundation.sh",
+      "sha256": "0b7c0057d04739e4b8f84dba010eed5a02019256639e56929b8e39f959439234",
+      "git_blob_sha": "b9aa7630625959f9b4b5cd6bee7389c4f383141c",
+      "last_change_commit": "f920853612dbb618d2a90377ab6b3df11abc77e2",
+      "bytes": 17334,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v27_deployment_orchestration_foundation.sh > scripts/ai/verify_v27_deployment_orchestration_foundation.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v27_external_identity_permission_foundation.sh",
+      "sha256": "978563471e620a2b31ef3d0605ef4b11255098f79e400484cff74b7dfe68a2b3",
+      "git_blob_sha": "05f5b66c5906ae5c63a4d54ac05dfa4e2627af1e",
+      "last_change_commit": "aec39e538dde319fb18fc226f22b9d195db62d0e",
+      "bytes": 20100,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v27_external_identity_permission_foundation.sh > scripts/ai/verify_v27_external_identity_permission_foundation.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v27_intake_gate.sh",
+      "sha256": "b4ccf027540af299b829f656f085f8eb4c124049141cf4ae1286e7f52996d569",
+      "git_blob_sha": "5b0b0bebbd2d238004443fc4424cc610d55cd605",
+      "last_change_commit": "9b7a9dad20376f9f5fc6a370eec43cee87452f79",
+      "bytes": 16256,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v27_intake_gate.sh > scripts/ai/verify_v27_intake_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v27_long_run_telemetry_slo_runtime_evidence.sh",
+      "sha256": "7b6a5a78c79b48165f7409502c795514165769a18ef334bfd016e1f545b19532",
+      "git_blob_sha": "ac2828421aef4682cbbdd2e6fd066f188fa6f61b",
+      "last_change_commit": "7768bb9df31eb9315e7325d3f5d9a1b13442de1f",
+      "bytes": 21687,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v27_long_run_telemetry_slo_runtime_evidence.sh > scripts/ai/verify_v27_long_run_telemetry_slo_runtime_evidence.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v27_persistent_audit_storage_foundation.sh",
+      "sha256": "73b9d84a5b186a57638ade1b2a6c1f47fdcf520911432b33ff9ebe21fef8562c",
+      "git_blob_sha": "808bc822d6a041a5b63af46ca4867add859c3cb8",
+      "last_change_commit": "c477abb892f40c80d3e5eb69c75278c517454204",
+      "bytes": 20297,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v27_persistent_audit_storage_foundation.sh > scripts/ai/verify_v27_persistent_audit_storage_foundation.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v27_product_operations_runtime_integration_boundary_contract.sh",
+      "sha256": "b4cb58cd7d213b5d8850abd7f9af35e37615d6bcbe96b7134aa936479de505e5",
+      "git_blob_sha": "bd09474cd0a95f3029d981743efb8e704a0aeb01",
+      "last_change_commit": "7308079b0eb3d02b1b81864c2763aea102209b45",
+      "bytes": 15249,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v27_product_operations_runtime_integration_boundary_contract.sh > scripts/ai/verify_v27_product_operations_runtime_integration_boundary_contract.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v27_release_gates.sh",
+      "sha256": "08f7492c6085603633b7fab9a523f4e4f32758010059e9c0103a254164bd3474",
+      "git_blob_sha": "b44ebb4228722a7bfeda2b5bc60dfc960f056513",
+      "last_change_commit": "7b84578c3bcdb315109286dfe3667f415bf6b78a",
+      "bytes": 24825,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v27_release_gates.sh > scripts/ai/verify_v27_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v27_runtime_integration_fail_closed_hardening.sh",
+      "sha256": "2238d4c177ca469a570f095ddab9f7cf8363ff125f65c61ad20fd8a77be8175e",
+      "git_blob_sha": "eeb0a7f34f885892667d3c303fe6fc75a1e6f5ef",
+      "last_change_commit": "7560ebc8f6f4099da220a90a98fff38be5c57158",
+      "bytes": 21909,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v27_runtime_integration_fail_closed_hardening.sh > scripts/ai/verify_v27_runtime_integration_fail_closed_hardening.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v27_strict_provenance.sh",
+      "sha256": "f67fd831d8e224b87da42b9ee9f55754e38481017304fbdbe97bcd3bc0d6ee07",
+      "git_blob_sha": "c8adf08fab8e00291596fff9cc4fc7a0c811e092",
+      "last_change_commit": "a285fa2ae6290a5ac1963639f564278e0d4d2b0d",
+      "bytes": 14712,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v27_strict_provenance.sh > scripts/ai/verify_v27_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v28_1_release_body_hash_normalization.sh",
+      "sha256": "ba73017d4aa55901742c0239eb33a50666479ad7f3bf799574cb355accfa1f5d",
+      "git_blob_sha": "b94758072481c0df009bbdfafb7cd50c3e4a422b",
+      "last_change_commit": "f37bdf3f606a7b671bad7e16ae850d49e747c4ad",
+      "bytes": 5346,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v28_1_release_body_hash_normalization.sh > scripts/ai/verify_v28_1_release_body_hash_normalization.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v28_1_release_gates.sh",
+      "sha256": "e3b14f1feeeb9afd63167d763ef7783c97d6bd502002c9f4cd1e930f287e87a3",
+      "git_blob_sha": "48bbdf070cd419df19622d231b089855679c1091",
+      "last_change_commit": "81d3a4e5d3320f4cf21b3b019509d4b95a3c7337",
+      "bytes": 16692,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v28_1_release_gates.sh > scripts/ai/verify_v28_1_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v28_1_runtime_closed_terminology.sh",
+      "sha256": "52f1df0fe39e9165eef4acc8a64419844b8494537dc276fbb1fb9c1f51e382b0",
+      "git_blob_sha": "db1a0262f5e7cc00c6cfe2cbae65996420aa2fea",
+      "last_change_commit": "a722786217c28e7b74745cc16b6a4ba517b51c4b",
+      "bytes": 9100,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v28_1_runtime_closed_terminology.sh > scripts/ai/verify_v28_1_runtime_closed_terminology.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v28_1_strict_provenance.sh",
+      "sha256": "2f75ec4720bbaa424def31eb6e1cc37ec4b6109e76d3f12b2568dc372b89a253",
+      "git_blob_sha": "2643614026cbd7be4d843dc38688f34ae48a63e8",
+      "last_change_commit": "81d3a4e5d3320f4cf21b3b019509d4b95a3c7337",
+      "bytes": 10956,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v28_1_strict_provenance.sh > scripts/ai/verify_v28_1_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v28_admin_workbench_backend_state_bridge_closure.sh",
+      "sha256": "7daabe2220c63cebe8fa61b41a2fe5071f99c92e6bb751aa4a42c630aab84969",
+      "git_blob_sha": "856c649272ae0444299577b22ce0dc891c982e17",
+      "last_change_commit": "5b3591097dc8a7df2a8a1cf694086da15fe5dd6e",
+      "bytes": 14895,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v28_admin_workbench_backend_state_bridge_closure.sh > scripts/ai/verify_v28_admin_workbench_backend_state_bridge_closure.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v28_backend_closure_boundary_contract.sh",
+      "sha256": "4d7080d49d32461a98c01dea2f8bb0af64318aa2b43f32236acbd8c4e36440c9",
+      "git_blob_sha": "9c03414e34ffe62bf1964733219e7cf178ca8efb",
+      "last_change_commit": "a722786217c28e7b74745cc16b6a4ba517b51c4b",
+      "bytes": 21692,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v28_backend_closure_boundary_contract.sh > scripts/ai/verify_v28_backend_closure_boundary_contract.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v28_backend_closure_fail_closed_hardening.sh",
+      "sha256": "4a8991aa66180b91b4cef6e6c1d2cc8839c9e2e74d1cf2446487171d1e123f75",
+      "git_blob_sha": "0425663fa177494eeaef01afd0231df705331044",
+      "last_change_commit": "d522d891ab83936f42f4486d297909721915d444",
+      "bytes": 16854,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v28_backend_closure_fail_closed_hardening.sh > scripts/ai/verify_v28_backend_closure_fail_closed_hardening.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v28_deployment_orchestration_runtime_closure.sh",
+      "sha256": "39131c2560c5a7989bac94d313aa5d4b65ba112209d94d0883b56f3a74f25d8a",
+      "git_blob_sha": "84d64dca4b0b517d60c2d3a27a5a71c4c65482f7",
+      "last_change_commit": "b5ebbb5b6478fbc4f9c2228d1f10417a3812fa14",
+      "bytes": 16782,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v28_deployment_orchestration_runtime_closure.sh > scripts/ai/verify_v28_deployment_orchestration_runtime_closure.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v28_identity_permission_runtime_closure.sh",
+      "sha256": "518386384a5a9cc22609183d7e5c9ac0cd42c7422be69c74313b6e66b07739aa",
+      "git_blob_sha": "94b5f578aacda69ecb8a06d02f65d38151344696",
+      "last_change_commit": "6638b128a03b04b8e565ad855b8352f24e64eae6",
+      "bytes": 15088,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v28_identity_permission_runtime_closure.sh > scripts/ai/verify_v28_identity_permission_runtime_closure.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v28_intake_gate.sh",
+      "sha256": "ef57a4b6e7398d15ff01366e68aee6103b65c6099d85b8722c064631a38ea094",
+      "git_blob_sha": "da93e6deaa4ee659c473b63305bd43dcbcadae4d",
+      "last_change_commit": "1a421e35ece718d576e15dd4061891ac7000e676",
+      "bytes": 17737,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v28_intake_gate.sh > scripts/ai/verify_v28_intake_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v28_persistent_audit_storage_runtime_closure.sh",
+      "sha256": "f886c86eeb910e3da80cb97c9dd6362059d2c3af08967e0cb854786cac98b1ec",
+      "git_blob_sha": "9d544eb4e41adb8da38d0f6194aa683a16fc1bf4",
+      "last_change_commit": "a442a7ef6c50033be9cec4d07bfa3c25a0ac8151",
+      "bytes": 12509,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v28_persistent_audit_storage_runtime_closure.sh > scripts/ai/verify_v28_persistent_audit_storage_runtime_closure.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v28_release_gates.sh",
+      "sha256": "afc3291a0666715eaa1c3424bd686f6df7f1f21251fca33e0bd27aea3d1ac913",
+      "git_blob_sha": "128e69c9faf81818882c72933ba6be26b0c646c2",
+      "last_change_commit": "96331a710cb8e2a893ce5420d5ad10ef889e36f8",
+      "bytes": 19210,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v28_release_gates.sh > scripts/ai/verify_v28_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v28_strict_provenance.sh",
+      "sha256": "51c0f6404b009ea403a5db4b36edba75c4c4130a379378886b72cf3fb8f9ab44",
+      "git_blob_sha": "ff53583bb749e61b17dc56310b674fe1aa23e977",
+      "last_change_commit": "1a421e35ece718d576e15dd4061891ac7000e676",
+      "bytes": 15994,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v28_strict_provenance.sh > scripts/ai/verify_v28_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v28_telemetry_slo_ingestion_runtime_closure.sh",
+      "sha256": "774685f0978f478c93e347ea597e5a5d6d030794d7f7aaa1b74d2d4345d509f4",
+      "git_blob_sha": "c7599be529bab507e4f6fe7438fec4ab68896b95",
+      "last_change_commit": "64ace829960b38bf1545e51123194c90fd9b6289",
+      "bytes": 18261,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v28_telemetry_slo_ingestion_runtime_closure.sh > scripts/ai/verify_v28_telemetry_slo_ingestion_runtime_closure.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v28_trader_terminal_backend_api_contract_handoff.sh",
+      "sha256": "02e9b36a6e2ee4268c35758423e6df3356d097ce33a707b5934ca5799f59ea12",
+      "git_blob_sha": "a20a56c9411430c7443cd6f238f0f9223b0ae683",
+      "last_change_commit": "42c2b923a494490ccf76bcaf250f2e9437ed257f",
+      "bytes": 18112,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v28_trader_terminal_backend_api_contract_handoff.sh > scripts/ai/verify_v28_trader_terminal_backend_api_contract_handoff.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_1_post_publication_closeout_gate.sh",
+      "sha256": "adcaa0eaa05aea15d4e56d7b24878f831ef225fa0382b548e78e1ded248f466e",
+      "git_blob_sha": "9932a1c535a0358fd22dce1ec0f7f34ba466d36a",
+      "last_change_commit": "53fd1ef69326f30820faf3bfdcca133dd01239f6",
+      "bytes": 21746,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_1_post_publication_closeout_gate.sh > scripts/ai/verify_v29_1_post_publication_closeout_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_1_release_closeout_evidence.sh",
+      "sha256": "def4fabd2ca955b34e4bc730fea683ee59cd3f8a80c0d8223825d0d0488f8a17",
+      "git_blob_sha": "db020f07532fa6014d8dbab52573a1c8d52b5bab",
+      "last_change_commit": "eaed287f38ad3aa06df70cf4bcbaa1ef152752bd",
+      "bytes": 13951,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_1_release_closeout_evidence.sh > scripts/ai/verify_v29_1_release_closeout_evidence.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_1_release_gates.sh",
+      "sha256": "60835c8bec8a9a51bfbc608cfaa81e24683aa7f87d2f0d9f86dec4dbe6a23210",
+      "git_blob_sha": "473ba6616760c51b96a514f28e68ebc891775ee0",
+      "last_change_commit": "6ef735405cff8ad440d11df8308c8547abf228e1",
+      "bytes": 13954,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_1_release_gates.sh > scripts/ai/verify_v29_1_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_1_release_publish_after_gate_current_binding.sh",
+      "sha256": "0460d5814de3c1228039c649cff45a2e0c6222d019dee3a6f4242ad968183d5c",
+      "git_blob_sha": "07ae919de0e47defdaf017d1ea8623fe7a859a21",
+      "last_change_commit": "858a6ed2c1240ead352be3c2a5eec28018db0297",
+      "bytes": 3796,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_1_release_publish_after_gate_current_binding.sh > scripts/ai/verify_v29_1_release_publish_after_gate_current_binding.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_1_stale_v290_evidence_cleanup.sh",
+      "sha256": "200480223a581ea39d27fdf61f7013c275caec9686290c17465aa19df8c93ea5",
+      "git_blob_sha": "cc1baf72900165350549dd32fdc65bcefd025d4d",
+      "last_change_commit": "a12a4f7d3d961179f2e61337b5e3c332300dcb02",
+      "bytes": 8629,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_1_stale_v290_evidence_cleanup.sh > scripts/ai/verify_v29_1_stale_v290_evidence_cleanup.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_1_strict_provenance.sh",
+      "sha256": "cfd8f9d6f8481a5b41300af43fdaebf98547c81228ba95e8ba5065d7bbcbc5bf",
+      "git_blob_sha": "0f05f4082f858bc73bd61e93e515a0aa32a49635",
+      "last_change_commit": "b098585dbcbb45c65b89bbcb933598e5105f4988",
+      "bytes": 8463,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_1_strict_provenance.sh > scripts/ai/verify_v29_1_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_1_v30_start_gate.sh",
+      "sha256": "651ff6a389d21ec4213271b89df9cfc21e4d4b626c8c36065d9dddc77941f1ab",
+      "git_blob_sha": "853a3973961a2ca7606bea61dd97ef673bbfd958",
+      "last_change_commit": "5b58c2a9f188b37ecda7a4387527fbcb664c2a48",
+      "bytes": 16148,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_1_v30_start_gate.sh > scripts/ai/verify_v29_1_v30_start_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_backend_production_readiness_boundary_contract.sh",
+      "sha256": "48a226bd0f232d7eb37fefed4285a8c1d59eff11af2f1044a2d0516e19820a30",
+      "git_blob_sha": "a8d784d387044566a9a680493c022a74892dd2bc",
+      "last_change_commit": "92e49b92922f8ffffd94c997169ddef6b5483740",
+      "bytes": 14867,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_backend_production_readiness_boundary_contract.sh > scripts/ai/verify_v29_backend_production_readiness_boundary_contract.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_backend_production_readiness_fail_closed_hardening.sh",
+      "sha256": "f671eecee52c941db0603b0923922ebc9b14d61e24944acbe5697e3e2a1bac72",
+      "git_blob_sha": "4e2670978ff09f9066b1729c671a729042a102ba",
+      "last_change_commit": "a695cd692edc4782bcee2d3b5435a1e635a4363c",
+      "bytes": 16709,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_backend_production_readiness_fail_closed_hardening.sh > scripts/ai/verify_v29_backend_production_readiness_fail_closed_hardening.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_canary_rollback_dr_preflight_readiness.sh",
+      "sha256": "6aa172d91cb0da8045ff96bcccfd2a4af24fbe50df64c783f44a4d7a126f70f2",
+      "git_blob_sha": "2e41b159d2cdaf0d30655f42f7e0f240e2db137e",
+      "last_change_commit": "48e631e5adc63c1aba82b49d98acd83d0c0cf1b4",
+      "bytes": 16529,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_canary_rollback_dr_preflight_readiness.sh > scripts/ai/verify_v29_canary_rollback_dr_preflight_readiness.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_deployment_config_runbook_production_readiness.sh",
+      "sha256": "c3a18d7fb6ea05ca3c0eab9a94151bb054af88cdb417ee746ed67c628814499c",
+      "git_blob_sha": "819bd2d62ec9c1618d857bbb46fc42664a53056f",
+      "last_change_commit": "ce5dbe473008830f10c295638a758ab99eb84997",
+      "bytes": 14517,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_deployment_config_runbook_production_readiness.sh > scripts/ai/verify_v29_deployment_config_runbook_production_readiness.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_intake_gate.sh",
+      "sha256": "0f85fb6632fdbe61a13a5dafb0fd97ea2f1414565b767bcede9374e03cc51d2b",
+      "git_blob_sha": "9f389fe5a9a6bd13b25af22499e0513d8e6dd64c",
+      "last_change_commit": "6f68b8d24e3eb8debaec7a7be6e32c3d91414722",
+      "bytes": 17061,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_intake_gate.sh > scripts/ai/verify_v29_intake_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_monitoring_alert_incident_production_readiness.sh",
+      "sha256": "706a78b4ccca5b361e96a2c3d5fd34f61e9df7c77a5e504dac97c2934b5636d7",
+      "git_blob_sha": "8309cf475655b577b57405c1a4efe4e3a28f11af",
+      "last_change_commit": "03417247ff6e266300290633177838a500b617ea",
+      "bytes": 18817,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_monitoring_alert_incident_production_readiness.sh > scripts/ai/verify_v29_monitoring_alert_incident_production_readiness.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_permission_source_production_readiness.sh",
+      "sha256": "ccd5aeed5e94e6a2077ea9cbca9e1203255033336e347fcb2c95be394730a0a3",
+      "git_blob_sha": "6ac24f24651995e14faa4a6e9d35a27b8f758c40",
+      "last_change_commit": "aefce1ec34a134021f99cd8b255958a9b4a2aa1a",
+      "bytes": 16561,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_permission_source_production_readiness.sh > scripts/ai/verify_v29_permission_source_production_readiness.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_persistent_audit_storage_production_readiness.sh",
+      "sha256": "01f05ec9cb99c6f5dff17813f848cdce4791eb06ee008b0cafbc66c314640414",
+      "git_blob_sha": "5cf6c2624c05456db965dffe2d3600bf2a3a8858",
+      "last_change_commit": "f4fc1b8cec9c978f23d8df5cee9e32fc53899194",
+      "bytes": 21094,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_persistent_audit_storage_production_readiness.sh > scripts/ai/verify_v29_persistent_audit_storage_production_readiness.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_read_only_backend_api_production_readiness.sh",
+      "sha256": "aa2a4ef66e1ae2d4cf5df1498ef49f899e2d1425b974c7a6c6d671aa7298df4b",
+      "git_blob_sha": "9f09b21c097cb664ae250a004286c3410e144e93",
+      "last_change_commit": "96ba64e1be5847c60091f759895874a2bb8ac154",
+      "bytes": 13795,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_read_only_backend_api_production_readiness.sh > scripts/ai/verify_v29_read_only_backend_api_production_readiness.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_release_gates.sh",
+      "sha256": "0ba56e9345e26b86b01af76f8515df47775c6935432d9072ee4eb4534176b1a3",
+      "git_blob_sha": "0436af5094f171e2d265cb9736a57dbe5af2c48c",
+      "last_change_commit": "5b58c2a9f188b37ecda7a4387527fbcb664c2a48",
+      "bytes": 24931,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_release_gates.sh > scripts/ai/verify_v29_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_strict_provenance.sh",
+      "sha256": "9ea30a432b8d801dd36706379f60b868210c9d9538fecd3ca2292ab08727ffc6",
+      "git_blob_sha": "56be88f4451ea09416ec452b5d5a13b90167742a",
+      "last_change_commit": "5b58c2a9f188b37ecda7a4387527fbcb664c2a48",
+      "bytes": 16186,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_strict_provenance.sh > scripts/ai/verify_v29_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v29_telemetry_slo_ingestion_production_readiness.sh",
+      "sha256": "d79c391231d4d490b64c5e5eff3c47781d60a40a59db6861de094f055c26ca15",
+      "git_blob_sha": "35dcb1f899e85cbb2ba3c81a1f61feb910cc0fa2",
+      "last_change_commit": "a1d65edd69ec65c50a146c736c95eeeb77186edd",
+      "bytes": 21983,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v29_telemetry_slo_ingestion_production_readiness.sh > scripts/ai/verify_v29_telemetry_slo_ingestion_production_readiness.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_1_post_publication_closeout_gate.sh",
+      "sha256": "a2f81ed10f801782939e24b0c92d089a74bbe7eb12ee54a5f7d2a51067ac313b",
+      "git_blob_sha": "f5bf9597b3f7d9319859056ce983a890a72634c3",
+      "last_change_commit": "88d8e34bf3175558f19cca7cd02da6fb41a87714",
+      "bytes": 25564,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_1_post_publication_closeout_gate.sh > scripts/ai/verify_v30_1_post_publication_closeout_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_1_release_closeout_evidence.sh",
+      "sha256": "67ba57c982e0536d16eaecc0578b60b8da57a482cc9d59a8ac11d1368cb759cb",
+      "git_blob_sha": "9ef83223e009decafef0269ed05e07872cc4b0fa",
+      "last_change_commit": "45568004734818e9dc872b201af4c72fa7b136f7",
+      "bytes": 13790,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_1_release_closeout_evidence.sh > scripts/ai/verify_v30_1_release_closeout_evidence.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_1_release_gates.sh",
+      "sha256": "38bf1624a435d97c77af3dc6800457b33b9b22cd724802a1c3e20b2b7111ff28",
+      "git_blob_sha": "af9be72a8dd9fe2dd26abd133f2b2767def99b62",
+      "last_change_commit": "6f7d43fa286f9eb570e40698944375125cf7634c",
+      "bytes": 12984,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_1_release_gates.sh > scripts/ai/verify_v30_1_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_1_release_publish_after_gate_current_binding.sh",
+      "sha256": "ba49765f8f032e248aad1845d567e04f2be2d9cf1e175afcbc0f061a5549347e",
+      "git_blob_sha": "86c98cd6eb0fe50fdfd462cb98ad2708e6f9b16e",
+      "last_change_commit": "d3562e6290c0360e2150cefc7b4bcd63c5ee9a79",
+      "bytes": 3796,
+      "contains_python_tooling": false,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_1_release_publish_after_gate_current_binding.sh > scripts/ai/verify_v30_1_release_publish_after_gate_current_binding.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_1_stale_v300_evidence_cleanup.sh",
+      "sha256": "3ceb4a11f5e918f108194d4d2a9378dac8f664e35e42d25ef7e469eff83c1d3d",
+      "git_blob_sha": "afa1fe6be5e5296c6c5413236fbd7c00c2bfa4b0",
+      "last_change_commit": "7b6a50c5c4ba90ee2168c4fe0a3a86d7746f9e8e",
+      "bytes": 8701,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_1_stale_v300_evidence_cleanup.sh > scripts/ai/verify_v30_1_stale_v300_evidence_cleanup.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_1_strict_provenance.sh",
+      "sha256": "953a37536f11a916edee19ed4cf3f906198af907c70038a474e8f968cfec3289",
+      "git_blob_sha": "a815ad6d19bb9ef0845f1337c39567a758392524",
+      "last_change_commit": "6f7d43fa286f9eb570e40698944375125cf7634c",
+      "bytes": 8550,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_1_strict_provenance.sh > scripts/ai/verify_v30_1_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_1_v291_post_publication_reconciliation.sh",
+      "sha256": "cd1046f1a370a44e79fb301406fad5ec33fb9c7f6b60c054daf64523c634e26b",
+      "git_blob_sha": "a4e26bd51da9fbc58f32c213e7661b7c124442e2",
+      "last_change_commit": "6ef735405cff8ad440d11df8308c8547abf228e1",
+      "bytes": 12982,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_1_v291_post_publication_reconciliation.sh > scripts/ai/verify_v30_1_v291_post_publication_reconciliation.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_1_v31_start_gate.sh",
+      "sha256": "bc1bc07260567163668c88e16c2b58dd4e09d2d59934a8c1e78ef18951f51991",
+      "git_blob_sha": "fd214872e17a0e7cfd5caa0c931f8886275aa87f",
+      "last_change_commit": "afc0e31ba32ea1993043418f0359c542e73b39f6",
+      "bytes": 12696,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_1_v31_start_gate.sh > scripts/ai/verify_v30_1_v31_start_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_audit_retention_evidence_export_readiness.sh",
+      "sha256": "d7c66688ae4a49902277843a87de350ae07d654922586c986750a292976ba8ac",
+      "git_blob_sha": "6962d7197e555b1d3647e8231a962e430feb22f6",
+      "last_change_commit": "e97822a9597d26c23ab5f8672d7ae63f751c496f",
+      "bytes": 20834,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_audit_retention_evidence_export_readiness.sh > scripts/ai/verify_v30_audit_retention_evidence_export_readiness.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_backend_go_live_candidate_boundary_contract.sh",
+      "sha256": "34f5a1602005689b3576d41fc815b978e6ad772a50f0e577046a7d0acf6571d3",
+      "git_blob_sha": "410c87c33c1f38ae9e67429a0141e6b11c158af5",
+      "last_change_commit": "2af799385ee6a4221c0153f7ab6777c452f6c69d",
+      "bytes": 15831,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_backend_go_live_candidate_boundary_contract.sh > scripts/ai/verify_v30_backend_go_live_candidate_boundary_contract.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_canary_execution_preflight_no_default_execution_gate.sh",
+      "sha256": "b3e90baf612445ec7f97a0024639d4b4db7b7384e73d41851a046f3862285b13",
+      "git_blob_sha": "b6135bea5be141f2fd1ea52e63524474843654e8",
+      "last_change_commit": "1c29667c549410d451eca1f59f86e8cc534db0d0",
+      "bytes": 20526,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_canary_execution_preflight_no_default_execution_gate.sh > scripts/ai/verify_v30_canary_execution_preflight_no_default_execution_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_go_no_go_runbook_live_readiness_decision_record.sh",
+      "sha256": "c8a61265aa33c2b308896692e75c5e27907f368bcf6f1d07569f092dac6f63e1",
+      "git_blob_sha": "ed470081a1dc31ebcdffaf2dba436ecd9544ff76",
+      "last_change_commit": "34850f7aadde91e5874fb5235796c23e419e88b7",
+      "bytes": 24603,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_go_no_go_runbook_live_readiness_decision_record.sh > scripts/ai/verify_v30_go_no_go_runbook_live_readiness_decision_record.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_intake_gate.sh",
+      "sha256": "e784f5b32fd37f5f7f629ab40517731aa9b476d401961631b7a81a5a89e8a734",
+      "git_blob_sha": "528707e42aaa8b7c0d8769df0b714cb4d147ea7d",
+      "last_change_commit": "6ef735405cff8ad440d11df8308c8547abf228e1",
+      "bytes": 20304,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_intake_gate.sh > scripts/ai/verify_v30_intake_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_operator_approval_freeze_change_window_lifecycle.sh",
+      "sha256": "5fc448bff86b1596409fd594c52d7d498a747664e04847f0eae2c6bcc84df0b8",
+      "git_blob_sha": "430a5d265ebd6182f1adb8cb1c0811e573644b59",
+      "last_change_commit": "61325e6519f33541cb5a7235ce739e2ee5385339",
+      "bytes": 20674,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_operator_approval_freeze_change_window_lifecycle.sh > scripts/ai/verify_v30_operator_approval_freeze_change_window_lifecycle.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_production_config_provenance_venue_connectivity_readiness.sh",
+      "sha256": "7de60c1ae2f03b912efda28d318ae83874ab5b90d567d6ce4dd7d7281d210e9d",
+      "git_blob_sha": "fa3bc1873c576daa9ade87ed6e7d4bf0a66f7648",
+      "last_change_commit": "49cf898d14489f1fa461fa28fe6f99e0772f0ffa",
+      "bytes": 20562,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_production_config_provenance_venue_connectivity_readiness.sh > scripts/ai/verify_v30_production_config_provenance_venue_connectivity_readiness.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_production_deployment_plan_environment_readiness.sh",
+      "sha256": "8c0badcf82009c4256b1889c1b6e4267dd93320e882c20ee54cc8573517185c4",
+      "git_blob_sha": "2454afbf90759b87261bfbd176e9aaff5fb2c413",
+      "last_change_commit": "62a7960c8875794e9d698cd4d0979818e838127d",
+      "bytes": 28124,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_production_deployment_plan_environment_readiness.sh > scripts/ai/verify_v30_production_deployment_plan_environment_readiness.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_release_gates.sh",
+      "sha256": "15e39a16c1c1139e3afd1dc26844ec16d88f008f92fc7d290b028a6ff12cfd56",
+      "git_blob_sha": "4733a83f027c17d7836e57c78cd0fd8d6e7fdda6",
+      "last_change_commit": "afc0e31ba32ea1993043418f0359c542e73b39f6",
+      "bytes": 18935,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_release_gates.sh > scripts/ai/verify_v30_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_rollback_disaster_recovery_execution_boundary.sh",
+      "sha256": "cef62dadd80e5fa1c27b8017ddb27aeb02337a3626269a857a0ed0240de62ebf",
+      "git_blob_sha": "7525192241480dcd3b13367eb76936210e6d56f4",
+      "last_change_commit": "af48b92d36f94ffde00822afe18be25e3b1d8f88",
+      "bytes": 21599,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_rollback_disaster_recovery_execution_boundary.sh > scripts/ai/verify_v30_rollback_disaster_recovery_execution_boundary.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_runtime_enablement_boundary_controlled_feature_flags.sh",
+      "sha256": "36cf8ddae77b4e5f9287ca373dc0656d81d2a0955aa64891daa2f2b943f44931",
+      "git_blob_sha": "f2051f5bd3e15cf1deacb4122bbc427feb8aaed2",
+      "last_change_commit": "30fe2125671983d01533424ab2f2c4a9d267a068",
+      "bytes": 19718,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_runtime_enablement_boundary_controlled_feature_flags.sh > scripts/ai/verify_v30_runtime_enablement_boundary_controlled_feature_flags.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_strict_provenance.sh",
+      "sha256": "307a537308fab5575dbc797dc49c21cf7bf71f4d565066e0c97d29e15ae8d660",
+      "git_blob_sha": "79f66adf00ba0da4718e659cf84a580391c49437",
+      "last_change_commit": "7b6a50c5c4ba90ee2168c4fe0a3a86d7746f9e8e",
+      "bytes": 11843,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_strict_provenance.sh > scripts/ai/verify_v30_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v30_telemetry_slo_gate_incident_freeze_integration.sh",
+      "sha256": "41bba0af2656b3329349727ff620c444ff80b66f94b467e0d2b8e3b1e7229d1e",
+      "git_blob_sha": "db449c9cc2c0b0754241ca56a5306d91399f1a15",
+      "last_change_commit": "e7cdc63a4715670da90fe1c6f84f3d10eac9d565",
+      "bytes": 20823,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v30_telemetry_slo_gate_incident_freeze_integration.sh > scripts/ai/verify_v30_telemetry_slo_gate_incident_freeze_integration.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_1_post_publication_closeout_evidence.sh",
+      "sha256": "d5d216202f0d8b95abea5a5a965bf1711076156d60e1608a8f3ad4f05aa835fb",
+      "git_blob_sha": "cd4240230827e45923134f0f0cfa419b427922e2",
+      "last_change_commit": "06cb6767c2629df809901e8f3d7283f4dec0cc9f",
+      "bytes": 21462,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_1_post_publication_closeout_evidence.sh > scripts/ai/verify_v31_1_post_publication_closeout_evidence.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_1_release_gates.sh",
+      "sha256": "b326abd045aa2fe9c7053474420e0510db0cbbff96f7cdae2e3a42ce09dc64a0",
+      "git_blob_sha": "9582c51f49738b920a852901976614b7710e991a",
+      "last_change_commit": "41c13405867b143d2db54b34909913157f19dbdd",
+      "bytes": 14490,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_1_release_gates.sh > scripts/ai/verify_v31_1_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_1_strict_provenance.sh",
+      "sha256": "3304ff70d035f684f85a7a86ce3f0ff8b8cc98ff21f9e38ef83d6da2efa25921",
+      "git_blob_sha": "ff5be4d07a419665fa8bfbca66167fdcedf82461",
+      "last_change_commit": "41c13405867b143d2db54b34909913157f19dbdd",
+      "bytes": 8647,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_1_strict_provenance.sh > scripts/ai/verify_v31_1_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_1_v32_start_gate.sh",
+      "sha256": "ed5aa6e13c1bb3e986a7198e494c8fee507e38282d1cac0e6b1a3a5afae1eef7",
+      "git_blob_sha": "a5ae666b4973845f7e755a81ea7030b0d649d8fd",
+      "last_change_commit": "41c13405867b143d2db54b34909913157f19dbdd",
+      "bytes": 10561,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_1_v32_start_gate.sh > scripts/ai/verify_v31_1_v32_start_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_backend_enablement_state_read_model_admin_bridge.sh",
+      "sha256": "4f2b253a46f05eb4a684b32c1e19f4ebf359711f2606b2bd30d6c03aef1e0012",
+      "git_blob_sha": "c895dd6085318cacf225ce7e0487f19069f54d35",
+      "last_change_commit": "d2e10b932ecd0ba9ab619ad4b1a30511b5cdb31f",
+      "bytes": 7201,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_backend_enablement_state_read_model_admin_bridge.sh > scripts/ai/verify_v31_backend_enablement_state_read_model_admin_bridge.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_canary_rollback_dr_execution_boundary.sh",
+      "sha256": "800f08c572f8be57ec7d16fb8c8533d8be7c5c21d60d92e0c16ae07db1801222",
+      "git_blob_sha": "6834bce0c17aede3cb545dd506962b3572272a54",
+      "last_change_commit": "c80aa2ae77e3c3c7ced3d6f07bf4cd9e7a695beb",
+      "bytes": 5912,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_canary_rollback_dr_execution_boundary.sh > scripts/ai/verify_v31_canary_rollback_dr_execution_boundary.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_corrective_scope_reconciliation.sh",
+      "sha256": "4cf7e99e96f4672b5b25877878d6c1070d0023442e3ec96e09784a65012349a2",
+      "git_blob_sha": "025c549507a5a1999095c93d3e9f8897485b7e7f",
+      "last_change_commit": "e2ee44d7883b2af02d04c96a61ce29a2ddc4bfb3",
+      "bytes": 9676,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_corrective_scope_reconciliation.sh > scripts/ai/verify_v31_corrective_scope_reconciliation.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_forbidden_production_execution_negative_tests.sh",
+      "sha256": "28ed39de32413ad03539234d393d07d10ee05104f97886608a10d6bbff320227",
+      "git_blob_sha": "036b0487f398f72e69896bae03b7e0af0d3048f2",
+      "last_change_commit": "8ed1d915566c89c9ad047d558a0d22327b28ceee",
+      "bytes": 7757,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_forbidden_production_execution_negative_tests.sh > scripts/ai/verify_v31_forbidden_production_execution_negative_tests.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_intake_gate.sh",
+      "sha256": "f0dedc43a0e454ea3ed864dc8544eb041619a20eb1c0acc0f343e4b09b7d693e",
+      "git_blob_sha": "a1eeeee39cdf8c82713f594b3a8694d3d4ee1d53",
+      "last_change_commit": "57f91fe3b7738b6c7f7b894d62408667b5694c47",
+      "bytes": 15830,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_intake_gate.sh > scripts/ai/verify_v31_intake_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_operator_approval_freeze_change_window_lifecycle.sh",
+      "sha256": "604aee65b5215e053e18deb47e1679543d58c00019a65ca74a3aeddbc0f5982d",
+      "git_blob_sha": "4abdeaf7d9d153df1b93e94394970c97a17e709e",
+      "last_change_commit": "b2c25e182a06cae1128ec850164817fb6fcd95c9",
+      "bytes": 9098,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_operator_approval_freeze_change_window_lifecycle.sh > scripts/ai/verify_v31_operator_approval_freeze_change_window_lifecycle.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_production_config_venue_readiness_gate.sh",
+      "sha256": "767d3b4f3244b9e7f59ada328f1fec7569b542b7e89326a31bb8f463f1baf5b5",
+      "git_blob_sha": "851552a767e5be5e65e09a323fd0a9a6e628e7b5",
+      "last_change_commit": "33ffc9c7ceacf9d199932f9e193ff9a5209448d5",
+      "bytes": 6554,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_production_config_venue_readiness_gate.sh > scripts/ai/verify_v31_production_config_venue_readiness_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_production_enablement_boundary_contract.sh",
+      "sha256": "73adb265a6cdaef822d0c8a08f99dea461b157a56077200a27cfec5f817cb8fa",
+      "git_blob_sha": "fedb6c8b5c56e125c4e905bbdb6d16308db330bd",
+      "last_change_commit": "4d814bfb8f5fd957a33e7bb475d429b275a6303c",
+      "bytes": 9545,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_production_enablement_boundary_contract.sh > scripts/ai/verify_v31_production_enablement_boundary_contract.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_publication_evidence_reconstruction.sh",
+      "sha256": "ecec9617860c1a277278a663d130bf7871fab47f4eef8ed6c1c30dd9de73dc74",
+      "git_blob_sha": "c03bd07ab93ed67dc16eecf4ac2324d57325c419",
+      "last_change_commit": "db672370301da31d98bdba46b9a9ccd0011cf89b",
+      "bytes": 29128,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_publication_evidence_reconstruction.sh > scripts/ai/verify_v31_publication_evidence_reconstruction.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_release_gates.sh",
+      "sha256": "d046ab0f209e5ce6937979b573bd969fedc86232c8becf55ddca32425ef2244f",
+      "git_blob_sha": "eebc26b431f94145f0ab4d8012ac775784dc064f",
+      "last_change_commit": "db672370301da31d98bdba46b9a9ccd0011cf89b",
+      "bytes": 13980,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_release_gates.sh > scripts/ai/verify_v31_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_risk_audit_go_no_go_control_contract.sh",
+      "sha256": "032db3f98cdde4f16b692a31e2ca530af579196ccbafa7b46faf781f6326c347",
+      "git_blob_sha": "81fcf967eee585204fc5cc31c155f06c53d2038a",
+      "last_change_commit": "cca0820746208a6f2ee83ce2b8beb7addcf2f174",
+      "bytes": 8576,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_risk_audit_go_no_go_control_contract.sh > scripts/ai/verify_v31_risk_audit_go_no_go_control_contract.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_strict_provenance.sh",
+      "sha256": "878dc7926a663d9ba5f6bcecfae9a71814cc0f934280e24660acd8d68311411e",
+      "git_blob_sha": "5dc2fd6ac28f5bb5b6a24eab488c8c93a2f01ce9",
+      "last_change_commit": "57f91fe3b7738b6c7f7b894d62408667b5694c47",
+      "bytes": 9018,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_strict_provenance.sh > scripts/ai/verify_v31_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v31_telemetry_slo_incident_enablement_gate.sh",
+      "sha256": "63646513882d4e2bf702c7b42d2bd9ea07eb359bf690552b23277fe4328d45ce",
+      "git_blob_sha": "051bbc9cfeef945bf5195e7d3310de8ecabf2e3c",
+      "last_change_commit": "b362c36086539b7d36ed3571eeb74209a61a85c2",
+      "bytes": 7294,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v31_telemetry_slo_incident_enablement_gate.sh > scripts/ai/verify_v31_telemetry_slo_incident_enablement_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v32_backend_closeout_boundary_contract.sh",
+      "sha256": "080f38c5496708151212458b15fb434fda02343f37dad5afd45aef1494885bb9",
+      "git_blob_sha": "81b7e4f6bfdaae7c40e4b6fa99459db4376260cc",
+      "last_change_commit": "ee2a58fe920794ac4f96dae72256a7917c66fe29",
+      "bytes": 19621,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v32_backend_closeout_boundary_contract.sh > scripts/ai/verify_v32_backend_closeout_boundary_contract.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v32_backend_enablement_read_model_admin_bridge_closeout.sh",
+      "sha256": "3665748f6136b4088fd6ecbe06298c0c1d48bddd8f539324c6aadc65e4b7ee40",
+      "git_blob_sha": "fe5f69fd0a340c121e30b5d10543f3379df5a416",
+      "last_change_commit": "80a3ada59b20d591025641b0cd378864caaa2e41",
+      "bytes": 9281,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v32_backend_enablement_read_model_admin_bridge_closeout.sh > scripts/ai/verify_v32_backend_enablement_read_model_admin_bridge_closeout.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v32_canary_rollback_dr_closeout.sh",
+      "sha256": "ef443276d0e93b38c761c6eefd5d3da1f600f0a56c251bde2b00cb3ec1a978aa",
+      "git_blob_sha": "9ecb7859fb6f12dac27dcd8dfae90d6cc76786e7",
+      "last_change_commit": "c9164624ae83dde4e998b16928b75b5cd753b2f9",
+      "bytes": 7915,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v32_canary_rollback_dr_closeout.sh > scripts/ai/verify_v32_canary_rollback_dr_closeout.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v32_config_venue_credential_provenance.sh",
+      "sha256": "cb23a9f21a701e7a1f76ad7981af56044c8314caea2773afe5f97ecc92e50884",
+      "git_blob_sha": "6eaad8d69ff95373b96a0978fb85dd9c54596b21",
+      "last_change_commit": "897c5954e78401b746d7ebedc7c8f28d94cbf7f4",
+      "bytes": 8677,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v32_config_venue_credential_provenance.sh > scripts/ai/verify_v32_config_venue_credential_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v32_fail_closed_negative_tests.sh",
+      "sha256": "c75b17351803a2207f3505ff3ccd537c32f196b58984d37d99088ef80f303e5d",
+      "git_blob_sha": "e416abea7795f309d5465efc592bbfbf8385eecb",
+      "last_change_commit": "c375725b335efb4b036fac216d9ad2b483da4d90",
+      "bytes": 9344,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v32_fail_closed_negative_tests.sh > scripts/ai/verify_v32_fail_closed_negative_tests.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v32_intake_gate.sh",
+      "sha256": "07c4d080a58c69962ba279fad922739c1cf11055d74e0e0b89ad25d983a2eb6f",
+      "git_blob_sha": "8f5d4258b69594bb4cb9c4c32cf2d4ed587033f3",
+      "last_change_commit": "4621b83e8eb148e92e75dcea9a7d52fd26454c81",
+      "bytes": 18745,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v32_intake_gate.sh > scripts/ai/verify_v32_intake_gate.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v32_owner_operator_change_window_closeout.sh",
+      "sha256": "4dfce937483dafd84ca4eb24adbd1b6151c1ef7c5334f42b4b5271a924870b17",
+      "git_blob_sha": "220ba7db61eeb9d8335ef3e701474f4633ffc77b",
+      "last_change_commit": "88eafc7efb32b27322851ccb8fe37be84968ad84",
+      "bytes": 12319,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v32_owner_operator_change_window_closeout.sh > scripts/ai/verify_v32_owner_operator_change_window_closeout.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v32_release_gates.sh",
+      "sha256": "cec775c5b3eab49cf9a09c81a945e9d7d254844cf96b947482f6627bc0e86102",
+      "git_blob_sha": "c53fce4ab44b36553e329b85a69d24142a19f560",
+      "last_change_commit": "091cabd723b6b19f4f4333b1ee4f67facc83f217",
+      "bytes": 13979,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v32_release_gates.sh > scripts/ai/verify_v32_release_gates.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v32_risk_audit_go_no_go_closeout.sh",
+      "sha256": "6393df8f946c28b90af1627e65cbbf6b2685a2c1eb957b9b7863484e0342de92",
+      "git_blob_sha": "91c95abd62591c2766d70e059f04570245ef753f",
+      "last_change_commit": "c40117334f2a270b445abc8e1c3d3a741e44e638",
+      "bytes": 11955,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v32_risk_audit_go_no_go_closeout.sh > scripts/ai/verify_v32_risk_audit_go_no_go_closeout.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v32_strict_provenance.sh",
+      "sha256": "2da0c703353c4b26dc6e44294c13af518b2b2aaadce52ba2093ed9fd2714e23d",
+      "git_blob_sha": "77d6ac9a3298266740534593b9bb7d1f2459425e",
+      "last_change_commit": "8f84453ba8ba8b90b09892fb2eae1a32685a5999",
+      "bytes": 8458,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v32_strict_provenance.sh > scripts/ai/verify_v32_strict_provenance.sh"
+    },
+    {
+      "path": "scripts/ai/verify_v32_telemetry_slo_incident_closeout.sh",
+      "sha256": "9e507c068a61d09e18f7ebbfa2bf3a0deee47073d148e6d614d6bac1f561dfc7",
+      "git_blob_sha": "f48f1e7a32963f9bb0a2c8da6310680d72e88e71",
+      "last_change_commit": "0bd2361989800c5f59403a810bb1cde376a5eafb",
+      "bytes": 8314,
+      "contains_python_tooling": true,
+      "restore_command": "git show 15debbfb394b99f525be2bc8510aaa66b8f20360:scripts/ai/verify_v32_telemetry_slo_incident_closeout.sh > scripts/ai/verify_v32_telemetry_slo_incident_closeout.sh"
+    }
+  ]
+}

@@ -87,6 +87,14 @@ smoke/release contract. Immutable tags, GitHub Releases, hosted runs,
 
 PTC-006 is high risk. It must stop at `REVIEW_REQUIRED`; auto-merge is forbidden.
 
+PTC-006 retirement outcome: 262 version-specific gates and the strict release
+wrapper are removed from the current tree. The source-controlled retirement
+manifest records 263 recoverable Git blobs; 233 contain Python/tooling calls.
+Current smoke and release workflows now run only retained Rust, golden trace,
+publication, security, and v0.32.0 backend-freeze authority. Historical stage
+names fail closed, while tags, releases, hosted runs, tests, and documentation
+remain unchanged as audit evidence.
+
 ### Remove Toolchain And Packaging Last
 
 PTC-007 owns selective cleanup of Make targets, pre-commit Python hooks,
