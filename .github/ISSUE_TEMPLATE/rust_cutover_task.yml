@@ -1,7 +1,7 @@
 name: NTPRO Rust cutover task
 description: Controlled NTPRO Rust-first cutover task
 title: "[Rust Cutover] <task-id>: <title>"
-labels: ["rust-cutover", "agent-ready"]
+labels: ["rust-cutover", "agent-ready", "backend-freeze"]
 body:
   - type: input
     id: task_id
@@ -44,6 +44,62 @@ body:
         - medium
         - high
         - critical
+    validations:
+      required: true
+  - type: dropdown
+    id: backend_freeze_classification
+    attributes:
+      label: Backend freeze classification
+      description: Classify this task against the frozen v0.32.0 backend baseline.
+      options:
+        - baseline-preserving-governance
+        - v33-separately-scoped
+        - backend-freeze-exception
+    validations:
+      required: true
+  - type: dropdown
+    id: frozen_backend_boundary_touch
+    attributes:
+      label: Frozen backend boundary touch
+      description: Does this task modify a v0.32.0 frozen backend boundary or release fact?
+      options:
+        - "no"
+        - "yes"
+    validations:
+      required: true
+  - type: dropdown
+    id: forbidden_capability_request
+    attributes:
+      label: Forbidden capability request
+      description: Select the capability category this task requests. Any value other than none requires a backend-freeze exception.
+      options:
+        - none
+        - submit-or-order-mutation
+        - adapter-send-or-live-exchange-request
+        - retry-remediation-or-automatic-recovery
+        - dashboard-admin-or-trader-terminal-trading-controls
+        - actual-backend-go-live-or-production-execution
+    validations:
+      required: true
+  - type: textarea
+    id: backend_freeze_analysis
+    attributes:
+      label: Backend freeze analysis
+      description: Explain why the classification is correct and list frozen registry fields or paths touched.
+    validations:
+      required: true
+  - type: textarea
+    id: backend_freeze_exception_authorization
+    attributes:
+      label: Backend freeze exception authorization
+      description: Enter Not applicable, or provide the owner authorization, risk, rollback, and audit evidence for an exception.
+    validations:
+      required: true
+  - type: textarea
+    id: v33_separate_scope
+    attributes:
+      label: v0.33+ separate scope
+      description: Enter Not applicable, or define owner, module boundary, dependencies, data contract, rollback, telemetry, and non-inheritance proof.
     validations:
       required: true
   - type: textarea
@@ -124,4 +180,10 @@ body:
         - label: QA_PASSED is not DONE.
           required: true
         - label: Python, PyO3, or Cython removal is not allowed unless a scope decision and release gate explicitly allow it.
+          required: true
+        - label: The task does not treat v0.32.0 as authorization for backend go-live, submit, mutation, adapter send, live exchange, retry, remediation, recovery, or trading controls.
+          required: true
+        - label: Any v0.33+ task is separately scoped and inherits no forbidden capability from v0.32.0.
+          required: true
+        - label: Any backend-freeze exception includes explicit authorization, impact, rollback, and reconstructable audit evidence.
           required: true
