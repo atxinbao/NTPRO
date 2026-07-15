@@ -1,5 +1,13 @@
 # Tardis
 
+:::warning[Rust-only authority]
+This page preserves venue protocol, symbology, capability, and adapter lineage.
+Any Python snippet is a retired upstream example, not a runnable NTPRO product
+path. Current implementation authority is the Rust adapter source, tests,
+fixtures, and bounded product contracts. Adapter status does not authorize
+production execution under the v0.32.0 backend freeze.
+:::
+
 Tardis provides granular data for cryptocurrency markets including tick-by-tick order book snapshots & updates,
 trades, open interest, funding rates, options chains and liquidations data for leading crypto exchanges.
 
@@ -19,7 +27,8 @@ A Tardis API key is required for the adapter to operate correctly. See also [env
 
 ## Overview
 
-This adapter is implemented in Rust, with optional Python bindings for ease of use in Python-based workflows.
+This adapter is implemented in Rust. NTPRO does not expose Python product
+bindings for Tardis.
 It does not require any external Tardis client library dependencies.
 
 :::info
@@ -162,9 +171,8 @@ The following environment variables are used by Tardis and NautilusTrader.
 The [Tardis Machine Server](https://docs.tardis.dev/api/tardis-machine) is a locally runnable server
 with built-in data caching, providing both tick-level historical and consolidated real-time cryptocurrency market data through HTTP and WebSocket APIs.
 
-You can perform complete Tardis Machine WebSocket replays of historical data and output the results
-in Nautilus Parquet format, using either Python or Rust. Since the function is implemented in Rust,
-performance is consistent whether run from Python or Rust, letting you choose based on your preferred workflow.
+You can perform complete Tardis Machine WebSocket replays of historical data
+and output the results in Nautilus Parquet format using the Rust binary below.
 
 The end-to-end `run_tardis_machine_replay` data pipeline function uses a specified [configuration](#configuration) to execute the following steps:
 
@@ -333,9 +341,8 @@ cargo run --bin tardis-replay <path_to_your_config>
 
 ## Loading Tardis CSV data
 
-Tardis-format CSV data can be loaded using either Python or Rust. The loader reads the CSV text data
-from disk and parses it into Nautilus data. Since the loader is implemented in Rust, performance remains
-consistent regardless of whether you run it from Python or Rust, allowing you to choose based on your preferred workflow.
+Tardis-format CSV data is loaded through the Rust adapter surface. The loader
+reads CSV text data from disk and parses it into Nautilus data.
 
 You can also optionally specify a `limit` parameter for the `load_*` functions/methods to control the maximum number of rows loaded.
 
@@ -343,11 +350,11 @@ You can also optionally specify a `limit` parameter for the `load_*` functions/m
 Loading mixed-instrument CSV files is challenging due to precision requirements and is not recommended. Use single-instrument CSV files instead (see below).
 :::
 
-### Loading CSV Data in Python
+### Legacy Python CSV example
 
-You can load Tardis-format CSV data in Python using the `TardisCSVDataLoader`.
-When loading data, you can optionally specify the instrument ID but must specify both the price precision, and size precision.
-Providing the instrument ID improves loading performance, while specifying the precisions is required, as they cannot be inferred from the text data alone.
+The retained upstream snippet below documents historical field mapping only.
+It is not a runnable NTPRO product path. Use the Rust adapter loader and tests
+for current behavior.
 
 To load the data, create a script similar to the following:
 

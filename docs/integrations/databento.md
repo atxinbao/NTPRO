@@ -1,5 +1,13 @@
 # Databento
 
+:::warning[Rust-only authority]
+This page preserves venue protocol, symbology, capability, and adapter lineage.
+Any Python snippet is a retired upstream example, not a runnable NTPRO product
+path. Current implementation authority is the Rust adapter source, tests,
+fixtures, and bounded product contracts. Adapter status does not authorize
+production execution under the v0.32.0 backend freeze.
+:::
+
 NautilusTrader includes an adapter for the [Databento](https://databento.com/) API
 and for data in
 [Databento Binary Encoding (DBN)](https://databento.com/docs/standards-and-conventions/databento-binary-encoding).

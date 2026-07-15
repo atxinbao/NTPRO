@@ -1,5 +1,13 @@
 # Coinbase
 
+:::warning[Rust-only authority]
+This page preserves venue protocol, symbology, capability, and adapter lineage.
+Any Python snippet is a retired upstream example, not a runnable NTPRO product
+path. Current implementation authority is the Rust adapter source, tests,
+fixtures, and bounded product contracts. Adapter status does not authorize
+production execution under the v0.32.0 backend freeze.
+:::
+
 Founded in 2012, Coinbase is one of the largest US-regulated cryptocurrency
 exchanges, offering trading across spot, perpetual swaps, and dated futures via
 the Advanced Trade API. This adapter supports live market data ingest and

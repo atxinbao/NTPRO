@@ -1,5 +1,13 @@
 # Deribit
 
+:::warning[Rust-only authority]
+This page preserves venue protocol, symbology, capability, and adapter lineage.
+Any Python snippet is a retired upstream example, not a runnable NTPRO product
+path. Current implementation authority is the Rust adapter source, tests,
+fixtures, and bounded product contracts. Adapter status does not authorize
+production execution under the v0.32.0 backend freeze.
+:::
+
 Founded in 2016, Deribit is a cryptocurrency derivatives exchange specializing in Bitcoin and
 Ethereum options and futures. It is one of the largest crypto options exchanges by volume,
 and a leading platform for crypto derivatives trading.
@@ -8,7 +16,8 @@ This integration supports live market data ingest and order execution with Derib
 
 ## Overview
 
-This adapter is implemented in Rust, with optional Python bindings for use in Python-based workflows.
+This adapter is implemented in Rust. NTPRO does not expose Python product
+bindings for Deribit.
 Deribit uses JSON-RPC 2.0 over both HTTP and WebSocket transports.
 WebSocket is preferred for subscriptions and real-time data.
 
