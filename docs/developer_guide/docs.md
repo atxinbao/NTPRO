@@ -22,8 +22,9 @@ Mixing types in a single page makes it harder to read and harder to maintain.
 | **Explanation**  | Clarify design and architecture  | `concepts/`      |
 | **Reference**    | Describe the machinery           | Rust crate docs and product contracts |
 
-The retained `api_reference/` tree is a legacy upstream Python API appendix.
-Do not use it as the current NTPRO product reference model.
+The legacy upstream Python `api_reference/` appendix was retired after the
+v0.32.0 backend freeze. Use Rust crate docs, CLI help, product contracts, and
+the migration tombstone for historical routing.
 
 Two sections are exceptions: `getting_started/` is an onboarding path that
 combines tutorial-style walkthroughs with setup instructions, and
@@ -46,8 +47,9 @@ they want X. Keep these distinct:
 - How-to guides should not teach background concepts.
 
 When one type needs to reference another, link to it instead of inlining. For
-example, a how-to guide that configures `TradingNodeConfig` should link to the
-API reference for field definitions rather than listing them again.
+example, a how-to guide that configures a Rust workflow should link to the
+owning crate docs or product contract for field definitions rather than listing
+them again.
 
 ## Language and tone
 
