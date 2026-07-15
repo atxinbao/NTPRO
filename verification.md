@@ -4574,3 +4574,23 @@ git diff --check = PASS
 
 The guard is verification-only and does not open runtime, production, trading,
 retry, remediation, adapter-send, live-request, or UI control capabilities.
+
+# BFG-004 Verification
+
+Date: 2026-07-15
+Executor: Codex
+Task: `BFG-004` / GitHub issue `#1071`
+
+```text
+git check-ignore -v --no-index declared generated paths = PASS
+tracked generated artifact scan = PASS, zero files
+publication + freeze + strict provenance + fast smoke status stability = PASS
+scripts/ai/check_github_release_published.sh = PASS
+scripts/ai/check_backend_freeze_baseline.sh = PASS, negative_selftest=20
+scripts/ai/verify_release.sh v32-strict-provenance = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+Existing local generated files were preserved. They are ignored, reproducible,
+and are not accepted as sole release evidence.
