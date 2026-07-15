@@ -120,9 +120,18 @@ fn collect_read_model_snapshots(trace_glob: &str, contract_version: &str) -> Res
                 .get("input")
                 .and_then(|value| value.get("events"))
                 .and_then(Value::as_array)
-                .filter(|events| !events.is_empty());
-            let Some(snapshot) = events.and_then(|events| events[0].pointer("/payload/snapshot"))
-            else {
+                .with_context(|| {
+                    format!(
+                        "{}:{case_id}: input.events must be a non-empty array",
+                        path.display()
+                    )
+                })?;
+            ensure!(
+                !events.is_empty(),
+                "{}:{case_id}: input.events must be a non-empty array",
+                path.display()
+            );
+            let Some(snapshot) = events[0].pointer("/payload/snapshot") else {
                 continue;
             };
             ensure!(
@@ -195,9 +204,14 @@ fn validate_schema_strategy(schema: &Value) -> Result<()> {
     let source = definitions["source_provenance"]
         .as_object()
         .context("$defs.source_provenance must be an object")?;
+    let source_constraints = source
+        .get("allOf")
+        .and_then(Value::as_array)
+        .filter(|constraints| !constraints.is_empty())
+        .context("source_provenance must include exchange truth / adapter runtime constraints")?;
     ensure!(
-        source.get("allOf").is_some_and(Value::is_array),
-        "source_provenance must include exchange truth / adapter runtime constraints"
+        source_constraints.iter().all(Value::is_object),
+        "source_provenance constraints must be objects"
     );
     Ok(())
 }
@@ -371,8 +385,7 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn schema_strategy_rejects_boundary_capability_drift() {
+    fn schema_strategy_fixture() -> Value {
         let mut properties = Map::new();
         for flag in REQUIRED_BOUNDARY_FLAGS
             .iter()
@@ -380,7 +393,6 @@ mod tests {
         {
             properties.insert((*flag).to_string(), json!({"const": false}));
         }
-        properties["new_submit_capability"] = json!({"const": true});
         let definitions: Map<_, _> = REQUIRED_CATEGORIES
             .iter()
             .map(|name| {
@@ -389,18 +401,34 @@ mod tests {
                     definition["properties"] = Value::Object(properties.clone());
                 }
                 if *name == "source_provenance" {
-                    definition["allOf"] = json!([]);
+                    definition["allOf"] = json!([{"if": {}, "then": {}}]);
                 }
                 ((*name).to_string(), definition)
             })
             .collect();
-        let schema = json!({
+        json!({
             "additionalProperties": false,
             "$defs": definitions,
-        });
+        })
+    }
+
+    #[test]
+    fn schema_strategy_rejects_boundary_capability_drift() {
+        let mut schema = schema_strategy_fixture();
+        schema["$defs"]["capability_boundary"]["properties"]["new_submit_capability"] =
+            json!({"const": true});
 
         let error = validate_schema_strategy(&schema).unwrap_err().to_string();
         assert!(error.contains("new_submit_capability must be constrained to false"));
+    }
+
+    #[test]
+    fn schema_strategy_rejects_empty_source_constraints() {
+        let mut schema = schema_strategy_fixture();
+        schema["$defs"]["source_provenance"]["allOf"] = json!([]);
+
+        let error = validate_schema_strategy(&schema).unwrap_err().to_string();
+        assert!(error.contains("source_provenance must include"));
     }
 
     #[test]
@@ -462,5 +490,26 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("payload.snapshot must be an object"));
+    }
+
+    #[test]
+    fn rejects_empty_read_model_event_arrays() {
+        let directory = tempfile::tempdir().unwrap();
+        let trace = directory.path().join("trace.jsonl");
+        fs::write(
+            &trace,
+            serde_json::to_string(&json!({
+                "category": "read_model",
+                "case_id": "malformed.empty-events.001",
+                "input": {"events": []}
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let error = collect_read_model_snapshots(&trace.to_string_lossy(), "target.v1")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("input.events must be a non-empty array"));
     }
 }
