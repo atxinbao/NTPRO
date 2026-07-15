@@ -20,5 +20,10 @@
 #![deny(nonstandard_style)]
 #![deny(clippy::missing_errors_doc)]
 
+pub mod backend_freeze;
+pub mod docs_examples;
 pub mod golden_trace;
 pub mod read_model;
+pub mod release_publication;
+pub mod release_surface;
+pub mod rust_examples;
