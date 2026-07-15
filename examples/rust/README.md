@@ -4,6 +4,10 @@ Date: 2026-05-28
 Executor: Codex
 Task ID: RPROD-010
 
+Updated: 2026-07-15
+Executor: Codex
+Task ID: DEXG-002
+
 This directory is the Rust-first examples entrypoint for NTPRO cutover work.
 It is the only supported top-level example surface after the Python example
 trees were removed from `examples/backtest`, `examples/live`,
@@ -22,9 +26,10 @@ examples/rust/
 
 ## Current Status
 
-The CLI command surfaces exist. Backtest and sandbox now have narrow runnable
-Rust CLI paths, while full runtime execution remains deferred until later
-runtime and adapter tasks connect the commands to Rust models.
+The supported examples are narrow, local Rust workflows. Backtest, sandbox,
+live-init, data/catalog, and shared config validation have runnable CLI paths.
+They do not authorize external venue execution, production order submission,
+or any other capability forbidden by the v0.32.0 backend freeze.
 
 Supported help and demo commands:
 
@@ -39,12 +44,16 @@ cargo run -q -p nautilus-cli -- data --help
 cargo run -q -p nautilus-cli -- config --help
 ```
 
-The backtest command supports the RHARD-006 metadata-only dry-run. The sandbox
-command supports the RHARD-004 local simulated demo. The live crate supports
-the RHARD-005 Cargo live init smoke. Live CLI, data, config, and full runtime
-execution paths still return explicit blockers that point to their product
-contracts. Examples in this directory must not use Python fallback behavior to
-bypass those blockers.
+The backtest command supports the RHARD-006 metadata-only dry-run and the
+DRG-005 engine smoke. The sandbox command supports the RHARD-004 local
+simulated demo. The live CLI and crate support the sandbox-only RHARD-005 live
+init smoke. Data/catalog commands support local inspect, validation, and fixture
+load paths. Shared config validation dispatches to these scoped Rust validators.
+
+These examples remain bounded demonstrations. They do not connect to a real
+venue, enable production submit or mutation, or convert the backend closeout
+baseline into actual production go-live authority. Examples in this directory
+must not use Python fallback behavior to bypass unsupported behavior.
 
 ## Contract Mapping
 
