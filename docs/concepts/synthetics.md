@@ -1,5 +1,12 @@
 # Synthetics
 
+:::warning[Rust-only authority]
+Current NTPRO authority is the Rust source and bounded product contracts.
+Any Python snippet on this page is retained upstream lineage, not a runnable
+product entrypoint or production authorization. The v0.32.0 backend freeze
+continues to forbid inherited execution and trading-control capability.
+:::
+
 Synthetic instruments are locally defined instruments whose prices derive from other instruments.
 They can combine components from one venue or many venues and expose the result as a standard
 Nautilus instrument with the synthetic venue code `SYNTH`.
@@ -227,7 +234,7 @@ unknown symbols, type errors, and capacity overflows. Evaluation rejects wrong i
 non-finite prices (NaN, Infinity) before they reach the formula.
 
 See the
-[`SyntheticInstrument` API Reference](/docs/python-api-latest/model/instruments.html#nautilus_trader.model.instruments.synthetic.SyntheticInstrument)
+[`SyntheticInstrument` Rust source](../../crates/model/src/instruments/synthetic.rs)
 for input requirements and exceptions.
 
 ## Related guides

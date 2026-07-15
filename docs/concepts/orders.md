@@ -1,5 +1,12 @@
 # Orders
 
+:::warning[Rust-only authority]
+Current NTPRO authority is the Rust source and bounded product contracts.
+Any Python snippet on this page is retained upstream lineage, not a runnable
+product entrypoint or production authorization. The v0.32.0 backend freeze
+continues to forbid inherited execution and trading-control capability.
+:::
+
 NautilusTrader supports a broad set of order types and execution instructions, exposing as much
 of a trading venue's functionality as possible. Traders can define instructions and contingencies
 for order execution and management across any trading strategy.
@@ -221,7 +228,8 @@ apply to the order type being created, or are only needed to specify more advanc
 This leaves the factory with simpler order creation methods to work with, all the
 examples use an `OrderFactory` from within a `Strategy` context.
 
-See the [`OrderFactory` API Reference](/docs/python-api-latest/common.html#nautilus_trader.common.factories.OrderFactory) for further details.
+See the [`OrderFactory` Rust source](../../crates/common/src/factories/order.rs)
+for current construction behavior.
 
 ## Order types
 
@@ -255,7 +263,7 @@ order: MarketOrder = self.order_factory.market(
 )
 ```
 
-See the [`MarketOrder` API Reference](/docs/python-api-latest/model/orders.html#nautilus_trader.model.orders.market.MarketOrder) for further details.
+See the [`MarketOrder` Rust source](../../crates/model/src/orders/market.rs).
 
 ### Limit
 
@@ -287,7 +295,7 @@ order: LimitOrder = self.order_factory.limit(
 )
 ```
 
-See the [`LimitOrder` API Reference](/docs/python-api-latest/model/orders.html#nautilus_trader.model.orders.limit.LimitOrder) for further details.
+See the [`LimitOrder` Rust source](../../crates/model/src/orders/limit.rs).
 
 ### Stop-Market
 
@@ -320,7 +328,7 @@ order: StopMarketOrder = self.order_factory.stop_market(
 )
 ```
 
-See the [`StopMarketOrder` API Reference](/docs/python-api-latest/model/orders.html#nautilus_trader.model.orders.stop_market.StopMarketOrder) for further details.
+See the [`StopMarketOrder` Rust source](../../crates/model/src/orders/stop_market.rs).
 
 ### Stop-Limit
 
@@ -355,7 +363,7 @@ order: StopLimitOrder = self.order_factory.stop_limit(
 )
 ```
 
-See the [`StopLimitOrder` API Reference](/docs/python-api-latest/model/orders.html#nautilus_trader.model.orders.stop_limit.StopLimitOrder) for further details.
+See the [`StopLimitOrder` Rust source](../../crates/model/src/orders/stop_limit.rs).
 
 ### Market-To-Limit
 
@@ -383,7 +391,7 @@ order: MarketToLimitOrder = self.order_factory.market_to_limit(
 )
 ```
 
-See the [`MarketToLimitOrder` API Reference](/docs/python-api-latest/model/orders.html#nautilus_trader.model.orders.market_to_limit.MarketToLimitOrder) for further details.
+See the [`MarketToLimitOrder` Rust source](../../crates/model/src/orders/market_to_limit.rs).
 
 ### Market-If-Touched
 
@@ -417,7 +425,7 @@ order: MarketIfTouchedOrder = self.order_factory.market_if_touched(
 )
 ```
 
-See the [`MarketIfTouchedOrder` API Reference](/docs/python-api-latest/model/orders.html#nautilus_trader.model.orders.market_if_touched.MarketIfTouchedOrder) for further details.
+See the [`MarketIfTouchedOrder` Rust source](../../crates/model/src/orders/market_if_touched.rs).
 
 ### Limit-If-Touched
 
@@ -453,7 +461,7 @@ order: LimitIfTouchedOrder = self.order_factory.limit_if_touched(
 )
 ```
 
-See the [`LimitIfTouchedOrder` API Reference](/docs/python-api-latest/model/orders.html#nautilus_trader.model.orders.limit_if_touched.LimitIfTouchedOrder) for further details.
+See the [`LimitIfTouchedOrder` Rust source](../../crates/model/src/orders/limit_if_touched.rs).
 
 ### Trailing-Stop-Market
 
@@ -491,7 +499,7 @@ order: TrailingStopMarketOrder = self.order_factory.trailing_stop_market(
 )
 ```
 
-See the [`TrailingStopMarketOrder` API Reference](/docs/python-api-latest/model/orders.html#nautilus_trader.model.orders.trailing_stop_market.TrailingStopMarketOrder) for further details.
+See the [`TrailingStopMarketOrder` Rust source](../../crates/model/src/orders/trailing_stop_market.rs).
 
 ### Trailing-Stop-Limit
 
@@ -532,7 +540,7 @@ order: TrailingStopLimitOrder = self.order_factory.trailing_stop_limit(
 )
 ```
 
-See the [`TrailingStopLimitOrder` API Reference](/docs/python-api-latest/model/orders.html#nautilus_trader.model.orders.trailing_stop_limit.TrailingStopLimitOrder) for further details.
+See the [`TrailingStopLimitOrder` Rust source](../../crates/model/src/orders/trailing_stop_limit.rs).
 
 ## Advanced orders
 
@@ -677,7 +685,7 @@ levels for a position simultaneously. This involves placing a parent order (entr
 orders: a take-profit `LIMIT` order and a stop-loss `STOP_MARKET` order. When the parent order executes,
 the system places the child orders. The take-profit closes the position if the market moves favorably, and the stop-loss limits losses if it moves unfavorably.
 
-Bracket orders can be easily created using the [OrderFactory](/docs/python-api-latest/common.html#nautilus_trader.common.factories.OrderFactory),
+Bracket orders can be created using the [Rust `OrderFactory`](../../crates/common/src/factories/order.rs),
 which supports various order types, parameters, and instructions.
 
 :::warning
@@ -820,7 +828,7 @@ The following `Cache` methods are available:
 - `self.cache.is_order_emulated(...)`: Checks if a specific order is emulated.
 - `self.cache.orders_emulated_count(...)`: Returns the count of emulated orders.
 
-See the full [API reference](/docs/python-api-latest/cache.html) for additional details.
+See the [Rust cache source](../../crates/common/src/cache/mod.rs) for current details.
 
 #### Direct order queries
 

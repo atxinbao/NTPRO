@@ -38,9 +38,9 @@ Use these maintained sources instead:
 
 ## Follow-up Boundary
 
-Public concept, how-to, and integration pages that still link to
-`/docs/python-api-latest/` are not silently redirected. DEXG-004 through
-DEXG-006 must rewrite or retire those pages against a current Rust authority.
+Public concept, how-to, and integration pages that referenced the retired
+Python API URL family are not silently redirected. DEXG-004 through DEXG-006
+must rewrite or retire those pages against a current Rust authority.
 DEXG-007 owns the final docs build and link gate after those dependencies close.
 
 This migration note is historical routing only. It does not claim Python API

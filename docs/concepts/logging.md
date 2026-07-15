@@ -1,5 +1,12 @@
 # Logging
 
+:::warning[Rust-only authority]
+Current NTPRO authority is the Rust source and bounded product contracts.
+Any Python snippet on this page is retained upstream lineage, not a runnable
+product entrypoint or production authorization. The v0.32.0 backend freeze
+continues to forbid inherited execution and trading-control capability.
+:::
+
 The platform provides logging for both backtesting and live trading using a high-performance logging subsystem implemented in Rust
 with a standardized facade from the `log` crate.
 
@@ -91,7 +98,8 @@ The following log levels are supported:
 You can set `TRACE` as a filter level to capture trace logs from Rust components, even though Python code cannot emit them directly.
 :::
 
-See the `LoggingConfig` [API Reference](/docs/python-api-latest/config.html#nautilus_trader.common.config.LoggingConfig) for further details.
+See the [`LoggerConfig` Rust source](../../crates/common/src/logging/config.rs)
+for current fields.
 
 Logging can be configured in the following ways:
 
@@ -298,7 +306,8 @@ log_guard = init_logging()
 logger = Logger("MyLogger")
 ```
 
-See the [`init_logging` API Reference](/docs/python-api-latest/common.html) for further details.
+See the [`init_logging` Rust source](../../crates/common/src/logging/mod.rs)
+for current behavior.
 
 :::warning
 Only one logging subsystem can be initialized per process with an `init_logging` call. Multiple `LogGuard` instances (up to 255) can exist concurrently, and the logging thread will remain active until all guards are dropped.

@@ -1,5 +1,12 @@
 # Positions
 
+:::warning[Rust-only authority]
+Current NTPRO authority is the Rust source and bounded product contracts.
+Any Python snippet on this page is retained upstream lineage, not a runnable
+product entrypoint or production authorization. The v0.32.0 backend freeze
+continues to forbid inherited execution and trading-control capability.
+:::
+
 This guide explains how positions work in NautilusTrader, including their lifecycle, aggregation
 from order fills, profit and loss calculations, and the important concept of position snapshotting
 for netting OMS configurations.
@@ -374,7 +381,7 @@ notional = position.notional_value(current_price)
 
 :::info
 For complete type information and detailed property documentation, see the Position
-[API Reference](/docs/python-api-latest/model/position.html#nautilus_trader.model.position.Position).
+[`Position` Rust source](../../crates/model/src/position.rs).
 :::
 
 ## Events and tracking

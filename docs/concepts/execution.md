@@ -1,5 +1,12 @@
 # Execution
 
+:::warning[Rust-only authority]
+Current NTPRO authority is the Rust source and bounded product contracts.
+Any Python snippet on this page is retained upstream lineage, not a runnable
+product entrypoint or production authorization. The v0.32.0 backend freeze
+continues to forbid inherited execution and trading-control capability.
+:::
+
 NautilusTrader can handle trade execution and order management for multiple strategies and venues
 simultaneously (per instance). Several interacting components are involved in execution, making it
 important to understand the possible flows of execution messages (commands and events).
@@ -181,7 +188,8 @@ The `TradingState` enum has three variants:
 - `REDUCING`: Cancels are allowed, and only submit or modify commands that do not increase
   exposure are accepted.
 
-See the [`RiskEngineConfig` API Reference](/docs/python-api-latest/config.html#nautilus_trader.risk.config.RiskEngineConfig) for further details.
+See the [`RiskEngineConfig` Rust source](../../crates/risk/src/engine/config.rs)
+for current fields.
 
 ## Execution algorithms
 

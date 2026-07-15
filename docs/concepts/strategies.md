@@ -1,7 +1,15 @@
 # Strategies
 
-A strategy inherits the `Strategy` class and implements
-the methods its logic requires.
+:::warning[Rust-only authority]
+Current NTPRO authority is the Rust source and bounded product contracts.
+Any Python snippet on this page is retained upstream lineage, not a runnable
+product entrypoint or production authorization. The v0.32.0 backend freeze
+continues to forbid inherited execution and trading-control capability.
+:::
+
+A current NTPRO strategy implements the Rust `Strategy` trait and the methods
+its logic requires. References to an inherited Python `Strategy` class on this
+page are retained upstream lineage only.
 
 **Capabilities**:
 
@@ -23,7 +31,8 @@ With these building blocks of data ingest, event handling, and order management 
 you can build any type of strategy including directional, momentum, re-balancing,
 pairs, market making, etc.
 
-See the [`Strategy` API Reference](/docs/python-api-latest/trading.html) for all available methods.
+See the [`Strategy` Rust trait](../../crates/trading/src/strategy/mod.rs) for
+the current interface.
 
 There are two main parts of a Nautilus trading strategy:
 
@@ -241,7 +250,8 @@ def on_start(self) -> None:
 Strategies have access to a `Clock` which provides a number of methods for creating
 different timestamps, as well as setting time alerts or timers to trigger `TimeEvent`s.
 
-See the [`Clock` API Reference](/docs/python-api-latest/common.html) for all available methods.
+See the [`Clock` Rust trait](../../crates/common/src/clock.rs) for the current
+interface.
 
 #### Current timestamps
 
@@ -321,7 +331,8 @@ order = self.cache.order(client_order_id)
 position = self.cache.position(position_id)
 ```
 
-See the [`Cache` API Reference](/docs/python-api-latest/cache.html) for all available methods.
+See the [`Cache` Rust source](../../crates/common/src/cache/mod.rs) for the
+current interface.
 
 ### Portfolio access
 
@@ -359,7 +370,8 @@ def is_flat(self, instrument_id: InstrumentId) -> bool
 def is_completely_flat(self) -> bool
 ```
 
-See the [`Portfolio` API Reference](/docs/python-api-latest/portfolio.html) for all available methods.
+See the [`Portfolio` Rust source](../../crates/portfolio/src/portfolio.rs) for
+the current interface.
 
 #### Reports and analysis
 
@@ -367,7 +379,8 @@ The `Portfolio` also exposes a `PortfolioAnalyzer`, which accepts a flexible amo
 (to accommodate different lookback windows). The analyzer tracks and generates performance
 metrics and statistics.
 
-See the [`PortfolioAnalyzer` API Reference](/docs/python-api-latest/analysis.html) and [Portfolio statistics](portfolio.md#portfolio-statistics) guide.
+See the [`PortfolioAnalyzer` Rust source](../../crates/analysis/src/analyzer.rs)
+and [Portfolio statistics](portfolio.md#portfolio-statistics) guide.
 
 ### Trading commands
 
@@ -704,7 +717,7 @@ If `strategy_id` is omitted, `order_id_tag` overrides the generated suffix, for
 example `MyStrategy-ABC`.
 :::
 
-See the [`StrategyId` API Reference](/docs/python-api-latest/model/identifiers.html) for further details.
+See the [`StrategyId` Rust source](../../crates/model/src/identifiers/strategy_id.rs).
 
 ## Related guides
 
