@@ -13,12 +13,22 @@
 //  limitations under the License.
 // -------------------------------------------------------------------------------------------------
 
-use std::path::PathBuf;
+use std::{
+    io::{self, Read},
+    path::PathBuf,
+};
 
 use clap::{Parser, Subcommand, ValueEnum};
 use ntpro_governance::{
+    backend_freeze::{BackendFreezeConfig, validate_backend_freeze},
+    docs_examples::validate_docs_examples,
     golden_trace::{replay_trace, validate_release_scope, validate_trace},
     read_model::validate_read_model_schema,
+    release_publication::{
+        ReleaseBindingConfig, release_body_hash_report, timestamp_ge, validate_release_binding,
+    },
+    release_surface::{ReleaseSurfaceConfig, validate_release_surface},
+    rust_examples::validate_rust_examples,
 };
 
 #[derive(Debug, Parser)]
@@ -30,6 +40,34 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Validates the immutable v0.32.0 backend freeze baseline.
+    BackendFreeze {
+        #[arg(
+            long,
+            default_value = "docs/rust-cutover/governance/backend_freeze_registry.json"
+        )]
+        registry: PathBuf,
+        #[arg(
+            long,
+            default_value = "docs/rust-cutover/release/v0_32_0_release_manifest.json"
+        )]
+        release_manifest: PathBuf,
+        #[arg(
+            long,
+            default_value = "docs/rust-cutover/governance/backend_freeze_policy.md"
+        )]
+        policy: PathBuf,
+        #[arg(long, default_value = "README.md")]
+        readme: PathBuf,
+        #[arg(long, default_value = "ROADMAP.md")]
+        roadmap: PathBuf,
+        #[arg(long, default_value = "docs/versioning.md")]
+        versioning: PathBuf,
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        negative_selftest: bool,
+    },
+    /// Validates the retained Rust docs and examples governance surface.
+    DocsExamples,
     /// Validates or replays one golden trace JSONL file.
     GoldenTrace {
         trace: PathBuf,
@@ -58,6 +96,52 @@ enum Command {
         #[arg(long, default_value = "tests/golden/**/*.jsonl")]
         trace_glob: String,
     },
+    /// Validates the current public release wording and source surface.
+    ReleaseSurface {
+        #[arg(long, default_value = "v0.32.0")]
+        current_version: String,
+        #[arg(long, default_value = "ntpro-rust-only-v0.32.0")]
+        current_tag: String,
+        #[arg(long, default_value = "backend-freeze-governance")]
+        governance_track: String,
+        #[arg(long, default_value = "v0.33.0+")]
+        next_capability: String,
+        #[arg(long, default_value = "v0.32.0 Backend Production Closeout")]
+        current_capability: String,
+        #[arg(long, default_value_t = false)]
+        allow_missing_tag: bool,
+    },
+    /// Validates current release publish-after-gate source evidence.
+    ReleasePublishBinding {
+        #[arg(long)]
+        manifest: PathBuf,
+        #[arg(long)]
+        closeout: PathBuf,
+        #[arg(long)]
+        version: String,
+        #[arg(long)]
+        tag: String,
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        gate_run_id: u64,
+        #[arg(long)]
+        tag_sha: String,
+    },
+    /// Succeeds when the first RFC3339 timestamp is not before the second.
+    TimestampGe {
+        #[arg(long)]
+        left: String,
+        #[arg(long)]
+        right: String,
+    },
+    /// Reports normalized and raw SHA-256 values for a release body and notes.
+    ReleaseBodyHash {
+        #[arg(long)]
+        notes: PathBuf,
+    },
+    /// Validates canonical Rust example paths, TOML, and README references.
+    RustExamples,
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -76,6 +160,50 @@ fn main() {
 
 fn run(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
+        Command::BackendFreeze {
+            registry,
+            release_manifest,
+            policy,
+            readme,
+            roadmap,
+            versioning,
+            negative_selftest,
+        } => {
+            let counts = validate_backend_freeze(
+                &BackendFreezeConfig {
+                    registry,
+                    release_manifest,
+                    policy,
+                    readme,
+                    roadmap,
+                    versioning,
+                },
+                negative_selftest,
+            )?;
+            println!(
+                "backend_freeze_baseline=pass tag={} commit={} boundaries={} source_hashes={}",
+                counts.tag, counts.commit, counts.boundaries, counts.source_hashes
+            );
+            if negative_selftest {
+                println!(
+                    "backend_freeze_negative_selftest=pass cases={}",
+                    counts.negative_cases
+                );
+            }
+        }
+        Command::DocsExamples => {
+            let counts = validate_docs_examples()?;
+            println!(
+                "docs_examples_governance=pass markdown_files={} local_links={} image_links={} integration_pages={} python_fences_classified={} concept_pages={} tutorial_assets={}",
+                counts.markdown_files,
+                counts.local_links,
+                counts.image_links,
+                counts.integration_pages,
+                counts.python_fences_classified,
+                counts.concept_pages,
+                counts.tutorial_assets
+            );
+        }
         Command::GoldenTrace {
             trace,
             mode,
@@ -116,6 +244,72 @@ fn run(cli: Cli) -> anyhow::Result<()> {
                 "v211_read_model_schema_boundary status=ok validated_read_model_snapshots={count} negative_mutations=8 additional_properties=false boundary_flags=strict"
             );
         }
+        Command::ReleaseSurface {
+            current_version,
+            current_tag,
+            governance_track,
+            next_capability,
+            current_capability,
+            allow_missing_tag,
+        } => {
+            validate_release_surface(&ReleaseSurfaceConfig {
+                current_version,
+                current_tag,
+                governance_track,
+                next_capability,
+                current_capability,
+                allow_missing_tag,
+            })?;
+            println!("release_surface_current_guard=pass");
+        }
+        Command::ReleasePublishBinding {
+            manifest,
+            closeout,
+            version,
+            tag,
+            name,
+            gate_run_id,
+            tag_sha,
+        } => {
+            let result = validate_release_binding(&ReleaseBindingConfig {
+                manifest,
+                closeout,
+                version,
+                tag,
+                name,
+                gate_run_id,
+                tag_sha,
+            })?;
+            println!(
+                "release_publish_after_gate_current_binding=pass release_tag={} release_gate_run_id={} tag_sha={} historical_fixture_only_current_release_proof_allowed=false negative_selftest=1 negative_cases={}",
+                result.release_tag,
+                result.release_gate_run_id,
+                result.tag_sha,
+                result.negative_cases
+            );
+        }
+        Command::TimestampGe { left, right } => {
+            ensure_timestamp_order(&left, &right)?;
+        }
+        Command::ReleaseBodyHash { notes } => {
+            let mut release_json = String::new();
+            io::stdin().read_to_string(&mut release_json)?;
+            println!("{}", release_body_hash_report(&release_json, &notes)?);
+        }
+        Command::RustExamples => {
+            let counts = validate_rust_examples()?;
+            println!(
+                "rust_examples_integrity=pass required_paths={} toml_files={} readme_paths={}",
+                counts.required_paths, counts.toml_files, counts.readme_paths
+            );
+        }
+    }
+    Ok(())
+}
+
+fn ensure_timestamp_order(left: &str, right: &str) -> anyhow::Result<()> {
+    if !timestamp_ge(left, right)? {
+        anyhow::bail!("timestamp is before required boundary: {left} < {right}");
     }
     Ok(())
 }

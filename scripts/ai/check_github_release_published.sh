@@ -106,16 +106,7 @@ ensure_origin_main_ref() {
 }
 
 extract_json_field() {
-  python3 - "$1" "$2" <<'PY'
-import json
-import sys
-
-payload = json.loads(sys.argv[1])
-value = payload.get(sys.argv[2])
-if value is None:
-    value = ""
-print(value)
-PY
+  jq -r --arg key "$2" 'if has($key) and .[$key] != null then .[$key] else "" end | if type == "boolean" then tostring else . end' <<<"$1"
 }
 
 echo "== GitHub release publication guard =="
@@ -127,6 +118,7 @@ echo "release_notes=$CURRENT_RELEASE_NOTES"
 echo "prepublish_tag_gate=$PREPUBLISH_TAG_GATE"
 
 require_file "$CURRENT_RELEASE_NOTES"
+command -v jq >/dev/null 2>&1 || fail "jq is required"
 
 if ! command -v "$GH_BIN" >/dev/null 2>&1; then
   offline_skip "gh_unavailable"
@@ -1558,46 +1550,7 @@ if [[ "$release_status_mode" == "v291_post_publication" || "$release_status_mode
   require_not_contains_text "$body" "Status: PENDING PUBLICATION" "GitHub Release body pending status after publication"
 fi
 
-body_hash_report="$(python3 - "$release_json" "$CURRENT_RELEASE_NOTES" <<'PY'
-import hashlib
-import json
-import sys
-from pathlib import Path
-
-release = json.loads(sys.argv[1])
-notes = Path(sys.argv[2]).read_text(encoding="utf-8")
-body = release.get("body") or ""
-
-
-def normalize(value: str) -> str:
-    return "\n".join(line.rstrip() for line in value.splitlines()).strip()
-
-
-def sha256(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
-
-
-normalized_body = normalize(body)
-normalized_notes = normalize(notes)
-raw_match = body == notes
-normalized_match = normalized_body == normalized_notes
-
-
-def flag(value: bool) -> str:
-    return "true" if value else "false"
-
-
-print("release_body_hash_semantics=normalized_sha256")
-print("release_body_normalization=line_rstrip_and_outer_strip")
-print(f"release_body_normalized_sha256={sha256(normalized_body)}")
-print(f"tracked_release_notes_normalized_sha256={sha256(normalized_notes)}")
-print(f"release_body_normalized_sha256_matches_tracked_release_notes={flag(normalized_match)}")
-print(f"release_body_raw_sha256={sha256(body)}")
-print(f"tracked_release_notes_raw_sha256={sha256(notes)}")
-print(f"release_body_raw_sha256_matches_tracked_release_notes={flag(raw_match)}")
-print("release_body_raw_sha256_is_acceptance_rule=false")
-PY
-)"
+body_hash_report="$(printf '%s' "$release_json" | scripts/ai/ntpro_governance.sh release-body-hash --notes "$CURRENT_RELEASE_NOTES")"
 
 if [[ "${NTPRO_RELEASE_PUBLICATION_STRICT_BODY:-0}" == "1" || "$release_status_mode" == "v31_post_publication" || "$release_status_mode" == "v32_post_publication" ]]; then
   if ! grep -F "release_body_normalized_sha256_matches_tracked_release_notes=true" <<<"$body_hash_report" >/dev/null; then

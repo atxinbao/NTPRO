@@ -31,16 +31,7 @@ require_value() {
 }
 
 json_field() {
-  python3 - "$1" "$2" <<'PY'
-import json
-import sys
-
-payload = json.loads(sys.argv[1])
-value = payload.get(sys.argv[2])
-if value is None:
-    value = ""
-print(value)
-PY
+  jq -r --arg key "$2" 'if has($key) and .[$key] != null then .[$key] else "" end | if type == "boolean" then tostring else . end' <<<"$1"
 }
 
 json_bool() {
@@ -53,54 +44,35 @@ json_bool() {
 }
 
 json_array_length() {
-  python3 - "$1" "$2" <<'PY'
-import json
-import sys
-
-payload = json.loads(sys.argv[1])
-value = payload.get(sys.argv[2])
-if isinstance(value, list):
-    print(len(value))
-else:
-    print(0)
-PY
+  jq -r --arg key "$2" 'if (.[$key] | type) == "array" then (.[$key] | length) else 0 end' <<<"$1"
 }
 
 timestamp_ge() {
-  python3 - "$1" "$2" <<'PY'
-from datetime import datetime, timezone
-import sys
+  scripts/ai/ntpro_governance.sh timestamp-ge --left "$1" --right "$2" >/dev/null 2>&1
+}
 
-def parse(value: str) -> datetime:
-    if not value:
-        raise SystemExit(2)
-    value = value.replace("Z", "+00:00")
-    parsed = datetime.fromisoformat(value)
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
-
-published = parse(sys.argv[1])
-gate_completed = parse(sys.argv[2])
-raise SystemExit(0 if published >= gate_completed else 1)
-PY
+normalize_stream() {
+  awk '
+    {
+      sub(/[[:space:]]+$/, "")
+      lines[NR] = $0
+      if ($0 != "") {
+        if (first == 0) first = NR
+        last = NR
+      }
+    }
+    END {
+      for (i = first; i <= last; i++) print lines[i]
+    }
+  '
 }
 
 normalize_file() {
-  python3 - "$1" <<'PY'
-from pathlib import Path
-import sys
-
-print("\n".join(line.rstrip() for line in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()).strip())
-PY
+  normalize_stream <"$1"
 }
 
 normalize_text() {
-  python3 - "$1" <<'PY'
-import sys
-
-print("\n".join(line.rstrip() for line in sys.argv[1].splitlines()).strip())
-PY
+  printf '%s' "$1" | normalize_stream
 }
 
 require_body_matches_notes() {
@@ -138,59 +110,35 @@ write_evidence() {
   local tag_sha="$7"
 
   mkdir -p "$(dirname "$EVIDENCE_PATH")"
-  python3 - "$EVIDENCE_PATH" \
-    "$status" \
-    "$REPO" \
-    "$TAG_NAME" \
-    "$RELEASE_VERSION" \
-    "$RELEASE_NAME" \
-    "$RELEASE_NOTES" \
-    "$GATE_RUN_ID" \
-    "$gate_url" \
-    "$gate_completed_at" \
-    "$release_url" \
-    "$published_at" \
-    "$updated_at" \
-    "$tag_sha" <<'PY'
-import json
-from pathlib import Path
-import sys
-
-(
-    evidence_path,
-    status,
-    repository,
-    tag_name,
-    release_version,
-    release_name,
-    release_notes,
-    gate_run_id,
-    gate_url,
-    gate_completed_at,
-    release_url,
-    published_at,
-    updated_at,
-    tag_sha,
-) = sys.argv[1:]
-
-payload = {
-    "status": status,
-    "repository": repository,
-    "tag_name": tag_name,
-    "release_version": release_version,
-    "release_name": release_name,
-    "release_notes": release_notes,
-    "release_gate_run_id": gate_run_id,
-    "release_gate_url": gate_url,
-    "release_gate_completed_at": gate_completed_at,
-    "release_url": release_url,
-    "published_at": published_at,
-    "updated_at": updated_at,
-    "tag_sha": tag_sha,
-}
-
-Path(evidence_path).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-PY
+  jq -nS \
+    --arg status "$status" \
+    --arg repository "$REPO" \
+    --arg tag_name "$TAG_NAME" \
+    --arg release_version "$RELEASE_VERSION" \
+    --arg release_name "$RELEASE_NAME" \
+    --arg release_notes "$RELEASE_NOTES" \
+    --arg release_gate_run_id "$GATE_RUN_ID" \
+    --arg release_gate_url "$gate_url" \
+    --arg release_gate_completed_at "$gate_completed_at" \
+    --arg release_url "$release_url" \
+    --arg published_at "$published_at" \
+    --arg updated_at "$updated_at" \
+    --arg tag_sha "$tag_sha" \
+    '{
+      status: $status,
+      repository: $repository,
+      tag_name: $tag_name,
+      release_version: $release_version,
+      release_name: $release_name,
+      release_notes: $release_notes,
+      release_gate_run_id: $release_gate_run_id,
+      release_gate_url: $release_gate_url,
+      release_gate_completed_at: $release_gate_completed_at,
+      release_url: $release_url,
+      published_at: $published_at,
+      updated_at: $updated_at,
+      tag_sha: $tag_sha
+    }' >"$EVIDENCE_PATH"
 }
 
 emit_evidence_policy() {
@@ -205,6 +153,7 @@ require_value "$GATE_RUN_ID" "NTPRO_RELEASE_GATE_RUN_ID"
 
 [[ -f "$RELEASE_NOTES" ]] || fail "missing release notes: $RELEASE_NOTES"
 command -v "$GH_BIN" >/dev/null 2>&1 || fail "gh command not found: $GH_BIN"
+command -v jq >/dev/null 2>&1 || fail "jq is required"
 "$GH_BIN" auth status >/dev/null 2>&1 || fail "gh auth is required"
 
 if [[ "$TEST_MODE" == "1" && -n "${NTPRO_RELEASE_PUBLICATION_TEST_TAG_SHA:-}" ]]; then
