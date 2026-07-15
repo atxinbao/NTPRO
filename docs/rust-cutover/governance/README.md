@@ -24,6 +24,9 @@ release gate 和已跟踪 release package 共同证明。
   non-inheritance, including fail-closed negative selftests.
 - `generated_artifact_policy.md` - tracked, remote-reconstructable, and
   ephemeral-local artifact classification plus worktree hygiene rules.
+- `docs_examples_authority_map.md` - post-baseline ownership, retention,
+  rewrite, removal, and generated-artifact boundaries for `docs/` and
+  `examples/`.
 - `github_intake_policy.md` - required issue/PR declarations, label meanings,
   and fail-closed routing for post-freeze changes.
 - `v0_33_plus_intake_policy.md` - mandatory entry contract for separately
@@ -33,7 +36,7 @@ release gate 和已跟踪 release package 共同证明。
 - `../release/v0_32_0_release_closeout_evidence.md` - source-controlled release
   closeout contract.
 
-## Planned Governance Work
+## Completed Backend Freeze Governance
 
 - BFG-001: baseline registry and policy.
 - BFG-002: current documentation and version-route cleanup.
@@ -44,3 +47,10 @@ release gate 和已跟踪 release package 共同证明。
 
 The milestone is `backend-freeze-governance` (#31). It is governance work, not
 a v0.32.1 backend release.
+
+## Docs And Examples Governance
+
+The follow-up milestone is `post-backend-docs-examples-governance` (#32), with
+the exact issue set `#1080-#1087`. It cleans the current documentation and
+examples surfaces after the backend freeze. It does not modify the v0.32.0
+release package or authorize a new backend version.
