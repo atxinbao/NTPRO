@@ -33,8 +33,8 @@ scan_python_execution() {
   local heredoc_pattern='python3?([^[:alnum:]_]|$).*<<' # current-governance-pattern-definition
   local command_pattern='(^|[;&|])[[:space:]]*(env[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]+[[:space:]]+)*([^[:space:]]*/)?(python3?|uv|pytest|ruff|pip-audit)([[:space:]]|$)' # current-governance-pattern-definition
   local tooling_pattern='(^|[[:space:]])(uv[[:space:]]+run|pytest|ruff|pip-audit)([[:space:]]|$)' # current-governance-pattern-definition
-  rg -n -e "$heredoc_pattern" -e "$command_pattern" -e "$tooling_pattern" "$@" \
-    | rg -v 'current-governance-pattern-definition'
+  grep -En -e "$heredoc_pattern" -e "$command_pattern" -e "$tooling_pattern" -- "$@" \
+    | grep -Ev 'current-governance-pattern-definition'
 }
 
 if matches="$(scan_python_execution "${authority_files[@]}" || true)" && [[ -n "$matches" ]]; then
