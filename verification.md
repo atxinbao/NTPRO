@@ -4531,3 +4531,25 @@ git diff --check = PASS
 
 The task is governance-only. It freezes the v0.32.0 backend identity and does
 not change runtime behavior, trading semantics, public APIs, or release facts.
+
+# BFG-002 Verification
+
+Date: 2026-07-15
+Executor: Codex
+Task: `BFG-002` / GitHub issue `#1069`
+
+```text
+bash -n scripts/ai/check_release_surface_current.sh scripts/ai/verify_v32_release_gates.sh = PASS
+scripts/ai/check_release_surface_current.sh = PASS, backend_patch_scheduled=false
+active current-route stale wording scan = PASS, zero matches
+v0.32.0 release-package changed-file scan = PASS, zero changes
+scripts/ai/verify_release.sh v32-release-gates = PASS
+scripts/ai/verify_release.sh v32-strict-provenance = PASS
+scripts/ai/check_github_release_published.sh = PASS
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+The task changes current governance wording and its coupled documentation guard
+only. It does not change runtime behavior, trading semantics, public APIs, or
+the tagged v0.32.0 release package.

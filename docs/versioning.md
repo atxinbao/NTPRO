@@ -85,23 +85,24 @@ The current published release line is:
 ntpro-rust-only-v0.32.0
 ```
 
-The active patch track is:
+The backend patch status is:
 
 ```text
-v0.32.1
+none scheduled; baseline-invalidity exception only
 ```
 
-v0.32.1 is reserved for release governance closeout only. It must not expand
-beyond the v0.32.0 backend production closeout boundary unless a later scoped
-release issue explicitly changes that contract.
+The post-baseline governance track is `backend-freeze-governance`. It changes
+the active governance layer, not the published v0.32.0 release package. A
+backend patch requires a dedicated freeze exception and proof that the frozen
+baseline itself is invalid.
 
-The next capability track is:
+The next capability family is:
 
 ```text
-v0.33.0
+v0.33.0+
 ```
 
-v0.33.0 must be separately scoped after the V320 backend closeout release. It
+Every v0.33.0+ track must be separately scoped after the V320 backend closeout release. It
 does not inherit backend go-live, frontend completion, product-grade live
 trading terminal readiness, production submit, production order mutation,
 execution adapter send, adapter send, live exchange request, implicit retry,
