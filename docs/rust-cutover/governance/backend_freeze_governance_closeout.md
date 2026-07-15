@@ -26,7 +26,7 @@ BFG-002 PR = #1075, merge commit 091cabd723b6b19f4f4333b1ee4f67facc83f217
 BFG-003 PR = #1076, merge commit a4b5aae7b89576157558ecd9648b301fb628c78f
 BFG-004 PR = #1077, merge commit e803ae2eb418ca90ac9667632011d010ec46217a
 BFG-005 PR = #1078, merge commit 1abe24c100a183bd7470f37ff67de1cf20eaa415
-BFG-006 PR = current task PR, must merge before closeout
+BFG-006 PR = #1079, must merge before closeout
 ```
 
 ## Delivered Controls
