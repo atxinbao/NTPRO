@@ -24,6 +24,8 @@ release gate 和已跟踪 release package 共同证明。
   non-inheritance, including fail-closed negative selftests.
 - `generated_artifact_policy.md` - tracked, remote-reconstructable, and
   ephemeral-local artifact classification plus worktree hygiene rules.
+- `github_intake_policy.md` - required issue/PR declarations, label meanings,
+  and fail-closed routing for post-freeze changes.
 - `../release/v0_32_0_release_closeout_evidence.md` - source-controlled release
   closeout contract.
 

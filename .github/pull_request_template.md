@@ -12,6 +12,11 @@ lease, one branch, and one review gate.
 - Risk level:
 - Branch:
 - Lease file:
+- Backend freeze classification:
+- Frozen backend boundary touched:
+- Forbidden capability request:
+- Backend freeze exception authorization:
+- v0.33+ separate scope:
 
 ## Summary
 
@@ -36,6 +41,22 @@ lease, one branch, and one review gate.
 - [ ] Trading semantics are unchanged, or golden trace evidence is included.
 - [ ] Adapter behavior is unchanged, or fixture/mock evidence is included.
 - [ ] Public API behavior is unchanged, or migration notes are included.
+
+## Backend Freeze Declaration
+
+- [ ] This PR is classified as `baseline-preserving-governance`,
+      `v33-separately-scoped`, or `backend-freeze-exception`.
+- [ ] The v0.32.0 frozen registry, release facts, boundary fields, and protected
+      paths touched by this PR are listed above.
+- [ ] This PR does not inherit backend go-live, submit, mutation, adapter send,
+      live exchange, retry, remediation, recovery, or trading controls from
+      v0.32.0.
+- [ ] Any v0.33+ scope identifies its owner, module boundary, dependencies, data
+      contract, rollback, telemetry, and non-inheritance evidence.
+- [ ] Any backend-freeze exception includes explicit authorization, impact,
+      rollback, and reconstructable audit evidence.
+- [ ] `scripts/ai/verify_release.sh backend-freeze-baseline` passed, or the
+      exception evidence explains why the frozen baseline itself is invalid.
 
 ## Evidence
 

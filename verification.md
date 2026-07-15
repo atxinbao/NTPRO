@@ -4594,3 +4594,23 @@ git diff --check = PASS
 
 Existing local generated files were preserved. They are ignored, reproducible,
 and are not accepted as sole release evidence.
+
+# BFG-005 Verification
+
+Date: 2026-07-15
+Executor: Codex
+Task: `BFG-005` / GitHub issue `#1072`
+
+```text
+GitHub issue-form YAML parse and required-ID validation = PASS, ids=19
+PR template backend-freeze marker scan = PASS
+live required label inventory = PASS, labels=7
+milestone #31 label application = PASS, issues=6, required base labels=4
+scripts/ai/verify_release.sh backend-freeze-baseline = PASS, negative_selftest=20
+scripts/ai/verify_fast.sh = PASS
+git diff --check = PASS
+```
+
+The first Ruby assertion used unavailable `Array#filter_map`; the compatible
+`map.compact` rerun passed. This was a validator compatibility issue, not a YAML
+or template failure.
