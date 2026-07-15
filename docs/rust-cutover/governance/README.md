@@ -33,6 +33,8 @@ release gate 和已跟踪 release package 共同证明。
   scoped frontend, UX, deployment, or new-module work.
 - `backend_freeze_governance_closeout.md` - source-controlled closeout contract
   for milestone #31 and its live GitHub reconstruction.
+- `docs_examples_governance_closeout.md` - source-controlled closeout contract
+  for milestone #32 and its live GitHub reconstruction.
 - `../release/v0_32_0_release_closeout_evidence.md` - source-controlled release
   closeout contract.
 
@@ -54,3 +56,18 @@ The follow-up milestone is `post-backend-docs-examples-governance` (#32), with
 the exact issue set `#1080-#1087`. It cleans the current documentation and
 examples surfaces after the backend freeze. It does not modify the v0.32.0
 release package or authorize a new backend version.
+
+## Completed Docs And Examples Governance
+
+- DEXG-001: authority map and cleanup boundaries.
+- DEXG-002: canonical Rust examples integrity.
+- DEXG-003: legacy Python API appendix and docs-python retirement.
+- DEXG-004: unsupported Python-first guide and asset retirement.
+- DEXG-005: integration documentation authority.
+- DEXG-006: concept documentation authority and source links.
+- DEXG-007: stable Rust docs build and deterministic governance gate.
+- DEXG-008: source plus live GitHub governance closeout.
+
+The closeout contract is `docs_examples_governance_closeout.md`. Final merge,
+issue, workflow, main-branch, and milestone facts are reconstructed from live
+GitHub after the DEXG-008 PR merges.
