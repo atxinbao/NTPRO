@@ -18,7 +18,6 @@ and release notes exist.
 - [Design Principles](design_principles.md)
 - [Coding Standards](coding_standards.md)
 - [Rust](rust.md)
-- [Legacy Python notes (unsupported)](python.md)
 - [Testing](testing.md)
 - [Test Datasets](test_datasets.md)
 - [Docs Style](docs.md)
