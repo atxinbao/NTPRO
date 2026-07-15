@@ -124,7 +124,7 @@ for path in "$RELEASE_NOTES_PATH" "$READINESS_REPORT_PATH" "$MANIFEST_PATH"; do
   done
 done
 
-python3 scripts/ai/validate_golden_trace_release_scope.py
+scripts/ai/ntpro_governance.sh golden-trace-release-scope
 scripts/ai/verify_release.sh v23.1-release-closeout-evidence
 scripts/ai/verify_release.sh v23.1-stale-provenance-cleanup
 scripts/ai/verify_release.sh v23.1-gate-phase-split

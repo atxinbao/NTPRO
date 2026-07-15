@@ -115,7 +115,7 @@ for marker in \
   require_contains "$READINESS_REPORT_PATH" "$marker"
 done
 
-python3 scripts/ai/validate_golden_trace_release_scope.py
+scripts/ai/ntpro_governance.sh golden-trace-release-scope
 cargo test -p nautilus-cli --test golden_trace_read_model_projection -- --nocapture
 scripts/ai/verify_v23_dashboard_observability_smoke.sh
 scripts/ai/verify_release.sh release-publish-after-gate

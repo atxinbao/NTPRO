@@ -11,7 +11,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 source scripts/ai/toolchain_env.sh
 
-python3 scripts/ai/golden_trace_runner.py \
+scripts/ai/ntpro_governance.sh golden-trace \
   tests/golden/production_order_lifecycle_schema.jsonl \
   --mode validate-only
 

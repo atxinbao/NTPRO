@@ -106,8 +106,8 @@ for marker in \
   require_contains "$EVIDENCE_PATH" "$marker"
 done
 
-python3 scripts/ai/golden_trace_runner.py "$TRACE_PATH" --mode validate-only
-python3 scripts/ai/validate_golden_trace_release_scope.py \
+scripts/ai/ntpro_governance.sh golden-trace "$TRACE_PATH" --mode validate-only
+scripts/ai/ntpro_governance.sh golden-trace-release-scope \
   --manifest "$REPLAY_SCOPE_PATH" \
   --trace-glob 'tests/golden/*.jsonl'
 

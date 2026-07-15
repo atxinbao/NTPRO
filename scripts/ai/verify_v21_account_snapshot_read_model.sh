@@ -28,7 +28,7 @@ for path in "$CONTRACT_PATH" "$UNIFIED_SCHEMA_PATH" "$TRACE_PATH" "$DASHBOARD_PA
   fi
 done
 
-"$PYTHON_BIN" scripts/ai/golden_trace_runner.py "$TRACE_PATH" --mode validate-only
+scripts/ai/ntpro_governance.sh golden-trace "$TRACE_PATH" --mode validate-only
 
 CONTRACT_PATH="$CONTRACT_PATH" \
 UNIFIED_SCHEMA_PATH="$UNIFIED_SCHEMA_PATH" \

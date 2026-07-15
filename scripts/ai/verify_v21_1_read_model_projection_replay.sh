@@ -28,7 +28,7 @@ for path in "$SCOPE_PATH" "$RELEASE_NOTES_PATH" "$EVIDENCE_PATH"; do
 done
 
 cargo test -p nautilus-cli --test golden_trace_read_model_projection
-"$PYTHON_BIN" scripts/ai/validate_golden_trace_release_scope.py \
+scripts/ai/ntpro_governance.sh golden-trace-release-scope \
   --manifest "$SCOPE_PATH" \
   --trace-glob 'tests/golden/*.jsonl'
 

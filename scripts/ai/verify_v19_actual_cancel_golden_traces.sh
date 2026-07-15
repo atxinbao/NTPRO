@@ -23,7 +23,7 @@ if [[ ! -x "$NAUTILUS_BIN" ]]; then
   exit 1
 fi
 
-python3 scripts/ai/golden_trace_runner.py tests/golden/actual_cancel_schema.jsonl --mode validate-only
+scripts/ai/ntpro_governance.sh golden-trace tests/golden/actual_cancel_schema.jsonl --mode validate-only
 
 TRACE_GLOB=tests/golden/actual_cancel_schema.jsonl \
 REQUIRE_GOLDEN_REPLAY=0 \

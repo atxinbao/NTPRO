@@ -22,18 +22,6 @@ RUN_RUST_ACTUAL_CANCEL_TRACE_REPLAY="${RUN_RUST_ACTUAL_CANCEL_TRACE_REPLAY:-1}"
 RUN_RUST_PRODUCTION_ORDER_LIFECYCLE_TRACE_REPLAY="${RUN_RUST_PRODUCTION_ORDER_LIFECYCLE_TRACE_REPLAY:-1}"
 REPLAY_COMMAND="${GOLDEN_TRACE_REPLAY_COMMAND:-}"
 RELEASE_SCOPE_MANIFEST="${GOLDEN_TRACE_RELEASE_SCOPE_MANIFEST:-docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json}"
-PYTHON_BIN="${PYTHON_BIN:-}"
-
-if [ -z "$PYTHON_BIN" ]; then
-  if command -v python3 >/dev/null 2>&1; then
-    PYTHON_BIN=python3
-  elif command -v python >/dev/null 2>&1; then
-    PYTHON_BIN=python
-  else
-    echo "python3 or python is required to run golden trace validation" >&2
-    exit 127
-  fi
-fi
 
 shopt -s nullglob
 traces=( $TRACE_GLOB )
@@ -46,14 +34,14 @@ if [ "${#traces[@]}" -eq 0 ]; then
 fi
 
 for trace in "${traces[@]}"; do
-  "$PYTHON_BIN" scripts/ai/golden_trace_runner.py "$trace" --mode validate-only
+  scripts/ai/ntpro_governance.sh golden-trace "$trace" --mode validate-only
   if [ -n "$REPLAY_COMMAND" ]; then
-    "$PYTHON_BIN" scripts/ai/golden_trace_runner.py "$trace" --mode replay --replay-command "$REPLAY_COMMAND"
+    scripts/ai/ntpro_governance.sh golden-trace "$trace" --mode replay --replay-command "$REPLAY_COMMAND"
   fi
 done
 
 if [ "$REQUIRE_GOLDEN_REPLAY" = "1" ] && [ -z "$REPLAY_COMMAND" ]; then
-  "$PYTHON_BIN" scripts/ai/validate_golden_trace_release_scope.py \
+  scripts/ai/ntpro_governance.sh golden-trace-release-scope \
     --manifest "$RELEASE_SCOPE_MANIFEST" \
     --trace-glob "$TRACE_GLOB"
 fi

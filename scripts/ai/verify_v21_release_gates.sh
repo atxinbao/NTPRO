@@ -82,7 +82,7 @@ scripts/ai/verify_v21_order_lifecycle_read_model.sh
 scripts/ai/verify_v21_fill_execution_read_model.sh
 scripts/ai/verify_v21_risk_state_projection.sh
 scripts/ai/verify_v21_trader_terminal_readonly_dashboard.sh
-python3 scripts/ai/validate_golden_trace_release_scope.py --manifest "$GOLDEN_SCOPE_PATH" --trace-glob 'tests/golden/*.jsonl'
+scripts/ai/ntpro_governance.sh golden-trace-release-scope --manifest "$GOLDEN_SCOPE_PATH" --trace-glob 'tests/golden/*.jsonl'
 
 for marker in \
   "Status: RELEASED" \

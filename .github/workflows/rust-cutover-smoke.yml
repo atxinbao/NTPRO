@@ -272,7 +272,7 @@ jobs:
         if: steps.changes.outputs.v20_smoke == 'true'
         run: scripts/ai/verify_v20_release_gates.sh
       - name: Golden trace schema smoke
-        run: python scripts/ai/golden_trace_runner.py tests/golden/schema_smoke.jsonl --mode validate-only
+        run: scripts/ai/ntpro_governance.sh golden-trace tests/golden/schema_smoke.jsonl --mode validate-only
       - name: Rust-only runtime gate
         run: scripts/ai/check_rust_only_runtime.sh
       - name: Cython removal gate

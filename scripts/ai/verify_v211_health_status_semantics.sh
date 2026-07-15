@@ -38,7 +38,7 @@ for path in "$CONTRACT_PATH" "$SCHEMA_PATH" "${TRACE_PATHS[@]}"; do
   fi
 done
 
-"$PYTHON_BIN" scripts/ai/golden_trace_runner.py "$SEMANTICS_TRACE_PATH" --mode validate-only
+scripts/ai/ntpro_governance.sh golden-trace "$SEMANTICS_TRACE_PATH" --mode validate-only
 
 CONTRACT_PATH="$CONTRACT_PATH" \
 SCHEMA_PATH="$SCHEMA_PATH" \
