@@ -400,12 +400,11 @@ cargo-vet: check-vet-installed  #-- Run cargo-vet supply chain audit
 #== Documentation
 
 .PHONY: docs
-docs: docs-rust  #-- Build supported Rust documentation
+docs: docs-rust docs-check-links  #-- Build Rust docs and validate supported docs/examples
 
 .PHONY: docs-rust
-docs-rust: export RUSTDOCFLAGS=--enable-index-page -Zunstable-options
 docs-rust:  #-- Build Rust documentation with cargo doc
-	cargo +nightly doc --all-features --no-deps --workspace
+	cargo doc --all-features --no-deps --workspace
 
 .PHONY: docsrs-check
 docsrs-check: export DOCS_RS=1
@@ -414,8 +413,14 @@ docsrs-check: check-hack-installed #-- Check documentation builds for docs.rs co
 	cargo +nightly hack --workspace doc --no-deps --all-features
 
 .PHONY: docs-check-links
-docs-check-links:  #-- Check for broken links in documentation (periodic audit)
-	$(info $(M) Checking documentation links...)
+docs-check-links:  #-- Check supported local docs/examples authority and links
+	$(info $(M) Checking supported documentation and examples...)
+	@scripts/ai/check_docs_examples_governance.sh
+	@printf "$(GREEN)Local docs/examples check passed$(RESET)\n"
+
+.PHONY: docs-check-external-links
+docs-check-external-links:  #-- Check external documentation links (periodic network audit)
+	$(info $(M) Checking external documentation links...)
 	@lychee \
 		--verbose \
 		--no-progress \
@@ -429,11 +434,9 @@ docs-check-links:  #-- Check for broken links in documentation (periodic audit)
 		--fallback-extensions md,py,html \
 		--exclude-path .venv \
 		--exclude-path target \
-		--exclude-path docs/python-api-latest \
-		--exclude "file://.*/python-api-latest/.*" \
 		--exclude-file .lycheeignore \
 		"**/*.md" "docs/**/*.py"
-	@printf "$(GREEN)Link check passed$(RESET)\n"
+	@printf "$(GREEN)External link check passed$(RESET)\n"
 
 #== Rust Development
 
