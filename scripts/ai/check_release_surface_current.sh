@@ -6,8 +6,8 @@ cd "$ROOT"
 
 CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.32.0}"
 CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-${CURRENT_RELEASE_VERSION}}"
-NEXT_PATCH_VERSION="${NTPRO_NEXT_PATCH_VERSION:-v0.32.1}"
-NEXT_CAPABILITY_VERSION="${NTPRO_NEXT_CAPABILITY_VERSION:-v0.33.0}"
+POST_BASELINE_GOVERNANCE_TRACK="${NTPRO_POST_BASELINE_GOVERNANCE_TRACK:-backend-freeze-governance}"
+NEXT_CAPABILITY_FAMILY="${NTPRO_NEXT_CAPABILITY_VERSION:-v0.33.0+}"
 CURRENT_RELEASE_CAPABILITY="${NTPRO_CURRENT_RELEASE_CAPABILITY:-v0.32.0 Backend Production Closeout}"
 
 CURRENT_RELEASE_STEM="v${CURRENT_RELEASE_VERSION#v}"
@@ -91,8 +91,9 @@ echo "== release surface current guard =="
 echo "current_release_version=$CURRENT_RELEASE_VERSION"
 echo "current_release_tag=$CURRENT_RELEASE_TAG"
 echo "current_release_capability=$CURRENT_RELEASE_CAPABILITY"
-echo "next_patch_version=$NEXT_PATCH_VERSION"
-echo "next_capability_version=$NEXT_CAPABILITY_VERSION"
+echo "backend_patch_scheduled=false"
+echo "post_baseline_governance_track=$POST_BASELINE_GOVERNANCE_TRACK"
+echo "next_capability_family=$NEXT_CAPABILITY_FAMILY"
 
 pre_tag_mode=0
 require_file README.md
@@ -120,24 +121,30 @@ require_contains README.md \
   "https://github.com/atxinbao/NTPRO/releases/tag/$CURRENT_RELEASE_TAG" \
   "README current GitHub Release URL"
 require_contains README.md \
-  "The next patch track is \`$NEXT_PATCH_VERSION\`" \
-  "README next patch track"
+  "No backend patch is scheduled." \
+  "README backend patch status"
 require_contains README.md \
-  "The next capability track is \`$NEXT_CAPABILITY_VERSION\`" \
-  "README next capability track"
+  "\`$POST_BASELINE_GOVERNANCE_TRACK\`" \
+  "README post-baseline governance track"
+require_contains README.md \
+  "The next capability family is \`$NEXT_CAPABILITY_FAMILY\`" \
+  "README next capability family"
 
 require_contains ROADMAP.md \
   "\`$CURRENT_RELEASE_TAG\`, the $CURRENT_RELEASE_CAPABILITY release" \
   "ROADMAP current release and patch track"
 require_contains ROADMAP.md \
-  "The next patch track is \`$NEXT_PATCH_VERSION\`" \
-  "ROADMAP next patch track"
+  "No backend patch is scheduled." \
+  "ROADMAP backend patch status"
+require_contains ROADMAP.md \
+  "\`$POST_BASELINE_GOVERNANCE_TRACK\`" \
+  "ROADMAP post-baseline governance track"
 require_contains ROADMAP.md \
   "## Published Capability Track: $CURRENT_RELEASE_VERSION" \
   "ROADMAP published capability track"
 require_contains ROADMAP.md \
-  "The next capability track is \`$NEXT_CAPABILITY_VERSION\`" \
-  "ROADMAP next capability track"
+  "The next capability family is \`$NEXT_CAPABILITY_FAMILY\`" \
+  "ROADMAP next capability family"
 
 require_contains docs/versioning.md \
   "\`$CURRENT_RELEASE_VERSION\` 是当前正式公开发布点" \
@@ -146,11 +153,14 @@ require_contains docs/versioning.md \
   "$CURRENT_RELEASE_TAG" \
   "versioning current release tag"
 require_contains docs/versioning.md \
-  "$NEXT_PATCH_VERSION" \
-  "versioning next patch track"
+  "none scheduled; baseline-invalidity exception only" \
+  "versioning backend patch status"
 require_contains docs/versioning.md \
-  "$NEXT_CAPABILITY_VERSION" \
-  "versioning next capability track"
+  "$POST_BASELINE_GOVERNANCE_TRACK" \
+  "versioning post-baseline governance track"
+require_contains docs/versioning.md \
+  "$NEXT_CAPABILITY_FAMILY" \
+  "versioning next capability family"
 
 current_readiness_basename="$(basename "$CURRENT_READINESS_REPORT")"
 if ! grep -F -- "\`$current_readiness_basename\` - released readiness report for the formal" docs/rust-cutover/release/README.md >/dev/null \

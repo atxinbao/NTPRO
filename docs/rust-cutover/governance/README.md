@@ -17,6 +17,8 @@ release gate 和已跟踪 release package 共同证明。
   hashes, release proof, exact scope, and forbidden capability flags.
 - `backend_freeze_policy.md` - rules for immutability, errata, exceptions,
   post-freeze cleanup, and separately scoped v0.33+ work.
+- `v0_32_0_errata.md` - post-baseline clarification of stale current-route
+  wording without changing the tagged release package.
 - `../release/v0_32_0_release_closeout_evidence.md` - source-controlled release
   closeout contract.
 

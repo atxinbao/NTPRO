@@ -5,8 +5,9 @@ Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
 NautilusTrader. The current public source release is `ntpro-rust-only-v0.32.0`, the v0.32.0 Backend Production Closeout release.
-The next patch track is `v0.32.1`.
-The next capability track is `v0.33.0`.
+No backend patch is scheduled. The post-baseline governance track is
+`backend-freeze-governance`.
+The next capability family is `v0.33.0+`.
 
 ## Current Release Surface
 
@@ -111,8 +112,9 @@ v0.29.1 release governance and v30 start-gate hardening evidence
 v0.31.0 controlled backend production enablement candidate foundation evidence
 v0.31.1 release governance closeout patch evidence
 v0.32.0 backend production closeout evidence
-v0.32.1 next patch track reserved for release governance closeout after v0.32.0
-v0.33.0 next capability track must be separately scoped and inherits no v0.32.0 trading controls
+no backend patch scheduled after v0.32.0; baseline-invalidity exception only
+backend-freeze-governance post-baseline governance track
+v0.33.0+ capability tracks must be separately scoped and inherit no v0.32.0 trading controls
 v0.30.0 backend production go-live candidate foundation evidence
 no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no Admin Workbench operation/trading controls
