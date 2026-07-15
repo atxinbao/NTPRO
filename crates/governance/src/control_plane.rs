@@ -52,7 +52,7 @@ pub struct ControlPlaneRetirementCounts {
 ///
 /// Returns an error when a retired tool remains, an active caller still names
 /// one, the current protocol still requires local AgentFlow state, or the
-/// retained Cython inventory snapshot drifts.
+/// retained source inventory snapshot drifts.
 pub fn validate_control_plane_retirement() -> Result<ControlPlaneRetirementCounts> {
     validate_tree(Path::new("."))
 }
@@ -129,16 +129,20 @@ fn validate_tree(root: &Path) -> Result<ControlPlaneRetirementCounts> {
         .with_context(|| format!("failed to read retained inventory: {INVENTORY_PATH}"))?;
     ensure!(
         hex_sha256(&inventory) == INVENTORY_SHA256,
-        "retained Cython inventory hash drifted"
+        "retained source inventory hash drifted"
     );
-    let inventory_text = String::from_utf8(inventory).context("Cython inventory is not UTF-8")?;
+    let inventory_text =
+        String::from_utf8(inventory).context("retained source inventory is not UTF-8")?;
     ensure!(
         inventory_text
             .starts_with("path,kind,lines,imports,has_cdef_class,has_cpdef,has_cimport\r\n"),
-        "Cython inventory header drifted"
+        "retained source inventory header drifted"
     );
     let inventory_rows = inventory_text.lines().count();
-    ensure!(inventory_rows == 244, "Cython inventory row count drifted");
+    ensure!(
+        inventory_rows == 244,
+        "retained source inventory row count drifted"
+    );
 
     Ok(ControlPlaneRetirementCounts {
         retired_tools: RETIRED_TOOLS.len(),
