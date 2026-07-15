@@ -5,9 +5,9 @@ Executor: Codex
 
 ## Purpose
 
-NTPRO is managed as a Rust-first cutover workspace. The project may later move
-to Rust-only removal, but Python, PyO3, and Cython deletion is gated until
-Rust product surface, runtime, adapter, and QA evidence are complete.
+NTPRO is managed as a Rust-first workspace with v0.32.0 as the frozen backend
+baseline. Product runtime is Rust-only; repository tooling removal remains
+gated by explicit GitHub issues and review evidence.
 
 The five roles below define task ownership, review boundaries, path authority,
 and gate responsibility. They do not require five always-open Codex sessions.
@@ -18,8 +18,8 @@ required evidence, and done requirements.
 
 ### Control & Scope Agent
 
-Purpose: scope control, task graph, leases, gates, state transitions, and scope
-decisions.
+Purpose: scope control, GitHub issue dependencies, labels, gates, review
+transitions, and scope decisions.
 
 Owns:
 
@@ -28,7 +28,8 @@ Owns:
 
 May modify:
 
-- `.agentflow/**`
+- `.github/ISSUE_TEMPLATE/**`
+- `.github/pull_request_template.md`
 - `backlog/**`
 - `state/**`
 - `scripts/control/**`
@@ -82,7 +83,7 @@ May not modify unless explicitly authorized:
 
 - `backlog/**`
 - `state/**`
-- `.agentflow/policies/**`
+- `docs/rust-cutover/governance/**`
 - `python/**`
 - `nautilus_trader/**`
 - `crates/pyo3/**`
@@ -127,7 +128,7 @@ May not modify unless explicitly authorized:
 
 - `backlog/**`
 - `state/**`
-- `.agentflow/policies/**`
+- `docs/rust-cutover/governance/**`
 - `docs/release/**`
 - `python/**`
 - `nautilus_trader/**`
@@ -165,7 +166,7 @@ May not modify unless explicitly authorized:
 
 - `backlog/**`
 - `state/**`
-- `.agentflow/policies/**`
+- `docs/rust-cutover/governance/**`
 - `crates/core/**` large refactors
 - `crates/pyo3/**`
 - `python/**`
@@ -233,7 +234,6 @@ Allowed task states:
 ```text
 TODO
 READY
-LEASED
 RUNNING
 PR_OPEN
 QA_REQUIRED
@@ -274,13 +274,12 @@ Cargo feature cleanup.
 High risk: workspace restructuring, runtime logic, adapter behavior,
 persistence format, feature flag behavior.
 
-Critical risk: removing Python, PyO3, Cython, `build.py`, `pyproject.toml`,
-release contract changes, task graph gate changes, release tags, and production
-adapter behavior changes.
+Critical risk: product/runtime surface removal, release contract changes, task
+graph gate changes, release tags, and production adapter behavior changes.
 
 ## Python / PyO3 / Cython Gate
 
-No role may remove `python/**`, `nautilus_trader/**`, `crates/pyo3/**`,
-`build.py`, or `pyproject.toml` until the scope decision explicitly approves the
-Rust-only route and the release gatekeeper records approval. Until then, NTPRO
-is treated as Rust-first cutover work, not final Rust-only removal.
+No role may remove Python, PyO3, Cython, packaging, or validation authority
+without an explicit scoped GitHub issue, replacement evidence, and the required
+review gate. Tooling retirement does not authorize runtime or trading-capability
+changes and must preserve the v0.32.0 backend freeze.

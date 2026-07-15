@@ -1,83 +1,55 @@
-# PR Auto-Dispatch
+# PR Auto-Dispatch Retirement
 
-Date: 2026-05-27
+Date: 2026-07-16
 Executor: Codex
+Status: RETIRED
 
-## Purpose
+## Decision
 
-NTPRO can automatically continue from one merged PR to the next eligible task
-without using GitHub Actions to mutate local Shrimp state. The automation is
-local-first because Shrimp task data and Codex workspace state live on this
-machine.
+The local Python auto-dispatch, closeout, lease, AgentFlow, and Shrimp mutation
+path is retired. GitHub is the only active task control plane.
+No local queue or lease file is authoritative.
 
-## Components
+The removed components were `scripts/control/dispatch_next.py`,
+`scripts/control/close_merged_pr.py`, `scripts/ai/lease.py`, and
+`scripts/ai/validate_agentflow_roles.py`. Their historical evidence remains
+under `docs/rust-cutover/`.
 
-- `scripts/control/close_merged_pr.py`
-  - verifies a PR is merged;
-  - verifies the required GitHub check is green;
-  - keeps local Shrimp state in sync without requiring local `main` to be
-    fast-forwardable;
-  - marks the completed task in
-    `/Users/mac/.codex/shrimp-data/NTPRO/tasks.json`.
-- `scripts/control/dispatch_next.py`
-  - requires a clean local worktree;
-  - fetches `origin/main` and creates the task branch from that remote base;
-  - refuses to run while Shrimp has an `in_progress` task;
-  - selects the first pending task whose Shrimp dependencies are completed;
-  - blocks removal, release, and gate task prefixes by default;
-  - allows medium-risk tasks by default;
-  - creates `ai/<task-id>-<slug>`;
-  - updates `.agentflow/state/task_status.json` for the new branch;
-  - claims a base lease for the task;
-  - marks the Shrimp task `in_progress`.
+## Supported Intake
 
-## Local Commands
-
-Close a merged PR after `smoke` is green:
+List dependency-ready work from GitHub:
 
 ```bash
-python3 scripts/control/close_merged_pr.py \
-  --repo atxinbao/NTPRO \
-  --pr <PR_NUMBER> \
-  --task-id <TASK_ID> \
-  --required-check smoke
+gh issue list --repo atxinbao/NTPRO --state open \
+  --label agent-ready --json number,title,labels,milestone
 ```
 
-Dispatch the next eligible task:
+Confirm dependencies from the issue body and live issue states, then create the
+single task branch from current remote main:
 
 ```bash
-python3 scripts/control/dispatch_next.py \
-  --workspace /Users/mac/Documents/NTPRO \
-  --shrimp-tasks /Users/mac/.codex/shrimp-data/NTPRO/tasks.json
+git fetch --prune origin
+git switch -c codex/<TASK_ID>-<SLUG> origin/main
 ```
 
-Dry-run either command before enabling unattended execution:
+## Supported Closeout
+
+Inspect the PR and required checks directly:
 
 ```bash
-python3 scripts/control/close_merged_pr.py --pr <PR_NUMBER> --task-id <TASK_ID> --dry-run
-python3 scripts/control/dispatch_next.py --dry-run
+gh pr view <PR_NUMBER> --repo atxinbao/NTPRO \
+  --json state,mergedAt,mergeCommit,statusCheckRollup
 ```
 
-## Codex Heartbeat Contract
-
-The recurring Codex wake-up should do only this:
-
-1. Inspect the active PR if one is recorded in the thread.
-2. If the PR is not merged, report `waiting`.
-3. If the PR is merged and `smoke` passed, run `close_merged_pr.py`.
-4. If no Shrimp task is `in_progress`, run `dispatch_next.py`.
-5. Continue the newly dispatched task only if it is medium risk or below.
-6. Stop and report when the selected task requires a manual gate.
-
-The heartbeat must not run removal, release, or explicit gate tasks unattended.
-Every PR body opened by the heartbeat must include a plain Chinese summary.
+Every PR body must contain `Closes #<ISSUE_NUMBER>`. After merge, verify the
+issue is closed and move `agent-ready` to the next dependency-unblocked issue.
+Use `jq` only when machine-readable filtering is required.
 
 ## Boundaries
 
-- Do not run this from GitHub Actions. GitHub runners cannot safely mutate the
-  local Shrimp queue under `/Users/mac/.codex/shrimp-data/NTPRO`.
-- Do not dispatch `RREM-*`, `RREL-*`, `NREM-*`, `NREL-*`, or `NGATE-*`
-  without an explicit manual gate.
-- Do not dispatch when the local worktree is dirty.
-- Do not dispatch when another Shrimp task is already `in_progress`.
-- Do not treat `QA_PASSED` or `BLOCKED` as `DONE`.
+- No unattended local queue mutation is supported.
+- No GitHub workflow may mutate machine-local task state.
+- High and critical risk tasks stop at `REVIEW_REQUIRED`.
+- One issue, one branch, and one PR remain mandatory.
+- The v0.32.0 backend freeze and forbidden trading capability boundaries remain
+  unchanged.

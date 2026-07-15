@@ -1,71 +1,74 @@
 # Task Execution Protocol
 
-## Before work
+Date: 2026-07-16
+Executor: Codex
 
-1. Read `AGENTS.md`.
-2. Read the task file.
-3. Read `docs/rust-cutover/AGENT_ROLES.md`.
-4. Resolve `owner_role`, `review_role`, `risk_level`, allowed paths, prohibited
-   paths, and required evidence from `.agentflow/state/task_status.json`,
-   `.agentflow/roles.yaml`, and `.agentflow/policies/path_scope.yaml`.
-5. Check `.agentflow/leases/` for path conflicts.
-6. Claim a lease.
-7. Create a branch named `ai/<task-id>-<slug>`.
+## Active Control Plane
 
-## Role protocol
+GitHub issues, labels, milestones, branches, pull requests, and hosted checks
+are the only active task-control authority. Local AgentFlow/Shrimp state and
+lease files are retired and must not be used to decide task status.
 
-- Every task must have one `owner_role` and one different `review_role`.
-- Owner role may execute implementation and prepare evidence.
-- Review role validates evidence and gate requirements.
-- Owner role must not approve its own task.
-- `BLOCKED` is not `DONE`.
-- `QA_PASSED` is not `DONE`.
-- `DONE` requires QA evidence, review evidence, and merged PR evidence unless the
-  task explicitly documents that it is local-only.
-- Work above medium risk must stop at `REVIEW_REQUIRED` before merge.
-- Work above medium risk must not enable auto-merge.
-- Critical removal or release work requires explicit release gatekeeper approval.
+## Before Work
 
-## Risk protocol
+1. Read `AGENTS.md`, the GitHub issue, and the task file.
+2. Confirm the issue is open, its dependencies are closed, and `agent-ready`
+   is present.
+3. Resolve owner role, review role, risk, allowed paths, prohibited paths, and
+   required evidence from the issue and repository policy.
+4. Inspect open pull requests for overlapping work.
+5. Fetch `origin/main` and create `codex/<task-id>-<slug>` from that commit.
+6. Keep one issue, one branch, and one pull request.
 
-- Low risk: docs, examples, task metadata, non-runtime scripts, inventory docs.
-- Medium risk: Rust CLI, runtime-facing examples, adapter mock tests, CI, Cargo
-  feature cleanup.
-- High risk: workspace restructuring, runtime logic, adapter behavior,
-  persistence format, feature flag behavior.
-- Critical risk: deleting Python, PyO3, Cython, `build.py`, `pyproject.toml`,
-  release contract changes, task graph gate changes, release tags, and
-  production adapter behavior changes.
+## Role Protocol
 
-## During work
+- Every task declares an owner role and a different review role.
+- Owner role may implement and prepare evidence but must not approve its own
+  work.
+- `BLOCKED` and `QA_PASSED` are not `DONE`.
+- `DONE` requires merged PR evidence and issue closure unless the task is
+  explicitly local-only.
+- Work above medium risk stops at `REVIEW_REQUIRED` before merge and must not
+  enable auto-merge.
+- Critical removal or release work requires explicit gatekeeper approval.
 
-- Keep diffs small.
-- Prefer tests before code changes.
-- Do not modify unrelated files.
-- Add docs when public behavior changes.
-- Stay inside the task path scope unless a scope decision explicitly allows a
-  wider change.
+## Risk Protocol
 
-## After work
+- Low: docs, examples, task metadata, and inventory-only changes.
+- Medium: Rust CLI, non-runtime governance tools, adapter mock tests, and
+  scoped CI changes.
+- High: workspace restructuring, runtime logic, adapter behavior, persistence
+  formats, and feature behavior.
+- Critical: product/runtime surface removal, release contract changes, release
+  tags, task graph gate changes, and production adapter behavior.
 
-1. Run targeted commands.
-2. Run `scripts/ai/verify_fast.sh` if feasible.
-3. Write evidence under `docs/rust-cutover/evidence/<task-id>.md`.
-4. Run `scripts/ai/validate_agentflow_roles.py` for control-plane task metadata
-   changes.
-5. Fill PR template, including the plain Chinese summary section. The summary
-   must state what changed, what did not change, validation results, behavior
-   impact, and review/merge status.
-6. For work above medium risk, write the final handoff in plain Chinese before
-   technical details and stop at `REVIEW_REQUIRED`.
-7. Release lease only after PR is ready or task is blocked.
+An approved tooling-closeout issue may assign medium risk to deletion of a
+proven unreachable helper. That exception does not authorize product/runtime
+surface removal.
+
+## During Work
+
+- Keep diffs scoped and do not modify unrelated files.
+- Add tests and evidence for behavior changes.
+- Preserve the v0.32.0 frozen backend baseline.
+- Do not inherit submit, mutation, adapter send, live exchange, retry,
+  remediation, recovery, or trading-control capability.
+
+## After Work
+
+1. Run targeted validation and `scripts/ai/verify_fast.sh` when feasible.
+2. Write evidence under `docs/rust-cutover/evidence/<task-id>.md`.
+3. Fill the PR template, including plain Chinese summary, impact, validation,
+   migration status, and rollback plan.
+4. Put `Closes #<ISSUE_NUMBER>` in the PR body.
+5. Wait for required hosted checks and complete review before merge.
+6. For work above medium risk, write the final Chinese handoff and stop at
+   `REVIEW_REQUIRED`.
+7. After merge, verify the issue closed and move `agent-ready` to the next
+   dependency-unblocked issue.
 
 ## Blockers
 
-If blocked, write:
-
-- blocker summary;
-- commands attempted;
-- relevant logs;
-- proposed next action;
-- whether scope/human decision is needed.
+Record the blocker, commands attempted, logs, proposed next action, and whether
+an explicit scope or owner decision is required. Do not convert a blocker into
+completion evidence.
