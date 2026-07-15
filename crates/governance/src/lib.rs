@@ -21,3 +21,4 @@
 #![deny(clippy::missing_errors_doc)]
 
 pub mod golden_trace;
+pub mod read_model;

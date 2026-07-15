@@ -16,7 +16,10 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
-use ntpro_governance::golden_trace::{replay_trace, validate_release_scope, validate_trace};
+use ntpro_governance::{
+    golden_trace::{replay_trace, validate_release_scope, validate_trace},
+    read_model::validate_read_model_schema,
+};
 
 #[derive(Debug, Parser)]
 #[command(version, about = "Rust-only NTPRO repository governance tooling")]
@@ -43,6 +46,16 @@ enum Command {
         )]
         manifest: PathBuf,
         #[arg(long, default_value = "tests/golden/*.jsonl")]
+        trace_glob: String,
+    },
+    /// Validates v0.21 read-model snapshots and fail-closed boundaries.
+    ReadModelSchema {
+        #[arg(
+            long,
+            default_value = "docs/rust-cutover/release/v0_21_0_unified_read_model_schema.json"
+        )]
+        schema: PathBuf,
+        #[arg(long, default_value = "tests/golden/**/*.jsonl")]
         trace_glob: String,
     },
 }
@@ -95,6 +108,12 @@ fn run(cli: Cli) -> anyhow::Result<()> {
                 counts.executable_replay,
                 counts.validator_executable_replay,
                 counts.schema_only_scoped
+            );
+        }
+        Command::ReadModelSchema { schema, trace_glob } => {
+            let count = validate_read_model_schema(&schema, &trace_glob)?;
+            println!(
+                "v211_read_model_schema_boundary status=ok validated_read_model_snapshots={count} negative_mutations=8 additional_properties=false boundary_flags=strict"
             );
         }
     }

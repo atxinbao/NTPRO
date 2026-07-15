@@ -603,6 +603,10 @@ criteria = "safe-to-deploy"
 version = "3.9.1"
 criteria = "safe-to-deploy"
 
+[[exemptions.borrow-or-share]]
+version = "0.2.4"
+criteria = "safe-to-deploy"
+
 [[exemptions.borsh]]
 version = "1.6.0"
 criteria = "safe-to-deploy"
@@ -1087,6 +1091,10 @@ criteria = "safe-to-deploy"
 version = "0.13.8"
 criteria = "safe-to-deploy"
 
+[[exemptions.email_address]]
+version = "0.2.9"
+criteria = "safe-to-deploy"
+
 [[exemptions.embedded-io]]
 version = "0.7.1"
 criteria = "safe-to-deploy"
@@ -1125,6 +1133,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.fallible-streaming-iterator]]
 version = "0.1.9"
+criteria = "safe-to-deploy"
+
+[[exemptions.fancy-regex]]
+version = "0.18.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.faster-hex]]
@@ -1167,8 +1179,16 @@ criteria = "safe-to-deploy"
 version = "0.4.4"
 criteria = "safe-to-deploy"
 
+[[exemptions.fluent-uri]]
+version = "0.4.1"
+criteria = "safe-to-deploy"
+
 [[exemptions.flume]]
 version = "0.11.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.fraction]]
+version = "0.15.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.fs_extra]]
@@ -1467,6 +1487,14 @@ criteria = "safe-to-deploy"
 version = "0.4.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.jsonschema]]
+version = "0.47.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.jsonschema-regex]]
+version = "0.47.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.k256]]
 version = "0.13.4"
 criteria = "safe-to-deploy"
@@ -1593,6 +1621,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.memchr]]
 version = "2.8.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.micromap]]
+version = "0.3.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.mime]]
@@ -1759,6 +1791,10 @@ criteria = "safe-to-deploy"
 version = "0.4.3"
 criteria = "safe-to-deploy"
 
+[[exemptions.num]]
+version = "0.4.3"
+criteria = "safe-to-deploy"
+
 [[exemptions.num-bigint]]
 version = "0.4.6"
 criteria = "safe-to-deploy"
@@ -1767,12 +1803,20 @@ criteria = "safe-to-deploy"
 version = "0.8.6"
 criteria = "safe-to-deploy"
 
+[[exemptions.num-cmp]]
+version = "0.1.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.num-complex]]
 version = "0.4.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.num-conv]]
 version = "0.2.2"
+criteria = "safe-to-deploy"
+
+[[exemptions.num-rational]]
+version = "0.4.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.num_cpus]]
@@ -1813,6 +1857,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.ordered-float]]
 version = "2.10.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.outref]]
+version = "0.5.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.panic-message]]
@@ -2073,6 +2121,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.ref-cast-impl]]
 version = "1.0.25"
+criteria = "safe-to-deploy"
+
+[[exemptions.referencing]]
+version = "0.47.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.regex]]
@@ -2675,6 +2727,10 @@ criteria = "safe-to-deploy"
 version = "0.9.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.unicode-general-category]]
+version = "1.1.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.unicode-ident]]
 version = "1.0.24"
 criteria = "safe-to-deploy"
@@ -2719,6 +2775,10 @@ criteria = "safe-to-deploy"
 version = "1.23.1"
 criteria = "safe-to-deploy"
 
+[[exemptions.uuid-simd]]
+version = "0.8.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.value-bag]]
 version = "1.12.0"
 criteria = "safe-to-deploy"
@@ -2729,6 +2789,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.virtue]]
 version = "0.0.18"
+criteria = "safe-to-deploy"
+
+[[exemptions.vsimd]]
+version = "0.8.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.wait-timeout]]
