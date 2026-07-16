@@ -37,7 +37,6 @@ jobs:
       - name: Common setup
         uses: ./.github/actions/common-setup
         with:
-          python-version: "3.13"
           free-disk-space: "true"
 
       - name: Build CLI (all features)
@@ -92,7 +91,6 @@ jobs:
       - name: Common setup
         uses: ./.github/actions/common-setup
         with:
-          python-version: "3.13"
           free-disk-space: "true"
 
       - name: Build CLI (all features)
@@ -146,8 +144,6 @@ jobs:
 
       - name: Common setup
         uses: ./.github/actions/common-setup
-        with:
-          python-version: "3.13"
 
       - name: Build CLI (all features)
         run: |
@@ -201,7 +197,6 @@ jobs:
       - name: Common setup
         uses: ./.github/actions/common-setup
         with:
-          python-version: "3.13"
           free-disk-space: "true"
 
       - name: Build CLI (all features)

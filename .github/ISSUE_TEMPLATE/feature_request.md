@@ -17,8 +17,8 @@ Detailed description of the feature you'd like to see implemented.
 
 ### Example Usage
 
-```python
-# Show how the feature would be used
+```rust
+// Show how the feature would be used.
 ```
 
 ### Alternatives Considered

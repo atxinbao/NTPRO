@@ -8,7 +8,7 @@ trap 'rm -f "$USES_LINES"' EXIT
 git diff --staged |
   grep '^+[[:space:]]*-*[[:space:]]*uses:[[:space:]]*' |
   grep '@[0-9a-f]\{40\}' |
-  sed -e 's/^+[[:space:]]*-\?[[:space:]]*uses:[[:space:]]*//' |
+  sed -e 's/^+[[:space:]]*//' -e 's/^-[[:space:]]*//' -e 's/^uses:[[:space:]]*//' |
   sort -u > "$USES_LINES"
 
 if [ ! -s "$USES_LINES" ]; then

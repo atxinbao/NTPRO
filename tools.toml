@@ -2,20 +2,10 @@
 #
 # Rust toolchain: rust-toolchain.toml
 # Cargo CLIs:     Cargo.toml [workspace.metadata.tools]
-# Python CLIs:    tools.toml
-# uv:             pyproject.toml [tool.uv]
+# Standalone CLIs: tools.toml
 
 [prek]
 version = "0.4.0"
-
-[pip-audit]
-version = "2.10.0"
-
-[pypi-attestations]
-version = "0.0.29"
-
-[maturin]
-version = "1.13.3"
 
 [osv-scanner]
 version = "2.3.8"

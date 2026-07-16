@@ -9,39 +9,12 @@ echo "== rust-only-runtime: checking product surface =="
 
 fail=0
 
-for path in python nautilus_trader crates/pyo3 build.py; do
+for path in python nautilus_trader crates/pyo3 build.py pyproject.toml uv.lock .venv venv; do
   if [ -e "$path" ]; then
     echo "Rust-only release must not retain product path: $path" >&2
     fail=1
   fi
 done
-
-if [ -f pyproject.toml ]; then
-  # Root pyproject.toml is allowed only as local helper-tool configuration
-  # (uv dependency groups plus lint/test/doc tool settings). It must not become
-  # a Python package manifest again.
-  root_python_metadata_matches=$(
-    grep -nE '^\[project(\.|])|^name[[:space:]]*=[[:space:]]*"nautilus_trader"|^requires-python[[:space:]]*=|^dependencies[[:space:]]*=\[|Programming Language :: Python|Python Modules|https://nautilustrader\.io|github\.com/nautechsystems/nautilus_trader' \
-      pyproject.toml || true
-  )
-  if [ -n "$root_python_metadata_matches" ]; then
-    echo "Rust-only release must not retain root Python package metadata in pyproject.toml:" >&2
-    printf '%s\n' "$root_python_metadata_matches" >&2
-    fail=1
-  fi
-fi
-
-if [ -f uv.lock ]; then
-  root_lock_metadata_matches=$(
-    grep -nE '^name = "(nautilus-trader|nautilus_trader)"$|^source = \{ editable = "\." \}$' \
-      uv.lock || true
-  )
-  if [ -n "$root_lock_metadata_matches" ]; then
-    echo "Rust-only release must not retain editable root Python package metadata in uv.lock:" >&2
-    printf '%s\n' "$root_lock_metadata_matches" >&2
-    fail=1
-  fi
-fi
 
 if find crates -path '*/src/python' -type d -print 2>/dev/null | grep -q .; then
   echo "Rust-only release must not retain crates/*/src/python modules:" >&2
@@ -70,7 +43,7 @@ if find . \
 fi
 
 active_paths=()
-for p in Cargo.toml Cargo.lock crates Makefile pyproject.toml setup.py setup.cfg; do
+for p in Cargo.toml Cargo.lock crates Makefile setup.py setup.cfg; do
   [ -e "$p" ] && active_paths+=("$p")
 done
 

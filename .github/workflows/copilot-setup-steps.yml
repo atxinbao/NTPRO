@@ -56,5 +56,3 @@ jobs:
 
       - name: Common setup
         uses: ./.github/actions/common-setup
-        with:
-          python-version: "3.13"

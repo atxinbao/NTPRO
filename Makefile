@@ -1,11 +1,5 @@
 # Variables
 # -----------------------------------------------------------------------------
-PROJECT?=nautechsystems/nautilus_trader
-REGISTRY?=ghcr.io/
-IMAGE?=$(REGISTRY)$(PROJECT)
-GIT_TAG:=$(shell git rev-parse --abbrev-ref HEAD)
-IMAGE_FULL?=$(IMAGE):$(GIT_TAG)
-
 # Tool versions from Cargo.toml [workspace.metadata.tools]
 CARGO_AUDIT_VERSION := $(shell bash scripts/cargo-tool-version.sh cargo-audit)
 CARGO_DENY_VERSION := $(shell bash scripts/cargo-tool-version.sh cargo-deny)
@@ -19,7 +13,6 @@ FLAMEGRAPH_VERSION := $(shell bash scripts/cargo-tool-version.sh flamegraph)
 LYCHEE_VERSION := $(shell bash scripts/cargo-tool-version.sh lychee)
 # Tool versions from tools.toml
 PREK_VERSION := $(shell bash scripts/tool-version.sh prek)
-UV_VERSION := $(shell bash scripts/uv-version.sh)
 
 V = 0  # 0 / 1 - verbose mode
 Q = $(if $(filter 1,$V),,@) # Quiet mode, suppress command output
@@ -28,12 +21,8 @@ M = $(shell printf "\033[0;34m>\033[0m") # Message prefix for commands
 # Verbose options for specific targets (defaults to true, can be overridden)
 VERBOSE ?= true
 
-# UV_SYNC_FLAGS controls whether uv keeps packages not managed by this project
-# Set UV_SYNC_FLAGS= to make uv prune packages not in uv.lock
-UV_SYNC_FLAGS ?= --inexact
-
 # TARGET_DIR controls where cargo places build artifacts.
-# Can be overridden to use a separate directory: make build-debug TARGET_DIR=target-python
+# Can be overridden to use a separate directory.
 TARGET_DIR ?= target
 
 # Compiler configuration
@@ -137,26 +126,22 @@ RESET  := \033[0m
 #== Installation
 
 .PHONY: install-deps
-install-deps:  #-- Install local helper dependencies only (no product package)
-	$(info $(M) Installing local helper dependencies...)
-	$Q uv sync --active --all-groups $(UV_SYNC_FLAGS) --no-install-project
-
-.PHONY: sync-deps
-sync-deps: UV_SYNC_FLAGS =
-sync-deps: install-deps  #-- Sync Python dependencies exactly (prune packages not in uv.lock)
+install-deps:  #-- Fetch Rust workspace dependencies
+	$(info $(M) Fetching Rust workspace dependencies...)
+	$Q cargo fetch --locked
 
 .PHONY: install
-install: install-deps
+install:
 install: export BUILD_MODE=release
 install:  #-- Install Rust CLI in release mode with helper dependencies
 	$(info $(M) Installing Rust CLI in release mode...)
 	$Q $(MAKE) --no-print-directory install-cli
 
 .PHONY: install-debug
-install-debug: install-deps
+install-debug:
 install-debug: export BUILD_MODE=debug
 install-debug:  #-- Install in debug mode for development
-	$(info $(M) Python package installation was removed by the Rust-only cutover.)
+	$(info $(M) Building Rust workspace in debug mode...)
 	$Q cargo build --workspace --features "$(CARGO_FEATURES)"
 
 #== Build
@@ -169,21 +154,6 @@ build:  #-- Build the package in release mode
 build-debug:  #-- Build the package in debug mode (recommended for development)
 	$(info $(M) Building Rust workspace in debug mode...)
 	cargo build --workspace --features "$(CARGO_FEATURES)"
-
-.PHONY: build-wheel
-build-wheel: export BUILD_MODE=release
-build-wheel:  #-- Build wheel distribution in release mode
-	$(info $(M) Python wheel packaging was removed by RREM-013.)
-
-.PHONY: build-wheel-debug
-build-wheel-debug: export BUILD_MODE=debug
-build-wheel-debug:  #-- Build wheel distribution in debug mode
-	$(info $(M) Python wheel packaging was removed by RREM-013.)
-
-.PHONY: build-dry-run
-build-dry-run: export DRY_RUN=true
-build-dry-run:  #-- Show build commands without executing them
-	$(info $(M) Python package build script was removed by RREM-013.)
 
 #== Clean
 
@@ -210,25 +180,18 @@ clean-builds:  #-- Clean distribution and target directories
 	$Q rm -rf dist target target-v2 2>/dev/null || true
 
 .PHONY: clean-build-artifacts
-clean-build-artifacts:  #-- Clean compiled artifacts (.so, .dll, .pyc, .c files)
+clean-build-artifacts:  #-- Clean compiled Rust artifacts
 	@echo "Cleaning build artifacts..."
 	# Clean Rust build artifacts (keep final libraries)
 	find target target-v2 -name "*.rlib" -delete 2>/dev/null || true
 	find target target-v2 -name "*.rmeta" -delete 2>/dev/null || true
 	rm -rf target/*/build target/*/deps target-v2/*/build target-v2/*/deps 2>/dev/null || true
-	# Clean Python build artifacts
-	find . -type d -name "__pycache__" -not -path "./.venv*" -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.c" -not -path "./.venv*" -not -path "./target/*" -not -path "./target-v2/*" -exec rm -f {} + 2>/dev/null || true
-	find . -type f -a \( -name "*.pyc" -o -name "*.pyo" \) -not -path "./.venv*" -exec rm -f {} + 2>/dev/null || true
-	find . -type f -a \( -name "*.so" -o -name "*.dll" -o -name "*.dylib" \) -not -path "./.venv*" -exec rm -f {} + 2>/dev/null || true
 	rm -rf build/ 2>/dev/null || true
 	# Clean test artifacts
 	rm -rf .coverage .benchmarks 2>/dev/null || true
 
 .PHONY: clean-caches
-clean-caches:  #-- Clean pytest, mypy, ruff, uv, and cargo caches
-	rm -rf .pytest_cache .mypy_cache .ruff_cache 2>/dev/null || true
-	-uv cache prune --force
+clean-caches:  #-- Clean Cargo caches
 	-cargo clean --workspace
 	-CARGO_TARGET_DIR=target-v2 cargo clean --workspace
 
@@ -239,14 +202,13 @@ distclean: clean  #-- Nuclear clean - remove all untracked files (requires FORCE
 		exit 1; \
 	fi
 	@echo "WARNING: removing all untracked files (git clean -fxd)..."
-	git clean -fxd -e tests/test_data/large/ -e tests/test_data/local/ -e .venv
+	git clean -fxd -e tests/test_data/large/ -e tests/test_data/local/
 
 #== Code Quality
 
 .PHONY: format
-format:  #-- Format Rust (with nightly) and Python code
+format:  #-- Format Rust with nightly rustfmt
 	cargo +nightly fmt
-	uv run --active --no-sync ruff format .
 
 .PHONY: pre-commit
 pre-commit:  #-- Run all pre-commit hooks on all files
@@ -255,10 +217,9 @@ pre-commit:  #-- Run all pre-commit hooks on all files
 # The check-code target uses CARGO_FEATURES which is controlled by the HYPERSYNC flag.
 # By default, hypersync is excluded to speed up checks. Override with: make check-code HYPERSYNC=true
 .PHONY: check-code
-check-code:  #-- Run clippy on lib/test targets and ruff --fix (use HYPERSYNC=true to include hypersync feature)
+check-code:  #-- Run clippy on lib/test targets (use HYPERSYNC=true to include hypersync feature)
 	$(info $(M) Running code quality checks...)
 	@cargo clippy --workspace --lib --tests --features "$(CARGO_FEATURES)" --profile nextest -- -D warnings
-	@uv run --active --no-sync ruff check . --fix
 	@printf "$(GREEN)Checks passed$(RESET)\n"
 
 .PHONY: check-all-targets
@@ -299,10 +260,6 @@ pre-flight:  #-- Run Rust-only pre-flight checks (format, check-code, cargo-test
 		&& $(MAKE) --no-print-directory security-audit \
 	$(call timer_end,Pre-flight)
 
-.PHONY: ruff
-ruff:  #-- Run ruff linter with automatic fixes
-	uv run --active --no-sync ruff check . --fix
-
 .PHONY: clippy
 clippy:  #-- Run clippy linter (check only, workspace lints)
 	cargo clippy --all-targets --all-features -- -D warnings
@@ -327,7 +284,6 @@ clippy-pedantic-crate-%:  #-- Run clippy linter for a specific Rust crate (usage
 .PHONY: outdated
 outdated: check-edit-installed  #-- Check for outdated dependencies
 	cargo upgrade --dry-run --incompatible
-	uv tree --outdated --depth 1 --all-groups
 	@printf "\n$(CYAN)Checking tool versions...$(RESET)\n"
 	@outdated_count=0; \
 	for tool in cargo-audit:$(CARGO_AUDIT_VERSION) cargo-deny:$(CARGO_DENY_VERSION) cargo-edit:$(CARGO_EDIT_VERSION) cargo-fuzz:$(CARGO_FUZZ_VERSION) cargo-llvm-cov:$(CARGO_LLVM_COV_VERSION) cargo-machete:$(CARGO_MACHETE_VERSION) cargo-nextest:$(CARGO_NEXTEST_VERSION) cargo-vet:$(CARGO_VET_VERSION) flamegraph:$(FLAMEGRAPH_VERSION) lychee:$(LYCHEE_VERSION); do \
@@ -341,20 +297,10 @@ outdated: check-edit-installed  #-- Check for outdated dependencies
 	[ $$outdated_count -eq 0 ] && printf "$(GREEN)  All tools up to date ✓$(RESET)\n"
 
 .PHONY: update
-update: cargo-update update-uv  #-- Update all dependencies (cargo and uv)
-	uv lock --upgrade
-
-.PHONY: update-uv
-update-uv:  #-- Install or upgrade uv to the version pinned in pyproject.toml
-	$(info $(M) Ensuring uv $(UV_VERSION) is installed...)
-	@if [ "$$(uv --version 2>/dev/null | awk '{print $$2}')" = "$(UV_VERSION)" ]; then \
-		printf "$(GREEN)uv $(UV_VERSION) already installed$(RESET)\n"; \
-	else \
-		curl -LsSf https://astral.sh/uv/$(UV_VERSION)/install.sh | sh; \
-	fi
+update: cargo-update  #-- Update Rust dependencies
 
 .PHONY: install-tools
-install-tools: check-binstall-installed update-uv  #-- Install required development tools (pinned versions from Cargo.toml, tools.toml, pyproject.toml)
+install-tools: check-binstall-installed  #-- Install required development tools
 	cargo install cargo-deny --version $(CARGO_DENY_VERSION) --locked \
 	&& cargo install cargo-edit --version $(CARGO_EDIT_VERSION) --locked \
 	&& cargo install cargo-fuzz --version $(CARGO_FUZZ_VERSION) --locked \
@@ -387,7 +333,7 @@ security-audit: check-audit-installed check-deny-installed check-vet-installed c
 	@$(call audit_step,cargo audit,cargo audit --color never)
 	@$(call audit_step,cargo deny,cargo deny --all-features check advisories licenses sources bans)
 	@$(call audit_step,cargo vet,cargo vet --locked)
-	@$(call audit_step,osv-scanner,osv-scanner --config=osv-scanner.toml --lockfile=Cargo.lock --lockfile=uv.lock)
+	@$(call audit_step,osv-scanner,osv-scanner --config=osv-scanner.toml --lockfile=Cargo.lock)
 
 .PHONY: cargo-deny
 cargo-deny: check-deny-installed  #-- Run cargo-deny checks (advisories, sources, bans, licenses)
@@ -432,7 +378,6 @@ docs-check-external-links:  #-- Check external documentation links (periodic net
 		--accept "100..=103,200..=299,429,502..=504" \
 		--include-fragments \
 		--fallback-extensions md,py,html \
-		--exclude-path .venv \
 		--exclude-path target \
 		--exclude-file .lycheeignore \
 		"**/*.md" "docs/**/*.py"
@@ -676,19 +621,19 @@ cargo-test-core-local-debug:  #-- Run Rust tests for core crates with direct pac
 cargo-test-lib: export RUST_BACKTRACE=1
 cargo-test-lib: check-nextest-installed
 cargo-test-lib:  #-- Run Rust library tests only with high precision
-	cargo nextest run --lib --workspace --no-default-features --features "ffi,python,high-precision,streaming,defi,stubs" $(FAIL_FAST_FLAG) --profile $(NEXTEST_PROFILE) --cargo-profile $(CARGO_CI_PROFILE)
+	cargo nextest run --lib --workspace --no-default-features --features "ffi,high-precision,streaming,defi,stubs" $(FAIL_FAST_FLAG) --profile $(NEXTEST_PROFILE) --cargo-profile $(CARGO_CI_PROFILE)
 
 .PHONY: cargo-test-standard-precision
 cargo-test-standard-precision: export RUST_BACKTRACE=1
 cargo-test-standard-precision: check-nextest-installed
 cargo-test-standard-precision:  #-- Run Rust tests with standard precision (debug profile)
-	cargo nextest run --workspace --lib --tests --features "ffi,python" $(FAIL_FAST_FLAG) --profile $(NEXTEST_PROFILE)
+	cargo nextest run --workspace --lib --tests --features "ffi" $(FAIL_FAST_FLAG) --profile $(NEXTEST_PROFILE)
 
 .PHONY: cargo-test-debug
 cargo-test-debug: export RUST_BACKTRACE=1
 cargo-test-debug: check-nextest-installed
 cargo-test-debug:  #-- Run Rust tests with high precision (debug profile)
-	cargo nextest run --workspace --lib --tests --features "ffi,python,high-precision,streaming,defi" $(FAIL_FAST_FLAG) --profile $(NEXTEST_PROFILE)
+	cargo nextest run --workspace --lib --tests --features "ffi,high-precision,streaming,defi" $(FAIL_FAST_FLAG) --profile $(NEXTEST_PROFILE)
 
 .PHONY: cargo-test-coverage
 cargo-test-coverage: check-nextest-installed check-llvm-cov-installed
@@ -866,29 +811,6 @@ cargo-ci-benches:  #-- Run Rust benches for the crates included in the CI perfor
 	  cargo bench -p $$crate --profile bench --benches --no-fail-fast; \
 	done
 
-#== Docker
-
-.PHONY: docker-build
-docker-build: clean  #-- Build Docker image for NautilusTrader
-	docker pull $(IMAGE_FULL) || docker pull $(IMAGE):nightly || true
-	docker build -f .docker/nautilus_trader.dockerfile --platform linux/x86_64 -t $(IMAGE_FULL) .
-
-.PHONY: docker-build-force
-docker-build-force:  #-- Force rebuild Docker image without cache
-	docker build --no-cache -f .docker/nautilus_trader.dockerfile -t $(IMAGE_FULL) .
-
-.PHONY: docker-push
-docker-push:  #-- Push Docker image to registry
-	docker push $(IMAGE_FULL)
-
-.PHONY: docker-build-jupyter
-docker-build-jupyter:  #-- Build JupyterLab Docker image
-	docker build --build-arg GIT_TAG=$(GIT_TAG) -f .docker/jupyterlab.dockerfile --platform linux/x86_64 -t $(IMAGE):jupyter .
-
-.PHONY: docker-push-jupyter
-docker-push-jupyter:  #-- Push JupyterLab Docker image to registry
-	docker push $(IMAGE):jupyter
-
 .PHONY: init-services
 init-services:  #-- Initialize development services eg. for integration tests (start containers and setup database)
 	$(info $(M) Initializing development services...)
@@ -916,53 +838,6 @@ purge-services:  #-- Purge all development services (stop containers and remove 
 init-db:  #-- Initialize PostgreSQL database schema
 	$(info $(M) Initializing PostgreSQL database schema...)
 	cat schema/sql/types.sql schema/sql/tables.sql schema/sql/functions.sql schema/sql/partitions.sql | docker exec -i nautilus-database psql -U nautilus -d nautilus
-
-#== Python Testing
-
-PYTEST_WORKERS ?= $(shell python3 -c "import os; print(min(64, os.cpu_count() or 64))")
-
-.PHONY: pytest
-pytest:  #-- Run Python tests with pytest in parallel with immediate failure reporting
-	$(info $(M) Python package tests were removed by RREM-013.)
-
-.PHONY: test-performance
-test-performance:  #-- Run performance tests with codspeed benchmarking
-	$(info $(M) Python performance tests were removed by RREM-013.)
-
-#== Retired v2 Python package targets
-
-.PHONY: sync-v2
-sync-v2:  #-- Sync v2 Python dependencies (without building the package)
-	$(info $(M) v2 Python package dependencies were removed by RREM-013.)
-
-.PHONY: py-stubs-v2
-py-stubs-v2: sync-v2  #-- Regenerate v2 Python type stubs from Rust bindings
-	$(info $(M) v2 Python type stubs were removed by RREM-013.)
-
-.PHONY: update-v2
-update-v2: cargo-update  #-- Update v2 dependencies (cargo and uv)
-	$(info $(M) v2 Python lockfile was removed by RREM-013.)
-
-.PHONY: pytest-v2
-pytest-v2:  #-- Run v2 Python tests
-	$(info $(M) v2 Python tests were removed by RREM-013.)
-
-.PHONY: pre-flight-v2
-pre-flight-v2: export CARGO_TARGET_DIR=target-v2
-pre-flight-v2:  #-- Run Rust-only pre-flight checks after v2 Python package removal
-	$(info $(M) Running v2 pre-flight checks...)
-	@if ! git diff --quiet; then \
-		printf "$(RED)ERROR: You have unstaged changes$(RESET)\n"; \
-		printf "$(YELLOW)Stage your changes first:$(RESET) git add .\n"; \
-		exit 1; \
-	fi
-	@$(timer_start) \
-		$(MAKE) --no-print-directory install-deps \
-		&& $(MAKE) --no-print-directory format \
-		&& $(MAKE) --no-print-directory check-code EXTRA_FEATURES="hypersync" \
-		&& $(MAKE) --no-print-directory cargo-test-extras \
-		&& $(MAKE) --no-print-directory security-audit \
-	$(call timer_end,Pre-flight)
 
 #== CLI Tools
 

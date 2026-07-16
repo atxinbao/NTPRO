@@ -99,83 +99,50 @@ for node_id in sandbox-a sandbox-b; do
   run_cmd "${node_id}_metrics_running" "$NAUTILUS_BIN" supervisor metrics --registry "$REGISTRY" --node-id "$node_id"
 done
 
-python3 - "$REGISTRY" "$RUNNING_PIDS" <<'PY'
-import json
-import os
-import sys
-from pathlib import Path
+jq -e '
+  [.nodes["sandbox-a"], .nodes["sandbox-b"]] as $nodes
+  | .nodes["sandbox-a"].node_id == "sandbox-a"
+  and .nodes["sandbox-b"].node_id == "sandbox-b"
+  and ($nodes | all(
+      .process.state == "running"
+      and (.process.pid.value | type == "number" and . > 0)
+    ))
+  and ($nodes[0].process.pid.value != $nodes[1].process.pid.value)
+  and ([ $nodes[] | .artifact_root, .pid_path, .status_path, .metrics_path,
+         .stdout_log_path, .stderr_log_path, .events_log_path ] | unique | length == 14)
+' "$REGISTRY" >/dev/null
 
-registry_path = Path(sys.argv[1])
-running_pids_path = Path(sys.argv[2])
-registry = json.loads(registry_path.read_text())
-nodes = registry["nodes"]
-expected = ["sandbox-a", "sandbox-b"]
-missing = [node_id for node_id in expected if node_id not in nodes]
-if missing:
-    raise SystemExit(f"missing registry nodes: {missing}")
+jq '{"sandbox-a": .nodes["sandbox-a"].process.pid.value, "sandbox-b": .nodes["sandbox-b"].process.pid.value}' \
+  "$REGISTRY" >"$RUNNING_PIDS"
 
-artifact_fields = [
-    "artifact_root",
-    "pid_path",
-    "status_path",
-    "metrics_path",
-    "stdout_log_path",
-    "stderr_log_path",
-    "events_log_path",
-]
-seen_paths = {}
-pids = {}
-
-for node_id in expected:
-    record = nodes[node_id]
-    if record["node_id"] != node_id:
-        raise SystemExit(f"{node_id}: registry node_id mismatch")
-    if record["process"]["state"] != "running":
-        raise SystemExit(f"{node_id}: expected running process state")
-    pid = record["process"]["pid"].get("value")
-    if not isinstance(pid, int) or pid <= 0:
-        raise SystemExit(f"{node_id}: expected positive pid")
-    pids[node_id] = pid
-
-    for field in artifact_fields:
-        value = record[field]
-        if value in seen_paths:
-            raise SystemExit(f"artifact path collision: {field}={value} also used by {seen_paths[value]}")
-        seen_paths[value] = f"{node_id}.{field}"
-
-    for field in ["pid_path", "status_path", "metrics_path", "stdout_log_path", "stderr_log_path"]:
-        if not os.path.exists(record[field]):
-            raise SystemExit(f"{node_id}: missing running artifact {field}={record[field]}")
-
-    status = json.loads(Path(record["status_path"]).read_text())
-    metrics = json.loads(Path(record["metrics_path"]).read_text())
-    if status["node_id"] != node_id:
-        raise SystemExit(
-            f"{node_id}: runtime status identity mismatch: {status['node_id']}"
-        )
-    if metrics["node_id"] != node_id:
-        raise SystemExit(
-            f"{node_id}: runtime metrics identity mismatch: {metrics['node_id']}"
-        )
-    if status["lifecycle_state"] != "running":
-        raise SystemExit(f"{node_id}: expected running status artifact")
-    if status["process_mode"] != "spawned_process":
-        raise SystemExit(f"{node_id}: expected spawned process status")
-    if status["external_venue_connection"] or status["real_orders_submitted"]:
-        raise SystemExit(f"{node_id}: running status claims external venue or real orders")
-    if metrics["lifecycle_state"] != "running":
-        raise SystemExit(f"{node_id}: expected running metrics artifact")
-    if metrics["starts_total"] != 1 or metrics["stops_total"] != 0 or metrics["state_transitions_total"] != 1:
-        raise SystemExit(f"{node_id}: unexpected running metric counters")
-    if metrics["external_venue_connection"] or metrics["real_orders_submitted"]:
-        raise SystemExit(f"{node_id}: running metrics claims external venue or real orders")
-
-if len(set(pids.values())) != len(pids):
-    raise SystemExit(f"pid collision: {pids}")
-
-running_pids_path.write_text(json.dumps(pids, indent=2) + "\n")
-print("running_artifact_assertions status=ok nodes=sandbox-a,sandbox-b")
-PY
+for node_id in sandbox-a sandbox-b; do
+  for field in pid_path status_path metrics_path stdout_log_path stderr_log_path; do
+    artifact="$(jq -er --arg node "$node_id" --arg field "$field" '.nodes[$node][$field]' "$REGISTRY")"
+    [[ -e "$artifact" ]] || {
+      echo "$node_id: missing running artifact $field=$artifact" >&2
+      exit 1
+    }
+  done
+  status_path="$(jq -er --arg node "$node_id" '.nodes[$node].status_path' "$REGISTRY")"
+  metrics_path="$(jq -er --arg node "$node_id" '.nodes[$node].metrics_path' "$REGISTRY")"
+  jq -e --arg node "$node_id" '
+    .node_id == $node
+    and .lifecycle_state == "running"
+    and .process_mode == "spawned_process"
+    and .external_venue_connection == false
+    and .real_orders_submitted == false
+  ' "$status_path" >/dev/null
+  jq -e --arg node "$node_id" '
+    .node_id == $node
+    and .lifecycle_state == "running"
+    and .starts_total == 1
+    and .stops_total == 0
+    and .state_transitions_total == 1
+    and .external_venue_connection == false
+    and .real_orders_submitted == false
+  ' "$metrics_path" >/dev/null
+done
+echo "running_artifact_assertions status=ok nodes=sandbox-a,sandbox-b"
 
 run_cmd stop_a "$NAUTILUS_BIN" supervisor stop \
   --registry "$REGISTRY" \
@@ -192,69 +159,47 @@ for node_id in sandbox-a sandbox-b; do
   run_cmd "${node_id}_metrics_stopped" "$NAUTILUS_BIN" supervisor metrics --registry "$REGISTRY" --node-id "$node_id"
 done
 
-python3 - "$REGISTRY" "$RUNNING_PIDS" <<'PY'
-import json
-import os
-import sys
-from pathlib import Path
-
-registry_path = Path(sys.argv[1])
-running_pids_path = Path(sys.argv[2])
-registry = json.loads(registry_path.read_text())
-nodes = registry["nodes"]
-running_pids = json.loads(running_pids_path.read_text())
-
-for node_id in ["sandbox-a", "sandbox-b"]:
-    record = nodes[node_id]
-    if record["process"]["state"] != "stopped":
-        raise SystemExit(f"{node_id}: expected stopped process state")
-    if os.path.exists(record["pid_path"]):
-        raise SystemExit(f"{node_id}: pid artifact should be removed after stop")
-
-    status = json.loads(Path(record["status_path"]).read_text())
-    metrics = json.loads(Path(record["metrics_path"]).read_text())
-    stdout = Path(record["stdout_log_path"]).read_text()
-    stderr = Path(record["stderr_log_path"]).read_text()
-    events = Path(record["events_log_path"]).read_text()
-
-    if status["node_id"] != node_id:
-        raise SystemExit(
-            f"{node_id}: stopped status identity mismatch: {status['node_id']}"
-        )
-    if metrics["node_id"] != node_id:
-        raise SystemExit(
-            f"{node_id}: stopped metrics identity mismatch: {metrics['node_id']}"
-        )
-    if status["lifecycle_state"] != "stopped":
-        raise SystemExit(f"{node_id}: expected stopped status artifact")
-    if status["process_mode"] != "spawned_process":
-        raise SystemExit(f"{node_id}: expected spawned process final status")
-    if status["external_venue_connection"] or status["real_orders_submitted"]:
-        raise SystemExit(f"{node_id}: stopped status claims external venue or real orders")
-    if metrics["lifecycle_state"] != "stopped":
-        raise SystemExit(f"{node_id}: expected stopped metrics artifact")
-    if metrics["starts_total"] != 1 or metrics["stops_total"] != 1 or metrics["state_transitions_total"] != 2:
-        raise SystemExit(f"{node_id}: unexpected stopped metric counters")
-    if metrics["external_venue_connection"] or metrics["real_orders_submitted"]:
-        raise SystemExit(f"{node_id}: stopped metrics claims external venue or real orders")
-    if "ntpro-node.run status=ok" not in stdout:
-        raise SystemExit(f"{node_id}: stdout log missing ntpro-node completion")
-    if stderr.strip():
-        raise SystemExit(f"{node_id}: stderr log is not empty")
-    if "phase=start status=ok" not in events or "phase=stop status=ok" not in events:
-        raise SystemExit(f"{node_id}: events log missing start/stop phases")
-
-    pid = running_pids[node_id]
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        pass
-    except PermissionError as error:
-        raise SystemExit(f"{node_id}: process {pid} still exists but cannot be inspected: {error}")
-    else:
-        raise SystemExit(f"{node_id}: process {pid} is still alive after supervisor stop")
-
-print("stopped_artifact_assertions status=ok nodes=sandbox-a,sandbox-b")
-PY
+for node_id in sandbox-a sandbox-b; do
+  jq -e --arg node "$node_id" '.nodes[$node].process.state == "stopped"' "$REGISTRY" >/dev/null
+  pid_path="$(jq -er --arg node "$node_id" '.nodes[$node].pid_path' "$REGISTRY")"
+  [[ ! -e "$pid_path" ]] || {
+    echo "$node_id: pid artifact should be removed after stop" >&2
+    exit 1
+  }
+  status_path="$(jq -er --arg node "$node_id" '.nodes[$node].status_path' "$REGISTRY")"
+  metrics_path="$(jq -er --arg node "$node_id" '.nodes[$node].metrics_path' "$REGISTRY")"
+  stdout_path="$(jq -er --arg node "$node_id" '.nodes[$node].stdout_log_path' "$REGISTRY")"
+  stderr_path="$(jq -er --arg node "$node_id" '.nodes[$node].stderr_log_path' "$REGISTRY")"
+  events_path="$(jq -er --arg node "$node_id" '.nodes[$node].events_log_path' "$REGISTRY")"
+  jq -e --arg node "$node_id" '
+    .node_id == $node
+    and .lifecycle_state == "stopped"
+    and .process_mode == "spawned_process"
+    and .external_venue_connection == false
+    and .real_orders_submitted == false
+  ' "$status_path" >/dev/null
+  jq -e --arg node "$node_id" '
+    .node_id == $node
+    and .lifecycle_state == "stopped"
+    and .starts_total == 1
+    and .stops_total == 1
+    and .state_transitions_total == 2
+    and .external_venue_connection == false
+    and .real_orders_submitted == false
+  ' "$metrics_path" >/dev/null
+  grep -F "ntpro-node.run status=ok" "$stdout_path" >/dev/null
+  [[ ! -s "$stderr_path" ]] || {
+    echo "$node_id: stderr log is not empty" >&2
+    exit 1
+  }
+  grep -F "phase=start status=ok" "$events_path" >/dev/null
+  grep -F "phase=stop status=ok" "$events_path" >/dev/null
+  pid="$(jq -er --arg node "$node_id" '.[$node]' "$RUNNING_PIDS")"
+  if kill -0 "$pid" 2>/dev/null; then
+    echo "$node_id: process $pid is still alive after supervisor stop" >&2
+    exit 1
+  fi
+done
+echo "stopped_artifact_assertions status=ok nodes=sandbox-a,sandbox-b"
 
 echo "v02_two_node_smoke status=ok root=$SMOKE_ROOT registry=$REGISTRY nodes=sandbox-a,sandbox-b"

@@ -377,6 +377,7 @@ cargo-nextest = "0.9.136"
 cargo-vet = "0.10.2"
 flamegraph = "0.6.12"
 lychee = "0.24.2"
+zizmor = "1.26.1"
 
 # cargo-vet supply chain security configuration
 [workspace.metadata.vet]
