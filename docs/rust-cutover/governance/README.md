@@ -82,3 +82,8 @@ The follow-up milestone is `python-tooling-closeout` (#33), with exact issue
 set `#1096-#1103`. It removes repository Python execution only after current
 validation authority is replaced in Rust. Historical `docs/rust-cutover/`
 evidence remains retained, and v0.32.0 remains the frozen backend baseline.
+
+The final source-controlled contract is `python_tooling_closeout.md`. The
+repository drift gate is `scripts/ai/check_zero_python_closeout.sh`; post-merge
+issue, PR, workflow, main, and milestone facts are reconstructed from live
+GitHub instead of being guessed inside the closing PR.

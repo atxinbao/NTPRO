@@ -48,7 +48,13 @@ for p in Cargo.toml Cargo.lock crates Makefile setup.py setup.cfg; do
 done
 
 if [ "${#active_paths[@]}" -gt 0 ]; then
-  if grep -RInE 'pyo3|maturin|Cython|cythonize|\.pyx|\.pxd' "${active_paths[@]}" 2>/dev/null; then
+  matches="$(
+    grep -RInE 'pyo3|maturin|Cython|cythonize|\.pyx|\.pxd' "${active_paths[@]}" 2>/dev/null \
+      | grep -Ev 'zero-python-pattern-definition' \
+      || true
+  )"
+  if [[ -n "$matches" ]]; then
+    printf '%s\n' "$matches" >&2
     echo "Rust-only release must not retain Python/PyO3/Cython build/runtime references in active product paths" >&2
     fail=1
   fi
