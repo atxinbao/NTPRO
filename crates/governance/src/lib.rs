@@ -29,3 +29,4 @@ pub mod read_model;
 pub mod release_publication;
 pub mod release_surface;
 pub mod rust_examples;
+pub mod zero_python;

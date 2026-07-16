@@ -31,6 +31,7 @@ use ntpro_governance::{
     },
     release_surface::{ReleaseSurfaceConfig, validate_release_surface},
     rust_examples::validate_rust_examples,
+    zero_python::validate_zero_python_closeout,
 };
 
 #[derive(Debug, Parser)]
@@ -156,6 +157,11 @@ enum Command {
     },
     /// Validates canonical Rust example paths, TOML, and README references.
     RustExamples,
+    /// Validates the repository-wide zero-Python tooling closeout.
+    ZeroPythonCloseout {
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        negative_selftest: bool,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -277,6 +283,17 @@ fn run(cli: Cli) -> anyhow::Result<()> {
             let count = validate_read_model_schema(&schema, &trace_glob)?;
             println!(
                 "v211_read_model_schema_boundary status=ok validated_read_model_snapshots={count} negative_mutations=8 additional_properties=false boundary_flags=strict"
+            );
+        }
+        Command::ZeroPythonCloseout { negative_selftest } => {
+            let counts = validate_zero_python_closeout(negative_selftest)?;
+            println!(
+                "zero_python_closeout=pass tracked_files={} active_scripts={} workflow_actions={} historical_docs={} negative_cases={}",
+                counts.tracked_files,
+                counts.active_scripts,
+                counts.workflow_actions,
+                counts.historical_docs,
+                counts.negative_cases
             );
         }
         Command::ReleaseSurface {

@@ -4,7 +4,7 @@ Date: 2026-07-15
 Executor: Codex
 Baseline: `20455c86be25c5b7d083ce0a67d4053a844352d2`
 Milestone: `python-tooling-closeout` (#33)
-Status: ACTIVE
+Status: FINAL GUARD CANDIDATE
 
 ## Decision
 
@@ -157,3 +157,10 @@ v0.32.0 frozen release files changed = false
 
 No PTC task authorizes backend capability, trading controls, mutation, adapter
 send, live exchange access, retry, remediation, or a v0.32.1 release.
+
+PTC-008 closeout outcome: `ntpro-governance zero-python-closeout` validates the
+current Git tracked tree, supported scripts, Make, workflows/actions, and local
+generated artifacts. It rejects Python source, manifests, environments,
+executable tooling, and package/wheel CI drift while requiring retained PTC and
+historical authority. The final GitHub issue/PR/run/milestone facts remain bound
+through `source_tree_plus_github_remote` after merge.
