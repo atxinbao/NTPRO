@@ -115,7 +115,7 @@ jobs:
         with:
           toolchain: 1.95.0
           components: rustfmt, clippy
-          cache: true
+          cache: false
           override: true
       - name: Verify current release gate stage
         env:

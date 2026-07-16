@@ -122,8 +122,7 @@ body:
       description: Paths that must not change for this task.
       placeholder: |
         - crates/**
-        - python/**
-        - nautilus_trader/**
+        - docs/rust-cutover/release/v0_32_0_*
     validations:
       required: true
   - type: textarea
@@ -179,7 +178,7 @@ body:
           required: true
         - label: QA_PASSED is not DONE.
           required: true
-        - label: Python, PyO3, or Cython removal is not allowed unless a scope decision and release gate explicitly allow it.
+        - label: Non-Rust runtime, build, test, or package surfaces are not allowed.
           required: true
         - label: The task does not treat v0.32.0 as authorization for backend go-live, submit, mutation, adapter send, live exchange, retry, remediation, recovery, or trading controls.
           required: true

@@ -26,7 +26,7 @@ echo "== verify_fast: rust fmt =="
 cargo fmt --check
 
 if [ "$VERIFY_FAST_CARGO_CHECK" = "1" ]; then
-  echo "== verify_fast: optional cargo check workspace without Python bridge product path =="
+  echo "== verify_fast: optional Rust workspace cargo check =="
   cargo check --workspace --features "$FEATURES"
 else
   echo "== verify_fast: cargo check skipped by fast-smoke default; set VERIFY_FAST_CARGO_CHECK=1 for compile coverage =="

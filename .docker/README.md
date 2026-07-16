@@ -18,16 +18,6 @@ Credentials (default): user `nautilus`, password `pass`, database `nautilus`, po
 
 ### Run Postgres tests
 
-**Python:**
-
-```bash
-make test-postgres
-```
-
-Requires `make init-services` (or at least `make start-services` then `make init-db`) to have been run first.
-
-**Rust:**
-
 ```bash
 POSTGRES_HOST=localhost POSTGRES_PORT=5432 POSTGRES_USERNAME=nautilus POSTGRES_PASSWORD=pass POSTGRES_DATABASE=nautilus \
   cargo test -p nautilus-infrastructure --features postgres -- --test-threads=1

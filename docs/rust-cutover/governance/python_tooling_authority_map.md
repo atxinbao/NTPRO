@@ -105,6 +105,13 @@ after tracked references reach zero.
 
 PTC-007 is high risk. It must stop at `REVIEW_REQUIRED`; auto-merge is forbidden.
 
+PTC-007 removal outcome: Python manifests, lockfiles, local environments,
+package tests, wheel/sdist/PyPI publication, legacy package containers, and
+Python-based workflow/action/hook surfaces are removed. Active JSON assertions
+use jq or Rust governance commands. Cargo build/test/docs, CLI binaries, Miri,
+DST, security audit, release governance, and local integration services remain
+current authority.
+
 ### Retained Historical Evidence
 
 The following are not runtime or tooling residue and must not be text-cleaned:

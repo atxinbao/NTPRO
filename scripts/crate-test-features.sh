@@ -3,7 +3,7 @@
 #
 # Usage: scripts/crate-test-features.sh <crate-name>
 # Example: scripts/crate-test-features.sh nautilus-live
-#   -> python,ffi,streaming,defi
+#   -> ffi,streaming,defi
 
 set -euo pipefail
 
@@ -18,5 +18,5 @@ cargo metadata --no-deps --format-version 1 |
          | select(.name == $p)
          | .features
          | keys[]
-         | select(. != "default")
+         | select(. != "default" and . != "python")
         ] | join(",")'

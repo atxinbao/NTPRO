@@ -4,7 +4,7 @@
 # changes, or when no crate-level changes can be identified.
 set -euo pipefail
 
-DESIRED_FEATURES=(ffi python high-precision defi)
+DESIRED_FEATURES=(ffi high-precision defi)
 PROFILE="${CARGO_CI_PROFILE:-nextest}"
 export HIGH_PRECISION="${HIGH_PRECISION:-1}"
 resolved_changed_base=0
@@ -95,14 +95,9 @@ for pkg in "${seen_list[@]}"; do
   pkg_args+=("-p" "$pkg")
 
   pkg_features=$(cargo metadata --format-version 1 --no-deps 2> /dev/null |
-    python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-for p in data['packages']:
-    if p['name'] == '$pkg':
-        print(' '.join(p['features'].keys()))
-        break
-" 2> /dev/null || true)
+    jq -r --arg package "$pkg" \
+      '.packages[] | select(.name == $package) | .features | keys | join(" ")' \
+      2> /dev/null || true)
 
   for feat in "${DESIRED_FEATURES[@]}"; do
     case " $pkg_features " in

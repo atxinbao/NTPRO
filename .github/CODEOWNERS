@@ -25,13 +25,6 @@
 /deny.toml                       @nautechsystems/core
 
 # =============================================================================
-# Python Build & Dependencies - SUPPLY CHAIN RISK
-# =============================================================================
-# Root Python project
-/pyproject.toml                  @nautechsystems/core
-/uv.lock                         @nautechsystems/core
-
-# =============================================================================
 # Build & CI Configuration
 # =============================================================================
 /Makefile                        @nautechsystems/core

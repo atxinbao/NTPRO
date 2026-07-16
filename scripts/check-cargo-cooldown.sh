@@ -1,8 +1,8 @@
 #!/bin/bash
 # Flag crates in a Cargo.lock diff whose new version was published less than N days ago.
 #
-# Cargo has no built-in equivalent of uv's `exclude-newer`, so we approximate the
-# Python cooldown policy with a manual check on demand. Run before promoting a
+# Cargo has no built-in dependency-age gate, so this script provides a manual
+# cooldown check on demand. Run before promoting a
 # `cargo update` to a commit:
 #
 #     scripts/check-cargo-cooldown.sh

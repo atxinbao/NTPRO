@@ -368,6 +368,18 @@ criteria = "safe-to-deploy"
 delta = "1.1.0 -> 1.1.1"
 notes = "Version bump only: serde_core dep 1.0.225 -> 1.0.228"
 
+[[audits.serde_with]]
+who = "Codex <codex@openai.com>"
+criteria = "safe-to-deploy"
+delta = "3.20.0 -> 3.21.0"
+notes = "Reviewed 3.20.0 -> 3.21.0: caps collection preallocation at 1 MiB to fix GHSA-7gcf-g7xr-8hxj, adds NoneAsZero and schema support, and updates docs/qualifications. No new unsafe, build script, network, filesystem, or process behavior."
+
+[[audits.serde_with_macros]]
+who = "Codex <codex@openai.com>"
+criteria = "safe-to-deploy"
+delta = "3.20.0 -> 3.21.0"
+notes = "Reviewed 3.20.0 -> 3.21.0: qualification cleanup and documentation example/link updates only. No new unsafe, build script, network, filesystem, or process behavior."
+
 [[audits.sysinfo]]
 who = "Nautech Systems <info@nautechsystems.io>"
 criteria = "safe-to-deploy"

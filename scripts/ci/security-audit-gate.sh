@@ -24,15 +24,13 @@ set -euo pipefail
 #
 # Audit-relevant paths. Keep in sync with the `security_audit_paths` anchor in
 # .github/workflows/security-audit.yml.
-#   - Lock files                Cargo.lock, uv.lock
-#   - Manifests                 Cargo.toml, crates/(...)?Cargo.toml,
-#                               pyproject.toml
+#   - Lock files                Cargo.lock
+#   - Manifests                 Cargo.toml, crates/(...)?Cargo.toml
 #   - Audit policy              deny.toml, osv-scanner.toml, .cargo/audit.toml,
 #                               .supply-chain/*, .zizmor.yml
 #   - Toolchain config          .cargo/config.toml, rust-toolchain.toml,
 #                               tools.toml
-#   - Audit helpers             scripts/{cargo-tool-version,rust-toolchain,
-#                               uv-version}.sh,
+#   - Audit helpers             scripts/{cargo-tool-version,rust-toolchain}.sh,
 #                               .github/actions/*
 #   - CI config                 .pre-commit-config.yaml, .github/workflows/*
 
@@ -82,11 +80,10 @@ esac
 pattern='^('
 pattern+='Cargo\.(lock|toml)'
 pattern+='|crates/(.*/)?Cargo\.toml'
-pattern+='|uv\.lock|pyproject\.toml'
 pattern+='|\.pre-commit-config\.yaml'
 pattern+='|deny\.toml|osv-scanner\.toml|\.supply-chain/.*|\.zizmor\.yml'
 pattern+='|tools\.toml|\.cargo/(config|audit)\.toml|rust-toolchain\.toml'
-pattern+='|scripts/(cargo-tool-version|rust-toolchain|uv-version)\.sh'
+pattern+='|scripts/(cargo-tool-version|rust-toolchain)\.sh'
 pattern+='|scripts/ci/security-audit-gate\.sh'
 pattern+='|\.github/actions/.*'
 pattern+='|\.github/workflows/.*'

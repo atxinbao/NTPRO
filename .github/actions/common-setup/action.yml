@@ -2,9 +2,6 @@ name: common-setup
 description: Common environment setup
 
 inputs:
-  python-version:
-    description: The Python version to setup
-    required: true
   free-disk-space:
     description: Free disk space
     required: false
@@ -35,12 +32,6 @@ inputs:
       runners using a persistent on-disk CARGO_TARGET_DIR).
     required: false
     default: "true"
-  uv-cache-enabled:
-    description: >-
-      Whether to persist the uv cache with GitHub Actions cache: true, false, or
-      auto (enabled on GitHub-hosted runners, disabled on self-hosted runners).
-    required: false
-    default: "auto"
   prek-cache-enabled:
     description: >-
       Whether to persist the prek cache with GitHub Actions cache: true, false, or
@@ -55,8 +46,8 @@ runs:
     # > OS
     # Auto-skip on the nautilus-ci-runner-* self-hosted pool: those machines
     # have ample disk and the action's tool-cache/docker-images cleanup
-    # actively erases the pre-installed Python toolcache and cached Docker
-    # layers we want to keep across runs. Depot runners and GitHub-hosted
+    # actively erases cached Docker layers we want to keep across runs.
+    # Depot runners and GitHub-hosted
     # runners still need the cleanup, so they remain unaffected.
     - name: Free disk space (Ubuntu)
       if: >-
@@ -125,7 +116,6 @@ runs:
       run: |
         sudo apt-get update -o Acquire::Retries=5
         sudo apt-get install -y curl clang lld git make pkg-config ripgrep -o Acquire::Retries=5
-        sudo apt-get install -y python3-dev libpython3-dev -o Acquire::Retries=5
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
 
@@ -191,14 +181,6 @@ runs:
       shell: bash
       run: echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
 
-    # > --------------------------------------------------
-    # > Python
-    - name: Set up Python environment
-      # https://github.com/actions/setup-python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-      with:
-        python-version: ${{ inputs.python-version }}
-
     - name: Ensure ~/.local/bin on PATH
       shell: bash
       run: |
@@ -207,7 +189,7 @@ runs:
     - name: Get cache scope
       shell: bash
       env:
-        CACHE_SCOPE: ${{ runner.os }}-${{ runner.arch }}-py${{ inputs.python-version }}
+        CACHE_SCOPE: ${{ runner.os }}-${{ runner.arch }}
       run: |
         echo "CACHE_SCOPE=$CACHE_SCOPE" >> "$GITHUB_ENV"
 
@@ -215,14 +197,12 @@ runs:
       if: inputs.build-type == 'pre-commit'
       shell: bash
       run: |
-        python - <<'PY' >> "$GITHUB_ENV"
-        import hashlib
-        from pathlib import Path
-
-        print(
-            f"PRE_COMMIT_CONFIG_HASH={hashlib.sha256(Path('.pre-commit-config.yaml').read_bytes()).hexdigest()}"
-        )
-        PY
+        if command -v sha256sum >/dev/null 2>&1; then
+          hash="$(sha256sum .pre-commit-config.yaml | awk '{print $1}')"
+        else
+          hash="$(shasum -a 256 .pre-commit-config.yaml | awk '{print $1}')"
+        fi
+        echo "PRE_COMMIT_CONFIG_HASH=$hash" >> "$GITHUB_ENV"
 
     - name: Install prek
       if: inputs.build-type == 'pre-commit'
@@ -230,32 +210,6 @@ runs:
       run: |
         PREK_VERSION="$(bash scripts/tool-version.sh prek)"
         bash scripts/ci/install-prek.sh "$PREK_VERSION"
-
-    # > --------------------------------------------------
-    # > UV
-    - name: Get uv version from pyproject.toml
-      shell: bash
-      run: |
-        echo "UV_VERSION=$(bash scripts/uv-version.sh)" >> $GITHUB_ENV
-
-    - name: Install uv
-      # https://github.com/astral-sh/setup-uv
-      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
-      with:
-        version: ${{ env.UV_VERSION }}
-        enable-cache: ${{ inputs.uv-cache-enabled }}
-        cache-suffix: ${{ env.CACHE_SCOPE }}-uv-${{ env.UV_VERSION }}
-        prune-cache: true
-
-    - name: Set uv cache-dir
-      shell: bash
-      run: |
-        echo "UV_CACHE_DIR=$(uv cache dir)" >> $GITHUB_ENV
-
-    # Self-hosted runners skip setup-uv's save-cache (and its built-in prune) under auto.
-    - name: Prune uv cache
-      shell: bash
-      run: uv cache prune --ci
 
     # > --------------------------------------------------
     # > prek (pre-commit hook environments)
@@ -289,7 +243,6 @@ runs:
           df -h "$HOME" 2>/dev/null || df -h /
           echo
           for path in \
-            "$HOME/.cache/uv" \
             "$HOME/.cache/prek" \
             "$HOME/.cache/cargo-target" \
             "$HOME/.cargo/registry" \
