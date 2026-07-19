@@ -114,6 +114,12 @@ protocol. References to Python, uv, `pyproject.toml`, retired developer-guide
 setup pages, the upstream `develop` branch, and an absent CLA Assistant workflow
 were removed from the current contributor route.
 
+BFH-005 outcome: the redundant `clean-build-artifacts`, `clean-caches`, and
+`clean-builds` targets and the unbounded `git clean -fxd` route were removed.
+`make clean` now uses a documented build-output allowlist. Generated audit and
+analysis output requires `FORCE=1`, both cleanup levels have dry-run targets,
+and user-owned local state and test data remain outside every deletion set.
+
 ### Reproducible Local Output
 
 The following paths may be removed locally when present and must remain
@@ -201,7 +207,8 @@ git status --short --ignored
 2. A later issue must cite this map and remain within its owned surface.
 3. Large, historical, ignored, or untracked does not mean automatically
    removable.
-4. `make distclean FORCE=1` is not an acceptable ownership decision.
+4. Cleanup uses the BFH-005 path allowlists; `make distclean FORCE=1` never
+   grants authority to delete arbitrary untracked or ignored files.
 5. Deletion requires positive ownership, reachability, replacement, and
    validation evidence.
 6. Frozen v0.32.0 release files and registered boundaries remain unchanged.
