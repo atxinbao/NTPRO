@@ -1,43 +1,81 @@
-# Contributing to NautilusTrader
+# Contributing to NTPRO
 
-We highly value involvement from the trading community, and all contributions are greatly appreciated as they help us continually improve NautilusTrader!
+NTPRO accepts focused contributions that preserve the current Rust-only product
+surface and the frozen v0.32.0 backend baseline.
 
 > [!NOTE]
 >
 > **Integrations:**
 > New integrations are a major undertaking for the project and therefore require additional discussion and approval before opening any PRs.
-> Please see the [ROADMAP: Community-contributed integrations](ROADMAP.md#community-contributed-integrations) for details on the process
+> Please see the [v0.33.0+ intake policy](docs/rust-cutover/governance/v0_33_plus_intake_policy.md) for the current approval process
 > and [ADAPTERS.md](ADAPTERS.md) for adapter tiers, community listings, and support boundaries.
 
 ## Steps
 
 To contribute, follow these steps:
 
-1. Open an issue on GitHub to discuss your proposed changes or enhancements.
+1. Open a GitHub issue and agree on its scope before implementation. Post-freeze
+   work must declare whether it touches the backend baseline or requests a
+   separately scoped capability.
 
-2. Once everyone is aligned, fork the `develop` branch and ensure your fork is up-to-date by regularly merging any upstream changes.
+2. Create one branch from the latest `main` for that issue:
 
-3. Set up your development environment by following the [Environment setup guide](docs/developer_guide/environment_setup.md), which covers Rust, Python, and uv. With those prerequisites in place, install the pinned development tools (this includes [prek](https://github.com/j178/prek), which runs pre-commit checks, formatters, and linters before each commit):
-    ```bash
-    cargo install cargo-binstall --locked  # one-off prerequisite
-    make install-tools
-    prek install
-    ```
-   `make install-tools` installs every pinned tool from `Cargo.toml`, `tools.toml`, and `pyproject.toml`. See [Install development tools](docs/developer_guide/environment_setup.md#2-install-development-tools) for what each pinned tool does.
+   ```bash
+   git fetch origin
+   git switch -c <branch-name> origin/main
+   ```
 
-4. Open a pull request (PR) on the `develop` branch with a summary comment and reference to any relevant GitHub issue(s).
+3. Install the pinned Rust toolchain, workspace dependencies, and development
+   tools. [prek](https://github.com/j178/prek) runs the repository hooks:
 
-5. The CI system will run the full test suite on your code including all unit and integration tests, so include appropriate tests with the PR.
+   ```bash
+   rustup toolchain install 1.95.0
+   cargo install cargo-binstall --locked
+   make install-deps
+   make install-tools
+   prek install
+   ```
 
-6. Read and understand the Contributor License Agreement (CLA), available at https://github.com/nautechsystems/nautilus_trader/blob/develop/CLA.md.
+   Tool versions are controlled by `rust-toolchain.toml`,
+   `Cargo.toml` under `[workspace.metadata.tools]`, and `tools.toml`. The
+   repository does not use Python, uv, or `pyproject.toml` as development
+   tooling authority.
 
-7. You will also be required to sign the CLA, which is administered automatically through [CLA Assistant](https://cla-assistant.io/).
+4. Keep the change within the issue scope, add tests for behavior changes, and
+   run the applicable local checks:
 
-8. We will review your code as quickly as possible and provide feedback if any changes are needed before merging.
+   ```bash
+   scripts/ai/verify_fast.sh
+   scripts/ai/verify_full.sh
+   make docs-check-links
+   scripts/ai/check_zero_python_closeout.sh
+   scripts/ai/verify_release.sh backend-freeze-baseline
+   ```
+
+   `verify_fast.sh` is only a fast formatting and toolchain smoke. Use targeted
+   tests and `verify_full.sh` when the change affects code behavior. Documentation
+   changes must pass `make docs-check-links`. Post-freeze governance changes must
+   also pass the zero-Python and backend-freeze gates shown above.
+
+5. Open the pull request against `main`. Include the task ID, a plain Chinese
+   summary, goal, changed files, commands and results, behavior and public API
+   impact, migration-note status, rollback plan, and `Closes #<issue>`.
+
+6. Wait for hosted checks and the required independent review before merging.
+   Work above medium risk stops at `REVIEW_REQUIRED`. See the
+   [task execution protocol](docs/rust-cutover/TASK_EXECUTION.md) for the
+   complete risk and review rules.
+
+7. Read and accept the repository [Contributor License Agreement](CLA.md).
 
 ## Tips
 
-- Follow the established coding practices in the [Developer Guide](https://nautilustrader.io/docs/developer_guide/index.html).
-- For documentation changes, follow the style guide in `docs/developer_guide/docs.md` (use sentence case for headings H2 and below).
+- Read `AGENTS.md` and the task file under `docs/rust-cutover/tasks/` before
+  changing code.
+- Use the [Rust cutover contract](docs/rust-cutover/CONTRACT.md) and
+  [definition of done](docs/rust-cutover/DEFINITION_OF_DONE.md) as the product
+  boundary.
+- Use sentence case for Markdown headings below H1. Repository hooks enforce
+  the current Rust and documentation conventions.
 - Keep PRs small and focused for easier review.
 - Reference the relevant GitHub issue(s) in your PR comment.
