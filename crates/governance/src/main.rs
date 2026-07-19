@@ -22,6 +22,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use ntpro_governance::{
     backend_freeze::{BackendFreezeConfig, validate_backend_freeze},
     backend_hygiene::{BackendHygieneConfig, validate_backend_hygiene},
+    backend_performance::validate_backend_performance_baseline,
     control_plane::validate_control_plane_retirement,
     docs_examples::validate_docs_examples,
     golden_trace::{replay_trace, validate_release_scope, validate_trace},
@@ -90,6 +91,16 @@ enum Command {
         cargo_manifest: PathBuf,
         #[arg(long, default_value = "Makefile")]
         makefile: PathBuf,
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        negative_selftest: bool,
+    },
+    /// Validates the v0.33.0 backend performance baseline contract.
+    BackendPerformanceBaseline {
+        #[arg(
+            long,
+            default_value = "docs/rust-cutover/governance/backend_performance_baseline.json"
+        )]
+        baseline: PathBuf,
         #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         negative_selftest: bool,
     },
@@ -265,6 +276,25 @@ fn run(cli: Cli) -> anyhow::Result<()> {
             if negative_selftest {
                 println!(
                     "backend_hygiene_negative_selftest=pass cases={}",
+                    counts.negative_cases
+                );
+            }
+        }
+        Command::BackendPerformanceBaseline {
+            baseline,
+            negative_selftest,
+        } => {
+            let counts = validate_backend_performance_baseline(&baseline, negative_selftest)?;
+            println!(
+                "backend_performance_baseline=pass workloads={} observations={} build_measurements={} binary_measurements={}",
+                counts.workloads,
+                counts.observations,
+                counts.build_measurements,
+                counts.binary_measurements
+            );
+            if negative_selftest {
+                println!(
+                    "backend_performance_negative_selftest=pass cases={}",
                     counts.negative_cases
                 );
             }

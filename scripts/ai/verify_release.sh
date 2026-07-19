@@ -83,6 +83,10 @@ run_backend_freeze_baseline() {
   scripts/ai/check_backend_freeze_baseline.sh
 }
 
+run_backend_performance_baseline() {
+  scripts/ai/check_backend_performance_baseline.sh
+}
+
 run_release_publication_guard() {
   scripts/ai/check_github_release_published.sh
 }
@@ -119,6 +123,9 @@ run_stage() {
     backend-freeze-baseline)
       run_backend_freeze_baseline
       ;;
+    backend-performance-baseline)
+      run_backend_performance_baseline
+      ;;
     release-surface-current-guard)
       scripts/ai/check_release_surface_current.sh
       ;;
@@ -132,7 +139,7 @@ run_stage() {
       fail "historical release stage retired by PTC-006: $1"
       ;;
     *)
-      fail "unknown stage '$1'; valid stages: current-release-gates, full, release-build-product-surface, rust-only-gates, current-governance, backend-freeze-baseline, release-surface-current-guard, release-publication-guard, release-publish-after-gate"
+      fail "unknown stage '$1'; valid stages: current-release-gates, full, release-build-product-surface, rust-only-gates, current-governance, backend-freeze-baseline, backend-performance-baseline, release-surface-current-guard, release-publication-guard, release-publish-after-gate"
       ;;
   esac
 }
