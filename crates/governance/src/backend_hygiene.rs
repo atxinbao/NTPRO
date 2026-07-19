@@ -73,7 +73,7 @@ const RETIRED_GITIGNORE_EXCEPTIONS: &[&str] = &[
     "!.docker/entrypoint.sh",
     "!.pre-commit-hooks/check_formatting_py.sh",
     "!.pre-commit-hooks/check_no_legacy_paths_v2.sh",
-    "!.pre-commit-hooks/check_pyo3_conventions.sh",
+    "!.pre-commit-hooks/check_pyo3_conventions.sh", // zero-python-pattern-definition
     "!scripts/check-no-build-packages.sh",
     "!scripts/ci/osv-severity-gate.sh",
     "!scripts/ci/plan.sh",
