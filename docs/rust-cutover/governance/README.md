@@ -39,6 +39,10 @@ release gate 和已跟踪 release package 共同证明。
   baseline for milestone #33.
 - `python_tooling_authority_map.md` - replacement, retirement, retention, and
   zero-Python closeout authority for repository tooling.
+- `backend_hygiene_authority_map.md` - post-freeze cleanup ownership for
+  immutable evidence, retained source, tracked cleanup candidates,
+  reproducible local output, user-owned local state, fixtures, and separately
+  scoped runtime optimization.
 - `../release/v0_32_0_release_closeout_evidence.md` - source-controlled release
   closeout contract.
 
@@ -87,3 +91,15 @@ The final source-controlled contract is `python_tooling_closeout.md`. The
 repository drift gate is `scripts/ai/check_zero_python_closeout.sh`; post-merge
 issue, PR, workflow, main, and milestone facts are reconstructed from live
 GitHub instead of being guessed inside the closing PR.
+
+## Post-Freeze Backend Hygiene
+
+The next baseline-preserving milestone is `post-freeze-backend-hygiene` (#34),
+with exact issue set `#1112-#1118`. BFH-001 establishes the authority map;
+BFH-002 through BFH-006 own local noise, stale configuration, contributor
+routes, cleanup semantics, and fixture ownership; BFH-007 adds the final guard
+and closes the milestone.
+
+This work does not publish v0.32.1 or modify runtime capability. The separately
+scoped `v0.33.0-backend-maintenance` issues `#1120-#1126` remain blocked by
+BFH-007 (`#1118`).
