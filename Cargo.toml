@@ -436,16 +436,6 @@ codegen-units = 1
 [profile.ci-pr.package."*"]
 opt-level = 0
 
-[profile.ci-pr-wheel]
-inherits = "dev"
-debug = false
-strip = "debuginfo"
-incremental = false
-codegen-units = 1
-
-[profile.ci-pr-wheel.package."*"]
-opt-level = 0
-
 [profile.release]
 opt-level = 3
 debug = false

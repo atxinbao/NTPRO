@@ -60,7 +60,7 @@ case "$EVENT_NAME" in
     # The PR event payload freezes base.sha at PR creation time, so intervening
     # pushes to the base branch make that SHA stale. Diff against the
     # merge-base with the current base-branch tip so the gate reflects only
-    # the PR's own changes. Mirrors scripts/ci/plan.sh.
+    # the PR's own changes.
     head="$PR_HEAD_SHA"
     if ! base="$(git merge-base "origin/${PR_BASE_REF}" "$head" 2> /dev/null)"; then
       emit true "failed to compute merge-base against origin/${PR_BASE_REF}"
