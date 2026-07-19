@@ -21,6 +21,7 @@ use std::{
 use clap::{Parser, Subcommand, ValueEnum};
 use ntpro_governance::{
     backend_freeze::{BackendFreezeConfig, validate_backend_freeze},
+    backend_hygiene::{BackendHygieneConfig, validate_backend_hygiene},
     control_plane::validate_control_plane_retirement,
     docs_examples::validate_docs_examples,
     golden_trace::{replay_trace, validate_release_scope, validate_trace},
@@ -66,6 +67,29 @@ enum Command {
         roadmap: PathBuf,
         #[arg(long, default_value = "docs/versioning.md")]
         versioning: PathBuf,
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        negative_selftest: bool,
+    },
+    /// Validates post-freeze repository hygiene and fixture authority.
+    BackendHygiene {
+        #[arg(
+            long,
+            default_value = "docs/rust-cutover/governance/backend_fixture_inventory.json"
+        )]
+        inventory: PathBuf,
+        #[arg(
+            long,
+            default_value = "docs/rust-cutover/governance/backend_hygiene_authority_map.md"
+        )]
+        authority_map: PathBuf,
+        #[arg(long, default_value = "CONTRIBUTING.md")]
+        contributing: PathBuf,
+        #[arg(long, default_value = ".gitignore")]
+        gitignore: PathBuf,
+        #[arg(long, default_value = "Cargo.toml")]
+        cargo_manifest: PathBuf,
+        #[arg(long, default_value = "Makefile")]
+        makefile: PathBuf,
         #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         negative_selftest: bool,
     },
@@ -207,6 +231,40 @@ fn run(cli: Cli) -> anyhow::Result<()> {
             if negative_selftest {
                 println!(
                     "backend_freeze_negative_selftest=pass cases={}",
+                    counts.negative_cases
+                );
+            }
+        }
+        Command::BackendHygiene {
+            inventory,
+            authority_map,
+            contributing,
+            gitignore,
+            cargo_manifest,
+            makefile,
+            negative_selftest,
+        } => {
+            let counts = validate_backend_hygiene(
+                &BackendHygieneConfig {
+                    inventory,
+                    authority_map,
+                    contributing,
+                    gitignore,
+                    cargo_manifest,
+                    makefile,
+                },
+                negative_selftest,
+            )?;
+            println!(
+                "backend_hygiene=pass tracked_files={} fixture_entries={} tracked_fixture_hashes={} local_ignored_fixture_hashes={}",
+                counts.tracked_files,
+                counts.fixture_entries,
+                counts.tracked_fixture_hashes,
+                counts.local_ignored_fixture_hashes
+            );
+            if negative_selftest {
+                println!(
+                    "backend_hygiene_negative_selftest=pass cases={}",
                     counts.negative_cases
                 );
             }

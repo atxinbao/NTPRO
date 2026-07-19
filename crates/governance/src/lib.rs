@@ -21,6 +21,7 @@
 #![deny(clippy::missing_errors_doc)]
 
 pub mod backend_freeze;
+pub mod backend_hygiene;
 pub mod control_plane;
 pub mod docs_examples;
 pub mod golden_trace;

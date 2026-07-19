@@ -174,6 +174,14 @@ externalization, provenance, content hash, consumer migration, targeted Rust
 tests, offline reproducibility, and backend-freeze evidence are all present.
 Live network responses are not acceptable fixture replacements.
 
+BFH-007 outcome: `scripts/ai/check_backend_hygiene.sh` is the active
+repository-hygiene drift guard. It rejects tracked generated output, Finder
+cache recurrence, stale configuration and contributor routes, cleanup
+allowlist expansion, and unregistered or identity-drifted large fixtures.
+Ten negative mutations prove the guard fails closed. The phase closeout uses
+`source_tree_plus_github_remote`; local generated output is never sole proof,
+and size alone does not authorize fixture deletion.
+
 ### Separately Scoped Runtime Work
 
 Refactoring, dependency/feature changes, panic/error hardening, and measured
