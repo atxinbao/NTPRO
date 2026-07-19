@@ -20,6 +20,7 @@
 #![deny(nonstandard_style)]
 #![deny(clippy::missing_errors_doc)]
 
+pub mod backend_benchmark;
 pub mod backend_freeze;
 pub mod backend_hygiene;
 pub mod backend_performance;

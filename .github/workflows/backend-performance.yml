@@ -1,0 +1,179 @@
+name: Backend Performance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/backend-performance.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "scripts/ai/check_backend_performance_hosted.sh"
+      - "scripts/ai/run_backend_benchmark_workload.sh"
+      - "docs/rust-cutover/governance/backend_performance_baseline.json"
+      - "docs/rust-cutover/governance/backend_performance_hosted_contract.json"
+  schedule:
+    - cron: "31 3 * * 0"
+  workflow_dispatch:
+    inputs:
+      baseline_sha:
+        description: "Optional full baseline commit SHA; defaults to candidate parent"
+        required: false
+        type: string
+      candidate_sha:
+        description: "Optional full candidate commit SHA; defaults to current ref"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    name: benchmark (${{ matrix.workload }})
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        workload:
+          - core_stack_str
+          - model_price
+          - data_engine_ingest
+          - execution_matching_core
+          - live_runner_dispatch
+          - network_rate_limiter
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || inputs.candidate_sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
+        with:
+          toolchain: 1.95.0
+          cache: true
+          override: true
+
+      - name: Resolve baseline and candidate commits
+        id: commits
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          INPUT_BASE_SHA: ${{ inputs.baseline_sha }}
+          INPUT_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            baseline_sha="$PR_BASE_SHA"
+            [[ "$candidate_sha" == "$PR_HEAD_SHA" ]]
+          else
+            if [[ -n "$INPUT_CANDIDATE_SHA" ]]; then
+              candidate_sha="$(git rev-parse "$INPUT_CANDIDATE_SHA^{commit}")"
+              [[ "$(git rev-parse HEAD)" == "$candidate_sha" ]]
+            fi
+            if [[ -n "$INPUT_BASE_SHA" ]]; then
+              baseline_sha="$(git rev-parse "$INPUT_BASE_SHA^{commit}")"
+            else
+              baseline_sha="$(git rev-parse "$candidate_sha^")"
+            fi
+          fi
+          [[ "$baseline_sha" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$candidate_sha" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$baseline_sha" != "$candidate_sha" ]]
+          echo "baseline_sha=$baseline_sha" >>"$GITHUB_OUTPUT"
+          echo "candidate_sha=$candidate_sha" >>"$GITHUB_OUTPUT"
+          echo "baseline=$baseline_sha candidate=$candidate_sha"
+
+      - name: Prepare same-runner baseline checkout
+        env:
+          BASELINE_SHA: ${{ steps.commits.outputs.baseline_sha }}
+        run: |
+          set -euo pipefail
+          git worktree add --detach "$RUNNER_TEMP/ntpro-benchmark-baseline" "$BASELINE_SHA"
+          test "$(git -C "$RUNNER_TEMP/ntpro-benchmark-baseline" rev-parse HEAD)" = "$BASELINE_SHA"
+
+      - name: Build and validate hosted benchmark governance
+        run: |
+          set -euo pipefail
+          cargo build --locked -p ntpro-governance
+          NTPRO_GOVERNANCE_BIN="$GITHUB_WORKSPACE/target/debug/ntpro-governance" \
+            scripts/ai/check_backend_performance_hosted.sh
+          scripts/ai/check_backend_freeze_baseline.sh
+          scripts/ai/check_zero_python_closeout.sh
+
+      - name: Capture baseline workload
+        env:
+          WORKLOAD: ${{ matrix.workload }}
+          BASELINE_SHA: ${{ steps.commits.outputs.baseline_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/backend-benchmark-artifact"
+          scripts/ai/run_backend_benchmark_workload.sh \
+            "$WORKLOAD" \
+            "$RUNNER_TEMP/ntpro-benchmark-baseline" \
+            "$BASELINE_SHA" \
+            "$RUNNER_TEMP/backend-benchmark-artifact/baseline.json" \
+            "$RUNNER_TEMP/backend-benchmark-target/baseline"
+
+      - name: Capture candidate workload
+        env:
+          WORKLOAD: ${{ matrix.workload }}
+          CANDIDATE_SHA: ${{ steps.commits.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          scripts/ai/run_backend_benchmark_workload.sh \
+            "$WORKLOAD" \
+            "$GITHUB_WORKSPACE" \
+            "$CANDIDATE_SHA" \
+            "$RUNNER_TEMP/backend-benchmark-artifact/candidate.json" \
+            "$RUNNER_TEMP/backend-benchmark-target/candidate"
+
+      - name: Compare baseline and candidate
+        env:
+          NTPRO_GOVERNANCE_BIN: ${{ github.workspace }}/target/debug/ntpro-governance
+        run: |
+          set -euo pipefail
+          "$NTPRO_GOVERNANCE_BIN" backend-benchmark-compare \
+            --contract docs/rust-cutover/governance/backend_performance_hosted_contract.json \
+            --baseline "$RUNNER_TEMP/backend-benchmark-artifact/baseline.json" \
+            --candidate "$RUNNER_TEMP/backend-benchmark-artifact/candidate.json" \
+            --output "$RUNNER_TEMP/backend-benchmark-artifact/comparison.json"
+
+      - name: Publish job summary
+        if: always()
+        run: |
+          {
+            echo "## Backend benchmark: ${{ matrix.workload }}"
+            echo
+            echo "Baseline: \`${{ steps.commits.outputs.baseline_sha }}\`"
+            echo
+            echo "Candidate: \`${{ steps.commits.outputs.candidate_sha }}\`"
+            echo
+            if [[ -f "$RUNNER_TEMP/backend-benchmark-artifact/comparison.json" ]]; then
+              jq -r '"Outcome: **\(.outcome)**\n\nRegression: \(.regression_pct)%\n\nMerge authority: \(.merge_authority)"' \
+                "$RUNNER_TEMP/backend-benchmark-artifact/comparison.json"
+            else
+              echo "Outcome: **capture or comparison failed**"
+            fi
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: backend-benchmark-${{ matrix.workload }}
+          path: ${{ runner.temp }}/backend-benchmark-artifact
+          if-no-files-found: error
+          retention-days: 30

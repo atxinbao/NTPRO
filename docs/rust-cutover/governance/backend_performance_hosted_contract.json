@@ -1,0 +1,67 @@
+{
+  "schema_version": "ntpro.backend_performance_hosted_contract.v1",
+  "task_id": "BPO-002",
+  "status": "active",
+  "classification": "v33-separately-scoped",
+  "baseline_contract": "docs/rust-cutover/governance/backend_performance_baseline.json",
+  "workflow": ".github/workflows/backend-performance.yml",
+  "runner": {
+    "image": "ubuntu-22.04",
+    "rust_toolchain": "1.95.0",
+    "timeout_minutes": 60,
+    "session_repetitions": 3,
+    "cache_enabled": true,
+    "comparison_scope": "same_job_same_runner_back_to_back",
+    "target_policy": "separate_ephemeral_baseline_and_candidate_targets"
+  },
+  "triggers": [
+    "pull_request",
+    "schedule",
+    "workflow_dispatch"
+  ],
+  "stable_workloads": [
+    "core_stack_str",
+    "model_price",
+    "data_engine_ingest",
+    "live_runner_dispatch",
+    "network_rate_limiter"
+  ],
+  "informational_workloads": [
+    "execution_matching_core"
+  ],
+  "regression_policy": {
+    "decision_metric": "median_of_three_sessions",
+    "warning_pct": 5,
+    "failure_floor_pct": 10,
+    "stability_max_cv_pct": 5,
+    "baseline_cv_failure_multiplier": 3,
+    "failure_rule": "candidate_regression_pct_gt_max(failure_floor_pct,baseline_cv_pct_x_multiplier)",
+    "noisy_policy": "informational_non_blocking",
+    "confirmation": "baseline_and_candidate_are_measured_back_to_back_on_the_same_job"
+  },
+  "artifact": {
+    "result_schema": "ntpro.backend_benchmark_result.v1",
+    "comparison_schema": "ntpro.backend_benchmark_comparison.v1",
+    "files_per_workload": [
+      "baseline.json",
+      "candidate.json",
+      "comparison.json",
+      "baseline-observations.txt and candidate-observations.txt",
+      "baseline-run-1.log through baseline-run-3.log",
+      "candidate-run-1.log through candidate-run-3.log"
+    ],
+    "retention_days": 30,
+    "source_authority": "github_actions_run_artifact_plus_source_contract"
+  },
+  "non_inheritance": {
+    "backend_go_live": false,
+    "production_submit": false,
+    "production_mutation": false,
+    "adapter_send": false,
+    "live_exchange_request": false,
+    "retry_scheduler": false,
+    "automatic_remediation": false,
+    "automatic_recovery": false,
+    "trading_controls": false
+  }
+}

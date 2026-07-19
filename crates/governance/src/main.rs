@@ -20,6 +20,7 @@ use std::{
 
 use clap::{Parser, Subcommand, ValueEnum};
 use ntpro_governance::{
+    backend_benchmark::{compare_backend_benchmark_results, validate_backend_benchmark_contract},
     backend_freeze::{BackendFreezeConfig, validate_backend_freeze},
     backend_hygiene::{BackendHygieneConfig, validate_backend_hygiene},
     backend_performance::validate_backend_performance_baseline,
@@ -45,6 +46,25 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Validates the hosted backend benchmark workflow contract.
+    BackendBenchmarkContract {
+        #[arg(
+            long,
+            default_value = "docs/rust-cutover/governance/backend_performance_hosted_contract.json"
+        )]
+        contract: PathBuf,
+    },
+    /// Compares baseline and candidate hosted benchmark artifacts.
+    BackendBenchmarkCompare {
+        #[arg(long)]
+        contract: PathBuf,
+        #[arg(long)]
+        baseline: PathBuf,
+        #[arg(long)]
+        candidate: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
     /// Validates the immutable v0.32.0 backend freeze baseline.
     BackendFreeze {
         #[arg(
@@ -215,6 +235,38 @@ fn main() {
 
 fn run(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
+        Command::BackendBenchmarkContract { contract } => {
+            let counts = validate_backend_benchmark_contract(&contract)?;
+            println!(
+                "backend_benchmark_contract=pass workloads={} stable={} informational={}",
+                counts.workloads, counts.stable, counts.informational
+            );
+        }
+        Command::BackendBenchmarkCompare {
+            contract,
+            baseline,
+            candidate,
+            output,
+        } => {
+            let comparison =
+                compare_backend_benchmark_results(&contract, &baseline, &candidate, &output)?;
+            println!(
+                "backend_benchmark_comparison=pass workload={} outcome={} regression_pct={:.4} effective_failure_pct={:.4} merge_authority={}",
+                comparison.workload,
+                comparison.outcome,
+                comparison.regression_pct,
+                comparison.effective_failure_pct,
+                comparison.merge_authority
+            );
+            if comparison.must_fail {
+                anyhow::bail!(
+                    "stable hosted benchmark regression: {} ({:.4}% > {:.4}%)",
+                    comparison.workload,
+                    comparison.regression_pct,
+                    comparison.effective_failure_pct
+                );
+            }
+        }
         Command::BackendFreeze {
             registry,
             release_manifest,
