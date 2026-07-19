@@ -1,0 +1,402 @@
+{
+  "schema_version": 1,
+  "task_id": "BFH-006",
+  "captured_at": "2026-07-19",
+  "executor": "Codex",
+  "baseline_commit": "db977627f7f61d464c98e2fa8ca754f85ccc0750",
+  "scope_root": "tests",
+  "threshold_bytes": 1048576,
+  "classification": "baseline-preserving-governance",
+  "summary": {
+    "fixture_count": 17,
+    "total_bytes": 324882650,
+    "tracked_count": 14,
+    "tracked_bytes": 76020960,
+    "ignored_count": 3,
+    "ignored_bytes": 248861690,
+    "active_consumer_fixture_count": 3,
+    "active_consumer_bytes": 248861690,
+    "tracked_quarantine_count": 14,
+    "tracked_quarantine_bytes": 76020960,
+    "fixture_files_changed_or_deleted": 0
+  },
+  "owners": {
+    "large_market_data_cache": {
+      "accountable_owner": "nautilus-testkit maintainers",
+      "review_owners": [
+        "nautilus-backtest maintainers",
+        "nautilus-tardis maintainers"
+      ],
+      "purpose": "hash-pinned large market-data inputs used by opt-in or bounded Rust tests"
+    },
+    "legacy_fixture_quarantine": {
+      "accountable_owner": "verification_release_gatekeeper",
+      "review_owners": [
+        "relevant Rust crate owner"
+      ],
+      "purpose": "tracked legacy fixture blobs with no active Rust consumer at capture time"
+    }
+  },
+  "reconstruction_policies": {
+    "ignored_hash_pinned_cache": {
+      "source_authority": [
+        "tests/test_data/large/checksums.json",
+        "per-file metadata sidecar",
+        "https://test-data.nautechsystems.io/large/"
+      ],
+      "requirements": [
+        "verify sha256 before use",
+        "retain source URL, parser, format, record-count, and license metadata",
+        "network bootstrap may populate the cache but must not replace deterministic hash verification",
+        "offline runs use an already populated local or CI cache"
+      ]
+    },
+    "tracked_git_blob_quarantine": {
+      "source_authority": [
+        "tracked Git blob at baseline_commit",
+        "sha256 recorded in this inventory"
+      ],
+      "requirements": [
+        "retain the tracked file until a dedicated issue registers an equivalent deterministic replacement or external artifact",
+        "prove every prior or replacement consumer with targeted Rust tests",
+        "do not substitute a live network response for a deterministic fixture",
+        "after approved removal, reconstruction must remain possible with git show baseline_commit:path"
+      ]
+    }
+  },
+  "fixtures": [
+    {
+      "path": "tests/test_data/large/tardis_BTC-PERPETUAL.DERIBIT_2020-04-01_deltas.parquet",
+      "size_bytes": 193727532,
+      "sha256": "ba4024e394f6425049827607bc479afe93c4015f8331b9c2942929abce43a9f1",
+      "git_state": "ignored",
+      "format": "parquet",
+      "owner_id": "large_market_data_cache",
+      "consumers": [
+        "crates/testkit/src/common.rs::ensure_tardis_deribit_deltas_parquet",
+        "crates/testkit/src/common.rs::load_tardis_deribit_deltas",
+        "crates/testkit/tests/orderbook_integration.rs"
+      ],
+      "reachability": "active_rust_consumer",
+      "disposition": "retain_ignored_cache",
+      "hash_policy": "checksums_json_and_metadata_sha256",
+      "reconstruction_policy_id": "ignored_hash_pinned_cache",
+      "required_features": [
+        "high-precision"
+      ],
+      "metadata_path": "tests/test_data/large/tardis_BTC-PERPETUAL.DERIBIT_2020-04-01_deltas.metadata.json"
+    },
+    {
+      "path": "tests/test_data/large/histdata_EURUSD.SIM_2020-01_quotes.parquet",
+      "size_bytes": 31434814,
+      "sha256": "9c610a233b8408562ea9024df0bd3192608f16ed00fce6f5d761a321a3d897c2",
+      "git_state": "ignored",
+      "format": "parquet",
+      "owner_id": "large_market_data_cache",
+      "consumers": [
+        "crates/testkit/src/common.rs::ensure_histdata_eurusd_quotes_parquet",
+        "crates/testkit/tests/large_data.rs"
+      ],
+      "reachability": "active_rust_consumer",
+      "disposition": "retain_ignored_cache",
+      "hash_policy": "checksums_json_and_metadata_sha256",
+      "reconstruction_policy_id": "ignored_hash_pinned_cache",
+      "metadata_path": "tests/test_data/large/histdata_EURUSD.SIM_2020-01_quotes.metadata.json"
+    },
+    {
+      "path": "tests/test_data/large/itch_AAPL.XNAS_2019-01-30_deltas.parquet",
+      "size_bytes": 23699344,
+      "sha256": "a31aa366ab939e36c9fd484c5d2d5d0760fa84d47bd66e89c135655e9d2a360c",
+      "git_state": "ignored",
+      "format": "parquet",
+      "owner_id": "large_market_data_cache",
+      "consumers": [
+        "crates/testkit/src/common.rs::ensure_itch_aapl_deltas_parquet",
+        "crates/testkit/src/common.rs::load_itch_aapl_deltas",
+        "crates/testkit/tests/orderbook_integration.rs",
+        "crates/backtest/tests/backtest_node_itch.rs",
+        "crates/backtest/tests/grid_mm_itch.rs"
+      ],
+      "reachability": "active_rust_consumer",
+      "disposition": "retain_ignored_cache",
+      "hash_policy": "checksums_json_and_metadata_sha256",
+      "reconstruction_policy_id": "ignored_hash_pinned_cache",
+      "required_features": [
+        "high-precision"
+      ],
+      "metadata_path": "tests/test_data/large/itch_AAPL.XNAS_2019-01-30_deltas.metadata.json"
+    },
+    {
+      "path": "tests/integration_tests/adapters/betfair/resources/responses/betting_list_market_catalogue.json",
+      "size_bytes": 42959083,
+      "sha256": "dee1dc637b96dae378420f78aa3ab7a52bb6d4207b543e2473d1b983b9743b26",
+      "git_state": "tracked",
+      "format": "json",
+      "owner_id": "legacy_fixture_quarantine",
+      "consumers": [],
+      "reachability": "no_active_rust_consumer",
+      "disposition": "retain_tracked_quarantine",
+      "hash_policy": "inventory_sha256",
+      "reconstruction_policy_id": "tracked_git_blob_quarantine",
+      "replacement_context": "The active Betfair manifest uses crates/adapters/betfair/test_data/rest/betting_list_market_catalogue.json, but that reduced fixture is not byte-equivalent to this full legacy response."
+    },
+    {
+      "path": "tests/test_data/truefx/audusd-ticks.csv",
+      "size_bytes": 4899290,
+      "sha256": "34449294934d667150c7c65d1f0efaabc912333d0aa05f401c9723e0a6038bf9",
+      "git_state": "tracked",
+      "format": "csv",
+      "owner_id": "legacy_fixture_quarantine",
+      "consumers": [],
+      "reachability": "no_active_rust_consumer",
+      "disposition": "retain_tracked_quarantine",
+      "hash_policy": "inventory_sha256",
+      "reconstruction_policy_id": "tracked_git_blob_quarantine",
+      "replacement_context": "No current Rust loader or test references this basename or directory."
+    },
+    {
+      "path": "tests/test_data/news_events.csv",
+      "size_bytes": 4827930,
+      "sha256": "f5ba5b2030534685131ddd1a89d78a22768d35cf09130225fb1623097c87d187",
+      "git_state": "tracked",
+      "format": "csv",
+      "owner_id": "legacy_fixture_quarantine",
+      "consumers": [],
+      "reachability": "no_active_rust_consumer",
+      "disposition": "retain_tracked_quarantine",
+      "hash_policy": "inventory_sha256",
+      "reconstruction_policy_id": "tracked_git_blob_quarantine",
+      "replacement_context": "No current Rust loader or test references this basename."
+    },
+    {
+      "path": "tests/test_data/binance/ethusdt-trades.csv",
+      "size_bytes": 4427110,
+      "sha256": "a90fd7b0a83d32190258651eca7ecb0ecdcaf3deb54f73a17ce028bfe49fdd74",
+      "git_state": "tracked",
+      "format": "csv",
+      "owner_id": "legacy_fixture_quarantine",
+      "consumers": [],
+      "reachability": "no_active_rust_consumer",
+      "disposition": "retain_tracked_quarantine",
+      "hash_policy": "inventory_sha256",
+      "reconstruction_policy_id": "tracked_git_blob_quarantine",
+      "replacement_context": "Current Binance Rust replay uses crate-local v04 fixtures, not this file."
+    },
+    {
+      "path": "tests/test_data/btc-perp-20211231-20220201_1m.csv",
+      "size_bytes": 3220342,
+      "sha256": "65ab55cd5f3531aa64f429772a38331fe82a92973cbb32a79b243073236c8da3",
+      "git_state": "tracked",
+      "format": "csv",
+      "owner_id": "legacy_fixture_quarantine",
+      "consumers": [],
+      "reachability": "no_active_rust_consumer",
+      "disposition": "retain_tracked_quarantine",
+      "hash_policy": "inventory_sha256",
+      "reconstruction_policy_id": "tracked_git_blob_quarantine",
+      "replacement_context": "No current Rust loader or test references this basename."
+    },
+    {
+      "path": "tests/integration_tests/adapters/betfair/resources/responses/navigation_list_navigation.json",
+      "size_bytes": 2739826,
+      "sha256": "7e8ca963a216fe120070a6062be2c801a980bcd93729277f999d43e79e82bd2f",
+      "git_state": "tracked",
+      "format": "json",
+      "owner_id": "legacy_fixture_quarantine",
+      "consumers": [],
+      "reachability": "no_active_rust_consumer",
+      "disposition": "retain_tracked_quarantine",
+      "hash_policy": "inventory_sha256",
+      "reconstruction_policy_id": "tracked_git_blob_quarantine",
+      "replacement_context": "The active Betfair manifest uses crates/adapters/betfair/test_data/rest/navigation_list_navigation.json, but that reduced fixture is not byte-equivalent to this full legacy response."
+    },
+    {
+      "path": "tests/test_data/nautilus/128-bit/deltas.parquet",
+      "size_bytes": 1982724,
+      "sha256": "639753298cc306e7d7f46409ba8d8e979184112acf6a27a60ccc938b74f48165",
+      "git_state": "tracked",
+      "format": "parquet",
+      "owner_id": "legacy_fixture_quarantine",
+      "consumers": [],
+      "reachability": "no_active_rust_consumer",
+      "disposition": "retain_tracked_quarantine",
+      "hash_policy": "inventory_sha256",
+      "reconstruction_policy_id": "tracked_git_blob_quarantine",
+      "replacement_context": "Current persistence tests select quotes, trades, and bars by exact filename; they do not select deltas.parquet."
+    },
+    {
+      "path": "tests/test_data/nautilus/64-bit/deltas.parquet",
+      "size_bytes": 1851968,
+      "sha256": "131786498953808b007dffdcc1bf0f0ecadcc707c2b1aca5cc0680b9facb0012",
+      "git_state": "tracked",
+      "format": "parquet",
+      "owner_id": "legacy_fixture_quarantine",
+      "consumers": [],
+      "reachability": "no_active_rust_consumer",
+      "disposition": "retain_tracked_quarantine",
+      "hash_policy": "inventory_sha256",
+      "reconstruction_policy_id": "tracked_git_blob_quarantine",
+      "replacement_context": "Current persistence tests select quotes, trades, and bars by exact filename; they do not select deltas.parquet."
+    },
+    {
+      "path": "tests/test_data/fxcm/gbpusd-m1-ask-2012.csv",
+      "size_bytes": 1746816,
+      "sha256": "b257b06a6fe54212d51e18c2fdef3ceaff92523683c58bcc73e9150022ce5d8e",
+      "git_state": "tracked",
+      "format": "csv",
+      "owner_id": "legacy_fixture_quarantine",
+      "consumers": [],
+      "reachability": "no_active_rust_consumer",
+      "disposition": "retain_tracked_quarantine",
+      "hash_policy": "inventory_sha256",
+      "reconstruction_policy_id": "tracked_git_blob_quarantine",
+      "replacement_context": "No current Rust loader or test references this basename or the FXCM fixture directory."
+    },
+    {
+      "path": "tests/test_data/fxcm/gbpusd-m1-bid-2012.csv",
+      "size_bytes": 1746816,
+      "sha256": "54e18f791237b2619d9ff4fbbaf552e0d904e2192a275603abbba01d880e0c89",
+      "git_state": "tracked",
+      "format": "csv",
+      "owner_id": "legacy_fixture_quarantine",
+      "consumers": [],
+      "reachability": "no_active_rust_consumer",
+      "disposition": "retain_tracked_quarantine",
+      "hash_policy": "inventory_sha256",
+      "reconstruction_policy_id": "tracked_git_blob_quarantine",
+      "replacement_context": "No current Rust loader or test references this basename or the FXCM fixture directory."
+    },
+    {
+      "path": "tests/test_data/fxcm/usdjpy-m1-bid-2013.csv",
+      "size_bytes": 1553124,
+      "sha256": "8f48dd82914489094e94bbd2a1700d92b986fbea2bd7e69eb52a6dd6e585cd1c",
+      "git_state": "tracked",
+      "format": "csv",
+      "owner_id": "legacy_fixture_quarantine",
+      "consumers": [],
+      "reachability": "no_active_rust_consumer",
+      "disposition": "retain_tracked_quarantine",
+      "hash_policy": "inventory_sha256",
+      "reconstruction_policy_id": "tracked_git_blob_quarantine",
+      "replacement_context": "No current Rust loader or test references this basename or the FXCM fixture directory."
+    },
+    {
+      "path": "tests/test_data/fxcm/usdjpy-m1-ask-2013.csv",
+      "size_bytes": 1553124,
+      "sha256": "0d953ad9b3e1ea2474ad0633702cac8e011c669a770c76f9da8bb7f09c1741ed",
+      "git_state": "tracked",
+      "format": "csv",
+      "owner_id": "legacy_fixture_quarantine",
+      "consumers": [],
+      "reachability": "no_active_rust_consumer",
+      "disposition": "retain_tracked_quarantine",
+      "hash_policy": "inventory_sha256",
+      "reconstruction_policy_id": "tracked_git_blob_quarantine",
+      "replacement_context": "No current Rust loader or test references this basename or the FXCM fixture directory."
+    },
+    {
+      "path": "tests/integration_tests/adapters/interactive_brokers/resources/streaming/tick_data.json",
+      "size_bytes": 1317589,
+      "sha256": "77bd6055fd1dc60a27dc470c6e00240b26b016bc6a5e250f42c534105a09a09b",
+      "git_state": "tracked",
+      "format": "json",
+      "owner_id": "legacy_fixture_quarantine",
+      "consumers": [],
+      "reachability": "no_active_rust_consumer",
+      "disposition": "retain_tracked_quarantine",
+      "hash_policy": "inventory_sha256",
+      "reconstruction_policy_id": "tracked_git_blob_quarantine",
+      "replacement_context": "The active Interactive Brokers Rust fixture manifest does not reference this legacy integration resource."
+    },
+    {
+      "path": "tests/test_data/short-term-interest.csv",
+      "size_bytes": 1195218,
+      "sha256": "9dff9bbb970b244574a8b8cd841abf4257e924f5c3e413f318eb13afe7620303",
+      "git_state": "tracked",
+      "format": "csv",
+      "owner_id": "legacy_fixture_quarantine",
+      "consumers": [],
+      "reachability": "no_active_rust_consumer",
+      "disposition": "retain_tracked_quarantine",
+      "hash_policy": "inventory_sha256",
+      "reconstruction_policy_id": "tracked_git_blob_quarantine",
+      "replacement_context": "The Rust FX rollover tests use inline deterministic records and do not load this file."
+    }
+  ],
+  "companion_files": [
+    {
+      "path": "tests/test_data/large/histdata_EURUSD.SIM_2020-01_instrument.parquet",
+      "size_bytes": 6692,
+      "sha256": "2088959dc15eecfebb7d4c45054d6a74d1000078daa1153388fe19c3b1468bac",
+      "reason": "under threshold but paired with the active HISTDATA quotes cache",
+      "consumer": "crates/testkit/tests/large_data.rs",
+      "disposition": "retain_ignored_cache"
+    }
+  ],
+  "group_audits": {
+    "golden": {
+      "files": 59,
+      "bytes": 1068211,
+      "maximum_file_bytes": 45419,
+      "files_over_threshold": 0,
+      "reachability": "active through crates/cli golden tests, crates/governance, and scripts/ai/run_golden_traces.sh",
+      "disposition": "retain_tracked"
+    },
+    "parquet": {
+      "files": 18,
+      "bytes": 253769055,
+      "maximum_file_bytes": 193727532,
+      "disposition": "per-file entries above control every file over threshold"
+    },
+    "compressed": {
+      "files": 32,
+      "bytes": 3086154,
+      "maximum_file_bytes": 997238,
+      "files_over_threshold": 0,
+      "disposition": "retain under existing crate or test-data ownership"
+    },
+    "legacy_betfair_resources": {
+      "files": 75,
+      "bytes": 46515368,
+      "maximum_file_bytes": 42959083,
+      "reachability": "no active Rust path reference to tests/integration_tests/adapters/betfair/resources",
+      "disposition": "retain tracked quarantine pending fidelity-preserving externalization"
+    },
+    "active_betfair_manifest": {
+      "files": 73,
+      "bytes": 196903,
+      "manifest_fixture_paths": 55,
+      "missing_manifest_fixture_paths": 0,
+      "reachability": "active crate-local Rust parser and lifecycle tests",
+      "disposition": "retain tracked"
+    },
+    "legacy_interactive_brokers_resources": {
+      "files": 10,
+      "bytes": 1418795,
+      "maximum_file_bytes": 1317589,
+      "reachability": "no active Rust path reference to the legacy integration resource directory",
+      "disposition": "retain tracked quarantine pending adapter-owned decision"
+    }
+  },
+  "manifest_anomalies": [
+    {
+      "path": "tests/test_data/large/databento_mbo_xnas_itch.csv",
+      "state": "checksum_entry_without_local_file_or_active_rust_consumer",
+      "action": "retain checksum entry until a dedicated manifest-cleanup issue proves remote cache and consumer impact"
+    }
+  ],
+  "deletion_gate": {
+    "size_only_deletion_allowed": false,
+    "network_response_as_fixture_replacement_allowed": false,
+    "required_before_removal": [
+      "dedicated owner issue and one PR",
+      "registered deterministic replacement or external artifact",
+      "source provenance and license",
+      "sha256 or stronger content identity",
+      "all consumers migrated",
+      "targeted Rust owner tests pass",
+      "offline test selection remains deterministic",
+      "backend freeze baseline passes"
+    ]
+  }
+}

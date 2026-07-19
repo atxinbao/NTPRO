@@ -120,6 +120,14 @@ BFH-005 outcome: the redundant `clean-build-artifacts`, `clean-caches`, and
 analysis output requires `FORCE=1`, both cleanup levels have dry-run targets,
 and user-owned local state and test data remain outside every deletion set.
 
+BFH-006 outcome: `backend_fixture_inventory.json` records all 17 test fixtures
+at or above 1 MiB, totaling 324,882,650 bytes. Three ignored market-data caches
+have active Rust consumers, checksums, metadata, and deterministic download or
+local-cache rules. Fourteen tracked files totaling 76,020,960 bytes have no
+active Rust consumer and are retained in quarantine because no
+fidelity-preserving replacement is yet proven. Size alone does not authorize
+their deletion.
+
 ### Reproducible Local Output
 
 The following paths may be removed locally when present and must remain
@@ -159,6 +167,12 @@ on 2026-07-15. It contains no credential-like text, is not current source or
 release authority, and is retained under the local `/project.html` rule in
 `.git/info/exclude` so it cannot enter an unrelated PR. `.agentflow/`, `.codex/`,
 `.understand-anything/`, and `tests/test_data/large/` remain intact.
+
+BFH-006 fixture policy: a quarantined tracked fixture may be removed only
+through a dedicated owner issue after deterministic replacement or
+externalization, provenance, content hash, consumer migration, targeted Rust
+tests, offline reproducibility, and backend-freeze evidence are all present.
+Live network responses are not acceptable fixture replacements.
 
 ### Separately Scoped Runtime Work
 

@@ -43,6 +43,9 @@ release gate 和已跟踪 release package 共同证明。
   immutable evidence, retained source, tracked cleanup candidates,
   reproducible local output, user-owned local state, fixtures, and separately
   scoped runtime optimization.
+- `backend_fixture_inventory.json` - machine-readable ownership, reachability,
+  size, hash, disposition, and reconstruction policy for every backend test
+  fixture at or above 1 MiB.
 - `../release/v0_32_0_release_closeout_evidence.md` - source-controlled release
   closeout contract.
 
