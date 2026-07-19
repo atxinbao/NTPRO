@@ -46,6 +46,8 @@ release gate 和已跟踪 release package 共同证明。
 - `backend_fixture_inventory.json` - machine-readable ownership, reachability,
   size, hash, disposition, and reconstruction policy for every backend test
   fixture at or above 1 MiB.
+- `post_freeze_backend_hygiene_closeout.md` - source-controlled phase-1
+  closeout contract, paired with live GitHub reconstruction after BFH-007.
 - `../release/v0_32_0_release_closeout_evidence.md` - source-controlled release
   closeout contract.
 
@@ -102,6 +104,9 @@ with exact issue set `#1112-#1118`. BFH-001 establishes the authority map;
 BFH-002 through BFH-006 own local noise, stale configuration, contributor
 routes, cleanup semantics, and fixture ownership; BFH-007 adds the final guard
 and closes the milestone.
+
+The active drift guard is `scripts/ai/check_backend_hygiene.sh`. It is part of
+current governance and every pull-request smoke run.
 
 This work does not publish v0.32.1 or modify runtime capability. The separately
 scoped `v0.33.0-backend-maintenance` issues `#1120-#1126` remain blocked by

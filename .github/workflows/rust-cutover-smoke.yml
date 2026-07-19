@@ -56,6 +56,8 @@ jobs:
         run: scripts/ai/check_docs_examples_governance.sh
       - name: Repository zero-Python closeout gate
         run: scripts/ai/check_zero_python_closeout.sh
+      - name: Post-freeze backend hygiene gate
+        run: scripts/ai/check_backend_hygiene.sh
       - name: Legacy control-plane retirement gate
         run: scripts/ai/check_control_plane_retired.sh
       - name: Historical release executable retirement gate
