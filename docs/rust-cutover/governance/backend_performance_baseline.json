@@ -1,0 +1,231 @@
+{
+  "schema_version": "ntpro.backend_performance_baseline.v1",
+  "task_id": "BPO-001",
+  "status": "active_local_reference",
+  "classification": "v33-separately-scoped",
+  "baseline_commit": "6f6896fbd6d5fe79e352f621cb0167debcf0d143",
+  "environment": {
+    "captured_at": "2026-07-19T17:55:06Z",
+    "executor": "Codex",
+    "host_scope": "local_reference_only",
+    "os": "macOS 26.5.1 (25F80)",
+    "kernel": "Darwin 25.5.0 RELEASE_ARM64_T6030",
+    "architecture": "aarch64-apple-darwin",
+    "cpu": "Apple M3 Pro",
+    "logical_cpu_count": 12,
+    "memory_bytes": 19327352832,
+    "rustc": "rustc 1.95.0 (59807616e 2026-04-14), LLVM 22.1.2",
+    "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
+    "machine_state": "interactive_agent_only_no_parallel_benchmarks",
+    "frequency_governor": "macos_dynamic_uncontrolled",
+    "aslr": "platform_default",
+    "cargo_target": "external_ephemeral_target"
+  },
+  "methodology": {
+    "profile": "bench-lto",
+    "criterion_estimate": "slope.point_estimate",
+    "warmup_seconds": 1,
+    "measurement_seconds": 2,
+    "criterion_sample_size": 20,
+    "session_repetitions": 3,
+    "summary_statistic": "median",
+    "variance_statistic": "population_coefficient_of_variation_pct",
+    "comparison_rule": "same_host_same_toolchain_back_to_back",
+    "measurement_order": [
+      "clean_release_build",
+      "incremental_release_build",
+      "core",
+      "model",
+      "data",
+      "execution",
+      "live",
+      "network"
+    ]
+  },
+  "regression_policy": {
+    "decision_metric": "median_of_three_sessions",
+    "noise_rule": "failure_pct=max(configured_failure_pct,3x_baseline_cv_pct)",
+    "latency_pct": {
+      "warning": 5,
+      "failure": 10
+    },
+    "throughput_pct": {
+      "warning": 5,
+      "failure": 10
+    },
+    "binary_size_pct": {
+      "warning": 5,
+      "failure": 10
+    },
+    "clean_build_wall_time_pct": {
+      "warning": 10,
+      "failure": 15
+    },
+    "incremental_build_wall_time_pct": {
+      "warning": 10,
+      "failure": 15
+    },
+    "max_rss_pct": {
+      "warning": 10,
+      "failure": 15
+    },
+    "failure_requirements": [
+      "candidate and baseline use the same host, toolchain, profile, features, and workload command",
+      "candidate median crosses the noise-adjusted failure threshold",
+      "a second back-to-back candidate capture confirms the regression"
+    ]
+  },
+  "workloads": [
+    {
+      "id": "core_stack_str",
+      "owner": "rust_core_runtime_agent",
+      "source": "crates/core/benches/stack_str.rs",
+      "benchmark_id": "StackStr::new (short)",
+      "command": "cargo bench --locked --profile bench-lto -p nautilus-core --bench stack_str -- 'StackStr::new' --warm-up-time 1 --measurement-time 2 --sample-size 20",
+      "metric": "latency",
+      "unit": "ns",
+      "observations": [
+        13.023789765526413,
+        13.153796083693889,
+        13.08654050152276
+      ],
+      "median": 13.08654050152276,
+      "coefficient_of_variation_pct": 0.40560289065875055
+    },
+    {
+      "id": "model_price",
+      "owner": "rust_model_domain_agent",
+      "source": "crates/model/benches/price_criterion.rs",
+      "benchmark_id": "Price::new",
+      "command": "cargo bench --locked --profile bench-lto -p nautilus-model --bench price_criterion -- 'Price::new' --warm-up-time 1 --measurement-time 2 --sample-size 20",
+      "metric": "latency",
+      "unit": "ns",
+      "observations": [
+        3.578967820059168,
+        3.6211259860802416,
+        3.608826475880206
+      ],
+      "median": 3.608826475880206,
+      "coefficient_of_variation_pct": 0.4913060532195214
+    },
+    {
+      "id": "data_engine_ingest",
+      "owner": "rust_data_engine_agent",
+      "source": "crates/data/benches/engine.rs",
+      "benchmark_id": "DataEngine ingest/process_data_trade",
+      "command": "cargo bench --locked --profile bench-lto -p nautilus-data --bench engine -- 'DataEngine ingest/process_data_trade' --warm-up-time 1 --measurement-time 2 --sample-size 20",
+      "metric": "latency",
+      "unit": "ns",
+      "observations": [
+        92.13250710699003,
+        93.83519485780738,
+        93.09075053151659
+      ],
+      "median": 93.09075053151659,
+      "coefficient_of_variation_pct": 0.7492447447079456,
+      "derived_throughput_elements_per_second": 10742205.796927616
+    },
+    {
+      "id": "execution_matching_core",
+      "owner": "rust_execution_engine_agent",
+      "source": "crates/execution/benches/matching_core.rs",
+      "benchmark_id": "matching_core/get_order/100",
+      "command": "cargo bench --locked --profile bench-lto -p nautilus-execution --bench matching_core -- 'matching_core/get_order/100' --warm-up-time 1 --measurement-time 2 --sample-size 20",
+      "metric": "latency",
+      "unit": "ns",
+      "observations": [
+        8.687050081884939,
+        8.90351008604887,
+        7.802179738198826
+      ],
+      "median": 8.687050081884939,
+      "coefficient_of_variation_pct": 5.628609603622964,
+      "criterion_reported_throughput_elements_per_second": 11511387531.715685
+    },
+    {
+      "id": "live_runner_dispatch",
+      "owner": "rust_live_runtime_agent",
+      "source": "crates/live/benches/runner.rs",
+      "benchmark_id": "AsyncRunner dispatch/drain_data_events/100",
+      "command": "cargo bench --locked --profile bench-lto -p nautilus-live --bench runner -- 'AsyncRunner dispatch/drain_data_events/100' --warm-up-time 1 --measurement-time 2 --sample-size 20",
+      "metric": "latency",
+      "unit": "ns",
+      "observations": [
+        3739.8755181569622,
+        3767.4496529335793,
+        3713.383588399193
+      ],
+      "median": 3739.8755181569622,
+      "coefficient_of_variation_pct": 0.5901726728753396,
+      "derived_throughput_elements_per_second": 26738857.88831836
+    },
+    {
+      "id": "network_rate_limiter",
+      "owner": "rust_network_runtime_agent",
+      "source": "crates/network/benches/ratelimiter.rs",
+      "benchmark_id": "ratelimiter/check_key_uncontended/single_key",
+      "command": "cargo bench --locked --profile bench-lto -p nautilus-network --bench ratelimiter -- 'ratelimiter/check_key_uncontended/single_key' --warm-up-time 1 --measurement-time 2 --sample-size 20",
+      "metric": "latency",
+      "unit": "ns",
+      "observations": [
+        42.1211843625014,
+        41.796889340259575,
+        41.39706913997267
+      ],
+      "median": 41.796889340259575,
+      "coefficient_of_variation_pct": 0.7089828661629601
+    }
+  ],
+  "resource_baseline": {
+    "release_feature_set": [
+      "defi"
+    ],
+    "builds": [
+      {
+        "kind": "clean",
+        "command": "cargo build --locked -p nautilus-cli --release --bin nautilus --bin ntpro-node --features defi",
+        "wall_time_seconds": 370,
+        "user_cpu_seconds": 1242.72,
+        "system_cpu_seconds": 84.55,
+        "max_rss_bytes": 3284844544
+      },
+      {
+        "kind": "incremental",
+        "command": "cargo build --locked -p nautilus-cli --release --bin nautilus --bin ntpro-node --features defi",
+        "wall_time_seconds": 0.9,
+        "user_cpu_seconds": 0.22,
+        "system_cpu_seconds": 0.18,
+        "max_rss_bytes": 216481792
+      }
+    ],
+    "binaries": [
+      {
+        "name": "nautilus",
+        "size_bytes": 20637152,
+        "sha256": "ae113504ce86d0c44c0a89aae3c61791eedd2aa722ee102cc6ef29a2ae743300"
+      },
+      {
+        "name": "ntpro-node",
+        "size_bytes": 6282512,
+        "sha256": "abb71104ddc3e630765dd14ac648711208fde559ef787b818161721d381a4340"
+      }
+    ]
+  },
+  "hosted_handoff": {
+    "authoritative": false,
+    "successor_task": "BPO-002",
+    "current_state": "hosted_gate_not_materialized",
+    "required_runner_contract": "fixed runner identity plus same commands, schema, artifacts, and threshold evaluator"
+  },
+  "non_inheritance": {
+    "backend_go_live": false,
+    "production_submit": false,
+    "production_mutation": false,
+    "adapter_send": false,
+    "live_exchange_request": false,
+    "retry_scheduler": false,
+    "automatic_remediation": false,
+    "automatic_recovery": false,
+    "trading_controls": false
+  }
+}

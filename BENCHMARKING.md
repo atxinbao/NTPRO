@@ -101,45 +101,23 @@ These exercise larger units of work: ingesting a tick burst through the
 data engine, replaying a market session, dispatching through the live-node
 runner. Heavier to maintain but a closer proxy for user-observable
 performance than a single-function micro. Examples live under
-`crates/data/benches/`, `crates/live/benches/`, and the Python performance
-suite in `tests/performance_tests/`. Note that `crates/live/benches/` are
-still scoped (e.g. dispatch only, not the full select loop); the deeper
-runner-plus-engine workload is the ignored stress test at
+`crates/data/benches/` and `crates/live/benches/`. Note that
+`crates/live/benches/` are still scoped (e.g. dispatch only, not the full
+select loop); the deeper runner-plus-engine workload is the ignored stress test at
 `crates/live/tests/stress.rs`.
 
 ### 3. CI change-detection benches
 
-A subset of crates runs benchmarks in CI on pushes to the `nightly`
-branch via the
-[`performance` workflow](.github/workflows/performance.yml). The included
-crates are listed in the `CI_BENCH_CRATES` variable of the workspace
-`Makefile` (currently `nautilus-core`, `nautilus-model`, `nautilus-common`,
-and `nautilus-live`). To opt a new bench into nightly CI execution,
-register it in its crate's `Cargo.toml` and ensure that crate is in
-`CI_BENCH_CRATES`.
+The Rust-only repository currently has no hosted performance workflow. BPO-001
+records the reproducible local reference, exact commands, environment, variance,
+and thresholds in
+`docs/rust-cutover/governance/backend_performance_baseline.json`. BPO-002 owns
+the fixed hosted runner, artifact publication, and pull-request comparison gate.
 
-CI does not currently fail PRs on Rust benchmark deltas: the performance
-workflow only runs on pushes to `nightly`, not on PR opens. Contributors
-investigating a suspected regression or confirming a claimed improvement
-should run a local Criterion comparison against `develop` for any PR that
-materially changes a hot path; the nightly run is consulted after the
-fact.
-
-The Python performance suite (`tests/performance_tests/`) runs through
-[CodSpeed](https://codspeed.io/) on the same nightly workflow. The
-nightly dashboard surfaces both regressions and improvements; both are
-worth investigating when they cross the noise threshold.
-
-### Python performance tests vs Rust benches
-
-Add a Rust bench (Criterion or iai under `crates/<crate>/benches/`) when
-the work is in Rust and you want either an absolute number or an
-instruction-count change signal. Add a Python performance test
-(`tests/performance_tests/...`, picked up by CodSpeed) when the work
-crosses the Cython/PyO3 boundary or measures end-user Python API cost
-that wouldn't show up in a pure-Rust bench. The two suites are
-complementary: the Rust suite tracks engine performance, the Python suite
-tracks the API surface users actually call.
+Until BPO-002 closes, performance comparisons must run back-to-back on the same
+host and toolchain. The local reference is not an authoritative merge gate.
+The `CI_BENCH_CRATES` Make variable remains a local batch-selection helper; its
+name does not imply an active hosted workflow.
 
 ---
 
@@ -249,7 +227,8 @@ scaling. Run it directly without the noise mitigations above.
 - Two questions, two tools: Criterion for absolute time, iai for change detection.
 - Bench what you optimize, not what is easy to bench.
 - Reduce noise before quoting numbers; record the machine when you do.
-- Opt into nightly CI execution by adding the crate to the `cargo-ci-benches` recipe.
+- Use the BPO-001 workload contract for governed comparisons.
+- Treat hosted performance enforcement as unavailable until BPO-002 closes.
 - Treat existing benchmarks as documentation of what we believe is hot.
   Regressing one without explanation is a code-review concern.
 

@@ -821,7 +821,7 @@ cargo-miri:  #-- Run Miri across the in-scope foundational and plug-in crates
 # Benchmarks
 #------------------------------------------------------------------------------
 
-# List of crates whose criterion/iai benches run in the performance workflow
+# Local batch selection retained until BPO-002 materializes the hosted workflow
 CI_BENCH_CRATES := nautilus-core nautilus-model nautilus-common nautilus-live
 
 # NOTE:
@@ -833,7 +833,7 @@ CI_BENCH_CRATES := nautilus-core nautilus-model nautilus-common nautilus-live
 #   of the extra invocations is marginal while the linker remains happy.
 
 .PHONY: cargo-ci-benches
-cargo-ci-benches:  #-- Run Rust benches for the crates included in the CI performance workflow
+cargo-ci-benches:  #-- Run the local Rust benchmark batch selection
 	@for crate in $(CI_BENCH_CRATES); do \
 	  echo "Running benches for $$crate"; \
 	  cargo bench -p $$crate --profile bench --benches --no-fail-fast; \

@@ -55,8 +55,9 @@ path = "benches/foo_iai.rs"
 harness = false
 ```
 
-To opt into the nightly CI performance workflow, add the crate to the
-`cargo-ci-benches` recipe in the workspace `Makefile`.
+The repository currently has no hosted performance workflow. The
+`cargo-ci-benches` recipe is a local batch runner. Governed comparisons use the
+fixed BPO-001 workload contract; BPO-002 owns hosted runner materialization.
 
 ---
 
@@ -137,7 +138,7 @@ allocation-free functions.
 | One bench module                    | `cargo bench -p nautilus-execution --bench matching_core`            |
 | One specific bench by name pattern  | `cargo bench -p nautilus-execution --bench matching_core -- iterate` |
 | Quick smoke run (low sample count)  | `cargo bench ... -- --quick`                                         |
-| All CI-tracked benches              | `make cargo-ci-benches`                                              |
+| Local batch-selected benches        | `make cargo-ci-benches`                                              |
 
 Criterion writes HTML reports to `target/criterion/`. Open
 `target/criterion/report/index.html`. The report includes per-bench violin
