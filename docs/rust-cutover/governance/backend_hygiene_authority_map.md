@@ -117,6 +117,9 @@ At BFH-001 capture time, `target/`, `target-v2/`,
 `release-publication-evidence/`, `graphify-out/`, `.venv/`, and Python caches
 are absent. Eight ignored `.DS_Store` files remain and are owned by BFH-002.
 
+BFH-002 outcome: the eight `.DS_Store` files (84,000 bytes total) were removed
+with a path-scoped `find` command. A repository-wide recount returned zero.
+
 ### User-Owned Or Conditionally Removable Local State
 
 - untracked `project.html` (52 KiB), a local NTPRO review/roadmap HTML report;
@@ -131,6 +134,12 @@ These paths are not release authority, but they may contain user work,
 development caches, or expensive test inputs. BFH-002 may remove only confirmed
 filesystem noise. BFH-005 must keep destructive cleanup explicit and preserve
 declared exclusions. BFH-006 owns large fixture disposition.
+
+BFH-002 outcome: `project.html` is a local Codex review/roadmap report generated
+on 2026-07-15. It contains no credential-like text, is not current source or
+release authority, and is retained under the local `/project.html` rule in
+`.git/info/exclude` so it cannot enter an unrelated PR. `.agentflow/`, `.codex/`,
+`.understand-anything/`, and `tests/test_data/large/` remain intact.
 
 ### Separately Scoped Runtime Work
 
