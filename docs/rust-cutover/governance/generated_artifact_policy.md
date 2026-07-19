@@ -74,6 +74,28 @@ rules. This policy does not reclassify them as release evidence.
 6. If a generated output becomes required for durable review, promote only its
    stable contract or summarized evidence through a dedicated issue and PR.
 
+## Cleanup Interface
+
+The supported cleanup commands are path allowlists, not Git ownership
+decisions:
+
+```text
+make clean-dry-run          list reproducible build/report output
+make clean                  remove only that build/report output
+make clean-generated-dry-run
+                            list release-publication-evidence and graphify-out
+make clean-generated FORCE=1
+                            remove only those generated directories
+make distclean-dry-run      list the combined cleanup set and protected paths
+make distclean FORCE=1      remove the combined allowlist
+```
+
+`distclean` never runs `git clean` and does not delete arbitrary untracked or
+ignored files. `.codex/`, `.agentflow/`, `.understand-anything/`,
+`project.html`, `tests/test_data/large/`, and `tests/test_data/local/` are
+outside every cleanup allowlist. Cargo registry and Git caches are also outside
+scope.
+
 ## Verification Contract
 
 The following paths must resolve to ignore rules without requiring the files to

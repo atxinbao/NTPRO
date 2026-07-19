@@ -157,8 +157,65 @@ build-debug:  #-- Build the package in debug mode (recommended for development)
 
 #== Clean
 
+CLEAN_BUILD_OUTPUTS := target target-v2 build dist .coverage*
+CLEAN_BUILD_OUTPUTS += .benchmarks*
+CLEAN_GENERATED_OUTPUTS := release-publication-evidence graphify-out
+CLEAN_PROTECTED_OUTPUTS := .codex .agentflow .understand-anything project.html
+CLEAN_PROTECTED_OUTPUTS += tests/test_data/large tests/test_data/local
+
+.PHONY: clean-dry-run
+clean-dry-run:  #-- List reproducible build outputs make clean would remove
+	@echo "Reproducible build outputs selected for cleanup:"
+	@found=0; \
+	for candidate in $(CLEAN_BUILD_OUTPUTS); do \
+		if [ -e "$$candidate" ]; then \
+			printf "  %s\n" "$$candidate"; \
+			found=1; \
+		fi; \
+	done; \
+	if [ "$$found" -eq 0 ]; then echo "  (none)"; fi
+
 .PHONY: clean
-clean: clean-build-artifacts clean-caches clean-builds  #-- Clean all build artifacts, caches, and builds
+clean:  #-- Remove only documented reproducible build outputs
+	$(info $(M) Removing reproducible build outputs...)
+	$Q rm -rf -- $(CLEAN_BUILD_OUTPUTS)
+
+.PHONY: clean-generated-dry-run
+clean-generated-dry-run:  #-- List generated audit and analysis outputs
+	@echo "Generated audit and analysis outputs selected for cleanup:"
+	@found=0; \
+	for candidate in $(CLEAN_GENERATED_OUTPUTS); do \
+		if [ -e "$$candidate" ]; then \
+			printf "  %s\n" "$$candidate"; \
+			found=1; \
+		fi; \
+	done; \
+	if [ "$$found" -eq 0 ]; then echo "  (none)"; fi
+
+.PHONY: clean-generated
+clean-generated:  #-- Remove generated audit and analysis outputs (requires FORCE=1)
+	@if [ "$$FORCE" != "1" ]; then \
+		echo "Refusing generated-output cleanup; run make clean-generated FORCE=1"; \
+		exit 1; \
+	fi
+	$(info $(M) Removing generated audit and analysis outputs...)
+	$Q rm -rf -- $(CLEAN_GENERATED_OUTPUTS)
+
+.PHONY: distclean-dry-run
+distclean-dry-run:  #-- List the complete guarded cleanup set without deleting
+	@$(MAKE) --no-print-directory clean-dry-run
+	@$(MAKE) --no-print-directory clean-generated-dry-run
+	@echo "Protected local state is never selected:"
+	@for candidate in $(CLEAN_PROTECTED_OUTPUTS); do printf "  %s\n" "$$candidate"; done
+
+.PHONY: distclean
+distclean:  #-- Remove build and generated outputs only (requires FORCE=1)
+	@if [ "$$FORCE" != "1" ]; then \
+		echo "Refusing guarded cleanup; inspect make distclean-dry-run, then pass FORCE=1"; \
+		exit 1; \
+	fi
+	@$(MAKE) --no-print-directory clean
+	@$(MAKE) --no-print-directory clean-generated FORCE=1
 
 .PHONY: ib-stop
 ib-stop:  #-- Stop local TWS/IBC processes and Docker IB Gateway containers
@@ -174,35 +231,6 @@ ib-stop:  #-- Stop local TWS/IBC processes and Docker IB Gateway containers
 	@pkill -KILL -f "displaybannerandlaunch.sh" || true
 	@docker ps --format '{{.Names}} {{.Image}}' | awk '/ib-gateway|ibgateway|Trader Workstation|tws/ {print $$1}' | xargs -r docker kill >/dev/null 2>&1 || true
 	@echo "Done."
-
-.PHONY: clean-builds
-clean-builds:  #-- Clean distribution and target directories
-	$Q rm -rf dist target target-v2 2>/dev/null || true
-
-.PHONY: clean-build-artifacts
-clean-build-artifacts:  #-- Clean compiled Rust artifacts
-	@echo "Cleaning build artifacts..."
-	# Clean Rust build artifacts (keep final libraries)
-	find target target-v2 -name "*.rlib" -delete 2>/dev/null || true
-	find target target-v2 -name "*.rmeta" -delete 2>/dev/null || true
-	rm -rf target/*/build target/*/deps target-v2/*/build target-v2/*/deps 2>/dev/null || true
-	rm -rf build/ 2>/dev/null || true
-	# Clean test artifacts
-	rm -rf .coverage .benchmarks 2>/dev/null || true
-
-.PHONY: clean-caches
-clean-caches:  #-- Clean Cargo caches
-	-cargo clean --workspace
-	-CARGO_TARGET_DIR=target-v2 cargo clean --workspace
-
-.PHONY: distclean
-distclean: clean  #-- Nuclear clean - remove all untracked files (requires FORCE=1)
-	@if [ "$$FORCE" != "1" ]; then \
-		echo "Pass FORCE=1 to really nuke"; \
-		exit 1; \
-	fi
-	@echo "WARNING: removing all untracked files (git clean -fxd)..."
-	git clean -fxd -e tests/test_data/large/ -e tests/test_data/local/
 
 #== Code Quality
 
