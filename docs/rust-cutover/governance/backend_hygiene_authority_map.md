@@ -101,6 +101,12 @@ this milestone and enters only through the approved v0.33.0 maintenance intake.
 BFH-003, BFH-004, and BFH-005 own these surfaces. Every removal requires a
 repository-wide reachability check and task-specific validation.
 
+BFH-003 outcome: 28 explicit `.gitignore` exceptions for absent files and the
+retired `scripts/control/*.sh` exception were removed. The unused
+`ci-pr-wheel` Cargo profile was removed, and the sole active comment naming the
+deleted `scripts/ci/plan.sh` helper was corrected. All retained Make, workflow,
+action, pre-commit, and script execution references resolve to tracked paths.
+
 ### Reproducible Local Output
 
 The following paths may be removed locally when present and must remain
