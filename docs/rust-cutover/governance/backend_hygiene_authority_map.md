@@ -107,6 +107,13 @@ retired `scripts/control/*.sh` exception were removed. The unused
 deleted `scripts/ci/plan.sh` helper was corrected. All retained Make, workflow,
 action, pre-commit, and script execution references resolve to tracked paths.
 
+BFH-004 outcome: `CONTRIBUTING.md` now routes contributors through `main`, the
+pinned Rust toolchain, Cargo-owned tool manifests, Rust-only validation,
+post-freeze governance gates, the local CLA, and the current task execution
+protocol. References to Python, uv, `pyproject.toml`, retired developer-guide
+setup pages, the upstream `develop` branch, and an absent CLA Assistant workflow
+were removed from the current contributor route.
+
 ### Reproducible Local Output
 
 The following paths may be removed locally when present and must remain
