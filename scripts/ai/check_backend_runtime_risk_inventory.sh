@@ -20,24 +20,28 @@ hash_file() {
   fi
 }
 
+scan_rust_sources() {
+  local pattern="$1"
+
+  if [[ "${NTPRO_RISK_SCAN_FORCE_GREP:-0}" != "1" ]] && command -v rg >/dev/null 2>&1; then
+    rg -n --no-heading -e "$pattern" crates -g '*.rs'
+  else
+    find crates -type f -name '*.rs' -print0 \
+      | xargs -0 grep -nH -E -- "$pattern"
+  fi
+}
+
 cd "$ROOT"
 [[ -f "$INVENTORY" ]] || fail "missing inventory: $INVENTORY"
 
 {
-  rg -n --no-heading '#\[cfg\(test\)\]' crates -g '*.rs' || true
+  scan_rust_sources '#\[cfg\(test\)\]' || true
 } | awk -F: '!seen[$1]++ { print $1 "\t" $2 }' >"$TMP_DIR/test_starts.tsv"
 
 {
-  rg -n --no-heading \
-    -e '[.]unwrap[[:space:]]*\(' \
-    -e '[.]expect[[:space:]]*\(' \
-    -e 'panic![[:space:]]*\(' \
-    -e 'todo![[:space:]]*\(' \
-    -e 'TODO' \
-    -e 'unsafe' \
-    -e 'dead_code' \
-    -e 'unused' \
-    crates -g '*.rs' || true
+  scan_rust_sources \
+    '[.]unwrap[[:space:]]*\(|[.]expect[[:space:]]*\(|panic![[:space:]]*\(|todo![[:space:]]*\(|TODO|unsafe|dead_code|unused' \
+    || true
 } >"$TMP_DIR/raw.txt"
 
 awk -F '\t' '
