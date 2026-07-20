@@ -33,8 +33,7 @@ validate_manifest() {
     and .release_scope.milestone_number == 35
     and .release_scope.milestone_title == "v0.33.0-backend-maintenance"
     and .release_scope.exact_issue_numbers == [1120,1121,1122,1123,1124,1125,1126]
-    and .release_scope.exact_pr_numbers[0:6] == [1134,1135,1136,1137,1138,1139]
-    and (.release_scope.exact_pr_numbers | length == 7)
+    and .release_scope.exact_pr_numbers == [1134,1135,1136,1137,1138,1139,1140]
     and .release_scope.issue_count == 7
     and .release_scope.pr_count == 7
     and .release_scope.maintenance_only == true
@@ -130,20 +129,16 @@ else
     ' <<<"$issues_json" >/dev/null || fail "BPO-007 issue is not closed"
   fi
 
-  closeout_pr="$(jq -r '.release_scope.exact_pr_numbers[6] // empty' "$MANIFEST")"
-  if [[ -z "$closeout_pr" ]]; then
-    [[ "$ALLOW_OPEN_CLOSEOUT" == "1" ]] || fail "closeout PR is not registered"
-  else
-    while IFS= read -r pr; do
-      state="$(gh pr view "$pr" --repo "$REPO" --json state --jq .state)"
-      if [[ "$pr" == "$closeout_pr" && "$ALLOW_OPEN_CLOSEOUT" == "1" ]]; then
-        [[ "$state" == "OPEN" || "$state" == "MERGED" ]] \
-          || fail "closeout PR has invalid state: $state"
-      else
-        [[ "$state" == "MERGED" ]] || fail "release PR #$pr is not merged"
-      fi
-    done < <(jq -r '.release_scope.exact_pr_numbers[] | select(. != null)' "$MANIFEST")
-  fi
+  closeout_pr="$(jq -r '.release_scope.exact_pr_numbers[6]' "$MANIFEST")"
+  while IFS= read -r pr; do
+    state="$(gh pr view "$pr" --repo "$REPO" --json state --jq .state)"
+    if [[ "$pr" == "$closeout_pr" && "$ALLOW_OPEN_CLOSEOUT" == "1" ]]; then
+      [[ "$state" == "OPEN" || "$state" == "MERGED" ]] \
+        || fail "closeout PR has invalid state: $state"
+    else
+      [[ "$state" == "MERGED" ]] || fail "release PR #$pr is not merged"
+    fi
+  done < <(jq -r '.release_scope.exact_pr_numbers[]' "$MANIFEST")
   echo "v33_live_state=pass exact_issues=7 exact_prs=7"
 fi
 
