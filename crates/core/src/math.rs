@@ -95,6 +95,12 @@ pub enum InterpolationError {
         /// Input length.
         len: usize,
     },
+    /// A numerically unstable operation produced a non-finite result.
+    #[error("Interpolation operation '{operation}' produced a non-finite result")]
+    NonFiniteOutput {
+        /// Name of the failed interpolation operation.
+        operation: &'static str,
+    },
 }
 
 /// Macro for approximate floating-point equality comparison.
@@ -156,8 +162,9 @@ pub fn try_linear_weight(x1: f64, x2: f64, x: f64) -> Result<f64, InterpolationE
         }
     }
 
-    let diff = (x2 - x1).abs();
-    if diff < EPSILON {
+    let direct_diff = x2 - x1;
+    let diff = direct_diff.abs();
+    if direct_diff.is_finite() && diff < EPSILON {
         return Err(InterpolationError::AbscissasTooClose {
             left: x1,
             right: x2,
@@ -166,7 +173,10 @@ pub fn try_linear_weight(x1: f64, x2: f64, x: f64) -> Result<f64, InterpolationE
         });
     }
 
-    Ok((x - x1) / (x2 - x1))
+    let scale = x1.abs().max(x2.abs()).max(1.0);
+    let denominator = (x2 / scale) - (x1 / scale);
+    let numerator = (x / scale) - (x1 / scale);
+    finite_interpolation_output("linear_weight", numerator / denominator)
 }
 
 /// Performs linear interpolation using a weight factor.
@@ -289,9 +299,16 @@ pub fn try_quad_polynomial(
         });
     }
 
-    Ok(y0 * (x - x1) * (x - x2) / ((x0 - x1) * (x0 - x2))
+    let scale = x0.abs().max(x1.abs()).max(x2.abs()).max(1.0);
+    let x = x / scale;
+    let x0 = x0 / scale;
+    let x1 = x1 / scale;
+    let x2 = x2 / scale;
+    let result = y0 * (x - x1) * (x - x2) / ((x0 - x1) * (x0 - x2))
         + y1 * (x - x0) * (x - x2) / ((x1 - x0) * (x1 - x2))
-        + y2 * (x - x0) * (x - x1) / ((x2 - x0) * (x2 - x1)))
+        + y2 * (x - x0) * (x - x1) / ((x2 - x0) * (x2 - x1));
+
+    finite_interpolation_output("quad_polynomial", result)
 }
 
 /// Performs quadratic interpolation for the point `x` given vectors of abscissas `xs` and ordinates `ys`.
@@ -372,7 +389,7 @@ pub fn try_quadratic_interpolation(
         x,
     )?;
 
-    Ok(linear_weighting(
+    let result = linear_weighting(
         try_quad_polynomial(
             x,
             interpolation_point(xs, pos - 1)?,
@@ -392,7 +409,20 @@ pub fn try_quadratic_interpolation(
             interpolation_point(ys, pos + 2)?,
         )?,
         w,
-    ))
+    );
+
+    finite_interpolation_output("quadratic_interpolation", result)
+}
+
+fn finite_interpolation_output(
+    operation: &'static str,
+    value: f64,
+) -> Result<f64, InterpolationError> {
+    if value.is_finite() {
+        Ok(value)
+    } else {
+        Err(InterpolationError::NonFiniteOutput { operation })
+    }
 }
 
 fn validate_interpolation_inputs(x: f64, xs: &[f64], ys: &[f64]) -> Result<(), InterpolationError> {
@@ -514,6 +544,13 @@ mod tests {
     }
 
     #[rstest]
+    fn test_try_linear_weight_avoids_finite_input_subtraction_overflow() {
+        let result = try_linear_weight(-1.0e308, 1.0e308, 0.0);
+
+        assert_eq!(result, Ok(0.5));
+    }
+
+    #[rstest]
     fn test_linear_weight_just_above_epsilon() {
         // Values differing by more than machine epsilon should work
         let result = linear_weight(1.0, 1.0 + 1e-9, 1.0 + 5e-10);
@@ -613,6 +650,18 @@ mod tests {
         let result = quad_polynomial(0.5, 0.0, 1.0 + 1e-9, 2.0, 0.0, 1.0, 4.0);
         // Should not panic and return a reasonable value
         assert!(result.is_finite());
+    }
+
+    #[rstest]
+    fn test_try_quad_polynomial_rejects_non_finite_output() {
+        let result = try_quad_polynomial(1.0e308, 0.0, 1.0, 2.0, 1.0, 2.0, 3.0);
+
+        assert_eq!(
+            result,
+            Err(InterpolationError::NonFiniteOutput {
+                operation: "quad_polynomial",
+            })
+        );
     }
 
     #[rstest]
@@ -763,6 +812,34 @@ mod tests {
     }
 
     proptest! {
+        #[test]
+        fn prop_try_linear_weight_never_returns_non_finite_output(
+            x1 in any::<f64>(),
+            x2 in any::<f64>(),
+            x in any::<f64>(),
+        ) {
+            if x1.is_finite() && x2.is_finite() && x.is_finite() {
+                let result = try_linear_weight(x1, x2, x);
+                prop_assert!(result.is_err() || result.unwrap().is_finite());
+            }
+        }
+
+        #[test]
+        fn prop_try_quad_polynomial_never_returns_non_finite_output(
+            x in any::<f64>(),
+            x0 in any::<f64>(),
+            x1 in any::<f64>(),
+            x2 in any::<f64>(),
+            y0 in any::<f64>(),
+            y1 in any::<f64>(),
+            y2 in any::<f64>(),
+        ) {
+            if [x, x0, x1, x2, y0, y1, y2].iter().all(|value| value.is_finite()) {
+                let result = try_quad_polynomial(x, x0, x1, x2, y0, y1, y2);
+                prop_assert!(result.is_err() || result.unwrap().is_finite());
+            }
+        }
+
         #[test]
         fn prop_try_quadratic_interpolation_returns_finite_for_valid_points(
             x in -1_000.0f64..1_000.0,

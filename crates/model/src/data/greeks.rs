@@ -637,6 +637,16 @@ impl YieldCurveData {
             .unwrap_or_else(|error| panic!("{error}"))
     }
 
+    /// Validates that this yield curve can be used at a runtime boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`InterpolationError`] when the curve points are missing,
+    /// incompatible, non-finite, not strictly increasing, or numerically unstable.
+    pub fn validate(&self) -> Result<(), InterpolationError> {
+        self.try_get_rate(0.0).map(|_| ())
+    }
+
     /// Interpolates the yield curve without panicking on invalid curve data.
     ///
     /// # Errors
@@ -1342,6 +1352,30 @@ mod tests {
             curve.try_get_rate(1.0),
             Err(InterpolationError::UnsortedAbscissas { .. })
         ));
+    }
+
+    #[rstest]
+    fn test_yield_curve_data_validate_accepts_valid_curve() {
+        assert_eq!(create_test_yield_curve().validate(), Ok(()));
+    }
+
+    #[rstest]
+    fn test_yield_curve_data_validate_rejects_missing_curve() {
+        let curve = YieldCurveData::new(
+            UnixNanos::default(),
+            UnixNanos::default(),
+            "USD".to_string(),
+            Vec::new(),
+            Vec::new(),
+        );
+
+        assert_eq!(
+            curve.validate(),
+            Err(InterpolationError::InsufficientPoints {
+                minimum: 3,
+                actual: 0,
+            })
+        );
     }
 
     #[rstest]

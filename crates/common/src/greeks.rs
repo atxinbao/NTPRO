@@ -18,6 +18,7 @@
 use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc};
 
 use ahash::AHashMap;
+use anyhow::Context;
 use nautilus_core::UnixNanos;
 use nautilus_model::{
     data::greeks::{
@@ -546,18 +547,20 @@ impl GreeksCalculator {
         let currency = instrument.quote_currency().code.to_string();
 
         let cache = self.cache.borrow();
-        let yield_curve = cache.yield_curve(&currency);
-        let interest_rate = match yield_curve {
-            Some(yield_curve) => yield_curve(expiry_in_years),
-            None => flat_interest_rate,
-        };
-        let dividend_curve = cache.yield_curve(&underlying_instrument_id.to_string());
+        let interest_rate = cache
+            .try_yield_curve_rate(&currency, expiry_in_years)
+            .with_context(|| format!("invalid yield curve '{currency}'"))?
+            .unwrap_or(flat_interest_rate);
+        let dividend_curve_key = underlying_instrument_id.to_string();
+        let dividend_rate = cache
+            .try_yield_curve_rate(&dividend_curve_key, expiry_in_years)
+            .with_context(|| format!("invalid dividend curve '{dividend_curve_key}'"))?;
         drop(cache);
 
         let mut cost_of_carry = 0.0;
 
-        if let Some(dividend_curve) = dividend_curve {
-            cost_of_carry = interest_rate - dividend_curve(expiry_in_years);
+        if let Some(dividend_rate) = dividend_rate {
+            cost_of_carry = interest_rate - dividend_rate;
         } else if let Some(div_yield) = flat_dividend_yield {
             cost_of_carry = interest_rate - div_yield;
         }
@@ -1142,7 +1145,7 @@ impl GreeksCalculator {
         }
 
         let implied_future_price =
-            self.calculate_implied_future_price(&call_instrument, call_price, put_price);
+            self.calculate_implied_future_price(&call_instrument, call_price, put_price)?;
         let spread = implied_future_price - reference_future_price.as_f64();
         let spread_price = reference_future_instrument.make_price(spread);
 
@@ -1159,7 +1162,7 @@ impl GreeksCalculator {
         call_instrument: &InstrumentAny,
         call_price: f64,
         put_price: f64,
-    ) -> f64 {
+    ) -> anyhow::Result<f64> {
         let expiry_utc = call_instrument
             .expiration_ns()
             .map(|ns| ns.to_datetime_utc())
@@ -1172,11 +1175,12 @@ impl GreeksCalculator {
         let interest_rate = self
             .cache
             .borrow()
-            .yield_curve(&currency)
-            .map_or(0.0425, |yield_curve| yield_curve(expiry_in_years));
+            .try_yield_curve_rate(&currency, expiry_in_years)
+            .with_context(|| format!("invalid yield curve '{currency}'"))?
+            .unwrap_or(0.0425);
         let strike = call_instrument.strike_price().unwrap_or_default().as_f64();
 
-        strike + (interest_rate * expiry_in_years).exp() * (call_price - put_price)
+        Ok(strike + (interest_rate * expiry_in_years).exp() * (call_price - put_price))
     }
 
     /// Resolve a cached futures spread price for an underlying future.

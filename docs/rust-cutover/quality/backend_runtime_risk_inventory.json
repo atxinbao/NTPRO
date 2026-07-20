@@ -5,8 +5,8 @@
   "executor": "Codex",
   "classification": "v33-separately-scoped",
   "baseline_commit": "0b7c13b25e39c34fa8d94f236212204a8a54bf4f",
-  "status": "local_validated_hosted_review_pending",
-  "count_policy": "No detached numeric target. Records are path-scoped ownership decisions.",
+  "status": "local_validated_hosted_rereview_pending",
+  "count_policy": "The canonical scan is reproducible and hash-checked; findings add path-scoped ownership decisions for selected boundaries.",
   "scan": {
     "root": "crates",
     "signals": [
@@ -16,22 +16,46 @@
       "dead_code",
       "unused",
       "unsafe",
+      "todo_macro",
       "TODO"
     ],
     "ownership_precedence": [
-      "test",
       "generated",
       "ffi",
+      "test",
       "production"
     ],
     "commands": [
-      "rg -n \"unwrap\\(|expect\\(|panic!\\(|todo!\\(|TODO|unsafe\\b|allow\\((dead_code|unused)|expect\\((dead_code|unused)\" crates",
-      "cargo clippy --locked -p nautilus-core -p nautilus-model -p nautilus-backtest --lib -- -D warnings"
+      "scripts/ai/check_backend_runtime_risk_inventory.sh",
+      "cargo clippy --locked -p nautilus-core -p nautilus-model -p nautilus-common -p nautilus-backtest --lib -- -D warnings"
     ],
+    "validator": "scripts/ai/check_backend_runtime_risk_inventory.sh",
+    "canonical_row": "ownership<TAB>signal<TAB>path<TAB>line",
+    "summary": {
+      "total_matches": 28984,
+      "matched_files": 1215,
+      "by_ownership": {
+        "ffi": 674,
+        "generated": 646,
+        "production": 2533,
+        "test": 25131
+      },
+      "by_signal": {
+        "TODO": 176,
+        "dead_code": 155,
+        "expect": 5691,
+        "panic": 1510,
+        "todo_macro": 18,
+        "unsafe": 1922,
+        "unused": 97,
+        "unwrap": 19415
+      },
+      "canonical_sha256": "54b3281d296fe66ded759eb67548b83e88d6964cd5e81384c85230d8816f2a76"
+    },
     "limitations": [
-      "Text matches are candidates; ownership is decided from module and cfg context.",
+      "Text matches are candidates; ownership is decided from path and the first inline cfg(test) boundary.",
       "Generated and FFI paths are separate owners and are not mechanically rewritten.",
-      "Inline cfg(test) modules are test-owned even when their path is under src."
+      "Inline cfg(test) modules are test-owned from the first cfg(test) line to end of file."
     ]
   },
   "ownership_classes": {
@@ -88,7 +112,7 @@
       "symbol": "YieldCurveData::get_rate",
       "risk": "runtime curve data has public vectors and can be missing, non-finite, or shape-incompatible",
       "decision": "selected_hardened",
-      "result": "try_get_rate provides structured fail-closed errors; get_rate remains a compatibility wrapper"
+      "result": "try_get_rate provides structured fail-closed errors; cache ingestion validates curves and production Greeks lookups propagate checked errors; get_rate remains a compatibility wrapper"
     },
     {
       "id": "BPO004-R004",
@@ -204,6 +228,19 @@
       "risk": "raw pointer and ABI representation contracts require dedicated ownership",
       "decision": "retained_ffi_owned",
       "result": "no unsafe or ABI code changed; Miri and sanitizer are not selected for this PR"
+    },
+    {
+      "id": "BPO004-R013",
+      "signals": [
+        "panic",
+        "numeric_overflow"
+      ],
+      "ownership": "production",
+      "path": "crates/core/src/math.rs",
+      "symbol": "checked interpolation arithmetic",
+      "risk": "extreme finite coordinates can overflow intermediate subtraction or polynomial terms",
+      "decision": "selected_hardened",
+      "result": "coordinate scaling avoids finite-input subtraction overflow and every checked interpolation result rejects non-finite output"
     }
   ],
   "failure_matrix": [
@@ -218,6 +255,12 @@
       "boundary": "checked interpolation inputs",
       "behavior": "Err(InterpolationError::NonFiniteInput)",
       "coverage": "test_try_quadratic_interpolation_rejects_non_finite_inputs; test_yield_curve_data_try_get_rate_rejects_non_finite_rate"
+    },
+    {
+      "input_class": "numerically_unstable_output",
+      "boundary": "checked linear and quadratic interpolation arithmetic",
+      "behavior": "scaled finite result or Err(InterpolationError::NonFiniteOutput)",
+      "coverage": "test_try_linear_weight_avoids_finite_input_subtraction_overflow; test_try_quad_polynomial_rejects_non_finite_output"
     },
     {
       "input_class": "incompatible",
