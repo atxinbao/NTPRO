@@ -23,6 +23,7 @@ crate-type = ["rlib"]
 [features]
 default = []
 hypersync = ["hypersync-client", "nautilus-live/node"]
+nautilus-system = []
 turmoil = ["dep:turmoil", "nautilus-network/turmoil"]
 
 [package.metadata.docs.rs]
@@ -36,7 +37,6 @@ nautilus-infrastructure = { workspace = true, features = ["postgres"] }
 nautilus-live = { workspace = true, features = ["defi"] }
 nautilus-model = { workspace = true, features = ["defi"] }
 nautilus-network = { workspace = true }
-nautilus-system = { workspace = true, optional = true }
 
 ahash = { workspace = true }
 alloy = { workspace = true }

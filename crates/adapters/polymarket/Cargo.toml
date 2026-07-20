@@ -24,6 +24,7 @@ crate-type = ["rlib"]
 default = ["high-precision"]
 examples = ["nautilus-live/node", "nautilus-network/transport-sockudo"]
 high-precision = ["nautilus-model/high-precision"]
+nautilus-system = []
 
 [package.metadata.docs.rs]
 all-features = true
@@ -35,7 +36,6 @@ nautilus-core = { workspace = true }
 nautilus-live = { workspace = true }
 nautilus-model = { workspace = true }
 nautilus-network = { workspace = true }
-nautilus-system = { workspace = true, optional = true }
 
 ahash = { workspace = true }
 alloy = { workspace = true, features = ["provider-http", "network", "reqwest"] }
