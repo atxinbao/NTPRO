@@ -23,6 +23,7 @@ crate-type = ["rlib"]
 [features]
 examples = ["nautilus-live/node", "nautilus-trading/examples"]
 high-precision = ["nautilus-model/high-precision"]
+nautilus-system = []
 
 [package.metadata.cargo-machete]
 ignored = ["arrow"] # Used by `custom_data` macro expansion
@@ -39,7 +40,6 @@ nautilus-model = { workspace = true }
 nautilus-network = { workspace = true }
 nautilus-persistence-macros = { workspace = true }
 nautilus-serialization = { workspace = true, features = ["arrow"] }
-nautilus-system = { workspace = true, optional = true }
 
 ahash = { workspace = true }
 anyhow = { workspace = true }

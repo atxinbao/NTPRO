@@ -23,15 +23,19 @@ crate-type = ["rlib"]
 [features]
 default = ["live", "high-precision"]
 arrow = ["dep:arrow", "nautilus-serialization"]
-live = ["nautilus-live", "nautilus-live/node", "nautilus-system", "dotenvy"]
+live = ["nautilus-live", "nautilus-live/node", "dep:nautilus-system", "dotenvy"]
 high-precision = [
   "nautilus-model/high-precision",
   "nautilus-serialization?/high-precision",
 ]
+nautilus-system = []
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.cargo-machete]
+ignored = ["nautilus-system"]
 
 [dependencies]
 nautilus-common = { workspace = true, features = ["live"] }

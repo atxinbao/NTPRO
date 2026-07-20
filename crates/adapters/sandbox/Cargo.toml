@@ -23,6 +23,7 @@ crate-type = ["rlib"]
 [features]
 default = ["high-precision"]
 high-precision = ["nautilus-model/high-precision"]
+nautilus-system = []
 example-databento = [
   "dep:nautilus-databento",
   "dep:nautilus-live",
@@ -39,7 +40,6 @@ nautilus-common = { workspace = true, features = ["live"] }
 nautilus-core = { workspace = true }
 nautilus-execution = { workspace = true }
 nautilus-model = { workspace = true }
-nautilus-system = { workspace = true, optional = true }
 
 ahash = { workspace = true }
 anyhow = { workspace = true }

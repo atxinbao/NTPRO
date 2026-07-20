@@ -25,6 +25,7 @@ default = []
 ffi = ["nautilus-core/ffi", "nautilus-model/ffi", "cbindgen", "live"]
 indicators = ["nautilus-indicators"]
 live = ["tokio"]
+nautilus-serialization = []
 simulation = ["live", "madsim", "nautilus-core/simulation"]
 defi = ["nautilus-model/defi", "alloy-primitives"]
 high-precision = ["nautilus-model/high-precision"]
@@ -43,7 +44,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 nautilus-core = { workspace = true }
 nautilus-indicators = { workspace = true, optional = true }
 nautilus-model = { workspace = true, features = ["stubs"] }
-nautilus-serialization = { workspace = true, optional = true }
 
 ahash = { workspace = true }
 anyhow = { workspace = true }

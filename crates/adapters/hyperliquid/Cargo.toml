@@ -28,6 +28,7 @@ high-precision = [
   "nautilus-model/high-precision",
   "nautilus-serialization?/high-precision",
 ]
+nautilus-system = []
 
 [package.metadata.docs.rs]
 all-features = true
@@ -43,7 +44,6 @@ nautilus-persistence-macros = { workspace = true }
 nautilus-serialization = { workspace = true, features = [
   "arrow",
 ], optional = true }
-nautilus-system = { workspace = true, optional = true }
 
 ahash = { workspace = true }
 alloy = { workspace = true }

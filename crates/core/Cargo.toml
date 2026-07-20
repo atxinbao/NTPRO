@@ -24,6 +24,7 @@ crate-type = ["rlib", "staticlib"]
 default = []
 simulation = ["madsim"]
 ffi = ["cbindgen"]
+strum = []
 
 [package.metadata.cargo-machete]
 ignored = [
@@ -53,7 +54,6 @@ ustr = { workspace = true }
 uuid = { workspace = true }
 
 madsim = { workspace = true, optional = true }
-strum = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

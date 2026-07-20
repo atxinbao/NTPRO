@@ -26,6 +26,7 @@ default = ["execution"]
 execution = ["dep:nautilus-execution", "dep:nautilus-network"]
 examples = ["nautilus-live/node", "nautilus-trading/examples"]
 gateway = ["bollard"]
+nautilus-system = []
 
 [package.metadata.cargo-machete]
 ignored = [
@@ -45,7 +46,6 @@ nautilus-model = { workspace = true }
 
 nautilus-execution = { workspace = true, optional = true }
 nautilus-network = { workspace = true, optional = true }
-nautilus-system = { workspace = true, optional = true }
 
 ahash = { workspace = true }
 anyhow = { workspace = true }
