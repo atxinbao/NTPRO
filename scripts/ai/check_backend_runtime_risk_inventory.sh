@@ -35,20 +35,12 @@ cd "$ROOT"
 [[ -f "$INVENTORY" ]] || fail "missing inventory: $INVENTORY"
 
 {
-  scan_rust_sources '#\[cfg\(test\)\]' || true
-} | awk -F: '!seen[$1]++ { print $1 "\t" $2 }' >"$TMP_DIR/test_starts.tsv"
-
-{
   scan_rust_sources \
     '[.]unwrap[[:space:]]*\(|[.]expect[[:space:]]*\(|panic![[:space:]]*\(|todo![[:space:]]*\(|TODO|unsafe|dead_code|unused' \
     || true
 } >"$TMP_DIR/raw.txt"
 
-awk -F '\t' '
-  NR == FNR {
-    first_test_line[$1] = $2
-    next
-  }
+awk '
   {
     first_colon = index($0, ":")
     remainder = substr($0, first_colon + 1)
@@ -61,9 +53,10 @@ awk -F '\t' '
     if (path ~ /\/tests\//) test_owned = 1
     if (path ~ /\/benches\//) test_owned = 1
     if (path ~ /\/test_kit\//) test_owned = 1
+    if (path ~ /\/src\/testing\//) test_owned = 1
+    if (path ~ /\/src\/stubs\//) test_owned = 1
     if (path ~ /\/tests[.]rs$/) test_owned = 1
     if (path ~ /_test[.]rs$/) test_owned = 1
-    if ((path in first_test_line) && line_number >= first_test_line[path]) test_owned = 1
 
     if (path ~ /\/generated\//) {
       ownership = "generated"
@@ -100,7 +93,7 @@ awk -F '\t' '
       print ownership "\tunused\t" path "\t" line_number
     }
   }
-' "$TMP_DIR/test_starts.tsv" "$TMP_DIR/raw.txt" \
+' "$TMP_DIR/raw.txt" \
   | LC_ALL=C sort -t $'\t' -k3,3 -k4,4n -k2,2 -k1,1 \
   >"$TMP_DIR/canonical.tsv"
 

@@ -32,13 +32,13 @@
     "validator": "scripts/ai/check_backend_runtime_risk_inventory.sh",
     "canonical_row": "ownership<TAB>signal<TAB>path<TAB>line",
     "summary": {
-      "total_matches": 28984,
+      "total_matches": 28985,
       "matched_files": 1215,
       "by_ownership": {
         "ffi": 674,
         "generated": 646,
-        "production": 2533,
-        "test": 25131
+        "production": 14255,
+        "test": 13410
       },
       "by_signal": {
         "TODO": 176,
@@ -48,14 +48,14 @@
         "todo_macro": 18,
         "unsafe": 1922,
         "unused": 97,
-        "unwrap": 19415
+        "unwrap": 19416
       },
-      "canonical_sha256": "54b3281d296fe66ded759eb67548b83e88d6964cd5e81384c85230d8816f2a76"
+      "canonical_sha256": "339a67c84b5d0d9e2cb8bf809e876781c0268d486bbd0fc2f1bbd733822955a1"
     },
     "limitations": [
-      "Text matches are candidates; ownership is decided from path and the first inline cfg(test) boundary.",
+      "Ownership is path-scoped: dedicated tests, benches, test_kit, testing, stubs, tests.rs, and *_test.rs files are test-owned.",
       "Generated and FFI paths are separate owners and are not mechanically rewritten.",
-      "Inline cfg(test) modules are test-owned from the first cfg(test) line to end of file."
+      "Mixed src files are conservatively production-owned in full; inline cfg(test) signals remain production counts rather than risking false test classification."
     ]
   },
   "ownership_classes": {
@@ -194,11 +194,11 @@
         "panic"
       ],
       "ownership": "test",
-      "path": "crates/**/tests and inline cfg(test) modules",
+      "path": "dedicated tests, benches, test_kit, testing, stubs, tests.rs, and *_test.rs files",
       "symbol": "test assertions and fixture setup",
       "risk": "test failures intentionally stop the test",
       "decision": "retained_test_assertions",
-      "result": "not a production runtime boundary"
+      "result": "dedicated test paths are separated from production; mixed src files remain conservatively production-owned"
     },
     {
       "id": "BPO004-R011",
@@ -241,6 +241,22 @@
       "risk": "extreme finite coordinates can overflow intermediate subtraction or polynomial terms",
       "decision": "selected_hardened",
       "result": "coordinate scaling avoids finite-input subtraction overflow and every checked interpolation result rejects non-finite output"
+    },
+    {
+      "id": "BPO004-R014",
+      "signals": [
+        "unwrap",
+        "expect",
+        "panic",
+        "unsafe",
+        "TODO"
+      ],
+      "ownership": "production",
+      "path": "mixed crates/**/src/*.rs files containing inline test modules",
+      "symbol": "path-scoped conservative ownership",
+      "risk": "textual cfg(test) boundaries cannot reliably identify Rust item scope and can hide later production code",
+      "decision": "conservative_production_classification",
+      "result": "the complete mixed source file is production-owned; no signal is downgraded based on inline cfg(test) text"
     }
   ],
   "failure_matrix": [

@@ -2033,6 +2033,12 @@ impl Cache {
             .transpose()
     }
 
+    #[cfg(test)]
+    pub(crate) fn add_yield_curve_unchecked_for_test(&mut self, yield_curve: YieldCurveData) {
+        self.yield_curves
+            .insert(yield_curve.curve_name.clone(), yield_curve);
+    }
+
     /// Adds the `currency` to the cache.
     ///
     /// # Errors

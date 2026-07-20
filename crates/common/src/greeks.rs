@@ -1256,8 +1256,9 @@ mod tests {
     use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
     use chrono::{TimeZone, Utc};
+    use nautilus_core::math::InterpolationError;
     use nautilus_model::{
-        data::{IndexPriceUpdate, QuoteTick},
+        data::{IndexPriceUpdate, QuoteTick, YieldCurveData},
         enums::{AssetClass, OptionKind, PositionSide},
         identifiers::{InstrumentId, StrategyId, Symbol, Venue},
         instruments::{Equity, FuturesContract, OptionContract, any::InstrumentAny},
@@ -1906,6 +1907,74 @@ mod tests {
         cache.borrow_mut().add_quote(option_quote).unwrap();
         cache.borrow_mut().add_quote(underlying_quote).unwrap();
         cache
+    }
+
+    fn assert_invalid_curve_source(error: &anyhow::Error, context: &str) {
+        assert!(error.to_string().contains(context));
+        assert_eq!(
+            error.root_cause().downcast_ref::<InterpolationError>(),
+            Some(&InterpolationError::InsufficientPoints {
+                minimum: 3,
+                actual: 0,
+            })
+        );
+    }
+
+    fn calculate_test_option_greeks(
+        calculator: &GreeksCalculator,
+        option_id: InstrumentId,
+        now_ns: UnixNanos,
+    ) -> anyhow::Result<GreeksData> {
+        calculator.instrument_greeks(
+            option_id,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(now_ns),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
+    #[rstest]
+    #[case("USD", "invalid yield curve 'USD'")]
+    #[case("AAPL.OPRA", "invalid dividend curve 'AAPL.OPRA'")]
+    fn test_instrument_greeks_preserves_invalid_curve_source(
+        #[case] curve_name: &str,
+        #[case] expected_context: &str,
+    ) {
+        let now = Utc.with_ymd_and_hms(2025, 3, 8, 12, 0, 0).unwrap();
+        let expiry = now + chrono::Duration::days(30);
+        let now_ns = UnixNanos::from(now);
+        let option = option_with_expiration("AAPL250417C00150000.OPRA", UnixNanos::from(expiry));
+        let option_id = option.id();
+        let cache =
+            setup_cache_with_option_and_quotes(option, InstrumentId::from("AAPL.OPRA"), now_ns);
+        cache
+            .borrow_mut()
+            .add_yield_curve_unchecked_for_test(YieldCurveData::new(
+                UnixNanos::default(),
+                UnixNanos::default(),
+                curve_name.to_string(),
+                Vec::new(),
+                Vec::new(),
+            ));
+        let calculator = GreeksCalculator::new(cache, Rc::new(RefCell::new(TestClock::new())));
+
+        let error = calculate_test_option_greeks(&calculator, option_id, now_ns).unwrap_err();
+
+        assert_invalid_curve_source(&error, expected_context);
     }
 
     #[rstest]
