@@ -713,7 +713,7 @@ impl BacktestEngine {
                 break;
             }
 
-            if data.is_none() {
+            let Some(d) = data.as_ref() else {
                 if streaming {
                     // In streaming mode, don't advance timers past the
                     // current batch. The next batch will provide more data
@@ -726,9 +726,7 @@ impl BacktestEngine {
                     break;
                 }
                 continue;
-            }
-
-            let d = data.as_ref().unwrap();
+            };
             let ts_init = d.ts_init();
 
             if ts_init > end_ns {
@@ -762,7 +760,10 @@ impl BacktestEngine {
             data = self.data_iterator.next();
 
             // If timestamp changed (or exhausted), flush timers then run modules
-            if data.is_none() || data.as_ref().unwrap().ts_init() > prev_last_ns {
+            if data
+                .as_ref()
+                .is_none_or(|next_data| next_data.ts_init() > prev_last_ns)
+            {
                 self.flush_accumulator_events(&clocks, prev_last_ns);
                 self.run_venue_modules(prev_last_ns);
             }

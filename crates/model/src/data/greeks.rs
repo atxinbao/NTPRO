@@ -21,7 +21,11 @@ use std::{
 };
 
 use implied_vol::{DefaultSpecialFn, ImpliedBlackVolatility, SpecialFn};
-use nautilus_core::{UnixNanos, datetime::unix_nanos_to_iso8601, math::quadratic_interpolation};
+use nautilus_core::{
+    UnixNanos,
+    datetime::unix_nanos_to_iso8601,
+    math::{InterpolationError, try_quadratic_interpolation},
+};
 
 use crate::{
     data::{
@@ -621,14 +625,68 @@ impl YieldCurveData {
         }
     }
 
-    // Interpolate the yield curve for a given expiry time
+    /// Interpolates the yield curve for a given expiry time.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the curve data is missing or incompatible. Runtime input
+    /// boundaries should prefer [`Self::try_get_rate`].
     #[must_use]
     pub fn get_rate(&self, expiry_in_years: f64) -> f64 {
+        self.try_get_rate(expiry_in_years)
+            .unwrap_or_else(|error| panic!("{error}"))
+    }
+
+    /// Interpolates the yield curve without panicking on invalid curve data.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`InterpolationError`] when the expiry or curve points are
+    /// missing, incompatible, non-finite, or not strictly increasing.
+    pub fn try_get_rate(&self, expiry_in_years: f64) -> Result<f64, InterpolationError> {
         if self.interest_rates.len() == 1 {
-            return self.interest_rates[0];
+            if self.tenors.len() != 1 {
+                return Err(InterpolationError::LengthMismatch {
+                    xs_len: self.tenors.len(),
+                    ys_len: self.interest_rates.len(),
+                });
+            }
+            if !expiry_in_years.is_finite() {
+                return Err(InterpolationError::NonFiniteInput {
+                    parameter: "expiry_in_years",
+                    index: None,
+                });
+            }
+            let tenor = *self
+                .tenors
+                .first()
+                .ok_or(InterpolationError::InvalidIndex {
+                    index: 0,
+                    len: self.tenors.len(),
+                })?;
+            if !tenor.is_finite() {
+                return Err(InterpolationError::NonFiniteInput {
+                    parameter: "tenors",
+                    index: Some(0),
+                });
+            }
+            let rate = *self
+                .interest_rates
+                .first()
+                .ok_or(InterpolationError::InvalidIndex {
+                    index: 0,
+                    len: self.interest_rates.len(),
+                })?;
+            if !rate.is_finite() {
+                return Err(InterpolationError::NonFiniteInput {
+                    parameter: "interest_rates",
+                    index: Some(0),
+                });
+            }
+            return Ok(rate);
         }
 
-        quadratic_interpolation(expiry_in_years, &self.tenors, &self.interest_rates)
+        try_quadratic_interpolation(expiry_in_years, &self.tenors, &self.interest_rates)
     }
 }
 
@@ -1192,6 +1250,98 @@ mod tests {
         // Test interpolation (results will depend on quadratic_interpolation implementation)
         let rate_0_75 = curve.get_rate(0.75);
         assert!(rate_0_75 > 0.025 && rate_0_75 < 0.045);
+    }
+
+    #[rstest]
+    fn test_yield_curve_data_try_get_rate_rejects_missing_curve() {
+        let curve = YieldCurveData::new(
+            UnixNanos::default(),
+            UnixNanos::default(),
+            "USD".to_string(),
+            Vec::new(),
+            Vec::new(),
+        );
+
+        assert_eq!(
+            curve.try_get_rate(1.0),
+            Err(InterpolationError::InsufficientPoints {
+                minimum: 3,
+                actual: 0,
+            })
+        );
+    }
+
+    #[rstest]
+    fn test_yield_curve_data_try_get_rate_rejects_incompatible_curve() {
+        let curve = YieldCurveData::new(
+            UnixNanos::default(),
+            UnixNanos::default(),
+            "USD".to_string(),
+            vec![0.5, 1.0, 2.0],
+            vec![0.02, 0.03],
+        );
+
+        assert_eq!(
+            curve.try_get_rate(1.0),
+            Err(InterpolationError::LengthMismatch {
+                xs_len: 3,
+                ys_len: 2,
+            })
+        );
+    }
+
+    #[rstest]
+    fn test_yield_curve_data_try_get_rate_rejects_non_finite_rate() {
+        let curve = YieldCurveData::new(
+            UnixNanos::default(),
+            UnixNanos::default(),
+            "USD".to_string(),
+            vec![0.5, 1.0, 2.0],
+            vec![0.02, f64::NAN, 0.04],
+        );
+
+        assert_eq!(
+            curve.try_get_rate(1.0),
+            Err(InterpolationError::NonFiniteInput {
+                parameter: "ys",
+                index: Some(1),
+            })
+        );
+    }
+
+    #[rstest]
+    fn test_yield_curve_data_try_get_rate_rejects_non_finite_single_tenor() {
+        let curve = YieldCurveData::new(
+            UnixNanos::default(),
+            UnixNanos::default(),
+            "USD".to_string(),
+            vec![f64::NAN],
+            vec![0.02],
+        );
+
+        assert_eq!(
+            curve.try_get_rate(1.0),
+            Err(InterpolationError::NonFiniteInput {
+                parameter: "tenors",
+                index: Some(0),
+            })
+        );
+    }
+
+    #[rstest]
+    fn test_yield_curve_data_try_get_rate_rejects_unsorted_tenors() {
+        let curve = YieldCurveData::new(
+            UnixNanos::default(),
+            UnixNanos::default(),
+            "USD".to_string(),
+            vec![0.5, 2.0, 1.0],
+            vec![0.02, 0.04, 0.03],
+        );
+
+        assert!(matches!(
+            curve.try_get_rate(1.0),
+            Err(InterpolationError::UnsortedAbscissas { .. })
+        ));
     }
 
     #[rstest]

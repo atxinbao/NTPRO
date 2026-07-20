@@ -1,0 +1,270 @@
+{
+  "schema_version": "ntpro.backend_runtime_risk_inventory.v1",
+  "task_id": "BPO-004",
+  "generated_at": "2026-07-20",
+  "executor": "Codex",
+  "classification": "v33-separately-scoped",
+  "baseline_commit": "0b7c13b25e39c34fa8d94f236212204a8a54bf4f",
+  "status": "local_validated_hosted_review_pending",
+  "count_policy": "No detached numeric target. Records are path-scoped ownership decisions.",
+  "scan": {
+    "root": "crates",
+    "signals": [
+      "unwrap",
+      "expect",
+      "panic",
+      "dead_code",
+      "unused",
+      "unsafe",
+      "TODO"
+    ],
+    "ownership_precedence": [
+      "test",
+      "generated",
+      "ffi",
+      "production"
+    ],
+    "commands": [
+      "rg -n \"unwrap\\(|expect\\(|panic!\\(|todo!\\(|TODO|unsafe\\b|allow\\((dead_code|unused)|expect\\((dead_code|unused)\" crates",
+      "cargo clippy --locked -p nautilus-core -p nautilus-model -p nautilus-backtest --lib -- -D warnings"
+    ],
+    "limitations": [
+      "Text matches are candidates; ownership is decided from module and cfg context.",
+      "Generated and FFI paths are separate owners and are not mechanically rewritten.",
+      "Inline cfg(test) modules are test-owned even when their path is under src."
+    ]
+  },
+  "ownership_classes": {
+    "production": {
+      "decision": "Harden selected input and iterator boundaries; retain documented compatibility and construction invariants.",
+      "blocking": true
+    },
+    "test": {
+      "decision": "Retain assertions and unwrap/expect calls used to make fixture failures immediate.",
+      "blocking": false
+    },
+    "generated": {
+      "decision": "Retain generator-owned lint exceptions; changes must originate in the generator or schema.",
+      "blocking": false
+    },
+    "ffi": {
+      "decision": "Retain ABI-owned unsafe and conversion invariants; require a dedicated FFI task and ABI fixtures for changes.",
+      "blocking": false
+    }
+  },
+  "findings": [
+    {
+      "id": "BPO004-R001",
+      "signals": [
+        "unwrap"
+      ],
+      "ownership": "production",
+      "path": "crates/backtest/src/engine.rs",
+      "symbol": "BacktestEngine::run_impl",
+      "risk": "runtime iterator exhaustion could remain represented as Option while code used unwrap after a separate check",
+      "decision": "selected_hardened",
+      "result": "let-else and Option::is_none_or remove both unwrap calls without recovery or retry"
+    },
+    {
+      "id": "BPO004-R002",
+      "signals": [
+        "panic"
+      ],
+      "ownership": "production",
+      "path": "crates/core/src/math.rs",
+      "symbol": "quadratic interpolation compatibility APIs",
+      "risk": "missing, non-finite, unstable, or incompatible points could panic before callers could fail closed",
+      "decision": "selected_hardened",
+      "result": "checked try_* APIs return InterpolationError; existing panic APIs remain compatibility wrappers"
+    },
+    {
+      "id": "BPO004-R003",
+      "signals": [
+        "panic",
+        "indexing"
+      ],
+      "ownership": "production",
+      "path": "crates/model/src/data/greeks.rs",
+      "symbol": "YieldCurveData::get_rate",
+      "risk": "runtime curve data has public vectors and can be missing, non-finite, or shape-incompatible",
+      "decision": "selected_hardened",
+      "result": "try_get_rate provides structured fail-closed errors; get_rate remains a compatibility wrapper"
+    },
+    {
+      "id": "BPO004-R004",
+      "signals": [
+        "expect"
+      ],
+      "ownership": "production",
+      "path": "crates/live/src/config.rs",
+      "symbol": "From<LiveDataEngineConfig> and From<LiveRiskEngineConfig>",
+      "risk": "conversion assumes validate_runtime_support ran first",
+      "decision": "retained_validated_construction_invariant",
+      "result": "LiveNode build validates before conversion; changing From to TryFrom requires separate public-contract migration approval"
+    },
+    {
+      "id": "BPO004-R005",
+      "signals": [
+        "unwrap"
+      ],
+      "ownership": "production",
+      "path": "crates/live/src/manager.rs",
+      "symbol": "ExecutionManager external order creation",
+      "risk": "cache read assumes the immediately preceding successful cache insertion is observable",
+      "decision": "retained_local_cache_invariant",
+      "result": "not selected because a meaningful negative test requires a dedicated cache fault-injection boundary"
+    },
+    {
+      "id": "BPO004-R006",
+      "signals": [
+        "panic"
+      ],
+      "ownership": "production",
+      "path": "crates/live/src/node.rs",
+      "symbol": "NodeState::from_u8",
+      "risk": "invalid external discriminants can panic through the compatibility constructor",
+      "decision": "retained_checked_wrapper_pattern",
+      "result": "NodeState::try_from_u8 is the checked boundary; internal atomic values use enum discriminants"
+    },
+    {
+      "id": "BPO004-R007",
+      "signals": [
+        "dead_code"
+      ],
+      "ownership": "production",
+      "path": "crates/live/src/manager.rs",
+      "symbol": "InflightCheck::client_order_id",
+      "risk": "stored identifier is not currently read",
+      "decision": "retained_struct_state",
+      "result": "field is bounded reconciliation state and has no runtime failure behavior"
+    },
+    {
+      "id": "BPO004-R008",
+      "signals": [
+        "unused"
+      ],
+      "ownership": "production",
+      "path": "crates/live/src/node.rs",
+      "symbol": "LiveNode::build node mutability",
+      "risk": "mutability differs by plugin feature ownership",
+      "decision": "retained_cfg_scoped_exception",
+      "result": "cfg_attr applies only when plugin code is not compiled"
+    },
+    {
+      "id": "BPO004-R009",
+      "signals": [
+        "TODO"
+      ],
+      "ownership": "production",
+      "path": "crates/model/src",
+      "symbol": "domain migration and formatting comments",
+      "risk": "comments identify future API or representation cleanup but do not execute",
+      "decision": "classified_non_executable_follow_up",
+      "result": "no TODO macro or unimplemented runtime branch was selected"
+    },
+    {
+      "id": "BPO004-R010",
+      "signals": [
+        "unwrap",
+        "expect",
+        "panic"
+      ],
+      "ownership": "test",
+      "path": "crates/**/tests and inline cfg(test) modules",
+      "symbol": "test assertions and fixture setup",
+      "risk": "test failures intentionally stop the test",
+      "decision": "retained_test_assertions",
+      "result": "not a production runtime boundary"
+    },
+    {
+      "id": "BPO004-R011",
+      "signals": [
+        "expect",
+        "dead_code",
+        "unused"
+      ],
+      "ownership": "generated",
+      "path": "crates/adapters/binance/src/spot/sbe/generated/mod.rs",
+      "symbol": "SBE generated module",
+      "risk": "generated decoding shape and unused surfaces are schema-owned",
+      "decision": "retained_generator_owned",
+      "result": "manual edits are prohibited; adapter changes require raw fixture coverage"
+    },
+    {
+      "id": "BPO004-R012",
+      "signals": [
+        "unsafe",
+        "expect",
+        "TODO",
+        "unused"
+      ],
+      "ownership": "ffi",
+      "path": "crates/*/src/ffi",
+      "symbol": "C ABI pointer and conversion surfaces",
+      "risk": "raw pointer and ABI representation contracts require dedicated ownership",
+      "decision": "retained_ffi_owned",
+      "result": "no unsafe or ABI code changed; Miri and sanitizer are not selected for this PR"
+    }
+  ],
+  "failure_matrix": [
+    {
+      "input_class": "missing",
+      "boundary": "try_quadratic_interpolation and YieldCurveData::try_get_rate",
+      "behavior": "Err(InterpolationError::InsufficientPoints)",
+      "coverage": "test_try_quadratic_interpolation_rejects_missing_points; test_yield_curve_data_try_get_rate_rejects_missing_curve"
+    },
+    {
+      "input_class": "malformed",
+      "boundary": "checked interpolation inputs",
+      "behavior": "Err(InterpolationError::NonFiniteInput)",
+      "coverage": "test_try_quadratic_interpolation_rejects_non_finite_inputs; test_yield_curve_data_try_get_rate_rejects_non_finite_rate"
+    },
+    {
+      "input_class": "incompatible",
+      "boundary": "curve shape and tenor ordering",
+      "behavior": "Err(InterpolationError::LengthMismatch or UnsortedAbscissas)",
+      "coverage": "length and unsorted negative tests in nautilus-core and nautilus-model"
+    },
+    {
+      "input_class": "stale",
+      "boundary": "BacktestEngine start boundary",
+      "behavior": "data before start_ns is skipped without panic or replay",
+      "coverage": "test_start_boundary_skips_earlier_data"
+    },
+    {
+      "input_class": "exhausted",
+      "boundary": "BacktestEngine data iterator",
+      "behavior": "empty or exhausted Option ends or advances the run without unwrap",
+      "coverage": "test_run_with_empty_data; test_streaming_mode_processes_data_in_batches"
+    }
+  ],
+  "validation_selection": {
+    "nextest": {
+      "selected": true,
+      "reason": "changed Rust production and test ownership"
+    },
+    "property_tests": {
+      "selected": true,
+      "reason": "checked interpolation has a broad finite numeric input domain"
+    },
+    "miri": {
+      "selected": false,
+      "reason": "no unsafe or pointer ownership changed"
+    },
+    "sanitizer": {
+      "selected": false,
+      "reason": "no unsafe, allocation, thread, or FFI ownership changed"
+    },
+    "golden_trace": {
+      "selected": false,
+      "reason": "no trading semantics, adapter behavior, or replay schema changed"
+    }
+  },
+  "forbidden_behavior": {
+    "retry_added": false,
+    "recovery_added": false,
+    "remediation_added": false,
+    "fallback_execution_added": false,
+    "trading_capability_inherited": false
+  }
+}

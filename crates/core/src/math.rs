@@ -30,6 +30,73 @@
 //! - **`1e-8`:** Used in `quadratic_interpolation` for detecting exact sample points.
 //!   This is an application-level threshold appropriate for typical financial data.
 
+use thiserror::Error;
+
+/// Errors returned by checked interpolation functions.
+#[derive(Clone, Debug, Error, PartialEq)]
+pub enum InterpolationError {
+    /// An interpolation input was not finite.
+    #[error("All inputs must be finite: parameter={parameter}, index={index:?}")]
+    NonFiniteInput {
+        /// Name of the invalid input.
+        parameter: &'static str,
+        /// Element index for slice inputs.
+        index: Option<usize>,
+    },
+    /// The interpolation input did not contain enough points.
+    #[error("Need at least {minimum} points for quadratic interpolation, found {actual}")]
+    InsufficientPoints {
+        /// Minimum number of required points.
+        minimum: usize,
+        /// Number of supplied points.
+        actual: usize,
+    },
+    /// Abscissa and ordinate lengths differed.
+    #[error("xs and ys must have the same length: xs={xs_len}, ys={ys_len}")]
+    LengthMismatch {
+        /// Number of abscissas.
+        xs_len: usize,
+        /// Number of ordinates.
+        ys_len: usize,
+    },
+    /// Abscissas were not strictly increasing.
+    #[error(
+        "Abscissas must be strictly increasing: index {left_index}={left}, index {right_index}={right}"
+    )]
+    UnsortedAbscissas {
+        /// Index of the left abscissa.
+        left_index: usize,
+        /// Index of the right abscissa.
+        right_index: usize,
+        /// Value of the left abscissa.
+        left: f64,
+        /// Value of the right abscissa.
+        right: f64,
+    },
+    /// Two abscissas were too close for stable interpolation.
+    #[error(
+        "Abscissas are too close for stable interpolation: left={left}, right={right}, diff={diff}, min={minimum}"
+    )]
+    AbscissasTooClose {
+        /// Left abscissa.
+        left: f64,
+        /// Right abscissa.
+        right: f64,
+        /// Absolute difference between the abscissas.
+        diff: f64,
+        /// Minimum accepted difference.
+        minimum: f64,
+    },
+    /// A validated interpolation index could not be read.
+    #[error("Interpolation index {index} was outside input length {len}")]
+    InvalidIndex {
+        /// Requested element index.
+        index: usize,
+        /// Input length.
+        len: usize,
+    },
+}
+
 /// Macro for approximate floating-point equality comparison.
 ///
 /// This macro compares two floating-point values with a specified epsilon tolerance,
@@ -67,19 +134,39 @@ macro_rules! approx_eq {
 #[inline]
 #[must_use]
 pub fn linear_weight(x1: f64, x2: f64, x: f64) -> f64 {
+    try_linear_weight(x1, x2, x).unwrap_or_else(|error| panic!("{error}"))
+}
+
+/// Calculates an interpolation weight without panicking on invalid inputs.
+///
+/// # Errors
+///
+/// Returns [`InterpolationError::NonFiniteInput`] for non-finite values and
+/// [`InterpolationError::AbscissasTooClose`] for an unstable denominator.
+#[inline]
+pub fn try_linear_weight(x1: f64, x2: f64, x: f64) -> Result<f64, InterpolationError> {
     const EPSILON: f64 = f64::EPSILON * 2.0; // ~4.44e-16
 
-    assert!(
-        x1.is_finite() && x2.is_finite() && x.is_finite(),
-        "All inputs must be finite: x1={x1}, x2={x2}, x={x}"
-    );
+    for (parameter, value) in [("x1", x1), ("x2", x2), ("x", x)] {
+        if !value.is_finite() {
+            return Err(InterpolationError::NonFiniteInput {
+                parameter,
+                index: None,
+            });
+        }
+    }
 
     let diff = (x2 - x1).abs();
-    assert!(
-        diff >= EPSILON,
-        "`x1` ({x1}) and `x2` ({x2}) are too close for stable interpolation (diff: {diff}, min: {EPSILON})"
-    );
-    (x - x1) / (x2 - x1)
+    if diff < EPSILON {
+        return Err(InterpolationError::AbscissasTooClose {
+            left: x1,
+            right: x2,
+            diff,
+            minimum: EPSILON,
+        });
+    }
+
+    Ok((x - x1) / (x2 - x1))
 }
 
 /// Performs linear interpolation using a weight factor.
@@ -129,107 +216,260 @@ pub fn pos_search(x: f64, xs: &[f64]) -> usize {
 #[inline]
 #[must_use]
 pub fn quad_polynomial(x: f64, x0: f64, x1: f64, x2: f64, y0: f64, y1: f64, y2: f64) -> f64 {
+    try_quad_polynomial(x, x0, x1, x2, y0, y1, y2).unwrap_or_else(|error| panic!("{error}"))
+}
+
+/// Evaluates a quadratic Lagrange polynomial without panicking on invalid inputs.
+///
+/// # Errors
+///
+/// Returns [`InterpolationError::NonFiniteInput`] for non-finite values and
+/// [`InterpolationError::AbscissasTooClose`] when the polynomial would have an
+/// unstable denominator.
+#[inline]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "mirrors the existing polynomial API"
+)]
+pub fn try_quad_polynomial(
+    x: f64,
+    x0: f64,
+    x1: f64,
+    x2: f64,
+    y0: f64,
+    y1: f64,
+    y2: f64,
+) -> Result<f64, InterpolationError> {
     const EPSILON: f64 = f64::EPSILON * 2.0; // ~4.44e-16
 
-    assert!(
-        x.is_finite()
-            && x0.is_finite()
-            && x1.is_finite()
-            && x2.is_finite()
-            && y0.is_finite()
-            && y1.is_finite()
-            && y2.is_finite(),
-        "All inputs must be finite: x={x}, x0={x0}, x1={x1}, x2={x2}, y0={y0}, y1={y1}, y2={y2}"
-    );
+    for (parameter, value) in [
+        ("x", x),
+        ("x0", x0),
+        ("x1", x1),
+        ("x2", x2),
+        ("y0", y0),
+        ("y1", y1),
+        ("y2", y2),
+    ] {
+        if !value.is_finite() {
+            return Err(InterpolationError::NonFiniteInput {
+                parameter,
+                index: None,
+            });
+        }
+    }
 
     // Protect against coincident x values that would lead to division by zero
     let diff_01 = (x0 - x1).abs();
     let diff_02 = (x0 - x2).abs();
     let diff_12 = (x1 - x2).abs();
 
-    assert!(
-        diff_01 >= EPSILON && diff_02 >= EPSILON && diff_12 >= EPSILON,
-        "Abscissas are too close for stable interpolation: x0={x0}, x1={x1}, x2={x2} (diffs: {diff_01:.2e}, {diff_02:.2e}, {diff_12:.2e}, min: {EPSILON})"
-    );
+    if diff_01 < EPSILON {
+        return Err(InterpolationError::AbscissasTooClose {
+            left: x0,
+            right: x1,
+            diff: diff_01,
+            minimum: EPSILON,
+        });
+    }
+    if diff_02 < EPSILON {
+        return Err(InterpolationError::AbscissasTooClose {
+            left: x0,
+            right: x2,
+            diff: diff_02,
+            minimum: EPSILON,
+        });
+    }
+    if diff_12 < EPSILON {
+        return Err(InterpolationError::AbscissasTooClose {
+            left: x1,
+            right: x2,
+            diff: diff_12,
+            minimum: EPSILON,
+        });
+    }
 
-    y0 * (x - x1) * (x - x2) / ((x0 - x1) * (x0 - x2))
+    Ok(y0 * (x - x1) * (x - x2) / ((x0 - x1) * (x0 - x2))
         + y1 * (x - x0) * (x - x2) / ((x1 - x0) * (x1 - x2))
-        + y2 * (x - x0) * (x - x1) / ((x2 - x0) * (x2 - x1))
+        + y2 * (x - x0) * (x - x1) / ((x2 - x0) * (x2 - x1)))
 }
 
 /// Performs quadratic interpolation for the point `x` given vectors of abscissas `xs` and ordinates `ys`.
 ///
 /// # Panics
 ///
-/// Panics if `xs.len() < 3` or `xs.len() != ys.len()`.
+/// Panics when the point arrays are missing, incompatible, non-finite, not
+/// strictly increasing, or numerically unstable. Runtime input boundaries
+/// should prefer [`try_quadratic_interpolation`].
 #[must_use]
 pub fn quadratic_interpolation(x: f64, xs: &[f64], ys: &[f64]) -> f64 {
+    try_quadratic_interpolation(x, xs, ys).unwrap_or_else(|error| panic!("{error}"))
+}
+
+/// Performs checked quadratic interpolation for `x`.
+///
+/// # Errors
+///
+/// Returns an [`InterpolationError`] when the point arrays are missing,
+/// incompatible, non-finite, not strictly increasing, or numerically unstable.
+pub fn try_quadratic_interpolation(
+    x: f64,
+    xs: &[f64],
+    ys: &[f64],
+) -> Result<f64, InterpolationError> {
     let n_elem = xs.len();
     let epsilon = 1e-8;
 
-    assert!(
-        n_elem >= 3,
-        "Need at least 3 points for quadratic interpolation"
-    );
-    assert_eq!(xs.len(), ys.len(), "xs and ys must have the same length");
+    validate_interpolation_inputs(x, xs, ys)?;
 
-    if x <= xs[0] {
-        return ys[0];
+    let first_x = interpolation_point(xs, 0)?;
+    let first_y = interpolation_point(ys, 0)?;
+    let last_index = n_elem - 1;
+    let last_x = interpolation_point(xs, last_index)?;
+    let last_y = interpolation_point(ys, last_index)?;
+
+    if x <= first_x {
+        return Ok(first_y);
     }
 
-    if x >= xs[n_elem - 1] {
-        return ys[n_elem - 1];
+    if x >= last_x {
+        return Ok(last_y);
     }
 
     let pos = pos_search(x, xs);
 
-    if (xs[pos] - x).abs() < epsilon {
-        return ys[pos];
+    if (interpolation_point(xs, pos)? - x).abs() < epsilon {
+        return interpolation_point(ys, pos);
     }
 
     if pos == 0 {
-        return quad_polynomial(x, xs[0], xs[1], xs[2], ys[0], ys[1], ys[2]);
-    }
-
-    if pos == n_elem - 2 {
-        return quad_polynomial(
+        return try_quad_polynomial(
             x,
-            xs[n_elem - 3],
-            xs[n_elem - 2],
-            xs[n_elem - 1],
-            ys[n_elem - 3],
-            ys[n_elem - 2],
-            ys[n_elem - 1],
+            interpolation_point(xs, 0)?,
+            interpolation_point(xs, 1)?,
+            interpolation_point(xs, 2)?,
+            interpolation_point(ys, 0)?,
+            interpolation_point(ys, 1)?,
+            interpolation_point(ys, 2)?,
         );
     }
 
-    let w = linear_weight(xs[pos], xs[pos + 1], x);
+    if pos == n_elem - 2 {
+        return try_quad_polynomial(
+            x,
+            interpolation_point(xs, n_elem - 3)?,
+            interpolation_point(xs, n_elem - 2)?,
+            interpolation_point(xs, last_index)?,
+            interpolation_point(ys, n_elem - 3)?,
+            interpolation_point(ys, n_elem - 2)?,
+            interpolation_point(ys, last_index)?,
+        );
+    }
 
-    linear_weighting(
-        quad_polynomial(
+    let w = try_linear_weight(
+        interpolation_point(xs, pos)?,
+        interpolation_point(xs, pos + 1)?,
+        x,
+    )?;
+
+    Ok(linear_weighting(
+        try_quad_polynomial(
             x,
-            xs[pos - 1],
-            xs[pos],
-            xs[pos + 1],
-            ys[pos - 1],
-            ys[pos],
-            ys[pos + 1],
-        ),
-        quad_polynomial(
+            interpolation_point(xs, pos - 1)?,
+            interpolation_point(xs, pos)?,
+            interpolation_point(xs, pos + 1)?,
+            interpolation_point(ys, pos - 1)?,
+            interpolation_point(ys, pos)?,
+            interpolation_point(ys, pos + 1)?,
+        )?,
+        try_quad_polynomial(
             x,
-            xs[pos],
-            xs[pos + 1],
-            xs[pos + 2],
-            ys[pos],
-            ys[pos + 1],
-            ys[pos + 2],
-        ),
+            interpolation_point(xs, pos)?,
+            interpolation_point(xs, pos + 1)?,
+            interpolation_point(xs, pos + 2)?,
+            interpolation_point(ys, pos)?,
+            interpolation_point(ys, pos + 1)?,
+            interpolation_point(ys, pos + 2)?,
+        )?,
         w,
-    )
+    ))
+}
+
+fn validate_interpolation_inputs(x: f64, xs: &[f64], ys: &[f64]) -> Result<(), InterpolationError> {
+    let n_elem = xs.len();
+    if n_elem < 3 {
+        return Err(InterpolationError::InsufficientPoints {
+            minimum: 3,
+            actual: n_elem,
+        });
+    }
+    if n_elem != ys.len() {
+        return Err(InterpolationError::LengthMismatch {
+            xs_len: n_elem,
+            ys_len: ys.len(),
+        });
+    }
+    if !x.is_finite() {
+        return Err(InterpolationError::NonFiniteInput {
+            parameter: "x",
+            index: None,
+        });
+    }
+    for (index, value) in xs.iter().enumerate() {
+        if !value.is_finite() {
+            return Err(InterpolationError::NonFiniteInput {
+                parameter: "xs",
+                index: Some(index),
+            });
+        }
+    }
+    for (index, value) in ys.iter().enumerate() {
+        if !value.is_finite() {
+            return Err(InterpolationError::NonFiniteInput {
+                parameter: "ys",
+                index: Some(index),
+            });
+        }
+    }
+    for (left_index, pair) in xs.windows(2).enumerate() {
+        let [left, right] = pair else {
+            continue;
+        };
+        if right <= left {
+            return Err(InterpolationError::UnsortedAbscissas {
+                left_index,
+                right_index: left_index + 1,
+                left: *left,
+                right: *right,
+            });
+        }
+        let diff = right - left;
+        if diff < f64::EPSILON * 2.0 {
+            return Err(InterpolationError::AbscissasTooClose {
+                left: *left,
+                right: *right,
+                diff,
+                minimum: f64::EPSILON * 2.0,
+            });
+        }
+    }
+
+    Ok(())
+}
+
+fn interpolation_point(values: &[f64], index: usize) -> Result<f64, InterpolationError> {
+    values
+        .get(index)
+        .copied()
+        .ok_or(InterpolationError::InvalidIndex {
+            index,
+            len: values.len(),
+        })
 }
 
 #[cfg(test)]
 mod tests {
+    use proptest::prelude::*;
     use rstest::*;
 
     use super::*;
@@ -430,6 +670,115 @@ mod tests {
         let xs = vec![1.0, 2.0, 3.0];
         let ys = vec![1.0, 4.0];
         let _ = quadratic_interpolation(1.5, &xs, &ys);
+    }
+
+    #[rstest]
+    #[case(
+        f64::NAN,
+        &[1.0, 2.0, 3.0],
+        &[1.0, 4.0, 9.0],
+        InterpolationError::NonFiniteInput {
+            parameter: "x",
+            index: None,
+        }
+    )]
+    #[case(
+        1.5,
+        &[1.0, f64::INFINITY, 3.0],
+        &[1.0, 4.0, 9.0],
+        InterpolationError::NonFiniteInput {
+            parameter: "xs",
+            index: Some(1),
+        }
+    )]
+    #[case(
+        1.5,
+        &[1.0, 2.0, 3.0],
+        &[1.0, f64::NAN, 9.0],
+        InterpolationError::NonFiniteInput {
+            parameter: "ys",
+            index: Some(1),
+        }
+    )]
+    fn test_try_quadratic_interpolation_rejects_non_finite_inputs(
+        #[case] x: f64,
+        #[case] xs: &[f64],
+        #[case] ys: &[f64],
+        #[case] expected: InterpolationError,
+    ) {
+        assert_eq!(try_quadratic_interpolation(x, xs, ys), Err(expected));
+    }
+
+    #[rstest]
+    fn test_try_quadratic_interpolation_rejects_missing_points() {
+        let result = try_quadratic_interpolation(1.5, &[1.0, 2.0], &[1.0, 4.0]);
+
+        assert_eq!(
+            result,
+            Err(InterpolationError::InsufficientPoints {
+                minimum: 3,
+                actual: 2,
+            })
+        );
+    }
+
+    #[rstest]
+    fn test_try_quadratic_interpolation_rejects_incompatible_lengths() {
+        let result = try_quadratic_interpolation(1.5, &[1.0, 2.0, 3.0], &[1.0, 4.0]);
+
+        assert_eq!(
+            result,
+            Err(InterpolationError::LengthMismatch {
+                xs_len: 3,
+                ys_len: 2,
+            })
+        );
+    }
+
+    #[rstest]
+    #[case(&[1.0, 3.0, 2.0])]
+    #[case(&[1.0, 2.0, 2.0])]
+    fn test_try_quadratic_interpolation_rejects_unsorted_points(#[case] xs: &[f64]) {
+        let result = try_quadratic_interpolation(1.5, xs, &[1.0, 4.0, 9.0]);
+
+        assert!(matches!(
+            result,
+            Err(InterpolationError::UnsortedAbscissas {
+                left_index: 1,
+                right_index: 2,
+                ..
+            })
+        ));
+    }
+
+    #[rstest]
+    fn test_try_quadratic_interpolation_rejects_numerically_unstable_points() {
+        let result =
+            try_quadratic_interpolation(1.5, &[1.0, 1.0 + f64::EPSILON, 2.0], &[1.0, 4.0, 9.0]);
+
+        assert!(matches!(
+            result,
+            Err(InterpolationError::AbscissasTooClose { .. })
+        ));
+    }
+
+    proptest! {
+        #[test]
+        fn prop_try_quadratic_interpolation_returns_finite_for_valid_points(
+            x in -1_000.0f64..1_000.0,
+            base in -1_000.0f64..1_000.0,
+            gap_1 in 0.001f64..100.0,
+            gap_2 in 0.001f64..100.0,
+            y_0 in -1_000.0f64..1_000.0,
+            y_1 in -1_000.0f64..1_000.0,
+            y_2 in -1_000.0f64..1_000.0,
+        ) {
+            let xs = [base, base + gap_1, base + gap_1 + gap_2];
+            let ys = [y_0, y_1, y_2];
+
+            let result = try_quadratic_interpolation(x, &xs, &ys);
+            prop_assert!(matches!(result, Ok(value) if value.is_finite()));
+        }
     }
 
     #[rstest]
