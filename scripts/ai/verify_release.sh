@@ -100,10 +100,20 @@ run_release_publish_after_gate() {
   scripts/ai/verify_release_publish_after_gate.sh
 }
 
+run_v33_maintenance_release() {
+  scripts/ai/check_backend_maintenance_release.sh
+}
+
+run_v33_strict_provenance() {
+  scripts/ai/check_release_strict_provenance.sh
+}
+
 run_current_release_gates() {
   run_current_governance
   run_backend_freeze_baseline
   run_rust_only_gates
+  run_v33_maintenance_release
+  run_v33_strict_provenance
   run_release_publication_guard
   run_release_publish_after_gate
 }
@@ -143,11 +153,17 @@ run_stage() {
     release-publish-after-gate)
       run_release_publish_after_gate
       ;;
+    v33-maintenance-release)
+      run_v33_maintenance_release
+      ;;
+    v33-strict-provenance)
+      run_v33_strict_provenance
+      ;;
     v*)
       fail "historical release stage retired by PTC-006: $1"
       ;;
     *)
-      fail "unknown stage '$1'; valid stages: current-release-gates, full, release-build-product-surface, rust-only-gates, current-governance, backend-freeze-baseline, backend-performance-baseline, backend-performance-hosted, release-surface-current-guard, release-publication-guard, release-publish-after-gate"
+      fail "unknown stage '$1'; valid stages: current-release-gates, full, release-build-product-surface, rust-only-gates, current-governance, backend-freeze-baseline, backend-performance-baseline, backend-performance-hosted, v33-maintenance-release, v33-strict-provenance, release-surface-current-guard, release-publication-guard, release-publish-after-gate"
       ;;
   esac
 }

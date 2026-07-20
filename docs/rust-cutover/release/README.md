@@ -396,6 +396,20 @@ Final release checks, benchmark summaries, and audit reports live here.
   strategy, and milestone closeout expectations.
 - `../evidence/V320-009.md` - V320-009 v32 release gates, strict provenance,
   publication, and source-controlled closeout evidence for GitHub issue #1051.
+- `v0_33_0_release_notes.md` - release notes for the formal
+  `ntpro-rust-only-v0.33.0` GitHub Release. It publishes the separately scoped,
+  maintenance-only BPO-001 through BPO-007 track without changing the frozen
+  v0.32.0 backend baseline or inheriting production trading capabilities.
+- `v0_33_0_readiness_report.md` - release gate readiness report for the formal
+  `ntpro-rust-only-v0.33.0`, including exact issues `#1120-#1126`, benchmark
+  summary, full hosted gates, and publication ordering.
+- `v0_33_0_release_manifest.json` - strict maintenance release manifest for the
+  formal `ntpro-rust-only-v0.33.0` tag gate.
+- `v0_33_0_release_closeout_evidence.md` - source-controlled closeout contract
+  for the v0.33.0 GitHub Release, including exact issue/PR reconstruction,
+  gate-before-publish evidence, and milestone ordering.
+- `../evidence/BPO-007.md` - BPO-007 release gate, strict provenance,
+  publication, and closeout evidence for GitHub issue #1126.
 - `v0_29_1_release_notes.md` - release notes for the formal
   `ntpro-rust-only-v0.29.1` GitHub Release. It publishes v0.29.0 post-release
   governance closeout and v0.30.0 start-gate hardening without opening backend

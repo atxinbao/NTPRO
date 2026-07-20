@@ -6,55 +6,58 @@ NautilusTrader.
 The current source-tree milestone is:
 
 ```text
-Current source tag: ntpro-rust-only-v0.32.0
-Latest formal release: ntpro-rust-only-v0.32.0
-Current source-tree readiness: ntpro-rust-only-v0.32.0 released
-Current capability: v0.32.0 Backend Production Closeout
-Capability class: backend production closeout only
+Current source tag: ntpro-rust-only-v0.33.0
+Current source-tree readiness: ntpro-rust-only-v0.33.0 release gate ready
+Current capability: v0.33.0 Backend Maintenance
+Capability class: separately scoped backend maintenance only
 Backend patch: none scheduled; baseline-invalidity exception only
-Post-baseline governance: backend-freeze-governance
-Next capability family: v0.33.0+ separately scoped capability tracks
-v0.33.0+ entry: separately scoped only; no capability inheritance from v0.32.0
-Boundary: v0.32.0 is a Backend Production Closeout release.
-It is over the prior release line and closes backend closeout boundary, scoped owner/operator approval, freeze/change-window, risk/audit/go-no-go gates, config/venue/credential/environment provenance, canary/rollback/DR, telemetry/SLO/alert/incident readiness, read-only admin bridge visibility, fail-closed negative gates, release gates, strict provenance, and publication evidence. It does not include actual backend go-live, frontend product completion, product-grade live trading, new production submit capability, production order mutation, execution adapter send, live exchange request, implicit retry, retry scheduler, automatic remediation, automatic recovery, strategy-driven production execution, shared approval consumption, real-funds proof in CI, or Dashboard/Admin/Trader Terminal order/approval/cancel/retry/submit/replace/amend/flatten/remediation/order-ticket controls.
+Post-baseline governance: backend-maintenance
+Next capability family: v0.34.0+ separately scoped capability tracks
+v0.34.0+ entry: separately scoped only; no capability inheritance from v0.32.0 or v0.33.0
+Boundary: v0.33.0 is a Backend Maintenance release.
+It adds measurement, regression detection, code ownership cleanup, checked error boundaries, dependency cleanup, and one measured runtime optimization over the frozen v0.32.0 backend baseline. It does not include actual backend go-live, frontend product completion, product-grade live trading, new production submit capability, production order mutation, execution adapter send, live exchange request, implicit retry, retry scheduler, automatic remediation, automatic recovery, strategy-driven production execution, shared approval consumption, real-funds proof in CI, or Dashboard/Admin/Trader Terminal order/approval/cancel/retry/submit/replace/amend/flatten/remediation/order-ticket controls.
 ```
 
-`ntpro-rust-only-v0.32.0` is the current source-tree release target. It is the
-Backend Production Closeout release. It preserves the no-submit,
+`ntpro-rust-only-v0.33.0` is the current source-tree release target. It is a
+separately scoped Backend Maintenance release over the frozen v0.32.0 Backend
+Production Closeout baseline. It preserves the no-submit,
 no-actual-backend-go-live, and no-Dashboard/Admin/Trader-Terminal
-trading-controls boundary while proving v32 backend closeout evidence. It is
+trading-controls boundary while publishing maintenance evidence. It is
 not a product-grade live trading terminal or production execution runtime.
 
-The v0.32.0 release target is published through the GitHub Release path for the
-v0.32.0 tagged source tree:
+The v0.33.0 release target is published through the GitHub Release path only
+after the hosted gate succeeds for the v0.33.0 tagged source tree:
 
 ```text
-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.32.0
+https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.33.0
 ```
 
-`v0.32.0` is the current Backend Production Closeout release surface. It remains
-backend closeout evidence, release governance evidence, and read-only
-visibility evidence, not actual backend go-live, a product-grade live trading
-terminal, or a general production trading platform claim. It does not add
-production submit, order mutation, execution adapter send, live exchange
-request, ungated cancel/retry/replace/amend/flatten, implicit retry, retry
-scheduler, automatic remediation, automatic recovery, bulk order execution,
-strategy-driven production execution, shared approval consumption, or Dashboard
-/ Admin / Trader Terminal operation controls.
+`v0.33.0` is the current Backend Maintenance release surface. It publishes the
+approved BPO-001 through BPO-007 maintenance scope without changing the
+v0.32.0 Backend Production Closeout baseline. It does not add production
+submit, order mutation, execution adapter send, live exchange request, ungated
+cancel/retry/replace/amend/flatten, implicit retry, retry scheduler, automatic
+remediation, automatic recovery, bulk order execution, strategy-driven
+production execution, shared approval consumption, or Dashboard / Admin /
+Trader Terminal operation controls.
 
-No backend patch is scheduled. The post-baseline governance track is
-`backend-freeze-governance`. The next capability family is `v0.33.0+`.
-Every v0.33.0+ track must be separately scoped and does not inherit backend go-live,
+No backend patch is scheduled. The frozen v0.32.0 baseline remains governed by
+`backend-freeze-governance`; the active release track is
+`backend-maintenance`. The next capability family is `v0.34.0+`.
+Every v0.34.0+ track must be separately scoped and does not inherit backend go-live,
 frontend completion, product-grade live trading terminal readiness, production
 submit, mutation, adapter send, live exchange request, retry scheduler,
 automatic remediation, or Dashboard / Admin / Trader Terminal operation
-controls from `v0.32.0`.
+controls from `v0.32.0` or `v0.33.0`.
 
 Post-baseline governance is indexed in
 [`docs/rust-cutover/governance/README.md`](docs/rust-cutover/governance/README.md).
-Any v0.33.0+ proposal must satisfy the separate intake contract in
+The v0.33.0 maintenance track satisfied the separate intake contract in
 [`v0_33_plus_intake_policy.md`](docs/rust-cutover/governance/v0_33_plus_intake_policy.md)
-before a capability milestone or implementation issue is created.
+before milestone and implementation issue creation. Future tracks must repeat
+that process. The frozen registry's `v0.33.0+` intake family remains
+`separately_scoped_only`; v0.33.0 is the first approved realization of that
+rule, not inherited backend authority.
 
 ## Current Status
 
@@ -130,8 +133,9 @@ packages, or Docker images as product delivery paths.
 
 ## Current Capability Boundary
 
-v0.32.0 is the current formal release line. It is the Backend Production
-Closeout release over the v0.31.1 Release Governance Closeout Patch, the v0.31.0 Controlled Backend
+v0.33.0 is the current formal release line. It is a separately scoped Backend
+Maintenance release over the frozen v0.32.0 Backend Production Closeout,
+the v0.31.1 Release Governance Closeout Patch, the v0.31.0 Controlled Backend
 Production Enablement Candidate Foundation, the v0.30.1 Release Governance
 and v31 Start-Gate Hardening Patch, the v0.30.0 Backend Production Go-Live
 Candidate Foundation, the v0.29.1 Release Governance and v30 Start-Gate

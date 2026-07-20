@@ -17,12 +17,12 @@ fake_gh="$tmp_dir/gh"
 evidence_path="$tmp_dir/evidence/publication.json"
 tag_sha="0123456789abcdef0123456789abcdef01234567"
 
-CURRENT_RELEASE_VERSION="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_VERSION:-v0.32.0}"
-CURRENT_RELEASE_TAG="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_TAG:-ntpro-rust-only-v0.32.0}"
-CURRENT_RELEASE_NAME="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NAME:-NTPRO Rust-only v0.32.0}"
-CURRENT_RELEASE_NOTES="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NOTES:-docs/rust-cutover/release/v0_32_0_release_notes.md}"
-CURRENT_RELEASE_GATE_RUN_ID="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_GATE_RUN_ID:-29371898609}"
-CURRENT_RELEASE_TAG_SHA="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_TAG_SHA:-2b955cb8a989827e3351c08c3d82d9578253e1f6}"
+CURRENT_RELEASE_VERSION="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_VERSION:-v0.33.0}"
+CURRENT_RELEASE_TAG="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_TAG:-ntpro-rust-only-v0.33.0}"
+CURRENT_RELEASE_NAME="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NAME:-NTPRO Rust-only v0.33.0}"
+CURRENT_RELEASE_NOTES="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_NOTES:-docs/rust-cutover/release/v0_33_0_release_notes.md}"
+CURRENT_RELEASE_GATE_RUN_ID="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_GATE_RUN_ID:-}"
+CURRENT_RELEASE_TAG_SHA="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_CURRENT_TAG_SHA:-}"
 REQUIRE_LIVE_CURRENT="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_REQUIRE_LIVE_CURRENT:-${NTPRO_RELEASE_GATE:-0}}"
 LIVE_CURRENT_MODE="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_CURRENT:-auto}"
 LIVE_CURRENT_TIMEOUT="${NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_TIMEOUT:-90s}"
@@ -167,11 +167,13 @@ run_publish_script() {
 echo "== verify release publish after gate: current release binding =="
 scripts/ai/check_release_surface_current.sh
 scripts/ai/check_backend_freeze_baseline.sh
-echo "release_publish_after_gate_current_binding=pass source=backend_freeze_registry release_tag=$CURRENT_RELEASE_TAG release_gate_run_id=$CURRENT_RELEASE_GATE_RUN_ID tag_sha=$CURRENT_RELEASE_TAG_SHA"
+echo "release_publish_after_gate_current_binding=pass source=v33_maintenance_release_contract release_tag=$CURRENT_RELEASE_TAG release_gate_run_id=${CURRENT_RELEASE_GATE_RUN_ID:-unconfigured} tag_sha=${CURRENT_RELEASE_TAG_SHA:-unconfigured}"
 
 live_skip_reason=""
 if [[ "$LIVE_CURRENT_MODE" == "0" || "$LIVE_CURRENT_MODE" == "false" ]]; then
   live_skip_reason="live_current_disabled"
+elif [[ -z "$CURRENT_RELEASE_GATE_RUN_ID" || -z "$CURRENT_RELEASE_TAG_SHA" ]]; then
+  live_skip_reason="current_release_gate_binding_unconfigured"
 elif [[ "${GITHUB_ACTIONS:-}" == "true" && "$REQUIRE_LIVE_CURRENT" != "1" && "$LIVE_CURRENT_MODE" == "auto" ]]; then
   live_skip_reason="github_actions_auto_live_skip"
 elif ! command -v gh >/dev/null 2>&1; then

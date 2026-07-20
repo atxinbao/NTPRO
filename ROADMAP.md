@@ -4,15 +4,16 @@ Date: 2026-06-27
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.32.0`, the v0.32.0 Backend Production Closeout release.
-No backend patch is scheduled. The post-baseline governance track is
-`backend-freeze-governance`.
-The next capability family is `v0.33.0+`.
+NautilusTrader. The current public source release is `ntpro-rust-only-v0.33.0`, the v0.33.0 Backend Maintenance release.
+No backend patch is scheduled. The frozen v0.32.0 baseline remains under
+`backend-freeze-governance`; the active release track is `backend-maintenance`.
+The next capability family is `v0.34.0+`.
 
 The active governance contract is
-`docs/rust-cutover/governance/backend_freeze_policy.md`. Any v0.33.0+ proposal
-must pass `docs/rust-cutover/governance/v0_33_plus_intake_policy.md` before
-milestone creation or implementation.
+`docs/rust-cutover/governance/backend_freeze_policy.md`. The v0.33.0 maintenance
+track passed `docs/rust-cutover/governance/v0_33_plus_intake_policy.md` before
+milestone creation and implementation. The registry's historical `v0.33.0+`
+family remains separately scoped only. Future tracks must repeat that intake.
 
 ## Current Release Surface
 
@@ -34,12 +35,14 @@ ntpro-rust-only-v0.30.1
 ntpro-rust-only-v0.31.0
 ntpro-rust-only-v0.31.1
 ntpro-rust-only-v0.32.0
+ntpro-rust-only-v0.33.0
 ```
 
 Current capability boundary:
 
 ```text
-v0.32.0 Backend Production Closeout
+v0.33.0 Backend Maintenance
+v0.32.0 Backend Production Closeout frozen baseline
 v0.31.1 Release Governance Closeout Patch
 v0.31.0 Controlled Backend Production Enablement Candidate Foundation
 v0.30.0 Backend Production Go-Live Candidate Foundation
@@ -117,9 +120,11 @@ v0.29.1 release governance and v30 start-gate hardening evidence
 v0.31.0 controlled backend production enablement candidate foundation evidence
 v0.31.1 release governance closeout patch evidence
 v0.32.0 backend production closeout evidence
+v0.33.0 separately scoped backend maintenance evidence
 no backend patch scheduled after v0.32.0; baseline-invalidity exception only
 backend-freeze-governance post-baseline governance track
-v0.33.0+ capability tracks must be separately scoped and inherit no v0.32.0 trading controls
+backend-maintenance active release track
+v0.34.0+ capability tracks must be separately scoped and inherit no v0.32.0 or v0.33.0 trading controls
 v0.30.0 backend production go-live candidate foundation evidence
 no Dashboard order/approval/cancel/retry/submit/replace/amend/flatten controls
 no Admin Workbench operation/trading controls
@@ -127,9 +132,23 @@ no Trader Terminal order-ticket/trading controls
 no product-grade live trading terminal claim
 ```
 
+## Published Capability Track: v0.33.0
+
+`v0.33.0` is the current Backend Maintenance release surface. It records a
+reproducible performance baseline, hosted regression workflow, behavior-
+preserving CLI module decomposition, checked runtime error boundaries,
+dependency and feature cleanup, one measured rate-limiter optimization, and
+gate-before-publish release governance.
+
+`v0.33.0` is maintenance-only. It does not reopen the backend mainline, rewrite
+the frozen v0.32.0 package, or include actual backend go-live, frontend
+completion, product-grade live terminal readiness, submit/mutation, adapter
+send, live exchange request, retry/remediation/recovery, or Dashboard/Admin/
+Trader Terminal trading controls.
+
 ## Published Capability Track: v0.32.0
 
-`v0.32.0` is the current Backend Production Closeout release surface. It records
+`v0.32.0` is the frozen Backend Production Closeout baseline. It records
 v0.31.1 dependency proof, backend closeout boundary, scoped owner/operator
 approval, freeze/change-window lifecycle, risk/audit/go-no-go gates,
 config/venue/credential/environment provenance, canary/rollback/DR,
@@ -142,8 +161,8 @@ frontend product completion, product-grade live trading terminal readiness,
 new production submit capability, production order mutation, execution adapter
 send, live exchange request, retry scheduler, automatic remediation/recovery,
 strategy-driven production execution, shared approval consumption, or
-Dashboard/Admin/Trader Terminal operation/trading controls. v0.33.0 must be
-separately scoped and inherits no v0.32.0 trading controls.
+Dashboard/Admin/Trader Terminal operation/trading controls. v0.33.0 entered
+only through separate scope and inherited no v0.32.0 trading controls.
 
 ## Published Capability Track: v0.31.0
 

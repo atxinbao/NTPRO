@@ -10,19 +10,14 @@ NTPRO uses several version-like identifiers. They do not mean the same thing.
 大白话说：判断 NTPRO 当前发布能力时，看 `ntpro-rust-only-v*` release tag 和
 release notes，不要只看 Cargo workspace version 或 `version.json` 徽章值。
 
-`v0.32.0` 是当前正式公开发布点；它是 Backend Production Closeout。它建立在
-v0.31.1 基础上，收口 backend closeout boundary、scoped owner/operator approval、
-operator freeze/change-window、risk/audit/go-no-go、config/venue/credential/environment、
-canary/rollback/DR、telemetry/SLO/alert/incident、read-only admin bridge、fail-closed
-negative gates、release gates、strict provenance 和 publication evidence。
-它不是 actual backend production go-live，不是产品级实盘交易终端，不是前端产品完成，
-不是新增 submit 能力，不是生产订单 mutation，不调用 execution adapter、adapter send
-或 live exchange request，不是隐式 retry，不启用 retry scheduler，不是自动补救或自动恢复，
-不是策略实盘，也没有 Dashboard 或 Admin 或 Trader Terminal 下单/审批/撤单/重试/
-submit/replace/amend/flatten/remediation/order-ticket 控件。
-`v0.33.0` 必须单独 scoped，不能从 v0.32.0 继承 backend go-live、frontend completion、
-product-grade live trading terminal、submit/mutation、adapter send、live exchange、
-retry scheduler、automatic remediation 或交易控件。
+`v0.33.0` 是当前正式公开发布点；它是单独立项的 Backend Maintenance release。
+它建立在冻结的 v0.32.0 Backend Production Closeout 基线上，只发布基准测量、hosted
+回归检查、CLI 模块整理、checked error boundary、依赖清理和一个经过基准证明的
+rate-limiter 优化。它不是 actual backend production go-live，不是产品级实盘交易终端，
+不是前端产品完成，不是新增 submit 能力，不是生产订单 mutation，不调用 execution
+adapter、adapter send 或 live exchange request，不是隐式 retry，不启用 retry scheduler，
+不是自动补救或自动恢复，不是策略实盘，也没有 Dashboard、Admin 或 Trader Terminal
+下单/审批/撤单/重试/submit/replace/amend/flatten/remediation/order-ticket 控件。
 
 ## Release Tags
 
@@ -70,6 +65,7 @@ ntpro-rust-only-v0.30.1
 ntpro-rust-only-v0.31.0
 ntpro-rust-only-v0.31.1
 ntpro-rust-only-v0.32.0
+ntpro-rust-only-v0.33.0
 ```
 
 Use release tags and release notes to answer product questions such as:
@@ -82,7 +78,7 @@ Use release tags and release notes to answer product questions such as:
 The current published release line is:
 
 ```text
-ntpro-rust-only-v0.32.0
+ntpro-rust-only-v0.33.0
 ```
 
 The backend patch status is:
@@ -91,24 +87,26 @@ The backend patch status is:
 none scheduled; baseline-invalidity exception only
 ```
 
-The post-baseline governance track is `backend-freeze-governance`. It changes
-the active governance layer, not the published v0.32.0 release package. A
-backend patch requires a dedicated freeze exception and proof that the frozen
-baseline itself is invalid.
+The frozen v0.32.0 baseline remains governed by
+`backend-freeze-governance`. The active v0.33.0 release track is
+`backend-maintenance`. A backend patch still requires a dedicated freeze
+exception and proof that the frozen baseline itself is invalid. The registry's
+`v0.33.0+` intake family remains separately scoped only; v0.33.0 satisfied that
+entry rule rather than inheriting authority.
 
 The next capability family is:
 
 ```text
-v0.33.0+
+v0.34.0+
 ```
 
-Every v0.33.0+ track must be separately scoped after the V320 backend closeout release. It
+Every v0.34.0+ track must be separately scoped after the maintenance release. It
 does not inherit backend go-live, frontend completion, product-grade live
 trading terminal readiness, production submit, production order mutation,
 execution adapter send, adapter send, live exchange request, implicit retry,
 retry scheduler, automatic remediation/recovery, strategy-driven production
 execution, shared approval consumption, or Dashboard/Admin/Trader Terminal
-operation controls from v0.32.0.
+operation controls from v0.32.0 or v0.33.0.
 
 ## Cargo Workspace Version
 
