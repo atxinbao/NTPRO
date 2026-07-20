@@ -25,7 +25,7 @@ use std::{
     fmt::Debug,
     hash::Hash,
     num::NonZeroU64,
-    sync::atomic::{AtomicU64, Ordering},
+    sync::atomic::{AtomicBool, AtomicU64, Ordering},
     time::Duration,
 };
 
@@ -148,6 +148,7 @@ where
     default_gcra: Option<Gcra>,
     state: DashMapStateStore<K>,
     gcra: DashMap<K, Gcra>,
+    has_keyed_quotas: AtomicBool,
     clock: C,
     start: C::Instant,
 }
@@ -174,6 +175,7 @@ where
     pub fn new_with_quota(base_quota: Option<Quota>, keyed_quotas: Vec<(K, Quota)>) -> Self {
         let clock = MonotonicClock {};
         let start = MonotonicClock::now(&clock);
+        let has_keyed_quotas = !keyed_quotas.is_empty();
         let gcra: DashMap<_, _> = keyed_quotas
             .into_iter()
             .map(|(k, q)| (k, Gcra::new(q)))
@@ -182,6 +184,7 @@ where
             default_gcra: base_quota.map(Gcra::new),
             state: DashMapStateStore::new(),
             gcra,
+            has_keyed_quotas: AtomicBool::new(has_keyed_quotas),
             clock,
             start,
         }
@@ -208,6 +211,7 @@ where
     /// Adds or updates a quota for a specific key.
     pub fn add_quota_for_key(&self, key: K, value: Quota) {
         self.gcra.insert(key, Gcra::new(value));
+        self.has_keyed_quotas.store(true, Ordering::Release);
     }
 
     /// Checks if the given key is allowed under the rate limit.
@@ -216,6 +220,12 @@ where
     ///
     /// Returns `Err(NotUntil)` if the key is rate-limited, indicating when it will be allowed.
     pub fn check_key(&self, key: &K) -> Result<(), NotUntil<C::Instant>> {
+        if !self.has_keyed_quotas.load(Ordering::Acquire) {
+            return self.default_gcra.as_ref().map_or(Ok(()), |gcra| {
+                gcra.test_and_update(self.start, key, &self.state, self.clock.now())
+            });
+        }
+
         match self.gcra.get(key) {
             Some(quota) => quota.test_and_update(self.start, key, &self.state, self.clock.now()),
             None => self.default_gcra.as_ref().map_or(Ok(()), |gcra| {
@@ -272,7 +282,10 @@ where
 mod tests {
     use std::{
         num::NonZeroU32,
-        sync::atomic::{AtomicU32, Ordering},
+        sync::{
+            Barrier,
+            atomic::{AtomicBool, AtomicU32, Ordering},
+        },
         time::Duration,
     };
 
@@ -296,6 +309,7 @@ mod tests {
             default_gcra: Some(Gcra::new(base_quota)),
             state: DashMapStateStore::new(),
             gcra,
+            has_keyed_quotas: AtomicBool::new(false),
             clock,
             start,
         }
@@ -335,6 +349,24 @@ mod tests {
         assert!(mock_limiter.check_key(&"default".to_string()).is_ok());
         assert!(mock_limiter.check_key(&"default".to_string()).is_ok());
         assert!(mock_limiter.check_key(&"default".to_string()).is_err());
+    }
+
+    #[rstest]
+    fn test_dynamic_keyed_quota_is_visible_after_publication() {
+        let limiter = initialize_mock_rate_limiter();
+        let barrier = Barrier::new(2);
+
+        std::thread::scope(|scope| {
+            scope.spawn(|| {
+                limiter.add_quota_for_key("custom".to_string(), Quota::per_minute(NonZeroU32::MIN));
+                barrier.wait();
+            });
+            scope.spawn(|| {
+                barrier.wait();
+                assert!(limiter.check_key(&"custom".to_string()).is_ok());
+                assert!(limiter.check_key(&"custom".to_string()).is_err());
+            });
+        });
     }
 
     #[rstest]
@@ -579,6 +611,7 @@ mod tests {
             )),
             state: DashMapStateStore::new(),
             gcra: DashMap::new(),
+            has_keyed_quotas: AtomicBool::new(false),
             clock,
             start,
         };
