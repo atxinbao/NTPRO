@@ -30,7 +30,7 @@ use nautilus_model::{
     accounts::AccountAny,
     data::{
         Bar, BarType, CustomData, DataType, FundingRateUpdate, IndexPriceUpdate, InstrumentStatus,
-        MarkPriceUpdate, QuoteTick, TradeTick,
+        MarkPriceUpdate, QuoteTick, TradeTick, YieldCurveData,
     },
     enums::{
         AccountType, AggressorSide, AssetClass, BookType, ContingencyType, InstrumentClass,
@@ -73,6 +73,36 @@ use crate::{
     },
     signal::Signal,
 };
+
+#[rstest]
+fn test_add_yield_curve_rejects_invalid_curve(mut cache: Cache) {
+    let curve = YieldCurveData::new(
+        UnixNanos::default(),
+        UnixNanos::default(),
+        "USD".to_string(),
+        Vec::new(),
+        Vec::new(),
+    );
+
+    let error = cache.add_yield_curve(curve).unwrap_err();
+    assert!(error.to_string().contains("Need at least 3 points"));
+    assert!(cache.yield_curve("USD").is_none());
+}
+
+#[rstest]
+fn test_try_yield_curve_rate_rejects_invalid_expiry(mut cache: Cache) {
+    let curve = YieldCurveData::new(
+        UnixNanos::default(),
+        UnixNanos::default(),
+        "USD".to_string(),
+        vec![0.5, 1.0, 2.0],
+        vec![0.02, 0.03, 0.04],
+    );
+    cache.add_yield_curve(curve).unwrap();
+
+    let error = cache.try_yield_curve_rate("USD", f64::NAN).unwrap_err();
+    assert!(error.to_string().contains("All inputs must be finite"));
+}
 
 fn build_order_canceled(
     trader_id: TraderId,

@@ -51,6 +51,7 @@ use nautilus_core::{
         check_valid_string_ascii,
     },
     datetime::secs_to_nanos_unchecked,
+    math::InterpolationError,
 };
 use nautilus_model::{
     accounts::{Account, AccountAny},
@@ -1988,9 +1989,11 @@ impl Cache {
     ///
     /// # Errors
     ///
-    /// Returns an error if persisting the yield curve data to the backing database fails.
+    /// Returns an error if the curve data is invalid or persisting it to the
+    /// backing database fails.
     pub fn add_yield_curve(&mut self, yield_curve: YieldCurveData) -> anyhow::Result<()> {
         log::debug!("Adding `YieldCurveData` {}", yield_curve.curve_name);
+        yield_curve.validate().map_err(anyhow::Error::new)?;
 
         if self.config.save_market_data
             && let Some(_database) = &mut self.database
@@ -2010,6 +2013,30 @@ impl Cache {
             Box::new(move |expiry_in_years: f64| curve_clone.get_rate(expiry_in_years))
                 as Box<dyn Fn(f64) -> f64>
         })
+    }
+
+    /// Gets a checked yield-curve rate for `key` and `expiry_in_years`.
+    ///
+    /// Returns `Ok(None)` when the key is not cached.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`InterpolationError`] if the cached curve or expiry input is invalid.
+    pub fn try_yield_curve_rate(
+        &self,
+        key: &str,
+        expiry_in_years: f64,
+    ) -> Result<Option<f64>, InterpolationError> {
+        self.yield_curves
+            .get(key)
+            .map(|curve| curve.try_get_rate(expiry_in_years))
+            .transpose()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn add_yield_curve_unchecked_for_test(&mut self, yield_curve: YieldCurveData) {
+        self.yield_curves
+            .insert(yield_curve.curve_name.clone(), yield_curve);
     }
 
     /// Adds the `currency` to the cache.
