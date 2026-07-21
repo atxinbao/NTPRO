@@ -38,7 +38,7 @@
     "milestone_number": 35,
     "milestone_title": "v0.33.0-backend-maintenance",
     "exact_issue_numbers": [1120, 1121, 1122, 1123, 1124, 1125, 1126, 1141],
-    "exact_pr_numbers": [1134, 1135, 1136, 1137, 1138, 1139, 1140, null],
+    "exact_pr_numbers": [1134, 1135, 1136, 1137, 1138, 1139, 1140, 1142],
     "issue_count": 8,
     "pr_count": 8,
     "registered_corrective_scope_exception_count": 1,
@@ -97,7 +97,7 @@
     {
       "task_id": "BPO-008",
       "issue": 1141,
-      "pr": null,
+      "pr": 1142,
       "evidence": "docs/rust-cutover/evidence/BPO-008.md"
     }
   ],
