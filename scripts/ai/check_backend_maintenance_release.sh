@@ -45,6 +45,8 @@ validate_manifest() {
     and .publication_governance.release_gate_workflow_name == "Rust Cutover Release Gate"
     and .publication_governance.publish_workflow_name == "Rust Cutover Publish Release"
     and .publication_governance.public_release_requires_successful_hosted_gate_for_same_tag_commit == true
+    and .publication_governance.release_gate_tag_push_event_required == true
+    and .publication_governance.release_gate_ref_must_equal_release_tag == true
     and .publication_governance.release_gate_success_before_publication_required == true
     and .publication_governance.publication_evidence_strategy == "source_tree_plus_github_remote"
     and .publication_governance.local_generated_evidence_required_in_source_tree == false

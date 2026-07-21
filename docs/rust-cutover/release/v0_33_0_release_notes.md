@@ -58,8 +58,9 @@ scripts/ai/verify_release.sh release-publication-guard
 scripts/ai/verify_release.sh release-publish-after-gate
 ```
 
-The public GitHub Release is created only after the full hosted release gate
-succeeds for the same tag commit. Publication evidence uses
+The public GitHub Release is created only after the tag-push-triggered full
+hosted release gate succeeds for the same tag ref and commit. A manual workflow
+run for the same SHA is not publication authority. Publication evidence uses
 `source_tree_plus_github_remote`; generated local publication output is not
 source-controlled and is never sufficient as the sole proof.
 

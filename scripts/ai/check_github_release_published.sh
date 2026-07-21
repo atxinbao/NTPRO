@@ -118,12 +118,14 @@ runs_json="$("$GH_BIN" run list \
   --repo "$REPO" \
   --workflow release-tag.yml \
   --limit 100 \
-  --json databaseId,status,conclusion,headSha,updatedAt,url)"
+  --json databaseId,status,conclusion,event,headBranch,headSha,updatedAt,url)"
 gate_json="$(jq -c --arg sha "$tag_sha" '
   [.[] | select(
     .headSha == $sha
     and .status == "completed"
     and .conclusion == "success"
+    and .event == "push"
+    and .headBranch == "ntpro-rust-only-v0.33.0"
   )] | sort_by(.databaseId) | last // empty
 ' <<<"$runs_json")"
 [[ -n "$gate_json" ]] || fail "missing successful hosted release gate for tag commit"

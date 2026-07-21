@@ -139,6 +139,8 @@
     "publish_workflow_name": "Rust Cutover Publish Release",
     "publish_script": "scripts/ai/publish_ntpro_release_after_gate.sh",
     "public_release_requires_successful_hosted_gate_for_same_tag_commit": true,
+    "release_gate_tag_push_event_required": true,
+    "release_gate_ref_must_equal_release_tag": true,
     "release_gate_success_before_publication_required": true,
     "strict_release_body_match_required": true,
     "publication_evidence_strategy": "source_tree_plus_github_remote",
