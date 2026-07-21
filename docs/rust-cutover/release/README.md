@@ -401,7 +401,8 @@ Final release checks, benchmark summaries, and audit reports live here.
   maintenance-only BPO-001 through BPO-007 track without changing the frozen
   v0.32.0 backend baseline or inheriting production trading capabilities.
 - `v0_33_0_readiness_report.md` - release gate readiness report for the formal
-  `ntpro-rust-only-v0.33.0`, including exact issues `#1120-#1126`, benchmark
+  `ntpro-rust-only-v0.33.0`, including exact issues `#1120-#1126` plus the
+  registered corrective #1141, exact PRs `#1134-#1140` plus #1142, benchmark
   summary, full hosted gates, and publication ordering.
 - `v0_33_0_release_manifest.json` - strict maintenance release manifest for the
   formal `ntpro-rust-only-v0.33.0` tag gate.

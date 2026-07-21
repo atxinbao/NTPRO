@@ -7,13 +7,14 @@ Status: RELEASE GATE READY
 
 ## Summary
 
-v0.33.0 is ready to enter the hosted release gate after BPO-007 is reviewed and
-merged. Public release publication remains blocked until the tag-triggered gate
-succeeds for the exact release commit.
+v0.33.0 is ready to enter the hosted release gate only after BPO-008 issue
+#1141 closes through reviewed PR #1142. BPO-007 PR #1140 is already merged.
+Public release publication remains blocked until the tag-triggered gate
+succeeds for the exact release tag ref and commit.
 
 中文摘要：v0.33.0 的代码、维护范围、性能证据和发布契约已准备好进入完整 hosted
-release gate。发布顺序必须是 BPO-007 合并并关闭 issue、推 tag、完整 gate 成功、
-再发布 GitHub Release，最后从 GitHub live state 重建证据并关闭 milestone。
+release gate。发布顺序必须是 BPO-008 PR #1142 合并并关闭 #1141、推 tag、完整 gate
+成功、再发布 GitHub Release，最后从 GitHub live state 重建证据并关闭 milestone。
 
 ## Dependency And Scope Readiness
 
