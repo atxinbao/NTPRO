@@ -1,0 +1,170 @@
+{
+  "schema_version": "ntpro.v330_backend_maintenance_release_manifest.v1",
+  "task_id": "BPO-007",
+  "product_version": "v0.33.0",
+  "release_status": "release_gate_ready",
+  "release_scope_name": "backend_maintenance",
+  "base_release": {
+    "version": "v0.32.0",
+    "tag": "ntpro-rust-only-v0.32.0",
+    "name": "NTPRO Rust-only v0.32.0",
+    "peeled_commit_sha": "2b955cb8a989827e3351c08c3d82d9578253e1f6",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.32.0",
+    "frozen_backend_baseline": true
+  },
+  "planned_release": {
+    "tag": "ntpro-rust-only-v0.33.0",
+    "name": "NTPRO Rust-only v0.33.0",
+    "github_release_url": "https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.33.0",
+    "target_commitish": "main",
+    "draft": false,
+    "prerelease": false
+  },
+  "release_inputs": {
+    "release_notes": "docs/rust-cutover/release/v0_33_0_release_notes.md",
+    "readiness_report": "docs/rust-cutover/release/v0_33_0_readiness_report.md",
+    "release_manifest": "docs/rust-cutover/release/v0_33_0_release_manifest.json",
+    "release_closeout_evidence": "docs/rust-cutover/release/v0_33_0_release_closeout_evidence.md",
+    "task_evidence": "docs/rust-cutover/evidence/BPO-007.md"
+  },
+  "dependencies": {
+    "approved_intake_issue": 1119,
+    "phase_1_closeout_issue": 1118,
+    "phase_1_closeout_pr": 1133,
+    "all_dependencies_closed": true
+  },
+  "release_scope": {
+    "milestone_number": 35,
+    "milestone_title": "v0.33.0-backend-maintenance",
+    "exact_issue_numbers": [1120, 1121, 1122, 1123, 1124, 1125, 1126],
+    "exact_pr_numbers": [1134, 1135, 1136, 1137, 1138, 1139, 1140],
+    "issue_count": 7,
+    "pr_count": 7,
+    "maintenance_only": true,
+    "backend_mainline_continuation": false,
+    "backend_baseline_rewrite": false,
+    "frontend_completion": false,
+    "product_grade_live_trading_terminal": false,
+    "runtime_behavior_changed_by_release_gate": false,
+    "trading_behavior_changed_by_release_gate": false
+  },
+  "included_work": [
+    {
+      "task_id": "BPO-001",
+      "issue": 1120,
+      "pr": 1134,
+      "evidence": "docs/rust-cutover/evidence/BPO-001.md"
+    },
+    {
+      "task_id": "BPO-002",
+      "issue": 1121,
+      "pr": 1135,
+      "evidence": "docs/rust-cutover/evidence/BPO-002.md"
+    },
+    {
+      "task_id": "BPO-003",
+      "issue": 1122,
+      "pr": 1136,
+      "evidence": "docs/rust-cutover/evidence/BPO-003.md"
+    },
+    {
+      "task_id": "BPO-004",
+      "issue": 1123,
+      "pr": 1137,
+      "evidence": "docs/rust-cutover/evidence/BPO-004.md"
+    },
+    {
+      "task_id": "BPO-005",
+      "issue": 1124,
+      "pr": 1138,
+      "evidence": "docs/rust-cutover/evidence/BPO-005.md"
+    },
+    {
+      "task_id": "BPO-006",
+      "issue": 1125,
+      "pr": 1139,
+      "evidence": "docs/rust-cutover/evidence/BPO-006.md"
+    },
+    {
+      "task_id": "BPO-007",
+      "issue": 1126,
+      "pr": 1140,
+      "evidence": "docs/rust-cutover/evidence/BPO-007.md"
+    }
+  ],
+  "benchmark_summary": {
+    "measurement_contract": "docs/rust-cutover/quality/backend_performance_baseline.json",
+    "hosted_workflow": ".github/workflows/backend-performance.yml",
+    "representative_workloads": 6,
+    "hosted_merge_authority_workloads": 5,
+    "hosted_informational_workloads": 1,
+    "bpo_006_hotspot": "network_rate_limiter_default_quota",
+    "bpo_006_local_improvement_pct": 12.422008798571916,
+    "bpo_006_hosted_improvement_pct": 22.06690550549051,
+    "bpo_006_hosted_run_id": 29758547202,
+    "material_regression_detected": false
+  },
+  "boundary_flags": {
+    "new_submit_capability": false,
+    "production_order_submission_allowed": false,
+    "production_order_mutation_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "amend_order_allowed": false,
+    "flatten_position_allowed": false,
+    "execution_adapter_call_allowed": false,
+    "adapter_send_allowed": false,
+    "live_exchange_request_allowed": false,
+    "network_attempted": false,
+    "retry_scheduler_enabled": false,
+    "automatic_remediation_allowed": false,
+    "automatic_operation_action_allowed": false,
+    "automatic_recovery_allowed": false,
+    "dashboard_operation_controls_enabled": false,
+    "dashboard_trading_controls_enabled": false,
+    "admin_workbench_operation_controls_enabled": false,
+    "admin_workbench_trading_controls_enabled": false,
+    "trader_terminal_order_ticket_enabled": false,
+    "manual_operation_submit_allowed": false,
+    "backend_go_live_claim": false,
+    "actual_backend_production_go_live_allowed": false,
+    "frontend_completion_claim": false,
+    "product_grade_trading_terminal_claim": false,
+    "product_grade_live_trading_terminal_claim": false,
+    "default_production_execution_allowed": false
+  },
+  "publication_governance": {
+    "gate_before_publish": true,
+    "release_gate_workflow_name": "Rust Cutover Release Gate",
+    "publish_workflow_name": "Rust Cutover Publish Release",
+    "publish_script": "scripts/ai/publish_ntpro_release_after_gate.sh",
+    "public_release_requires_successful_hosted_gate_for_same_tag_commit": true,
+    "release_gate_success_before_publication_required": true,
+    "strict_release_body_match_required": true,
+    "publication_evidence_strategy": "source_tree_plus_github_remote",
+    "local_generated_evidence_required_in_source_tree": false,
+    "remote_reconstruction_required": true,
+    "generated_publication_evidence_sole_proof_allowed": false
+  },
+  "rollback": {
+    "release_candidate_rejection_before_publication": true,
+    "post_publication_code_rollback": "revert_the_release_commit_on_main",
+    "published_release_artifact_rollback": "publish_a_separately_scoped_corrective_release",
+    "tag_rewrite_allowed": false,
+    "v0_32_0_baseline_rewrite_allowed": false
+  },
+  "next_tracks": {
+    "capability": "v0.34.0+",
+    "capability_entry": "separately_scoped_only",
+    "inherits_backend_go_live_claim": false,
+    "inherits_production_submit": false,
+    "inherits_production_mutation": false,
+    "inherits_adapter_send": false,
+    "inherits_live_exchange_request": false,
+    "inherits_retry_scheduler": false,
+    "inherits_automatic_remediation": false,
+    "inherits_dashboard_trading_controls": false,
+    "inherits_admin_workbench_trading_controls": false,
+    "inherits_trader_terminal_order_ticket": false
+  }
+}

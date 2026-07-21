@@ -4,12 +4,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.32.0}"
-CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-v0.32.0}"
-RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only v0.32.0}"
-RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.32.0}"
-CURRENT_RELEASE_NOTES="${NTPRO_CURRENT_RELEASE_NOTES:-docs/rust-cutover/release/v0_32_0_release_notes.md}"
-REGISTRY="${NTPRO_BACKEND_FREEZE_REGISTRY:-docs/rust-cutover/governance/backend_freeze_registry.json}"
+REPO="${NTPRO_RELEASE_REPOSITORY:-${GITHUB_REPOSITORY:-atxinbao/NTPRO}}"
+CURRENT_RELEASE_VERSION="${NTPRO_CURRENT_RELEASE_VERSION:-v0.33.0}"
+CURRENT_RELEASE_TAG="${NTPRO_CURRENT_RELEASE_TAG:-ntpro-rust-only-v0.33.0}"
+RELEASE_NAME="${NTPRO_CURRENT_RELEASE_NAME:-NTPRO Rust-only v0.33.0}"
+RELEASE_URL="${NTPRO_CURRENT_RELEASE_URL:-https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.33.0}"
+CURRENT_RELEASE_NOTES="${NTPRO_CURRENT_RELEASE_NOTES:-docs/rust-cutover/release/v0_33_0_release_notes.md}"
+MANIFEST="${NTPRO_CURRENT_RELEASE_MANIFEST:-docs/rust-cutover/release/v0_33_0_release_manifest.json}"
 GH_BIN="${NTPRO_RELEASE_PUBLICATION_GH_BIN:-gh}"
 PREPUBLISH_TAG_GATE="${NTPRO_RELEASE_PUBLICATION_PREPUBLISH_TAG_GATE:-0}"
 
@@ -33,26 +34,35 @@ json_field() {
     <<<"$1"
 }
 
-[[ "$CURRENT_RELEASE_VERSION" == "v0.32.0" ]] \
-  || fail "only the frozen v0.32.0 backend baseline is current"
-[[ "$CURRENT_RELEASE_TAG" == "ntpro-rust-only-v0.32.0" ]] || fail "current tag mismatch"
-[[ "$RELEASE_NAME" == "NTPRO Rust-only v0.32.0" ]] || fail "current release name mismatch"
+[[ "$CURRENT_RELEASE_VERSION" == "v0.33.0" ]] || fail "current maintenance version mismatch"
+[[ "$CURRENT_RELEASE_TAG" == "ntpro-rust-only-v0.33.0" ]] || fail "current tag mismatch"
+[[ "$RELEASE_NAME" == "NTPRO Rust-only v0.33.0" ]] || fail "current release name mismatch"
 [[ "$RELEASE_URL" == "https://github.com/atxinbao/NTPRO/releases/tag/$CURRENT_RELEASE_TAG" ]] \
   || fail "current release URL mismatch"
 [[ -f "$CURRENT_RELEASE_NOTES" ]] || fail "missing release notes: $CURRENT_RELEASE_NOTES"
-[[ -f "$REGISTRY" ]] || fail "missing backend freeze registry: $REGISTRY"
+[[ -f "$MANIFEST" ]] || fail "missing release manifest: $MANIFEST"
 command -v jq >/dev/null 2>&1 || fail "jq is required"
+
+jq -e \
+  --arg version "$CURRENT_RELEASE_VERSION" \
+  --arg tag "$CURRENT_RELEASE_TAG" \
+  --arg name "$RELEASE_NAME" \
+  --arg url "$RELEASE_URL" '
+    .product_version == $version
+    and .release_scope_name == "backend_maintenance"
+    and .planned_release.tag == $tag
+    and .planned_release.name == $name
+    and .planned_release.github_release_url == $url
+    and .publication_governance.gate_before_publish == true
+    and .publication_governance.public_release_requires_successful_hosted_gate_for_same_tag_commit == true
+    and .publication_governance.publication_evidence_strategy == "source_tree_plus_github_remote"
+    and (.boundary_flags | length == 27)
+    and (.boundary_flags | all(. == false))
+  ' "$MANIFEST" >/dev/null || fail "maintenance release manifest contract mismatch"
 
 scripts/ai/check_release_surface_current.sh
 scripts/ai/check_backend_freeze_baseline.sh
-
-expected_sha="$(jq -er '.baseline.tag.peeled_commit_sha' "$REGISTRY")"
-expected_published_at="$(jq -er '.github_release.published_at' "$REGISTRY")"
-expected_gate_run_id="$(jq -er '.hosted_release_gate.run_id' "$REGISTRY")"
-expected_gate_status="$(jq -er '.hosted_release_gate.status' "$REGISTRY")"
-expected_gate_conclusion="$(jq -er '.hosted_release_gate.conclusion' "$REGISTRY")"
-[[ "$expected_gate_status" == "completed" && "$expected_gate_conclusion" == "success" ]] \
-  || fail "frozen hosted gate is not successful"
+scripts/ai/check_backend_maintenance_release.sh
 
 if ! command -v "$GH_BIN" >/dev/null 2>&1; then
   offline_skip "gh_unavailable"
@@ -65,13 +75,12 @@ if ! git rev-parse -q --verify "${CURRENT_RELEASE_TAG}^{commit}" >/dev/null; the
 fi
 
 tag_sha="$(git rev-list -n 1 "$CURRENT_RELEASE_TAG")"
-[[ "$tag_sha" == "$expected_sha" ]] || fail "tag SHA mismatch: $tag_sha"
-
-release_json="$($GH_BIN release view "$CURRENT_RELEASE_TAG" \
+release_json="$("$GH_BIN" release view "$CURRENT_RELEASE_TAG" \
   --json tagName,name,isDraft,isPrerelease,url,body,publishedAt,targetCommitish 2>/dev/null || true)"
 if [[ -z "$release_json" ]]; then
   if [[ "$PREPUBLISH_TAG_GATE" == "1" ]]; then
     echo "release_publication_guard=pass mode=prepublish_release_absent tag=$CURRENT_RELEASE_TAG"
+    echo "release_tag_sha=$tag_sha"
     exit 0
   fi
   offline_skip "github_release_unavailable"
@@ -89,10 +98,10 @@ published_at="$(json_field "$release_json" publishedAt)"
 [[ "$is_draft" == "false" ]] || fail "release is draft"
 [[ "$is_prerelease" == "false" ]] || fail "release is prerelease"
 [[ "$url" == "$RELEASE_URL" ]] || fail "release URL mismatch: $url"
-[[ "$published_at" == "$expected_published_at" ]] || fail "publishedAt mismatch: $published_at"
+[[ -n "$published_at" ]] || fail "release publishedAt is empty"
 
 for marker in \
-  "Status: RELEASED" \
+  "Status: RELEASE GATE READY" \
   "Tag: \`$CURRENT_RELEASE_TAG\`" \
   "Release name: \`$RELEASE_NAME\`" \
   "Release URL: \`$RELEASE_URL\`"; do
@@ -105,10 +114,31 @@ body_hash_report="$(printf '%s' "$release_json" \
 grep -F 'release_body_normalized_sha256_matches_tracked_release_notes=true' \
   <<<"$body_hash_report" >/dev/null || fail "release body does not match tracked notes"
 
+runs_json="$("$GH_BIN" run list \
+  --repo "$REPO" \
+  --workflow release-tag.yml \
+  --limit 100 \
+  --json databaseId,status,conclusion,headSha,updatedAt,url)"
+gate_json="$(jq -c --arg sha "$tag_sha" '
+  [.[] | select(
+    .headSha == $sha
+    and .status == "completed"
+    and .conclusion == "success"
+  )] | sort_by(.databaseId) | last // empty
+' <<<"$runs_json")"
+[[ -n "$gate_json" ]] || fail "missing successful hosted release gate for tag commit"
+gate_run_id="$(json_field "$gate_json" databaseId)"
+gate_completed_at="$(json_field "$gate_json" updatedAt)"
+scripts/ai/ntpro_governance.sh timestamp-ge \
+  --left "$published_at" \
+  --right "$gate_completed_at" >/dev/null \
+  || fail "GitHub Release was published before hosted gate success"
+
 printf '%s\n' "$body_hash_report"
 echo "release_publication_guard=pass"
 echo "release_version=$CURRENT_RELEASE_VERSION"
 echo "release_tag=$CURRENT_RELEASE_TAG"
 echo "release_tag_sha=$tag_sha"
-echo "release_gate_run_id=$expected_gate_run_id"
+echo "release_gate_run_id=$gate_run_id"
+echo "release_gate_completed_at=$gate_completed_at"
 echo "published_at=$published_at"

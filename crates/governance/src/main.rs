@@ -168,15 +168,15 @@ enum Command {
     },
     /// Validates the current public release wording and source surface.
     ReleaseSurface {
-        #[arg(long, default_value = "v0.32.0")]
+        #[arg(long, default_value = "v0.33.0")]
         current_version: String,
-        #[arg(long, default_value = "ntpro-rust-only-v0.32.0")]
+        #[arg(long, default_value = "ntpro-rust-only-v0.33.0")]
         current_tag: String,
-        #[arg(long, default_value = "backend-freeze-governance")]
+        #[arg(long, default_value = "backend-maintenance")]
         governance_track: String,
-        #[arg(long, default_value = "v0.33.0+")]
+        #[arg(long, default_value = "v0.34.0+")]
         next_capability: String,
-        #[arg(long, default_value = "v0.32.0 Backend Production Closeout")]
+        #[arg(long, default_value = "v0.33.0 Backend Maintenance")]
         current_capability: String,
         #[arg(long, default_value_t = false)]
         allow_missing_tag: bool,
