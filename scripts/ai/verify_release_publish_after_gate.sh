@@ -77,12 +77,12 @@ fi
 if [[ "$1" == "run" && "$2" == "view" ]]; then
   if [[ "${NTPRO_FAKE_GATE_CONCLUSION:-success}" != "success" ]]; then
     cat <<JSON
-{"status":"completed","conclusion":"failure","workflowName":"Rust Cutover Release Gate","headSha":"0123456789abcdef0123456789abcdef01234567","url":"https://github.com/atxinbao/NTPRO/actions/runs/1","updatedAt":"2026-07-02T10:00:00Z"}
+{"status":"completed","conclusion":"failure","workflowName":"Rust Cutover Release Gate","event":"push","headBranch":"ntpro-rust-only-v0.22.1","headSha":"0123456789abcdef0123456789abcdef01234567","url":"https://github.com/atxinbao/NTPRO/actions/runs/1","updatedAt":"2026-07-02T10:00:00Z"}
 JSON
     exit 0
   fi
   cat <<JSON
-{"status":"completed","conclusion":"success","workflowName":"Rust Cutover Release Gate","headSha":"0123456789abcdef0123456789abcdef01234567","url":"https://github.com/atxinbao/NTPRO/actions/runs/1","updatedAt":"2026-07-02T10:00:00Z"}
+{"status":"completed","conclusion":"success","workflowName":"Rust Cutover Release Gate","event":"${NTPRO_FAKE_GATE_EVENT:-push}","headBranch":"${NTPRO_FAKE_GATE_HEAD_BRANCH:-ntpro-rust-only-v0.22.1}","headSha":"0123456789abcdef0123456789abcdef01234567","url":"https://github.com/atxinbao/NTPRO/actions/runs/1","updatedAt":"2026-07-02T10:00:00Z"}
 JSON
   exit 0
 fi
@@ -161,6 +161,8 @@ run_publish_script() {
     NTPRO_FAKE_GH_CALL_LOG="$tmp_dir/gh-calls.log" \
     NTPRO_FAKE_RELEASE_MODE="${NTPRO_FAKE_RELEASE_MODE:-draft}" \
     NTPRO_FAKE_GATE_CONCLUSION="${NTPRO_FAKE_GATE_CONCLUSION:-success}" \
+    NTPRO_FAKE_GATE_EVENT="${NTPRO_FAKE_GATE_EVENT:-push}" \
+    NTPRO_FAKE_GATE_HEAD_BRANCH="${NTPRO_FAKE_GATE_HEAD_BRANCH:-ntpro-rust-only-v0.22.1}" \
     "$@"
 }
 
@@ -232,6 +234,22 @@ if NTPRO_FAKE_RELEASE_MODE=draft NTPRO_FAKE_GATE_CONCLUSION=failure \
   exit 1
 fi
 grep -F "release gate run did not succeed: failure" "$tmp_dir/failed-gate.out" >/dev/null
+
+echo "== verify release publish after gate: workflow dispatch is rejected =="
+if NTPRO_FAKE_RELEASE_MODE=draft NTPRO_FAKE_GATE_EVENT=workflow_dispatch \
+  run_publish_script scripts/ai/publish_ntpro_release_after_gate.sh >"$tmp_dir/manual-gate.out" 2>&1; then
+  echo "expected workflow_dispatch gate to block publication" >&2
+  exit 1
+fi
+grep -F "release gate was not triggered by a tag push: workflow_dispatch" "$tmp_dir/manual-gate.out" >/dev/null
+
+echo "== verify release publish after gate: mismatched tag ref is rejected =="
+if NTPRO_FAKE_RELEASE_MODE=draft NTPRO_FAKE_GATE_HEAD_BRANCH=main \
+  run_publish_script scripts/ai/publish_ntpro_release_after_gate.sh >"$tmp_dir/mismatched-ref.out" 2>&1; then
+  echo "expected mismatched gate ref to block publication" >&2
+  exit 1
+fi
+grep -F "release gate ref main does not match tag ntpro-rust-only-v0.22.1" "$tmp_dir/mismatched-ref.out" >/dev/null
 
 echo "== verify release publish after gate: public before gate dry-run plans recreation =="
 NTPRO_FAKE_RELEASE_MODE=published_before \

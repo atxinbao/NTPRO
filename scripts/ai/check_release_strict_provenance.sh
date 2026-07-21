@@ -43,11 +43,11 @@ jq -e '
   and .audit_strategy == "source_tree_plus_github_remote"
   and .local_generated_evidence_required_in_source_tree == false
   and .remote_reconstruction_required == true
-  and (.files | length == 5)
+  and (.files | length == 6)
   and (.files | all(
     (.path | type == "string" and length > 0)
     and (.sha256 | test("^[0-9a-f]{64}$"))
   ))
 ' "$OUTPUT" >/dev/null
 
-echo "v33_strict_provenance=pass files=5 output=$OUTPUT"
+echo "v33_strict_provenance=pass files=6 output=$OUTPUT"

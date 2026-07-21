@@ -163,10 +163,12 @@ else
   tag_sha="$(git rev-list -n 1 "$TAG_NAME")"
 fi
 
-run_json="$("$GH_BIN" run view "$GATE_RUN_ID" --repo "$REPO" --json status,conclusion,workflowName,headSha,url,updatedAt)"
+run_json="$("$GH_BIN" run view "$GATE_RUN_ID" --repo "$REPO" --json status,conclusion,workflowName,event,headBranch,headSha,url,updatedAt)"
 run_status="$(json_field "$run_json" status)"
 run_conclusion="$(json_field "$run_json" conclusion)"
 run_workflow_name="$(json_field "$run_json" workflowName)"
+run_event="$(json_field "$run_json" event)"
+run_head_branch="$(json_field "$run_json" headBranch)"
 run_head_sha="$(json_field "$run_json" headSha)"
 run_url="$(json_field "$run_json" url)"
 run_completed_at="$(json_field "$run_json" updatedAt)"
@@ -174,6 +176,8 @@ run_completed_at="$(json_field "$run_json" updatedAt)"
 [[ "$run_status" == "completed" ]] || fail "release gate run is not completed: $run_status"
 [[ "$run_conclusion" == "success" ]] || fail "release gate run did not succeed: $run_conclusion"
 [[ "$run_workflow_name" == "$GATE_WORKFLOW_NAME" ]] || fail "release gate workflow mismatch: $run_workflow_name"
+[[ "$run_event" == "push" ]] || fail "release gate was not triggered by a tag push: $run_event"
+[[ "$run_head_branch" == "$TAG_NAME" ]] || fail "release gate ref $run_head_branch does not match tag $TAG_NAME"
 [[ "$run_head_sha" == "$tag_sha" ]] || fail "release gate run headSha $run_head_sha does not match tag commit $tag_sha"
 [[ -n "$run_completed_at" ]] || fail "release gate run updatedAt is empty"
 

@@ -29,11 +29,13 @@ It does not reopen the backend mainline or rewrite the v0.32.0 baseline.
 - `BPO-005` / #1124 / PR #1138 - feature, dependency, build, and binary cleanup.
 - `BPO-006` / #1125 / PR #1139 - measured default rate-limiter optimization.
 - `BPO-007` / #1126 / PR #1140 - release gates, strict provenance, publication, and closeout.
+- `BPO-008` / #1141 / PR #1142 - bind publication authority to the exact tag-push gate.
 
-Exact issue set = #1120-#1126
-Exact PR set = #1134-#1140
-Exact issue count = 7
-Exact PR count = 7
+Exact issue set = #1120-#1126 and #1141
+Exact PR set = #1134-#1140 and #1142
+Exact issue count = 8
+Exact PR count = 8
+Registered corrective-scope exception count = 1
 Milestone = v0.33.0-backend-maintenance
 
 ## Performance Evidence
@@ -58,8 +60,9 @@ scripts/ai/verify_release.sh release-publication-guard
 scripts/ai/verify_release.sh release-publish-after-gate
 ```
 
-The public GitHub Release is created only after the full hosted release gate
-succeeds for the same tag commit. Publication evidence uses
+The public GitHub Release is created only after the tag-push-triggered full
+hosted release gate succeeds for the same tag ref and commit. A manual workflow
+run for the same SHA is not publication authority. Publication evidence uses
 `source_tree_plus_github_remote`; generated local publication output is not
 source-controlled and is never sufficient as the sole proof.
 

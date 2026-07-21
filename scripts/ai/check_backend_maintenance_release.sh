@@ -32,10 +32,12 @@ validate_manifest() {
     and .planned_release.prerelease == false
     and .release_scope.milestone_number == 35
     and .release_scope.milestone_title == "v0.33.0-backend-maintenance"
-    and .release_scope.exact_issue_numbers == [1120,1121,1122,1123,1124,1125,1126]
-    and .release_scope.exact_pr_numbers == [1134,1135,1136,1137,1138,1139,1140]
-    and .release_scope.issue_count == 7
-    and .release_scope.pr_count == 7
+    and .release_scope.exact_issue_numbers == [1120,1121,1122,1123,1124,1125,1126,1141]
+    and .release_scope.exact_pr_numbers == [1134,1135,1136,1137,1138,1139,1140,1142]
+    and .release_scope.issue_count == 8
+    and .release_scope.pr_count == 8
+    and .release_scope.registered_corrective_scope_exception_count == 1
+    and .release_scope.registered_corrective_scope_exception_issue_numbers == [1141]
     and .release_scope.maintenance_only == true
     and .release_scope.runtime_behavior_changed_by_release_gate == false
     and .release_scope.trading_behavior_changed_by_release_gate == false
@@ -45,6 +47,8 @@ validate_manifest() {
     and .publication_governance.release_gate_workflow_name == "Rust Cutover Release Gate"
     and .publication_governance.publish_workflow_name == "Rust Cutover Publish Release"
     and .publication_governance.public_release_requires_successful_hosted_gate_for_same_tag_commit == true
+    and .publication_governance.release_gate_tag_push_event_required == true
+    and .publication_governance.release_gate_ref_must_equal_release_tag == true
     and .publication_governance.release_gate_success_before_publication_required == true
     and .publication_governance.publication_evidence_strategy == "source_tree_plus_github_remote"
     and .publication_governance.local_generated_evidence_required_in_source_tree == false
@@ -116,30 +120,32 @@ else
   issues_json="$(gh api "repos/$REPO/issues?milestone=35&state=all&per_page=100")"
   jq -e '
     [.[] | select(.pull_request == null) | .number] | sort
-    == [1120,1121,1122,1123,1124,1125,1126]
+    == [1120,1121,1122,1123,1124,1125,1126,1141]
   ' <<<"$issues_json" >/dev/null || fail "milestone exact issue set mismatch"
   jq -e '
-    [.[] | select(.pull_request == null and .number != 1126) | .state]
+    [.[] | select(.pull_request == null and .number != 1141) | .state]
     | all(. == "closed")
   ' <<<"$issues_json" >/dev/null || fail "a BPO dependency issue is open"
   if [[ "$ALLOW_OPEN_CLOSEOUT" != "1" ]]; then
     jq -e '
-      [.[] | select(.pull_request == null and .number == 1126) | .state]
+      [.[] | select(.pull_request == null and .number == 1141) | .state]
       == ["closed"]
-    ' <<<"$issues_json" >/dev/null || fail "BPO-007 issue is not closed"
+    ' <<<"$issues_json" >/dev/null || fail "BPO-008 corrective issue is not closed"
   fi
 
-  closeout_pr="$(jq -r '.release_scope.exact_pr_numbers[6]' "$MANIFEST")"
+  closeout_pr="$(jq -r '.release_scope.exact_pr_numbers[7]' "$MANIFEST")"
   while IFS= read -r pr; do
-    state="$(gh pr view "$pr" --repo "$REPO" --json state --jq .state)"
+    pr_json="$(gh api "repos/$REPO/pulls/$pr")"
+    state="$(jq -r '.state' <<<"$pr_json")"
+    merged_at="$(jq -r '.merged_at // empty' <<<"$pr_json")"
     if [[ "$pr" == "$closeout_pr" && "$ALLOW_OPEN_CLOSEOUT" == "1" ]]; then
-      [[ "$state" == "OPEN" || "$state" == "MERGED" ]] \
-        || fail "closeout PR has invalid state: $state"
+      [[ "$state" == "open" || -n "$merged_at" ]] \
+        || fail "closeout PR has invalid state: state=$state merged_at=$merged_at"
     else
-      [[ "$state" == "MERGED" ]] || fail "release PR #$pr is not merged"
+      [[ -n "$merged_at" ]] || fail "release PR #$pr is not merged"
     fi
   done < <(jq -r '.release_scope.exact_pr_numbers[]' "$MANIFEST")
-  echo "v33_live_state=pass exact_issues=7 exact_prs=7"
+  echo "v33_live_state=pass exact_issues=8 exact_prs=8"
 fi
 
 echo "v33_maintenance_release=pass boundaries=27 negative_cases=2"
