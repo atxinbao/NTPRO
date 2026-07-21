@@ -25,7 +25,8 @@
     "readiness_report": "docs/rust-cutover/release/v0_33_0_readiness_report.md",
     "release_manifest": "docs/rust-cutover/release/v0_33_0_release_manifest.json",
     "release_closeout_evidence": "docs/rust-cutover/release/v0_33_0_release_closeout_evidence.md",
-    "task_evidence": "docs/rust-cutover/evidence/BPO-007.md"
+    "task_evidence": "docs/rust-cutover/evidence/BPO-007.md",
+    "corrective_evidence": "docs/rust-cutover/evidence/BPO-008.md"
   },
   "dependencies": {
     "approved_intake_issue": 1119,
@@ -36,10 +37,12 @@
   "release_scope": {
     "milestone_number": 35,
     "milestone_title": "v0.33.0-backend-maintenance",
-    "exact_issue_numbers": [1120, 1121, 1122, 1123, 1124, 1125, 1126],
-    "exact_pr_numbers": [1134, 1135, 1136, 1137, 1138, 1139, 1140],
-    "issue_count": 7,
-    "pr_count": 7,
+    "exact_issue_numbers": [1120, 1121, 1122, 1123, 1124, 1125, 1126, 1141],
+    "exact_pr_numbers": [1134, 1135, 1136, 1137, 1138, 1139, 1140, null],
+    "issue_count": 8,
+    "pr_count": 8,
+    "registered_corrective_scope_exception_count": 1,
+    "registered_corrective_scope_exception_issue_numbers": [1141],
     "maintenance_only": true,
     "backend_mainline_continuation": false,
     "backend_baseline_rewrite": false,
@@ -90,6 +93,12 @@
       "issue": 1126,
       "pr": 1140,
       "evidence": "docs/rust-cutover/evidence/BPO-007.md"
+    },
+    {
+      "task_id": "BPO-008",
+      "issue": 1141,
+      "pr": null,
+      "evidence": "docs/rust-cutover/evidence/BPO-008.md"
     }
   ],
   "benchmark_summary": {

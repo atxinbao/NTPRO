@@ -32,10 +32,13 @@ validate_manifest() {
     and .planned_release.prerelease == false
     and .release_scope.milestone_number == 35
     and .release_scope.milestone_title == "v0.33.0-backend-maintenance"
-    and .release_scope.exact_issue_numbers == [1120,1121,1122,1123,1124,1125,1126]
-    and .release_scope.exact_pr_numbers == [1134,1135,1136,1137,1138,1139,1140]
-    and .release_scope.issue_count == 7
-    and .release_scope.pr_count == 7
+    and .release_scope.exact_issue_numbers == [1120,1121,1122,1123,1124,1125,1126,1141]
+    and .release_scope.exact_pr_numbers[0:7] == [1134,1135,1136,1137,1138,1139,1140]
+    and (.release_scope.exact_pr_numbers | length == 8)
+    and .release_scope.issue_count == 8
+    and .release_scope.pr_count == 8
+    and .release_scope.registered_corrective_scope_exception_count == 1
+    and .release_scope.registered_corrective_scope_exception_issue_numbers == [1141]
     and .release_scope.maintenance_only == true
     and .release_scope.runtime_behavior_changed_by_release_gate == false
     and .release_scope.trading_behavior_changed_by_release_gate == false
@@ -118,20 +121,23 @@ else
   issues_json="$(gh api "repos/$REPO/issues?milestone=35&state=all&per_page=100")"
   jq -e '
     [.[] | select(.pull_request == null) | .number] | sort
-    == [1120,1121,1122,1123,1124,1125,1126]
+    == [1120,1121,1122,1123,1124,1125,1126,1141]
   ' <<<"$issues_json" >/dev/null || fail "milestone exact issue set mismatch"
   jq -e '
-    [.[] | select(.pull_request == null and .number != 1126) | .state]
+    [.[] | select(.pull_request == null and .number != 1141) | .state]
     | all(. == "closed")
   ' <<<"$issues_json" >/dev/null || fail "a BPO dependency issue is open"
   if [[ "$ALLOW_OPEN_CLOSEOUT" != "1" ]]; then
     jq -e '
-      [.[] | select(.pull_request == null and .number == 1126) | .state]
+      [.[] | select(.pull_request == null and .number == 1141) | .state]
       == ["closed"]
-    ' <<<"$issues_json" >/dev/null || fail "BPO-007 issue is not closed"
+    ' <<<"$issues_json" >/dev/null || fail "BPO-008 corrective issue is not closed"
   fi
 
-  closeout_pr="$(jq -r '.release_scope.exact_pr_numbers[6]' "$MANIFEST")"
+  closeout_pr="$(jq -r '.release_scope.exact_pr_numbers[7] // empty' "$MANIFEST")"
+  if [[ -z "$closeout_pr" && "$ALLOW_OPEN_CLOSEOUT" != "1" ]]; then
+    fail "BPO-008 corrective PR is not registered"
+  fi
   while IFS= read -r pr; do
     state="$(gh pr view "$pr" --repo "$REPO" --json state --jq .state)"
     if [[ "$pr" == "$closeout_pr" && "$ALLOW_OPEN_CLOSEOUT" == "1" ]]; then
@@ -140,8 +146,8 @@ else
     else
       [[ "$state" == "MERGED" ]] || fail "release PR #$pr is not merged"
     fi
-  done < <(jq -r '.release_scope.exact_pr_numbers[]' "$MANIFEST")
-  echo "v33_live_state=pass exact_issues=7 exact_prs=7"
+  done < <(jq -r '.release_scope.exact_pr_numbers[] | select(. != null)' "$MANIFEST")
+  echo "v33_live_state=pass exact_issues=8 exact_prs=8"
 fi
 
 echo "v33_maintenance_release=pass boundaries=27 negative_cases=2"

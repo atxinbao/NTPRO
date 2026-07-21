@@ -27,8 +27,9 @@ BPO-004 #1123 = closed through PR #1137
 BPO-005 #1124 = closed through PR #1138
 BPO-006 #1125 = closed through PR #1139
 BPO-007 #1126 = closes through the release PR before tag creation
-exact milestone issue count = 7
-registered corrective-scope exceptions = 0
+BPO-008 #1141 = release tag-push binding corrective; must close before tag creation
+exact milestone issue count = 8
+registered corrective-scope exceptions = 1
 ```
 
 ## Required Hosted Gate

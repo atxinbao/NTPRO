@@ -29,11 +29,13 @@ It does not reopen the backend mainline or rewrite the v0.32.0 baseline.
 - `BPO-005` / #1124 / PR #1138 - feature, dependency, build, and binary cleanup.
 - `BPO-006` / #1125 / PR #1139 - measured default rate-limiter optimization.
 - `BPO-007` / #1126 / PR #1140 - release gates, strict provenance, publication, and closeout.
+- `BPO-008` / #1141 - bind publication authority to the exact tag-push gate.
 
-Exact issue set = #1120-#1126
-Exact PR set = #1134-#1140
-Exact issue count = 7
-Exact PR count = 7
+Exact issue set = #1120-#1126 and #1141
+Exact PR set = #1134-#1140 plus the BPO-008 corrective PR
+Exact issue count = 8
+Exact PR count = 8
+Registered corrective-scope exception count = 1
 Milestone = v0.33.0-backend-maintenance
 
 ## Performance Evidence
