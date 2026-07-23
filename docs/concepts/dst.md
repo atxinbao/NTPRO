@@ -457,9 +457,11 @@ As of the current state of this repository:
 - Static enforcement via `check-dst-conventions` is active in pre-commit and CI. The hook
   covers the load-bearing conditions; the `// dst-ok` marker convention permits per-line
   exceptions when justified.
-- Build-and-test smoke gate under `cfg(madsim)` runs via the `dst` workflow
-  (`.github/workflows/dst.yml`, invokes `make cargo-test-sim`). It compiles the in-scope
-  crates with `--features simulation` and runs every test that is sim-compatible today.
+- Build-and-test smoke under `cfg(madsim)` remains available through
+  `make cargo-test-sim`. The post-v0.33.0 workflow cleanup removed the unreachable
+  self-hosted `dst` workflow, so this command is no longer scheduled by GitHub Actions.
+  It compiles the in-scope crates with `--features simulation` and runs every test that
+  is sim-compatible today.
   Crates that consume `nautilus-model` types (`nautilus-common`, `nautilus-execution`)
   also run a second leg with `--features "simulation,high-precision"` so the seam-routed
   code paths are exercised under both fixed-point widths (`QuantityRaw` / `PriceRaw` as
