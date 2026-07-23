@@ -8,7 +8,6 @@ MANIFEST="${NTPRO_V33_RELEASE_MANIFEST:-docs/rust-cutover/release/v0_33_0_releas
 REPO="${NTPRO_RELEASE_REPOSITORY:-${GITHUB_REPOSITORY:-atxinbao/NTPRO}}"
 ALLOW_OPEN_CLOSEOUT="${NTPRO_V33_ALLOW_OPEN_CLOSEOUT:-${NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG:-0}}"
 ALLOW_OFFLINE="${NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE:-0}"
-ALLOW_POST_RELEASE_HEAD="${NTPRO_V33_ALLOW_POST_RELEASE_HEAD:-0}"
 TAG="ntpro-rust-only-v0.33.0"
 
 fail() {
@@ -64,8 +63,6 @@ validate_manifest() {
 
 [[ -f "$MANIFEST" ]] || fail "missing manifest: $MANIFEST"
 command -v jq >/dev/null 2>&1 || fail "jq is required"
-[[ "$ALLOW_POST_RELEASE_HEAD" == "0" || "$ALLOW_POST_RELEASE_HEAD" == "1" ]] \
-  || fail "NTPRO_V33_ALLOW_POST_RELEASE_HEAD must be 0 or 1"
 validate_manifest "$MANIFEST" || fail "manifest structure or boundary mismatch"
 
 while IFS= read -r path; do
@@ -107,9 +104,8 @@ fi
 
 if git rev-parse -q --verify "${TAG}^{commit}" >/dev/null; then
   tag_sha="$(git rev-list -n 1 "$TAG")"
-  if [[ "$tag_sha" != "$(git rev-parse HEAD)" && "$ALLOW_POST_RELEASE_HEAD" != "1" ]]; then
-    fail "tag commit does not match checked-out release commit"
-  fi
+  [[ "$tag_sha" == "$(git rev-parse HEAD)" ]] \
+    || fail "tag commit does not match checked-out release commit"
 elif [[ "$ALLOW_OPEN_CLOSEOUT" != "1" ]]; then
   fail "missing release tag: $TAG"
 fi
