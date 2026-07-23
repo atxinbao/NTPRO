@@ -82,6 +82,7 @@ jobs:
           NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG: "1"
           NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_CURRENT: "0"
           NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE: "1"
+          NTPRO_V33_ALLOW_POST_RELEASE_HEAD: "1"
           NTPRO_V33_STRICT_OUTPUT: "/tmp/ntpro-v330/v0_33_0_strict_release_manifest.json"
         run: |
           find scripts -type f \( -name '*.sh' -o -name '*.bash' \) -print0 | xargs -0 bash -n
