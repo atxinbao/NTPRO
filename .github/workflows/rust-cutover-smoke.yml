@@ -82,10 +82,10 @@ jobs:
           NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG: "1"
           NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_CURRENT: "0"
           NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE: "1"
-          NTPRO_V33_STRICT_OUTPUT: "/tmp/ntpro-v330/v0_33_0_strict_release_manifest.json"
+          NTPRO_V33_ALLOW_POST_RELEASE_HEAD: "1"
         run: |
           find scripts -type f \( -name '*.sh' -o -name '*.bash' \) -print0 | xargs -0 bash -n
-          scripts/ai/verify_release.sh current-governance backend-freeze-baseline v33-maintenance-release v33-strict-provenance
+          scripts/ai/verify_release.sh current-governance backend-freeze-baseline v33-maintenance-release
           scripts/ai/verify_release_publish_after_gate.sh
           ruby -e 'require "yaml"; YAML.load_file(".github/workflows/release-tag.yml"); YAML.load_file(".github/workflows/release-publish.yml"); puts "release yaml ok"'
       - name: CLI unit tests

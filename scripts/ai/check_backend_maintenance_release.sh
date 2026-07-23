@@ -8,11 +8,58 @@ MANIFEST="${NTPRO_V33_RELEASE_MANIFEST:-docs/rust-cutover/release/v0_33_0_releas
 REPO="${NTPRO_RELEASE_REPOSITORY:-${GITHUB_REPOSITORY:-atxinbao/NTPRO}}"
 ALLOW_OPEN_CLOSEOUT="${NTPRO_V33_ALLOW_OPEN_CLOSEOUT:-${NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG:-0}}"
 ALLOW_OFFLINE="${NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE:-0}"
+ALLOW_POST_RELEASE_HEAD="${NTPRO_V33_ALLOW_POST_RELEASE_HEAD:-0}"
 TAG="ntpro-rust-only-v0.33.0"
 
 fail() {
   echo "current backend maintenance release validation failed: $*" >&2
   exit 1
+}
+
+release_head_binding_valid() {
+  local tag_sha="$1"
+  local head_sha="$2"
+  local allow_post_release_head="$3"
+
+  [[ "$allow_post_release_head" == "0" || "$allow_post_release_head" == "1" ]] \
+    || return 1
+  [[ "$tag_sha" == "$head_sha" ]] && return 0
+  [[ "$allow_post_release_head" == "1" ]] || return 1
+  git merge-base --is-ancestor "$tag_sha" "$head_sha"
+}
+
+release_tag_missing_allowed() {
+  local allow_open_closeout="$1"
+  local allow_post_release_head="$2"
+
+  [[ "$allow_open_closeout" == "1" && "$allow_post_release_head" != "1" ]]
+}
+
+run_release_head_binding_selftest() {
+  local tag_sha="$1"
+  local earlier_sha="2b955cb8a989827e3351c08c3d82d9578253e1f6"
+
+  release_head_binding_valid "$tag_sha" "$tag_sha" "0" \
+    || fail "release head binding selftest rejected the tag commit"
+  if release_head_binding_valid "$tag_sha" "$earlier_sha" "0"; then
+    fail "release head binding selftest accepted a default mismatch"
+  fi
+  if release_head_binding_valid "$tag_sha" "$earlier_sha" "1"; then
+    fail "release head binding selftest accepted a non-descendant commit"
+  fi
+  echo "v33_release_head_binding_selftest=pass cases=3"
+}
+
+run_missing_tag_policy_selftest() {
+  release_tag_missing_allowed "1" "0" \
+    || fail "missing tag policy selftest rejected pre-tag closeout"
+  if release_tag_missing_allowed "1" "1"; then
+    fail "missing tag policy selftest accepted post-release mode"
+  fi
+  if release_tag_missing_allowed "0" "0"; then
+    fail "missing tag policy selftest accepted strict mode"
+  fi
+  echo "v33_missing_tag_policy_selftest=pass cases=3"
 }
 
 validate_manifest() {
@@ -63,6 +110,8 @@ validate_manifest() {
 
 [[ -f "$MANIFEST" ]] || fail "missing manifest: $MANIFEST"
 command -v jq >/dev/null 2>&1 || fail "jq is required"
+[[ "$ALLOW_POST_RELEASE_HEAD" == "0" || "$ALLOW_POST_RELEASE_HEAD" == "1" ]] \
+  || fail "NTPRO_V33_ALLOW_POST_RELEASE_HEAD must be 0 or 1"
 validate_manifest "$MANIFEST" || fail "manifest structure or boundary mismatch"
 
 while IFS= read -r path; do
@@ -89,6 +138,8 @@ grep -F "milestone v0.33.0-backend-maintenance must close after release publicat
 scripts/ai/check_backend_freeze_baseline.sh
 scripts/ai/check_release_surface_current.sh
 
+run_missing_tag_policy_selftest
+
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 jq '.boundary_flags.production_order_submission_allowed = true' \
@@ -104,9 +155,11 @@ fi
 
 if git rev-parse -q --verify "${TAG}^{commit}" >/dev/null; then
   tag_sha="$(git rev-list -n 1 "$TAG")"
-  [[ "$tag_sha" == "$(git rev-parse HEAD)" ]] \
-    || fail "tag commit does not match checked-out release commit"
-elif [[ "$ALLOW_OPEN_CLOSEOUT" != "1" ]]; then
+  head_sha="$(git rev-parse HEAD)"
+  run_release_head_binding_selftest "$tag_sha"
+  release_head_binding_valid "$tag_sha" "$head_sha" "$ALLOW_POST_RELEASE_HEAD" \
+    || fail "release tag must equal or be an ancestor of the checked-out commit"
+elif ! release_tag_missing_allowed "$ALLOW_OPEN_CLOSEOUT" "$ALLOW_POST_RELEASE_HEAD"; then
   fail "missing release tag: $TAG"
 fi
 
