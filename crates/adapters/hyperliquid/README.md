@@ -1,6 +1,6 @@
 # nautilus-hyperliquid
 
-[![Rust Cutover Smoke](https://github.com/atxinbao/NTPRO/actions/workflows/rust-cutover-smoke.yml/badge.svg?branch=main)](https://github.com/atxinbao/NTPRO/actions/workflows/rust-cutover-smoke.yml)
+[![Rust Cutover Smoke](https://github.com/atxinbao/NTPRO/actions/workflows/rust-cutover-smoke.yml/badge.svg)](https://github.com/atxinbao/NTPRO/actions/workflows/rust-cutover-smoke.yml)
 [![Documentation](https://img.shields.io/docsrs/nautilus-hyperliquid)](https://docs.rs/nautilus-hyperliquid/latest/nautilus-hyperliquid/)
 [![crates.io version](https://img.shields.io/crates/v/nautilus-hyperliquid.svg)](https://crates.io/crates/nautilus-hyperliquid)
 ![license](https://img.shields.io/github/license/atxinbao/NTPRO?color=blue)

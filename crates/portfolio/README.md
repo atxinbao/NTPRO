@@ -1,6 +1,6 @@
 # nautilus-portfolio
 
-[![Rust Cutover Smoke](https://github.com/atxinbao/NTPRO/actions/workflows/rust-cutover-smoke.yml/badge.svg?branch=main)](https://github.com/atxinbao/NTPRO/actions/workflows/rust-cutover-smoke.yml)
+[![Rust Cutover Smoke](https://github.com/atxinbao/NTPRO/actions/workflows/rust-cutover-smoke.yml/badge.svg)](https://github.com/atxinbao/NTPRO/actions/workflows/rust-cutover-smoke.yml)
 [![Documentation](https://img.shields.io/docsrs/nautilus-portfolio)](https://docs.rs/nautilus-portfolio/latest/nautilus-portfolio/)
 [![crates.io version](https://img.shields.io/crates/v/nautilus-portfolio.svg)](https://crates.io/crates/nautilus-portfolio)
 ![license](https://img.shields.io/github/license/atxinbao/NTPRO?color=blue)
