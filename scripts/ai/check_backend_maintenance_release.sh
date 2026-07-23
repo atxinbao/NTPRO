@@ -28,6 +28,13 @@ release_head_binding_valid() {
   git merge-base --is-ancestor "$tag_sha" "$head_sha"
 }
 
+release_tag_missing_allowed() {
+  local allow_open_closeout="$1"
+  local allow_post_release_head="$2"
+
+  [[ "$allow_open_closeout" == "1" && "$allow_post_release_head" != "1" ]]
+}
+
 run_release_head_binding_selftest() {
   local tag_sha="$1"
   local earlier_sha="2b955cb8a989827e3351c08c3d82d9578253e1f6"
@@ -41,6 +48,18 @@ run_release_head_binding_selftest() {
     fail "release head binding selftest accepted a non-descendant commit"
   fi
   echo "v33_release_head_binding_selftest=pass cases=3"
+}
+
+run_missing_tag_policy_selftest() {
+  release_tag_missing_allowed "1" "0" \
+    || fail "missing tag policy selftest rejected pre-tag closeout"
+  if release_tag_missing_allowed "1" "1"; then
+    fail "missing tag policy selftest accepted post-release mode"
+  fi
+  if release_tag_missing_allowed "0" "0"; then
+    fail "missing tag policy selftest accepted strict mode"
+  fi
+  echo "v33_missing_tag_policy_selftest=pass cases=3"
 }
 
 validate_manifest() {
@@ -119,6 +138,8 @@ grep -F "milestone v0.33.0-backend-maintenance must close after release publicat
 scripts/ai/check_backend_freeze_baseline.sh
 scripts/ai/check_release_surface_current.sh
 
+run_missing_tag_policy_selftest
+
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 jq '.boundary_flags.production_order_submission_allowed = true' \
@@ -138,7 +159,7 @@ if git rev-parse -q --verify "${TAG}^{commit}" >/dev/null; then
   run_release_head_binding_selftest "$tag_sha"
   release_head_binding_valid "$tag_sha" "$head_sha" "$ALLOW_POST_RELEASE_HEAD" \
     || fail "release tag must equal or be an ancestor of the checked-out commit"
-elif [[ "$ALLOW_OPEN_CLOSEOUT" != "1" ]]; then
+elif ! release_tag_missing_allowed "$ALLOW_OPEN_CLOSEOUT" "$ALLOW_POST_RELEASE_HEAD"; then
   fail "missing release tag: $TAG"
 fi
 
