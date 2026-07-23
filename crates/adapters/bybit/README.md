@@ -1,6 +1,6 @@
 # nautilus-bybit
 
-[![build](https://github.com/atxinbao/NTPRO/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/atxinbao/NTPRO/actions/workflows/build.yml)
+[![Rust Cutover Smoke](https://github.com/atxinbao/NTPRO/actions/workflows/rust-cutover-smoke.yml/badge.svg?branch=main)](https://github.com/atxinbao/NTPRO/actions/workflows/rust-cutover-smoke.yml)
 [![Documentation](https://img.shields.io/docsrs/nautilus-bybit)](https://docs.rs/nautilus-bybit/latest/nautilus-bybit/)
 [![crates.io version](https://img.shields.io/crates/v/nautilus-bybit.svg)](https://crates.io/crates/nautilus-bybit)
 ![license](https://img.shields.io/github/license/atxinbao/NTPRO?color=blue)

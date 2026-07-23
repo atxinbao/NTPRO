@@ -1,6 +1,6 @@
 # nautilus-blockchain
 
-[![build](https://github.com/atxinbao/NTPRO/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/atxinbao/NTPRO/actions/workflows/build.yml)
+[![Rust Cutover Smoke](https://github.com/atxinbao/NTPRO/actions/workflows/rust-cutover-smoke.yml/badge.svg?branch=main)](https://github.com/atxinbao/NTPRO/actions/workflows/rust-cutover-smoke.yml)
 [![Documentation](https://img.shields.io/docsrs/nautilus-blockchain)](https://docs.rs/nautilus-blockchain/latest/nautilus-blockchain/)
 [![crates.io version](https://img.shields.io/crates/v/nautilus-blockchain.svg)](https://crates.io/crates/nautilus-blockchain)
 ![license](https://img.shields.io/github/license/atxinbao/NTPRO?color=blue)

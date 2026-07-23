@@ -1,6 +1,6 @@
 # GitHub Automation Overview
 
-Date: 2026-07-17
+Date: 2026-07-24
 Executor: Codex
 
 NTPRO repository automation is Rust-only. Current workflows do not install or
@@ -12,15 +12,16 @@ packages.
 - `rust-cutover-smoke.yml`: required pull-request smoke, governance, CLI, and
   supervisor checks.
 - `security-audit.yml`: Zizmor plus Cargo audit, deny, vet, and OSV scanning.
-- `build.yml`: manually dispatched/current test-branch Rust formatting,
-  workspace check, clippy, and split Rust tests.
-- `cli-binaries.yml`: cross-platform Rust CLI binaries and optional R2 upload.
-- `release-tag.yml` and `release-publish.yml`: frozen v0.32.0 backend release
-  governance.
-- `nightly-tests.yml`, `nightly-miri.yml`, `nightly-docs-features-check.yml`,
-  and `dst.yml`: scheduled Rust diagnostics.
-- `build-docs.yml`: retained upstream documentation dispatch; inactive in the
-  standalone NTPRO repository.
+- `backend-performance.yml`: backend performance baseline and regression
+  contract.
+- `release-tag.yml`: tag-push release gate for the current Rust-only release
+  surface.
+- `release-publish.yml`: publishes a release only after a successful matching
+  tag-push gate.
+
+The v0.32.0 backend baseline remains frozen. The current release authority is
+v0.33.0 Backend Maintenance. Retired upstream, nightly, optional binary, and
+unreachable self-hosted workflows remain available only through Git history.
 
 ## Composite Actions
 

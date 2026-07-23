@@ -1,6 +1,6 @@
 # nautilus-event-store
 
-[![build](https://github.com/atxinbao/NTPRO/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/atxinbao/NTPRO/actions/workflows/build.yml)
+[![Rust Cutover Smoke](https://github.com/atxinbao/NTPRO/actions/workflows/rust-cutover-smoke.yml/badge.svg?branch=main)](https://github.com/atxinbao/NTPRO/actions/workflows/rust-cutover-smoke.yml)
 ![license](https://img.shields.io/github/license/atxinbao/NTPRO?color=blue)
 
 Embedded event store and authoritative log of state-affecting messages for
