@@ -162,13 +162,18 @@ fn is_forbidden_raw_event_store_path(path: &str) -> bool {
         .filter(|segment| !segment.is_empty())
         .collect::<Vec<_>>();
 
-    segments.iter().any(|segment| {
-        matches!(*segment, "event-store" | "event_store" | "redb")
-            || segment.ends_with(".redb")
-            || matches!(*segment, "raw-events" | "raw_events")
-    }) || segments
-        .windows(4)
-        .any(|window| window[0] == "api" && window[1] == "runs" && window[3] == "events")
+    matches!(
+        segments.as_slice(),
+        ["api", "event-store" | "event_store" | "redb", ..]
+            | ["event-store" | "event_store" | "redb", ..]
+    ) || matches!(
+        segments.as_slice(),
+        ["api", "runs", _, "events" | "raw-events" | "raw_events", ..]
+    ) || matches!(segments.as_slice(), [file] if file.ends_with(".redb"))
+        || matches!(
+            segments.as_slice(),
+            ["downloads", path @ ..] if path.iter().any(|segment| segment.ends_with(".redb"))
+        )
 }
 
 fn default_ntpro_node_bin_path() -> PathBuf {

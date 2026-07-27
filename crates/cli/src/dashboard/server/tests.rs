@@ -1,9 +1,10 @@
 use std::{net::SocketAddr, path::PathBuf};
 
+use axum::{Router, http::StatusCode, middleware, routing::any};
 use serde_json::Value;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use super::dashboard_router;
+use super::{dashboard_router, reject_raw_event_store_paths};
 
 #[tokio::test]
 async fn trader_terminal_v28_http_routes_serve_read_only_contracts() {
@@ -134,6 +135,70 @@ async fn trader_terminal_v28_http_routes_serve_read_only_contracts() {
                 response_status_line(&response),
                 "HTTP/1.1 404 Not Found",
                 "raw Event Store path {method} {path} must remain unavailable"
+            );
+        }
+    }
+
+    server.abort();
+}
+
+#[tokio::test]
+async fn raw_event_store_guard_blocks_registered_routes_without_hiding_node_ids() {
+    let listener_result = tokio::net::TcpListener::bind("127.0.0.1:0").await;
+    assert!(
+        listener_result.is_ok(),
+        "test listener must bind: {:?}",
+        listener_result.as_ref().err()
+    );
+    let Ok(listener) = listener_result else {
+        return;
+    };
+    let addr_result = listener.local_addr();
+    assert!(
+        addr_result.is_ok(),
+        "test listener must expose its local address: {:?}",
+        addr_result.as_ref().err()
+    );
+    let Ok(addr) = addr_result else {
+        return;
+    };
+    let router = Router::new()
+        .route("/api/event-store/probe", any(|| async { StatusCode::OK }))
+        .route("/api/nodes/redb", any(|| async { StatusCode::OK }))
+        .route("/api/nodes/run.redb", any(|| async { StatusCode::OK }))
+        .layer(middleware::from_fn(reject_raw_event_store_paths));
+    let server = tokio::spawn(async move { axum::serve(listener, router).await });
+
+    for method in ["GET", "POST", "PUT", "PATCH", "DELETE"] {
+        let blocked_result = http_request(addr, method, "/api/event-store/probe").await;
+        assert!(
+            blocked_result.is_ok(),
+            "{method} forbidden probe must complete: {:?}",
+            blocked_result.as_ref().err()
+        );
+        let Ok(blocked) = blocked_result else {
+            continue;
+        };
+        assert_eq!(
+            response_status_line(&blocked),
+            "HTTP/1.1 404 Not Found",
+            "{method} registered raw Event Store route must be blocked"
+        );
+
+        for allowed_path in ["/api/nodes/redb", "/api/nodes/run.redb"] {
+            let allowed_result = http_request(addr, method, allowed_path).await;
+            assert!(
+                allowed_result.is_ok(),
+                "{method} {allowed_path} must complete: {:?}",
+                allowed_result.as_ref().err()
+            );
+            let Ok(allowed) = allowed_result else {
+                continue;
+            };
+            assert_eq!(
+                response_status_line(&allowed),
+                "HTTP/1.1 200 OK",
+                "guard must not interpret a node ID as a storage namespace"
             );
         }
     }

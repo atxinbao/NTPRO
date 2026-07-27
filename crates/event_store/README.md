@@ -59,8 +59,8 @@ must consume stable, versioned read-model DTOs projected by a trusted Rust servi
 
 This boundary keeps redaction, provenance, freshness, and fail-closed validation in the projection
 layer. The Dashboard's loopback Trader Terminal routes therefore return versioned read-only DTOs
-and reject raw event-store or storage namespaces before route dispatch. Request authorization is a
-separate product concern and is not provided by this crate or this boundary.
+and reject raw event-store or storage namespaces before matched handlers execute. Request
+authorization is a separate product concern and is not provided by this crate or this boundary.
 
 ## Operational use today
 
