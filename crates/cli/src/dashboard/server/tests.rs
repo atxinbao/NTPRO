@@ -110,6 +110,28 @@ async fn trader_terminal_v28_http_routes_serve_read_only_contracts() {
         }
     }
 
+    for path in [
+        "/api/event-store",
+        "/api/event-store/raw",
+        "/api/redb",
+        "/api/runs/example/events",
+        "/event_store/trader-001/run.redb",
+    ] {
+        let response_result = http_request(addr, "GET", path).await;
+        assert!(
+            response_result.is_ok(),
+            "GET {path} must complete: {:?}",
+            response_result.as_ref().err()
+        );
+        let Ok(response) = response_result else {
+            continue;
+        };
+        assert!(
+            response.contains("HTTP/1.1 404 Not Found"),
+            "raw Event Store path {path} must remain unmounted, got:\n{response}"
+        );
+    }
+
     server.abort();
 }
 

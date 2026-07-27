@@ -48,6 +48,19 @@ The event store is the durable boundary for deterministic engine history.
 The crate does not replace the data catalog, provide OLAP queries, or aggregate multiple trader
 instances into a consensus log.
 
+## Trader Terminal consumption boundary
+
+The crate API and on-disk `redb` layout are not a browser or Trader Terminal contract. A terminal
+must consume stable, versioned read-model DTOs projected by a trusted Rust service. It must not:
+
+- expose `RedbBackend`, `EventStoreReader`, run directories, or `.redb` files over HTTP;
+- return raw event-store payloads directly to a browser;
+- infer terminal API compatibility from this crate's package version or Early alpha API.
+
+This boundary keeps redaction, provenance, freshness, authorization, and fail-closed validation in
+the projection layer. The Dashboard's Trader Terminal routes therefore return versioned read-only
+DTOs and do not mount raw event-store or storage paths.
+
 ## Operational use today
 
 Verify a sealed run file:
