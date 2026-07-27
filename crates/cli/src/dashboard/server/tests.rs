@@ -6,10 +6,25 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use super::dashboard_router;
 
 #[tokio::test]
-async fn trader_terminal_v28_http_routes_serve_read_only_contracts()
--> Result<(), Box<dyn std::error::Error>> {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
-    let addr = listener.local_addr()?;
+async fn trader_terminal_v28_http_routes_serve_read_only_contracts() {
+    let listener_result = tokio::net::TcpListener::bind("127.0.0.1:0").await;
+    assert!(
+        listener_result.is_ok(),
+        "test listener must bind: {:?}",
+        listener_result.as_ref().err()
+    );
+    let Ok(listener) = listener_result else {
+        return;
+    };
+    let addr_result = listener.local_addr();
+    assert!(
+        addr_result.is_ok(),
+        "test listener must expose its local address: {:?}",
+        addr_result.as_ref().err()
+    );
+    let Ok(addr) = addr_result else {
+        return;
+    };
     let server = tokio::spawn(async move {
         axum::serve(
             listener,
@@ -47,9 +62,25 @@ async fn trader_terminal_v28_http_routes_serve_read_only_contracts()
             "ntpro.v280.trader_terminal.deployment_state.response.v1",
         ),
     ] {
-        let response = http_request(addr, "GET", path).await?;
+        let response_result = http_request(addr, "GET", path).await;
+        assert!(
+            response_result.is_ok(),
+            "GET {path} must complete: {:?}",
+            response_result.as_ref().err()
+        );
+        let Ok(response) = response_result else {
+            continue;
+        };
         assert_http_ok(&response, path);
-        let value: Value = serde_json::from_str(response_body(&response))?;
+        let value_result = serde_json::from_str::<Value>(response_body(&response));
+        assert!(
+            value_result.is_ok(),
+            "{path} must return valid JSON: {:?}",
+            value_result.as_ref().err()
+        );
+        let Ok(value) = value_result else {
+            continue;
+        };
         assert_eq!(value["schema_version"], schema_version, "{path}");
         assert_eq!(
             value["contract_version"], "ntpro.v280.trader_terminal_backend_api_contract_handoff.v1",
@@ -63,7 +94,15 @@ async fn trader_terminal_v28_http_routes_serve_read_only_contracts()
         assert_forbidden_keys_absent(&value);
 
         for method in ["POST", "PUT", "PATCH", "DELETE"] {
-            let response = http_request(addr, method, path).await?;
+            let response_result = http_request(addr, method, path).await;
+            assert!(
+                response_result.is_ok(),
+                "{method} {path} must complete: {:?}",
+                response_result.as_ref().err()
+            );
+            let Ok(response) = response_result else {
+                continue;
+            };
             assert!(
                 response.contains("HTTP/1.1 405 Method Not Allowed"),
                 "{method} {path} must be rejected, got:\n{response}"
@@ -72,7 +111,6 @@ async fn trader_terminal_v28_http_routes_serve_read_only_contracts()
     }
 
     server.abort();
-    Ok(())
 }
 
 async fn http_request(addr: SocketAddr, method: &str, path: &str) -> std::io::Result<String> {
