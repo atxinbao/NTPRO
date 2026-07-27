@@ -29,7 +29,14 @@ use axum::{
 
 use crate::opt::{DashboardCommand, DashboardOpt, DashboardServeOpt};
 
+use super::trader_terminal_api::{
+    audit_entries_api, backend_closure_status_api, deployment_state_api, permission_snapshot_api,
+    provenance_drilldown_api, telemetry_health_api,
+};
 use super::*;
+
+#[cfg(test)]
+mod tests;
 
 /// Runs local dashboard commands.
 ///
@@ -101,6 +108,21 @@ fn dashboard_router_with_workflow_root(
         .route("/assets/dashboard.js", get(dashboard_js))
         .route("/api/server", get(server_metadata_api))
         .route("/api/snapshot", get(snapshot_api))
+        .route(
+            "/api/v28/backend-closure/status",
+            get(backend_closure_status_api),
+        )
+        .route(
+            "/api/v28/provenance/drilldown",
+            get(provenance_drilldown_api),
+        )
+        .route("/api/v28/audit/entries", get(audit_entries_api))
+        .route("/api/v28/telemetry/health", get(telemetry_health_api))
+        .route(
+            "/api/v28/permissions/snapshot",
+            get(permission_snapshot_api),
+        )
+        .route("/api/v28/deployment/state", get(deployment_state_api))
         .route("/api/nodes", get(nodes_api))
         .route("/api/nodes/{node_id}", get(node_detail_api))
         .route("/api/nodes/{node_id}/metrics", get(node_metrics_api))
