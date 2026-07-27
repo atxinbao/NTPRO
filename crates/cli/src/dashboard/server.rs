@@ -21,9 +21,10 @@
 
 use axum::{
     Router,
-    extract::{Path as AxumPath, State},
-    http::header::CONTENT_TYPE,
-    response::{Html, IntoResponse},
+    extract::{Path as AxumPath, Request, State},
+    http::{StatusCode, header::CONTENT_TYPE},
+    middleware::{self, Next},
+    response::{Html, IntoResponse, Response},
     routing::{get, post},
 };
 
@@ -143,6 +144,31 @@ fn dashboard_router_with_workflow_root(
             post(reconnect_execution_action_api),
         )
         .with_state(state)
+        .layer(middleware::from_fn(reject_raw_event_store_paths))
+}
+
+async fn reject_raw_event_store_paths(request: Request, next: Next) -> Response {
+    if is_forbidden_raw_event_store_path(request.uri().path()) {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+    next.run(request).await
+}
+
+fn is_forbidden_raw_event_store_path(path: &str) -> bool {
+    let normalized = path.to_ascii_lowercase();
+    let segments = normalized
+        .trim_matches('/')
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>();
+
+    segments.iter().any(|segment| {
+        matches!(*segment, "event-store" | "event_store" | "redb")
+            || segment.ends_with(".redb")
+            || matches!(*segment, "raw-events" | "raw_events")
+    }) || segments
+        .windows(4)
+        .any(|window| window[0] == "api" && window[1] == "runs" && window[3] == "events")
 }
 
 fn default_ntpro_node_bin_path() -> PathBuf {

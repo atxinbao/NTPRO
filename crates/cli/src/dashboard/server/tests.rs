@@ -112,24 +112,30 @@ async fn trader_terminal_v28_http_routes_serve_read_only_contracts() {
 
     for path in [
         "/api/event-store",
-        "/api/event-store/raw",
-        "/api/redb",
+        "/api/event-store/entries",
+        "/api/event_store/raw",
+        "/api/REDB/status",
         "/api/runs/example/events",
+        "/api/runs/example/raw-events",
         "/event_store/trader-001/run.redb",
+        "/downloads/run.REDB",
     ] {
-        let response_result = http_request(addr, "GET", path).await;
-        assert!(
-            response_result.is_ok(),
-            "GET {path} must complete: {:?}",
-            response_result.as_ref().err()
-        );
-        let Ok(response) = response_result else {
-            continue;
-        };
-        assert!(
-            response.contains("HTTP/1.1 404 Not Found"),
-            "raw Event Store path {path} must remain unmounted, got:\n{response}"
-        );
+        for method in ["GET", "POST", "PUT", "PATCH", "DELETE"] {
+            let response_result = http_request(addr, method, path).await;
+            assert!(
+                response_result.is_ok(),
+                "{method} {path} must complete: {:?}",
+                response_result.as_ref().err()
+            );
+            let Ok(response) = response_result else {
+                continue;
+            };
+            assert_eq!(
+                response_status_line(&response),
+                "HTTP/1.1 404 Not Found",
+                "raw Event Store path {method} {path} must remain unavailable"
+            );
+        }
     }
 
     server.abort();
@@ -145,10 +151,15 @@ async fn http_request(addr: SocketAddr, method: &str, path: &str) -> std::io::Re
 }
 
 fn assert_http_ok(response: &str, context: &str) {
-    assert!(
-        response.contains("HTTP/1.1 200 OK"),
-        "{context} expected HTTP 200 OK, got:\n{response}"
+    assert_eq!(
+        response_status_line(response),
+        "HTTP/1.1 200 OK",
+        "{context} expected HTTP 200 OK"
     );
+}
+
+fn response_status_line(response: &str) -> &str {
+    response.lines().next().map_or("", str::trim)
 }
 
 fn response_body(response: &str) -> &str {
