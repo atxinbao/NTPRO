@@ -193,6 +193,39 @@ source scripts/ai/toolchain_env.sh
 cargo nextest run --workspace --features "ffi,high-precision,defi" --cargo-profile nextest
 ```
 
+For a unit-test module, select the library target as well as the test name. This
+prevents Cargo from building unrelated binary and integration-test harnesses:
+
+```bash
+source scripts/ai/toolchain_env.sh
+cargo test -p nautilus-cli --lib dashboard::trader_terminal_api::tests
+```
+
+The default Cargo `test` profile keeps debug assertions and incremental
+compilation enabled, but omits and strips debug information to reduce the local
+`target/` footprint. When a test must be inspected with a debugger, opt in to
+the full-debug profile:
+
+```bash
+cargo test --profile test-debugging -p nautilus-cli --lib \
+  dashboard::trader_terminal_api::tests
+```
+
+Keep the profile, feature set, target selection, and compiler flags stable
+between repeated commands. Cargo caches each distinct combination separately,
+so unnecessary variation increases both rebuild time and disk usage.
+
+Use profile-scoped cleanup for isolated custom, benchmark, or release output:
+
+```bash
+cargo clean --profile test-debugging
+cargo clean --profile bench
+cargo clean --profile release-debugging
+```
+
+Use an unqualified `cargo clean` only when reclaiming the complete Cargo cache
+is worth paying for a full dependency rebuild on the next command.
+
 #### Testing with optional features
 
 Use `EXTRA_FEATURES` to include optional features like `hypersync`:
