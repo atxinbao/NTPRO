@@ -409,15 +409,20 @@ opt-level = 1
 
 [profile.test]
 opt-level = 0
-debug = true
+debug = false # Keep routine test artifacts compact
 debug-assertions = true
 overflow-checks = true
-strip = false
+strip = "debuginfo"
 lto = false
 incremental = true
 
 [profile.test.package."*"]
 opt-level = 1
+
+[profile.test-debugging]
+inherits = "test"
+debug = "full"
+strip = false
 
 [profile.nextest]
 inherits = "test"
