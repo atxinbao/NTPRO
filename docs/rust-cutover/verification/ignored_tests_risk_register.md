@@ -146,7 +146,7 @@ Formal blocker groups:
 
 | Blocker ID | Covered ignored tests | Required follow-up |
 | --- | --- | --- |
-| `DRG8-BLOCKER-001` | `IGN-HIGH-003`, `IGN-HIGH-004` | Closed by PAR-001: matching-engine contingent/OUO decisions now use the current cached parent snapshot. |
+| `DRG8-BLOCKER-001` | `IGN-HIGH-003`, `IGN-HIGH-004` | Closed by PAR-001: matching-engine contingent/OUO decisions use validated post-update quantity without assuming synchronous cache event application. |
 | `DRG8-BLOCKER-002` | `IGN-HIGH-005` | Decide and implement L2 trade-tick iteration for trailing stop market behavior, or explicitly scope that behavior out of the product path. |
 | `DRG8-BLOCKER-003` | `IGN-HIGH-006`, `IGN-HIGH-007` | Repair or scope risk-engine order-list reducing behavior with portfolio/high-precision state fixtures. |
 | `DRG8-BLOCKER-004` | `IGN-HIGH-008`, `IGN-HIGH-009`, `IGN-HIGH-010` | Replace empty emulator placeholder tests with real mock-emulator assertions before claiming emulator routing support. |
@@ -165,8 +165,8 @@ Formal blocker groups:
 
 | ID | Location | Ignored test | Reason recorded in source | Product path / impact | Owner role | Status | Recommended next step |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| IGN-HIGH-003 | `crates/execution/tests/matching_engine.rs` | `test_updating_of_contingent_orders` | Historical stale parent snapshot. | Contingent quantity propagation now uses post-event state. | Rust Core Runtime Agent | RESTORED_BY_PAR_001 | Default integration test asserts parent and child `OrderUpdated` quantity `2.000`. |
-| IGN-HIGH-004 | `crates/execution/tests/matching_engine.rs` | `test_ouo_child_cancelled_when_parent_leaves_zero` | Historical stale parent snapshot. | OUO child cancellation now uses post-event zero leaves. | Rust Core Runtime Agent | RESTORED_BY_PAR_001 | Default integration test asserts child cancellation before parent cancellation. |
+| IGN-HIGH-003 | `crates/execution/tests/matching_engine.rs` | `test_updating_of_contingent_orders` | Historical stale parent snapshot. | Contingent quantity propagation now uses validated post-update state. | Rust Core Runtime Agent | RESTORED_BY_PAR_001 | Default integration test defers cache application and asserts parent/child `OrderUpdated` quantity `2.000`. |
+| IGN-HIGH-004 | `crates/execution/tests/matching_engine.rs` | `test_ouo_child_cancelled_when_parent_leaves_zero` | Historical stale parent snapshot. | OUO child cancellation now uses effective zero leaves. | Rust Core Runtime Agent | RESTORED_BY_PAR_001 | Default integration test asserts child cancellation before parent cancellation. |
 | IGN-HIGH-005 | `crates/execution/tests/matching_engine.rs:6633` | `test_trailing_stop_market_updated_then_triggered` | L2 engine with `trade_execution=false` does not iterate on trade ticks. | Trailing stop trigger behavior can be incomplete for L2 simulated execution. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-002`; DRG-008 rerun failed because the trailing stop did not trigger and fill. |
 | IGN-HIGH-006 | `crates/risk/tests/risk_engine.rs:2911` | `test_submit_order_list_buys_when_trading_reducing_then_denies_orders` | Requires portfolio state tracking integration. | Risk rejection for order-list reducing behavior depends on portfolio state. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-003`; DRG-008 rerun failed with `left: 2`, `right: 1`. |
 | IGN-HIGH-007 | `crates/risk/tests/risk_engine.rs:3052` | `test_submit_order_list_sells_when_trading_reducing_then_denies_orders` | Waiting on high-precision decimal merge. | High-precision risk/order-list reduction behavior remains unproven. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-003`; DRG-008 rerun failed with `left: 0`, `right: 1`. |

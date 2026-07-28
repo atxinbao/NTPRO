@@ -3762,7 +3762,9 @@ fn test_updating_of_trailing_stop_market_order_with_no_trigger_price_set(
 #[rstest]
 fn test_updating_of_contingent_orders(instrument_eth_usdt: InstrumentAny, account_id: AccountId) {
     let cache = Rc::new(RefCell::new(Cache::default()));
-    let order_event_handler = order_event_handler_with_cache(cache.clone());
+    // Deliberately leave cache event application deferred, matching the sandbox
+    // async event path where the update is still queued during this decision.
+    let order_event_handler = order_event_handler();
     // Create order matching engine which supports contingent orders
     let engine_config = OrderMatchingEngineConfig {
         support_contingent_orders: true,
@@ -4473,7 +4475,11 @@ fn test_ouo_child_cancelled_when_parent_leaves_zero(
     // 2. OrderCanceled for contingent (parent leaves_qty is now 0)
     // 3. OrderCanceled for primary (fully filled after update, leaves_qty=0)
     let saved_messages = get_order_event_handler_messages(&order_event_handler);
-    assert_eq!(saved_messages.len(), 3);
+    assert_eq!(
+        saved_messages.len(),
+        3,
+        "unexpected OUO zero-leaves event sequence: {saved_messages:?}",
+    );
 
     let event1 = saved_messages.first().unwrap();
     let updated_primary = match event1 {

@@ -5283,7 +5283,7 @@ impl OrderMatchingEngine {
                     .is_some_and(|c| c != ContingencyType::NoContingency)
                 && update_contingencies
             {
-                self.update_contingent_order(order);
+                self.update_contingent_order(order, quantity);
             }
             // Pass false since we already handled contingents above
             self.cancel_order(order, Some(false));
@@ -5296,7 +5296,7 @@ impl OrderMatchingEngine {
                 .is_some_and(|c| c != ContingencyType::NoContingency)
             && update_contingencies
         {
-            self.update_contingent_order(order);
+            self.update_contingent_order(order, quantity);
         }
 
         true
@@ -5335,30 +5335,15 @@ impl OrderMatchingEngine {
         }
     }
 
-    fn update_contingent_order(&mut self, order: &OrderAny) {
-        let parent_client_order_id = order.client_order_id();
-        let order = {
-            let cache = self.cache.borrow();
-            match cache.order(&parent_client_order_id) {
-                Some(order) => order.clone(),
-                None => {
-                    log::error!(
-                        "Cannot update contingent orders: parent order \
-                         {parent_client_order_id} not found in cache",
-                    );
-                    return;
-                }
-            }
-        };
-
-        log::debug!("Updating OUO orders from {parent_client_order_id}");
+    fn update_contingent_order(&mut self, order: &OrderAny, parent_quantity: Quantity) {
+        log::debug!("Updating OUO orders from {}", order.client_order_id());
         if let Some(linked_order_ids) = order.linked_order_ids() {
             let parent_filled_qty = self
                 .cached_filled_qty
-                .get(&parent_client_order_id)
+                .get(&order.client_order_id())
                 .copied()
                 .unwrap_or(order.filled_qty());
-            let parent_leaves_qty = order.quantity().saturating_sub(parent_filled_qty);
+            let parent_leaves_qty = parent_quantity.saturating_sub(parent_filled_qty);
 
             for client_order_id in linked_order_ids {
                 let mut child_order = match self.cache.borrow().order(client_order_id) {
