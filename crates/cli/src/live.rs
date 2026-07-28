@@ -5300,6 +5300,10 @@ fn run_live_production_mutation_guarded_send_with_env<F>(
 where
     F: FnMut(&str) -> Option<String>,
 {
+    reject_manual_online_production_mutation_after_backend_freeze(
+        "production mutation guarded send",
+        opt.manual_online,
+    )?;
     let credentials =
         EnvOnlyProductionMutationPreviewCredentials::from_guarded_send_opt(opt, read_env);
     let artifact = build_production_mutation_guarded_send_artifact(opt, &credentials)?;
@@ -5623,6 +5627,10 @@ fn run_live_production_mutation_actual_cancel_single_shot_with_env<F>(
 where
     F: FnMut(&str) -> Option<String>,
 {
+    reject_manual_online_production_mutation_after_backend_freeze(
+        "production mutation actual cancel",
+        opt.manual_online,
+    )?;
     let credentials =
         EnvOnlyProductionMutationPreviewCredentials::from_actual_cancel_opt(opt, read_env);
     let artifact = build_production_mutation_actual_cancel_single_shot_artifact(
@@ -5649,6 +5657,19 @@ where
         artifact.readback_required,
         artifact.approval_state_after_attempt,
     );
+    Ok(())
+}
+
+fn reject_manual_online_production_mutation_after_backend_freeze(
+    operation: &str,
+    manual_online: bool,
+) -> anyhow::Result<()> {
+    if manual_online {
+        anyhow::bail!(
+            "{operation} manual_online execution is disabled after the v0.32.0 backend freeze; \
+             use offline artifact evaluation only"
+        );
+    }
     Ok(())
 }
 
@@ -30566,61 +30587,38 @@ dashboard_operation_requested
     }
 
     #[test]
-    fn production_mutation_guarded_send_blocks_manual_online_without_env_gates() {
+    fn production_mutation_guarded_send_rejects_manual_online_before_env_or_artifact_read() {
         let output_dir = std::env::temp_dir().join(format!(
-            "ntpro-v160-005-guarded-send-manual-missing-env-{}",
+            "ntpro-backend-freeze-guarded-send-manual-online-{}",
             std::process::id()
         ));
         fs::create_dir_all(&output_dir).unwrap();
-        let (request_builder, request_preview, kill_switch_runtime_gate) =
-            write_ready_v160_guarded_send_sources(&output_dir);
         let output = output_dir.join("production_mutation_guarded_send.json");
+        let mut env_read = false;
 
-        run_live_production_mutation_guarded_send_with_env(
+        let error = run_live_production_mutation_guarded_send_with_env(
             &production_mutation_guarded_send_opt(
-                request_builder,
-                kill_switch_runtime_gate,
-                request_preview,
+                output_dir.join("missing-request-builder.json"),
+                output_dir.join("missing-kill-switch.json"),
+                output_dir.join("missing-request-preview.json"),
                 output.clone(),
                 true,
                 true,
             ),
-            |_| None,
+            |_| {
+                env_read = true;
+                None
+            },
         )
-        .unwrap();
+        .unwrap_err();
 
-        let artifact: serde_json::Value =
-            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
-        assert_eq!(artifact["status"], "blocked_missing_manual_online_gate");
-        assert_eq!(artifact["manual_online_requested"], true);
-        assert_eq!(artifact["guarded_send_ready"], false);
-        assert_eq!(artifact["kill_switch_enforcement_ready"], true);
-        assert_eq!(artifact["kill_switch_blocked_send"], false);
-        assert_eq!(artifact["single_shot_send_allowed"], false);
-        assert_eq!(artifact["request_sent"], false);
-        assert_eq!(artifact["network_attempted"], false);
-        assert_eq!(artifact["production_order_request_attempted"], false);
-        assert_eq!(artifact["http_send_attempted"], false);
-        assert_eq!(artifact["exchange_ack_observed"], false);
-        assert_eq!(artifact["confirmed_production_order_submission"], false);
-        assert_eq!(artifact["production_order_submission_allowed"], false);
-        assert_eq!(artifact["production_orders_submitted"], 0);
-        assert_eq!(artifact["production_order_mutations_attempted"], 0);
-        assert_eq!(artifact["production_trading_enabled"], false);
         assert!(
-            artifact["missing_env_vars"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|env| env == PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW)
+            error
+                .to_string()
+                .contains("disabled after the v0.32.0 backend freeze")
         );
-        assert!(
-            artifact["missing_env_vars"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|env| env == PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW)
-        );
+        assert!(!env_read);
+        assert!(!output.exists());
     }
 
     #[test]
@@ -34696,24 +34694,21 @@ dashboard_operation_requested
         )
         .unwrap();
 
-        let missing_env_output = output_dir.join("missing-env.json");
-        run_live_production_mutation_actual_cancel_single_shot_with_env(
+        let manual_online_output = output_dir.join("manual-online.json");
+        let mut env_read = false;
+        let manual_online_error = run_live_production_mutation_actual_cancel_single_shot_with_env(
             &production_mutation_actual_cancel_single_shot_opt(
                 &sources,
-                missing_env_output.clone(),
+                manual_online_output.clone(),
                 true,
                 true,
             ),
-            |name| match name {
-                PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW
-                | PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED
-                | PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW
-                | PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED
-                | PRODUCTION_MUTATION_HTTP_SEND_ENV_SINGLE_SHOT => Some("1".to_string()),
-                _ => None,
+            |_| {
+                env_read = true;
+                None
             },
         )
-        .unwrap();
+        .unwrap_err();
 
         let release_mismatch_output = output_dir.join("release-mismatch.json");
         let mut release_mismatch_opt = production_mutation_actual_cancel_single_shot_opt(
@@ -34804,26 +34799,13 @@ dashboard_operation_requested
                 .any(|flag| flag == "--allow-production-mutation-actual-cancel-single-shot")
         );
 
-        let missing_env: serde_json::Value =
-            serde_json::from_str(&fs::read_to_string(missing_env_output).unwrap()).unwrap();
-        assert_eq!(missing_env["status"], "blocked_missing_manual_online_gate");
-        assert_eq!(missing_env["actual_cancel_command_ready"], false);
-        assert_eq!(missing_env["request_sent"], false);
-        assert_eq!(missing_env["cancel_attempted"], false);
         assert!(
-            missing_env["missing_env_vars"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|env| env == "NTPRO_V190004_API_KEY")
+            manual_online_error
+                .to_string()
+                .contains("disabled after the v0.32.0 backend freeze")
         );
-        assert!(
-            missing_env["missing_env_vars"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|env| env == "NTPRO_V190004_API_SECRET")
-        );
+        assert!(!env_read);
+        assert!(!manual_online_output.exists());
 
         let release_mismatch: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(release_mismatch_output).unwrap()).unwrap();
