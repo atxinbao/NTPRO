@@ -100,6 +100,17 @@ const RETIRED_GITIGNORE_EXCEPTIONS: &[&str] = &[
     "!scripts/uv-version.sh",
     "!scripts/control/*.sh",
 ];
+const RETIRED_ROOT_CONFIGS: &[&str] = &[
+    ".codecov.yml",
+    ".codespellrc",
+    ".dockerignore",
+    ".gitlint",
+    ".markdownlint.jsonc",
+    ".taplo.toml",
+    ".typos.toml",
+    ".yamlfmt",
+    ".yamllint.yaml",
+];
 
 /// BFH-007 guard 所读取的仓库权威文件。
 pub struct BackendHygieneConfig {
@@ -138,6 +149,7 @@ pub fn validate_backend_hygiene(
 ) -> Result<BackendHygieneCounts> {
     let root = env::current_dir().context("failed to resolve repository root")?;
     let tracked = tracked_files(&root)?;
+    validate_retired_root_configs(&tracked)?;
     validate_required_authority(&root, &tracked)?;
 
     let authority_map = read(&config.authority_map)?;
@@ -185,6 +197,16 @@ pub fn validate_backend_hygiene(
         local_ignored_fixture_hashes: local_ignored_hashes,
         negative_cases,
     })
+}
+
+fn validate_retired_root_configs(tracked: &BTreeSet<String>) -> Result<()> {
+    for retired in RETIRED_ROOT_CONFIGS {
+        ensure!(
+            !tracked.contains(*retired),
+            "retired root configuration returned: {retired}"
+        );
+    }
+    Ok(())
 }
 
 fn validate_required_authority(root: &Path, tracked: &BTreeSet<String>) -> Result<()> {
@@ -848,6 +870,14 @@ mod tests {
         assert!(
             validate_no_tracked_generated(&BTreeSet::from(["docs/target/report.md".to_string()]))
                 .is_ok()
+        );
+    }
+
+    #[test]
+    fn retired_root_configuration_is_fail_closed() {
+        validate_retired_root_configs(&BTreeSet::new()).unwrap();
+        assert!(
+            validate_retired_root_configs(&BTreeSet::from([".codecov.yml".to_string()])).is_err()
         );
     }
 

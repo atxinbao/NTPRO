@@ -301,28 +301,18 @@ When waiting for background work to complete, prefer the polling helpers `await 
 
 Prefer hand-written stubs that return fixed values over mocking frameworks. Use `MagicMock` only when you need to assert call counts/arguments or simulate complex state changes. Avoid mocking the objects you're actually testing.
 
-## Code coverage
+## Rust code coverage
 
-We generate coverage reports with `coverage` and publish them to [codecov](https://about.codecov.io/).
+Coverage is generated locally with `cargo llvm-cov`; the repository does not
+have an active Codecov upload path.
 
-Aim for high coverage without sacrificing appropriate error handling or causing "test induced damage" to the architecture.
+```bash
+make cargo-test-coverage
+make cargo-test-coverage-html
+```
 
-Some branches remain untestable without modifying production behaviour.
-For example, a final condition in a defensive if-else block may only trigger for unexpected values; leave these checks in place so future changes can exercise them if needed.
-
-Design-time exceptions can also be impractical to test, so 100% coverage is not the target.
-
-## Excluded code coverage
-
-We use `pragma: no cover` comments to [exclude code from coverage](https://coverage.readthedocs.io/en/coverage-4.3.3/excluding.html) when tests would be redundant.
-Typical examples include:
-
-- Asserting an abstract method raises `NotImplementedError` when called.
-- Asserting the final condition check of an if-else block when impossible to test (as above).
-
-Such tests are expensive to maintain because they must track refactors while providing little value.
-Keep concrete implementations of abstract methods fully covered.
-Remove `pragma: no cover` when it no longer applies and restrict its use to the cases above.
+Use coverage to find untested behavior, but do not optimize for 100% at the
+expense of meaningful boundary, failure, and golden-trace tests.
 
 ## Debugging Rust tests
 
