@@ -25,7 +25,8 @@ use nautilus_core::UnixNanos;
 use nautilus_model::{
     accounts::AccountAny,
     data::{
-        Bar, CustomData, DataType, FundingRateUpdate, QuoteTick, TradeTick,
+        Bar, CustomData, DataType, FundingRateUpdate, IndexPriceUpdate, InstrumentStatus,
+        MarkPriceUpdate, QuoteTick, TradeTick,
         greeks::{GreeksData, YieldCurveData},
     },
     events::{OrderEventAny, OrderSnapshot, position::snapshot::PositionSnapshot},
@@ -370,6 +371,42 @@ pub trait CacheDatabaseAdapter {
     ///
     /// Returns an error if adding custom data fails.
     fn add_custom_data(&self, data: &CustomData) -> anyhow::Result<()>;
+
+    /// Adds a mark price update to the cache.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database adapter does not support mark price persistence.
+    fn add_mark_price(&self, mark_price: &MarkPriceUpdate) -> anyhow::Result<()> {
+        anyhow::bail!(
+            "cache database adapter does not support mark price persistence for {}",
+            mark_price.instrument_id
+        )
+    }
+
+    /// Adds an index price update to the cache.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database adapter does not support index price persistence.
+    fn add_index_price(&self, index_price: &IndexPriceUpdate) -> anyhow::Result<()> {
+        anyhow::bail!(
+            "cache database adapter does not support index price persistence for {}",
+            index_price.instrument_id
+        )
+    }
+
+    /// Adds an instrument status update to the cache.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database adapter does not support instrument status persistence.
+    fn add_instrument_status(&self, status: &InstrumentStatus) -> anyhow::Result<()> {
+        anyhow::bail!(
+            "cache database adapter does not support instrument status persistence for {}",
+            status.instrument_id
+        )
+    }
 
     /// Adds a quote tick to the cache.
     ///

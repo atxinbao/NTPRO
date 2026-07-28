@@ -2317,6 +2317,91 @@ fn test_add_funding_rate_updates_existing(mut cache: Cache, audusd_sim: Currency
 }
 
 #[rstest]
+fn test_single_market_data_persistence_fails_closed_when_adapter_is_unsupported(
+    audusd_sim: CurrencyPair,
+) {
+    let config = CacheConfig::builder().save_market_data(true).build();
+    let database = Box::<SnapshotBlobTestDatabase>::default();
+    let instrument_id = audusd_sim.id;
+
+    let mut mark_cache = Cache::new(Some(config.clone()), Some(database));
+    let mark_price = MarkPriceUpdate::new(
+        instrument_id,
+        Price::from("1.00000"),
+        UnixNanos::from(5),
+        UnixNanos::from(10),
+    );
+    let mark_error = mark_cache.add_mark_price(mark_price).unwrap_err();
+    assert!(
+        mark_error
+            .to_string()
+            .contains("does not support mark price persistence")
+    );
+    assert!(mark_cache.mark_price(&instrument_id).is_none());
+
+    let mut index_cache = Cache::new(
+        Some(config.clone()),
+        Some(Box::<SnapshotBlobTestDatabase>::default()),
+    );
+    let index_price = IndexPriceUpdate::new(
+        instrument_id,
+        Price::from("1.00000"),
+        UnixNanos::from(5),
+        UnixNanos::from(10),
+    );
+    let index_error = index_cache.add_index_price(index_price).unwrap_err();
+    assert!(
+        index_error
+            .to_string()
+            .contains("does not support index price persistence")
+    );
+    assert!(index_cache.index_price(&instrument_id).is_none());
+
+    let mut status_cache = Cache::new(
+        Some(config),
+        Some(Box::<SnapshotBlobTestDatabase>::default()),
+    );
+    let status = InstrumentStatus::new(
+        instrument_id,
+        MarketStatusAction::Trading,
+        UnixNanos::from(5),
+        UnixNanos::from(10),
+        None,
+        None,
+        Some(true),
+        Some(true),
+        None,
+    );
+    let status_error = status_cache.add_instrument_status(status).unwrap_err();
+    assert!(
+        status_error
+            .to_string()
+            .contains("does not support instrument status persistence")
+    );
+    assert!(status_cache.instrument_status(&instrument_id).is_none());
+}
+
+#[rstest]
+fn test_single_funding_rate_persistence_error_is_propagated(audusd_sim: CurrencyPair) {
+    let config = CacheConfig::builder().save_market_data(true).build();
+    let database = SnapshotBlobTestDatabase::fail_funding_rate();
+    let mut cache = Cache::new(Some(config), Some(Box::new(database)));
+    let funding_rate = FundingRateUpdate::new(
+        audusd_sim.id,
+        "0.0001".parse().unwrap(),
+        None,
+        None,
+        UnixNanos::from(5),
+        UnixNanos::from(10),
+    );
+
+    let error = cache.add_funding_rate(funding_rate).unwrap_err();
+
+    assert!(error.to_string().contains("funding rate add failed"));
+    assert!(cache.funding_rate(&audusd_sim.id).is_none());
+}
+
+#[rstest]
 fn test_instrument_status_when_empty(cache: Cache, audusd_sim: CurrencyPair) {
     assert!(cache.instrument_status(&audusd_sim.id).is_none());
     assert!(cache.instrument_statuses(&audusd_sim.id).is_none());
@@ -5006,6 +5091,7 @@ fn snapshot_test_position() -> Position {
 struct SnapshotBlobTestDatabase {
     general: AHashMap<String, Bytes>,
     fail_add: bool,
+    fail_funding_rate: bool,
 }
 
 impl SnapshotBlobTestDatabase {
@@ -5015,6 +5101,7 @@ impl SnapshotBlobTestDatabase {
         Self {
             general,
             fail_add: false,
+            fail_funding_rate: false,
         }
     }
 
@@ -5022,6 +5109,15 @@ impl SnapshotBlobTestDatabase {
         Self {
             general: AHashMap::new(),
             fail_add: true,
+            fail_funding_rate: false,
+        }
+    }
+
+    fn fail_funding_rate() -> Self {
+        Self {
+            general: AHashMap::new(),
+            fail_add: false,
+            fail_funding_rate: true,
         }
     }
 }
@@ -5218,6 +5314,9 @@ impl CacheDatabaseAdapter for SnapshotBlobTestDatabase {
     }
 
     fn add_funding_rate(&self, _funding_rate: &FundingRateUpdate) -> anyhow::Result<()> {
+        if self.fail_funding_rate {
+            anyhow::bail!("funding rate add failed");
+        }
         Ok(())
     }
 
