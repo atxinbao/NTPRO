@@ -2768,6 +2768,102 @@ fn test_rejected_post_only_modify_preserves_fifo_priority(
     assert_eq!(bids[1].client_order_id, id_second);
 }
 
+#[rstest]
+fn test_rejected_parent_modify_does_not_update_ouo_child(
+    instrument_eth_usdt: InstrumentAny,
+    account_id: AccountId,
+) {
+    let cache = Rc::new(RefCell::new(Cache::default()));
+    let order_event_handler = order_event_handler_with_cache(cache.clone());
+    let engine_config = OrderMatchingEngineConfig {
+        support_contingent_orders: true,
+        ..Default::default()
+    };
+    let mut engine = get_order_matching_engine_l2(
+        instrument_eth_usdt.clone(),
+        Some(cache.clone()),
+        None,
+        Some(engine_config),
+        None,
+    );
+
+    let ask = OrderBookDeltaTestBuilder::new(instrument_eth_usdt.id())
+        .book_action(BookAction::Add)
+        .book_order(BookOrder::new(
+            OrderSide::Sell,
+            Price::from("1500.00"),
+            Quantity::from("1.000"),
+            1,
+        ))
+        .build();
+    engine.process_order_book_delta(&ask).unwrap();
+
+    let parent_id = ClientOrderId::from("O-19700101-000000-001-001-1");
+    let child_id = ClientOrderId::from("O-19700101-000000-001-001-2");
+    let mut parent = OrderTestBuilder::new(OrderType::Limit)
+        .instrument_id(instrument_eth_usdt.id())
+        .side(OrderSide::Buy)
+        .price(Price::from("1495.00"))
+        .quantity(Quantity::from("1.000"))
+        .client_order_id(parent_id)
+        .post_only(true)
+        .contingency_type(ContingencyType::Ouo)
+        .linked_order_ids(vec![child_id])
+        .submit(true)
+        .build();
+    let mut child = OrderTestBuilder::new(OrderType::Limit)
+        .instrument_id(instrument_eth_usdt.id())
+        .side(OrderSide::Sell)
+        .price(Price::from("1600.00"))
+        .quantity(Quantity::from("1.000"))
+        .client_order_id(child_id)
+        .contingency_type(ContingencyType::Ouo)
+        .linked_order_ids(vec![parent_id])
+        .submit(true)
+        .build();
+
+    cache
+        .borrow_mut()
+        .add_order(parent.clone(), None, None, false)
+        .unwrap();
+    cache
+        .borrow_mut()
+        .add_order(child.clone(), None, None, false)
+        .unwrap();
+    engine.process_order(&mut parent, account_id);
+    engine.process_order(&mut child, account_id);
+    clear_order_event_handler_messages(&order_event_handler);
+
+    let command = ModifyOrder::new(
+        TraderId::test_default(),
+        Some(ClientId::from("CLIENT-001")),
+        StrategyId::test_default(),
+        instrument_eth_usdt.id(),
+        parent_id,
+        Some(VenueOrderId::from("V1")),
+        Some(Quantity::from("2.000")),
+        Some(Price::from("1500.00")),
+        None,
+        UUID4::new(),
+        UnixNanos::default(),
+        None,
+        None,
+    );
+    engine.process_modify(&command, account_id);
+
+    let events = get_order_event_handler_messages(&order_event_handler);
+    assert_eq!(
+        events.len(),
+        1,
+        "rejected parent modify must not mutate child: {events:?}",
+    );
+    assert!(matches!(events[0], OrderEventAny::ModifyRejected(_)));
+    assert_eq!(
+        cache.borrow().order(&child_id).unwrap().quantity(),
+        Quantity::from("1.000"),
+    );
+}
+
 // Rejected modify must not call `snapshot_queue_position`; queue_ahead
 // would otherwise reset and erase the queue progress from prior trades.
 #[rstest]

@@ -4767,7 +4767,7 @@ impl OrderMatchingEngine {
         }
     }
 
-    fn update_limit_order(&mut self, order: &OrderAny, quantity: Quantity, price: Price) {
+    fn update_limit_order(&mut self, order: &OrderAny, quantity: Quantity, price: Price) -> bool {
         if self
             .core
             .is_limit_matched(order.order_side_specified(), price)
@@ -4789,7 +4789,7 @@ impl OrderMatchingEngine {
                     order.venue_order_id(),
                     order.account_id(),
                 );
-                return;
+                return false;
             }
 
             self.generate_order_updated(order, quantity, Some(price), None, None);
@@ -4800,12 +4800,18 @@ impl OrderMatchingEngine {
                 order.set_liquidity_side(LiquiditySide::Taker);
             }
             self.fill_limit_order(client_order_id);
-            return;
+            return true;
         }
         self.generate_order_updated(order, quantity, Some(price), None, None);
+        true
     }
 
-    fn update_stop_market_order(&self, order: &OrderAny, quantity: Quantity, trigger_price: Price) {
+    fn update_stop_market_order(
+        &self,
+        order: &OrderAny,
+        quantity: Quantity,
+        trigger_price: Price,
+    ) -> bool {
         if self
             .core
             .is_stop_matched(order.order_side_specified(), trigger_price)
@@ -4833,10 +4839,11 @@ impl OrderMatchingEngine {
                 order.venue_order_id(),
                 order.account_id(),
             );
-            return;
+            return false;
         }
 
         self.generate_order_updated(order, quantity, None, Some(trigger_price), None);
+        true
     }
 
     fn update_stop_limit_order(
@@ -4845,7 +4852,7 @@ impl OrderMatchingEngine {
         quantity: Quantity,
         price: Price,
         trigger_price: Price,
-    ) {
+    ) -> bool {
         if order.is_triggered().is_some_and(|t| t) {
             // Update limit price
             if self
@@ -4869,7 +4876,7 @@ impl OrderMatchingEngine {
                         order.venue_order_id(),
                         order.account_id(),
                     );
-                    return;
+                    return false;
                 }
                 self.generate_order_updated(order, quantity, Some(price), None, None);
                 order.set_liquidity_side(LiquiditySide::Taker);
@@ -4882,7 +4889,7 @@ impl OrderMatchingEngine {
                     log::debug!("Order already in cache: {e}");
                 }
                 self.fill_limit_order(order.client_order_id());
-                return; // Filled
+                return true; // Filled
             }
         } else {
             // Update stop price
@@ -4913,11 +4920,12 @@ impl OrderMatchingEngine {
                     order.venue_order_id(),
                     order.account_id(),
                 );
-                return;
+                return false;
             }
         }
 
         self.generate_order_updated(order, quantity, Some(price), Some(trigger_price), None);
+        true
     }
 
     fn update_market_if_touched_order(
@@ -4925,7 +4933,7 @@ impl OrderMatchingEngine {
         order: &OrderAny,
         quantity: Quantity,
         trigger_price: Price,
-    ) {
+    ) -> bool {
         if self
             .core
             .is_touch_triggered(order.order_side_specified(), trigger_price)
@@ -4954,10 +4962,11 @@ impl OrderMatchingEngine {
                 order.account_id(),
             );
             // Cannot update order
-            return;
+            return false;
         }
 
         self.generate_order_updated(order, quantity, None, Some(trigger_price), None);
+        true
     }
 
     fn update_limit_if_touched_order(
@@ -4966,7 +4975,7 @@ impl OrderMatchingEngine {
         quantity: Quantity,
         price: Price,
         trigger_price: Price,
-    ) {
+    ) -> bool {
         if order.is_triggered().is_some_and(|t| t) {
             // Update limit price
             if self
@@ -4991,12 +5000,12 @@ impl OrderMatchingEngine {
                         order.account_id(),
                     );
                     // Cannot update order
-                    return;
+                    return false;
                 }
                 self.generate_order_updated(order, quantity, Some(price), None, None);
                 order.set_liquidity_side(LiquiditySide::Taker);
                 self.fill_limit_order(order.client_order_id());
-                return;
+                return true;
             }
         } else {
             // Update trigger price
@@ -5027,11 +5036,12 @@ impl OrderMatchingEngine {
                     order.venue_order_id(),
                     order.account_id(),
                 );
-                return;
+                return false;
             }
         }
 
         self.generate_order_updated(order, quantity, Some(price), Some(trigger_price), None);
+        true
     }
 
     fn update_trailing_stop_order(&self, order: &OrderAny) {
@@ -5233,38 +5243,38 @@ impl OrderMatchingEngine {
             return false;
         }
 
-        match order {
+        let update_accepted = match order {
             OrderAny::Limit(_) | OrderAny::MarketToLimit(_) => {
                 let price = price.unwrap_or(order.price().unwrap());
-                self.update_limit_order(order, quantity, price);
+                self.update_limit_order(order, quantity, price)
             }
             OrderAny::StopMarket(_) => {
                 let trigger_price = trigger_price.unwrap_or(order.trigger_price().unwrap());
-                self.update_stop_market_order(order, quantity, trigger_price);
+                self.update_stop_market_order(order, quantity, trigger_price)
             }
             OrderAny::StopLimit(_) => {
                 let price = price.unwrap_or(order.price().unwrap());
                 let trigger_price = trigger_price.unwrap_or(order.trigger_price().unwrap());
-                self.update_stop_limit_order(order, quantity, price, trigger_price);
+                self.update_stop_limit_order(order, quantity, price, trigger_price)
             }
             OrderAny::MarketIfTouched(_) => {
                 let trigger_price = trigger_price.unwrap_or(order.trigger_price().unwrap());
-                self.update_market_if_touched_order(order, quantity, trigger_price);
+                self.update_market_if_touched_order(order, quantity, trigger_price)
             }
             OrderAny::LimitIfTouched(_) => {
                 let price = price.unwrap_or(order.price().unwrap());
                 let trigger_price = trigger_price.unwrap_or(order.trigger_price().unwrap());
-                self.update_limit_if_touched_order(order, quantity, price, trigger_price);
+                self.update_limit_if_touched_order(order, quantity, price, trigger_price)
             }
             OrderAny::TrailingStopMarket(_) => {
                 let trigger_price = trigger_price.unwrap_or(order.trigger_price().unwrap());
-                self.update_market_if_touched_order(order, quantity, trigger_price);
+                self.update_market_if_touched_order(order, quantity, trigger_price)
             }
             OrderAny::TrailingStopLimit(trailing_stop_limit_order) => {
                 let price = price.unwrap_or(trailing_stop_limit_order.price().unwrap());
                 let trigger_price =
                     trigger_price.unwrap_or(trailing_stop_limit_order.trigger_price().unwrap());
-                self.update_limit_if_touched_order(order, quantity, price, trigger_price);
+                self.update_limit_if_touched_order(order, quantity, price, trigger_price)
             }
             _ => {
                 panic!(
@@ -5272,6 +5282,10 @@ impl OrderMatchingEngine {
                     order.order_type()
                 );
             }
+        };
+
+        if !update_accepted {
+            return false;
         }
 
         // If order now has zero leaves after update, cancel it
