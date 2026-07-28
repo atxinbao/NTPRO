@@ -107,7 +107,7 @@ retired `scripts/control/*.sh` exception were removed. The unused
 deleted `scripts/ci/plan.sh` helper was corrected. All retained Make, workflow,
 action, pre-commit, and script execution references resolve to tracked paths.
 
-BFH-004 outcome: `CONTRIBUTING.md` now routes contributors through `main`, the
+BFH-004 outcome: `.github/CONTRIBUTING.md` now routes contributors through `main`, the
 pinned Rust toolchain, Cargo-owned tool manifests, Rust-only validation,
 post-freeze governance gates, the local CLA, and the current task execution
 protocol. References to Python, uv, `pyproject.toml`, retired developer-guide

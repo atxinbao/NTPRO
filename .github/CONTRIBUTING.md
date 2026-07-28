@@ -7,8 +7,11 @@ surface and the frozen v0.32.0 backend baseline.
 >
 > **Integrations:**
 > New integrations are a major undertaking for the project and therefore require additional discussion and approval before opening any PRs.
-> Please see the [v0.33.0+ intake policy](docs/rust-cutover/governance/v0_33_plus_intake_policy.md) for the current approval process
-> and [ADAPTERS.md](ADAPTERS.md) for adapter tiers, community listings, and support boundaries.
+> Please see the
+> [v0.33.0+ intake policy](../docs/rust-cutover/governance/v0_33_plus_intake_policy.md)
+> for the current approval process and the
+> [adapter policy](../docs/governance/adapter_policy.md) for adapter tiers,
+> community listings, and support boundaries.
 
 ## Steps
 
@@ -63,7 +66,7 @@ To contribute, follow these steps:
 
 6. Wait for hosted checks and the required independent review before merging.
    Work above medium risk stops at `REVIEW_REQUIRED`. See the
-   [task execution protocol](docs/rust-cutover/TASK_EXECUTION.md) for the
+   [task execution protocol](../docs/rust-cutover/TASK_EXECUTION.md) for the
    complete risk and review rules.
 
 7. Read and accept the repository [Contributor License Agreement](CLA.md).
@@ -72,8 +75,8 @@ To contribute, follow these steps:
 
 - Read `AGENTS.md` and the task file under `docs/rust-cutover/tasks/` before
   changing code.
-- Use the [Rust cutover contract](docs/rust-cutover/CONTRACT.md) and
-  [definition of done](docs/rust-cutover/DEFINITION_OF_DONE.md) as the product
+- Use the [Rust cutover contract](../docs/rust-cutover/CONTRACT.md) and
+  [definition of done](../docs/rust-cutover/DEFINITION_OF_DONE.md) as the product
   boundary.
 - Use sentence case for Markdown headings below H1. Repository hooks enforce
   the current Rust and documentation conventions.

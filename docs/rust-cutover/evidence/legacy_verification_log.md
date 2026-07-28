@@ -1,5 +1,8 @@
 # V261-006 Verification
 
+> Historical aggregate verification log relocated from the repository root.
+> Current task evidence remains under `docs/rust-cutover/evidence/`.
+
 Date: 2026-07-07
 Executor: Codex
 Task: `V261-006` / GitHub issue `#852`

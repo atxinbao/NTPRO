@@ -625,5 +625,5 @@ node.build()
 
 :::info
 For additional features or to contribute to the Betfair adapter, please see our
-[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/CONTRIBUTING.md).
+[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/.github/CONTRIBUTING.md).
 :::

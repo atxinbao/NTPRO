@@ -5,6 +5,8 @@
   "executor": "Codex",
   "classification": "v33-separately-scoped",
   "baseline_commit": "0b7c13b25e39c34fa8d94f236212204a8a54bf4f",
+  "last_rebased_by": "RDG-001",
+  "last_rebased_at": "2026-07-28",
   "status": "local_validated_hosted_rereview_pending",
   "count_policy": "The canonical scan is reproducible and hash-checked; findings add path-scoped ownership decisions for selected boundaries.",
   "scan": {
@@ -50,7 +52,7 @@
         "unused": 97,
         "unwrap": 19416
       },
-      "canonical_sha256": "f7a23543e4463626fe6363c7da67628d991849deca18c762b5cd9e433d34ab48"
+      "canonical_sha256": "cb2faf955ea448aaf176d38bf18f006e892ea9d8a5ccf41d3f4c5ac9b52cc72c"
     },
     "limitations": [
       "Ownership is path-scoped: dedicated tests, benches, test_kit, testing, stubs, tests.rs, and *_test.rs files are test-owned.",

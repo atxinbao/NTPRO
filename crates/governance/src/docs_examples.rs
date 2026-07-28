@@ -27,8 +27,10 @@ const PUBLIC_ROOTS: &[&str] = &[
     "docs/concepts",
     "docs/developer_guide",
     "docs/getting_started",
+    "docs/governance",
     "docs/how_to",
     "docs/integrations",
+    "docs/product",
     "docs/tutorials",
     "docs/rust-cutover/governance",
     "docs/rust-cutover/migration",
@@ -61,6 +63,7 @@ const CONCEPT_PAGES: &[&str] = &[
     "strategies",
     "synthetics",
 ];
+const ROOT_MARKDOWN_SURFACE: &[&str] = &["AGENTS.md", "README.md"];
 
 /// Counts emitted by the docs/examples governance guard.
 pub struct DocsExamplesCounts {
@@ -82,6 +85,7 @@ pub struct DocsExamplesCounts {
 /// retired Python product route, or tutorial asset drift.
 pub fn validate_docs_examples() -> Result<DocsExamplesCounts> {
     let root = env::current_dir().context("failed to resolve repository root")?;
+    validate_root_documentation_surface(&root)?;
     ensure!(
         !root.join("docs/api_reference").exists(),
         "retired docs/api_reference exists"
@@ -229,6 +233,43 @@ pub fn validate_docs_examples() -> Result<DocsExamplesCounts> {
     })
 }
 
+fn validate_root_documentation_surface(root: &Path) -> Result<()> {
+    let mut markdown = BTreeSet::new();
+    for entry in fs::read_dir(root).context("failed to read repository root")? {
+        let entry = entry.context("failed to read repository root entry")?;
+        let path = entry.path();
+        if path.is_file() && path.extension().is_some_and(|extension| extension == "md") {
+            let name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .context("invalid root Markdown filename")?;
+            markdown.insert(name.to_string());
+        }
+    }
+    let expected: BTreeSet<_> = ROOT_MARKDOWN_SURFACE
+        .iter()
+        .map(|name| (*name).to_string())
+        .collect();
+    ensure!(
+        markdown == expected,
+        "root Markdown surface drifted: expected {expected:?}, found {markdown:?}"
+    );
+
+    let project = fs::read_to_string(root.join("project.html"))
+        .context("missing root project.html documentation entrypoint")?;
+    let changelog = fs::read_to_string(root.join("changelog.html"))
+        .context("missing root changelog.html documentation entrypoint")?;
+    ensure!(
+        project.contains("changelog.html"),
+        "project.html must link changelog.html"
+    );
+    ensure!(
+        changelog.contains("project.html"),
+        "changelog.html must link project.html"
+    );
+    Ok(())
+}
+
 fn glob_files(pattern: &Path) -> Result<Vec<PathBuf>> {
     let pattern = pattern
         .to_str()
@@ -331,5 +372,10 @@ mod tests {
         assert_eq!(candidates[0], Path::new("/repo/docs/guide"));
         assert_eq!(candidates[1], Path::new("/repo/docs/guide.md"));
         assert_eq!(candidates[2], Path::new("/repo/docs/guide/index.md"));
+    }
+
+    #[test]
+    fn root_markdown_surface_is_explicit() {
+        assert_eq!(ROOT_MARKDOWN_SURFACE, ["AGENTS.md", "README.md"]);
     }
 }

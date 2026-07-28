@@ -3,6 +3,21 @@
 NTPRO is a Rust-only release workspace for a trading engine cutover from
 NautilusTrader.
 
+## Project Documents
+
+根目录只保留四个项目级文档入口：
+
+- [`AGENTS.md`](AGENTS.md)：代理执行规则与仓库边界。
+- [`README.md`](README.md)：当前产品能力、构建与使用入口。
+- [`project.html`](project.html)：系统定义、目标用户、双门户信息架构和开发路线。
+- [`changelog.html`](changelog.html)：项目级版本、治理和文档结构变更记录。
+
+产品路线图、贡献规范、治理政策和历史证据分别归档在
+[`docs/product/`](docs/product/)、
+[`docs/governance/`](docs/governance/)、
+[`docs/rust-cutover/`](docs/rust-cutover/) 和
+[`.github/`](.github/)；根目录不再承载重复 Markdown 入口。
+
 The current source-tree milestone is:
 
 ```text

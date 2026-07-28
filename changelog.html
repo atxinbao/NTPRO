@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" href="data:,">
+  <title>NTPRO 项目变更记录</title>
+  <style>
+    :root {
+      --bg: #f5f7f8;
+      --panel: #ffffff;
+      --ink: #17212b;
+      --muted: #667085;
+      --line: #dfe4e8;
+      --line-soft: #edf0f2;
+      --accent: #137a67;
+      --accent-soft: #e9f5f1;
+      --blue: #245c8a;
+      --blue-soft: #edf4fa;
+      --amber: #9a6515;
+      --amber-soft: #fff6df;
+      --sidebar: 272px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      font-size: 15px;
+      letter-spacing: 0;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .layout {
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 20px;
+      border-right: 1px solid var(--line);
+      background: #fbfcfc;
+    }
+    .brand-name { margin: 0; font-size: 19px; font-weight: 750; }
+    .brand-meta { margin: 6px 0 24px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .nav-label {
+      margin: 20px 10px 8px;
+      color: #87909a;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .nav-link {
+      display: block;
+      margin: 2px 0;
+      padding: 9px 10px;
+      border-left: 3px solid transparent;
+      color: #45515d;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .nav-link:hover,
+    .nav-link.active {
+      border-left-color: var(--accent);
+      background: var(--accent-soft);
+      color: #0d5c4d;
+      text-decoration: none;
+    }
+    .sidebar-footer {
+      position: absolute;
+      right: 20px;
+      bottom: 24px;
+      left: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    main { min-width: 0; padding: 44px 48px 72px; }
+    .content { width: min(1080px, 100%); margin: 0 auto; }
+    .page-header { padding-bottom: 28px; border-bottom: 1px solid var(--line); }
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { margin: 0; letter-spacing: 0; }
+    h1 { max-width: 820px; font-size: 34px; line-height: 1.2; }
+    h2 {
+      margin-top: 48px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--line);
+      font-size: 22px;
+      scroll-margin-top: 24px;
+    }
+    h3 { font-size: 16px; line-height: 1.45; }
+    .lead { max-width: 820px; margin: 16px 0 0; color: #475467; line-height: 1.75; }
+    .meta { margin-top: 12px; color: var(--muted); font-size: 13px; }
+    .status-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+    .status {
+      padding: 5px 8px;
+      border: 1px solid #b9ddd2;
+      border-radius: 4px;
+      background: var(--accent-soft);
+      color: #0f6655;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .release-list { display: grid; gap: 0; margin-top: 18px; border-top: 1px solid var(--line); }
+    .release {
+      display: grid;
+      grid-template-columns: 132px minmax(0, 1fr) 128px;
+      gap: 20px;
+      padding: 22px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .release-date { color: var(--muted); font-size: 13px; }
+    .release-body p { margin: 7px 0 0; color: #475467; line-height: 1.72; }
+    .release-kind {
+      align-self: start;
+      padding: 5px 7px;
+      border: 1px solid #c9dced;
+      border-radius: 4px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 750;
+      text-align: center;
+    }
+    .release-kind.governance {
+      border-color: #ead39f;
+      background: var(--amber-soft);
+      color: var(--amber);
+    }
+    .doc-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .doc-item {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+    }
+    .doc-item p { margin: 7px 0 0; color: var(--muted); line-height: 1.65; }
+    table {
+      width: 100%;
+      margin-top: 18px;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      font-size: 13px;
+    }
+    th, td {
+      padding: 11px 13px;
+      border-bottom: 1px solid var(--line-soft);
+      text-align: left;
+      vertical-align: top;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+    th { background: #f2f5f6; color: #344054; }
+    tr:last-child td { border-bottom: 0; }
+    code {
+      padding: 1px 4px;
+      border: 1px solid #e2e7ea;
+      border-radius: 3px;
+      background: #f7f9fa;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: .92em;
+    }
+    .boundary {
+      margin-top: 18px;
+      padding: 15px 16px;
+      border-left: 3px solid var(--accent);
+      background: var(--accent-soft);
+      color: #344054;
+      line-height: 1.7;
+    }
+    ul { padding-left: 20px; color: #475467; line-height: 1.8; }
+    @media (max-width: 900px) {
+      .layout { display: block; }
+      .sidebar {
+        position: sticky;
+        z-index: 10;
+        height: auto;
+        padding: 12px 14px 10px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .brand-name { display: inline; font-size: 16px; }
+      .brand-meta, .nav-label, .sidebar-footer { display: none; }
+      .sidebar nav { display: flex; gap: 4px; margin-top: 9px; overflow-x: auto; }
+      .nav-link {
+        flex: 0 0 auto;
+        margin: 0;
+        padding: 8px 9px;
+        border-left: 0;
+        border-bottom: 2px solid transparent;
+        white-space: nowrap;
+      }
+      .nav-link:hover, .nav-link.active { border-bottom-color: var(--accent); }
+      main { padding: 28px 20px 52px; }
+      h2 { scroll-margin-top: 104px; }
+    }
+    @media (max-width: 620px) {
+      .sidebar nav {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        overflow-x: visible;
+      }
+      .nav-link {
+        min-width: 0;
+        padding-inline: 4px;
+        text-align: center;
+        white-space: normal;
+      }
+      main { padding: 24px 14px 44px; }
+      h1 { font-size: 27px; }
+      .release { grid-template-columns: 1fr; gap: 7px; }
+      .release-kind { justify-self: start; }
+      .doc-grid { grid-template-columns: 1fr; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" aria-label="变更记录导航">
+      <p class="brand-name">NTPRO</p>
+      <p class="brand-meta">项目级版本、治理与文档结构变更</p>
+      <nav>
+        <p class="nav-label">本页目录</p>
+        <a class="nav-link active" href="#overview">变更结论</a>
+        <a class="nav-link" href="#releases">版本节点</a>
+        <a class="nav-link" href="#governance">治理变更</a>
+        <a class="nav-link" href="#documents">文档结构</a>
+        <a class="nav-link" href="#verification">验证与边界</a>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="project.html">返回项目架构文档</a><br>
+        更新日期：2026-07-28
+      </div>
+    </aside>
+
+    <main>
+      <div class="content">
+        <section id="overview" class="page-header">
+          <p class="eyebrow">Project changelog</p>
+          <h1>记录项目级能力、治理与文档结构，不把历史计划写成当前能力。</h1>
+          <p class="lead">
+            本页承接 NTPRO 根级变更入口。正式发布事实以 GitHub Release、tag、
+            hosted gate 和 source-controlled release evidence 为准；本页提供面向
+            产品、研发和运维团队的可读摘要。
+          </p>
+          <p class="meta">维护日期：2026-07-28 · 执行者：Codex · 当前正式发布：v0.33.0</p>
+          <div class="status-row">
+            <span class="status">v0.32.0 后端冻结基线</span>
+            <span class="status">v0.33.0 后端维护版</span>
+            <span class="status">前端产品单独立项</span>
+          </div>
+        </section>
+
+        <section id="releases">
+          <h2>版本节点</h2>
+          <div class="release-list">
+            <article class="release">
+              <div class="release-date">2026-07-20</div>
+              <div class="release-body">
+                <h3>v0.33.0 · Backend Maintenance</h3>
+                <p>在冻结的 v0.32.0 后端基线上交付可复现性能基线、hosted 回归检测、错误边界和依赖治理，不继承生产 submit、mutation、adapter send 或交易控件能力。</p>
+              </div>
+              <div class="release-kind">正式发布</div>
+            </article>
+            <article class="release">
+              <div class="release-date">2026-07-14</div>
+              <div class="release-body">
+                <h3>v0.32.0 · Backend Production Closeout</h3>
+                <p>建立后端冻结基线、生产收口证据和 27 项显式 false 能力边界。它是后端治理收尾点，不代表前端完成或产品级实盘终端上线。</p>
+              </div>
+              <div class="release-kind">冻结基线</div>
+            </article>
+            <article class="release">
+              <div class="release-date">2026-07-27</div>
+              <div class="release-body">
+                <h3>TTR-001 / TTR-002 · Trader Terminal 只读边界</h3>
+                <p>挂载六个 v0.28 只读 HTTP 投影，并阻断浏览器对原始 Event Store、redb 和 run 存储路径的直接消费。没有增加交易写能力。</p>
+              </div>
+              <div class="release-kind">产品基础</div>
+            </article>
+          </div>
+        </section>
+
+        <section id="governance">
+          <h2>治理变更</h2>
+          <div class="release-list">
+            <article class="release">
+              <div class="release-date">2026-07-28</div>
+              <div class="release-body">
+                <h3>根目录文档权威面收敛</h3>
+                <p>根目录 Markdown 只保留 <code>AGENTS.md</code> 与 <code>README.md</code>；项目架构和变更记录由两个 HTML 页面承接。贡献、安全、路线图、适配器、商标、发布历史和验证证据迁入职责明确的目录。</p>
+              </div>
+              <div class="release-kind governance">文档治理</div>
+            </article>
+            <article class="release">
+              <div class="release-date">2026-07-28</div>
+              <div class="release-body">
+                <h3>机构产品信息架构第四版</h3>
+                <p>系统正式定义为一个面向系统化交易机构的平台、两个门户和一个共享控制平面；机构工作台与平台控制中心职责分离，策略状态连接研发、交易和运维流程。</p>
+              </div>
+              <div class="release-kind governance">产品治理</div>
+            </article>
+          </div>
+        </section>
+
+        <section id="documents">
+          <h2>文档结构</h2>
+          <div class="doc-grid">
+            <article class="doc-item"><h3><code>README.md</code></h3><p>当前能力、版本边界、构建和产品入口。</p></article>
+            <article class="doc-item"><h3><code>project.html</code></h3><p>系统定义、目标用户、双门户信息架构和路线。</p></article>
+            <article class="doc-item"><h3><code>changelog.html</code></h3><p>项目级版本、治理和文档结构变更摘要。</p></article>
+            <article class="doc-item"><h3><code>.github/</code></h3><p>贡献、CLA、行为准则、安全政策和协作模板。</p></article>
+            <article class="doc-item"><h3><code>docs/product/</code></h3><p>当前产品路线图与能力规划。</p></article>
+            <article class="doc-item"><h3><code>docs/governance/</code></h3><p>适配器、商标等持续治理政策。</p></article>
+            <article class="doc-item"><h3><code>docs/rust-cutover/</code></h3><p>后端冻结、任务、发布、迁移和验证审计链。</p></article>
+            <article class="doc-item"><h3><code>docs/archive/</code></h3><p>不再作为当前产品入口的上游历史资料。</p></article>
+          </div>
+
+          <table>
+            <thead><tr><th>原根级文件</th><th>新权威位置</th></tr></thead>
+            <tbody>
+              <tr><td><code>CONTRIBUTING.md / CLA.md / CODE_OF_CONDUCT.md / SECURITY.md</code></td><td><code>.github/</code></td></tr>
+              <tr><td><code>ROADMAP.md</code></td><td><code>docs/product/roadmap.md</code></td></tr>
+              <tr><td><code>ADAPTERS.md / TRADEMARK.md</code></td><td><code>docs/governance/</code></td></tr>
+              <tr><td><code>BENCHMARKING.md</code></td><td><code>docs/developer_guide/benchmarking_strategy.md</code></td></tr>
+              <tr><td><code>RELEASES.md</code></td><td><code>docs/archive/upstream_release_history.md</code></td></tr>
+              <tr><td><code>verification.md</code></td><td><code>docs/rust-cutover/evidence/legacy_verification_log.md</code></td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="verification">
+          <h2>验证与边界</h2>
+          <div class="boundary">
+            本次只改变文档位置、导航和治理工具输入路径。不会修改运行时、交易语义、
+            adapter 行为、存储格式、发布 tag 或 v0.32.0 冻结边界。
+          </div>
+          <ul>
+            <li>根目录 Markdown 集合必须精确等于 <code>AGENTS.md</code> 和 <code>README.md</code>。</li>
+            <li><code>project.html</code> 与 <code>changelog.html</code> 必须互相链接并纳入 Git。</li>
+            <li>当前治理检查读取迁移后的 roadmap 与 contributing 路径。</li>
+            <li>历史发布和验证记录被移动保存，不作为当前能力声明。</li>
+          </ul>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const sections = [...document.querySelectorAll("main section[id]")];
+    const navLinks = [...document.querySelectorAll(".nav-link")];
+    const updateNav = () => {
+      const probe = window.innerWidth <= 900 ? 150 : 90;
+      let current = sections[0];
+      sections.forEach((section) => {
+        if (section.getBoundingClientRect().top <= probe) current = section;
+      });
+      navLinks.forEach((link) => {
+        link.classList.toggle("active", link.getAttribute("href") === `#${current.id}`);
+      });
+    };
+    window.addEventListener("scroll", updateNav, { passive: true });
+    window.addEventListener("resize", updateNav);
+    window.addEventListener("load", updateNav);
+  </script>
+</body>
+</html>

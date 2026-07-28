@@ -84,7 +84,7 @@ enum Command {
         policy: PathBuf,
         #[arg(long, default_value = "README.md")]
         readme: PathBuf,
-        #[arg(long, default_value = "ROADMAP.md")]
+        #[arg(long, default_value = "docs/product/roadmap.md")]
         roadmap: PathBuf,
         #[arg(long, default_value = "docs/versioning.md")]
         versioning: PathBuf,
@@ -103,7 +103,7 @@ enum Command {
             default_value = "docs/rust-cutover/governance/backend_hygiene_authority_map.md"
         )]
         authority_map: PathBuf,
-        #[arg(long, default_value = "CONTRIBUTING.md")]
+        #[arg(long, default_value = ".github/CONTRIBUTING.md")]
         contributing: PathBuf,
         #[arg(long, default_value = ".gitignore")]
         gitignore: PathBuf,

@@ -34,7 +34,7 @@ project name, package name, or public registry identifier.
    represent their relationship with the project.
 
 3. Third-party projects that use or distribute NautilusTrader code must comply
-   with the [LGPL v3.0 license](./LICENSE) where applicable. This trademark
+   with the [LGPL v3.0 license](../../LICENSE) where applicable. This trademark
    policy is separate from and in addition to the software license.
 
 4. Compliance with this policy does not constitute endorsement, affiliation, or
@@ -76,7 +76,7 @@ As a practical matter, source repositories usually create less confusion than
 published packages. Projects that do publish to package registries should be
 especially careful about naming. Contributors interested in official adapter
 inclusion should follow the RFC process described in the
-[ROADMAP](./ROADMAP.md#community-contributed-integrations).
+[roadmap](../product/roadmap.md#community-contributed-integrations).
 
 **The `nt` shorthand.** The project designates `nt` as the approved shorthand
 for third-party projects to signal NautilusTrader compatibility.
@@ -119,7 +119,7 @@ Forks created for personal use, internal non-public corporate use, or for the pu
 contributing back to the official repository via pull request are exempt from the
 naming, disclaimer, and branding requirements in this policy. Standard
 development forks that follow the workflow described in
-[CONTRIBUTING.md](./CONTRIBUTING.md) require no changes.
+[contributing guide](../../.github/CONTRIBUTING.md) require no changes.
 
 ## Logos
 

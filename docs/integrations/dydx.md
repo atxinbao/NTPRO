@@ -874,5 +874,5 @@ Only L2 (MBP) book type is supported.
 
 :::info
 For additional features or to contribute to the dYdX adapter, please see our
-[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/CONTRIBUTING.md).
+[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/.github/CONTRIBUTING.md).
 :::

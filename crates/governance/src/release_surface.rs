@@ -45,7 +45,7 @@ pub fn validate_release_surface(config: &ReleaseSurfaceConfig) -> Result<()> {
     let readiness = format!("docs/rust-cutover/release/{stem}_readiness_report.md");
     let required = [
         "README.md",
-        "ROADMAP.md",
+        "docs/product/roadmap.md",
         "docs/versioning.md",
         "docs/rust-cutover/release/README.md",
         notes.as_str(),
@@ -67,7 +67,7 @@ pub fn validate_release_surface(config: &ReleaseSurfaceConfig) -> Result<()> {
     }
 
     let readme = read("README.md")?;
-    let roadmap = read("ROADMAP.md")?;
+    let roadmap = read("docs/product/roadmap.md")?;
     let versioning = read("docs/versioning.md")?;
     let release_index = read("docs/rust-cutover/release/README.md")?;
     let notes_text = read(&notes)?;
@@ -217,7 +217,7 @@ pub fn validate_release_surface(config: &ReleaseSurfaceConfig) -> Result<()> {
 
     reject_stale_current_release_wording(
         &config.current_version,
-        &["README.md", "ROADMAP.md", "docs/versioning.md"],
+        &["README.md", "docs/product/roadmap.md", "docs/versioning.md"],
     )
 }
 

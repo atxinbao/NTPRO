@@ -1,5 +1,7 @@
 # NTPRO Roadmap
 
+Canonical repository path: `docs/product/roadmap.md`.
+
 Date: 2026-06-27
 Executor: Codex
 

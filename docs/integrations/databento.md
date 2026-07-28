@@ -954,5 +954,5 @@ for details.
 
 :::info
 To contribute, see the
-[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/CONTRIBUTING.md).
+[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/.github/CONTRIBUTING.md).
 :::

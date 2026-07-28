@@ -5,7 +5,7 @@ NautilusTrader benchmarks. It covers tooling specifics, directory layout,
 example code, local execution, and flamegraph profiling.
 
 For policy (what we benchmark, when, with what rigor, how it ties into CI),
-see [`/BENCHMARKING.md`](../../BENCHMARKING.md) at the repository root.
+see [`benchmarking_strategy.md`](benchmarking_strategy.md).
 
 ---
 

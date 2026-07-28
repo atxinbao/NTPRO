@@ -20,7 +20,7 @@ sudo cpupower frequency-set -g powersave  # restore default
 ```
 
 For policy and the general noise-reduction recipe see
-[`BENCHMARKING.md`](../../../../BENCHMARKING.md) at the repo root.
+[`benchmarking_strategy.md`](../../../../docs/developer_guide/benchmarking_strategy.md).
 
 ## Inbound pipeline (`data.rs`)
 

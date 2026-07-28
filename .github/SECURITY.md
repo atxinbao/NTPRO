@@ -1,5 +1,7 @@
 # Security Policy
 
+Canonical repository path: `.github/SECURITY.md`.
+
 ## Reporting A Vulnerability
 
 Report vulnerabilities privately through

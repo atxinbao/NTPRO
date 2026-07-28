@@ -1199,5 +1199,5 @@ instrument_id = get_polymarket_instrument_id(
 
 :::info
 For additional features or to contribute to the Polymarket adapter, please see our
-[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/CONTRIBUTING.md).
+[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/.github/CONTRIBUTING.md).
 :::

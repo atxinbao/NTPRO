@@ -67,4 +67,4 @@
 # =============================================================================
 # Security & Documentation
 # =============================================================================
-/SECURITY.md                     @nautechsystems/core
+/.github/SECURITY.md             @nautechsystems/core
