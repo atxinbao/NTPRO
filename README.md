@@ -68,9 +68,8 @@ Supported product surfaces:
 - Rust workspace crates.
 - Rust CLI commands.
 - Rust examples and documentation.
-- Rust release verification scripts.
-- Local Python helper scripts under `scripts/` only, used for repository
-  control and release evidence.
+- Rust and shell repository control and release verification tooling.
+- No tracked Python helper, package manifest, or lockfile surface.
 
 Unsupported product surfaces:
 
