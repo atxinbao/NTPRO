@@ -39,9 +39,7 @@
 /.pre-commit-hooks/              @nautechsystems/core
 /rustfmt.toml                    @nautechsystems/core
 /clippy.toml                     @nautechsystems/core
-/.markdownlint.jsonc             @nautechsystems/core
-/.gitlint                        @nautechsystems/core
-/.yamllint.yaml                  @nautechsystems/core
+/.lycheeignore                   @nautechsystems/core
 
 # =============================================================================
 # Git Configuration
@@ -53,7 +51,7 @@
 # Container Build & Docker - SUPPLY CHAIN RISK
 # =============================================================================
 /.docker/                        @nautechsystems/core
-/.dockerignore                   @nautechsystems/core
+/.env.example                    @nautechsystems/core
 
 # =============================================================================
 # Scripts - HIGH SECURITY RISK
@@ -61,11 +59,9 @@
 /scripts/                        @nautechsystems/core
 
 # =============================================================================
-# Build Automation & Reporting
-# =============================================================================
-/.codecov.yml                    @nautechsystems/core
-
-# =============================================================================
 # Security & Documentation
 # =============================================================================
+/.cargo/audit.toml               @nautechsystems/core
+/.supply-chain/                  @nautechsystems/core
+/.zizmor.yml                     @nautechsystems/core
 /.github/SECURITY.md             @nautechsystems/core

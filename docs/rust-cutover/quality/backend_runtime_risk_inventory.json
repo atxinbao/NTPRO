@@ -5,7 +5,7 @@
   "executor": "Codex",
   "classification": "v33-separately-scoped",
   "baseline_commit": "0b7c13b25e39c34fa8d94f236212204a8a54bf4f",
-  "last_rebased_by": "RDG-001",
+  "last_rebased_by": "HFG-001",
   "last_rebased_at": "2026-07-28",
   "status": "local_validated_hosted_rereview_pending",
   "count_policy": "The canonical scan is reproducible and hash-checked; findings add path-scoped ownership decisions for selected boundaries.",
@@ -34,12 +34,12 @@
     "validator": "scripts/ai/check_backend_runtime_risk_inventory.sh",
     "canonical_row": "ownership<TAB>signal<TAB>path<TAB>line",
     "summary": {
-      "total_matches": 28985,
+      "total_matches": 28986,
       "matched_files": 1215,
       "by_ownership": {
         "ffi": 674,
         "generated": 646,
-        "production": 14255,
+        "production": 14256,
         "test": 13410
       },
       "by_signal": {
@@ -50,9 +50,9 @@
         "todo_macro": 18,
         "unsafe": 1922,
         "unused": 97,
-        "unwrap": 19416
+        "unwrap": 19417
       },
-      "canonical_sha256": "cb2faf955ea448aaf176d38bf18f006e892ea9d8a5ccf41d3f4c5ac9b52cc72c"
+      "canonical_sha256": "1f1405a1c32d05209c47740c7294068f6edc952aa036beb841cb95863330a6ba"
     },
     "limitations": [
       "Ownership is path-scoped: dedicated tests, benches, test_kit, testing, stubs, tests.rs, and *_test.rs files are test-owned.",
