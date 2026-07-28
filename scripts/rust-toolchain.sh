@@ -11,12 +11,17 @@ if [[ ! -f "$TOOLCHAIN_FILE" ]]; then
   exit 1
 fi
 
-# Extract toolchain version
-VERSION=$(awk -F'"' '/version[[:space:]]*=/{gsub(/[[:space:]]/,"",$2); print $2; exit}' "$TOOLCHAIN_FILE")
+# Extract the pinned channel from rustup's standard toolchain file.
+VERSION=$(awk -F'"' '/^[[:space:]]*channel[[:space:]]*=/{print $2; exit}' "$TOOLCHAIN_FILE")
 
-# Validate that we got a version
+# Require an exact semantic version so "stable" cannot silently drift.
 if [[ -z "$VERSION" ]]; then
-  echo "Error: Could not extract toolchain version from $TOOLCHAIN_FILE" >&2
+  echo "Error: Could not extract toolchain channel from $TOOLCHAIN_FILE" >&2
+  exit 1
+fi
+
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Error: Rust toolchain channel must be an exact version, found '$VERSION'" >&2
   exit 1
 fi
 

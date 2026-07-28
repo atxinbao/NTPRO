@@ -23,6 +23,8 @@
 /.cargo/config.toml              @nautechsystems/core
 /rust-toolchain.toml             @nautechsystems/core
 /deny.toml                       @nautechsystems/core
+/osv-scanner.toml                @nautechsystems/core
+/tools.toml                      @nautechsystems/core
 
 # =============================================================================
 # Build & CI Configuration
@@ -37,7 +39,6 @@
 /.pre-commit-hooks/              @nautechsystems/core
 /rustfmt.toml                    @nautechsystems/core
 /clippy.toml                     @nautechsystems/core
-/.taplo.toml                     @nautechsystems/core
 /.markdownlint.jsonc             @nautechsystems/core
 /.gitlint                        @nautechsystems/core
 /.yamllint.yaml                  @nautechsystems/core
