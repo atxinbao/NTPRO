@@ -3143,6 +3143,29 @@ mod tests {
     }
 
     #[test]
+    fn production_mutation_command_help_marks_manual_online_as_retired() {
+        for command in [
+            "production-mutation-guarded-send",
+            "production-mutation-actual-cancel-single-shot",
+        ] {
+            let help = render_subcommand_help(&["live", command]);
+
+            assert!(
+                help.contains("offline"),
+                "{command} help should identify offline artifact evaluation"
+            );
+            assert!(
+                help.contains("manual-online execution is retired"),
+                "{command} help should identify the retired online boundary"
+            );
+            assert!(
+                help.contains("Retired compatibility flag"),
+                "{command} flag help should explain fail-closed compatibility"
+            );
+        }
+    }
+
+    #[test]
     fn parses_live_validate_config_path() {
         let parsed = NautilusCli::try_parse_from([
             "nautilus",
