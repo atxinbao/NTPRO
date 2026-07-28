@@ -1,0 +1,2018 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" href="data:,">
+  <title>NTPRO 项目与前端信息架构蓝图</title>
+  <style>
+    :root {
+      --canvas: #f4f6f3;
+      --surface: #ffffff;
+      --surface-2: #eef2ef;
+      --ink: #17211d;
+      --muted: #5f6d66;
+      --line: #d7ded9;
+      --line-strong: #b7c3bc;
+      --green: #087a55;
+      --green-soft: #e3f4ec;
+      --amber: #a85f00;
+      --amber-soft: #fff0d5;
+      --red: #b42318;
+      --red-soft: #fde9e7;
+      --blue: #175cd3;
+      --blue-soft: #e8f0ff;
+      --charcoal: #202925;
+      --radius: 6px;
+      --shadow: 0 8px 24px rgba(23, 33, 29, 0.08);
+      --sidebar: 264px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 92px;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--canvas);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 15px;
+      line-height: 1.65;
+      letter-spacing: 0;
+    }
+
+    a { color: inherit; }
+
+    button {
+      font: inherit;
+      letter-spacing: 0;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 0 24px;
+      color: #fff;
+      background: var(--charcoal);
+      border-bottom: 1px solid #36413c;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      gap: 14px;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      flex: 0 0 auto;
+      border: 1px solid #6b7a72;
+      border-radius: 5px;
+      color: #8ee0bc;
+      font-weight: 800;
+    }
+
+    .brand-name {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.2;
+      font-weight: 750;
+    }
+
+    .brand-meta {
+      margin: 2px 0 0;
+      color: #b9c4be;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .print-button {
+      min-height: 36px;
+      padding: 7px 12px;
+      border: 1px solid #56645d;
+      border-radius: 5px;
+      color: #fff;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .print-button:hover { background: #303b36; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+      min-height: calc(100vh - 64px);
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 64px;
+      align-self: start;
+      height: calc(100vh - 64px);
+      padding: 22px 18px;
+      overflow-y: auto;
+      background: #edf1ee;
+      border-right: 1px solid var(--line);
+    }
+
+    .sidebar-label {
+      margin: 0 10px 10px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      min-height: 40px;
+      margin: 2px 0;
+      padding: 8px 10px;
+      border-left: 3px solid transparent;
+      color: #435149;
+      text-decoration: none;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+      color: var(--green);
+      background: #fff;
+      border-left-color: var(--green);
+    }
+
+    .sidebar-note {
+      margin-top: 24px;
+      padding: 14px 10px 0;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    main {
+      min-width: 0;
+      padding: 36px 44px 80px;
+    }
+
+    .content {
+      width: min(1280px, 100%);
+      margin: 0 auto;
+    }
+
+    section {
+      padding: 42px 0;
+      border-bottom: 1px solid var(--line);
+      scroll-margin-top: 78px;
+    }
+
+    section:first-child { padding-top: 14px; }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { overflow-wrap: anywhere; }
+
+    h1 {
+      max-width: 920px;
+      margin: 0;
+      font-size: 36px;
+      line-height: 1.16;
+      font-weight: 780;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 25px;
+      line-height: 1.28;
+      font-weight: 760;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.4;
+      font-weight: 740;
+    }
+
+    .lead {
+      max-width: 900px;
+      margin: 18px 0 0;
+      color: #445149;
+      font-size: 17px;
+    }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 24px;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 4px 9px;
+      border: 1px solid;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .status.ok { color: var(--green); background: var(--green-soft); border-color: #a9d9c5; }
+    .status.warn { color: var(--amber); background: var(--amber-soft); border-color: #e5c585; }
+    .status.info { color: var(--blue); background: var(--blue-soft); border-color: #b7cdf7; }
+
+    .summary-callout {
+      margin-top: 28px;
+      padding: 20px 22px;
+      border-left: 4px solid var(--green);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .summary-callout > strong:first-child {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 18px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 26px;
+    }
+
+    .metric {
+      min-height: 118px;
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .metric-value {
+      display: block;
+      font-size: 26px;
+      line-height: 1.15;
+      font-weight: 800;
+    }
+
+    .metric-label {
+      display: block;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .section-intro {
+      max-width: 760px;
+      margin: 8px 0 0;
+      color: var(--muted);
+    }
+
+    .mvp-principles {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin: 24px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .mvp-principle {
+      min-height: 118px;
+      padding: 18px;
+      border-right: 1px solid var(--line);
+    }
+
+    .mvp-principle:last-child { border-right: 0; }
+
+    .mvp-principle small {
+      display: block;
+      margin-bottom: 9px;
+      color: var(--green);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .mvp-principle strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .mvp-principle span {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .mvp-shell {
+      display: grid;
+      grid-template-columns: 180px minmax(0, 1fr);
+      min-height: 610px;
+      overflow: hidden;
+      border: 1px solid #35423c;
+      border-radius: var(--radius);
+      color: #e7eee9;
+      background: #0d1411;
+      box-shadow: var(--shadow);
+    }
+
+    .mvp-rail {
+      display: flex;
+      flex-direction: column;
+      padding: 18px 12px;
+      border-right: 1px solid #34423b;
+      background: #14201b;
+    }
+
+    .mvp-brand {
+      padding: 0 10px 16px;
+      border-bottom: 1px solid #34423b;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .mvp-brand span {
+      display: block;
+      margin-top: 4px;
+      color: #91a39a;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .mvp-nav { margin-top: 16px; }
+
+    .mvp-nav-item {
+      display: flex;
+      min-height: 38px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border-left: 2px solid transparent;
+      color: #b7c4bd;
+      font-size: 11px;
+    }
+
+    .mvp-nav-item.active {
+      color: #fff;
+      background: #26342e;
+      border-left-color: #36d399;
+    }
+
+    .mvp-nav-item em {
+      color: #6f8278;
+      font-size: 9px;
+      font-style: normal;
+    }
+
+    .mvp-rail-note {
+      margin-top: auto;
+      padding: 14px 10px 0;
+      border-top: 1px solid #34423b;
+      color: #91a39a;
+      font-size: 9px;
+    }
+
+    .mvp-workspace { min-width: 0; }
+
+    .mvp-context {
+      display: flex;
+      min-height: 56px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 10px 18px;
+      border-bottom: 1px solid #34423b;
+      background: #111a16;
+    }
+
+    .mvp-context-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .mvp-context span {
+      color: #91a39a;
+      font-size: 9px;
+    }
+
+    .mvp-context strong {
+      margin-left: 4px;
+      color: #e7eee9;
+      font-size: 10px;
+    }
+
+    .mvp-readonly {
+      padding: 4px 7px;
+      border: 1px solid #286c53;
+      color: #55e6ad;
+      background: #102a21;
+      font-size: 9px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .mvp-canvas { padding: 18px; }
+
+    .mvp-page-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .mvp-page-head h3 { font-size: 18px; }
+
+    .mvp-page-head p {
+      margin: 5px 0 0;
+      color: #91a39a;
+      font-size: 10px;
+    }
+
+    .mvp-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .mvp-kpi {
+      min-height: 82px;
+      padding: 12px;
+      border: 1px solid #3b4a43;
+      border-radius: 4px;
+      background: #17201c;
+    }
+
+    .mvp-kpi span {
+      display: block;
+      color: #91a39a;
+      font-size: 9px;
+    }
+
+    .mvp-kpi strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 16px;
+    }
+
+    .mvp-kpi em {
+      display: block;
+      margin-top: 4px;
+      color: #55e6ad;
+      font-size: 9px;
+      font-style: normal;
+    }
+
+    .mvp-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(230px, 0.75fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .mvp-panel {
+      min-width: 0;
+      border: 1px solid #3b4a43;
+      border-radius: 4px;
+      background: #17201c;
+    }
+
+    .mvp-panel-head {
+      display: flex;
+      min-height: 40px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #3b4a43;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .mvp-panel-head span {
+      color: #6cc7ff;
+      font-size: 9px;
+    }
+
+    .mvp-lifecycle {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      padding: 14px;
+    }
+
+    .mvp-stage {
+      min-height: 98px;
+      padding: 11px;
+      border-top: 3px solid #36d399;
+      background: #202d27;
+    }
+
+    .mvp-stage.pending { border-top-color: #6f8278; }
+
+    .mvp-stage small {
+      display: block;
+      color: #91a39a;
+      font-size: 8px;
+    }
+
+    .mvp-stage strong {
+      display: block;
+      margin-top: 7px;
+      font-size: 11px;
+    }
+
+    .mvp-stage span {
+      display: block;
+      margin-top: 5px;
+      color: #a6b7ae;
+      font-size: 9px;
+    }
+
+    .mvp-list {
+      margin: 0;
+      padding: 4px 12px 10px;
+      list-style: none;
+    }
+
+    .mvp-list li {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #303e37;
+      color: #c4d0ca;
+      font-size: 9px;
+    }
+
+    .mvp-list li:last-child { border-bottom: 0; }
+    .mvp-list strong { color: #55e6ad; }
+    .mvp-list strong.warn { color: #ff8a82; }
+
+    .mvp-shell.control {
+      margin-top: 18px;
+      border-color: #314a65;
+      background: #0d141c;
+    }
+
+    .mvp-shell.control .mvp-rail {
+      border-right-color: #314a65;
+      background: #121d28;
+    }
+
+    .mvp-shell.control .mvp-brand {
+      border-bottom-color: #314a65;
+    }
+
+    .mvp-shell.control .mvp-nav-item.active {
+      background: #1d3042;
+      border-left-color: #6cc7ff;
+    }
+
+    .mvp-shell.control .mvp-context {
+      border-bottom-color: #314a65;
+      background: #101922;
+    }
+
+    .mvp-shell.control .mvp-readonly {
+      border-color: #37698d;
+      color: #8dd6ff;
+      background: #102333;
+    }
+
+    .mvp-shell.control .mvp-kpi em,
+    .mvp-shell.control .mvp-list strong { color: #6cc7ff; }
+
+    .mvp-shell.control .mvp-stage { border-top-color: #398bd1; }
+    .mvp-shell.control .mvp-stage.pending { border-top-color: #6f8278; }
+
+    .mvp-secondary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .mvp-object-chain {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 1px;
+      margin-top: 18px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+
+    .mvp-object {
+      min-height: 112px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .mvp-object small {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--green);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .mvp-object strong {
+      display: block;
+      font-size: 12px;
+    }
+
+    .mvp-object span {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .mvp-core-map {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .mvp-core-domain {
+      min-width: 0;
+      padding: 18px;
+      border-top: 4px solid var(--green);
+      background: #fff;
+    }
+
+    .mvp-core-domain.system { border-top-color: var(--blue); }
+
+    .mvp-core-domain h3 { font-size: 18px; }
+
+    .mvp-core-domain > p {
+      margin: 6px 0 14px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .mvp-core-items {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .mvp-core-item {
+      min-height: 72px;
+      padding: 11px;
+      border: 1px solid var(--line);
+      background: #f5f7f6;
+    }
+
+    .mvp-core-item strong {
+      display: block;
+      font-size: 11px;
+    }
+
+    .mvp-core-item span {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .maturity-key {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .maturity {
+      display: inline-flex;
+      min-height: 24px;
+      align-items: center;
+      padding: 2px 7px;
+      border: 1px solid;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .maturity.current { color: var(--green); background: var(--green-soft); border-color: #a9d9c5; }
+    .maturity.backend { color: var(--amber); background: var(--amber-soft); border-color: #e5c585; }
+    .maturity.target { color: var(--blue); background: var(--blue-soft); border-color: #b7cdf7; }
+    .maturity.forbidden { color: var(--red); background: var(--red-soft); border-color: #e1aaa5; }
+
+    .surface-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      margin: 34px 0 12px;
+    }
+
+    .surface-heading h3 { font-size: 20px; }
+
+    .surface-heading p {
+      max-width: 700px;
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .surface-index {
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 11px;
+    }
+
+    .research-lane {
+      display: grid;
+      grid-template-columns: 180px minmax(0, 1fr);
+      gap: 18px;
+      align-items: center;
+      margin-top: 24px;
+      padding: 18px 20px;
+      border-left: 4px solid #6f42c1;
+      background: #fff;
+    }
+
+    .research-lane strong { font-size: 14px; }
+
+    .research-lane span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .diagram {
+      padding: 22px;
+      overflow-x: auto;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .diagram-caption {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .architecture-flow {
+      min-width: 900px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .arch-row {
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .arch-label {
+      display: grid;
+      place-items: center;
+      min-height: 74px;
+      padding: 12px;
+      color: #fff;
+      background: var(--charcoal);
+      border-radius: 5px;
+      font-size: 12px;
+      font-weight: 760;
+      text-align: center;
+    }
+
+    .arch-nodes {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(128px, 1fr);
+      gap: 10px;
+    }
+
+    .arch-node {
+      position: relative;
+      display: flex;
+      min-height: 74px;
+      flex-direction: column;
+      justify-content: center;
+      padding: 12px;
+      border: 1px solid var(--line-strong);
+      border-top: 4px solid var(--green);
+      border-radius: 5px;
+      background: #fff;
+    }
+
+    .arch-node strong { font-size: 13px; }
+    .arch-node span { margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .arch-node.amber { border-top-color: var(--amber); }
+    .arch-node.blue { border-top-color: var(--blue); }
+    .arch-node.red { border-top-color: var(--red); }
+
+    .flow-arrow {
+      height: 20px;
+      padding-left: 132px;
+      color: var(--green);
+      font-size: 18px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .legend-swatch { width: 18px; height: 4px; background: var(--green); }
+    .legend-swatch.amber { background: var(--amber); }
+    .legend-swatch.blue { background: var(--blue); }
+    .legend-swatch.red { background: var(--red); }
+
+    .module-table-wrap {
+      margin-top: 24px;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 860px;
+    }
+
+    th, td {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: #344139;
+      background: #edf1ee;
+      font-size: 12px;
+      font-weight: 780;
+    }
+
+    td { font-size: 13px; }
+    tr:last-child td { border-bottom: 0; }
+
+    code {
+      padding: 2px 5px;
+      border-radius: 4px;
+      color: #1f4f3e;
+      background: #e9f0ec;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.88em;
+    }
+
+    .gap-flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .gap-step {
+      min-height: 154px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .gap-step .step-number {
+      display: inline-grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      margin-bottom: 14px;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--green);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .gap-step p { margin: 7px 0 0; color: var(--muted); font-size: 13px; }
+
+    .target-stack {
+      min-width: 980px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .stack-layer {
+      display: grid;
+      grid-template-columns: 156px minmax(0, 1fr);
+      gap: 10px;
+    }
+
+    .stack-title {
+      display: grid;
+      place-items: center;
+      min-height: 78px;
+      padding: 12px;
+      color: #fff;
+      border-radius: 5px;
+      background: var(--charcoal);
+      text-align: center;
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .stack-items {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .stack-item {
+      min-height: 78px;
+      padding: 13px;
+      border: 1px solid var(--line-strong);
+      border-radius: 5px;
+      background: #fff;
+    }
+
+    .stack-item strong { display: block; font-size: 13px; }
+    .stack-item span { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; }
+    .stack-item.required { border-left: 4px solid var(--red); }
+    .stack-item.reuse { border-left: 4px solid var(--green); }
+    .stack-item.later { border-left: 4px solid var(--blue); }
+
+    .decision-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .decision {
+      padding: 18px;
+      border-top: 4px solid var(--green);
+      background: #fff;
+      border-radius: var(--radius);
+    }
+
+    .decision p { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+
+    .roadmap {
+      position: relative;
+      margin-top: 28px;
+    }
+
+    .roadmap::before {
+      content: "";
+      position: absolute;
+      top: 20px;
+      bottom: 20px;
+      left: 19px;
+      width: 2px;
+      background: var(--line-strong);
+    }
+
+    .phase {
+      position: relative;
+      display: grid;
+      grid-template-columns: 40px 110px minmax(0, 1fr) 280px;
+      gap: 18px;
+      align-items: start;
+      padding: 0 0 26px;
+    }
+
+    .phase:last-child { padding-bottom: 0; }
+
+    .phase-dot {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border: 2px solid var(--green);
+      border-radius: 50%;
+      color: var(--green);
+      background: var(--canvas);
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .phase-time {
+      padding-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .phase-body {
+      padding: 4px 0 22px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .phase-body p { margin: 7px 0 0; color: var(--muted); }
+
+    .phase-body ul,
+    .acceptance-list,
+    .source-list {
+      margin: 12px 0 0;
+      padding-left: 20px;
+    }
+
+    .phase-body li,
+    .acceptance-list li,
+    .source-list li { margin: 6px 0; }
+
+    .exit-gate {
+      padding: 14px;
+      border-left: 3px solid var(--amber);
+      background: var(--amber-soft);
+      font-size: 12px;
+    }
+
+    .exit-gate strong { display: block; margin-bottom: 4px; color: var(--amber); }
+
+    .acceptance-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .acceptance {
+      min-height: 214px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .acceptance-kicker {
+      margin: 0 0 7px;
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .verification {
+      display: grid;
+      grid-template-columns: 180px minmax(0, 1fr) 120px;
+      gap: 14px;
+      padding: 12px 0;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+    }
+
+    .verification:first-of-type { margin-top: 20px; }
+
+    .check-pass { color: var(--green); font-weight: 800; }
+    .check-partial { color: var(--amber); font-weight: 800; }
+
+    .source-list a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+
+    .source-list a:hover { text-decoration: underline; }
+
+    .footer-note {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 1120px) {
+      .metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .mvp-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .mvp-main { grid-template-columns: 1fr; }
+      .mvp-object-chain { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .gap-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .phase { grid-template-columns: 40px 90px minmax(0, 1fr); }
+      .exit-gate { grid-column: 3; }
+      .decision-grid,
+      .acceptance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 820px) {
+      .topbar { padding: 0 14px; }
+      .brand-meta { display: none; }
+      .layout { display: block; }
+      .sidebar {
+        position: sticky;
+        top: 64px;
+        z-index: 15;
+        width: 100%;
+        height: auto;
+        display: flex;
+        gap: 4px;
+        padding: 8px 12px;
+        overflow-x: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .sidebar-label,
+      .sidebar-note { display: none; }
+      .nav-link {
+        flex: 0 0 auto;
+        min-height: 34px;
+        padding: 5px 9px;
+        border-left: 0;
+        border-bottom: 2px solid transparent;
+      }
+      .nav-link:hover,
+      .nav-link.active { border-left-color: transparent; border-bottom-color: var(--green); }
+      main { padding: 28px 18px 60px; }
+      section { scroll-margin-top: 132px; }
+      h1 { font-size: 29px; }
+      .section-head { align-items: start; flex-direction: column; }
+      .surface-heading { align-items: flex-start; flex-direction: column; }
+      .mvp-shell { grid-template-columns: 1fr; }
+      .mvp-rail {
+        display: block;
+        border-right: 0;
+        border-bottom: 1px solid #394642;
+      }
+      .mvp-brand,
+      .mvp-rail-note { display: none; }
+      .mvp-nav {
+        display: flex;
+        gap: 4px;
+        margin-top: 0;
+        overflow-x: auto;
+      }
+      .mvp-nav-item {
+        flex: 0 0 auto;
+        min-height: 36px;
+        margin: 0;
+        padding: 7px 10px;
+        border-left: 0;
+        border-bottom: 2px solid transparent;
+      }
+      .mvp-nav-item.active {
+        border-left-color: transparent;
+        border-bottom-color: var(--green);
+      }
+      .mvp-shell.control .mvp-nav-item.active {
+        border-left-color: transparent;
+        border-bottom-color: #6cc7ff;
+      }
+      .mvp-context {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .mvp-page-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .mvp-secondary,
+      .mvp-core-map { grid-template-columns: 1fr; }
+      .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .research-lane { grid-template-columns: 1fr; }
+      .phase { grid-template-columns: 40px minmax(0, 1fr); gap: 12px; }
+      .phase-time { grid-column: 2; padding-top: 0; }
+      .phase-body { grid-column: 2; }
+      .exit-gate { grid-column: 2; }
+      .verification { grid-template-columns: 1fr; gap: 4px; }
+    }
+
+    @media (max-width: 560px) {
+      .sidebar {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        overflow-x: visible;
+      }
+      .nav-link {
+        min-width: 0;
+        padding-inline: 4px;
+        text-align: center;
+        white-space: normal;
+      }
+      .print-button { display: none; }
+      h1 { font-size: 26px; }
+      h2 { font-size: 21px; }
+      section { padding: 34px 0; }
+      .metric-grid,
+      .gap-flow,
+      .decision-grid,
+      .acceptance-grid,
+      .mvp-principles,
+      .mvp-kpis,
+      .mvp-lifecycle,
+      .mvp-object-chain,
+      .mvp-core-items { grid-template-columns: 1fr; }
+      .metric { min-height: 96px; }
+      .mvp-principle {
+        min-height: 0;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .mvp-principle:last-child { border-bottom: 0; }
+      .mvp-object { min-height: 0; }
+      .mvp-canvas { padding: 12px; }
+    }
+
+    @media print {
+      body { background: #fff; font-size: 11px; }
+      .topbar, .sidebar { display: none !important; }
+      .layout { display: block; }
+      main { padding: 0; }
+      .content { width: 100%; }
+      section { break-inside: avoid; padding: 22px 0; }
+      h1 { font-size: 28px; }
+      h2 { font-size: 20px; }
+      .metric-grid { grid-template-columns: repeat(5, 1fr); }
+      .diagram, .summary-callout { box-shadow: none; }
+      .roadmap::before { display: none; }
+      .phase { break-inside: avoid; }
+      a { text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">NT</div>
+      <div>
+        <p class="brand-name">NTPRO / 机构系统化交易平台蓝图</p>
+        <p class="brand-meta">代码基线 f3289e33ad · 2026-07-28 · Codex</p>
+      </div>
+    </div>
+    <button class="print-button" type="button" onclick="window.print()">打印 / 导出 PDF</button>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" aria-label="文档导航">
+      <p class="sidebar-label">产品蓝图</p>
+      <a class="nav-link active" href="#overview">项目结论</a>
+      <a class="nav-link" href="#frontend-ia">前端信息架构</a>
+      <a class="nav-link" href="#backend">后端架构</a>
+      <a class="nav-link" href="#terminal-gap">终端缺口</a>
+      <a class="nav-link" href="#terminal-target">产品框架</a>
+      <a class="nav-link" href="#roadmap">推进路线图</a>
+      <a class="nav-link" href="#acceptance">验收体系</a>
+      <a class="nav-link" href="#evidence">证据与来源</a>
+      <a class="nav-link" href="changelog.html">项目变更记录</a>
+      <div class="sidebar-note">
+        本文档只描述当前代码事实与建议的下一阶段边界，不把 release 合同误写成已经上线的运行时能力。
+      </div>
+    </aside>
+
+    <main>
+      <div class="content">
+        <section id="overview">
+          <p class="eyebrow">从后端冻结基线到机构产品</p>
+          <h1>一个系统化交易平台，两个职责清晰的产品门户。</h1>
+          <p class="lead">
+            当前代码已具备事件驱动交易内核、策略与回测能力、统一读模型、运行监督器、本地仪表盘，以及已挂载的 v0.28 治理与运维只读接口。下一阶段不是把所有能力塞进一个策略页面，而是分别建设面向机构业务用户的工作台和面向平台控制团队的控制中心。
+          </p>
+          <div class="status-row" aria-label="项目状态">
+            <span class="status ok">v0.33.0 后端维护版已发布</span>
+            <span class="status ok">v0.32.0 后端冻结基线保持有效</span>
+            <span class="status ok">HEAD 与 origin/main 对齐</span>
+            <span class="status ok">TTR-001 / TTR-002 已合并</span>
+            <span class="status info">前端产品尚未完成，当前只读优先</span>
+          </div>
+
+          <div class="summary-callout">
+            <strong>最重要的判断</strong>
+            NTPRO 面向量化自营、系统化对冲基金、做市和多策略交易团队。机构工作台承接组合、交易、策略研发、回测和业务风险；控制中心承接组织权限、模型审批、数据账户、部署运维和审计。共享控制平面只提供统一事实与交接合同，不是第三个产品，也不授权真实交易。
+          </div>
+
+          <div class="metric-grid" aria-label="项目指标">
+            <div class="metric"><span class="metric-value">42</span><span class="metric-label">Cargo 工作区包</span></div>
+            <div class="metric"><span class="metric-value">17</span><span class="metric-label">交易所 / 数据适配器包</span></div>
+            <div class="metric"><span class="metric-value">1,954</span><span class="metric-label">Rust 源文件</span></div>
+            <div class="metric"><span class="metric-value">1.19M</span><span class="metric-label">Rust 代码行（含测试）</span></div>
+            <div class="metric"><span class="metric-value">90.6K</span><span class="metric-label">命令行与本地仪表盘源码行</span></div>
+          </div>
+        </section>
+
+        <section id="frontend-ia">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">机构产品信息架构 · 第三版</p>
+              <h2>一个平台，两个门户，一个共享控制平面</h2>
+              <p class="section-intro">
+                产品按责任和决策类型分开，而不是为每个岗位建立独立系统。机构工作台服务投资与交易业务，控制中心服务独立治理与平台运行；策略状态、审批、部署和事件通过同一控制合同交接。
+              </p>
+            </div>
+          </div>
+
+          <div class="summary-callout">
+            <strong>系统定义与目标用户</strong>
+            NTPRO 是面向量化自营交易公司、系统化对冲基金、做市和多策略交易团队的机构系统化交易平台。重点解决多策略、多账户、多交易场所下的研究验证、组合观察、执行监控、风险控制、生产运行和审计追踪；首期不承担基金会计、托管结算、客户报告等传统资产管理后台职责。
+          </div>
+
+          <div class="mvp-principles" aria-label="机构信息架构原则">
+            <div class="mvp-principle"><small>原则一</small><strong>按责任拆门户</strong><span>机构用户做投资、策略和交易决策；控制团队做审批、部署和系统治理。</span></div>
+            <div class="mvp-principle"><small>原则二</small><strong>按对象组织业务</strong><span>组合、账簿、策略、账户和运行实例使用稳定标识，不以技术模块作为入口。</span></div>
+            <div class="mvp-principle"><small>原则三</small><strong>一套事实，多种投影</strong><span>业务影响与技术根因来自同一事件，不复制交易状态机，不建立第三个门户。</span></div>
+          </div>
+
+          <div class="surface-heading">
+            <div>
+              <h3>角色与产品入口</h3>
+              <p>八类职责映射到两个门户，角色决定数据范围和操作权限，但不会扩张成八套导航。</p>
+            </div>
+            <span class="surface-index">职责分离 / 最小权限 / 统一审计</span>
+          </div>
+
+          <div class="module-table-wrap">
+            <table>
+              <thead><tr><th>角色</th><th>主要入口</th><th>核心任务</th><th>明确不负责</th></tr></thead>
+              <tbody>
+                <tr><td><strong>组合经理</strong></td><td>机构工作台</td><td>组合、账簿、敞口、策略配置与业务风险</td><td>节点恢复、凭证和生产部署</td></tr>
+                <tr><td><strong>机构交易员</strong></td><td>机构工作台</td><td>订单、成交、仓位、执行质量与盘中异常</td><td>模型审批、原始日志和平台权限</td></tr>
+                <tr><td><strong>量化研究员</strong></td><td>机构工作台</td><td>策略版本、数据绑定、回测、对比和发布申请</td><td>自行批准或部署生产版本</td></tr>
+                <tr><td><strong>业务风险人员</strong></td><td>机构工作台</td><td>限额、风险状态、拒绝原因和业务影响</td><td>修改运行节点或执行适配器</td></tr>
+                <tr><td><strong>模型审批人员</strong></td><td>控制中心</td><td>独立验证、审批、到期和撤销</td><td>策略研究和收益优化</td></tr>
+                <tr><td><strong>平台运维人员</strong></td><td>控制中心</td><td>部署、节点、连接、遥测、事件和恢复</td><td>投资决策和执行算法选择</td></tr>
+                <tr><td><strong>平台管理员</strong></td><td>控制中心</td><td>机构、交易台、角色、数据源、账户和凭证</td><td>替用户作出交易决策</td></tr>
+                <tr><td><strong>审计人员</strong></td><td>控制中心</td><td>审批、部署、操作、来源和变更证据</td><td>修改策略、订单或运行状态</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mvp-core-map">
+            <section class="mvp-core-domain">
+              <h3>NTPRO 机构工作台</h3>
+              <p>面向机构业务用户，围绕组合、策略和交易结果连续工作。</p>
+              <div class="mvp-core-items">
+                <div class="mvp-core-item"><strong>组合与交易</strong><span>账簿、仓位、订单、成交和执行质量。</span></div>
+                <div class="mvp-core-item"><strong>策略研发</strong><span>策略库、版本、回测、模拟和发布申请。</span></div>
+                <div class="mvp-core-item"><strong>风险与限额</strong><span>业务风险、拒绝、准备度和影响范围。</span></div>
+                <div class="mvp-core-item"><strong>分析与报告</strong><span>表现、证据、异常和业务报告。</span></div>
+              </div>
+            </section>
+            <section class="mvp-core-domain system">
+              <h3>NTPRO 控制中心</h3>
+              <p>面向独立控制和平台团队，管理治理与生产运行。</p>
+              <div class="mvp-core-items">
+                <div class="mvp-core-item"><strong>组织与权限</strong><span>机构、交易台、角色、范围和环境。</span></div>
+                <div class="mvp-core-item"><strong>模型与部署</strong><span>审批、候选版本、快照、发布和回滚。</span></div>
+                <div class="mvp-core-item"><strong>数据与账户</strong><span>数据源、品种、连接、账户和凭证。</span></div>
+                <div class="mvp-core-item"><strong>运行与审计</strong><span>节点、日志、指标、事件、恢复和留证。</span></div>
+              </div>
+            </section>
+          </div>
+
+          <div class="surface-heading">
+            <div>
+              <h3>门户一 · 机构工作台</h3>
+              <p>策略管理和回测属于机构业务门户，但审批和生产部署不在此处完成。</p>
+            </div>
+            <span class="surface-index">机构 / 交易台 / 账簿 / 组合</span>
+          </div>
+
+          <div class="mvp-shell" aria-label="NTPRO 机构工作台示意">
+            <aside class="mvp-rail">
+              <div class="mvp-brand">NTPRO<span>机构工作台</span></div>
+              <nav class="mvp-nav" aria-label="机构工作台一级导航">
+                <span class="mvp-nav-item active"><em>01</em>业务总览</span>
+                <span class="mvp-nav-item"><em>02</em>组合与交易</span>
+                <span class="mvp-nav-item"><em>03</em>策略研发</span>
+                <span class="mvp-nav-item"><em>04</em>模拟与运行</span>
+                <span class="mvp-nav-item"><em>05</em>风险与报告</span>
+              </nav>
+              <div class="mvp-rail-note">业务用户查看影响和证据；节点、凭证、生产部署和恢复控件不进入此门户。</div>
+            </aside>
+
+            <div class="mvp-workspace">
+              <div class="mvp-context">
+                <div class="mvp-context-group">
+                  <span>机构<strong>示例量化基金</strong></span>
+                  <span>交易台<strong>系统化交易一组</strong></span>
+                  <span>账簿<strong>主策略账簿</strong></span>
+                  <span>环境<strong>模拟</strong></span>
+                </div>
+                <span class="mvp-readonly">只读优先</span>
+              </div>
+
+              <div class="mvp-canvas">
+                <div class="mvp-page-head">
+                  <div><h3>业务总览</h3><p>从组合和账簿出发，查看策略、交易、风险和需要处理的业务事项。</p></div>
+                  <span class="maturity backend">后端投影存在，产品接口待建</span>
+                </div>
+
+                <div class="mvp-kpis">
+                  <div class="mvp-kpi"><span>交易准备度</span><strong>受限</strong><em>数据 + 账户 + 风险</em></div>
+                  <div class="mvp-kpi"><span>组合敞口</span><strong>只读</strong><em>账户 + 仓位</em></div>
+                  <div class="mvp-kpi"><span>活动策略</span><strong>3</strong><em>版本 + 运行</em></div>
+                  <div class="mvp-kpi"><span>待处理事项</span><strong>5</strong><em>申请 + 告警</em></div>
+                </div>
+
+                <div class="mvp-main">
+                  <section class="mvp-panel">
+                    <div class="mvp-panel-head"><h4>策略业务生命周期</h4><span>同一策略编号与证据链</span></div>
+                    <div class="mvp-lifecycle">
+                      <div class="mvp-stage"><small>01</small><strong>策略定义</strong><span>版本、参数、数据和负责人。</span></div>
+                      <div class="mvp-stage"><small>02</small><strong>回测验证</strong><span>交易明细、指标、对比和证据。</span></div>
+                      <div class="mvp-stage"><small>03</small><strong>模拟运行</strong><span>账户、订单、成交、仓位和风险。</span></div>
+                      <div class="mvp-stage pending"><small>04</small><strong>发布申请</strong><span>提交控制中心独立审批。</span></div>
+                    </div>
+                  </section>
+                  <section class="mvp-panel">
+                    <div class="mvp-panel-head"><h4>业务关注</h4><span>按影响排序</span></div>
+                    <ul class="mvp-list">
+                      <li><span>行情数据陈旧</span><strong class="warn">受限</strong></li>
+                      <li><span>风险检查拒绝</span><strong>有证据</strong></li>
+                      <li><span>生产交易</span><strong class="warn">未授权</strong></li>
+                    </ul>
+                  </section>
+                </div>
+
+                <div class="mvp-secondary">
+                  <section class="mvp-panel">
+                    <div class="mvp-panel-head"><h4>组合与交易对象</h4><span>业务读模型</span></div>
+                    <ul class="mvp-list">
+                      <li><span>账户 / 仓位 / 敞口</span><strong>后端已有</strong></li>
+                      <li><span>订单 / 成交 / 对账</span><strong>后端已有</strong></li>
+                    </ul>
+                  </section>
+                  <section class="mvp-panel">
+                    <div class="mvp-panel-head"><h4>策略研发对象</h4><span>产品合同待建</span></div>
+                    <ul class="mvp-list">
+                      <li><span>策略版本 / 数据绑定</span><strong>目标</strong></li>
+                      <li><span>回测 / 模拟 / 发布申请</span><strong>目标</strong></li>
+                    </ul>
+                  </section>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="surface-heading">
+            <div>
+              <h3>门户二 · 控制中心</h3>
+              <p>独立审批、平台运维、管理员和审计人员管理治理与生产运行，不参与投资决策。</p>
+            </div>
+            <span class="surface-index">控制 / 运维 / 管理 / 审计</span>
+          </div>
+
+          <div class="mvp-shell control" aria-label="NTPRO 控制中心示意">
+            <aside class="mvp-rail">
+              <div class="mvp-brand">NTPRO<span>控制中心</span></div>
+              <nav class="mvp-nav" aria-label="控制中心一级导航">
+                <span class="mvp-nav-item active"><em>01</em>控制总览</span>
+                <span class="mvp-nav-item"><em>02</em>组织与权限</span>
+                <span class="mvp-nav-item"><em>03</em>数据与账户</span>
+                <span class="mvp-nav-item"><em>04</em>模型与部署</span>
+                <span class="mvp-nav-item"><em>05</em>系统运行</span>
+                <span class="mvp-nav-item"><em>06</em>审计与变更</span>
+              </nav>
+              <div class="mvp-rail-note">控制团队处理审批、部署和恢复；组合收益、交易机会和执行算法不作为控制中心主对象。</div>
+            </aside>
+
+            <div class="mvp-workspace">
+              <div class="mvp-context">
+                <div class="mvp-context-group">
+                  <span>机构<strong>示例量化基金</strong></span>
+                  <span>环境<strong>模拟环境</strong></span>
+                  <span>节点组<strong>默认节点组</strong></span>
+                  <span>值班组<strong>平台运行组</strong></span>
+                </div>
+                <span class="mvp-readonly">受控操作 · 全程审计</span>
+              </div>
+
+              <div class="mvp-canvas">
+                <div class="mvp-page-head">
+                  <div><h3>控制总览</h3><p>聚合审批、部署、数据、账户、节点、事件和审计状态。</p></div>
+                  <span class="maturity current">治理只读接口已挂载</span>
+                </div>
+
+                <div class="mvp-kpis">
+                  <div class="mvp-kpi"><span>待审批模型</span><strong>2</strong><em>独立复核</em></div>
+                  <div class="mvp-kpi"><span>部署准备度</span><strong>受限</strong><em>配置 + 账户 + 风险</em></div>
+                  <div class="mvp-kpi"><span>运行实例</span><strong>只读</strong><em>版本 + 节点</em></div>
+                  <div class="mvp-kpi"><span>平台事件</span><strong>2</strong><em>严重度 + 负责人</em></div>
+                </div>
+
+                <div class="mvp-main">
+                  <section class="mvp-panel">
+                    <div class="mvp-panel-head"><h4>治理与生产链</h4><span>职责分离</span></div>
+                    <div class="mvp-lifecycle">
+                      <div class="mvp-stage"><small>01</small><strong>独立审批</strong><span>模型、风险、证据和有效期。</span></div>
+                      <div class="mvp-stage"><small>02</small><strong>部署快照</strong><span>不可变版本、配置和来源。</span></div>
+                      <div class="mvp-stage"><small>03</small><strong>运行监控</strong><span>节点、连接、遥测和事件。</span></div>
+                      <div class="mvp-stage pending"><small>04</small><strong>恢复与回滚</strong><span>受控命令、回执和审计。</span></div>
+                    </div>
+                  </section>
+                  <section class="mvp-panel">
+                    <div class="mvp-panel-head"><h4>平台关注</h4><span>技术根因</span></div>
+                    <ul class="mvp-list">
+                      <li><span>网关心跳陈旧</span><strong class="warn">事件中</strong></li>
+                      <li><span>部署版本漂移</span><strong>可追踪</strong></li>
+                      <li><span>节点恢复</span><strong class="warn">需授权</strong></li>
+                    </ul>
+                  </section>
+                </div>
+
+                <div class="mvp-secondary">
+                  <section class="mvp-panel">
+                    <div class="mvp-panel-head"><h4>已落地只读面</h4><span>本地 Axum</span></div>
+                    <ul class="mvp-list">
+                      <li><span>v0.28 六个治理投影</span><strong>已挂载</strong></li>
+                      <li><span>节点 / 指标 / 日志</span><strong>已存在</strong></li>
+                    </ul>
+                  </section>
+                  <section class="mvp-panel">
+                    <div class="mvp-panel-head"><h4>产品化缺口</h4><span>独立合同</span></div>
+                    <ul class="mvp-list">
+                      <li><span>机构身份 / 授权范围</span><strong>待建</strong></li>
+                      <li><span>审批 / 部署命令回执</span><strong>待建</strong></li>
+                    </ul>
+                  </section>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="surface-heading">
+            <div>
+              <h3>共享控制平面的对象合同</h3>
+              <p>两个门户通过稳定标识互相引用；层级、资产、运行和证据不是一棵被强行简化的树。</p>
+            </div>
+            <span class="surface-index">一套事实 / 两个角色投影</span>
+          </div>
+
+          <div class="mvp-object-chain" aria-label="共享控制平面对象合同">
+            <div class="mvp-object"><small>01 / 机构范围</small><strong>机构与交易台</strong><span>法律实体、交易台、账簿、组合和授权范围。</span></div>
+            <div class="mvp-object"><small>02 / 策略资产</small><strong>策略与版本</strong><span>负责人、逻辑、参数、数据绑定和变更记录。</span></div>
+            <div class="mvp-object"><small>03 / 验证证据</small><strong>回测与候选</strong><span>数据版本、配置快照、交易明细和审批申请。</span></div>
+            <div class="mvp-object"><small>04 / 运行绑定</small><strong>部署与账户</strong><span>策略版本、账户、交易场所、品种和运行模式。</span></div>
+            <div class="mvp-object"><small>05 / 业务事实</small><strong>组合与交易</strong><span>仓位、订单、成交、风险、对账和业务影响。</span></div>
+            <div class="mvp-object"><small>06 / 控制证据</small><strong>状态与审计</strong><span>节点、遥测、事件、审批、回执和变更来源。</span></div>
+          </div>
+
+          <div class="surface-heading">
+            <div>
+              <h3>能力成熟度与产品承诺</h3>
+              <p>代码存在不等于产品接口完成；每一项必须区分后端能力、浏览器可用合同和授权边界。</p>
+            </div>
+            <span class="surface-index">当前 main / v0.33.0 发布面 / v0.32.0 冻结基线</span>
+          </div>
+
+          <div class="maturity-key" aria-label="能力成熟度图例">
+            <span class="maturity current">已落地只读</span>
+            <span class="maturity backend">后端已有，产品接口待建</span>
+            <span class="maturity target">目标产品合同</span>
+            <span class="maturity forbidden">当前未授权</span>
+          </div>
+
+          <div class="module-table-wrap">
+            <table>
+              <thead><tr><th>能力域</th><th>机构工作台</th><th>控制中心</th><th>成熟度与依据</th></tr></thead>
+              <tbody>
+                <tr><td><strong>机构、交易台与账簿</strong></td><td>切换业务范围和组合上下文</td><td>维护组织关系、角色和环境</td><td><span class="maturity target">目标产品合同</span></td></tr>
+                <tr><td><strong>账户、仓位、订单与成交</strong></td><td>业务主视图、来源和时效</td><td>仅显示绑定、同步和影响范围</td><td><span class="maturity backend">统一读模型存在，稳定产品接口待建</span></td></tr>
+                <tr><td><strong>策略与回测</strong></td><td>策略库、版本、运行、结果和对比</td><td>独立审批、版本冻结和部署授权</td><td><span class="maturity backend">引擎与命令行存在，产品资源合同待建</span></td></tr>
+                <tr><td><strong>风险与交易准备度</strong></td><td>限额、拒绝、受限动作和业务影响</td><td>数据、账户、风险、部署和技术根因</td><td><span class="maturity backend">后端证据存在，跨门户投影待建</span></td></tr>
+                <tr><td><strong>后台治理与运维状态</strong></td><td>只接收业务影响摘要和事件链接</td><td>关闭状态、来源、审计、遥测、权限和部署</td><td><span class="maturity current">v0.28 六个只读接口已挂载</span></td></tr>
+                <tr><td><strong>节点、日志与指标</strong></td><td>不进入一级导航</td><td>生命周期、指标、日志和技术事件</td><td><span class="maturity current">本地仪表盘接口已存在</span></td></tr>
+                <tr><td><strong>身份、授权与数据范围</strong></td><td>按机构、交易台、账簿和角色过滤</td><td>管理身份、角色、权限和凭证</td><td><span class="maturity target">目标产品合同</span></td></tr>
+                <tr><td><strong>真实交易与自动恢复</strong></td><td>不渲染下单、撤改、重试或清仓控件</td><td>不得以运维页面绕过交易门禁</td><td><span class="maturity forbidden">冻结边界明确为 false</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="surface-heading">
+            <div>
+              <h3>跨门户交接合同</h3>
+              <p>交接不是复制页面，而是由明确责任人改变状态，并让双方看到同一证据的不同视图。</p>
+            </div>
+            <span class="surface-index">申请 / 审批 / 部署 / 事件 / 审计</span>
+          </div>
+
+          <div class="mvp-core-map">
+            <section class="mvp-core-domain">
+              <h3>策略发布交接</h3>
+              <p>量化研究员提交候选，模型审批人员独立复核，平台运维人员部署，机构用户查看生效结果。</p>
+              <div class="mvp-core-items">
+                <div class="mvp-core-item"><strong>机构工作台</strong><span>候选版本、回测证据、申请状态和退回原因。</span></div>
+                <div class="mvp-core-item"><strong>控制中心</strong><span>审批证据、有效期、部署快照、回滚和审计。</span></div>
+              </div>
+            </section>
+            <section class="mvp-core-domain system">
+              <h3>运行事件交接</h3>
+              <p>控制中心处理技术根因与恢复，机构工作台只呈现受影响账簿、策略和允许的业务动作。</p>
+              <div class="mvp-core-items">
+                <div class="mvp-core-item"><strong>机构工作台</strong><span>业务影响、准备度、降级状态和事件链接。</span></div>
+                <div class="mvp-core-item"><strong>控制中心</strong><span>组件链、日志、指标、负责人、处置和回执。</span></div>
+              </div>
+            </section>
+          </div>
+
+          <div class="research-lane">
+            <strong>第三版收敛结论</strong>
+            <span>策略是机构工作台中的核心业务资产，但不是整个产品唯一入口。组织治理与系统运维必须独立进入控制中心；共享控制平面只连接身份、状态、审批和证据。任何前端实现都不得把后端能力、发布证据或接口成功误写成真实交易授权。</span>
+          </div>
+        </section>
+
+        <section id="backend">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">当前后端架构</p>
+              <h2>当前后端架构图</h2>
+              <p class="section-intro">依赖方向来自 Cargo metadata、crate 入口和关键 runtime 文件。横向表示同层职责，纵向表示主要事件与控制流。</p>
+            </div>
+          </div>
+
+          <div class="diagram" aria-label="NTPRO 当前后端架构图">
+            <div class="diagram-caption"><span>数据进入 → 状态与决策 → 执行 / 回放 → 运营投影</span><span>代码基线：f1d3709332</span></div>
+            <div class="architecture-flow">
+              <div class="arch-row">
+                <div class="arch-label">外部接入层</div>
+                <div class="arch-nodes">
+                  <div class="arch-node blue"><strong>17 Adapters</strong><span>Binance / OKX / Bybit / Kraken / IB 等</span></div>
+                  <div class="arch-node blue"><strong>network</strong><span>HTTP / WebSocket / TLS / retry / rate limit</span></div>
+                  <div class="arch-node blue"><strong>data</strong><span>DataEngine / bar / book / streaming</span></div>
+                  <div class="arch-node blue"><strong>persistence</strong><span>Parquet / catalog / streaming storage</span></div>
+                </div>
+              </div>
+              <div class="flow-arrow" aria-hidden="true">↓</div>
+              <div class="arch-row">
+                <div class="arch-label">事件与基础语义</div>
+                <div class="arch-nodes">
+                  <div class="arch-node"><strong>core</strong><span>时间、UUID、精度与低层类型</span></div>
+                  <div class="arch-node"><strong>model</strong><span>Order / Position / Account / Instrument / Events</span></div>
+                  <div class="arch-node"><strong>common</strong><span>Message Bus / Cache / Clock / Logging</span></div>
+                  <div class="arch-node"><strong>event_store</strong><span>权威事件日志、校验与 replay</span></div>
+                </div>
+              </div>
+              <div class="flow-arrow" aria-hidden="true">↓</div>
+              <div class="arch-row">
+                <div class="arch-label">交易域引擎</div>
+                <div class="arch-nodes">
+                  <div class="arch-node amber"><strong>trading</strong><span>Strategy / Actor / Algorithm / TWAP</span></div>
+                  <div class="arch-node amber"><strong>portfolio</strong><span>Position、PnL 与账户视图</span></div>
+                  <div class="arch-node red"><strong>risk</strong><span>Pre-trade gate / sizing / approval</span></div>
+                  <div class="arch-node red"><strong>execution</strong><span>Order lifecycle / emulator / reconciliation</span></div>
+                </div>
+              </div>
+              <div class="flow-arrow" aria-hidden="true">↓</div>
+              <div class="arch-row">
+                <div class="arch-label">运行模式</div>
+                <div class="arch-nodes">
+                  <div class="arch-node amber"><strong>backtest</strong><span>历史事件重放、模拟交易所与结果</span></div>
+                  <div class="arch-node red"><strong>system</strong><span>Kernel / Trader / controller / registration</span></div>
+                  <div class="arch-node red"><strong>live</strong><span>LiveNode / builder / runner / status</span></div>
+                  <div class="arch-node blue"><strong>infrastructure</strong><span>Redis / PostgreSQL / query bridges</span></div>
+                </div>
+              </div>
+              <div class="flow-arrow" aria-hidden="true">↓</div>
+              <div class="arch-row">
+                <div class="arch-label">运营与读侧</div>
+                <div class="arch-nodes">
+                  <div class="arch-node red"><strong>nautilus-cli</strong><span>backtest / live / data / workflow / config</span></div>
+                  <div class="arch-node red"><strong>Supervisor</strong><span>节点注册、生命周期、日志与指标</span></div>
+                  <div class="arch-node red"><strong>Unified Read Model</strong><span>account / positions / orders / fills / risk</span></div>
+                  <div class="arch-node red"><strong>Local Dashboard</strong><span>Axum + 内嵌 HTML/CSS/JS + 本地 action</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="legend" aria-label="图例">
+              <span class="legend-item"><span class="legend-swatch"></span>基础域</span>
+              <span class="legend-item"><span class="legend-swatch blue"></span>接入 / 存储</span>
+              <span class="legend-item"><span class="legend-swatch amber"></span>研究 / 策略</span>
+              <span class="legend-item"><span class="legend-swatch red"></span>风险敏感 / 运营边界</span>
+            </div>
+          </div>
+
+          <div class="module-table-wrap">
+            <table>
+              <thead><tr><th>模块群</th><th>代码职责</th><th>主要依赖方向</th><th>终端如何使用</th></tr></thead>
+              <tbody>
+                <tr><td><code>core / model</code></td><td>价格、数量、订单、账户、仓位、事件等权威类型</td><td>最底层，不依赖业务引擎</td><td>通过 contract DTO 映射，不把 Rust 内部类型直接暴露给 UI</td></tr>
+                <tr><td><code>data / adapters / network</code></td><td>行情、订单簿、bar 聚合、交易所协议</td><td>依赖 core/model/common</td><td>输出 snapshot + stream；UI 不直连交易所</td></tr>
+                <tr><td><code>trading / portfolio</code></td><td>策略、算法、仓位与 PnL</td><td>依赖 model/common/execution</td><td>策略与组合页面使用只读 projection</td></tr>
+                <tr><td><code>risk / execution</code></td><td>风控决策、订单状态机、撮合、对账</td><td>依赖 model/portfolio/common</td><td>命令先进入 command gate，再由后端决定是否执行</td></tr>
+                <tr><td><code>backtest / live / system</code></td><td>共享交易语义下的模拟与实时 runtime</td><td>组合各域引擎</td><td>终端只展示状态、结果和受控命令，不嵌入引擎</td></tr>
+                <tr><td><code>event_store / persistence</code></td><td>权威事件历史、校验、回放、数据目录</td><td>位于写侧与读侧之间</td><td>经 projection / query service 暴露，不直接读取文件</td></tr>
+                <tr><td><code>cli / dashboard</code></td><td>当前运营入口、Supervisor 与本地 HTTP 页面</td><td>依赖大部分上层模块</td><td>保留 CLI；把 API 与 projection 抽出供新终端复用</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="terminal-gap">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">后端到双门户产品的交接</p>
+              <h2>后端与产品前端之间还差什么</h2>
+              <p class="section-intro">TTR-001/002 已解决治理接口挂载和原始事件存储隔离，但业务接口、机构身份和实时增量仍需独立产品化。</p>
+            </div>
+          </div>
+          <div class="gap-flow">
+            <div class="gap-step"><span class="step-number">1</span><h3>机构对象合同</h3><p>固定机构、交易台、账簿、组合、策略、账户、部署和运行实例的标识与关系。</p></div>
+            <div class="gap-step"><span class="step-number">2</span><h3>业务查询接口</h3><p>把账户、仓位、订单、成交、风险、策略和回测投影成稳定、分页、可追溯的产品接口。</p></div>
+            <div class="gap-step"><span class="step-number">3</span><h3>身份与数据范围</h3><p>将角色、机构范围、环境和授权写入服务端合同，不能只靠前端隐藏菜单。</p></div>
+            <div class="gap-step"><span class="step-number">4</span><h3>实时与交接</h3><p>用快照和增量流承载业务状态，并用统一事件编号连接业务影响、技术根因和审计证据。</p></div>
+          </div>
+        </section>
+
+        <section id="terminal-target">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">目标产品框架</p>
+              <h2>双门户与共享控制平面的目标框架</h2>
+              <p class="section-intro">机构工作台和控制中心共享身份、状态、审批、事件和审计合同，但使用不同查询投影与权限边界；Rust 引擎继续作为唯一交易语义来源。</p>
+            </div>
+          </div>
+
+          <div class="diagram" aria-label="NTPRO 目标终端架构图">
+            <div class="diagram-caption"><span>红色左边框为新增边界；绿色为直接复用；蓝色为后置能力</span><span>网页优先 / 桌面封装后置</span></div>
+            <div class="target-stack">
+              <div class="stack-layer">
+                <div class="stack-title">产品应用层</div>
+                <div class="stack-items">
+                  <div class="stack-item required"><strong>机构工作台</strong><span>组合、交易、策略研发、回测、模拟、风险和报告</span></div>
+                  <div class="stack-item required"><strong>控制中心</strong><span>组织权限、模型审批、数据账户、部署、运行和审计</span></div>
+                  <div class="stack-item required"><strong>共享控制平面</strong><span>身份范围、四轴状态、申请审批、事件和证据引用</span></div>
+                  <div class="stack-item required"><strong>共享界面基础</strong><span>中文设计系统、可访问性、错误状态和响应式组件</span></div>
+                </div>
+              </div>
+              <div class="stack-layer">
+                <div class="stack-title">客户端协议层</div>
+                <div class="stack-items">
+                  <div class="stack-item required"><strong>机构身份上下文</strong><span>机构、交易台、账簿、环境、角色和授权范围</span></div>
+                  <div class="stack-item required"><strong>查询状态库</strong><span>只保存服务器投影，不复制交易状态机</span></div>
+                  <div class="stack-item required"><strong>实时增量客户端</strong><span>负责序号、续传、时效和事件缺口检测</span></div>
+                  <div class="stack-item required"><strong>证据与命令回执</strong><span>连接申请、审批、拒绝、完成和审计引用</span></div>
+                </div>
+              </div>
+              <div class="stack-layer">
+                <div class="stack-title">Rust 产品合同与接口</div>
+                <div class="stack-items">
+                  <div class="stack-item required"><strong>机构工作台查询</strong><span>组合、交易、策略、回测、模拟和业务风险投影</span></div>
+                  <div class="stack-item reuse"><strong>控制中心只读接口</strong><span>复用 v0.28 六个治理投影与节点接口</span></div>
+                  <div class="stack-item required"><strong>共享合同服务</strong><span>身份、状态、审批、事件、时效、来源和版本</span></div>
+                  <div class="stack-item later"><strong>独立命令门禁</strong><span>任何写操作必须另行授权，并经过审批、风控、幂等和审计</span></div>
+                </div>
+              </div>
+              <div class="stack-layer">
+                <div class="stack-title">现有后端资产</div>
+                <div class="stack-items">
+                  <div class="stack-item reuse"><strong>统一读模型</strong><span>账户、仓位、订单、成交和风险</span></div>
+                  <div class="stack-item reuse"><strong>运行监督器</strong><span>节点、生命周期、日志和指标</span></div>
+                  <div class="stack-item reuse"><strong>策略与回测</strong><span>策略会话、确定性回测和运行证据</span></div>
+                  <div class="stack-item reuse"><strong>状态与事件存储</strong><span>只读责任方事实、诊断、审计和证据引用</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="decision-grid">
+            <div class="decision"><h3>为什么必须拆成两个门户</h3><p>机构用户围绕收益、风险、策略和交易结果工作；控制团队围绕审批、部署、凭证和系统健康工作。合并导航会模糊责任与告警优先级。</p></div>
+            <div class="decision"><h3>为什么策略仍在机构工作台</h3><p>策略是投资资产，需要与组合、账簿、风险目标和交易结果连续呈现；独立审批与生产部署则必须留在控制中心。</p></div>
+            <div class="decision"><h3>为什么控制平面不是第三个产品</h3><p>它只保存权威身份、状态、审批、事件和审计事实，并向两个门户投影；没有独立用户旅程，也不能成为第二套交易状态源。</p></div>
+          </div>
+        </section>
+
+        <section id="roadmap">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">交付路线图</p>
+              <h2>双门户产品推进路线图</h2>
+              <p class="section-intro">先建立机构对象、身份范围和共享状态合同，再交付只读业务接口、机构工作台、控制中心和跨门户交接。真实交易必须另行立项，不进入本路线。</p>
+            </div>
+          </div>
+
+          <div class="roadmap">
+            <article class="phase">
+              <div class="phase-dot">基础</div>
+              <div class="phase-time">第 1-2 周</div>
+              <div class="phase-body">
+                <h3>产品权威与机构对象合同</h3>
+                <p>先明确哪些文档和运行事实具有当前权威，并固定跨门户对象标识。</p>
+                <ul>
+                  <li>定义机构、法律实体、交易台、账簿、组合和账户标识。</li>
+                  <li>定义策略、版本、数据绑定、回测、候选、部署和运行实例标识。</li>
+                  <li>固定两个门户的角色、一级导航、数据范围和明确非目标。</li>
+                  <li>分离研究状态、治理状态、交易准备度和技术健康。</li>
+                </ul>
+              </div>
+              <div class="exit-gate"><strong>退出条件</strong>两个门户使用同一稳定标识和状态语义；历史发布证据、当前运行事实与目标产品设计不再混为一谈。</div>
+            </article>
+
+            <article class="phase">
+              <div class="phase-dot">一期</div>
+              <div class="phase-time">第 3-5 周</div>
+              <div class="phase-body">
+                <h3>只读产品接口基础</h3>
+                <p>把现有后端投影变成可供浏览器长期消费的版本化合同。</p>
+                <ul>
+                  <li>建立机构上下文、身份范围、分页、时效、来源和错误信封。</li>
+                  <li>产品化账户、仓位、订单、成交、风险、策略和回测查询。</li>
+                  <li>复用 v0.28 治理接口与节点接口，不读取原始事件存储。</li>
+                  <li>生成客户端开发包并覆盖缺失、陈旧、降级和未授权状态。</li>
+                </ul>
+              </div>
+              <div class="exit-gate"><strong>退出条件</strong>浏览器只消费版本化投影；每个响应包含机构范围、来源和时效；接口成功不被解释为运行健康。</div>
+            </article>
+
+            <article class="phase">
+              <div class="phase-dot">二期</div>
+              <div class="phase-time">第 6-9 周</div>
+              <div class="phase-body">
+                <h3>只读机构工作台</h3>
+                <p>交付组合、交易、策略研发、模拟和业务风险的连续工作流。</p>
+                <ul>
+                  <li>完成业务总览、组合与交易、策略研发、模拟运行和风险报告。</li>
+                  <li>完成策略版本、数据绑定、回测、结果对比和发布申请。</li>
+                  <li>系统异常只展示业务影响、准备度和控制中心事件链接。</li>
+                  <li>不展示节点、凭证、部署、恢复或真实交易控件。</li>
+                </ul>
+              </div>
+              <div class="exit-gate"><strong>退出条件</strong>组合、策略、回测和运行事实可追溯；角色数据范围生效；空、错误、陈旧和降级状态完整。</div>
+            </article>
+
+            <article class="phase">
+              <div class="phase-dot">三期</div>
+              <div class="phase-time">第 10-12 周</div>
+              <div class="phase-body">
+                <h3>控制中心与跨门户交接</h3>
+                <p>交付独立治理、平台运行和统一事件交接。</p>
+                <ul>
+                  <li>完成组织权限、模型审批、数据账户、部署、系统运行和审计。</li>
+                  <li>完成策略申请、审批、部署、退回、到期和撤销交接。</li>
+                  <li>完成技术事件、业务影响、负责人、处置和回执交接。</li>
+                  <li>任何操作必须经过服务端授权，不以隐藏菜单代替权限。</li>
+                </ul>
+              </div>
+              <div class="exit-gate"><strong>退出条件</strong>两门户看到同一证据的角色投影；审批和运维不修改投资事实；所有操作都有回执与审计。</div>
+            </article>
+
+            <article class="phase">
+              <div class="phase-dot">四期</div>
+              <div class="phase-time">第 13-16 周</div>
+              <div class="phase-body">
+                <h3>实时增量、模拟运行与产品收口</h3>
+                <p>在只读合同稳定后补齐实时性、模拟环境和产品级质量。</p>
+                <ul>
+                  <li>增加行情、订单、成交、风险、状态和事件的增量通道。</li>
+                  <li>支持序号、断线续传、缺口检测、时效和显式降级。</li>
+                  <li>验证模拟部署、账户绑定、风控限额、故障和回滚。</li>
+                  <li>完成性能、可访问性、响应式、升级和发布验收。</li>
+                </ul>
+              </div>
+              <div class="exit-gate"><strong>退出条件</strong>实时事件不静默丢失；模拟运行可复现；两个门户共享同一合同；真实交易继续保持未授权。</div>
+            </article>
+          </div>
+        </section>
+
+        <section id="acceptance">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">验收合同</p>
+              <h2>后续工作的验收体系</h2>
+              <p class="section-intro">不能只用“页面打开了”作为完成标准。机构工作台、控制中心和共享控制合同必须分别通过用户任务、权限、状态语义和证据链验收。</p>
+            </div>
+          </div>
+
+          <div class="acceptance-grid">
+            <div class="acceptance"><p class="acceptance-kicker">接口</p><h3>接口验收</h3><ul class="acceptance-list"><li>数据模式与客户端开发包同源生成</li><li>破坏性变更有迁移说明</li><li>时效、错误和降级语义完整</li><li>页面不读取未声明字段</li></ul></div>
+            <div class="acceptance"><p class="acceptance-kicker">行为</p><h3>行为验收</h3><ul class="acceptance-list"><li>快照与增量流合并确定</li><li>断线、乱序、重复事件可处理</li><li>命令幂等且状态可追踪</li><li>风险拒绝不能被页面绕过</li></ul></div>
+            <div class="acceptance"><p class="acceptance-kicker">证据</p><h3>证据验收</h3><ul class="acceptance-list"><li>接口与增量流合同测试</li><li>黄金轨迹与确定性重放</li><li>关键页面截图与像素检查</li><li>性能、可访问性与错误状态报告</li></ul></div>
+            <div class="acceptance"><p class="acceptance-kicker">产品</p><h3>产品验收</h3><ul class="acceptance-list"><li>两个门户的核心任务分别闭环</li><li>跨门户能力默认不可见</li><li>机构范围与角色权限在服务端生效</li><li>业务影响与技术根因可互相追踪</li></ul></div>
+            <div class="acceptance"><p class="acceptance-kicker">状态</p><h3>状态验收</h3><ul class="acceptance-list"><li>研究、治理、准备度和技术健康独立</li><li>接口成功不等于运行健康</li><li>审批通过不等于自动部署</li><li>回测完成不等于盈利或生产准入</li></ul></div>
+            <div class="acceptance"><p class="acceptance-kicker">发布</p><h3>发布验收</h3><ul class="acceptance-list"><li>网页与桌面版本使用同一合同</li><li>后端、开发包和页面版本可追溯</li><li>升级与回滚路径经过验证</li><li>发布声明不超过实际能力</li></ul></div>
+          </div>
+        </section>
+
+        <section id="evidence">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">证据与来源</p>
+              <h2>项目证据与验证结果</h2>
+              <p class="section-intro">当前发布与远端合并事实优先于历史计划；运行时合同和测试证明已有能力；本页只定义目标产品，不把设计稿当作实现证据。</p>
+            </div>
+          </div>
+
+          <div class="verification"><strong>当前正式发布</strong><span>ntpro-rust-only-v0.33.0 · 非草稿 / 非预发布</span><span class="check-pass">已发布</span></div>
+          <div class="verification"><strong>TTR-001 只读路由</strong><span>PR #1148 已合并 · 六个 v0.28 治理接口真实挂载 · hosted checks 全通过</span><span class="check-pass">已合并</span></div>
+          <div class="verification"><strong>TTR-002 存储边界</strong><span>PR #1152 已合并 · 原始 Event Store / redb / run 路径保持 404</span><span class="check-pass">已合并</span></div>
+          <div class="verification"><strong>业务读模型基础</strong><span>账户、仓位、订单、成交和风险投影存在；稳定产品查询接口仍待建设</span><span class="check-partial">部分完成</span></div>
+          <div class="verification"><strong>前端产品状态</strong><span>机构工作台、控制中心、身份范围和实时增量尚未作为产品运行时交付</span><span class="check-partial">目标设计</span></div>
+
+          <div class="research-lane">
+            <strong>文档权威顺序</strong>
+            <span>GitHub Release 与已合并远端事实 → 当前运行时合同、测试和代码 → 当前产品信息架构 → 历史 cutover 证据与旧知识图谱。历史资料用于追溯，不覆盖当前能力边界。</span>
+          </div>
+
+          <ul class="source-list">
+            <li><a href="README.md">项目 README 与当前能力边界</a></li>
+            <li><a href="changelog.html">项目级版本、治理与文档结构变更记录</a></li>
+            <li><a href="Cargo.toml">Cargo workspace 与依赖版本</a></li>
+            <li><a href="docs/product/roadmap.md">当前产品与能力推进路线图</a></li>
+            <li><a href="docs/rust-cutover/CONTRACT.md">Rust-only Cutover Contract</a></li>
+            <li><a href="docs/rust-cutover/release/v0_33_0_release_notes.md">v0.33.0 后端维护发布说明与边界</a></li>
+            <li><a href="docs/rust-cutover/release/v0_21_0_unified_read_model_contract.md">v0.21 Unified Read Model</a></li>
+            <li><a href="docs/rust-cutover/release/v0_28_0_trader_terminal_backend_api_contract_handoff.md">v0.28 Trader Terminal API Handoff</a></li>
+            <li><a href="docs/rust-cutover/release/v0_32_0_backend_closeout_boundary_contract.md">v0.32 Backend Closeout Boundary</a></li>
+            <li><a href="docs/rust-cutover/tasks/TTR-001.md">TTR-001 六个 v0.28 只读 HTTP 路由</a></li>
+            <li><a href="docs/rust-cutover/tasks/TTR-002.md">TTR-002 Event Store 浏览器消费边界</a></li>
+            <li><a href="crates/cli/src/dashboard.rs">Dashboard 账户、仓位、订单、成交、风险与告警读模型</a></li>
+            <li><a href="crates/cli/src/dashboard/trader_terminal_api.rs">v0.28 六个只读 HTTP 投影及默认阻断边界</a></li>
+            <li><a href="crates/cli/src/opt.rs">Rust CLI 回测、数据、运行、监督器与工作流入口</a></li>
+            <li><a href="docs/rust-cutover/release/v0_28_0_identity_permission_runtime_artifact.json">当前 operator、admin、auditor 与 release gatekeeper 权限快照</a></li>
+            <li>QSTR StrategyDefinition 生命周期参考：<code>../QSTR/runtime/strategy/definitions.py</code></li>
+            <li>QSTR 独立 BacktestRun 资源参考：<code>../QSTR/runtime/backtest/manager.py</code></li>
+            <li>QSTR Runtime Status 稳定合同参考：<code>../QSTR/runtime/status/contracts.py</code></li>
+            <li><a href="https://nautilustrader.io/pro/">NautilusTrader Pro 产品定位与模块化交付参考</a></li>
+            <li><a href="https://www.blackrock.com/aladdin/institutions/industry-segments/asset-managers">贝莱德 Aladdin：统一数据连接投资、风险、运营与报告的机构平台参考</a></li>
+            <li><a href="https://www.quantconnect.com/docs/v2/cloud-platform/research-pipeline">QuantConnect：研究、回测、模拟和实盘分阶段策略流程参考</a></li>
+            <li><a href="https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm">美联储模型风险管理指引：独立验证、治理与风险分级参考</a></li>
+            <li><a href="https://docs.rs/axum/latest/axum/">Axum 官方文档</a></li>
+            <li><a href="https://tanstack.com/query/latest/docs/framework/react/overview">TanStack Query 官方文档</a></li>
+            <li><a href="https://tradingview.github.io/lightweight-charts/">Lightweight Charts 官方文档</a></li>
+            <li><a href="https://tauri.app/start/">Tauri 官方文档</a></li>
+          </ul>
+
+          <p class="footer-note">信息架构版本：第四版 · 更新日期：2026-07-28 · 执行者：Codex · 产品架构基线：f3289e33ad91f49f7cd381eac878cc3b00b930ba</p>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const sections = [...document.querySelectorAll('main section[id]')];
+    const navLinks = [...document.querySelectorAll('.nav-link')];
+    const setActiveNav = (targetHash) => {
+      navLinks.forEach((link) => {
+        link.classList.toggle('active', link.getAttribute('href') === targetHash);
+      });
+    };
+
+    let navUpdatePending = false;
+    const updateActiveSection = () => {
+      const probeLine = window.innerWidth <= 820 ? 156 : 120;
+      let current = sections[0];
+      sections.forEach((section) => {
+        if (section.getBoundingClientRect().top <= probeLine) current = section;
+      });
+      setActiveNav(`#${current.id}`);
+      navUpdatePending = false;
+    };
+    const scheduleNavUpdate = () => {
+      if (navUpdatePending) return;
+      navUpdatePending = true;
+      requestAnimationFrame(updateActiveSection);
+    };
+
+    window.addEventListener('scroll', scheduleNavUpdate, { passive: true });
+    window.addEventListener('resize', scheduleNavUpdate);
+    window.addEventListener('hashchange', scheduleNavUpdate);
+    window.addEventListener('load', scheduleNavUpdate);
+    scheduleNavUpdate();
+  </script>
+</body>
+</html>

@@ -3,7 +3,8 @@
 This document describes how NautilusTrader classifies adapters, the path between
 tiers, and how community adapters can be listed.
 
-For naming rules, disclaimer requirements, and trademark guidance, see [TRADEMARK.md](./TRADEMARK.md).
+For naming rules, disclaimer requirements, and trademark guidance, see the
+[trademark policy](trademark_policy.md).
 
 ## Adapter tiers
 
@@ -38,7 +39,7 @@ requesting a community listing. Maintainers review against the listing criteria.
 
 **To Official.** The adapter maintainer or a community member opens an RFC
 following the process in the
-[ROADMAP](./ROADMAP.md#community-contributed-integrations). Maintainers evaluate
+[roadmap](../product/roadmap.md#community-contributed-integrations). Maintainers evaluate
 against the existing criteria: stability, demand, technical fit, bandwidth, and
 alignment with Rust adapter patterns. If approved, the adapter is brought into
 the core repository or the nautechsystems organization, re-licensed if needed,
@@ -56,7 +57,7 @@ archived.
 
 A rejected RFC does not remove an adapter from the ecosystem. The adapter can
 remain Community or External with the usual naming and disclaimer expectations
-defined in [TRADEMARK.md](./TRADEMARK.md).
+defined in the [trademark policy](trademark_policy.md).
 
 ### Existing adapters
 
@@ -101,7 +102,7 @@ Community adapters listed here met the listing criteria at the time of review.
 
 ### Listing criteria
 
-- Complies with [TRADEMARK.md](./TRADEMARK.md) (naming and disclaimer).
+- Complies with the [trademark policy](trademark_policy.md) (naming and disclaimer).
 - Licensed under an open-source license *compatible* with LGPL v3.0.
 - Maintainer is identifiable and contactable.
 - Repository shows activity within the last six months.

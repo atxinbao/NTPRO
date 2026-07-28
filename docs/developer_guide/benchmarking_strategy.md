@@ -7,7 +7,7 @@ understand the policy before writing or evaluating performance work.
 
 For practitioner detail (how to write a benchmark, run it locally, generate
 a flamegraph, registered templates) see
-[`docs/developer_guide/benchmarking.md`](docs/developer_guide/benchmarking.md).
+[`benchmarking.md`](benchmarking.md).
 
 ---
 
@@ -143,7 +143,7 @@ ways that are not portable. Use iai to detect changes on the same machine
 and toolchain, not to size workloads.
 
 For setup, examples, and templates, see the
-[developer guide](docs/developer_guide/benchmarking.md).
+[developer guide](benchmarking.md).
 
 ---
 
@@ -234,4 +234,4 @@ scaling. Run it directly without the noise mitigations above.
 
 For implementation detail (writing benches, running locally, flamegraphs,
 templates), see
-[`docs/developer_guide/benchmarking.md`](docs/developer_guide/benchmarking.md).
+[`benchmarking.md`](benchmarking.md).

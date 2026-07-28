@@ -888,5 +888,5 @@ For more details, see the [Server Infrastructure article](https://support.deribi
 
 :::info
 For additional features or to contribute to the Deribit adapter, please see our
-[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/CONTRIBUTING.md).
+[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/.github/CONTRIBUTING.md).
 :::

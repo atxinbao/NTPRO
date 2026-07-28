@@ -1147,5 +1147,5 @@ To use hedge mode:
 
 :::info
 To contribute to the Binance adapter, see the
-[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/CONTRIBUTING.md).
+[contributing guide](https://github.com/atxinbao/NTPRO/blob/main/.github/CONTRIBUTING.md).
 :::

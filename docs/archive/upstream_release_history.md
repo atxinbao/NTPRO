@@ -1,5 +1,9 @@
 # NautilusTrader 1.228.0 Beta
 
+> Archived upstream release history retained for traceability. Current NTPRO
+> releases are recorded in `changelog.html`, GitHub Releases, and
+> `docs/rust-cutover/release/`.
+
 Released on TBD (UTC).
 
 ### Enhancements
