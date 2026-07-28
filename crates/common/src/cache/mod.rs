@@ -1683,8 +1683,10 @@ impl Cache {
     pub fn add_mark_price(&mut self, mark_price: MarkPriceUpdate) -> anyhow::Result<()> {
         log::debug!("Adding `MarkPriceUpdate` for {}", mark_price.instrument_id);
 
-        if self.config.save_market_data {
-            // TODO: Placeholder and return Result for consistency
+        if self.config.save_market_data
+            && let Some(database) = &mut self.database
+        {
+            database.add_mark_price(&mark_price)?;
         }
 
         let mark_prices_deque = self
@@ -1706,8 +1708,10 @@ impl Cache {
             index_price.instrument_id
         );
 
-        if self.config.save_market_data {
-            // TODO: Placeholder and return Result for consistency
+        if self.config.save_market_data
+            && let Some(database) = &mut self.database
+        {
+            database.add_index_price(&index_price)?;
         }
 
         let index_prices_deque = self
@@ -1729,8 +1733,10 @@ impl Cache {
             funding_rate.instrument_id
         );
 
-        if self.config.save_market_data {
-            // TODO: Placeholder and return Result for consistency
+        if self.config.save_market_data
+            && let Some(database) = &mut self.database
+        {
+            database.add_funding_rate(&funding_rate)?;
         }
 
         let funding_rates_deque = self
@@ -1782,8 +1788,10 @@ impl Cache {
     pub fn add_instrument_status(&mut self, status: InstrumentStatus) -> anyhow::Result<()> {
         log::debug!("Adding `InstrumentStatus` for {}", status.instrument_id);
 
-        if self.config.save_market_data {
-            // TODO: Placeholder and return Result for consistency
+        if self.config.save_market_data
+            && let Some(database) = &mut self.database
+        {
+            database.add_instrument_status(&status)?;
         }
 
         let statuses_deque = self
