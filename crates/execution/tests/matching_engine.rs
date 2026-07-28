@@ -3759,11 +3759,7 @@ fn test_updating_of_trailing_stop_market_order_with_no_trigger_price_set(
     assert_eq!(updated.trigger_price.unwrap(), Price::from("1481.00"));
 }
 
-// TODO: Engine `update_contingent_order` reads parent leaves_qty from a stale local
-// clone. Cache layer now exposes `order_mut` handles; refactor that helper to read
-// from the live handle so OUO/OCO leaves-qty decisions use post-event state.
 #[rstest]
-#[ignore]
 fn test_updating_of_contingent_orders(instrument_eth_usdt: InstrumentAny, account_id: AccountId) {
     let cache = Rc::new(RefCell::new(Cache::default()));
     let order_event_handler = order_event_handler_with_cache(cache.clone());
@@ -4358,11 +4354,7 @@ fn test_modify_partially_filled_order_quantity_below_filled_rejected(
     assert!(rejected.reason.contains("below filled quantity"));
 }
 
-// TODO: Engine `update_contingent_order` reads parent leaves_qty from a stale local
-// clone. Cache layer now exposes `order_mut` handles; refactor that helper to read
-// from the live handle so OUO/OCO leaves-qty decisions use post-event state.
 #[rstest]
-#[ignore]
 fn test_ouo_child_cancelled_when_parent_leaves_zero(
     instrument_eth_usdt: InstrumentAny,
     account_id: AccountId,

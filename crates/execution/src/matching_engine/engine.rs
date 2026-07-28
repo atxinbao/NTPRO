@@ -5336,11 +5336,26 @@ impl OrderMatchingEngine {
     }
 
     fn update_contingent_order(&mut self, order: &OrderAny) {
-        log::debug!("Updating OUO orders from {}", order.client_order_id());
+        let parent_client_order_id = order.client_order_id();
+        let order = {
+            let cache = self.cache.borrow();
+            match cache.order(&parent_client_order_id) {
+                Some(order) => order.clone(),
+                None => {
+                    log::error!(
+                        "Cannot update contingent orders: parent order \
+                         {parent_client_order_id} not found in cache",
+                    );
+                    return;
+                }
+            }
+        };
+
+        log::debug!("Updating OUO orders from {parent_client_order_id}");
         if let Some(linked_order_ids) = order.linked_order_ids() {
             let parent_filled_qty = self
                 .cached_filled_qty
-                .get(&order.client_order_id())
+                .get(&parent_client_order_id)
                 .copied()
                 .unwrap_or(order.filled_qty());
             let parent_leaves_qty = order.quantity().saturating_sub(parent_filled_qty);

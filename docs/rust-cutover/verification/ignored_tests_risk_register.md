@@ -21,10 +21,10 @@ rg -n '^\s*#\[ignore(?:\s*=\s*"[^"]*")?\]' crates tests --glob '*.rs' -S | wc -l
 rg -n '^\s*#\[ignore(?:\s*=\s*"[^"]*")?\]' crates tests --glob '*.rs' -S | cut -d: -f1 | sort | uniq -c
 ```
 
-Result after NAUDIT-003: 28 active ignored Rust test attributes were found.
+Result after PAR-001: 26 active ignored Rust test attributes were found.
 
 Release gate fixture note after GH-RELEASE-PERSISTENCE-HIGH-PRECISION-FIXTURES:
-the direct `#[ignore]` count remains 28, and there are 6 additional
+the direct `#[ignore]` count is 26, and there are 6 additional
 high-precision-only `cfg_attr(..., ignore = "...")` test skips in
 `crates/persistence/tests/test_catalog.rs`. These skips apply only when the
 `high-precision` feature is enabled, because the legacy parquet fixtures encode
@@ -32,11 +32,11 @@ standard-precision 8-byte price fields while the release high-precision build
 expects 16-byte fields. They are tracked below as `IGN-MED-009` and must not be
 used as high-precision release evidence.
 
-DRG-008 re-ran and classified every High impact item. The active ignored-test
-count remains 28 because no high-impact test was safely restored to the default
-suite in this task. Several high-impact risk tests are empty placeholder
-functions; although they pass when run with `--ignored`, DRG-008 does not accept
-empty tests as valid regression evidence.
+DRG-008 originally classified every High impact item. PAR-001 subsequently
+restored `IGN-HIGH-003` and `IGN-HIGH-004` to the default suite after repairing
+the stale parent snapshot. The remaining active ignored-test count is 26.
+Several other high-impact risk tests are empty placeholder functions; passing
+them with `--ignored` is not accepted as regression evidence.
 
 NAUDIT-003 restored two previously ignored common cache lifecycle tests to the
 default Rust test suite. They are no longer active ignored production-bug
@@ -59,8 +59,11 @@ readiness result, not a runtime fix.
 
 | Result | Count | Meaning |
 | --- | ---: | --- |
-| `BLOCKER_RECORDED` | 10 | The ignored test remains outside the default suite, but is no longer an unclassified `OPEN` item. Product design must not depend on that behavior until the blocker is fixed or formally scoped out. |
-| Restored to default suite | 0 | No high-impact item had enough passing, meaningful test coverage to restore safely. |
+| `BLOCKER_RECORDED` | 10 | At DRG-008 closeout, every remaining High impact ignored test was converted into a formal blocker. |
+| Restored to default suite | 0 | DRG-008 was classification-only and did not repair runtime behavior. |
+
+Current delta after DRG-008: PAR-001 restored two tests, leaving eight active
+High impact blockers.
 
 ## V031-009 v0.3.1 Batch-1 Closure Result
 
@@ -126,7 +129,7 @@ V04-011 decision:
 
 | Batch | Covered IDs | V04-011 decision | Why the v0.4 release claim does not rely on it |
 | --- | --- | --- | --- |
-| Execution matching-engine blockers | `IGN-HIGH-003`, `IGN-HIGH-004`, `IGN-HIGH-005` | `SCOPED_OUT_FOR_V04`; still `BLOCKER_RECORDED` for future runtime releases. | v0.4 uses deterministic mock Binance lifecycle evidence and does not claim production contingent/OCO/trailing-stop matching-engine behavior. |
+| Execution matching-engine blockers | `IGN-HIGH-003`, `IGN-HIGH-004`, `IGN-HIGH-005` | `SCOPED_OUT_FOR_V04`; historical v0.4 decision. `IGN-HIGH-003` and `IGN-HIGH-004` were later restored by PAR-001. | v0.4 used deterministic mock Binance lifecycle evidence and did not claim production contingent/OCO/trailing-stop matching-engine behavior. |
 | Broad risk-engine blockers | `IGN-HIGH-006` through `IGN-HIGH-011` | `SCOPED_OUT_FOR_V04`; still `BLOCKER_RECORDED` for future runtime releases. | v0.4 proves one halted-state Binance sandbox rejection through `V04-009`; it does not claim order-list reducing, emulator routing, or account-balance tracking. |
 | PostgreSQL cache rejected-order tests | `IGN-MED-004`, `IGN-MED-005` | `SCOPED_OUT_FOR_V04`; still open for infrastructure hardening. | v0.4 uses local fixture/read-model evidence and does not claim durable PostgreSQL cache persistence. |
 | Live stress/performance ignored tests | `IGN-MED-001`, `IGN-MED-002` | `RELEASE/PERF_ONLY_FOR_V04`; still manual/performance scoped. | v0.4 does not claim live-node throughput or cancellation-starvation performance guarantees. |
@@ -143,7 +146,7 @@ Formal blocker groups:
 
 | Blocker ID | Covered ignored tests | Required follow-up |
 | --- | --- | --- |
-| `DRG8-BLOCKER-001` | `IGN-HIGH-003`, `IGN-HIGH-004` | Repair matching-engine contingent/OUO helper behavior so child cancellation and parent leaves-quantity updates use current state instead of stale clones. |
+| `DRG8-BLOCKER-001` | `IGN-HIGH-003`, `IGN-HIGH-004` | Closed by PAR-001: matching-engine contingent/OUO decisions now use the current cached parent snapshot. |
 | `DRG8-BLOCKER-002` | `IGN-HIGH-005` | Decide and implement L2 trade-tick iteration for trailing stop market behavior, or explicitly scope that behavior out of the product path. |
 | `DRG8-BLOCKER-003` | `IGN-HIGH-006`, `IGN-HIGH-007` | Repair or scope risk-engine order-list reducing behavior with portfolio/high-precision state fixtures. |
 | `DRG8-BLOCKER-004` | `IGN-HIGH-008`, `IGN-HIGH-009`, `IGN-HIGH-010` | Replace empty emulator placeholder tests with real mock-emulator assertions before claiming emulator routing support. |
@@ -162,8 +165,8 @@ Formal blocker groups:
 
 | ID | Location | Ignored test | Reason recorded in source | Product path / impact | Owner role | Status | Recommended next step |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| IGN-HIGH-003 | `crates/execution/tests/matching_engine.rs:3766` | `test_updating_of_contingent_orders` | Contingent-order helper reads parent leaves quantity from stale local clone. | Contingent OUO/OCO matching behavior can be stale after parent updates. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-001`; DRG-008 rerun failed with `left: 3`, `right: 4`. |
-| IGN-HIGH-004 | `crates/execution/tests/matching_engine.rs:4365` | `test_ouo_child_cancelled_when_parent_leaves_zero` | Same stale parent leaves quantity issue. | OUO child cancellation may be wrong when parent leaves quantity reaches zero. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-001`; DRG-008 rerun expected `OrderCanceled` but observed `Updated`. |
+| IGN-HIGH-003 | `crates/execution/tests/matching_engine.rs` | `test_updating_of_contingent_orders` | Historical stale parent snapshot. | Contingent quantity propagation now uses post-event state. | Rust Core Runtime Agent | RESTORED_BY_PAR_001 | Default integration test asserts parent and child `OrderUpdated` quantity `2.000`. |
+| IGN-HIGH-004 | `crates/execution/tests/matching_engine.rs` | `test_ouo_child_cancelled_when_parent_leaves_zero` | Historical stale parent snapshot. | OUO child cancellation now uses post-event zero leaves. | Rust Core Runtime Agent | RESTORED_BY_PAR_001 | Default integration test asserts child cancellation before parent cancellation. |
 | IGN-HIGH-005 | `crates/execution/tests/matching_engine.rs:6633` | `test_trailing_stop_market_updated_then_triggered` | L2 engine with `trade_execution=false` does not iterate on trade ticks. | Trailing stop trigger behavior can be incomplete for L2 simulated execution. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-002`; DRG-008 rerun failed because the trailing stop did not trigger and fill. |
 | IGN-HIGH-006 | `crates/risk/tests/risk_engine.rs:2911` | `test_submit_order_list_buys_when_trading_reducing_then_denies_orders` | Requires portfolio state tracking integration. | Risk rejection for order-list reducing behavior depends on portfolio state. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-003`; DRG-008 rerun failed with `left: 2`, `right: 1`. |
 | IGN-HIGH-007 | `crates/risk/tests/risk_engine.rs:3052` | `test_submit_order_list_sells_when_trading_reducing_then_denies_orders` | Waiting on high-precision decimal merge. | High-precision risk/order-list reduction behavior remains unproven. | Rust Core Runtime Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-003`; DRG-008 rerun failed with `left: 0`, `right: 1`. |
