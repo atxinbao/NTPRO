@@ -180,7 +180,7 @@ pub enum LiveCommand {
     ProductionMutationSigningApproval(LiveProductionMutationSigningApprovalOpt),
     /// Builds a v0.16 single LIMIT GTC production order request object locally; no request execution.
     ProductionMutationRequestBuilder(LiveProductionMutationRequestBuilderOpt),
-    /// Evaluates the v0.16 guarded single-shot production HTTP send path.
+    /// Evaluates the legacy v0.16 send artifact offline; manual-online execution is retired.
     ProductionMutationGuardedSend(LiveProductionMutationGuardedSendOpt),
     /// Redacts a v0.16 production mutation response artifact; no raw response persistence.
     ProductionMutationResponseRedaction(LiveProductionMutationResponseRedactionOpt),
@@ -214,7 +214,7 @@ pub enum LiveCommand {
     ProductionMutationActualCancelExecutorAdapterBoundary(
         Box<LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt>,
     ),
-    /// Executes or prepares a v0.19 owner-approved single-shot actual cancel command.
+    /// Evaluates the legacy v0.19 cancel artifact offline; manual-online execution is retired.
     ProductionMutationActualCancelSingleShot(Box<LiveProductionMutationActualCancelSingleShotOpt>),
     /// Reconciles a v0.19 actual cancel attempt with redacted post-cancel readback evidence.
     ProductionMutationActualCancelReadbackReconciliation(
@@ -1098,7 +1098,7 @@ pub struct LiveProductionMutationGuardedSendOpt {
     /// v0.16 guarded send JSON output path.
     #[arg(long)]
     pub output: PathBuf,
-    /// Requests the manual online single-shot send path.
+    /// Retired compatibility flag; requesting manual-online execution fails closed.
     #[arg(long)]
     pub manual_online: bool,
     /// Manual CLI gate for guarded production send evaluation.
@@ -1929,7 +1929,7 @@ pub struct LiveProductionMutationActualCancelSingleShotOpt {
     /// v0.19 actual cancel attempt JSON output path.
     #[arg(long)]
     pub output: PathBuf,
-    /// Requests the manual online single-shot cancel path.
+    /// Retired compatibility flag; requesting manual-online execution fails closed.
     #[arg(long)]
     pub manual_online: bool,
     /// Manual CLI gate for actual cancel single-shot execution.
