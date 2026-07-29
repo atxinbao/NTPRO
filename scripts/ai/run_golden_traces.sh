@@ -20,6 +20,8 @@ RUN_RUST_LIVE_ALPHA_RECONCILIATION_TRACE_REPLAY="${RUN_RUST_LIVE_ALPHA_RECONCILI
 RUN_RUST_LIVE_ALPHA_MUTATION_DRY_RUN_TRACE_REPLAY="${RUN_RUST_LIVE_ALPHA_MUTATION_DRY_RUN_TRACE_REPLAY:-1}"
 RUN_RUST_ACTUAL_CANCEL_TRACE_REPLAY="${RUN_RUST_ACTUAL_CANCEL_TRACE_REPLAY:-1}"
 RUN_RUST_PRODUCTION_ORDER_LIFECYCLE_TRACE_REPLAY="${RUN_RUST_PRODUCTION_ORDER_LIFECYCLE_TRACE_REPLAY:-1}"
+RUN_RUST_READ_MODEL_TRACE_REPLAY="${RUN_RUST_READ_MODEL_TRACE_REPLAY:-1}"
+RUN_RUST_SCHEMA_SMOKE_TRACE_REPLAY="${RUN_RUST_SCHEMA_SMOKE_TRACE_REPLAY:-1}"
 REPLAY_COMMAND="${GOLDEN_TRACE_REPLAY_COMMAND:-}"
 RELEASE_SCOPE_MANIFEST="${GOLDEN_TRACE_RELEASE_SCOPE_MANIFEST:-docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json}"
 
@@ -44,6 +46,14 @@ if [ "$REQUIRE_GOLDEN_REPLAY" = "1" ] && [ -z "$REPLAY_COMMAND" ]; then
   scripts/ai/ntpro_governance.sh golden-trace-release-scope \
     --manifest "$RELEASE_SCOPE_MANIFEST" \
     --trace-glob "$TRACE_GLOB"
+  schema_only_count="$(
+    jq '[.cases[] | select(.status == "schema_only_scoped")] | length' \
+      "$RELEASE_SCOPE_MANIFEST"
+  )"
+  if [ "$schema_only_count" -ne 0 ]; then
+    echo "release replay scope contains $schema_only_count schema-only cases; expected 0" >&2
+    exit 1
+  fi
 fi
 
 if [ "$RUN_RUST_GOLDEN_TRACE_HARNESS" = "1" ]; then
@@ -96,4 +106,12 @@ fi
 
 if [ "$RUN_RUST_PRODUCTION_ORDER_LIFECYCLE_TRACE_REPLAY" = "1" ]; then
   cargo test -p nautilus-cli --test golden_trace_production_order_lifecycle
+fi
+
+if [ "$RUN_RUST_READ_MODEL_TRACE_REPLAY" = "1" ]; then
+  cargo test -p nautilus-cli --test golden_trace_read_model_projection
+fi
+
+if [ "$RUN_RUST_SCHEMA_SMOKE_TRACE_REPLAY" = "1" ]; then
+  cargo test -p nautilus-cli --test golden_trace_schema_smoke_runtime
 fi

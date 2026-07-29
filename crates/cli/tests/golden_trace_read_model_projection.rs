@@ -24,6 +24,16 @@ use serde_json::{Map, Value, json};
 
 const REQUIRED_CASES: &[ReplayCase] = &[
     ReplayCase {
+        trace: "read_model_contract_schema.jsonl",
+        case_id: "read_model.contract.healthy_minimal.001",
+        family: "contract",
+    },
+    ReplayCase {
+        trace: "read_model_contract_schema.jsonl",
+        case_id: "read_model.contract.fail_closed_missing_lineage_source_freshness.001",
+        family: "contract",
+    },
+    ReplayCase {
         trace: "read_model_account_snapshot_schema.jsonl",
         case_id: "read_model.account_snapshot.fresh.001",
         family: "account",
@@ -31,6 +41,16 @@ const REQUIRED_CASES: &[ReplayCase] = &[
     ReplayCase {
         trace: "read_model_account_snapshot_schema.jsonl",
         case_id: "read_model.account_snapshot.stale.001",
+        family: "account",
+    },
+    ReplayCase {
+        trace: "read_model_account_snapshot_schema.jsonl",
+        case_id: "read_model.account_snapshot.missing_provenance.001",
+        family: "account",
+    },
+    ReplayCase {
+        trace: "read_model_account_snapshot_schema.jsonl",
+        case_id: "read_model.account_snapshot.redaction_breach.001",
         family: "account",
     },
     ReplayCase {
@@ -174,6 +194,14 @@ const VISIBLE_PANELS: &[&str] = &[
 ];
 const DISABLED_CONTROLS: &[&str] = &[
     "submit", "approval", "cancel", "retry", "replace", "amend", "flatten",
+];
+const CONTRACT_COMPONENTS: &[&str] = &[
+    "account",
+    "positions",
+    "orders",
+    "fills",
+    "risk",
+    "lifecycle_status",
 ];
 const ACCOUNT_PARTITION_COMPONENTS: &[&str] = &[
     "account",
@@ -354,7 +382,15 @@ fn rust_cli_read_model_projection_replays_v211_required_paths() -> Result<(), Bo
     }
     assert_contains_all(
         &covered_families,
-        &["account", "position", "order", "fill", "risk", "dashboard"],
+        &[
+            "contract",
+            "account",
+            "position",
+            "order",
+            "fill",
+            "risk",
+            "dashboard",
+        ],
         "read_model family",
     )?;
 
@@ -568,7 +604,11 @@ fn rust_cli_read_model_projection_replays_v230_dashboard_observability_paths()
 
 fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value, Box<dyn Error>> {
     let mut event = Map::new();
-    let event_type = string_field(input_event, "event_type")?.replace(".input", ".validated");
+    let event_type = if case_id.starts_with("read_model.contract.") {
+        "read_model.contract.validated".to_string()
+    } else {
+        string_field(input_event, "event_type")?.replace(".input", ".validated")
+    };
     event.insert("event_type".to_string(), Value::String(event_type));
 
     for key in [
@@ -586,7 +626,9 @@ fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value,
 
     let input_payload = payload(input_event)?;
     let snapshot = object_field(input_payload, "snapshot")?;
-    let projected_payload = if case_id.starts_with("read_model.dashboard_observability.") {
+    let projected_payload = if case_id.starts_with("read_model.contract.") {
+        project_contract_payload(case_id, snapshot)?
+    } else if case_id.starts_with("read_model.dashboard_observability.") {
         project_dashboard_observability_payload(case_id, input_payload, snapshot)?
     } else if case_id.starts_with("read_model.orchestration_control_plane.") {
         project_orchestration_control_plane_payload(case_id, snapshot)?
@@ -614,6 +656,113 @@ fn project_read_model_event(case_id: &str, input_event: &Value) -> Result<Value,
     event.insert("payload".to_string(), projected_payload);
 
     Ok(Value::Object(event))
+}
+
+fn project_contract_payload(case_id: &str, snapshot: &Value) -> Result<Value, Box<dyn Error>> {
+    let components = object_field(snapshot, "components")?;
+    let boundary = object_field(snapshot, "capability_boundary")?;
+    let mut blocking_reasons = Vec::new();
+    let mut all_healthy = true;
+    let mut any_fail_closed = false;
+
+    for name in CONTRACT_COMPONENTS {
+        let component = object_field(components, name)?;
+        let status = string_field(component, "component_status")?;
+        all_healthy &= status == "healthy";
+        any_fail_closed |= status == "fail_closed";
+
+        let lineage = object_field(component, "lineage")?;
+        let input_refs = array_field(lineage, "input_refs")?;
+        let transform = string_field(lineage, "transform")?;
+        if input_refs.is_empty() || transform.starts_with("missing:") {
+            push_reason(
+                &mut blocking_reasons,
+                format!("missing_component_lineage:{name}"),
+            );
+        }
+
+        let source = object_field(component, "source_provenance")?;
+        if string_field(source, "source_type")? == "unavailable"
+            || string_field(source, "source_ref")?.starts_with("missing:")
+        {
+            push_reason(
+                &mut blocking_reasons,
+                format!("missing_component_source_provenance:{name}"),
+            );
+        }
+
+        match string_field(object_field(component, "freshness")?, "status")? {
+            "missing" => push_reason(
+                &mut blocking_reasons,
+                format!("missing_component_freshness:{name}"),
+            ),
+            "stale" => push_reason(
+                &mut blocking_reasons,
+                format!("stale_component_freshness:{name}"),
+            ),
+            "fresh" => {}
+            status => {
+                return Err(
+                    format!("{case_id}: unsupported {name} freshness status {status}").into(),
+                );
+            }
+        }
+    }
+
+    let health_status = if !blocking_reasons.is_empty() || any_fail_closed {
+        "fail_closed"
+    } else if all_healthy {
+        "healthy"
+    } else {
+        "degraded"
+    };
+    let claimed_health_status = string_field(snapshot, "health_status")?;
+    if health_status != claimed_health_status {
+        return Err(format!(
+            "{case_id}: derived health status {health_status} does not match snapshot claim {claimed_health_status}"
+        )
+        .into());
+    }
+    let claimed_blocking_reasons = string_array(snapshot, "blocking_reasons")?;
+    if blocking_reasons != claimed_blocking_reasons {
+        return Err(format!(
+            "{case_id}: derived blocking reasons {blocking_reasons:?} do not match snapshot claim {claimed_blocking_reasons:?}"
+        )
+        .into());
+    }
+
+    let mut payload = Map::new();
+    insert_string(&mut payload, "case_id", case_id);
+    insert_string(
+        &mut payload,
+        "contract_version",
+        string_field(snapshot, "contract_version")?,
+    );
+    insert_string(&mut payload, "health_status", health_status);
+    if health_status == "healthy" {
+        payload.insert(
+            "components".to_string(),
+            Value::Array(
+                CONTRACT_COMPONENTS
+                    .iter()
+                    .map(|name| Value::String((*name).to_string()))
+                    .collect(),
+            ),
+        );
+    }
+    payload.insert(
+        "blocking_reasons".to_string(),
+        Value::Array(blocking_reasons.into_iter().map(Value::String).collect()),
+    );
+    for key in [
+        "new_submit_capability",
+        "dashboard_order_controls_enabled",
+        "product_grade_trading_terminal_claim",
+    ] {
+        payload.insert(key.to_string(), Value::Bool(bool_field(boundary, key)?));
+    }
+
+    Ok(Value::Object(payload))
 }
 
 fn project_dashboard_observability_payload(
@@ -1785,9 +1934,36 @@ fn project_account_payload(case_id: &str, snapshot: &Value) -> Result<Value, Box
         "risk_state",
         string_field(account_data, "risk_state")?,
     );
+    let blocking_reasons = if case_id.ends_with(".missing_provenance.001") {
+        let source = object_field(account, "source_provenance")?;
+        if string_field(source, "source_type")? != "unavailable"
+            || !string_field(source, "source_ref")?.starts_with("missing:")
+        {
+            return Err(format!("{case_id}: account source provenance must be unavailable").into());
+        }
+        vec!["missing_account_source_provenance".to_string()]
+    } else if case_id.ends_with(".redaction_breach.001") {
+        let redaction = object_field(account, "redaction")?;
+        if string_field(redaction, "status")? != "fail_closed" {
+            return Err(format!("{case_id}: account redaction must fail closed").into());
+        }
+        string_array(account, "diagnostics")?
+            .into_iter()
+            .filter(|reason| {
+                reason == "unredacted_sensitive_field" || reason == "raw_account_payload_persisted"
+            })
+            .collect()
+    } else {
+        string_array(snapshot, "blocking_reasons")?
+    };
+    if blocking_reasons != string_array(snapshot, "blocking_reasons")? {
+        return Err(
+            format!("{case_id}: derived account blocking reasons do not match snapshot").into(),
+        );
+    }
     payload.insert(
         "blocking_reasons".to_string(),
-        clone_field(snapshot, "blocking_reasons")?,
+        Value::Array(blocking_reasons.into_iter().map(Value::String).collect()),
     );
     payload.insert(
         "dashboard_account_state_visible".to_string(),
