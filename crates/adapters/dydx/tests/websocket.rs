@@ -94,7 +94,7 @@ async fn handle_socket(mut socket: WebSocket, state: TestServerState) {
     send_connected_message(&mut socket).await;
 
     loop {
-        if state.disconnect_trigger.load(Ordering::Relaxed) {
+        if state.disconnect_trigger.swap(false, Ordering::AcqRel) {
             break;
         }
 
@@ -112,7 +112,7 @@ async fn handle_socket(mut socket: WebSocket, state: TestServerState) {
             Err(_) => break,
         };
 
-        if state.disconnect_trigger.load(Ordering::Relaxed) {
+        if state.disconnect_trigger.swap(false, Ordering::AcqRel) {
             break;
         }
 
@@ -1405,7 +1405,6 @@ async fn test_is_connected_false_during_reconnection() {
 
 #[rstest]
 #[tokio::test]
-#[ignore = "Server-triggered disconnect causes reconnect loop: disconnect_trigger stays true during auto-reconnect, closing each new connection before subscription replay completes"]
 async fn test_subscription_restoration_tracking() {
     let (addr, state) = start_test_server().await.unwrap();
     let ws_url = format!("ws://{addr}/v4/ws");
@@ -1425,25 +1424,31 @@ async fn test_subscription_restoration_tracking() {
     .await;
 
     let subs = state.subscriptions.lock().await.clone();
-    assert_eq!(subs.len(), 1);
+    assert_eq!(subs, vec!["v4_trades/BTC-USD"]);
 
-    state.disconnect_trigger.store(true, Ordering::Relaxed);
+    state.subscription_events.lock().await.clear();
+    let initial_connection_count = *state.connection_count.lock().await;
+    state.disconnect_trigger.store(true, Ordering::Release);
 
     wait_until_async(
-        || async { state.subscription_events().await.len() >= 2 },
+        || async {
+            *state.connection_count.lock().await == initial_connection_count + 1
+                && state.subscription_events().await.len() == 1
+        },
         Duration::from_secs(5),
     )
     .await;
 
     let events = state.subscription_events().await;
-    assert!(
-        events.len() >= 2,
-        "Should have subscribe + resubscribe events"
-    );
+    assert_eq!(events, vec![("v4_trades".to_string(), true)]);
     assert_eq!(
         *state.connection_count.lock().await,
-        2,
-        "Should have reconnected"
+        initial_connection_count + 1,
+        "Server-side one-shot disconnect should produce exactly one reconnect"
+    );
+    assert!(
+        client.is_connected(),
+        "Client should be active after replay"
     );
 
     client.disconnect().await.unwrap();
