@@ -9,3 +9,4 @@ User-facing migration guide and API compatibility notes live here.
 - [Legacy Python guides retired](legacy_python_guides_retired.md)
 - [BPO-004 checked interpolation](BPO-004-checked-interpolation.md)
 - [BFR-001 manual-online production mutation retirement](BFR-001-manual-online-retirement.md)
+- [PAR-007 production mutation executor retirement](PAR-007-production-mutation-executor-retirement.md)
