@@ -150,7 +150,7 @@ Formal blocker groups:
 | `DRG8-BLOCKER-001` | `IGN-HIGH-003`, `IGN-HIGH-004` | Closed by PAR-001: matching-engine contingent/OUO decisions use validated post-update quantity without assuming synchronous cache event application. |
 | `DRG8-BLOCKER-002` | `IGN-HIGH-005` | Closed by PAR-002: disabled trade execution still advances book-based iteration and LastPrice trailing maintenance without making the trade price an ordinary-limit execution source. |
 | `DRG8-BLOCKER-003` | `IGN-HIGH-006`, `IGN-HIGH-007` | Closed by PAR-003: real filled Position fixtures initialize Portfolio state, fixed-precision inputs pass both precision modes, and executable risk traces prove all list members are denied without execution forwarding. |
-| `DRG8-BLOCKER-004` | `IGN-HIGH-008`, `IGN-HIGH-009`, `IGN-HIGH-010` | Replace empty emulator placeholder tests with real mock-emulator assertions before claiming emulator routing support. |
+| `DRG8-BLOCKER-004` | `IGN-HIGH-008`, `IGN-HIGH-009`, `IGN-HIGH-010` | Closed by PAR-004: current Strategy ownership routes bracket lists, single submits, and modifications of emulated orders to `OrderEmulator.execute`; default tests assert exact commands and zero RiskEngine forwarding. |
 | `DRG8-BLOCKER-005` | `IGN-HIGH-011` | Replace empty account-balance placeholder test with real partial/full fill accounting assertions before claiming balance tracking evidence. |
 | `DRG8-BLOCKER-006` | `IGN-HIGH-012` | Make dYdX subscription restoration deterministic; the current ignored test times out during reconnect replay. |
 
