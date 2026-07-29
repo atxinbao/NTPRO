@@ -1892,14 +1892,14 @@ mod tests {
     };
     use nautilus_core::UnixNanos;
     use nautilus_model::{
-        enums::{LiquiditySide, OrderSide, OrderStatus, OrderType, PositionSide},
+        enums::{ContingencyType, LiquiditySide, OrderSide, OrderStatus, OrderType, PositionSide},
         events::{OrderAccepted, OrderCanceled, OrderFilled, OrderRejected},
         identifiers::{
             AccountId, ClientOrderId, InstrumentId, OrderListId, PositionId, StrategyId, TradeId,
             TraderId, VenueOrderId,
         },
         orderbook::own::OwnOrderBook,
-        orders::{LimitOrder, MarketOrder, stubs::TestOrderEventStubs},
+        orders::{LimitOrder, MarketOrder, OrderTestBuilder, stubs::TestOrderEventStubs},
         stubs::TestDefault,
         types::{Currency, Money, Price},
     };
@@ -2217,6 +2217,27 @@ mod tests {
             .add_own_order_book(OwnOrderBook::new(order.instrument_id()))
             .unwrap();
         cache.update_own_order_book(order);
+    }
+
+    fn register_emulator_and_risk_command_collectors() -> (
+        TypedIntoMessageSavingHandler<TradingCommand>,
+        TypedIntoMessageSavingHandler<TradingCommand>,
+    ) {
+        let (emulator_handler, emulator_messages) =
+            get_typed_into_message_saving_handler(Some(Ustr::from("OrderEmulator.execute")));
+        msgbus::register_trading_command_endpoint(
+            MessagingSwitchboard::order_emulator_execute(),
+            emulator_handler,
+        );
+
+        let (risk_handler, risk_messages) =
+            get_typed_into_message_saving_handler(Some(Ustr::from("RiskEngine.queue_execute")));
+        msgbus::register_trading_command_endpoint(
+            MessagingSwitchboard::risk_engine_queue_execute(),
+            risk_handler,
+        );
+
+        (emulator_messages, risk_messages)
     }
 
     fn make_position_opened() -> PositionEvent {
@@ -2692,6 +2713,113 @@ mod tests {
     }
 
     #[rstest]
+    fn test_submit_bracket_with_emulated_orders_sends_to_emulator() {
+        let mut strategy = create_test_strategy();
+        register_strategy(&mut strategy);
+
+        let (emulator_messages, risk_messages) = register_emulator_and_risk_command_collectors();
+
+        let trader_id = TraderId::from("TRADER-001");
+        let strategy_id = StrategyId::from("TEST-001");
+        let instrument_id = InstrumentId::from("BTCUSDT.BINANCE");
+        let order_list_id = OrderListId::from("OL-EMULATED-BRACKET-001");
+        let entry_id = ClientOrderId::from("O-EMULATED-BRACKET-ENTRY");
+        let stop_id = ClientOrderId::from("O-EMULATED-BRACKET-STOP");
+        let take_profit_id = ClientOrderId::from("O-EMULATED-BRACKET-TAKE-PROFIT");
+
+        let entry = OrderTestBuilder::new(OrderType::Market)
+            .trader_id(trader_id)
+            .strategy_id(strategy_id)
+            .instrument_id(instrument_id)
+            .client_order_id(entry_id)
+            .side(OrderSide::Buy)
+            .quantity(Quantity::from("1.0"))
+            .order_list_id(order_list_id)
+            .contingency_type(ContingencyType::Oto)
+            .linked_order_ids(vec![stop_id, take_profit_id])
+            .build();
+        let stop = OrderTestBuilder::new(OrderType::StopMarket)
+            .trader_id(trader_id)
+            .strategy_id(strategy_id)
+            .instrument_id(instrument_id)
+            .client_order_id(stop_id)
+            .side(OrderSide::Sell)
+            .quantity(Quantity::from("1.0"))
+            .trigger_price(Price::from("49000.0"))
+            .emulation_trigger(TriggerType::BidAsk)
+            .order_list_id(order_list_id)
+            .contingency_type(ContingencyType::Oco)
+            .linked_order_ids(vec![take_profit_id])
+            .parent_order_id(entry_id)
+            .build();
+        let take_profit = OrderTestBuilder::new(OrderType::Limit)
+            .trader_id(trader_id)
+            .strategy_id(strategy_id)
+            .instrument_id(instrument_id)
+            .client_order_id(take_profit_id)
+            .side(OrderSide::Sell)
+            .quantity(Quantity::from("1.0"))
+            .price(Price::from("51000.0"))
+            .order_list_id(order_list_id)
+            .contingency_type(ContingencyType::Oco)
+            .linked_order_ids(vec![stop_id])
+            .parent_order_id(entry_id)
+            .build();
+
+        strategy
+            .submit_order_list(vec![entry, stop, take_profit], None, None, None)
+            .unwrap();
+
+        let emulator_messages = emulator_messages.get_messages();
+        assert_eq!(emulator_messages.len(), 1);
+        let Some(TradingCommand::SubmitOrderList(command)) = emulator_messages.first() else {
+            panic!("expected emulated SubmitOrderList command");
+        };
+        assert_eq!(command.order_list.id, order_list_id);
+        assert_eq!(
+            command.order_list.client_order_ids,
+            vec![entry_id, stop_id, take_profit_id],
+        );
+        assert!(
+            risk_messages.get_messages().is_empty(),
+            "emulated bracket must bypass the risk endpoint",
+        );
+    }
+
+    #[rstest]
+    fn test_submit_order_for_emulation_sends_command_to_emulator() {
+        let mut strategy = create_test_strategy();
+        register_strategy(&mut strategy);
+
+        let (emulator_messages, risk_messages) = register_emulator_and_risk_command_collectors();
+
+        let order = OrderTestBuilder::new(OrderType::Limit)
+            .trader_id(TraderId::from("TRADER-001"))
+            .strategy_id(StrategyId::from("TEST-001"))
+            .instrument_id(InstrumentId::from("BTCUSDT.BINANCE"))
+            .client_order_id(ClientOrderId::from("O-EMULATED-SUBMIT-001"))
+            .side(OrderSide::Buy)
+            .quantity(Quantity::from("1.0"))
+            .price(Price::from("50000.0"))
+            .emulation_trigger(TriggerType::BidAsk)
+            .build();
+        let client_order_id = order.client_order_id();
+
+        strategy.submit_order(order, None, None, None).unwrap();
+
+        let emulator_messages = emulator_messages.get_messages();
+        assert_eq!(emulator_messages.len(), 1);
+        let Some(TradingCommand::SubmitOrder(command)) = emulator_messages.first() else {
+            panic!("expected emulated SubmitOrder command");
+        };
+        assert_eq!(command.client_order_id, client_order_id);
+        assert!(
+            risk_messages.get_messages().is_empty(),
+            "emulated submit must bypass the risk endpoint",
+        );
+    }
+
+    #[rstest]
     fn test_modify_order_routes_non_emulated_orders_to_risk() {
         let mut strategy = create_test_strategy();
         register_strategy(&mut strategy);
@@ -2753,6 +2881,54 @@ mod tests {
             Some(TradingCommand::ModifyOrder(_))
         ));
         assert!(exec_messages.is_empty());
+    }
+
+    #[rstest]
+    fn test_modify_order_for_emulated_order_then_sends_to_emulator() {
+        let mut strategy = create_test_strategy();
+        register_strategy(&mut strategy);
+
+        let (emulator_messages, risk_messages) = register_emulator_and_risk_command_collectors();
+
+        let mut order = make_initialized_market_order("O-EMULATED-MODIFY-001");
+        order.set_emulation_trigger(Some(TriggerType::BidAsk));
+        order
+            .apply(OrderEventAny::Emulated(OrderEmulated::new(
+                order.trader_id(),
+                order.strategy_id(),
+                order.instrument_id(),
+                order.client_order_id(),
+                UUID4::new(),
+                UnixNanos::default(),
+                UnixNanos::default(),
+            )))
+            .unwrap();
+        assert!(order.is_emulated());
+        let client_order_id = order.client_order_id();
+        add_order_to_cache(&strategy, &order);
+
+        strategy
+            .modify_order(
+                client_order_id,
+                Some(Quantity::from(200_000)),
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+
+        let emulator_messages = emulator_messages.get_messages();
+        assert_eq!(emulator_messages.len(), 1);
+        let Some(TradingCommand::ModifyOrder(command)) = emulator_messages.first() else {
+            panic!("expected emulated ModifyOrder command");
+        };
+        assert_eq!(command.client_order_id, client_order_id);
+        assert_eq!(command.quantity, Some(Quantity::from(200_000)));
+        assert!(
+            risk_messages.get_messages().is_empty(),
+            "emulated modify must bypass the risk endpoint",
+        );
     }
 
     #[rstest]

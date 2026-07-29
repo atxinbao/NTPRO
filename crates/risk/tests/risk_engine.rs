@@ -3171,20 +3171,6 @@ fn test_submit_order_list_sells_when_trading_reducing_then_denies_orders(
     );
 }
 
-// SUBMIT BRACKET ORDER TESTS
-
-// Verify bracket orders with emulated orders are sent to emulator.
-//
-// This test requires the order emulator component to be implemented. The emulator
-// handles client-side order management for conditional orders (stop-loss, take-profit, etc.)
-// that need to be triggered locally before being sent to the venue.
-//
-// TODO: Re-enable once the emulator component is integrated with the risk engine.
-// Dependencies: Order emulation infrastructure in execution engine
-#[ignore = "Waiting on emulator implementation"]
-#[rstest]
-fn test_submit_bracket_with_emulated_orders_sends_to_emulator() {}
-
 #[rstest]
 fn test_submit_bracket_order_when_instrument_not_in_cache_then_denies(
     strategy_id_ema_cross: StrategyId,
@@ -3283,17 +3269,6 @@ fn test_submit_bracket_order_when_instrument_not_in_cache_then_denies(
         );
     }
 }
-
-// Verify that orders marked for emulation are correctly routed to the emulator.
-//
-// This test should verify that when an order is submitted with emulation flags,
-// the risk engine routes it to the order emulator rather than directly to execution.
-//
-// TODO: Re-enable once the emulator component is integrated with the risk engine.
-// Dependencies: Order emulation infrastructure in execution engine
-#[ignore = "Waiting on emulator implementation"]
-#[rstest]
-fn test_submit_order_for_emulation_sends_command_to_emulator() {}
 
 // MODIFY ORDER TESTS
 #[rstest]
@@ -3490,18 +3465,6 @@ fn test_modify_order_with_default_settings_then_sends_to_client(
         instrument_audusd.id()
     );
 }
-
-// Verify that modifications to emulated orders are routed to the emulator.
-//
-// This test should verify that when modifying an order that's being managed by
-// the emulator, the modification command is sent to the emulator rather than
-// directly to the venue.
-//
-// TODO: Re-enable once the emulator component is integrated with the risk engine.
-// Dependencies: Order emulation infrastructure in execution engine
-#[ignore = "Waiting on emulator implementation"]
-#[rstest]
-fn test_modify_order_for_emulated_order_then_sends_to_emulator() {}
 
 #[rstest]
 fn test_submit_order_when_betting_back_order_liability_within_free_balance_then_accepts(
