@@ -4,7 +4,7 @@
   "executor": "Codex",
   "task_id": "DRG-009 / V190-009",
   "decision": "G8 executable trace gate requires every product-claimed trace area to have executable Rust replay evidence; V190-009 extends that rule to owner-approved actual-cancel outcome fixtures. Schema-only scope is allowed only for non-product envelope smoke rows.",
-  "owner_signoff": "V250-005 DR preview drill evidence validator executable replay recorded; service restart, data restore, live exchange, and exchange mutation integration remain false",
+  "owner_signoff": "PAR-010 records all 289 release cases as executable Rust replay or executable validator replay, with zero schema-only cases. The market-data envelope smoke runs through QuoteTick; runtime adapter integration, live exchange requests, mutation, retry, remediation, and trading controls remain false.",
   "cases": [
     {
       "case_id": "adapter_payload.okx_ws_trade.001",
@@ -540,21 +540,21 @@
       "case_id": "read_model.contract.healthy_minimal.001",
       "trace": "tests/golden/read_model_contract_schema.jsonl",
       "category": "read_model",
-      "status": "schema_only_scoped",
-      "scope_owner": "V210-001",
-      "reason": "Contract baseline row validates the unified read model envelope before executable Rust projection exists.",
-      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "evidence_id": "PAR-010",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v211_required_paths",
+      "release_decision": "included_in_final_replay_scope"
     },
     {
       "case_id": "read_model.contract.fail_closed_missing_lineage_source_freshness.001",
       "trace": "tests/golden/read_model_contract_schema.jsonl",
       "category": "read_model",
-      "status": "schema_only_scoped",
-      "scope_owner": "V210-001",
-      "reason": "Contract baseline row proves fail-closed schema semantics for missing lineage, source provenance, and freshness.",
-      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "evidence_id": "PAR-010",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v211_required_paths",
+      "release_decision": "included_in_final_replay_scope"
     },
     {
       "case_id": "read_model.account_snapshot.fresh.001",
@@ -580,21 +580,21 @@
       "case_id": "read_model.account_snapshot.missing_provenance.001",
       "trace": "tests/golden/read_model_account_snapshot_schema.jsonl",
       "category": "read_model",
-      "status": "schema_only_scoped",
-      "scope_owner": "V210-002",
-      "reason": "Account snapshot component row proves missing account source provenance prevents healthy status and fails closed.",
-      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "evidence_id": "PAR-010",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v211_required_paths",
+      "release_decision": "included_in_final_replay_scope"
     },
     {
       "case_id": "read_model.account_snapshot.redaction_breach.001",
       "trace": "tests/golden/read_model_account_snapshot_schema.jsonl",
       "category": "read_model",
-      "status": "schema_only_scoped",
-      "scope_owner": "V210-002",
-      "reason": "Account snapshot component row proves sensitive or raw account material forces fail-closed redaction status.",
-      "follow_up": "V211-004 through V211-006 must promote this remaining read_model case before v0.22.0 can claim broader executable read-model coverage.",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "evidence_id": "PAR-010",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_read_model_projection",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_read_model_projection.rs::rust_cli_read_model_projection_replays_v211_required_paths",
+      "release_decision": "included_in_final_replay_scope"
     },
     {
       "case_id": "read_model.position.long.001",
@@ -4111,11 +4111,11 @@
       "case_id": "market_data.schema_smoke.001",
       "trace": "tests/golden/schema_smoke.jsonl",
       "category": "market_data",
-      "status": "schema_only_scoped",
-      "scope_owner": "RREL-009",
-      "reason": "Schema smoke row exists only to validate the envelope contract; it is not a runtime replay case.",
-      "follow_up": "none; envelope smoke remains schema-only by design",
-      "release_decision": "schema_only_scope_recorded"
+      "status": "executable_replay",
+      "evidence_id": "PAR-010",
+      "harness": "cargo test -p nautilus-cli --test golden_trace_schema_smoke_runtime",
+      "rust_entrypoint": "crates/cli/tests/golden_trace_schema_smoke_runtime.rs::rust_model_replays_schema_smoke_quote_envelope",
+      "release_decision": "included_in_final_replay_scope"
     },
     {
       "case_id": "read_model.product_operations_boundary.foundation_scope.healthy.001",

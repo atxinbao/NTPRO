@@ -1,23 +1,25 @@
 # Golden Trace Gate Evidence
 
-Date: 2026-06-06
+Date: 2026-07-29
 Executor: Codex
-Task ID: RTRACE-008 / RREL-008 refresh / RREL-009 / DRG-009
+Task ID: RTRACE-008 / RREL-008 refresh / RREL-009 / DRG-009 / PAR-010
 
 ## Gate Status
 
-The R2 golden trace gate has an executable Rust validation spine, and DRG-009
-promotes the v0.2 product-claimed trace areas required by the Design Readiness
-Gate into executable Rust replay evidence.
+The golden trace gate has an executable Rust validation spine. PAR-010 promotes
+the final five schema-only release cases to executable Rust replay and makes
+zero schema-only cases a release-runner invariant.
 
 Current evidence proves that the trace schema is enforced locally and that
 backtest, live/sandbox lifecycle, data source / market data, execution order
 lifecycle, risk rejection, cache/message-bus, and adapter payload traces replay
-through repeatable Rust commands. The only schema-only row left in the release
-scope manifest is the non-product envelope smoke row.
+through repeatable Rust commands. The read-model contract derives health and
+blocking reasons from component lineage, source provenance, and freshness. The
+envelope smoke constructs and serializes a Rust `QuoteTick`; it is no longer a
+schema-only row.
 
-This is not a final design-readiness signoff. DRG-009 is high-risk and remains
-pending review/merge until the PR is approved.
+Current release scope: 289 cases, 103 executable Rust replay, 186 executable
+validator replay, and 0 schema-only.
 
 ## Standard Command
 
@@ -42,6 +44,9 @@ cargo test -p nautilus-okx --test golden_trace_adapter_payload
 cargo test -p nautilus-cli --test golden_trace_live_alpha_reconciliation
 cargo test -p nautilus-cli --test golden_trace_live_alpha_mutation_dry_run
 cargo test -p nautilus-cli --test golden_trace_actual_cancel
+cargo test -p nautilus-cli --test golden_trace_production_order_lifecycle
+cargo test -p nautilus-cli --test golden_trace_read_model_projection
+cargo test -p nautilus-cli --test golden_trace_schema_smoke_runtime
 ```
 
 Final release mode runs the same validation plus:
@@ -57,9 +62,10 @@ docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json
 ```
 
 The manifest requires each `tests/golden/*.jsonl` case to be either
-`executable_replay` or `schema_only_scoped`.
+`executable_replay` or `validator_executable_replay`. Release mode rejects any
+`schema_only_scoped` case.
 
-## Current Trace Inventory
+## Original R2 Trace Inventory
 
 | File | Rows | Category | Execution status |
 | --- | ---: | --- | --- |
@@ -74,7 +80,7 @@ The manifest requires each `tests/golden/*.jsonl` case to be either
 | `tests/golden/market_data_schema.jsonl` | 6 | `market_data` | Rust market-data model replay |
 | `tests/golden/order_lifecycle_schema.jsonl` | 6 | `order_lifecycle` | Rust execution lifecycle replay |
 | `tests/golden/risk_rejection_schema.jsonl` | 1 | `risk` | Rust `RiskEngine` rejection replay |
-| `tests/golden/schema_smoke.jsonl` | 1 | `market_data` | Schema-only scoped in release manifest |
+| `tests/golden/schema_smoke.jsonl` | 1 | `market_data` | Rust `QuoteTick` envelope replay |
 
 Total: 12 JSONL files, 45 trace rows.
 
@@ -94,13 +100,17 @@ Total: 12 JSONL files, 45 trace rows.
 | V140-005 | `nautilus-cli::golden_trace_live_alpha_reconciliation` | Replays local live-alpha reconciliation scenarios for fresh/stale order state, account readability, kill switch, and risk-limit outcomes without production mutation. |
 | V150-006 | `nautilus-cli::golden_trace_live_alpha_mutation_dry_run` | Replays local mutation dry-run scenarios for approval, kill switch, risk, network-disabled, and Dashboard-control boundaries without production mutation. |
 | V190-009 | `nautilus-cli::golden_trace_actual_cancel` | Validates owner-approved actual-cancel success, blocked pre-send, failed, recovered, unknown, already-cancelled, and partial-fill trace outcomes plus request/response/readback/audit/provenance references. |
+| PAR-010 | `nautilus-cli::golden_trace_read_model_projection` | Derives unified contract health and fail-closed reasons from Rust projection logic, and replays account provenance/redaction negative paths. |
+| PAR-010 | `nautilus-cli::golden_trace_schema_smoke_runtime` | Constructs and serializes the deterministic envelope row through the Rust `QuoteTick` model. |
 
-## Schema-Only Seed Evidence
+## Zero Schema-Only Decision
 
-`market_data.schema_smoke.001` remains schema-only by design. It exists only to
-validate the golden trace envelope contract and is not a product runtime trace
-area. All v0.2 product-claimed trace areas required by G8 now have executable
-Rust replay evidence in `docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json`.
+No schema-only case remains in
+`docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json`. Release mode
+contains a direct zero-count guard, and
+`scripts/ai/test_golden_trace_zero_schema_only_guard.sh` proves that a
+schema-only regression is rejected with and without an external replay command,
+and that release mode cannot disable either PAR-010 Rust harness.
 
 ## Residual Scoped Gaps
 
