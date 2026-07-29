@@ -1,32 +1,43 @@
-# Ignored Tests Risk Register
+# Current Ignored Tests Risk Register
 
-Date: 2026-06-11
+Date: 2026-07-29
 Executor: Codex
-Task: P1-006
+Task: PAR-011 (origin: P1-006)
+Register status: CURRENT
 
 ## Purpose
 
-This register tracks every current `#[ignore]` test attribute found under
-`crates` and `tests`. P1-006 does not re-enable tests or change test behavior;
-it turns ignored coverage into explicit follow-up work with owners and close
-conditions.
+This is the sole current register for every `#[ignore]` test attribute found
+under `crates` and `tests`. The historical expansion at
+`docs/rust-cutover/verification/ignored_tests_risk_register.md` is retained for
+audit context, but it is not a second current authority.
+
+PAR-011 does not re-enable tests or change test behavior. It makes the current
+count, ownership, and follow-up conditions machine-verifiable.
 
 ## Summary
 
-Command used:
+Commands used:
 
 ```bash
-rg -n "^\s*#\[ignore" crates tests
+rg -n '^\s*#\[ignore(?:\s*=\s*"[^"]*")?\]' crates tests --glob '*.rs' -S
+rg -n -U --pcre2 '#\s*\[\s*cfg_attr\((?s:[^]])*\bignore\b' \
+  crates tests --glob '*.rs'
+scripts/ai/check_ignored_tests_current_register.sh
 ```
 
-Current direct `#[ignore]` count after PAR-006: 18 ignored test attributes.
+Direct ignored attributes: 18
+
+Conditional ignored attributes: 6
+
+Total ignored attributes across configurations: 24
 
 GH-RELEASE-PERSISTENCE-HIGH-PRECISION-FIXTURES note: there are also 6
 high-precision-only `cfg_attr(..., ignore = "...")` fixture skips in
-`crates/persistence/tests/test_catalog.rs`. They are not counted by the direct
-`#[ignore]` scan above. They apply only to legacy standard-precision parquet
-fixture reads under the `high-precision` feature, and are tracked as
-`IGN-PERSIST-002`.
+`crates/persistence/tests/test_catalog.rs`. They apply only to legacy
+standard-precision parquet fixture reads under the `high-precision` feature
+and are tracked as `IGN-PERSIST-002`. A standard-precision configuration has
+18 ignored attributes; a high-precision configuration has 24.
 
 V031-009 note: the first v0.3.1 closure batch does not reduce this count. It
 classifies the high-impact execution/risk/dYdX blockers and the live stress
@@ -114,3 +125,8 @@ V04-011 scoped-out set:
   on that behavior.
 - External-service tests should not require live credentials in routine CI; use
   recorded fixtures, mocks, sandbox endpoints, or documented manual commands.
+- Count drift, a second `CURRENT` marker, or a source path missing from this
+  register fails `scripts/ai/check_ignored_tests_current_register.sh`.
+- The validator strips Rust comments and string/character literals before
+  counting, and recognizes conditional `ignore` attributes both with and
+  without a reason.

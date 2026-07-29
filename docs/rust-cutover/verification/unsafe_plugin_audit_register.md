@@ -41,7 +41,7 @@ The register is based on read-only scans of:
 - `crates/plugin/src/**`;
 - `crates/live/src/node.rs`;
 - `crates/plugin/README.md`;
-- `docs/rust-cutover/verification/ignored_tests_risk_register.md`.
+- `docs/rust-cutover/quality/ignored_tests_register.md`.
 
 Representative commands:
 
@@ -49,7 +49,7 @@ Representative commands:
 rg -n "unsafe|UnsafeCell|extern \"C\"|libloading|ManuallyDrop|catch_unwind|sha256|dlclose|ABI|ValidatedPluginManifest" \
   crates/common/src/actor/registry.rs crates/plugin/src crates/live/src/node.rs -g '*.rs'
 rg -n "plug-in|plugin|ABI|unsafe|SHA-256|sha256|dlclose|hot reload|early alpha" \
-  crates/plugin/README.md docs/rust-cutover/verification/ignored_tests_risk_register.md
+  crates/plugin/README.md docs/rust-cutover/quality/ignored_tests_register.md
 ```
 
 ## Status Definitions
@@ -77,7 +77,7 @@ rg -n "plug-in|plugin|ABI|unsafe|SHA-256|sha256|dlclose|hot reload|early alpha" 
 
 | ID | Area | Evidence source | Current status | Owner role | Required evidence | Productization gate |
 | --- | --- | --- | --- | --- | --- | --- |
-| PLUGIN-MED-001 | Platform cdylib smoke is manual/platform-specific. | `docs/rust-cutover/verification/ignored_tests_risk_register.md` entry `IGN-MED-008`; `crates/plugin/tests/load_example_cdylib.rs`. | `manual_platform` | Verification & Release Gatekeeper | Release-mode Linux/macOS/Windows smoke or a scoped platform matrix. | Do not use default `verify_fast` as proof that cdylib loading works on all release platforms. |
+| PLUGIN-MED-001 | Platform cdylib smoke is manual/platform-specific. | `docs/rust-cutover/quality/ignored_tests_register.md` entry `IGN-PLUGIN-001`; `crates/plugin/tests/load_example_cdylib.rs`. | `manual_platform` | Verification & Release Gatekeeper | Release-mode Linux/macOS/Windows smoke or a scoped platform matrix. | Do not use default `verify_fast` as proof that cdylib loading works on all release platforms. |
 | PLUGIN-MED-002 | FFI primitive ownership and string/slice lifetimes. | `crates/plugin/src/boundary.rs`; `BorrowedStr`, `Slice`, `OwnedBytes`, `drop_owned_bytes`. | `open_gate` | Verification & Release Gatekeeper | Boundary fixture tests for null pointer, non-zero length, invalid UTF-8, drop function ownership, and panicking drop behavior. | Stable ABI docs require ownership/lifetime evidence for every primitive crossing the boundary. |
 | PLUGIN-MED-003 | Host vtable and `HostContext` pointer lifetime. | `crates/plugin/src/loader.rs:270`; `crates/plugin/src/bridge/registry.rs`; `crates/plugin/src/bridge/host.rs`. | `open_gate` | Rust Core Runtime Agent | Tests proving context creation/drop symmetry, null context rejection, and callback behavior after rejected manifest load. | Stable host callback docs require context lifetime evidence and null/stale pointer rejection tests. |
 | PLUGIN-MED-004 | Receiver-local `Ustr` interning across host and cdylib. | `crates/plugin/README.md` identifier interning section. | `documented_limit` | Verification & Release Gatekeeper | Fixture coverage for command identifiers and event identifiers crossing the boundary. | Stable docs may keep receiver-local interning only if every exposed identifier path has a test or scoped exception. |

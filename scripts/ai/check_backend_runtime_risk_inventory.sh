@@ -2,7 +2,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-INVENTORY="$ROOT/docs/rust-cutover/quality/backend_runtime_risk_inventory.json"
+INVENTORY="${NTPRO_RISK_INVENTORY:-$ROOT/docs/rust-cutover/quality/backend_runtime_risk_inventory.json}"
+SCAN_ROOT="${NTPRO_RISK_SCAN_ROOT:-crates}"
+INLINE_RANGE_SCANNER="$ROOT/scripts/ai/inline_test_ranges.awk"
 MODE="${1:-verify}"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -24,15 +26,22 @@ scan_rust_sources() {
   local pattern="$1"
 
   if [[ "${NTPRO_RISK_SCAN_FORCE_GREP:-0}" != "1" ]] && command -v rg >/dev/null 2>&1; then
-    rg -n --no-heading -e "$pattern" crates -g '*.rs'
+    rg -n --no-heading -e "$pattern" "$SCAN_ROOT" -g '*.rs'
   else
-    find crates -type f -name '*.rs' -print0 \
+    find "$SCAN_ROOT" -type f -name '*.rs' -print0 \
       | xargs -0 grep -nH -E -- "$pattern"
   fi
 }
 
 cd "$ROOT"
 [[ -f "$INVENTORY" ]] || fail "missing inventory: $INVENTORY"
+[[ -f "$INLINE_RANGE_SCANNER" ]] || fail "missing inline test range scanner: $INLINE_RANGE_SCANNER"
+
+while IFS= read -r -d '' source_file; do
+  awk -v source_path="$source_file" -f "$INLINE_RANGE_SCANNER" "$source_file"
+done < <(find "$SCAN_ROOT" -type f -name '*.rs' -print0) \
+  >"$TMP_DIR/inline-test-lines.tsv"
+printf '\t0\n' >>"$TMP_DIR/inline-test-lines.tsv"
 
 {
   scan_rust_sources \
@@ -40,7 +49,12 @@ cd "$ROOT"
     || true
 } >"$TMP_DIR/raw.txt"
 
-awk '
+awk -F '\t' '
+  FNR == NR {
+    inline_test[$1 SUBSEP $2] = 1
+    next
+  }
+
   {
     first_colon = index($0, ":")
     remainder = substr($0, first_colon + 1)
@@ -64,6 +78,8 @@ awk '
       ownership = "ffi"
     } else if (test_owned) {
       ownership = "test"
+    } else if (inline_test[path SUBSEP line_number]) {
+      ownership = "test_inline"
     } else {
       ownership = "production"
     }
@@ -93,7 +109,7 @@ awk '
       print ownership "\tunused\t" path "\t" line_number
     }
   }
-' "$TMP_DIR/raw.txt" \
+' "$TMP_DIR/inline-test-lines.tsv" "$TMP_DIR/raw.txt" \
   | LC_ALL=C sort -t $'\t' -k3,3 -k4,4n -k2,2 -k1,1 \
   >"$TMP_DIR/canonical.tsv"
 
@@ -128,6 +144,9 @@ summary="$(
 )"
 
 case "$MODE" in
+  --canonical)
+    cat "$TMP_DIR/canonical.tsv"
+    ;;
   --summary)
     jq -S . <<<"$summary"
     ;;
@@ -142,6 +161,6 @@ case "$MODE" in
     echo "backend runtime risk inventory OK: $total_matches signals in $matched_files files"
     ;;
   *)
-    fail "unknown mode '$MODE'; expected verify or --summary"
+    fail "unknown mode '$MODE'; expected verify, --summary, or --canonical"
     ;;
 esac
