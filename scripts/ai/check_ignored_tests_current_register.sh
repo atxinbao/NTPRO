@@ -14,20 +14,38 @@ fail() {
   exit 1
 }
 
-count_matches() {
-  local pattern="$1"
+scan_ignored_paths() {
+  local mode="$1"
   shift
-  {
-    rg --json -U --pcre2 "$pattern" "$@" --glob '*.rs' || true
-  } | jq -s '[.[] | select(.type == "match") | .data.submatches[]] | length'
-}
+  local scan_root source_file
 
-matching_paths() {
-  local pattern="$1"
-  shift
-  {
-    rg --json -U --pcre2 "$pattern" "$@" --glob '*.rs' || true
-  } | jq -r 'select(.type == "match") | .data.path.text' | LC_ALL=C sort -u
+  for scan_root in "$@"; do
+    while IFS= read -r -d '' source_file; do
+      awk -v mode="$mode" -v source_path="$source_file" '
+        mode == "direct" &&
+          $0 ~ /^[[:space:]]*#\[[[:space:]]*ignore([[:space:]]*=[[:space:]]*"[^"]*")?[[:space:]]*\]/ {
+          print source_path
+          next
+        }
+
+        mode == "conditional" {
+          if (!in_cfg_attr &&
+              $0 ~ /^[[:space:]]*#\[[[:space:]]*cfg_attr[[:space:]]*\(/) {
+            in_cfg_attr = 1
+            has_ignore = 0
+          }
+          if (in_cfg_attr && $0 ~ /(^|[^[:alnum:]_])ignore[[:space:]]*=/) {
+            has_ignore = 1
+          }
+          if (in_cfg_attr && $0 ~ /\][[:space:]]*$/) {
+            if (has_ignore) print source_path
+            in_cfg_attr = 0
+            has_ignore = 0
+          }
+        }
+      ' "$source_file"
+    done < <(find "$scan_root" -type f -name '*.rs' -print0)
+  done
 }
 
 read -r -a scan_roots <<<"$SCAN_ROOTS_TEXT"
@@ -36,11 +54,10 @@ cd "$ROOT"
 [[ -f "$CURRENT_REGISTER" ]] || fail "missing current register: $CURRENT_REGISTER"
 [[ -f "$HISTORICAL_REGISTER" ]] || fail "missing historical register: $HISTORICAL_REGISTER"
 
-direct_pattern='(?m)^[[:space:]]*#\[[[:space:]]*ignore(?:[[:space:]]*=[[:space:]]*"[^"]*")?[[:space:]]*\]'
-conditional_pattern='#\s*\[\s*cfg_attr\((?s:[^]])*\bignore\s*='
-
-direct_count="$(count_matches "$direct_pattern" "${scan_roots[@]}")"
-conditional_count="$(count_matches "$conditional_pattern" "${scan_roots[@]}")"
+scan_ignored_paths direct "${scan_roots[@]}" >"$TMP_DIR/direct-paths"
+scan_ignored_paths conditional "${scan_roots[@]}" >"$TMP_DIR/conditional-paths"
+direct_count="$(wc -l <"$TMP_DIR/direct-paths" | tr -d ' ')"
+conditional_count="$(wc -l <"$TMP_DIR/conditional-paths" | tr -d ' ')"
 total_count="$((direct_count + conditional_count))"
 
 declared_direct="$(sed -n 's/^Direct ignored attributes: \([0-9][0-9]*\)$/\1/p' "$CURRENT_REGISTER")"
@@ -54,16 +71,21 @@ declared_total="$(sed -n 's/^Total ignored attributes across configurations: \([
 [[ "$declared_total" == "$total_count" ]] \
   || fail "total count drift: declared=${declared_total:-missing} actual=$total_count"
 
-current_markers="$(rg -n '^Register status: CURRENT$' "$REGISTER_SCOPE" | wc -l | tr -d ' ')"
+current_markers="$(
+  find "$REGISTER_SCOPE" -type f -name '*.md' -print0 \
+    | xargs -0 grep -h -E '^Register status: CURRENT$' \
+    | wc -l \
+    | tr -d ' '
+)"
 [[ "$current_markers" == "1" ]] || fail "expected exactly one CURRENT register, found $current_markers"
-rg -q '^Register status: CURRENT$' "$CURRENT_REGISTER" \
+grep -Eq '^Register status: CURRENT$' "$CURRENT_REGISTER" \
   || fail "quality register is not CURRENT"
-rg -q '^Register status: HISTORICAL_EXTENSION$' "$HISTORICAL_REGISTER" \
+grep -Eq '^Register status: HISTORICAL_EXTENSION$' "$HISTORICAL_REGISTER" \
   || fail "verification register is not HISTORICAL_EXTENSION"
 
 {
-  matching_paths "$direct_pattern" "${scan_roots[@]}"
-  matching_paths "$conditional_pattern" "${scan_roots[@]}"
+  cat "$TMP_DIR/direct-paths"
+  cat "$TMP_DIR/conditional-paths"
 } | LC_ALL=C sort -u >"$TMP_DIR/paths"
 paths_file="$TMP_DIR/paths"
 
