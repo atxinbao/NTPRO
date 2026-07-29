@@ -431,7 +431,7 @@ mod tests {
         events::{OrderEventAny, order::spec::OrderCanceledSpec},
         identifiers::{ExecAlgorithmId, InstrumentId, StrategyId, TraderId},
         orders::{LimitOrder, MarketOrder},
-        types::Price,
+        types::{Price, fixed::FIXED_PRECISION},
     };
     use rstest::rstest;
     use ustr::Ustr;
@@ -743,7 +743,6 @@ mod tests {
         add_instrument_to_cache(&algo);
 
         // 1.0 qty over 60s with 20s intervals = 3 intervals
-        // Raw is scaled to FIXED_PRECISION: 9 (standard) or 16 (high-precision)
         let mut params = IndexMap::new();
         params.insert(Ustr::from("horizon_secs"), Ustr::from("60"));
         params.insert(Ustr::from("interval_secs"), Ustr::from("20"));
@@ -757,21 +756,13 @@ mod tests {
         let remaining = algo.scheduled_sizes.get(&primary_id).unwrap();
         assert_eq!(remaining.len(), 3);
 
-        // Expected raw values depend on FIXED_PRECISION
-        // Standard (9):  1_000_000_000 / 3 = 333_333_333, remainder = 1
-        // High (16): 10_000_000_000_000_000 / 3 = 3_333_333_333_333_333, remainder = 1
-        #[cfg(feature = "high-precision")]
-        {
-            assert_eq!(remaining[0].raw, 3_333_333_333_333_333);
-            assert_eq!(remaining[1].raw, 3_333_333_333_333_333);
-            assert_eq!(remaining[2].raw, 1);
-        }
-        #[cfg(not(feature = "high-precision"))]
-        {
-            assert_eq!(remaining[0].raw, 333_333_333);
-            assert_eq!(remaining[1].raw, 333_333_333);
-            assert_eq!(remaining[2].raw, 1);
-        }
+        let total_qty = Quantity::from("1.0");
+        let fixed_resolution = 10.0_f64.powi(-i32::from(FIXED_PRECISION));
+
+        assert_eq!(remaining[0], remaining[1]);
+        assert!((remaining[0].as_f64() - (1.0 / 3.0)).abs() < fixed_resolution);
+        assert!((remaining[2].as_f64() - fixed_resolution).abs() < f64::EPSILON);
+        assert_eq!((remaining[0].raw * 3) + remaining[2].raw, total_qty.raw);
     }
 
     #[rstest]
