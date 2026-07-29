@@ -63,6 +63,27 @@ impl FeeModel for FeeModelAny {
     }
 }
 
+impl FeeModelAny {
+    pub(crate) fn get_commission_with_effective_filled_qty(
+        &self,
+        order: &OrderAny,
+        effective_filled_qty: Quantity,
+        fill_quantity: Quantity,
+        fill_px: Price,
+        instrument: &InstrumentAny,
+    ) -> anyhow::Result<Money> {
+        match self {
+            Self::Fixed(model) => Ok(model.commission_for_filled_qty(effective_filled_qty)),
+            Self::MakerTaker(model) => {
+                model.get_commission(order, fill_quantity, fill_px, instrument)
+            }
+            Self::PerContract(model) => {
+                model.get_commission(order, fill_quantity, fill_px, instrument)
+            }
+        }
+    }
+}
+
 impl Default for FeeModelAny {
     fn default() -> Self {
         Self::MakerTaker(MakerTakerFeeModel)
@@ -93,6 +114,14 @@ impl FixedFeeModel {
             change_commission_once: change_commission_once.unwrap_or(true),
         })
     }
+
+    fn commission_for_filled_qty(&self, filled_qty: Quantity) -> Money {
+        if !self.change_commission_once || filled_qty.is_zero() {
+            self.commission
+        } else {
+            self.zero_commission
+        }
+    }
 }
 
 impl FeeModel for FixedFeeModel {
@@ -103,11 +132,7 @@ impl FeeModel for FixedFeeModel {
         _fill_px: Price,
         _instrument: &InstrumentAny,
     ) -> anyhow::Result<Money> {
-        if !self.change_commission_once || order.filled_qty().is_zero() {
-            Ok(self.commission)
-        } else {
-            Ok(self.zero_commission)
-        }
+        Ok(self.commission_for_filled_qty(order.filled_qty()))
     }
 }
 
