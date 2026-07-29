@@ -5,7 +5,7 @@
   "executor": "Codex",
   "classification": "v33-separately-scoped",
   "baseline_commit": "0b7c13b25e39c34fa8d94f236212204a8a54bf4f",
-  "last_rebased_by": "PAR-007",
+  "last_rebased_by": "PAR-008",
   "last_rebased_at": "2026-07-29",
   "status": "local_validated_hosted_review_pending",
   "count_policy": "The canonical scan is reproducible and hash-checked; findings add path-scoped ownership decisions for selected boundaries.",
@@ -34,13 +34,13 @@
     "validator": "scripts/ai/check_backend_runtime_risk_inventory.sh",
     "canonical_row": "ownership<TAB>signal<TAB>path<TAB>line",
     "summary": {
-      "total_matches": 29135,
-      "matched_files": 1215,
+      "total_matches": 29132,
+      "matched_files": 1216,
       "by_ownership": {
         "ffi": 674,
         "generated": 646,
-        "production": 14260,
-        "test": 13555
+        "production": 13351,
+        "test": 14461
       },
       "by_signal": {
         "TODO": 163,
@@ -50,14 +50,15 @@
         "todo_macro": 18,
         "unsafe": 1922,
         "unused": 96,
-        "unwrap": 19550
+        "unwrap": 19547
       },
-      "canonical_sha256": "95e94c4b85b984777cc3c35679b4333a511fa50de531c5f09ee63dbe650cd967"
+      "canonical_sha256": "8084a0d876d9a9de0038c33bd14c2371cc09ed0e4587d5ae244e09d736e4a88f"
     },
     "limitations": [
       "Ownership is path-scoped: dedicated tests, benches, test_kit, testing, stubs, tests.rs, and *_test.rs files are test-owned.",
       "Generated and FFI paths are separate owners and are not mechanically rewritten.",
-      "Mixed src files are conservatively production-owned in full; inline cfg(test) signals remain production counts rather than risking false test classification."
+      "Mixed src files are conservatively production-owned in full; inline cfg(test) signals remain production counts rather than risking false test classification.",
+      "Signal totals are line-based rather than call-based, so behavior-preserving formatting can merge or split textual signal rows without changing the number of Rust calls."
     ]
   },
   "ownership_classes": {
