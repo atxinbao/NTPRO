@@ -3805,21 +3805,6 @@ fn test_submit_order_for_less_than_max_cum_transaction_value_adausdt_with_crypto
     );
 }
 
-// Verify that account balances are correctly updated with partial and full order fills.
-//
-// This test should verify that when orders are partially or fully filled, the
-// account balance tracking reflects the correct values including:
-// - Reserved margin/capital being released
-// - Commission being deducted
-// - Realized P&L being applied to account balance
-//
-// TODO: Re-enable once real-time account balance tracking is implemented.
-// Dependencies: Account balance tracking in portfolio/risk engine integration
-// Related: Real-time position valuation and margin calculations
-#[ignore = "Waiting on account balance tracking implementation"]
-#[rstest]
-fn test_partial_fill_and_full_fill_account_balance_correct() {}
-
 #[rstest]
 fn test_submit_order_with_gtd_expire_time_already_passed(
     clock: TestClock,

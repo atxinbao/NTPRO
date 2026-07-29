@@ -366,7 +366,7 @@ impl AccountsManager {
                 .calculate_balance_locked(
                     instrument,
                     order.order_side(),
-                    order.quantity(),
+                    order.leaves_qty(),
                     price?,
                     None,
                 )
@@ -1767,6 +1767,172 @@ mod tests {
         assert_eq!(state.balances[0].currency, usd);
         assert_eq!(state.balances[0].total, expected);
         assert_eq!(state.balances[0].free, expected);
+    }
+
+    #[rstest]
+    fn test_partial_fill_and_full_fill_account_balance_correct() {
+        let usd = Currency::USD();
+        let account_id = AccountId::new("SIM-001");
+        let account_state = AccountState::new(
+            account_id,
+            AccountType::Cash,
+            vec![AccountBalance::new(
+                Money::new(1_000_000.0, usd),
+                Money::new(0.0, usd),
+                Money::new(1_000_000.0, usd),
+            )],
+            Vec::new(),
+            true,
+            UUID4::new(),
+            UnixNanos::default(),
+            UnixNanos::default(),
+            Some(usd),
+        );
+        let account = CashAccount::new(account_state, true, false);
+        let clock = Rc::new(RefCell::new(TestClock::new()));
+        let cache = Rc::new(RefCell::new(Cache::new(None, None)));
+        cache
+            .borrow_mut()
+            .add_account(AccountAny::Cash(account.clone()))
+            .unwrap();
+
+        let manager = AccountsManager::new(clock, cache.clone());
+        let instrument = audusd_sim();
+        let instrument_any = InstrumentAny::CurrencyPair(instrument.clone());
+        let mut order = OrderTestBuilder::new(OrderType::Limit)
+            .instrument_id(instrument.id())
+            .side(OrderSide::Buy)
+            .quantity(Quantity::from("100000"))
+            .price(Price::from("0.80000"))
+            .build();
+        let venue_order_id = VenueOrderId::new("V-001");
+
+        order
+            .apply(OrderEventAny::Submitted(order_submitted_for_account(
+                &order, account_id,
+            )))
+            .unwrap();
+        order
+            .apply(OrderEventAny::Accepted(order_accepted_for_account(
+                &order,
+                venue_order_id,
+                account_id,
+            )))
+            .unwrap();
+
+        let (locked_account, locked_state) = manager
+            .update_orders(
+                &AccountAny::Cash(account),
+                &instrument_any,
+                &[&order],
+                UnixNanos::from(1),
+            )
+            .unwrap();
+        assert_eq!(
+            locked_account.balance_locked(Some(usd)),
+            Some(Money::new(80_000.0, usd))
+        );
+        assert_eq!(locked_state.balances[0].free, Money::new(920_000.0, usd));
+
+        let partial_fill = OrderFilledSpec::builder()
+            .trader_id(order.trader_id())
+            .strategy_id(order.strategy_id())
+            .instrument_id(instrument.id())
+            .client_order_id(order.client_order_id())
+            .venue_order_id(venue_order_id)
+            .account_id(account_id)
+            .trade_id(TradeId::new("T-001"))
+            .order_side(OrderSide::Buy)
+            .order_type(OrderType::Limit)
+            .last_qty(Quantity::from("40000"))
+            .last_px(Price::from("0.80000"))
+            .currency(usd)
+            .commission(Money::new(8.0, usd))
+            .position_id(PositionId::new("P-001"))
+            .ts_event(UnixNanos::from(2))
+            .ts_init(UnixNanos::from(2))
+            .build();
+        order.apply(OrderEventAny::Filled(partial_fill)).unwrap();
+        let mut position = Position::new(&instrument_any, partial_fill);
+        cache
+            .borrow_mut()
+            .add_position(&position, OmsType::Netting)
+            .unwrap();
+
+        let (partial_account, partial_balance_state) =
+            manager.update_balances(locked_account, &instrument_any, partial_fill);
+        let (partial_account, partial_lock_state) = manager
+            .update_orders(
+                &partial_account,
+                &instrument_any,
+                &[&order],
+                UnixNanos::from(2),
+            )
+            .unwrap();
+        assert_eq!(
+            partial_balance_state.balances[0].total,
+            Money::new(967_992.0, usd)
+        );
+        assert_eq!(
+            partial_account.balance_locked(Some(usd)),
+            Some(Money::new(48_000.0, usd))
+        );
+        assert_eq!(
+            partial_lock_state.balances[0].free,
+            Money::new(919_992.0, usd)
+        );
+        let AccountAny::Cash(partial_cash) = &partial_account else {
+            panic!("Expected CashAccount after partial fill");
+        };
+        assert_eq!(partial_cash.commission(&usd), Some(Money::new(8.0, usd)));
+
+        let final_fill = OrderFilledSpec::builder()
+            .trader_id(order.trader_id())
+            .strategy_id(order.strategy_id())
+            .instrument_id(instrument.id())
+            .client_order_id(order.client_order_id())
+            .venue_order_id(venue_order_id)
+            .account_id(account_id)
+            .trade_id(TradeId::new("T-002"))
+            .order_side(OrderSide::Buy)
+            .order_type(OrderType::Limit)
+            .last_qty(Quantity::from("60000"))
+            .last_px(Price::from("0.80000"))
+            .currency(usd)
+            .commission(Money::new(12.0, usd))
+            .position_id(PositionId::new("P-001"))
+            .ts_event(UnixNanos::from(3))
+            .ts_init(UnixNanos::from(3))
+            .build();
+        order.apply(OrderEventAny::Filled(final_fill)).unwrap();
+        position.apply(&final_fill);
+        cache.borrow_mut().update_position(&position).unwrap();
+
+        let (filled_account, filled_balance_state) =
+            manager.update_balances(partial_account, &instrument_any, final_fill);
+        let (filled_account, filled_lock_state) = manager
+            .update_orders(&filled_account, &instrument_any, &[], UnixNanos::from(3))
+            .unwrap();
+        assert_eq!(
+            filled_balance_state.balances[0].total,
+            Money::new(919_980.0, usd)
+        );
+        assert_eq!(
+            filled_account.balance_total(Some(usd)),
+            Some(Money::new(919_980.0, usd))
+        );
+        assert_eq!(
+            filled_account.balance_locked(Some(usd)),
+            Some(Money::new(0.0, usd))
+        );
+        assert_eq!(
+            filled_lock_state.balances[0].free,
+            Money::new(919_980.0, usd)
+        );
+        let AccountAny::Cash(filled_cash) = &filled_account else {
+            panic!("Expected CashAccount after final fill");
+        };
+        assert_eq!(filled_cash.commission(&usd), Some(Money::new(20.0, usd)));
     }
 
     fn multi_currency_cash_account(allow_borrowing: bool) -> CashAccount {
