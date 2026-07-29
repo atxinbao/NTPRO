@@ -21,10 +21,11 @@ rg -n '^\s*#\[ignore(?:\s*=\s*"[^"]*")?\]' crates tests --glob '*.rs' -S | wc -l
 rg -n '^\s*#\[ignore(?:\s*=\s*"[^"]*")?\]' crates tests --glob '*.rs' -S | cut -d: -f1 | sort | uniq -c
 ```
 
-Result after PAR-003: 23 active ignored Rust test attributes were found.
+Historical result after PAR-003: 23 active ignored Rust test attributes were
+found. The current result after PAR-004 is 20.
 
 Release gate fixture note after GH-RELEASE-PERSISTENCE-HIGH-PRECISION-FIXTURES:
-the direct `#[ignore]` count is 23, and there are 6 additional
+the current direct `#[ignore]` count is 20, and there are 6 additional
 high-precision-only `cfg_attr(..., ignore = "...")` test skips in
 `crates/persistence/tests/test_catalog.rs`. These skips apply only when the
 `high-precision` feature is enabled, because the legacy parquet fixtures encode
@@ -34,10 +35,11 @@ used as high-precision release evidence.
 
 DRG-008 originally classified every High impact item. PAR-001 restored
 `IGN-HIGH-003` and `IGN-HIGH-004`, PAR-002 restored `IGN-HIGH-005`, and
-PAR-003 restored `IGN-HIGH-006` and `IGN-HIGH-007` to the default suite. The
-remaining active ignored-test count is 23. Several other high-impact risk tests
-are empty placeholder functions; passing them with `--ignored` is not accepted
-as regression evidence.
+PAR-003 restored `IGN-HIGH-006` and `IGN-HIGH-007` to the default suite.
+PAR-004 restored `IGN-HIGH-008` through `IGN-HIGH-010` at the current Strategy
+routing owner. The remaining active ignored-test count is 20. The
+`IGN-HIGH-011` account-balance test remains an empty placeholder; passing it
+with `--ignored` is not accepted as regression evidence.
 
 NAUDIT-003 restored two previously ignored common cache lifecycle tests to the
 default Rust test suite. They are no longer active ignored production-bug
@@ -63,8 +65,8 @@ readiness result, not a runtime fix.
 | `BLOCKER_RECORDED` | 10 | At DRG-008 closeout, every remaining High impact ignored test was converted into a formal blocker. |
 | Restored to default suite | 0 | DRG-008 was classification-only and did not repair runtime behavior. |
 
-Current delta after DRG-008: PAR-001 through PAR-003 restored five tests,
-leaving five active High impact blockers.
+Current delta after DRG-008: PAR-001 through PAR-004 restored eight tests,
+leaving two active High impact blockers (`IGN-HIGH-011` and `IGN-HIGH-012`).
 
 ## V031-009 v0.3.1 Batch-1 Closure Result
 

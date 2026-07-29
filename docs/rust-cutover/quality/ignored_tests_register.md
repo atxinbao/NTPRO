@@ -19,7 +19,7 @@ Command used:
 rg -n "^\s*#\[ignore" crates tests
 ```
 
-Current direct `#[ignore]` count after PAR-003: 23 ignored test attributes.
+Current direct `#[ignore]` count after PAR-004: 20 ignored test attributes.
 
 GH-RELEASE-PERSISTENCE-HIGH-PRECISION-FIXTURES note: there are also 6
 high-precision-only `cfg_attr(..., ignore = "...")` fixture skips in
