@@ -85,6 +85,11 @@ cat >"$historical" <<'EOF'
 Register status: HISTORICAL_EXTENSION
 EOF
 
+for index in 1 2 3 4 5; do
+  printf '# Unrelated register fixture %s\n' "$index" \
+    >"$TMP_DIR/registers/unrelated-$index.md"
+done
+
 run_check "$current" "$historical" "$TMP_DIR/registers" "$TMP_DIR/scan/crates" >/dev/null
 
 cp "$current" "$TMP_DIR/stale-count.md"

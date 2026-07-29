@@ -56,12 +56,12 @@ declared_total="$(sed -n 's/^Total ignored attributes across configurations: \([
 [[ "$declared_total" == "$total_count" ]] \
   || fail "total count drift: declared=${declared_total:-missing} actual=$total_count"
 
-current_markers="$(
-  find "$REGISTER_SCOPE" -type f -name '*.md' -print0 \
-    | xargs -0 grep -h -E '^Register status: CURRENT$' \
-    | wc -l \
-    | tr -d ' '
-)"
+current_markers=0
+while IFS= read -r -d '' register_file; do
+  if grep -Eq '^Register status: CURRENT$' "$register_file"; then
+    current_markers="$((current_markers + 1))"
+  fi
+done < <(find "$REGISTER_SCOPE" -type f -name '*.md' -print0)
 [[ "$current_markers" == "1" ]] || fail "expected exactly one CURRENT register, found $current_markers"
 grep -Eq '^Register status: CURRENT$' "$CURRENT_REGISTER" \
   || fail "quality register is not CURRENT"
