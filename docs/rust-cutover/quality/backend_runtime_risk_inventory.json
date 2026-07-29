@@ -5,10 +5,10 @@
   "executor": "Codex",
   "classification": "v33-separately-scoped",
   "baseline_commit": "0b7c13b25e39c34fa8d94f236212204a8a54bf4f",
-  "last_rebased_by": "PAR-010",
+  "last_rebased_by": "PAR-011",
   "last_rebased_at": "2026-07-29",
   "status": "local_validated_hosted_review_pending",
-  "count_policy": "The canonical scan is reproducible and hash-checked; findings add path-scoped ownership decisions for selected boundaries.",
+  "count_policy": "The canonical scan is reproducible and hash-checked; explicit cfg(test) module ranges are test_inline owned while ambiguous mixed-source items remain production owned.",
   "scan": {
     "root": "crates",
     "signals": [
@@ -25,6 +25,7 @@
       "generated",
       "ffi",
       "test",
+      "test_inline",
       "production"
     ],
     "commands": [
@@ -39,8 +40,9 @@
       "by_ownership": {
         "ffi": 674,
         "generated": 646,
-        "production": 12988,
-        "test": 14824
+        "production": 2697,
+        "test": 14824,
+        "test_inline": 10291
       },
       "by_signal": {
         "TODO": 163,
@@ -52,12 +54,13 @@
         "unused": 96,
         "unwrap": 19547
       },
-      "canonical_sha256": "47cdb263e281336b55f516e9acb3be46e349a6156d1b668ca90d676475995016"
+      "canonical_sha256": "31f500a00121e57fa96c5ba21a5601a04930002734b338caeebd99488399f73a"
     },
     "limitations": [
-      "Ownership is path-scoped: dedicated tests, benches, test_kit, testing, stubs, tests.rs, and *_test.rs files are test-owned.",
+      "Dedicated tests, benches, test_kit, testing, stubs, tests.rs, and *_test.rs files are test-owned.",
       "Generated and FFI paths are separate owners and are not mechanically rewritten.",
-      "Mixed src files are conservatively production-owned in full; inline cfg(test) signals remain production counts rather than risking false test classification.",
+      "Explicit cfg(test) module ranges in mixed source files are test_inline owned; the lexical range scanner handles nested block comments, quoted strings, raw strings, character literals, and nested braces.",
+      "Standalone cfg(test) items and any unrecognized or ambiguous conditional syntax remain production-owned rather than risking false test classification.",
       "Signal totals are line-based rather than call-based, so behavior-preserving formatting can merge or split textual signal rows without changing the number of Rust calls."
     ]
   },
@@ -68,6 +71,10 @@
     },
     "test": {
       "decision": "Retain assertions and unwrap/expect calls used to make fixture failures immediate.",
+      "blocking": false
+    },
+    "test_inline": {
+      "decision": "Retain explicit cfg(test) module assertions separately from production trends; ambiguous conditional items remain production-owned.",
       "blocking": false
     },
     "generated": {
@@ -254,12 +261,12 @@
         "unsafe",
         "TODO"
       ],
-      "ownership": "production",
+      "ownership": "production/test_inline",
       "path": "mixed crates/**/src/*.rs files containing inline test modules",
-      "symbol": "path-scoped conservative ownership",
-      "risk": "textual cfg(test) boundaries cannot reliably identify Rust item scope and can hide later production code",
-      "decision": "conservative_production_classification",
-      "result": "the complete mixed source file is production-owned; no signal is downgraded based on inline cfg(test) text"
+      "symbol": "explicit cfg(test) module range ownership",
+      "risk": "whole-file ownership inflated production trends, while an over-broad textual downgrade could hide later production code",
+      "decision": "structured_inline_module_classification",
+      "result": "10291 signals inside explicit cfg(test) module ranges are test_inline owned; 2697 remaining production signals and ambiguous cfg(test) items stay production-owned; a seven-case fixture verifies boundaries and precedence"
     }
   ],
   "failure_matrix": [

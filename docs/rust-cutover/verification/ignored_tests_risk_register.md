@@ -1,15 +1,18 @@
-# Ignored Tests Risk Register
+# Historical Ignored Tests Risk Expansion
 
 Date: 2026-06-05
 Executor: Codex
 Task ID: GH-160
+Register status: HISTORICAL_EXTENSION
+Current authority: `docs/rust-cutover/quality/ignored_tests_register.md`
 
 ## Purpose
 
-This register records ignored Rust tests that can hide product, runtime,
-adapter, data, persistence, or verification risk. It does not mark any ignored
-test as fixed. It is a triage document for deciding which ignored tests should
-be promoted, repaired, kept manual, or scoped out in later work.
+This document preserves the historical GH-160, DRG, v0.3.1, and v0.4
+classification expansion. It is not a current count authority and must not be
+used as a second current register. Current ignored-test counts, owners, and
+close conditions are maintained only in
+`docs/rust-cutover/quality/ignored_tests_register.md`.
 
 ## Scan Scope
 

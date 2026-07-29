@@ -33,8 +33,11 @@ Homebrew Rust PATH pitfall.
 
 Related risk registers:
 
-- [Ignored Tests Risk Register](ignored_tests_risk_register.md) records ignored
-  Rust tests by product path, owner role, risk, and follow-up policy.
+- [Current Ignored Tests Risk Register](../quality/ignored_tests_register.md)
+  is the sole current authority for ignored Rust tests, owners, and close
+  conditions.
+- [Historical Ignored Tests Risk Expansion](ignored_tests_risk_register.md)
+  preserves older GH-160, DRG, v0.3.1, and v0.4 classification evidence.
 
 ## Default Fast Check
 

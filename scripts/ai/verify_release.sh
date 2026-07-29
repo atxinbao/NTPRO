@@ -73,7 +73,10 @@ run_current_governance() {
   scripts/ai/check_docs_examples_governance.sh
   scripts/ai/check_zero_python_closeout.sh
   scripts/ai/check_backend_hygiene.sh
+  scripts/ai/check_ignored_tests_current_register.sh
+  scripts/ai/test_ignored_tests_current_register.sh
   scripts/ai/check_backend_runtime_risk_inventory.sh
+  scripts/ai/test_backend_runtime_risk_inventory.sh
   scripts/ai/check_control_plane_retired.sh
   scripts/ai/check_historical_release_retirement.sh
   scripts/ai/ntpro_governance.sh golden-trace \
