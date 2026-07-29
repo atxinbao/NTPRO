@@ -109,7 +109,8 @@ No schema-only case remains in
 `docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json`. Release mode
 contains a direct zero-count guard, and
 `scripts/ai/test_golden_trace_zero_schema_only_guard.sh` proves that a
-schema-only regression is rejected.
+schema-only regression is rejected with and without an external replay command,
+and that release mode cannot disable either PAR-010 Rust harness.
 
 ## Residual Scoped Gaps
 
