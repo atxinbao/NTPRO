@@ -127,3 +127,6 @@ V04-011 scoped-out set:
   recorded fixtures, mocks, sandbox endpoints, or documented manual commands.
 - Count drift, a second `CURRENT` marker, or a source path missing from this
   register fails `scripts/ai/check_ignored_tests_current_register.sh`.
+- The validator strips Rust comments and string/character literals before
+  counting, and recognizes conditional `ignore` attributes both with and
+  without a reason.

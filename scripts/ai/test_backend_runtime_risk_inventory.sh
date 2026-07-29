@@ -34,7 +34,7 @@ mod tests {
             panic!("inline");
         }
     }
-}
+} pub fn production_on_closing_line() { result.expect("production"); }
 
 #[cfg(test)]
 fn conservatively_owned_item() {
@@ -86,8 +86,8 @@ count_row() {
     '$1 == owner && $2 == signal { count++ } END { print count + 0 }' "$canonical"
 }
 
-[[ "$(count_row production expect)" == "2" ]] \
-  || fail "production and conservative cfg(test) item ownership drift"
+[[ "$(count_row production expect)" == "3" ]] \
+  || fail "production, conservative cfg(test) item, or closing-line ownership drift"
 [[ "$(count_row production todo_macro)" == "1" ]] \
   || fail "production code after inline module was misclassified"
 [[ "$(count_row test_inline unwrap)" == "1" ]] \

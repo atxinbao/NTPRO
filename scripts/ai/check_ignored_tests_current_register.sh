@@ -6,6 +6,7 @@ CURRENT_REGISTER="${NTPRO_IGNORED_CURRENT_REGISTER:-$ROOT/docs/rust-cutover/qual
 HISTORICAL_REGISTER="${NTPRO_IGNORED_HISTORICAL_REGISTER:-$ROOT/docs/rust-cutover/verification/ignored_tests_risk_register.md}"
 REGISTER_SCOPE="${NTPRO_IGNORED_REGISTER_SCOPE:-$ROOT/docs/rust-cutover}"
 SCAN_ROOTS_TEXT="${NTPRO_IGNORED_SCAN_ROOTS:-crates tests}"
+RUST_SOURCE_SCANNER="$ROOT/scripts/ai/inline_test_ranges.awk"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -14,36 +15,16 @@ fail() {
   exit 1
 }
 
-scan_ignored_paths() {
-  local mode="$1"
-  shift
+scan_ignored_attributes() {
   local scan_root source_file
 
   for scan_root in "$@"; do
     while IFS= read -r -d '' source_file; do
-      awk -v mode="$mode" -v source_path="$source_file" '
-        mode == "direct" &&
-          $0 ~ /^[[:space:]]*#\[[[:space:]]*ignore([[:space:]]*=[[:space:]]*"[^"]*")?[[:space:]]*\]/ {
-          print source_path
-          next
-        }
-
-        mode == "conditional" {
-          if (!in_cfg_attr &&
-              $0 ~ /^[[:space:]]*#\[[[:space:]]*cfg_attr[[:space:]]*\(/) {
-            in_cfg_attr = 1
-            has_ignore = 0
-          }
-          if (in_cfg_attr && $0 ~ /(^|[^[:alnum:]_])ignore[[:space:]]*=/) {
-            has_ignore = 1
-          }
-          if (in_cfg_attr && $0 ~ /\][[:space:]]*$/) {
-            if (has_ignore) print source_path
-            in_cfg_attr = 0
-            has_ignore = 0
-          }
-        }
-      ' "$source_file"
+      awk \
+        -v scanner_mode=ignored_attributes \
+        -v source_path="$source_file" \
+        -f "$RUST_SOURCE_SCANNER" \
+        "$source_file"
     done < <(find "$scan_root" -type f -name '*.rs' -print0)
   done
 }
@@ -53,9 +34,13 @@ cd "$ROOT"
 
 [[ -f "$CURRENT_REGISTER" ]] || fail "missing current register: $CURRENT_REGISTER"
 [[ -f "$HISTORICAL_REGISTER" ]] || fail "missing historical register: $HISTORICAL_REGISTER"
+[[ -f "$RUST_SOURCE_SCANNER" ]] || fail "missing Rust source scanner: $RUST_SOURCE_SCANNER"
 
-scan_ignored_paths direct "${scan_roots[@]}" >"$TMP_DIR/direct-paths"
-scan_ignored_paths conditional "${scan_roots[@]}" >"$TMP_DIR/conditional-paths"
+scan_ignored_attributes "${scan_roots[@]}" >"$TMP_DIR/ignored-attributes"
+awk -F '\t' '$1 == "direct" { print $2 }' \
+  "$TMP_DIR/ignored-attributes" >"$TMP_DIR/direct-paths"
+awk -F '\t' '$1 == "conditional" { print $2 }' \
+  "$TMP_DIR/ignored-attributes" >"$TMP_DIR/conditional-paths"
 direct_count="$(wc -l <"$TMP_DIR/direct-paths" | tr -d ' ')"
 conditional_count="$(wc -l <"$TMP_DIR/conditional-paths" | tr -d ' ')"
 total_count="$((direct_count + conditional_count))"

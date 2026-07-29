@@ -39,6 +39,8 @@ expect_failure() {
 mkdir -p "$TMP_DIR/scan/crates/demo/tests" "$TMP_DIR/registers"
 direct_path="$TMP_DIR/scan/crates/demo/tests/direct.rs"
 conditional_path="$TMP_DIR/scan/crates/demo/tests/conditional.rs"
+conditional_bare_path="$TMP_DIR/scan/crates/demo/tests/conditional_bare.rs"
+comment_path="$TMP_DIR/scan/crates/demo/tests/comment.rs"
 current="$TMP_DIR/registers/current.md"
 historical="$TMP_DIR/registers/historical.md"
 
@@ -55,14 +57,27 @@ cat >"$conditional_path" <<'EOF'
 fn conditional_fixture() {}
 EOF
 
+cat >"$conditional_bare_path" <<'EOF'
+#[cfg_attr(feature = "slow", ignore)]
+fn conditional_bare_fixture() {}
+EOF
+
+cat >"$comment_path" <<'EOF'
+/*
+#[ignore = "commented out"]
+*/
+const TEXT: &str = "#[ignore]";
+EOF
+
 cat >"$current" <<EOF
 # Synthetic Current Register
 Register status: CURRENT
 Direct ignored attributes: 1
-Conditional ignored attributes: 1
-Total ignored attributes across configurations: 2
+Conditional ignored attributes: 2
+Total ignored attributes across configurations: 3
 \`$direct_path\`
 \`$conditional_path\`
+\`$conditional_bare_path\`
 EOF
 
 cat >"$historical" <<'EOF'

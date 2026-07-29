@@ -60,6 +60,7 @@
       "Dedicated tests, benches, test_kit, testing, stubs, tests.rs, and *_test.rs files are test-owned.",
       "Generated and FFI paths are separate owners and are not mechanically rewritten.",
       "Explicit cfg(test) module ranges in mixed source files are test_inline owned; the lexical range scanner handles nested block comments, quoted strings, raw strings, character literals, and nested braces.",
+      "Inline module declaration and closing-boundary lines remain production-owned because canonical rows are line-based and could contain production tokens outside the module boundary.",
       "Standalone cfg(test) items and any unrecognized or ambiguous conditional syntax remain production-owned rather than risking false test classification.",
       "Signal totals are line-based rather than call-based, so behavior-preserving formatting can merge or split textual signal rows without changing the number of Rust calls."
     ]
