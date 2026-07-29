@@ -222,11 +222,6 @@ const PRODUCTION_MUTATION_EXCHANGE_ORDER_READBACK_SCHEMA_VERSION: &str =
     "ntpro.v170_redacted_binance_order_readback.v1";
 const PRODUCTION_MUTATION_EXCHANGE_OPEN_ORDERS_READBACK_SCHEMA_VERSION: &str =
     "ntpro.v170_redacted_binance_open_orders_readback.v1";
-const PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW: &str = "NTPRO_ALLOW_PRODUCTION_MUTATION_HTTP_SEND";
-const PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED: &str =
-    "NTPRO_OWNER_APPROVED_PRODUCTION_MUTATION_HTTP_SEND";
-const PRODUCTION_MUTATION_HTTP_SEND_ENV_SINGLE_SHOT: &str =
-    "NTPRO_CONFIRM_PRODUCTION_MUTATION_SINGLE_SHOT";
 const PRODUCTION_SHADOW_PORTFOLIO_RUNTIME_SCHEMA_VERSION: &str =
     "ntpro.v120_shadow_portfolio_runtime.v1";
 const PRODUCTION_SHADOW_PORTFOLIO_COMPAT_SCHEMA_VERSION: &str =
@@ -709,98 +704,6 @@ impl EnvOnlyProductionMutationPreviewCredentials {
             api_secret_env: opt.api_secret_env.clone(),
             api_secret_value,
             credential_material: "production_live_alpha",
-            production_signing_material_gate_required: true,
-            production_signing_material_gate_open,
-            production_signing_material_env_read,
-            production_signing_material_missing_gate_env_vars: missing_gate_env_vars,
-        })
-    }
-
-    fn from_guarded_send_opt<F>(opt: &LiveProductionMutationGuardedSendOpt, mut read_env: F) -> Self
-    where
-        F: FnMut(&str) -> Option<String>,
-    {
-        let mut missing_gate_env_vars = Vec::new();
-        for env_name in [
-            PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW,
-            PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED,
-            PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW,
-            PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED,
-            PRODUCTION_MUTATION_HTTP_SEND_ENV_SINGLE_SHOT,
-        ] {
-            if read_env(env_name).as_deref() != Some("1") {
-                missing_gate_env_vars.push(env_name.to_string());
-            }
-        }
-
-        let production_signing_material_gate_open = missing_gate_env_vars.is_empty();
-        let (api_key_value, api_secret_value, production_signing_material_env_read) =
-            if production_signing_material_gate_open {
-                (
-                    read_env(&opt.api_key_env),
-                    read_env(&opt.api_secret_env),
-                    true,
-                )
-            } else {
-                (None, None, false)
-            };
-
-        Self::from_values(ProductionMutationPreviewCredentialInput {
-            api_key_env: opt.api_key_env.clone(),
-            api_key_value,
-            api_secret_env: opt.api_secret_env.clone(),
-            api_secret_value,
-            credential_material: "production_live_alpha",
-            production_signing_material_gate_required: true,
-            production_signing_material_gate_open,
-            production_signing_material_env_read,
-            production_signing_material_missing_gate_env_vars: missing_gate_env_vars,
-        })
-    }
-
-    fn from_actual_cancel_opt<F>(
-        opt: &LiveProductionMutationActualCancelSingleShotOpt,
-        mut read_env: F,
-    ) -> Self
-    where
-        F: FnMut(&str) -> Option<String>,
-    {
-        let mut missing_gate_env_vars = Vec::new();
-        for env_name in [
-            PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW,
-            PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED,
-            PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW,
-            PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED,
-            PRODUCTION_MUTATION_HTTP_SEND_ENV_SINGLE_SHOT,
-        ] {
-            if read_env(env_name).as_deref() != Some("1") {
-                missing_gate_env_vars.push(env_name.to_string());
-            }
-        }
-
-        let gate_env_open = missing_gate_env_vars.is_empty();
-        let (api_key_value, api_secret_value, production_signing_material_env_read) =
-            if gate_env_open {
-                let api_key_value = read_env(&opt.api_key_env);
-                let api_secret_value = read_env(&opt.api_secret_env);
-                if api_key_value.as_deref().is_none_or(str::is_empty) {
-                    missing_gate_env_vars.push(opt.api_key_env.clone());
-                }
-                if api_secret_value.as_deref().is_none_or(str::is_empty) {
-                    missing_gate_env_vars.push(opt.api_secret_env.clone());
-                }
-                (api_key_value, api_secret_value, true)
-            } else {
-                (None, None, false)
-            };
-        let production_signing_material_gate_open = missing_gate_env_vars.is_empty();
-
-        Self::from_values(ProductionMutationPreviewCredentialInput {
-            api_key_env: opt.api_key_env.clone(),
-            api_key_value,
-            api_secret_env: opt.api_secret_env.clone(),
-            api_secret_value,
-            credential_material: "production_actual_cancel",
             production_signing_material_gate_required: true,
             production_signing_material_gate_open,
             production_signing_material_env_read,
@@ -3472,42 +3375,6 @@ struct ProductionMutationActualCancelFailureEvidenceArtifact {
     diagnostic: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct ProductionMutationActualCancelHttpResult {
-    request_sent: bool,
-    network_attempted: bool,
-    http_send_attempted: bool,
-    venue_ack_observed: bool,
-    latency_ms: Option<u64>,
-    status_code: Option<u16>,
-    error_code: String,
-}
-
-struct ProductionActualCancelSignedRequest {
-    method: String,
-    endpoint_path: String,
-    endpoint_url_redacted: String,
-    signature: String,
-    signed_query: String,
-    api_key_header_name: String,
-    api_key_header_value: String,
-}
-
-impl Debug for ProductionActualCancelSignedRequest {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProductionActualCancelSignedRequest")
-            .field("method", &self.method)
-            .field("endpoint_path", &self.endpoint_path)
-            .field("endpoint_url_redacted", &self.endpoint_url_redacted)
-            .field("signature", &"<redacted>")
-            .field("signed_query", &"<redacted>")
-            .field("api_key_header_name", &self.api_key_header_name)
-            .field("api_key_header_value", &"<redacted>")
-            .finish()
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct ProductionMutationCancelResponseRedactionArtifact {
     schema_version: String,
@@ -3799,19 +3666,6 @@ struct ProductionMutationCancelRecoveryIncidentAuditCloseoutArtifact {
     diagnostic: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct ProductionMutationGuardedSendHttpResult {
-    request_sent: bool,
-    network_attempted: bool,
-    http_send_attempted: bool,
-    exchange_ack_observed: bool,
-    exchange_order_id_observed: bool,
-    exchange_order_status_observed: bool,
-    latency_ms: Option<u64>,
-    status_code: Option<u16>,
-    error_code: String,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ProductionMutationGuardedSendCounters {
     request_sent: bool,
@@ -3850,141 +3704,20 @@ struct ProductionMutationKillSwitchSnapshot {
     checked_at: String,
 }
 
-impl ProductionMutationGuardedSendHttpResult {
-    fn success(latency_ms: u64, status_code: u16) -> Self {
-        Self {
-            request_sent: true,
-            network_attempted: true,
-            http_send_attempted: true,
-            exchange_ack_observed: (200..300).contains(&status_code),
-            exchange_order_id_observed: false,
-            exchange_order_status_observed: false,
-            latency_ms: Some(latency_ms),
-            status_code: Some(status_code),
-            error_code: "none".to_string(),
-        }
-    }
-
-    fn failure(latency_ms: Option<u64>, status_code: Option<u16>, error_code: &str) -> Self {
-        Self {
-            request_sent: true,
-            network_attempted: true,
-            http_send_attempted: true,
-            exchange_ack_observed: false,
-            exchange_order_id_observed: false,
-            exchange_order_status_observed: false,
-            latency_ms,
-            status_code,
-            error_code: error_code.to_string(),
-        }
-    }
-
-    fn pre_http_failure(error_code: &str) -> Self {
-        Self {
-            request_sent: true,
-            network_attempted: false,
-            http_send_attempted: false,
-            exchange_ack_observed: false,
-            exchange_order_id_observed: false,
-            exchange_order_status_observed: false,
-            latency_ms: None,
-            status_code: None,
-            error_code: error_code.to_string(),
-        }
-    }
-}
-
-impl ProductionMutationActualCancelHttpResult {
-    fn success(latency_ms: u64, status_code: u16) -> Self {
-        Self {
-            request_sent: true,
-            network_attempted: true,
-            http_send_attempted: true,
-            venue_ack_observed: (200..300).contains(&status_code),
-            latency_ms: Some(latency_ms),
-            status_code: Some(status_code),
-            error_code: "none".to_string(),
-        }
-    }
-
-    fn failure(latency_ms: Option<u64>, status_code: Option<u16>, error_code: &str) -> Self {
-        Self {
-            request_sent: true,
-            network_attempted: true,
-            http_send_attempted: true,
-            venue_ack_observed: false,
-            latency_ms,
-            status_code,
-            error_code: error_code.to_string(),
-        }
-    }
-
-    fn pre_http_failure(error_code: &str) -> Self {
-        Self {
-            request_sent: true,
-            network_attempted: false,
-            http_send_attempted: false,
-            venue_ack_observed: false,
-            latency_ms: None,
-            status_code: None,
-            error_code: error_code.to_string(),
-        }
-    }
-}
-
-impl ProductionActualCancelSignedRequest {
-    fn ensure_memory_only_redacted(
-        &self,
-        credentials: &EnvOnlyProductionMutationPreviewCredentials,
-        raw_order_identifier: &str,
-    ) -> anyhow::Result<()> {
-        let body = format!("{self:?}");
-        credentials.ensure_no_secret_values_absent("production-actual-cancel-request", &body)?;
-        for (label, sensitive_value) in [
-            ("raw order identifier", raw_order_identifier),
-            ("signature", self.signature.as_str()),
-            ("signed query", self.signed_query.as_str()),
-            ("API key header value", self.api_key_header_value.as_str()),
-        ] {
-            if !sensitive_value.is_empty() && body.contains(sensitive_value) {
-                anyhow::bail!("production actual cancel request leaked {label}");
-            }
-        }
-        Ok(())
-    }
-}
-
-fn production_mutation_guarded_send_counters(
-    http_result: Option<&ProductionMutationGuardedSendHttpResult>,
-) -> ProductionMutationGuardedSendCounters {
-    let request_sent = http_result.is_some_and(|result| result.request_sent);
-    let network_attempted = http_result.is_some_and(|result| result.network_attempted);
-    let production_order_request_attempted = http_result.is_some();
-    let http_send_attempted = http_result.is_some_and(|result| result.http_send_attempted);
-    let exchange_ack_observed = http_result.is_some_and(|result| result.exchange_ack_observed);
-    let exchange_order_id_observed =
-        http_result.is_some_and(|result| result.exchange_order_id_observed);
-    let exchange_order_status_observed =
-        http_result.is_some_and(|result| result.exchange_order_status_observed);
-    let confirmed_production_order_submission = exchange_ack_observed;
-    let production_order_submissions_attempted = u64::from(production_order_request_attempted);
-    let production_orders_submitted = u64::from(confirmed_production_order_submission);
-    let production_order_mutations_attempted = u64::from(request_sent);
-    let real_orders_submitted = confirmed_production_order_submission;
-
+fn retired_production_mutation_guarded_send_counters() -> ProductionMutationGuardedSendCounters {
     ProductionMutationGuardedSendCounters {
-        request_sent,
-        network_attempted,
-        production_order_request_attempted,
-        http_send_attempted,
-        exchange_ack_observed,
-        exchange_order_id_observed,
-        exchange_order_status_observed,
-        confirmed_production_order_submission,
-        production_order_submissions_attempted,
-        production_orders_submitted,
-        production_order_mutations_attempted,
-        real_orders_submitted,
+        request_sent: false,
+        network_attempted: false,
+        production_order_request_attempted: false,
+        http_send_attempted: false,
+        exchange_ack_observed: false,
+        exchange_order_id_observed: false,
+        exchange_order_status_observed: false,
+        confirmed_production_order_submission: false,
+        production_order_submissions_attempted: 0,
+        production_orders_submitted: 0,
+        production_order_mutations_attempted: 0,
+        real_orders_submitted: false,
         platform_production_trading_enabled: false,
         production_trading_enabled: false,
     }
@@ -5290,24 +5023,8 @@ where
 fn run_live_production_mutation_guarded_send(
     opt: &LiveProductionMutationGuardedSendOpt,
 ) -> anyhow::Result<()> {
-    run_live_production_mutation_guarded_send_with_env(opt, |name| std::env::var(name).ok())
-}
-
-fn run_live_production_mutation_guarded_send_with_env<F>(
-    opt: &LiveProductionMutationGuardedSendOpt,
-    read_env: F,
-) -> anyhow::Result<()>
-where
-    F: FnMut(&str) -> Option<String>,
-{
-    reject_manual_online_production_mutation_after_backend_freeze(
-        "production mutation guarded send",
-        opt.manual_online,
-    )?;
-    let credentials =
-        EnvOnlyProductionMutationPreviewCredentials::from_guarded_send_opt(opt, read_env);
-    let artifact = build_production_mutation_guarded_send_artifact(opt, &credentials)?;
-    write_production_mutation_guarded_send_artifact(&opt.output, &artifact, &credentials)?;
+    let artifact = build_production_mutation_guarded_send_artifact(opt)?;
+    write_production_mutation_guarded_send_artifact(&opt.output, &artifact)?;
     println!(
         "live.production_mutation_guarded_send status={} run_id={} output={} manual_online_requested={} kill_switch_checked_before_send={} kill_switch_checked_after_send={} post_send_kill_switch_clean={} kill_switch_blocked_send={} post_send_progression_blocked={} manual_review_required={} new_orders_blocked={} request_sent={} production_order_request_attempted={} http_send_attempted={} exchange_ack_observed={} confirmed_production_order_submission={} production_order_submissions_attempted={} production_orders_submitted={} production_order_mutations_attempted={} network_attempted={} dashboard_order_controls_enabled=false platform_production_trading_enabled=false production_trading_enabled=false signature_recorded=false signed_query_recorded=false signed_url_recorded=false api_key_value_recorded=false api_secret_value_recorded=false",
         artifact.status,
@@ -5615,29 +5332,7 @@ fn run_live_production_mutation_actual_cancel_executor_adapter_boundary(
 fn run_live_production_mutation_actual_cancel_single_shot(
     opt: &LiveProductionMutationActualCancelSingleShotOpt,
 ) -> anyhow::Result<()> {
-    run_live_production_mutation_actual_cancel_single_shot_with_env(opt, |name| {
-        std::env::var(name).ok()
-    })
-}
-
-fn run_live_production_mutation_actual_cancel_single_shot_with_env<F>(
-    opt: &LiveProductionMutationActualCancelSingleShotOpt,
-    read_env: F,
-) -> anyhow::Result<()>
-where
-    F: FnMut(&str) -> Option<String>,
-{
-    reject_manual_online_production_mutation_after_backend_freeze(
-        "production mutation actual cancel",
-        opt.manual_online,
-    )?;
-    let credentials =
-        EnvOnlyProductionMutationPreviewCredentials::from_actual_cancel_opt(opt, read_env);
-    let artifact = build_production_mutation_actual_cancel_single_shot_artifact(
-        opt,
-        &credentials,
-        execute_production_mutation_actual_cancel,
-    )?;
+    let artifact = build_production_mutation_actual_cancel_single_shot_artifact(opt)?;
     write_production_mutation_actual_cancel_single_shot_artifact(&opt.output, &artifact)?;
     println!(
         "live.production_mutation_actual_cancel_single_shot status={} run_id={} order_lineage_id={} venue={} order_id_type={} output={} manual_online_requested={} actual_cancel_command_ready={} single_shot_cancel_allowed={} request_sent={} cancel_attempted={} cancel_requests_sent={} network_attempted={} readback_required={} approval_state_after_attempt={} retry_attempted=false bulk_cancel_allowed=false dashboard_cancel_controls_enabled=false",
@@ -5657,19 +5352,6 @@ where
         artifact.readback_required,
         artifact.approval_state_after_attempt,
     );
-    Ok(())
-}
-
-fn reject_manual_online_production_mutation_after_backend_freeze(
-    operation: &str,
-    manual_online: bool,
-) -> anyhow::Result<()> {
-    if manual_online {
-        anyhow::bail!(
-            "{operation} manual_online execution is disabled after the v0.32.0 backend freeze; \
-             use offline artifact evaluation only"
-        );
-    }
     Ok(())
 }
 
@@ -8674,138 +8356,6 @@ fn consume_production_live_alpha_manual_approval_lifecycle(
     Ok(())
 }
 
-fn consume_production_mutation_actual_cancel_owner_approval_lifecycle(
-    approval_path: &Path,
-    approval: &mut serde_json::Value,
-    actual_cancel_output_path: &Path,
-    actual_cancel_run_id: &str,
-    request_id: &str,
-    http_result: Option<&ProductionMutationActualCancelHttpResult>,
-) -> anyhow::Result<()> {
-    if json_string_value(approval, "schema_version").as_deref()
-        != Some(PRODUCTION_MUTATION_ACTUAL_CANCEL_OWNER_APPROVAL_LIFECYCLE_SCHEMA_VERSION)
-    {
-        anyhow::bail!(
-            "actual cancel approval consume requires v0.19 actual cancel owner approval lifecycle schema"
-        );
-    }
-    if json_string_value(approval, "approval_state").as_deref() != Some("approved")
-        && !json_bool_value(approval, "approval_consumed").unwrap_or(false)
-    {
-        anyhow::bail!("actual cancel approval consume requires approval_state=approved");
-    }
-    if json_bool_value(approval, "approval_consumed").unwrap_or(false) && http_result.is_none() {
-        anyhow::bail!("actual cancel approval consume requires unused one-time approval");
-    }
-
-    let mut lifecycle_issues = json_string_array(approval, "lifecycle_issues");
-    if !lifecycle_issues
-        .iter()
-        .any(|issue| issue == "owner_approval_reused")
-    {
-        lifecycle_issues.push("owner_approval_reused".to_string());
-    }
-    let Some(object) = approval.as_object_mut() else {
-        anyhow::bail!("actual cancel owner approval lifecycle must be a JSON object");
-    };
-    object.insert("approval_state".to_string(), json!("used"));
-    object.insert(
-        "status".to_string(),
-        json!(if http_result.is_some() {
-            "approval_used_after_actual_cancel_attempt"
-        } else {
-            "approval_consumed_before_actual_cancel_send"
-        }),
-    );
-    object.insert("approval_execution_authorized".to_string(), json!(false));
-    object.insert(
-        "approval_failure_reason".to_string(),
-        json!("owner_approval_reused"),
-    );
-    object.insert("approval_lifecycle_valid".to_string(), json!(false));
-    object.insert("approval_used".to_string(), json!(true));
-    object.insert("approval_consumed".to_string(), json!(true));
-    object.insert("approval_consumed_before_send".to_string(), json!(true));
-    object.insert(
-        "approval_consumed_after_send".to_string(),
-        json!(http_result.is_some()),
-    );
-    object.insert("audit_evidence_recorded".to_string(), json!(true));
-    object.insert(
-        "audit_event".to_string(),
-        json!("actual_cancel_approval_consumed"),
-    );
-    object.insert("actual_cancel_send_allowed".to_string(), json!(false));
-    object.insert(
-        "consumed_by_actual_cancel_run_id".to_string(),
-        json!(actual_cancel_run_id),
-    );
-    object.insert(
-        "consumed_actual_cancel_request_id".to_string(),
-        json!(request_id),
-    );
-    object.insert(
-        "consumed_actual_cancel_output_path".to_string(),
-        json!(actual_cancel_output_path.display().to_string()),
-    );
-    object.insert("approval_consumed_at".to_string(), json!(now_millis()));
-    object.insert("lifecycle_issues".to_string(), json!(lifecycle_issues));
-
-    if let Some(result) = http_result {
-        object.insert("cancel_attempted".to_string(), json!(true));
-        object.insert(
-            "cancel_requests_sent".to_string(),
-            json!(u64::from(result.request_sent)),
-        );
-        object.insert(
-            "network_attempted".to_string(),
-            json!(result.network_attempted),
-        );
-        object.insert(
-            "network_cancel_endpoint_attempted".to_string(),
-            json!(result.network_attempted),
-        );
-        object.insert(
-            "venue_ack_observed".to_string(),
-            json!(result.venue_ack_observed),
-        );
-        object.insert(
-            "venue_response_status".to_string(),
-            json!(if result.venue_ack_observed {
-                "accepted"
-            } else {
-                "attempted_without_ack"
-            }),
-        );
-        object.insert("venue_response_code".to_string(), json!(result.status_code));
-        object.insert(
-            "venue_response_error_code".to_string(),
-            json!(result.error_code.clone()),
-        );
-        object.insert("readback_required".to_string(), json!(true));
-        object.insert(
-            "diagnostic".to_string(),
-            json!("owner approval was consumed by the actual cancel command and cannot be reused; post-cancel readback is required after any attempt"),
-        );
-    } else {
-        object.insert("cancel_attempted".to_string(), json!(false));
-        object.insert("cancel_requests_sent".to_string(), json!(0_u64));
-        object.insert("network_attempted".to_string(), json!(false));
-        object.insert(
-            "network_cancel_endpoint_attempted".to_string(),
-            json!(false),
-        );
-        object.insert("readback_required".to_string(), json!(false));
-        object.insert(
-            "diagnostic".to_string(),
-            json!("owner approval was consumed before the actual cancel send and cannot be reused"),
-        );
-    }
-
-    atomic_write_json(approval_path, approval)?;
-    Ok(())
-}
-
 fn production_live_alpha_request_preview_manual_approval_issues(
     approval: &serde_json::Value,
     opt: &LiveProductionLiveAlphaOrderRequestPreviewOpt,
@@ -9425,25 +8975,7 @@ fn build_production_mutation_request_builder_artifact(
 
 fn build_production_mutation_guarded_send_artifact(
     opt: &LiveProductionMutationGuardedSendOpt,
-    credentials: &EnvOnlyProductionMutationPreviewCredentials,
 ) -> anyhow::Result<ProductionMutationGuardedSendArtifact> {
-    build_production_mutation_guarded_send_artifact_with_executor(
-        opt,
-        credentials,
-        execute_production_mutation_guarded_send,
-    )
-}
-
-fn build_production_mutation_guarded_send_artifact_with_executor<H>(
-    opt: &LiveProductionMutationGuardedSendOpt,
-    credentials: &EnvOnlyProductionMutationPreviewCredentials,
-    mut http_executor: H,
-) -> anyhow::Result<ProductionMutationGuardedSendArtifact>
-where
-    H: FnMut(
-        &ProductionLiveAlphaSignedOrderRequestPreview,
-    ) -> ProductionMutationGuardedSendHttpResult,
-{
     validate_non_empty("run_id", &opt.run_id)?;
     validate_positive_decimal_string("max_notional", &opt.max_notional)?;
     if opt.timestamp_ms == 0 {
@@ -9464,13 +8996,12 @@ where
         "production live-alpha request preview",
     )?;
     let missing_cli_flags = missing_production_mutation_guarded_send_cli_flags(opt);
-    let missing_env_vars = production_mutation_guarded_send_missing_env_vars(opt, credentials);
+    let missing_env_vars = Vec::new();
     let mut source_artifact_issues = production_mutation_guarded_send_source_issues(
         &request_builder,
         &pre_send_kill_switch_runtime_gate,
         &request_preview,
         &opt.max_notional,
-        credentials,
     );
     let pre_send_kill_switch = production_mutation_guarded_send_kill_switch_snapshot(
         &opt.kill_switch_runtime_gate,
@@ -9508,29 +9039,8 @@ where
 
     let guarded_send_ready = missing_cli_flags.is_empty()
         && source_artifact_issues.is_empty()
-        && pre_send_kill_switch_clean
-        && (!opt.manual_online || missing_env_vars.is_empty());
-    let single_shot_send_allowed = guarded_send_ready && opt.manual_online;
-    let http_result = if single_shot_send_allowed {
-        let request = build_production_live_alpha_signed_order_request_preview(
-            &ProductionLiveAlphaOrderRequestInput {
-                endpoint_path: &request_target,
-                symbol: &symbol,
-                side: &side,
-                order_type: &order_type,
-                quantity: &quantity,
-                price: &price,
-                time_in_force: &time_in_force,
-                recv_window_ms: opt.recv_window_ms,
-                timestamp_ms: opt.timestamp_ms,
-            },
-            credentials,
-        )?;
-        request.ensure_memory_only_redacted(credentials)?;
-        Some(http_executor(&request))
-    } else {
-        None
-    };
+        && pre_send_kill_switch_clean;
+    let single_shot_send_allowed = false;
     let post_send_kill_switch_runtime_gate = load_json_value(
         &opt.kill_switch_runtime_gate,
         "production live-alpha kill-switch runtime gate post-send",
@@ -9551,13 +9061,9 @@ where
     let post_send_progression_blocked = !post_send_kill_switch_clean;
     let manual_review_required = post_send_progression_blocked;
     let new_orders_blocked = post_send_progression_blocked;
-    let counters = production_mutation_guarded_send_counters(http_result.as_ref());
-    let status = if counters.request_sent {
-        "manual_online_send_attempt_recorded"
-    } else if !missing_cli_flags.is_empty() {
+    let counters = retired_production_mutation_guarded_send_counters();
+    let status = if !missing_cli_flags.is_empty() {
         "blocked_missing_gate"
-    } else if opt.manual_online && !missing_env_vars.is_empty() {
-        "blocked_missing_manual_online_gate"
     } else if !kill_switch_enforcement_ready {
         "blocked_kill_switch_enforcement"
     } else if !source_artifact_issues.is_empty() {
@@ -9575,9 +9081,9 @@ where
         artifact_type: "production_mutation_guarded_send".to_string(),
         status: status.to_string(),
         created_at: now_millis(),
-        mode: "single_shot_guarded_http_send".to_string(),
-        capability: "Minimum Owner-Approved Production Order Mutation Candidate".to_string(),
-        manual_online_requested: opt.manual_online,
+        mode: "retired_guarded_send_offline_evaluation".to_string(),
+        capability: "Historical Production Mutation Artifact Evaluation".to_string(),
+        manual_online_requested: false,
         guarded_send_ready,
         send_path_evaluated: true,
         kill_switch_enforcement_ready,
@@ -9606,16 +9112,15 @@ where
         request_method,
         request_target: request_target.clone(),
         endpoint_url_redacted: format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{request_target}"),
-        credential_material: "production_live_alpha".to_string(),
-        production_signing_material_gate_required: credentials
-            .production_signing_material_gate_required,
-        production_signing_material_gate_open: credentials.production_signing_material_gate_open,
-        production_signing_material_env_read: credentials.production_signing_material_env_read,
-        production_signing_material_missing_gate_env_vars: credentials
-            .production_signing_material_missing_gate_env_vars
-            .clone(),
-        api_key_env: credentials.api_key_env.clone(),
-        api_secret_env: credentials.api_secret_env.clone(),
+        credential_material: "retired_not_read".to_string(),
+        production_signing_material_gate_required: false,
+        production_signing_material_gate_open: false,
+        production_signing_material_env_read: false,
+        production_signing_material_missing_gate_env_vars: vec![
+            "production_mutation_executor_retired_after_v0.32.0".to_string(),
+        ],
+        api_key_env: "retired".to_string(),
+        api_secret_env: "retired".to_string(),
         api_key_value_recorded: false,
         api_secret_value_recorded: false,
         api_key_header_value_recorded: false,
@@ -9627,12 +9132,9 @@ where
         raw_exchange_response_recorded: false,
         response_body_recorded: false,
         response_redacted: true,
-        http_status_code: http_result.as_ref().and_then(|result| result.status_code),
-        latency_ms: http_result.as_ref().and_then(|result| result.latency_ms),
-        error_code: http_result.as_ref().map_or_else(
-            || "not_attempted_offline".to_string(),
-            |result| result.error_code.clone(),
-        ),
+        http_status_code: None,
+        latency_ms: None,
+        error_code: "not_attempted_executor_retired".to_string(),
         symbol,
         side,
         order_type,
@@ -12011,14 +11513,9 @@ fn build_production_mutation_actual_cancel_executor_adapter_boundary_artifact(
     })
 }
 
-fn build_production_mutation_actual_cancel_single_shot_artifact<H>(
+fn build_production_mutation_actual_cancel_single_shot_artifact(
     opt: &LiveProductionMutationActualCancelSingleShotOpt,
-    credentials: &EnvOnlyProductionMutationPreviewCredentials,
-    mut cancel_executor: H,
-) -> anyhow::Result<ProductionMutationActualCancelSingleShotArtifact>
-where
-    H: FnMut(&ProductionActualCancelSignedRequest) -> ProductionMutationActualCancelHttpResult,
-{
+) -> anyhow::Result<ProductionMutationActualCancelSingleShotArtifact> {
     validate_non_empty("run_id", &opt.run_id)?;
     validate_non_empty("expected_order_lineage_id", &opt.expected_order_lineage_id)?;
     validate_non_empty("expected_symbol", &opt.expected_symbol)?;
@@ -12048,15 +11545,13 @@ where
         })?;
     let release_manifest = load_json_value(&opt.release_manifest, "release manifest")?;
     let cancel_risk_gate = load_json_value(&opt.cancel_risk_gate, "cancel risk gate")?;
-    let mut owner_approval_lifecycle =
+    let owner_approval_lifecycle =
         load_json_value(&opt.owner_approval_lifecycle, "owner approval lifecycle")?;
     let adapter_boundary = load_json_value(&opt.adapter_boundary, "adapter boundary")?;
     let adapter_capability = load_json_value(&opt.adapter_capability, "adapter capability")?;
 
     let missing_cli_flags = missing_production_mutation_actual_cancel_single_shot_cli_flags(opt);
-    let missing_env_vars = credentials
-        .production_signing_material_missing_gate_env_vars
-        .clone();
+    let missing_env_vars = Vec::new();
     let safety_contract_issues =
         actual_cancel_owner_approval_safety_contract_issues(&safety_contract_raw);
     let release_manifest_issues =
@@ -12072,7 +11567,7 @@ where
             &adapter_capability,
             opt,
         );
-    let (cancel_order_identifier_ref, raw_order_identifier_issue, raw_order_identifier) =
+    let (cancel_order_identifier_ref, raw_order_identifier_issue, _raw_order_identifier) =
         actual_cancel_single_shot_order_identifier(opt, &owner_approval_lifecycle);
     if let Some(issue) = raw_order_identifier_issue {
         source_artifact_issues.push(issue);
@@ -12082,9 +11577,8 @@ where
         && safety_contract_issues.is_empty()
         && release_manifest_issues.is_empty()
         && source_artifact_issues.is_empty()
-        && adapter_capability_issues.is_empty()
-        && (!opt.manual_online || missing_env_vars.is_empty());
-    let single_shot_cancel_allowed = actual_cancel_command_ready && opt.manual_online;
+        && adapter_capability_issues.is_empty();
+    let single_shot_cancel_allowed = false;
     let request_id = format!("actual-cancel:{}:{}", opt.run_id, opt.timestamp_ms);
     let approval_state_before_attempt =
         json_string_value(&owner_approval_lifecycle, "approval_state")
@@ -12092,50 +11586,13 @@ where
     let owner_approval_authorized_before_attempt =
         json_bool_value(&owner_approval_lifecycle, "approval_execution_authorized")
             .unwrap_or(false);
-    let http_result = if single_shot_cancel_allowed {
-        let request =
-            build_production_actual_cancel_signed_request(opt, &raw_order_identifier, credentials)?;
-        request.ensure_memory_only_redacted(credentials, &raw_order_identifier)?;
-        consume_production_mutation_actual_cancel_owner_approval_lifecycle(
-            &opt.owner_approval_lifecycle,
-            &mut owner_approval_lifecycle,
-            &opt.output,
-            &opt.run_id,
-            &request_id,
-            None,
-        )?;
-        let result = cancel_executor(&request);
-        consume_production_mutation_actual_cancel_owner_approval_lifecycle(
-            &opt.owner_approval_lifecycle,
-            &mut owner_approval_lifecycle,
-            &opt.output,
-            &opt.run_id,
-            &request_id,
-            Some(&result),
-        )?;
-        Some(result)
-    } else {
-        None
-    };
-    let request_sent = http_result
-        .as_ref()
-        .is_some_and(|result| result.request_sent);
-    let cancel_attempted = http_result.is_some();
-    let network_attempted = http_result
-        .as_ref()
-        .is_some_and(|result| result.network_attempted);
-    let http_send_attempted = http_result
-        .as_ref()
-        .is_some_and(|result| result.http_send_attempted);
-    let venue_ack_observed = http_result
-        .as_ref()
-        .is_some_and(|result| result.venue_ack_observed);
-    let status = if request_sent {
-        "actual_cancel_attempt_recorded"
-    } else if !missing_cli_flags.is_empty() {
+    let request_sent = false;
+    let cancel_attempted = false;
+    let network_attempted = false;
+    let http_send_attempted = false;
+    let venue_ack_observed = false;
+    let status = if !missing_cli_flags.is_empty() {
         "blocked_missing_gate"
-    } else if opt.manual_online && !missing_env_vars.is_empty() {
-        "blocked_missing_manual_online_gate"
     } else if !safety_contract_issues.is_empty() {
         "blocked_safety_contract"
     } else if !release_manifest_issues.is_empty() {
@@ -12147,12 +11604,8 @@ where
     } else {
         "ready_actual_cancel_command_offline_no_send"
     };
-    let approval_state_after_attempt = if cancel_attempted {
-        "used".to_string()
-    } else {
-        approval_state_before_attempt.clone()
-    };
-    let readback_required = cancel_attempted;
+    let approval_state_after_attempt = approval_state_before_attempt.clone();
+    let readback_required = false;
     let local_audit_reference = format!(
         "actual_cancel_audit:{}:{}:{}",
         opt.run_id, request_id, status
@@ -12172,9 +11625,9 @@ where
         artifact_type: "actual_cancel_single_shot".to_string(),
         status: status.to_string(),
         created_at: now_millis(),
-        mode: "owner_approved_single_shot_actual_cancel".to_string(),
-        capability: "Owner-Approved Single-Shot Actual Cancel".to_string(),
-        execution_mode: "owner_approved_single_shot_manual_only".to_string(),
+        mode: "retired_actual_cancel_offline_evaluation".to_string(),
+        capability: "Historical Actual Cancel Artifact Evaluation".to_string(),
+        execution_mode: "offline_only_executor_retired".to_string(),
         default_fail_closed: true,
         actual_cancel_safety_contract_ref: production_mutation_source_file_ref(
             &opt.actual_cancel_safety_contract,
@@ -12204,7 +11657,7 @@ where
             &adapter_capability,
             "actual_cancel_supported",
         ),
-        manual_online_requested: opt.manual_online,
+        manual_online_requested: false,
         actual_cancel_command_ready,
         single_shot_cancel_allowed,
         owner_approval_ready: source_artifact_issues.is_empty()
@@ -12235,16 +11688,15 @@ where
         recv_window_ms: opt.recv_window_ms,
         timestamp_recorded: false,
         timestamp_shape: "epoch_millis_present_redacted".to_string(),
-        credential_material: credentials.credential_material.clone(),
-        production_signing_material_gate_required: credentials
-            .production_signing_material_gate_required,
-        production_signing_material_gate_open: credentials.production_signing_material_gate_open,
-        production_signing_material_env_read: credentials.production_signing_material_env_read,
-        production_signing_material_missing_gate_env_vars: credentials
-            .production_signing_material_missing_gate_env_vars
-            .clone(),
-        api_key_env: credentials.api_key_env.clone(),
-        api_secret_env: credentials.api_secret_env.clone(),
+        credential_material: "retired_not_read".to_string(),
+        production_signing_material_gate_required: false,
+        production_signing_material_gate_open: false,
+        production_signing_material_env_read: false,
+        production_signing_material_missing_gate_env_vars: vec![
+            "production_mutation_executor_retired_after_v0.32.0".to_string(),
+        ],
+        api_key_env: "retired".to_string(),
+        api_secret_env: "retired".to_string(),
         api_key_value_recorded: false,
         api_secret_value_recorded: false,
         api_key_header_value_recorded: false,
@@ -12257,24 +11709,11 @@ where
         response_body_recorded: false,
         response_headers_recorded: false,
         response_redacted: true,
-        venue_response_status: if venue_ack_observed {
-            "accepted".to_string()
-        } else if cancel_attempted {
-            "attempted_without_ack".to_string()
-        } else {
-            "not_attempted".to_string()
-        },
-        venue_response_source: if cancel_attempted {
-            "actual_cancel_http_result_redacted".to_string()
-        } else {
-            "not_attempted_offline".to_string()
-        },
-        venue_response_code: http_result.as_ref().and_then(|result| result.status_code),
-        venue_response_error_code: http_result.as_ref().map_or_else(
-            || "not_attempted_offline".to_string(),
-            |result| result.error_code.clone(),
-        ),
-        latency_ms: http_result.as_ref().and_then(|result| result.latency_ms),
+        venue_response_status: "not_attempted".to_string(),
+        venue_response_source: "executor_retired_offline".to_string(),
+        venue_response_code: None,
+        venue_response_error_code: "not_attempted_executor_retired".to_string(),
+        latency_ms: None,
         local_audit_reference,
         readback_required,
         readback_requirement: if readback_required {
@@ -12326,14 +11765,7 @@ where
         no_automatic_cancel_confirmed: opt.confirm_no_automatic_cancel,
         no_dashboard_execution_confirmed: opt.confirm_no_dashboard_execution,
         no_secret_persistence_confirmed: opt.confirm_no_secret_persistence,
-        diagnostic: if venue_ack_observed {
-            "owner-approved single-shot actual cancel attempted exactly one DELETE request and observed venue acknowledgement; raw response, signed URL, signed query, signature, order id, and secrets were not persisted"
-        } else if cancel_attempted {
-            "owner-approved single-shot actual cancel attempted exactly one DELETE request without venue acknowledgement; approval is treated as used and readback is required before any follow-up"
-        } else {
-            "actual cancel command stayed fail-closed or offline; no cancel request, retry, bulk cancel, automatic cancel, or Dashboard execution was attempted"
-        }
-        .to_string(),
+        diagnostic: "actual cancel executor is retired; historical contracts were evaluated offline without credential reads, signing, network, approval consumption, cancel, retry, bulk cancel, automatic cancel, or Dashboard execution".to_string(),
     })
 }
 
@@ -14522,7 +13954,6 @@ fn production_mutation_guarded_send_source_issues(
     kill_switch_runtime_gate: &serde_json::Value,
     request_preview: &serde_json::Value,
     max_notional: &str,
-    credentials: &EnvOnlyProductionMutationPreviewCredentials,
 ) -> Vec<String> {
     let mut issues = Vec::new();
     if json_string_value(request_builder, "schema_version").as_deref()
@@ -14583,16 +14014,6 @@ fn production_mutation_guarded_send_source_issues(
     }
     if json_string_value(request_preview, "time_in_force").as_deref() != Some("GTC") {
         issues.push("request_preview_not_gtc".to_string());
-    }
-    if json_string_value(request_preview, "api_key_env").as_deref()
-        != Some(credentials.api_key_env.as_str())
-    {
-        issues.push("request_preview_api_key_env_mismatch".to_string());
-    }
-    if json_string_value(request_preview, "api_secret_env").as_deref()
-        != Some(credentials.api_secret_env.as_str())
-    {
-        issues.push("request_preview_api_secret_env_mismatch".to_string());
     }
     match (
         json_string_value(request_preview, "notional"),
@@ -20809,191 +20230,6 @@ fn production_live_alpha_order_query_shape_without_signature() -> String {
     .join("&")
 }
 
-fn execute_production_mutation_guarded_send(
-    request: &ProductionLiveAlphaSignedOrderRequestPreview,
-) -> ProductionMutationGuardedSendHttpResult {
-    std::thread::spawn({
-        let endpoint_url = request.endpoint_url_redacted.clone();
-        let signed_query = request.signed_query.clone();
-        let api_key_header_name = request.api_key_header_name.clone();
-        let api_key_header_value = request.api_key_header_value.clone();
-        move || {
-            execute_production_mutation_guarded_send_on_thread(
-                &endpoint_url,
-                &signed_query,
-                &api_key_header_name,
-                &api_key_header_value,
-            )
-        }
-    })
-    .join()
-    .unwrap_or_else(|_| {
-        ProductionMutationGuardedSendHttpResult::pre_http_failure("http_send_thread_panicked")
-    })
-}
-
-fn execute_production_mutation_guarded_send_on_thread(
-    endpoint_url: &str,
-    signed_query: &str,
-    api_key_header_name: &str,
-    api_key_header_value: &str,
-) -> ProductionMutationGuardedSendHttpResult {
-    let started = Instant::now();
-    let client = match reqwest::blocking::Client::builder()
-        .timeout(PRODUCTION_ORDER_STATE_PROBE_TIMEOUT)
-        .user_agent("NTPRO-v160-production-mutation-guarded-send")
-        .build()
-    {
-        Ok(client) => client,
-        Err(_) => {
-            return ProductionMutationGuardedSendHttpResult::pre_http_failure(
-                "http_client_build_failed",
-            );
-        }
-    };
-
-    let signed_url = format!("{endpoint_url}?{signed_query}");
-    match client
-        .post(signed_url)
-        .header(api_key_header_name, api_key_header_value)
-        .send()
-    {
-        Ok(response) => {
-            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
-            let status = response.status().as_u16();
-            if response.status().is_success() {
-                ProductionMutationGuardedSendHttpResult::success(latency_ms, status)
-            } else {
-                ProductionMutationGuardedSendHttpResult::failure(
-                    Some(latency_ms),
-                    Some(status),
-                    "http_status_not_success",
-                )
-            }
-        }
-        Err(error) => {
-            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
-            ProductionMutationGuardedSendHttpResult::failure(
-                Some(latency_ms),
-                error.status().map(|status| status.as_u16()),
-                classify_production_public_read_error(&error),
-            )
-        }
-    }
-}
-
-fn build_production_actual_cancel_signed_request(
-    opt: &LiveProductionMutationActualCancelSingleShotOpt,
-    raw_order_identifier: &str,
-    credentials: &EnvOnlyProductionMutationPreviewCredentials,
-) -> anyhow::Result<ProductionActualCancelSignedRequest> {
-    validate_non_empty("raw_order_identifier", raw_order_identifier)?;
-    let signing_credential = credentials.signing_credential()?;
-    let mut pairs = vec![
-        ("symbol".to_string(), opt.expected_symbol.clone()),
-        ("recvWindow".to_string(), opt.recv_window_ms.to_string()),
-        ("timestamp".to_string(), opt.timestamp_ms.to_string()),
-    ];
-    if opt.order_id_type == "exchange_order_id" {
-        pairs.push(("orderId".to_string(), raw_order_identifier.to_string()));
-    } else {
-        pairs.push((
-            "origClientOrderId".to_string(),
-            raw_order_identifier.to_string(),
-        ));
-    }
-    let query_without_signature = join_query_pair_vec(&pairs);
-    let signature =
-        urlencoding::encode(&signing_credential.sign(&query_without_signature)).into_owned();
-    let signed_query = format!("{query_without_signature}&signature={signature}");
-    let request = ProductionActualCancelSignedRequest {
-        method: TESTNET_ORDER_METHOD_DELETE.to_string(),
-        endpoint_path: TESTNET_ORDER_ENDPOINT_ORDER.to_string(),
-        endpoint_url_redacted: format!(
-            "{BINANCE_PRODUCTION_HTTP_BASE_URL}{TESTNET_ORDER_ENDPOINT_ORDER}"
-        ),
-        signature,
-        signed_query,
-        api_key_header_name: BINANCE_API_KEY_HEADER.to_string(),
-        api_key_header_value: signing_credential.api_key().to_string(),
-    };
-    request.ensure_memory_only_redacted(credentials, raw_order_identifier)?;
-    Ok(request)
-}
-
-fn execute_production_mutation_actual_cancel(
-    request: &ProductionActualCancelSignedRequest,
-) -> ProductionMutationActualCancelHttpResult {
-    std::thread::spawn({
-        let endpoint_url = request.endpoint_url_redacted.clone();
-        let signed_query = request.signed_query.clone();
-        let api_key_header_name = request.api_key_header_name.clone();
-        let api_key_header_value = request.api_key_header_value.clone();
-        move || {
-            execute_production_mutation_actual_cancel_on_thread(
-                &endpoint_url,
-                &signed_query,
-                &api_key_header_name,
-                &api_key_header_value,
-            )
-        }
-    })
-    .join()
-    .unwrap_or_else(|_| {
-        ProductionMutationActualCancelHttpResult::pre_http_failure("http_cancel_thread_panicked")
-    })
-}
-
-fn execute_production_mutation_actual_cancel_on_thread(
-    endpoint_url: &str,
-    signed_query: &str,
-    api_key_header_name: &str,
-    api_key_header_value: &str,
-) -> ProductionMutationActualCancelHttpResult {
-    let started = Instant::now();
-    let client = match reqwest::blocking::Client::builder()
-        .timeout(PRODUCTION_ORDER_STATE_PROBE_TIMEOUT)
-        .user_agent("NTPRO-v190-production-mutation-actual-cancel")
-        .build()
-    {
-        Ok(client) => client,
-        Err(_) => {
-            return ProductionMutationActualCancelHttpResult::pre_http_failure(
-                "http_client_build_failed",
-            );
-        }
-    };
-
-    let signed_url = format!("{endpoint_url}?{signed_query}");
-    match client
-        .delete(signed_url)
-        .header(api_key_header_name, api_key_header_value)
-        .send()
-    {
-        Ok(response) => {
-            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
-            let status = response.status().as_u16();
-            if response.status().is_success() {
-                ProductionMutationActualCancelHttpResult::success(latency_ms, status)
-            } else {
-                ProductionMutationActualCancelHttpResult::failure(
-                    Some(latency_ms),
-                    Some(status),
-                    "http_status_not_success",
-                )
-            }
-        }
-        Err(error) => {
-            let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
-            ProductionMutationActualCancelHttpResult::failure(
-                Some(latency_ms),
-                error.status().map(|status| status.as_u16()),
-                classify_production_public_read_error(&error),
-            )
-        }
-    }
-}
-
 fn normalize_production_live_alpha_order_endpoint_path(
     endpoint_path: &str,
 ) -> anyhow::Result<String> {
@@ -21161,11 +20397,9 @@ fn write_production_mutation_request_builder_artifact(
 fn write_production_mutation_guarded_send_artifact(
     path: &Path,
     value: &ProductionMutationGuardedSendArtifact,
-    credentials: &EnvOnlyProductionMutationPreviewCredentials,
 ) -> anyhow::Result<()> {
     let raw = serde_json::to_string_pretty(value)?;
     let body = format!("{raw}\n");
-    credentials.ensure_no_secret_values_absent(&path.display().to_string(), &body)?;
     atomic_write_text(path, &body)?;
     Ok(())
 }
@@ -21919,35 +21153,6 @@ fn missing_production_mutation_guarded_send_cli_flags(
     }
     if !opt.confirm_no_listen_key_lifecycle {
         missing.push("--confirm-no-listen-key-lifecycle");
-    }
-    missing
-}
-
-fn production_mutation_guarded_send_missing_env_vars(
-    opt: &LiveProductionMutationGuardedSendOpt,
-    credentials: &EnvOnlyProductionMutationPreviewCredentials,
-) -> Vec<String> {
-    if !opt.manual_online {
-        return Vec::new();
-    }
-    let mut missing = credentials
-        .production_signing_material_missing_gate_env_vars
-        .clone();
-    if credentials.production_signing_material_gate_open {
-        if credentials
-            .api_key_value
-            .as_deref()
-            .is_none_or(str::is_empty)
-        {
-            missing.push(credentials.api_key_env.clone());
-        }
-        if credentials
-            .api_secret_value
-            .as_deref()
-            .is_none_or(str::is_empty)
-        {
-            missing.push(credentials.api_secret_env.clone());
-        }
     }
     missing
 }
@@ -23433,6 +22638,33 @@ mod tests {
         StrategyOrderPreflightSession,
     };
 
+    #[test]
+    fn retired_production_mutation_http_executors_are_absent_from_current_source() {
+        let source = include_str!("live.rs");
+        let forbidden = [
+            ["fn execute_production_mutation_", "guarded_send"].concat(),
+            ["fn execute_production_mutation_", "actual_cancel"].concat(),
+            [
+                "build_production_mutation_guarded_send_artifact_",
+                "with_executor",
+            ]
+            .concat(),
+            ["struct ProductionMutationGuardedSend", "HttpResult"].concat(),
+            ["struct ProductionMutationActualCancel", "HttpResult"].concat(),
+            ["struct ProductionActualCancel", "SignedRequest"].concat(),
+            ["PRODUCTION_MUTATION_HTTP_", "SEND_ENV_ALLOW"].concat(),
+            ["production-mutation-guarded-send/", "1.0"].concat(),
+            ["production-mutation-actual-cancel-single-shot/", "1.0"].concat(),
+        ];
+
+        for marker in forbidden {
+            assert!(
+                !source.contains(&marker),
+                "retired production mutation executor marker remains: {marker}"
+            );
+        }
+    }
+
     fn write_config(name: &str, content: &str) -> PathBuf {
         let dir =
             std::env::temp_dir().join(format!("ntpro-drg-005-live-{name}-{}", std::process::id()));
@@ -24025,7 +23257,7 @@ write_summary = true
         kill_switch_runtime_gate: PathBuf,
         request_preview: PathBuf,
         output: PathBuf,
-        manual_online: bool,
+        _historical_manual_online: bool,
         all_cli_gates: bool,
     ) -> LiveProductionMutationGuardedSendOpt {
         LiveProductionMutationGuardedSendOpt {
@@ -24033,13 +23265,10 @@ write_summary = true
             request_builder,
             kill_switch_runtime_gate,
             request_preview,
-            api_key_env: "NTPRO_V150002_API_KEY".to_string(),
-            api_secret_env: "NTPRO_V150002_API_SECRET".to_string(),
             timestamp_ms: 1_718_400_000_000,
             recv_window_ms: 5_000,
             max_notional: "10.00".to_string(),
             output,
-            manual_online,
             allow_production_mutation_guarded_send: all_cli_gates,
             confirm_owner_approved_guarded_send: all_cli_gates,
             confirm_single_limit_gtc: all_cli_gates,
@@ -24054,8 +23283,8 @@ write_summary = true
     }
 
     #[test]
-    fn production_mutation_guarded_send_counters_separate_attempt_ack_and_platform_state() {
-        let offline = production_mutation_guarded_send_counters(None);
+    fn retired_production_mutation_guarded_send_counters_are_always_zero() {
+        let offline = retired_production_mutation_guarded_send_counters();
         assert!(!offline.request_sent);
         assert!(!offline.network_attempted);
         assert!(!offline.production_order_request_attempted);
@@ -24065,47 +23294,9 @@ write_summary = true
         assert_eq!(offline.production_order_submissions_attempted, 0);
         assert_eq!(offline.production_orders_submitted, 0);
         assert_eq!(offline.production_order_mutations_attempted, 0);
+        assert!(!offline.real_orders_submitted);
+        assert!(!offline.platform_production_trading_enabled);
         assert!(!offline.production_trading_enabled);
-
-        let rejected = ProductionMutationGuardedSendHttpResult::failure(
-            Some(12),
-            Some(400),
-            "http_status_not_success",
-        );
-        let rejected_counters = production_mutation_guarded_send_counters(Some(&rejected));
-        assert!(rejected_counters.request_sent);
-        assert!(rejected_counters.network_attempted);
-        assert!(rejected_counters.production_order_request_attempted);
-        assert!(rejected_counters.http_send_attempted);
-        assert!(!rejected_counters.exchange_ack_observed);
-        assert!(!rejected_counters.confirmed_production_order_submission);
-        assert_eq!(rejected_counters.production_order_submissions_attempted, 1);
-        assert_eq!(rejected_counters.production_orders_submitted, 0);
-        assert_eq!(rejected_counters.production_order_mutations_attempted, 1);
-        assert!(!rejected_counters.production_trading_enabled);
-
-        let acknowledged = ProductionMutationGuardedSendHttpResult::success(9, 200);
-        let acknowledged_counters = production_mutation_guarded_send_counters(Some(&acknowledged));
-        assert!(acknowledged_counters.request_sent);
-        assert!(acknowledged_counters.network_attempted);
-        assert!(acknowledged_counters.production_order_request_attempted);
-        assert!(acknowledged_counters.http_send_attempted);
-        assert!(acknowledged_counters.exchange_ack_observed);
-        assert!(!acknowledged_counters.exchange_order_id_observed);
-        assert!(!acknowledged_counters.exchange_order_status_observed);
-        assert!(acknowledged_counters.confirmed_production_order_submission);
-        assert_eq!(
-            acknowledged_counters.production_order_submissions_attempted,
-            1
-        );
-        assert_eq!(acknowledged_counters.production_orders_submitted, 1);
-        assert_eq!(
-            acknowledged_counters.production_order_mutations_attempted,
-            1
-        );
-        assert!(acknowledged_counters.real_orders_submitted);
-        assert!(!acknowledged_counters.platform_production_trading_enabled);
-        assert!(!acknowledged_counters.production_trading_enabled);
     }
 
     fn production_mutation_response_redaction_opt(
@@ -24614,7 +23805,7 @@ dashboard_operation_requested
     fn production_mutation_actual_cancel_single_shot_opt(
         sources: &V190ActualCancelSingleShotSourceChain,
         output: PathBuf,
-        manual_online: bool,
+        _historical_manual_online: bool,
         all_cli_gates: bool,
     ) -> LiveProductionMutationActualCancelSingleShotOpt {
         LiveProductionMutationActualCancelSingleShotOpt {
@@ -24633,12 +23824,9 @@ dashboard_operation_requested
             expected_release_tag: "ntpro-rust-only-v0.18.1".to_string(),
             cancel_order_id: Some("123456789".to_string()),
             cancel_orig_client_order_id: None,
-            api_key_env: "NTPRO_V190004_API_KEY".to_string(),
-            api_secret_env: "NTPRO_V190004_API_SECRET".to_string(),
             timestamp_ms: 1_718_400_000_000,
             recv_window_ms: 5_000,
             output,
-            manual_online,
             allow_production_mutation_actual_cancel_single_shot: all_cli_gates,
             confirm_owner_approval: all_cli_gates,
             confirm_risk_gate: all_cli_gates,
@@ -24660,26 +23848,41 @@ dashboard_operation_requested
         let output = output_dir.join("actual-cancel-single-shot-attempt.json");
         let opt =
             production_mutation_actual_cancel_single_shot_opt(&sources, output.clone(), true, true);
-        let credentials =
-            EnvOnlyProductionMutationPreviewCredentials::from_actual_cancel_opt(&opt, |name| {
-                match name {
-                    PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW
-                    | PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED
-                    | PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW
-                    | PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED
-                    | PRODUCTION_MUTATION_HTTP_SEND_ENV_SINGLE_SHOT => Some("1".to_string()),
-                    "NTPRO_V190004_API_KEY" => Some("ntpro-v190004-api-key".to_string()),
-                    "NTPRO_V190004_API_SECRET" => Some("ntpro-v190004-api-secret".to_string()),
-                    _ => None,
-                }
-            });
-        let artifact = build_production_mutation_actual_cancel_single_shot_artifact(
-            &opt,
-            &credentials,
-            |_| ProductionMutationActualCancelHttpResult::success(7, 200),
-        )
-        .unwrap();
-        write_production_mutation_actual_cancel_single_shot_artifact(&output, &artifact).unwrap();
+        let artifact = build_production_mutation_actual_cancel_single_shot_artifact(&opt).unwrap();
+        let mut historical_attempt = serde_json::to_value(artifact).unwrap();
+        let object = historical_attempt.as_object_mut().unwrap();
+        for field in [
+            "actual_cancel_command_ready",
+            "single_shot_cancel_allowed",
+            "approval_consumed_before_send",
+            "approval_consumed_after_send",
+            "request_sent",
+            "cancel_attempted",
+            "network_attempted",
+            "network_cancel_endpoint_attempted",
+            "http_send_attempted",
+            "venue_ack_observed",
+            "readback_required",
+        ] {
+            object.insert(field.to_string(), json!(true));
+        }
+        object.insert(
+            "status".to_string(),
+            json!("actual_cancel_attempt_recorded"),
+        );
+        object.insert("cancel_requests_sent".to_string(), json!(1));
+        object.insert("production_order_mutations_attempted".to_string(), json!(1));
+        object.insert("approval_state_after_attempt".to_string(), json!("used"));
+        object.insert(
+            "readback_requirement".to_string(),
+            json!("post_cancel_readback_required_before_any_retry_or_followup"),
+        );
+        object.insert("venue_response_status".to_string(), json!("accepted"));
+        object.insert(
+            "venue_response_source".to_string(),
+            json!("historical_test_fixture"),
+        );
+        atomic_write_json(&output, &historical_attempt).unwrap();
         output
     }
 
@@ -25145,17 +24348,14 @@ dashboard_operation_requested
         let (request_builder, request_preview, kill_switch_runtime_gate) =
             write_ready_v160_guarded_send_sources(output_dir);
         let guarded_send = output_dir.join("production_mutation_guarded_send.json");
-        run_live_production_mutation_guarded_send_with_env(
-            &production_mutation_guarded_send_opt(
-                request_builder,
-                kill_switch_runtime_gate,
-                request_preview,
-                guarded_send.clone(),
-                false,
-                true,
-            ),
-            |_| None,
-        )
+        run_live_production_mutation_guarded_send(&production_mutation_guarded_send_opt(
+            request_builder,
+            kill_switch_runtime_gate,
+            request_preview,
+            guarded_send.clone(),
+            false,
+            true,
+        ))
         .unwrap();
         guarded_send
     }
@@ -25539,17 +24739,14 @@ dashboard_operation_requested
         let (request_builder, request_preview, kill_switch_runtime_gate) =
             write_ready_v160_guarded_send_sources(output_dir);
         let guarded_send = output_dir.join("production_mutation_guarded_send.json");
-        run_live_production_mutation_guarded_send_with_env(
-            &production_mutation_guarded_send_opt(
-                request_builder.clone(),
-                kill_switch_runtime_gate,
-                request_preview,
-                guarded_send.clone(),
-                false,
-                true,
-            ),
-            |_| None,
-        )
+        run_live_production_mutation_guarded_send(&production_mutation_guarded_send_opt(
+            request_builder.clone(),
+            kill_switch_runtime_gate,
+            request_preview,
+            guarded_send.clone(),
+            false,
+            true,
+        ))
         .unwrap();
 
         let response = output_dir.join("synthetic_order_response.json");
@@ -30468,17 +29665,14 @@ dashboard_operation_requested
             write_ready_v160_guarded_send_sources(&output_dir);
         let output = output_dir.join("production_mutation_guarded_send.json");
 
-        run_live_production_mutation_guarded_send_with_env(
-            &production_mutation_guarded_send_opt(
-                request_builder,
-                kill_switch_runtime_gate,
-                request_preview,
-                output.clone(),
-                false,
-                true,
-            ),
-            |_| None,
-        )
+        run_live_production_mutation_guarded_send(&production_mutation_guarded_send_opt(
+            request_builder,
+            kill_switch_runtime_gate,
+            request_preview,
+            output.clone(),
+            false,
+            true,
+        ))
         .unwrap();
 
         let body = fs::read_to_string(output).unwrap();
@@ -30537,8 +29731,24 @@ dashboard_operation_requested
         assert_eq!(artifact["request_target"], TESTNET_ORDER_ENDPOINT_ORDER);
         assert_eq!(artifact["order_type"], "LIMIT");
         assert_eq!(artifact["time_in_force"], "GTC");
-        assert_eq!(artifact["credential_material"], "production_live_alpha");
+        assert_eq!(artifact["mode"], "retired_guarded_send_offline_evaluation");
+        assert_eq!(
+            artifact["capability"],
+            "Historical Production Mutation Artifact Evaluation"
+        );
+        assert_eq!(artifact["credential_material"], "retired_not_read");
+        assert_eq!(artifact["api_key_env"], "retired");
+        assert_eq!(artifact["api_secret_env"], "retired");
+        assert_eq!(artifact["production_signing_material_gate_required"], false);
+        assert_eq!(artifact["production_signing_material_gate_open"], false);
         assert_eq!(artifact["production_signing_material_env_read"], false);
+        assert!(
+            artifact["production_signing_material_missing_gate_env_vars"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|value| value == "production_mutation_executor_retired_after_v0.32.0")
+        );
         assert_eq!(artifact["api_key_value_recorded"], false);
         assert_eq!(artifact["api_secret_value_recorded"], false);
         assert_eq!(artifact["api_key_header_value_recorded"], false);
@@ -30550,7 +29760,7 @@ dashboard_operation_requested
         assert_eq!(artifact["raw_exchange_response_recorded"], false);
         assert_eq!(artifact["response_body_recorded"], false);
         assert_eq!(artifact["response_redacted"], true);
-        assert_eq!(artifact["error_code"], "not_attempted_offline");
+        assert_eq!(artifact["error_code"], "not_attempted_executor_retired");
         assert_eq!(artifact["request_sent"], false);
         assert_eq!(artifact["network_attempted"], false);
         assert_eq!(artifact["production_order_request_attempted"], false);
@@ -30587,38 +29797,35 @@ dashboard_operation_requested
     }
 
     #[test]
-    fn production_mutation_guarded_send_rejects_manual_online_before_env_or_artifact_read() {
+    fn production_mutation_guarded_send_historical_online_selector_cannot_enable_network() {
         let output_dir = std::env::temp_dir().join(format!(
-            "ntpro-backend-freeze-guarded-send-manual-online-{}",
+            "ntpro-backend-freeze-guarded-send-retired-online-selector-{}",
             std::process::id()
         ));
         fs::create_dir_all(&output_dir).unwrap();
+        let (request_builder, request_preview, kill_switch_runtime_gate) =
+            write_ready_v160_guarded_send_sources(&output_dir);
         let output = output_dir.join("production_mutation_guarded_send.json");
-        let mut env_read = false;
 
-        let error = run_live_production_mutation_guarded_send_with_env(
-            &production_mutation_guarded_send_opt(
-                output_dir.join("missing-request-builder.json"),
-                output_dir.join("missing-kill-switch.json"),
-                output_dir.join("missing-request-preview.json"),
-                output.clone(),
-                true,
-                true,
-            ),
-            |_| {
-                env_read = true;
-                None
-            },
-        )
-        .unwrap_err();
+        run_live_production_mutation_guarded_send(&production_mutation_guarded_send_opt(
+            request_builder,
+            kill_switch_runtime_gate,
+            request_preview,
+            output.clone(),
+            true,
+            true,
+        ))
+        .unwrap();
 
-        assert!(
-            error
-                .to_string()
-                .contains("disabled after the v0.32.0 backend freeze")
-        );
-        assert!(!env_read);
-        assert!(!output.exists());
+        let artifact: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(output).unwrap()).unwrap();
+        assert_eq!(artifact["manual_online_requested"], false);
+        assert_eq!(artifact["single_shot_send_allowed"], false);
+        assert_eq!(artifact["production_signing_material_env_read"], false);
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["http_send_attempted"], false);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
     }
 
     #[test]
@@ -30632,17 +29839,14 @@ dashboard_operation_requested
             write_ready_v160_guarded_send_sources(&output_dir);
         let output = output_dir.join("production_mutation_guarded_send.json");
 
-        run_live_production_mutation_guarded_send_with_env(
-            &production_mutation_guarded_send_opt(
-                request_builder,
-                kill_switch_runtime_gate,
-                request_preview,
-                output.clone(),
-                false,
-                false,
-            ),
-            |_| None,
-        )
+        run_live_production_mutation_guarded_send(&production_mutation_guarded_send_opt(
+            request_builder,
+            kill_switch_runtime_gate,
+            request_preview,
+            output.clone(),
+            false,
+            false,
+        ))
         .unwrap();
 
         let artifact: serde_json::Value =
@@ -30697,17 +29901,14 @@ dashboard_operation_requested
         .unwrap();
         let output = output_dir.join("production_mutation_guarded_send.json");
 
-        run_live_production_mutation_guarded_send_with_env(
-            &production_mutation_guarded_send_opt(
-                request_builder,
-                kill_switch_runtime_gate,
-                request_preview,
-                output.clone(),
-                false,
-                true,
-            ),
-            |_| None,
-        )
+        run_live_production_mutation_guarded_send(&production_mutation_guarded_send_opt(
+            request_builder,
+            kill_switch_runtime_gate,
+            request_preview,
+            output.clone(),
+            false,
+            true,
+        ))
         .unwrap();
 
         let artifact: serde_json::Value =
@@ -30754,84 +29955,51 @@ dashboard_operation_requested
     }
 
     #[test]
-    fn production_mutation_guarded_send_reads_post_send_kill_switch_after_http_boundary() {
+    fn production_mutation_guarded_send_has_no_http_executor_boundary() {
         let output_dir = std::env::temp_dir().join(format!(
-            "ntpro-v161-002-guarded-send-post-kill-switch-read-{}",
+            "ntpro-par007-guarded-send-no-http-executor-{}",
             std::process::id()
         ));
         fs::create_dir_all(&output_dir).unwrap();
         let (request_builder, request_preview, kill_switch_runtime_gate) =
             write_ready_v160_guarded_send_sources(&output_dir);
-        let output = output_dir.join("production_mutation_guarded_send.json");
         let opt = production_mutation_guarded_send_opt(
             request_builder,
-            kill_switch_runtime_gate.clone(),
+            kill_switch_runtime_gate,
             request_preview,
-            output,
+            output_dir.join("production_mutation_guarded_send.json"),
             true,
             true,
         );
-        let credentials =
-            EnvOnlyProductionMutationPreviewCredentials::from_guarded_send_opt(&opt, |name| {
-                match name {
-                    PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW
-                    | PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED
-                    | PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW
-                    | PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED
-                    | PRODUCTION_MUTATION_HTTP_SEND_ENV_SINGLE_SHOT => Some("1".to_string()),
-                    "NTPRO_V150002_API_KEY" => Some("ntpro_v161002_api_key".to_string()),
-                    "NTPRO_V150002_API_SECRET" => Some("ntpro_v161002_api_secret".to_string()),
-                    _ => None,
-                }
-            });
-        let mut executor_called = false;
-        let post_gate = kill_switch_runtime_gate;
+        let artifact = build_production_mutation_guarded_send_artifact(&opt).unwrap();
 
-        let artifact = build_production_mutation_guarded_send_artifact_with_executor(
-            &opt,
-            &credentials,
-            |_| {
-                executor_called = true;
-                let mut gate: serde_json::Value =
-                    serde_json::from_str(&fs::read_to_string(&post_gate).unwrap()).unwrap();
-                gate["status"] =
-                    serde_json::Value::String("blocked_kill_switch_active_after_send".to_string());
-                gate["runtime_gate_open"] = serde_json::Value::Bool(false);
-                gate["kill_switch_active"] = serde_json::Value::Bool(true);
-                fs::write(&post_gate, serde_json::to_string_pretty(&gate).unwrap()).unwrap();
-                ProductionMutationGuardedSendHttpResult::success(7, 200)
-            },
-        )
-        .unwrap();
-
-        assert!(executor_called);
-        assert_eq!(artifact.status, "manual_online_send_attempt_recorded");
+        assert_eq!(artifact.mode, "retired_guarded_send_offline_evaluation");
         assert!(artifact.guarded_send_ready);
-        assert!(!artifact.kill_switch_enforcement_ready);
-        assert!(artifact.request_sent);
-        assert!(artifact.exchange_ack_observed);
-        assert!(artifact.confirmed_production_order_submission);
-        assert_eq!(artifact.production_orders_submitted, 1);
-        assert_eq!(artifact.production_order_mutations_attempted, 1);
+        assert!(artifact.kill_switch_enforcement_ready);
+        assert!(!artifact.manual_online_requested);
+        assert!(!artifact.single_shot_send_allowed);
+        assert!(!artifact.production_signing_material_env_read);
+        assert!(!artifact.request_sent);
+        assert!(!artifact.network_attempted);
+        assert!(!artifact.http_send_attempted);
+        assert!(!artifact.exchange_ack_observed);
+        assert!(!artifact.confirmed_production_order_submission);
+        assert_eq!(artifact.production_orders_submitted, 0);
+        assert_eq!(artifact.production_order_mutations_attempted, 0);
         assert!(artifact.pre_send_kill_switch_runtime_gate_open);
         assert!(!artifact.pre_send_kill_switch_active);
-        assert!(!artifact.post_send_kill_switch_runtime_gate_open);
-        assert!(artifact.post_send_kill_switch_active);
-        assert_ne!(
+        assert!(artifact.post_send_kill_switch_runtime_gate_open);
+        assert!(!artifact.post_send_kill_switch_active);
+        assert_eq!(
             artifact.pre_send_kill_switch_snapshot_hash,
             artifact.post_send_kill_switch_snapshot_hash
         );
-        assert!(!artifact.post_send_kill_switch_clean);
+        assert!(artifact.post_send_kill_switch_clean);
         assert!(!artifact.kill_switch_blocked_send);
-        assert!(artifact.post_send_progression_blocked);
-        assert!(artifact.manual_review_required);
-        assert!(artifact.new_orders_blocked);
-        assert!(
-            artifact
-                .source_artifact_issues
-                .iter()
-                .any(|issue| { issue == "post_send_kill_switch_not_clean" })
-        );
+        assert!(!artifact.post_send_progression_blocked);
+        assert!(!artifact.manual_review_required);
+        assert!(!artifact.new_orders_blocked);
+        assert!(artifact.source_artifact_issues.is_empty());
         assert!(!artifact.retry_attempted);
         assert!(!artifact.cancel_attempted);
         assert!(!artifact.replace_attempted);
@@ -34364,14 +33532,13 @@ dashboard_operation_requested
         let sources = write_ready_v190_actual_cancel_single_shot_source_chain(&output_dir);
         let output = output_dir.join("actual-cancel-single-shot-offline.json");
 
-        run_live_production_mutation_actual_cancel_single_shot_with_env(
+        run_live_production_mutation_actual_cancel_single_shot(
             &production_mutation_actual_cancel_single_shot_opt(
                 &sources,
                 output.clone(),
                 false,
                 true,
             ),
-            |_| None,
         )
         .unwrap();
 
@@ -34392,12 +33559,10 @@ dashboard_operation_requested
         );
         assert_eq!(
             artifact["capability"],
-            "Owner-Approved Single-Shot Actual Cancel"
+            "Historical Actual Cancel Artifact Evaluation"
         );
-        assert_eq!(
-            artifact["execution_mode"],
-            "owner_approved_single_shot_manual_only"
-        );
+        assert_eq!(artifact["execution_mode"], "offline_only_executor_retired");
+        assert_eq!(artifact["mode"], "retired_actual_cancel_offline_evaluation");
         assert_eq!(artifact["manual_online_requested"], false);
         assert_eq!(artifact["actual_cancel_command_ready"], true);
         assert_eq!(artifact["single_shot_cancel_allowed"], false);
@@ -34443,6 +33608,19 @@ dashboard_operation_requested
         assert_eq!(artifact["cancel_all_allowed"], false);
         assert_eq!(artifact["dashboard_execution_allowed"], false);
         assert_eq!(artifact["dashboard_cancel_controls_enabled"], false);
+        assert_eq!(artifact["credential_material"], "retired_not_read");
+        assert_eq!(artifact["api_key_env"], "retired");
+        assert_eq!(artifact["api_secret_env"], "retired");
+        assert_eq!(artifact["production_signing_material_gate_required"], false);
+        assert_eq!(artifact["production_signing_material_gate_open"], false);
+        assert_eq!(artifact["production_signing_material_env_read"], false);
+        assert!(
+            artifact["production_signing_material_missing_gate_env_vars"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|value| value == "production_mutation_executor_retired_after_v0.32.0")
+        );
         assert_eq!(artifact["api_key_value_recorded"], false);
         assert_eq!(artifact["api_secret_value_recorded"], false);
         assert_eq!(artifact["api_key_header_value_recorded"], false);
@@ -34452,6 +33630,15 @@ dashboard_operation_requested
         assert_eq!(artifact["raw_exchange_response_recorded"], false);
         assert_eq!(artifact["response_body_recorded"], false);
         assert_eq!(artifact["response_headers_recorded"], false);
+        assert_eq!(artifact["venue_response_status"], "not_attempted");
+        assert_eq!(
+            artifact["venue_response_source"],
+            "executor_retired_offline"
+        );
+        assert_eq!(
+            artifact["venue_response_error_code"],
+            "not_attempted_executor_retired"
+        );
         assert_eq!(
             artifact["source_artifact_issues"].as_array().unwrap().len(),
             0
@@ -34478,7 +33665,7 @@ dashboard_operation_requested
     }
 
     #[test]
-    fn production_mutation_actual_cancel_single_shot_records_injected_single_attempt() {
+    fn production_mutation_actual_cancel_single_shot_historical_online_selector_stays_offline() {
         let output_dir = std::env::temp_dir().join(format!(
             "ntpro-v190-004-actual-cancel-single-shot-attempt-{}",
             std::process::id()
@@ -34488,47 +33675,8 @@ dashboard_operation_requested
         let output = output_dir.join("actual-cancel-single-shot-attempt.json");
         let opt =
             production_mutation_actual_cancel_single_shot_opt(&sources, output.clone(), true, true);
-        let credentials =
-            EnvOnlyProductionMutationPreviewCredentials::from_actual_cancel_opt(&opt, |name| {
-                match name {
-                    PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_ALLOW
-                    | PRODUCTION_MUTATION_SIGNING_MATERIAL_ENV_OWNER_APPROVED
-                    | PRODUCTION_MUTATION_HTTP_SEND_ENV_ALLOW
-                    | PRODUCTION_MUTATION_HTTP_SEND_ENV_OWNER_APPROVED
-                    | PRODUCTION_MUTATION_HTTP_SEND_ENV_SINGLE_SHOT => Some("1".to_string()),
-                    "NTPRO_V190004_API_KEY" => Some("ntpro-v190004-api-key".to_string()),
-                    "NTPRO_V190004_API_SECRET" => Some("ntpro-v190004-api-secret".to_string()),
-                    _ => None,
-                }
-            });
-        let mut request_seen = false;
-
-        let artifact = build_production_mutation_actual_cancel_single_shot_artifact(
-            &opt,
-            &credentials,
-            |request| {
-                request_seen = true;
-                assert_eq!(request.method, TESTNET_ORDER_METHOD_DELETE);
-                assert_eq!(request.endpoint_path, TESTNET_ORDER_ENDPOINT_ORDER);
-                assert_eq!(
-                    request.endpoint_url_redacted,
-                    format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}{TESTNET_ORDER_ENDPOINT_ORDER}")
-                );
-                assert_eq!(request.api_key_header_name, BINANCE_API_KEY_HEADER);
-                assert_eq!(request.api_key_header_value, "ntpro-v190004-api-key");
-                assert!(request.signed_query.contains("symbol=BTCUSDT"));
-                assert!(request.signed_query.contains("orderId=123456789"));
-                assert!(request.signed_query.contains("signature="));
-                let debug_body = format!("{request:?}");
-                assert!(!debug_body.contains("123456789"));
-                assert!(!debug_body.contains("ntpro-v190004-api-key"));
-                assert!(!debug_body.contains("ntpro-v190004-api-secret"));
-                assert!(!debug_body.contains("signature="));
-                ProductionMutationActualCancelHttpResult::success(7, 200)
-            },
-        )
-        .unwrap();
-        assert!(request_seen);
+        let owner_approval_before = fs::read_to_string(&sources.owner_approval_lifecycle).unwrap();
+        let artifact = build_production_mutation_actual_cancel_single_shot_artifact(&opt).unwrap();
         write_production_mutation_actual_cancel_single_shot_artifact(&output, &artifact).unwrap();
 
         let body = fs::read_to_string(output).unwrap();
@@ -34539,34 +33687,40 @@ dashboard_operation_requested
         assert!(!body.contains("signature="));
         assert!(!body.contains("X-MBX-APIKEY"));
         let artifact: serde_json::Value = serde_json::from_str(&body).unwrap();
-        assert_eq!(artifact["status"], "actual_cancel_attempt_recorded");
-        assert_eq!(artifact["manual_online_requested"], true);
+        assert_eq!(
+            artifact["status"],
+            "ready_actual_cancel_command_offline_no_send"
+        );
+        assert_eq!(artifact["manual_online_requested"], false);
         assert_eq!(artifact["actual_cancel_command_ready"], true);
-        assert_eq!(artifact["single_shot_cancel_allowed"], true);
-        assert_eq!(artifact["request_sent"], true);
-        assert_eq!(artifact["cancel_attempted"], true);
-        assert_eq!(artifact["cancel_requests_sent"], 1);
-        assert_eq!(artifact["production_order_mutations_attempted"], 1);
-        assert_eq!(artifact["network_attempted"], true);
-        assert_eq!(artifact["network_cancel_endpoint_attempted"], true);
-        assert_eq!(artifact["http_send_attempted"], true);
-        assert_eq!(artifact["venue_ack_observed"], true);
-        assert_eq!(artifact["venue_response_status"], "accepted");
+        assert_eq!(artifact["single_shot_cancel_allowed"], false);
+        assert_eq!(artifact["request_sent"], false);
+        assert_eq!(artifact["cancel_attempted"], false);
+        assert_eq!(artifact["cancel_requests_sent"], 0);
+        assert_eq!(artifact["production_order_mutations_attempted"], 0);
+        assert_eq!(artifact["network_attempted"], false);
+        assert_eq!(artifact["network_cancel_endpoint_attempted"], false);
+        assert_eq!(artifact["http_send_attempted"], false);
+        assert_eq!(artifact["venue_ack_observed"], false);
+        assert_eq!(artifact["venue_response_status"], "not_attempted");
         assert_eq!(
             artifact["venue_response_source"],
-            "actual_cancel_http_result_redacted"
+            "executor_retired_offline"
         );
-        assert_eq!(artifact["venue_response_code"], 200);
-        assert_eq!(artifact["venue_response_error_code"], "none");
-        assert_eq!(artifact["latency_ms"], 7);
-        assert_eq!(artifact["approval_consumed_before_send"], true);
-        assert_eq!(artifact["approval_consumed_after_send"], true);
+        assert_eq!(artifact["venue_response_code"], serde_json::Value::Null);
+        assert_eq!(
+            artifact["venue_response_error_code"],
+            "not_attempted_executor_retired"
+        );
+        assert_eq!(artifact["latency_ms"], serde_json::Value::Null);
+        assert_eq!(artifact["approval_consumed_before_send"], false);
+        assert_eq!(artifact["approval_consumed_after_send"], false);
         assert_eq!(artifact["approval_state_before_attempt"], "approved");
-        assert_eq!(artifact["approval_state_after_attempt"], "used");
-        assert_eq!(artifact["readback_required"], true);
+        assert_eq!(artifact["approval_state_after_attempt"], "approved");
+        assert_eq!(artifact["readback_required"], false);
         assert_eq!(
             artifact["readback_requirement"],
-            "post_cancel_readback_required_before_any_retry_or_followup"
+            "not_required_without_send_attempt"
         );
         assert!(
             artifact["local_audit_reference"]
@@ -34600,77 +33754,27 @@ dashboard_operation_requested
         assert_eq!(artifact["missing_cli_flags"].as_array().unwrap().len(), 0);
         assert_eq!(artifact["missing_env_vars"].as_array().unwrap().len(), 0);
 
-        let consumed_owner_approval: serde_json::Value =
-            serde_json::from_str(&fs::read_to_string(&sources.owner_approval_lifecycle).unwrap())
-                .unwrap();
-        assert_eq!(consumed_owner_approval["approval_state"], "used");
+        let owner_approval_after = fs::read_to_string(&sources.owner_approval_lifecycle).unwrap();
+        assert_eq!(owner_approval_after, owner_approval_before);
+        let unchanged_owner_approval: serde_json::Value =
+            serde_json::from_str(&owner_approval_after).unwrap();
+        assert_eq!(unchanged_owner_approval["approval_state"], "approved");
         assert_eq!(
-            consumed_owner_approval["status"],
-            "approval_used_after_actual_cancel_attempt"
+            unchanged_owner_approval["approval_execution_authorized"],
+            true
         );
+        assert_eq!(unchanged_owner_approval["approval_consumed"], false);
         assert_eq!(
-            consumed_owner_approval["approval_execution_authorized"],
+            unchanged_owner_approval["approval_consumed_before_send"],
             false
         );
-        assert_eq!(consumed_owner_approval["approval_consumed"], true);
         assert_eq!(
-            consumed_owner_approval["approval_consumed_before_send"],
-            true
+            unchanged_owner_approval["approval_consumed_after_send"],
+            false
         );
-        assert_eq!(
-            consumed_owner_approval["approval_consumed_after_send"],
-            true
-        );
-        assert_eq!(consumed_owner_approval["approval_used"], true);
-        assert_eq!(consumed_owner_approval["cancel_attempted"], true);
-        assert_eq!(consumed_owner_approval["cancel_requests_sent"], 1);
-        assert_eq!(consumed_owner_approval["readback_required"], true);
-        assert_eq!(
-            consumed_owner_approval["consumed_by_actual_cancel_run_id"],
-            opt.run_id
-        );
-        assert_eq!(
-            consumed_owner_approval["consumed_actual_cancel_request_id"],
-            artifact["request_id"]
-        );
-        assert!(
-            consumed_owner_approval["lifecycle_issues"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|issue| issue == "owner_approval_reused")
-        );
-
-        let second_output = output_dir.join("actual-cancel-single-shot-reused.json");
-        let second_opt = production_mutation_actual_cancel_single_shot_opt(
-            &sources,
-            second_output.clone(),
-            true,
-            true,
-        );
-        let second_artifact = build_production_mutation_actual_cancel_single_shot_artifact(
-            &second_opt,
-            &credentials,
-            |_| panic!("reused owner approval must not call actual cancel executor"),
-        )
-        .unwrap();
-        write_production_mutation_actual_cancel_single_shot_artifact(
-            &second_output,
-            &second_artifact,
-        )
-        .unwrap();
-        let second: serde_json::Value =
-            serde_json::from_str(&fs::read_to_string(second_output).unwrap()).unwrap();
-        assert_eq!(second["status"], "blocked_source_artifact");
-        assert_eq!(second["request_sent"], false);
-        assert_eq!(second["cancel_attempted"], false);
-        assert!(
-            second["source_artifact_issues"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|issue| issue == "owner_approval_reused")
-        );
+        assert_eq!(unchanged_owner_approval["approval_used"], false);
+        assert_eq!(unchanged_owner_approval["cancel_attempted"], false);
+        assert_eq!(unchanged_owner_approval["cancel_requests_sent"], 0);
     }
 
     #[test]
@@ -34683,32 +33787,15 @@ dashboard_operation_requested
         let sources = write_ready_v190_actual_cancel_single_shot_source_chain(&output_dir);
 
         let missing_gate_output = output_dir.join("missing-gates.json");
-        run_live_production_mutation_actual_cancel_single_shot_with_env(
+        run_live_production_mutation_actual_cancel_single_shot(
             &production_mutation_actual_cancel_single_shot_opt(
                 &sources,
                 missing_gate_output.clone(),
                 false,
                 false,
             ),
-            |_| None,
         )
         .unwrap();
-
-        let manual_online_output = output_dir.join("manual-online.json");
-        let mut env_read = false;
-        let manual_online_error = run_live_production_mutation_actual_cancel_single_shot_with_env(
-            &production_mutation_actual_cancel_single_shot_opt(
-                &sources,
-                manual_online_output.clone(),
-                true,
-                true,
-            ),
-            |_| {
-                env_read = true;
-                None
-            },
-        )
-        .unwrap_err();
 
         let release_mismatch_output = output_dir.join("release-mismatch.json");
         let mut release_mismatch_opt = production_mutation_actual_cancel_single_shot_opt(
@@ -34718,11 +33805,7 @@ dashboard_operation_requested
             true,
         );
         release_mismatch_opt.expected_release_tag = "ntpro-rust-only-v0.18.0".to_string();
-        run_live_production_mutation_actual_cancel_single_shot_with_env(
-            &release_mismatch_opt,
-            |_| None,
-        )
-        .unwrap();
+        run_live_production_mutation_actual_cancel_single_shot(&release_mismatch_opt).unwrap();
 
         let reused_owner = output_dir.join("owner-approval-used.json");
         run_live_production_mutation_actual_cancel_owner_approval_lifecycle(
@@ -34739,14 +33822,13 @@ dashboard_operation_requested
         let mut reused_sources = sources.clone();
         reused_sources.owner_approval_lifecycle = reused_owner;
         let reused_output = output_dir.join("reused-owner.json");
-        run_live_production_mutation_actual_cancel_single_shot_with_env(
+        run_live_production_mutation_actual_cancel_single_shot(
             &production_mutation_actual_cancel_single_shot_opt(
                 &reused_sources,
                 reused_output.clone(),
                 false,
                 true,
             ),
-            |_| None,
         )
         .unwrap();
 
@@ -34760,14 +33842,13 @@ dashboard_operation_requested
         let mut unsupported_sources = sources.clone();
         unsupported_sources.adapter_capability = unsupported_capability;
         let unsupported_output = output_dir.join("unsupported-adapter.json");
-        run_live_production_mutation_actual_cancel_single_shot_with_env(
+        run_live_production_mutation_actual_cancel_single_shot(
             &production_mutation_actual_cancel_single_shot_opt(
                 &unsupported_sources,
                 unsupported_output.clone(),
                 false,
                 true,
             ),
-            |_| None,
         )
         .unwrap();
 
@@ -34779,11 +33860,7 @@ dashboard_operation_requested
             true,
         );
         order_mismatch_opt.cancel_order_id = Some("987654321".to_string());
-        run_live_production_mutation_actual_cancel_single_shot_with_env(
-            &order_mismatch_opt,
-            |_| None,
-        )
-        .unwrap();
+        run_live_production_mutation_actual_cancel_single_shot(&order_mismatch_opt).unwrap();
 
         let missing_gate: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(missing_gate_output).unwrap()).unwrap();
@@ -34798,14 +33875,6 @@ dashboard_operation_requested
                 .iter()
                 .any(|flag| flag == "--allow-production-mutation-actual-cancel-single-shot")
         );
-
-        assert!(
-            manual_online_error
-                .to_string()
-                .contains("disabled after the v0.32.0 backend freeze")
-        );
-        assert!(!env_read);
-        assert!(!manual_online_output.exists());
 
         let release_mismatch: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(release_mismatch_output).unwrap()).unwrap();
@@ -35106,14 +34175,13 @@ dashboard_operation_requested
 
         let sources = write_ready_v190_actual_cancel_single_shot_source_chain(&output_dir);
         let no_attempt_output = output_dir.join("actual-cancel-no-send.json");
-        run_live_production_mutation_actual_cancel_single_shot_with_env(
+        run_live_production_mutation_actual_cancel_single_shot(
             &production_mutation_actual_cancel_single_shot_opt(
                 &sources,
                 no_attempt_output.clone(),
                 false,
                 true,
             ),
-            |_| None,
         )
         .unwrap();
         let invalid_source_output = output_dir.join("reconciliation-invalid-source.json");

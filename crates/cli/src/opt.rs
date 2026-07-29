@@ -180,7 +180,7 @@ pub enum LiveCommand {
     ProductionMutationSigningApproval(LiveProductionMutationSigningApprovalOpt),
     /// Builds a v0.16 single LIMIT GTC production order request object locally; no request execution.
     ProductionMutationRequestBuilder(LiveProductionMutationRequestBuilderOpt),
-    /// Evaluates the legacy v0.16 send artifact offline; manual-online execution is retired.
+    /// Evaluates the legacy v0.16 send artifact offline; online and credential inputs are retired.
     ProductionMutationGuardedSend(LiveProductionMutationGuardedSendOpt),
     /// Redacts a v0.16 production mutation response artifact; no raw response persistence.
     ProductionMutationResponseRedaction(LiveProductionMutationResponseRedactionOpt),
@@ -214,7 +214,7 @@ pub enum LiveCommand {
     ProductionMutationActualCancelExecutorAdapterBoundary(
         Box<LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt>,
     ),
-    /// Evaluates the legacy v0.19 cancel artifact offline; manual-online execution is retired.
+    /// Evaluates the legacy v0.19 cancel artifact offline; online and credential inputs are retired.
     ProductionMutationActualCancelSingleShot(Box<LiveProductionMutationActualCancelSingleShotOpt>),
     /// Reconciles a v0.19 actual cancel attempt with redacted post-cancel readback evidence.
     ProductionMutationActualCancelReadbackReconciliation(
@@ -1065,7 +1065,7 @@ pub struct LiveProductionMutationRequestBuilderOpt {
     pub confirm_no_retry: bool,
 }
 
-/// Owner-approved v0.16 guarded production HTTP send options.
+/// Offline evaluation options for the retired v0.16 guarded-send artifact.
 #[derive(Parser, Debug, Clone)]
 pub struct LiveProductionMutationGuardedSendOpt {
     /// Owner-visible run identifier.
@@ -1080,16 +1080,10 @@ pub struct LiveProductionMutationGuardedSendOpt {
     /// v0.15 production live-alpha request preview JSON input.
     #[arg(long)]
     pub request_preview: PathBuf,
-    /// Environment variable name containing the Binance production API key.
-    #[arg(long, default_value = "BINANCE_PRODUCTION_LIVE_ALPHA_API_KEY")]
-    pub api_key_env: String,
-    /// Environment variable name containing the Binance production API secret.
-    #[arg(long, default_value = "BINANCE_PRODUCTION_LIVE_ALPHA_API_SECRET")]
-    pub api_secret_env: String,
-    /// Timestamp in milliseconds for deterministic memory-only signing.
+    /// Historical timestamp shape evaluated without signing.
     #[arg(long)]
     pub timestamp_ms: u64,
-    /// Binance recvWindow in milliseconds.
+    /// Historical recvWindow shape evaluated without signing.
     #[arg(long, default_value_t = 5_000)]
     pub recv_window_ms: u64,
     /// Maximum allowed tiny order notional for this guarded send path.
@@ -1098,10 +1092,7 @@ pub struct LiveProductionMutationGuardedSendOpt {
     /// v0.16 guarded send JSON output path.
     #[arg(long)]
     pub output: PathBuf,
-    /// Retired compatibility flag; requesting manual-online execution fails closed.
-    #[arg(long)]
-    pub manual_online: bool,
-    /// Manual CLI gate for guarded production send evaluation.
+    /// Manual CLI gate for offline guarded-send artifact evaluation.
     #[arg(long)]
     pub allow_production_mutation_guarded_send: bool,
     /// Confirms owner approved this guarded send evaluation.
@@ -1866,7 +1857,7 @@ pub struct LiveProductionMutationActualCancelExecutorAdapterBoundaryOpt {
     pub confirm_no_secret_persistence: bool,
 }
 
-/// v0.19 owner-approved single-shot actual cancel command options.
+/// Offline evaluation options for the retired v0.19 actual-cancel artifact.
 #[derive(Parser, Debug, Clone)]
 pub struct LiveProductionMutationActualCancelSingleShotOpt {
     /// Owner-visible run identifier.
@@ -1914,25 +1905,16 @@ pub struct LiveProductionMutationActualCancelSingleShotOpt {
     /// Actual original client order id supplied manually by the owner for client_order_id mode.
     #[arg(long)]
     pub cancel_orig_client_order_id: Option<String>,
-    /// Environment variable name containing the Binance production API key.
-    #[arg(long, default_value = "BINANCE_PRODUCTION_LIVE_ALPHA_API_KEY")]
-    pub api_key_env: String,
-    /// Environment variable name containing the Binance production API secret.
-    #[arg(long, default_value = "BINANCE_PRODUCTION_LIVE_ALPHA_API_SECRET")]
-    pub api_secret_env: String,
-    /// Timestamp in milliseconds for deterministic memory-only signing.
+    /// Historical timestamp shape evaluated without signing.
     #[arg(long)]
     pub timestamp_ms: u64,
-    /// Binance recvWindow in milliseconds.
+    /// Historical recvWindow shape evaluated without signing.
     #[arg(long, default_value_t = 5_000)]
     pub recv_window_ms: u64,
     /// v0.19 actual cancel attempt JSON output path.
     #[arg(long)]
     pub output: PathBuf,
-    /// Retired compatibility flag; requesting manual-online execution fails closed.
-    #[arg(long)]
-    pub manual_online: bool,
-    /// Manual CLI gate for actual cancel single-shot execution.
+    /// Manual CLI gate for offline actual-cancel artifact evaluation.
     #[arg(long)]
     pub allow_production_mutation_actual_cancel_single_shot: bool,
     /// Confirms owner approval lifecycle is required and matched.
@@ -2968,6 +2950,101 @@ mod tests {
         current.render_help().to_string()
     }
 
+    fn guarded_send_args() -> Vec<String> {
+        [
+            "nautilus",
+            "live",
+            "production-mutation-guarded-send",
+            "--run-id",
+            "v160-guarded-send",
+            "--request-builder",
+            "runs/v160/request-builder.json",
+            "--kill-switch-runtime-gate",
+            "runs/v160/kill-switch-runtime-gate.json",
+            "--request-preview",
+            "runs/v160/request-preview.json",
+            "--timestamp-ms",
+            "1718400000000",
+            "--recv-window-ms",
+            "5000",
+            "--max-notional",
+            "10.00",
+            "--output",
+            "runs/v160/guarded-send.json",
+            "--allow-production-mutation-guarded-send",
+            "--confirm-owner-approved-guarded-send",
+            "--confirm-single-limit-gtc",
+            "--confirm-tiny-notional",
+            "--confirm-single-shot",
+            "--confirm-no-retry",
+            "--confirm-no-secret-persistence",
+            "--confirm-response-redacted",
+            "--confirm-dashboard-order-controls-disabled",
+            "--confirm-no-listen-key-lifecycle",
+        ]
+        .into_iter()
+        .map(str::to_owned)
+        .collect()
+    }
+
+    fn actual_cancel_single_shot_args() -> Vec<String> {
+        [
+            "nautilus",
+            "live",
+            "production-mutation-actual-cancel-single-shot",
+            "--run-id",
+            "v190-actual-cancel-single-shot",
+            "--actual-cancel-safety-contract",
+            "docs/rust-cutover/release/v0_19_0_actual_cancel_safety_contract.md",
+            "--release-manifest",
+            "docs/rust-cutover/release/v0_18_1_release_manifest.json",
+            "--cancel-risk-gate",
+            "runs/v180/cancel-risk-gate.json",
+            "--owner-approval-lifecycle",
+            "runs/v190/actual-cancel-owner-approval-lifecycle.json",
+            "--adapter-boundary",
+            "runs/v190/actual-cancel-executor-adapter-boundary.json",
+            "--adapter-capability",
+            "runs/v190/adapter-capability.json",
+            "--expected-order-lineage-id",
+            "lineage-v160-single-shot",
+            "--expected-symbol",
+            "BTCUSDT",
+            "--expected-account-label",
+            "prod-account-redacted",
+            "--venue",
+            "binance_spot",
+            "--order-id-type",
+            "exchange_order_id",
+            "--expected-release-tag",
+            "ntpro-rust-only-v0.18.1",
+            "--cancel-order-id",
+            "123456789",
+            "--timestamp-ms",
+            "1718400000000",
+            "--recv-window-ms",
+            "5000",
+            "--output",
+            "runs/v190/actual-cancel-single-shot.json",
+            "--allow-production-mutation-actual-cancel-single-shot",
+            "--confirm-owner-approval",
+            "--confirm-risk-gate",
+            "--confirm-release-provenance",
+            "--confirm-adapter-boundary",
+            "--confirm-single-shot",
+            "--confirm-consume-approval-before-send",
+            "--confirm-readback-required",
+            "--confirm-no-bulk-cancel",
+            "--confirm-no-retry",
+            "--confirm-no-automatic-cancel",
+            "--confirm-no-dashboard-execution",
+            "--confirm-no-secret-persistence",
+        ]
+        .into_iter()
+        .map(str::to_owned)
+        .collect()
+    }
+
     #[test]
     fn top_level_help_lists_backtest() {
         let help = NautilusCli::command().render_help().to_string();
@@ -3155,13 +3232,12 @@ mod tests {
                 "{command} help should identify offline artifact evaluation"
             );
             assert!(
-                help.contains("manual-online execution is retired"),
+                help.contains("online and credential inputs are retired"),
                 "{command} help should identify the retired online boundary"
             );
-            assert!(
-                help.contains("Retired compatibility flag"),
-                "{command} flag help should explain fail-closed compatibility"
-            );
+            assert!(!help.contains("--manual-online"), "{command}");
+            assert!(!help.contains("--api-key-env"), "{command}");
+            assert!(!help.contains("--api-secret-env"), "{command}");
         }
     }
 
@@ -3799,43 +3875,8 @@ mod tests {
 
     #[test]
     fn parses_live_production_mutation_guarded_send_options() {
-        let parsed = NautilusCli::try_parse_from([
-            "nautilus",
-            "live",
-            "production-mutation-guarded-send",
-            "--run-id",
-            "v160-guarded-send",
-            "--request-builder",
-            "runs/v160/request-builder.json",
-            "--kill-switch-runtime-gate",
-            "runs/v160/kill-switch-runtime-gate.json",
-            "--request-preview",
-            "runs/v160/request-preview.json",
-            "--api-key-env",
-            "NTPRO_V160005_API_KEY",
-            "--api-secret-env",
-            "NTPRO_V160005_API_SECRET",
-            "--timestamp-ms",
-            "1718400000000",
-            "--recv-window-ms",
-            "5000",
-            "--max-notional",
-            "10.00",
-            "--output",
-            "runs/v160/guarded-send.json",
-            "--manual-online",
-            "--allow-production-mutation-guarded-send",
-            "--confirm-owner-approved-guarded-send",
-            "--confirm-single-limit-gtc",
-            "--confirm-tiny-notional",
-            "--confirm-single-shot",
-            "--confirm-no-retry",
-            "--confirm-no-secret-persistence",
-            "--confirm-response-redacted",
-            "--confirm-dashboard-order-controls-disabled",
-            "--confirm-no-listen-key-lifecycle",
-        ])
-        .expect("live production-mutation-guarded-send should parse");
+        let parsed = NautilusCli::try_parse_from(guarded_send_args())
+            .expect("live production-mutation-guarded-send should parse");
 
         let Commands::Live(live) = parsed.command else {
             panic!("expected live command");
@@ -3857,13 +3898,10 @@ mod tests {
             send.request_preview,
             PathBuf::from("runs/v160/request-preview.json")
         );
-        assert_eq!(send.api_key_env, "NTPRO_V160005_API_KEY");
-        assert_eq!(send.api_secret_env, "NTPRO_V160005_API_SECRET");
         assert_eq!(send.timestamp_ms, 1_718_400_000_000);
         assert_eq!(send.recv_window_ms, 5_000);
         assert_eq!(send.max_notional, "10.00");
         assert_eq!(send.output, PathBuf::from("runs/v160/guarded-send.json"));
-        assert!(send.manual_online);
         assert!(send.allow_production_mutation_guarded_send);
         assert!(send.confirm_owner_approved_guarded_send);
         assert!(send.confirm_single_limit_gtc);
@@ -3874,6 +3912,29 @@ mod tests {
         assert!(send.confirm_response_redacted);
         assert!(send.confirm_dashboard_order_controls_disabled);
         assert!(send.confirm_no_listen_key_lifecycle);
+    }
+
+    #[test]
+    fn retired_guarded_send_rejects_online_and_credential_options() {
+        for (flag, value) in [
+            ("--manual-online", None),
+            ("--api-key-env", Some("NTPRO_RETIRED_API_KEY")),
+            ("--api-secret-env", Some("NTPRO_RETIRED_API_SECRET")),
+        ] {
+            let mut args = guarded_send_args();
+            args.push(flag.to_string());
+            if let Some(value) = value {
+                args.push(value.to_string());
+            }
+
+            let error = NautilusCli::try_parse_from(args)
+                .expect_err("retired guarded-send input must be rejected");
+            assert_eq!(
+                error.kind(),
+                clap::error::ErrorKind::UnknownArgument,
+                "{flag}"
+            );
+        }
     }
 
     #[test]
@@ -4770,64 +4831,8 @@ mod tests {
 
     #[test]
     fn parses_live_production_mutation_actual_cancel_single_shot_options() {
-        let parsed = NautilusCli::try_parse_from([
-            "nautilus",
-            "live",
-            "production-mutation-actual-cancel-single-shot",
-            "--run-id",
-            "v190-actual-cancel-single-shot",
-            "--actual-cancel-safety-contract",
-            "docs/rust-cutover/release/v0_19_0_actual_cancel_safety_contract.md",
-            "--release-manifest",
-            "docs/rust-cutover/release/v0_18_1_release_manifest.json",
-            "--cancel-risk-gate",
-            "runs/v180/cancel-risk-gate.json",
-            "--owner-approval-lifecycle",
-            "runs/v190/actual-cancel-owner-approval-lifecycle.json",
-            "--adapter-boundary",
-            "runs/v190/actual-cancel-executor-adapter-boundary.json",
-            "--adapter-capability",
-            "runs/v190/adapter-capability.json",
-            "--expected-order-lineage-id",
-            "lineage-v160-single-shot",
-            "--expected-symbol",
-            "BTCUSDT",
-            "--expected-account-label",
-            "prod-account-redacted",
-            "--venue",
-            "binance_spot",
-            "--order-id-type",
-            "exchange_order_id",
-            "--expected-release-tag",
-            "ntpro-rust-only-v0.18.1",
-            "--cancel-order-id",
-            "123456789",
-            "--api-key-env",
-            "NTPRO_V190004_API_KEY",
-            "--api-secret-env",
-            "NTPRO_V190004_API_SECRET",
-            "--timestamp-ms",
-            "1718400000000",
-            "--recv-window-ms",
-            "5000",
-            "--output",
-            "runs/v190/actual-cancel-single-shot.json",
-            "--manual-online",
-            "--allow-production-mutation-actual-cancel-single-shot",
-            "--confirm-owner-approval",
-            "--confirm-risk-gate",
-            "--confirm-release-provenance",
-            "--confirm-adapter-boundary",
-            "--confirm-single-shot",
-            "--confirm-consume-approval-before-send",
-            "--confirm-readback-required",
-            "--confirm-no-bulk-cancel",
-            "--confirm-no-retry",
-            "--confirm-no-automatic-cancel",
-            "--confirm-no-dashboard-execution",
-            "--confirm-no-secret-persistence",
-        ])
-        .expect("live production-mutation-actual-cancel-single-shot should parse");
+        let parsed = NautilusCli::try_parse_from(actual_cancel_single_shot_args())
+            .expect("live production-mutation-actual-cancel-single-shot should parse");
 
         let Commands::Live(live) = parsed.command else {
             panic!("expected live command");
@@ -4868,15 +4873,12 @@ mod tests {
         assert_eq!(cancel.order_id_type, "exchange_order_id");
         assert_eq!(cancel.expected_release_tag, "ntpro-rust-only-v0.18.1");
         assert_eq!(cancel.cancel_order_id.as_deref(), Some("123456789"));
-        assert_eq!(cancel.api_key_env, "NTPRO_V190004_API_KEY");
-        assert_eq!(cancel.api_secret_env, "NTPRO_V190004_API_SECRET");
         assert_eq!(cancel.timestamp_ms, 1_718_400_000_000);
         assert_eq!(cancel.recv_window_ms, 5_000);
         assert_eq!(
             cancel.output,
             PathBuf::from("runs/v190/actual-cancel-single-shot.json")
         );
-        assert!(cancel.manual_online);
         assert!(cancel.allow_production_mutation_actual_cancel_single_shot);
         assert!(cancel.confirm_owner_approval);
         assert!(cancel.confirm_risk_gate);
@@ -4890,6 +4892,29 @@ mod tests {
         assert!(cancel.confirm_no_automatic_cancel);
         assert!(cancel.confirm_no_dashboard_execution);
         assert!(cancel.confirm_no_secret_persistence);
+    }
+
+    #[test]
+    fn retired_actual_cancel_rejects_online_and_credential_options() {
+        for (flag, value) in [
+            ("--manual-online", None),
+            ("--api-key-env", Some("NTPRO_RETIRED_API_KEY")),
+            ("--api-secret-env", Some("NTPRO_RETIRED_API_SECRET")),
+        ] {
+            let mut args = actual_cancel_single_shot_args();
+            args.push(flag.to_string());
+            if let Some(value) = value {
+                args.push(value.to_string());
+            }
+
+            let error = NautilusCli::try_parse_from(args)
+                .expect_err("retired actual-cancel input must be rejected");
+            assert_eq!(
+                error.kind(),
+                clap::error::ErrorKind::UnknownArgument,
+                "{flag}"
+            );
+        }
     }
 
     #[test]
