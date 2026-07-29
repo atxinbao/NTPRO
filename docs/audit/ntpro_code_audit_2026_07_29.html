@@ -612,10 +612,10 @@
   <header class="topbar">
     <div class="brand">
       <strong>NTPRO · 代码审计</strong>
-      <span>后端冻结基线后的维护质量与能力边界复核</span>
+      <span>后端冻结基线后的治理收口与能力边界复核</span>
     </div>
     <div class="top-actions">
-      <span class="baseline mono">main@9d3edbbbb7</span>
+      <span class="baseline mono">main@50d1134b06</span>
       <button class="icon-button" type="button" title="打印或导出 PDF" aria-label="打印或导出 PDF" onclick="window.print()">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7h1a3 3 0 0 1 3 3v6h-4v4H6v-4H2v-6a3 3 0 0 1 3-3h1Zm2-5v5h8V4H8Zm8 16v-5H8v5h8Zm3-6h1v-2a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v2h2v-1h12v1h1Z"/></svg>
       </button>
@@ -637,23 +637,24 @@
       <div class="side-note">
         审计日期：2026-07-29<br>
         执行者：Codex<br>
-        Issue：#1163
+        初始审计：#1163<br>
+        收口审计：#1195
       </div>
     </nav>
 
     <main>
       <section id="summary">
         <p class="eyebrow">Executive decision</p>
-        <h1>NTPRO 当前后端维护基线：有条件通过</h1>
+        <h1>NTPRO 后端审计治理：收口通过</h1>
         <p class="lede">
           v0.32.0 可继续作为后端冻结基线，v0.33.0 的维护发布链和 27 项禁用边界成立。
-          本轮审计识别出的两项 runtime P1 缺陷已通过独立 PR 修复，另有一项风险清单 hash
-          漂移已在审计 PR 内纠正。该结论只覆盖冻结后的
-          后端维护质量，不授权实盘下单、撤单、交易所写入或产品级交易终端。
+          初始审计和后续 PAR-001 至 PAR-011 识别的 P1/P2/P3 治理项均已通过独立
+          issue、PR、review 和 hosted checks 收口。该结论只覆盖冻结后的后端维护质量与
+          能力前置治理，不授权实盘下单、撤单、交易所写入或产品级交易终端。
         </p>
 
         <div class="meta-row">
-          <span class="tag">基线 SHA · 9d3edbbbb7</span>
+          <span class="tag">收口基线 SHA · 50d1134b06</span>
           <span class="tag">Rust workspace · 42 packages</span>
           <span class="tag">审计类型 · 静态 + 本地验证 + GitHub live state</span>
           <span class="tag">结论边界 · 非生产实盘授权</span>
@@ -662,19 +663,19 @@
         <div class="verdict">
           <div class="verdict-mark">
             <span>审计判定</span>
-            <strong>有条件通过</strong>
+            <strong>收口通过</strong>
           </div>
           <div class="verdict-copy">
             <p><strong>可以继续：</strong>冻结基线治理、只读 runtime、后端维护、性能回归、依赖与发布门禁。</p>
             <p><strong>不能继承：</strong>submit、cancel、mutation、adapter send、live exchange request、自动重试/补救、交易控件。</p>
-            <p><strong>能力升级前置：</strong>先清除 10 个高影响 ignored-test 阻塞并移除或重新授权历史 mutation executor。</p>
+            <p><strong>后续能力升级：</strong>必须建立独立产品 scope、当前 owner approval、风险/回滚/遥测证据；不得从后端收口自动继承。</p>
           </div>
         </div>
 
         <div class="kpi-grid">
-          <div class="kpi"><strong>1,956</strong><span>Rust 源文件</span></div>
-          <div class="kpi"><strong>1,194,246</strong><span>Rust 代码行（含测试）</span></div>
-          <div class="kpi"><strong>286</strong><span>发布 replay scope case</span></div>
+          <div class="kpi"><strong>1,959</strong><span>Rust 源文件</span></div>
+          <div class="kpi"><strong>1,198,397</strong><span>Rust 代码行（含测试）</span></div>
+          <div class="kpi"><strong>289</strong><span>发布 replay scope case</span></div>
           <div class="kpi"><strong>27 / 27</strong><span>v0.33.0 禁用能力显式为 false</span></div>
         </div>
 
@@ -703,7 +704,7 @@
         <div class="method-grid">
           <article class="panel">
             <h3>代码与架构</h3>
-            <p>盘点 42 个 workspace package、1,956 个 Rust 文件、CLI 入口、domain engine、adapter、persistence 与治理 crate。</p>
+            <p>盘点 42 个 workspace package、1,959 个 Rust 文件、CLI 入口、domain engine、adapter、persistence 与治理 crate。</p>
           </article>
           <article class="panel">
             <h3>运行时与能力</h3>
@@ -727,11 +728,12 @@
 
       <section id="architecture">
         <p class="eyebrow">Architecture view</p>
-        <h2>当前代码结构：分层清晰，CLI 编排仍过度集中</h2>
+        <h2>当前代码结构：分层清晰，CLI 历史集中度已下降</h2>
         <p>
           核心交易域已按 crate 分离，数据、模型、执行、风险、组合、回测和 adapter 的所有权基本明确。
-          集中风险主要出现在 CLI 历史治理链：<span class="mono">live.rs</span> 与
-          <span class="mono">dashboard.rs</span> 同时承载命令编排、工件校验和大量测试。
+          PAR-007/PAR-008 已将历史 mutation executor、HTTP/read-model 和 renderer 责任拆开；
+          <span class="mono">live.rs</span> 与 <span class="mono">dashboard.rs</span> 仍是较大模块，
+          但生产能力边界和测试所有权已可独立审计。
         </p>
 
         <div class="arch" aria-label="NTPRO 代码分层">
@@ -786,9 +788,9 @@
           <table>
             <thead><tr><th>集中模块</th><th>代码行</th><th>审计判断</th><th>建议</th></tr></thead>
             <tbody>
-              <tr><td><span class="mono">crates/cli/src/live.rs</span></td><td>37,712</td><td>高集中度；历史 release 工件链与 runtime wrapper 共存</td><td>按 read-only、artifact evaluation、legacy mutation 三类继续拆分</td></tr>
-              <tr><td><span class="mono">crates/cli/src/dashboard.rs</span></td><td>25,680</td><td>renderer、read model、边界验证和测试耦合</td><td>以 API contract / projection / renderer 为所有权边界拆分</td></tr>
-              <tr><td><span class="mono">crates/cli/src/opt.rs</span></td><td>6,313</td><td>命令契约集中但仍可审计</td><td>随子命令模块迁移 parser 与 help 测试</td></tr>
+              <tr><td><span class="mono">crates/cli/src/live.rs</span></td><td>21,857</td><td>历史 mutation executor 已退役并移出生产模块</td><td>保持 read-only / evaluation 边界，新增能力单独授权</td></tr>
+              <tr><td><span class="mono">crates/cli/src/dashboard.rs</span></td><td>12,731</td><td>HTTP、render 与 read-model 已按行为保持方式拆分</td><td>继续以 API contract / projection / renderer 为所有权边界</td></tr>
+              <tr><td><span class="mono">crates/cli/src/opt.rs</span></td><td>6,361</td><td>命令契约集中但可通过 help/CLI tests 审计</td><td>随新增子命令维持 parser 与 help 测试同步</td></tr>
             </tbody>
           </table>
         </div>
@@ -819,37 +821,37 @@
                 <td><span class="severity sev-p1">P1</span></td>
                 <td><span class="finding-title">风险清单 canonical hash 漂移</span>BFR-001 最终测试移动了源码行号，信号数量未变但清单 hash 未同步，导致本地 current-governance fail closed。</td>
                 <td class="path">backend_runtime_risk_inventory.json<br>ACR-001 复跑发现</td>
-                <td><span class="disposition done">已修复</span><br>保持 28,975 条统计不变，只同步可复现 canonical hash。</td>
+                <td><span class="disposition done">已修复</span><br>PAR-011 后为 29,132 条、1,217 文件，canonical hash 可复现。</td>
               </tr>
               <tr>
                 <td><span class="severity sev-p1">P1</span></td>
-                <td><span class="finding-title">10 个高影响交易语义测试仍被 ignore</span>contingent order、trailing stop、risk reducing、emulator、account balance、dYdX reconnect 尚未形成默认回归证据。</td>
-                <td class="path">execution / risk / dYdX<br>28 个直接 ignored 中的高影响组</td>
-                <td><span class="disposition scoped">能力阻塞</span><br>已从当前冻结维护 scope 排除；未来交易能力发布前必须修复或重新定界。</td>
+                <td><span class="finding-title">10 个高影响交易语义测试曾被 ignore</span>contingent order、trailing stop、risk reducing、emulator、account balance、dYdX reconnect 缺少默认回归证据。</td>
+                <td class="path">PAR-001 至 PAR-006<br>issue #1169-#1174</td>
+                <td><span class="disposition done">已修复</span><br>10 个高影响测试全部恢复到默认 suite，并补充 executable replay。</td>
               </tr>
               <tr>
                 <td><span class="severity sev-p2">P2</span></td>
-                <td><span class="finding-title">CLI 历史编排模块过大</span>两个最大文件合计超过 63,000 行，增加边界变更的审查成本。</td>
-                <td class="path">live.rs 37,712 行<br>dashboard.rs 25,680 行</td>
-                <td><span class="disposition planned">治理路线</span><br>只做行为保持的所有权拆分，不在冻结维护中重构交易语义。</td>
+                <td><span class="finding-title">CLI 历史编排模块过大</span>live/dashboard 曾合计超过 63,000 行，增加边界变更的审查成本。</td>
+                <td class="path">PAR-007 / PAR-008<br>PR #1190 / #1191</td>
+                <td><span class="disposition done">已拆分</span><br>两文件现合计 34,588 行；行为保持验证与 mutation retirement 均通过。</td>
               </tr>
               <tr>
                 <td><span class="severity sev-p2">P2</span></td>
-                <td><span class="finding-title">Replay 保证强度不完全一致</span>286 个 case 中 95 个 executable、186 个 validator executable、5 个 schema-only scoped。</td>
-                <td class="path">RELEASE_REPLAY_SCOPE.json</td>
-                <td><span class="disposition planned">逐步提升</span><br>schema-only 不计作 runtime replay；优先提升交易与 read-model 关键路径。</td>
+                <td><span class="finding-title">Replay 保证强度曾不完全一致</span>初始 286 个 case 中仍有 5 个 schema-only scoped。</td>
+                <td class="path">PAR-009 / PAR-010<br>PR #1192 / #1193</td>
+                <td><span class="disposition done">已提升</span><br>现为 289 case：103 Rust executable、186 validator executable、0 schema-only。</td>
               </tr>
               <tr>
                 <td><span class="severity sev-p3">P3</span></td>
-                <td><span class="finding-title">风险清单为路径级归属</span>inline test 中的 unwrap/expect 会被保守计入 production，统计适合趋势治理，不适合作为缺陷数量。</td>
-                <td class="path">28,975 signals / 1,215 files</td>
-                <td><span class="disposition scoped">已知限制</span><br>保持 fail-closed 统计；具体整改必须逐项代码审查。</td>
+                <td><span class="finding-title">风险清单曾只有路径级归属</span>mixed source 内 inline tests 会抬高 production 趋势统计。</td>
+                <td class="path">PAR-011 · PR #1194<br>29,132 signals / 1,217 files</td>
+                <td><span class="disposition done">已细分</span><br>明确 test_inline 10,291；production 2,697；边界行继续 fail closed。</td>
               </tr>
               <tr>
                 <td><span class="severity sev-p3">P3</span></td>
-                <td><span class="finding-title">Ignored-test 登记存在双入口</span>quality 与 verification 目录各有一份登记表，当前数量一致但用途说明不足。</td>
-                <td class="path">quality/ignored_tests_register.md<br>verification/ignored_tests_risk_register.md</td>
-                <td><span class="disposition planned">文档治理</span><br>后续固定一个 current register，另一份标记为历史扩展记录。</td>
+                <td><span class="finding-title">Ignored-test 登记曾存在双入口</span>quality 与 verification 目录各有一份登记表，用途说明不足。</td>
+                <td class="path">PAR-011 · PR #1194<br>18 direct + 6 conditional</td>
+                <td><span class="disposition done">已统一</span><br>quality 为唯一 CURRENT；verification 明确为 HISTORICAL_EXTENSION。</td>
               </tr>
             </tbody>
           </table>
@@ -858,7 +860,7 @@
 
       <section id="remediation">
         <p class="eyebrow">Remediation proof</p>
-        <h2>本轮已完成的两项 runtime P1 修复</h2>
+        <h2>从 runtime P1 修复到治理收口</h2>
 
         <h3>CRF-001 · Cache persistence fail-closed</h3>
         <div class="fix-flow">
@@ -906,10 +908,10 @@
             <tbody>
               <tr><td>v0.32.0 hosted release gate</td><td><span class="disposition done">成功</span></td><td>tag/ref/SHA 上的完整发布门禁通过</td><td>不是未来版本的实盘授权</td></tr>
               <tr><td>v0.33.0 hosted release gate</td><td><span class="disposition done">成功</span></td><td>维护范围、严格 provenance、发布顺序成立</td><td>不扩张 27 项 false capability</td></tr>
-              <tr><td>PR #1165 / #1167 smoke</td><td><span class="disposition done">成功</span></td><td>workspace、CLI、治理和修复回归通过</td><td>不覆盖真实交易所写入</td></tr>
+              <tr><td>PR #1165 / #1167 / #1180-#1194</td><td><span class="disposition done">成功</span></td><td>runtime P1、PAR-001 至 PAR-011 和治理回归通过</td><td>不覆盖真实交易所写入</td></tr>
               <tr><td>安全供应链</td><td><span class="disposition done">成功</span></td><td>cargo-audit、deny、vet、OSV、zizmor 当前检查通过</td><td>不等于业务逻辑无缺陷</td></tr>
-              <tr><td>Golden release scope</td><td><span class="disposition done">286 cases</span></td><td>95 executable + 186 validator executable + 5 scoped schema</td><td>validator/schema 不自动成为 runtime replay</td></tr>
-              <tr><td>Ignored tests</td><td><span class="disposition scoped">28 直接 ignore</span></td><td>风险已登记并可定位</td><td>被 ignore 的能力没有默认回归证明</td></tr>
+              <tr><td>Golden release scope</td><td><span class="disposition done">289 cases</span></td><td>103 Rust executable + 186 validator executable + 0 schema-only</td><td>validator replay 仍不自动成为产品 runtime 执行</td></tr>
+              <tr><td>Ignored tests</td><td><span class="disposition done">18 direct + 6 conditional</span></td><td>唯一 CURRENT 登记册、owner 与 close condition 可自动验证</td><td>保留的 live/slow/external tests 仍不构成默认实盘证明</td></tr>
             </tbody>
           </table>
         </div>
@@ -924,7 +926,7 @@
 
       <section id="risk">
         <p class="eyebrow">Residual risk</p>
-        <h2>遗留风险不是 28,975 个“缺陷”</h2>
+        <h2>遗留风险不是 29,132 个“缺陷”</h2>
         <p>
           风险清单是文本信号和所有权盘点，用于趋势治理与聚焦审查。它包含测试断言、生成代码和 FFI
           合法不变量。真正需要优先处理的是可达 runtime、交易语义、持久化一致性和边界绕过，而不是机械清零。
@@ -932,11 +934,11 @@
 
         <div class="metric-list">
           <div class="metric">
-            <div class="metric-head"><span>unwrap</span><strong>19,410</strong></div>
+            <div class="metric-head"><span>unwrap</span><strong>19,547</strong></div>
             <div class="bar"><span style="width:100%"></span></div>
           </div>
           <div class="metric">
-            <div class="metric-head"><span>expect</span><strong>5,691</strong></div>
+            <div class="metric-head"><span>expect</span><strong>5,710</strong></div>
             <div class="bar"><span style="width:29.3%"></span></div>
           </div>
           <div class="metric">
@@ -944,15 +946,15 @@
             <div class="bar"><span style="width:9.9%"></span></div>
           </div>
           <div class="metric">
-            <div class="metric-head"><span>panic</span><strong>1,510</strong></div>
+            <div class="metric-head"><span>panic</span><strong>1,521</strong></div>
             <div class="bar"><span style="width:7.8%"></span></div>
           </div>
           <div class="metric">
-            <div class="metric-head"><span>TODO</span><strong>172</strong></div>
+            <div class="metric-head"><span>TODO</span><strong>163</strong></div>
             <div class="bar"><span style="width:1.2%"></span></div>
           </div>
           <div class="metric">
-            <div class="metric-head"><span>dead_code / unused / todo!</span><strong>270</strong></div>
+            <div class="metric-head"><span>dead_code / unused / todo!</span><strong>269</strong></div>
             <div class="bar"><span style="width:1.4%"></span></div>
           </div>
         </div>
@@ -961,8 +963,9 @@
           <table>
             <thead><tr><th>所有权</th><th>数量</th><th>审计解释</th></tr></thead>
             <tbody>
-              <tr><td>production（路径级保守归属）</td><td>14,244</td><td>包含 mixed src 文件内的 inline tests，必须逐项判断，不能批量替换。</td></tr>
-              <tr><td>test</td><td>13,411</td><td>多数 unwrap/expect 是夹具和断言失败机制。</td></tr>
+              <tr><td>production</td><td>2,697</td><td>明确生产路径与保守边界行；整改仍需逐项代码审查。</td></tr>
+              <tr><td>test_inline</td><td>10,291</td><td>mixed source 内显式 cfg(test) module，已与生产趋势分离。</td></tr>
+              <tr><td>test</td><td>14,824</td><td>多数 unwrap/expect 是夹具和断言失败机制。</td></tr>
               <tr><td>FFI</td><td>674</td><td>ABI 与 raw pointer 需要专门 fixture/Miri/sanitizer 范围。</td></tr>
               <tr><td>generated</td><td>646</td><td>应修改 generator/schema，不手工改生成文件。</td></tr>
             </tbody>
@@ -975,8 +978,8 @@
         <h2>建议路线：冻结维护、能力解锁、产品交付三段分开</h2>
         <div class="roadmap-grid">
           <article class="roadmap-step current">
-            <span class="step-no">阶段 1 · 当前</span>
-            <h3>冻结基线维护</h3>
+            <span class="step-no">阶段 1 · 已完成</span>
+            <h3>冻结基线与后端治理收口</h3>
             <ul>
               <li>保持 v0.32.0 baseline 不改写</li>
               <li>只接受独立 scoped 的缺陷与性能维护</li>
@@ -985,13 +988,13 @@
             </ul>
           </article>
           <article class="roadmap-step gate">
-            <span class="step-no">阶段 2 · 能力前置</span>
-            <h3>交易语义解锁门禁</h3>
+            <span class="step-no">阶段 2 · 已完成治理项</span>
+            <h3>能力前置证据补强</h3>
             <ul>
-              <li>修复 10 个高影响 ignored tests</li>
-              <li>删除 dormant mutation executor 或重新独立授权</li>
-              <li>把关键 schema-only case 提升为 executable replay</li>
-              <li>建立 current-version risk、rollback、telemetry 证据</li>
+              <li>10 个高影响 ignored tests 已恢复</li>
+              <li>dormant mutation executor 已从生产模块退役</li>
+              <li>schema-only release case 已清零</li>
+              <li>current risk/register/hash 已自动化验证</li>
             </ul>
           </article>
           <article class="roadmap-step future">
@@ -1014,20 +1017,22 @@
           <table>
             <thead><tr><th>证据</th><th>位置 / 链接</th><th>用途</th></tr></thead>
             <tbody>
-              <tr><td>审计任务</td><td class="path">docs/rust-cutover/tasks/ACR-001.md</td><td>范围、约束、验收标准</td></tr>
-              <tr><td>审计执行证据</td><td class="path">docs/rust-cutover/evidence/ACR-001.md</td><td>命令、结果和认知边界</td></tr>
-              <tr><td>风险清单</td><td class="path">docs/rust-cutover/quality/backend_runtime_risk_inventory.json</td><td>28,975 个文本信号的可复现统计</td></tr>
-              <tr><td>Golden replay scope</td><td class="path">docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json</td><td>286 个 release case 的保证强度</td></tr>
+              <tr><td>初始审计任务</td><td class="path">docs/rust-cutover/tasks/ACR-001.md</td><td>初始范围、约束和发现</td></tr>
+              <tr><td>收口审计任务</td><td class="path">docs/rust-cutover/tasks/ACR-002.md</td><td>PAR-001 至 PAR-011 后的最终复核</td></tr>
+              <tr><td>收口审计证据</td><td class="path">docs/rust-cutover/evidence/ACR-002.md</td><td>当前命令、指标、浏览器与 GitHub 证据</td></tr>
+              <tr><td>风险清单</td><td class="path">docs/rust-cutover/quality/backend_runtime_risk_inventory.json</td><td>29,132 个文本信号及五类所有权</td></tr>
+              <tr><td>Golden replay scope</td><td class="path">docs/rust-cutover/golden_trace/RELEASE_REPLAY_SCOPE.json</td><td>289 个 release case 的保证强度</td></tr>
               <tr><td>v0.32.0 Release</td><td><a href="https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.32.0">GitHub Release</a> · <a href="https://github.com/atxinbao/NTPRO/actions/runs/29371898609">gate 29371898609</a></td><td>后端冻结基线</td></tr>
               <tr><td>v0.33.0 Release</td><td><a href="https://github.com/atxinbao/NTPRO/releases/tag/ntpro-rust-only-v0.33.0">GitHub Release</a> · <a href="https://github.com/atxinbao/NTPRO/actions/runs/29837432941">gate 29837432941</a></td><td>维护发布与边界</td></tr>
               <tr><td>Cache 修复</td><td><a href="https://github.com/atxinbao/NTPRO/pull/1165">PR #1165</a></td><td>持久化错误传播</td></tr>
               <tr><td>Mutation 冻结修复</td><td><a href="https://github.com/atxinbao/NTPRO/pull/1167">PR #1167</a></td><td>阻断生产 POST/DELETE runtime 可达性</td></tr>
+              <tr><td>能力前置治理</td><td><a href="https://github.com/atxinbao/NTPRO/milestone/36">milestone #36</a> · PR #1180-#1194</td><td>ignored tests、mutation retirement、CLI 拆分、replay 与登记治理</td></tr>
             </tbody>
           </table>
         </div>
         <p class="footer-note">
           本报告生成于 2026-07-29，执行者 Codex。审计基线：
-          <span class="mono">9d3edbbbb7834a0102170739ae7f126fafce11f3</span>。
+          <span class="mono">50d1134b06234b08a505d32365eb9bd3bda4b810</span>。
           报告是该时点的治理判断；任何后续 capability 变更都需要重新审计。
         </p>
       </section>
