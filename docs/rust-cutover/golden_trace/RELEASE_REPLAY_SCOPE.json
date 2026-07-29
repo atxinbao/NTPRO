@@ -167,6 +167,16 @@
       "rust_entrypoint": "crates/execution/tests/golden_trace_order_lifecycle.rs::rust_execution_replays_order_lifecycle_golden_traces"
     },
     {
+      "case_id": "execution.l2_trailing_stop.trade_execution_disabled.001",
+      "trace": "tests/golden/execution_l2_trailing_stop.jsonl",
+      "category": "order_lifecycle",
+      "status": "executable_replay",
+      "release_decision": "included_in_final_replay_scope",
+      "evidence_id": "PAR-002",
+      "harness": "cargo test -p nautilus-execution --test matching_engine test_trailing_stop_market_updated_then_triggered",
+      "rust_entrypoint": "crates/execution/tests/matching_engine.rs::test_trailing_stop_market_updated_then_triggered"
+    },
+    {
       "case_id": "order_lifecycle.partial_then_filled.001",
       "trace": "tests/golden/order_lifecycle_schema.jsonl",
       "category": "order_lifecycle",

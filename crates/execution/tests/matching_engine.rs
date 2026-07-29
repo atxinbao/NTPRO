@@ -69,6 +69,7 @@ use nautilus_model::{
 };
 use rstest::{fixture, rstest};
 use rust_decimal_macros::dec;
+use serde_json::{Value, json};
 use ustr::Ustr;
 
 #[fixture]
@@ -348,6 +349,62 @@ fn clear_order_event_handler_messages(
     event_handler: &TypedIntoMessageSavingHandler<OrderEventAny>,
 ) {
     event_handler.clear();
+}
+
+fn par_002_golden_case() -> Value {
+    serde_json::from_str(include_str!(
+        "../../../tests/golden/execution_l2_trailing_stop.jsonl"
+    ))
+    .expect("PAR-002 golden trace must be valid JSON")
+}
+
+fn golden_string<'a>(value: &'a Value, path: &[&str]) -> &'a str {
+    let field = path.iter().fold(value, |current, key| &current[*key]);
+    field
+        .as_str()
+        .unwrap_or_else(|| panic!("golden field {} must be a string", path.join(".")))
+}
+
+fn golden_u64(value: &Value, path: &[&str]) -> u64 {
+    let field = path.iter().fold(value, |current, key| &current[*key]);
+    field.as_u64().unwrap_or_else(|| {
+        panic!(
+            "golden field {} must be an unsigned integer",
+            path.join(".")
+        )
+    })
+}
+
+fn normalize_par_002_event(event: &OrderEventAny) -> Value {
+    match event {
+        OrderEventAny::Accepted(accepted) => json!({
+            "event_type": "order.accepted",
+            "ts_event": accepted.ts_event.as_u64(),
+            "payload": {},
+        }),
+        OrderEventAny::Updated(updated) => json!({
+            "event_type": "order.updated",
+            "ts_event": updated.ts_event.as_u64(),
+            "payload": {
+                "quantity": updated.quantity.to_string(),
+                "trigger_price": updated.trigger_price.map(|price| price.to_string()),
+            },
+        }),
+        OrderEventAny::Filled(filled) => json!({
+            "event_type": "order.filled",
+            "ts_event": filled.ts_event.as_u64(),
+            "payload": {
+                "last_px": filled.last_px.to_string(),
+                "last_qty": filled.last_qty.to_string(),
+                "order_status": "filled",
+            },
+        }),
+        unexpected => json!({
+            "event_type": format!("unexpected:{:?}", unexpected.event_type()),
+            "ts_event": unexpected.ts_event().as_u64(),
+            "payload": {},
+        }),
+    }
 }
 
 // -- TESTS -----------------------------------------------------------------------------------
@@ -7889,7 +7946,7 @@ fn test_async_trailing_activation_does_not_copy_pending_event_history(
         Some(VenueOrderId::from("V1")),
         Some(Quantity::from("0.800")),
         None,
-        Some(Price::from("1510.00")),
+        Some(Price::from("1475.00")),
         UUID4::new(),
         UnixNanos::default(),
         None,
@@ -9499,19 +9556,23 @@ fn test_bar_adaptive_ordering_fills_low_side_first(
     assert_eq!(fills[1].client_order_id, buy_id, "BUY should fill second");
 }
 
-// L2 engine with trade_execution=false does not iterate on trade ticks
-#[ignore]
+// A disabled trade-execution path still advances trailing maintenance against
+// the unchanged L2 book; the trade price only updates the LastPrice reference.
 #[rstest]
-fn test_trailing_stop_market_updated_then_triggered(
+fn test_l2_last_price_stop_submission_ignores_crossed_book_until_last_crosses(
     instrument_eth_usdt: InstrumentAny,
-    order_event_handler: TypedIntoMessageSavingHandler<OrderEventAny>,
     account_id: AccountId,
 ) {
+    let cache = Rc::new(RefCell::new(Cache::default()));
+    let order_event_handler = order_event_handler_with_cache(cache);
+    let config = OrderMatchingEngineConfig {
+        trade_execution: false,
+        ..Default::default()
+    };
     let mut engine_l2 =
-        get_order_matching_engine_l2(instrument_eth_usdt.clone(), None, None, None, None);
+        get_order_matching_engine_l2(instrument_eth_usdt.clone(), None, None, Some(config), None);
 
-    // Add sell-side liquidity
-    let delta = OrderBookDeltaTestBuilder::new(instrument_eth_usdt.id())
+    let ask = OrderBookDeltaTestBuilder::new(instrument_eth_usdt.id())
         .book_action(BookAction::Add)
         .book_order(BookOrder::new(
             OrderSide::Sell,
@@ -9520,11 +9581,392 @@ fn test_trailing_stop_market_updated_then_triggered(
             1,
         ))
         .build();
-    engine_l2.process_order_book_delta(&delta).unwrap();
+    engine_l2.process_order_book_delta(&ask).unwrap();
 
-    // Submit trailing stop market BUY at trigger 1510 with offset 5
-    let client_order_id = ClientOrderId::from("O-19700101-000000-001-001-1");
-    let mut trailing_stop = OrderTestBuilder::new(OrderType::TrailingStopMarket)
+    let below_trigger = TradeTick::new(
+        instrument_eth_usdt.id(),
+        Price::from("1480.00"),
+        Quantity::from("1.000"),
+        AggressorSide::Seller,
+        TradeId::new("last-below-stop"),
+        UnixNanos::from(1u64),
+        UnixNanos::from(1u64),
+    );
+    engine_l2.process_trade_tick(&below_trigger);
+
+    let client_order_id = ClientOrderId::from("O-19700101-000000-001-001-3");
+    let mut stop = OrderTestBuilder::new(OrderType::StopMarket)
+        .instrument_id(instrument_eth_usdt.id())
+        .side(OrderSide::Buy)
+        .quantity(Quantity::from("1.000"))
+        .trigger_price(Price::from("1510.00"))
+        .trigger_type(TriggerType::LastPrice)
+        .client_order_id(client_order_id)
+        .submit(true)
+        .build();
+    engine_l2.process_order(&mut stop, account_id);
+
+    let submitted_events = get_order_event_handler_messages(&order_event_handler);
+    assert!(
+        submitted_events
+            .iter()
+            .any(|event| matches!(event, OrderEventAny::Accepted(_))),
+        "LastPrice stop should be accepted while last remains below its trigger: {submitted_events:?}",
+    );
+    assert!(
+        !submitted_events
+            .iter()
+            .any(|event| matches!(event, OrderEventAny::Rejected(_))),
+        "the crossed ask must not reject a LastPrice stop: {submitted_events:?}",
+    );
+    assert!(
+        engine_l2.get_core().order_exists(client_order_id),
+        "accepted LastPrice stop should remain resting",
+    );
+
+    clear_order_event_handler_messages(&order_event_handler);
+    let modify = ModifyOrder::new(
+        TraderId::test_default(),
+        Some(ClientId::from("CLIENT-001")),
+        StrategyId::test_default(),
+        instrument_eth_usdt.id(),
+        client_order_id,
+        Some(VenueOrderId::from("V1")),
+        None,
+        None,
+        Some(Price::from("1490.00")),
+        UUID4::new(),
+        UnixNanos::from(2u64),
+        None,
+        None,
+    );
+    engine_l2.process_modify(&modify, account_id);
+    let modified_events = get_order_event_handler_messages(&order_event_handler);
+    assert!(
+        modified_events
+            .iter()
+            .any(|event| matches!(event, OrderEventAny::Updated(_))),
+        "LastPrice stop trigger should be modifiable while last remains below it: {modified_events:?}",
+    );
+    assert!(
+        !modified_events
+            .iter()
+            .any(|event| matches!(event, OrderEventAny::ModifyRejected(_))),
+        "the crossed ask must not reject a LastPrice stop modification: {modified_events:?}",
+    );
+
+    let unrelated_bid = OrderBookDeltaTestBuilder::new(instrument_eth_usdt.id())
+        .book_action(BookAction::Add)
+        .book_order(BookOrder::new(
+            OrderSide::Buy,
+            Price::from("1400.00"),
+            Quantity::from("1.000"),
+            2,
+        ))
+        .build();
+    engine_l2.process_order_book_delta(&unrelated_bid).unwrap();
+    let book_events = get_order_event_handler_messages(&order_event_handler);
+    assert!(
+        !book_events
+            .iter()
+            .any(|event| matches!(event, OrderEventAny::Filled(_))),
+        "an unrelated L2 book update must not trigger a LastPrice stop: {book_events:?}",
+    );
+    assert!(
+        engine_l2.get_core().order_exists(client_order_id),
+        "LastPrice stop should remain resting until last crosses its trigger",
+    );
+
+    clear_order_event_handler_messages(&order_event_handler);
+    let at_trigger = TradeTick::new(
+        instrument_eth_usdt.id(),
+        Price::from("1490.00"),
+        Quantity::from("1.000"),
+        AggressorSide::Buyer,
+        TradeId::new("last-crosses-stop"),
+        UnixNanos::from(3u64),
+        UnixNanos::from(3u64),
+    );
+    engine_l2.process_trade_tick(&at_trigger);
+
+    let triggered_events = get_order_event_handler_messages(&order_event_handler);
+    let fill = triggered_events.iter().find_map(|event| match event {
+        OrderEventAny::Filled(fill) => Some(fill),
+        _ => None,
+    });
+    assert_eq!(
+        fill.map(|event| event.last_px),
+        Some(Price::from("1500.00")),
+        "LastPrice should trigger the stop while the L2 ask remains the execution source",
+    );
+}
+
+#[rstest]
+fn test_l2_disabled_trade_execution_preserves_bid_ask_touch_direction(
+    instrument_eth_usdt: InstrumentAny,
+    account_id: AccountId,
+) {
+    let cache = Rc::new(RefCell::new(Cache::default()));
+    let order_event_handler = order_event_handler_with_cache(cache);
+    let config = OrderMatchingEngineConfig {
+        trade_execution: false,
+        ..Default::default()
+    };
+    let mut engine_l2 =
+        get_order_matching_engine_l2(instrument_eth_usdt.clone(), None, None, Some(config), None);
+
+    let ask = OrderBookDeltaTestBuilder::new(instrument_eth_usdt.id())
+        .book_action(BookAction::Add)
+        .book_order(BookOrder::new(
+            OrderSide::Sell,
+            Price::from("100.00"),
+            Quantity::from("10.000"),
+            1,
+        ))
+        .build();
+    engine_l2.process_order_book_delta(&ask).unwrap();
+
+    let client_order_id = ClientOrderId::from("O-19700101-000000-001-001-5");
+    let mut touched = OrderTestBuilder::new(OrderType::MarketIfTouched)
+        .instrument_id(instrument_eth_usdt.id())
+        .side(OrderSide::Buy)
+        .quantity(Quantity::from("1.000"))
+        .trigger_price(Price::from("90.00"))
+        .trigger_type(TriggerType::BidAsk)
+        .client_order_id(client_order_id)
+        .submit(true)
+        .build();
+    engine_l2.process_order(&mut touched, account_id);
+    clear_order_event_handler_messages(&order_event_handler);
+
+    let unrelated_trade = TradeTick::new(
+        instrument_eth_usdt.id(),
+        Price::from("80.00"),
+        Quantity::from("1.000"),
+        AggressorSide::Seller,
+        TradeId::new("trade-below-touch"),
+        UnixNanos::from(1u64),
+        UnixNanos::from(1u64),
+    );
+    engine_l2.process_trade_tick(&unrelated_trade);
+
+    let events = get_order_event_handler_messages(&order_event_handler);
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, OrderEventAny::Filled(_))),
+        "BUY BidAsk MIT must not trigger while ask remains above its touch price: {events:?}",
+    );
+    assert!(
+        engine_l2.get_core().order_exists(client_order_id),
+        "the untouched MIT order should remain resting",
+    );
+}
+
+#[rstest]
+fn test_l2_disabled_trade_execution_updates_buy_bidask_trailing_with_ask_only(
+    instrument_eth_usdt: InstrumentAny,
+    account_id: AccountId,
+) {
+    let cache = Rc::new(RefCell::new(Cache::default()));
+    let order_event_handler = order_event_handler_with_cache(cache.clone());
+    let config = OrderMatchingEngineConfig {
+        trade_execution: false,
+        ..Default::default()
+    };
+    let mut engine_l2 = get_order_matching_engine_l2(
+        instrument_eth_usdt.clone(),
+        Some(cache.clone()),
+        None,
+        Some(config),
+        None,
+    );
+
+    let ask = OrderBookDeltaTestBuilder::new(instrument_eth_usdt.id())
+        .book_action(BookAction::Add)
+        .book_order(BookOrder::new(
+            OrderSide::Sell,
+            Price::from("100.00"),
+            Quantity::from("10.000"),
+            1,
+        ))
+        .build();
+    engine_l2.process_order_book_delta(&ask).unwrap();
+
+    let client_order_id = ClientOrderId::from("O-19700101-000000-001-001-7");
+    let mut trailing = OrderTestBuilder::new(OrderType::TrailingStopMarket)
+        .instrument_id(instrument_eth_usdt.id())
+        .side(OrderSide::Buy)
+        .quantity(Quantity::from("1.000"))
+        .trigger_price(Price::from("110.00"))
+        .trigger_type(TriggerType::BidAsk)
+        .trailing_offset(dec!(5))
+        .trailing_offset_type(TrailingOffsetType::Price)
+        .client_order_id(client_order_id)
+        .submit(true)
+        .build();
+    engine_l2.process_order(&mut trailing, account_id);
+    clear_order_event_handler_messages(&order_event_handler);
+
+    let trade = TradeTick::new(
+        instrument_eth_usdt.id(),
+        Price::from("95.00"),
+        Quantity::from("1.000"),
+        AggressorSide::Seller,
+        TradeId::new("ask-only-trailing-maintenance"),
+        UnixNanos::from(1u64),
+        UnixNanos::from(1u64),
+    );
+    engine_l2.process_trade_tick(&trade);
+
+    let events = get_order_event_handler_messages(&order_event_handler);
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(event, OrderEventAny::Updated(_))),
+        "a BUY BidAsk trail should update from the available ask without requiring a bid: {events:?}",
+    );
+    assert_eq!(
+        cache
+            .borrow()
+            .order(&client_order_id)
+            .expect("trailing stop should remain cached")
+            .trigger_price(),
+        Some(Price::from("105.00")),
+    );
+}
+
+#[rstest]
+fn test_l2_last_price_stops_share_trade_snapshot_across_matching_sides(
+    instrument_eth_usdt: InstrumentAny,
+    account_id: AccountId,
+) {
+    let cache = Rc::new(RefCell::new(Cache::default()));
+    let order_event_handler = order_event_handler_with_cache(cache);
+    let config = OrderMatchingEngineConfig {
+        trade_execution: false,
+        ..Default::default()
+    };
+    let mut engine_l2 =
+        get_order_matching_engine_l2(instrument_eth_usdt.clone(), None, None, Some(config), None);
+
+    for (side, price, id) in [(OrderSide::Buy, "80.00", 1), (OrderSide::Sell, "90.00", 2)] {
+        let delta = OrderBookDeltaTestBuilder::new(instrument_eth_usdt.id())
+            .book_action(BookAction::Add)
+            .book_order(BookOrder::new(
+                side,
+                Price::from(price),
+                Quantity::from("10.000"),
+                id,
+            ))
+            .build();
+        engine_l2.process_order_book_delta(&delta).unwrap();
+    }
+
+    let seed_last = TradeTick::new(
+        instrument_eth_usdt.id(),
+        Price::from("99.00"),
+        Quantity::from("1.000"),
+        AggressorSide::Seller,
+        TradeId::new("seed-last-before-both-stops"),
+        UnixNanos::from(1u64),
+        UnixNanos::from(1u64),
+    );
+    engine_l2.process_trade_tick(&seed_last);
+
+    let buy_id = ClientOrderId::from("O-19700101-000000-001-001-8");
+    let mut buy_stop_limit = OrderTestBuilder::new(OrderType::StopLimit)
+        .instrument_id(instrument_eth_usdt.id())
+        .side(OrderSide::Buy)
+        .quantity(Quantity::from("1.000"))
+        .price(Price::from("95.00"))
+        .trigger_price(Price::from("100.00"))
+        .trigger_type(TriggerType::LastPrice)
+        .client_order_id(buy_id)
+        .submit(true)
+        .build();
+    engine_l2.process_order(&mut buy_stop_limit, account_id);
+
+    let sell_id = ClientOrderId::from("O-19700101-000000-001-001-9");
+    let mut sell_stop = OrderTestBuilder::new(OrderType::StopMarket)
+        .instrument_id(instrument_eth_usdt.id())
+        .side(OrderSide::Sell)
+        .quantity(Quantity::from("1.000"))
+        .trigger_price(Price::from("97.00"))
+        .trigger_type(TriggerType::LastPrice)
+        .client_order_id(sell_id)
+        .submit(true)
+        .build();
+    engine_l2.process_order(&mut sell_stop, account_id);
+    clear_order_event_handler_messages(&order_event_handler);
+
+    let trigger_buy_only = TradeTick::new(
+        instrument_eth_usdt.id(),
+        Price::from("100.00"),
+        Quantity::from("1.000"),
+        AggressorSide::Buyer,
+        TradeId::new("trigger-buy-last-snapshot"),
+        UnixNanos::from(2u64),
+        UnixNanos::from(2u64),
+    );
+    engine_l2.process_trade_tick(&trigger_buy_only);
+
+    let events = get_order_event_handler_messages(&order_event_handler);
+    assert!(
+        events.iter().any(
+            |event| matches!(event, OrderEventAny::Filled(fill) if fill.client_order_id == buy_id)
+        ),
+        "the BUY stop-limit should trigger and fill from the ask: {events:?}",
+    );
+    assert!(
+        !events.iter().any(
+            |event| matches!(event, OrderEventAny::Filled(fill) if fill.client_order_id == sell_id)
+        ),
+        "the BUY fill price must not replace the trade last used by the SELL stop: {events:?}",
+    );
+    assert!(
+        engine_l2.get_core().order_exists(sell_id),
+        "the SELL LastPrice stop should remain resting at trade last 100",
+    );
+}
+
+#[rstest]
+fn test_l2_last_price_trailing_modify_uses_stop_direction(
+    instrument_eth_usdt: InstrumentAny,
+    account_id: AccountId,
+) {
+    let cache = Rc::new(RefCell::new(Cache::default()));
+    let order_event_handler = order_event_handler_with_cache(cache);
+    let config = OrderMatchingEngineConfig {
+        trade_execution: false,
+        ..Default::default()
+    };
+    let mut engine_l2 =
+        get_order_matching_engine_l2(instrument_eth_usdt.clone(), None, None, Some(config), None);
+
+    let ask = OrderBookDeltaTestBuilder::new(instrument_eth_usdt.id())
+        .book_action(BookAction::Add)
+        .book_order(BookOrder::new(
+            OrderSide::Sell,
+            Price::from("1500.00"),
+            Quantity::from("10.000"),
+            1,
+        ))
+        .build();
+    engine_l2.process_order_book_delta(&ask).unwrap();
+    let seed_last = TradeTick::new(
+        instrument_eth_usdt.id(),
+        Price::from("1480.00"),
+        Quantity::from("1.000"),
+        AggressorSide::Seller,
+        TradeId::new("last-for-trailing-modify"),
+        UnixNanos::from(1u64),
+        UnixNanos::from(1u64),
+    );
+    engine_l2.process_trade_tick(&seed_last);
+
+    let client_order_id = ClientOrderId::from("O-19700101-000000-001-001-6");
+    let mut trailing = OrderTestBuilder::new(OrderType::TrailingStopMarket)
         .instrument_id(instrument_eth_usdt.id())
         .side(OrderSide::Buy)
         .quantity(Quantity::from("1.000"))
@@ -9535,33 +9977,324 @@ fn test_trailing_stop_market_updated_then_triggered(
         .client_order_id(client_order_id)
         .submit(true)
         .build();
+    engine_l2.process_order(&mut trailing, account_id);
+    clear_order_event_handler_messages(&order_event_handler);
+
+    let valid_modify = ModifyOrder::new(
+        TraderId::test_default(),
+        Some(ClientId::from("CLIENT-001")),
+        StrategyId::test_default(),
+        instrument_eth_usdt.id(),
+        client_order_id,
+        Some(VenueOrderId::from("V1")),
+        None,
+        None,
+        Some(Price::from("1490.00")),
+        UUID4::new(),
+        UnixNanos::from(2u64),
+        None,
+        None,
+    );
+    engine_l2.process_modify(&valid_modify, account_id);
+    let valid_events = get_order_event_handler_messages(&order_event_handler);
+    assert!(
+        valid_events
+            .iter()
+            .any(|event| matches!(event, OrderEventAny::Updated(_))),
+        "BUY trailing trigger above last should be accepted: {valid_events:?}",
+    );
+    assert!(
+        !valid_events
+            .iter()
+            .any(|event| matches!(event, OrderEventAny::ModifyRejected(_))),
+        "BUY trailing trigger above last must not use touched inequalities: {valid_events:?}",
+    );
+
+    clear_order_event_handler_messages(&order_event_handler);
+    let invalid_modify = ModifyOrder::new(
+        TraderId::test_default(),
+        Some(ClientId::from("CLIENT-001")),
+        StrategyId::test_default(),
+        instrument_eth_usdt.id(),
+        client_order_id,
+        Some(VenueOrderId::from("V1")),
+        None,
+        None,
+        Some(Price::from("1470.00")),
+        UUID4::new(),
+        UnixNanos::from(3u64),
+        None,
+        None,
+    );
+    engine_l2.process_modify(&invalid_modify, account_id);
+    let invalid_events = get_order_event_handler_messages(&order_event_handler);
+    assert!(
+        invalid_events
+            .iter()
+            .any(|event| matches!(event, OrderEventAny::ModifyRejected(_))),
+        "BUY trailing trigger below last is already in the market and must be rejected: {invalid_events:?}",
+    );
+}
+
+#[rstest]
+fn test_l2_last_price_trailing_activation_ignores_book_until_last_reaches_activation(
+    instrument_eth_usdt: InstrumentAny,
+    account_id: AccountId,
+) {
+    let cache = Rc::new(RefCell::new(Cache::default()));
+    let config = OrderMatchingEngineConfig {
+        trade_execution: false,
+        ..Default::default()
+    };
+    let mut engine_l2 = get_order_matching_engine_l2(
+        instrument_eth_usdt.clone(),
+        Some(cache.clone()),
+        None,
+        Some(config),
+        None,
+    );
+
+    let ask = OrderBookDeltaTestBuilder::new(instrument_eth_usdt.id())
+        .book_action(BookAction::Add)
+        .book_order(BookOrder::new(
+            OrderSide::Sell,
+            Price::from("1500.00"),
+            Quantity::from("10.000"),
+            1,
+        ))
+        .build();
+    engine_l2.process_order_book_delta(&ask).unwrap();
+    let above_activation = TradeTick::new(
+        instrument_eth_usdt.id(),
+        Price::from("1520.00"),
+        Quantity::from("1.000"),
+        AggressorSide::Buyer,
+        TradeId::new("last-above-activation"),
+        UnixNanos::from(1u64),
+        UnixNanos::from(1u64),
+    );
+    engine_l2.process_trade_tick(&above_activation);
+
+    let client_order_id = ClientOrderId::from("O-19700101-000000-001-001-4");
+    let mut trailing = OrderTestBuilder::new(OrderType::TrailingStopMarket)
+        .instrument_id(instrument_eth_usdt.id())
+        .side(OrderSide::Buy)
+        .quantity(Quantity::from("1.000"))
+        .trigger_price(Price::from("1600.00"))
+        .trigger_type(TriggerType::LastPrice)
+        .trailing_offset(dec!(5))
+        .trailing_offset_type(TrailingOffsetType::Price)
+        .client_order_id(client_order_id)
+        .submit(true)
+        .build();
+    let OrderAny::TrailingStopMarket(inner) = &mut trailing else {
+        unreachable!("builder must return a trailing-stop-market order");
+    };
+    inner.activation_price = Some(Price::from("1510.00"));
+    engine_l2.process_order(&mut trailing, account_id);
+
+    let activation_state = |order: &OrderAny| match order {
+        OrderAny::TrailingStopMarket(inner) => inner.is_activated,
+        _ => unreachable!("cached order must remain trailing-stop-market"),
+    };
+    assert!(
+        !activation_state(
+            &cache
+                .borrow()
+                .order(&client_order_id)
+                .expect("inactive trailing stop should be cached"),
+        ),
+        "ask below activation must not activate a LastPrice trailing stop while last is above it",
+    );
+
+    let reaches_activation = TradeTick::new(
+        instrument_eth_usdt.id(),
+        Price::from("1510.00"),
+        Quantity::from("1.000"),
+        AggressorSide::Seller,
+        TradeId::new("last-reaches-activation"),
+        UnixNanos::from(2u64),
+        UnixNanos::from(2u64),
+    );
+    engine_l2.process_trade_tick(&reaches_activation);
+    assert!(
+        activation_state(
+            &cache
+                .borrow()
+                .order(&client_order_id)
+                .expect("activated trailing stop should remain cached"),
+        ),
+        "LastPrice trailing stop should activate when last reaches its activation price",
+    );
+}
+
+#[rstest]
+fn test_trailing_stop_market_updated_then_triggered(
+    instrument_eth_usdt: InstrumentAny,
+    account_id: AccountId,
+) {
+    let golden = par_002_golden_case();
+    assert_eq!(
+        golden_string(&golden, &["case_id"]),
+        "execution.l2_trailing_stop.trade_execution_disabled.001",
+    );
+    assert_eq!(
+        golden_string(&golden, &["input", "config", "book_type"]),
+        "L2_MBP",
+    );
+    assert_eq!(
+        golden["input"]["config"]["trade_execution"].as_bool(),
+        Some(false),
+    );
+
+    let cache = Rc::new(RefCell::new(Cache::default()));
+    let order_event_handler = order_event_handler_with_cache(cache.clone());
+    let clock = Rc::new(RefCell::new(TestClock::new()));
+    let config = OrderMatchingEngineConfig {
+        trade_execution: false,
+        ..Default::default()
+    };
+    let mut engine_l2 = get_order_matching_engine_l2(
+        instrument_eth_usdt.clone(),
+        Some(cache.clone()),
+        None,
+        Some(config),
+        Some(clock.clone()),
+    );
+
+    // Add sell-side liquidity
+    let delta = OrderBookDeltaTestBuilder::new(instrument_eth_usdt.id())
+        .book_action(BookAction::Add)
+        .book_order(BookOrder::new(
+            OrderSide::Sell,
+            Price::from(golden_string(&golden, &["input", "book", "ask_price"])),
+            Quantity::from(golden_string(&golden, &["input", "book", "ask_size"])),
+            1,
+        ))
+        .build();
+    engine_l2.process_order_book_delta(&delta).unwrap();
+
+    // Submit trailing stop market BUY at trigger 1510 with offset 5
+    let client_order_id = ClientOrderId::from("O-19700101-000000-001-001-1");
+    let mut trailing_stop = OrderTestBuilder::new(OrderType::TrailingStopMarket)
+        .instrument_id(instrument_eth_usdt.id())
+        .side(OrderSide::Buy)
+        .quantity(Quantity::from(golden_string(
+            &golden,
+            &["input", "order", "quantity"],
+        )))
+        .trigger_price(Price::from(golden_string(
+            &golden,
+            &["input", "order", "trigger_price"],
+        )))
+        .trigger_type(TriggerType::LastPrice)
+        .trailing_offset(
+            golden_string(&golden, &["input", "order", "trailing_offset"])
+                .parse()
+                .expect("golden trailing offset must be decimal"),
+        )
+        .trailing_offset_type(TrailingOffsetType::Price)
+        .client_order_id(client_order_id)
+        .submit(true)
+        .build();
     engine_l2.process_order(&mut trailing_stop, account_id);
 
     // Market drops to 1480 → trailing trigger updates to 1485 (1480 + 5)
+    let trades = golden["input"]["trades"]
+        .as_array()
+        .expect("golden input.trades must be an array");
+    let first_trade = &trades[0];
+    clock
+        .borrow_mut()
+        .set_time(UnixNanos::from(golden_u64(first_trade, &["ts_init"])));
     let tick1 = TradeTick::new(
         instrument_eth_usdt.id(),
-        Price::from("1480.00"),
-        Quantity::from("1.000"),
+        Price::from(golden_string(first_trade, &["price"])),
+        Quantity::from(golden_string(first_trade, &["size"])),
         AggressorSide::Seller,
-        TradeId::new("1"),
-        UnixNanos::from(1u64),
-        UnixNanos::from(1u64),
+        TradeId::new(golden_string(first_trade, &["trade_id"])),
+        UnixNanos::from(golden_u64(first_trade, &["ts_event"])),
+        UnixNanos::from(golden_u64(first_trade, &["ts_init"])),
     );
     engine_l2.process_trade_tick(&tick1);
 
-    // Market recovers to 1490 → ask(1500) >= trigger(1485) → stop triggers
+    let updated_order = cache
+        .borrow()
+        .order(&client_order_id)
+        .map(|order| order.clone())
+        .expect("trailing stop should remain cached after update");
+    assert_eq!(
+        updated_order.trigger_price(),
+        Some(Price::from(golden_string(
+            &golden,
+            &["expected", "updated_trigger_price"],
+        ))),
+        "LastPrice trailing trigger should improve from 1510 to 1485",
+    );
+    assert!(
+        !get_order_event_handler_messages(&order_event_handler)
+            .iter()
+            .any(|event| matches!(event, OrderEventAny::Filled(_))),
+        "the first trade should update the trail without triggering a fill",
+    );
+
+    // The book ask is already above the trailing trigger, but LastPrice is
+    // still below it. This tick must not trigger from the unchanged ask.
+    let second_trade = &trades[1];
+    clock
+        .borrow_mut()
+        .set_time(UnixNanos::from(golden_u64(second_trade, &["ts_init"])));
     let tick2 = TradeTick::new(
         instrument_eth_usdt.id(),
-        Price::from("1490.00"),
-        Quantity::from("1.000"),
+        Price::from(golden_string(second_trade, &["price"])),
+        Quantity::from(golden_string(second_trade, &["size"])),
         AggressorSide::Buyer,
-        TradeId::new("2"),
-        UnixNanos::from(2u64),
-        UnixNanos::from(2u64),
+        TradeId::new(golden_string(second_trade, &["trade_id"])),
+        UnixNanos::from(golden_u64(second_trade, &["ts_event"])),
+        UnixNanos::from(golden_u64(second_trade, &["ts_init"])),
     );
     engine_l2.process_trade_tick(&tick2);
+    assert!(
+        !get_order_event_handler_messages(&order_event_handler)
+            .iter()
+            .any(|event| matches!(event, OrderEventAny::Filled(_))),
+        "LastPrice trailing stop must not trigger while last remains below its trigger",
+    );
+    assert_eq!(
+        cache
+            .borrow()
+            .order(&client_order_id)
+            .expect("trailing stop should remain cached below its trigger")
+            .trigger_price(),
+        Some(Price::from(golden_string(
+            &golden,
+            &["expected", "updated_trigger_price"],
+        ))),
+    );
+
+    // LastPrice crosses the trigger; execution still consumes the unchanged L2 ask.
+    let third_trade = &trades[2];
+    clock
+        .borrow_mut()
+        .set_time(UnixNanos::from(golden_u64(third_trade, &["ts_init"])));
+    let tick3 = TradeTick::new(
+        instrument_eth_usdt.id(),
+        Price::from(golden_string(third_trade, &["price"])),
+        Quantity::from(golden_string(third_trade, &["size"])),
+        AggressorSide::Buyer,
+        TradeId::new(golden_string(third_trade, &["trade_id"])),
+        UnixNanos::from(golden_u64(third_trade, &["ts_event"])),
+        UnixNanos::from(golden_u64(third_trade, &["ts_init"])),
+    );
+    engine_l2.process_trade_tick(&tick3);
 
     let saved_messages = get_order_event_handler_messages(&order_event_handler);
+    let actual_events: Vec<Value> = saved_messages.iter().map(normalize_par_002_event).collect();
+    let expected_events: Vec<Value> = golden["expected"]["events"]
+        .as_array()
+        .expect("golden expected.events must be an array")
+        .clone();
+    assert_eq!(actual_events, expected_events);
 
     // Verify the full lifecycle: Accepted → Updated → Filled
     let accepted_count = saved_messages
@@ -9576,14 +10309,123 @@ fn test_trailing_stop_market_updated_then_triggered(
         OrderEventAny::Filled(f) => Some(f),
         _ => None,
     });
+    let updated_trigger = saved_messages.iter().find_map(|event| match event {
+        OrderEventAny::Updated(updated) => updated.trigger_price,
+        _ => None,
+    });
 
     assert_eq!(accepted_count, 1, "Should have 1 accepted event");
     assert!(updated_count >= 1, "Should have at least 1 trailing update");
+    assert_eq!(
+        updated_trigger,
+        Some(Price::from(golden_string(
+            &golden,
+            &["expected", "updated_trigger_price"],
+        ))),
+    );
     assert!(
         fill.is_some(),
         "Trailing stop should have triggered and filled"
     );
-    assert_eq!(fill.unwrap().client_order_id, client_order_id);
+    let fill = fill.unwrap();
+    assert_eq!(fill.client_order_id, client_order_id);
+    assert_eq!(
+        fill.last_px,
+        Price::from(golden_string(&golden, &["expected", "fill_price"])),
+    );
+    assert_eq!(
+        fill.last_qty,
+        Quantity::from(golden_string(&golden, &["expected", "fill_quantity"])),
+    );
+    assert_eq!(
+        cache
+            .borrow()
+            .order(&client_order_id)
+            .expect("filled order should remain available in cache")
+            .status(),
+        OrderStatus::Filled,
+    );
+}
+
+#[rstest]
+fn test_l2_trade_execution_disabled_does_not_fill_limit_from_trade_price(
+    instrument_eth_usdt: InstrumentAny,
+    account_id: AccountId,
+) {
+    let golden = par_002_golden_case();
+    let control = &golden["input"]["negative_control"];
+    assert_eq!(
+        control["trade_price_is_execution_source"].as_bool(),
+        Some(false),
+    );
+
+    let cache = Rc::new(RefCell::new(Cache::default()));
+    let order_event_handler = order_event_handler_with_cache(cache.clone());
+    let config = OrderMatchingEngineConfig {
+        trade_execution: false,
+        ..Default::default()
+    };
+    let mut engine_l2 = get_order_matching_engine_l2(
+        instrument_eth_usdt.clone(),
+        Some(cache),
+        None,
+        Some(config),
+        None,
+    );
+
+    let ask = OrderBookDeltaTestBuilder::new(instrument_eth_usdt.id())
+        .book_action(BookAction::Add)
+        .book_order(BookOrder::new(
+            OrderSide::Sell,
+            Price::from(golden_string(control, &["ask_price"])),
+            Quantity::from(golden_string(control, &["ask_size"])),
+            1,
+        ))
+        .build();
+    engine_l2.process_order_book_delta(&ask).unwrap();
+
+    let client_order_id = ClientOrderId::from("O-19700101-000000-001-001-2");
+    let mut limit = OrderTestBuilder::new(OrderType::Limit)
+        .instrument_id(instrument_eth_usdt.id())
+        .side(OrderSide::Buy)
+        .price(Price::from(golden_string(control, &["limit_price"])))
+        .quantity(Quantity::from(golden_string(control, &["quantity"])))
+        .client_order_id(client_order_id)
+        .submit(true)
+        .build();
+    engine_l2.process_order(&mut limit, account_id);
+    clear_order_event_handler_messages(&order_event_handler);
+
+    let trade = TradeTick::new(
+        instrument_eth_usdt.id(),
+        Price::from(golden_string(control, &["trade_price"])),
+        Quantity::from(golden_string(control, &["trade_size"])),
+        AggressorSide::Seller,
+        TradeId::new("trade-below-limit"),
+        UnixNanos::from(1u64),
+        UnixNanos::from(1u64),
+    );
+    engine_l2.process_trade_tick(&trade);
+
+    let events = get_order_event_handler_messages(&order_event_handler);
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, OrderEventAny::Filled(_))),
+        "trade price must not execute a resting limit when trade execution is disabled: {events:?}",
+    );
+    assert!(
+        engine_l2.get_core().order_exists(client_order_id),
+        "the non-marketable limit must remain resting",
+    );
+    assert_eq!(
+        engine_l2.best_ask_price(),
+        Some(Price::from(golden_string(control, &["ask_price"]))),
+    );
+    assert_eq!(
+        engine_l2.get_core().last,
+        Some(Price::from(golden_string(control, &["trade_price"]))),
+    );
 }
 
 #[rstest]
