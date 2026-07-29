@@ -52,7 +52,7 @@
         "unused": 97,
         "unwrap": 19550
       },
-      "canonical_sha256": "276b106b2674dc2d8adb63842d9f162b01609f0932d70667441c893698aa2649"
+      "canonical_sha256": "068f042aba1d769043f2866318d669b1c17b463665e012dc0179f84da972e80c"
     },
     "limitations": [
       "Ownership is path-scoped: dedicated tests, benches, test_kit, testing, stubs, tests.rs, and *_test.rs files are test-owned.",

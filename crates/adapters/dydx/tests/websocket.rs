@@ -41,6 +41,7 @@ use nautilus_dydx::{
     websocket::{DydxWsOutputMessage, client::DydxWebSocketClient},
 };
 use nautilus_model::{identifiers::InstrumentId, instruments::InstrumentAny};
+use nautilus_network::mode::ConnectionMode;
 use rstest::rstest;
 use rust_decimal_macros::dec;
 use serde_json::json;
@@ -1426,29 +1427,41 @@ async fn test_subscription_restoration_tracking() {
     let subs = state.subscriptions.lock().await.clone();
     assert_eq!(subs, vec!["v4_trades/BTC-USD"]);
 
+    state.subscriptions.lock().await.clear();
     state.subscription_events.lock().await.clear();
     let initial_connection_count = *state.connection_count.lock().await;
+    let connection_mode = client.connection_mode_atomic();
     state.disconnect_trigger.store(true, Ordering::Release);
 
     wait_until_async(
         || async {
             *state.connection_count.lock().await == initial_connection_count + 1
                 && state.subscription_events().await.len() == 1
+                && *state.subscriptions.lock().await == vec!["v4_trades/BTC-USD"]
+                && connection_mode.load().load(Ordering::Acquire) == ConnectionMode::Active as u8
         },
         Duration::from_secs(5),
     )
     .await;
 
+    tokio::time::sleep(Duration::from_millis(200)).await;
+
     let events = state.subscription_events().await;
     assert_eq!(events, vec![("v4_trades".to_string(), true)]);
+    assert_eq!(
+        *state.subscriptions.lock().await,
+        vec!["v4_trades/BTC-USD"],
+        "Replay should restore the complete expected market topic"
+    );
     assert_eq!(
         *state.connection_count.lock().await,
         initial_connection_count + 1,
         "Server-side one-shot disconnect should produce exactly one reconnect"
     );
-    assert!(
-        client.is_connected(),
-        "Client should be active after replay"
+    assert_eq!(
+        connection_mode.load().load(Ordering::Acquire),
+        ConnectionMode::Active as u8,
+        "Client should be exactly Active, not Reconnect, after replay"
     );
 
     client.disconnect().await.unwrap();
