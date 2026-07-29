@@ -8,17 +8,20 @@ Status: LOCAL VALIDATION PASSED / REVIEW_REQUIRED
 ## Root Cause
 
 ```text
-high-precision activation = nautilus-model/high-precision dependency feature
-stale test selector = cfg(feature = "high-precision") on nautilus-trading
+failing invocation = --features nautilus-model/high-precision
+local forwarding feature = nautilus-trading/high-precision
+stale selector = cfg(feature = "high-precision") on nautilus-trading
 observed branch = standard raw literal branch under a high-precision model
 production TWAP calculation changed = false
 ```
 
-The old test assumed `nautilus-trading` declared its own `high-precision`
-feature. It does not. A dependency feature can change `QuantityRaw` and
-`FIXED_PRECISION` without making that `cfg` true in the trading crate, so the
-test compared a correct high-precision result with a standard-precision raw
-literal.
+`nautilus-trading` declares a local `high-precision` feature that forwards to
+`nautilus-model/high-precision`. The failing audit command directly enabled the
+dependency feature instead. Cargo feature activation does not flow backward
+from a dependency to a dependent crate, so the trading crate's local `cfg`
+remained false while `QuantityRaw` and `FIXED_PRECISION` were high precision.
+The test therefore compared a correct high-precision result with a
+standard-precision raw literal.
 
 ## Repair
 
@@ -82,7 +85,15 @@ line-number-bearing scan rows. Every ownership and signal count is unchanged.
 
 ## Review State
 
-Independent review and hosted checks are pending. Auto-merge is not enabled.
+```text
+first pass = P2 evidence incorrectly said the trading crate did not declare a
+             local high-precision feature
+repair = task, evidence, PR body, and local review records now distinguish the
+         existing forwarding feature from direct dependency-feature activation
+rereview = pending
+```
+
+Hosted checks are pending. Auto-merge is not enabled.
 
 ## Rollback
 
