@@ -82,15 +82,18 @@ adapter, or stress ignored tests as fixed. Instead it records whether the
 
 It explicitly does not claim production matching-engine parity, risk-engine
 order-list/emulator routing parity, dYdX live reconnect support, or live-node
-throughput/starvation performance guarantees. Those behaviors remain blocked
-for future runtime/adapter hardening, but they are not allowed to be used as
+throughput/starvation performance guarantees. This was the historical
+`v0.3.1` scope decision. PAR-001 through PAR-004 later restored the covered
+matching-engine, reducing-order, and emulator-routing tests; account-balance,
+dYdX reconnect, and live performance behaviors remain blocked for future
+runtime/adapter hardening. None of those later restorations are retroactive
 evidence for the `v0.3.1` patch release.
 
 Batch-1 decision:
 
 | Batch | Covered IDs | V031-009 decision | Why the v0.3.1 release claim does not rely on it |
 | --- | --- | --- | --- |
-| Execution/risk high-impact runtime blockers | `IGN-HIGH-003` through `IGN-HIGH-011` | `SCOPED_OUT_FOR_V031`; historical v0.3.1 decision. `IGN-HIGH-003` through `IGN-HIGH-007` were later restored by PAR-001 through PAR-003; `IGN-HIGH-008` through `IGN-HIGH-011` remain blocked. | `v0.3.1` does not advertise new trading-semantic, matching-engine, risk-engine, emulator, or account-balance behavior. The patch release is limited to local supervisor control-console hardening. |
+| Execution/risk high-impact runtime blockers | `IGN-HIGH-003` through `IGN-HIGH-011` | `SCOPED_OUT_FOR_V031`; historical v0.3.1 decision. `IGN-HIGH-003` through `IGN-HIGH-007` were later restored by PAR-001 through PAR-003; `IGN-HIGH-008` through `IGN-HIGH-010` were later restored by PAR-004. Only `IGN-HIGH-011` remains blocked. | `v0.3.1` does not advertise new trading-semantic, matching-engine, risk-engine, emulator, or account-balance behavior. The patch release is limited to local supervisor control-console hardening. |
 | dYdX reconnect high-impact adapter blocker | `IGN-HIGH-012` | `SCOPED_OUT_FOR_V031`; still `BLOCKER_RECORDED` for future adapter releases. | `v0.3.1` reconnect controls are explicitly local sandbox `not_supported` results. They do not claim real venue reconnect or subscription replay. |
 | Live stress/performance ignored tests | `IGN-MED-001`, `IGN-MED-002` | `RELEASE/PERF_ONLY`; deterministic v0.3 smoke covers the current local supervisor boundary. | `v0.3.1` does not claim live throughput or starvation-performance guarantees. The patch release uses `v03_supervisor_control_smoke.sh` and `v03_dashboard_smoke.sh` for deterministic local control evidence. |
 
@@ -131,7 +134,7 @@ V04-011 decision:
 | Batch | Covered IDs | V04-011 decision | Why the v0.4 release claim does not rely on it |
 | --- | --- | --- | --- |
 | Execution matching-engine blockers | `IGN-HIGH-003`, `IGN-HIGH-004`, `IGN-HIGH-005` | `SCOPED_OUT_FOR_V04`; historical v0.4 decision. `IGN-HIGH-003` and `IGN-HIGH-004` were later restored by PAR-001; `IGN-HIGH-005` was restored by PAR-002. | v0.4 used deterministic mock Binance lifecycle evidence and did not claim production contingent/OCO/trailing-stop matching-engine behavior. |
-| Broad risk-engine blockers | `IGN-HIGH-006` through `IGN-HIGH-011` | `SCOPED_OUT_FOR_V04`; historical v0.4 decision. `IGN-HIGH-006` and `IGN-HIGH-007` were later restored by PAR-003; `IGN-HIGH-008` through `IGN-HIGH-011` remain blocked. | v0.4 proves one halted-state Binance sandbox rejection through `V04-009`; it does not claim order-list reducing, emulator routing, or account-balance tracking. |
+| Broad risk-engine blockers | `IGN-HIGH-006` through `IGN-HIGH-011` | `SCOPED_OUT_FOR_V04`; historical v0.4 decision. `IGN-HIGH-006` and `IGN-HIGH-007` were later restored by PAR-003; `IGN-HIGH-008` through `IGN-HIGH-010` were later restored by PAR-004. Only `IGN-HIGH-011` remains blocked. | v0.4 proves one halted-state Binance sandbox rejection through `V04-009`; it does not claim order-list reducing, emulator routing, or account-balance tracking. |
 | PostgreSQL cache rejected-order tests | `IGN-MED-004`, `IGN-MED-005` | `SCOPED_OUT_FOR_V04`; still open for infrastructure hardening. | v0.4 uses local fixture/read-model evidence and does not claim durable PostgreSQL cache persistence. |
 | Live stress/performance ignored tests | `IGN-MED-001`, `IGN-MED-002` | `RELEASE/PERF_ONLY_FOR_V04`; still manual/performance scoped. | v0.4 does not claim live-node throughput or cancellation-starvation performance guarantees. |
 
