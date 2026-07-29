@@ -731,7 +731,7 @@
         <h2>当前代码结构：分层清晰，CLI 历史集中度已下降</h2>
         <p>
           核心交易域已按 crate 分离，数据、模型、执行、风险、组合、回测和 adapter 的所有权基本明确。
-          PAR-007/PAR-008 已将历史 mutation executor、HTTP/read-model 和 renderer 责任拆开；
+          PAR-007 已退役历史 mutation executor，PAR-008/PAR-009 分别拆分 live 与 dashboard 的行为保持边界；
           <span class="mono">live.rs</span> 与 <span class="mono">dashboard.rs</span> 仍是较大模块，
           但生产能力边界和测试所有权已可独立审计。
         </p>
@@ -814,8 +814,8 @@
               <tr>
                 <td><span class="severity sev-p1">P1</span></td>
                 <td><span class="finding-title">冻结后仍保留生产 mutation 网络可达性</span>CLI 历史 guarded send 与 actual cancel 可执行真实 Binance POST/DELETE。</td>
-                <td class="path">cli/live.rs<br>issue #1166 · PR #1167</td>
-                <td><span class="disposition done">已修复</span><br>最外层 wrapper 在文件、环境变量和 HTTP 前拒绝 manual-online。</td>
+                <td class="path">issue #1166 · PR #1167<br>PAR-007 · PR #1190</td>
+                <td><span class="disposition done">已修复</span><br>先由 wrapper fail closed；再移除 parser 参数、凭证读取、签名及 POST/DELETE executor。</td>
               </tr>
               <tr>
                 <td><span class="severity sev-p1">P1</span></td>
@@ -832,13 +832,13 @@
               <tr>
                 <td><span class="severity sev-p2">P2</span></td>
                 <td><span class="finding-title">CLI 历史编排模块过大</span>live/dashboard 曾合计超过 63,000 行，增加边界变更的审查成本。</td>
-                <td class="path">PAR-007 / PAR-008<br>PR #1190 / #1191</td>
-                <td><span class="disposition done">已拆分</span><br>两文件现合计 34,588 行；行为保持验证与 mutation retirement 均通过。</td>
+                <td class="path">PAR-008 / PAR-009<br>PR #1191 / #1192</td>
+                <td><span class="disposition done">已拆分</span><br>live/dashboard 现合计 34,588 行；两次行为保持验证均通过。</td>
               </tr>
               <tr>
                 <td><span class="severity sev-p2">P2</span></td>
                 <td><span class="finding-title">Replay 保证强度曾不完全一致</span>初始 286 个 case 中仍有 5 个 schema-only scoped。</td>
-                <td class="path">PAR-009 / PAR-010<br>PR #1192 / #1193</td>
+                <td class="path">PAR-010<br>PR #1193</td>
                 <td><span class="disposition done">已提升</span><br>现为 289 case：103 Rust executable、186 validator executable、0 schema-only。</td>
               </tr>
               <tr>
@@ -889,13 +889,14 @@
           <div class="arrow" aria-hidden="true">→</div>
           <div class="fix-box after">
             <strong>修复后</strong>
-            <p>两个外层 runtime wrapper 先行拒绝；不读取工件/凭证、不签名、不写输出、不访问网络；离线评估保留。</p>
+            <p>PR #1167 先由 wrapper fail closed；PAR-007 再删除 parser 参数、凭证读取、签名与 POST/DELETE executor；离线评估保留。</p>
           </div>
         </div>
         <p class="footer-note">
           合并证据：
           <a href="https://github.com/atxinbao/NTPRO/pull/1167">PR #1167</a> ·
-          <span class="mono">9d3edbbbb783…</span> · 14 项 hosted checks 通过
+          <a href="https://github.com/atxinbao/NTPRO/pull/1190">PR #1190</a> ·
+          两个 final head 的 hosted checks 均通过
         </p>
       </section>
 
