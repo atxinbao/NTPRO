@@ -19,7 +19,7 @@ Command used:
 rg -n "^\s*#\[ignore" crates tests
 ```
 
-Current direct `#[ignore]` count after PAR-001: 26 ignored test attributes.
+Current direct `#[ignore]` count after PAR-003: 23 ignored test attributes.
 
 GH-RELEASE-PERSISTENCE-HIGH-PRECISION-FIXTURES note: there are also 6
 high-precision-only `cfg_attr(..., ignore = "...")` fixture skips in
@@ -67,7 +67,7 @@ V04-011 scoped-out set:
 | Register IDs | V04 decision | Reason |
 | --- | --- | --- |
 | `IGN-EXEC-001` through `IGN-EXEC-003` | `SCOPED_OUT_FOR_V04`; historical v0.4 decision. `IGN-EXEC-001` and `IGN-EXEC-002` were later restored by PAR-001; `IGN-EXEC-003` was restored by PAR-002. | v0.4 used a deterministic mock Binance order lifecycle and did not claim production matching-engine contingent/OCO/trailing-stop semantics. |
-| `IGN-RISK-001` through `IGN-RISK-006` | `SCOPED_OUT_FOR_V04`; still open for broader risk-engine hardening. | v0.4 proves one halted-state Binance sandbox rejection through `V04-009`; it does not claim order-list reducing, emulator routing, or account-balance tracking. |
+| `IGN-RISK-001` through `IGN-RISK-006` | `SCOPED_OUT_FOR_V04`; historical v0.4 decision. `IGN-RISK-001` and `IGN-RISK-002` were later restored by PAR-003; the emulator and account-balance items remain open. | v0.4 proves one halted-state Binance sandbox rejection through `V04-009`; it does not claim order-list reducing, emulator routing, or account-balance tracking. |
 | `IGN-INFRA-001`, `IGN-INFRA-002` | `SCOPED_OUT_FOR_V04`; PostgreSQL cache remains unsupported/open. | v0.4 dashboard and sandbox evidence are local fixture/read-model paths, not durable PostgreSQL cache persistence. |
 | `IGN-LIVE-001`, `IGN-LIVE-002` | `RELEASE/PERF_ONLY_FOR_V04`; still manual/performance scoped. | v0.4 does not claim live-node throughput or cancellation-starvation performance guarantees. |
 
@@ -75,8 +75,8 @@ V04-011 scoped-out set:
 
 | ID | Test / scope | Path | Reason | Impact | Owner | Target | Close condition | State |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `IGN-RISK-001` | `test_submit_order_list_buys_when_trading_reducing_then_denies_orders` | `crates/risk/tests/risk_engine.rs:2911` | Portfolio state tracking integration missing. | Risk engine order-list reducing behavior lacks default regression coverage. | Rust Core Runtime Agent | v0.3 hardening | Implement portfolio state tracking fixture or scope out with replacement test. | Scoped out for v0.3.1 and v0.4 Binance sandbox; open for runtime hardening. |
-| `IGN-RISK-002` | `test_submit_order_list_sells_when_trading_reducing_then_denies_orders` | `crates/risk/tests/risk_engine.rs:3052` | High-precision decimal dependency noted. | Risk engine sell-side reducing behavior lacks default regression coverage. | Rust Core Runtime Agent | v0.3 hardening | Re-run with current precision mode; unignore if passing or replace with stable precision fixture. | Scoped out for v0.3.1 and v0.4 Binance sandbox; open for runtime hardening. |
+| `IGN-RISK-001` | `test_submit_order_list_buys_when_trading_reducing_then_denies_orders` | `crates/risk/tests/risk_engine.rs` | Historical test sent an opening command but never established a portfolio position. | BUY+LONG order-list rejection now has default and executable golden replay coverage. | Rust Core Runtime Agent | PAR-003 | Build a real filled LONG position, initialize Portfolio, assert every list member is denied, and prove no execution forwarding. | Restored to default suite by PAR-003. |
+| `IGN-RISK-002` | `test_submit_order_list_sells_when_trading_reducing_then_denies_orders` | `crates/risk/tests/risk_engine.rs` | Historical test lacked a SHORT position and used a stale high-precision blocker. | SELL+SHORT order-list rejection now has standard/high-precision default and executable golden replay coverage. | Rust Core Runtime Agent | PAR-003 | Use fixed-precision strings with a real filled SHORT position and assert fail-closed list rejection. | Restored to default suite by PAR-003. |
 | `IGN-RISK-003` | `test_submit_bracket_with_emulated_orders_sends_to_emulator` | `crates/risk/tests/risk_engine.rs:3204` | Emulator integration missing. | Bracket-order emulation risk path is unverified by default. | Rust Core Runtime Agent | v0.3 hardening | Add emulator integration or mark emulated order flow out of product scope. | Scoped out for v0.3.1 and v0.4 Binance sandbox; open for runtime hardening. |
 | `IGN-RISK-004` | `test_submit_order_for_emulation_sends_command_to_emulator` | `crates/risk/tests/risk_engine.rs:3314` | Emulator integration missing. | Emulated order command path is unverified by default. | Rust Core Runtime Agent | v0.3 hardening | Add emulator integration test or replacement smoke. | Scoped out for v0.3.1 and v0.4 Binance sandbox; open for runtime hardening. |
 | `IGN-RISK-005` | `test_modify_order_for_emulated_order_then_sends_to_emulator` | `crates/risk/tests/risk_engine.rs:3522` | Emulator integration missing. | Emulated modify path is unverified by default. | Rust Core Runtime Agent | v0.3 hardening | Add emulator modify fixture or mark unsupported. | Scoped out for v0.3.1 and v0.4 Binance sandbox; open for runtime hardening. |
