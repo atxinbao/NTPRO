@@ -22,10 +22,10 @@ rg -n '^\s*#\[ignore(?:\s*=\s*"[^"]*")?\]' crates tests --glob '*.rs' -S | cut -
 ```
 
 Historical result after PAR-003: 23 active ignored Rust test attributes were
-found. The current result after PAR-005 is 19.
+found. The current result after PAR-006 is 18.
 
 Release gate fixture note after GH-RELEASE-PERSISTENCE-HIGH-PRECISION-FIXTURES:
-the current direct `#[ignore]` count is 19, and there are 6 additional
+the current direct `#[ignore]` count is 18, and there are 6 additional
 high-precision-only `cfg_attr(..., ignore = "...")` test skips in
 `crates/persistence/tests/test_catalog.rs`. These skips apply only when the
 `high-precision` feature is enabled, because the legacy parquet fixtures encode
@@ -39,7 +39,9 @@ PAR-003 restored `IGN-HIGH-006` and `IGN-HIGH-007` to the default suite.
 PAR-004 restored `IGN-HIGH-008` through `IGN-HIGH-010` at the current Strategy
 routing owner. PAR-005 restored `IGN-HIGH-011` at the current AccountsManager
 owner and corrected cash reservations to use order leaves quantity after a
-partial fill. The remaining active ignored-test count is 19.
+partial fill. PAR-006 restored `IGN-HIGH-012` with a one-shot server disconnect
+fixture and exact subscription replay assertions. The remaining active
+ignored-test count is 18.
 
 NAUDIT-003 restored two previously ignored common cache lifecycle tests to the
 default Rust test suite. They are no longer active ignored production-bug
@@ -65,8 +67,8 @@ readiness result, not a runtime fix.
 | `BLOCKER_RECORDED` | 10 | At DRG-008 closeout, every remaining High impact ignored test was converted into a formal blocker. |
 | Restored to default suite | 0 | DRG-008 was classification-only and did not repair runtime behavior. |
 
-Current delta after DRG-008: PAR-001 through PAR-005 restored nine tests,
-leaving one active High impact blocker (`IGN-HIGH-012`).
+Current delta after DRG-008: PAR-001 through PAR-006 restored all ten High
+impact blockers. No High impact ignored-test blocker remains active.
 
 ## V031-009 v0.3.1 Batch-1 Closure Result
 
@@ -96,7 +98,7 @@ Batch-1 decision:
 | Batch | Covered IDs | V031-009 decision | Why the v0.3.1 release claim does not rely on it |
 | --- | --- | --- | --- |
 | Execution/risk high-impact runtime blockers | `IGN-HIGH-003` through `IGN-HIGH-011` | `SCOPED_OUT_FOR_V031`; historical v0.3.1 decision. `IGN-HIGH-003` through `IGN-HIGH-007` were later restored by PAR-001 through PAR-003; `IGN-HIGH-008` through `IGN-HIGH-010` were later restored by PAR-004; `IGN-HIGH-011` was later restored by PAR-005. No execution/risk item in this historical group remains blocked. | `v0.3.1` does not advertise new trading-semantic, matching-engine, risk-engine, emulator, or account-balance behavior. The patch release is limited to local supervisor control-console hardening. |
-| dYdX reconnect high-impact adapter blocker | `IGN-HIGH-012` | `SCOPED_OUT_FOR_V031`; still `BLOCKER_RECORDED` for future adapter releases. | `v0.3.1` reconnect controls are explicitly local sandbox `not_supported` results. They do not claim real venue reconnect or subscription replay. |
+| dYdX reconnect high-impact adapter blocker | `IGN-HIGH-012` | `SCOPED_OUT_FOR_V031`; historical v0.3.1 decision. The deterministic fixture was later restored by PAR-006. | `v0.3.1` reconnect controls are explicitly local sandbox `not_supported` results. They do not claim real venue reconnect or subscription replay. |
 | Live stress/performance ignored tests | `IGN-MED-001`, `IGN-MED-002` | `RELEASE/PERF_ONLY`; deterministic v0.3 smoke covers the current local supervisor boundary. | `v0.3.1` does not claim live throughput or starvation-performance guarantees. The patch release uses `v03_supervisor_control_smoke.sh` and `v03_dashboard_smoke.sh` for deterministic local control evidence. |
 
 Closure rule:
@@ -157,7 +159,7 @@ Formal blocker groups:
 | `DRG8-BLOCKER-003` | `IGN-HIGH-006`, `IGN-HIGH-007` | Closed by PAR-003: real filled Position fixtures initialize Portfolio state, fixed-precision inputs pass both precision modes, and executable risk traces prove all list members are denied without execution forwarding. |
 | `DRG8-BLOCKER-004` | `IGN-HIGH-008`, `IGN-HIGH-009`, `IGN-HIGH-010` | Closed by PAR-004: current Strategy ownership routes bracket lists, single submits, and modifications of emulated orders to `OrderEmulator.execute`; default tests assert exact commands and zero RiskEngine forwarding. |
 | `DRG8-BLOCKER-005` | `IGN-HIGH-011` | Closed by PAR-005: AccountsManager replays submitted, accepted, partial-fill, and final-fill events; assertions cover total, locked, free, and cumulative commission balances, including leaves-only reservation after the partial fill. |
-| `DRG8-BLOCKER-006` | `IGN-HIGH-012` | Make dYdX subscription restoration deterministic; the current ignored test times out during reconnect replay. |
+| `DRG8-BLOCKER-006` | `IGN-HIGH-012` | Closed by PAR-006: the mock server consumes one disconnect request exactly once; the default regression asserts one replacement connection, one expected successful trade subscription replay, and an active client. |
 
 ## Classification
 
@@ -180,7 +182,7 @@ Formal blocker groups:
 | IGN-HIGH-009 | `crates/trading/src/strategy/mod.rs` | `test_submit_order_for_emulation_sends_command_to_emulator` | Historical placeholder was owned by RiskEngine, but current strategy routing dispatches emulated orders before RiskEngine. | Single-order emulator routing is covered by a default test with initialization-time metadata. | Rust Core Runtime Agent | RESTORED_BY_PAR_004 | Assert exact client order identity at `OrderEmulator.execute` and zero RiskEngine commands. |
 | IGN-HIGH-010 | `crates/trading/src/strategy/mod.rs` | `test_modify_order_for_emulated_order_then_sends_to_emulator` | Historical placeholder was owned by RiskEngine, but current strategy routing dispatches modifications of `OrderStatus::Emulated` orders before RiskEngine. | Emulated modify routing is covered by a default test with a real `OrderEmulated` transition. | Rust Core Runtime Agent | RESTORED_BY_PAR_004 | Assert exact quantity/client order identity at `OrderEmulator.execute` and zero RiskEngine commands. |
 | IGN-HIGH-011 | `crates/portfolio/src/manager.rs` | `test_partial_fill_and_full_fill_account_balance_correct` | Historical placeholder was attached to RiskEngine, while AccountsManager owns balance and reservation updates. | Partial and full cash fills now update total, locked, free, and cumulative commission balances under a default executable event sequence. | Rust Core Runtime Agent | RESTORED_BY_PAR_005 | The regression proves 80,000 initial reservation, 48,000 leaves-only reservation after a 40,000 partial fill, zero reservation after the final fill, and exact commission-adjusted balances. |
-| IGN-HIGH-012 | `crates/adapters/dydx/tests/websocket.rs:1408` | `test_subscription_restoration_tracking` | Server-triggered disconnect causes reconnect loop during subscription replay. | Adapter reconnect/replay behavior is not robust for dYdX websocket. | Adapter & Integration Agent | BLOCKER_RECORDED | `DRG8-BLOCKER-006`; DRG-008 rerun timed out after 5.1s waiting for subscription restoration. |
+| IGN-HIGH-012 | `crates/adapters/dydx/tests/websocket.rs` | `test_subscription_restoration_tracking` | Historical mock used a level-triggered disconnect flag and closed replacement connections before replay completed. | dYdX reconnect and expected subscription replay now run in the default adapter suite without external credentials. | Adapter & Integration Agent | RESTORED_BY_PAR_006 | One-shot disconnect fixture; exact one reconnect, one successful `v4_trades` replay, and active-client assertions; repeated 20 times locally. |
 
 ## Medium Impact Register
 
