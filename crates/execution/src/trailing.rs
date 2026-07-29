@@ -157,13 +157,13 @@ pub fn trailing_stop_calculate(
             }
         }
         TriggerType::Default | TriggerType::BidAsk | TriggerType::LastOrBidAsk => {
-            let (bid, ask) = (
-                bid.ok_or_else(|| anyhow::anyhow!("Bid required"))?,
-                ask.ok_or_else(|| anyhow::anyhow!("Ask required"))?,
-            );
             let basis = match order_side {
-                OrderSideSpecified::Buy => ask.as_f64(),
-                OrderSideSpecified::Sell => bid.as_f64(),
+                OrderSideSpecified::Buy => {
+                    ask.ok_or_else(|| anyhow::anyhow!("Ask required"))?.as_f64()
+                }
+                OrderSideSpecified::Sell => {
+                    bid.ok_or_else(|| anyhow::anyhow!("Bid required"))?.as_f64()
+                }
             };
             let cand_trigger = compute(trailing_offset, basis);
             new_trigger_price = maybe_move(&mut trigger_price, cand_trigger, better_trigger);

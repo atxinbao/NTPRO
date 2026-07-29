@@ -79,6 +79,12 @@ struct PendingReduceOnlyFill {
     ts_opened: UnixNanos,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum StopTriggerPolicy {
+    Book,
+    LastPriceOrdersUseLast,
+}
+
 /// An order matching engine for a single market.
 pub struct OrderMatchingEngine {
     /// The venue for the matching engine.
@@ -1715,9 +1721,10 @@ impl OrderMatchingEngine {
     /// Processes a trade tick to update the market state.
     ///
     /// For L1 books, always updates the order book with the trade tick to maintain
-    /// market state. When `trade_execution` is disabled, order matching and maintenance
-    /// operations (GTD order expiry, trailing stop activation, instrument expiration)
-    /// are skipped. These maintenance operations will run on the next quote tick or bar.
+    /// market state. When `trade_execution` is disabled, L1 remains market-state-only.
+    /// L2 does not replace book bid/ask or provide trade-size execution, but still
+    /// iterates against the current book so GTD expiry, trailing-stop maintenance, and
+    /// instrument expiration continue to advance.
     pub fn process_trade_tick(&mut self, trade: &TradeTick) {
         log::debug!("Processing {trade}");
 
@@ -1756,8 +1763,8 @@ impl OrderMatchingEngine {
         self.core.set_last_raw(trade.price);
 
         if !self.config.trade_execution {
-            // Sync core to L1 book, skip order matching
             if self.book_type == BookType::L1_MBP {
+                // Preserve the existing L1 market-state-only behavior.
                 if let Some(bid) = self.book.best_bid_price() {
                     self.core.set_bid_raw(bid);
                 }
@@ -1765,6 +1772,11 @@ impl OrderMatchingEngine {
                 if let Some(ask) = self.book.best_ask_price() {
                     self.core.set_ask_raw(ask);
                 }
+            } else if self.book_type == BookType::L2_MBP {
+                // Keep the L2 book authoritative and skip trade-price execution,
+                // while still advancing matching and maintenance. LastPrice
+                // conditionals trigger from `core.last`, then fill from the book.
+                self.iterate(trade.ts_init, AggressorSide::NoAggressor);
             }
             return;
         }
@@ -3412,24 +3424,16 @@ impl OrderMatchingEngine {
             .trigger_price()
             .expect("Stop order must have a trigger price");
 
-        if self
-            .core
-            .is_stop_matched(order.order_side_specified(), stop_px)
-        {
+        if self.is_stop_matched_for_order(order, stop_px) {
             if self.config.reject_stop_orders {
                 self.generate_order_rejected(
                     order,
                     format!(
-                        "{} {} order stop px of {} was in the market: bid={}, ask={}, but rejected because of configuration",
+                        "{} {} order stop px of {} was in the market: {}, but rejected because of configuration",
                         order.order_type(),
                         order.order_side(),
                         order.trigger_price().unwrap(),
-                        self.core
-                            .bid
-                            .map_or_else(|| "None".to_string(), |p| p.to_string()),
-                        self.core
-                            .ask
-                            .map_or_else(|| "None".to_string(), |p| p.to_string())
+                        self.trigger_market_context(order),
                     ).into(),
                 );
                 return;
@@ -3466,24 +3470,16 @@ impl OrderMatchingEngine {
             .trigger_price()
             .expect("Stop order must have a trigger price");
 
-        if self
-            .core
-            .is_stop_matched(order.order_side_specified(), stop_px)
-        {
+        if self.is_stop_matched_for_order(order, stop_px) {
             if self.config.reject_stop_orders {
                 self.generate_order_rejected(
                     order,
                     format!(
-                        "{} {} order stop px of {} was in the market: bid={}, ask={}, but rejected because of configuration",
+                        "{} {} order stop px of {} was in the market: {}, but rejected because of configuration",
                         order.order_type(),
                         order.order_side(),
                         order.trigger_price().unwrap(),
-                        self.core
-                            .bid
-                            .map_or_else(|| "None".to_string(), |p| p.to_string()),
-                        self.core
-                            .ask
-                            .map_or_else(|| "None".to_string(), |p| p.to_string())
+                        self.trigger_market_context(order),
                     ).into(),
                 );
                 return;
@@ -3532,24 +3528,16 @@ impl OrderMatchingEngine {
     }
 
     fn process_market_if_touched_order(&mut self, order: &mut OrderAny) {
-        if self
-            .core
-            .is_touch_triggered(order.order_side_specified(), order.trigger_price().unwrap())
-        {
+        if self.is_touch_triggered_for_order(order, order.trigger_price().unwrap()) {
             if self.config.reject_stop_orders {
                 self.generate_order_rejected(
                     order,
                     format!(
-                        "{} {} order trigger px of {} was in the market: bid={}, ask={}, but rejected because of configuration",
+                        "{} {} order trigger px of {} was in the market: {}, but rejected because of configuration",
                         order.order_type(),
                         order.order_side(),
                         order.trigger_price().unwrap(),
-                        self.core
-                            .bid
-                            .map_or_else(|| "None".to_string(), |p| p.to_string()),
-                        self.core
-                            .ask
-                            .map_or_else(|| "None".to_string(), |p| p.to_string())
+                        self.trigger_market_context(order),
                     ).into(),
                 );
                 return;
@@ -3582,24 +3570,16 @@ impl OrderMatchingEngine {
     }
 
     fn process_limit_if_touched_order(&mut self, order: &mut OrderAny) {
-        if self
-            .core
-            .is_touch_triggered(order.order_side_specified(), order.trigger_price().unwrap())
-        {
+        if self.is_touch_triggered_for_order(order, order.trigger_price().unwrap()) {
             if self.config.reject_stop_orders {
                 self.generate_order_rejected(
                     order,
                     format!(
-                        "{} {} order trigger px of {} was in the market: bid={}, ask={}, but rejected because of configuration",
+                        "{} {} order trigger px of {} was in the market: {}, but rejected because of configuration",
                         order.order_type(),
                         order.order_side(),
                         order.trigger_price().unwrap(),
-                        self.core
-                            .bid
-                            .map_or_else(|| "None".to_string(), |p| p.to_string()),
-                        self.core
-                            .ask
-                            .map_or_else(|| "None".to_string(), |p| p.to_string())
+                        self.trigger_market_context(order),
                     ).into(),
                 );
                 return;
@@ -3645,23 +3625,16 @@ impl OrderMatchingEngine {
 
     fn process_trailing_stop_order(&mut self, order: &mut OrderAny) {
         if let Some(trigger_price) = order.trigger_price()
-            && self
-                .core
-                .is_stop_matched(order.order_side_specified(), trigger_price)
+            && self.is_stop_matched_for_order(order, trigger_price)
         {
             self.generate_order_rejected(
                     order,
                     format!(
-                        "{} {} order trigger px of {} was in the market: bid={}, ask={}, but rejected because of configuration",
+                        "{} {} order trigger px of {} was in the market: {}, but rejected because of configuration",
                         order.order_type(),
                         order.order_side(),
                         trigger_price,
-                        self.core
-                            .bid
-                            .map_or_else(|| "None".to_string(), |p| p.to_string()),
-                        self.core
-                            .ask
-                            .map_or_else(|| "None".to_string(), |p| p.to_string())
+                        self.trigger_market_context(order),
                     ).into(),
                 );
             return;
@@ -3701,6 +3674,21 @@ impl OrderMatchingEngine {
     /// When not `NoAggressor`, the book-based bid/ask reset is skipped to preserve
     /// transient trade price overrides.
     pub fn iterate(&mut self, timestamp_ns: UnixNanos, aggressor_side: AggressorSide) {
+        let stop_trigger_policy =
+            if self.book_type == BookType::L2_MBP && !self.config.trade_execution {
+                StopTriggerPolicy::LastPriceOrdersUseLast
+            } else {
+                StopTriggerPolicy::Book
+            };
+        self.iterate_with_stop_trigger_policy(timestamp_ns, aggressor_side, stop_trigger_policy);
+    }
+
+    fn iterate_with_stop_trigger_policy(
+        &mut self,
+        timestamp_ns: UnixNanos,
+        aggressor_side: AggressorSide,
+        stop_trigger_policy: StopTriggerPolicy,
+    ) {
         // TODO implement correct clock fixed time setting self.clock.set_time(ts_now);
         self.purge_closed_cached_filled_qty();
 
@@ -3719,16 +3707,34 @@ impl OrderMatchingEngine {
             }
         }
 
+        let trigger_bid = self.core.bid;
+        let trigger_ask = self.core.ask;
+        let trigger_last = self.core.last;
+
         // Process bid actions before snapshotting asks so cross-side
-        // contingencies (OCO/OUO) mutate state between sides
-        for action in self.core.iterate_bids() {
+        // contingencies (OCO/OUO) mutate state between sides.
+        let bid_actions = self.match_actions_for_side(
+            OrderSideSpecified::Buy,
+            stop_trigger_policy,
+            trigger_bid,
+            trigger_ask,
+            trigger_last,
+        );
+        for action in bid_actions {
             match action {
                 MatchAction::FillLimit(id) => self.fill_limit_order(id),
                 MatchAction::TriggerStop(id) => self.trigger_stop_order(id),
             }
         }
 
-        for action in self.core.iterate_asks() {
+        let ask_actions = self.match_actions_for_side(
+            OrderSideSpecified::Sell,
+            stop_trigger_policy,
+            trigger_bid,
+            trigger_ask,
+            trigger_last,
+        );
+        for action in ask_actions {
             match action {
                 MatchAction::FillLimit(id) => self.fill_limit_order(id),
                 MatchAction::TriggerStop(id) => self.trigger_stop_order(id),
@@ -3765,13 +3771,24 @@ impl OrderMatchingEngine {
                 OrderType::TrailingStopMarket | OrderType::TrailingStopLimit
             ) {
                 let mut any = order;
+                let (maintenance_bid, maintenance_ask, maintenance_last) =
+                    if stop_trigger_policy == StopTriggerPolicy::LastPriceOrdersUseLast {
+                        (trigger_bid, trigger_ask, trigger_last)
+                    } else {
+                        (self.core.bid, self.core.ask, self.core.last)
+                    };
                 if self.maybe_activate_trailing_stop(
                     &mut any,
-                    self.core.bid,
-                    self.core.ask,
-                    self.core.last,
+                    maintenance_bid,
+                    maintenance_ask,
+                    maintenance_last,
                 ) {
-                    self.update_trailing_stop_order(&mut any);
+                    self.update_trailing_stop_order_at_market(
+                        &mut any,
+                        maintenance_bid,
+                        maintenance_ask,
+                        maintenance_last,
+                    );
                     self.resync_core_entry(client_order_id);
                 }
             }
@@ -3818,6 +3835,168 @@ impl OrderMatchingEngine {
         // get a chance to fill before positions are closed.
         self.check_instrument_expiration(timestamp_ns);
         self.purge_closed_cached_filled_qty();
+    }
+
+    fn match_actions_for_side(
+        &mut self,
+        side: OrderSideSpecified,
+        stop_trigger_policy: StopTriggerPolicy,
+        trigger_bid: Option<Price>,
+        trigger_ask: Option<Price>,
+        trigger_last: Option<Price>,
+    ) -> Vec<MatchAction> {
+        if stop_trigger_policy == StopTriggerPolicy::Book {
+            return match side {
+                OrderSideSpecified::Buy => self.core.iterate_bids(),
+                OrderSideSpecified::Sell => self.core.iterate_asks(),
+            };
+        }
+
+        let resting_orders = match side {
+            OrderSideSpecified::Buy => self.core.get_orders_bid(),
+            OrderSideSpecified::Sell => self.core.get_orders_ask(),
+        };
+
+        resting_orders
+            .into_iter()
+            .filter_map(|resting| {
+                self.match_l2_trade_maintenance_order(
+                    resting,
+                    trigger_bid,
+                    trigger_ask,
+                    trigger_last,
+                )
+            })
+            .collect()
+    }
+
+    fn match_l2_trade_maintenance_order(
+        &mut self,
+        resting: RestingOrder,
+        trigger_bid: Option<Price>,
+        trigger_ask: Option<Price>,
+        trigger_last: Option<Price>,
+    ) -> Option<MatchAction> {
+        if !resting.is_stop() {
+            return self.core.match_order(&resting);
+        }
+
+        let order = self.effective_order_snapshot(resting.client_order_id)?;
+        if order.is_closed() {
+            return None;
+        }
+        if !resting.is_activated {
+            return None;
+        }
+
+        let trigger_price = resting.trigger_price?;
+        let trigger_market_price = if self.last_price_is_order_trigger_source(&order) {
+            trigger_last
+        } else {
+            match order.order_side_specified() {
+                OrderSideSpecified::Buy => trigger_ask,
+                OrderSideSpecified::Sell => trigger_bid,
+            }
+        };
+        let triggered = match order.order_type() {
+            OrderType::LimitIfTouched | OrderType::MarketIfTouched => trigger_market_price
+                .is_some_and(|market_price| match order.order_side_specified() {
+                    OrderSideSpecified::Buy => market_price <= trigger_price,
+                    OrderSideSpecified::Sell => market_price >= trigger_price,
+                }),
+            _ => trigger_market_price.is_some_and(|market_price| {
+                match order.order_side_specified() {
+                    OrderSideSpecified::Buy => market_price >= trigger_price,
+                    OrderSideSpecified::Sell => market_price <= trigger_price,
+                }
+            }),
+        };
+
+        triggered.then_some(MatchAction::TriggerStop(resting.client_order_id))
+    }
+
+    fn last_price_is_order_trigger_source(&self, order: &OrderAny) -> bool {
+        self.book_type == BookType::L2_MBP
+            && !self.config.trade_execution
+            && order.trigger_type() == Some(TriggerType::LastPrice)
+    }
+
+    fn trigger_market_context(&self, order: &OrderAny) -> String {
+        if self.last_price_is_order_trigger_source(order) {
+            return format!(
+                "last={}",
+                self.core
+                    .last
+                    .map_or_else(|| "None".to_string(), |price| price.to_string()),
+            );
+        }
+
+        format!(
+            "bid={}, ask={}",
+            self.core
+                .bid
+                .map_or_else(|| "None".to_string(), |price| price.to_string()),
+            self.core
+                .ask
+                .map_or_else(|| "None".to_string(), |price| price.to_string()),
+        )
+    }
+
+    fn is_stop_matched_for_order(&self, order: &OrderAny, trigger_price: Price) -> bool {
+        if self.last_price_is_order_trigger_source(order) {
+            return self
+                .core
+                .last
+                .is_some_and(|last| match order.order_side_specified() {
+                    OrderSideSpecified::Buy => last >= trigger_price,
+                    OrderSideSpecified::Sell => last <= trigger_price,
+                });
+        }
+
+        self.core
+            .is_stop_matched(order.order_side_specified(), trigger_price)
+    }
+
+    fn is_touch_triggered_for_order(&self, order: &OrderAny, trigger_price: Price) -> bool {
+        if self.last_price_is_order_trigger_source(order) {
+            return self
+                .core
+                .last
+                .is_some_and(|last| match order.order_side_specified() {
+                    OrderSideSpecified::Buy => last <= trigger_price,
+                    OrderSideSpecified::Sell => last >= trigger_price,
+                });
+        }
+
+        self.core
+            .is_touch_triggered(order.order_side_specified(), trigger_price)
+    }
+
+    fn trailing_activation_is_matched(
+        &self,
+        trigger_type: TriggerType,
+        order_side: OrderSide,
+        activation_price: Price,
+        bid: Option<Price>,
+        ask: Option<Price>,
+        last: Option<Price>,
+    ) -> bool {
+        if self.book_type == BookType::L2_MBP
+            && !self.config.trade_execution
+            && trigger_type == TriggerType::LastPrice
+        {
+            return match order_side {
+                OrderSide::Buy => last.is_some_and(|price| price <= activation_price),
+                OrderSide::Sell => last.is_some_and(|price| price >= activation_price),
+                _ => false,
+            };
+        }
+
+        match order_side {
+            OrderSide::Buy => ask.is_some_and(|price| price <= activation_price),
+            OrderSide::Sell => bid.is_some_and(|price| price >= activation_price),
+            _ => false,
+        }
     }
 
     fn get_trailing_activation_price(
@@ -3886,11 +4065,14 @@ impl OrderMatchingEngine {
                 }
 
                 let activation_price = inner.activation_price.unwrap();
-                let hit = match inner.order_side() {
-                    OrderSide::Buy => ask.is_some_and(|a| a <= activation_price),
-                    OrderSide::Sell => bid.is_some_and(|b| b >= activation_price),
-                    _ => false,
-                };
+                let hit = self.trailing_activation_is_matched(
+                    inner.trigger_type,
+                    inner.order_side(),
+                    activation_price,
+                    bid,
+                    ask,
+                    last,
+                );
 
                 if hit {
                     inner.set_activated();
@@ -3924,11 +4106,14 @@ impl OrderMatchingEngine {
                 }
 
                 let activation_price = inner.activation_price.unwrap();
-                let hit = match inner.order_side() {
-                    OrderSide::Buy => ask.is_some_and(|a| a <= activation_price),
-                    OrderSide::Sell => bid.is_some_and(|b| b >= activation_price),
-                    _ => false,
-                };
+                let hit = self.trailing_activation_is_matched(
+                    inner.trigger_type,
+                    inner.order_side(),
+                    activation_price,
+                    bid,
+                    ask,
+                    last,
+                );
 
                 if hit {
                     inner.set_activated();
@@ -5101,10 +5286,7 @@ impl OrderMatchingEngine {
         quantity: Quantity,
         trigger_price: Price,
     ) -> bool {
-        if self
-            .core
-            .is_stop_matched(order.order_side_specified(), trigger_price)
-        {
+        if self.is_stop_matched_for_order(order, trigger_price) {
             self.generate_order_modify_rejected(
                 order.trader_id(),
                 order.strategy_id(),
@@ -5112,16 +5294,11 @@ impl OrderMatchingEngine {
                 order.client_order_id(),
                 Ustr::from(
                     format!(
-                        "{} {} order new stop px of {} was in the market: bid={}, ask={}",
+                        "{} {} order new stop px of {} was in the market: {}",
                         order.order_type(),
                         order.order_side(),
                         trigger_price,
-                        self.core
-                            .bid
-                            .map_or_else(|| "None".to_string(), |p| p.to_string()),
-                        self.core
-                            .ask
-                            .map_or_else(|| "None".to_string(), |p| p.to_string())
+                        self.trigger_market_context(order),
                     )
                     .as_str(),
                 ),
@@ -5177,10 +5354,7 @@ impl OrderMatchingEngine {
             }
         } else {
             // Update stop price
-            if self
-                .core
-                .is_stop_matched(order.order_side_specified(), trigger_price)
-            {
+            if self.is_stop_matched_for_order(order, trigger_price) {
                 self.generate_order_modify_rejected(
                     order.trader_id(),
                     order.strategy_id(),
@@ -5188,16 +5362,11 @@ impl OrderMatchingEngine {
                     order.client_order_id(),
                     Ustr::from(
                         format!(
-                            "{} {} order new stop px of {} was in the market: bid={}, ask={}",
+                            "{} {} order new stop px of {} was in the market: {}",
                             order.order_type(),
                             order.order_side(),
                             trigger_price,
-                            self.core
-                                .bid
-                                .map_or_else(|| "None".to_string(), |p| p.to_string()),
-                            self.core
-                                .ask
-                                .map_or_else(|| "None".to_string(), |p| p.to_string())
+                            self.trigger_market_context(order),
                         )
                         .as_str(),
                     ),
@@ -5223,10 +5392,7 @@ impl OrderMatchingEngine {
         quantity: Quantity,
         trigger_price: Price,
     ) -> bool {
-        if self
-            .core
-            .is_touch_triggered(order.order_side_specified(), trigger_price)
-        {
+        if self.is_touch_triggered_for_order(order, trigger_price) {
             self.generate_order_modify_rejected(
                 order.trader_id(),
                 order.strategy_id(),
@@ -5234,16 +5400,11 @@ impl OrderMatchingEngine {
                 order.client_order_id(),
                 Ustr::from(
                     format!(
-                        "{} {} order new trigger px of {} was in the market: bid={}, ask={}",
+                        "{} {} order new trigger px of {} was in the market: {}",
                         order.order_type(),
                         order.order_side(),
                         trigger_price,
-                        self.core
-                            .bid
-                            .map_or_else(|| "None".to_string(), |p| p.to_string()),
-                        self.core
-                            .ask
-                            .map_or_else(|| "None".to_string(), |p| p.to_string())
+                        self.trigger_market_context(order),
                     )
                     .as_str(),
                 ),
@@ -5301,10 +5462,7 @@ impl OrderMatchingEngine {
             }
         } else {
             // Update trigger price
-            if self
-                .core
-                .is_touch_triggered(order.order_side_specified(), trigger_price)
-            {
+            if self.is_touch_triggered_for_order(order, trigger_price) {
                 self.generate_order_modify_rejected(
                     order.trader_id(),
                     order.strategy_id(),
@@ -5312,16 +5470,11 @@ impl OrderMatchingEngine {
                     order.client_order_id(),
                     Ustr::from(
                         format!(
-                            "{} {} order new trigger px of {} was in the market: bid={}, ask={}",
+                            "{} {} order new trigger px of {} was in the market: {}",
                             order.order_type(),
                             order.order_side(),
                             trigger_price,
-                            self.core
-                                .bid
-                                .map_or_else(|| "None".to_string(), |p| p.to_string()),
-                            self.core
-                                .ask
-                                .map_or_else(|| "None".to_string(), |p| p.to_string())
+                            self.trigger_market_context(order),
                         )
                         .as_str(),
                     ),
@@ -5342,16 +5495,40 @@ impl OrderMatchingEngine {
     }
 
     fn update_trailing_stop_order(&mut self, order: &mut OrderAny) {
-        let (new_trigger_price, new_price) = trailing_stop_calculate(
-            self.instrument.price_increment(),
-            order.trigger_price(),
-            order.activation_price(),
+        self.update_trailing_stop_order_at_market(
             order,
             self.core.bid,
             self.core.ask,
             self.core.last,
-        )
-        .unwrap();
+        );
+    }
+
+    fn update_trailing_stop_order_at_market(
+        &mut self,
+        order: &mut OrderAny,
+        bid: Option<Price>,
+        ask: Option<Price>,
+        last: Option<Price>,
+    ) {
+        let calculation = trailing_stop_calculate(
+            self.instrument.price_increment(),
+            order.trigger_price(),
+            order.activation_price(),
+            order,
+            bid,
+            ask,
+            last,
+        );
+        let (new_trigger_price, new_price) = match calculation {
+            Ok(prices) => prices,
+            Err(error) => {
+                log::warn!(
+                    "Skipping trailing stop update for {}: {error}",
+                    order.client_order_id(),
+                );
+                return;
+            }
+        };
 
         if new_trigger_price.is_none() && new_price.is_none() {
             return;
@@ -5589,13 +5766,13 @@ impl OrderMatchingEngine {
             }
             OrderAny::TrailingStopMarket(_) => {
                 let trigger_price = trigger_price.unwrap_or(order.trigger_price().unwrap());
-                self.update_market_if_touched_order(order, quantity, trigger_price)
+                self.update_stop_market_order(order, quantity, trigger_price)
             }
             OrderAny::TrailingStopLimit(trailing_stop_limit_order) => {
                 let price = price.unwrap_or(trailing_stop_limit_order.price().unwrap());
                 let trigger_price =
                     trigger_price.unwrap_or(trailing_stop_limit_order.trigger_price().unwrap());
-                self.update_limit_if_touched_order(order, quantity, price, trigger_price)
+                self.update_stop_limit_order(order, quantity, price, trigger_price)
             }
             _ => {
                 panic!(

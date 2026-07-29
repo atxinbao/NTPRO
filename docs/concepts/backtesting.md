@@ -829,9 +829,14 @@ venue_config = BacktestVenueConfig(
 )
 ```
 
-When `trade_execution=False` or `bar_execution=False`, the respective data types skip order matching
-and maintenance operations (GTD order expiry, trailing stop activation, instrument expiration checks).
-Quote ticks always trigger maintenance, so this is typically acceptable when using multiple data types.
+With `trade_execution=False`, trade price and size are never used as an
+execution source. L1 and L3 trade ticks skip matching and maintenance. For an
+L2 book, a valid trade tick still updates the last price and advances matching
+and maintenance against the unchanged L2 book: `LAST_PRICE` conditionals use
+the last trade as their trigger source, while any resulting fill consumes
+book liquidity. With `bar_execution=False`, bars skip matching and
+maintenance. Quote and order-book updates continue to advance book-based
+matching and maintenance.
 
 The matching engine uses a "transient override" mechanism: during the matching process, it temporarily adjusts
 the matching core's Best Bid (for BUYER trades) or Best Ask (for SELLER trades) toward the trade price. This allows
