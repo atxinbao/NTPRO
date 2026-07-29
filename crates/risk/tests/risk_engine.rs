@@ -2901,121 +2901,97 @@ fn test_submit_order_list_check_order_uses_each_orders_own_instrument(
     );
 }
 
-// Test that order lists with BUY orders are denied when in REDUCING state and already LONG.
-//
-// This test verifies the risk engine correctly prevents adding to existing positions
-// when the trading state is set to REDUCING (position reduction mode only).
-//
-// TODO: Complete implementation - similar to single order reducing tests but for order lists.
-// The test logic needs to properly track portfolio position state through message bus updates.
-#[ignore = "Under development - requires portfolio state tracking integration"]
 #[rstest]
 fn test_submit_order_list_buys_when_trading_reducing_then_denies_orders(
     strategy_id_ema_cross: StrategyId,
     client_id_binance: ClientId,
     trader_id: TraderId,
-    _client_order_id: ClientOrderId,
-    instrument_xbtusd_bitmex: InstrumentAny,
-    _venue_order_id: VenueOrderId,
-    _process_order_event_handler: TypedIntoMessageSavingHandler<OrderEventAny>,
+    instrument_eth_usdt: InstrumentAny,
+    process_order_event_handler: TypedIntoMessageSavingHandler<OrderEventAny>,
     execute_order_event_handler: TypedIntoMessageSavingHandler<TradingCommand>,
-    bitmex_cash_account_state_multi: AccountState,
     mut simple_cache: Cache,
 ) {
     simple_cache
-        .add_instrument(instrument_xbtusd_bitmex.clone())
+        .add_instrument(instrument_eth_usdt.clone())
         .unwrap();
-
     simple_cache
         .add_account(AccountAny::Cash(cash_account(
-            bitmex_cash_account_state_multi,
+            cash_account_state_million_usd("1000000 USD", "0 USD", "1000000 USD"),
         )))
         .unwrap();
-
     let quote = QuoteTick::new(
-        instrument_xbtusd_bitmex.id(),
-        Price::from("0.075000"),
-        Price::from("0.075005"),
-        Quantity::from("50000"),
-        Quantity::from("50000"),
+        instrument_eth_usdt.id(),
+        Price::from("3000.00"),
+        Price::from("3000.01"),
+        Quantity::from("100"),
+        Quantity::from("100"),
         UnixNanos::default(),
         UnixNanos::default(),
     );
-
     simple_cache.add_quote(quote).unwrap();
 
-    let mut risk_engine =
-        get_risk_engine(Some(Rc::new(RefCell::new(simple_cache))), None, None, false);
-
-    risk_engine.set_max_notional_per_order(instrument_xbtusd_bitmex.id(), dec!(10000));
-
-    let long = OrderTestBuilder::new(OrderType::Market)
-        .instrument_id(instrument_xbtusd_bitmex.id())
+    let fill_order = OrderTestBuilder::new(OrderType::Market)
+        .instrument_id(instrument_eth_usdt.id())
         .side(OrderSide::Buy)
-        .quantity(Quantity::from_str("100").unwrap())
+        .quantity(Quantity::from("1.000"))
         .build();
-
-    risk_engine
-        .cache()
-        .borrow_mut()
-        .add_order(long.clone(), None, Some(client_id_binance), false)
+    let mut fill = order_filled(
+        &fill_order,
+        &instrument_eth_usdt,
+        None,
+        Some(AccountId::from("SIM-001")),
+        Some(VenueOrderId::from("V-REDUCING-LONG")),
+        None,
+        None,
+        Some(Price::from("3000.00")),
+        None,
+        None,
+        None,
+    );
+    fill.position_id = Some(PositionId::from("P-REDUCING-LONG"));
+    let position = Position::new(&instrument_eth_usdt, fill);
+    assert_eq!(position.side, PositionSide::Long);
+    simple_cache
+        .add_position(&position, OmsType::Hedging)
         .unwrap();
 
-    let submit_order = SubmitOrder::new(
-        trader_id,
-        Some(client_id_binance),
-        strategy_id_ema_cross,
-        instrument_xbtusd_bitmex.id(),
-        long.client_order_id(),
-        long.init_event().clone(),
-        None,
-        None,
-        None, // params
-        UUID4::new(),
-        risk_engine.clock().borrow().timestamp_ns(),
-        None, // correlation_id
+    let cache = Rc::new(RefCell::new(simple_cache));
+    let mut risk_engine = get_risk_engine(Some(cache), None, None, false);
+    risk_engine.portfolio_mut().initialize_positions();
+    assert!(
+        risk_engine
+            .portfolio_mut()
+            .is_net_long(&instrument_eth_usdt.id())
     );
-
-    risk_engine.execute(TradingCommand::SubmitOrder(submit_order));
     risk_engine.set_trading_state(TradingState::Reducing);
 
     let entry = OrderTestBuilder::new(OrderType::Market)
-        .instrument_id(instrument_xbtusd_bitmex.id())
+        .instrument_id(instrument_eth_usdt.id())
+        .client_order_id(ClientOrderId::from("O-REDUCING-BUY-ENTRY"))
         .side(OrderSide::Buy)
-        .quantity(Quantity::from_str("100").unwrap())
+        .quantity(Quantity::from("1.000"))
         .build();
 
     let stop_loss = OrderTestBuilder::new(OrderType::StopMarket)
-        .instrument_id(instrument_xbtusd_bitmex.id())
+        .instrument_id(instrument_eth_usdt.id())
+        .client_order_id(ClientOrderId::from("O-REDUCING-BUY-STOP"))
         .side(OrderSide::Buy)
-        .quantity(Quantity::from_str("100").unwrap())
-        .trigger_price(Price::new(1.1, 1))
+        .quantity(Quantity::from("1.000"))
+        .trigger_price(Price::from("3100.00"))
         .build();
 
-    // TODO: attempt to add with overflow
-    // let take_profit = OrderTestBuilder::new(OrderType::Limit)
-    //     .instrument_id(instrument_xbtusd_bitmex.id())
-    //     .side(OrderSide::Buy)
-    //     .quantity(Quantity::from_str("100").unwrap())
-    //     .price(Price::new(1.2, 1))
-    //     .build();
-
     let orders = [entry, stop_loss];
+    for order in &orders {
+        risk_engine
+            .cache()
+            .borrow_mut()
+            .add_order(order.clone(), None, Some(client_id_binance), true)
+            .unwrap();
+    }
 
-    risk_engine
-        .cache()
-        .borrow_mut()
-        .add_order(orders[0].clone(), None, Some(client_id_binance), true)
-        .unwrap();
-    risk_engine
-        .cache()
-        .borrow_mut()
-        .add_order(orders[1].clone(), None, Some(client_id_binance), true)
-        .unwrap();
-
-    let bracket = OrderList::new(
-        OrderListId::new("1"),
-        instrument_xbtusd_bitmex.id(),
+    let order_list = OrderList::new(
+        OrderListId::new("L-REDUCING-BUY"),
+        instrument_eth_usdt.id(),
         StrategyId::new("S-001"),
         vec![orders[0].client_order_id(), orders[1].client_order_id()],
         risk_engine.clock().borrow().timestamp_ns(),
@@ -3025,148 +3001,138 @@ fn test_submit_order_list_buys_when_trading_reducing_then_denies_orders(
         trader_id,
         Some(client_id_binance),
         strategy_id_ema_cross,
-        bracket,
+        order_list,
         orders.iter().map(|o| o.init_event().clone()).collect(),
         None,
         None,
-        None, // params
+        None,
         UUID4::new(),
         risk_engine.clock().borrow().timestamp_ns(),
-        None, // correlation_id
+        None,
     );
 
     risk_engine.execute(TradingCommand::SubmitOrderList(submit_order_list));
 
+    let denied = get_process_order_event_handler_messages(&process_order_event_handler);
+    assert_eq!(denied.len(), orders.len());
+    for event in &denied {
+        assert_eq!(event.event_type(), OrderEventType::Denied);
+        let reason = event.message().expect("denial reason is required");
+        assert!(reason.contains("BUY"));
+        assert!(reason.contains("REDUCING"));
+        assert!(reason.contains("LONG"));
+        assert!(reason.contains(&instrument_eth_usdt.id().to_string()));
+    }
+
     let saved_execute_messages =
         get_execute_order_event_handler_messages(&execute_order_event_handler);
-    assert_eq!(saved_execute_messages.len(), 1);
+    assert!(
+        saved_execute_messages.is_empty(),
+        "exposure-increasing BUY order-list must not reach execution",
+    );
 }
 
-// Test that order lists with SELL orders are denied when in REDUCING state and already SHORT.
-//
-// This test verifies the risk engine correctly prevents adding to existing short positions
-// when the trading state is set to REDUCING (position reduction mode only).
-//
-// TODO: Re-enable after high-precision decimal work is merged and stable.
-// The test may have precision-related issues with position calculations.
-#[ignore = "Waiting on high-precision decimal merge"]
 #[rstest]
 fn test_submit_order_list_sells_when_trading_reducing_then_denies_orders(
     strategy_id_ema_cross: StrategyId,
     client_id_binance: ClientId,
     trader_id: TraderId,
-    _client_order_id: ClientOrderId,
-    instrument_xbtusd_bitmex: InstrumentAny,
-    _venue_order_id: VenueOrderId,
-    _process_order_event_handler: TypedIntoMessageSavingHandler<OrderEventAny>,
+    instrument_eth_usdt: InstrumentAny,
+    process_order_event_handler: TypedIntoMessageSavingHandler<OrderEventAny>,
     execute_order_event_handler: TypedIntoMessageSavingHandler<TradingCommand>,
-    bitmex_cash_account_state_multi: AccountState,
     mut simple_cache: Cache,
 ) {
     simple_cache
-        .add_instrument(instrument_xbtusd_bitmex.clone())
+        .add_instrument(instrument_eth_usdt.clone())
         .unwrap();
-
     simple_cache
         .add_account(AccountAny::Cash(cash_account(
-            bitmex_cash_account_state_multi,
+            cash_account_state_million_usd("1000000 USD", "0 USD", "1000000 USD"),
         )))
         .unwrap();
-
     let quote = QuoteTick::new(
-        instrument_xbtusd_bitmex.id(),
-        Price::from("0.075000"),
-        Price::from("0.075005"),
-        Quantity::from("50000"),
-        Quantity::from("50000"),
+        instrument_eth_usdt.id(),
+        Price::from("3000.00"),
+        Price::from("3000.01"),
+        Quantity::from("100"),
+        Quantity::from("100"),
         UnixNanos::default(),
         UnixNanos::default(),
     );
-
     simple_cache.add_quote(quote).unwrap();
 
-    let mut risk_engine =
-        get_risk_engine(Some(Rc::new(RefCell::new(simple_cache))), None, None, false);
-
-    risk_engine.set_max_notional_per_order(instrument_xbtusd_bitmex.id(), dec!(10000));
-
-    let short = OrderTestBuilder::new(OrderType::Market)
-        .instrument_id(instrument_xbtusd_bitmex.id())
+    let fill_order = OrderTestBuilder::new(OrderType::Market)
+        .instrument_id(instrument_eth_usdt.id())
         .side(OrderSide::Sell)
-        .quantity(Quantity::from_str("100").unwrap())
+        .quantity(Quantity::from("1.000"))
         .build();
-
-    risk_engine
-        .cache()
-        .borrow_mut()
-        .add_order(short.clone(), None, Some(client_id_binance), false)
+    let mut fill = order_filled(
+        &fill_order,
+        &instrument_eth_usdt,
+        None,
+        Some(AccountId::from("SIM-001")),
+        Some(VenueOrderId::from("V-REDUCING-SHORT")),
+        None,
+        None,
+        Some(Price::from("3000.00")),
+        None,
+        None,
+        None,
+    );
+    fill.position_id = Some(PositionId::from("P-REDUCING-SHORT"));
+    let position = Position::new(&instrument_eth_usdt, fill);
+    assert_eq!(position.side, PositionSide::Short);
+    simple_cache
+        .add_position(&position, OmsType::Hedging)
         .unwrap();
 
-    let submit_order = SubmitOrder::new(
-        trader_id,
-        Some(client_id_binance),
-        strategy_id_ema_cross,
-        instrument_xbtusd_bitmex.id(),
-        short.client_order_id(),
-        short.init_event().clone(),
-        None,
-        None,
-        None, // params
-        UUID4::new(),
-        risk_engine.clock().borrow().timestamp_ns(),
-        None, // correlation_id
+    let cache = Rc::new(RefCell::new(simple_cache));
+    let mut risk_engine = get_risk_engine(Some(cache), None, None, false);
+    risk_engine.portfolio_mut().initialize_positions();
+    assert!(
+        risk_engine
+            .portfolio_mut()
+            .is_net_short(&instrument_eth_usdt.id())
     );
-
-    risk_engine.execute(TradingCommand::SubmitOrder(submit_order));
     risk_engine.set_trading_state(TradingState::Reducing);
 
     let entry = OrderTestBuilder::new(OrderType::Market)
-        .instrument_id(instrument_xbtusd_bitmex.id())
+        .instrument_id(instrument_eth_usdt.id())
+        .client_order_id(ClientOrderId::from("O-REDUCING-SELL-ENTRY"))
         .side(OrderSide::Sell)
-        .quantity(Quantity::from_str("100").unwrap())
+        .quantity(Quantity::from("1.000"))
         .build();
 
     let stop_loss = OrderTestBuilder::new(OrderType::StopMarket)
-        .instrument_id(instrument_xbtusd_bitmex.id())
+        .instrument_id(instrument_eth_usdt.id())
+        .client_order_id(ClientOrderId::from("O-REDUCING-SELL-STOP"))
         .side(OrderSide::Sell)
-        .quantity(Quantity::from_str("100").unwrap())
-        .trigger_price(Price::new(1.1, 1))
+        .quantity(Quantity::from("1.000"))
+        .trigger_price(Price::from("2900.00"))
         .build();
 
     let take_profit = OrderTestBuilder::new(OrderType::Limit)
-        .instrument_id(instrument_xbtusd_bitmex.id())
+        .instrument_id(instrument_eth_usdt.id())
+        .client_order_id(ClientOrderId::from("O-REDUCING-SELL-LIMIT"))
         .side(OrderSide::Sell)
-        .quantity(Quantity::from_str("100").unwrap())
-        .price(Price::new(1.2, 1))
+        .quantity(Quantity::from("1.000"))
+        .price(Price::from("3200.00"))
         .build();
 
     let orders = [entry, stop_loss, take_profit];
+    for order in &orders {
+        risk_engine
+            .cache()
+            .borrow_mut()
+            .add_order(order.clone(), None, Some(client_id_binance), true)
+            .unwrap();
+    }
 
-    risk_engine
-        .cache()
-        .borrow_mut()
-        .add_order(orders[0].clone(), None, Some(client_id_binance), true)
-        .unwrap();
-    risk_engine
-        .cache()
-        .borrow_mut()
-        .add_order(orders[1].clone(), None, Some(client_id_binance), true)
-        .unwrap();
-    risk_engine
-        .cache()
-        .borrow_mut()
-        .add_order(orders[2].clone(), None, Some(client_id_binance), true)
-        .unwrap();
-
-    let bracket = OrderList::new(
-        OrderListId::new("1"),
-        instrument_xbtusd_bitmex.id(),
+    let order_list = OrderList::new(
+        OrderListId::new("L-REDUCING-SELL"),
+        instrument_eth_usdt.id(),
         StrategyId::new("S-001"),
-        vec![
-            orders[0].client_order_id(),
-            orders[1].client_order_id(),
-            orders[2].client_order_id(),
-        ],
+        orders.iter().map(|order| order.client_order_id()).collect(),
         risk_engine.clock().borrow().timestamp_ns(),
     );
 
@@ -3174,21 +3140,35 @@ fn test_submit_order_list_sells_when_trading_reducing_then_denies_orders(
         trader_id,
         Some(client_id_binance),
         strategy_id_ema_cross,
-        bracket,
+        order_list,
         orders.iter().map(|o| o.init_event().clone()).collect(),
         None,
         None,
-        None, // params
+        None,
         UUID4::new(),
         risk_engine.clock().borrow().timestamp_ns(),
-        None, // correlation_id
+        None,
     );
 
     risk_engine.execute(TradingCommand::SubmitOrderList(submit_order_list));
 
+    let denied = get_process_order_event_handler_messages(&process_order_event_handler);
+    assert_eq!(denied.len(), orders.len());
+    for event in &denied {
+        assert_eq!(event.event_type(), OrderEventType::Denied);
+        let reason = event.message().expect("denial reason is required");
+        assert!(reason.contains("SELL"));
+        assert!(reason.contains("REDUCING"));
+        assert!(reason.contains("SHORT"));
+        assert!(reason.contains(&instrument_eth_usdt.id().to_string()));
+    }
+
     let saved_execute_messages =
         get_execute_order_event_handler_messages(&execute_order_event_handler);
-    assert_eq!(saved_execute_messages.len(), 1);
+    assert!(
+        saved_execute_messages.is_empty(),
+        "exposure-increasing SELL order-list must not reach execution",
+    );
 }
 
 // SUBMIT BRACKET ORDER TESTS

@@ -197,6 +197,26 @@
       "release_decision": "included_in_final_replay_scope"
     },
     {
+      "case_id": "risk.rejection.reducing_buy_order_list_long.001",
+      "trace": "tests/golden/risk_rejection_schema.jsonl",
+      "category": "risk",
+      "status": "executable_replay",
+      "evidence_id": "PAR-003",
+      "harness": "cargo test -p nautilus-risk --test golden_trace_risk_rejection",
+      "rust_entrypoint": "crates/risk/tests/golden_trace_risk_rejection.rs::rust_risk_engine_replays_rejection_golden_trace",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
+      "case_id": "risk.rejection.reducing_sell_order_list_short.001",
+      "trace": "tests/golden/risk_rejection_schema.jsonl",
+      "category": "risk",
+      "status": "executable_replay",
+      "evidence_id": "PAR-003",
+      "harness": "cargo test -p nautilus-risk --test golden_trace_risk_rejection",
+      "rust_entrypoint": "crates/risk/tests/golden_trace_risk_rejection.rs::rust_risk_engine_replays_rejection_golden_trace",
+      "release_decision": "included_in_final_replay_scope"
+    },
+    {
       "case_id": "execution.live_alpha_reconciliation.no_open_orders.001",
       "trace": "tests/golden/live_alpha_reconciliation_schema.jsonl",
       "category": "execution",

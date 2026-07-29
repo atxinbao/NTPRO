@@ -24,7 +24,7 @@ use ahash::AHashMap;
 use nautilus_common::{
     cache::Cache,
     clock::TestClock,
-    messages::execution::{SubmitOrder, TradingCommand},
+    messages::execution::{SubmitOrder, SubmitOrderList, TradingCommand},
     msgbus::{
         self, MessagingSwitchboard,
         stubs::{TypedIntoMessageSavingHandler, get_typed_into_message_saving_handler},
@@ -33,11 +33,15 @@ use nautilus_common::{
 };
 use nautilus_core::UUID4;
 use nautilus_model::{
-    enums::{OrderSide, OrderType, TradingState},
+    enums::{OmsType, OrderSide, OrderType, TradingState},
     events::{OrderEventAny, OrderEventType},
-    identifiers::{ClientId, ClientOrderId, StrategyId, TraderId},
-    instruments::{Instrument, InstrumentAny, stubs::crypto_perpetual_ethusdt},
-    orders::{Order, OrderTestBuilder},
+    identifiers::{ClientId, ClientOrderId, OrderListId, StrategyId, TraderId},
+    instruments::{
+        Instrument, InstrumentAny,
+        stubs::{audusd_sim, crypto_perpetual_ethusdt},
+    },
+    orders::{Order, OrderList, OrderTestBuilder},
+    stubs::{stub_position_long, stub_position_short},
     types::Quantity,
 };
 use nautilus_portfolio::Portfolio;
@@ -45,24 +49,41 @@ use nautilus_risk::engine::{RiskEngine, config::RiskEngineConfig};
 use serde_json::{Value, json};
 use ustr::Ustr;
 
-const CASE_ID: &str = "risk.rejection.trading_halted.001";
+const CASE_IDS: [&str; 3] = [
+    "risk.rejection.trading_halted.001",
+    "risk.rejection.reducing_buy_order_list_long.001",
+    "risk.rejection.reducing_sell_order_list_short.001",
+];
 
 #[test]
 fn rust_risk_engine_replays_rejection_golden_trace() {
-    let case = load_case(CASE_ID);
-    let input_event = event_by_type(&case, "input", "risk.command.submit_order");
-    let expected = case
-        .get("expected")
-        .and_then(|value| value.get("events"))
-        .and_then(Value::as_array)
-        .expect("expected.events must be an array");
+    for case_id in CASE_IDS {
+        let case = load_case(case_id);
+        let input_event = case
+            .get("input")
+            .and_then(|value| value.get("events"))
+            .and_then(Value::as_array)
+            .and_then(|events| events.first())
+            .expect("input.events must contain an event");
+        let expected = case
+            .get("expected")
+            .and_then(|value| value.get("events"))
+            .and_then(Value::as_array)
+            .expect("expected.events must be an array");
 
-    let actual = run_risk_rejection_replay(input_event);
+        let actual = match string_field(input_event, "event_type") {
+            "risk.command.submit_order" => run_risk_rejection_replay(input_event),
+            "risk.command.submit_order_list" => {
+                run_reducing_order_list_rejection_replay(input_event)
+            }
+            event_type => panic!("unsupported risk input event {event_type}"),
+        };
 
-    assert_eq!(
-        actual, *expected,
-        "Rust RiskEngine rejection path must match the golden trace"
-    );
+        assert_eq!(
+            actual, *expected,
+            "Rust RiskEngine rejection path must match golden trace {case_id}"
+        );
+    }
 }
 
 fn repository_root() -> PathBuf {
@@ -84,16 +105,6 @@ fn load_case(case_id: &str) -> Value {
         })
         .find(|row| row.get("case_id").and_then(Value::as_str) == Some(case_id))
         .unwrap_or_else(|| panic!("case {case_id} not found in {}", trace.display()))
-}
-
-fn event_by_type<'a>(case: &'a Value, section: &str, event_type: &str) -> &'a Value {
-    case.get(section)
-        .and_then(|value| value.get("events"))
-        .and_then(Value::as_array)
-        .unwrap_or_else(|| panic!("{section}.events must be an array"))
-        .iter()
-        .find(|event| event.get("event_type").and_then(Value::as_str) == Some(event_type))
-        .unwrap_or_else(|| panic!("{section} event {event_type} not found"))
 }
 
 fn run_risk_rejection_replay(input_event: &Value) -> Vec<Value> {
@@ -176,6 +187,110 @@ fn run_risk_rejection_replay(input_event: &Value) -> Vec<Value> {
     )]
 }
 
+fn run_reducing_order_list_rejection_replay(input_event: &Value) -> Vec<Value> {
+    let process_handler = register_process_handler();
+    let execute_handler = register_execute_handler();
+    let instrument = InstrumentAny::CurrencyPair(audusd_sim());
+    assert_eq!(
+        string_field(input_event, "instrument_id"),
+        instrument.id().to_string()
+    );
+
+    let payload = payload(input_event);
+    let position = match string_field(payload, "position_side") {
+        "long" => stub_position_long(audusd_sim()),
+        "short" => stub_position_short(audusd_sim()),
+        side => panic!("unsupported position side {side}"),
+    };
+    assert_eq!(
+        position.quantity.to_string(),
+        string_field(payload, "position_quantity")
+    );
+
+    let mut cache = Cache::new(None, None);
+    cache.add_instrument(instrument.clone()).unwrap();
+    cache.add_position(&position, OmsType::Hedging).unwrap();
+
+    let client_order_ids = string_array_field(payload, "client_order_ids");
+    let orders = client_order_ids
+        .iter()
+        .map(|client_order_id| {
+            OrderTestBuilder::new(order_type(string_field(payload, "order_type")))
+                .instrument_id(instrument.id())
+                .client_order_id(ClientOrderId::from(client_order_id.as_str()))
+                .side(order_side(string_field(payload, "side")))
+                .quantity(Quantity::from(string_field(payload, "quantity")))
+                .build()
+        })
+        .collect::<Vec<_>>();
+    for order in &orders {
+        cache
+            .add_order(order.clone(), None, Some(ClientId::from("SIM")), true)
+            .unwrap();
+    }
+
+    let cache = Rc::new(RefCell::new(cache));
+    let clock = Rc::new(RefCell::new(TestClock::new()));
+    let portfolio = Portfolio::new(cache.clone(), clock.clone(), None);
+    let mut risk_engine = RiskEngine::new(
+        RiskEngineConfig {
+            debug: true,
+            bypass: false,
+            max_order_submit: RateLimit::new(10, 1_000),
+            max_order_modify: RateLimit::new(5, 1_000),
+            max_notional_per_order: AHashMap::new(),
+        },
+        portfolio,
+        clock,
+        cache,
+    );
+    risk_engine.portfolio_mut().initialize_positions();
+    risk_engine.set_trading_state(trading_state(string_field(payload, "trading_state")));
+
+    let order_list = OrderList::new(
+        OrderListId::new(string_field(payload, "order_list_id")),
+        instrument.id(),
+        StrategyId::from("S-001"),
+        orders.iter().map(|order| order.client_order_id()).collect(),
+        risk_engine.clock().borrow().timestamp_ns(),
+    );
+    let submit_order_list = SubmitOrderList::new(
+        TraderId::from("TRADER-001"),
+        Some(ClientId::from("SIM")),
+        StrategyId::from("S-001"),
+        order_list,
+        orders
+            .iter()
+            .map(|order| order.init_event().clone())
+            .collect(),
+        None,
+        None,
+        None,
+        UUID4::new(),
+        risk_engine.clock().borrow().timestamp_ns(),
+        None,
+    );
+
+    risk_engine.execute(TradingCommand::SubmitOrderList(submit_order_list));
+
+    let denied_events = process_handler.get_messages();
+    let forwarded_commands = execute_handler.get_messages();
+    assert_eq!(
+        denied_events.len(),
+        orders.len(),
+        "every exposure-increasing order-list member must be denied: orders={orders:?}, denied={denied_events:?}, forwarded={forwarded_commands:?}"
+    );
+    assert!(
+        forwarded_commands.is_empty(),
+        "rejected order-list must not be forwarded to execution"
+    );
+
+    denied_events
+        .iter()
+        .map(|event| risk_denied_event(event, input_event, true))
+        .collect()
+}
+
 fn register_process_handler() -> TypedIntoMessageSavingHandler<OrderEventAny> {
     let (handler, saving_handler) = get_typed_into_message_saving_handler::<OrderEventAny>(Some(
         Ustr::from("DRG-009.exec_engine_process"),
@@ -251,4 +366,18 @@ fn string_field<'a>(value: &'a Value, key: &str) -> &'a str {
         .get(key)
         .and_then(Value::as_str)
         .unwrap_or_else(|| panic!("{key} must be a string"))
+}
+
+fn string_array_field(value: &Value, key: &str) -> Vec<String> {
+    value
+        .get(key)
+        .and_then(Value::as_array)
+        .unwrap_or_else(|| panic!("{key} must be an array"))
+        .iter()
+        .map(|item| {
+            item.as_str()
+                .unwrap_or_else(|| panic!("{key} entries must be strings"))
+                .to_string()
+        })
+        .collect()
 }
