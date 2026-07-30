@@ -35,6 +35,7 @@ pub enum Commands {
     Config(ConfigOpt),
     Supervisor(SupervisorOpt),
     Dashboard(DashboardOpt),
+    Mvp(MvpOpt),
     Workflow(WorkflowOpt),
     Database(DatabaseOpt),
     #[cfg(feature = "defi")]
@@ -2622,6 +2623,60 @@ pub struct SupervisorNodeOpt {
     pub node_id: String,
 }
 
+/// 单 Supervisor、单节点的本地产品 MVP。
+#[derive(Parser, Debug)]
+#[command(
+    about = "Run the local single-node NTPRO product MVP",
+    long_about = None
+)]
+pub struct MvpOpt {
+    #[clap(subcommand)]
+    pub command: MvpCommand,
+}
+
+/// 本地产品 MVP 命令。
+#[derive(Parser, Debug, Clone)]
+#[command(
+    about = "Run the local single-node NTPRO product MVP",
+    long_about = None
+)]
+pub enum MvpCommand {
+    /// 注册并启动一个沙盒节点，同时提供本地只读 Dashboard。
+    Serve(MvpServeOpt),
+}
+
+/// 单节点 MVP 服务参数。
+#[derive(Parser, Debug, Clone)]
+pub struct MvpServeOpt {
+    /// 节点配置文件。
+    #[arg(long, default_value = "configs/nodes/btc-ema-shadow.toml")]
+    pub config: PathBuf,
+    /// MVP 注册表和运行产物工作区。
+    #[arg(long, default_value = "target/ntpro-mvp")]
+    pub workspace: PathBuf,
+    /// 与策略身份分离的稳定节点标识。
+    #[arg(long, default_value = "mvp-node-001")]
+    pub node_id: String,
+    /// 本地 Dashboard 监听地址。
+    #[arg(long, default_value = "127.0.0.1:5173")]
+    pub bind: SocketAddr,
+    /// 可选的 ntpro-node 二进制路径，默认使用 nautilus 同目录二进制。
+    #[arg(long)]
+    pub ntpro_node_bin: Option<PathBuf>,
+    /// 节点启动等待时间，单位毫秒。
+    #[arg(long, default_value_t = 5_000)]
+    pub startup_timeout_ms: u64,
+    /// 节点最长运行时间，单位毫秒。
+    #[arg(long, default_value_t = 3_600_000)]
+    pub node_max_runtime_ms: u64,
+    /// 节点心跳间隔，单位毫秒。
+    #[arg(long, default_value_t = 1_000)]
+    pub node_heartbeat_interval_ms: u64,
+    /// 节点停止等待时间，单位毫秒。
+    #[arg(long, default_value_t = 5_000)]
+    pub node_shutdown_timeout_ms: u64,
+}
+
 /// Local dashboard HTTP server commands.
 #[derive(Parser, Debug)]
 #[command(about = "Local dashboard HTTP server", long_about = None)]
@@ -3056,8 +3111,39 @@ mod tests {
         assert!(help.contains("config"));
         assert!(help.contains("supervisor"));
         assert!(help.contains("dashboard"));
+        assert!(help.contains("mvp"));
         assert!(help.contains("workflow"));
         assert!(help.contains("database"));
+    }
+
+    #[test]
+    fn mvp_help_lists_serve() {
+        let mut command = NautilusCli::command();
+        let mvp = command
+            .find_subcommand_mut("mvp")
+            .expect("mvp command should exist");
+        let help = mvp.render_help().to_string();
+
+        assert!(help.contains("serve"));
+    }
+
+    #[test]
+    fn mvp_serve_parses_single_node_defaults() {
+        let parsed = NautilusCli::try_parse_from(["nautilus", "mvp", "serve"])
+            .expect("mvp serve should parse");
+        let Commands::Mvp(mvp) = parsed.command else {
+            panic!("expected mvp command");
+        };
+        let MvpCommand::Serve(serve) = mvp.command;
+
+        assert_eq!(
+            serve.config,
+            PathBuf::from("configs/nodes/btc-ema-shadow.toml")
+        );
+        assert_eq!(serve.workspace, PathBuf::from("target/ntpro-mvp"));
+        assert_eq!(serve.node_id, "mvp-node-001");
+        assert_eq!(serve.bind, "127.0.0.1:5173".parse().unwrap());
+        assert!(serve.ntpro_node_bin.is_none());
     }
 
     #[test]

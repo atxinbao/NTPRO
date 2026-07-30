@@ -61,6 +61,7 @@ mod data;
 mod database;
 mod endpoint_classifier;
 mod live;
+mod mvp;
 pub mod opt;
 mod process;
 mod sandbox;
@@ -80,6 +81,7 @@ use crate::{
     data::run_data_command,
     database::postgres::run_database_command,
     live::run_live_command,
+    mvp::run_mvp_command,
     opt::{Commands, NautilusCli},
     sandbox::run_sandbox_command,
     supervisor::run_supervisor_command,
@@ -102,6 +104,7 @@ pub async fn run(opt: NautilusCli) -> anyhow::Result<()> {
         Commands::Config(config_opt) => run_config_command(config_opt)?,
         Commands::Supervisor(supervisor_opt) => run_supervisor_command(supervisor_opt)?,
         Commands::Dashboard(dashboard_opt) => run_dashboard_command(dashboard_opt).await?,
+        Commands::Mvp(mvp_opt) => run_mvp_command(mvp_opt).await?,
         Commands::Workflow(workflow_opt) => run_workflow_command(workflow_opt)?,
         Commands::Database(database_opt) => run_database_command(database_opt).await?,
         #[cfg(feature = "defi")]

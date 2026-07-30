@@ -115,6 +115,11 @@ fn empty_snapshot_serializes_stable_top_level_sections() {
 
 #[test]
 fn dashboard_shell_includes_system_panel_mounts_and_redaction_helpers() {
+    assert!(
+        DASHBOARD_HTML.contains(r#"<link rel="icon" href="data:,">"#),
+        "dashboard shell must use an inline empty favicon to avoid a failing browser request"
+    );
+
     for mount_id in [
         "data-sources",
         "execution-gateways",
