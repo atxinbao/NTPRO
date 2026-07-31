@@ -20,6 +20,7 @@ pub(super) const DASHBOARD_HTML: &str = r#"<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
   <title>NTPRO 控制台</title>
   <link rel="stylesheet" href="/assets/dashboard.css">
 </head>
@@ -404,6 +405,14 @@ td {
     gap: 10px;
     border-bottom: 0;
     padding: 6px 12px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  td > * {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
 
   td::before {
