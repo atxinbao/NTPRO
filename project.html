@@ -1130,6 +1130,615 @@
       font-size: 12px;
     }
 
+    .shell-decision {
+      margin: 22px 0 28px;
+      padding: 18px;
+      border: 1px solid #cdd7e2;
+      border-left: 4px solid #2f81f7;
+      background: #f7f9fc;
+    }
+
+    .shell-decision strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #152033;
+      font-size: 14px;
+    }
+
+    .shell-decision p {
+      margin: 0;
+      color: #526070;
+      font-size: 12px;
+    }
+
+    .product-shell {
+      --shell-bg: #0d1411;
+      --shell-raised: #14201b;
+      --shell-panel: #17201c;
+      --shell-line: #34423b;
+      --shell-muted: #91a39a;
+      --shell-text: #e7eee9;
+      --shell-blue: #36d399;
+      --shell-green: #55e6ad;
+      --shell-amber: #e6a64c;
+      --shell-red: #ff8a82;
+      display: grid;
+      grid-template-columns: 164px minmax(0, 1fr);
+      min-height: 650px;
+      overflow: hidden;
+      border: 1px solid var(--shell-line);
+      border-radius: 6px;
+      color: var(--shell-text);
+      background: var(--shell-bg);
+      box-shadow: var(--shadow);
+    }
+
+    .product-rail {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      border-right: 1px solid var(--shell-line);
+      background: var(--shell-raised);
+    }
+
+    .product-brand {
+      display: flex;
+      height: 78px;
+      align-items: center;
+      gap: 10px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--shell-line);
+      color: #fff;
+    }
+
+    .product-brand span {
+      display: grid;
+      width: 30px;
+      height: 30px;
+      flex: 0 0 auto;
+      place-items: center;
+      border-radius: 4px;
+      color: #8ee0bc;
+      background: #26342e;
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    .product-brand strong {
+      display: block;
+      color: #fff;
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .product-brand small {
+      display: block;
+      margin-top: 4px;
+      color: #91a39a;
+      font-size: 8px;
+      line-height: 1.2;
+    }
+
+    .product-primary-nav {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      padding: 10px 8px;
+    }
+
+    .product-primary-nav::before {
+      display: block;
+      padding: 0 8px 7px;
+      color: #6f8278;
+      font-size: 7px;
+      font-weight: 800;
+    }
+
+    .product-shell[data-portal="trader"] .product-primary-nav::before {
+      content: "投资与交易";
+    }
+
+    .product-shell[data-portal="control"] .product-primary-nav::before {
+      content: "平台与治理";
+    }
+
+    .product-primary-nav span {
+      display: grid;
+      min-height: 40px;
+      grid-template-columns: 24px minmax(0, 1fr);
+      align-items: center;
+      gap: 9px;
+      padding: 6px 9px;
+      border-left: 2px solid transparent;
+      color: var(--shell-muted);
+      font-size: 9px;
+      text-align: left;
+    }
+
+    .product-primary-nav span::before {
+      content: attr(data-short);
+      display: grid;
+      width: 24px;
+      height: 20px;
+      place-items: center;
+      border: 1px solid #46574f;
+      border-radius: 3px;
+      color: #b7c4bd;
+      font-size: 8px;
+      font-weight: 800;
+    }
+
+    .product-primary-nav span.active {
+      border-left-color: var(--shell-blue);
+      color: #fff;
+      background: #26342e;
+    }
+
+    .product-primary-nav span.active::before {
+      border-color: #36d399;
+      color: #fff;
+      background: #1f3028;
+    }
+
+    .product-rail-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 38px;
+      margin: 0 10px 10px;
+      padding: 0 8px;
+      border-top: 1px solid var(--shell-line);
+      color: #91a39a;
+      font-size: 7px;
+    }
+
+    .product-rail-foot span {
+      color: #55e6ad;
+      white-space: nowrap;
+    }
+
+    .product-rail-foot small {
+      color: #6f8278;
+      font-size: 7px;
+      white-space: nowrap;
+    }
+
+    .product-stage {
+      display: grid;
+      min-width: 0;
+      grid-template-rows: 42px 36px minmax(300px, 1fr) 176px 24px;
+    }
+
+    .product-topbar {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--shell-line);
+      background: #111a16;
+    }
+
+    .product-scope,
+    .product-search {
+      display: flex;
+      min-height: 30px;
+      align-items: center;
+      padding: 0 12px;
+      color: #91a39a;
+      font-size: 8px;
+      white-space: nowrap;
+    }
+
+    .product-scope {
+      align-items: flex-start;
+      justify-content: center;
+      flex-direction: column;
+      border-right: 1px solid #34423b;
+      line-height: 1.1;
+    }
+
+    .product-scope strong {
+      margin: 3px 0 0;
+      color: #fff;
+      font-size: 9px;
+    }
+
+    .product-search {
+      min-width: 170px;
+      flex: 1;
+      max-width: 300px;
+      margin-left: auto;
+      border: 1px solid #34423b;
+      border-radius: 3px;
+      color: #6f8278;
+      background: #17201c;
+    }
+
+    .product-live {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #b7c4bd;
+      font-size: 8px;
+      white-space: nowrap;
+    }
+
+    .product-live::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--shell-green);
+      box-shadow: 0 0 8px rgba(85, 230, 173, 0.55);
+    }
+
+    .product-tabs {
+      display: flex;
+      min-width: 0;
+      overflow: hidden;
+      border-bottom: 1px solid var(--shell-line);
+      background: #111a16;
+    }
+
+    .product-tab {
+      display: flex;
+      min-width: 132px;
+      max-width: 190px;
+      align-items: center;
+      gap: 7px;
+      padding: 0 14px;
+      border-right: 1px solid var(--shell-line);
+      color: #91a39a;
+      font-size: 9px;
+      white-space: nowrap;
+    }
+
+    .product-tab.active {
+      color: #fff;
+      box-shadow: inset 0 2px 0 var(--shell-blue);
+      background: #202d27;
+    }
+
+    .product-tab em {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--shell-amber);
+    }
+
+    .product-workarea {
+      display: grid;
+      min-width: 0;
+      grid-template-columns: minmax(0, 1fr) 0;
+      overflow: hidden;
+      transition: grid-template-columns 180ms ease;
+    }
+
+    .product-shell.drawer-open .product-workarea {
+      grid-template-columns: minmax(0, 1fr) 228px;
+    }
+
+    .product-canvas {
+      min-width: 0;
+      padding: 12px;
+      overflow: hidden;
+      background: var(--shell-bg);
+    }
+
+    .product-canvas-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .product-canvas-head h4 {
+      margin: 0;
+      color: #fff;
+      font-size: 13px;
+    }
+
+    .product-canvas-head p {
+      margin: 4px 0 0;
+      color: var(--shell-muted);
+      font-size: 8px;
+    }
+
+    .product-summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border: 1px solid var(--shell-line);
+      background: var(--shell-panel);
+    }
+
+    .product-metric {
+      min-width: 0;
+      min-height: 62px;
+      padding: 10px;
+      border-right: 1px solid var(--shell-line);
+    }
+
+    .product-metric:last-child { border-right: 0; }
+    .product-metric span { color: var(--shell-muted); font-size: 8px; }
+    .product-metric strong { display: block; margin-top: 6px; color: #fff; font-size: 13px; }
+    .product-metric small { display: block; margin-top: 3px; color: var(--shell-green); font-size: 7px; }
+    .product-metric small.warn { color: var(--shell-amber); }
+
+    .product-shell .maturity {
+      border-color: #286c53;
+      color: #55e6ad;
+      background: #102a21;
+    }
+
+    .product-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(180px, 0.6fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .product-panel {
+      min-width: 0;
+      min-height: 180px;
+      border: 1px solid var(--shell-line);
+      background: var(--shell-panel);
+    }
+
+    .product-panel-title {
+      display: flex;
+      min-height: 34px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      border-bottom: 1px solid var(--shell-line);
+      color: #e7eee9;
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .product-chart {
+      position: relative;
+      height: 142px;
+      overflow: hidden;
+      background:
+        linear-gradient(rgba(52, 66, 59, 0.38) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(52, 66, 59, 0.38) 1px, transparent 1px);
+      background-size: 100% 34px, 56px 100%;
+    }
+
+    .product-chart::before,
+    .product-chart::after {
+      content: "";
+      position: absolute;
+      right: 7%;
+      bottom: 28px;
+      left: 6%;
+      height: 2px;
+      transform: rotate(-8deg);
+      transform-origin: left center;
+      background: var(--shell-blue);
+      box-shadow: 0 -18px 0 rgba(85, 230, 173, 0.45), 0 22px 0 rgba(230, 166, 76, 0.6);
+    }
+
+    .product-chart::after {
+      right: 18%;
+      bottom: 60px;
+      left: 35%;
+      transform: rotate(5deg);
+      background: var(--shell-green);
+      box-shadow: none;
+    }
+
+    .product-priority {
+      display: grid;
+      gap: 0;
+    }
+
+    .product-priority div {
+      padding: 10px;
+      border-bottom: 1px solid var(--shell-line);
+    }
+
+    .product-priority div:last-child { border-bottom: 0; }
+    .product-priority strong { display: block; color: #e7eee9; font-size: 9px; }
+    .product-priority span { display: block; margin-top: 4px; color: var(--shell-muted); font-size: 8px; }
+    .product-priority .critical strong { color: var(--shell-red); }
+    .product-priority .warning strong { color: var(--shell-amber); }
+
+    .product-inspector {
+      position: relative;
+      min-width: 0;
+      overflow: visible;
+      border-left: 1px solid var(--shell-line);
+      background: var(--shell-raised);
+    }
+
+    .product-drawer-toggle {
+      position: absolute;
+      z-index: 2;
+      top: 10px;
+      left: -29px;
+      display: grid;
+      width: 28px;
+      height: 28px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid var(--shell-line);
+      border-right: 0;
+      border-radius: 3px 0 0 3px;
+      color: #b7c4bd;
+      background: var(--shell-raised);
+      cursor: pointer;
+    }
+
+    .product-inspector-body {
+      width: 228px;
+      padding: 12px;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 120ms ease;
+    }
+
+    .product-shell.drawer-open .product-inspector-body {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    .product-inspector-body > strong {
+      display: block;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--shell-line);
+      font-size: 10px;
+    }
+
+    .product-kv {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 9px 0;
+      border-bottom: 1px solid #303e37;
+      font-size: 8px;
+    }
+
+    .product-kv span { color: var(--shell-muted); }
+    .product-kv strong { color: #fff; }
+
+    .product-dock {
+      min-width: 0;
+      overflow: hidden;
+      border-top: 1px solid var(--shell-line);
+      background: #111a16;
+    }
+
+    .product-dock-tabs {
+      display: flex;
+      height: 32px;
+      border-bottom: 1px solid var(--shell-line);
+    }
+
+    .product-dock-tab {
+      min-width: 96px;
+      padding: 0 12px;
+      border: 0;
+      border-right: 1px solid var(--shell-line);
+      color: #91a39a;
+      background: transparent;
+      font: inherit;
+      font-size: 8px;
+      cursor: pointer;
+    }
+
+    .product-dock-tab.active {
+      color: #fff;
+      box-shadow: inset 0 -2px 0 var(--shell-blue);
+      background: #202d27;
+    }
+
+    .product-dock-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      color: #a6b7ae;
+      font-size: 7px;
+    }
+
+    .product-dock-table th,
+    .product-dock-table td {
+      padding: 7px 9px;
+      overflow: hidden;
+      border-bottom: 1px solid #303e37;
+      text-align: left;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .product-dock-table th {
+      color: #91a39a;
+      background: #17201c;
+      font-weight: 600;
+    }
+
+    .product-dock-table strong { color: var(--shell-green); }
+
+    .product-statusbar {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 14px;
+      padding: 0 10px;
+      overflow: hidden;
+      border-top: 1px solid var(--shell-line);
+      color: #91a39a;
+      background: var(--shell-bg);
+      font-size: 7px;
+      white-space: nowrap;
+    }
+
+    .product-statusbar span::before {
+      content: "";
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      margin-right: 5px;
+      border-radius: 50%;
+      background: var(--shell-green);
+    }
+
+    .product-statusbar span.warn::before { background: var(--shell-amber); }
+
+    .column-contract {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .column-contract article {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #fff;
+    }
+
+    .column-contract h4 { margin: 0 0 12px; font-size: 14px; }
+
+    .column-contract dl {
+      display: grid;
+      grid-template-columns: 90px minmax(0, 1fr);
+      gap: 8px 12px;
+      margin: 0;
+      font-size: 11px;
+    }
+
+    .column-contract dt { color: var(--muted); font-weight: 800; }
+    .column-contract dd { margin: 0; color: var(--ink); }
+
+    .style-contract {
+      display: grid;
+      grid-template-columns: 1.1fr repeat(4, minmax(0, 1fr));
+      margin-top: 18px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #fff;
+    }
+
+    .style-contract div {
+      min-height: 104px;
+      padding: 14px;
+      border-right: 1px solid var(--line);
+    }
+
+    .style-contract div:last-child { border-right: 0; }
+    .style-contract strong { display: block; margin-bottom: 8px; font-size: 12px; }
+    .style-contract span { display: block; color: var(--muted); font-size: 10px; }
+    .style-swatch { display: flex; gap: 4px; margin-top: 12px; }
+    .style-swatch i { width: 18px; height: 18px; border-radius: 3px; }
+
     @media (max-width: 1120px) {
       .metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .mvp-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1140,6 +1749,11 @@
       .exit-gate { grid-column: 3; }
       .decision-grid,
       .acceptance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .product-shell { min-height: 620px; }
+      .product-grid { grid-template-columns: 1fr; }
+      .product-panel:last-child { min-height: 110px; }
+      .style-contract { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .style-contract div { border-bottom: 1px solid var(--line); }
     }
 
     @media (max-width: 820px) {
@@ -1205,6 +1819,49 @@
         border-left-color: transparent;
         border-bottom-color: #6cc7ff;
       }
+      .product-shell {
+        grid-template-columns: 56px minmax(0, 1fr);
+        min-height: 590px;
+      }
+      .product-stage { grid-template-rows: auto 36px minmax(280px, 1fr) 150px 24px; }
+      .product-topbar { flex-wrap: wrap; padding: 7px; }
+      .product-brand {
+        height: 78px;
+        justify-content: center;
+        padding: 0;
+      }
+      .product-brand > div,
+      .product-primary-nav::before,
+      .product-rail-foot { display: none; }
+      .product-search { min-width: 120px; max-width: none; }
+      .product-scope:nth-of-type(n+3) { display: none; }
+      .product-primary-nav { padding: 8px 4px; }
+      .product-primary-nav span {
+        min-height: 48px;
+        grid-template-columns: 1fr;
+        justify-items: center;
+        gap: 0;
+        padding: 6px 3px;
+        font-size: 0;
+      }
+      .product-primary-nav span::before { margin: 0; }
+      .product-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .product-metric:nth-child(2) { border-right: 0; }
+      .product-metric:nth-child(-n+2) { border-bottom: 1px solid var(--shell-line); }
+      .product-shell.drawer-open .product-workarea { grid-template-columns: minmax(0, 1fr); }
+      .product-inspector { display: none; }
+      .product-dock-tab { min-width: 74px; padding: 0 7px; }
+      .column-contract { grid-template-columns: 1fr; }
+      .style-contract { grid-template-columns: 1fr; }
+      .style-contract div { border-right: 0; }
+      .architecture-flow,
+      .target-stack { min-width: 0; }
+      .arch-row,
+      .stack-layer { grid-template-columns: 1fr; }
+      .arch-nodes,
+      .stack-items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .arch-nodes { grid-auto-flow: row; }
+      .flow-arrow { padding-left: 0; }
       .mvp-context {
         align-items: flex-start;
         flex-direction: column;
@@ -1258,6 +1915,8 @@
       .mvp-principle:last-child { border-bottom: 0; }
       .mvp-object { min-height: 0; }
       .mvp-canvas { padding: 12px; }
+      .arch-nodes,
+      .stack-items { grid-template-columns: 1fr; }
     }
 
     @media print {
@@ -1283,7 +1942,7 @@
       <div class="brand-mark" aria-hidden="true">NT</div>
       <div>
         <p class="brand-name">NTPRO / 机构系统化交易平台蓝图</p>
-        <p class="brand-meta">代码基线 f3289e33ad · 2026-07-28 · Codex</p>
+        <p class="brand-meta">代码基线 91c74e6f133f · 2026-08-02 · Codex</p>
       </div>
     </div>
     <button class="print-button" type="button" onclick="window.print()">打印 / 导出 PDF</button>
@@ -1297,7 +1956,7 @@
       <a class="nav-link" href="#backend">后端架构</a>
       <a class="nav-link" href="#terminal-gap">终端缺口</a>
       <a class="nav-link" href="#terminal-target">产品框架</a>
-      <a class="nav-link" href="#roadmap">推进路线图</a>
+      <a class="nav-link" href="#roadmap">MVP 北极星</a>
       <a class="nav-link" href="#acceptance">验收体系</a>
       <a class="nav-link" href="#evidence">证据与来源</a>
       <a class="nav-link" href="changelog.html">项目变更记录</a>
@@ -1317,7 +1976,7 @@
           <div class="status-row" aria-label="项目状态">
             <span class="status ok">v0.33.0 后端维护版已发布</span>
             <span class="status ok">v0.32.0 后端冻结基线保持有效</span>
-            <span class="status ok">HEAD 与 origin/main 对齐</span>
+            <span class="status ok">MVP-001 单节点运行基线已合并</span>
             <span class="status ok">TTR-001 / TTR-002 已合并</span>
             <span class="status info">前端产品尚未完成，当前只读优先</span>
           </div>
@@ -1325,6 +1984,11 @@
           <div class="summary-callout">
             <strong>最重要的判断</strong>
             NTPRO 面向量化自营、系统化对冲基金、做市和多策略交易团队。机构工作台承接组合、交易、策略研发、回测和业务风险；控制中心承接组织权限、模型审批、数据账户、部署运维和审计。共享控制平面只提供统一事实与交接合同，不是第三个产品，也不授权真实交易。
+          </div>
+
+          <div class="summary-callout">
+            <strong>MVP 当前进度与北极星</strong>
+            PR #1198 已交付一个 Supervisor 管理一个 <code>ntpro-node</code> 的运行基线；下一步只补齐策略版本、回测、策略实例、账户与 Venue 的追溯合同，以及机构工作台和控制中心的只读产品投影。多节点编排和真实交易全部后置。
           </div>
 
           <div class="metric-grid" aria-label="项目指标">
@@ -1339,7 +2003,7 @@
         <section id="frontend-ia">
           <div class="section-head">
             <div>
-              <p class="eyebrow">机构产品信息架构 · 第三版</p>
+              <p class="eyebrow">机构产品信息架构 · 第七版</p>
               <h2>一个平台，两个门户，一个共享控制平面</h2>
               <p class="section-intro">
                 产品按责任和决策类型分开，而不是为每个岗位建立独立系统。机构工作台服务投资与交易业务，控制中心服务独立治理与平台运行；策略状态、审批、部署和事件通过同一控制合同交接。
@@ -1413,81 +2077,134 @@
             <span class="surface-index">机构 / 交易台 / 账簿 / 组合</span>
           </div>
 
-          <div class="mvp-shell" aria-label="NTPRO 机构工作台示意">
-            <aside class="mvp-rail">
-              <div class="mvp-brand">NTPRO<span>机构工作台</span></div>
-              <nav class="mvp-nav" aria-label="机构工作台一级导航">
-                <span class="mvp-nav-item active"><em>01</em>业务总览</span>
-                <span class="mvp-nav-item"><em>02</em>组合与交易</span>
-                <span class="mvp-nav-item"><em>03</em>策略研发</span>
-                <span class="mvp-nav-item"><em>04</em>模拟与运行</span>
-                <span class="mvp-nav-item"><em>05</em>风险与报告</span>
+          <div class="shell-decision">
+            <strong>框架定稿：固定壳层，动态任务页签</strong>
+            <p>左侧只放稳定业务域；顶部只放机构范围、账户/环境、搜索和当前任务页签；主画布承接业务工作；底部固定承接高频活动；右侧抽屉只解释当前选中对象；最底部状态栏持续显示数据、账户、交易场所、风险和时效。</p>
+          </div>
+
+          <div class="product-shell drawer-open" data-portal="trader" aria-label="NTPRO 机构工作台框架">
+            <aside class="product-rail">
+              <div class="product-brand">
+                <span>NT</span>
+                <div><strong>NTPRO</strong><small>机构工作台</small></div>
+              </div>
+              <nav class="product-primary-nav" aria-label="机构工作台一级栏目">
+                <span class="active" data-short="总">总览</span>
+                <span data-short="组">组合</span>
+                <span data-short="交">交易</span>
+                <span data-short="策">策略</span>
+                <span data-short="测">回测</span>
+                <span data-short="险">风险</span>
+                <span data-short="报">报告</span>
               </nav>
-              <div class="mvp-rail-note">业务用户查看影响和证据；节点、凭证、生产部署和恢复控件不进入此门户。</div>
+              <div class="product-rail-foot"><span>● 数据在线</span><small>只读优先</small></div>
             </aside>
 
-            <div class="mvp-workspace">
-              <div class="mvp-context">
-                <div class="mvp-context-group">
-                  <span>机构<strong>示例量化基金</strong></span>
-                  <span>交易台<strong>系统化交易一组</strong></span>
-                  <span>账簿<strong>主策略账簿</strong></span>
-                  <span>环境<strong>模拟</strong></span>
+            <div class="product-stage">
+              <header class="product-topbar">
+                <span class="product-scope">机构<strong>示例量化基金</strong></span>
+                <span class="product-scope">账簿<strong>主策略账簿</strong></span>
+                <span class="product-scope">环境<strong>模拟</strong></span>
+                <span class="product-search">搜索策略、账户、订单或品种</span>
+                <span class="product-live">业务数据实时</span>
+              </header>
+
+              <nav class="product-tabs" aria-label="已打开任务">
+                <span class="product-tab active"><em></em>主策略账簿</span>
+                <span class="product-tab">BTC 动量 v12</span>
+                <span class="product-tab">风险事件 R-204</span>
+                <span class="product-tab">＋ 打开任务</span>
+              </nav>
+
+              <div class="product-workarea">
+                <div class="product-canvas" role="main">
+                  <div class="product-canvas-head">
+                    <div><h4>机构交易总览</h4><p>组合、策略、订单、风险和需要处理的业务事项保持在同一上下文。</p></div>
+                    <span class="maturity backend">只读优先</span>
+                  </div>
+                  <div class="product-summary">
+                    <div class="product-metric"><span>组合净值</span><strong>128,420,680</strong><small>今日 +1.73%</small></div>
+                    <div class="product-metric"><span>可用资金</span><strong>91,260,400</strong><small>71.1% 可用</small></div>
+                    <div class="product-metric"><span>活动策略</span><strong>12</strong><small>9 正常 / 3 关注</small></div>
+                    <div class="product-metric"><span>风险状态</span><strong>受限</strong><small class="warn">1 项需要处理</small></div>
+                  </div>
+                  <div class="product-grid">
+                    <section class="product-panel">
+                      <div class="product-panel-title"><span>组合表现与敞口</span><span>主策略账簿 · 今日</span></div>
+                      <div class="product-chart" aria-label="组合表现示意图"></div>
+                    </section>
+                    <section class="product-panel">
+                      <div class="product-panel-title"><span>业务优先级</span><span>按影响排序</span></div>
+                      <div class="product-priority">
+                        <div class="critical"><strong>BTC 集中度接近限额</strong><span>影响主策略账簿，需交易员复核。</span></div>
+                        <div class="warning"><strong>行情时效降级</strong><span>ETH 组合展示受限，禁止误判为健康。</span></div>
+                        <div><strong>策略版本待提交</strong><span>BTC 动量 v12 已完成回测，尚未申请审批。</span></div>
+                      </div>
+                    </section>
+                  </div>
                 </div>
-                <span class="mvp-readonly">只读优先</span>
+
+                <aside class="product-inspector" aria-label="当前对象详情">
+                  <button class="product-drawer-toggle" type="button" aria-label="收起当前对象详情" title="收起当前对象详情" aria-expanded="true">›</button>
+                  <div class="product-inspector-body">
+                    <strong>当前对象 · BTC 动量 v12</strong>
+                    <div class="product-kv"><span>业务状态</span><strong>候选版本</strong></div>
+                    <div class="product-kv"><span>回测状态</span><strong>已完成</strong></div>
+                    <div class="product-kv"><span>模拟运行</span><strong>受限</strong></div>
+                    <div class="product-kv"><span>发布申请</span><strong>未提交</strong></div>
+                    <div class="product-kv"><span>数据时效</span><strong>184 ms</strong></div>
+                    <div class="product-kv"><span>来源</span><strong>策略版本快照</strong></div>
+                  </div>
+                </aside>
               </div>
 
-              <div class="mvp-canvas">
-                <div class="mvp-page-head">
-                  <div><h3>业务总览</h3><p>从组合和账簿出发，查看策略、交易、风险和需要处理的业务事项。</p></div>
-                  <span class="maturity backend">后端投影存在，产品接口待建</span>
+              <section class="product-dock" aria-label="机构工作台活动区">
+                <div class="product-dock-tabs">
+                  <button class="product-dock-tab active" type="button" data-dock-label="持仓">持仓 3</button>
+                  <button class="product-dock-tab" type="button" data-dock-label="活动">活动 4</button>
+                  <button class="product-dock-tab" type="button" data-dock-label="成交">成交 18</button>
+                  <button class="product-dock-tab" type="button" data-dock-label="日志">日志</button>
                 </div>
+                <table class="product-dock-table">
+                  <thead><tr><th class="product-dock-label">持仓</th><th>方向 / 数量</th><th>开仓均价</th><th>标记价格</th><th>未实现盈亏</th><th>关联策略</th></tr></thead>
+                  <tbody>
+                    <tr><td>BTCUSDT 永续</td><td>多 · 0.32</td><td>65,323.4</td><td>66,842.1</td><td><strong>+486.24</strong></td><td>BTC 动量 v12</td></tr>
+                    <tr><td>XAUUSDT 永续</td><td>多 · 3.00</td><td>2,372.1</td><td>2,388.4</td><td><strong>+48.90</strong></td><td>突破 4H</td></tr>
+                  </tbody>
+                </table>
+              </section>
 
-                <div class="mvp-kpis">
-                  <div class="mvp-kpi"><span>交易准备度</span><strong>受限</strong><em>数据 + 账户 + 风险</em></div>
-                  <div class="mvp-kpi"><span>组合敞口</span><strong>只读</strong><em>账户 + 仓位</em></div>
-                  <div class="mvp-kpi"><span>活动策略</span><strong>3</strong><em>版本 + 运行</em></div>
-                  <div class="mvp-kpi"><span>待处理事项</span><strong>5</strong><em>申请 + 告警</em></div>
-                </div>
-
-                <div class="mvp-main">
-                  <section class="mvp-panel">
-                    <div class="mvp-panel-head"><h4>策略业务生命周期</h4><span>同一策略编号与证据链</span></div>
-                    <div class="mvp-lifecycle">
-                      <div class="mvp-stage"><small>01</small><strong>策略定义</strong><span>版本、参数、数据和负责人。</span></div>
-                      <div class="mvp-stage"><small>02</small><strong>回测验证</strong><span>交易明细、指标、对比和证据。</span></div>
-                      <div class="mvp-stage"><small>03</small><strong>模拟运行</strong><span>账户、订单、成交、仓位和风险。</span></div>
-                      <div class="mvp-stage pending"><small>04</small><strong>发布申请</strong><span>提交控制中心独立审批。</span></div>
-                    </div>
-                  </section>
-                  <section class="mvp-panel">
-                    <div class="mvp-panel-head"><h4>业务关注</h4><span>按影响排序</span></div>
-                    <ul class="mvp-list">
-                      <li><span>行情数据陈旧</span><strong class="warn">受限</strong></li>
-                      <li><span>风险检查拒绝</span><strong>有证据</strong></li>
-                      <li><span>生产交易</span><strong class="warn">未授权</strong></li>
-                    </ul>
-                  </section>
-                </div>
-
-                <div class="mvp-secondary">
-                  <section class="mvp-panel">
-                    <div class="mvp-panel-head"><h4>组合与交易对象</h4><span>业务读模型</span></div>
-                    <ul class="mvp-list">
-                      <li><span>账户 / 仓位 / 敞口</span><strong>后端已有</strong></li>
-                      <li><span>订单 / 成交 / 对账</span><strong>后端已有</strong></li>
-                    </ul>
-                  </section>
-                  <section class="mvp-panel">
-                    <div class="mvp-panel-head"><h4>策略研发对象</h4><span>产品合同待建</span></div>
-                    <ul class="mvp-list">
-                      <li><span>策略版本 / 数据绑定</span><strong>目标</strong></li>
-                      <li><span>回测 / 模拟 / 发布申请</span><strong>目标</strong></li>
-                    </ul>
-                  </section>
-                </div>
-              </div>
+              <footer class="product-statusbar">
+                <span>行情 62 ms</span>
+                <span>账户同步 184 ms</span>
+                <span>风险引擎 28 ms</span>
+                <span class="warn">ETH 数据受限</span>
+                <span>主策略账簿 · 模拟 · 截止 20:52:18</span>
+              </footer>
             </div>
+          </div>
+
+          <div class="column-contract">
+            <article>
+              <h4>机构工作台栏目合同</h4>
+              <dl>
+                <dt>左侧菜单</dt><dd>总览、组合、交易、策略、回测、风险、报告</dd>
+                <dt>顶部栏目</dt><dd>机构范围、账簿/账户、环境、全局搜索、动态任务页签</dd>
+                <dt>底部活动区</dt><dd>持仓、活动、成交、日志</dd>
+                <dt>右侧抽屉</dt><dd>策略、订单、持仓、风险事件的详情、来源与允许动作</dd>
+                <dt>状态栏</dt><dd>行情、账户、交易场所、风险、延迟、时效和当前范围</dd>
+              </dl>
+            </article>
+            <article>
+              <h4>栏目设计约束</h4>
+              <dl>
+                <dt>不重复</dt><dd>左侧是产品域，顶部是正在处理的对象，两者不建立同名导航。</dd>
+                <dt>不串岗</dt><dd>节点、凭证、部署、恢复和技术根因不进入机构工作台一级栏目。</dd>
+                <dt>不失焦</dt><dd>切换策略、订单或风险对象时，账户、账簿和环境范围始终保留。</dd>
+                <dt>不误导</dt><dd>HTTP 成功、回测完成和审批通过都不能被显示为生产运行健康。</dd>
+                <dt>不越权</dt><dd>当前只允许查询和预览，真实交易操作继续由独立授权范围决定。</dd>
+              </dl>
+            </article>
           </div>
 
           <div class="surface-heading">
@@ -1498,82 +2215,149 @@
             <span class="surface-index">控制 / 运维 / 管理 / 审计</span>
           </div>
 
-          <div class="mvp-shell control" aria-label="NTPRO 控制中心示意">
-            <aside class="mvp-rail">
-              <div class="mvp-brand">NTPRO<span>控制中心</span></div>
-              <nav class="mvp-nav" aria-label="控制中心一级导航">
-                <span class="mvp-nav-item active"><em>01</em>控制总览</span>
-                <span class="mvp-nav-item"><em>02</em>组织与权限</span>
-                <span class="mvp-nav-item"><em>03</em>数据与账户</span>
-                <span class="mvp-nav-item"><em>04</em>模型与部署</span>
-                <span class="mvp-nav-item"><em>05</em>系统运行</span>
-                <span class="mvp-nav-item"><em>06</em>审计与变更</span>
+          <div class="product-shell drawer-open" data-portal="control" aria-label="NTPRO 控制中心框架">
+            <aside class="product-rail">
+              <div class="product-brand">
+                <span>NT</span>
+                <div><strong>NTPRO</strong><small>控制中心</small></div>
+              </div>
+              <nav class="product-primary-nav" aria-label="控制中心一级栏目">
+                <span class="active" data-short="控">总览</span>
+                <span data-short="审">审批</span>
+                <span data-short="数">数据账户</span>
+                <span data-short="部">部署</span>
+                <span data-short="运">运行</span>
+                <span data-short="事">事件</span>
+                <span data-short="证">审计</span>
               </nav>
-              <div class="mvp-rail-note">控制团队处理审批、部署和恢复；组合收益、交易机会和执行算法不作为控制中心主对象。</div>
+              <div class="product-rail-foot"><span>● 控制面在线</span><small>受控模式</small></div>
             </aside>
 
-            <div class="mvp-workspace">
-              <div class="mvp-context">
-                <div class="mvp-context-group">
-                  <span>机构<strong>示例量化基金</strong></span>
-                  <span>环境<strong>模拟环境</strong></span>
-                  <span>节点组<strong>默认节点组</strong></span>
-                  <span>值班组<strong>平台运行组</strong></span>
+            <div class="product-stage">
+              <header class="product-topbar">
+                <span class="product-scope">机构<strong>示例量化基金</strong></span>
+                <span class="product-scope">环境<strong>模拟</strong></span>
+                <span class="product-scope">值班组<strong>平台运行组</strong></span>
+                <span class="product-search">搜索节点、部署、账户或事件</span>
+                <span class="product-live">控制面在线</span>
+              </header>
+
+              <nav class="product-tabs" aria-label="已打开控制任务">
+                <span class="product-tab active"><em></em>控制总览</span>
+                <span class="product-tab">部署 DEP-1042</span>
+                <span class="product-tab">事件 INC-204</span>
+                <span class="product-tab">＋ 打开任务</span>
+              </nav>
+
+              <div class="product-workarea">
+                <div class="product-canvas" role="main">
+                  <div class="product-canvas-head">
+                    <div><h4>平台控制总览</h4><p>审批、部署、账户、节点和事件围绕生产控制链组织，不展示交易机会。</p></div>
+                    <span class="maturity current">受控操作 · 全程审计</span>
+                  </div>
+                  <div class="product-summary">
+                    <div class="product-metric"><span>待审批模型</span><strong>2</strong><small>独立复核</small></div>
+                    <div class="product-metric"><span>部署准备度</span><strong>受限</strong><small class="warn">1 项配置漂移</small></div>
+                    <div class="product-metric"><span>运行实例</span><strong>18 / 20</strong><small>2 个降级</small></div>
+                    <div class="product-metric"><span>平台事件</span><strong>3</strong><small class="warn">1 个高优先级</small></div>
+                  </div>
+                  <div class="product-grid">
+                    <section class="product-panel">
+                      <div class="product-panel-title"><span>运行健康与事件趋势</span><span>过去 24 小时</span></div>
+                      <div class="product-chart" aria-label="运行健康趋势示意图"></div>
+                    </section>
+                    <section class="product-panel">
+                      <div class="product-panel-title"><span>控制优先级</span><span>按生产影响排序</span></div>
+                      <div class="product-priority">
+                        <div class="critical"><strong>Binance 网关心跳陈旧</strong><span>影响两个账簿，交易员终端已显示业务受限。</span></div>
+                        <div class="warning"><strong>部署版本漂移</strong><span>DEP-1042 与批准快照不一致，禁止继续。</span></div>
+                        <div><strong>模型审批即将到期</strong><span>策略 BTC 动量 v12 需重新独立验证。</span></div>
+                      </div>
+                    </section>
+                  </div>
                 </div>
-                <span class="mvp-readonly">受控操作 · 全程审计</span>
+
+                <aside class="product-inspector" aria-label="当前控制对象详情">
+                  <button class="product-drawer-toggle" type="button" aria-label="收起当前控制对象详情" title="收起当前控制对象详情" aria-expanded="true">›</button>
+                  <div class="product-inspector-body">
+                    <strong>当前对象 · INC-204</strong>
+                    <div class="product-kv"><span>严重度</span><strong>高</strong></div>
+                    <div class="product-kv"><span>技术状态</span><strong>处理中</strong></div>
+                    <div class="product-kv"><span>业务影响</span><strong>2 个账簿</strong></div>
+                    <div class="product-kv"><span>责任组</span><strong>平台运行组</strong></div>
+                    <div class="product-kv"><span>最后心跳</span><strong>4.8 秒前</strong></div>
+                    <div class="product-kv"><span>审计来源</span><strong>运行事件流</strong></div>
+                  </div>
+                </aside>
               </div>
 
-              <div class="mvp-canvas">
-                <div class="mvp-page-head">
-                  <div><h3>控制总览</h3><p>聚合审批、部署、数据、账户、节点、事件和审计状态。</p></div>
-                  <span class="maturity current">治理只读接口已挂载</span>
+              <section class="product-dock" aria-label="控制中心活动区">
+                <div class="product-dock-tabs">
+                  <button class="product-dock-tab active" type="button" data-dock-label="告警">告警 3</button>
+                  <button class="product-dock-tab" type="button" data-dock-label="任务">任务 7</button>
+                  <button class="product-dock-tab" type="button" data-dock-label="变更">变更 4</button>
+                  <button class="product-dock-tab" type="button" data-dock-label="日志">日志</button>
                 </div>
+                <table class="product-dock-table">
+                  <thead><tr><th class="product-dock-label">告警</th><th>对象</th><th>状态</th><th>业务影响</th><th>责任组</th><th>更新时间</th></tr></thead>
+                  <tbody>
+                    <tr><td>INC-204</td><td>Binance 网关</td><td>处理中</td><td>2 个账簿受限</td><td>平台运行组</td><td><strong>刚刚</strong></td></tr>
+                    <tr><td>DEP-1042</td><td>策略部署</td><td>已阻断</td><td>未进入生产</td><td>发布控制组</td><td><strong>2 分钟前</strong></td></tr>
+                  </tbody>
+                </table>
+              </section>
 
-                <div class="mvp-kpis">
-                  <div class="mvp-kpi"><span>待审批模型</span><strong>2</strong><em>独立复核</em></div>
-                  <div class="mvp-kpi"><span>部署准备度</span><strong>受限</strong><em>配置 + 账户 + 风险</em></div>
-                  <div class="mvp-kpi"><span>运行实例</span><strong>只读</strong><em>版本 + 节点</em></div>
-                  <div class="mvp-kpi"><span>平台事件</span><strong>2</strong><em>严重度 + 负责人</em></div>
-                </div>
-
-                <div class="mvp-main">
-                  <section class="mvp-panel">
-                    <div class="mvp-panel-head"><h4>治理与生产链</h4><span>职责分离</span></div>
-                    <div class="mvp-lifecycle">
-                      <div class="mvp-stage"><small>01</small><strong>独立审批</strong><span>模型、风险、证据和有效期。</span></div>
-                      <div class="mvp-stage"><small>02</small><strong>部署快照</strong><span>不可变版本、配置和来源。</span></div>
-                      <div class="mvp-stage"><small>03</small><strong>运行监控</strong><span>节点、连接、遥测和事件。</span></div>
-                      <div class="mvp-stage pending"><small>04</small><strong>恢复与回滚</strong><span>受控命令、回执和审计。</span></div>
-                    </div>
-                  </section>
-                  <section class="mvp-panel">
-                    <div class="mvp-panel-head"><h4>平台关注</h4><span>技术根因</span></div>
-                    <ul class="mvp-list">
-                      <li><span>网关心跳陈旧</span><strong class="warn">事件中</strong></li>
-                      <li><span>部署版本漂移</span><strong>可追踪</strong></li>
-                      <li><span>节点恢复</span><strong class="warn">需授权</strong></li>
-                    </ul>
-                  </section>
-                </div>
-
-                <div class="mvp-secondary">
-                  <section class="mvp-panel">
-                    <div class="mvp-panel-head"><h4>已落地只读面</h4><span>本地 Axum</span></div>
-                    <ul class="mvp-list">
-                      <li><span>v0.28 六个治理投影</span><strong>已挂载</strong></li>
-                      <li><span>节点 / 指标 / 日志</span><strong>已存在</strong></li>
-                    </ul>
-                  </section>
-                  <section class="mvp-panel">
-                    <div class="mvp-panel-head"><h4>产品化缺口</h4><span>独立合同</span></div>
-                    <ul class="mvp-list">
-                      <li><span>机构身份 / 授权范围</span><strong>待建</strong></li>
-                      <li><span>审批 / 部署命令回执</span><strong>待建</strong></li>
-                    </ul>
-                  </section>
-                </div>
-              </div>
+              <footer class="product-statusbar">
+                <span>控制 API 38 ms</span>
+                <span>事件队列正常</span>
+                <span>18 / 20 节点健康</span>
+                <span class="warn">1 个网关降级</span>
+                <span>模拟环境 · 平台运行组 · 截止 20:52:18</span>
+              </footer>
             </div>
+          </div>
+
+          <div class="column-contract">
+            <article>
+              <h4>控制中心栏目合同</h4>
+              <dl>
+                <dt>左侧菜单</dt><dd>控制总览、审批、数据与账户、部署、运行、事件、审计</dd>
+                <dt>顶部栏目</dt><dd>机构范围、环境、值班组、全局搜索、动态控制任务页签</dd>
+                <dt>底部活动区</dt><dd>告警、任务、变更、日志</dd>
+                <dt>右侧抽屉</dt><dd>节点、部署、账户、审批、事件的根因、影响、责任人与证据</dd>
+                <dt>状态栏</dt><dd>控制接口、事件队列、节点、网关、值班与数据时效</dd>
+              </dl>
+            </article>
+            <article>
+              <h4>跨门户状态连接</h4>
+              <dl>
+                <dt>策略状态</dt><dd>研究中 → 回测完成 → 候选 → 审批中 → 已批准 → 已部署 → 运行中 → 受限/退役</dd>
+                <dt>前台视角</dt><dd>展示业务状态、影响、退回原因和允许发起的申请，不展示技术恢复控件。</dd>
+                <dt>后台视角</dt><dd>展示审批、部署、节点、根因、负责人、回执和审计，不修改投资判断。</dd>
+                <dt>共享标识</dt><dd>策略版本、部署、账户、账簿和事件使用稳定编号跨门户互链。</dd>
+                <dt>事实边界</dt><dd>两个门户消费同一事实合同，但按职责获得不同字段与允许动作。</dd>
+              </dl>
+            </article>
+          </div>
+
+          <div class="surface-heading">
+            <div>
+              <h3>页面风格与样式定稿</h3>
+              <p>沿用 project.html 原有的浅灰文档底色、炭黑框架和墨绿工作台层级，只吸收 Figma 参考中的布局关系，不替换项目既有视觉语言。</p>
+            </div>
+            <span class="surface-index">原有底色 / 炭黑墨绿 / 数据优先</span>
+          </div>
+
+          <div class="style-contract" aria-label="页面视觉规范">
+            <div>
+              <strong>风格结论</strong>
+              <span>保持项目原有视觉基线。两个门户共享炭黑墨绿壳层、密度和交互规则，通过栏目与对象语义区分职责，不建立第二套配色。</span>
+              <div class="style-swatch"><i style="background:#f4f6f3"></i><i style="background:#202925"></i><i style="background:#0d1411"></i><i style="background:#17201c"></i><i style="background:#36d399"></i><i style="background:#e6a64c"></i></div>
+            </div>
+            <div><strong>层级</strong><span>深灰壳层、一级边框和稳定分区。表格、图表和对象详情优先，不使用嵌套卡片、装饰渐变或大面积品牌色。</span></div>
+            <div><strong>色彩</strong><span>蓝色只表示选中与导航；绿色表示正常或正向；红色表示风险或拒绝；琥珀表示关注、陈旧或受限。</span></div>
+            <div><strong>文字与数字</strong><span>中文使用系统无衬线字体；业务数字使用等宽或表格数字。标题紧凑，正文不承担操作说明书角色。</span></div>
+            <div><strong>尺寸与密度</strong><span>桌面左栏约 152-164px，窄屏折叠为 56px；顶部范围栏 42px、任务页签 36px、状态栏 24px，控件圆角 3-4px。</span></div>
           </div>
 
           <div class="surface-heading">
@@ -1667,7 +2451,7 @@
           </div>
 
           <div class="diagram" aria-label="NTPRO 当前后端架构图">
-            <div class="diagram-caption"><span>数据进入 → 状态与决策 → 执行 / 回放 → 运营投影</span><span>代码基线：f1d3709332</span></div>
+            <div class="diagram-caption"><span>数据进入 → 状态与决策 → 执行 / 回放 → 运营投影</span><span>代码基线：91c74e6f13</span></div>
             <div class="architecture-flow">
               <div class="arch-row">
                 <div class="arch-label">外部接入层</div>
@@ -1814,97 +2598,128 @@
             <div class="decision"><h3>为什么必须拆成两个门户</h3><p>机构用户围绕收益、风险、策略和交易结果工作；控制团队围绕审批、部署、凭证和系统健康工作。合并导航会模糊责任与告警优先级。</p></div>
             <div class="decision"><h3>为什么策略仍在机构工作台</h3><p>策略是投资资产，需要与组合、账簿、风险目标和交易结果连续呈现；独立审批与生产部署则必须留在控制中心。</p></div>
             <div class="decision"><h3>为什么控制平面不是第三个产品</h3><p>它只保存权威身份、状态、审批、事件和审计事实，并向两个门户投影；没有独立用户旅程，也不能成为第二套交易状态源。</p></div>
+            <div class="decision"><h3>为什么命令门禁必须独立</h3><p>查询与操作承担不同风险；写命令必须经过独立授权、审批、风控、幂等和审计，不能由只读页面能力自动继承。</p></div>
           </div>
         </section>
 
         <section id="roadmap">
           <div class="section-head">
             <div>
-              <p class="eyebrow">交付路线图</p>
-              <h2>双门户产品推进路线图</h2>
-              <p class="section-intro">先建立机构对象、身份范围和共享状态合同，再交付只读业务接口、机构工作台、控制中心和跨门户交接。真实交易必须另行立项，不进入本路线。</p>
+              <p class="eyebrow">当前产品北极星</p>
+              <h2>在单节点运行基线上完成产品 MVP</h2>
+              <p class="section-intro">PR #1198 已交付一个 Supervisor + 一个节点的运行入口；当前只补齐对象追溯、稳定只读投影和双门户最小界面。多节点平台、分布式调度、真实交易和完整门户能力不进入当前 MVP。</p>
             </div>
+          </div>
+
+          <div class="summary-callout">
+            <strong>MVP 完成后的真实体验</strong>
+            研究员可以从一个策略版本和确定性回测结果追溯到运行实例；Supervisor 可以重复启停一个沙盒节点；交易员可以只读查看该实例的账户、仓位、订单、成交和风险；运维可以查看同一实例对应的节点健康、日志、指标和事件。
+          </div>
+
+          <div class="target-stack" aria-label="NTPRO MVP 北极星结构">
+            <div class="stack-layer">
+              <div class="stack-title">产品入口</div>
+              <div class="stack-items">
+                <div class="stack-item required"><strong>机构工作台</strong><span>策略与回测摘要、账户、仓位、订单、成交、风险，只读</span></div>
+                <div class="stack-item required"><strong>控制中心</strong><span>单节点注册、启动、停止、状态、健康、日志与指标</span></div>
+              </div>
+            </div>
+            <div class="stack-layer">
+              <div class="stack-title">共享状态合同</div>
+              <div class="stack-items">
+                <div class="stack-item required"><strong>稳定身份</strong><span>策略版本、回测、节点、策略实例、账户、Venue 与环境分别标识</span></div>
+                <div class="stack-item required"><strong>统一证据</strong><span>来源、时效、错误、降级和事件编号在两个门户保持一致</span></div>
+              </div>
+            </div>
+            <div class="stack-layer">
+              <div class="stack-title">运行闭环</div>
+              <div class="stack-items">
+                <div class="stack-item reuse"><strong>一个 Supervisor</strong><span>管理一个本地沙盒 <code>ntpro-node</code> 的完整生命周期</span></div>
+                <div class="stack-item reuse"><strong>一个节点</strong><span>承载一个策略实例，并绑定一个沙盒账户与 Venue</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="decision-grid">
+            <div class="decision"><h3>身份不能合并</h3><p><code>node_id</code>、<code>strategy_id</code> 和交易员工作空间分别建模；当前一对一只是 MVP 部署约束，不是领域等式。</p></div>
+            <div class="decision"><h3>状态不能混淆</h3><p>进程存活、节点健康、策略状态、交易准备度和回测结果分别呈现；HTTP 成功不代表系统健康。</p></div>
+            <div class="decision"><h3>能力不能越界</h3><p>MVP 保持沙盒和只读产品边界，不包含提交、撤单、改单、重试、自动恢复或真实交易。</p></div>
           </div>
 
           <div class="roadmap">
             <article class="phase">
-              <div class="phase-dot">基础</div>
-              <div class="phase-time">第 1-2 周</div>
+              <div class="phase-dot">M0</div>
+              <div class="phase-time">对象合同</div>
               <div class="phase-body">
-                <h3>产品权威与机构对象合同</h3>
-                <p>先明确哪些文档和运行事实具有当前权威，并固定跨门户对象标识。</p>
+                <h3>固定 MVP 身份与状态</h3>
+                <p>先让策略、回测、节点、运行实例和账户关系不可歧义。</p>
                 <ul>
-                  <li>定义机构、法律实体、交易台、账簿、组合和账户标识。</li>
-                  <li>定义策略、版本、数据绑定、回测、候选、部署和运行实例标识。</li>
-                  <li>固定两个门户的角色、一级导航、数据范围和明确非目标。</li>
-                  <li>分离研究状态、治理状态、交易准备度和技术健康。</li>
+                  <li>固定策略版本、回测、节点、策略实例、账户、Venue 和环境标识。</li>
+                  <li>分离研究状态、运行状态、技术健康和交易准备度。</li>
+                  <li>定义来源、时效、错误、缺失和降级语义。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件</strong>两个门户使用同一稳定标识和状态语义；历史发布证据、当前运行事实与目标产品设计不再混为一谈。</div>
+              <div class="exit-gate"><strong>退出条件</strong>一次回测可以追溯到策略版本；一个运行实例可以追溯到节点、账户和 Venue；任何状态都不使用模糊健康值。</div>
             </article>
 
             <article class="phase">
-              <div class="phase-dot">一期</div>
-              <div class="phase-time">第 3-5 周</div>
+              <div class="phase-dot">M1</div>
+              <div class="phase-time">运行基线 · 已交付</div>
               <div class="phase-body">
-                <h3>只读产品接口基础</h3>
-                <p>把现有后端投影变成可供浏览器长期消费的版本化合同。</p>
+                <h3>Supervisor + 单节点入口</h3>
+                <p>PR #1198 已交付 <code>nautilus mvp serve</code>，形成可重复启动和停止的本地沙盒运行基线。</p>
                 <ul>
-                  <li>建立机构上下文、身份范围、分页、时效、来源和错误信封。</li>
-                  <li>产品化账户、仓位、订单、成交、风险、策略和回测查询。</li>
-                  <li>复用 v0.28 治理接口与节点接口，不读取原始事件存储。</li>
-                  <li>生成客户端开发包并覆盖缺失、陈旧、降级和未授权状态。</li>
+                  <li>完成单节点注册、启动、Dashboard 接入、退出回收和状态查询。</li>
+                  <li>保留节点、策略和工作空间独立身份，暴露日志与指标入口。</li>
+                  <li>Unified Read Model 缺失时保持 fail-closed，不冒充完整产品状态。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件</strong>浏览器只消费版本化投影；每个响应包含机构范围、来源和时效；接口成功不被解释为运行健康。</div>
+              <div class="exit-gate"><strong>基线证据</strong>issue #1197、PR #1198 与 <code>docs/rust-cutover/evidence/MVP-001.md</code>；暂停/恢复、对象追溯和双门户投影仍未交付。</div>
             </article>
 
             <article class="phase">
-              <div class="phase-dot">二期</div>
-              <div class="phase-time">第 6-9 周</div>
+              <div class="phase-dot">M2</div>
+              <div class="phase-time">只读接口</div>
               <div class="phase-body">
-                <h3>只读机构工作台</h3>
-                <p>交付组合、交易、策略研发、模拟和业务风险的连续工作流。</p>
+                <h3>共享产品状态合同</h3>
+                <p>把已有运行产物变成两个最小界面共同消费的稳定投影。</p>
                 <ul>
-                  <li>完成业务总览、组合与交易、策略研发、模拟运行和风险报告。</li>
-                  <li>完成策略版本、数据绑定、回测、结果对比和发布申请。</li>
-                  <li>系统异常只展示业务影响、准备度和控制中心事件链接。</li>
-                  <li>不展示节点、凭证、部署、恢复或真实交易控件。</li>
+                  <li>版本化输出策略、账户、仓位、订单、成交、风险和节点状态。</li>
+                  <li>包含来源、时效、错误信封和节点到策略实例的关联。</li>
+                  <li>浏览器不读取原始事件存储，不直连交易所，不包含交易命令。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件</strong>组合、策略、回测和运行事实可追溯；角色数据范围生效；空、错误、陈旧和降级状态完整。</div>
+              <div class="exit-gate"><strong>退出条件</strong>两个门户只消费同一版本化事实；接口成功不会覆盖节点或业务健康状态。</div>
             </article>
 
             <article class="phase">
-              <div class="phase-dot">三期</div>
-              <div class="phase-time">第 10-12 周</div>
+              <div class="phase-dot">M3</div>
+              <div class="phase-time">最小界面</div>
               <div class="phase-body">
-                <h3>控制中心与跨门户交接</h3>
-                <p>交付独立治理、平台运行和统一事件交接。</p>
+                <h3>交易员视图 + 运维视图</h3>
+                <p>只实现支撑单节点 MVP 的必要页面，不扩张完整门户范围。</p>
                 <ul>
-                  <li>完成组织权限、模型审批、数据账户、部署、系统运行和审计。</li>
-                  <li>完成策略申请、审批、部署、退回、到期和撤销交接。</li>
-                  <li>完成技术事件、业务影响、负责人、处置和回执交接。</li>
-                  <li>任何操作必须经过服务端授权，不以隐藏菜单代替权限。</li>
+                  <li>机构工作台展示策略/回测摘要和运行中的只读业务状态。</li>
+                  <li>控制中心展示单节点生命周期、健康、日志、指标和事件。</li>
+                  <li>业务影响与技术根因通过同一运行实例和事件编号连接。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件</strong>两门户看到同一证据的角色投影；审批和运维不修改投资事实；所有操作都有回执与审计。</div>
+              <div class="exit-gate"><strong>退出条件</strong>交易员能回答“策略发生了什么”，运维能回答“节点为什么是这个状态”，且两者不混用导航与权限。</div>
             </article>
 
             <article class="phase">
-              <div class="phase-dot">四期</div>
-              <div class="phase-time">第 13-16 周</div>
+              <div class="phase-dot">M4</div>
+              <div class="phase-time">验收冻结</div>
               <div class="phase-body">
-                <h3>实时增量、模拟运行与产品收口</h3>
-                <p>在只读合同稳定后补齐实时性、模拟环境和产品级质量。</p>
+                <h3>可重复演示与审计</h3>
+                <p>用干净环境和故障场景证明这条闭环真正可交付。</p>
                 <ul>
-                  <li>增加行情、订单、成交、风险、状态和事件的增量通道。</li>
-                  <li>支持序号、断线续传、缺口检测、时效和显式降级。</li>
-                  <li>验证模拟部署、账户绑定、风控限额、故障和回滚。</li>
-                  <li>完成性能、可访问性、响应式、升级和发布验收。</li>
+                  <li>验证确定性回测、单节点运行、异常退出和恢复。</li>
+                  <li>验证空、错误、陈旧、降级、未授权和身份不匹配状态。</li>
+                  <li>完成浏览器、性能基线、发布说明和回滚说明。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件</strong>实时事件不静默丢失；模拟运行可复现；两个门户共享同一合同；真实交易继续保持未授权。</div>
+              <div class="exit-gate"><strong>退出条件</strong>完整 MVP 可以重复运行、演示和审计；真实交易保持关闭；后续能力重新独立立项。</div>
             </article>
           </div>
         </section>
@@ -1938,6 +2753,7 @@
           </div>
 
           <div class="verification"><strong>当前正式发布</strong><span>ntpro-rust-only-v0.33.0 · 非草稿 / 非预发布</span><span class="check-pass">已发布</span></div>
+          <div class="verification"><strong>MVP-001 运行基线</strong><span>PR #1198 已合并 · nautilus mvp serve · 单 Supervisor + 单节点沙盒入口</span><span class="check-pass">已交付基线</span></div>
           <div class="verification"><strong>TTR-001 只读路由</strong><span>PR #1148 已合并 · 六个 v0.28 治理接口真实挂载 · hosted checks 全通过</span><span class="check-pass">已合并</span></div>
           <div class="verification"><strong>TTR-002 存储边界</strong><span>PR #1152 已合并 · 原始 Event Store / redb / run 路径保持 404</span><span class="check-pass">已合并</span></div>
           <div class="verification"><strong>业务读模型基础</strong><span>账户、仓位、订单、成交和风险投影存在；稳定产品查询接口仍待建设</span><span class="check-partial">部分完成</span></div>
@@ -1968,6 +2784,7 @@
             <li>QSTR 独立 BacktestRun 资源参考：<code>../QSTR/runtime/backtest/manager.py</code></li>
             <li>QSTR Runtime Status 稳定合同参考：<code>../QSTR/runtime/status/contracts.py</code></li>
             <li><a href="https://nautilustrader.io/pro/">NautilusTrader Pro 产品定位与模块化交付参考</a></li>
+            <li><a href="https://www.figma.com/make/kGVm5A3lKCwieVfpyvUPh3/Generate-Page-from-Document?fullscreen=1&amp;t=kxolPCPENO4GuWdD-1&amp;code-node-id=0-9">Figma Make：左侧菜单、顶部任务区、底部活动区与右侧详情栏框架参考</a></li>
             <li><a href="https://www.blackrock.com/aladdin/institutions/industry-segments/asset-managers">贝莱德 Aladdin：统一数据连接投资、风险、运营与报告的机构平台参考</a></li>
             <li><a href="https://www.quantconnect.com/docs/v2/cloud-platform/research-pipeline">QuantConnect：研究、回测、模拟和实盘分阶段策略流程参考</a></li>
             <li><a href="https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm">美联储模型风险管理指引：独立验证、治理与风险分级参考</a></li>
@@ -1977,7 +2794,7 @@
             <li><a href="https://tauri.app/start/">Tauri 官方文档</a></li>
           </ul>
 
-          <p class="footer-note">信息架构版本：第四版 · 更新日期：2026-07-28 · 执行者：Codex · 产品架构基线：f3289e33ad91f49f7cd381eac878cc3b00b930ba</p>
+          <p class="footer-note">信息架构版本：第七版 · 更新日期：2026-08-02 · 执行者：Codex · 产品架构基线：91c74e6f133f</p>
         </section>
       </div>
     </main>
@@ -2012,6 +2829,101 @@
     window.addEventListener('resize', scheduleNavUpdate);
     window.addEventListener('hashchange', scheduleNavUpdate);
     window.addEventListener('load', scheduleNavUpdate);
+
+    const dockViews = {
+      trader: {
+        '持仓': {
+          head: ['持仓', '方向 / 数量', '开仓均价', '标记价格', '未实现盈亏', '关联策略'],
+          rows: [
+            ['BTCUSDT 永续', '多 · 0.32', '65,323.4', '66,842.1', '<strong>+486.24</strong>', 'BTC 动量 v12'],
+            ['XAUUSDT 永续', '多 · 3.00', '2,372.1', '2,388.4', '<strong>+48.90</strong>', '突破 4H'],
+          ],
+        },
+        '活动': {
+          head: ['活动', '对象', '类型', '状态', '业务影响', '更新时间'],
+          rows: [
+            ['ACT-204', 'BTC 动量 v12', '发布申请', '待提交', '不影响当前运行', '<strong>刚刚</strong>'],
+            ['ACT-199', '主策略账簿', '风险复核', '处理中', '新增订单受限', '<strong>3 分钟前</strong>'],
+          ],
+        },
+        '成交': {
+          head: ['时间', '品种', '方向', '数量', '价格', '关联策略'],
+          rows: [
+            ['20:48:22', 'BTCUSDT', '买入', '0.08', '66,812.4', '<strong>BTC 动量 v12</strong>'],
+            ['20:42:06', 'XAUUSDT', '买入', '1.00', '2,386.2', '<strong>突破 4H</strong>'],
+          ],
+        },
+        '日志': {
+          head: ['时间', '级别', '对象', '事件', '结果', '来源'],
+          rows: [
+            ['20:52:18', '信息', '主策略账簿', '快照更新', '已接受', '<strong>业务读模型</strong>'],
+            ['20:51:44', '关注', 'ETH 行情', '时效检查', '已降级', '<strong>行情状态流</strong>'],
+          ],
+        },
+      },
+      control: {
+        '告警': {
+          head: ['告警', '对象', '状态', '业务影响', '责任组', '更新时间'],
+          rows: [
+            ['INC-204', 'Binance 网关', '处理中', '2 个账簿受限', '平台运行组', '<strong>刚刚</strong>'],
+            ['DEP-1042', '策略部署', '已阻断', '未进入生产', '发布控制组', '<strong>2 分钟前</strong>'],
+          ],
+        },
+        '任务': {
+          head: ['任务', '类型', '对象', '状态', '负责人', '截止时间'],
+          rows: [
+            ['TASK-812', '事件处置', 'INC-204', '进行中', '平台运行组', '<strong>21:10</strong>'],
+            ['TASK-804', '独立复核', 'BTC 动量 v12', '待处理', '模型审批组', '<strong>明日</strong>'],
+          ],
+        },
+        '变更': {
+          head: ['变更', '范围', '版本', '状态', '审批', '更新时间'],
+          rows: [
+            ['CHG-441', 'Binance 网关', 'v33.4', '已回退', '已批准', '<strong>5 分钟前</strong>'],
+            ['CHG-438', '风险配置', 'risk-2026.07', '已生效', '双人复核', '<strong>1 小时前</strong>'],
+          ],
+        },
+        '日志': {
+          head: ['时间', '组件', '级别', '事件', '结果', '审计引用'],
+          rows: [
+            ['20:52:18', '控制接口', '信息', '状态读取', '成功', '<strong>AUD-8821</strong>'],
+            ['20:51:59', '部署守卫', '警告', '版本漂移', '已阻断', '<strong>AUD-8819</strong>'],
+          ],
+        },
+      },
+    };
+
+    document.querySelectorAll('.product-shell').forEach((shell) => {
+      const toggle = shell.querySelector('.product-drawer-toggle');
+      if (toggle) {
+        toggle.addEventListener('click', () => {
+          const isOpen = shell.classList.toggle('drawer-open');
+          toggle.setAttribute('aria-expanded', String(isOpen));
+          toggle.setAttribute('aria-label', isOpen ? '收起当前对象详情' : '展开当前对象详情');
+          toggle.setAttribute('title', isOpen ? '收起当前对象详情' : '展开当前对象详情');
+          toggle.textContent = isOpen ? '›' : '‹';
+        });
+      }
+
+      shell.querySelectorAll('.product-dock-tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+          shell.querySelectorAll('.product-dock-tab').forEach((item) => {
+            item.classList.toggle('active', item === tab);
+          });
+          const label = tab.dataset.dockLabel || tab.textContent.trim();
+          const view = dockViews[shell.dataset.portal]?.[label];
+          const table = shell.querySelector('.product-dock-table');
+          if (!view || !table) return;
+          table.querySelector('thead tr').innerHTML = view.head
+            .map((item, index) => `<th${index === 0 ? ' class="product-dock-label"' : ''}>${item}</th>`)
+            .join('');
+          table.querySelector('tbody').innerHTML = view.rows
+            .map((row) => `<tr>${row.map((item) => `<td>${item}</td>`).join('')}</tr>`)
+            .join('');
+        });
+      });
+    });
+
     scheduleNavUpdate();
   </script>
 </body>
