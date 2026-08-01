@@ -2,7 +2,7 @@
 
 Canonical repository path: `docs/product/roadmap.md`.
 
-Date: 2026-06-27
+Date: 2026-08-02
 Executor: Codex
 
 NTPRO is a Rust-only release workspace for the trading engine cutover from
@@ -16,6 +16,93 @@ The active governance contract is
 track passed `docs/rust-cutover/governance/v0_33_plus_intake_policy.md` before
 milestone creation and implementation. The registry's historical `v0.33.0+`
 family remains separately scoped only. Future tracks must repeat that intake.
+
+## 当前产品北极星：完成单节点 MVP
+
+PR #1198 已交付 `nautilus mvp serve` 单 Supervisor + 单节点运行入口；它完成
+运行基线，但尚未完成对象追溯、稳定只读产品投影和双门户界面。下一步不扩展到
+多节点平台、分布式编排或真实交易，只完成这条基线的产品闭环：
+
+```text
+策略版本 + 回测结果
+        |
+        v
+一个 Supervisor -> 一个 ntpro-node -> 一个策略实例
+                                      -> 一个沙盒账户 / Venue
+        |
+        +-> 控制中心：节点生命周期、健康、日志、指标和事件
+        +-> 机构工作台：账户、仓位、订单、成交、风险和策略状态只读视图
+```
+
+Supervisor 是运行控制层，节点是后端进程边界，策略实例是节点承载的业务运行单元，
+交易终端是读取业务投影的前端工作空间。`node_id`、`strategy_id` 和工作空间身份
+必须分别建模，不得写成同一个对象。
+
+### MVP 范围
+
+- 一份可追溯的策略定义与版本；
+- 一次可复现的确定性回测及结果摘要；
+- 一个 Supervisor 注册并管理一个 `ntpro-node`；
+- 一个节点运行一个策略实例，并绑定一个沙盒账户与 Venue；
+- 控制中心完成注册、启动、停止、状态、健康、日志和指标查看；
+- 机构工作台只读展示策略、账户、仓位、订单、成交和风险状态；
+- 两个门户通过同一版本化状态合同关联策略实例与节点，不复制交易状态机。
+
+### 明确非目标
+
+- 多 Supervisor、多节点生产编排和跨主机调度；
+- 多账户、多策略和多 Venue 的生产隔离；
+- 真实订单提交、撤单、改单、重试、自动恢复或自动补救；
+- 产品级实盘终端、桌面交付和外部多用户生产部署；
+- 将 HTTP 成功、节点进程存活或回测完成解释为交易健康、盈利或生产准入。
+
+## MVP 交付 Roadmap
+
+### M0：对象与状态合同
+
+- 固定 `strategy_id`、`strategy_version`、`backtest_run_id`、`node_id`、
+  `strategy_instance_id`、`account_id`、`venue_id` 和 `environment`。
+- 分离研究状态、运行状态、技术健康和交易准备度。
+- 定义两个门户共享的来源、时效、错误、缺失和降级语义。
+
+退出条件：同一策略实例可以从回测结果追溯到节点、账户和 Venue；任何状态都不会
+用 HTTP 200 或进程存活代替业务健康。
+
+### M1：Supervisor + 单节点运行基线（已交付）
+
+- #1198 已新增 `nautilus mvp serve`，复用注册表和节点进程路径完成注册、启动与停止。
+- Dashboard 启动失败、Ctrl-C 和正常退出时回收节点，并保留运行日志与指标入口。
+- 当前 Unified Read Model 产物缺失时保持 fail-closed；对象追溯和双门户投影归 M0/M2。
+
+基线证据：issue #1197、PR #1198 和 `docs/rust-cutover/evidence/MVP-001.md`。
+这不代表暂停/恢复、多节点编排、完整前端或真实交易已经交付。
+
+### M2：最小只读产品接口
+
+- 版本化输出策略、账户、仓位、订单、成交、风险和节点状态。
+- 提供快照、时效、来源、错误信封和节点到策略实例的关联。
+- 浏览器不读取原始事件存储，不直接连接交易所，不包含交易命令。
+
+退出条件：机构工作台和控制中心只消费稳定投影；相同事实按角色显示，但证据编号和
+状态语义一致。
+
+### M3：双角色最小界面
+
+- 机构工作台交付策略/回测摘要和运行中的账户、仓位、订单、成交、风险只读页面。
+- 控制中心交付单节点注册、生命周期、健康、日志、指标和事件页面。
+- 通过共享状态链接在业务影响与技术根因之间跳转，不混合两个门户的一级导航。
+
+退出条件：交易员能够回答“策略现在发生了什么”，运维能够回答“节点为什么是这个
+状态”，两者引用同一运行实例和事件证据。
+
+### M4：MVP 验收与冻结
+
+- 执行干净环境启动、确定性回测、单节点沙盒运行、故障注入和恢复验证。
+- 验证空、错误、陈旧、降级、未授权和身份不匹配状态。
+- 完成桌面与窄屏浏览器验证、性能基线、发布说明和回滚说明。
+
+退出条件：完整闭环可以重复演示和审计；所有真实交易能力继续关闭；MVP 冻结后再
+决定是否独立立项多节点、多账户或生产交易能力。
 
 ## Current Release Surface
 
